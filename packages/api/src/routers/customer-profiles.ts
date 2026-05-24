@@ -10,13 +10,14 @@ import { leadSources } from "@avantej-core/db/schema/tenant/lead-sources";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import {
 	getCustomerProfile,
-	requirePermission,
+
 	upsertCustomerProfile,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 
 export const customerProfilesRouter = {
 	get: protectedProcedure
@@ -164,12 +165,7 @@ export const customerProfilesRouter = {
 				});
 			}
 
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"customer_management",
-				"update",
-			);
+			await requirePermissionOrpc(context.tenantDb, context.member, "customer_management", "update");
 
 			// Verify targetUserId is a client member in this tenant
 			const target = await context.tenantDb.query.members.findFirst({

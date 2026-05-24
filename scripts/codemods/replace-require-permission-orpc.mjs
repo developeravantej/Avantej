@@ -8,31 +8,106 @@ import { join } from "node:path";
 
 const routersDir = join(process.cwd(), "packages/api/src/routers");
 
-const singleLinePattern =
-	/try\s*\{\s*await requirePermission\(\s*context\.tenantDb,\s*context\.member,\s*"([^"]+)",\s*"([^"]+)"\s*\);\s*\}\s*catch\s*\(\s*(?:error|e)\s*\)\s*\{\s*throw new ORPCError\("FORBIDDEN",\s*\{\s*message:\s*(?:error|e) instanceof Error\s*\?\s*(?:error|e)\.message\s*:\s*"[^"]*",?\s*\}\);\s*\}/gs;
+const FORBIDDEN_CATCH =
+	/\}\s*catch\s*\(\s*(?:error|e)?\s*\)\s*\{\s*throw new ORPCError\("FORBIDDEN",\s*\{\s*message:\s*(?:error|e) instanceof Error\s*\?\s*(?:error|e)\.message\s*:\s*"[^"]*",?\s*\}\);\s*\}/;
 
-const multilinePattern =
-	/try\s*\{\s*await requirePermission\(\s*context\.tenantDb,\s*context\.member,\s*"([^"]+)",\s*"([^"]+)",?\s*\);\s*\}\s*catch\s*\(\s*(?:error|e)?\s*\)\s*\{\s*throw new ORPCError\("FORBIDDEN",\s*\{\s*message:\s*(?:error|e) instanceof Error\s*\?\s*(?:error|e)\.message\s*:\s*"[^"]*",?\s*\}\);\s*\}/gs;
+function permissionTryCatch(tenantDb, member) {
+	return new RegExp(
+		`try\\s*\\{\\s*await requirePermission\\(\\s*${tenantDb},\\s*${member},\\s*"([^"]+)",\\s*"([^"]+)",?\\s*\\)\\s*;\\s*\\}${FORBIDDEN_CATCH.source}`,
+		"g",
+	);
+}
 
-const bareCatchPattern =
-	/try\s*\{\s*await requirePermission\(\s*context\.tenantDb,\s*context\.member,\s*"([^"]+)",\s*"([^"]+)",?\s*\);\s*\}\s*catch\s*\{\s*throw new ORPCError\("FORBIDDEN",\s*\{[^}]+\}\);\s*\}/gs;
-
-const nonNullContextPattern =
-	/try\s*\{\s*await requirePermission\(\s*context\.tenantDb!,\s*context\.member!,\s*"([^"]+)",\s*"([^"]+)"\s*\);\s*\}\s*catch\s*\(\s*(?:error|e)\s*\)\s*\{\s*throw new ORPCError\("FORBIDDEN",\s*\{\s*message:\s*(?:error|e) instanceof Error\s*\?\s*(?:error|e)\.message\s*:\s*"[^"]*",?\s*\}\);\s*\}/gs;
+const REPLACERS = [
+	{
+		pattern:
+			/try\s*\{\s*await requirePermission\(\s*([\w.!?]+),\s*([\w.!?]+)[\s\S]*?"([^"]+)",\s*"([^"]+)"[\s\S]*?\)\s*;\s*\}\s*catch\s*\(\s*(?:error|e)?\s*\)\s*\{\s*throw new ORPCError\("FORBIDDEN"[\s\S]*?\}\);\s*\}/g,
+		emit: (_tenantDb, _member, resource, action) => {
+			const tenantDb = _tenantDb.replace(/!$/, "");
+			const member = _member.replace(/!$/, "");
+			return `await requirePermissionOrpc(${tenantDb}, ${member}, "${resource}", "${action}");`;
+		},
+		arity: 4,
+	},
+	{
+		pattern: permissionTryCatch(String.raw`context\.tenantDb!`, String.raw`context\.member!`),
+		emit: (resource, action) =>
+			`await requirePermissionOrpc(context.tenantDb, context.member, "${resource}", "${action}");`,
+	},
+	{
+		pattern: permissionTryCatch(String.raw`context\.tenantDb`, String.raw`context\.member!`),
+		emit: (resource, action) =>
+			`await requirePermissionOrpc(context.tenantDb, context.member, "${resource}", "${action}");`,
+	},
+	{
+		pattern: permissionTryCatch(String.raw`context\.tenantDb!`, String.raw`context\.member`),
+		emit: (resource, action) =>
+			`await requirePermissionOrpc(context.tenantDb, context.member, "${resource}", "${action}");`,
+	},
+	{
+		pattern: permissionTryCatch(String.raw`tenantDb`, String.raw`member`),
+		emit: (resource, action) =>
+			`await requirePermissionOrpc(tenantDb, member, "${resource}", "${action}");`,
+	},
+	{
+		pattern:
+			/try\s*\{\s*await requirePermission\(\s*context\.tenantDb,\s*context\.member,\s*"([^"]+)",\s*"([^"]+)",?\s*\);\s*\}\s*catch\s*\{\s*throw new ORPCError\("FORBIDDEN",\s*\{[^}]+\}\);\s*\}/g,
+		emit: (resource, action) =>
+			`await requirePermissionOrpc(context.tenantDb, context.member, "${resource}", "${action}");`,
+	},
+];
 
 function applyReplacements(content) {
 	let replacements = 0;
-	const replace = (pattern) => {
-		content = content.replace(pattern, (_match, resource, action) => {
+	for (const { pattern, emit, arity = 2 } of REPLACERS) {
+		content = content.replace(pattern, (...args) => {
 			replacements++;
-			return `await requirePermissionOrpc(context.tenantDb, context.member, "${resource}", "${action}");`;
+			if (arity === 4) {
+				return emit(args[1], args[2], args[3], args[4]);
+			}
+			return emit(args[1], args[2]);
 		});
-	};
-	replace(singleLinePattern);
-	replace(multilinePattern);
-	replace(bareCatchPattern);
-	replace(nonNullContextPattern);
+	}
+
+	// Bare await requirePermission(...) without try/catch — single line only (never multiline / for-loops)
+	content = content.replace(
+		/await requirePermission\(\s*([\w.!?]+),\s*([\w.!?]+),\s*"([^"]+)",\s*"([^"]+)",?\s*\)\s*;/g,
+		(_match, _tenantDb, _member, resource, action) => {
+			replacements++;
+			const tenantDb = _tenantDb.replace(/!$/, "");
+			const member = _member.replace(/!$/, "");
+			return `await requirePermissionOrpc(${tenantDb}, ${member}, "${resource}", "${action}");`;
+		},
+	);
+
 	return { content, replacements };
+}
+
+function ensureGuardsImport(content) {
+	if (
+		!content.includes("requirePermissionOrpc") ||
+		content.includes('from "../guards"')
+	) {
+		return content;
+	}
+	if (content.match(/import \{[^}]*\} from "\.\.\/index";/)) {
+		return content.replace(
+			/(import \{[^}]+\} from "\.\.\/index";)/,
+			'$1\nimport { requirePermissionOrpc } from "../guards";',
+		);
+	}
+	return content.replace(
+		/(import \{ ORPCError \} from "@orpc\/server";)/,
+		'$1\nimport { requirePermissionOrpc } from "../guards";',
+	);
+}
+
+function dropUnusedRequirePermissionImport(content) {
+	if (content.includes("requirePermission(")) return content;
+	return content
+		.replace(/\s*requirePermission,\n?/g, "\n")
+		.replace(/,\s*requirePermission/g, "")
+		.replace(/requirePermission,\s*/g, "");
 }
 
 let totalFiles = 0;
@@ -49,35 +124,8 @@ for (const file of readdirSync(routersDir)) {
 	totalReplacements += result.replacements;
 
 	if (content !== before) {
-		if (!content.includes("requirePermissionOrpc")) {
-			// noop - always includes after replace
-		}
-		if (
-			content.includes("requirePermissionOrpc") &&
-			!content.includes('from "../guards"')
-		) {
-			content = content.replace(
-				/(import \{ protectedProcedure(?:, tenantProcedure)? \} from "\.\.\/index";)/,
-				'$1\nimport { requirePermissionOrpc } from "../guards";',
-			);
-			if (!content.includes('from "../guards"')) {
-				content = content.replace(
-					/(import \{ ORPCError \} from "@orpc\/server";)/,
-					'$1\nimport { requirePermissionOrpc } from "../guards";',
-				);
-			}
-		}
-
-		// Drop requirePermission from @avantej-core/services import when unused
-		if (
-			!content.includes("requirePermission(") &&
-			content.includes("requirePermission,")
-		) {
-			content = content.replace(/\s*requirePermission,\n?/g, "\n");
-			content = content.replace(/,\s*requirePermission/g, "");
-			content = content.replace(/requirePermission,\s*/g, "");
-		}
-
+		content = ensureGuardsImport(content);
+		content = dropUnusedRequirePermissionImport(content);
 		writeFileSync(path, content, "utf-8");
 		totalFiles++;
 		console.log(`updated ${file}`);

@@ -14,9 +14,9 @@
  */
 
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { requirePermission } from "@avantej-core/services";
 import { eq, and } from "drizzle-orm";
 import { serviceMembers } from "@avantej-core/db/schema/tenant/service-members";
 import { services } from "@avantej-core/db/schema/tenant/services";
@@ -160,69 +160,7 @@ export const serviceMembersRouter = {
 			let hasPermission = false;
 			for (const resource of ["user_management", "service_management"] as const) {
 				try {
-					await requirePermission(context.tenantDb, context.member, resource, "read");
-					hasPermission = true;
-					break;
-				} catch { /* try next */ }
-			}
-			if (!hasPermission) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Requires user_management or service_management read permission.",
-				});
-			}
-
-			const serviceRows = await context.tenantDb
-				.select({
-					serviceId: services.id,
-					serviceName: services.name,
-					categoryId: services.categoryId,
-					categoryName: serviceCategories.name,
-					categoryDefaultBuffer: serviceCategoryConfig.bufferTimeMinutes,
-				})
-				.from(serviceMembers)
-				.innerJoin(services, eq(serviceMembers.serviceId, services.id))
-				.leftJoin(serviceCategories, eq(services.categoryId, serviceCategories.id))
-				.leftJoin(serviceCategoryConfig, eq(services.categoryId, serviceCategoryConfig.categoryId))
-				.where(eq(serviceMembers.memberId, input.memberId));
-
-			const overrides = await context.tenantDb
-				.select()
-				.from(memberServiceBufferOverrides)
-				.where(eq(memberServiceBufferOverrides.memberId, input.memberId));
-
-			const overrideMap = new Map(overrides.map((o: any) => [o.serviceId, o.bufferTimeMinutes]));
-
-			return serviceRows.map((r: any) => ({
-				serviceId: r.serviceId,
-				serviceName: r.serviceName,
-				categoryId: r.categoryId ?? null,
-				categoryName: r.categoryName ?? null,
-				categoryDefaultBuffer: r.categoryDefaultBuffer ?? 0,
-				bufferTimeMinutes: overrideMap.get(r.serviceId) ?? null,
-			}));
-		}),
-
-	/**
-	 * Admin: assign a member to a service.
-	 * Requires user_management:update or service_management:update.
-	 */
-	assign: protectedProcedure
-		.input(
-			z.object({
-				organizationId: z.string().uuid(),
-				memberId: z.string().uuid(),
-				serviceId: z.string().uuid(),
-			})
-		)
-		.handler(async ({ input, context }) => {
-			if (!context.tenantDb || !context.member) {
-				throw new ORPCError("FORBIDDEN");
-			}
-
-			let hasPermission = false;
-			for (const resource of ["user_management", "service_management"] as const) {
-				try {
-					await requirePermission(context.tenantDb, context.member, resource, "update");
+					await requirePermissionOrpc(context.tenantDb, context.member, resource, "update");
 					hasPermission = true;
 					break;
 				} catch { /* try next */ }
@@ -265,61 +203,7 @@ export const serviceMembersRouter = {
 			let hasPermission = false;
 			for (const resource of ["user_management", "service_management"] as const) {
 				try {
-					await requirePermission(context.tenantDb, context.member, resource, "update");
-					hasPermission = true;
-					break;
-				} catch { /* try next */ }
-			}
-			if (!hasPermission) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Requires user_management or service_management update permission.",
-				});
-			}
-
-			await context.tenantDb.transaction(async (tx: any) => {
-				await tx
-					.delete(serviceMembers)
-					.where(
-						and(
-							eq(serviceMembers.memberId, input.memberId),
-							eq(serviceMembers.serviceId, input.serviceId)
-						)
-					);
-				await tx
-					.delete(memberServiceBufferOverrides)
-					.where(
-						and(
-							eq(memberServiceBufferOverrides.memberId, input.memberId),
-							eq(memberServiceBufferOverrides.serviceId, input.serviceId)
-						)
-					);
-			});
-
-			return { success: true };
-		}),
-
-	/**
-	 * Admin: set or clear a buffer override for a specific member's service.
-	 * Requires user_management:update or service_management:update.
-	 */
-	updateBuffer: protectedProcedure
-		.input(
-			z.object({
-				organizationId: z.string().uuid(),
-				memberId: z.string().uuid(),
-				serviceId: z.string().uuid(),
-				bufferTimeMinutes: z.number().int().min(0).max(480).nullable(),
-			})
-		)
-		.handler(async ({ input, context }) => {
-			if (!context.tenantDb || !context.member) {
-				throw new ORPCError("FORBIDDEN");
-			}
-
-			let hasPermission = false;
-			for (const resource of ["user_management", "service_management"] as const) {
-				try {
-					await requirePermission(context.tenantDb, context.member, resource, "update");
+					await requirePermissionOrpc(context.tenantDb, context.member, resource, "update");
 					hasPermission = true;
 					break;
 				} catch { /* try next */ }
@@ -400,7 +284,7 @@ export const serviceMembersRouter = {
 			let hasPermission = false;
 			for (const resource of ["user_management", "service_management", "appointment_management"] as const) {
 				try {
-					await requirePermission(context.tenantDb, context.member, resource, "read");
+					await requirePermissionOrpc(context.tenantDb, context.member, resource, "read");
 					hasPermission = true;
 					break;
 				} catch { /* try next */ }

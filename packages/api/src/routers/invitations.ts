@@ -22,7 +22,8 @@ import { ORPCError } from "@orpc/server";
 import { and, eq } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { z } from "zod";
-import { protectedProcedure, publicProcedure } from "../index";
+import { tenantProcedure, publicProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 
 export const invitationRouter = {
   /**
@@ -31,7 +32,7 @@ export const invitationRouter = {
    * Creates a new invitation in the tenant database and returns it.
    * The caller (server) should send the invitation email with the returned token and organizationId.
    */
-  create: protectedProcedure
+  create: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -41,28 +42,14 @@ export const invitationRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       // Check permission to invite members
       try {
-        const { requirePermission } = await import("@avantej-core/services");
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "user_management",
-          "create"
-        );
+
+        await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "create");
       } catch (error) {
         throw new ORPCError("FORBIDDEN", {
           message: error instanceof Error ? error.message : "Permission denied",
@@ -222,12 +209,7 @@ export const invitationRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       // Get invitation by token
       const invitation = await getInvitationByToken(
@@ -328,12 +310,7 @@ export const invitationRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       // Get control panel database from context
       const controlPanelDb = context.honoContext?.get("controlPanelDb") as
@@ -407,12 +384,7 @@ export const invitationRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       // Get invitation by token
       const invitation = await context.tenantDb.query.invitations.findFirst({
@@ -478,12 +450,7 @@ export const invitationRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       const invitation = await getInvitationByToken(
         input.token,
@@ -517,7 +484,7 @@ export const invitationRouter = {
    *
    * Lists invitations in the organization with optional filtering.
    */
-  list: protectedProcedure
+  list: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -528,28 +495,14 @@ export const invitationRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       // Check permission
       try {
-        const { requirePermission } = await import("@avantej-core/services");
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "user_management",
-          "read"
-        );
+
+        await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read");
       } catch (error) {
         throw new ORPCError("FORBIDDEN", {
           message: error instanceof Error ? error.message : "Permission denied",
@@ -583,7 +536,7 @@ export const invitationRouter = {
    *
    * Marks an invitation as declined/revoked.
    */
-  revoke: protectedProcedure
+  revoke: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -591,28 +544,14 @@ export const invitationRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       // Check permission
       try {
-        const { requirePermission } = await import("@avantej-core/services");
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "user_management",
-          "delete"
-        );
+
+        await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "delete");
       } catch (error) {
         throw new ORPCError("FORBIDDEN", {
           message: error instanceof Error ? error.message : "Permission denied",
@@ -639,7 +578,7 @@ export const invitationRouter = {
    *
    * Extends expiration date and returns invitation for resending email.
    */
-  resend: protectedProcedure
+  resend: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -647,28 +586,14 @@ export const invitationRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       // Check permission
       try {
-        const { requirePermission } = await import("@avantej-core/services");
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "user_management",
-          "create"
-        );
+
+        await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "create");
       } catch (error) {
         throw new ORPCError("FORBIDDEN", {
           message: error instanceof Error ? error.message : "Permission denied",

@@ -11,7 +11,7 @@
 
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import {
 	getTrainerWeeklyStats,
 	getTrainerWeeklySchedule,
@@ -25,7 +25,7 @@ export const trainersRouter = {
 	 *
 	 * Requires member_management:read AND (self OR member_management:approve).
 	 */
-	weeklyStats: protectedProcedure
+	weeklyStats: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -34,16 +34,8 @@ export const trainersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
+			
 
 			// RBAC: must have member_management:read
 			const canRead = await hasPermission(
@@ -86,7 +78,7 @@ export const trainersRouter = {
 	 *
 	 * Requires appointment_management:read.
 	 */
-	weeklySchedule: protectedProcedure
+	weeklySchedule: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -95,16 +87,8 @@ export const trainersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
+			
 
 			const canRead = await hasPermission(
 				context.tenantDb,
@@ -131,7 +115,7 @@ export const trainersRouter = {
 	 * Requires member_management:approve (admin-level, card-grid use).
 	 * Returns a plain object (record) keyed by userId — oRPC serialises Maps as objects.
 	 */
-	weeklyStatsBatch: protectedProcedure
+	weeklyStatsBatch: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -140,16 +124,8 @@ export const trainersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
+			
 
 			const canApprove = await hasPermission(
 				context.tenantDb,

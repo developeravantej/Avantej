@@ -4,13 +4,14 @@ import {
 	listCoachIntakeByBranch,
 	listCoachIntakeSlots,
 	listIntakeExceptions,
-	requirePermission,
+
 	unclaimIntakeSlot,
 	upsertCoachIntakeSlots,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 const dayOfWeekSchema = z.enum([
@@ -65,12 +66,7 @@ export const coachIntakeRouter = {
 
 			// Allow admin (appointment_management.update) OR self-update
 			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"appointment_management",
-					"update",
-				);
+				await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
 			} catch {
 				// Not an admin — only allow if caller is the trainer themselves
 				if (context.member.id !== input.trainerId) {
@@ -136,12 +132,7 @@ export const coachIntakeRouter = {
 
 			// Allow admin (appointment_management.update) OR self
 			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"appointment_management",
-					"update",
-				);
+				await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
 			} catch {
 				if (context.member.id !== input.trainerId) {
 					throw new ORPCError("FORBIDDEN", { message: "Permission denied" });

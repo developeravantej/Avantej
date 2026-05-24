@@ -16,6 +16,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import {
 	createBranchInvite,
 	listAllBranchInvites,
@@ -60,13 +61,8 @@ export const branchInvitesRouter = {
 
 			// Permission: hierarchy_management (existing resource for branch admin actions)
 			try {
-				const { requirePermission } = await import("@avantej-core/services");
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"hierarchy_management",
-					"create"
-				);
+
+				await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "create");
 			} catch {
 				throw new ORPCError("FORBIDDEN", {
 					message: "You do not have permission to create branch invites.",
@@ -109,8 +105,8 @@ export const branchInvitesRouter = {
 				throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization." });
 			}
 			try {
-				const { requirePermission } = await import("@avantej-core/services");
-				await requirePermission(context.tenantDb, context.member, "hierarchy_management", "read");
+
+				await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "read");
 			} catch {
 				throw new ORPCError("FORBIDDEN", { message: "You do not have permission to read branch invites." });
 			}
@@ -142,13 +138,8 @@ export const branchInvitesRouter = {
 
 			// Permission: hierarchy_management read
 			try {
-				const { requirePermission } = await import("@avantej-core/services");
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"hierarchy_management",
-					"read"
-				);
+
+				await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "read");
 			} catch {
 				throw new ORPCError("FORBIDDEN", {
 					message: "You do not have permission to view branch invites.",
@@ -197,13 +188,8 @@ export const branchInvitesRouter = {
 
 			// Permission: hierarchy_management delete
 			try {
-				const { requirePermission } = await import("@avantej-core/services");
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"hierarchy_management",
-					"delete"
-				);
+
+				await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "delete");
 			} catch {
 				throw new ORPCError("FORBIDDEN", {
 					message: "You do not have permission to revoke branch invites.",
@@ -256,13 +242,8 @@ export const branchInvitesRouter = {
 
 			// Permission: hierarchy_management create (creating a replacement)
 			try {
-				const { requirePermission } = await import("@avantej-core/services");
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"hierarchy_management",
-					"create"
-				);
+
+				await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "create");
 			} catch {
 				throw new ORPCError("FORBIDDEN", {
 					message: "You do not have permission to regenerate branch invites.",

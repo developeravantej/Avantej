@@ -1,4 +1,5 @@
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
 import { googleCalendarConnections } from "@avantej-core/db/schema/tenant/google-calendar-connections";
@@ -6,7 +7,7 @@ import { members } from "@avantej-core/db/schema/tenant/members";
 import { eq, and, count, max } from "drizzle-orm";
 import {
 	revokeGoogleToken,
-	requirePermission,
+
 	listGoogleCalendars,
 	checkSyncNowRateLimit,
 } from "@avantej-core/services";
@@ -100,7 +101,7 @@ export const googleCalendarRouter = {
 		.input(z.object({}))
 		.handler(async ({ context }) => {
 			assertTenantAndMember(context);
-			await requirePermission(context.tenantDb, context.member, "appointment_management", "read");
+			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read");
 
 			// 3 parallel aggregates
 			const [connectedCountRow, trainerCountRow, lastSyncRow] = await Promise.all([
@@ -152,7 +153,7 @@ export const googleCalendarRouter = {
 		)
 		.handler(async ({ context, input }) => {
 			assertTenantAndMember(context);
-			await requirePermission(context.tenantDb, context.member, "appointment_management", "update");
+			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
 
 			const connection = await context.tenantDb.query.googleCalendarConnections.findFirst({
 				where: eq(googleCalendarConnections.memberId, context.member.id),
@@ -186,7 +187,7 @@ export const googleCalendarRouter = {
 		.input(z.object({}))
 		.handler(async ({ context }) => {
 			assertTenantAndMember(context);
-			await requirePermission(context.tenantDb, context.member, "appointment_management", "update");
+			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
 
 			const allowed = checkSyncNowRateLimit(context.member.id);
 			if (!allowed) {
@@ -217,7 +218,7 @@ export const googleCalendarRouter = {
 		.input(z.object({}))
 		.handler(async ({ context }) => {
 			assertTenantAndMember(context);
-			await requirePermission(context.tenantDb, context.member, "appointment_management", "read");
+			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read");
 
 			const connection = await context.tenantDb.query.googleCalendarConnections.findFirst({
 				where: eq(googleCalendarConnections.memberId, context.member.id),

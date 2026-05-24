@@ -16,11 +16,11 @@
 
 import { test, expect } from "@playwright/test";
 import {
+  seedMinimalPosFixture,
   pickFirstActiveClient,
   pickFirstService,
   pickFirstInstallmentPlan,
   recordPosSale,
-  TEST_ORG_ID,
 } from "./helpers/seed-data";
 import { orpcCall } from "./helpers/orpc-client";
 
@@ -29,18 +29,13 @@ test(
   { tag: ["@p0"] },
   async ({ page }) => {
     // ── Precondition checks ──────────────────────────────────────────────────
+    await seedMinimalPosFixture(page);
     const client = await pickFirstActiveClient(page);
-    test.skip(!client, "No active client member — skip");
-
-    // Need a package-type service (expirable=true + expiryDays) — required by installment plan
     const service = await pickFirstService(page, { hasSessions: true, isPackage: true });
-    test.skip(!service, "No package-type service (expirable=true + expiryDays) in catalog — skip");
-
     const plan = await pickFirstInstallmentPlan(page);
-    test.skip(
-      !plan,
-      "No active installment plan with >= 2 installments configured — skip. Create one in Settings > Installment Plans.",
-    );
+    expect(client).not.toBeNull();
+    expect(service).not.toBeNull();
+    expect(plan).not.toBeNull();
 
     // Use client's hierarchyScopeId as branchId — always a valid scope for the client
     const branchId = client!.hierarchyScopeId!;

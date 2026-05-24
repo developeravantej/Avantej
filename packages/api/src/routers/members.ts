@@ -14,7 +14,7 @@ import { user } from "@avantej-core/db/schema/auth";
 import { desc, eq, and, inArray, asc, isNull, type SQL } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
@@ -43,7 +43,7 @@ export const memberRouter = {
    * RBAC: admins see all members; non-admins see only members within their hierarchy scope.
    * Requires user_management.read permission.
    */
-  list: protectedProcedure
+  list: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -62,18 +62,9 @@ export const memberRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       // Check permission
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read")
@@ -327,7 +318,7 @@ export const memberRouter = {
    * Creates a member record in both control panel and tenant databases.
    * Requires user_management.create permission.
    */
-  create: protectedProcedure
+  create: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -337,18 +328,9 @@ export const memberRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       // Check permission to create members
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "create")
@@ -484,7 +466,7 @@ export const memberRouter = {
    * Returns member details including accessible node IDs.
    * Requires user_management.read permission.
    */
-  getById: protectedProcedure
+  getById: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -492,18 +474,9 @@ export const memberRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       // Check permission
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read")
@@ -586,7 +559,7 @@ export const memberRouter = {
    * Updates a member's role in both control panel and tenant databases.
    * Requires user_management.update permission.
    */
-  updateRole: protectedProcedure
+  updateRole: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -599,18 +572,9 @@ export const memberRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       // Check permission
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
@@ -762,7 +726,7 @@ export const memberRouter = {
    * Suspends a member in both control panel and tenant databases.
    * Requires user_management.update permission.
    */
-  suspend: protectedProcedure
+  suspend: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -770,18 +734,9 @@ export const memberRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       // Check permission
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
@@ -880,7 +835,7 @@ export const memberRouter = {
    * Reactivates a suspended member in both control panel and tenant databases.
    * Requires user_management.update permission.
    */
-  reactivate: protectedProcedure
+  reactivate: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -888,18 +843,9 @@ export const memberRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       // Check permission
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
@@ -999,7 +945,7 @@ export const memberRouter = {
    * Validates that the last admin cannot be removed.
    * Requires user_management.delete permission.
    */
-  remove: protectedProcedure
+  remove: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1007,18 +953,9 @@ export const memberRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       // Check permission
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "delete")
@@ -1099,7 +1036,7 @@ export const memberRouter = {
    * this is a simpler tenant-only status change.
    * Requires user_management.update permission.
    */
-  deactivate: protectedProcedure
+  deactivate: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1107,18 +1044,9 @@ export const memberRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       // Check permission
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
@@ -1187,7 +1115,7 @@ export const memberRouter = {
    * Requires user_management.delete permission. Hierarchy access enforced
    * via `accessibleNodeIds`.
    */
-  softDelete: protectedProcedure
+  softDelete: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1195,17 +1123,8 @@ export const memberRouter = {
       })
     )
     .handler(async ({ context, input }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
+      
 
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "delete")
 
@@ -1256,7 +1175,7 @@ export const memberRouter = {
    *
    * Requires user_management.update permission.
    */
-  restore: protectedProcedure
+  restore: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1264,17 +1183,8 @@ export const memberRouter = {
       })
     )
     .handler(async ({ context, input }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
+      
 
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
 
@@ -1330,7 +1240,7 @@ export const memberRouter = {
    * locationIds, updating the link row.
    * Requires user_management.update permission.
    */
-  updateScope: protectedProcedure
+  updateScope: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1339,18 +1249,9 @@ export const memberRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       // Check permission
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
@@ -1480,7 +1381,7 @@ export const memberRouter = {
    * Always dispatches with operation=update; the dispatcher resolves the
    * member's current state in tenant + control-panel and reconciles.
    */
-  retryGhlSync: protectedProcedure
+  retryGhlSync: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1488,12 +1389,7 @@ export const memberRouter = {
       })
     )
     .handler(async ({ context, input }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       type DispatchStaffSyncFn = (args: {
         controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
@@ -1540,7 +1436,7 @@ export const memberRouter = {
    * Optionally scoped to a specific branchId.
    * Requires user_management.read permission.
    */
-  newToday: protectedProcedure
+  newToday: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1548,17 +1444,9 @@ export const memberRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read")
 

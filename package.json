@@ -54,7 +54,10 @@
     "format:check": "biome format .",
     "ci:verify-e2e-fixture": "node scripts/ci/verify-e2e-fixture.mjs",
     "codemod:require-permission-orpc": "node scripts/codemods/replace-require-permission-orpc.mjs",
-    "codemod:tenant-procedure": "node scripts/codemods/migrate-tenant-procedure.mjs"
+    "codemod:tenant-procedure": "node scripts/codemods/migrate-tenant-procedure.mjs",
+    "codemod:tenant-procedure:batch2": "node scripts/codemods/migrate-tenant-procedure.mjs --batch=2",
+    "codemod:tenant-procedure:batch3": "node scripts/codemods/migrate-tenant-procedure.mjs --batch=3",
+    "codemod:tenant-procedure:batch4": "node scripts/codemods/migrate-tenant-procedure.mjs --batch=4"
   },
   "dependencies": {
     "boneyard-js": "^1.8.1",

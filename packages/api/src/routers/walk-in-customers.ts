@@ -1,7 +1,9 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { requirePermission, convertWalkInPaymentToPackage } from "@avantej-core/services";
+import {
+ convertWalkInPaymentToPackage } from "@avantej-core/services";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 
 const deprecated = (message: string) =>
 	protectedProcedure
@@ -37,12 +39,7 @@ export const walkInCustomersRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"walk_in_customer_management",
-				"update",
-			);
+			await requirePermissionOrpc(context.tenantDb, context.member, "walk_in_customer_management", "update");
 			const result = await convertWalkInPaymentToPackage(context.tenantDb, {
 				walkInPaymentId: input.walkInPaymentId,
 				targetPackageInstanceId: input.targetPackageInstanceId,

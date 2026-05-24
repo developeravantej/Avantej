@@ -11,9 +11,8 @@ import { serviceCategoryConfig } from "@avantej-core/db/schema/tenant/service-ca
 import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
-import { requirePermission } from "@avantej-core/services";
 
 export const serviceCategoryConfigRouter = {
 	/**
@@ -21,7 +20,7 @@ export const serviceCategoryConfigRouter = {
 	 *
 	 * Creates or updates based on category_id uniqueness.
 	 */
-	upsert: protectedProcedure
+	upsert: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -36,31 +35,17 @@ export const serviceCategoryConfigRouter = {
 				enableCancellationWindow: z.boolean().optional(),
 				cancellationCutoffHours: z.number().int().min(0).nullable().optional(),
 				bufferTimeMinutes: z.number().int().min(0).max(480).optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			// Check for service_management create or update permission
 			let hasPermission = false;
 			for (const action of ["create", "update"] as const) {
 				try {
-					await requirePermission(
+					await requirePermissionOrpc(
 						context.tenantDb,
 						context.member,
 						"service_management",
-						action
+						action,
 					);
 					hasPermission = true;
 					break;
@@ -70,7 +55,8 @@ export const serviceCategoryConfigRouter = {
 			}
 			if (!hasPermission) {
 				throw new ORPCError("FORBIDDEN", {
-					message: "Permission denied: requires service_management create or update",
+					message:
+						"Permission denied: requires service_management create or update",
 				});
 			}
 
@@ -112,28 +98,20 @@ export const serviceCategoryConfigRouter = {
 	 * Get config for a specific category.
 	 * Returns the config row or null if not yet configured.
 	 */
-	getByCategoryId: protectedProcedure
+	getByCategoryId: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				categoryId: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"service_management",
+				"read",
+			);
 
 			const row = await context.tenantDb.query.serviceCategoryConfig.findFirst({
 				where: eq(serviceCategoryConfig.categoryId, input.categoryId),

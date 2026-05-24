@@ -12,7 +12,7 @@ import {
   createAppointment,
   updateAppointment,
   getDescendantNodeIds,
-  requirePermission,
+
   syncAppointmentToGoogleCalendar,
   getAppointmentStatusHistory,
   listAppointmentsWithRecurrence,
@@ -20,7 +20,7 @@ import {
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import { eq, inArray, or, and, gte, ne } from "drizzle-orm";
 import { parseCursor, encodeCursor } from "../lib/cursor";
@@ -53,7 +53,7 @@ export const appointmentsRouter = {
   /**
    * List appointments (staff view): by branch, date range, optional status.
    */
-  list: protectedProcedure
+  list: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -72,18 +72,9 @@ export const appointmentsRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read")
 
@@ -217,7 +208,7 @@ export const appointmentsRouter = {
   /**
    * List appointments for the current user (client view). Uses session user id.
    */
-  listForUser: protectedProcedure
+  listForUser: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -229,12 +220,7 @@ export const appointmentsRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       const userId = context.session?.user?.id;
       if (!userId) {
@@ -255,7 +241,7 @@ export const appointmentsRouter = {
       return items;
     }),
 
-  getById: protectedProcedure
+  getById: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -263,12 +249,7 @@ export const appointmentsRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       const appointment = await getAppointmentById(context.tenantDb, input.id);
       if (!appointment) {
@@ -286,18 +267,7 @@ export const appointmentsRouter = {
       }
 
       if (isStaff) {
-        try {
-          await requirePermission(
-            context.tenantDb,
-            context.member!,
-            "appointment_management",
-            "read"
-          );
-        } catch (error) {
-          throw new ORPCError("FORBIDDEN", {
-            message: error instanceof Error ? error.message : "Permission denied",
-          });
-        }
+        await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read");
         const accessibleNodeIds =
           context.accessibleNodeIds ??
           (context.member
@@ -319,7 +289,7 @@ export const appointmentsRouter = {
       });
     }),
 
-  create: protectedProcedure
+  create: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -359,18 +329,9 @@ export const appointmentsRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       // Clients can self-book without staff permission, but only:
       //  - for themselves (input.userId === their session user id)
@@ -472,7 +433,7 @@ export const appointmentsRouter = {
    * Copies all fields from the parent and applies any provided updates.
    * The unique constraint (recurringParentId, startTime) prevents race conditions.
    */
-  materializeOccurrence: protectedProcedure
+  materializeOccurrence: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -564,7 +525,7 @@ export const appointmentsRouter = {
    * Split a recurring series at a given date.
    * Occurrences from `fromDate` onward are moved to a new series with optional updates.
    */
-  splitSeries: protectedProcedure
+  splitSeries: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -717,7 +678,7 @@ export const appointmentsRouter = {
   /**
    * Cancel all appointments in a recurring series (parent + all materialized children).
    */
-  cancelSeries: protectedProcedure
+  cancelSeries: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -765,7 +726,7 @@ export const appointmentsRouter = {
    * Cancel all occurrences of a recurring series from a given date onward.
    * Truncates the old series and cancels materialized children on/after fromDate.
    */
-  cancelFuture: protectedProcedure
+  cancelFuture: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -819,7 +780,7 @@ export const appointmentsRouter = {
       return { success: true };
     }),
 
-  update: protectedProcedure
+  update: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -845,12 +806,7 @@ export const appointmentsRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       const existing = await getAppointmentById(context.tenantDb, input.id);
       if (!existing) {
@@ -864,18 +820,7 @@ export const appointmentsRouter = {
       const isStaff = context.member;
 
       if (isStaff) {
-        try {
-          await requirePermission(
-            context.tenantDb,
-            context.member!,
-            "appointment_management",
-            "update"
-          );
-        } catch (error) {
-          throw new ORPCError("FORBIDDEN", {
-            message: error instanceof Error ? error.message : "Permission denied",
-          });
-        }
+        await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
         const accessibleNodeIds =
           context.accessibleNodeIds ??
           (context.member
@@ -959,7 +904,7 @@ export const appointmentsRouter = {
       }
     }),
 
-  statusHistory: protectedProcedure
+  statusHistory: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -969,17 +914,9 @@ export const appointmentsRouter = {
       }),
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read");
 

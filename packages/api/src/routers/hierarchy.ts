@@ -8,7 +8,7 @@ import {
   moveHierarchyNode,
   getDescendantNodeIds,
   listNodesWithStats,
-  requirePermission,
+
   validateHierarchyRules,
   validateParentAccess,
   getMembersByHierarchyScope,
@@ -23,7 +23,8 @@ import { organizationBranches } from "@avantej-core/db/schema/control-panel/orga
 import { eq, inArray } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
@@ -35,7 +36,7 @@ export const hierarchyRouter = {
   /**
    * Create a hierarchy node (country, state, or branch)
    */
-  createNode: protectedProcedure
+  createNode: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -46,18 +47,9 @@ export const hierarchyRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       const {
         tenantDb,
@@ -71,18 +63,7 @@ export const hierarchyRouter = {
           : []);
 
       // Check permission
-      try {
-        await requirePermission(
-          tenantDb,
-          member,
-          "hierarchy_management",
-          "create"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(tenantDb, member, "hierarchy_management", "create");
 
       // Validate parent access if parentId provided
       if (input.parentId) {
@@ -238,7 +219,7 @@ export const hierarchyRouter = {
   /**
    * List hierarchy nodes
    */
-  listNodes: protectedProcedure
+  listNodes: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -329,7 +310,7 @@ export const hierarchyRouter = {
   /**
    * Update a hierarchy node
    */
-  updateNode: protectedProcedure
+  updateNode: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -340,18 +321,9 @@ export const hierarchyRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       const {
         tenantDb,
@@ -372,18 +344,7 @@ export const hierarchyRouter = {
       }
 
       // Check permission
-      try {
-        await requirePermission(
-          tenantDb,
-          member,
-          "hierarchy_management",
-          "update"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(tenantDb, member, "hierarchy_management", "update");
 
       // Build update params
       const updateParams: UpdateHierarchyNodeParams = {};
@@ -542,7 +503,7 @@ export const hierarchyRouter = {
   /**
    * Get a single hierarchy node by ID
    */
-  getNode: protectedProcedure
+  getNode: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -550,18 +511,9 @@ export const hierarchyRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       const {
         tenantDb,
@@ -619,7 +571,7 @@ export const hierarchyRouter = {
   /**
    * Get all descendant nodes of a given node
    */
-  getDescendants: protectedProcedure
+  getDescendants: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -627,18 +579,9 @@ export const hierarchyRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       const {
         tenantDb,
@@ -725,7 +668,7 @@ export const hierarchyRouter = {
       };
     }),
 
-  deleteNode: protectedProcedure
+  deleteNode: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -744,18 +687,9 @@ export const hierarchyRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       const {
         tenantDb,
@@ -776,18 +710,7 @@ export const hierarchyRouter = {
       }
 
       // Check permission
-      try {
-        await requirePermission(
-          tenantDb,
-          member,
-          "hierarchy_management",
-          "delete"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(tenantDb, member, "hierarchy_management", "delete");
 
       // Prepare delete options (defaults to true for both)
       const deleteOptions: DeleteHierarchyNodeOptions = {
@@ -955,7 +878,7 @@ export const hierarchyRouter = {
   /**
    * Move a hierarchy node to a new parent
    */
-  moveNode: protectedProcedure
+  moveNode: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -964,18 +887,9 @@ export const hierarchyRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       const {
         tenantDb,
@@ -1002,18 +916,7 @@ export const hierarchyRouter = {
       }
 
       // Check permission
-      try {
-        await requirePermission(
-          tenantDb,
-          member,
-          "hierarchy_management",
-          "update"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(tenantDb, member, "hierarchy_management", "update");
 
       // Check if node being moved exists and is not deleted
       const nodeToMove = await tenantDb.query.hierarchyNodes.findFirst({
@@ -1182,7 +1085,7 @@ export const hierarchyRouter = {
   /**
    * List members assigned to a hierarchy node
    */
-  listMembers: protectedProcedure
+  listMembers: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1190,18 +1093,9 @@ export const hierarchyRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       const { tenantDb, member, accessibleNodeIds: contextAccessibleNodeIds } = context;
       const accessibleNodeIds =
@@ -1218,18 +1112,7 @@ export const hierarchyRouter = {
       }
 
       // Check permission
-      try {
-        await requirePermission(
-          tenantDb,
-          member,
-          "user_management",
-          "read"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(tenantDb, member, "user_management", "read");
 
       try {
         const memberList = await getMembersByHierarchyScope(
@@ -1248,7 +1131,7 @@ export const hierarchyRouter = {
   /**
    * Reassign a member to a new hierarchy scope
    */
-  reassignMember: protectedProcedure
+  reassignMember: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1257,18 +1140,9 @@ export const hierarchyRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       const { tenantDb, member, accessibleNodeIds: contextAccessibleNodeIds } = context;
       const accessibleNodeIds =
@@ -1278,18 +1152,7 @@ export const hierarchyRouter = {
           : []);
 
       // Check permission
-      try {
-        await requirePermission(
-          tenantDb,
-          member,
-          "user_management",
-          "update"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(tenantDb, member, "user_management", "update");
 
       // Check if user can access the target hierarchy node
       if (!accessibleNodeIds.includes(input.newHierarchyScopeId) && member.role !== "admin") {
@@ -1337,7 +1200,7 @@ export const hierarchyRouter = {
   /**
    * Bulk reassign members to a new hierarchy scope
    */
-  bulkReassignMembers: protectedProcedure
+  bulkReassignMembers: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1346,18 +1209,9 @@ export const hierarchyRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       const { tenantDb, member, accessibleNodeIds: contextAccessibleNodeIds } = context;
       const accessibleNodeIds =
@@ -1367,18 +1221,7 @@ export const hierarchyRouter = {
           : []);
 
       // Check permission
-      try {
-        await requirePermission(
-          tenantDb,
-          member,
-          "user_management",
-          "update"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(tenantDb, member, "user_management", "update");
 
       // Check if user can access the target hierarchy node
       if (!accessibleNodeIds.includes(input.newHierarchyScopeId) && member.role !== "admin") {
@@ -1406,7 +1249,7 @@ export const hierarchyRouter = {
    * List all members in the organization with user details
    * Returns members with their names and emails from the control panel database
    */
-  listAllMembers: protectedProcedure
+  listAllMembers: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1414,34 +1257,14 @@ export const hierarchyRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       const { tenantDb, member } = context;
 
       // Check permission
-      try {
-        await requirePermission(
-          tenantDb,
-          member,
-          "user_management",
-          "read"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(tenantDb, member, "user_management", "read");
 
       // Get control panel database from Hono context
       const controlPanelDb = context.honoContext?.get(
@@ -1479,35 +1302,21 @@ export const hierarchyRouter = {
    * RBAC: requires hierarchy_management:read. Admin sees all nodes; staff sees
    * only their accessibleNodeIds.
    */
-  listNodesWithStats: protectedProcedure
+  listNodesWithStats: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: `Tenant database not available for organization ${input.organizationId}.`,
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       const { tenantDb, member } = context;
 
       // Check permission
-      try {
-        await requirePermission(tenantDb, member, "hierarchy_management", "read");
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
+      await requirePermissionOrpc(tenantDb, member, "hierarchy_management", "read");
 
       const isAdmin = member.role === "admin";
       const accessibleNodeIds = context.accessibleNodeIds ?? [];

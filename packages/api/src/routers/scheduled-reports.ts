@@ -6,7 +6,7 @@ import {
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 
 const windowKeySchema = z.enum(["7D", "30D", "90D", "YTD"]);
@@ -29,18 +29,14 @@ const recipientsSchema = z
 	);
 
 export const scheduledReportsRouter = {
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
+			
 			return listScheduledReports(context.tenantDb);
 		}),
 
-	create: protectedProcedure
+	create: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -68,7 +64,7 @@ export const scheduledReportsRouter = {
 			});
 		}),
 
-	delete: protectedProcedure
+	delete: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -86,7 +82,7 @@ export const scheduledReportsRouter = {
 			return { success: true };
 		}),
 
-	toggle: protectedProcedure
+	toggle: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),

@@ -371,14 +371,14 @@ const liabilitySummaryProcedure = protectedProcedure
 		// OR permission check: commission_management:read OR commission_payout:read
 		let hasPermission = false;
 		try {
-			await requirePermission(context.tenantDb, context.member, "commission_management", "read");
+			await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
 			hasPermission = true;
 		} catch {
 			// Try the alternative permission
 		}
 		if (!hasPermission) {
 			try {
-				await requirePermission(context.tenantDb, context.member, "commission_payout", "read");
+				await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "read");
 				hasPermission = true;
 			} catch {
 				// Both failed

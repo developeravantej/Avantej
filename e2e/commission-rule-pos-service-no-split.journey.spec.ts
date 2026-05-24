@@ -14,11 +14,11 @@
 
 import { test, expect } from "@playwright/test";
 import {
+  seedMinimalPosFixture,
   pickFirstActiveClient,
   pickFirstService,
   pickFirstBranchId,
   recordPosSale,
-  TEST_ORG_ID,
 } from "./helpers/seed-data";
 import { orpcCall } from "./helpers/orpc-client";
 
@@ -27,11 +27,11 @@ test(
   { tag: ["@p0"] },
   async ({ page }) => {
     // ── Precondition checks ──────────────────────────────────────────────────
+    await seedMinimalPosFixture(page);
     const client = await pickFirstActiveClient(page);
-    test.skip(!client, "No active client member — skip");
-
     const service = await pickFirstService(page);
-    test.skip(!service, "No active service in catalog — skip");
+    expect(client).not.toBeNull();
+    expect(service).not.toBeNull();
 
     // Use client's hierarchyScopeId as branchId (fallback to pickFirstBranchId)
     const branchId = client!.hierarchyScopeId ?? await pickFirstBranchId(page);

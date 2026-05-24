@@ -8,7 +8,6 @@
  * accessibleNodeIds (defense-in-depth beyond the permission check).
  */
 
-import { requirePermission } from "@avantej-core/services";
 import {
 	deleteCheckIn,
 	listCheckIns,
@@ -21,6 +20,7 @@ import { ORPCError } from "@orpc/server";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 export const checkInsRouter = {
@@ -67,12 +67,7 @@ export const checkInsRouter = {
 				});
 			}
 
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"attendance_management",
-				"create",
-			);
+			await requirePermissionOrpc(context.tenantDb, context.member, "attendance_management", "create");
 
 			const accessibleNodeIds = context.accessibleNodeIds ?? [];
 			if (!accessibleNodeIds.includes(input.branchId)) {
@@ -138,12 +133,7 @@ export const checkInsRouter = {
 				});
 			}
 
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"attendance_management",
-				"read",
-			);
+			await requirePermissionOrpc(context.tenantDb, context.member, "attendance_management", "read");
 
 			const accessibleNodeIds = context.accessibleNodeIds ?? [];
 			if (!accessibleNodeIds.includes(input.branchId)) {
@@ -198,12 +188,7 @@ export const checkInsRouter = {
 				});
 			}
 
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"attendance_management",
-				"read",
-			);
+			await requirePermissionOrpc(context.tenantDb, context.member, "attendance_management", "read");
 
 			const accessibleNodeIds = context.accessibleNodeIds ?? [];
 			const controlPanelDb = getControlPanelDb(context);
@@ -242,12 +227,7 @@ export const checkInsRouter = {
 			if (!context.member) {
 				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
 			}
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"attendance_management",
-				"create",
-			);
+			await requirePermissionOrpc(context.tenantDb, context.member, "attendance_management", "create");
 			const accessibleNodeIds = context.accessibleNodeIds ?? [];
 			if (!accessibleNodeIds.includes(input.branchId)) {
 				throw new ORPCError("FORBIDDEN", {
@@ -285,12 +265,7 @@ export const checkInsRouter = {
 			if (!context.member) {
 				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
 			}
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"attendance_management",
-				"read",
-			);
+			await requirePermissionOrpc(context.tenantDb, context.member, "attendance_management", "read");
 
 			const rows = await context.tenantDb
 				.select({
@@ -338,12 +313,7 @@ export const checkInsRouter = {
 				});
 			}
 
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"attendance_management",
-				"delete",
-			);
+			await requirePermissionOrpc(context.tenantDb, context.member, "attendance_management", "delete");
 
 			try {
 				await deleteCheckIn(context.tenantDb, input.id, {

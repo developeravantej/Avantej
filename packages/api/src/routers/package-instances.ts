@@ -10,7 +10,7 @@ import {
   getPackageInstanceById,
   createPackageInstance,
   createInstallmentSchedule,
-  requirePermission,
+
   getPackageInstanceStatusHistory,
   cancelPackageInstance,
   freezePackageInstance,
@@ -38,7 +38,7 @@ import { desc, and, eq, inArray } from "drizzle-orm";
 import { parseCursor, encodeCursor } from "../lib/cursor";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
@@ -68,7 +68,7 @@ export const packageInstancesRouter = {
   /**
    * List package instances for the current user (client view). Uses session user id as client_id.
    */
-  listForClient: protectedProcedure
+  listForClient: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -78,12 +78,7 @@ export const packageInstancesRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       const clientId = context.session?.user?.id;
       if (!clientId) {
@@ -105,19 +100,14 @@ export const packageInstancesRouter = {
   /**
    * Get active package instance for client (e.g. dashboard fitness plan). Uses session user id.
    */
-  getActiveForClient: protectedProcedure
+  getActiveForClient: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
       })
     )
     .handler(async ({ context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       const clientId = context.session?.user?.id;
       if (!clientId) {
@@ -135,7 +125,7 @@ export const packageInstancesRouter = {
       return items[0] ?? null;
     }),
 
-  getById: protectedProcedure
+  getById: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -143,12 +133,7 @@ export const packageInstancesRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       const instance = await getPackageInstanceById(context.tenantDb, input.id);
       if (!instance) {
@@ -168,18 +153,7 @@ export const packageInstancesRouter = {
       }
 
       if (isStaff && !isClient) {
-        try {
-          await requirePermission(
-            context.tenantDb,
-            context.member!,
-            "service_management",
-            "read"
-          );
-        } catch (error) {
-          throw new ORPCError("FORBIDDEN", {
-            message: error instanceof Error ? error.message : "Permission denied",
-          });
-        }
+        await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read");
       }
 
       // Enrich with assigned trainer name when present
@@ -228,7 +202,7 @@ export const packageInstancesRouter = {
       return { ...instance, assignedTrainerName, preferredTrainerName };
     }),
 
-  create: protectedProcedure
+  create: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -257,18 +231,9 @@ export const packageInstancesRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "create")
 
@@ -405,7 +370,7 @@ export const packageInstancesRouter = {
    * Requires: service_management:read permission.
    * RBAC: results scoped to caller's accessibleNodeIds via members.hierarchyScopeId.
    */
-  listMemberships: protectedProcedure
+  listMemberships: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -419,24 +384,11 @@ export const packageInstancesRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("UNAUTHORIZED", {
-          message: "Member context required",
-        });
-      }
+      
 
-      await requirePermission(
-        context.tenantDb,
-        context.member,
-        "service_management",
-        "read",
-      );
+      await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read");
 
       // Pre-check: if caller supplied a branchId, it must be within their accessible scope
       if (
@@ -465,7 +417,7 @@ export const packageInstancesRouter = {
    * Used by dashboard widgets to surface members whose packages are about to expire.
    * Requires: reports:read permission.
    */
-  listExpiring: protectedProcedure
+  listExpiring: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -473,15 +425,9 @@ export const packageInstancesRouter = {
       }),
     )
     .handler(async ({ context, input }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Tenant database not available",
-        });
-      }
-      if (!context.member) {
-        throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
-      }
-      await requirePermission(context.tenantDb, context.member, "reports", "read");
+      
+      
+      await requirePermissionOrpc(context.tenantDb, context.member, "reports", "read");
 
       const controlPanelDb = getControlPanelDb(context);
       return listExpiringMemberships(context.tenantDb, controlPanelDb, {
@@ -494,7 +440,7 @@ export const packageInstancesRouter = {
    * List all package instances for an organization (admin view).
    * Supports optional filters by clientId, status, and source.
    */
-  listAll: protectedProcedure
+  listAll: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -505,17 +451,9 @@ export const packageInstancesRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
 
@@ -559,7 +497,7 @@ export const packageInstancesRouter = {
    * - Trainer: may self-assign only (trainerMemberId === own member.id).
    * - Other roles: forbidden.
    */
-  assignTrainer: protectedProcedure
+  assignTrainer: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -568,17 +506,8 @@ export const packageInstancesRouter = {
       }),
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
+      
 
       const callerRole = context.member.role;
       const callerUserId = context.session?.user?.id;
@@ -759,7 +688,7 @@ export const packageInstancesRouter = {
    * cancellationReason, cancelledBy and notifies the customer.
    * Refund handling is out of scope for v1.
    */
-  reject: protectedProcedure
+  reject: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -768,17 +697,8 @@ export const packageInstancesRouter = {
       }),
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
+      
       if (context.member.role !== "admin") {
         throw new ORPCError("FORBIDDEN", {
           message: "Only admins can reject packages",
@@ -886,7 +806,7 @@ export const packageInstancesRouter = {
    *   (when service has a branch)
    * - Caller's accessibleNodeIds must include the service branch (admins)
    */
-  bulkApprove: protectedProcedure
+  bulkApprove: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -895,17 +815,8 @@ export const packageInstancesRouter = {
       }),
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
+      
       const callerRole = context.member.role;
       const callerUserId = context.session?.user?.id;
       if (!callerUserId) {
@@ -1046,7 +957,7 @@ export const packageInstancesRouter = {
    * Bulk reject multiple pending packages — admin only.
    * Same per-row validation as `reject`. Per-row failures don't abort the batch.
    */
-  bulkReject: protectedProcedure
+  bulkReject: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1055,17 +966,8 @@ export const packageInstancesRouter = {
       }),
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
+      
       if (context.member.role !== "admin") {
         throw new ORPCError("FORBIDDEN", {
           message: "Only admins can reject packages",
@@ -1167,7 +1069,7 @@ export const packageInstancesRouter = {
    * - Trainer: by default sees pending packages in their own branch.
    * - scope: "assignable_to_me" filters to caller's branch (default for trainers).
    */
-  listPending: protectedProcedure
+  listPending: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1177,17 +1079,8 @@ export const packageInstancesRouter = {
       }),
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
+      
       const callerRole = context.member.role;
       if (callerRole !== "admin" && callerRole !== "trainer") {
         throw new ORPCError("FORBIDDEN", {
@@ -1350,7 +1243,7 @@ export const packageInstancesRouter = {
    * Index: package_instances_assigned_trainer_status_idx (assigned_trainer_id, status)
    * — added in migration 0051_sales_pipeline_fixes.
    */
-  listAssignedToMe: protectedProcedure
+  listAssignedToMe: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1360,17 +1253,8 @@ export const packageInstancesRouter = {
       }),
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
+      
 
       const limit = input.limit;
 
@@ -1408,7 +1292,7 @@ export const packageInstancesRouter = {
    * Idempotency: already-cancelled → CONFLICT (not silent).
    * Branch-scope: caller's accessibleNodeIds must include the instance's service branch.
    */
-  cancel: protectedProcedure
+  cancel: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1417,16 +1301,10 @@ export const packageInstancesRouter = {
       }),
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Tenant database not available. Ensure organization context is set.",
-        });
-      }
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
-      }
+      
+      
 
-      await requirePermission(context.tenantDb, context.member, "package_management", "update");
+      await requirePermissionOrpc(context.tenantDb, context.member, "package_management", "update");
 
       // Load instance to resolve branch for scope check
       const instance = await context.tenantDb.query.packageInstances.findFirst({
@@ -1476,7 +1354,7 @@ export const packageInstancesRouter = {
    * `until` is optional — null means indefinitely frozen.
    * Only `active` packages may be frozen.
    */
-  freeze: protectedProcedure
+  freeze: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1486,16 +1364,10 @@ export const packageInstancesRouter = {
       }),
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Tenant database not available. Ensure organization context is set.",
-        });
-      }
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
-      }
+      
+      
 
-      await requirePermission(context.tenantDb, context.member, "package_management", "update");
+      await requirePermissionOrpc(context.tenantDb, context.member, "package_management", "update");
 
       const instance = await context.tenantDb.query.packageInstances.findFirst({
         where: eq(packageInstances.id, input.id),
@@ -1542,7 +1414,7 @@ export const packageInstancesRouter = {
   /**
    * Unfreeze a frozen package instance, returning it to `active` (admin only).
    */
-  unfreeze: protectedProcedure
+  unfreeze: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1550,16 +1422,10 @@ export const packageInstancesRouter = {
       }),
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Tenant database not available. Ensure organization context is set.",
-        });
-      }
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
-      }
+      
+      
 
-      await requirePermission(context.tenantDb, context.member, "package_management", "update");
+      await requirePermissionOrpc(context.tenantDb, context.member, "package_management", "update");
 
       const instance = await context.tenantDb.query.packageInstances.findFirst({
         where: eq(packageInstances.id, input.id),
@@ -1607,7 +1473,7 @@ export const packageInstancesRouter = {
    * `addDays` must be 1–365. Terminal packages (cancelled/expired/completed)
    * and non-expirable packages (null expiresAt) are rejected.
    */
-  extend: protectedProcedure
+  extend: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1617,16 +1483,10 @@ export const packageInstancesRouter = {
       }),
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Tenant database not available. Ensure organization context is set.",
-        });
-      }
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
-      }
+      
+      
 
-      await requirePermission(context.tenantDb, context.member, "package_management", "update");
+      await requirePermissionOrpc(context.tenantDb, context.member, "package_management", "update");
 
       const instance = await context.tenantDb.query.packageInstances.findFirst({
         where: eq(packageInstances.id, input.id),
@@ -1682,7 +1542,7 @@ export const packageInstancesRouter = {
    *
    * Permission: service_management:create (matches the single-row `create`).
    */
-  bulkAssign: protectedProcedure
+  bulkAssign: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1695,23 +1555,10 @@ export const packageInstancesRouter = {
       }),
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Tenant database not available. Ensure organization context is set.",
-        });
-      }
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
+      
 
-      await requirePermission(
-        context.tenantDb,
-        context.member,
-        "service_management",
-        "create",
-      );
+      await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "create");
 
       const callerUserId = context.session?.user?.id;
       if (!callerUserId) {
@@ -1826,7 +1673,7 @@ export const packageInstancesRouter = {
       };
     }),
 
-  statusHistory: protectedProcedure
+  statusHistory: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -1836,17 +1683,9 @@ export const packageInstancesRouter = {
       }),
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+      
 
       await requirePermissionOrpc(context.tenantDb, context.member, "package_management", "read");
 

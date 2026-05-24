@@ -12,10 +12,10 @@ import {
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 
 export const notificationsRouter = {
-  list: protectedProcedure
+  list: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -25,12 +25,7 @@ export const notificationsRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       const userId = context.session?.user?.id;
       if (!userId) {
@@ -47,19 +42,14 @@ export const notificationsRouter = {
       });
     }),
 
-  getUnreadCount: protectedProcedure
+  getUnreadCount: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
       })
     )
     .handler(async ({ context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       const userId = context.session?.user?.id;
       if (!userId) {
@@ -71,7 +61,7 @@ export const notificationsRouter = {
       return getUnreadCount(context.tenantDb, userId);
     }),
 
-  markRead: protectedProcedure
+  markRead: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -79,12 +69,7 @@ export const notificationsRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       const userId = context.session?.user?.id;
       if (!userId) {
@@ -106,19 +91,14 @@ export const notificationsRouter = {
       return row;
     }),
 
-  markAllRead: protectedProcedure
+  markAllRead: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
       })
     )
     .handler(async ({ context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       const userId = context.session?.user?.id;
       if (!userId) {

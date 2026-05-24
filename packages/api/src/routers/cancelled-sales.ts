@@ -1,6 +1,6 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import {
 
@@ -10,20 +10,12 @@ import {
 } from "@avantej-core/services";
 
 function requireTenantMember(context: { tenantDb?: unknown; member?: unknown }) {
-	if (!context.tenantDb) {
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Tenant database not available. Ensure organization context is set.",
-		});
-	}
-	if (!context.member) {
-		throw new ORPCError("FORBIDDEN", {
-			message: "User is not a member of this organization",
-		});
-	}
+	
+	
 }
 
 export const cancelledSalesRouter = {
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -49,7 +41,7 @@ export const cancelledSalesRouter = {
 			});
 		}),
 
-	getById: protectedProcedure
+	getById: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -76,7 +68,7 @@ export const cancelledSalesRouter = {
 			return row;
 		}),
 
-	exportCsv: protectedProcedure
+	exportCsv: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),

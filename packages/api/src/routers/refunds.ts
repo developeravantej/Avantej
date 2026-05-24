@@ -8,7 +8,6 @@
  * refund_management permission. Admins (role.priority >= 100) always pass.
  */
 
-import { requirePermission } from "@avantej-core/services";
 import {
 	approveRefund,
 	bulkApproveRefunds,
@@ -21,14 +20,15 @@ import {
 } from "@avantej-core/services/refunds.service";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 export const refundsRouter = {
 	/**
 	 * List refunds with optional filters and RBAC scoping by branchId.
 	 */
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -64,23 +64,10 @@ export const refundsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
+			
+			
 
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"refund_management",
-				"read",
-			);
+			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "read");
 
 			const controlPanelDb = getControlPanelDb(context);
 			const accessibleNodeIds = context.accessibleNodeIds ?? [];
@@ -101,7 +88,7 @@ export const refundsRouter = {
 	/**
 	 * Get a single refund by ID.
 	 */
-	getById: protectedProcedure
+	getById: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -109,23 +96,10 @@ export const refundsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
+			
+			
 
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"refund_management",
-				"read",
-			);
+			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "read");
 
 			const refund = await getRefundById(context.tenantDb, input.id);
 			if (!refund) {
@@ -140,7 +114,7 @@ export const refundsRouter = {
 	 * Request a new refund (creates a pending row).
 	 * At least one of salesOrderId, paymentId, packageInstanceId must be supplied.
 	 */
-	request: protectedProcedure
+	request: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -157,23 +131,10 @@ export const refundsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
+			
+			
 
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"refund_management",
-				"create",
-			);
+			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "create");
 
 			try {
 				return await requestRefund(context.tenantDb, {
@@ -213,7 +174,7 @@ export const refundsRouter = {
 	 * Must be a positive integer ≤ requested AND ≤ remaining-refundable on the target.
 	 * Omit to approve the full requested amount.
 	 */
-	approve: protectedProcedure
+	approve: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -224,23 +185,10 @@ export const refundsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
+			
+			
 
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"refund_management",
-				"approve",
-			);
+			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "approve");
 
 			try {
 				return await approveRefund(context.tenantDb, input.id, {
@@ -269,7 +217,7 @@ export const refundsRouter = {
 	 * Reject a pending refund. reviewNotes is required.
 	 * Uses the "approve" permission — both approve and reject are review actions.
 	 */
-	reject: protectedProcedure
+	reject: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -278,24 +226,11 @@ export const refundsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
+			
+			
 
 			// Reject is part of the review flow — same permission as approve
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"refund_management",
-				"approve",
-			);
+			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "approve");
 
 			try {
 				return await rejectRefund(context.tenantDb, input.id, {
@@ -324,7 +259,7 @@ export const refundsRouter = {
 	 * number of session credits. Locks the package_instances row via SELECT FOR
 	 * UPDATE; rolls back on any validation failure. Agent 2.8 — J5.
 	 */
-	createPartial: protectedProcedure
+	createPartial: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -335,23 +270,10 @@ export const refundsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
+			
+			
 
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"refund_management",
-				"create",
-			);
+			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "create");
 
 			try {
 				return await createPartialRefund(context.tenantDb, {
@@ -388,7 +310,7 @@ export const refundsRouter = {
 	 * Accepts the same optional approveAmountCents and reviewNotes overrides as the
 	 * single-row approve endpoint.
 	 */
-	bulkApprove: protectedProcedure
+	bulkApprove: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -405,23 +327,10 @@ export const refundsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
+			
+			
 
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"refund_management",
-				"approve",
-			);
+			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "approve");
 
 			try {
 				return await bulkApproveRefunds(
@@ -450,7 +359,7 @@ export const refundsRouter = {
 	 * IMPORTANT: this does NOT trigger Stripe or any payment gateway.
 	 * The operator must manually issue the reversal and record the reference here.
 	 */
-	process: protectedProcedure
+	process: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -465,23 +374,10 @@ export const refundsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
+			
+			
 
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"refund_management",
-				"process",
-			);
+			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "process");
 
 			try {
 				return await processRefund(context.tenantDb, input.id, {

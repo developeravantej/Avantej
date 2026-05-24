@@ -8,11 +8,12 @@ import {
   listPreferredTimes,
   upsertPreferredTimes,
   getPackageInstanceById,
-  requirePermission,
+
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 
 const dayOfWeekSchema = z.enum([
   "monday",
@@ -100,18 +101,7 @@ export const preferredTimesRouter = {
       const isStaff = context.member;
 
       if (isStaff) {
-        try {
-          await requirePermission(
-            context.tenantDb,
-            context.member!,
-            "service_management",
-            "update"
-          );
-        } catch (error) {
-          throw new ORPCError("FORBIDDEN", {
-            message: error instanceof Error ? error.message : "Permission denied",
-          });
-        }
+        await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
       } else if (!isClient) {
         throw new ORPCError("FORBIDDEN", {
           message: "Access denied",

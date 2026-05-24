@@ -11,9 +11,8 @@ import { user } from "@avantej-core/db/schema/auth";
 import { eq, and, desc, inArray, or, isNull, type SQL } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
-import { requirePermission } from "@avantej-core/services";
 import { previewBatch, processForRecipient, recipientSummary, runBatch } from "@avantej-core/services/payouts.service";
 import { getControlPanelDb } from "../lib/context-helpers";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
@@ -24,7 +23,7 @@ export const payoutsRouter = {
 	/**
 	 * List payouts with optional filters and recipient name enrichment
 	 */
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -36,18 +35,9 @@ export const payoutsRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "read")
 
@@ -141,7 +131,7 @@ export const payoutsRouter = {
 	 *
 	 * Perm: commission_payout:read
 	 */
-	previewBatch: protectedProcedure
+	previewBatch: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -152,16 +142,8 @@ export const payoutsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "read");
 
@@ -181,7 +163,7 @@ export const payoutsRouter = {
 	 *
 	 * Perm: commission_payout:process
 	 */
-	runBatch: protectedProcedure
+	runBatch: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -193,16 +175,8 @@ export const payoutsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "process");
 
@@ -241,7 +215,7 @@ export const payoutsRouter = {
 	 *
 	 * Perm: payouts:read
 	 */
-	recipientSummary: protectedProcedure
+	recipientSummary: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -249,14 +223,8 @@ export const payoutsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
-			}
+			
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "read")
 
@@ -289,7 +257,7 @@ export const payoutsRouter = {
 	 *
 	 * Perm: commission_payout:process
 	 */
-	processForRecipient: protectedProcedure
+	processForRecipient: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -301,14 +269,8 @@ export const payoutsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
-			}
+			
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "process")
 

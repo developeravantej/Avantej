@@ -14,6 +14,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 export const customerDirectoryRouter = {
@@ -46,12 +47,7 @@ export const customerDirectoryRouter = {
 				});
 			}
 
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"customer_management",
-				"read",
-			);
+			await requirePermissionOrpc(context.tenantDb, context.member, "customer_management", "read");
 
 			const controlPanelDb = getControlPanelDb(context);
 			const accessibleNodeIds = context.accessibleNodeIds ?? [];
@@ -94,12 +90,7 @@ export const customerDirectoryRouter = {
 				});
 			}
 
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"customer_management",
-				"read",
-			);
+			await requirePermissionOrpc(context.tenantDb, context.member, "customer_management", "read");
 
 			const accessibleNodeIds = context.accessibleNodeIds ?? [];
 
@@ -134,12 +125,7 @@ export const customerDirectoryRouter = {
 				});
 			}
 
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"customer_management",
-				"read",
-			);
+			await requirePermissionOrpc(context.tenantDb, context.member, "customer_management", "read");
 
 			const controlPanelDb = getControlPanelDb(context);
 

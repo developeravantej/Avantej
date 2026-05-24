@@ -3,7 +3,7 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import {
 
@@ -30,20 +30,12 @@ const cancellationReasonCategoryEnum = z.enum(CANCELLATION_REASON_CATEGORIES);
 
 // Shared tenant + member guard — throws ORPCError if not available
 function requireTenantMember(context: { tenantDb?: unknown; member?: unknown }) {
-	if (!context.tenantDb) {
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Tenant database not available. Ensure organization context is set.",
-		});
-	}
-	if (!context.member) {
-		throw new ORPCError("FORBIDDEN", {
-			message: "User is not a member of this organization",
-		});
-	}
+	
+	
 }
 
 export const salesOrdersRouter = {
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -114,7 +106,7 @@ export const salesOrdersRouter = {
 			};
 		}),
 
-	getById: protectedProcedure
+	getById: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -151,7 +143,7 @@ export const salesOrdersRouter = {
 			return { ...order, createdByName };
 		}),
 
-	create: protectedProcedure
+	create: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -182,7 +174,7 @@ export const salesOrdersRouter = {
 			});
 		}),
 
-	update: protectedProcedure
+	update: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -210,7 +202,7 @@ export const salesOrdersRouter = {
 			});
 		}),
 
-	cancel: protectedProcedure
+	cancel: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -245,7 +237,7 @@ export const salesOrdersRouter = {
 			);
 		}),
 
-	statusHistory: protectedProcedure
+	statusHistory: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -298,7 +290,7 @@ export const salesOrdersRouter = {
 		}),
 
 	// frontend wires this to /dashboard/sales/view KPI strip
-	kpiSummary: protectedProcedure
+	kpiSummary: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -342,7 +334,7 @@ export const salesOrdersRouter = {
 			});
 		}),
 
-	largestToday: protectedProcedure
+	largestToday: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -366,7 +358,7 @@ export const salesOrdersRouter = {
 	 * no completed orders exist yet — used by the POS "Last Receipt Preview"
 	 * panel to seed initial state on session mount.
 	 */
-	getLatest: protectedProcedure
+	getLatest: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),

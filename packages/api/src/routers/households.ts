@@ -13,7 +13,7 @@
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { households } from "@avantej-core/db/schema/tenant/households";
 import { members } from "@avantej-core/db/schema/tenant/members";
-import { requirePermission } from "@avantej-core/services";
+import { requirePermissionOrpc } from "../guards";
 import { ORPCError } from "@orpc/server";
 import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
@@ -43,20 +43,15 @@ async function checkPermission(
 	context: { tenantDb: unknown; member: unknown },
 	action: "read" | "update",
 ) {
-	try {
-		await requirePermission(
-			// biome-ignore lint/suspicious/noExplicitAny: ctx types are constrained at call site
-			context.tenantDb as any,
-			// biome-ignore lint/suspicious/noExplicitAny: ctx types are constrained at call site
-			context.member as any,
-			"customer_management",
-			action,
-		);
-	} catch (error) {
-		throw new ORPCError("FORBIDDEN", {
-			message: error instanceof Error ? error.message : "Permission denied",
-		});
+	if (!context.tenantDb || !context.member) {
+		throw new ORPCError("FORBIDDEN");
 	}
+	await requirePermissionOrpc(
+		context.tenantDb,
+		context.member,
+		"customer_management",
+		action,
+	);
 }
 
 export const householdsRouter = {

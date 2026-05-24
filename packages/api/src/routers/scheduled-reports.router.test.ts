@@ -196,11 +196,11 @@ describe("scheduledReportsRouter.delete", () => {
 		).rejects.toMatchObject({ code: "FORBIDDEN" });
 	});
 
-	it("throws INTERNAL_SERVER_ERROR when member is null", async () => {
+	it("throws FORBIDDEN when member is null", async () => {
 		const ctx = createMockContext({ tenantDb: makeAdminDb(), member: null });
 		await expect(
 			call(scheduledReportsRouter.delete, { organizationId: ORG_ID, id: REPORT_ID }, { context: ctx }),
-		).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+		).rejects.toMatchObject({ code: "FORBIDDEN" });
 	});
 });
 

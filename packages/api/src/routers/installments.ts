@@ -13,7 +13,7 @@ import {
 	processRefund,
 	getAdminInstallmentOverview,
 	evaluateAndLockIfOverdue,
-	requirePermission,
+
 	getSuggestedRefund,
 	setPackageOverdraft,
 	rescheduleInstallment,
@@ -24,11 +24,11 @@ import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-ev
 import { ORPCError } from "@orpc/server";
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
-const confirmPayment = protectedProcedure
+const confirmPayment = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -39,17 +39,9 @@ const confirmPayment = protectedProcedure
 		})
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
+		
 
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update")
 
@@ -62,7 +54,7 @@ const confirmPayment = protectedProcedure
 		});
 	});
 
-const listByPackageInstance = protectedProcedure
+const listByPackageInstance = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -70,11 +62,7 @@ const listByPackageInstance = protectedProcedure
 		})
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
+		
 
 		const clientId = context.session?.user?.id;
 		const isOwner = clientId !== undefined;
@@ -88,12 +76,7 @@ const listByPackageInstance = protectedProcedure
 
 		if (isStaff) {
 			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member!,
-					"service_management",
-					"read"
-				);
+				await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read");
 			} catch {
 				// If staff permission check fails but user is the owner (clientId matches),
 				// we still allow access — fall through to the service call below.
@@ -115,7 +98,7 @@ const listByPackageInstance = protectedProcedure
 		return getInstallmentsByPackageInstance(context.tenantDb, input.packageInstanceId);
 	});
 
-const manualUnlock = protectedProcedure
+const manualUnlock = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -124,17 +107,9 @@ const manualUnlock = protectedProcedure
 		})
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
+		
 
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
 
 		if (context.member.role !== "admin") {
 			throw new ORPCError("FORBIDDEN", {
@@ -157,7 +132,7 @@ const manualUnlock = protectedProcedure
 		);
 	});
 
-const processRefundProcedure = protectedProcedure
+const processRefundProcedure = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -167,17 +142,9 @@ const processRefundProcedure = protectedProcedure
 		})
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
+		
 
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
 
 		if (context.member.role !== "admin") {
 			throw new ORPCError("FORBIDDEN", {
@@ -203,7 +170,7 @@ const processRefundProcedure = protectedProcedure
 		return { success: true, cancelledInstallmentIds: result.cancelledInstallmentIds };
 	});
 
-const adminOverview = protectedProcedure
+const adminOverview = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -217,17 +184,9 @@ const adminOverview = protectedProcedure
 		})
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
+		
 
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
 
@@ -244,7 +203,7 @@ const adminOverview = protectedProcedure
 		}, controlPanelDb);
 	});
 
-const getEvents = protectedProcedure
+const getEvents = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -252,17 +211,9 @@ const getEvents = protectedProcedure
 		})
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
+		
 
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
 
@@ -272,7 +223,7 @@ const getEvents = protectedProcedure
 		});
 	});
 
-const suggestRefund = protectedProcedure
+const suggestRefund = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -280,17 +231,9 @@ const suggestRefund = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available.",
-			});
-		}
+		
 
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
 
 		if (context.member.role !== "admin") {
 			throw new ORPCError("FORBIDDEN", {
@@ -301,7 +244,7 @@ const suggestRefund = protectedProcedure
 		return getSuggestedRefund(context.tenantDb, input.packageInstanceId);
 	});
 
-const adjustCreditsProcedure = protectedProcedure
+const adjustCreditsProcedure = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -312,15 +255,9 @@ const adjustCreditsProcedure = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
+		
 
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
-		}
+		
 
 		if (context.member.role !== "admin") {
 			throw new ORPCError("FORBIDDEN", { message: "Admin role required" });
@@ -349,7 +286,7 @@ const adjustCreditsProcedure = protectedProcedure
 		}
 	});
 
-const setOverdraft = protectedProcedure
+const setOverdraft = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -359,17 +296,9 @@ const setOverdraft = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
+		
 
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
 
 		if (context.member.role !== "admin") {
 			throw new ORPCError("FORBIDDEN", {
@@ -392,7 +321,7 @@ const setOverdraft = protectedProcedure
 		);
 	});
 
-const reschedule = protectedProcedure
+const reschedule = tenantProcedure
 	.input(z.object({
 		organizationId: z.string().uuid(),
 		installmentId: z.string().uuid(),
@@ -400,11 +329,7 @@ const reschedule = protectedProcedure
 		reason: z.string().min(1),
 	}))
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "No tenant DB" });
-		if (!context.member) throw new ORPCError("FORBIDDEN", { message: "Not a member" });
-		await requirePermission(context.tenantDb, context.member, "service_management", "update").catch(() => {
-			throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
-		});
+		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
 		try {
 			return rescheduleInstallment(context.tenantDb, input.installmentId, new Date(input.newDueDate), context.member.userId, input.reason);
 		} catch (err: any) {
@@ -414,18 +339,14 @@ const reschedule = protectedProcedure
 		}
 	});
 
-const waive = protectedProcedure
+const waive = tenantProcedure
 	.input(z.object({
 		organizationId: z.string().uuid(),
 		installmentId: z.string().uuid(),
 		reason: z.string().min(1),
 	}))
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "No tenant DB" });
-		if (!context.member) throw new ORPCError("FORBIDDEN", { message: "Not a member" });
-		await requirePermission(context.tenantDb, context.member, "service_management", "update").catch(() => {
-			throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
-		});
+		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
 		try {
 			return waiveInstallment(context.tenantDb, input.installmentId, context.member.userId, input.reason);
 		} catch (err: any) {
@@ -434,18 +355,14 @@ const waive = protectedProcedure
 		}
 	});
 
-const resetOverride = protectedProcedure
+const resetOverride = tenantProcedure
 	.input(z.object({
 		organizationId: z.string().uuid(),
 		packageInstanceId: z.string().uuid(),
 		reason: z.string().min(1),
 	}))
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "No tenant DB" });
-		if (!context.member) throw new ORPCError("FORBIDDEN", { message: "Not a member" });
-		await requirePermission(context.tenantDb, context.member, "service_management", "update").catch(() => {
-			throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
-		});
+		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
 		return resetCreditsOverride(context.tenantDb, input.packageInstanceId, context.member.userId, input.reason);
 	});
 
