@@ -8,6 +8,11 @@ import { join } from "node:path";
 
 const routersDir = join(process.cwd(), "packages/api/src/routers");
 const ALLOW_PROTECTED = new Set(["registration.ts", "index.ts"]);
+const ALLOW_LEGACY_BRANCH_RESOLVE = new Set([
+	"hierarchy.ts",
+	"members.ts",
+	"invitations.ts",
+]);
 
 const errors = [];
 
@@ -36,8 +41,16 @@ for (const file of readdirSync(routersDir)) {
 		}
 	}
 
-	if (/function requireTenantMember\([\s\S]*?\{\s*\}/.test(content)) {
-		errors.push(`${file}: empty requireTenantMember helper — remove (tenantProcedure covers this)`);
+	if (content.includes("guardInputBranchForContext(")) {
+		if (!content.match(/import \{[^}]*guardInputBranchForContext[^}]*\} from "\.\.\/guards"/)) {
+			errors.push(`${file}: missing guardInputBranchForContext import from ../guards`);
+		}
+	}
+
+	if (/getDescendantNodeIds\([\s\S]{0,300}includes\(input\.branchId\)/.test(content)) {
+		if (!ALLOW_LEGACY_BRANCH_RESOLVE.has(file)) {
+			errors.push(`${file}: legacy getDescendantNodeIds branch guard — use guardInputBranchForContext`);
+		}
 	}
 }
 

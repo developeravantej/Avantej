@@ -10,7 +10,6 @@ import {
   getServiceCategoryById,
   createServiceCategory,
   updateServiceCategory,
-  getDescendantNodeIds,
 
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";

@@ -11,8 +11,6 @@ import {
   createService,
   duplicateService,
   updateService,
-  getDescendantNodeIds,
-
   resolveServicePrice,
   listServicePriceOverrides,
   setServicePrice,

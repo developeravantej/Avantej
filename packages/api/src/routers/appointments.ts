@@ -11,8 +11,6 @@ import {
   getAppointmentById,
   createAppointment,
   updateAppointment,
-  getDescendantNodeIds,
-
   syncAppointmentToGoogleCalendar,
   getAppointmentStatusHistory,
   listAppointmentsWithRecurrence,
