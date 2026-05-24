@@ -1,0 +1,219 @@
+import {
+  type CreateHierarchyNodeParams,
+  type UpdateHierarchyNodeParams,
+  type DeleteHierarchyNodeOptions,
+  createHierarchyNode,
+  updateHierarchyNode,
+  deleteHierarchyNode,
+  moveHierarchyNode,
+  getDescendantNodeIds,
+  listNodesWithStats,
+
+  validateHierarchyRules,
+  validateParentAccess,
+  getMembersByHierarchyScope,
+  updateMemberHierarchyScope,
+  bulkUpdateMemberHierarchyScope,
+  getAllOrganizationMembersWithUserDetails,
+} from "@avantej-core/services";
+import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
+import { branchDetails } from "@avantej-core/db/schema/tenant/branch-details";
+import { members } from "@avantej-core/db/schema/tenant/members";
+import { organizationBranches } from "@avantej-core/db/schema/control-panel/organization-branches";
+import { eq, inArray } from "drizzle-orm";
+import { ORPCError } from "@orpc/server";
+import { z } from "zod";
+import { tenantProcedure } from "../../index";
+import {requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
+import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+
+function getControlPanelDb(context: { honoContext?: any }): NeonDatabase<typeof controlPanelSchema> | null {
+  return context.honoContext?.get("controlPanelDb") as NeonDatabase<typeof controlPanelSchema> | null;
+}
+
+export const hierarchyUpdateProcedures = {
+	/**
+   * Update a hierarchy node
+   */
+  updateNode: tenantProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        nodeId: z.string().uuid(),
+        name: z.string().min(1).optional(),
+        address: z.string().nullable().optional(),
+        picUserId: z.string().nullable().optional(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      
+
+      
+
+		assertOrgContextMatch(context, input);
+      const {
+        tenantDb,
+        member,
+        accessibleNodeIds: contextAccessibleNodeIds,
+      } = context;
+      const accessibleNodeIds =
+        contextAccessibleNodeIds ||
+        (member
+          ? await getDescendantNodeIds(tenantDb, member.hierarchyScopeId)
+          : []);
+
+      // Check if user can access this node
+      if (!accessibleNodeIds.includes(input.nodeId)) {
+        throw new ORPCError("FORBIDDEN", {
+          message: "User does not have access to this node",
+        });
+      }
+
+      // Check permission
+      await requirePermissionOrpc(tenantDb, member, "hierarchy_management", "update");
+
+      // Build update params
+      const updateParams: UpdateHierarchyNodeParams = {};
+      if (input.name !== undefined) {
+        updateParams.name = input.name;
+      }
+      if (input.address !== undefined) {
+        updateParams.address = input.address;
+      }
+      if (input.picUserId !== undefined) {
+        updateParams.picUserId = input.picUserId;
+      }
+
+      // Capture pre-update state for GHL branch rename sync.
+      const preUpdateNode = await tenantDb.query.hierarchyNodes.findFirst({
+        where: eq(hierarchyNodes.id, input.nodeId),
+      });
+
+      // Update node
+      try {
+        const node = await updateHierarchyNode(tenantDb, input.nodeId, updateParams);
+
+        // Fetch branch-specific details (split off into branch_details in H2)
+        let nodeAddress: string | null = null;
+        let nodePicUserId: string | null = null;
+        if (node.type === "branch") {
+          const details = await tenantDb.query.branchDetails.findFirst({
+            where: eq(branchDetails.nodeId, node.id),
+          });
+          nodeAddress = details?.address ?? null;
+          nodePicUserId = details?.picUserId ?? null;
+        }
+
+        // Sync updates to control panel organization_branches registry
+        const controlPanelDb = getControlPanelDb(context);
+        if (controlPanelDb) {
+          // Branch name/address update → update the branch row
+          if (node.type === "branch" && (input.name !== undefined || input.address !== undefined)) {
+            try {
+              const syncData: { name?: string; address?: string | null; updatedAt: Date } = {
+                updatedAt: new Date(),
+              };
+              if (input.name !== undefined) syncData.name = node.name;
+              if (input.address !== undefined) syncData.address = nodeAddress;
+
+              await controlPanelDb
+                .update(organizationBranches)
+                .set(syncData)
+                .where(eq(organizationBranches.tenantNodeId, input.nodeId));
+            } catch (syncError) {
+              console.error("Failed to sync branch update to organization_branches:", syncError);
+            }
+          }
+
+          // Country rename → update country name on all branches under this country
+          if (node.type === "country" && input.name !== undefined) {
+            try {
+              await controlPanelDb
+                .update(organizationBranches)
+                .set({ country: node.name, updatedAt: new Date() })
+                .where(eq(organizationBranches.countryTenantNodeId, input.nodeId));
+            } catch (syncError) {
+              console.error("Failed to sync country rename to organization_branches:", syncError);
+            }
+          }
+        }
+
+        // Fire-and-forget GHL branch rename sync.
+        let ghlSync:
+          | { status: "synced" | "skipped" | "error"; [k: string]: unknown }
+          | null = null;
+        if (
+          node.type === "branch" &&
+          preUpdateNode &&
+          input.name !== undefined &&
+          preUpdateNode.name !== input.name &&
+          context.organizationId
+        ) {
+          const dispatchBranchRename = context.honoContext?.get(
+            "dispatchBranchRename",
+          ) as
+            | ((args: {
+                controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+                tenantDb: typeof tenantDb;
+                organizationId: string;
+                branchNodeId: string;
+                oldBranchName: string;
+              }) => Promise<{
+                status: "synced" | "skipped" | "error";
+                [k: string]: unknown;
+              }>)
+            | undefined;
+          const cpDb = getControlPanelDb(context);
+          if (dispatchBranchRename && cpDb) {
+            try {
+              ghlSync = await dispatchBranchRename({
+                controlPanelDb: cpDb,
+                tenantDb,
+                organizationId: context.organizationId,
+                branchNodeId: node.id,
+                oldBranchName: preUpdateNode.name,
+              });
+            } catch (err) {
+              console.error("GHL branch rename sync failed:", err);
+              ghlSync = {
+                status: "error",
+                error: err instanceof Error ? err.message : String(err),
+              };
+            }
+          }
+        }
+
+        return {
+          id: node.id,
+          name: node.name,
+          type: node.type,
+          depth: node.depth,
+          parentId: node.parentId,
+          address: nodeAddress,
+          picUserId: nodePicUserId,
+          createdAt: node.createdAt,
+          updatedAt: node.updatedAt,
+          ghlSync,
+        };
+      } catch (error) {
+        // Handle specific error cases
+        if (error instanceof Error) {
+          if (error.message.includes("not found")) {
+            throw new ORPCError("NOT_FOUND", {
+              message: error.message,
+            });
+          }
+          if (error.message.includes("already exists")) {
+            throw new ORPCError("BAD_REQUEST", {
+              message: error.message,
+            });
+          }
+        }
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message:
+            error instanceof Error ? error.message : "Failed to update node",
+        });
+      }
+    })
+};

@@ -12,7 +12,6 @@ const MAX_LINES = 400;
 /** Known mega-routers tracked for D-S7 split — remove when fully modularized. */
 const ALLOWLIST = new Set([
 	"package-instances.ts",
-	"hierarchy.ts",
 	"invitations.ts",
 ]);
 
