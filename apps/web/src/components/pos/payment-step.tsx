@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Banknote, Check, CreditCard, Landmark, Link2 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -104,13 +104,24 @@ export function PaymentStep({
 	const totalCents = calcTotalCents(items, discountCents, taxRateBps);
 	const amountTenderedRm =
 		amountTenderedCents > 0 ? centsToRm(amountTenderedCents) : "";
+	// Track manual edits so the auto-tender keeps syncing to the (async) taxed total
+	// until the cashier types their own amount.
+	const [tenderedTouched, setTenderedTouched] = useState(false);
 
 	useEffect(() => {
-		if (method === "cash" && amountTenderedCents === 0 && totalCents > 0) {
+		// Keep cash tendered synced to the total until the user edits it. The default tax
+		// rate loads asynchronously; without this, an auto-tendered PRE-TAX amount falls
+		// below the taxed total and silently disables Confirm with no on-screen reason.
+		if (
+			method === "cash" &&
+			!tenderedTouched &&
+			totalCents > 0 &&
+			amountTenderedCents !== totalCents
+		) {
 			// react-doctor-disable-next-line react-doctor/no-prop-callback-in-effect -- tightly coupled POS step coordination, would benefit from Provider but scope deferred
 			onAmountTenderedChange(totalCents);
 		}
-	}, [method, amountTenderedCents, totalCents, onAmountTenderedChange]);
+	}, [method, tenderedTouched, amountTenderedCents, totalCents, onAmountTenderedChange]);
 
 	const changeDueCents =
 		method === "cash" && amountTenderedCents >= totalCents
@@ -226,9 +237,10 @@ export function PaymentStep({
 								className="pl-9"
 								placeholder={centsToRm(totalCents)}
 								value={amountTenderedRm}
-								onChange={(e) =>
-									onAmountTenderedChange(parseCents(e.target.value))
-								}
+								onChange={(e) => {
+									setTenderedTouched(true);
+									onAmountTenderedChange(parseCents(e.target.value));
+								}}
 							/>
 						</div>
 						{amountTenderedCents > 0 && amountTenderedCents < totalCents && (

@@ -6,7 +6,7 @@ export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/sales/create",
 )({
 	beforeLoad: async () => {
-		await requirePermission("sales:create");
+		await requirePermission("pos:create");
 	},
 	validateSearch: (search: Record<string, unknown>): { customer?: string } => {
 		const customer = search.customer;

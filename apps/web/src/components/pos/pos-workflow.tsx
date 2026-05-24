@@ -913,6 +913,7 @@ export function PosWorkflow({
 										onAddItem={handleAddItem}
 										onUpdateItem={handleUpdateItem}
 										onRemoveItem={handleRemoveItem}
+										isWalkIn={customerTypeMode === "walk_in"}
 									/>
 
 									{/* Optional: trainer assignment */}

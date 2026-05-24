@@ -43,6 +43,8 @@ interface ItemsStepProps {
 	onAddItem: (item: CartItem) => void;
 	onUpdateItem: (id: string, patch: Partial<CartItem>) => void;
 	onRemoveItem: (id: string) => void;
+	/** Walk-ins can't buy packages, and picking a service becomes a package — hide it. */
+	isWalkIn?: boolean;
 }
 
 // ─── Row component ─────────────────────────────────────────────────────────────
@@ -227,6 +229,7 @@ export function ItemsStep({
 	onAddItem,
 	onUpdateItem,
 	onRemoveItem,
+	isWalkIn = false,
 }: ItemsStepProps) {
 	const addSelectId = useId();
 
@@ -295,6 +298,12 @@ export function ItemsStep({
 						size="sm"
 						onClick={() => addItem("service")}
 						data-testid="pos-add-service-button"
+						disabled={isWalkIn}
+						title={
+							isWalkIn
+								? "Walk-in customers can't purchase packages — use a Custom line or register the customer."
+								: undefined
+						}
 					>
 						<Plus className="mr-1 size-3.5" />
 						Service

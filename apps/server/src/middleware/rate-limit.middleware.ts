@@ -25,20 +25,14 @@ type Bucket = {
 
 const buckets = new Map<string, Bucket>();
 
-// Background cleanup: every minute, evict expired buckets so the Map can't
-// grow unbounded if the isolate lives a long time.
-let cleanupStarted = false;
-function ensureCleanup() {
-	if (cleanupStarted) return;
-	cleanupStarted = true;
-	// Workers don't have setInterval available globally — guard.
-	if (typeof setInterval !== "function") return;
-	setInterval(() => {
-		const now = Date.now();
-		for (const [k, v] of buckets) {
-			if (v.resetAt <= now) buckets.delete(k);
-		}
-	}, 60_000);
+// Workers forbid timers in global scope; sweep expired buckets on requests instead.
+let requestCount = 0;
+function maybeEvictExpired(now: number) {
+	requestCount++;
+	if (requestCount % 50 !== 0 && buckets.size < 500) return;
+	for (const [k, v] of buckets) {
+		if (v.resetAt <= now) buckets.delete(k);
+	}
 }
 
 function getClientIp(c: Context): string {
@@ -59,13 +53,13 @@ export interface RateLimitOptions {
 }
 
 export function rateLimit(opts: RateLimitOptions): MiddlewareHandler {
-	ensureCleanup();
 	const windowMs = opts.windowSec * 1000;
 
 	return async (c, next) => {
+		const now = Date.now();
+		maybeEvictExpired(now);
 		const ip = getClientIp(c);
 		const key = `${opts.route}:${ip}`;
-		const now = Date.now();
 		const bucket = buckets.get(key);
 
 		if (!bucket || bucket.resetAt <= now) {

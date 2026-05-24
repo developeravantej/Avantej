@@ -376,8 +376,14 @@ export async function recordPosSale(
 		// walk_in_customers.id. Mirror it into the typed FK column so cross-joins
 		// (Cancelled Sales, repeat-offender count, etc.) work even when the text
 		// columns drift. Members keep walk_in_customer_id NULL.
+		// Only mirror a REAL walk_in_customers UUID into the typed FK column. The UI sends
+		// the sentinel "anonymous" when there is no registered walk-in record; writing that
+		// into a uuid column throws (invalid uuid syntax) and 500s the whole sale. Match the
+		// guard used below for package instances / promo usage.
 		const walkInCustomerId =
-			input.customerType === "walk_in" ? input.customerId : null;
+			input.customerType === "walk_in" && input.customerId !== "anonymous"
+				? input.customerId
+				: null;
 
 		const [salesOrder] = await tx
 			.insert(salesOrders)
