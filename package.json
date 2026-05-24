@@ -77,6 +77,7 @@
     "gen:router-type-stubs": "node scripts/extract-router-type-stubs.mjs",
     "codemod:split-router": "node scripts/split-router-by-marker.mjs",
     "refine:split-router-imports": "node scripts/refine-split-router-imports.mjs",
+    "refine:members-imports": "node scripts/refine-members-imports.mjs",
     "refine:members-ghl-type": "node scripts/dedupe-members-ghl-type.mjs"
   },
   "dependencies": {
