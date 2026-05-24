@@ -77,7 +77,9 @@ If you hit a redirect loop or "no organizations" after login:
 # Quality gates — run these before pushing
 bun check-types     # tsc -b across the monorepo
 bun check           # oxlint (NOT Biome — Biome handles formatting only)
-bun test            # web + server tests
+cd apps/server && bun test:unit
+cd apps/web && bun test --run
+bun build           # optional locally; required in CI
 
 # Database
 bun db:push                    # push control-panel schema (dev only, never tenants)
@@ -89,6 +91,23 @@ bun verify:migrations          # confirm generated matches SQL files
 # Always commit both the new SQL file AND the regenerated *.generated.ts in
 # the same PR. See docs/TENANT_MIGRATION_WORKFLOW.md.
 ```
+
+## CI (GitHub Actions)
+
+Pull requests to `main` / `dev` run:
+
+| Job | Command |
+|-----|---------|
+| Type Check | `bun check-types` |
+| Lint | `bun check` (oxlint) |
+| Web Tests | `bun --cwd apps/web test --run` |
+| Server Unit Tests | `cd apps/server && bun test:unit` |
+| Package Tests | `bun test` in `packages/{types,services,api,db}` |
+| Build | `bun build` |
+
+Enable these as **required checks** in GitHub branch protection (repo settings).
+
+Schema drift (`drift-check.yml`) runs on PRs to `main` and `dev` when DB/server paths change.
 
 ## Project conventions
 

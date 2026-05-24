@@ -13,7 +13,8 @@
     }
   },
   "scripts": {
-    "build": "tsdown"
+    "build": "tsdown",
+    "test": "bun test src"
   },
   "devDependencies": {
     "tsdown": "catalog:"

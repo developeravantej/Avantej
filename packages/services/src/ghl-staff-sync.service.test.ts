@@ -17,6 +17,22 @@ const baseInjected = {
 	putGhlUser: noopPutGhlUser,
 };
 
+/** Per-branch GHL sync model — matches Phase G org lookup in dispatchStaffSync. */
+function perBranchOrgQuery() {
+	return {
+		organizations: {
+			findFirst: mock(() =>
+				Promise.resolve({
+					id: "org-1",
+					ghlSyncModel: "per-branch",
+					ghlLocationId: null,
+					ghlApiKeyEncrypted: null,
+				}),
+			),
+		},
+	};
+}
+
 describe("dispatchStaffSync", () => {
 	it("returns skipped/non-staff-role when member.role is not admin/staff/trainer", async () => {
 		const tenantDb = {
@@ -163,6 +179,7 @@ describe("dispatchStaffSync", () => {
 
 		const controlPanelDb = {
 			query: {
+				...perBranchOrgQuery(),
 				users: {
 					findFirst: mock(() =>
 						Promise.resolve({ id: "u-1", email: "a@b.com" }),
@@ -221,6 +238,7 @@ describe("dispatchStaffSync", () => {
 		} as any;
 		const controlPanelDb = {
 			query: {
+				...perBranchOrgQuery(),
 				users: {
 					findFirst: mock(() =>
 						Promise.resolve({
@@ -322,6 +340,7 @@ describe("dispatchStaffSync", () => {
 		} as any;
 		const controlPanelDb = {
 			query: {
+				...perBranchOrgQuery(),
 				users: {
 					findFirst: mock(() =>
 						Promise.resolve({ id: "u-1", email: "a@b.com" }),
@@ -412,6 +431,7 @@ describe("dispatchStaffSync", () => {
 		} as any;
 		const controlPanelDb = {
 			query: {
+				...perBranchOrgQuery(),
 				users: {
 					findFirst: mock(() =>
 						Promise.resolve({ id: "u-1", email: "a@b.com" }),

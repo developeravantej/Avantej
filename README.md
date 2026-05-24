@@ -1,150 +1,123 @@
 # avantej-core
 
-## Login Credentials:
+**Start here:** [CONTRIBUTING.md](CONTRIBUTING.md) → [zhub/index.md](zhub/index.md) → [CLAUDE.md](CLAUDE.md)
 
-- **Avantej Core Platform Credentials (SaaS)**
-  - Email: developer.avantej@gmail.com
-  - Password: password123
+## Login Credentials
 
-- **Tenant Database Credentials**
-  - Email: franchisee@gmail.com
-  - Password: password123
+- **Control panel (SaaS platform)**
+  - Email: `developer.avantej@gmail.com`
+  - Password: `password1234`
+
+- **Tenant (franchise)**
+  - Email: `franchisee@gmail.com`
+  - Password: `password123`
+
+See `CLAUDE.md` and `CONTRIBUTING.md` for dev URLs (`avantej.localhost:3021` / `:3020`).
 
 ## Features
 
-- **TypeScript** - For type safety and improved developer experience
-- **TanStack Router** - File-based routing with full type safety
-- **React Native** - Build mobile apps using React
-- **Expo** - Tools for React Native development
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **shadcn/ui** - Reusable UI components
-- **Hono** - Lightweight, performant server framework
-- **oRPC** - End-to-end type-safe APIs with OpenAPI integration
-- **workers** - Runtime environment
-- **Drizzle** - TypeScript-first ORM
-- **PostgreSQL** - Database engine
-- **Authentication** - Better-Auth
-- **Turborepo** - Optimized monorepo build system
-- **Biome** - Linting and formatting
-- **Husky** - Git hooks for code quality
+- **TypeScript** — type safety end-to-end
+- **TanStack Router** — file-based routing
+- **React Native / Expo** — mobile app
+- **TailwindCSS + shadcn/ui** — web UI
+- **Hono + oRPC** — API on Cloudflare Workers
+- **Drizzle + PostgreSQL (Neon)** — multi-tenant databases
+- **Better-Auth** — authentication
+- **Turborepo + Bun** — monorepo tooling
+- **Biome** — formatting only
+- **oxlint** — linting (`bun check`)
+- **Husky** — pre-commit hooks
 
 ## Getting Started
-
-First, install the dependencies:
 
 ```bash
 bun install
 ```
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for `.env` / `.dev.vars` setup.
+
 ## Database Setup
 
-This project uses PostgreSQL with Drizzle ORM. It is **multi-tenant** — there is a
-shared **control-panel** database (users, organizations, billing) plus one
-isolated **tenant** database per organization, served from Neon branches.
-
-1. Make sure you have a PostgreSQL database set up.
-2. Update your `apps/server/.env` file with your PostgreSQL connection details.
-
-3. Apply the control-panel schema to your dev database:
+Multi-tenant: **control-panel** DB (users, orgs, billing) + **tenant** DB per organization (Neon branches).
 
 ```bash
-bun db:push    # CONTROL-PANEL ONLY — never use for tenant schemas
+bun db:push    # CONTROL-PANEL ONLY — never for tenant schemas
 ```
 
-> **⚠️ Tenant schemas are different.** Tenant DBs are per-org Neon branches and
-> the Worker can't read SQL files at runtime, so tenant migrations are bundled
-> into the Worker as a generated TS module. Author SQL in
-> `packages/db/src/migrations/tenant/`, then regenerate the bundle:
->
-> ```bash
-> bun gen:migrations       # regenerates the bundled tenant migrations
-> bun verify:migrations    # CI gate — confirms the bundle matches the SQL files
-> ```
->
-> See `docs/TENANT_MIGRATION_WORKFLOW.md` and `docs/SCHEMA_CHANGE_WORKFLOW.md`
-> for the full procedure.
-
-Then, run the development server:
+Tenant migrations:
 
 ```bash
-bun dev          # all apps
-bun dev:web      # web only (avantej.localhost:3021)
-bun dev:server   # server only (avantej.localhost:3020)
+bun gen:migrations
+bun verify:migrations
 ```
 
-Open [http://avantej.localhost:3021](http://avantej.localhost:3021) in your
-browser to see the web app. Use the Expo Go app to run the mobile app.
-The API runs at [http://avantej.localhost:3020](http://avantej.localhost:3020),
-OpenAPI docs at [http://localhost:3020/api-reference](http://localhost:3020/api-reference).
+See `docs/TENANT_MIGRATION_WORKFLOW.md` and `docs/SCHEMA_CHANGE_WORKFLOW.md`.
+
+## Development
+
+```bash
+bun dev          # web :3021 + server :3020
+bun dev:web
+bun dev:server
+bun dev:native
+```
+
+- Web: [http://avantej.localhost:3021](http://avantej.localhost:3021)
+- API: [http://avantej.localhost:3020](http://avantej.localhost:3020)
+- OpenAPI: [http://avantej.localhost:3020/api-reference](http://avantej.localhost:3020/api-reference)
 
 ## Testing
 
 ```bash
 cd apps/server && bun test          # all server tests
-cd apps/server && bun test:unit     # excludes *.integration.test.ts
-cd apps/web    && bun run test      # vitest run (web)
-bunx playwright test                # end-to-end (from repo root)
+cd apps/server && bun test:unit     # unit only (CI gate)
+cd apps/web    && bun test --run    # Vitest
+bunx playwright test                # e2e (repo root)
 ```
+
+Package tests: `bun --cwd packages/api test` (also `services`, `types`, `db`).
+
+See [e2e/README.md](e2e/README.md) for Playwright layout.
 
 ## Scheduled jobs
 
-Cloudflare Cron Triggers are declared in `apps/server/wrangler.jsonc` and
-dispatched via the `scheduled()` export in `apps/server/src/index.ts`:
+Cloudflare Cron Triggers in `apps/server/wrangler.jsonc`:
 
-| Cron          | Purpose                                          |
-| ------------- | ------------------------------------------------ |
-| `0 * * * *`   | Hourly webhook backfill + scheduled-reports send |
-| `0 1 * * *`   | Daily tenant-usage snapshot (01:00 UTC)          |
-| `0 2 * * *`   | Daily installment sweep (02:00 UTC)              |
-| `30 2 * * *`  | Daily reconciliation (02:30 UTC)                 |
-| `0 3 * * *`   | Daily hard-delete sweeper (03:00 UTC)            |
-| `0 9 * * *`   | Daily onboarding-stuck alert (09:00 UTC)         |
-
-## Before Deploying to Cloudflare
-
-When you are ready to deploy your app to Cloudflare Workers, you'll have to make a couple changes.
-
-- Change your url environment variables to match your `*.workers.dev` domains generated by Cloudflare:
-
-```bash
-# apps/web/.env
-SERVER_URL={your-production-server-domain}
-
-# apps/server/.env
-CORS_ORIGIN={your-production-web-domain}
-BETTER_AUTH_URL={your-production-server-domain}
-```
-
-- In `apps/server/src/lib/auth.ts`, uncomment the `session.cookieCache` and `advanced.crossSubDomainCookies` sections and replace `<your-workers-subdomain>` with your actual workers subdomain. These settings are required to ensure cookies are transferred properly between your web and server domains.
-
-## Deployment (Cloudflare Wrangler)
-
-- Web deploy: cd apps/web && bun deploy
-- Server dev: cd apps/server && bun dev
-- Server deploy: cd apps/server && bun deploy
+| Cron | Purpose |
+|------|---------|
+| `0 * * * *` | Hourly webhook backfill + scheduled reports |
+| `0 1 * * *` | Daily tenant-usage snapshot |
+| `0 2 * * *` | Daily installment sweep |
+| `30 2 * * *` | Daily reconciliation |
+| `0 3 * * *` | Daily hard-delete sweeper |
+| `0 9 * * *` | Daily onboarding-stuck alert |
 
 ## Project Structure
 
 ```
 avantej-core/
 ├── apps/
-│   ├── web/         # Frontend application (React + TanStack Router)
-│   ├── native/      # Mobile application (React Native, Expo)
-│   └── server/      # Backend API (Hono, ORPC)
+│   ├── web/         # Vite + TanStack Router
+│   ├── native/      # Expo
+│   └── server/      # Hono + oRPC (Workers)
 ├── packages/
-│   ├── api/         # API layer / business logic
-│   ├── auth/        # Authentication configuration & logic
-│   └── db/          # Database schema & queries
+│   ├── api/         # Shared oRPC routers
+│   ├── auth/        # Better-Auth config
+│   ├── db/          # Drizzle schemas + migrations
+│   ├── services/    # Business logic
+│   └── types/       # Shared types
+└── zhub/            # Route/API context hub
 ```
 
-## Available Scripts
+## Scripts
 
-- `bun dev`: Start all applications in development mode
-- `bun build`: Build all applications
-- `bun dev:web`: Start only the web application
-- `bun dev:server`: Start only the server
-- `bun check-types`: Check TypeScript types across all apps
-- `bun dev:native`: Start the React Native/Expo development server
-- `bun db:push`: Push schema changes to database
-- `bun db:studio`: Open database studio UI
-- `bun check`: Run Biome formatting and linting
+| Command | Purpose |
+|---------|---------|
+| `bun check-types` | TypeScript across monorepo |
+| `bun check` | oxlint |
+| `bun build` | Production build (turbo) |
+| `bun verify:migrations` | Tenant migration bundle sync |
+
+## Deployment
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and `apps/server/wrangler.jsonc` for Cloudflare Workers deploy.

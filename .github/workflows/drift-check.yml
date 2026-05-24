@@ -13,7 +13,7 @@ name: Schema Drift Check
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - "packages/db/**"
       - "packages/services/**"
@@ -33,7 +33,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.2.22"
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
