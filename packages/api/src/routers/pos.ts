@@ -15,7 +15,7 @@ import { eq, inArray } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { assertOrgContextMatch, guardBranchAccessible, requirePermissionOrpc } from "../guards";
+import { assertOrgContextMatch, guardBranchAccessible, guardInputBranchForContext, requirePermissionOrpc } from "../guards";
 import { recordPosSale, searchPosCustomers } from "@avantej-core/services/pos.service";
 import { getControlPanelDb } from "../lib/context-helpers";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
@@ -85,12 +85,7 @@ export const posRouter = {
 			await requirePermissionOrpc(context.tenantDb, context.member, "pos", "create");
 
 			// Branch scope check (router-layer per plan §4.1 point 3)
-			const accessibleNodeIds = context.accessibleNodeIds ?? [];
-			if (!accessibleNodeIds.includes(input.branchId)) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Branch is not within your accessible scope",
-				});
-			}
+			await guardInputBranchForContext(context, input.branchId);
 
 			return recordPosSale(context.tenantDb, {
 				customerType: input.customerType,

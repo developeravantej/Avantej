@@ -28,7 +28,7 @@ import { and, eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardInputBranchForContext, resolveAccessibleNodeIds } from "../guards";
 
 const serviceTypeSchema = z.enum(["private", "semi_private", "both"]);
 const schedulingTypeSchema = z.enum(["appointment", "class_slot"]);
@@ -65,14 +65,7 @@ export const servicesRouter = {
         await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
       }
 
-      const accessibleNodeIds =
-        context.accessibleNodeIds ??
-        (context.member
-          ? await getDescendantNodeIds(
-              context.tenantDb,
-              context.member.hierarchyScopeId
-            )
-          : []);
+      const accessibleNodeIds = await resolveAccessibleNodeIds(context);
 
       const items = await listServices(context.tenantDb, {
         categoryId: input.categoryId ?? undefined,
@@ -111,19 +104,7 @@ export const servicesRouter = {
         });
       }
 
-      const accessibleNodeIds =
-        context.accessibleNodeIds ??
-        (context.member
-          ? await getDescendantNodeIds(
-              context.tenantDb,
-              context.member.hierarchyScopeId
-            )
-          : []);
-      if (service.branchId && !accessibleNodeIds.includes(service.branchId)) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User does not have access to this service",
-        });
-      }
+      await guardInputBranchForContext(context, service.branchId);
 
       return service;
     }),
@@ -171,21 +152,7 @@ export const servicesRouter = {
 		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "create")
 
-      if (input.branchId) {
-        const accessibleNodeIds =
-          context.accessibleNodeIds ??
-          (context.member
-            ? await getDescendantNodeIds(
-                context.tenantDb,
-                context.member.hierarchyScopeId
-              )
-            : []);
-        if (!accessibleNodeIds.includes(input.branchId)) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "User does not have access to this branch",
-          });
-        }
-      }
+      await guardInputBranchForContext(context, input.branchId);
 
       // Validate each plan code exists and is active
       if (input.availablePaymentPlans && input.availablePaymentPlans.length > 0) {
@@ -296,29 +263,9 @@ export const servicesRouter = {
         });
       }
 
-      const accessibleNodeIds =
-        context.accessibleNodeIds ??
-        (context.member
-          ? await getDescendantNodeIds(
-              context.tenantDb,
-              context.member.hierarchyScopeId
-            )
-          : []);
-      if (existing.branchId && !accessibleNodeIds.includes(existing.branchId)) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User does not have access to this service",
-        });
-      }
-
-      if (input.branchId !== undefined && input.branchId !== null) {
-        if (!accessibleNodeIds.includes(input.branchId)) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "User does not have access to target branch",
-          });
-        }
-      }
-
-      // Validate each plan code exists and is active
+      await guardInputBranchForContext(context, existing.branchId);
+await guardInputBranchForContext(context, input.branchId);
+// Validate each plan code exists and is active
       if (input.availablePaymentPlans && input.availablePaymentPlans.length > 0) {
         for (const code of input.availablePaymentPlans) {
           const plan = await context.tenantDb.query.installmentPlans.findFirst({
@@ -471,21 +418,7 @@ export const servicesRouter = {
 		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
       // Branch-access check when scoped to a branch
-      if (input.branchId) {
-        const accessibleNodeIds =
-          context.accessibleNodeIds ??
-          (context.member
-            ? await getDescendantNodeIds(
-                context.tenantDb,
-                context.member.hierarchyScopeId,
-              )
-            : []);
-        if (!accessibleNodeIds.includes(input.branchId)) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "User does not have access to this branch",
-          });
-        }
-      }
+      await guardInputBranchForContext(context, input.branchId);
       return setServicePrice(context.tenantDb, {
         serviceId: input.serviceId,
         branchId: input.branchId,
@@ -527,11 +460,7 @@ export const servicesRouter = {
         throw new ORPCError("NOT_FOUND", { message: "Price override not found" });
       }
       if (svc.branchId) {
-        const accessibleNodeIds =
-          context.accessibleNodeIds ??
-          (context.member
-            ? await getDescendantNodeIds(context.tenantDb, context.member.hierarchyScopeId)
-            : []);
+        const accessibleNodeIds = await resolveAccessibleNodeIds(context);
         if (!accessibleNodeIds.includes(svc.branchId)) {
           throw new ORPCError("NOT_FOUND", { message: "Price override not found" });
         }
@@ -569,11 +498,7 @@ export const servicesRouter = {
         throw new ORPCError("NOT_FOUND", { message: "Price override not found" });
       }
       if (svc.branchId) {
-        const accessibleNodeIds =
-          context.accessibleNodeIds ??
-          (context.member
-            ? await getDescendantNodeIds(context.tenantDb, context.member.hierarchyScopeId)
-            : []);
+        const accessibleNodeIds = await resolveAccessibleNodeIds(context);
         if (!accessibleNodeIds.includes(svc.branchId)) {
           throw new ORPCError("NOT_FOUND", { message: "Price override not found" });
         }
@@ -598,17 +523,9 @@ export const servicesRouter = {
 		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
 
-      const accessibleNodeIds =
-        context.accessibleNodeIds ??
-        (context.member
-          ? await getDescendantNodeIds(
-              context.tenantDb,
-              context.member.hierarchyScopeId
-            )
-          : []);
-
       const from = new Date(input.from);
       const to = new Date(input.to);
+      const accessibleNodeIds = await resolveAccessibleNodeIds(context);
 
       try {
         return await revenueShareByCategory(context.tenantDb, {
@@ -671,14 +588,7 @@ export const servicesRouter = {
         await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
       }
 
-      const accessibleNodeIds =
-        context.accessibleNodeIds ??
-        (context.member
-          ? await getDescendantNodeIds(
-              context.tenantDb,
-              context.member.hierarchyScopeId
-            )
-          : []);
+      const accessibleNodeIds = await resolveAccessibleNodeIds(context);
 
       return listServicesWithTrainerTiers(context.tenantDb, {
         categoryId: input.categoryId ?? undefined,

@@ -3,6 +3,7 @@ import type { members } from "@avantej-core/db/schema/tenant/members";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import {
 	assertBranchAccessible,
+	getDescendantNodeIds,
 	isBranchAccessDeniedError,
 	PermissionDeniedError,
 	requirePermission,
@@ -66,6 +67,29 @@ export function guardBranchAccessible(
 		}
 		throw error;
 	}
+}
+
+/** Resolve hierarchy scope for the current member (context or descendant walk). */
+export async function resolveAccessibleNodeIds(
+	context: Context & { tenantDb: TenantDb; member: Member },
+): Promise<string[]> {
+	if (context.accessibleNodeIds?.length) {
+		return context.accessibleNodeIds;
+	}
+	return getDescendantNodeIds(
+		context.tenantDb,
+		context.member.hierarchyScopeId,
+	);
+}
+
+/** Guard input.branchId using resolved accessibleNodeIds (Plan C.1.3). */
+export async function guardInputBranchForContext(
+	context: Context & { tenantDb: TenantDb; member: Member },
+	branchId: string | undefined | null,
+): Promise<void> {
+	if (!branchId) return;
+	const accessibleNodeIds = await resolveAccessibleNodeIds(context);
+	guardBranchAccessible(branchId, accessibleNodeIds);
 }
 
 /** Map PermissionDeniedError (and legacy messages) to ORPCError FORBIDDEN (Plan C C.3). */

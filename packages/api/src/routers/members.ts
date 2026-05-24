@@ -15,7 +15,7 @@ import { desc, eq, and, inArray, asc, isNull, type SQL } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, resolveAccessibleNodeIds } from "../guards";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { getDescendantNodeIds,
@@ -1463,11 +1463,7 @@ export const memberRouter = {
 		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read")
 
-      const accessibleNodeIds =
-        context.accessibleNodeIds ??
-        (context.member
-          ? await getDescendantNodeIds(context.tenantDb, context.member.hierarchyScopeId)
-          : []);
+      const accessibleNodeIds = await resolveAccessibleNodeIds(context);
 
       return getMembersNewToday(context.tenantDb, {
         accessibleNodeIds,

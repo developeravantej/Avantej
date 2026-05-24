@@ -69,6 +69,7 @@
     "codemod:add-branch-guard": "node scripts/codemods/add-branch-guard.mjs",
     "codemod:add-optional-branch-guard": "node scripts/codemods/add-optional-branch-guard.mjs",
     "codemod:replace-inline-branch-guard": "node scripts/codemods/replace-inline-branch-guard.mjs",
+    "codemod:replace-descendant-branch-guard": "node scripts/codemods/replace-descendant-branch-guard.mjs",
     "codemod:ensure-branch-guard-import": "node scripts/codemods/ensure-guard-branch-import.mjs",
     "ci:check-tenant-perimeter": "node scripts/ci/check-tenant-perimeter.mjs"
   },

@@ -16,7 +16,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardInputBranchForContext, resolveAccessibleNodeIds } from "../guards";
 
 export const serviceCategoriesRouter = {
   list: tenantProcedure
@@ -38,14 +38,7 @@ export const serviceCategoriesRouter = {
         await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
       }
 
-      const accessibleNodeIds =
-        context.accessibleNodeIds ??
-        (context.member
-          ? await getDescendantNodeIds(
-              context.tenantDb,
-              context.member.hierarchyScopeId
-            )
-          : []);
+      const accessibleNodeIds = await resolveAccessibleNodeIds(context);
 
       const categories = await listServiceCategories(context.tenantDb, {
         branchId: input.branchId ?? undefined,
@@ -90,22 +83,7 @@ export const serviceCategoriesRouter = {
         });
       }
 
-      const accessibleNodeIds =
-        context.accessibleNodeIds ??
-        (context.member
-          ? await getDescendantNodeIds(
-              context.tenantDb,
-              context.member.hierarchyScopeId
-            )
-          : []);
-      if (
-        category.branchId &&
-        !accessibleNodeIds.includes(category.branchId)
-      ) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User does not have access to this category",
-        });
-      }
+      await guardInputBranchForContext(context, category.branchId);
 
       return {
         id: category.id,
@@ -138,21 +116,7 @@ export const serviceCategoriesRouter = {
 		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "create")
 
-      if (input.branchId) {
-        const accessibleNodeIds =
-          context.accessibleNodeIds ??
-          (context.member
-            ? await getDescendantNodeIds(
-                context.tenantDb,
-                context.member.hierarchyScopeId
-              )
-            : []);
-        if (!accessibleNodeIds.includes(input.branchId)) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "User does not have access to this branch",
-          });
-        }
-      }
+      await guardInputBranchForContext(context, input.branchId);
 
       try {
         const category = await createServiceCategory(context.tenantDb, {
@@ -207,30 +171,8 @@ export const serviceCategoriesRouter = {
         });
       }
 
-      const accessibleNodeIds =
-        context.accessibleNodeIds ??
-        (context.member
-          ? await getDescendantNodeIds(
-              context.tenantDb,
-              context.member.hierarchyScopeId
-            )
-          : []);
-      if (
-        existing.branchId &&
-        !accessibleNodeIds.includes(existing.branchId)
-      ) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User does not have access to this category",
-        });
-      }
-
-      if (input.branchId !== undefined && input.branchId !== null) {
-        if (!accessibleNodeIds.includes(input.branchId)) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "User does not have access to target branch",
-          });
-        }
-      }
+      await guardInputBranchForContext(context, existing.branchId);
+      await guardInputBranchForContext(context, input.branchId);
 
       try {
         const category = await updateServiceCategory(

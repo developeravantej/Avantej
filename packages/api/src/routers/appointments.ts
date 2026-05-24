@@ -21,7 +21,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardInputBranchForContext, resolveAccessibleNodeIds } from "../guards";
 import { eq, inArray, or, and, gte, ne } from "drizzle-orm";
 import { parseCursor, encodeCursor } from "../lib/cursor";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
@@ -79,14 +79,7 @@ export const appointmentsRouter = {
 		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read")
 
-      const accessibleNodeIds =
-        context.accessibleNodeIds ??
-        (context.member
-          ? await getDescendantNodeIds(
-              context.tenantDb,
-              context.member.hierarchyScopeId
-            )
-          : []);
+      const accessibleNodeIds = await resolveAccessibleNodeIds(context);
 
       // Use recurrence-aware list which returns virtual occurrences for recurring series.
       // Note: status filter is not passed to listAppointmentsWithRecurrence — virtual
@@ -271,19 +264,7 @@ export const appointmentsRouter = {
 
       if (isStaff) {
         await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read");
-        const accessibleNodeIds =
-          context.accessibleNodeIds ??
-          (context.member
-            ? await getDescendantNodeIds(
-                context.tenantDb,
-                context.member.hierarchyScopeId
-              )
-            : []);
-        if (!accessibleNodeIds.includes(appointment.branchId)) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "User does not have access to this appointment",
-          });
-        }
+        await guardInputBranchForContext(context, appointment.branchId);
         return appointment;
       }
 
@@ -350,19 +331,7 @@ export const appointmentsRouter = {
       if (!isClientSelfBooking) {
         await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "create")
 
-        const accessibleNodeIds =
-          context.accessibleNodeIds ??
-          (context.member
-            ? await getDescendantNodeIds(
-                context.tenantDb,
-                context.member.hierarchyScopeId
-              )
-            : []);
-        if (!accessibleNodeIds.includes(input.branchId)) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "User does not have access to this branch",
-          });
-        }
+        await guardInputBranchForContext(context, input.branchId);
       }
 
       // Defensive guard: a booking against a `pending` package_instance is
@@ -830,19 +799,7 @@ export const appointmentsRouter = {
 
       if (isStaff) {
         await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
-        const accessibleNodeIds =
-          context.accessibleNodeIds ??
-          (context.member
-            ? await getDescendantNodeIds(
-                context.tenantDb,
-                context.member.hierarchyScopeId
-              )
-            : []);
-        if (!accessibleNodeIds.includes(existing.branchId)) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "User does not have access to this appointment",
-          });
-        }
+        await guardInputBranchForContext(context, existing.branchId);
       } else if (isClient) {
         if (input.status && input.status !== "cancelled") {
           throw new ORPCError("FORBIDDEN", {
