@@ -7,7 +7,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const routersDir = join(process.cwd(), "packages/api/src/routers");
-const ALLOW_PROTECTED = new Set(["registration.ts", "index.ts"]);
+const ALLOW_PROTECTED = new Set(["registration.ts", "index.ts", "base-router.ts"]);
 const ALLOW_LEGACY_BRANCH_RESOLVE = new Set([
 	"hierarchy.ts",
 	"members.ts",

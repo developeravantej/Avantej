@@ -124,10 +124,12 @@ describe("paymentsRouter.refund", () => {
 
 		expect(result.refundId).toBe("re_123");
 		expect(refundCreate).toHaveBeenCalledTimes(1);
-		const [, options] = refundCreate.mock.calls[0] as [
-			unknown,
-			{ stripeAccount?: string; idempotencyKey?: string },
-		];
+		const firstCall = refundCreate.mock.calls[0] as unknown[] | undefined;
+		expect(firstCall).toBeDefined();
+		const options = firstCall![1] as {
+			stripeAccount?: string;
+			idempotencyKey?: string;
+		};
 		expect(options.stripeAccount).toBe("acct_123");
 		expect(options.idempotencyKey).toBe(`refund:appt:${APPT_ID}`);
 	});

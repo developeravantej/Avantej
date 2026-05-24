@@ -72,6 +72,8 @@
     "codemod:replace-descendant-branch-guard": "node scripts/codemods/replace-descendant-branch-guard.mjs",
     "codemod:ensure-branch-guard-import": "node scripts/codemods/ensure-guard-branch-import.mjs",
     "ci:check-tenant-perimeter": "node scripts/ci/check-tenant-perimeter.mjs",
+    "ci:check-router-index-loc": "node scripts/ci/check-router-index-loc.mjs",
+    "ci:check-router-file-loc": "node scripts/ci/check-router-file-loc.mjs",
     "gen:router-type-stubs": "node scripts/extract-router-type-stubs.mjs"
   },
   "dependencies": {
