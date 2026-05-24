@@ -9,11 +9,8 @@ import { join } from "node:path";
 const routersDir = join(process.cwd(), "packages/api/src/routers");
 const MAX_LINES = 400;
 
-/** Known mega-routers tracked for D-S7 split — remove when fully modularized. */
-const ALLOWLIST = new Set([
-	"package-instances.ts",
-	"invitations.ts",
-]);
+/** Known mega-routers tracked for D-S7 split — empty when all routers are modularized. */
+const ALLOWLIST = new Set([]);
 
 const SKIP = new Set(["index.ts", "base-router.ts"]);
 
