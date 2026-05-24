@@ -20,105 +20,11 @@ import {
 } from "@avantej-core/services/refunds.service";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
-import { getControlPanelDb } from "../lib/context-helpers";
+import { tenantProcedure } from "../../index";
+import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../../guards";
+import { getControlPanelDb } from "../../lib/context-helpers";
 
-export const refundsRouter = {
-	/**
-	 * List refunds with optional filters and RBAC scoping by branchId.
-	 */
-	list: tenantProcedure
-		.input(
-			z.object({
-				organizationId: z.string().uuid(),
-				status: z
-					.enum([
-						"pending",
-						"approved",
-						"rejected",
-						"processed",
-						"cancelled",
-						"all",
-					])
-					.optional(),
-				salesOrderId: z.string().uuid().optional(),
-				customerId: z.string().optional(),
-				branchId: z.string().uuid().optional(),
-				from: z
-					.string()
-					.regex(
-						/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/,
-						"Expected ISO datetime",
-					)
-					.optional(),
-				to: z
-					.string()
-					.regex(
-						/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/,
-						"Expected ISO datetime",
-					)
-					.optional(),
-				limit: z.number().int().min(1).max(200).default(100),
-				offset: z.number().int().min(0).default(0),
-			}),
-		)
-		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
-			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "read");
-
-			const controlPanelDb = getControlPanelDb(context);
-			const accessibleNodeIds = context.accessibleNodeIds ?? [];
-
-			return listRefunds(context.tenantDb, controlPanelDb, {
-				status: input.status,
-				salesOrderId: input.salesOrderId,
-				customerId: input.customerId,
-				branchId: input.branchId,
-				from: input.from ? new Date(input.from) : undefined,
-				to: input.to ? new Date(input.to) : undefined,
-				accessibleNodeIds,
-				limit: input.limit,
-				offset: input.offset,
-			});
-		}),
-
-	/**
-	 * Get a single refund by ID.
-	 */
-	getById: tenantProcedure
-		.input(
-			z.object({
-				organizationId: z.string().uuid(),
-				id: z.string().uuid(),
-			}),
-		)
-		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "read");
-
-			const refund = await getRefundById(context.tenantDb, input.id);
-			if (!refund) {
-				throw new ORPCError("NOT_FOUND", {
-					message: `Refund ${input.id} not found`,
-				});
-			}
-			return refund;
-		}),
-
-	/**
-	 * Request a new refund (creates a pending row).
-	 * At least one of salesOrderId, paymentId, packageInstanceId must be supplied.
-	 */
+export const refundsLifecycleProcedures = {
 	request: tenantProcedure
 		.input(
 			z.object({
@@ -266,109 +172,6 @@ export const refundsRouter = {
 		}),
 
 	/**
-	 * Create a partial refund against a package instance — refunds a specific
-	 * number of session credits. Locks the package_instances row via SELECT FOR
-	 * UPDATE; rolls back on any validation failure. Agent 2.8 — J5.
-	 */
-	createPartial: tenantProcedure
-		.input(
-			z.object({
-				organizationId: z.string().uuid(),
-				packageInstanceId: z.string().uuid(),
-				creditsRefunded: z.number().int().positive(),
-				reason: z.string().min(1).max(1000),
-				branchId: z.string().uuid().optional(),
-			}),
-		)
-		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
-			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "create");
-
-			try {
-				return await createPartialRefund(context.tenantDb, {
-					packageInstanceId: input.packageInstanceId,
-					creditsRefunded: input.creditsRefunded,
-					reason: input.reason,
-					branchId: input.branchId,
-					actor: {
-						userId: context.session.user.id,
-						memberId: context.member.id,
-						role: context.member.role,
-					},
-				});
-			} catch (err) {
-				if (err instanceof ORPCError) throw err;
-				const e = err as { code?: string; message?: string };
-				if (e?.code === "BAD_REQUEST") {
-					throw new ORPCError("BAD_REQUEST", { message: e.message });
-				}
-				if (e?.code === "NOT_FOUND") {
-					throw new ORPCError("NOT_FOUND", { message: e.message });
-				}
-				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Operation failed" });
-			}
-		}),
-
-	/**
-	 * Bulk-approve up to 50 pending refunds in a single call.
-	 *
-	 * 1.6 — Each row is processed in its own independent transaction; a failure
-	 * on one item does NOT roll back others. The response is a per-id success/error
-	 * array that the caller must inspect.
-	 *
-	 * Accepts the same optional approveAmountCents and reviewNotes overrides as the
-	 * single-row approve endpoint.
-	 */
-	bulkApprove: tenantProcedure
-		.input(
-			z.object({
-				organizationId: z.string().uuid(),
-				items: z
-					.array(
-						z.object({
-							id: z.string().uuid(),
-							approveAmountCents: z.number().int().positive().optional(),
-							reviewNotes: z.string().max(2000).optional(),
-						}),
-					)
-					.min(1)
-					.max(50),
-			}),
-		)
-		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "approve");
-
-			try {
-				return await bulkApproveRefunds(
-					context.tenantDb,
-					input.items,
-					{
-						userId: context.session.user.id,
-						memberId: context.member.id,
-						role: context.member.role,
-					},
-				);
-			} catch (err) {
-				if (err instanceof ORPCError) throw err;
-				const e = err as { code?: string; message?: string };
-				if (e?.code === "BAD_REQUEST") {
-					throw new ORPCError("BAD_REQUEST", { message: e.message });
-				}
-				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Operation failed" });
-			}
-		}),
-
-	/**
 	 * Mark an approved refund as processed.
 	 * Writes back to payments.refundAmount and/or sales_orders.cancelledAmount in one tx.
 	 *
@@ -417,5 +220,5 @@ export const refundsRouter = {
 				}
 				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Operation failed" });
 			}
-		}),
+		})
 };

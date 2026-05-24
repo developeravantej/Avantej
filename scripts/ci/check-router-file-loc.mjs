@@ -17,7 +17,6 @@ const ALLOWLIST = new Set([
 	"commission-splits.ts",
 	"invitations.ts",
 	"class-slots.ts",
-	"refunds.ts",
 ]);
 
 const SKIP = new Set(["index.ts", "base-router.ts"]);

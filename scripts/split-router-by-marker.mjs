@@ -38,31 +38,37 @@ const body = src.slice(headerEnd);
 const bodyStart = body.indexOf("{") + 1;
 const bodyInner = body.slice(bodyStart, body.lastIndexOf("};"));
 
-const procStarts = [...bodyInner.matchAll(/^\s{2}(\w+):\s*tenantProcedure/gm)];
+const procStarts = [...bodyInner.matchAll(/^\s+(\w+):\s*tenantProcedure/gm)];
 const procedures = new Map();
 
 for (let i = 0; i < procStarts.length; i++) {
 	const name = procStarts[i][1];
 	let start = procStarts[i].index ?? 0;
-	const end =
+	let end =
 		i + 1 < procStarts.length
 			? (procStarts[i + 1].index ?? bodyInner.length)
 			: bodyInner.length;
 
-	// Include JSDoc immediately preceding this procedure.
-	const before = bodyInner.slice(Math.max(0, start - 800), start);
-	const commentMatch = before.match(/(\n\s+\/\*\*[\s\S]*?\*\/\s*)$/);
-	if (commentMatch) {
-		start -= commentMatch[1].length;
+	// Exclude next procedure's JSDoc from this block.
+	const beforeNext = bodyInner.slice(Math.max(start, end - 1200), end);
+	const nextComment = beforeNext.match(/\n\s+\/\*\*[\s\S]*$/);
+	if (nextComment) {
+		end -= nextComment[0].length;
+	}
+
+	// Include this procedure's JSDoc (stop at previous procedure close).
+	const before = bodyInner.slice(Math.max(0, start - 1200), start);
+	const ownComment = before.match(/(\n\s+\/\*\*[\s\S]*?\*\/\s*)$/);
+	if (ownComment && !ownComment[1].includes("tenantProcedure")) {
+		start -= ownComment[1].length;
 	}
 
 	let block = bodyInner.slice(start, end).trim();
-	// Trailing JSDoc before the next procedure (not part of this block).
-	const trailingComment = block.match(/\n\s+\/\*\*[\s\S]*$/);
-	if (trailingComment) {
-		block = block.slice(0, -trailingComment[0].length).trimEnd();
-	}
 	if (block.endsWith(",")) block = block.slice(0, -1);
+	if (!block.includes(".handler(")) {
+		console.error(`Procedure ${name} block looks incomplete (${block.length} chars)`);
+		process.exit(1);
+	}
 	procedures.set(name, block);
 }
 
