@@ -167,7 +167,68 @@ const modules = moduleSpecs.map((spec) => {
 const outDir = join(routersDir, routerName);
 mkdirSync(outDir, { recursive: true });
 
-const adjustedHeader = header.replace(/from "\.\.\//g, 'from "../../');
+/** Pull duplicated zod schemas / tenant tx types into shared modules (Plan D-S7 scaling). */
+function extractSharedPreamble(rawHeader) {
+	const schemaStart = rawHeader.search(/\nconst \w+Schema = z\./);
+	if (schemaStart === -1) {
+		return { header: rawHeader, schemaImport: "", wroteSchemas: false, wroteTypes: false };
+	}
+
+	const typeStart = rawHeader.search(/\ntype TenantDb = /);
+	const schemaEnd = typeStart > -1 ? typeStart : rawHeader.length;
+	let schemaBlock = rawHeader.slice(schemaStart + 1, schemaEnd).trimEnd();
+
+	// Include org-setting keys immediately after schema enums.
+	const afterSchemas = rawHeader.slice(schemaEnd);
+	const packageKeyMatch = afterSchemas.match(
+		/^(\/\/[^\n]*\n)*const (PACKAGE_\w+) = [^;]+;/m,
+	);
+	if (packageKeyMatch) {
+		schemaBlock += `\n\n${packageKeyMatch[0].trim()}`;
+	}
+
+	const schemasTs = `import { z } from "zod";\n\n${schemaBlock
+		.replace(/^const /gm, "export const ")
+		.replace(/\nconst (PACKAGE_\w+)/g, "\nexport const $1")}\n`;
+
+	let typesTs = "";
+	let typeImport = "";
+	let header = rawHeader.slice(0, schemaStart).trimEnd();
+
+	if (typeStart > -1) {
+		const typeBlock = rawHeader.slice(typeStart + 1).trimEnd();
+		typesTs = `${typeBlock.replace(/^type TenantDb/gm, "export type TenantDb").replace(/^type TenantTx/gm, "export type TenantTx")}\n`;
+		if (!typesTs.includes("import type { NeonDatabase }")) {
+			typesTs =
+				'import type { NeonDatabase } from "drizzle-orm/neon-serverless";\nimport type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";\n\n' +
+				typesTs;
+		}
+		typeImport = '\nimport type { TenantTx } from "./types";';
+		header = header.replace(
+			/import type \{ NeonDatabase \}[^\n]*\nimport type \* as tenantSchema[^\n]*\n\n?/,
+			"",
+		);
+	}
+
+	writeFileSync(join(outDir, "schemas.ts"), schemasTs, "utf-8");
+	const wroteTypes = Boolean(typesTs);
+	if (wroteTypes) {
+		writeFileSync(join(outDir, "types.ts"), typesTs, "utf-8");
+	}
+
+	const schemaNames = [...schemaBlock.matchAll(/^const (\w+)/gm)].map((m) => m[1]);
+	const schemaImport =
+		schemaNames.length > 0
+			? `\nimport { ${schemaNames.join(", ")} } from "./schemas";${typeImport}`
+			: typeImport;
+
+	return { header, schemaImport, wroteSchemas: true, wroteTypes };
+}
+
+const shared = extractSharedPreamble(header);
+const adjustedHeader = shared.header.replace(/from "\.\.\//g, 'from "../../') + shared.schemaImport;
+if (shared.wroteSchemas) console.log("Wrote schemas.ts");
+if (shared.wroteTypes) console.log("Wrote types.ts");
 
 const used = new Set();
 for (const { modName, procs } of modules) {
