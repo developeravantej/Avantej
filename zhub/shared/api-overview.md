@@ -1,28 +1,42 @@
 # API Overview
 
-**Last updated:** 2026-05-12 *(router catalog unchanged — web-debt-cleanup touched frontend only)*
+**Last updated:** 2026-05-24 *(Plan D-S7 router splits + stale procedure catalog refresh)*
 
 All oRPC procedures available in the Avantej platform. Client: `client.routerName.procedureName(input)` from `@/utils/orpc`.
 
 Auth levels: **public** = no session required, **protected** = session + tenant context required.
 
-Total routers: 52
+Total routers in `baseRouter`: 52 tenant-scoped routers (+ server-only routers merged at runtime in `appRouter`).
+
+### Split-router module map (Plan D-S7)
+
+Nine routers were split from monoliths into folders under `packages/api/src/routers/<name>/`. Each folder has `index.ts` (aggregator, ≤150 LOC) and `*.procedures.ts` modules (≤400 LOC). A thin re-export shim at `routers/<name>.ts` preserves `@avantej-core/api/routers/<name>` deep imports.
+
+| Router | Modules |
+|--------|---------|
+| `members` | list, read, create, role, scope, status, archive, removal, sync |
+| `hierarchy` | read, create, update, delete, move, members |
+| `invitations` | create, public, manage |
+| `refunds` | read, lifecycle, bulk |
+| `services` | crud, pricing, analytics |
+| `appointments` | list, crud, recurrence, series-cancel |
+| `class-slots` | read, crud, enrollment |
+| `commission-splits` | read, lifecycle, analytics, review |
+| `package-instances` | client, create, lists, pending, assign, approve, bulk-reject, lifecycle, history |
+
+**CI gates:** `bun run ci:check-router-file-loc`, `bun run ci:check-router-index-loc`. **Tooling:** `bun run codemod:split-router`, `bun run refine:*-imports`.
 
 ---
 
 ## New in this update
 
-- **`categoryBufferOverrides`** — new router: listForMember, upsert, listMine, updateMine
-- **`packageInstanceStaff`** — new router: list, assign, remove, replace
-- **`appointments`** — added: materializeOccurrence, splitSeries, cancelSeries, cancelFuture; create now accepts recurrence; list uses virtual occurrences
-- **`announcements`** — create/update now accept `scopedBranchIds`; list accepts `isAdmin` param
-- **`services`** — added: expireBranchPrice, deleteBranchPrice
-- **`products`** — added: expireBranchPrice, deleteBranchPrice
-- **`goodsReceipts`** — added: disputeInvoice, markInvoicePaid, getInvoicePreview; listInvoices updated
-- **`invoices`** — added: paymentStatusHistory (cursor-paginated)
-- **`salesOrders`** — added: statusHistory (cursor-paginated)
-- **`packageInstances`** — added: statusHistory (cursor-paginated), assignTrainer, reject, listPending
-- **`serviceMembers`** — added: listForService
+- **Plan D-S7** — split-router architecture (see table above); CI LOC gates; codemod/refine toolchain documented in `CLAUDE.md`
+- **`members`** — catalogued: `newToday`, `restore`, `retryGhlSync`, `softDelete`, `updateScope` (were missing)
+- **`hierarchy`** — added `listNodesWithStats`
+- **`refunds`** — added `bulkApprove`, `createPartial`
+- **`packageInstances`** — added `bulkAssign`, `bulkApprove`, `bulkReject`, `cancel`, `extend`, `freeze`, `listAssignedToMe`, `unfreeze`
+- **`commissionSplits`** — added `listLedger`, `markPaidById`, `voidById`, `liabilityByStaff`, `listPendingReview`, `resolveReview`
+- **`services`** — added pricing/analytics procedures: `duplicate`, `resolvePrice`, `listPriceOverrides`, `setBranchPrice`, `revenueShareByCategory`, `avgSessionsSoldPerMonth`, `listWithTrainerTiers`
 
 ---
 
@@ -132,11 +146,17 @@ Total routers: 52
 | `createManualAdjustment` | protected | Create manual commission bonus/clawback |
 | `getByAppointment` | protected | Get commission splits for an appointment |
 | `getMyCommissions` | protected | Get commissions for current staff member |
+| `liabilityByStaff` | protected | Commission liability grouped by staff member |
 | `liabilitySummary` | protected | Aggregate commission liability for date range |
 | `list` | protected | List commission splits |
+| `listLedger` | protected | Paginated commission ledger with filters |
+| `listPendingReview` | protected | List splits awaiting review |
 | `markPaid` | protected | Bulk mark approved splits as paid |
 | `markPaidBatch` | protected | Batch mark approved splits as paid by member/date |
+| `markPaidById` | protected | Mark a single split as paid by id |
+| `resolveReview` | protected | Resolve a pending review item (approve/reject) |
 | `void` | protected | Void a commission split with reason |
+| `voidById` | protected | Void a single split by id with reason |
 
 ## customer-directory
 | Procedure | Auth | Description |
@@ -190,6 +210,7 @@ Total routers: 52
 | `listAllMembers` | protected | List all members across entire organization |
 | `listMembers` | protected | List members within hierarchy scope |
 | `listNodes` | protected | List hierarchy nodes |
+| `listNodesWithStats` | protected | List hierarchy nodes with member/service stats |
 | `moveNode` | protected | Move node to different parent |
 | `reassignMember` | protected | Reassign member to new hierarchy scope |
 | `updateNode` | protected | Update hierarchy node details |
@@ -246,10 +267,15 @@ Total routers: 52
 | `deactivate` | protected | Deactivate member account |
 | `getById` | protected | Get member details by id |
 | `list` | protected | List members with optional filters |
+| `newToday` | protected | Count members created today (dashboard KPI) |
 | `reactivate` | protected | Reactivate deactivated member |
 | `remove` | protected | Remove member from organization |
+| `restore` | protected | Restore soft-deleted member |
+| `retryGhlSync` | protected | Manually retry GHL staff sync for a member |
+| `softDelete` | protected | Soft-delete member (sets deletedAt) |
 | `suspend` | protected | Suspend member account |
 | `updateRole` | protected | Update member role |
+| `updateScope` | protected | Update member hierarchy scope |
 
 ## notification-preferences
 | Procedure | Auth | Description |
@@ -283,16 +309,24 @@ Total routers: 52
 | Procedure | Auth | Description |
 |-----------|------|-------------|
 | `assignTrainer` | protected | Assign a trainer to a pending package, transitioning it to active (admin or trainer self-assign) |
+| `bulkApprove` | protected | Bulk approve pending package instances |
+| `bulkAssign` | protected | Bulk assign trainers to pending packages |
+| `bulkReject` | protected | Bulk reject pending package instances |
+| `cancel` | protected | Cancel an active package instance |
 | `create` | protected | Create new package instance; approval gate: purchased packages start pending when org setting enabled |
+| `extend` | protected | Extend package expiry date |
+| `freeze` | protected | Freeze an active package instance |
 | `getActiveForClient` | protected | Get active packages for client (session user; native app) |
 | `getById` | protected | Get package instance details (enriched with assignedTrainerName, preferredTrainerName) |
 | `listAll` | protected | List all package instances for org (service_management:read); returns clientName |
+| `listAssignedToMe` | protected | List packages assigned to the current trainer |
 | `listExpiring` | protected | List packages expiring soon (reports:read) |
 | `listForClient` | protected | List packages for specific client (session user; native app) |
 | `listMemberships` | protected | List membership packages with RBAC scope (service_management:read) |
 | `listPending` | protected | List packages awaiting trainer assignment (admin or trainer; enriched with customerName, preferredTrainerName) |
 | `reject` | protected | Reject a pending package — admin only; sets status cancelled and notifies customer |
 | `statusHistory` | protected | Cursor-paginated status transition log (package_management:read) |
+| `unfreeze` | protected | Unfreeze a frozen package instance |
 
 ## payouts
 | Procedure | Auth | Description |
@@ -362,6 +396,8 @@ Total routers: 52
 | Procedure | Auth | Description |
 |-----------|------|-------------|
 | `approve` | protected | Approve refund request |
+| `bulkApprove` | protected | Bulk approve multiple refund requests |
+| `createPartial` | protected | Create partial refund against package instance session credits |
 | `getById` | protected | Get refund details |
 | `list` | protected | List refund requests |
 | `process` | protected | Process approved refund |
@@ -437,11 +473,18 @@ Total routers: 52
 ## services
 | Procedure | Auth | Description |
 |-----------|------|-------------|
+| `avgSessionsSoldPerMonth` | protected | Average sessions sold per month for analytics |
 | `create` | protected | Create new service |
 | `deleteBranchPrice` | protected | Delete a branch-specific price override for a service |
+| `duplicate` | protected | Duplicate an existing service |
 | `expireBranchPrice` | protected | Expire a branch-specific price override for a service |
 | `getById` | protected | Get service details |
 | `list` | protected | List services with optional filters |
+| `listPriceOverrides` | protected | List branch price overrides for a service |
+| `listWithTrainerTiers` | protected | List services with trainer tier assignments |
+| `resolvePrice` | protected | Resolve effective price for service/branch/customer type |
+| `revenueShareByCategory` | protected | Revenue share breakdown by service category |
+| `setBranchPrice` | protected | Set branch-specific price override |
 | `update` | protected | Update service details |
 
 ## stock-requests

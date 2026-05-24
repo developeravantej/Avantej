@@ -1,6 +1,6 @@
 # Auth Flow & RBAC
 
-**Last updated:** 2026-05-12 *(content unchanged — web-debt-cleanup did not touch auth middleware, context, or RBAC services)*
+**Last updated:** 2026-05-24 *(Plan D-S7: `assertTenantContext` guard standardization in split routers)*
 
 ---
 
@@ -84,6 +84,16 @@ const canApprove = userContext?.permissions?.some(
 );
 ```
 
+**Router guard helpers** (`packages/api/src/guards.ts` — use in procedure handlers):
+
+| Helper | When to call | Error |
+|--------|--------------|-------|
+| `assertOrgContextMatch(context, input)` | First on any procedure with `organizationId` in input | `FORBIDDEN` if input org ≠ context org |
+| `assertTenantContext(context)` | Before permission / DB work on tenant procedures | `INTERNAL_SERVER_ERROR` if `tenantDb` missing; `FORBIDDEN` if `member` missing |
+| `requirePermissionOrpc(tenantDb, member, resource, action)` | After tenant context asserted | `FORBIDDEN` on permission denial |
+| `tryGetControlPanelDb(context)` | Optional CP sync (GHL, org branches) | Returns `null` — skip silently |
+| `getControlPanelDb(context)` | Required CP DB access | `INTERNAL_SERVER_ERROR` if unavailable |
+
 ### Platform Admin
 
 Separate from tenant RBAC. Stored in `platform_admins` (control panel DB). Routes: `/dashboard/platform-admin/*`.
@@ -117,7 +127,7 @@ Separate from tenant RBAC. Stored in `platform_admins` (control panel DB). Route
 ## 6. Known Issues & Gotchas
 
 - **Stale permissions cache:** New permission grants don't appear until localStorage is cleared.
-- **Missing member in context:** If user is not an org member, `context.member` is null — protected procedures throw UNAUTHORIZED.
+- **Missing member in context:** If user is not an org member, `context.member` is null — call `assertTenantContext` early to return `FORBIDDEN` before node-scope checks.
 - **`accessibleNodeIds` fallback:** If `getDescendantNodeIds` fails, defaults to `[]` — node-scoped queries return empty.
 - **Form library inconsistency:** Login uses TanStack Form; Signup/Setup-password use react-hook-form.
 - **OAuth not implemented:** Social sign-in buttons exist in UI but are disabled.

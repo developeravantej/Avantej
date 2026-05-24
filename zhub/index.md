@@ -1,8 +1,8 @@
 # Project Hub Index
 
-**Last updated:** 2026-05-12
+**Last updated:** 2026-05-24
 
-Generated from full hub scan. Contains 105 pages (76 web + 29 native screens) plus shared reference docs. Incremental update 2026-05-12: web-debt-cleanup refactor (commit `25f6d75b`) — `features/{appointments,customers-detail,installments,purchase-orders,services}/` extraction, route+lazy splits (payouts, notifications, tax-rates, purchase-orders), `useApiMutation` rollout, refunds workflow promoted to first-class, and 2 new routes. Updated pages: sales-detail, sales-view, purchase-orders, refunds(-view), suppliers-view, appointment-view, dashboard-appointment, attendance-view, customer-detail, access-control-{roles,user-assignment,invitations}, accept-invitation, packages-installments(-view), commissions(-view,-my), trainers-tiers, home, payouts-view, notifications-view, settings-tax-rates, branch-view, go-highlevel-integration, subscribe. New: `operations-approvals`, `trainers-availability`.
+Generated from full hub scan. Contains 105 pages (76 web + 29 native screens) plus shared reference docs. Incremental update 2026-05-24: **Quality-9 Plan D-S7** — split nine tenant mega-routers into folder modules (`*/index.ts` + `*.procedures.ts`), CI router LOC gates (≤400 LOC per module, 0 allowlist), codemod/refine toolchain (`codemod:split-router`, `refine:*-imports`), re-export shims for deep imports, and `assertTenantContext` guard standardization. Updated shared docs: [API Overview](shared/api-overview.md), [Auth Flow](shared/auth-flow.md). Prior update 2026-05-12: web-debt-cleanup refactor (commit `25f6d75b`) — `features/{appointments,customers-detail,installments,purchase-orders,services}/` extraction, route+lazy splits (payouts, notifications, tax-rates, purchase-orders), `useApiMutation` rollout, refunds workflow promoted to first-class, and 2 new routes. Updated pages: sales-detail, sales-view, purchase-orders, refunds(-view), suppliers-view, appointment-view, dashboard-appointment, attendance-view, customer-detail, access-control-{roles,user-assignment,invitations}, accept-invitation, packages-installments(-view), commissions(-view,-my), trainers-tiers, home, payouts-view, notifications-view, settings-tax-rates, branch-view, go-highlevel-integration, subscribe. New: `operations-approvals`, `trainers-availability`.
 
 ---
 
@@ -10,8 +10,8 @@ Generated from full hub scan. Contains 105 pages (76 web + 29 native screens) pl
 
 | Doc | Purpose |
 |-----|---------|
-| [Auth Flow](shared/auth-flow.md) | Session pipeline, two-DB architecture, RBAC model, cookie config |
-| [API Overview](shared/api-overview.md) | All 55 oRPC routers with procedure names, auth levels, and usage |
+| [Auth Flow](shared/auth-flow.md) | Session pipeline, two-DB architecture, RBAC model, router guard helpers, cookie config |
+| [API Overview](shared/api-overview.md) | All tenant oRPC routers with procedure names, auth levels, and split-router module map |
 
 ---
 
