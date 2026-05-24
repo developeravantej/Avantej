@@ -59,6 +59,7 @@ export const servicesRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       // Clients can read services in their tenant; staff need service_management:read.
       if (context.member.role !== "client") {
         await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
@@ -97,6 +98,7 @@ export const servicesRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       // Clients can read services in their tenant; staff need service_management:read.
       if (context.member.role !== "client") {
         await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
@@ -166,6 +168,7 @@ export const servicesRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "create")
 
       if (input.branchId) {
@@ -283,6 +286,7 @@ export const servicesRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update")
 
       const existing = await getServiceById(context.tenantDb, input.id);
@@ -391,6 +395,7 @@ export const servicesRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "create")
 
       try {
@@ -421,6 +426,7 @@ export const servicesRouter = {
     .handler(async ({ input, context }) => {
       
       
+		assertOrgContextMatch(context, input);
       const priceCents = await resolveServicePrice(
         context.tenantDb,
         input.serviceId,
@@ -440,6 +446,7 @@ export const servicesRouter = {
     .handler(async ({ input, context }) => {
       
       
+		assertOrgContextMatch(context, input);
       if (context.member.role !== "client") {
         await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read");
       }
@@ -461,6 +468,7 @@ export const servicesRouter = {
     .handler(async ({ input, context }) => {
       
       
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
       // Branch-access check when scoped to a branch
       if (input.branchId) {
@@ -504,6 +512,7 @@ export const servicesRouter = {
     .handler(async ({ input, context }) => {
       
       
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
       const [priceRow] = await context.tenantDb
         .select({ id: servicePrices.id, serviceId: servicePrices.serviceId })
@@ -545,6 +554,7 @@ export const servicesRouter = {
     .handler(async ({ input, context }) => {
       
       
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "delete");
       const [priceRow] = await context.tenantDb
         .select({ id: servicePrices.id, serviceId: servicePrices.serviceId })
@@ -585,6 +595,7 @@ export const servicesRouter = {
     .handler(async ({ input, context }) => {
       
       
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
 
       const accessibleNodeIds =
@@ -630,6 +641,7 @@ export const servicesRouter = {
     .handler(async ({ input, context }) => {
       
       
+		assertOrgContextMatch(context, input);
       if (context.member.role !== "client") {
         await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
       }
@@ -654,6 +666,7 @@ export const servicesRouter = {
     .handler(async ({ input, context }) => {
       
       
+		assertOrgContextMatch(context, input);
       if (context.member.role !== "client") {
         await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
       }

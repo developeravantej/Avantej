@@ -34,6 +34,7 @@ export const packageInstanceStaffRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
@@ -58,6 +59,7 @@ export const packageInstanceStaffRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
@@ -95,6 +97,7 @@ export const packageInstanceStaffRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
@@ -123,6 +126,7 @@ export const packageInstanceStaffRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,

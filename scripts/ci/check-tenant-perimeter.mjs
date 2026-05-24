@@ -29,6 +29,16 @@ for (const file of readdirSync(routersDir)) {
 	if (content.includes("requirePermission(")) {
 		errors.push(`${file}: still uses requirePermission() — migrate to requirePermissionOrpc`);
 	}
+
+	if (content.includes("guardBranchAccessible(")) {
+		if (!content.match(/import \{[^}]*guardBranchAccessible[^}]*\} from "\.\.\/guards"/)) {
+			errors.push(`${file}: missing guardBranchAccessible import from ../guards`);
+		}
+	}
+
+	if (/function requireTenantMember\([\s\S]*?\{\s*\}/.test(content)) {
+		errors.push(`${file}: empty requireTenantMember helper — remove (tenantProcedure covers this)`);
+	}
 }
 
 if (errors.length > 0) {

@@ -11,7 +11,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 const dayOfWeekSchema = z.enum([
@@ -198,6 +198,9 @@ export const coachIntakeRouter = {
 		.handler(async ({ input, context }) => {
 			
 		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			const controlPanelDb = getControlPanelDb(context);
 			return listCoachIntakeByBranch(controlPanelDb, context.tenantDb, {
 				branchId: input.branchId,

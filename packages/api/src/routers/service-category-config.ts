@@ -38,6 +38,7 @@ export const serviceCategoryConfigRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			let hasPermission = false;
 			for (const action of ["create", "update"] as const) {
 				try {
@@ -106,6 +107,7 @@ export const serviceCategoryConfigRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,

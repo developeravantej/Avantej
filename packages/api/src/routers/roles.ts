@@ -59,6 +59,7 @@ export const rolesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "create")
 
 			try {
@@ -112,6 +113,7 @@ export const rolesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
 
 			// Check role exists and is not system
@@ -183,6 +185,7 @@ export const rolesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "delete")
 
 			const existing = await context.tenantDb.query.roles.findFirst({

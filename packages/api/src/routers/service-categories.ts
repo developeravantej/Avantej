@@ -32,6 +32,7 @@ export const serviceCategoriesRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       // Clients can read service categories in their tenant; staff need service_management:read.
       if (context.member.role !== "client") {
         await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
@@ -76,6 +77,7 @@ export const serviceCategoriesRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       // Clients can read service categories in their tenant; staff need service_management:read.
       if (context.member.role !== "client") {
         await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
@@ -133,6 +135,7 @@ export const serviceCategoriesRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "create")
 
       if (input.branchId) {
@@ -194,6 +197,7 @@ export const serviceCategoriesRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update")
 
       const existing = await getServiceCategoryById(context.tenantDb, input.id);

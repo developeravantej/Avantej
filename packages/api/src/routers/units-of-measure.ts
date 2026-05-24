@@ -24,6 +24,7 @@ export const unitsOfMeasureRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			return listUnitsOfMeasure(context.tenantDb, { search: input.search });
@@ -41,6 +42,7 @@ export const unitsOfMeasureRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			const uom = await getUomById(context.tenantDb, input.id);
@@ -67,6 +69,7 @@ export const unitsOfMeasureRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "create")
 
 			return createUom(context.tenantDb, {
@@ -93,6 +96,7 @@ export const unitsOfMeasureRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
 
 			return updateUom(context.tenantDb, input.id, {
@@ -115,6 +119,7 @@ export const unitsOfMeasureRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "delete")
 
 			return deleteUom(context.tenantDb, input.id);

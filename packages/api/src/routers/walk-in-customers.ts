@@ -39,6 +39,7 @@ export const walkInCustomersRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "walk_in_customer_management", "update");
 			const result = await convertWalkInPaymentToPackage(context.tenantDb, {
 				walkInPaymentId: input.walkInPaymentId,

@@ -21,7 +21,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 export const refundsRouter = {
@@ -67,6 +67,10 @@ export const refundsRouter = {
 			
 			
 
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "read");
 
 			const controlPanelDb = getControlPanelDb(context);
@@ -99,6 +103,7 @@ export const refundsRouter = {
 			
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "read");
 
 			const refund = await getRefundById(context.tenantDb, input.id);
@@ -134,6 +139,10 @@ export const refundsRouter = {
 			
 			
 
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "create");
 
 			try {
@@ -188,6 +197,7 @@ export const refundsRouter = {
 			
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "approve");
 
 			try {
@@ -229,6 +239,7 @@ export const refundsRouter = {
 			
 			
 
+		assertOrgContextMatch(context, input);
 			// Reject is part of the review flow — same permission as approve
 			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "approve");
 
@@ -273,6 +284,10 @@ export const refundsRouter = {
 			
 			
 
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "create");
 
 			try {
@@ -330,6 +345,7 @@ export const refundsRouter = {
 			
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "approve");
 
 			try {
@@ -377,6 +393,7 @@ export const refundsRouter = {
 			
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "process");
 
 			try {

@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import {
 	cancelReceipt,
 	createReceipt,
@@ -78,6 +78,7 @@ export const goodsReceiptsRouter = {
 			
 			
 		assertOrgContextMatch(context, input);
+		guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "update");
 			try {
 				return await createReceipt(context.tenantDb, {

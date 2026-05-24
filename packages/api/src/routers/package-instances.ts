@@ -39,7 +39,7 @@ import { parseCursor, encodeCursor } from "../lib/cursor";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
@@ -80,6 +80,7 @@ export const packageInstancesRouter = {
     .handler(async ({ input, context }) => {
       
 
+		assertOrgContextMatch(context, input);
       const clientId = context.session?.user?.id;
       if (!clientId) {
         throw new ORPCError("UNAUTHORIZED", {
@@ -135,6 +136,7 @@ export const packageInstancesRouter = {
     .handler(async ({ input, context }) => {
       
 
+		assertOrgContextMatch(context, input);
       const instance = await getPackageInstanceById(context.tenantDb, input.id);
       if (!instance) {
         throw new ORPCError("NOT_FOUND", {
@@ -235,6 +237,7 @@ export const packageInstancesRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "create")
 
       try {
@@ -388,6 +391,7 @@ export const packageInstancesRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read");
 
       // Pre-check: if caller supplied a branchId, it must be within their accessible scope
@@ -427,6 +431,7 @@ export const packageInstancesRouter = {
     .handler(async ({ context, input }) => {
       
       
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "reports", "read");
 
       const controlPanelDb = getControlPanelDb(context);
@@ -455,6 +460,7 @@ export const packageInstancesRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
 
       // Build filter conditions dynamically
@@ -509,6 +515,7 @@ export const packageInstancesRouter = {
       
       
 
+		assertOrgContextMatch(context, input);
       const callerRole = context.member.role;
       const callerUserId = context.session?.user?.id;
       // 7.5: Never write an empty string to audit columns — session must be present
@@ -699,6 +706,7 @@ export const packageInstancesRouter = {
     .handler(async ({ input, context }) => {
       
       
+		assertOrgContextMatch(context, input);
       if (context.member.role !== "admin") {
         throw new ORPCError("FORBIDDEN", {
           message: "Only admins can reject packages",
@@ -817,6 +825,7 @@ export const packageInstancesRouter = {
     .handler(async ({ input, context }) => {
       
       
+		assertOrgContextMatch(context, input);
       const callerRole = context.member.role;
       const callerUserId = context.session?.user?.id;
       if (!callerUserId) {
@@ -968,6 +977,7 @@ export const packageInstancesRouter = {
     .handler(async ({ input, context }) => {
       
       
+		assertOrgContextMatch(context, input);
       if (context.member.role !== "admin") {
         throw new ORPCError("FORBIDDEN", {
           message: "Only admins can reject packages",
@@ -1081,6 +1091,7 @@ export const packageInstancesRouter = {
     .handler(async ({ input, context }) => {
       
       
+		assertOrgContextMatch(context, input);
       const callerRole = context.member.role;
       if (callerRole !== "admin" && callerRole !== "trainer") {
         throw new ORPCError("FORBIDDEN", {
@@ -1256,6 +1267,7 @@ export const packageInstancesRouter = {
       
       
 
+		assertOrgContextMatch(context, input);
       const limit = input.limit;
 
       // Decode cursor: "createdAt|id" shape (matches encodeCursor).
@@ -1304,6 +1316,7 @@ export const packageInstancesRouter = {
       
       
 
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "package_management", "update");
 
       // Load instance to resolve branch for scope check
@@ -1367,6 +1380,7 @@ export const packageInstancesRouter = {
       
       
 
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "package_management", "update");
 
       const instance = await context.tenantDb.query.packageInstances.findFirst({
@@ -1425,6 +1439,7 @@ export const packageInstancesRouter = {
       
       
 
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "package_management", "update");
 
       const instance = await context.tenantDb.query.packageInstances.findFirst({
@@ -1486,6 +1501,7 @@ export const packageInstancesRouter = {
       
       
 
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "package_management", "update");
 
       const instance = await context.tenantDb.query.packageInstances.findFirst({
@@ -1558,6 +1574,7 @@ export const packageInstancesRouter = {
       
       
 
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "create");
 
       const callerUserId = context.session?.user?.id;
@@ -1580,29 +1597,7 @@ export const packageInstancesRouter = {
 
       // Validate branchId is within caller's accessible scope
       const accessibleNodeIds = context.accessibleNodeIds ?? [];
-      if (accessibleNodeIds.length > 0 && !accessibleNodeIds.includes(input.branchId)) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "Requested branch is outside your accessible scope",
-        });
-      }
-
-      // Validate trainer if provided
-      let trainerMember: typeof members.$inferSelect | null = null;
-      if (input.trainerMemberId) {
-        trainerMember = await context.tenantDb.query.members.findFirst({
-          where: eq(members.id, input.trainerMemberId),
-        }) ?? null;
-        if (!trainerMember) {
-          throw new ORPCError("NOT_FOUND", { message: "Trainer not found" });
-        }
-        if (trainerMember.status !== "active") {
-          throw new ORPCError("BAD_REQUEST", { message: "Trainer is not active" });
-        }
-        if (trainerMember.role !== "trainer" && trainerMember.role !== "admin") {
-          throw new ORPCError("BAD_REQUEST", { message: "Target member is not a trainer" });
-        }
-      }
-
+      guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
       // Batch-resolve customerIds (tenant members.id) → userId (control-panel user id)
       const memberRows = await context.tenantDb
         .select({ id: members.id, userId: members.userId })
@@ -1687,6 +1682,7 @@ export const packageInstancesRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "package_management", "read");
 
       const limit = input.limit;

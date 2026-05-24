@@ -16,7 +16,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 const dayOfWeekSchema = z.enum([
@@ -41,6 +41,7 @@ export const trainerAvailabilityRouter = {
 		)
 		.handler(async ({ input, context }) => {
 			
+		assertOrgContextMatch(context, input);
 			return listTrainerAvailability(context.tenantDb, input.trainerId);
 		}),
 
@@ -53,6 +54,10 @@ export const trainerAvailabilityRouter = {
 		)
 		.handler(async ({ input, context }) => {
 			
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			const controlPanelDb = getControlPanelDb(context);
 			return listTrainerAvailabilityByBranch(
 				controlPanelDb,
@@ -72,6 +77,7 @@ export const trainerAvailabilityRouter = {
 		)
 		.handler(async ({ input, context }) => {
 			
+		assertOrgContextMatch(context, input);
 			const startDate = new Date(`${input.startDate}T00:00:00`);
 			const endDate = new Date(`${input.endDate}T23:59:59`);
 			return computeAvailableSlots(
@@ -102,6 +108,7 @@ export const trainerAvailabilityRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
@@ -132,6 +139,7 @@ export const trainerAvailabilityRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
@@ -152,6 +160,10 @@ export const trainerAvailabilityRouter = {
 		)
 		.handler(async ({ input, context }) => {
 			
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			return getTrainerUtilisation(context.tenantDb, {
 				branchId: input.branchId,
 				weekStart: input.weekStart,
@@ -170,6 +182,7 @@ export const trainerAvailabilityRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
@@ -206,6 +219,7 @@ export const trainerAvailabilityRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
@@ -239,6 +253,10 @@ export const trainerAvailabilityRouter = {
 		)
 		.handler(async ({ input, context }) => {
 			
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			return getTrainerConflicts(context.tenantDb, {
 				branchId: input.branchId,
 				weekStart: input.weekStart,
@@ -256,6 +274,7 @@ export const trainerAvailabilityRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
@@ -295,6 +314,7 @@ export const trainerAvailabilityRouter = {
 		)
 		.handler(async ({ input, context }) => {
 			
+		assertOrgContextMatch(context, input);
 			return listTrainerAvailabilityExceptions(
 				context.tenantDb,
 				input.trainerId,
@@ -310,6 +330,7 @@ export const trainerAvailabilityRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",

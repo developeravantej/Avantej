@@ -25,6 +25,7 @@ export const taxRatesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			// Clients can read tax rates (needed during purchase preview); staff need tax_configuration:read.
 			if (context.member.role !== "client") {
 				await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "read");
@@ -48,6 +49,7 @@ export const taxRatesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			// Clients can read tax rates (needed during purchase preview); staff need tax_configuration:read.
 			if (context.member.role !== "client") {
 				await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "read");
@@ -101,6 +103,7 @@ export const taxRatesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "create");
 
 			return createTaxRate(context.tenantDb, {
@@ -136,6 +139,7 @@ export const taxRatesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "update");
 
 			const result = await updateTaxRate(context.tenantDb, input.id, {
@@ -172,6 +176,7 @@ export const taxRatesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "update");
 
 			const actor = {
@@ -195,6 +200,7 @@ export const taxRatesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "delete");
 
 			return deactivateTaxRate(context.tenantDb, input.id);

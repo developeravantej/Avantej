@@ -25,6 +25,7 @@ export const suppliersRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			return listSuppliers(context.tenantDb, {
@@ -45,6 +46,7 @@ export const suppliersRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			const supplier = await getSupplierById(context.tenantDb, input.id);
@@ -78,6 +80,7 @@ export const suppliersRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "create")
 
 			return createSupplier(context.tenantDb, {
@@ -118,6 +121,7 @@ export const suppliersRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
 
 			return updateSupplier(context.tenantDb, input.id, {
@@ -147,6 +151,7 @@ export const suppliersRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
 
 			return deactivateSupplier(context.tenantDb, input.id);

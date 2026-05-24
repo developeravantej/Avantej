@@ -24,6 +24,7 @@ export const productCategoriesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			return listProductCategories(context.tenantDb, { search: input.search });
@@ -41,6 +42,7 @@ export const productCategoriesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			const category = await getProductCategoryById(context.tenantDb, input.id);
@@ -66,6 +68,7 @@ export const productCategoriesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "create")
 
 			return createProductCategory(context.tenantDb, {
@@ -91,6 +94,7 @@ export const productCategoriesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
 
 			return updateProductCategory(context.tenantDb, input.id, {
@@ -113,6 +117,7 @@ export const productCategoriesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "delete")
 
 			return deleteProductCategory(context.tenantDb, input.id);

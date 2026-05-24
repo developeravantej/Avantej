@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import {
 	listAnnouncements,
 	listActiveAnnouncements,
@@ -26,6 +26,9 @@ const list = tenantProcedure
 		
 
 		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 		await requirePermissionOrpc(context.tenantDb, context.member, "announcement_management", "read")
 
 		return listAnnouncements(context.tenantDb, {
@@ -79,6 +82,9 @@ const create = tenantProcedure
 		
 
 		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 		await requirePermissionOrpc(context.tenantDb, context.member, "announcement_management", "create")
 
 		return createAnnouncement(context.tenantDb, {

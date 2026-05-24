@@ -66,6 +66,7 @@ export const memberRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       // Check permission
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read")
 
@@ -332,6 +333,7 @@ export const memberRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       // Check permission to create members
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "create")
 
@@ -478,6 +480,7 @@ export const memberRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       // Check permission
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read")
 
@@ -576,6 +579,7 @@ export const memberRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       // Check permission
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
 
@@ -738,6 +742,7 @@ export const memberRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       // Check permission
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
 
@@ -847,6 +852,7 @@ export const memberRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       // Check permission
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
 
@@ -957,6 +963,7 @@ export const memberRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       // Check permission
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "delete")
 
@@ -1048,6 +1055,7 @@ export const memberRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       // Check permission
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
 
@@ -1126,6 +1134,7 @@ export const memberRouter = {
       
       
 
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "delete")
 
       const target = await context.tenantDb.query.members.findFirst({
@@ -1186,6 +1195,7 @@ export const memberRouter = {
       
       
 
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
 
       const target = await context.tenantDb.query.members.findFirst({
@@ -1253,6 +1263,7 @@ export const memberRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       // Check permission
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
 
@@ -1391,6 +1402,7 @@ export const memberRouter = {
     .handler(async ({ context, input }) => {
       
 
+		assertOrgContextMatch(context, input);
       type DispatchStaffSyncFn = (args: {
         controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
         tenantDb: typeof context.tenantDb;
@@ -1448,6 +1460,7 @@ export const memberRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read")
 
       const accessibleNodeIds =

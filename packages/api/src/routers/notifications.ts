@@ -28,6 +28,7 @@ export const notificationsRouter = {
     .handler(async ({ input, context }) => {
       
 
+		assertOrgContextMatch(context, input);
       const userId = context.session?.user?.id;
       if (!userId) {
         throw new ORPCError("UNAUTHORIZED", {
@@ -72,6 +73,7 @@ export const notificationsRouter = {
     .handler(async ({ input, context }) => {
       
 
+		assertOrgContextMatch(context, input);
       const userId = context.session?.user?.id;
       if (!userId) {
         throw new ORPCError("UNAUTHORIZED", {

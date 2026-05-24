@@ -68,6 +68,7 @@ export const membershipsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "update");
 
@@ -111,6 +112,7 @@ export const membershipsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "update");
 
@@ -141,6 +143,7 @@ export const membershipsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "update");
 
@@ -166,6 +169,7 @@ export const membershipsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "read");
 			return listHoldsForPackage(context.tenantDb, input.packageInstanceId);

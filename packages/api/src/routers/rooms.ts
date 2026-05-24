@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import {
  listRooms, getRoomById, createRoom, updateRoom, deleteRoom } from "@avantej-core/services";
 
@@ -21,6 +21,10 @@ export const roomsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read")
 
 			return listRooms(context.tenantDb, {
@@ -42,6 +46,7 @@ export const roomsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read")
 
 			const room = await getRoomById(context.tenantDb, input.id);
@@ -69,6 +74,8 @@ export const roomsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
+		guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "create")
 
 			return createRoom(context.tenantDb, {
@@ -97,6 +104,10 @@ export const roomsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update")
 
 			return updateRoom(context.tenantDb, input.id, {
@@ -120,6 +131,7 @@ export const roomsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update")
 
 			return deleteRoom(context.tenantDb, input.id);

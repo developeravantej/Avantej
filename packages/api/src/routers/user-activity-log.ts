@@ -22,6 +22,7 @@ export const userActivityLogRouter = {
     .handler(async ({ input, context }) => {
       
 
+		assertOrgContextMatch(context, input);
       const userId = context.session?.user?.id;
       if (!userId) {
         throw new ORPCError("UNAUTHORIZED", {

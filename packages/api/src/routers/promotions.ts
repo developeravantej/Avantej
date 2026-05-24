@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import {
 	listPromotions,
 	validatePromoCode,
@@ -29,6 +29,10 @@ export const promotionsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			await requirePermissionOrpc(context.tenantDb, context.member, "promotion_management", "read");
 
 			return listPromotions(context.tenantDb, {
@@ -57,6 +61,10 @@ export const promotionsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			await requirePermissionOrpc(context.tenantDb, context.member, "promotion_management", "read");
 
 			try {
@@ -92,6 +100,7 @@ export const promotionsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "promotion_management", "create");
 
 			return applyPromotion(context.tenantDb, input.promotionId, {
@@ -129,6 +138,10 @@ export const promotionsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			await requirePermissionOrpc(context.tenantDb, context.member, "promotion_management", "create");
 
 			const actor = {
@@ -171,6 +184,7 @@ export const promotionsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "promotion_management", "update");
 
 			return updatePromotion(context.tenantDb, input.id, {
@@ -200,6 +214,7 @@ export const promotionsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "promotion_management", "delete");
 
 			const actor = {

@@ -27,6 +27,7 @@ export const stockRequestsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "read")
 
 			return listStockRequests(context.tenantDb, {
@@ -49,6 +50,7 @@ export const stockRequestsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "read")
 
 			const request = await getStockRequestById(context.tenantDb, input.id);
@@ -84,6 +86,7 @@ export const stockRequestsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "create")
 
 			return createStockRequest(context.tenantDb, {
@@ -109,6 +112,7 @@ export const stockRequestsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "approve")
 
 			return approveStockRequest(context.tenantDb, input.id);
@@ -126,6 +130,7 @@ export const stockRequestsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "reject")
 
 			return rejectStockRequest(context.tenantDb, input.id);
@@ -149,6 +154,7 @@ export const stockRequestsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "update")
 
 			return fulfillStockRequest(context.tenantDb, input.id, input.items);

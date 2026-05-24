@@ -12,7 +12,7 @@ import { eq, and, desc, inArray, or, isNull, type SQL } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import { previewBatch, processForRecipient, recipientSummary, runBatch } from "@avantej-core/services/payouts.service";
 import { getControlPanelDb } from "../lib/context-helpers";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
@@ -39,6 +39,7 @@ export const payoutsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "read")
 
 			// Build filter conditions
@@ -145,6 +146,10 @@ export const payoutsRouter = {
 			
 			
 
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "read");
 
 			const controlPanelDb = getControlPanelDb(context);
@@ -178,6 +183,7 @@ export const payoutsRouter = {
 			
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "process");
 
 			try {
@@ -226,6 +232,7 @@ export const payoutsRouter = {
 			
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "read")
 
 			// Non-admin: verify the recipient is within the caller's accessible nodes
@@ -272,6 +279,7 @@ export const payoutsRouter = {
 			
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "process")
 
 			try {

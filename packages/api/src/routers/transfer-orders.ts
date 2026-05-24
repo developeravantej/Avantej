@@ -27,6 +27,7 @@ export const transferOrdersRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "transfer_orders", "read")
 
 			return listTransferOrders(context.tenantDb, {
@@ -48,6 +49,7 @@ export const transferOrdersRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "transfer_orders", "read")
 
 			const order = await getTransferOrderById(context.tenantDb, input.id);
@@ -82,6 +84,7 @@ export const transferOrdersRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "transfer_orders", "create")
 
 			return createTransferOrder(context.tenantDb, {
@@ -106,6 +109,7 @@ export const transferOrdersRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "transfer_orders", "update")
 
 			return markTransferInTransit(context.tenantDb, input.id);
@@ -129,6 +133,7 @@ export const transferOrdersRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "transfer_orders", "approve")
 
 			return completeTransfer(context.tenantDb, input.id, input.items);
@@ -146,6 +151,7 @@ export const transferOrdersRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "transfer_orders", "update")
 
 			return cancelTransfer(context.tenantDb, input.id);

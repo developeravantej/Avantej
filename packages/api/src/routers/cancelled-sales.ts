@@ -9,11 +9,6 @@ import {
 	exportCancelledSalesCsv,
 } from "@avantej-core/services";
 
-function requireTenantMember(context: { tenantDb?: unknown; member?: unknown }) {
-	
-	
-}
-
 export const cancelledSalesRouter = {
 	list: tenantProcedure
 		.input(
@@ -28,11 +23,9 @@ export const cancelledSalesRouter = {
 		)
 		.handler(async ({ input, context }) => {
 		assertOrgContextMatch(context, input);
-			requireTenantMember(context);
-
 			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
 
-			return listCancelledSales(context.tenantDb!, {
+			return listCancelledSales(context.tenantDb, {
 				customerId: input.customerId,
 				from: input.from ? new Date(input.from) : undefined,
 				to: input.to ? new Date(input.to) : undefined,
@@ -51,12 +44,10 @@ export const cancelledSalesRouter = {
 		)
 		.handler(async ({ input, context }) => {
 		assertOrgContextMatch(context, input);
-			requireTenantMember(context);
-
 			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
 
 			const row = await getCancelledSaleById(
-				context.tenantDb!,
+				context.tenantDb,
 				input.id,
 				context.accessibleNodeIds,
 			);
@@ -81,11 +72,9 @@ export const cancelledSalesRouter = {
 		)
 		.handler(async ({ input, context }) => {
 		assertOrgContextMatch(context, input);
-			requireTenantMember(context);
-
 			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
 
-			return exportCancelledSalesCsv(context.tenantDb!, {
+			return exportCancelledSalesCsv(context.tenantDb, {
 				customerId: input.customerId,
 				from: input.from ? new Date(input.from) : undefined,
 				to: input.to ? new Date(input.to) : undefined,

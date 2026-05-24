@@ -38,6 +38,7 @@ export const trainersRouter = {
 			
 			
 
+		assertOrgContextMatch(context, input);
 			// RBAC: must have member_management:read
 			const canRead = await hasPermission(
 				context.tenantDb,
@@ -91,6 +92,7 @@ export const trainersRouter = {
 			
 			
 
+		assertOrgContextMatch(context, input);
 			const canRead = await hasPermission(
 				context.tenantDb,
 				context.member,
@@ -128,6 +130,7 @@ export const trainersRouter = {
 			
 			
 
+		assertOrgContextMatch(context, input);
 			const canApprove = await hasPermission(
 				context.tenantDb,
 				context.member,

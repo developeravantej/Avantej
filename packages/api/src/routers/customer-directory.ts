@@ -14,7 +14,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 export const customerDirectoryRouter = {
@@ -40,6 +40,9 @@ export const customerDirectoryRouter = {
 			
 
 		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			await requirePermissionOrpc(context.tenantDb, context.member, "customer_management", "read");
 
 			const controlPanelDb = getControlPanelDb(context);
@@ -76,6 +79,9 @@ export const customerDirectoryRouter = {
 			
 
 		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			await requirePermissionOrpc(context.tenantDb, context.member, "customer_management", "read");
 
 			const accessibleNodeIds = context.accessibleNodeIds ?? [];

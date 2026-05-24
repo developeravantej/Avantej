@@ -84,6 +84,7 @@ export const serviceMembersRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("FORBIDDEN");
 			}
@@ -153,6 +154,7 @@ export const serviceMembersRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("FORBIDDEN");
 			}
@@ -196,6 +198,7 @@ export const serviceMembersRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("FORBIDDEN");
 			}
@@ -277,6 +280,7 @@ export const serviceMembersRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("FORBIDDEN");
 			}

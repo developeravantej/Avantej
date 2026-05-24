@@ -20,6 +20,7 @@ const get = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read");
 
 		return getMemberProfile(context.tenantDb, input.memberId);
@@ -43,6 +44,7 @@ const upsert = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update");
 
 		return upsertMemberProfile(context.tenantDb, input.memberId, {

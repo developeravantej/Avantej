@@ -80,6 +80,7 @@ export const posRouter = {
 			
 			
 
+		assertOrgContextMatch(context, input);
 			// Permission check: pos:create
 			await requirePermissionOrpc(context.tenantDb, context.member, "pos", "create");
 
@@ -134,6 +135,7 @@ export const posRouter = {
 			
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "pos", "create");
 
 			assertOrgContextMatch(context, input);
@@ -166,6 +168,7 @@ export const posRouter = {
 			
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "pos", "create");
 
 			const controlPanelDb = getControlPanelDb(context);

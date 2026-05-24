@@ -2,7 +2,7 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { and, eq, inArray, ne } from "drizzle-orm";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import {
 	listClassSlots,
 	getClassSlotById,
@@ -44,6 +44,9 @@ const list = tenantProcedure
 		
 
 		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 		// Clients can browse class slots in their tenant without the staff
 		// permission. Staff still need class_slot_management:read.
 		if (context.member.role !== "client") {
@@ -109,6 +112,7 @@ const create = tenantProcedure
 		
 
 		assertOrgContextMatch(context, input);
+		guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "create")
 
 		return createClassSlot(context.tenantDb, {
@@ -188,6 +192,9 @@ const bookingCounts = tenantProcedure
 		
 
 		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "read")
 
 		return getBookingCounts(context.tenantDb, {

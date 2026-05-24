@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import {
 	listPurchaseOrders,
 	getPurchaseOrderById,
@@ -31,6 +31,10 @@ export const purchaseOrdersRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "read");
 
 			return listPurchaseOrders(context.tenantDb, {
@@ -57,6 +61,7 @@ export const purchaseOrdersRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "read");
 
 			const result = await getPurchaseOrderById(
@@ -96,6 +101,8 @@ export const purchaseOrdersRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
+		guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "create");
 
 			return createPurchaseOrder(context.tenantDb, {
@@ -123,6 +130,7 @@ export const purchaseOrdersRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "update");
 
 			try {
@@ -160,6 +168,7 @@ export const purchaseOrdersRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "update");
 
 			return receiveItems(
@@ -181,6 +190,7 @@ export const purchaseOrdersRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "delete");
 
 			try {

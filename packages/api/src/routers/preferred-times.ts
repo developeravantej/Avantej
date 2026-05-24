@@ -42,6 +42,7 @@ export const preferredTimesRouter = {
     .handler(async ({ input, context }) => {
       
 
+		assertOrgContextMatch(context, input);
       const instance = await getPackageInstanceById(
         context.tenantDb,
         input.packageInstanceId
@@ -76,6 +77,7 @@ export const preferredTimesRouter = {
     .handler(async ({ input, context }) => {
       
 
+		assertOrgContextMatch(context, input);
       const instance = await getPackageInstanceById(
         context.tenantDb,
         input.packageInstanceId

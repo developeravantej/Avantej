@@ -39,6 +39,7 @@ export const productsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			return listProducts(context.tenantDb, {
@@ -62,6 +63,7 @@ export const productsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			const product = await getProductById(context.tenantDb, input.id);
@@ -95,6 +97,7 @@ export const productsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "create")
 
 			return createProduct(context.tenantDb, {
@@ -136,6 +139,7 @@ export const productsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
 
 			return updateProduct(context.tenantDb, input.id, {
@@ -167,6 +171,7 @@ export const productsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
 			assertOrgContextMatch(context, input);
@@ -189,6 +194,7 @@ export const productsRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
 
 			assertOrgContextMatch(context, input);
@@ -231,6 +237,7 @@ export const productsRouter = {
 		.handler(async ({ input, context }) => {
 			
 			
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 			return listProductPriceOverrides(context.tenantDb, input.productId);
 		}),
@@ -250,6 +257,7 @@ export const productsRouter = {
 		.handler(async ({ input, context }) => {
 			
 			
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
 			assertOrgContextMatch(context, input);
 			if (input.branchId) {
@@ -281,6 +289,7 @@ export const productsRouter = {
 		.handler(async ({ input, context }) => {
 			
 			
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
 			const [priceRow] = await context.tenantDb
 				.select({ id: productPrices.id, productId: productPrices.productId })
@@ -312,6 +321,7 @@ export const productsRouter = {
 		.handler(async ({ input, context }) => {
 			
 			
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "delete")
 			const [priceRow] = await context.tenantDb
 				.select({ id: productPrices.id, productId: productPrices.productId })

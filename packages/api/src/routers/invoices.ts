@@ -34,6 +34,7 @@ export const invoicesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "payments", "read")
 
 			const invoiceRows = await listInvoices(context.tenantDb, {
@@ -79,6 +80,7 @@ export const invoicesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "payments", "read")
 
 			const invoice = await getInvoiceById(context.tenantDb, input.id);
@@ -114,6 +116,7 @@ export const invoicesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "payments", "create")
 
 			return createInvoice(context.tenantDb, {
@@ -157,6 +160,7 @@ export const invoicesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "payments", "update")
 
 			return updateInvoice(context.tenantDb, input.id, {
@@ -189,6 +193,7 @@ export const invoicesRouter = {
 
 			
 
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "payments", "read")
 
 			const limit = input.limit ?? 50;

@@ -4,7 +4,7 @@ import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import {
 
 	listSalesOrders,
@@ -29,11 +29,6 @@ const refundStatusEnum = z.enum(SALES_ORDER_REFUND_STATUSES);
 const cancellationReasonCategoryEnum = z.enum(CANCELLATION_REASON_CATEGORIES);
 
 // Shared tenant + member guard — throws ORPCError if not available
-function requireTenantMember(context: { tenantDb?: unknown; member?: unknown }) {
-	
-	
-}
-
 export const salesOrdersRouter = {
 	list: tenantProcedure
 		.input(
@@ -50,11 +45,13 @@ export const salesOrdersRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			requireTenantMember(context);
-
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
 
-			const result = await listSalesOrders(context.tenantDb!, {
+			const result = await listSalesOrders(context.tenantDb, {
 				branchId: input.branchId,
 				status: input.status,
 				refundStatus: input.refundStatus,
@@ -82,7 +79,7 @@ export const salesOrdersRouter = {
 
 			// Fetch first line-item description per order
 			const orderIds = result.rows.map((r) => r.id);
-			const itemRows = await context.tenantDb!
+			const itemRows = await context.tenantDb
 				.select({
 					salesOrderId: salesOrderItems.salesOrderId,
 					description: salesOrderItems.description,
@@ -114,11 +111,10 @@ export const salesOrdersRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			requireTenantMember(context);
-
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
 
-			const order = await getSalesOrderById(context.tenantDb!, input.id);
+			const order = await getSalesOrderById(context.tenantDb, input.id);
 			if (!order) {
 				throw new ORPCError("NOT_FOUND", {
 					message: `Sales order not found: ${input.id}`,
@@ -158,11 +154,11 @@ export const salesOrdersRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			requireTenantMember(context);
-
+		assertOrgContextMatch(context, input);
+		guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "create");
 
-			return createSalesOrder(context.tenantDb!, {
+			return createSalesOrder(context.tenantDb, {
 				date: new Date(input.date),
 				customerId: input.customerId,
 				customerName: input.customerName,
@@ -188,11 +184,10 @@ export const salesOrdersRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			requireTenantMember(context);
-
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "update");
 
-			return updateSalesOrder(context.tenantDb!, input.id, {
+			return updateSalesOrder(context.tenantDb, input.id, {
 				date: input.date ? new Date(input.date) : undefined,
 				customerId: input.customerId,
 				customerName: input.customerName,
@@ -214,8 +209,7 @@ export const salesOrdersRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			requireTenantMember(context);
-
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "delete");
 
 			const actor = {
@@ -225,7 +219,7 @@ export const salesOrdersRouter = {
 			};
 
 			return cancelSalesOrder(
-				context.tenantDb!,
+				context.tenantDb,
 				input.id,
 				{
 					cancelledBy: input.cancelledBy,
@@ -247,14 +241,13 @@ export const salesOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			requireTenantMember(context);
-
+		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
 
 			const limit = input.limit;
 			const parsedCursor = input.cursor ? parseCursor(input.cursor) : null;
 
-			const rawRows = await getSalesOrderStatusHistory(context.tenantDb!, input.salesOrderId, {
+			const rawRows = await getSalesOrderStatusHistory(context.tenantDb, input.salesOrderId, {
 				parsedCursor,
 				limit,
 			});
@@ -308,8 +301,10 @@ export const salesOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			requireTenantMember(context);
-
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
 
 			// Resolve period: if new `period` param provided, use it.
@@ -327,7 +322,7 @@ export const salesOrdersRouter = {
 				resolvedPeriod = "month";
 			}
 
-			return getSalesOrderKpiSummary(context.tenantDb!, {
+			return getSalesOrderKpiSummary(context.tenantDb, {
 				period: resolvedPeriod,
 				branchId: input.branchId,
 				accessibleNodeIds: context.accessibleNodeIds,
@@ -342,11 +337,13 @@ export const salesOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			requireTenantMember(context);
-
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
 
-			return getLargestSaleToday(context.tenantDb!, {
+			return getLargestSaleToday(context.tenantDb, {
 				branchId: input.branchId,
 				accessibleNodeIds: context.accessibleNodeIds,
 			});
@@ -366,11 +363,13 @@ export const salesOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			requireTenantMember(context);
-
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
 
-			return getLatestCompletedSalesOrder(context.tenantDb!, {
+			return getLatestCompletedSalesOrder(context.tenantDb, {
 				branchId: input.branchId,
 				accessibleNodeIds: context.accessibleNodeIds,
 			});

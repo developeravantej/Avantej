@@ -48,6 +48,7 @@ export const scheduledReportsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
@@ -72,6 +73,7 @@ export const scheduledReportsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
@@ -91,6 +93,7 @@ export const scheduledReportsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",

@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import {
 	listExpenses,
 	getExpenseById,
@@ -31,6 +31,9 @@ const list = tenantProcedure
 		
 
 		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "read");
 
 		return listExpenses(context.tenantDb, {
@@ -93,6 +96,9 @@ const create = tenantProcedure
 		
 
 		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "create");
 
 		return createExpense(context.tenantDb, {

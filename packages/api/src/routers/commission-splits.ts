@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import {
 	listCommissionSplits,
 	getCommissionsByAppointment,
@@ -124,6 +124,9 @@ const listLedger = tenantProcedure
 		
 
 		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
 
 		const controlPanelDb = getControlPanelDb(context);
@@ -412,6 +415,9 @@ const liabilityByStaffProcedure = tenantProcedure
 		
 
 		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
 
 		const controlPanelDb = getControlPanelDb(context);

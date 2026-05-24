@@ -24,6 +24,7 @@ const list = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "read")
 
 		return listTrainerTiers(context.tenantDb, { includeInactive: input.includeInactive });
@@ -43,6 +44,7 @@ const create = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "create")
 
 		try {
@@ -75,6 +77,7 @@ const update = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "update")
 
 		try {
@@ -104,6 +107,7 @@ const deactivate = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "delete")
 
 		try {
@@ -128,6 +132,7 @@ const reactivate = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "update")
 
 		try {
@@ -153,6 +158,7 @@ const assignToMember = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "update")
 
 		try {

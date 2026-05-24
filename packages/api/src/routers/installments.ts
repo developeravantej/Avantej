@@ -43,6 +43,7 @@ const confirmPayment = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update")
 
 		return confirmInstallmentPayment(context.tenantDb, {
@@ -64,6 +65,7 @@ const listByPackageInstance = tenantProcedure
 	.handler(async ({ input, context }) => {
 		
 
+		assertOrgContextMatch(context, input);
 		const clientId = context.session?.user?.id;
 		const isOwner = clientId !== undefined;
 		const isStaff = !!context.member;
@@ -111,6 +113,7 @@ const manualUnlock = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		if (context.member.role !== "admin") {
 			throw new ORPCError("FORBIDDEN", {
 				message: "Admin role required",
@@ -146,6 +149,7 @@ const processRefundProcedure = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		if (context.member.role !== "admin") {
 			throw new ORPCError("FORBIDDEN", {
 				message: "Admin role required",
@@ -188,6 +192,7 @@ const adminOverview = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
 
 		const controlPanelDb = getControlPanelDb(context);
@@ -215,6 +220,7 @@ const getEvents = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read")
 
 		return context.tenantDb.query.installmentEvents.findMany({
@@ -235,6 +241,7 @@ const suggestRefund = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		if (context.member.role !== "admin") {
 			throw new ORPCError("FORBIDDEN", {
 				message: "Admin role required",
@@ -259,6 +266,7 @@ const adjustCreditsProcedure = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		if (context.member.role !== "admin") {
 			throw new ORPCError("FORBIDDEN", { message: "Admin role required" });
 		}
@@ -300,6 +308,7 @@ const setOverdraft = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		if (context.member.role !== "admin") {
 			throw new ORPCError("FORBIDDEN", {
 				message: "Admin role required",
@@ -329,6 +338,7 @@ const reschedule = tenantProcedure
 		reason: z.string().min(1),
 	}))
 	.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
 		try {
 			return rescheduleInstallment(context.tenantDb, input.installmentId, new Date(input.newDueDate), context.member.userId, input.reason);
@@ -346,6 +356,7 @@ const waive = tenantProcedure
 		reason: z.string().min(1),
 	}))
 	.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
 		try {
 			return waiveInstallment(context.tenantDb, input.installmentId, context.member.userId, input.reason);
@@ -362,6 +373,7 @@ const resetOverride = tenantProcedure
 		reason: z.string().min(1),
 	}))
 	.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
 		return resetCreditsOverride(context.tenantDb, input.packageInstanceId, context.member.userId, input.reason);
 	});

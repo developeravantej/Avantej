@@ -50,4 +50,27 @@ describe("tenantProcedure perimeter", () => {
 			),
 		).rejects.toMatchObject({ code: "FORBIDDEN" });
 	});
+
+	it("check-ins.recordCheckIn rejects branch outside accessible scope", async () => {
+		const { checkInsRouter } = await import("./check-ins");
+		await expect(
+			call(
+				checkInsRouter.recordCheckIn,
+				{
+					organizationId: ORG_ID,
+					clientType: "walk_in",
+					clientDisplayName: "Guest",
+					branchId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+					source: "drop_in",
+				},
+				{
+					context: createMockContext({
+						organizationId: ORG_ID,
+						tenantDb: makeAdminDb(),
+						accessibleNodeIds: ["cccccccc-cccc-4ccc-8ccc-cccccccccccc"],
+					}),
+				},
+			),
+		).rejects.toMatchObject({ code: "FORBIDDEN" });
+	});
 });

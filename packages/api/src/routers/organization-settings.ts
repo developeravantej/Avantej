@@ -15,6 +15,7 @@ export const organizationSettingsRouter = {
 	get: tenantProcedure
 		.input(z.object({ organizationId: z.string().uuid(), key: z.string() }))
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 						const value = await getSetting(context.tenantDb, input.key);
 			if (value === null) return null;
 			return { key: input.key, value };
@@ -23,6 +24,7 @@ export const organizationSettingsRouter = {
 	upsert: tenantProcedure
 		.input(z.object({ organizationId: z.string().uuid(), key: z.string(), value: z.string() }))
 		.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
 									if (context.member.role !== "admin") throw new ORPCError("FORBIDDEN", { message: "Admin only" });
 			return upsertSetting(context.tenantDb, input.key, input.value, context.member.userId);
 		}),

@@ -20,7 +20,7 @@ import { ORPCError } from "@orpc/server";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 export const checkInsRouter = {
@@ -62,12 +62,7 @@ export const checkInsRouter = {
 		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "attendance_management", "create");
 
-			const accessibleNodeIds = context.accessibleNodeIds ?? [];
-			if (!accessibleNodeIds.includes(input.branchId)) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Branch is outside your accessible scope",
-				});
-			}
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 
 			try {
 				return await recordCheckIn(context.tenantDb, {
@@ -121,19 +116,14 @@ export const checkInsRouter = {
 		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "attendance_management", "read");
 
-			const accessibleNodeIds = context.accessibleNodeIds ?? [];
-			if (!accessibleNodeIds.includes(input.branchId)) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Branch is outside your accessible scope",
-				});
-			}
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 
 			const controlPanelDb = getControlPanelDb(context);
 
 			return listTodaysBookings(context.tenantDb, controlPanelDb, {
 				branchId: input.branchId,
 				date: new Date(input.date),
-				accessibleNodeIds,
+				accessibleNodeIds: context.accessibleNodeIds ?? [],
 			});
 		}),
 
@@ -167,6 +157,9 @@ export const checkInsRouter = {
 			
 
 		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		}
 			await requirePermissionOrpc(context.tenantDb, context.member, "attendance_management", "read");
 
 			const accessibleNodeIds = context.accessibleNodeIds ?? [];
@@ -202,12 +195,7 @@ export const checkInsRouter = {
 			
 		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "attendance_management", "create");
-			const accessibleNodeIds = context.accessibleNodeIds ?? [];
-			if (!accessibleNodeIds.includes(input.branchId)) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Branch is outside your accessible scope",
-				});
-			}
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			return recordBulkCheckIn(context.tenantDb, {
 				bookingIds: input.bookingIds,
 				branchId: input.branchId,

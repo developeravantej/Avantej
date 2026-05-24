@@ -46,6 +46,7 @@ export const invitationRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       // Check permission to invite members
       try {
 
@@ -211,6 +212,7 @@ export const invitationRouter = {
     .handler(async ({ input, context }) => {
       
 
+		assertOrgContextMatch(context, input);
       // Get invitation by token
       const invitation = await getInvitationByToken(
         input.token,
@@ -312,6 +314,7 @@ export const invitationRouter = {
     .handler(async ({ input, context }) => {
       
 
+		assertOrgContextMatch(context, input);
       // Get control panel database from context
       const controlPanelDb = context.honoContext?.get("controlPanelDb") as
         | NeonDatabase<typeof controlPanelSchema>
@@ -386,6 +389,7 @@ export const invitationRouter = {
     .handler(async ({ input, context }) => {
       
 
+		assertOrgContextMatch(context, input);
       // Get invitation by token
       const invitation = await context.tenantDb.query.invitations.findFirst({
         where: eq(invitations.token, input.token),
@@ -452,6 +456,7 @@ export const invitationRouter = {
     .handler(async ({ input, context }) => {
       
 
+		assertOrgContextMatch(context, input);
       const invitation = await getInvitationByToken(
         input.token,
         context.tenantDb
@@ -499,6 +504,7 @@ export const invitationRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       // Check permission
       try {
 
@@ -548,6 +554,7 @@ export const invitationRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       // Check permission
       try {
 
@@ -590,6 +597,7 @@ export const invitationRouter = {
 
       
 
+		assertOrgContextMatch(context, input);
       // Check permission
       try {
 

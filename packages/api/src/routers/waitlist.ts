@@ -23,6 +23,7 @@ const list = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read")
 
 		return listWaitlistEntries(context.tenantDb, {
@@ -44,6 +45,7 @@ const add = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "create")
 
 		try {
@@ -71,6 +73,7 @@ const remove = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update")
 
 		return removeFromWaitlist(context.tenantDb, input.id);
@@ -88,6 +91,7 @@ const promote = tenantProcedure
 
 		
 
+		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update")
 
 		return promoteFromWaitlist(context.tenantDb, input.classSlotId);
