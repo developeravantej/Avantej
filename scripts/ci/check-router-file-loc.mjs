@@ -1,20 +1,19 @@
 #!/usr/bin/env node
 /**
  * CI gate: individual router files must not exceed LOC budget (Plan D-S7).
- * Legacy mega-routers are allowlisted until split; new violations fail CI.
+ * Scans top-level routers and split-router subfolders (e.g. services/*.procedures.ts).
  */
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const routersDir = join(process.cwd(), "packages/api/src/routers");
 const MAX_LINES = 400;
 
-/** Known mega-routers tracked for D-S7 split — do not add new files here. */
+/** Known mega-routers tracked for D-S7 split — remove when fully modularized. */
 const ALLOWLIST = new Set([
 	"package-instances.ts",
 	"members.ts",
 	"hierarchy.ts",
-	"appointments.ts",
 	"commission-splits.ts",
 	"invitations.ts",
 	"class-slots.ts",
@@ -25,22 +24,39 @@ const SKIP = new Set(["index.ts", "base-router.ts"]);
 
 const violations = [];
 
-for (const file of readdirSync(routersDir)) {
-	if (!file.endsWith(".ts") || file.endsWith(".test.ts") || SKIP.has(file)) {
-		continue;
-	}
-	const path = join(routersDir, file);
+function checkFile(relativePath) {
+	const base = relativePath.split(/[/\\]/).pop() ?? relativePath;
+	if (base.endsWith(".test.ts") || SKIP.has(base)) return;
+	if (relativePath.includes("_types")) return;
+
+	const path = join(routersDir, relativePath);
 	const lineCount = readFileSync(path, "utf-8").split(/\r?\n/).length;
-	if (lineCount <= MAX_LINES) continue;
-	if (ALLOWLIST.has(file)) continue;
-	violations.push(`${file}: ${lineCount} lines (max ${MAX_LINES}, not allowlisted)`);
+	if (lineCount <= MAX_LINES) return;
+	if (ALLOWLIST.has(base)) return;
+	violations.push(`${relativePath}: ${lineCount} lines (max ${MAX_LINES})`);
 }
+
+function walk(dir, prefix = "") {
+	for (const entry of readdirSync(dir)) {
+		const rel = prefix ? `${prefix}/${entry}` : entry;
+		const full = join(dir, entry);
+		if (statSync(full).isDirectory()) {
+			if (entry === "_types") continue;
+			walk(full, rel);
+			continue;
+		}
+		if (!entry.endsWith(".ts")) continue;
+		checkFile(rel.replace(/\\/g, "/"));
+	}
+}
+
+walk(routersDir);
 
 if (violations.length > 0) {
 	console.error("Router file LOC check failed:\n");
 	for (const v of violations) console.error(`  - ${v}`);
 	console.error(
-		"\nSplit the router or add to ALLOWLIST only for tracked D-S7 mega-router work.",
+		"\nSplit with: node scripts/split-router-by-marker.mjs <router> <module:procs...>",
 	);
 	process.exit(1);
 }
