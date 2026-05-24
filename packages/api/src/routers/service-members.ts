@@ -13,7 +13,7 @@
  * Admin management:   listForMember + updateBuffer
  */
 
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
@@ -30,7 +30,7 @@ export const serviceMembersRouter = {
 	 * List the services a staff member is assigned to, with their buffer overrides.
 	 * No permission gate — scoped to the calling member.
 	 */
-	listMine: protectedProcedure
+	listMine: tenantProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context }) => {
 			if (!context.tenantDb || !context.member) {
@@ -75,7 +75,7 @@ export const serviceMembersRouter = {
 	 * bufferTimeMinutes: number → upsert override
 	 * bufferTimeMinutes: null  → delete override (revert to category default)
 	 */
-	updateMyBuffer: protectedProcedure
+	updateMyBuffer: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -145,7 +145,7 @@ export const serviceMembersRouter = {
 	 * Admin: list services a specific member is assigned to, with their overrides.
 	 * Requires user_management:read or service_management:read.
 	 */
-	listForMember: protectedProcedure
+	listForMember: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -187,7 +187,7 @@ export const serviceMembersRouter = {
 	 * Admin: remove a member from a service, also clears their buffer override.
 	 * Requires user_management:update or service_management:update.
 	 */
-	remove: protectedProcedure
+	remove: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -269,7 +269,7 @@ export const serviceMembersRouter = {
 	 * List all members assigned to a specific service, with their profile info.
 	 * Requires user_management:read, service_management:read, or appointment_management:read.
 	 */
-	listForService: protectedProcedure
+	listForService: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),

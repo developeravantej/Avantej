@@ -17,7 +17,7 @@ import { requirePermissionOrpc } from "../guards";
 import { ORPCError } from "@orpc/server";
 import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 
 function ensureCtx(context: {
 	tenantDb?: unknown;
@@ -26,17 +26,8 @@ function ensureCtx(context: {
 	tenantDb: NonNullable<typeof context.tenantDb>;
 	member: NonNullable<typeof context.member> & { userId: string };
 } {
-	if (!context.tenantDb) {
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message:
-				"Tenant database not available. Ensure organization context is set.",
-		});
-	}
-	if (!context.member) {
-		throw new ORPCError("FORBIDDEN", {
-			message: "User is not a member of this organization",
-		});
-	}
+	
+	
 }
 
 async function checkPermission(
@@ -56,7 +47,7 @@ async function checkPermission(
 
 export const householdsRouter = {
 	/** Create a new household. Optionally bind a primary contact profile. */
-	create: protectedProcedure
+	create: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -99,7 +90,7 @@ export const householdsRouter = {
 		}),
 
 	/** Add a customer profile to a household. */
-	addMember: protectedProcedure
+	addMember: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -140,7 +131,7 @@ export const householdsRouter = {
 		}),
 
 	/** Remove a customer profile from any household (clears household_id). */
-	removeMember: protectedProcedure
+	removeMember: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -189,7 +180,7 @@ export const householdsRouter = {
 		}),
 
 	/** Fetch one household with all its members (joined to user for display). */
-	get: protectedProcedure
+	get: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -236,7 +227,7 @@ export const householdsRouter = {
 	 *   (`accessibleNodeIds`). This prevents staff from reading all-org household
 	 *   data outside their scope.
 	 */
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),

@@ -2,18 +2,18 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import {
  convertWalkInPaymentToPackage } from "@avantej-core/services";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 
 const deprecated = (message: string) =>
-	protectedProcedure
+	tenantProcedure
 		.input(z.any().optional())
 		.handler(() => {
 			throw new ORPCError("BAD_REQUEST", { message });
 		});
 
 export const walkInCustomersRouter = {
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(z.any().optional())
 		.handler(() => ({ items: [], total: 0 })),
 	getById: deprecated("Walk-in customers have been removed"),
@@ -29,7 +29,7 @@ export const walkInCustomersRouter = {
 	 * Use case: customer pays RM50 drop-in, then upgrades to a 10-pack
 	 * mid-session — the original payment becomes credit toward the package.
 	 */
-	convertToPackage: protectedProcedure
+	convertToPackage: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),

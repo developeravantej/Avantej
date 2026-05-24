@@ -16,23 +16,18 @@ import {
 import { ORPCError } from "@orpc/server";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 
 export const customerProfilesRouter = {
-	get: protectedProcedure
+	get: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 			}),
 		)
 		.handler(async ({ context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
 			const userId = context.session?.user?.id;
 			if (!userId) {
@@ -45,7 +40,7 @@ export const customerProfilesRouter = {
 			return profile;
 		}),
 
-	upsert: protectedProcedure
+	upsert: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -67,12 +62,7 @@ export const customerProfilesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
 			const userId = context.session?.user?.id;
 			if (!userId) {
@@ -130,7 +120,7 @@ export const customerProfilesRouter = {
 	 * Verifies the target user is a 'client' member within the caller's accessible scope.
 	 * Does NOT touch the existing self-scoped `upsert` above.
 	 */
-	upsertForCustomer: protectedProcedure
+	upsertForCustomer: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -153,17 +143,8 @@ export const customerProfilesRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
+			
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "customer_management", "update");
 
@@ -214,7 +195,7 @@ export const customerProfilesRouter = {
 	 * Lookup of acquisition channels for the create-customer / customer-360 pickers.
 	 * Returns active rows by default; pass `includeInactive=true` for admin views.
 	 */
-	listLeadSources: protectedProcedure
+	listLeadSources: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -222,12 +203,7 @@ export const customerProfilesRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 			const rows = await context.tenantDb
 				.select()
 				.from(leadSources)

@@ -10,7 +10,7 @@ import { roles } from "@avantej-core/db/schema/tenant/roles";
 import { eq, desc } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import { requirePermission } from "@avantej-core/services";
 
@@ -18,25 +18,16 @@ export const rolesRouter = {
 	/**
 	 * List all roles ordered by priority (highest first)
 	 */
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 			})
 		)
 		.handler(async ({ context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read")
 
@@ -54,7 +45,7 @@ export const rolesRouter = {
 	 * Priority must be 1-99 (100 is reserved for admin).
 	 * Name must be unique within the organization.
 	 */
-	create: protectedProcedure
+	create: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -64,18 +55,9 @@ export const rolesRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "create")
 
@@ -115,7 +97,7 @@ export const rolesRouter = {
 	 *
 	 * Cannot modify system roles.
 	 */
-	update: protectedProcedure
+	update: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -126,18 +108,9 @@ export const rolesRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
 
@@ -198,7 +171,7 @@ export const rolesRouter = {
 	 *
 	 * Cannot delete system roles. Role permissions are cascade-deleted.
 	 */
-	delete: protectedProcedure
+	delete: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -206,18 +179,9 @@ export const rolesRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "delete")
 

@@ -1,6 +1,6 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import {
 	getMemberProfile,
@@ -8,7 +8,7 @@ import {
 } from "@avantej-core/services/member-profile.service";
 import { requirePermission } from "@avantej-core/services";
 
-const get = protectedProcedure
+const get = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -16,25 +16,16 @@ const get = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message:
-					"Tenant database not available. Ensure organization context is set.",
-			});
-		}
+		
 
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read");
 
 		return getMemberProfile(context.tenantDb, input.memberId);
 	});
 
-const upsert = protectedProcedure
+const upsert = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -48,18 +39,9 @@ const upsert = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message:
-					"Tenant database not available. Ensure organization context is set.",
-			});
-		}
+		
 
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update");
 

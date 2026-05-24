@@ -15,7 +15,7 @@ import {
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
@@ -32,7 +32,7 @@ const dayOfWeekSchema = z.enum([
 const kindSchema = z.enum(["available", "blocked", "timeoff"]).default("available");
 
 export const trainerAvailabilityRouter = {
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -40,15 +40,11 @@ export const trainerAvailabilityRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
+			
 			return listTrainerAvailability(context.tenantDb, input.trainerId);
 		}),
 
-	listByBranch: protectedProcedure
+	listByBranch: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -56,11 +52,7 @@ export const trainerAvailabilityRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
+			
 			const controlPanelDb = getControlPanelDb(context);
 			return listTrainerAvailabilityByBranch(
 				controlPanelDb,
@@ -69,7 +61,7 @@ export const trainerAvailabilityRouter = {
 			);
 		}),
 
-	getComputedSlots: protectedProcedure
+	getComputedSlots: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -79,11 +71,7 @@ export const trainerAvailabilityRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
+			
 			const startDate = new Date(`${input.startDate}T00:00:00`);
 			const endDate = new Date(`${input.endDate}T23:59:59`);
 			return computeAvailableSlots(
@@ -94,7 +82,7 @@ export const trainerAvailabilityRouter = {
 			);
 		}),
 
-	upsert: protectedProcedure
+	upsert: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -136,7 +124,7 @@ export const trainerAvailabilityRouter = {
 			}
 		}),
 
-	delete: protectedProcedure
+	delete: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -154,7 +142,7 @@ export const trainerAvailabilityRouter = {
 			return { success: true };
 		}),
 
-	getUtilisation: protectedProcedure
+	getUtilisation: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -163,18 +151,14 @@ export const trainerAvailabilityRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
+			
 			return getTrainerUtilisation(context.tenantDb, {
 				branchId: input.branchId,
 				weekStart: input.weekStart,
 			});
 		}),
 
-	create: protectedProcedure
+	create: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -210,7 +194,7 @@ export const trainerAvailabilityRouter = {
 			}
 		}),
 
-	update: protectedProcedure
+	update: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -245,7 +229,7 @@ export const trainerAvailabilityRouter = {
 			}
 		}),
 
-	getConflicts: protectedProcedure
+	getConflicts: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -254,18 +238,14 @@ export const trainerAvailabilityRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
+			
 			return getTrainerConflicts(context.tenantDb, {
 				branchId: input.branchId,
 				weekStart: input.weekStart,
 			});
 		}),
 
-	addException: protectedProcedure
+	addException: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -304,7 +284,7 @@ export const trainerAvailabilityRouter = {
 			}
 		}),
 
-	listExceptions: protectedProcedure
+	listExceptions: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -314,11 +294,7 @@ export const trainerAvailabilityRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
+			
 			return listTrainerAvailabilityExceptions(
 				context.tenantDb,
 				input.trainerId,
@@ -326,7 +302,7 @@ export const trainerAvailabilityRouter = {
 			);
 		}),
 
-	deleteException: protectedProcedure
+	deleteException: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),

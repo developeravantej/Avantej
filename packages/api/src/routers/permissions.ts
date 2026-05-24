@@ -9,7 +9,7 @@ import { permissions } from "@avantej-core/db/schema/tenant/permissions";
 import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import { requirePermission } from "@avantej-core/services";
 
@@ -17,7 +17,7 @@ export const permissionsRouter = {
 	/**
 	 * List permissions, optionally filtered by resource
 	 */
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -25,18 +25,9 @@ export const permissionsRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read")
 

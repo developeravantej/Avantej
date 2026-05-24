@@ -5,14 +5,14 @@ import {
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import { eq, and } from "drizzle-orm";
 import { serviceMembers } from "@avantej-core/db/schema/tenant/service-members";
 import { services } from "@avantej-core/db/schema/tenant/services";
 
 export const categoryBufferOverridesRouter = {
-	listForMember: protectedProcedure
+	listForMember: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -45,14 +45,14 @@ export const categoryBufferOverridesRouter = {
 			);
 		}),
 
-	listMine: protectedProcedure
+	listMine: tenantProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context }) => {
 			if (!context.tenantDb || !context.member) throw new ORPCError("FORBIDDEN");
 			return listCategoryBufferOverridesForMember(context.tenantDb, context.member.id);
 		}),
 
-	updateMine: protectedProcedure
+	updateMine: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),

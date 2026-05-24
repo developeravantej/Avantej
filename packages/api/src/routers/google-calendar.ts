@@ -1,4 +1,4 @@
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
@@ -20,12 +20,8 @@ function assertTenantAndMember(context: {
 	tenantDb?: unknown;
 	member?: unknown;
 }): asserts context is { tenantDb: NonNullable<typeof context.tenantDb>; member: NonNullable<typeof context.member> } {
-	if (!context.tenantDb) {
-		throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant database not available." });
-	}
-	if (!context.member) {
-		throw new ORPCError("FORBIDDEN", { message: "Not a member of this organization" });
-	}
+	
+	
 }
 
 // ---------------------------------------------------------------------------
@@ -36,7 +32,7 @@ export const googleCalendarRouter = {
 	// ------------------------------------------------------------------
 	// status — caller's own connection status
 	// ------------------------------------------------------------------
-	status: protectedProcedure
+	status: tenantProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context }) => {
 			assertTenantAndMember(context);
@@ -67,7 +63,7 @@ export const googleCalendarRouter = {
 	// ------------------------------------------------------------------
 	// disconnect — revoke + delete caller's own connection
 	// ------------------------------------------------------------------
-	disconnect: protectedProcedure
+	disconnect: tenantProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context }) => {
 			assertTenantAndMember(context);
@@ -97,7 +93,7 @@ export const googleCalendarRouter = {
 	// orgStatus — org-wide aggregate (Task 1.16)
 	// RBAC: appointment_management:read
 	// ------------------------------------------------------------------
-	orgStatus: protectedProcedure
+	orgStatus: tenantProcedure
 		.input(z.object({}))
 		.handler(async ({ context }) => {
 			assertTenantAndMember(context);
@@ -140,7 +136,7 @@ export const googleCalendarRouter = {
 	// updateSettings — update caller's own syncDirection + conflictPolicy (Task 1.17)
 	// RBAC: appointment_management:update
 	// ------------------------------------------------------------------
-	updateSettings: protectedProcedure
+	updateSettings: tenantProcedure
 		.input(
 			z.object({
 				syncDirection: z
@@ -183,7 +179,7 @@ export const googleCalendarRouter = {
 	// syncNow — in-memory rate-limit 1/min per member (Task 1.18)
 	// RBAC: appointment_management:update
 	// ------------------------------------------------------------------
-	syncNow: protectedProcedure
+	syncNow: tenantProcedure
 		.input(z.object({}))
 		.handler(async ({ context }) => {
 			assertTenantAndMember(context);
@@ -214,7 +210,7 @@ export const googleCalendarRouter = {
 	// listConnectedCalendars — Google calendarList with 24h JS-side cache (Task 1.30)
 	// RBAC: appointment_management:read
 	// ------------------------------------------------------------------
-	listConnectedCalendars: protectedProcedure
+	listConnectedCalendars: tenantProcedure
 		.input(z.object({}))
 		.handler(async ({ context }) => {
 			assertTenantAndMember(context);

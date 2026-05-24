@@ -1,6 +1,6 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import {
 	getCategoryCommissionConfig,
@@ -9,7 +9,7 @@ import {
 } from "@avantej-core/services/category-commission.service";
 import { requirePermission } from "@avantej-core/services";
 
-const getByCategory = protectedProcedure
+const getByCategory = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -17,24 +17,16 @@ const getByCategory = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
+		
 
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "category_commission_management", "read");
 
 		return getCategoryCommissionConfig(context.tenantDb, input.categoryId);
 	});
 
-const upsert = protectedProcedure
+const upsert = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -77,17 +69,9 @@ const upsert = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
+		
 
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "category_commission_management", "create");
 
@@ -113,7 +97,7 @@ const upsert = protectedProcedure
 		}
 	});
 
-const deleteConfig = protectedProcedure
+const deleteConfig = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -121,17 +105,9 @@ const deleteConfig = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
+		
 
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "category_commission_management", "delete");
 

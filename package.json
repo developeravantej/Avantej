@@ -57,7 +57,11 @@
     "codemod:tenant-procedure": "node scripts/codemods/migrate-tenant-procedure.mjs",
     "codemod:tenant-procedure:batch2": "node scripts/codemods/migrate-tenant-procedure.mjs --batch=2",
     "codemod:tenant-procedure:batch3": "node scripts/codemods/migrate-tenant-procedure.mjs --batch=3",
-    "codemod:tenant-procedure:batch4": "node scripts/codemods/migrate-tenant-procedure.mjs --batch=4"
+    "codemod:tenant-procedure:batch4": "node scripts/codemods/migrate-tenant-procedure.mjs --batch=4",
+    "codemod:tenant-procedure:batch5": "node scripts/codemods/migrate-tenant-procedure.mjs --batch=5",
+    "codemod:tenant-procedure:batch6": "node scripts/codemods/migrate-tenant-procedure.mjs --batch=6",
+    "codemod:tenant-procedure:batch7": "node scripts/codemods/migrate-tenant-procedure.mjs --batch=7",
+    "codemod:drop-unused-require-permission": "node scripts/codemods/drop-unused-require-permission-import.mjs"
   },
   "dependencies": {
     "boneyard-js": "^1.8.1",

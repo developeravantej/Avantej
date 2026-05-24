@@ -10,7 +10,7 @@ import {
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
@@ -26,7 +26,7 @@ const dayOfWeekSchema = z.enum([
 
 export const coachIntakeRouter = {
 	// List all active recurring intake slots for a trainer — no permission gate
-	listSlots: protectedProcedure
+	listSlots: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -34,16 +34,12 @@ export const coachIntakeRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
+			
 			return listCoachIntakeSlots(context.tenantDb, input.trainerId);
 		}),
 
 	// Replace all recurring intake slots — admin or self
-	upsertSlots: protectedProcedure
+	upsertSlots: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -88,7 +84,7 @@ export const coachIntakeRouter = {
 		}),
 
 	// Get open (unclaimed) intake slots for a date range — no permission gate
-	getOpenSlots: protectedProcedure
+	getOpenSlots: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -98,11 +94,7 @@ export const coachIntakeRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
+			
 			return computeOpenIntakeSlots(
 				context.tenantDb,
 				input.trainerId,
@@ -112,7 +104,7 @@ export const coachIntakeRouter = {
 		}),
 
 	// Claim (block) a specific intake slot — admin or self
-	claimSlot: protectedProcedure
+	claimSlot: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -156,7 +148,7 @@ export const coachIntakeRouter = {
 		}),
 
 	// Delete an exception (unclaim a slot) — requires login + tenantDb
-	unclaimSlot: protectedProcedure
+	unclaimSlot: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -164,17 +156,13 @@ export const coachIntakeRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
+			
 			await unclaimIntakeSlot(context.tenantDb, input.exceptionId);
 			return { success: true };
 		}),
 
 	// List exceptions for a trainer in a date range — no gate, trainers read their own
-	listExceptions: protectedProcedure
+	listExceptions: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -184,11 +172,7 @@ export const coachIntakeRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
+			
 			return listIntakeExceptions(
 				context.tenantDb,
 				input.trainerId,
@@ -198,7 +182,7 @@ export const coachIntakeRouter = {
 		}),
 
 	// List all coaches with their intake slots, optionally filtered by branch — no gate
-	listByBranch: protectedProcedure
+	listByBranch: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -206,11 +190,7 @@ export const coachIntakeRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
+			
 			const controlPanelDb = getControlPanelDb(context);
 			return listCoachIntakeByBranch(controlPanelDb, context.tenantDb, {
 				branchId: input.branchId,

@@ -8,10 +8,10 @@
 import { getSetting, upsertSetting } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 
 export const organizationSettingsRouter = {
-	get: protectedProcedure
+	get: tenantProcedure
 		.input(z.object({ organizationId: z.string().uuid(), key: z.string() }))
 		.handler(async ({ input, context }) => {
 			if (!context.tenantDb) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "No tenant DB" });
@@ -20,7 +20,7 @@ export const organizationSettingsRouter = {
 			return { key: input.key, value };
 		}),
 
-	upsert: protectedProcedure
+	upsert: tenantProcedure
 		.input(z.object({ organizationId: z.string().uuid(), key: z.string(), value: z.string() }))
 		.handler(async ({ input, context }) => {
 			if (!context.tenantDb) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "No tenant DB" });

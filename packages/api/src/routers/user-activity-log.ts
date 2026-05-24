@@ -7,10 +7,10 @@
 import { listUserActivityLog } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 
 export const userActivityLogRouter = {
-  list: protectedProcedure
+  list: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -19,12 +19,7 @@ export const userActivityLogRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       const userId = context.session?.user?.id;
       if (!userId) {

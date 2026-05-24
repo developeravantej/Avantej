@@ -12,7 +12,7 @@ import {
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 
 const dayOfWeekSchema = z.enum([
@@ -32,7 +32,7 @@ const preferredTimeItemSchema = z.object({
 });
 
 export const preferredTimesRouter = {
-  list: protectedProcedure
+  list: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -40,12 +40,7 @@ export const preferredTimesRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       const instance = await getPackageInstanceById(
         context.tenantDb,
@@ -70,7 +65,7 @@ export const preferredTimesRouter = {
       });
     }),
 
-  upsert: protectedProcedure
+  upsert: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -79,12 +74,7 @@ export const preferredTimesRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       const instance = await getPackageInstanceById(
         context.tenantDb,

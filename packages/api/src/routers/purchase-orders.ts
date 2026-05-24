@@ -1,6 +1,6 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import {
 	listPurchaseOrders,
@@ -13,7 +13,7 @@ import {
 import { requirePermission } from "@avantej-core/services";
 
 export const purchaseOrdersRouter = {
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -27,18 +27,9 @@ export const purchaseOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "read");
 
@@ -54,7 +45,7 @@ export const purchaseOrdersRouter = {
 			});
 		}),
 
-	getById: protectedProcedure
+	getById: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -62,18 +53,9 @@ export const purchaseOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "read");
 
@@ -89,7 +71,7 @@ export const purchaseOrdersRouter = {
 			return result;
 		}),
 
-	create: protectedProcedure
+	create: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -110,18 +92,9 @@ export const purchaseOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "create");
 
@@ -138,7 +111,7 @@ export const purchaseOrdersRouter = {
 			});
 		}),
 
-	approve: protectedProcedure
+	approve: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -146,18 +119,9 @@ export const purchaseOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "update");
 
@@ -178,7 +142,7 @@ export const purchaseOrdersRouter = {
 			}
 		}),
 
-	receiveItems: protectedProcedure
+	receiveItems: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -192,18 +156,9 @@ export const purchaseOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "update");
 
@@ -214,7 +169,7 @@ export const purchaseOrdersRouter = {
 			);
 		}),
 
-	cancel: protectedProcedure
+	cancel: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -222,18 +177,9 @@ export const purchaseOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "delete");
 

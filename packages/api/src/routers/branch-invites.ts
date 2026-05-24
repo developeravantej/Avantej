@@ -15,7 +15,7 @@
 
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import {
 	createBranchInvite,
@@ -38,7 +38,7 @@ export const branchInvitesRouter = {
 	 * Create a new branch self-signup invite.
 	 * Returns the invite record and the full QR-code URL.
 	 */
-	create: protectedProcedure
+	create: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -47,17 +47,9 @@ export const branchInvitesRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization.",
-				});
-			}
+			
 
 			// Permission: hierarchy_management (existing resource for branch admin actions)
 			try {
@@ -95,15 +87,11 @@ export const branchInvitesRouter = {
 	 * List one row per accessible branch with its most recent active invite.
 	 * Used by the Onboarding index page.
 	 */
-	listAll: protectedProcedure
+	listAll: tenantProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant database not available." });
-			}
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization." });
-			}
+			
+			
 			try {
 
 				await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "read");
@@ -116,7 +104,7 @@ export const branchInvitesRouter = {
 	/**
 	 * List active branch self-signup invites scoped to a specific branch.
 	 */
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -124,17 +112,9 @@ export const branchInvitesRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization.",
-				});
-			}
+			
 
 			// Permission: hierarchy_management read
 			try {
@@ -166,7 +146,7 @@ export const branchInvitesRouter = {
 	/**
 	 * Revoke a branch invite (soft delete via isActive=false).
 	 */
-	revoke: protectedProcedure
+	revoke: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -174,17 +154,9 @@ export const branchInvitesRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization.",
-				});
-			}
+			
 
 			// Permission: hierarchy_management delete
 			try {
@@ -219,7 +191,7 @@ export const branchInvitesRouter = {
 	 * Atomic at the application level (sequential revoke + create in the same handler).
 	 * Returns the new invite URL.
 	 */
-	regenerate: protectedProcedure
+	regenerate: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -228,17 +200,9 @@ export const branchInvitesRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization.",
-				});
-			}
+			
 
 			// Permission: hierarchy_management create (creating a replacement)
 			try {

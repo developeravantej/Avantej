@@ -10,22 +10,17 @@ import {
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 
 export const notificationPreferencesRouter = {
-  get: protectedProcedure
+  get: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
       })
     )
     .handler(async ({ context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       const userId = context.session?.user?.id;
       if (!userId) {
@@ -38,7 +33,7 @@ export const notificationPreferencesRouter = {
       return prefs;
     }),
 
-  update: protectedProcedure
+  update: tenantProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),
@@ -52,12 +47,7 @@ export const notificationPreferencesRouter = {
       })
     )
     .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+      
 
       const userId = context.session?.user?.id;
       if (!userId) {

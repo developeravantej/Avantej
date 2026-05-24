@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { inArray } from "drizzle-orm";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import {
 
@@ -18,7 +18,7 @@ import { encodeCursor, parseCursor } from "../lib/cursor";
 const invoiceStatusEnum = z.enum(["draft", "sent", "paid", "partially_paid", "overdue", "cancelled"]);
 
 export const invoicesRouter = {
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -30,17 +30,9 @@ export const invoicesRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "payments", "read")
 
@@ -75,7 +67,7 @@ export const invoicesRouter = {
 			}));
 		}),
 
-	getById: protectedProcedure
+	getById: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -83,17 +75,9 @@ export const invoicesRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "payments", "read")
 
@@ -106,7 +90,7 @@ export const invoicesRouter = {
 			return invoice;
 		}),
 
-	create: protectedProcedure
+	create: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -126,17 +110,9 @@ export const invoicesRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "payments", "create")
 
@@ -157,7 +133,7 @@ export const invoicesRouter = {
 			});
 		}),
 
-	update: protectedProcedure
+	update: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -177,17 +153,9 @@ export const invoicesRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "payments", "update")
 
@@ -207,7 +175,7 @@ export const invoicesRouter = {
 			});
 		}),
 
-	paymentStatusHistory: protectedProcedure
+	paymentStatusHistory: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -217,17 +185,9 @@ export const invoicesRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			
 
 			await requirePermissionOrpc(context.tenantDb, context.member, "payments", "read")
 

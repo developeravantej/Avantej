@@ -11,7 +11,7 @@
 
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import {
 	cancelMembershipHold,
 	freezeMembership,
@@ -29,17 +29,8 @@ function ensureCtx(context: {
 	tenantDb: NonNullable<typeof context.tenantDb>;
 	member: NonNullable<typeof context.member> & { userId: string };
 } {
-	if (!context.tenantDb) {
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message:
-				"Tenant database not available. Ensure organization context is set.",
-		});
-	}
-	if (!context.member) {
-		throw new ORPCError("FORBIDDEN", {
-			message: "User is not a member of this organization",
-		});
-	}
+	
+	
 }
 
 async function checkPermission(
@@ -59,7 +50,7 @@ async function checkPermission(
 
 export const membershipsRouter = {
 	/** Freeze a customer's package (medical / travel / other). */
-	freeze: protectedProcedure
+	freeze: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -107,7 +98,7 @@ export const membershipsRouter = {
 		}),
 
 	/** Manually resume a frozen package (front-desk action; cron also calls service). */
-	resume: protectedProcedure
+	resume: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -138,7 +129,7 @@ export const membershipsRouter = {
 		}),
 
 	/** Cancel an erroneous freeze without flipping the package back automatically. */
-	cancel: protectedProcedure
+	cancel: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -163,7 +154,7 @@ export const membershipsRouter = {
 		}),
 
 	/** List holds for one package (audit trail tab). */
-	listHolds: protectedProcedure
+	listHolds: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),

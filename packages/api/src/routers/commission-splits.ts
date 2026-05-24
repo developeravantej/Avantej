@@ -1,6 +1,6 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import { requirePermissionOrpc } from "../guards";
 import {
 	listCommissionSplits,
@@ -24,7 +24,7 @@ import { getControlPanelDb } from "../lib/context-helpers";
 // Existing procedures (unchanged)
 // ---------------------------------------------------------------------------
 
-const list = protectedProcedure
+const list = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -36,18 +36,9 @@ const list = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message:
-					"Tenant database not available. Ensure organization context is set.",
-			});
-		}
+		
 
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
 
@@ -61,7 +52,7 @@ const list = protectedProcedure
 		});
 	});
 
-const getByAppointment = protectedProcedure
+const getByAppointment = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -69,18 +60,9 @@ const getByAppointment = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message:
-					"Tenant database not available. Ensure organization context is set.",
-			});
-		}
+		
 
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
 
@@ -89,7 +71,7 @@ const getByAppointment = protectedProcedure
 		});
 	});
 
-const myCommissions = protectedProcedure
+const myCommissions = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -98,18 +80,9 @@ const myCommissions = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message:
-					"Tenant database not available. Ensure organization context is set.",
-			});
-		}
+		
 
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
 
@@ -128,7 +101,7 @@ const myCommissions = protectedProcedure
  * Replaces the basic `list` procedure for the new UI.
  * Requires commission_management:read.
  */
-const listLedger = protectedProcedure
+const listLedger = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -144,16 +117,8 @@ const listLedger = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available.",
-			});
-		}
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
 
@@ -175,7 +140,7 @@ const listLedger = protectedProcedure
  * approve: bulk approve pending splits.
  * Requires commission_management:approve.
  */
-const approve = protectedProcedure
+const approve = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -183,16 +148,8 @@ const approve = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available.",
-			});
-		}
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "approve");
 
@@ -216,7 +173,7 @@ const approve = protectedProcedure
  * Optionally links a payoutId.
  * Requires commission_management:process.
  */
-const markPaid = protectedProcedure
+const markPaid = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -225,16 +182,8 @@ const markPaid = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available.",
-			});
-		}
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "process");
 
@@ -260,7 +209,7 @@ const markPaid = protectedProcedure
  * void: void a single commission split from any status.
  * Requires commission_management:approve.
  */
-const voidSplit = protectedProcedure
+const voidSplit = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -269,16 +218,8 @@ const voidSplit = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available.",
-			});
-		}
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "approve");
 
@@ -306,7 +247,7 @@ const voidSplit = protectedProcedure
  * createManualAdjustment: create a manual commission adjustment (bonus or clawback).
  * Requires commission_payout:create.
  */
-const manualAdjustment = protectedProcedure
+const manualAdjustment = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -346,7 +287,7 @@ const manualAdjustment = protectedProcedure
  * Filters on earnedAt. Optionally scoped by hierarchy node and/or service category.
  * Requires commission_management:read OR commission_payout:read.
  */
-const liabilitySummaryProcedure = protectedProcedure
+const liabilitySummaryProcedure = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -357,16 +298,8 @@ const liabilitySummaryProcedure = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available.",
-			});
-		}
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
+		
 
 		// OR permission check: commission_management:read OR commission_payout:read
 		let hasPermission = false;
@@ -412,7 +345,7 @@ const liabilitySummaryProcedure = protectedProcedure
  * Uses earnedAt for range filtering.
  * Requires commission_payout:update.
  */
-const markPaidBatchProcedure = protectedProcedure
+const markPaidBatchProcedure = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -422,16 +355,8 @@ const markPaidBatchProcedure = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available.",
-			});
-		}
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "update");
 
@@ -463,7 +388,7 @@ const markPaidBatchProcedure = protectedProcedure
  * pending/approved/paid totals. LIMIT 500. Scoped by accessibleNodeIds.
  * Requires commission_management:read.
  */
-const liabilityByStaffProcedure = protectedProcedure
+const liabilityByStaffProcedure = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -473,16 +398,8 @@ const liabilityByStaffProcedure = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available.",
-			});
-		}
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
 
@@ -508,7 +425,7 @@ const liabilityByStaffProcedure = protectedProcedure
  * FOR UPDATE, validates status='approved'. Emits audit action commission.mark_paid.
  * Requires commission_management:process.
  */
-const markPaidByIdProcedure = protectedProcedure
+const markPaidByIdProcedure = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -517,16 +434,8 @@ const markPaidByIdProcedure = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available.",
-			});
-		}
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "process");
 
@@ -554,7 +463,7 @@ const markPaidByIdProcedure = protectedProcedure
  * Emits audit action commission.void.
  * Requires commission_management:approve.
  */
-const voidByIdProcedure = protectedProcedure
+const voidByIdProcedure = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -563,16 +472,8 @@ const voidByIdProcedure = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available.",
-			});
-		}
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "approve");
 
@@ -597,7 +498,7 @@ const voidByIdProcedure = protectedProcedure
 
 // listPendingReview: returns pending_review splits for the Review tab.
 // Requires commission_management:read.
-const listPendingReviewProcedure = protectedProcedure
+const listPendingReviewProcedure = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -611,16 +512,8 @@ const listPendingReviewProcedure = protectedProcedure
 		}),
 	)
 	.handler(async ({ context, input }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available.",
-			});
-		}
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read")
 
@@ -634,7 +527,7 @@ const listPendingReviewProcedure = protectedProcedure
 
 // resolveReview: promote pending_review → pending (approve) or void (reject).
 // Requires commission_review:resolve (distinct from bulk approve permission).
-const resolveReviewProcedure = protectedProcedure
+const resolveReviewProcedure = tenantProcedure
 	.input(
 		z.discriminatedUnion("action", [
 			z.object({
@@ -652,16 +545,8 @@ const resolveReviewProcedure = protectedProcedure
 		]),
 	)
 	.handler(async ({ context, input }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available.",
-			});
-		}
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		
+		
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_review", "resolve")
 
