@@ -1,0 +1,309 @@
+[
+  {
+    "id": "TI-1",
+    "title": "Load tiers list — table renders with active and inactive tiers",
+    "type": "golden",
+    "steps": [
+      "Log in as franchisee@gmail.com",
+      "Navigate to /dashboard/trainers/view?tab=tiers",
+      "Wait for table to render"
+    ],
+    "expected": "Table is visible with columns Name, Rank, Status, Actions. Active tiers show a dark 'Active' badge; inactive tiers show a grey 'Inactive' badge. Rows are ordered by rank ascending.",
+    "selectorHints": [
+      "table.w-full.text-sm",
+      "td.px-4.py-3.font-medium (tier name)",
+      "span with text 'Active' inside Badge",
+      "span with text 'Inactive' inside Badge"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "_source": "trainer-tiers-page.tsx:36-41 (query), :160-221 (table render), trainer-tier.service.ts:28-46 (listTrainerTiers)"
+  },
+  {
+    "id": "TI-2",
+    "title": "Create a tier — fill name + rank, submit; tier appears in list",
+    "type": "golden",
+    "steps": [
+      "Navigate to /dashboard/trainers/view?tab=tiers",
+      "Click 'New Tier' button",
+      "Fill Name field with 'Senior Trainer'",
+      "Set Rank to 2",
+      "Click 'Create Tier'",
+      "Observe list"
+    ],
+    "expected": "Dialog closes, success toast 'Tier created' appears, list refetches and the new 'Senior Trainer' row (rank 2, Active status) appears in the table.",
+    "selectorHints": [
+      "button with text 'New Tier'",
+      "input#tier-name",
+      "input#tier-rank",
+      "button[type=submit] with text 'Create Tier'",
+      "div[role='status'] (Sonner toast)"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "persistence": "trainer_tiers table: name='Senior Trainer', rank=2, is_active=true",
+    "_source": "trainer-tiers-page.tsx:43-58 (createMutation), trainer-tier-dialogs.tsx:28-102 (CreateTierDialog), trainer-tier.service.ts:48-76 (createTrainerTier)"
+  },
+  {
+    "id": "TI-3",
+    "title": "Missing-rate-categories banner appears after create/reactivate when categories have no rate for the new tier",
+    "type": "golden",
+    "steps": [
+      "Ensure at least one active categoryCommissionConfig exists with no commissionTierRate for the target tier",
+      "Create a new tier (or reactivate an existing one)",
+      "Observe the page after dialog closes"
+    ],
+    "expected": "An Alert (destructive variant) appears above the table listing category IDs that lack a commission rate for the new tier. Banner reads: 'The following categories don't have a commission rate for this tier yet.'",
+    "selectorHints": [
+      "div[role='alert'] with AlertTriangle icon",
+      "ul.list-disc.list-inside li (one per missing categoryId)"
+    ],
+    "testable": true,
+    "status": "partial",
+    "_source": "trainer-tiers-page.tsx:52-57 (create path), :79-84 (reactivate path), :118-132 (banner render)",
+    "_partial_reason": "Banner renders raw categoryId UUIDs (trainer-tiers-page.tsx:126), not human-readable category names. No dismiss button on the banner — once shown it persists for the entire page session with no way to clear it."
+  },
+  {
+    "id": "TI-4",
+    "title": "Deactivate a tier — confirmation dialog → confirm → tier status becomes inactive",
+    "type": "golden",
+    "steps": [
+      "Navigate to tiers tab with at least one active tier",
+      "Click 'Deactivate' on an active tier row",
+      "Confirm dialog appears showing tier name",
+      "Click 'Deactivate' (destructive button)",
+      "Observe the row"
+    ],
+    "expected": "Dialog closes, success toast 'Tier deactivated' appears, list refetches, the tier's status badge changes from 'Active' to 'Inactive' and its action button changes to 'Reactivate'.",
+    "selectorHints": [
+      "button with text 'Deactivate' (in table row)",
+      "dialog with DialogTitle 'Deactivate Tier'",
+      "button.variant-destructive with text 'Deactivate' (in dialog)"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "persistence": "trainer_tiers table: is_active=false, updated_at updated",
+    "_source": "trainer-tiers-page.tsx:195-201 (Deactivate button), :235-243 (DeactivateTierDialog onConfirm), :61-70 (deactivateMutation), trainer-tier.service.ts:115-130 (deactivateTrainerTier)"
+  },
+  {
+    "id": "TI-5",
+    "title": "Reactivate a tier — click Reactivate on inactive row → tier becomes active; banner if missing rates",
+    "type": "golden",
+    "steps": [
+      "Ensure at least one inactive tier exists",
+      "Click 'Reactivate' on the inactive row",
+      "Observe the row and any banner"
+    ],
+    "expected": "Success toast 'Tier reactivated' appears, list refetches, tier badge changes to 'Active', action button changes to 'Deactivate'. If missingRateCategories is non-empty, the warning banner appears.",
+    "selectorHints": [
+      "button with text 'Reactivate' (in table row)",
+      "div[role='alert'] (banner, if missing rates exist)"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "persistence": "trainer_tiers table: is_active=true, updated_at updated",
+    "_source": "trainer-tiers-page.tsx:204-211 (Reactivate button), :72-86 (reactivateMutation), trainer-tier.service.ts:132-149 (reactivateTrainerTier)"
+  },
+  {
+    "id": "TI-6",
+    "title": "Create tier with duplicate name (case-insensitive) — backend returns error",
+    "type": "edge",
+    "steps": [
+      "Create a tier named 'Senior'",
+      "Open 'New Tier' dialog again",
+      "Enter name 'senior' (lowercase)",
+      "Submit"
+    ],
+    "expected": "Backend returns BAD_REQUEST with message 'A tier with this name already exists'. Toast error is shown. Dialog remains open. No new DB row inserted.",
+    "selectorHints": [
+      "div[role='status'] (Sonner toast with error text)"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "_source": "trainer-tier.service.ts:57-64 (LOWER() uniqueness check), trainer-tiers.ts:56-61 (ORPCError wrap), trainer-tiers-page.tsx:47 (errorMessage callback)"
+  },
+  {
+    "id": "TI-7",
+    "title": "Create tier with empty name — frontend toast fires, mutation NOT called",
+    "type": "edge",
+    "steps": [
+      "Click 'New Tier'",
+      "Leave Name field blank (or whitespace only)",
+      "Click 'Create Tier'"
+    ],
+    "expected": "toast.error('Name is required') fires. Mutation is NOT called. Dialog stays open.",
+    "selectorHints": [
+      "input#tier-name",
+      "button[type=submit]",
+      "div[role='status'] toast with text 'Name is required'"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "_source": "trainer-tiers-page.tsx:90-93 (handleCreate guard: !createForm.name.trim())"
+  },
+  {
+    "id": "TI-8",
+    "title": "Deactivate cancellation — open confirm dialog, click Cancel → no mutation called, tier stays active",
+    "type": "edge",
+    "steps": [
+      "Click 'Deactivate' on an active tier row",
+      "Dialog appears",
+      "Click 'Cancel' button"
+    ],
+    "expected": "Dialog closes. deactivateMutation is NOT called. Tier remains Active in the list.",
+    "selectorHints": [
+      "dialog with DialogTitle 'Deactivate Tier'",
+      "button with text 'Cancel' (variant outline)"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "_source": "trainer-tier-dialogs.tsx:133-135 (Cancel button calls onCancel), trainer-tiers-page.tsx:236 (onCancel: setDeactivateTarget(null)); also Dialog onOpenChange calls onCancel on backdrop click (trainer-tier-dialogs.tsx:120)"
+  },
+  {
+    "id": "TI-9",
+    "title": "Loading error — retry button visible; clicking retry re-fetches",
+    "type": "error",
+    "steps": [
+      "Simulate network failure or backend error on trainerTiers.list",
+      "Observe the page"
+    ],
+    "expected": "A destructive Alert is shown with the error message and a 'Retry' button. Clicking 'Retry' calls refetch().",
+    "selectorHints": [
+      "div[role='alert'] (isError branch)",
+      "button with text 'Retry' (variant outline size sm)"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "_source": "trainer-tiers-page.tsx:134-152 (isError branch with Retry button calling refetch())"
+  },
+  {
+    "id": "TI-10",
+    "title": "No organization — guard renders 'Select an organization'",
+    "type": "error",
+    "steps": [
+      "Log in as a user with no current organization (currentOrganizationId is null or empty)",
+      "Navigate to /dashboard/trainers/view?tab=tiers"
+    ],
+    "expected": "Page renders 'Select an organization to manage trainer tiers.' centered message. No table, no 'New Tier' button, no query fired.",
+    "selectorHints": [
+      "div.flex.items-center.justify-center.min-h-96 (guard fallback)"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "_source": "trainer-tiers-page.tsx:101-107 (!orgId guard), :38 (query enabled: !!orgId)"
+  },
+  {
+    "id": "TI-11",
+    "title": "Create tier with duplicate rank — allowed silently",
+    "type": "edge",
+    "steps": [
+      "Create a tier with rank 1",
+      "Create another tier with rank 1"
+    ],
+    "expected": "Both tiers are created successfully — no error. Both appear in the list. Ordering by rank is not unique; two rows with the same rank may appear in arbitrary order relative to each other.",
+    "selectorHints": [],
+    "testable": true,
+    "status": "implemented",
+    "_source": "packages/db/src/schema/tenant/trainer-tiers.ts:13 (rankIdx is a plain index, NOT a uniqueIndex; no service-level rank uniqueness check in createTrainerTier)"
+  },
+  {
+    "id": "TI-12",
+    "title": "Missing-rate-categories banner is never dismissible",
+    "type": "edge",
+    "steps": [
+      "Trigger a create/reactivate that returns non-empty missingRateCategories",
+      "Observe the banner",
+      "Look for a dismiss/close button"
+    ],
+    "expected": "Banner has no dismiss button. It persists until the page is navigated away from or refreshed.",
+    "selectorHints": [
+      "div[role='alert'] with AlertTriangle (no close button inside)"
+    ],
+    "testable": true,
+    "status": "missing",
+    "_source": "trainer-tiers-page.tsx:118-132 (banner render has no dismiss handler; missingRateBanner state is set to non-null but never reset to null after being shown)"
+  },
+  {
+    "id": "TI-13",
+    "title": "Missing-rate-categories banner shows raw UUIDs not category names",
+    "type": "edge",
+    "steps": [
+      "Trigger a create that returns missingRateCategories with known categories",
+      "Read the banner text"
+    ],
+    "expected": "Current behaviour: banner lists categoryId UUIDs (e.g. '3f7c12a0-...'). Expected UX: human-readable category names.",
+    "selectorHints": [
+      "ul.list-disc.list-inside li (inside the banner)"
+    ],
+    "testable": true,
+    "status": "partial",
+    "_source": "trainer-tiers-page.tsx:126 (renders c.categoryId — a UUID string, not a display name)"
+  },
+  {
+    "id": "TI-14",
+    "title": "Empty state — no tiers created yet",
+    "type": "golden",
+    "steps": [
+      "Ensure no tiers exist in the tenant DB",
+      "Navigate to /dashboard/trainers/view?tab=tiers"
+    ],
+    "expected": "Table is NOT rendered. Message 'No tiers yet. Create your first tier.' is shown in center. 'New Tier' button is still visible.",
+    "selectorHints": [
+      "div.text-center.py-12 (empty state)",
+      "text 'No tiers yet. Create your first tier.'"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "_source": "trainer-tiers-page.tsx:155-158 (tiers.length === 0 branch)"
+  },
+  {
+    "id": "TI-15",
+    "title": "Deactivate mutation pending — button disabled to prevent double-click",
+    "type": "edge",
+    "steps": [
+      "Trigger deactivate confirm",
+      "While deactivateMutation.isPending is true, attempt to click another Deactivate button"
+    ],
+    "expected": "All 'Deactivate' buttons in the table are disabled while the mutation is in-flight (disabled={deactivateMutation.isPending}).",
+    "selectorHints": [
+      "button[disabled] with text 'Deactivate'",
+      "button with text 'Deactivating...' in dialog"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "_source": "trainer-tiers-page.tsx:198 (disabled={deactivateMutation.isPending} on each row button), trainer-tier-dialogs.tsx:138 (dialog Deactivate button disabled when isPending)"
+  },
+  {
+    "id": "TI-16",
+    "title": "Deactivate non-existent tier ID — backend returns error",
+    "type": "error",
+    "steps": [
+      "Send deactivate with a valid UUID that doesn't exist in the DB"
+    ],
+    "expected": "Backend throws 'Trainer tier not found', oRPC wraps as BAD_REQUEST, toast.error shown.",
+    "selectorHints": [
+      "div[role='status'] toast with error message"
+    ],
+    "testable": false,
+    "status": "implemented",
+    "_source": "trainer-tier.service.ts:125-128 (if !updated throw 'Trainer tier not found'), trainer-tiers.ts:116-119 (ORPCError wrap)"
+  },
+  {
+    "id": "TI-17",
+    "title": "Tab switching — switching from tiers to trainers tab unmounts TrainerTiersPage",
+    "type": "edge",
+    "steps": [
+      "Navigate to /dashboard/trainers/view?tab=tiers",
+      "Click the 'Trainers' pill tab",
+      "Navigate back to tiers tab"
+    ],
+    "expected": "TrainerTiersPage remounts cleanly. All state (createOpen, deactivateTarget, missingRateBanner) resets to initial values. Query refires.",
+    "selectorHints": [
+      "button with text 'Trainers' (pill tab)",
+      "button with text 'Tiers' (pill tab)"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "_source": "view.tsx:29 (tab === 'tiers' branch — component mounted/unmounted on tab change via conditional render, not React.memo or keepAlive)"
+  }
+]

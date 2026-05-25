@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
@@ -55,6 +55,12 @@ export function AddExceptionDialog({
 		enabled: !!organizationId && !preselectedTrainerId,
 		staleTime: 60_000,
 	});
+
+	// Sync kind with defaultKind every time the dialog is opened (programmatic opens don't
+	// trigger Radix's onOpenChange, so handleOpenChange's else-branch never fires for them).
+	useEffect(() => {
+		if (open) setKind(defaultKind);
+	}, [open, defaultKind]);
 
 	const effectiveTrainerId = preselectedTrainerId ?? trainerId;
 

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
 import { TrainersListPage } from "@/components/pages/trainers/trainers-list-page";
 import { TrainerTiersPage } from "@/components/pages/trainers/trainer-tiers-page";
+import { TrainerAvailabilityTab } from "@/components/pages/trainers/trainer-availability-tab";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/trainers/view",
@@ -18,6 +19,7 @@ export const Route = createFileRoute(
 const TABS = [
 	{ id: "trainers", label: "Trainers" },
 	{ id: "tiers", label: "Tiers" },
+	{ id: "availability", label: "Availability" },
 ];
 
 function TrainersTabPage() {
@@ -59,6 +61,45 @@ function TrainersTabPage() {
 				<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
 					<TrainerTiersPage />
 				</div>
+			</div>
+		);
+	}
+
+	if (tab === "availability") {
+		return (
+			<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6">
+				{/* Page header */}
+				<div className="mb-5">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						STAFF DIRECTORY
+					</p>
+					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
+						Trainers
+					</h1>
+					<p className="mt-1 text-sm text-[#737373]">
+						Recurring availability template · override with time-off for exceptions
+					</p>
+				</div>
+
+				{/* Pill tabs */}
+				<div className="mb-5 flex flex-wrap items-center gap-2">
+					{TABS.map((t) => (
+						<button
+							key={t.id}
+							type="button"
+							onClick={() => navigate({ search: { tab: t.id } })}
+							className={
+								tab === t.id
+									? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold"
+									: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium"
+							}
+						>
+							{t.label}
+						</button>
+					))}
+				</div>
+
+				<TrainerAvailabilityTab />
 			</div>
 		);
 	}
