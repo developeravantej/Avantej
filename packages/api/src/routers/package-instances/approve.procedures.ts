@@ -9,11 +9,13 @@ import { packageInstanceStaff } from "@avantej-core/db/schema/tenant/package-ins
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { user } from "@avantej-core/db/schema/auth";
 import { eq, inArray } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
 import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
+import { getControlPanelDb } from "../../lib/context-helpers";
 import type { TenantTx } from "./types";
 
 export const packageInstancesApproveProcedures = {
@@ -195,6 +197,7 @@ export const packageInstancesApproveProcedures = {
       const accessibleNodeIds = context.accessibleNodeIds ?? [];
       const succeeded: string[] = [];
       const failed: Array<{ id: string; reason: string }> = [];
+      const succeededDetails: Array<{ id: string; clientId: string | null; serviceName: string }> = [];
 
       for (const pkgId of input.packageInstanceIds) {
         try {
@@ -271,14 +274,53 @@ export const packageInstancesApproveProcedures = {
               changedBy: callerUserId,
               reason: "Bulk approve",
             });
+
+            await tx.insert(packageInstanceStaff).values({
+              packageInstanceId: pkg.id,
+              staffId: trainerMember.userId,
+              slotIndex: 0,
+              role: "trainer",
+              assignedBy: callerUserId,
+              assignedAt: now,
+            }).onConflictDoNothing();
           });
           succeeded.push(pkgId);
+          succeededDetails.push({
+            id: pkgId,
+            clientId: pkg.clientId ?? null,
+            serviceName: svc?.name ?? "your package",
+          });
         } catch (err) {
           failed.push({
             id: pkgId,
             reason: err instanceof Error ? err.message : "Unknown error",
           });
         }
+      }
+
+      // Post-loop: send customer notifications (non-critical, best-effort)
+      try {
+        const controlPanelDb = getControlPanelDb(context);
+        const [trainerUser] = await controlPanelDb
+          .select({ name: user.name })
+          .from(user)
+          .where(eq(user.id, trainerMember.userId));
+        const trainerName = trainerUser?.name ?? "Your trainer";
+
+        for (const detail of succeededDetails) {
+          if (detail.clientId) {
+            await notifyCustomerPackageAssigned(context.tenantDb, {
+              packageInstanceId: detail.id,
+              customerUserId: detail.clientId,
+              serviceName: detail.serviceName,
+              trainerName,
+            });
+          }
+          await clearPendingReviewNotifications(context.tenantDb, detail.id);
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("bulkApprove post-loop notifications failed:", err);
       }
 
       return {

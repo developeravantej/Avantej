@@ -21,7 +21,7 @@ export const appointmentsSeriesCancelProcedures = {
         throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Missing context" });
       }
 
-      await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "create");
+      await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
 
       
       await context.tenantDb.transaction(async (tx: TenantTx) => {
@@ -71,7 +71,7 @@ export const appointmentsSeriesCancelProcedures = {
         throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Missing context" });
       }
 
-      await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "create");
+      await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
 
       
       await context.tenantDb.transaction(async (tx: TenantTx) => {

@@ -546,7 +546,14 @@ export async function computeAvailableSlots(
 		apptsByDate.set(dateStr, list);
 	}
 
-	// 3. Iterate each day in range
+	// 3. Fetch one-off exceptions and build a set of blocked date strings
+	const exceptions = await listTrainerAvailabilityExceptions(tenantDb, trainerId, {
+		from: toDateString(startDate),
+		to: toDateString(endDate),
+	});
+	const blockedDates = new Set(exceptions.map((e) => e.date));
+
+	// 4. Iterate each day in range
 	const result: ComputedDayAvailability[] = [];
 	const current = new Date(startDate);
 	current.setHours(0, 0, 0, 0);
@@ -554,11 +561,17 @@ export async function computeAvailableSlots(
 	end.setHours(23, 59, 59, 999);
 
 	while (current <= end) {
+		const dateStr = toDateString(current);
+
+		if (blockedDates.has(dateStr)) {
+			current.setDate(current.getDate() + 1);
+			continue;
+		}
+
 		const dayName = JS_DAY_TO_NAME[current.getDay()] ?? "monday";
 		const dayWindows = slotsByDay.get(dayName);
 
 		if (dayWindows && dayWindows.length > 0) {
-			const dateStr = toDateString(current);
 			const dayBookings = apptsByDate.get(dateStr) ?? [];
 
 			const freeWindows = subtractBookings(dayWindows, dayBookings);

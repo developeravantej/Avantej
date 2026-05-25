@@ -6,7 +6,7 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
 import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
-import { tryGetControlPanelDb } from "../../lib/context-helpers";
+import { tryGetControlPanelDb, type ControlPanelDb } from "../../lib/context-helpers";
 
 export const hierarchyMoveProcedures = {
 	/**

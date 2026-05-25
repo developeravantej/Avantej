@@ -18,6 +18,7 @@ import { ORPCError } from "@orpc/server";
 import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
+import type { Context } from "../context";
 
 function ensureCtx(context: {
 	tenantDb?: unknown;
@@ -35,7 +36,7 @@ function ensureCtx(context: {
 }
 
 async function checkPermission(
-	context: { tenantDb: unknown; member: unknown },
+	context: Context,
 	action: "read" | "update",
 ) {
 	if (!context.tenantDb || !context.member) {

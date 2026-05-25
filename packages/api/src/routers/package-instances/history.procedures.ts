@@ -4,7 +4,7 @@ import { inArray } from "drizzle-orm";
 import { parseCursor, encodeCursor } from "../../lib/cursor";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import { assertOrgContextMatch } from "../../guards";
+import { assertOrgContextMatch, requirePermissionOrpc } from "../../guards";
 import { getControlPanelDb } from "../../lib/context-helpers";
 
 export const packageInstancesHistoryProcedures = {

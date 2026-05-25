@@ -610,7 +610,7 @@ export async function updateAppointment(
         // Guard: block staff re-assignment on delivered appointments.
         // Commission weightage is already locked at delivery time; changing staff
         // afterwards would make the commission record incorrect with no recalculation.
-        const deliveredStatuses = ["completed", "cancelled", "no_show"] as const;
+        const deliveredStatuses = ["completed", "cancelled", "no-show"] as const;
         if (deliveredStatuses.includes(existing.status as typeof deliveredStatuses[number])) {
           throw Object.assign(
             new Error("Staff assignments cannot be changed after an appointment has been delivered (completed, cancelled, or no_show). Void the commission splits manually first if a correction is needed."),
@@ -697,11 +697,11 @@ export async function updateAppointment(
         }
       }
 
-      // Commission: create splits when appointment is no_show (trainer attended;
+      // Commission: create splits when appointment is no-show (trainer attended;
       // client did not — still counts as delivery per policy).
       if (
-        params.status === "no_show" &&
-        existing.status !== "no_show" &&
+        params.status === "no-show" &&
+        existing.status !== "no-show" &&
         existing.serviceId &&
         params.actor
       ) {

@@ -7,6 +7,7 @@
  */
 
 import { roles } from "@avantej-core/db/schema/tenant/roles";
+import { members } from "@avantej-core/db/schema/tenant/members";
 import { eq, desc } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
@@ -203,6 +204,12 @@ export const rolesRouter = {
 					message: "Cannot delete system roles",
 				});
 			}
+
+			// Clear roleId on any members that had this role before deleting
+			await context.tenantDb
+				.update(members)
+				.set({ roleId: null })
+				.where(eq(members.roleId, input.id));
 
 			await context.tenantDb.delete(roles).where(eq(roles.id, input.id));
 

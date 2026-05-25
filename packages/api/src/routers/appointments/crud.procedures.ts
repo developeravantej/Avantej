@@ -1,5 +1,6 @@
 import {
 	createAppointment,
+	getAppointmentById,
 	updateAppointment,
 	syncAppointmentToGoogleCalendar,
 } from "@avantej-core/services";

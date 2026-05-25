@@ -11,6 +11,7 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
 import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
+import type { ControlPanelDb } from "../../lib/context-helpers";
 
 export const hierarchyMembersProcedures = {
 	/**

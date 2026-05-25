@@ -1,6 +1,8 @@
 import { eq, and, asc, count, sql } from "drizzle-orm";
 import { waitlistEntries } from "@avantej-core/db/schema/tenant/waitlist-entries";
 import { classSlots } from "@avantej-core/db/schema/tenant/class-slots";
+import { appointments } from "@avantej-core/db/schema/tenant/appointments";
+import { appointmentClients } from "@avantej-core/db/schema/tenant/appointment-clients";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
@@ -149,6 +151,11 @@ export async function promoteFromWaitlist(
 			.where(eq(waitlistEntries.id, entry.id))
 			.returning();
 
+		// Fetch slot so we can build the appointment
+		const slot = await tx.query.classSlots.findFirst({
+			where: eq(classSlots.id, classSlotId),
+		});
+
 		// Update class slot capacity
 		await tx
 			.update(classSlots)
@@ -160,6 +167,53 @@ export async function promoteFromWaitlist(
 				updatedAt: new Date(),
 			})
 			.where(eq(classSlots.id, classSlotId));
+
+		// Create the appointment row for the promoted member
+		if (slot) {
+			const [sh, sm] = slot.startTime.split(":").map(Number);
+			const [eh, em] = slot.endTime.split(":").map(Number);
+			const startTime = new Date(slot.date);
+			startTime.setHours(sh ?? 0, sm ?? 0, 0, 0);
+			const endTime = new Date(slot.date);
+			endTime.setHours(eh ?? 0, em ?? 0, 0, 0);
+			const duration = Math.max(1, Math.round((endTime.getTime() - startTime.getTime()) / 60000));
+
+			const [appt] = await tx
+				.insert(appointments)
+				.values({
+					type: "semi-private",
+					startTime,
+					endTime,
+					duration,
+					branchId: slot.branchId,
+					serviceId: slot.serviceId ?? undefined,
+					status: "confirmed",
+					sessionTotal: 0,
+					pricePerClient: 0,
+					userId: entry.userId,
+					trainerId: slot.instructorId ?? null,
+					classSlotId: slot.id,
+					location: slot.location ?? null,
+					createdBy: entry.userId,
+					paymentStatus: "pending",
+				})
+				.returning();
+
+			if (appt) {
+				await tx.insert(appointmentClients).values({
+					appointmentId: appt.id,
+					clientId: entry.userId,
+					clientType: "member",
+					pricePaid: 0,
+				});
+
+				// Link the appointment back to the waitlist entry
+				await tx
+					.update(waitlistEntries)
+					.set({ appointmentId: appt.id, bookedAt: new Date(), updatedAt: new Date() })
+					.where(eq(waitlistEntries.id, entry.id));
+			}
+		}
 
 		return promoted ?? null;
 	});

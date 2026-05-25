@@ -8,7 +8,8 @@ import { packageInstanceStaff } from "@avantej-core/db/schema/tenant/package-ins
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
-import { eq } from "drizzle-orm";
+import { user } from "@avantej-core/db/schema/auth";
+import { eq, inArray } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
@@ -310,10 +311,10 @@ export const packageInstancesAssignProcedures = {
               expiresAt,
               status: "active",
               remark: input.notes ?? null,
-              preferredTrainerId: trainerMember?.id ?? null,
-              assignedTrainerId: trainerMember?.id ?? null,
-              assignedTrainerAssignedBy: trainerMember ? callerUserId : null,
-              assignedTrainerAssignedAt: trainerMember ? now : null,
+              preferredTrainerId: input.trainerMemberId ?? null,
+              assignedTrainerId: input.trainerMemberId ?? null,
+              assignedTrainerAssignedBy: input.trainerMemberId ? callerUserId : null,
+              assignedTrainerAssignedAt: input.trainerMemberId ? now : null,
               paymentStatus: "paid",
               paymentMethod: null,
               totalPrice: svc.price ?? null,

@@ -13,7 +13,7 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
 import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
-import { previewBatch, processForRecipient, recipientSummary, runBatch } from "@avantej-core/services/payouts.service";
+import { previewBatch, processCommissionReversals, processForRecipient, recipientSummary, runBatch } from "@avantej-core/services/payouts.service";
 import { getControlPanelDb } from "../lib/context-helpers";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
@@ -185,6 +185,11 @@ export const payoutsRouter = {
 
 		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "process");
+
+			await processCommissionReversals(context.tenantDb, {
+				userId: context.member.userId,
+				memberId: context.member.id,
+			});
 
 			try {
 				return await runBatch(context.tenantDb, {

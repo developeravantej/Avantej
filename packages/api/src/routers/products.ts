@@ -214,9 +214,10 @@ export const productsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-			
+
+
 			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read");
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 			const priceCents = await resolveProductPrice(
 				context.tenantDb,

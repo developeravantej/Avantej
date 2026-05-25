@@ -37,7 +37,7 @@ export const appointmentsRecurrenceProcedures = {
         throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Missing context" });
       }
 
-      await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "create");
+      await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
 
       const parent = await context.tenantDb.query.appointments.findFirst({
         where: eq(appointments.id, input.parentId),
@@ -139,7 +139,7 @@ export const appointmentsRecurrenceProcedures = {
         throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Missing context" });
       }
 
-      await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "create");
+      await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
 
       
       return context.tenantDb.transaction(async (tx: TenantTx) => {

@@ -31,8 +31,14 @@ const recipientsSchema = z
 export const scheduledReportsRouter = {
 	list: tenantProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
-		.handler(async ({ context }) => {
-			
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			if (!context.tenantDb || !context.member) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database or member not available",
+				});
+			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "reports", "read");
 			return listScheduledReports(context.tenantDb);
 		}),
 

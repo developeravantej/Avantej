@@ -1,5 +1,9 @@
 import { writeAudit } from "@avantej-core/services/audit-log.service";
 import { appendPackageInstanceStatusHistory } from "@avantej-core/services/status-history.helper";
+import {
+	notifyCustomerPackageRejected,
+	clearPendingReviewNotifications,
+} from "@avantej-core/services/notification.service";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { eq, inArray } from "drizzle-orm";
@@ -41,6 +45,7 @@ export const packageInstancesBulkRejectProcedures = {
       const accessibleNodeIds = context.accessibleNodeIds ?? [];
       const succeeded: string[] = [];
       const failed: Array<{ id: string; reason: string }> = [];
+      const succeededDetails: Array<{ id: string; clientId: string | null; serviceName: string }> = [];
       const reason = input.reason ?? "Rejected by admin";
 
       for (const pkgId of input.packageInstanceIds) {
@@ -102,12 +107,35 @@ export const packageInstancesBulkRejectProcedures = {
             });
           });
           succeeded.push(pkgId);
+          succeededDetails.push({
+            id: pkgId,
+            clientId: pkg.clientId ?? null,
+            serviceName: svc?.name ?? "your package",
+          });
         } catch (err) {
           failed.push({
             id: pkgId,
             reason: err instanceof Error ? err.message : "Unknown error",
           });
         }
+      }
+
+      // Post-loop: send customer notifications (non-critical, best-effort)
+      try {
+        for (const detail of succeededDetails) {
+          if (detail.clientId) {
+            await notifyCustomerPackageRejected(context.tenantDb, {
+              packageInstanceId: detail.id,
+              customerUserId: detail.clientId,
+              serviceName: detail.serviceName,
+              reason: input.reason ?? null,
+            });
+          }
+          await clearPendingReviewNotifications(context.tenantDb, detail.id);
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("bulkReject post-loop notifications failed:", err);
       }
 
       return {

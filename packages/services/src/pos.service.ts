@@ -27,7 +27,7 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { ORPCError } from "@orpc/server";
 import { writeAudit } from "./audit-log.service";
 import { validatePromoCode } from "./promotions.service";
-import { createInstallmentSchedule, calculateCreditsUnlocked } from "./installment.service";
+import { createInstallmentSchedule, calculateCreditsUnlocked, syncPackagePaymentStatus } from "./installment.service";
 import { installments } from "@avantej-core/db/schema/tenant/installments";
 import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
 // Agent 2.3 — Phase 2 Wave 3b — J2 — fallback tax-rate resolution
@@ -586,22 +586,23 @@ export async function recordPosSale(
 		const installmentIds: string[] = [];
 
 		if (packageItems.length > 0) {
-			// Apportion tax evenly across package items
-			const totalPackagePrice = packageItems.reduce(
-				(sum, i) => sum + i.unitPriceCents * i.quantity,
-				0,
-			);
-
 			for (const item of packageItems) {
 				const service = packageServiceMap.get(item.refId!);
 				if (!service) throw new Error(`Service not found in pre-validated map: ${item.refId}`);
 
-				// Proportional tax for this package item
-				const itemTotal = item.unitPriceCents * item.quantity;
-				const itemTaxAmount =
-					totalPackagePrice > 0
-						? Math.floor((taxCents * itemTotal) / totalPackagePrice)
+				// P0: installment principal must reflect any promo discount, and the package's
+				// tax must be its OWN share — not the whole order's. Allocate the discount
+				// proportionally by gross, then tax the discounted (net) price at the order
+				// rate. Keeps principal & tax consistent and excludes non-package tax.
+				const itemGross = item.unitPriceCents * item.quantity;
+				const itemDiscount =
+					subtotalCents > 0
+						? Math.floor((discountCents * itemGross) / subtotalCents)
 						: 0;
+				const itemNet = itemGross - itemDiscount;
+				const itemTaxAmount = Math.floor(
+					(itemNet * (taxRate?.rateInBasisPoints ?? 0)) / 10000,
+				);
 
 				const startsAt = now;
 				const expiresAt = addDays(now, service.expiryDays!);
@@ -619,7 +620,7 @@ export async function recordPosSale(
 						source: "purchased",
 						salesOrderId: salesOrder.id, // 7.3
 						paymentId: payment.id,
-						totalPrice: itemTotal,
+						totalPrice: itemNet,
 						taxAmount: itemTaxAmount,
 						paymentStatus: isInstallmentPlan ? "partially_paid" : "paid",
 						paymentMethod: input.paymentMethod,
@@ -649,7 +650,7 @@ export async function recordPosSale(
 						{
 							packageInstanceId: pkgInstance.id,
 							creditsTotal: service.sessionCount!,
-							totalPrice: itemTotal,
+							totalPrice: itemNet,
 							taxAmount: itemTaxAmount,
 							installmentsTotal,
 							intervalDays,
@@ -690,6 +691,10 @@ export async function recordPosSale(
 							{ packageInstanceId: pkgInstance.id, installmentId: first.id, eventType: "credits_unlocked", actorId: input.actor.userId, metadata: JSON.stringify({ creditsUnlocked: creditsAfterFirst }) },
 						]);
 						console.log("[pos] installment #1 auto-confirmed", { packageInstanceId: pkgInstance.id, creditsAfterFirst });
+
+						// 05-17 Task 1.4: reflect the partial payment in paymentStatus so reports
+						// don't read "paid" while installments #2..N are still pending.
+						await syncPackagePaymentStatus(tx, pkgInstance.id);
 					}
 				}
 			}

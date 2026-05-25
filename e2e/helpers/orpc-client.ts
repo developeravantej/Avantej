@@ -32,6 +32,11 @@ export class OrpcClientError extends Error {
 /**
  * Raw oRPC call over HTTP.
  *
+ * Uses page.evaluate() so the fetch runs inside Chrome's network context —
+ * Chrome resolves *.localhost domains correctly whereas Node.js (undici) does not.
+ * The relative URL /rpc/{router}/{procedure} means the browser sends the
+ * session cookie automatically (same origin).
+ *
  * @param page       - Playwright Page (provides session cookie)
  * @param router     - Router name as registered in baseRouter (e.g. "members")
  * @param procedure  - Procedure name (e.g. "list")
@@ -44,25 +49,34 @@ export async function orpcCall<TInput, TOutput>(
   procedure: string,
   input: TInput,
 ): Promise<TOutput> {
-  const response = await page.request.post(`/rpc/${router}/${procedure}`, {
-    headers: { "Content-Type": "application/json" },
-    data: JSON.stringify({ json: input }),
-    timeout: 15_000,
-  });
+  const result = await page.evaluate<
+    { ok: boolean; status: number; body: unknown },
+    { r: string; p: string; i: unknown }
+  >(
+    async ({ r, p, i }) => {
+      const resp = await fetch(`/rpc/${r}/${p}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ json: i }),
+      });
+      return { ok: resp.ok, status: resp.status, body: await resp.json() };
+    },
+    { r: router, p: procedure, i: input as unknown },
+  );
 
   // oRPC error envelope shape: { json: { defined: false, code, status, message, data? } }
   // — comes back as HTTP 200, NOT 4xx. We must inspect body.json.code/defined to detect.
   type OrpcErrorEnvelope = { defined: false; code: string; message: string; status?: number; data?: unknown };
-  const body = (await response.json()) as { json?: TOutput | OrpcErrorEnvelope; error?: OrpcError };
+  const body = result.body as { json?: TOutput | OrpcErrorEnvelope; error?: OrpcError };
 
   // Hard HTTP error or top-level error key
-  if (!response.ok() || body.error) {
+  if (!result.ok || body.error) {
     const err = body.error;
     const bodyText = JSON.stringify(body).slice(0, 500);
     throw new OrpcClientError(
-      err?.code ?? String(response.status()),
+      err?.code ?? String(result.status),
       err?.message ??
-        `oRPC ${router}.${procedure} failed with HTTP ${response.status()} — body: ${bodyText}`,
+        `oRPC ${router}.${procedure} failed with HTTP ${result.status} — body: ${bodyText}`,
     );
   }
 

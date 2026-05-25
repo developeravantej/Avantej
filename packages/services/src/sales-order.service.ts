@@ -1,6 +1,7 @@
-import { eq, and, desc, count, gte, lte, sql, inArray, or, lt } from "drizzle-orm";
+import { eq, and, desc, count, gte, lte, sql, inArray, or, lt, ne } from "drizzle-orm";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
 import { salesOrderItems } from "@avantej-core/db/schema/tenant/sales-order-items";
+import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { salesOrderStatusHistory } from "@avantej-core/db/schema/tenant/sales-order-status-history";
 import { invoices } from "@avantej-core/db/schema/tenant/invoices";
 import { payments } from "@avantej-core/db/schema/tenant/payments";
@@ -305,6 +306,21 @@ export async function cancelSalesOrder(
 			changedBy: params.cancelledBy,
 			reason: params.reason ?? null,
 		});
+
+		// Cancel any package instances created from this sales order (F-POS-03)
+		await tx
+			.update(packageInstances)
+			.set({
+				status: "cancelled",
+				cancellationReason: "Sale cancelled",
+				updatedAt: now,
+			})
+			.where(
+				and(
+					eq(packageInstances.salesOrderId, id),
+					ne(packageInstances.status, "cancelled"),
+				),
+			);
 
 		return updatedOrder;
 	}).then(async (result) => {

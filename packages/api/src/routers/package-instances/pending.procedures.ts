@@ -1,8 +1,8 @@
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
-import { user as cpUsers } from "@avantej-core/db/schema/auth";
-import { and, eq, inArray, desc } from "drizzle-orm";
+import { user } from "@avantej-core/db/schema/auth";
+import { and, eq, inArray, desc, isNull, isNotNull, or } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
@@ -57,12 +57,31 @@ export const packageInstancesPendingProcedures = {
         return accessibleNodeIds.length > 0 ? accessibleNodeIds : null;
       })();
 
-      // Pull pending+purchased packages joined to service for name + branch.
-      // We don't filter by branch in SQL because services with branchId=null
-      // (org-wide services) would be excluded by inArray. Resolve the
-      // effective branch per row in JS using the same fallback as
-      // notifyStaffOfPendingPackage: service.branchId, else customer's
-      // member.hierarchyScopeId.
+      // Pull pending+purchased packages joined to service and customer member.
+      // Branch filter is applied in SQL (before LIMIT) using a COALESCE-equivalent
+      // two-branch OR: service.branchId takes priority; org-wide services (branchId IS NULL)
+      // fall back to the customer member's hierarchyScopeId — matching the same logic used
+      // by notifyStaffOfPendingPackage.
+      //
+      // We alias the members join as "clientMember" to distinguish it from the
+      // preferredTrainer member lookup done later.
+      const clientMember = members;
+      const branchWhereClause =
+        branchFilterIds && branchFilterIds.length > 0
+          ? or(
+              // Service has an explicit branch — match directly
+              and(
+                isNotNull(services.branchId),
+                inArray(services.branchId, branchFilterIds),
+              ),
+              // Org-wide service (branchId IS NULL) — use customer member's scope
+              and(
+                isNull(services.branchId),
+                inArray(clientMember.hierarchyScopeId, branchFilterIds),
+              ),
+            )
+          : undefined;
+
       const rows = await context.tenantDb
         .select({
           id: packageInstances.id,
@@ -79,16 +98,18 @@ export const packageInstancesPendingProcedures = {
         })
         .from(packageInstances)
         .leftJoin(services, eq(packageInstances.serviceId, services.id))
+        .leftJoin(clientMember, eq(packageInstances.clientId, clientMember.userId))
         .where(
           and(
             eq(packageInstances.status, "pending"),
             eq(packageInstances.source, "purchased"),
+            branchWhereClause,
           ),
         )
         .orderBy(desc(packageInstances.createdAt))
         .limit(input.limit ?? 50);
 
-      // Hydrate customer name (cross-DB) + customer's tenant member branch
+      // Hydrate customer name (cross-DB)
       const controlPanelDb = getControlPanelDb(context);
       type PendingRow = (typeof rows)[number];
       const clientIds: string[] = [
@@ -109,35 +130,8 @@ export const packageInstancesPendingProcedures = {
         );
       }
 
-      let memberBranchMap = new Map<string, string>();
-      if (clientIds.length > 0) {
-        const memberRows = await context.tenantDb
-          .select({
-            userId: members.userId,
-            scopeId: members.hierarchyScopeId,
-          })
-          .from(members)
-          .where(inArray(members.userId, clientIds));
-        memberBranchMap = new Map(
-          memberRows.map((m: { userId: string; scopeId: string }) => [
-            m.userId,
-            m.scopeId,
-          ]),
-        );
-      }
-
-      // Apply branch-filter in JS using the resolved effective branch.
-      const filtered =
-        branchFilterIds && branchFilterIds.length > 0
-          ? rows.filter((r: PendingRow) => {
-              const effectiveBranch =
-                r.branchId ??
-                (r.clientId ? memberBranchMap.get(r.clientId) : null);
-              return effectiveBranch
-                ? branchFilterIds.includes(effectiveBranch)
-                : false;
-            })
-          : rows;
+      // Branch filter is already applied in SQL — no JS filtering needed.
+      const filtered = rows;
 
       // Batch-resolve preferred trainer names: members.id → members.userId → user.name
       const preferredTrainerIds: string[] = [

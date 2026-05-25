@@ -12,6 +12,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
+import type { Context } from "../context";
 import {
 	cancelMembershipHold,
 	freezeMembership,
@@ -38,7 +39,7 @@ function ensureCtx(context: {
 }
 
 async function checkPermission(
-	context: { tenantDb: unknown; member: unknown },
+	context: Context,
 	action: "create" | "update" | "read",
 ) {
 	if (!context.tenantDb || !context.member) {

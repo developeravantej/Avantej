@@ -1,12 +1,13 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { tenantProcedure } from "../../index";
 import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { appointmentClients } from "@avantej-core/db/schema/tenant/appointment-clients";
 import { classSlots } from "@avantej-core/db/schema/tenant/class-slots";
 import { services } from "@avantej-core/db/schema/tenant/services";
+import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import type { TenantDb, TenantTx } from "./types";
 
 const enrollClient = tenantProcedure
@@ -145,6 +146,14 @@ const cancelEnrollment = tenantProcedure
 						updatedAt: new Date(),
 					})
 					.where(eq(classSlots.id, slot.id));
+			}
+
+			// Restore one credit to the package instance if this appointment consumed one
+			if (appt.packageInstanceId) {
+				await tx
+					.update(packageInstances)
+					.set({ creditsUsed: sql`${packageInstances.creditsUsed} - 1`, updatedAt: new Date() })
+					.where(eq(packageInstances.id, appt.packageInstanceId));
 			}
 
 			return { ok: true, alreadyCancelled: false };

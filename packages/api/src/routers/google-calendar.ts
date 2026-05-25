@@ -1,5 +1,5 @@
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc } from "../guards";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
 import { googleCalendarConnections } from "@avantej-core/db/schema/tenant/google-calendar-connections";
@@ -20,8 +20,11 @@ function assertTenantAndMember(context: {
 	tenantDb?: unknown;
 	member?: unknown;
 }): asserts context is { tenantDb: NonNullable<typeof context.tenantDb>; member: NonNullable<typeof context.member> } {
-	
-	
+	if (!context.tenantDb || !context.member) {
+		throw new ORPCError("INTERNAL_SERVER_ERROR", {
+			message: "Missing tenant context: tenantDb and member are required",
+		});
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -148,7 +151,6 @@ export const googleCalendarRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-		assertOrgContextMatch(context, input);
 			assertTenantAndMember(context);
 			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
 

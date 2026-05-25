@@ -143,8 +143,8 @@ export const serviceMembersRouter = {
 		}),
 
 	/**
-	 * Admin: list services a specific member is assigned to, with their overrides.
-	 * Requires user_management:read or service_management:read.
+	 * Admin: list the services a specific member is assigned to, with their
+	 * buffer overrides. Requires user_management:read or service_management:read.
 	 */
 	listForMember: tenantProcedure
 		.input(
@@ -154,7 +154,72 @@ export const serviceMembersRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
+			if (!context.tenantDb || !context.member) {
+				throw new ORPCError("FORBIDDEN");
+			}
+
+			let hasPermission = false;
+			for (const resource of ["user_management", "service_management"] as const) {
+				try {
+					await requirePermissionOrpc(context.tenantDb, context.member, resource, "read");
+					hasPermission = true;
+					break;
+				} catch { /* try next */ }
+			}
+			if (!hasPermission) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Requires user_management or service_management read permission.",
+				});
+			}
+
+			const serviceRows = await context.tenantDb
+				.select({
+					serviceId: services.id,
+					serviceName: services.name,
+					categoryId: services.categoryId,
+					categoryName: serviceCategories.name,
+					categoryDefaultBuffer: serviceCategoryConfig.bufferTimeMinutes,
+				})
+				.from(serviceMembers)
+				.innerJoin(services, eq(serviceMembers.serviceId, services.id))
+				.leftJoin(serviceCategories, eq(services.categoryId, serviceCategories.id))
+				.leftJoin(serviceCategoryConfig, eq(services.categoryId, serviceCategoryConfig.categoryId))
+				.where(eq(serviceMembers.memberId, input.memberId));
+
+			const overrides = await context.tenantDb
+				.select()
+				.from(memberServiceBufferOverrides)
+				.where(eq(memberServiceBufferOverrides.memberId, input.memberId));
+
+			const overrideMap = new Map(
+				overrides.map((o: any) => [o.serviceId, o.bufferTimeMinutes]),
+			);
+
+			return serviceRows.map((r: any) => ({
+				serviceId: r.serviceId,
+				serviceName: r.serviceName,
+				categoryId: r.categoryId ?? null,
+				categoryName: r.categoryName ?? null,
+				categoryDefaultBuffer: r.categoryDefaultBuffer ?? 0,
+				bufferTimeMinutes: overrideMap.get(r.serviceId) ?? null,
+			}));
+		}),
+
+	/**
+	 * Admin: assign a member to a service.
+	 * Requires user_management:update or service_management:update.
+	 */
+	assign: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				memberId: z.string().uuid(),
+				serviceId: z.string().uuid(),
+			})
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("FORBIDDEN");
 			}
@@ -186,19 +251,21 @@ export const serviceMembersRouter = {
 		}),
 
 	/**
-	 * Admin: remove a member from a service, also clears their buffer override.
+	 * Admin: set or clear a member's buffer override for a specific service.
+	 * bufferTimeMinutes: number → upsert override; null → clear (revert to default).
 	 * Requires user_management:update or service_management:update.
 	 */
-	remove: tenantProcedure
+	updateBuffer: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				memberId: z.string().uuid(),
 				serviceId: z.string().uuid(),
+				bufferTimeMinutes: z.number().int().min(0).max(480).nullable(),
 			})
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("FORBIDDEN");
 			}
@@ -266,6 +333,60 @@ export const serviceMembersRouter = {
 
 			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 			return { serviceId: input.serviceId, bufferTimeMinutes: result!.bufferTimeMinutes };
+		}),
+
+	/**
+	 * Admin: remove a member from a service, also clearing any buffer override.
+	 * Requires user_management:update or service_management:update.
+	 */
+	remove: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				memberId: z.string().uuid(),
+				serviceId: z.string().uuid(),
+			})
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			if (!context.tenantDb || !context.member) {
+				throw new ORPCError("FORBIDDEN");
+			}
+
+			let hasPermission = false;
+			for (const resource of ["user_management", "service_management"] as const) {
+				try {
+					await requirePermissionOrpc(context.tenantDb, context.member, resource, "update");
+					hasPermission = true;
+					break;
+				} catch { /* try next */ }
+			}
+			if (!hasPermission) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Requires user_management or service_management update permission.",
+				});
+			}
+
+			// Clear any buffer override first (no FK cascade across these tables)
+			await context.tenantDb
+				.delete(memberServiceBufferOverrides)
+				.where(
+					and(
+						eq(memberServiceBufferOverrides.memberId, input.memberId),
+						eq(memberServiceBufferOverrides.serviceId, input.serviceId)
+					)
+				);
+
+			await context.tenantDb
+				.delete(serviceMembers)
+				.where(
+					and(
+						eq(serviceMembers.memberId, input.memberId),
+						eq(serviceMembers.serviceId, input.serviceId)
+					)
+				);
+
+			return { success: true };
 		}),
 
 	/**
