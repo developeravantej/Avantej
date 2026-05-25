@@ -292,8 +292,8 @@ test("Trainers page — 3-tab audit proof run", async ({ page }) => {
 		await expect.soft(page).toHaveURL(/tab=availability/);
 	});
 
-	await test.step("AV-12 [BUG] TrainerAvailabilitySheet is read-only — no edit/save button", async () => {
-		// KNOWN BUG AV-12: hub doc described the sheet as an editor; current sheet has no mutations.
+	await test.step("AV-12 TrainerAvailabilitySheet has Edit button — schedule is editable", async () => {
+		// AV-12 fixed: sheet now has an Edit button; clicking it enters edit mode with Save Changes.
 		await gotoTab(page, "availability");
 		const trainerCellBtn = page.locator("button.text-left.px-4.py-4").first();
 		const found = await waitVisible(trainerCellBtn, 10000);
@@ -302,10 +302,16 @@ test("Trainers page — 3-tab audit proof run", async ({ page }) => {
 			const dialog = page.getByRole("dialog");
 			const sheetOpen = await waitVisible(dialog, 5000);
 			if (sheetOpen) {
-				const saveBtn = dialog.getByRole("button", { name: /save/i });
-				const hasSave = await waitVisible(saveBtn, 2000);
-				// Intentional soft-fail: edit/save is absent — documents AV-12
-				expect.soft(hasSave).toBe(false); // BUG: save/edit should be present but isn't
+				// "Edit" button visible in read mode
+				const editBtn = dialog.getByRole("button", { name: /^edit$/i });
+				await expect.soft(editBtn).toBeVisible({ timeout: 3000 });
+				const hasEdit = await waitVisible(editBtn, 2000);
+				if (hasEdit) {
+					await editBtn.click();
+					// "Save Changes" appears after entering edit mode
+					const saveBtn = dialog.getByRole("button", { name: /save changes/i });
+					await expect.soft(saveBtn).toBeVisible({ timeout: 3000 });
+				}
 				await page.keyboard.press("Escape").catch(() => {});
 			}
 		}

@@ -1,0 +1,107 @@
+{
+  "$comment": "audit-prove per-project config schema. OPTIONAL — the skill auto-detects all of this each run (scripts/detect-project.mjs) and writes the resolved values to $SESSION/project.json. Commit a copy named `audit-prove.config.json` at your repo ROOT only when you want to OVERRIDE detection. All paths are repo-root-relative globs.",
+
+  "stack": "One-line description, pasted into every agent brief. e.g. 'oRPC routers + Drizzle services, multi-tenant SaaS' / 'Express REST controllers + Prisma' / 'Next.js App Router route handlers + server actions'.",
+  "conventions": "Optional domain conventions agents should assume. e.g. 'amounts stored as integer cents; tax in basis points'. Empty string if none.",
+
+  "packageManager": "bun",
+
+  "buildGate": {
+    "command": "bun check-types",
+    "supportsFilter": true,
+    "extraChecks": [
+      {
+        "command": "cd packages/api && bunx tsc -b --force",
+        "reason": "the main turbo gate skips packages that have no check-types script"
+      }
+    ]
+  },
+
+  "apiSurface": {
+    "routerGlobs": [
+      "packages/api/src/routers/**/*.ts",
+      "apps/server/src/routers/**/*.ts"
+    ],
+    "serviceGlobs": ["packages/services/src/**/*.ts"]
+  },
+
+  "routes": {
+    "routeGlobs": ["apps/web/src/routes/**/*.tsx"],
+    "clientPattern": "client.<router>.<procedure>(...)"
+  },
+
+  "hub": {
+    "index": "zhub/index.md",
+    "apiOverview": "zhub/shared/api-overview.md",
+    "pagesDir": "zhub/pages"
+  },
+
+  "e2e": {
+    "testDir": "e2e",
+    "baseURL": "http://localhost:3021",
+    "authStorageState": "e2e/.auth/tenant-admin.json",
+    "setupTestMatch": "auth.setup.ts",
+    "devServerCommand": "bun dev",
+    "specName": "gap-prove"
+  },
+
+  "domainStrategy": "auto",
+
+  "remediation": {
+    "$comment": "The fix-and-reloop behaviour. Always-on by default; pass --audit-only to skip it (map & gap only).",
+    "enabled": true,
+    "scope": "full",
+    "$scopeValues": "build-and-proof = only get the build green + make proof journeys pass | partial = also finish `partial` findings | full = also implement `missing` findings until the list resolves",
+    "maxIterations": 6,
+    "maxFixesPerTarget": 3,
+    "stopOnNoProgress": true,
+    "branch": "audit-prove/remediation",
+    "parallelFixAgents": 3,
+    "fixPolicy": {
+      "$comment": "How fix agents decide HOW to fix: always the best scalable approach within the existing architecture (no new frameworks). `latitude` bounds how far they may change code.",
+      "latitude": "touched-path",
+      "$latitudeValues": "surgical = fix only the target | touched-path = may also refactor the fixed code path for scale, with rationale | aggressive = may also improve closely related code",
+      "flagLargeRefactorsAs": "deferred-finding"
+    }
+  },
+
+  "db": {
+    "$comment": "Persistence verification. verifyMode 'auto' = assert the real persisted row via the DB when reachable, else fall back to API read-back inside the browser session. Direct checks run with `runner` (bun runs TS natively; else 'npx tsx') and reuse `verifyHelper` to reach the right (tenant) DB.",
+    "enabled": true,
+    "verifyMode": "auto",
+    "runner": "bun",
+    "connectionEnv": "DATABASE_URL",
+    "devVarsFile": "apps/server/.dev.vars",
+    "verifyHelper": "apps/server/src/tests/helpers/integration-setup.ts",
+    "multiTenant": true,
+    "testOrgId": "<org-uuid the proof logs in / operates as>"
+  },
+
+  "$examples": {
+    "$comment": "These show the SAME schema for other stacks. Detection produces one of these shapes automatically — they are here to prove the config is stack-agnostic, not to be merged verbatim.",
+    "next-app-router": {
+      "stack": "Next.js App Router route handlers + server actions",
+      "packageManager": "pnpm",
+      "buildGate": { "command": "pnpm typecheck", "supportsFilter": false, "extraChecks": [] },
+      "apiSurface": {
+        "routerGlobs": ["app/**/route.ts", "src/app/**/route.ts"],
+        "serviceGlobs": ["src/server/**/*.ts", "lib/**/*.ts"]
+      },
+      "routes": { "routeGlobs": ["app/**/page.tsx", "src/app/**/page.tsx"], "clientPattern": "fetch('/api/...')" },
+      "hub": {},
+      "e2e": { "testDir": "tests/e2e", "baseURL": "http://localhost:3000", "authStorageState": null, "setupTestMatch": null, "devServerCommand": "pnpm dev", "specName": "gap-prove" }
+    },
+    "express-rest": {
+      "stack": "Express REST controllers + Prisma services",
+      "packageManager": "npm",
+      "buildGate": { "command": "npm run build", "supportsFilter": false, "extraChecks": [] },
+      "apiSurface": {
+        "routerGlobs": ["src/routes/**/*.ts", "src/controllers/**/*.ts"],
+        "serviceGlobs": ["src/services/**/*.ts"]
+      },
+      "routes": { "routeGlobs": [], "clientPattern": "axios.get('/api/...')" },
+      "hub": {},
+      "e2e": { "testDir": "e2e", "baseURL": "http://localhost:8080", "authStorageState": "e2e/.auth/user.json", "setupTestMatch": "login.setup.ts", "devServerCommand": "npm run dev", "specName": "gap-prove" }
+    }
+  }
+}

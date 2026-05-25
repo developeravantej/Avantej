@@ -449,6 +449,8 @@ export function TrainerAvailabilityTab() {
 					setSheetOpen(open);
 					if (!open) setSelectedTrainer(null);
 				}}
+				organizationId={organizationId}
+				onSaved={() => refetch()}
 			/>
 
 			<AddExceptionDialog

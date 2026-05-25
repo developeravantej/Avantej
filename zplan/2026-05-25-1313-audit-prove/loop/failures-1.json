@@ -1,0 +1,198 @@
+[
+  {
+    "id": "GP-01",
+    "title": "GP-01 — Dashboard Home loads with KPI cards",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+    "location": null
+  },
+  {
+    "id": "GP-03",
+    "title": "GP-03 — Customers list loads",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+    "location": null
+  },
+  {
+    "id": "GP-08",
+    "title": "GP-08 — POS walk-in checkout golden path",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-08 — POS walk-in checkout golden path threw: locator.click: Test ended.",
+    "location": null
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "\u001b[31mTest timeout of 600000ms exceeded.\u001b[39m",
+    "location": null
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-09 — Reports view loads threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-10 — Announcements view loads threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-11 — Sales & Payments list loads threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-12 — Payment History loads threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-13 — Cancelled Sales loads threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-14 — Payouts view loads threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-15 — Refunds view loads threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-16 — Commissions view loads threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-17 — Tax Rates settings loads threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-18 — Installment Plans view loads threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-19 — Expenses view loads threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-20 — Products list loads threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-21 — Packages/instances view loads threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-22 — Trainers list loads threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-23 — Employees list loads threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-24 — Attendance view loads threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-25 — Roles list loads threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-26 — Staff Access (user-assignment) loads threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: GP-27 — Onboarding QR view loads with QR code threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: F-HOME-05 — listPending: approvals page count matches badge (not truncated at 50) threw: apiRequestContext.post: Test ended.",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: F-CUST-05 — series-cancel RBAC: procedure responds (not 403 for update-level user) threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: F-HOME-01 — bulkApprove: package_instance_staff row created for each approved package threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: F-HOME-02 — bulkReject: visual confirmation that rejection proceeds without error threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  },
+  {
+    "id": "audit-prove",
+    "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "spec": "audit-prove 2026-05-25 — golden paths + finding regressions",
+    "message": "Error: F-CUST-04 — trainer availability exceptions: exception blocks slot in UI threw: page.goto: Target page, context or browser has been closed",
+    "location": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:18"
+  }
+]

@@ -8,7 +8,14 @@ import {
 	Plus,
 	RefreshCw,
 } from "lucide-react";
+import { AreaChart, Area, XAxis } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 import { formatPrice } from "@/lib/money";
@@ -88,26 +95,21 @@ function formatToday(): string {
 	});
 }
 
+function severityLabel(severity: string | undefined): string {
+	if (severity === "danger") return "Error";
+	if (severity === "warning") return "Warning";
+	return "Info";
+}
+
 function severityDotColor(severity: string | undefined): string {
 	if (severity === "danger") return "bg-destructive";
 	if (severity === "warning") return "bg-amber-500";
 	return "bg-blue-500";
 }
 
-// Generate a soothing-looking sparkline path from N data points.
-function buildSparklinePath(points: number[], width = 600, height = 130): { line: string; area: string } {
-	if (points.length === 0) return { line: "", area: "" };
-	const max = Math.max(...points, 1);
-	const min = Math.min(...points, 0);
-	const range = max - min || 1;
-	const xs = points.map((_, i) => (i / Math.max(points.length - 1, 1)) * width);
-	const ys = points.map((v) => height - ((v - min) / range) * (height * 0.85) - height * 0.1);
-	const line = xs
-		.map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${ys[i].toFixed(1)}`)
-		.join(" ");
-	const area = `${line} L${width},${height} L0,${height} Z`;
-	return { line, area };
-}
+const revenueChartConfig = {
+	revenue: { label: "Revenue (MYR)", color: "#0a0a0a" },
+} satisfies ChartConfig;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -216,12 +218,13 @@ function DashboardComponent() {
 		return Math.max(1, Math.round(ms / 86_400_000));
 	}, [kpis?.from, kpis?.to]);
 
-	// Real daily revenue series for the sparkline
-	const revenuePoints = useMemo(() => {
-		const series = revenueSeriesQuery.data ?? [];
-		return series.map((p) => p.revenueCents);
+	// Daily revenue series for the chart (cents kept for formatPrice in tooltip)
+	const revenueChartData = useMemo(() => {
+		return (revenueSeriesQuery.data ?? []).map((d, i) => ({
+			day: i,
+			revenue: d.revenueCents,
+		}));
 	}, [revenueSeriesQuery.data]);
-	const spark = useMemo(() => buildSparklinePath(revenuePoints), [revenuePoints]);
 
 	// Appointments timeline buckets
 	const hourBuckets = useMemo(() => {
@@ -242,6 +245,7 @@ function DashboardComponent() {
 	}
 
 	return (
+		<TooltipProvider>
 		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
 
 			{/* ░░ TOP APP BAR ░░ */}
@@ -329,16 +333,22 @@ function DashboardComponent() {
 								</span>
 							)}
 							{revenueDelta !== null && (
-								<span
-									className={`mb-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-										revenueDelta >= 0
-											? "bg-emerald-100 text-emerald-700"
-											: "bg-rose-100 text-rose-700"
-									}`}
-								>
-									{revenueDelta >= 0 ? "▲" : "▼"}{" "}
-									{Math.abs(revenueDelta).toFixed(1)}%
-								</span>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Badge
+											variant="outline"
+											className={`mb-2 cursor-default gap-1 text-[11px] font-bold ${
+												revenueDelta >= 0
+													? "border-emerald-200 bg-emerald-100 text-emerald-700"
+													: "border-rose-200 bg-rose-100 text-rose-700"
+											}`}
+										>
+											{revenueDelta >= 0 ? "▲" : "▼"}{" "}
+											{Math.abs(revenueDelta).toFixed(1)}%
+										</Badge>
+									</TooltipTrigger>
+									<TooltipContent>vs previous period</TooltipContent>
+								</Tooltip>
 							)}
 						</div>
 
@@ -464,6 +474,7 @@ function DashboardComponent() {
 							<TrendStat
 								label="This period"
 								value={formatPrice(kpis?.totalSales ?? 0, "MYR")}
+								tooltip="Total revenue collected in the selected period"
 							/>
 							<TrendStat
 								label="Avg / day"
@@ -471,6 +482,7 @@ function DashboardComponent() {
 									Math.round((kpis?.totalSales ?? 0) / periodDays),
 									"MYR",
 								)}
+								tooltip={`Daily average over ${periodDays} day${periodDays === 1 ? "" : "s"}`}
 							/>
 							<TrendStat
 								label="vs prev"
@@ -486,25 +498,43 @@ function DashboardComponent() {
 											? "green"
 											: "red"
 								}
+								tooltip="Change vs. the same-length period immediately before"
 							/>
 						</div>
 
 						{revenueSeriesQuery.isLoading ? (
 							<Skeleton className="h-40 w-full" />
 						) : (
-							<svg viewBox="0 0 600 160" className="h-40 w-full" preserveAspectRatio="none">
-								<defs>
-									<linearGradient id="trendgrad" x1="0" y1="0" x2="0" y2="1">
-										<stop offset="0%" stopColor="#0a0a0a" stopOpacity="0.18" />
-										<stop offset="100%" stopColor="#0a0a0a" stopOpacity="0" />
-									</linearGradient>
-								</defs>
-								<line x1="0" y1="40" x2="600" y2="40" stroke="#e5e5e5" strokeDasharray="2 4" />
-								<line x1="0" y1="80" x2="600" y2="80" stroke="#e5e5e5" strokeDasharray="2 4" />
-								<line x1="0" y1="120" x2="600" y2="120" stroke="#e5e5e5" strokeDasharray="2 4" />
-								<path d={spark.area} fill="url(#trendgrad)" />
-								<path d={spark.line} stroke="#0a0a0a" strokeWidth="2" fill="none" />
-							</svg>
+							<ChartContainer config={revenueChartConfig} className="!aspect-auto h-40 w-full">
+								<AreaChart
+									data={revenueChartData}
+									margin={{ top: 4, right: 0, bottom: 0, left: 0 }}
+								>
+									<defs>
+										<linearGradient id="trendgrad" x1="0" y1="0" x2="0" y2="1">
+											<stop offset="0%" stopColor="#0a0a0a" stopOpacity={0.18} />
+											<stop offset="100%" stopColor="#0a0a0a" stopOpacity={0} />
+										</linearGradient>
+									</defs>
+									<XAxis dataKey="day" hide />
+									<ChartTooltip
+										content={
+											<ChartTooltipContent
+												formatter={(value) => formatPrice(Number(value), "MYR")}
+												hideLabel
+											/>
+										}
+									/>
+									<Area
+										type="monotone"
+										dataKey="revenue"
+										stroke="#0a0a0a"
+										strokeWidth={2}
+										fill="url(#trendgrad)"
+										dot={false}
+									/>
+								</AreaChart>
+							</ChartContainer>
 						)}
 						<div className="mt-2 flex justify-between text-[10px] font-medium text-[#a3a3a3]">
 							<span>{period === "today" ? "Start of day" : `${trendDays}d ago`}</span>
@@ -551,15 +581,18 @@ function DashboardComponent() {
 												{formatPrice(b.totalRevenue, "MYR")}
 											</span>
 										</div>
-										<div className="h-1 overflow-hidden rounded-full bg-[#e5e5e5]">
-											<div
-												className="h-full rounded-full"
-												style={{
-													width: `${pct}%`,
-													background: colors[idx % colors.length],
-												}}
-											/>
-										</div>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<Progress
+													value={pct}
+													className="h-1 bg-[#e5e5e5]"
+													indicatorStyle={{ backgroundColor: colors[idx % colors.length] }}
+												/>
+											</TooltipTrigger>
+											<TooltipContent>
+												{pct < 1 ? "<1" : pct.toFixed(1)}% of total · {b.orderCount} orders
+											</TooltipContent>
+										</Tooltip>
 										<div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
 											<span>{b.orderCount} orders</span>
 											<span className="font-mono tabular-nums">
@@ -629,22 +662,29 @@ function DashboardComponent() {
 													s.appointmentsCompleted === 0 ? "opacity-50" : ""
 												}`}
 											>
-												<div className="relative">
-													<div
-														className={`flex size-7 items-center justify-center rounded-full text-[11px] font-bold ${
-															idx === 0
-																? "bg-[#0a0a0a] text-white"
-																: "bg-[#f3f3f3] text-foreground"
-														}`}
-													>
-														{getInitials(displayName)}
-													</div>
-													{idx === 0 && (
-														<span className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-[#d6cdb1] text-[9px] font-bold">
-															1
-														</span>
-													)}
-												</div>
+												<Tooltip>
+													<TooltipTrigger asChild>
+														<div className="relative shrink-0">
+															<Avatar className="size-7">
+																<AvatarFallback
+																	className={`text-[11px] font-bold ${
+																		idx === 0
+																			? "bg-[#0a0a0a] text-white"
+																			: "bg-[#f3f3f3] text-foreground"
+																	}`}
+																>
+																	{getInitials(displayName)}
+																</AvatarFallback>
+															</Avatar>
+															{idx === 0 && (
+																<span className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-[#d6cdb1] text-[9px] font-bold">
+																	#1
+																</span>
+															)}
+														</div>
+													</TooltipTrigger>
+													<TooltipContent>{displayName}</TooltipContent>
+												</Tooltip>
 												<div className="min-w-0 flex-1">
 													<div className="truncate text-xs font-semibold">
 														{displayName}
@@ -694,11 +734,14 @@ function DashboardComponent() {
 									))
 								: auditRows.slice(0, 5).map((row: any) => (
 										<li key={row.id} className="flex gap-3 text-xs">
-											<div
-												className={`mt-1.5 size-1.5 shrink-0 rounded-full ${severityDotColor(
-													row.severity,
-												)}`}
-											/>
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<div
+														className={`mt-1.5 size-1.5 shrink-0 cursor-default rounded-full ${severityDotColor(row.severity)}`}
+													/>
+												</TooltipTrigger>
+												<TooltipContent>{severityLabel(row.severity)}</TooltipContent>
+											</Tooltip>
 											<div className="min-w-0">
 												<div className="truncate">
 													<b>{row.actorName ?? "System"}</b>{" "}
@@ -760,13 +803,15 @@ function DashboardComponent() {
 								const n = hourBuckets.get(h) ?? 0;
 								if (n === 0) return <div key={h} />;
 								return (
-									<div
-										key={h}
-										className="flex flex-col items-center justify-center gap-1 rounded-md bg-[#0a0a0a] px-1 py-1 text-[10px] font-bold text-white"
-									>
-										<span>{h}:00</span>
-										<span className="font-mono opacity-70">×{n}</span>
-									</div>
+									<Tooltip key={h}>
+										<TooltipTrigger asChild>
+											<div className="flex flex-col items-center justify-center gap-1 rounded-md bg-[#0a0a0a] px-1 py-1 text-[10px] font-bold text-white cursor-default">
+												<span>{h}:00</span>
+												<span className="font-mono opacity-70">×{n}</span>
+											</div>
+										</TooltipTrigger>
+										<TooltipContent>{n} booking{n === 1 ? "" : "s"} at {h}:00</TooltipContent>
+									</Tooltip>
 								);
 							})}
 						</div>
@@ -778,6 +823,7 @@ function DashboardComponent() {
 				</div>
 			</main>
 		</div>
+		</TooltipProvider>
 	);
 }
 
@@ -795,10 +841,10 @@ function KpiTile(props: {
 }) {
 	const chipBg =
 		props.chipTone === "green"
-			? "bg-emerald-100 text-emerald-700"
+			? "border-emerald-200 bg-emerald-100 text-emerald-700"
 			: props.chipTone === "amber"
-				? "bg-amber-100 text-amber-700"
-				: "bg-rose-100 text-rose-700";
+				? "border-amber-200 bg-amber-100 text-amber-700"
+				: "border-rose-200 bg-rose-100 text-rose-700";
 
 	return (
 		<div className="bg-white p-5">
@@ -814,12 +860,11 @@ function KpiTile(props: {
 			)}
 			{props.progressPct !== undefined ? (
 				<>
-					<div className="mt-1.5 h-1 overflow-hidden rounded-full bg-[#e5e5e5]">
-						<div
-							className="h-full rounded-full bg-blue-600"
-							style={{ width: `${props.progressPct}%` }}
-						/>
-					</div>
+					<Progress
+						value={props.progressPct}
+						className="mt-1.5 h-1 bg-[#e5e5e5]"
+						indicatorClassName="bg-blue-600"
+					/>
 					<div className="mt-1 text-[11px] text-muted-foreground">
 						{props.progressLabel}
 					</div>
@@ -827,11 +872,9 @@ function KpiTile(props: {
 			) : (
 				<div className="mt-1 flex items-center gap-2 text-[11px]">
 					{props.chip && (
-						<span
-							className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${chipBg}`}
-						>
+						<Badge variant="outline" className={`px-2 py-0.5 text-[10px] font-bold ${chipBg}`}>
 							{props.chip}
-						</span>
+						</Badge>
 					)}
 					{props.subline && (
 						<span className="text-muted-foreground">{props.subline}</span>
@@ -846,6 +889,7 @@ function TrendStat(props: {
 	label: string;
 	value: string;
 	tone?: "green" | "red";
+	tooltip?: string;
 }) {
 	const toneClass =
 		props.tone === "green"
@@ -853,8 +897,8 @@ function TrendStat(props: {
 			: props.tone === "red"
 				? "text-rose-600"
 				: "";
-	return (
-		<div>
+	const inner = (
+		<div className={props.tooltip ? "cursor-default" : undefined}>
 			<div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
 				{props.label}
 			</div>
@@ -862,6 +906,13 @@ function TrendStat(props: {
 				{props.value}
 			</div>
 		</div>
+	);
+	if (!props.tooltip) return inner;
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>{inner}</TooltipTrigger>
+			<TooltipContent>{props.tooltip}</TooltipContent>
+		</Tooltip>
 	);
 }
 
@@ -911,9 +962,11 @@ function PendingApprovalsInline({ organizationId }: { organizationId: string }) 
 						key={r.id}
 						className="-mx-2 flex items-center gap-3 rounded-lg p-2 transition hover:bg-[#f3f3f3]"
 					>
-						<div className="flex size-7 items-center justify-center rounded-full bg-[#f3f3f3] text-[10px] font-bold">
-							{getInitials(r.customerName)}
-						</div>
+						<Avatar className="size-7 shrink-0">
+							<AvatarFallback className="bg-[#f3f3f3] text-[10px] font-bold">
+								{getInitials(r.customerName)}
+							</AvatarFallback>
+						</Avatar>
 						<div className="min-w-0 flex-1">
 							<div className="truncate text-xs font-medium">
 								{r.customerName ?? "Customer"}
@@ -933,14 +986,12 @@ function PendingApprovalsInline({ organizationId }: { organizationId: string }) 
 					</li>
 				))}
 			</ul>
-			<Link
-				to="/dashboard/operations/approvals"
-				search={{ scope: "all" }}
-				className="mt-4 flex w-full items-center justify-center gap-1 rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-xs font-semibold transition hover:bg-[#f3f3f3]"
-			>
-				View all approvals
-				<ChevronRight className="size-3" />
-			</Link>
+			<Button asChild variant="outline" size="sm" className="mt-4 w-full">
+				<Link to="/dashboard/operations/approvals" search={{ scope: "all" }}>
+					View all approvals
+					<ChevronRight className="size-3" />
+				</Link>
+			</Button>
 		</>
 	);
 }

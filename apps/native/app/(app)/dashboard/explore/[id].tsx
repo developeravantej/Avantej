@@ -104,7 +104,7 @@ export default function ServiceDetailScreen() {
 	});
 
 	const related = (relatedServices ?? [])
-		.filter((s: any) => s.id !== serviceId)
+		.filter((s): s is typeof s & { price: number } => s.id !== serviceId && s.price !== null)
 		.slice(0, 4);
 
 	const handleBookNow = () => {
