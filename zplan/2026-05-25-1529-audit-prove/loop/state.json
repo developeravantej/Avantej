@@ -1,0 +1,21 @@
+{
+  "iteration": 0,
+  "exitReason": null,
+  "branch": "audit-prove/remediation-services-tabs-20260525-1529",
+  "targets": [
+    { "id": "F-INS-01", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["apps/web/src/components/pages/services/installment-plans-tab.tsx"], "note": "Permission regression: tab visible to wrong permission set" },
+    { "id": "F-PRI-01", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["packages/services/src/pricing.service.ts", "apps/web/src/components/pages/services/pricing-page.tsx"], "note": "Future-dated overrides invisible" },
+    { "id": "F-PRI-02", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["packages/api/src/routers/services/pricing.procedures.ts"], "note": "No cross-field date validation" },
+    { "id": "F-PRI-03", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["apps/web/src/components/pages/services/pricing-page.tsx"], "note": "isError not read, error renders as empty state" },
+    { "id": "F-SVC-01", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["apps/web/src/components/pages/services/services-page.tsx"], "note": "Bulk toggle always-success toast" },
+    { "id": "F-SVC-02", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["apps/web/src/components/pages/services/services-page.tsx"], "note": "List error renders as empty state" },
+    { "id": "F-CAT-01", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["apps/web/src/components/pages/services/categories-page.tsx"], "note": "duration=0 orphaned row" },
+    { "id": "F-CAT-02", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["apps/web/src/components/pages/services/categories-page.tsx"], "note": "isError not read on list" },
+    { "id": "F-CAT-03", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["apps/web/src/components/pages/services/categories-page.tsx"], "note": "Commission config stale after save" },
+    { "id": "F-RM-01", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["apps/web/src/components/pages/services/rooms-page.tsx"], "note": "Hierarchy failure renders as empty" },
+    { "id": "F-PRO-01", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["apps/web/src/components/pages/services/promotions-page.tsx"], "note": "No reactivation path" },
+    { "id": "F-PRO-02", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["apps/web/src/components/pages/services/promotions-page.tsx"], "note": "Deactivate dialog closes before mutation" },
+    { "id": "F-INS-02", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["apps/web/src/components/pages/services/installment-plans-tab.tsx"], "note": "Duplicate code raw DB error" },
+    { "id": "F-INS-03", "kind": "missing", "status": "open", "attempts": 0, "ownedFiles": ["apps/web/src/components/pages/services/installment-plans-tab.tsx", "packages/api/src/routers/installment-plans.ts"], "note": "No reactivation path for plans" }
+  ]
+}

@@ -72,7 +72,11 @@ export function RoomsPage() {
 	const [editingRoom, setEditingRoom] = useState<RoomRow | null>(null);
 	const [form, setForm] = useState<RoomFormState>(EMPTY_FORM);
 
-	const { data: nodesData } = useQuery({
+	const {
+		data: nodesData,
+		isError: nodesError,
+		refetch: refetchNodes,
+	} = useQuery({
 		queryKey: ["hierarchyNodes", organizationId],
 		queryFn: async () => {
 			if (!organizationId) return { nodes: [] };
@@ -428,7 +432,18 @@ export function RoomsPage() {
 							<label className="text-sm font-medium">
 								Branch <span className="text-destructive">*</span>
 							</label>
-							{branches.length === 0 ? (
+							{nodesError ? (
+								<div className="text-xs text-red-600 border border-dashed rounded-md p-3">
+									Failed to load branches.{" "}
+									<button
+										type="button"
+										onClick={() => refetchNodes()}
+										className="underline"
+									>
+										Retry
+									</button>
+								</div>
+							) : branches.length === 0 ? (
 								<p className="text-sm text-muted-foreground border border-dashed rounded-md p-3">
 									No branches found. Create a branch first.
 								</p>

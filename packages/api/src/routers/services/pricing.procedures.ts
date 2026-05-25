@@ -30,6 +30,14 @@ export const servicePricingProcedures = {
 		)
 		.handler(async ({ input, context }) => {
 			assertOrgContextMatch(context, input);
+			if (context.member.role !== "client") {
+				await requirePermissionOrpc(
+					context.tenantDb,
+					context.member,
+					"service_management",
+					"read",
+				);
+			}
 			const priceCents = await resolveServicePrice(
 				context.tenantDb,
 				input.serviceId,
@@ -61,15 +69,25 @@ export const servicePricingProcedures = {
 
 	setBranchPrice: tenantProcedure
 		.input(
-			z.object({
-				organizationId: z.string().uuid(),
-				serviceId: z.string().uuid(),
-				branchId: z.string().uuid().nullable(),
-				customerType: z.string().nullable().optional(),
-				priceCents: z.number().int().min(0),
-				effectiveFrom: z.string().datetime().optional(),
-				effectiveUntil: z.string().datetime().nullable().optional(),
-			}),
+			z
+				.object({
+					organizationId: z.string().uuid(),
+					serviceId: z.string().uuid(),
+					branchId: z.string().uuid().nullable(),
+					customerType: z.string().nullable().optional(),
+					priceCents: z.number().int().min(0),
+					effectiveFrom: z.string().datetime().optional(),
+					effectiveUntil: z.string().datetime().nullable().optional(),
+				})
+				.refine(
+					(d) => {
+						if (d.effectiveFrom && d.effectiveUntil) {
+							return new Date(d.effectiveUntil) > new Date(d.effectiveFrom);
+						}
+						return true;
+					},
+					{ message: "effectiveUntil must be after effectiveFrom", path: ["effectiveUntil"] },
+				),
 		)
 		.handler(async ({ input, context }) => {
 			assertOrgContextMatch(context, input);

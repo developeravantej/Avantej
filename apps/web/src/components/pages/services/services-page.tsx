@@ -8,6 +8,7 @@ import { ServiceFormDialogA as ServiceFormDialog } from "@/components/forms/serv
 import { ServiceDetailDialogA as ServiceDetailDialog } from "@/components/forms/service-detail-dialog-a";
 import { centsToRm, formatPrice } from "@/lib/money";
 import { toast } from "sonner";
+import { StatusCallout } from "@/components/ui/status-callout";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -217,7 +218,7 @@ export function ServicesPage() {
 	const qc = useQueryClient();
 
 	// ── data ──────────────────────────────────────────────────────────────────
-	const { data: rawServices = [], isLoading } = useQuery({
+	const { data: rawServices = [], isLoading, isError: listError, refetch: refetchList } = useQuery({
 		...orpc.services.list.queryOptions({ input: { organizationId: organizationId! } }),
 		enabled: !!organizationId,
 	});
@@ -407,12 +408,26 @@ export function ServicesPage() {
 		async (isActive: boolean) => {
 			if (!organizationId) return;
 			const ids = Array.from(selected);
-			await Promise.allSettled(
+			const results = await Promise.allSettled(
 				ids.map((id) =>
 					client.services.update({ organizationId, id, isActive })
 				)
 			);
-			toast.success(isActive ? "Selected services enabled" : "Selected services disabled");
+			const failed = results.filter((r) => r.status === "rejected").length;
+			const succeeded = results.length - failed;
+
+			if (failed === 0) {
+				toast.success(
+					isActive
+						? `${succeeded} service${succeeded !== 1 ? "s" : ""} enabled`
+						: `${succeeded} service${succeeded !== 1 ? "s" : ""} disabled`
+				);
+			} else if (succeeded === 0) {
+				toast.error(`Failed to ${isActive ? "enable" : "disable"} services.`);
+			} else {
+				toast.warning(`${succeeded} updated, ${failed} failed — check permissions.`);
+			}
+
 			setSelected(new Set());
 			qc.invalidateQueries({ queryKey: orpc.services.list.key() });
 		},
@@ -591,10 +606,21 @@ export function ServicesPage() {
 						<tbody>
 							{pageItems.length === 0 ? (
 								<tr>
-									<td colSpan={9} className="py-16 text-center text-sm text-[#a3a3a3]">
-										{search || categoryFilter !== "all"
-											? "No services match this filter."
-											: "No services yet. Create your first one."}
+									<td colSpan={9} className="py-10 px-4">
+										{listError && services.length === 0 ? (
+											<StatusCallout
+												variant="error"
+												title="Failed to load services"
+												message="There was a problem fetching your services. Please try again."
+												onRetry={() => refetchList()}
+											/>
+										) : (
+											<p className="text-center text-sm text-[#a3a3a3]">
+												{search || categoryFilter !== "all"
+													? "No services match this filter."
+													: "No services yet. Create your first one."}
+											</p>
+										)}
 									</td>
 								</tr>
 							) : (

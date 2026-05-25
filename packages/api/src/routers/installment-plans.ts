@@ -10,6 +10,7 @@ import {
 	updateInstallmentPlan,
 	setDefaultInstallmentPlan,
 	deactivateInstallmentPlan,
+	reactivateInstallmentPlan,
 } from "@avantej-core/services/installment-plan.service";
 export const installmentPlansRouter = {
 	list: tenantProcedure
@@ -129,6 +130,16 @@ export const installmentPlansRouter = {
 				) {
 					throw new ORPCError("BAD_REQUEST", { message: error.message });
 				}
+				if (
+					error instanceof Error &&
+					(error.message.includes("unique") ||
+						error.message.includes("duplicate") ||
+						error.message.includes("already exists"))
+				) {
+					throw new ORPCError("CONFLICT", {
+						message: "A plan with this code already exists.",
+					});
+				}
 				throw error;
 			}
 		}),
@@ -228,5 +239,19 @@ export const installmentPlansRouter = {
 			await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "delete");
 
 			return deactivateInstallmentPlan(context.tenantDb, input.id);
+		}),
+
+	reactivate: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				id: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
+
+			return reactivateInstallmentPlan(context.tenantDb, input.id);
 		}),
 };

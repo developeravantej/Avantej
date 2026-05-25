@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { Plus, Trash2 } from "lucide-react";
@@ -60,6 +60,7 @@ export function CategoryCommissionForm({
 	organizationId,
 // react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }: CategoryCommissionFormProps) {
+	const qc = useQueryClient();
 	const [paymentType, setPaymentType] = useState<"fixed" | "variable">("fixed");
 	const [isConditional, setIsConditional] = useState(false);
 	const [maxCoaches, setMaxCoaches] = useState(1);
@@ -131,7 +132,10 @@ export function CategoryCommissionForm({
 			client.categoryCommission.upsert(payload),
 		successMessage: "Commission config saved",
 		errorMessage: (err) => err.message || "Failed to save",
-		onSuccess: () => onOpenChange(false),
+		onSuccess: () => {
+			qc.invalidateQueries({ queryKey: ["categoryCommission", organizationId, categoryId] });
+			onOpenChange(false);
+		},
 	});
 
 	function handleSubmit() {

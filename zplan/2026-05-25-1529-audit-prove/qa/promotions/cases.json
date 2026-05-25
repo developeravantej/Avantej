@@ -1,0 +1,678 @@
+[
+  {
+    "id": "PRO-C01",
+    "title": "List promotions — golden path",
+    "type": "golden",
+    "steps": [
+      "Log in as franchisee@gmail.com with promotion_management:read permission",
+      "Navigate to /dashboard/service/view?tab=promotions",
+      "Wait for table to render"
+    ],
+    "expected": "Table renders with columns: Code, Name, Type, Value, Valid From, Valid Until, Usage, Status, Actions. Active promotions show green 'Active' badge; inactive show grey 'Inactive' badge.",
+    "selectorHints": ["getByRole('table')", "getByText('Active')", "getByText('Inactive')"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:142-178"
+  },
+  {
+    "id": "PRO-C02",
+    "title": "Loading state renders PageLoader",
+    "type": "golden",
+    "steps": [
+      "Navigate to the promotions tab while the API call is in-flight (throttle network)",
+      "Observe component render before data arrives"
+    ],
+    "expected": "PageLoader spinner is visible; table is not rendered yet.",
+    "selectorHints": ["getByRole('status')", "queryByRole('table')"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:338"
+  },
+  {
+    "id": "PRO-C03",
+    "title": "Error state renders StatusCallout with Retry",
+    "type": "error",
+    "steps": [
+      "Force API to fail (mock network error or server returns 500)",
+      "Navigate to promotions tab"
+    ],
+    "expected": "StatusCallout with error variant and 'Couldn't load promotions' title is shown. Clicking Retry re-fires the query.",
+    "selectorHints": ["getByText(/couldn't load promotions/i)", "getByRole('button', { name: /retry/i })"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:341-349"
+  },
+  {
+    "id": "PRO-C04",
+    "title": "Empty state — no promotions",
+    "type": "edge",
+    "steps": [
+      "Ensure the test org has zero promotions",
+      "Navigate to promotions tab"
+    ],
+    "expected": "Table renders with a single spanning row containing 'No promotions found.'",
+    "selectorHints": ["getByText('No promotions found.')"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:396-399"
+  },
+  {
+    "id": "PRO-C05",
+    "title": "No organization selected shows placeholder",
+    "type": "edge",
+    "steps": [
+      "Log in as a user with no currentOrganizationId (organizationId = null)",
+      "Navigate to promotions tab"
+    ],
+    "expected": "Component renders message 'Select an organization to view promotions.' No table, no loading spinner.",
+    "selectorHints": ["getByText(/select an organization/i)"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:330-336"
+  },
+  {
+    "id": "PRO-C06",
+    "title": "Client-side search filters by code",
+    "type": "golden",
+    "steps": [
+      "Load promotions tab with at least two promotions (e.g. 'SAVE20', 'WELCOME10')",
+      "Type 'SAVE' in the search box"
+    ],
+    "expected": "Only promotions whose code contains 'SAVE' (case-insensitive) are shown. Count updates. No API call made.",
+    "selectorHints": ["getByPlaceholderText('Search promotions...')", "getByRole('table')"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:323-328"
+  },
+  {
+    "id": "PRO-C07",
+    "title": "Client-side search filters by name",
+    "type": "golden",
+    "steps": [
+      "Load promotions tab",
+      "Type part of a promotion name in the search box"
+    ],
+    "expected": "Only promotions whose name contains the search string are shown.",
+    "selectorHints": ["getByPlaceholderText('Search promotions...')"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:323-328"
+  },
+  {
+    "id": "PRO-C08",
+    "title": "Search yields no results",
+    "type": "edge",
+    "steps": [
+      "Load promotions tab with at least one promotion",
+      "Type 'ZZZNOMATCH' in the search box"
+    ],
+    "expected": "Table shows 'No promotions match your search.' Count shows 0.",
+    "selectorHints": ["getByText('No promotions match your search.')"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:396-399"
+  },
+  {
+    "id": "PRO-C09",
+    "title": "Create promotion — percentage type golden path",
+    "type": "golden",
+    "steps": [
+      "Click 'New Promotion'",
+      "Fill Code='SUMMER20', Name='Summer Sale', Type='percentage', Value='20', Valid From=any future datetime",
+      "Submit form"
+    ],
+    "expected": "Dialog closes. Toast 'Promotion created successfully.' appears. New promotion appears in table with Value column showing '20.00%'. storedValue = 2000 (basis points).",
+    "selectorHints": ["getByRole('button', { name: /new promotion/i })", "getByLabelText(/code/i)", "getByRole('button', { name: /create promotion/i })"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:225-293"
+  },
+  {
+    "id": "PRO-C10",
+    "title": "Create promotion — fixed amount type",
+    "type": "golden",
+    "steps": [
+      "Click 'New Promotion'",
+      "Fill Code='FLAT10', Name='Flat RM10 Off', Type='fixed_amount', Value='10.00', Valid From=any datetime",
+      "Submit form"
+    ],
+    "expected": "Dialog closes. Toast success. Value column shows 'RM 10.00'. storedValue stored as 1000 (cents).",
+    "selectorHints": ["getByRole('combobox')", "getByLabelText(/discount amount/i)"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:225-293"
+  },
+  {
+    "id": "PRO-C11",
+    "title": "Create promotion — code too short (< 3 chars)",
+    "type": "error",
+    "steps": [
+      "Open Create Dialog",
+      "Enter Code='AB', Name='Test', Type='percentage', Value='10', Valid From=now",
+      "Submit form"
+    ],
+    "expected": "Form does NOT submit. Toast error 'Promo code must be at least 3 characters.' Dialog remains open.",
+    "selectorHints": ["getByText(/promo code must be at least 3/i)"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:230-232"
+  },
+  {
+    "id": "PRO-C12",
+    "title": "Create promotion — code with invalid characters",
+    "type": "error",
+    "steps": [
+      "Open Create Dialog",
+      "Enter Code='SAVE 20' (with space) or 'SAVE@20'",
+      "Submit form"
+    ],
+    "expected": "Toast error 'Promo code may only contain letters, numbers, hyphens, and underscores.' Dialog stays open.",
+    "selectorHints": ["getByText(/promo code may only contain/i)"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:234-239"
+  },
+  {
+    "id": "PRO-C13",
+    "title": "Create promotion — percentage value > 100",
+    "type": "error",
+    "steps": [
+      "Open Create Dialog",
+      "Select Type='percentage', enter Value='150'",
+      "Submit form"
+    ],
+    "expected": "Toast error 'Percentage discount cannot exceed 100%'. Dialog stays open.",
+    "selectorHints": ["getByText(/percentage discount cannot exceed/i)"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:246-249"
+  },
+  {
+    "id": "PRO-C14",
+    "title": "Create promotion — value = 0",
+    "type": "error",
+    "steps": [
+      "Open Create Dialog",
+      "Enter Value='0', fill other required fields",
+      "Submit form"
+    ],
+    "expected": "Toast error 'Please enter a valid value.' Dialog stays open.",
+    "selectorHints": ["getByText(/please enter a valid value/i)"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:242-245"
+  },
+  {
+    "id": "PRO-C15",
+    "title": "Create promotion — value is NaN (non-numeric)",
+    "type": "error",
+    "steps": [
+      "Open Create Dialog",
+      "Programmatically set Value to 'abc' (type=number browser may block, test via JS)",
+      "Submit form"
+    ],
+    "expected": "Toast error 'Please enter a valid value.' Dialog stays open.",
+    "selectorHints": ["getByText(/please enter a valid value/i)"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:242-245"
+  },
+  {
+    "id": "PRO-C16",
+    "title": "Create promotion — Valid From missing",
+    "type": "error",
+    "steps": [
+      "Open Create Dialog",
+      "Fill all fields except Valid From",
+      "Submit form"
+    ],
+    "expected": "Toast error 'Valid From date is required.' Dialog stays open.",
+    "selectorHints": ["getByText(/valid from date is required/i)"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:250-253"
+  },
+  {
+    "id": "PRO-C17",
+    "title": "Create promotion — Valid Until before Valid From",
+    "type": "error",
+    "steps": [
+      "Open Create Dialog",
+      "Set Valid From = '2026-12-01T10:00', Valid Until = '2026-11-01T10:00' (before from)",
+      "Submit form"
+    ],
+    "expected": "Toast error 'Valid Until must be after Valid From.' Dialog stays open.",
+    "selectorHints": ["getByText(/valid until must be after/i)"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:254-260"
+  },
+  {
+    "id": "PRO-C18",
+    "title": "Create promotion — Valid Until equal to Valid From",
+    "type": "edge",
+    "steps": [
+      "Set Valid From = '2026-12-01T10:00', Valid Until = '2026-12-01T10:00' (equal)",
+      "Submit form"
+    ],
+    "expected": "Client guard: `new Date(validUntil) <= new Date(validFrom)` is true when equal — toast error 'Valid Until must be after Valid From.' is shown.",
+    "selectorHints": ["getByText(/valid until must be after/i)"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:254-260"
+  },
+  {
+    "id": "PRO-C19",
+    "title": "Create promotion — code auto-uppercased",
+    "type": "golden",
+    "steps": [
+      "Open Create Dialog",
+      "Type lowercase code 'save20' in the Code field"
+    ],
+    "expected": "Input value shows 'SAVE20' immediately as each character is typed (onChange converts to uppercase). Submitted code is 'SAVE20'.",
+    "selectorHints": ["getByLabelText(/code/i)"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:495"
+  },
+  {
+    "id": "PRO-C20",
+    "title": "Create promotion — minimum order amount converts to cents",
+    "type": "golden",
+    "steps": [
+      "Open Create Dialog",
+      "Enter Minimum Order Amount = '50.00'",
+      "Submit (other fields valid)"
+    ],
+    "expected": "Server receives minimumOrderAmount = 5000 (cents). If promotion list is inspectable, createPromotion was called with minimumOrderAmount: 5000.",
+    "selectorHints": ["getByLabelText(/minimum order amount/i)"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:264-268"
+  },
+  {
+    "id": "PRO-C21",
+    "title": "Create promotion — unlimited usage (blank usage limit)",
+    "type": "golden",
+    "steps": [
+      "Open Create Dialog",
+      "Leave Usage Limit blank",
+      "Submit with other valid fields"
+    ],
+    "expected": "Promotion created with usageLimit = undefined (null in DB). Table shows '∞' in Usage column for that row.",
+    "selectorHints": ["getByText('∞')"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:270-272, promotions-page.tsx:426"
+  },
+  {
+    "id": "PRO-C22",
+    "title": "Create promotion — server returns error (e.g. permission denied)",
+    "type": "error",
+    "steps": [
+      "Log in as user with promotion_management:read only (no create permission)",
+      "Open Create Dialog, fill valid form, submit"
+    ],
+    "expected": "Dialog remains open. Error toast appears with the server error message (FORBIDDEN). No row added to table.",
+    "selectorHints": ["getByRole('alert')"],
+    "testable": true,
+    "sourceRef": "promotions.ts:145, useApiMutation.ts:71-86"
+  },
+  {
+    "id": "PRO-C23",
+    "title": "Create promotion — duplicate code server rejection",
+    "type": "error",
+    "steps": [
+      "Create a promotion with code 'DUP01'",
+      "Open Create Dialog again",
+      "Submit with code 'DUP01' and otherwise valid fields"
+    ],
+    "expected": "Error toast with raw DB unique constraint violation message. Dialog remains open. NOTE: message is not user-friendly — this is a gap.",
+    "selectorHints": ["getByRole('alert')"],
+    "testable": true,
+    "sourceRef": "promotions.service.ts:196-217, packages/db/src/schema/tenant/promotions.ts:92"
+  },
+  {
+    "id": "PRO-C24",
+    "title": "Cancel create dialog — form resets",
+    "type": "golden",
+    "steps": [
+      "Open Create Dialog",
+      "Fill in some fields",
+      "Click Cancel"
+    ],
+    "expected": "Dialog closes. Form is reset to defaultCreateForm (empty/default values). Reopening dialog shows blank form.",
+    "selectorHints": ["getByRole('button', { name: /cancel/i })", "getByRole('dialog')"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:685-692"
+  },
+  {
+    "id": "PRO-C25",
+    "title": "Edit promotion — golden path",
+    "type": "golden",
+    "steps": [
+      "Click Edit on a promotion row",
+      "Verify name, description, validFrom, validUntil are pre-populated",
+      "Change Name to 'Updated Name'",
+      "Click Save Changes"
+    ],
+    "expected": "Dialog closes. Toast 'Promotion updated successfully.' Table row shows updated name. Code and type fields are NOT editable (shown in read-only info block).",
+    "selectorHints": ["getByRole('button', { name: /edit/i })", "getByLabelText(/^name/i)", "getByRole('button', { name: /save changes/i })"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:214-223, 295-321"
+  },
+  {
+    "id": "PRO-C26",
+    "title": "Edit promotion — extend validity window",
+    "type": "golden",
+    "steps": [
+      "Click Edit on an expiring promotion",
+      "Change Valid Until to a future date",
+      "Save"
+    ],
+    "expected": "Server receives updated validUntil. Table row shows updated Valid Until date.",
+    "selectorHints": ["getByLabelText(/valid until/i)"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:311-319"
+  },
+  {
+    "id": "PRO-C27",
+    "title": "Edit promotion — remove expiry (set Valid Until to blank)",
+    "type": "edge",
+    "steps": [
+      "Click Edit on a promotion that has a Valid Until date",
+      "Clear the Valid Until field",
+      "Save"
+    ],
+    "expected": "Server receives validUntil = undefined. Promotion updated. Table shows 'No expiry' in Valid Until column.",
+    "selectorHints": ["getByLabelText(/valid until/i)", "getByText('No expiry')"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:315-319, promotions-page.tsx:71-76"
+  },
+  {
+    "id": "PRO-C28",
+    "title": "Edit promotion — Valid Until before Valid From client rejection",
+    "type": "error",
+    "steps": [
+      "Open Edit dialog",
+      "Set Valid From = '2026-12-01T10:00', Valid Until = '2026-11-01T00:00'",
+      "Click Save Changes"
+    ],
+    "expected": "Toast error 'Valid Until must be after Valid From.' Dialog stays open.",
+    "selectorHints": ["getByText(/valid until must be after/i)"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:303-308"
+  },
+  {
+    "id": "PRO-C29",
+    "title": "Edit promotion — Valid From missing client rejection",
+    "type": "error",
+    "steps": [
+      "Open Edit dialog",
+      "Clear the Valid From field",
+      "Click Save Changes"
+    ],
+    "expected": "Toast error 'Valid From date is required.' Dialog stays open.",
+    "selectorHints": ["getByText(/valid from date is required/i)"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:299-302"
+  },
+  {
+    "id": "PRO-C30",
+    "title": "Edit promotion — name trimmed to empty sends undefined",
+    "type": "edge",
+    "steps": [
+      "Open Edit dialog for a promotion",
+      "Clear the Name field",
+      "Click Save Changes"
+    ],
+    "expected": "Server receives name = undefined. updatePromotion service leaves name unchanged (no name in update patch). RISK: update silently does nothing to name field rather than rejecting.",
+    "selectorHints": ["getByLabelText(/^name/i)"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:313, promotions.service.ts:247"
+  },
+  {
+    "id": "PRO-C31",
+    "title": "Edit promotion — server error (permission denied)",
+    "type": "error",
+    "steps": [
+      "Downgrade user to have promotion_management:read only",
+      "Open Edit dialog, make changes, save"
+    ],
+    "expected": "Error toast with FORBIDDEN message. Dialog stays open.",
+    "selectorHints": ["getByRole('alert')"],
+    "testable": true,
+    "sourceRef": "promotions.ts:188, useApiMutation.ts:71-86"
+  },
+  {
+    "id": "PRO-C32",
+    "title": "Deactivate button only visible for active promotions",
+    "type": "golden",
+    "steps": [
+      "Load promotions tab with at least one active and one inactive promotion",
+      "Inspect Action cell for each row"
+    ],
+    "expected": "Active rows show both Edit and Deactivate buttons. Inactive rows show only Edit button (no Deactivate button).",
+    "selectorHints": ["getByRole('button', { name: /deactivate/i })"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:448-457"
+  },
+  {
+    "id": "PRO-C33",
+    "title": "Deactivate — golden path with confirmation",
+    "type": "golden",
+    "steps": [
+      "Click Deactivate on an active promotion row",
+      "Verify confirmation dialog shows promotion name",
+      "Click Deactivate to confirm"
+    ],
+    "expected": "Confirmation dialog shows '...deactivate <promotion name>?'. On confirm: dialog closes, toast 'Promotion deactivated.', row Status changes to 'Inactive', Deactivate button disappears.",
+    "selectorHints": ["getByText('Confirm Deactivate')", "getByRole('button', { name: /^deactivate$/i })"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:703-737"
+  },
+  {
+    "id": "PRO-C34",
+    "title": "Deactivate — cancel confirmation closes dialog, no mutation",
+    "type": "golden",
+    "steps": [
+      "Click Deactivate on an active promotion row",
+      "Click Cancel in the confirmation dialog"
+    ],
+    "expected": "Dialog closes. Promotion remains active. No API call made.",
+    "selectorHints": ["getByRole('button', { name: /cancel/i })"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:721"
+  },
+  {
+    "id": "PRO-C35",
+    "title": "Deactivate — error toast shown but dialog already closed (bug)",
+    "type": "error",
+    "steps": [
+      "Mock deactivatePromotion API to return error",
+      "Click Deactivate, confirm in dialog"
+    ],
+    "expected": "RISK/BUG: deactivateTarget is cleared before mutation resolves (setDeactivateTarget(null) called synchronously). If mutation errors, dialog is gone and user sees error toast but cannot retry from the confirmation dialog — must scroll back to the row.",
+    "selectorHints": ["getByRole('alert')"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:725-730"
+  },
+  {
+    "id": "PRO-C36",
+    "title": "Deactivate — server error (permission denied)",
+    "type": "error",
+    "steps": [
+      "Ensure user has only promotion_management:read or :update",
+      "Try to deactivate (requires :delete)"
+    ],
+    "expected": "Error toast with FORBIDDEN message. Promotion remains active.",
+    "selectorHints": ["getByRole('alert')"],
+    "testable": true,
+    "sourceRef": "promotions.ts:218"
+  },
+  {
+    "id": "PRO-C37",
+    "title": "Route guard — user without service_management:read redirected",
+    "type": "error",
+    "steps": [
+      "Log in as user with no service_management:read permission",
+      "Navigate to /dashboard/service/view?tab=promotions"
+    ],
+    "expected": "User is redirected to /dashboard?unauthorized=true before the promotions component mounts.",
+    "selectorHints": ["getByText(/unauthorized/i)"],
+    "testable": true,
+    "sourceRef": "view.tsx:14"
+  },
+  {
+    "id": "PRO-C38",
+    "title": "Server RBAC — user with service_management:read but no promotion_management:read",
+    "type": "error",
+    "steps": [
+      "Configure user to have service_management:read but NOT promotion_management:read",
+      "Navigate to promotions tab"
+    ],
+    "expected": "Component renders. List query fires. Server returns FORBIDDEN (403). Component shows StatusCallout error state (isError = true).",
+    "selectorHints": ["getByText(/couldn't load promotions/i)"],
+    "testable": true,
+    "sourceRef": "promotions.ts:36, promotions-page.tsx:341-349"
+  },
+  {
+    "id": "PRO-C39",
+    "title": "Percentage value boundary — exactly 100% allowed",
+    "type": "edge",
+    "steps": [
+      "Open Create Dialog",
+      "Set Type='percentage', Value='100'",
+      "Submit with other valid fields"
+    ],
+    "expected": "Form submits successfully. storedValue = 10000 basis points. Promotion created with value = 10000.",
+    "selectorHints": ["getByRole('button', { name: /create promotion/i })"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:246-249"
+  },
+  {
+    "id": "PRO-C40",
+    "title": "Percentage value boundary — 100.01% client rejected",
+    "type": "edge",
+    "steps": [
+      "Open Create Dialog",
+      "Set Type='percentage', Value='100.01'",
+      "Submit"
+    ],
+    "expected": "Toast error 'Percentage discount cannot exceed 100%'. Form not submitted.",
+    "selectorHints": ["getByText(/cannot exceed 100%/i)"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:246-249"
+  },
+  {
+    "id": "PRO-C41",
+    "title": "Decimal percentage stored as basis points",
+    "type": "edge",
+    "steps": [
+      "Create promotion with Type='percentage', Value='8.5'",
+      "Submit"
+    ],
+    "expected": "storedValue = Math.round(8.5 * 100) = 850. Table displays '8.50%' (850 / 100). No data corruption.",
+    "selectorHints": ["getByText('8.50%')"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:262, promotions-page.tsx:62-64"
+  },
+  {
+    "id": "PRO-C42",
+    "title": "Free item / buy_x_get_y value display shows raw integer",
+    "type": "edge",
+    "steps": [
+      "Create promotion with Type='free_item', Value='1'",
+      "Observe table Value column"
+    ],
+    "expected": "Table shows '1' (plain integer via toString). No unit label. This is the current behavior — may confuse users expecting a price.",
+    "selectorHints": ["getByRole('table')"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:67-68"
+  },
+  {
+    "id": "PRO-C43",
+    "title": "Pagination truncation — more than 50 promotions not shown",
+    "type": "edge",
+    "steps": [
+      "Seed the org with 51+ promotions",
+      "Navigate to promotions tab"
+    ],
+    "expected": "RISK: Only 50 rows are shown (default limit). No pagination controls, no count indicator showing total vs. displayed. 51st promotion silently missing from table.",
+    "selectorHints": ["getByRole('table')"],
+    "testable": true,
+    "sourceRef": "promotions.service.ts:41, promotions-page.tsx:142-148"
+  },
+  {
+    "id": "PRO-C44",
+    "title": "CopyableCell copies promo code to clipboard",
+    "type": "golden",
+    "steps": [
+      "Load promotions tab with at least one promotion",
+      "Click the Code cell (CopyableCell) for a promotion"
+    ],
+    "expected": "Promo code is copied to the system clipboard. Copy confirmation feedback shown (per CopyableCell implementation).",
+    "selectorHints": ["getByText('SAVE20')"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:405"
+  },
+  {
+    "id": "PRO-C45",
+    "title": "Switching type in create dialog clears value field",
+    "type": "edge",
+    "steps": [
+      "Open Create Dialog",
+      "Select Type='percentage', enter Value='20'",
+      "Change Type to 'fixed_amount'"
+    ],
+    "expected": "Value field is cleared to empty string when type changes. Label updates to 'Discount Amount (RM)'.",
+    "selectorHints": ["getByRole('combobox')", "getByLabelText(/discount amount/i)"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:542"
+  },
+  {
+    "id": "PRO-C46",
+    "title": "Network error during create mutation shows toast",
+    "type": "error",
+    "steps": [
+      "Open Create Dialog, fill valid form",
+      "Simulate network offline or timeout before submitting"
+    ],
+    "expected": "Error toast appears with the error message. Dialog remains open. No row added to table.",
+    "selectorHints": ["getByRole('alert')"],
+    "testable": true,
+    "sourceRef": "useApiMutation.ts:71-86"
+  },
+  {
+    "id": "PRO-C47",
+    "title": "Server accepts validUntil <= validFrom (bypass client guard via API)",
+    "type": "edge",
+    "steps": [
+      "Send direct API call to promotions.create with validUntil <= validFrom (bypassing UI)",
+      "Check what server returns"
+    ],
+    "expected": "RISK: Server has no cross-field date validation. Promotion is created in an already-expired or instantly-expiring state. validatePromoCode will immediately return 'Promotion has expired'.",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "promotions.ts:113-168, promotions.service.ts:103-107"
+  },
+  {
+    "id": "PRO-C48",
+    "title": "Server accepts promo code of length 1-2 (below client minimum of 3)",
+    "type": "edge",
+    "steps": [
+      "Send direct API call to promotions.create with code='AB' (2 chars)",
+      "Check what server returns"
+    ],
+    "expected": "RISK: Server schema has z.string().min(1), so 'AB' is accepted. Client would reject it. A 2-char code can exist in the DB but cannot be created via the UI.",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "promotions.ts:117, promotions-page.tsx:230-232"
+  },
+  {
+    "id": "PRO-C49",
+    "title": "isActive toggle missing from edit UI — cannot reactivate",
+    "type": "edge",
+    "steps": [
+      "Deactivate a promotion",
+      "Open the Edit dialog for the deactivated promotion",
+      "Look for a way to reactivate it from the UI"
+    ],
+    "expected": "RISK: No isActive toggle exists in the edit dialog. Once deactivated via the UI, there is no UI path to reactivate. (Server update procedure accepts isActive but UI does not send it.)",
+    "selectorHints": ["getByRole('dialog')"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:774-858, promotions.ts:178"
+  },
+  {
+    "id": "PRO-C50",
+    "title": "maximumDiscount cap not settable from UI",
+    "type": "edge",
+    "steps": [
+      "Open Create Dialog for a 'percentage' promotion",
+      "Look for a maximumDiscount or 'cap' field"
+    ],
+    "expected": "RISK: No maximumDiscount field in the UI. A 20% promotion with no cap applied to a RM 10,000 order yields RM 2,000 discount — potentially unintended. Cap can only be set via direct API.",
+    "selectorHints": ["getByRole('dialog')"],
+    "testable": true,
+    "sourceRef": "promotions-page.tsx:468-700, promotions.ts:130"
+  }
+]

@@ -22,6 +22,7 @@ import {
 import { ServicePriceOverrideDialog } from "./service-price-override-dialog";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import { StatusCallout } from "@/components/ui/status-callout";
 
 function formatDateOrOpen(date: Date | null | undefined): string {
 	if (!date) return "Open-ended";
@@ -61,7 +62,12 @@ export function ServicePricingPage() {
 		((hierarchyData as any)?.nodes ?? []).map((n: any) => [n.id, n.name]),
 	);
 
-	const { data: overrides = [], isLoading: overridesLoading } = useQuery({
+	const {
+		data: overrides = [],
+		isLoading: overridesLoading,
+		isError: overridesError,
+		refetch: refetchOverrides,
+	} = useQuery({
 		queryKey: ["service-price-overrides", organizationId, selectedServiceId],
 		queryFn: () =>
 			client.services.listPriceOverrides({
@@ -162,6 +168,16 @@ export function ServicePricingPage() {
 				<div className="flex flex-1 items-center justify-center text-[#737373] text-[13px]">
 					Loading...
 				</div>
+			) : overridesError ? (
+				<div className="flex flex-1 items-start justify-center pt-8">
+					<StatusCallout
+						variant="error"
+						title="Failed to load price overrides"
+						onRetry={() => refetchOverrides()}
+					>
+						Something went wrong while fetching overrides. Please try again.
+					</StatusCallout>
+				</div>
 			) : overrides.length === 0 ? (
 				<div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-[#e5e5e5] text-[#737373] text-[13px]">
 					No price overrides configured for this service.
@@ -201,6 +217,9 @@ export function ServicePricingPage() {
 									</td>
 									<td className="py-3 px-3 text-[13px] text-[#0a0a0a] whitespace-nowrap">
 										{formatDateOrOpen(row.effectiveFrom)}
+										{new Date(row.effectiveFrom) > new Date() && (
+											<span className="ml-1 inline-flex items-center rounded-md bg-blue-50 border border-blue-200 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">Scheduled</span>
+										)}
 									</td>
 									<td className="py-3 px-3 text-[13px] text-[#0a0a0a] whitespace-nowrap">
 										{formatDateOrOpen(row.effectiveUntil)}

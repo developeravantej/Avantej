@@ -209,6 +209,19 @@ export function PromotionsPage() {
 		successMessage: "Promotion deactivated.",
 		errorMessage: (err) => err.message || "Failed to deactivate promotion.",
 		invalidate: [promotionsKey],
+		onSuccess: () => {
+			setDeactivateTarget(null);
+		},
+	});
+
+	const { mutate: reactivatePromotion, isPending: isReactivating } = useApiMutation({
+		mutationFn: (id: string) => {
+			if (!organizationId) throw new Error("No organization selected.");
+			return client.promotions.update({ organizationId, id, isActive: true });
+		},
+		successMessage: "Promotion enabled.",
+		errorMessage: (err) => err.message || "Failed to enable promotion.",
+		invalidate: [promotionsKey],
 	});
 
 	function handleOpenEdit(row: PromotionRow) {
@@ -445,7 +458,7 @@ export function PromotionsPage() {
 													<Edit className="h-3 w-3" />
 													Edit
 												</button>
-												{row.isActive && (
+												{row.isActive ? (
 													<button
 														type="button"
 														disabled={isDeactivating}
@@ -453,6 +466,15 @@ export function PromotionsPage() {
 														className="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-[11px] font-medium text-red-600 hover:bg-red-50 transition disabled:opacity-50"
 													>
 														Deactivate
+													</button>
+												) : (
+													<button
+														type="button"
+														disabled={isReactivating}
+														onClick={() => reactivatePromotion(row.id)}
+														className="rounded-lg border border-green-200 bg-white px-2.5 py-1 text-[11px] font-medium text-green-700 hover:bg-green-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+													>
+														Enable
 													</button>
 												)}
 											</div>
@@ -725,7 +747,6 @@ export function PromotionsPage() {
 							onClick={() => {
 								if (deactivateTarget) {
 									deactivatePromotion(deactivateTarget);
-									setDeactivateTarget(null);
 								}
 							}}
 							disabled={isDeactivating}

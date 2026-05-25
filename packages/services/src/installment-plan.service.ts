@@ -193,3 +193,16 @@ export async function deactivateInstallmentPlan(
 	}
 	return row;
 }
+
+export async function reactivateInstallmentPlan(
+	tenantDb: TenantDb,
+	id: string,
+): Promise<typeof installmentPlans.$inferSelect> {
+	const [row] = await tenantDb
+		.update(installmentPlans)
+		.set({ isActive: true, updatedAt: new Date() })
+		.where(eq(installmentPlans.id, id))
+		.returning();
+	if (!row) throw new Error("Installment plan not found");
+	return row;
+}

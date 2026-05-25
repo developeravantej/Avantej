@@ -1,0 +1,714 @@
+[
+  {
+    "id": "RM-C01",
+    "title": "Load rooms tab with active filter (default)",
+    "type": "golden",
+    "steps": [
+      "Authenticate as a user with service_management:read and appointment_management:read",
+      "Navigate to /dashboard/service/view?tab=rooms",
+      "Wait for the rooms query to resolve"
+    ],
+    "expected": "Table renders with Active pill selected, rows visible, search bar present, Create Room button visible if user has appointment_management:create",
+    "selectorHints": [
+      "getByRole('button', { name: 'Active' })",
+      "getByPlaceholder('Search rooms...')",
+      "getByRole('button', { name: 'Create Room' })"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:70,98–115"
+  },
+  {
+    "id": "RM-C02",
+    "title": "Create room — golden path",
+    "type": "golden",
+    "steps": [
+      "Click 'Create Room' button",
+      "Enter Name: 'Studio A'",
+      "Select Type: 'Training'",
+      "Enter Capacity: 10",
+      "Select a branch from the combobox",
+      "Click 'Create Room' in the dialog"
+    ],
+    "expected": "Dialog closes, success toast 'Room created successfully', room appears in the table",
+    "selectorHints": [
+      "getByRole('button', { name: 'Create Room' })",
+      "getByLabelText('Name')",
+      "getByLabelText('Type')",
+      "getByLabelText('Capacity')",
+      "getByPlaceholder('Search branch...')",
+      "getByRole('button', { name: 'Create Room' })"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:135–148,216–254"
+  },
+  {
+    "id": "RM-C03",
+    "title": "Edit room — golden path",
+    "type": "golden",
+    "steps": [
+      "Click 'Edit' on any active room row",
+      "Verify the form pre-populates with room data",
+      "Change Name to 'Studio B'",
+      "Click 'Save Changes'"
+    ],
+    "expected": "Dialog closes, success toast 'Room updated successfully', table reflects updated name",
+    "selectorHints": [
+      "getByRole('button', { name: 'Edit' })",
+      "getByLabelText('Name')",
+      "getByRole('button', { name: 'Save Changes' })"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:150–169,198–208"
+  },
+  {
+    "id": "RM-C04",
+    "title": "Deactivate room — golden path",
+    "type": "golden",
+    "steps": [
+      "Ensure Active filter is selected (default)",
+      "Click 'Deactivate' on any room row",
+      "Verify confirmation dialog shows room name",
+      "Click 'Deactivate' in the dialog"
+    ],
+    "expected": "Dialog closes, toast 'Room \"<name>\" deactivated', room disappears from Active list",
+    "selectorHints": [
+      "getByRole('button', { name: 'Deactivate' })",
+      "getByText(/Are you sure you want to deactivate/)",
+      "getByRole('button', { name: 'Deactivate' })"
+    ],
+    "testable": true,
+    "sourceRef": "data-table.tsx:76–86,172–202"
+  },
+  {
+    "id": "RM-C05",
+    "title": "Reactivate room — golden path",
+    "type": "golden",
+    "steps": [
+      "Click the 'Inactive' filter pill",
+      "Click 'Reactivate' on any inactive room row",
+      "Click 'Reactivate' in the confirmation dialog"
+    ],
+    "expected": "Dialog closes, toast 'Room \"<name>\" reactivated', room disappears from Inactive list",
+    "selectorHints": [
+      "getByRole('button', { name: 'Inactive' })",
+      "getByRole('button', { name: 'Reactivate' })",
+      "getByText(/Reactivate .+ It will become visible/)"
+    ],
+    "testable": true,
+    "sourceRef": "data-table.tsx:88–98,205–233"
+  },
+  {
+    "id": "RM-C06",
+    "title": "Filter switch — Active → All → Inactive",
+    "type": "golden",
+    "steps": [
+      "Start on default Active filter",
+      "Click 'All' pill",
+      "Observe all rooms (active + inactive) appear",
+      "Click 'Inactive' pill",
+      "Observe only inactive rooms appear"
+    ],
+    "expected": "Each filter switch refires the rooms query with the correct isActive parameter; table content updates accordingly",
+    "selectorHints": [
+      "getByRole('button', { name: 'All' })",
+      "getByRole('button', { name: 'Inactive' })"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:30–34,70,105–115"
+  },
+  {
+    "id": "RM-C07",
+    "title": "Create room — Name field empty (client validation)",
+    "type": "error",
+    "steps": [
+      "Open Create Room dialog",
+      "Leave Name blank",
+      "Fill in Type, Capacity, Branch",
+      "Click 'Create Room'"
+    ],
+    "expected": "Toast error 'Name is required'; dialog stays open; no API call made",
+    "selectorHints": [
+      "getByRole('button', { name: 'Create Room' })",
+      "getByLabelText('Name')"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:217–220"
+  },
+  {
+    "id": "RM-C08",
+    "title": "Create room — Name is only whitespace (client validation)",
+    "type": "edge",
+    "steps": [
+      "Open Create Room dialog",
+      "Enter Name: '   ' (spaces only)",
+      "Fill in Type, Capacity, Branch",
+      "Click 'Create Room'"
+    ],
+    "expected": "Toast error 'Name is required'; dialog stays open; no API call made (client trims to empty string)",
+    "selectorHints": [
+      "getByLabelText('Name')"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:217"
+  },
+  {
+    "id": "RM-C09",
+    "title": "Create room — Type not selected (client validation)",
+    "type": "error",
+    "steps": [
+      "Open Create Room dialog",
+      "Fill Name and Capacity and Branch, leave Type unselected",
+      "Click 'Create Room'"
+    ],
+    "expected": "Toast error 'Type is required'; dialog stays open",
+    "selectorHints": [
+      "getByRole('combobox', { name: /Type/ })"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:221–224"
+  },
+  {
+    "id": "RM-C10",
+    "title": "Create room — Capacity = 0 (client validation)",
+    "type": "error",
+    "steps": [
+      "Open Create Room dialog",
+      "Enter Capacity: 0",
+      "Fill other fields",
+      "Click 'Create Room'"
+    ],
+    "expected": "Toast error 'Capacity must be at least 1'; dialog stays open",
+    "selectorHints": [
+      "getByLabelText('Capacity')"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:226–229"
+  },
+  {
+    "id": "RM-C11",
+    "title": "Create room — Capacity negative (client validation)",
+    "type": "edge",
+    "steps": [
+      "Open Create Room dialog",
+      "Enter Capacity: -5",
+      "Fill other fields",
+      "Click 'Create Room'"
+    ],
+    "expected": "Toast error 'Capacity must be at least 1'; dialog stays open",
+    "selectorHints": [
+      "getByLabelText('Capacity')"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:226–229"
+  },
+  {
+    "id": "RM-C12",
+    "title": "Create room — Capacity is decimal string (edge: parseInt truncates)",
+    "type": "edge",
+    "steps": [
+      "Open Create Room dialog",
+      "Enter Capacity: '1.9'",
+      "Fill other fields",
+      "Click 'Create Room'"
+    ],
+    "expected": "parseInt truncates to 1; room is created with capacity 1 (no error shown). Risk: user intent was 2.",
+    "selectorHints": [
+      "getByLabelText('Capacity')"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:226"
+  },
+  {
+    "id": "RM-C13",
+    "title": "Create room — Branch not selected (client validation)",
+    "type": "error",
+    "steps": [
+      "Open Create Room dialog",
+      "Fill Name, Type, Capacity but do not select a branch",
+      "Click 'Create Room'"
+    ],
+    "expected": "Toast error 'Branch is required'; dialog stays open",
+    "selectorHints": [
+      "getByPlaceholder('Search branch...')"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:231–234"
+  },
+  {
+    "id": "RM-C14",
+    "title": "Create room — server rejects (permission denied)",
+    "type": "error",
+    "steps": [
+      "As a user whose role lacks appointment_management:create, open Create Room dialog via direct DOM manipulation",
+      "Submit a valid form"
+    ],
+    "expected": "Server returns FORBIDDEN (403); useApiMutation shows toast with the error message; dialog remains open",
+    "selectorHints": [],
+    "testable": false,
+    "sourceRef": "rooms.ts:79 / guards.ts:110–120"
+  },
+  {
+    "id": "RM-C15",
+    "title": "Create room — server network error",
+    "type": "error",
+    "steps": [
+      "Open Create Room dialog with valid form data",
+      "Simulate network failure (intercept /rpc/rooms/create)",
+      "Click 'Create Room'"
+    ],
+    "expected": "useApiMutation catches the error; toast.error shown with message; dialog stays open; Create button re-enabled",
+    "selectorHints": [
+      "getByRole('button', { name: 'Create Room' })"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:135–148 / useApiMutation.ts:71–86"
+  },
+  {
+    "id": "RM-C16",
+    "title": "Edit room — toggle Active status via checkbox",
+    "type": "golden",
+    "steps": [
+      "Click 'Edit' on an active room",
+      "Uncheck the 'Active' checkbox",
+      "Click 'Save Changes'"
+    ],
+    "expected": "Room is updated with isActive: false; success toast; room disappears from Active filter list",
+    "selectorHints": [
+      "getByLabelText('Active')",
+      "getByRole('button', { name: 'Save Changes' })"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:447–465,237–243"
+  },
+  {
+    "id": "RM-C17",
+    "title": "Edit room — Active checkbox absent in Create mode",
+    "type": "edge",
+    "steps": [
+      "Open Create Room dialog (not edit)",
+      "Inspect the dialog for an Active checkbox"
+    ],
+    "expected": "No Active checkbox visible in Create mode; newly created rooms default to isActive: true",
+    "selectorHints": [
+      "queryByLabelText('Active')"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:447"
+  },
+  {
+    "id": "RM-C18",
+    "title": "Edit room — Branch branch accessible RBAC rejection",
+    "type": "error",
+    "steps": [
+      "As a staff user scoped to Branch A, attempt to change a room's branch to Branch B (outside scope)",
+      "Submit the form"
+    ],
+    "expected": "Server returns FORBIDDEN (guardBranchAccessible); useApiMutation shows toast error",
+    "selectorHints": [],
+    "testable": false,
+    "sourceRef": "rooms.ts:108–110 / guards.ts:55–70"
+  },
+  {
+    "id": "RM-C19",
+    "title": "No organisation context selected",
+    "type": "edge",
+    "steps": [
+      "Render RoomsPage with userContext.currentOrganizationId = null"
+    ],
+    "expected": "'Select an organization to view rooms.' message shown; no query fires; no Create Room button",
+    "selectorHints": [
+      "getByText('Select an organization to view rooms.')"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:259–265"
+  },
+  {
+    "id": "RM-C20",
+    "title": "Rooms list loading state",
+    "type": "golden",
+    "steps": [
+      "Navigate to rooms tab",
+      "Observe render while query is in-flight"
+    ],
+    "expected": "PageLoader spinner is displayed; no table content visible",
+    "selectorHints": [
+      "getByTestId('page-loader')"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:267–269"
+  },
+  {
+    "id": "RM-C21",
+    "title": "Rooms list error state + retry",
+    "type": "error",
+    "steps": [
+      "Simulate network error on /rpc/rooms/list",
+      "Observe error state",
+      "Click 'Try Again'"
+    ],
+    "expected": "Error panel with message shown; clicking 'Try Again' fires refetch()",
+    "selectorHints": [
+      "getByText('Failed to load data')",
+      "getByRole('button', { name: 'Try Again' })"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:271–287"
+  },
+  {
+    "id": "RM-C22",
+    "title": "Empty state with Create action",
+    "type": "edge",
+    "steps": [
+      "Ensure the org has no rooms for the selected filter",
+      "Navigate to rooms tab"
+    ],
+    "expected": "EmptyState renders with 'No rooms found', 'Create your first room to get started.', and 'Create Room' action button (if canCreate)",
+    "selectorHints": [
+      "getByText('No rooms found')",
+      "getByRole('button', { name: 'Create Room' })"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:326–337"
+  },
+  {
+    "id": "RM-C23",
+    "title": "Empty state without Create action (read-only user)",
+    "type": "edge",
+    "steps": [
+      "Log in as a user with appointment_management:read but not appointment_management:create",
+      "Navigate to rooms tab with no rooms for the filter"
+    ],
+    "expected": "EmptyState renders without the 'Create Room' action button",
+    "selectorHints": [
+      "getByText('No rooms found')"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:331–335"
+  },
+  {
+    "id": "RM-C24",
+    "title": "Search filters table client-side",
+    "type": "golden",
+    "steps": [
+      "Load rooms with multiple rows",
+      "Type a partial room name in the search input"
+    ],
+    "expected": "Table rows filter immediately (no API call); non-matching rows disappear; clearing search restores all rows",
+    "selectorHints": [
+      "getByPlaceholder('Search rooms...')"
+    ],
+    "testable": true,
+    "sourceRef": "data-table.tsx:104–111,67–74"
+  },
+  {
+    "id": "RM-C25",
+    "title": "Search yields no results — in-table empty state",
+    "type": "edge",
+    "steps": [
+      "Type a search string that matches no room names",
+    ],
+    "expected": "Table body shows EmptyState with 'No results found' and context='search'",
+    "selectorHints": [
+      "getByText('No results found')"
+    ],
+    "testable": true,
+    "sourceRef": "data-table.tsx:155–163"
+  },
+  {
+    "id": "RM-C26",
+    "title": "Name column sort",
+    "type": "golden",
+    "steps": [
+      "Load multiple rooms",
+      "Click the 'Name' column header button once (ascending sort)",
+      "Click again (descending sort)"
+    ],
+    "expected": "Rows sort alphabetically by name ascending then descending; no API call; sort icon toggles",
+    "selectorHints": [
+      "getByRole('button', { name: /Name/ })"
+    ],
+    "testable": true,
+    "sourceRef": "columns.tsx:36–43"
+  },
+  {
+    "id": "RM-C27",
+    "title": "Edit button is no-op for user without appointment_management:update",
+    "type": "edge",
+    "steps": [
+      "Log in as a user with appointment_management:read but not appointment_management:update",
+      "Click 'Edit' on any room row"
+    ],
+    "expected": "No dialog opens; button click silently ignored (empty function passed as onEdit)",
+    "selectorHints": [
+      "getByRole('button', { name: 'Edit' })"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:341"
+  },
+  {
+    "id": "RM-C28",
+    "title": "Deactivate/Reactivate buttons visible to read-only user (permission gap)",
+    "type": "edge",
+    "steps": [
+      "Log in as a user with appointment_management:read but not appointment_management:update",
+      "Click 'Deactivate' on an active room row",
+      "Confirm the deactivation"
+    ],
+    "expected": "Server returns FORBIDDEN; toast error displayed. Buttons should ideally be hidden for read-only users but are currently always shown.",
+    "selectorHints": [
+      "getByRole('button', { name: 'Deactivate' })"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:342–348 / rooms.ts:111"
+  },
+  {
+    "id": "RM-C29",
+    "title": "Deactivate cancellation",
+    "type": "edge",
+    "steps": [
+      "Click 'Deactivate' on a room",
+      "Click 'Cancel' in the confirmation dialog"
+    ],
+    "expected": "Dialog closes; room remains active; no API call made",
+    "selectorHints": [
+      "getByRole('button', { name: 'Cancel' })"
+    ],
+    "testable": true,
+    "sourceRef": "data-table.tsx:186–192"
+  },
+  {
+    "id": "RM-C30",
+    "title": "Deactivate — server network error",
+    "type": "error",
+    "steps": [
+      "Intercept /rpc/rooms/update to return a network error",
+      "Click 'Deactivate' and confirm"
+    ],
+    "expected": "Dialog closes (finally block), toast.error shown with error message",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "data-table.tsx:76–86"
+  },
+  {
+    "id": "RM-C31",
+    "title": "No branches available — form shows warning message",
+    "type": "edge",
+    "steps": [
+      "Ensure hierarchy nodes query returns no nodes with type='branch'",
+      "Open Create Room dialog"
+    ],
+    "expected": "Branch field shows 'No branches found. Create a branch first.' message; form cannot be submitted (branch required)",
+    "selectorHints": [
+      "getByText('No branches found. Create a branch first.')"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:431–435"
+  },
+  {
+    "id": "RM-C32",
+    "title": "Hierarchy nodes query error — branches silently empty",
+    "type": "error",
+    "steps": [
+      "Intercept /rpc/hierarchy/listNodes to return an error",
+      "Open Create Room dialog"
+    ],
+    "expected": "No error message about hierarchy failure; form shows 'No branches found'; user cannot distinguish network error from truly empty org. Risk: silent failure.",
+    "selectorHints": [
+      "getByText('No branches found. Create a branch first.')"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:75–96"
+  },
+  {
+    "id": "RM-C33",
+    "title": "Branch combobox search filters options",
+    "type": "golden",
+    "steps": [
+      "Open Create Room dialog",
+      "Focus the branch combobox input",
+      "Type a partial branch name"
+    ],
+    "expected": "Dropdown filters to matching branch names; selecting one sets branchId; clearing input shows all again",
+    "selectorHints": [
+      "getByPlaceholder('Search branch...')"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:494–558"
+  },
+  {
+    "id": "RM-C34",
+    "title": "Branch combobox search — no match",
+    "type": "edge",
+    "steps": [
+      "Open Create Room dialog",
+      "Focus the branch combobox input",
+      "Type 'zzzzznomatch'"
+    ],
+    "expected": "Dropdown shows 'No branches found' message",
+    "selectorHints": [
+      "getByText('No branches found')"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:533–536"
+  },
+  {
+    "id": "RM-C35",
+    "title": "Dialog backdrop click closes form without saving",
+    "type": "edge",
+    "steps": [
+      "Open Create Room dialog",
+      "Enter some data in fields",
+      "Click outside the dialog (backdrop)"
+    ],
+    "expected": "Dialog closes via onOpenChange(false) → closeSheet(); no API call; form state reset; no warning about unsaved changes",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:357–359"
+  },
+  {
+    "id": "RM-C36",
+    "title": "Create room — very large capacity value (no upper-bound guard)",
+    "type": "edge",
+    "steps": [
+      "Open Create Room dialog",
+      "Enter Capacity: 999999",
+      "Fill other fields and submit"
+    ],
+    "expected": "Room created with capacity 999999; no error. No upper-bound validation exists at either client or server layer.",
+    "selectorHints": [
+      "getByLabelText('Capacity')"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:226–230 / rooms.ts:67"
+  },
+  {
+    "id": "RM-C37",
+    "title": "Route-level permission denied redirect",
+    "type": "error",
+    "steps": [
+      "Log in as a user without service_management:read",
+      "Navigate to /dashboard/service/view?tab=rooms"
+    ],
+    "expected": "User is redirected to /dashboard?unauthorized=true before the page renders",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "view.tsx:13–15 / route-guards.ts:85–118"
+  },
+  {
+    "id": "RM-C38",
+    "title": "Staff user sees only rooms in accessible branches",
+    "type": "edge",
+    "steps": [
+      "Log in as a staff user scoped to Branch A only",
+      "Navigate to rooms tab"
+    ],
+    "expected": "Only rooms whose branchId is within the staff member's accessibleNodeIds are returned; rooms in Branch B (outside scope) do not appear",
+    "selectorHints": [],
+    "testable": false,
+    "sourceRef": "rooms.service.ts:35–39"
+  },
+  {
+    "id": "RM-C39",
+    "title": "Staff user sees all branches in combobox but cannot create in out-of-scope branch",
+    "type": "error",
+    "steps": [
+      "Log in as a staff user scoped to Branch A",
+      "Open Create Room dialog",
+      "Select Branch B (displayed in combobox despite being out of scope)",
+      "Submit the form"
+    ],
+    "expected": "Server returns FORBIDDEN (guardBranchAccessible); toast error displayed. Combobox should ideally filter to accessible branches only.",
+    "selectorHints": [
+      "getByPlaceholder('Search branch...')"
+    ],
+    "testable": false,
+    "sourceRef": "rooms-page.tsx:75–96 vs rooms.ts:78"
+  },
+  {
+    "id": "RM-C40",
+    "title": "Create button hidden for user without appointment_management:create",
+    "type": "edge",
+    "steps": [
+      "Log in as a user with service_management:read and appointment_management:read only",
+      "Navigate to rooms tab"
+    ],
+    "expected": "'Create Room' button is not rendered in the action bar or in EmptyState",
+    "selectorHints": [
+      "queryByRole('button', { name: 'Create Room' })"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:312–321,331–335"
+  },
+  {
+    "id": "RM-C41",
+    "title": "Rooms.delete procedure uses appointment_management:update permission",
+    "type": "edge",
+    "steps": [
+      "Call rooms.delete via API with a user who has appointment_management:update but not a hypothetical appointment_management:delete"
+    ],
+    "expected": "Delete (soft deactivation) succeeds. There is no delete-specific permission; update is sufficient for both edit and delete operations.",
+    "selectorHints": [],
+    "testable": false,
+    "sourceRef": "rooms.ts:135"
+  },
+  {
+    "id": "RM-C42",
+    "title": "Double-click Create Room button (race condition)",
+    "type": "edge",
+    "steps": [
+      "Open Create Room dialog",
+      "Fill all fields",
+      "Double-click 'Create Room' button rapidly before first response returns"
+    ],
+    "expected": "Button is disabled while isBusy=true (createMutation.isPending); second click should be ignored. Only one room should be created.",
+    "selectorHints": [
+      "getByRole('button', { name: 'Create Room' })"
+    ],
+    "testable": true,
+    "sourceRef": "rooms-page.tsx:257,472"
+  },
+  {
+    "id": "RM-C43",
+    "title": "Deactivate room already inactive (server round-trip)",
+    "type": "edge",
+    "steps": [
+      "In All filter, click Deactivate on a room that was just deactivated by another session (race condition)",
+      "Confirm deactivation"
+    ],
+    "expected": "Server updateRoom fires; if room is already inactive, it sets isActive: false again idempotently. No error thrown.",
+    "selectorHints": [],
+    "testable": false,
+    "sourceRef": "rooms.service.ts:73–94"
+  },
+  {
+    "id": "RM-C44",
+    "title": "Update non-existent room ID (server error)",
+    "type": "error",
+    "steps": [
+      "Craft a direct API call to rooms.update with a valid UUID that doesn't exist in the DB"
+    ],
+    "expected": "updateRoom returns no rows; throws 'Room not found'; oRPC maps to internal error; client receives error toast",
+    "selectorHints": [],
+    "testable": false,
+    "sourceRef": "rooms.service.ts:88–92"
+  },
+  {
+    "id": "RM-C45",
+    "title": "Tab navigation — switching away from Rooms resets state",
+    "type": "edge",
+    "steps": [
+      "Navigate to rooms tab",
+      "Set filter to 'Inactive'",
+      "Click 'Categories' tab",
+      "Click 'Rooms' tab again"
+    ],
+    "expected": "RoomsPage component unmounts and remounts; activeFilter resets to 'Active' (default); previous form state is lost",
+    "selectorHints": [
+      "getByRole('button', { name: 'Categories' })",
+      "getByRole('button', { name: 'Rooms' })",
+      "getByRole('button', { name: 'Active' })"
+    ],
+    "testable": true,
+    "sourceRef": "view.tsx:42–44 / rooms-page.tsx:70"
+  }
+]

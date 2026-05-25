@@ -35,7 +35,7 @@ const serviceCategoryFormSchema = z.object({
 		.max(100, "Name must be 100 characters or fewer"),
 	duration: z
 		.number({ message: "Duration must be a number" })
-		.min(0, "Duration must be 0 or more"),
+		.min(1, "Duration must be at least 1 minute"),
 	maxAttendees: z
 		.number({ message: "Must be a number" })
 		.min(1, "Must be at least 1")
@@ -74,7 +74,7 @@ function buildDefaultValues(
 ): ServiceCategoryFormValues {
 	return {
 		name: initialData?.name ?? "",
-		duration: initialData?.duration ?? 0,
+		duration: initialData?.duration ?? 60,
 		maxAttendees: initialData?.maxAttendees,
 		requireAdvanceBooking: initialData?.rules?.requireAdvanceBooking ?? false,
 		minAdvanceHours: initialData?.rules?.minAdvanceHours ?? 0,
@@ -229,12 +229,12 @@ export function ServiceFormDialog({
 										id={field.name}
 										className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 										type="number"
-										min={0}
+										min={1}
 										placeholder="60"
 										value={field.state.value}
 										onBlur={field.handleBlur}
 										onChange={(e) =>
-											field.handleChange(e.target.valueAsNumber || 0)
+											field.handleChange(e.target.valueAsNumber || 1)
 										}
 									/>
 									<p className="text-xs invisible" aria-hidden="true">

@@ -1,0 +1,481 @@
+[
+  {
+    "id": "CAT-C01",
+    "title": "View categories list — golden path",
+    "type": "golden",
+    "steps": [
+      "Log in as admin with service_management:read permission",
+      "Navigate to /dashboard/service/view?tab=categories",
+      "Wait for table to finish loading"
+    ],
+    "expected": "Table renders rows with columns Name, Description, Order, Status (Active/Inactive badge), Created. No loading spinner visible.",
+    "selectorHints": ["getByRole('table')", "getByText('Add Category')", "getByPlaceholder('Search categories...')"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/categories-page.tsx:12-43"
+  },
+  {
+    "id": "CAT-C02",
+    "title": "Create category — happy path",
+    "type": "golden",
+    "steps": [
+      "Click 'Add Category' button",
+      "Enter name 'Personal Training'",
+      "Enter duration 60",
+      "Leave maxAttendees blank",
+      "Click 'Create Service Category'"
+    ],
+    "expected": "Dialog closes, toast 'Service category created', new row appears in table.",
+    "selectorHints": ["getByRole('button', { name: 'Add Category' })", "getByLabelText('Service Category Name')", "getByLabelText(/Duration/)", "getByRole('button', { name: 'Create Service Category' })"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-category-form.tsx:110-158"
+  },
+  {
+    "id": "CAT-C03",
+    "title": "Create category with booking rules enabled",
+    "type": "golden",
+    "steps": [
+      "Open Add Category dialog",
+      "Enter name 'Group Yoga'",
+      "Enter duration 45",
+      "Check 'Require advance booking'",
+      "Enter 24 in Min advance booking (hours)",
+      "Check 'Enable cancellation window'",
+      "Enter 2 in Cancellation cutoff (hours)",
+      "Enter 10 in Buffer Time (minutes)",
+      "Submit"
+    ],
+    "expected": "Category created, config upserted. Toast 'Service category created'. Detail dialog should show all rule values.",
+    "selectorHints": ["getByLabelText('Require advance booking')", "getByLabelText(/Min advance booking/)", "getByLabelText(/Cancellation cutoff/)", "getByLabelText(/Buffer Time/)"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-category-rules-section.tsx:45-165"
+  },
+  {
+    "id": "CAT-C04",
+    "title": "Create category — empty name rejected client-side",
+    "type": "error",
+    "steps": [
+      "Open Add Category dialog",
+      "Leave name empty",
+      "Click submit"
+    ],
+    "expected": "Form validation fires; error message 'Service category name is required' shown under the name field. No API call made.",
+    "selectorHints": ["getByText('Service category name is required')"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-category-form.tsx:32-35"
+  },
+  {
+    "id": "CAT-C05",
+    "title": "Create category — name over 100 chars accepted by client but passes server (schema gap)",
+    "type": "edge",
+    "steps": [
+      "Open Add Category dialog",
+      "Enter a name with 101 characters",
+      "Submit"
+    ],
+    "expected": "Client Zod fires 'Name must be 100 characters or fewer'. API server schema has no max(100) so if client validation is bypassed the record would be created. Verify client Zod actually blocks submission.",
+    "selectorHints": ["getByText('Name must be 100 characters or fewer')"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-category-form.tsx:33-35 | packages/api/src/routers/service-categories.ts:103"
+  },
+  {
+    "id": "CAT-C06",
+    "title": "Create category — duration=0 causes partial DB state (GAP-2)",
+    "type": "error",
+    "steps": [
+      "Open Add Category dialog",
+      "Enter name 'Test'",
+      "Enter duration 0",
+      "Submit"
+    ],
+    "expected": "RISK: serviceCategories.create succeeds (category inserted), then serviceCategoryConfig.upsert fails (server min=1 for defaultDuration). Toast error shown. Category row appears in table WITHOUT config. Expected: either prevent duration=0 on client or the partial state is cleaned up.",
+    "selectorHints": ["getByLabelText(/Duration/)", "getByRole('button', { name: 'Create Service Category' })"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-category-form.tsx:37-38 | packages/api/src/routers/service-category-config.ts:29"
+  },
+  {
+    "id": "CAT-C07",
+    "title": "Create category — maxAttendees=0 client vs server boundary",
+    "type": "edge",
+    "steps": [
+      "Open Add Category dialog",
+      "Enter name 'Test'",
+      "Enter duration 60",
+      "Manually enter 0 in Max Attendees field",
+      "Submit"
+    ],
+    "expected": "Client Zod blocks with 'Must be at least 1'. Server would allow 0 (min(0)). Verify client fires error.",
+    "selectorHints": ["getByLabelText(/Maximum Attendees/)"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-category-form.tsx:40-42"
+  },
+  {
+    "id": "CAT-C08",
+    "title": "Edit category — only name is updated",
+    "type": "edge",
+    "steps": [
+      "Click a category row to open detail dialog",
+      "Click 'Edit' button",
+      "Change name to 'Updated Name'",
+      "Change duration to 90",
+      "Submit"
+    ],
+    "expected": "Name updated in DB. Duration/config also updated via serviceCategoryConfig.upsert. However description, displayOrder, branchId, isActive cannot be changed via this form — they are not included in the update call.",
+    "selectorHints": ["getByRole('button', { name: /Edit/ })", "getByLabelText('Service Category Name')", "getByRole('button', { name: 'Save Changes' })"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-category-form.tsx:114-119"
+  },
+  {
+    "id": "CAT-C09",
+    "title": "Edit category — dialog opens before data loads (stale/empty initialData)",
+    "type": "edge",
+    "steps": [
+      "Click a row to open detail dialog",
+      "Immediately click 'Edit' before API response returns",
+      "Observe edit dialog fields"
+    ],
+    "expected": "If edit dialog opens while editCategoryData is still loading (enabled=true but not resolved), initialData is undefined — form shows empty name='' and default values. User may unknowingly overwrite with blank. Verify whether dialog waits for data before rendering fields.",
+    "selectorHints": ["getByRole('dialog')"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/tables/service-category/view/data-table.tsx:64-91"
+  },
+  {
+    "id": "CAT-C10",
+    "title": "Deactivate category — confirm flow",
+    "type": "golden",
+    "steps": [
+      "Click a category row",
+      "Click 'Deactivate' button in detail dialog",
+      "Click 'Deactivate' in confirmation dialog"
+    ],
+    "expected": "Category isActive set to false. Toast 'Category deactivated'. Both dialogs close. List re-fetches — row still shown with 'Inactive' badge (filter not applied).",
+    "selectorHints": ["getByRole('button', { name: /Deactivate/ })", "getByText(\"Deactivate\")"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-category-detail-dialog.tsx:149-163 | apps/web/src/components/tables/service-category/view/data-table.tsx:101-118"
+  },
+  {
+    "id": "CAT-C11",
+    "title": "Deactivate category — cancel in confirm dialog",
+    "type": "golden",
+    "steps": [
+      "Click a category row",
+      "Click 'Deactivate'",
+      "Click 'Cancel' in confirm dialog"
+    ],
+    "expected": "Confirm dialog closes. Detail dialog remains open. Category still active.",
+    "selectorHints": ["getByRole('button', { name: /Cancel/ })"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-category-detail-dialog.tsx:303-308"
+  },
+  {
+    "id": "CAT-C12",
+    "title": "Deactivate category — permission denied by server",
+    "type": "error",
+    "steps": [
+      "Log in as user with service_management:read only (no update permission)",
+      "Open category detail",
+      "Click Deactivate → Confirm"
+    ],
+    "expected": "Server returns FORBIDDEN. Toast error shown with error message. Detail dialog remains open. NOTE: Deactivate button is visible in UI even for read-only users — no client-side guard.",
+    "selectorHints": ["getByRole('button', { name: /Deactivate/ })"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-category-detail-dialog.tsx:190-199 | packages/api/src/routers/service-categories.ts:164"
+  },
+  {
+    "id": "CAT-C13",
+    "title": "No reactivation path in UI (GAP-5)",
+    "type": "edge",
+    "steps": [
+      "Deactivate a category",
+      "Observe the row in table (shows Inactive badge)",
+      "Click row to open detail dialog",
+      "Look for reactivate option"
+    ],
+    "expected": "MISSING: there is no 'Reactivate' button anywhere in the UI. Deactivated categories can only be reactivated via direct API call or direct DB update. Confirm no reactivation flow exists.",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-category-detail-dialog.tsx:176-202"
+  },
+  {
+    "id": "CAT-C14",
+    "title": "Search filter — client-side text match",
+    "type": "golden",
+    "steps": [
+      "With categories loaded in table",
+      "Type a partial category name into the search input",
+      "Observe filtered rows"
+    ],
+    "expected": "Rows matching the search string (case-insensitive, includes-string on all columns) shown. Non-matching rows hidden. No API call triggered.",
+    "selectorHints": ["getByPlaceholder('Search categories...')"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/tables/service-category/view/data-table.tsx:53-61"
+  },
+  {
+    "id": "CAT-C15",
+    "title": "Search filter — no matching results shows empty state",
+    "type": "edge",
+    "steps": [
+      "Type a string that matches no category name",
+      "Observe table"
+    ],
+    "expected": "EmptyState with title 'No results found' rendered. No action button (context='search' hides action). Search input remains editable.",
+    "selectorHints": ["getByTestId('empty-state')", "getByText('No results found')"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/tables/service-category/view/data-table.tsx:210-220 | apps/web/src/components/ui/empty-state.tsx:30"
+  },
+  {
+    "id": "CAT-C16",
+    "title": "Empty list state (no categories in org)",
+    "type": "edge",
+    "steps": [
+      "Navigate to categories tab for an org with zero categories"
+    ],
+    "expected": "EmptyState rendered with 'No results found'. The DataTable does not pass emptyTitle/emptyDescription/emptyAction from the page level — any custom empty copy would be missing.",
+    "selectorHints": ["getByTestId('empty-state')"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/categories-page.tsx:34-43 | apps/web/src/components/tables/service-category/view/data-table.tsx:213"
+  },
+  {
+    "id": "CAT-C17",
+    "title": "List fetch error renders empty table not error message (GAP-1)",
+    "type": "error",
+    "steps": [
+      "Simulate network error on serviceCategories.list (e.g., block the request)",
+      "Navigate to categories tab"
+    ],
+    "expected": "CURRENT BEHAVIOR: page shows empty table with 'No results found' — no error indication. EXPECTED: should show an error state. Verify that isError from useQuery is not surfaced.",
+    "selectorHints": ["getByTestId('empty-state')"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/categories-page.tsx:12-43"
+  },
+  {
+    "id": "CAT-C18",
+    "title": "User without service_management:read is redirected",
+    "type": "error",
+    "steps": [
+      "Log in as user without service_management:read",
+      "Navigate to /dashboard/service/view?tab=categories"
+    ],
+    "expected": "beforeLoad fires requirePermission('service_management:read'); redirect to /dashboard?unauthorized=true.",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "apps/web/src/routes/_authenticated/dashboard/_layout/service/view.tsx:14"
+  },
+  {
+    "id": "CAT-C19",
+    "title": "No organizationId (user not in any org) shows fallback message",
+    "type": "edge",
+    "steps": [
+      "Log in as user with no organization",
+      "Navigate to categories tab"
+    ],
+    "expected": "ServiceCategoriesPage renders 'Select an organization to view service categories.' No table, no API call.",
+    "selectorHints": ["getByText('Select an organization to view service categories.')"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/categories-page.tsx:21-27"
+  },
+  {
+    "id": "CAT-C20",
+    "title": "Commission Config — open sheet for unconfigured category",
+    "type": "golden",
+    "steps": [
+      "Click 'Commission Config' button on a row with no existing commission config",
+      "Observe dialog content"
+    ],
+    "expected": "Dialog opens with 'No config yet' badge. Form shows default: paymentType=fixed, 1 slot (Head Coach, 100%), maxCoaches=1, rates populated from active tiers at 0.",
+    "selectorHints": ["getByRole('button', { name: 'Commission Config' })", "getByText('No config yet')"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/category-commission-form.tsx:72-80"
+  },
+  {
+    "id": "CAT-C21",
+    "title": "Commission Config — save with slot weightage ≠ 100%",
+    "type": "error",
+    "steps": [
+      "Open Commission Config",
+      "Add a second slot",
+      "Leave both slots at < 100% total",
+      "Click Save Config"
+    ],
+    "expected": "toast.error('Slot weightages must total 100%'). No API call made. Badge shows current percentage in red.",
+    "selectorHints": ["getByRole('button', { name: 'Save Config' })"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/category-commission-form.tsx:138-140"
+  },
+  {
+    "id": "CAT-C22",
+    "title": "Commission Config — save with no rates (flat mode, no tiers)",
+    "type": "error",
+    "steps": [
+      "Open Commission Config for org with no active trainer tiers",
+      "Leave rates empty",
+      "Click Save Config"
+    ],
+    "expected": "toast.error('At least one rate is required'). No API call.",
+    "selectorHints": ["getByText('No active trainer tiers found.')"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/category-commission-form.tsx:143-145"
+  },
+  {
+    "id": "CAT-C23",
+    "title": "Commission Config — save conditional mode with no conditions",
+    "type": "error",
+    "steps": [
+      "Toggle 'Rate depends on attendee count' switch on",
+      "Do not add any conditions",
+      "Click Save Config"
+    ],
+    "expected": "toast.error('At least one condition is required'). No API call.",
+    "selectorHints": ["getByRole('switch', { name: /Rate depends on attendee count/ })"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/category-commission-form.tsx:147-149"
+  },
+  {
+    "id": "CAT-C24",
+    "title": "Commission Config — stale data after save (GAP-3)",
+    "type": "edge",
+    "steps": [
+      "Open Commission Config for a category",
+      "Change rates and save successfully",
+      "Close the sheet",
+      "Immediately reopen Commission Config for the same category"
+    ],
+    "expected": "CURRENT BEHAVIOR: sheet shows old rates because query key is not invalidated after upsert. EXPECTED: re-opened sheet should show updated values.",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/category-commission-form.tsx:129-135"
+  },
+  {
+    "id": "CAT-C25",
+    "title": "Commission Config — category_commission_management:read denied",
+    "type": "error",
+    "steps": [
+      "Log in as user with service_management:read but NOT category_commission_management:read",
+      "Click 'Commission Config' on any row"
+    ],
+    "expected": "Dialog opens and loading state shows, then getByCategory returns FORBIDDEN. Dialog should show error or empty state. Currently no error handling for this query in CategoryCommissionForm — isLoadingConfig stays false, existingConfig=undefined, form renders as if new with 'No config yet' badge.",
+    "selectorHints": ["getByText('No config yet')"],
+    "testable": true,
+    "sourceRef": "packages/api/src/routers/category-commission.ts:25 | apps/web/src/components/forms/category-commission-form.tsx:72-80"
+  },
+  {
+    "id": "CAT-C26",
+    "title": "Detail dialog fetch error shows error callout",
+    "type": "error",
+    "steps": [
+      "Click a category row",
+      "Simulate network error on getById request"
+    ],
+    "expected": "Error message displayed via StatusCallout variant='error'. Category details not shown. Close button still functional.",
+    "selectorHints": ["getByRole('dialog')"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-category-detail-dialog.tsx:131-139 | 212"
+  },
+  {
+    "id": "CAT-C27",
+    "title": "Detail dialog — config section hidden when no config exists",
+    "type": "edge",
+    "steps": [
+      "Create a category (which causes serviceCategoryConfig.upsert to fail for duration=0)",
+      "Click that category row"
+    ],
+    "expected": "Detail dialog shows Overview section but no Timing / Booking Rules sections (config is null). This is correct conditional rendering but confirms partial-create state is visible.",
+    "selectorHints": ["getByText('Overview')"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-category-detail-dialog.tsx:235-269"
+  },
+  {
+    "id": "CAT-C28",
+    "title": "Row click vs Commission Config button — event propagation isolation",
+    "type": "edge",
+    "steps": [
+      "Click the 'Commission Config' button on a row"
+    ],
+    "expected": "Commission Config sheet opens. Detail dialog does NOT open. e.stopPropagation() call verified in code.",
+    "selectorHints": ["getByRole('button', { name: 'Commission Config' })"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/tables/service-category/view/data-table.tsx:196-208"
+  },
+  {
+    "id": "CAT-C29",
+    "title": "Buffer time at max boundary (480 min)",
+    "type": "edge",
+    "steps": [
+      "Open Add Category",
+      "Enter buffer time 480",
+      "Submit"
+    ],
+    "expected": "Accepted by both client and server. Verify 481 is rejected by both.",
+    "selectorHints": ["getByLabelText(/Buffer Time/)"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-category-rules-section.tsx:141-160 | packages/api/src/routers/service-category-config.ts:37"
+  },
+  {
+    "id": "CAT-C30",
+    "title": "Commission Config — 'between' operator shows thresholdMax field",
+    "type": "edge",
+    "steps": [
+      "Open Commission Config",
+      "Toggle conditional mode on",
+      "Add a condition",
+      "Change operator to 'Between'",
+      "Observe form fields"
+    ],
+    "expected": "An additional 'Max' number input appears. Other operators do not show this field.",
+    "selectorHints": ["getByRole('combobox')", "getByLabelText('Max')"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/category-commission-form.tsx:519-531"
+  },
+  {
+    "id": "CAT-C31",
+    "title": "Inactive categories remain visible in list (no isActive filter sent)",
+    "type": "edge",
+    "steps": [
+      "Deactivate a category",
+      "Observe the table"
+    ],
+    "expected": "Deactivated category still appears in list with 'Inactive' badge. The list query does not filter by isActive. Admin can still interact with (click, commission config) inactive categories.",
+    "selectorHints": ["getByText('Inactive')"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/categories-page.tsx:12-18 | packages/api/src/routers/service-categories.ts:42-46"
+  },
+  {
+    "id": "CAT-C32",
+    "title": "minAdvanceHours field disabled when requireAdvanceBooking is unchecked",
+    "type": "edge",
+    "steps": [
+      "Open Add Category",
+      "Leave 'Require advance booking' unchecked",
+      "Attempt to type in Min advance booking field"
+    ],
+    "expected": "Input is disabled. User cannot enter a value. Placeholder shows 'Not required'.",
+    "selectorHints": ["getByLabelText(/Min advance booking/)"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-category-rules-section.tsx:100-101"
+  },
+  {
+    "id": "CAT-C33",
+    "title": "Create category — server BAD_REQUEST (e.g., duplicate name at service layer)",
+    "type": "error",
+    "steps": [
+      "Attempt to create a category with a name that the service layer rejects",
+      "Submit the form"
+    ],
+    "expected": "Category create throws, caught by router try/catch, re-thrown as ORPCError('BAD_REQUEST'). useApiMutation catches and shows toast.error(err.message).",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "packages/api/src/routers/service-categories.ts:139-143"
+  },
+  {
+    "id": "CAT-C34",
+    "title": "Commission Config — remove slot disabled when only one slot remains",
+    "type": "edge",
+    "steps": [
+      "Open Commission Config",
+      "Observe the trash icon on the single default slot"
+    ],
+    "expected": "Trash button is disabled when slots.length === 1. Verify clicking has no effect.",
+    "selectorHints": ["getByRole('button', { name: /remove/i })"],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/category-commission-form.tsx:357-361"
+  }
+]

@@ -189,7 +189,9 @@ export async function listServicePriceOverrides(
 		.where(
 			and(
 				eq(servicePrices.serviceId, serviceId),
-				lte(servicePrices.effectiveFrom, at),
+				// Intentionally omits lte(effectiveFrom, at) so future-scheduled
+				// overrides are visible in the management UI (F-PRI-01).
+				// The not-yet-expired filter still applies.
 				or(isNull(servicePrices.effectiveUntil), gt(servicePrices.effectiveUntil, at)),
 			),
 		)

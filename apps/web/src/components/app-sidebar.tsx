@@ -128,9 +128,10 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				permission: "appointment_management:read",
 			},
 			{
-				title: "Trainer Availability",
-				url: "/dashboard/trainers/availability",
+				title: "Trainers",
+				url: "/dashboard/trainers/view",
 				icon: CalendarRange,
+				permission: "user_management:read",
 			},
 			{
 				title: "Services",
@@ -172,11 +173,6 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				icon: TrendingUp,
 			},
 			{ title: "Tax Rates", url: "/dashboard/settings/tax-rates", icon: Tag },
-			{
-				title: "Installment Plans",
-				url: "/dashboard/settings/installment-plans",
-				icon: CreditCard,
-			},
 			{ title: "Expenses", url: "/dashboard/expenses/view", icon: Receipt },
 			{ title: "Products", url: "/dashboard/products/view", icon: Package },
 			{ title: "Packages", url: "/dashboard/packages/view", icon: Package, permission: "service_management:read" },
@@ -187,12 +183,6 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 	{
 		label: "Staff & Access",
 		items: [
-			{
-				title: "Trainers",
-				url: "/dashboard/trainers/view",
-				icon: Users,
-				permission: "user_management:read",
-			},
 			{ title: "Employees", url: "/dashboard/user/view", icon: Users },
 			{
 				title: "Attendance",
