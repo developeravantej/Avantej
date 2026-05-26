@@ -59,8 +59,10 @@ export const posRouter = {
 				taxRateId: z.string().uuid().optional(),
 				// Payment
 				paymentMethod: z
-					.enum(["cash", "card", "manual_transfer", "bank_transfer", "fpx", "stripe"])
-					.transform((v) => (v === "bank_transfer" ? "manual_transfer" : v)),
+					.enum(["cash", "card", "manual_transfer", "bank_transfer", "fpx", "stripe", "online"])
+					.transform((v): "manual_transfer" | "cash" | "card" | "fpx" | "stripe" =>
+						v === "bank_transfer" ? "manual_transfer" : v === "online" ? "stripe" : (v as "manual_transfer" | "cash" | "card" | "fpx" | "stripe"),
+					),
 				paymentReference: z.string().optional(),
 				amountTenderedCents: z.number().int().min(0).optional(),
 				// Installment
@@ -127,13 +129,9 @@ export const posRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "pos", "create");
 
-			assertOrgContextMatch(context, input);
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 
 			const controlPanelDb = getControlPanelDb(context);

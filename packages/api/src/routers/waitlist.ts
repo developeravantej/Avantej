@@ -8,7 +8,6 @@ import {
 	removeFromWaitlist,
 	promoteFromWaitlist,
 } from "@avantej-core/services/waitlist.service";
-import { requirePermission } from "@avantej-core/services";
 
 const list = tenantProcedure
 	.input(

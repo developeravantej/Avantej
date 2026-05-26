@@ -10,15 +10,7 @@ import DataTable from "@/components/tables/payment/view/data-table";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";
-import { useMemo, useState } from "react";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
-import { StatusTimeline } from "@/components/ui/status-timeline";
+import { useMemo } from "react";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/payment/view",
@@ -29,26 +21,9 @@ export const Route = createFileRoute(
 	component: RouteComponent,
 });
 
-function PaymentHistoryPanel({
-	organizationId,
-	paymentId,
-}: {
-	organizationId: string;
-	paymentId: string;
-}) {
-	const { data, isLoading } = useQuery({
-		queryKey: ["invoices", "paymentStatusHistory", paymentId],
-		queryFn: () =>
-			client.invoices.paymentStatusHistory({ organizationId, paymentId }),
-	});
-	return <StatusTimeline entries={data?.rows ?? []} isLoading={isLoading} />;
-}
-
 function RouteComponent() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-
-	const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
 
 	const {
 		data: invoicesApiData = [],
@@ -74,12 +49,7 @@ function RouteComponent() {
 		e_invoice_status: item.eInvoiceStatus ?? null,
 	}));
 
-	const columns = useMemo(
-		() => buildColumns((paymentId) => setSelectedPaymentId(paymentId)),
-		[],
-	);
-
-	const count = isLoading ? null : paymentsData.length;
+	const columns = useMemo(() => buildColumns(), []);
 
 	return (
 		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
@@ -120,32 +90,6 @@ function RouteComponent() {
 					/>
 				)}
 			</div>
-
-			{/* ── Payment Status History Dialog ── */}
-			<Dialog
-				open={selectedPaymentId !== null}
-				onOpenChange={(open) => {
-					if (!open) setSelectedPaymentId(null);
-				}}
-			>
-				<DialogContent className="sm:max-w-md overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2">
-							<History className="h-4 w-4 text-[#737373]" />
-							Payment Status History
-						</DialogTitle>
-						<DialogDescription>
-							Status transitions for this payment.
-						</DialogDescription>
-					</DialogHeader>
-					{selectedPaymentId && organizationId && (
-						<PaymentHistoryPanel
-							organizationId={organizationId}
-							paymentId={selectedPaymentId}
-						/>
-					)}
-				</DialogContent>
-			</Dialog>
 		</div>
 		</div>
 	);

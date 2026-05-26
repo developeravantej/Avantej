@@ -14,15 +14,12 @@ import {
 	guardInputBranchForContext,
 	resolveAccessibleNodeIds,
 } from "../../guards";
-import { eq, inArray, or, and, gte } from "drizzle-orm";
+import { inArray, or } from "drizzle-orm";
 import { parseCursor, encodeCursor } from "../../lib/cursor";
-import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { memberProfiles } from "@avantej-core/db/schema/tenant/member-profiles";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { appointmentStaff } from "@avantej-core/db/schema/tenant/appointment-staff";
-import { appointments } from "@avantej-core/db/schema/tenant/appointments";
-import { recurrenceRules } from "@avantej-core/db/schema/tenant/recurrence-rules";
 import { user as cpUsers } from "@avantej-core/db/schema/auth";
 import { getControlPanelDb } from "../../lib/context-helpers";
 import { statusSchema } from "./schemas";

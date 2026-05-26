@@ -1,13 +1,11 @@
 import { DataTableColumnHeader } from "@/components/tables/data-column-header";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Copy, Eye, History } from "lucide-react";
+import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatPrice } from "@/lib/money";
-import { useNavigate } from "@tanstack/react-router";
 
 export interface PaymentRow {
 	date?: string | null;
@@ -96,44 +94,7 @@ const formatEInvoiceStatus = (
 	);
 };
 
-function PaymentActionCell({
-	row,
-	onHistoryClick,
-}: {
-	row: import("@tanstack/react-table").Row<PaymentRow>;
-	onHistoryClick?: (paymentId: string) => void;
-}) {
-	const navigate = useNavigate();
-	return (
-		<div className="flex items-center gap-2">
-			<Button
-				variant="ghost"
-				size="sm"
-				onClick={() =>
-					navigate({
-						to: "/dashboard/sales/$id",
-						params: { id: row.original.sales_order ?? "" },
-					})
-				}
-			>
-				<Eye className="h-4 w-4 mr-1" /> View
-			</Button>
-			{row.original.payment_id && onHistoryClick && (
-				<Button
-					variant="ghost"
-					size="sm"
-					onClick={() => onHistoryClick(row.original.payment_id!)}
-				>
-					<History className="h-4 w-4 mr-1" /> History
-				</Button>
-			)}
-		</div>
-	);
-}
-
-export function buildColumns(
-	onHistoryClick?: (paymentId: string) => void,
-): ColumnDef<PaymentRow>[] {
+export function buildColumns(): ColumnDef<PaymentRow>[] {
 	return [
 		// 1. When
 		{
@@ -247,16 +208,6 @@ export function buildColumns(
 			},
 			enableSorting: true,
 			enableHiding: true,
-		},
-		// 8. Action
-		{
-			id: "actions",
-			header: ({ column }) => (
-				<DataTableColumnHeader column={column} title="Action" />
-			),
-			cell: ({ row }) => <PaymentActionCell row={row} onHistoryClick={onHistoryClick} />,
-			enableSorting: false,
-			enableHiding: false,
 		},
 	];
 }

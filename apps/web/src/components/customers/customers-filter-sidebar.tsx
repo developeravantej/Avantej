@@ -7,6 +7,7 @@ interface CustomerOption {
 	name: string;
 	email?: string | null;
 	isDeleted?: boolean | null;
+	isUnclaimed?: boolean | null;
 }
 
 interface CustomersFilterSidebarProps {
@@ -127,7 +128,11 @@ function CustomersFilterSidebarImpl({
 										{customer.name}
 									</p>
 									<p className="truncate text-[11px] text-[#737373]">
-										{customer.isDeleted ? "Deleted" : customer.email ?? "Customer"}
+										{customer.isDeleted
+											? "Deleted"
+											: customer.isUnclaimed
+												? "Unclaimed"
+												: customer.email ?? "Customer"}
 									</p>
 								</div>
 							</button>

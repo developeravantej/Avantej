@@ -10,6 +10,8 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -157,22 +159,18 @@ export function CoachIntakeClaimDialog({
 					{/* Reason input — only for claim mode */}
 					{isClaim ? (
 						<div className="flex flex-col gap-1.5">
-							<label
-								htmlFor="claim-reason"
-								className="text-sm font-medium text-foreground"
-							>
+							<Label htmlFor="claim-reason">
 								Reason{" "}
 								<span className="text-xs font-normal text-muted-foreground">
 									(optional)
 								</span>
-							</label>
-							<textarea
+							</Label>
+							<Textarea
 								id="claim-reason"
 								value={reason}
 								onChange={(e) => setReason(e.target.value)}
 								placeholder="e.g. Holiday, personal appointment, etc."
 								rows={2}
-								className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
 								disabled={isPending}
 							/>
 						</div>

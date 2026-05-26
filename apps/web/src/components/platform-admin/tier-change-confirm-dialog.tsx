@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
 
 export type ProrationBehavior =
 	| "create_prorations"
@@ -152,9 +153,8 @@ export function TierChangeConfirmDialog({
 						<Label htmlFor="tier-change-notes">
 							Internal notes (optional)
 						</Label>
-						<textarea
+						<Textarea
 							id="tier-change-notes"
-							className="w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm"
 							placeholder="Audit-only context — e.g. ticket number, customer ask"
 							value={notes}
 							onChange={(e) => setNotes(e.target.value)}

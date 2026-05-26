@@ -3,6 +3,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 
@@ -137,102 +147,99 @@ export function AssignPackageModal({
 				<form onSubmit={handleSubmit} className="mt-2 space-y-4">
 					{/* Package selector */}
 					<div className="space-y-1.5">
-						<label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
+						<Label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
 							Package <span className="text-rose-500">*</span>
-						</label>
+						</Label>
 						{isLoading ? (
 							<div className="h-9 rounded-lg bg-[#e5e5e5] animate-pulse" />
 						) : (
-							<select
-								required
-								value={packageId}
-								onChange={(e) => setPackageId(e.target.value)}
-								className="w-full rounded-lg border border-[#e5e5e5] bg-white px-3 py-2 text-sm text-[#0a0a0a] outline-none focus:border-[#0a0a0a] focus:ring-1 focus:ring-[#0a0a0a]"
-							>
-								<option value="">Select a package…</option>
-								{packages.map((pkg) => (
-									<option key={pkg.id} value={pkg.id}>
-										{pkg.name}
-										{pkg.sessionCount ? ` (${pkg.sessionCount} sessions)` : ""}
-									</option>
-								))}
-							</select>
+							<Select required value={packageId} onValueChange={setPackageId}>
+								<SelectTrigger>
+									<SelectValue placeholder="Select a package…" />
+								</SelectTrigger>
+								<SelectContent>
+									{packages.map((pkg) => (
+										<SelectItem key={pkg.id} value={pkg.id}>
+											{pkg.name}
+											{pkg.sessionCount ? ` (${pkg.sessionCount} sessions)` : ""}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
 						)}
 					</div>
 
 					{/* Branch selector */}
 					<div className="space-y-1.5">
-						<label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
+						<Label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
 							Branch <span className="text-rose-500">*</span>
-						</label>
+						</Label>
 						{isLoading ? (
 							<div className="h-9 rounded-lg bg-[#e5e5e5] animate-pulse" />
 						) : (
-							<select
-								required
-								value={branchId}
-								onChange={(e) => setBranchId(e.target.value)}
-								className="w-full rounded-lg border border-[#e5e5e5] bg-white px-3 py-2 text-sm text-[#0a0a0a] outline-none focus:border-[#0a0a0a] focus:ring-1 focus:ring-[#0a0a0a]"
-							>
-								<option value="">Select a branch…</option>
-								{branches.map((branch) => (
-									<option key={branch.id} value={branch.id}>
-										{branch.name}
-									</option>
-								))}
-							</select>
+							<Select required value={branchId} onValueChange={setBranchId}>
+								<SelectTrigger>
+									<SelectValue placeholder="Select a branch…" />
+								</SelectTrigger>
+								<SelectContent>
+									{branches.map((branch) => (
+										<SelectItem key={branch.id} value={branch.id}>
+											{branch.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
 						)}
 					</div>
 
 					{/* Trainer selector (optional) */}
 					<div className="space-y-1.5">
-						<label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
+						<Label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
 							Trainer <span className="text-[#a3a3a3] font-normal normal-case">(optional)</span>
-						</label>
+						</Label>
 						{isLoading ? (
 							<div className="h-9 rounded-lg bg-[#e5e5e5] animate-pulse" />
 						) : (
-							<select
-								value={trainerMemberId}
-								onChange={(e) => setTrainerMemberId(e.target.value)}
-								className="w-full rounded-lg border border-[#e5e5e5] bg-white px-3 py-2 text-sm text-[#0a0a0a] outline-none focus:border-[#0a0a0a] focus:ring-1 focus:ring-[#0a0a0a]"
-							>
-								<option value="">No trainer assigned</option>
-								{trainers.map((trainer: { id: string; name: string; email: string }) => (
-									<option key={trainer.id} value={trainer.id}>
-										{trainer.name ?? trainer.email ?? trainer.id}
-									</option>
-								))}
-							</select>
+							<Select value={trainerMemberId} onValueChange={setTrainerMemberId}>
+								<SelectTrigger>
+									<SelectValue placeholder="No trainer assigned" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="">No trainer assigned</SelectItem>
+									{trainers.map((trainer: { id: string; name: string; email: string }) => (
+										<SelectItem key={trainer.id} value={trainer.id}>
+											{trainer.name ?? trainer.email ?? trainer.id}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
 						)}
 					</div>
 
 					{/* Start date */}
 					<div className="space-y-1.5">
-						<label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
+						<Label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
 							Start date <span className="text-rose-500">*</span>
-						</label>
-						<input
+						</Label>
+						<Input
 							type="date"
 							required
 							value={startDate}
 							onChange={(e) => setStartDate(e.target.value)}
-							className="w-full rounded-lg border border-[#e5e5e5] bg-white px-3 py-2 text-sm text-[#0a0a0a] outline-none focus:border-[#0a0a0a] focus:ring-1 focus:ring-[#0a0a0a]"
 						/>
 					</div>
 
 					{/* Notes */}
 					<div className="space-y-1.5">
-						<label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
+						<Label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
 							Notes <span className="text-[#a3a3a3] font-normal normal-case">(optional)</span>
-						</label>
-						<textarea
+						</Label>
+						<Textarea
 							value={notes}
 							onChange={(e) => setNotes(e.target.value)}
 							rows={2}
 							maxLength={500}
 							placeholder="Any remarks for this assignment…"
-							className="w-full rounded-lg border border-[#e5e5e5] bg-white px-3 py-2 text-sm text-[#0a0a0a] outline-none focus:border-[#0a0a0a] focus:ring-1 focus:ring-[#0a0a0a] resize-none"
 						/>
 					</div>
 

@@ -86,6 +86,10 @@ export const customerProfiles = pgTable("customer_profiles", {
 	defaultPaymentMethodId: text("default_payment_method_id"),
 	// === /3d ===
 
+	// Unclaimed: profile was created by staff on behalf of the customer.
+	// Cleared when the customer claims their account via magic-link.
+	isUnclaimed: boolean("is_unclaimed").default(false).notNull(),
+
 	// Soft-delete support for external sync integrations
 	isDeleted: boolean("is_deleted").default(false).notNull(),
 	deletedAt: timestamp("deleted_at"),
@@ -101,6 +105,7 @@ export const customerProfiles = pgTable("customer_profiles", {
 		.where(sql`${table.userId} IS NOT NULL`),
 	creditPointsIdx: index("customer_profiles_credits_idx").on(table.creditPoints),
 	isDeletedIdx: index("customer_profiles_is_deleted_idx").on(table.isDeleted),
+	isUnclaimedIdx: index("customer_profiles_is_unclaimed_idx").on(table.isUnclaimed),
 	// === 3.2 attribution lookup indexes ===
 	leadSourceIdx: index("customer_profiles_lead_source_idx").on(table.leadSourceId),
 	referrerMemberIdx: index("customer_profiles_referrer_member_idx").on(

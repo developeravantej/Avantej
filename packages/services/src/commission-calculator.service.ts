@@ -386,24 +386,36 @@ async function _buildSplits(
 		return new Map(memberData.map(m => [m.userId, m]));
 	})();
 
-	const eligibleAssignments = (() => {
+	const eligibleAssignments = await (async () => {
 		if (!p.requireTrainerRole) return validAssignments;
-		return validAssignments.filter(a => {
+		const eligible: typeof validAssignments = [];
+		for (const a of validAssignments) {
 			const m = memberByUserId.get(a.staffId);
 			if (!m) {
 				console.warn(JSON.stringify({ event: "commission_skipped_member_not_found", staffId: a.staffId, configId: p.config.id }));
-				return false;
+				continue;
 			}
 			if (m.role !== "trainer") {
 				console.warn(JSON.stringify({ event: "commission_skipped_role_mismatch", staffId: a.staffId, role: m.role, configId: p.config.id, appointmentId: p.appointmentId, salesOrderId: p.salesOrderId }));
-				return false;
+				continue;
 			}
 			if (!m.trainerTierId) {
 				console.warn(JSON.stringify({ event: "commission_skipped_no_tier", staffId: a.staffId, configId: p.config.id }));
-				return false;
+				await writeAudit(db, {
+					actorUserId: p.actor.userId,
+					actorMemberId: p.actor.memberId,
+					actorRole: p.actor.role,
+					action: "commission.skip",
+					entityType: "commission_split",
+					entityId: p.appointmentId ?? p.salesOrderId ?? "unknown",
+					summary: `Commission skipped for staff ${a.staffId}: no trainer tier assigned`,
+					changes: { event: "no_tier", staffId: a.staffId, configId: p.config.id, appointmentId: p.appointmentId, salesOrderId: p.salesOrderId },
+				});
+				continue;
 			}
-			return true;
-		});
+			eligible.push(a);
+		}
+		return eligible;
 	})();
 
 	if (eligibleAssignments.length === 0 && p.requireTrainerRole) {
@@ -414,6 +426,16 @@ async function _buildSplits(
 			salesOrderId: p.salesOrderId,
 			originalCount: validAssignments.length,
 		}));
+		await writeAudit(db, {
+			actorUserId: p.actor.userId,
+			actorMemberId: p.actor.memberId,
+			actorRole: p.actor.role,
+			action: "commission.skip",
+			entityType: "commission_split",
+			entityId: p.appointmentId ?? p.salesOrderId ?? "unknown",
+			summary: `Commission skipped: no eligible trainer staff for appointment/order`,
+			changes: { event: "no_eligible_staff", configId: p.config.id, originalCount: validAssignments.length, appointmentId: p.appointmentId, salesOrderId: p.salesOrderId },
+		});
 		return results;
 	}
 
@@ -508,6 +530,16 @@ async function _buildSplits(
 						configId: p.config.id,
 					}),
 				);
+				await writeAudit(db, {
+					actorUserId: p.actor.userId,
+					actorMemberId: p.actor.memberId,
+					actorRole: p.actor.role,
+					action: "commission.skip",
+					entityType: "commission_split",
+					entityId: p.appointmentId ?? p.salesOrderId ?? "unknown",
+					summary: `Commission skipped for staff ${assignment.staffId}: trainer tier ${member.trainerTierId} has no rate in config ${p.config.id}`,
+					changes: { event: "no_tier_rate", staffId: assignment.staffId, trainerTierId: member.trainerTierId, configId: p.config.id, appointmentId: p.appointmentId, salesOrderId: p.salesOrderId },
+				});
 				continue;
 			}
 			rateAmount = tierRate.amount;
@@ -524,6 +556,16 @@ async function _buildSplits(
 						conditionId: p.matchedConditionId,
 					}),
 				);
+				await writeAudit(db, {
+					actorUserId: p.actor.userId,
+					actorMemberId: p.actor.memberId,
+					actorRole: p.actor.role,
+					action: "commission.skip",
+					entityType: "commission_split",
+					entityId: p.appointmentId ?? p.salesOrderId ?? "unknown",
+					summary: `Commission skipped for staff ${assignment.staffId}: trainer tier ${member.trainerTierId} has no condition rate for condition ${p.matchedConditionId}`,
+					changes: { event: "no_condition_rate", staffId: assignment.staffId, trainerTierId: member.trainerTierId, conditionId: p.matchedConditionId, appointmentId: p.appointmentId, salesOrderId: p.salesOrderId },
+				});
 				continue;
 			}
 			rateAmount = conditionRate.amount;

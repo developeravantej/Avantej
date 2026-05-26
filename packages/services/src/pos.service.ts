@@ -21,13 +21,14 @@ import { services } from "@avantej-core/db/schema/tenant/services";
 import { taxRates } from "@avantej-core/db/schema/tenant/tax-rates";
 import { promotions, promotionUsages } from "@avantej-core/db/schema/tenant/promotions";
 import { installmentPlans } from "@avantej-core/db/schema/tenant/installment-plans";
+import { walkInCustomers } from "@avantej-core/db/schema/tenant/walk-in-customers";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { ORPCError } from "@orpc/server";
 import { writeAudit } from "./audit-log.service";
 import { validatePromoCode } from "./promotions.service";
-import { createInstallmentSchedule, calculateCreditsUnlocked, syncPackagePaymentStatus } from "./installment.service";
+import { createInstallmentSchedule, calculateCreditsUnlocked, syncPackagePaymentStatus, calculateInstallmentAmounts } from "./installment.service";
 import { installments } from "@avantej-core/db/schema/tenant/installments";
 import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
 // Agent 2.3 — Phase 2 Wave 3b — J2 — fallback tax-rate resolution
@@ -85,7 +86,7 @@ export interface RecordPosSaleResult {
 	invoiceId: string;
 	invoiceNumber: string;
 	paymentId: string;
-	packageInstanceId?: string;
+	packageInstanceIds?: string[];
 	installmentIds?: string[];
 	subtotalCents: number;
 	discountCents: number;
@@ -179,6 +180,17 @@ export async function recordPosSale(
 	const packageItems = input.items.filter((i) => i.type === "package");
 
 	// ------------------------------------------------------------------
+	// BE-C3: Reject zero-price non-custom items
+	// ------------------------------------------------------------------
+	for (const item of input.items) {
+		if (item.type !== "custom" && item.unitPriceCents === 0) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Service/package items must have a price greater than zero.",
+			});
+		}
+	}
+
+	// ------------------------------------------------------------------
 	// Pre-transaction validation: package service eligibility
 	// ------------------------------------------------------------------
 	const packageServiceMap = new Map<string, typeof services.$inferSelect>();
@@ -259,6 +271,20 @@ export async function recordPosSale(
 	}
 
 	// ------------------------------------------------------------------
+	// BE-C5: Validate walk-in customerId against walk_in_customers table
+	// ------------------------------------------------------------------
+	if (input.customerType === "walk_in" && input.customerId !== "anonymous") {
+		const walkInRecord = await tenantDb.query.walkInCustomers.findFirst({
+			where: eq(walkInCustomers.id, input.customerId),
+		});
+		if (!walkInRecord) {
+			throw new ORPCError("NOT_FOUND", {
+				message: "Walk-in customer record not found.",
+			});
+		}
+	}
+
+	// ------------------------------------------------------------------
 	// Transaction
 	// ------------------------------------------------------------------
 	const result = await tenantDb.transaction(async (tx) => {
@@ -315,7 +341,8 @@ export async function recordPosSale(
 				tx as unknown as TenantDb,
 				input.promotionCode,
 				{
-					customerId: input.customerId,
+					// BE-M2: walk-in sales bypass per-customer limit check (Agent 2 makes customerId optional)
+					customerId: input.customerType === "walk_in" ? undefined : input.customerId,
 					orderAmount: subtotalCents,
 					serviceIds: serviceIds.length > 0 ? serviceIds : undefined,
 					branchId: input.branchId,
@@ -364,6 +391,24 @@ export async function recordPosSale(
 		const taxBase = Math.max(0, subtotalCents - discountCents);
 		const taxCents = Math.floor((taxBase * (taxRate?.rateInBasisPoints ?? 0)) / 10000);
 		const totalCents = taxBase + taxCents;
+
+		// BE-M1: compute the amount actually due at POS counter.
+		// For installment plans, the payment row and invoice record only the first
+		// installment amount (including any price premium). For full/non-installment
+		// sales, dueNowCents === totalCents.
+		const totalWithPremiumCents = installmentPlan
+			? Math.round(totalCents * (1 + installmentPlan.pricePremiumBps / 10000))
+			: totalCents;
+		const dueNowCents = installmentPlan
+			? calculateInstallmentAmounts(totalWithPremiumCents, installmentPlan.numInstallments)[0]!
+			: totalCents;
+
+		// BE-C1: Reject cash sales where tendered amount is less than due amount
+		if (input.paymentMethod === "cash" && (input.amountTenderedCents ?? 0) < dueNowCents) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Cash tendered (${input.amountTenderedCents ?? 0}) is less than the amount due (${dueNowCents}). Please collect at least the due amount.`,
+			});
+		}
 
 		// Step 6: Generate numbers
 		const salesOrderNumber = await generateSalesOrderNumber(tx, now);
@@ -463,11 +508,11 @@ export async function recordPosSale(
 				customerId: input.customerId,
 				amount: taxBase, // pre-tax, post-discount
 				taxAmount: taxCents,
-				totalAmount: totalCents,
+				totalAmount: dueNowCents, // BE-M1: record the amount collected at POS (first installment, not full order total)
 				currency: "myr", // POS override; default is 'usd' for Stripe payments
 				platformFeeAmount: 0,
 				platformFeePercentage: 0,
-				franchiserAmount: totalCents, // no platform fee at POS
+				franchiserAmount: dueNowCents, // no platform fee at POS
 				status: paymentStatus,
 				paymentNumber,
 				paymentMethod: input.paymentMethod,
@@ -569,7 +614,8 @@ export async function recordPosSale(
 				paymentMode: input.paymentMethod,
 				totalAmount: totalCents,
 				// Plan B Phase 3c.1 — online sales aren't paid until webhook fires.
-				amountPaid: input.paymentMethod === "stripe" ? 0 : totalCents,
+				// BE-M1: for installment plans, amountPaid = first installment only (dueNowCents), not full order total.
+				amountPaid: input.paymentMethod === "stripe" ? 0 : dueNowCents,
 				status: input.paymentMethod === "stripe" ? "pending" : "paid",
 			})
 			.returning();
@@ -582,7 +628,23 @@ export async function recordPosSale(
 		// inline because the customer is paying right now at the POS counter.
 		// 7.2: Schedule creation delegated to createInstallmentSchedule (replaces open-coded loop).
 		// 7.3: salesOrderId backfilled on both package_instance and installment rows.
-		let packageInstanceId: string | undefined;
+
+		// BE-M3: Validate preferredTrainerId before creating package instances
+		if (input.preferredTrainerId) {
+			const trainer = await tx.query.members.findFirst({
+				where: and(
+					eq(members.id, input.preferredTrainerId),
+					eq(members.role, "trainer"),
+				),
+			});
+			if (!trainer) {
+				throw new ORPCError("BAD_REQUEST", {
+					message: "Preferred trainer not found or is not a trainer.",
+				});
+			}
+		}
+
+		let packageInstanceIds: string[] = [];
 		const installmentIds: string[] = [];
 
 		if (packageItems.length > 0) {
@@ -640,7 +702,7 @@ export async function recordPosSale(
 					.returning();
 
 				if (!pkgInstance) throw new Error("Failed to insert package_instance");
-				packageInstanceId = pkgInstance.id;
+				packageInstanceIds.push(pkgInstance.id);
 
 				// Step 13c: Installment schedule — 7.2: use shared helper
 				if (isInstallmentPlan && installmentPlan) {
@@ -725,11 +787,12 @@ export async function recordPosSale(
 		});
 
 		// Step 15: Return result
+		// BE-M1: change due is against what was actually tendered vs. what was due now (first installment, not full order)
 		const changeDueCents =
 			input.paymentMethod === "cash" &&
 			input.amountTenderedCents != null &&
-			input.amountTenderedCents > totalCents
-				? input.amountTenderedCents - totalCents
+			input.amountTenderedCents > dueNowCents
+				? input.amountTenderedCents - dueNowCents
 				: undefined;
 
 		return {
@@ -738,7 +801,7 @@ export async function recordPosSale(
 			invoiceId: invoice.id,
 			invoiceNumber,
 			paymentId: payment.id,
-			packageInstanceId,
+			packageInstanceIds: packageInstanceIds.length > 0 ? packageInstanceIds : undefined,
 			installmentIds: installmentIds.length > 0 ? installmentIds : undefined,
 			subtotalCents,
 			discountCents,
@@ -791,6 +854,19 @@ export async function recordPosSale(
 					itemIndex,
 					itemType: item.type,
 				}));
+				try {
+					await writeAudit(tenantDb, {
+						actorUserId: input.actor.userId,
+						actorMemberId: input.actor.memberId,
+						action: "commission.deferred",
+						entityType: "sales_order",
+						entityId: result.salesOrderId,
+						summary: `Commission deferred for ${item.type} item (index ${itemIndex}, serviceId ${item.refId ?? "unknown"}) — fires on appointment delivery`,
+						changes: { itemIndex, serviceId: item.refId ?? null, itemType: item.type },
+					});
+				} catch {
+					// best-effort — deferred audit must not block the sale
+				}
 				continue;
 			}
 

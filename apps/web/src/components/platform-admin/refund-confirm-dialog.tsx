@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { Invoice } from "./invoice-list";
 
@@ -172,9 +173,8 @@ export function RefundConfirmDialog({
 
 					<div>
 						<Label htmlFor="refund-notes">Internal notes (optional)</Label>
-						<textarea
+						<Textarea
 							id="refund-notes"
-							className="w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm"
 							placeholder="Audit-only context — e.g. ticket number, customer ask"
 							value={notes}
 							onChange={(e) => setNotes(e.target.value)}

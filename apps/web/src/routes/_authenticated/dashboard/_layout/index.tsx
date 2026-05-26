@@ -439,7 +439,6 @@ function DashboardComponent() {
 							to: "",
 							status: "",
 							branchId: "",
-							page: 1,
 							kpiPeriod: "month",
 							refundStatus: "all",
 							tab: "sales",

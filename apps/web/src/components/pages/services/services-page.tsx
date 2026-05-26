@@ -231,7 +231,7 @@ export function ServicesPage() {
 	const [sortKey, setSortKey] = useState<SortKey>(null);
 	const [sortDir, setSortDir] = useState<SortDir>("asc");
 	const [selected, setSelected] = useState<Set<string>>(new Set());
-	const [page, setPage] = useState(1);
+	const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
 	// modals
 	const [isAddOpen, setIsAddOpen] = useState(false);
@@ -368,16 +368,15 @@ export function ServicesPage() {
 			setSortDir("asc");
 			return k;
 		});
-		setPage(1);
+		setVisibleCount(PAGE_SIZE);
 	}, []);
 
-	// ── pagination ────────────────────────────────────────────────────────────
-	const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-	const safePage = Math.min(page, totalPages);
-	const pageItems = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+	// ── visible items (load more) ─────────────────────────────────────────────
+	const visibleItems = sorted.slice(0, visibleCount);
+	const hasMoreServices = visibleCount < sorted.length;
 
 	// ── selection ─────────────────────────────────────────────────────────────
-	const pageIds = pageItems.map((s) => s.id);
+	const pageIds = visibleItems.map((s) => s.id);
 	const selectedOnPage = pageIds.filter((id) => selected.has(id));
 	const allPageSelected = pageIds.length > 0 && selectedOnPage.length === pageIds.length;
 	const somePageSelected = selectedOnPage.length > 0 && !allPageSelected;
@@ -477,7 +476,7 @@ export function ServicesPage() {
 					</svg>
 					<input
 						value={search}
-						onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+						onChange={(e) => { setSearch(e.target.value); setVisibleCount(PAGE_SIZE); }}
 						placeholder="Search services…"
 						className="w-44 bg-transparent text-[13px] text-[#0a0a0a] placeholder:text-[#a3a3a3] outline-none"
 					/>
@@ -487,7 +486,7 @@ export function ServicesPage() {
 				<div className="flex items-center gap-1.5 flex-wrap">
 					<button
 						type="button"
-						onClick={() => { setCategoryFilter("all"); setPage(1); }}
+						onClick={() => { setCategoryFilter("all"); setVisibleCount(PAGE_SIZE); }}
 						className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition ${
 							categoryFilter === "all"
 								? "bg-[#0a0a0a] text-white"
@@ -500,7 +499,7 @@ export function ServicesPage() {
 						<button
 							key={cat}
 							type="button"
-							onClick={() => { setCategoryFilter(cat); setPage(1); }}
+							onClick={() => { setCategoryFilter(cat); setVisibleCount(PAGE_SIZE); }}
 							className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition ${
 								categoryFilter === cat
 									? "bg-[#0a0a0a] text-white"
@@ -604,7 +603,7 @@ export function ServicesPage() {
 							</tr>
 						</thead>
 						<tbody>
-							{pageItems.length === 0 ? (
+							{visibleItems.length === 0 ? (
 								<tr>
 									<td colSpan={9} className="py-10 px-4">
 										{listError && services.length === 0 ? (
@@ -624,7 +623,7 @@ export function ServicesPage() {
 									</td>
 								</tr>
 							) : (
-								pageItems.map((svc) => {
+								visibleItems.map((svc) => {
 									const isSelected = selected.has(svc.id);
 									const isActive = svc.isActive ?? false;
 									const abbr = categoryAbbr(svc.service_category_name);
@@ -757,45 +756,20 @@ export function ServicesPage() {
 						</tbody>
 					</table>
 
-					{/* ── Pagination footer ─────────────────────────────────────────── */}
+					{/* ── Load more footer ──────────────────────────────────────────── */}
 					<div className="flex items-center justify-between border-t border-[#e5e5e5] bg-[#f3f3f3]/50 px-4 py-2.5">
 						<span className="text-[11px] text-[#a3a3a3]">
-							Showing {Math.min((safePage - 1) * PAGE_SIZE + 1, sorted.length)}–
-							{Math.min(safePage * PAGE_SIZE, sorted.length)} of {sorted.length}{" "}
-							services
+							{visibleItems.length} of {sorted.length} services
 						</span>
-						<div className="flex items-center gap-1">
+						{hasMoreServices && (
 							<button
 								type="button"
-								disabled={safePage <= 1}
-								onClick={() => setPage((p) => p - 1)}
-								className="rounded-lg border border-[#e5e5e5] bg-white px-3 py-1.5 text-[11px] font-medium hover:bg-[#f3f3f3] disabled:opacity-40 disabled:cursor-not-allowed"
+								onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+								className="inline-flex items-center gap-1.5 rounded-lg border border-[#e5e5e5] bg-white px-[14px] py-[8px] text-[13px] font-medium text-[#0a0a0a] transition-colors hover:bg-[#f7f5ee]"
 							>
-								Prev
+								Load more
 							</button>
-							{Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
-								<button
-									key={pg}
-									type="button"
-									onClick={() => setPage(pg)}
-									className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold ${
-										pg === safePage
-											? "bg-[#0a0a0a] text-white"
-											: "border border-[#e5e5e5] bg-white text-[#262626] hover:bg-[#f3f3f3]"
-									}`}
-								>
-									{pg}
-								</button>
-							))}
-							<button
-								type="button"
-								disabled={safePage >= totalPages}
-								onClick={() => setPage((p) => p + 1)}
-								className="rounded-lg border border-[#e5e5e5] bg-white px-3 py-1.5 text-[11px] font-medium hover:bg-[#f3f3f3] disabled:opacity-40 disabled:cursor-not-allowed"
-							>
-								Next
-							</button>
-						</div>
+						)}
 					</div>
 				</div>
 			</div>

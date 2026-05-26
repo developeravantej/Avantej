@@ -19,21 +19,19 @@ import {
 } from "@tanstack/react-table";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { PaginationBar } from "@/components/ui/pagination-bar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { TableToolbar } from "@/components/ui/table-toolbar";
-
-const PAGE_SIZE = 50;
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
 	onServiceAdd?: (data: unknown) => Promise<void>;
-	// Pagination
+	// Load more
 	total?: number;
-	page?: number; // 1-indexed
-	onPageChange?: (page: number) => void;
+	hasNextPage?: boolean;
+	isFetchingNextPage?: boolean;
+	onLoadMore?: () => void;
 	isLoading?: boolean;
 	// Empty state
 	emptyTitle?: string;
@@ -70,8 +68,9 @@ export default function DataTable<TData, TValue>({
 	columns,
 	data,
 	total,
-	page,
-	onPageChange,
+	hasNextPage,
+	isFetchingNextPage,
+	onLoadMore,
 	isLoading,
 	emptyTitle,
 	emptyDescription,
@@ -93,8 +92,6 @@ export default function DataTable<TData, TValue>({
 			globalFilter,
 		},
 	});
-
-	const showPagination = onPageChange !== undefined && total !== undefined && page !== undefined;
 
 	return (
 		<div className="flex h-full flex-col">
@@ -182,21 +179,22 @@ export default function DataTable<TData, TValue>({
 					</Table>
 				</div>
 			)}
-			{showPagination && (
+			{total !== undefined && total > 0 && (
 				<div className="shrink-0 border-t border-border/40 px-6 py-3">
 					<div className="flex items-center justify-between">
 						<span className="text-sm text-muted-foreground">
-							{total === 0
-								? "No results"
-								: `Showing ${Math.min((page - 1) * PAGE_SIZE + 1, total)}–${Math.min(page * PAGE_SIZE, total)} of ${total}`}
+							{data.length} of {total} results
 						</span>
-						<PaginationBar
-							page={page - 1}
-							hasMore={page * PAGE_SIZE < total}
-							onPrev={() => onPageChange(page - 1)}
-							onNext={() => onPageChange(page + 1)}
-							isLoading={isLoading}
-						/>
+						{hasNextPage && onLoadMore && (
+							<button
+								type="button"
+								onClick={onLoadMore}
+								disabled={isFetchingNextPage}
+								className="inline-flex items-center gap-1.5 rounded-lg border border-[#e5e5e5] bg-white px-3.5 py-1.5 text-[13px] font-medium text-[#0a0a0a] transition-colors hover:bg-[#f3f3f3] disabled:opacity-40"
+							>
+								{isFetchingNextPage ? "Loading…" : "Load more"}
+							</button>
+						)}
 					</div>
 				</div>
 			)}

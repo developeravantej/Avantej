@@ -5,7 +5,6 @@
  * Requires customer_management:read permission.
  */
 
-import { requirePermission } from "@avantej-core/services";
 import {
 	getCustomerDetail,
 	getCustomerStats,

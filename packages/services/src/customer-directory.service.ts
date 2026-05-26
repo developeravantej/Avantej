@@ -36,6 +36,7 @@ export interface CustomerDirectoryRow {
 	lastVisitAt: Date | null;
 	createdAt: Date;
 	isDeleted: boolean | null;
+	isUnclaimed: boolean;
 	lifecycleStatus: "lead" | "active" | "lapsed" | "churned";
 }
 
@@ -107,6 +108,7 @@ export async function listCustomerDirectory(
 			m.joined_at                                                AS joined_at,
 			cp.phone                                                   AS phone,
 			cp.is_deleted                                              AS is_deleted,
+			COALESCE(cp.is_unclaimed, false)                           AS is_unclaimed,
 			CAST(
 				COUNT(DISTINCT pi.id) FILTER (WHERE pi.status = 'active')
 			AS INTEGER)                                                AS active_package_count,
@@ -156,7 +158,7 @@ export async function listCustomerDirectory(
 			${includeDeleted ? sql`` : sql`AND (cp.is_deleted IS NULL OR cp.is_deleted = false)`}
 			${branchId ? sql`AND m.hierarchy_scope_id = ${branchId}::uuid` : sql``}
 			${searchPattern ? sql`AND cp.phone ILIKE ${searchPattern}` : sql``}
-		GROUP BY m.id, m.user_id, m.hierarchy_scope_id, m.joined_at, cp.phone, cp.is_deleted
+		GROUP BY m.id, m.user_id, m.hierarchy_scope_id, m.joined_at, cp.phone, cp.is_deleted, cp.is_unclaimed
 		ORDER BY m.joined_at DESC
 		LIMIT ${limit} OFFSET ${offset}
 	`;
@@ -184,6 +186,7 @@ export async function listCustomerDirectory(
 		joined_at: Date;
 		phone: string | null;
 		is_deleted: boolean | null;
+		is_unclaimed: boolean;
 		active_package_count: number;
 		active_package_name: string | null;
 		lifetime_value_cents: number;
@@ -242,6 +245,7 @@ export async function listCustomerDirectory(
 			lastVisitAt: r.last_visit_at,
 			createdAt: r.joined_at,
 			isDeleted: r.is_deleted ?? null,
+			isUnclaimed: r.is_unclaimed ?? false,
 			lifecycleStatus: r.lifecycle_status,
 		};
 	});

@@ -377,7 +377,7 @@ function TrainerDetailPanel({
 		: null;
 
 	return (
-		<div className="flex h-full flex-col overflow-y-auto">
+		<div className="flex h-full flex-col">
 			{/* ── Profile header ── */}
 			<div className="flex items-start justify-between gap-6 border-b border-[#e5e5e5] bg-white px-8 py-6">
 				<div className="flex items-center gap-5">
@@ -492,7 +492,7 @@ function TrainerDetailPanel({
 			</div>
 
 			{/* ── Bottom 2-col grid ── */}
-			<div className="grid flex-1 grid-cols-2 gap-5 bg-[#f3f3f3] p-6">
+			<div className="flex-1 grid grid-cols-2 gap-5 bg-[#f3f3f3] p-6">
 				{/* Schedule preview */}
 				<SchedulePreviewCard
 					organizationId={organizationId}
@@ -660,8 +660,9 @@ export function TrainersListPage() {
 		: undefined;
 
 	return (
-		<Skeleton name="trainers-list" loading={isLoading} fallback={<PageLoader />}>
-		<div className="flex h-full">
+		<div className="h-full">
+		<Skeleton name="trainers-list" loading={isLoading} fallback={<PageLoader />} className="h-full">
+		<div className="absolute inset-0 flex">
 			{/* ── Left list panel (300px) ── */}
 			<div className="flex w-[300px] shrink-0 flex-col border-r border-[#e5e5e5] bg-white">
 				{/* Search */}
@@ -761,7 +762,7 @@ export function TrainersListPage() {
 			</div>
 
 			{/* ── Right detail panel ── */}
-			<div className="flex-1 overflow-hidden bg-[#f3f3f3]">
+			<div className="flex-1 overflow-y-auto bg-[#f3f3f3]">
 				{activeTrainer ? (
 					<TrainerDetailPanel
 						trainer={activeTrainer}
@@ -834,5 +835,6 @@ export function TrainersListPage() {
 			)}
 		</div>
 		</Skeleton>
+		</div>
 	);
 }

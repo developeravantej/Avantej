@@ -1,13 +1,11 @@
 import { DataTableColumnHeader } from "@/components/tables/data-column-header";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import { StatusBadge, type CanonicalStatus } from "@/components/ui/status-badge";
-import { Button } from "@/components/ui/button";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Eye } from "lucide-react";
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatPrice } from "@/lib/money";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 
 export interface SalesRow {
 	id: string;
@@ -49,26 +47,6 @@ function RefundStatusBadge({ status }: { status: string | null | undefined }) {
 	);
 }
 
-function SalesActionCell({ row }: { row: import("@tanstack/react-table").Row<SalesRow> }) {
-	const navigate = useNavigate();
-	return (
-		<div className="flex items-center gap-2">
-			<Button
-				variant="ghost"
-				size="sm"
-				onClick={() =>
-					navigate({
-						to: "/dashboard/sales/$id",
-						params: { id: row.original.id },
-					})
-				}
-			>
-				<Eye className="h-4 w-4 mr-1" /> View
-			</Button>
-		</div>
-	);
-}
-
 export const columns: ColumnDef<SalesRow>[] = [
 	// 1. When
 	{
@@ -106,7 +84,7 @@ export const columns: ColumnDef<SalesRow>[] = [
 				return (
 					<Link
 						to="/dashboard/customers/v2/view"
-						search={{ tab: "customers", customer: customerId, showDeleted: undefined }}
+						search={{ customer: customerId, showDeleted: undefined }}
 						className="text-primary underline-offset-4 hover:underline"
 					>
 						{name || "N/A"}
@@ -212,15 +190,5 @@ export const columns: ColumnDef<SalesRow>[] = [
 		},
 		enableSorting: true,
 		enableHiding: true,
-	},
-	// 10. Action
-	{
-		id: "actions",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Action" />
-		),
-		cell: ({ row }) => <SalesActionCell row={row} />,
-		enableSorting: false,
-		enableHiding: false,
 	},
 ];

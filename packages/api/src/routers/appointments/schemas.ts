@@ -7,4 +7,6 @@ export const statusSchema = z.enum([
 	"completed",
 	"cancelled",
 	"no-show",
+	"rescheduled",
+	"disputed",
 ]);

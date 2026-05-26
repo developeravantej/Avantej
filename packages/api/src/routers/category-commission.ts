@@ -7,7 +7,6 @@ import {
 	upsertCategoryCommissionConfig,
 	deleteCategoryCommissionConfig,
 } from "@avantej-core/services/category-commission.service";
-import { requirePermission } from "@avantej-core/services";
 
 const getByCategory = tenantProcedure
 	.input(

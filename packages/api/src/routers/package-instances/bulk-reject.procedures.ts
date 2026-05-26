@@ -6,12 +6,11 @@ import {
 } from "@avantej-core/services/notification.service";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { services } from "@avantej-core/db/schema/tenant/services";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
-import type { TenantTx } from "./types";
+import { assertOrgContextMatch } from "../../guards";
 
 export const packageInstancesBulkRejectProcedures = {
 	/**

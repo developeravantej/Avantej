@@ -10,7 +10,6 @@ import {
 	receiveItems,
 	cancelPurchaseOrder,
 } from "@avantej-core/services/purchase-orders.service";
-import { requirePermission } from "@avantej-core/services";
 
 export const purchaseOrdersRouter = {
 	list: tenantProcedure

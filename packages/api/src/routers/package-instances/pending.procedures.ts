@@ -6,7 +6,7 @@ import { and, eq, inArray, desc, isNull, isNotNull, or } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
+import { assertOrgContextMatch } from "../../guards";
 import { getControlPanelDb } from "../../lib/context-helpers";
 
 export const packageInstancesPendingProcedures = {

@@ -75,7 +75,7 @@ function TrainersTabPage() {
 	return (
 		<div className="-m-6 flex h-screen flex-col bg-[#f3f3f3]">
 			{stickyHeader}
-			<div className="mx-6 my-6 min-h-0 flex-1 overflow-hidden rounded-tl-2xl rounded-tr-2xl border border-[#e5e5e5] bg-white">
+			<div className="mx-6 my-6 min-h-0 flex-1 overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
 				<TrainersListPage />
 			</div>
 		</div>

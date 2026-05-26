@@ -7,10 +7,10 @@ import {
 	createTrainerTier,
 	updateTrainerTier,
 	deactivateTrainerTier,
+	deleteTrainerTier,
 	reactivateTrainerTier,
 	assignTierToMember,
 } from "@avantej-core/services/trainer-tier.service";
-import { requirePermission } from "@avantej-core/services";
 
 const list = tenantProcedure
 	.input(
@@ -120,6 +120,27 @@ const deactivate = tenantProcedure
 		}
 	});
 
+const deleteTier = tenantProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			id: z.string().uuid(),
+		}),
+	)
+	.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "delete");
+
+		try {
+			await deleteTrainerTier(context.tenantDb, input.id);
+		} catch (err) {
+			if (err instanceof ORPCError) throw err;
+			throw new ORPCError("BAD_REQUEST", {
+				message: err instanceof Error ? err.message : "Unknown error",
+			});
+		}
+	});
+
 const reactivate = tenantProcedure
 	.input(
 		z.object({
@@ -171,4 +192,4 @@ const assignToMember = tenantProcedure
 		}
 	});
 
-export const trainerTiersRouter = { list, create, update, deactivate, reactivate, assignToMember };
+export const trainerTiersRouter = { list, create, update, deactivate, deleteTier, reactivate, assignToMember };

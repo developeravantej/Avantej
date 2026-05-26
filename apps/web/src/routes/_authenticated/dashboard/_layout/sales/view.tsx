@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
 import { Download, Plus } from "lucide-react";
@@ -30,7 +30,6 @@ const salesSearchSchema = z.object({
 	to: z.string().default(""),
 	status: z.string().default(""),
 	branchId: z.string().default(""),
-	page: z.number().int().min(1).default(1),
 	period: z.string().optional(),
 	kpiPeriod: z.enum(["today", "week", "month"]).default("month"),
 	refundStatus: z.enum(["all", "none", "pending", "partial", "processed"]).default("all"),
@@ -334,8 +333,9 @@ function FilterBar({
 interface SalesTabProps {
 	data: SalesRow[];
 	total: number;
-	page: number;
-	onPageChange: (page: number) => void;
+	hasNextPage: boolean;
+	isFetchingNextPage: boolean;
+	onLoadMore: () => void;
 	isLoading: boolean;
 	isError: boolean;
 	error: unknown;
@@ -359,8 +359,9 @@ interface SalesTabProps {
 function SalesTab({
 	data,
 	total,
-	page,
-	onPageChange,
+	hasNextPage,
+	isFetchingNextPage,
+	onLoadMore,
 	isLoading,
 	isError,
 	error,
@@ -430,8 +431,9 @@ function SalesTab({
 						columns={salesColumns}
 						data={data}
 						total={total}
-						page={page}
-						onPageChange={onPageChange}
+						hasNextPage={hasNextPage}
+						isFetchingNextPage={isFetchingNextPage}
+						onLoadMore={onLoadMore}
 						isLoading={isLoading}
 						emptyTitle="No sales found"
 						emptyAction={{ label: "New Sale", onClick: () => navigate({ to: "/dashboard/sales/create" }) }}
@@ -454,7 +456,7 @@ interface PaymentsTabProps {
 }
 
 function PaymentsTab({ data, isLoading, isError, error, refetch, onSelectPayment }: PaymentsTabProps) {
-	const columns = useMemo(() => buildColumns(onSelectPayment), [onSelectPayment]);
+	const columns = useMemo(() => buildColumns(), []);
 
 	if (isError) return <ErrorCard error={error} refetch={refetch} />;
 
@@ -482,7 +484,7 @@ function RouteComponent() {
 	const branchNodes = allNodes.filter((n) => n.type === "branch");
 	const nodeOptions = branchNodes.length > 0 ? branchNodes : allNodes;
 
-	const { from, to, status, branchId, page, period, kpiPeriod, refundStatus, tab, search } =
+	const { from, to, status, branchId, period, kpiPeriod, refundStatus, tab, search } =
 		Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
 
@@ -495,7 +497,7 @@ function RouteComponent() {
 	// ── Handlers ────────────────────────────────────────────────────────────
 
 	function handleFilterChange(updates: Partial<z.infer<typeof salesSearchSchema>>) {
-		navigate({ search: (prev) => ({ ...prev, ...updates, page: 1 }) });
+		navigate({ search: (prev) => ({ ...prev, ...updates }) });
 	}
 
 	function handleClear() {
@@ -509,14 +511,9 @@ function RouteComponent() {
 				kpiPeriod,
 				refundStatus: "all",
 				tab,
-				page: 1,
 				search: "",
 			},
 		});
-	}
-
-	function handlePageChange(newPage: number) {
-		navigate({ search: (prev) => ({ ...prev, page: newPage }) });
 	}
 
 	function handleKpiPeriodChange(v: "today" | "week" | "month") {
@@ -528,18 +525,21 @@ function RouteComponent() {
 	}
 
 	function handleRefundStatusChange(v: "all" | "none" | "pending" | "partial" | "processed") {
-		navigate({ search: (prev) => ({ ...prev, refundStatus: v, page: 1 }) });
+		navigate({ search: (prev) => ({ ...prev, refundStatus: v }) });
 	}
 
 	// ── Queries ─────────────────────────────────────────────────────────────
 
 	const {
-		data: salesApiResponse,
+		data: salesInfiniteData,
 		isLoading: salesLoading,
 		isError: salesError,
 		error: salesErrorObj,
 		refetch: salesRefetch,
-	} = useQuery({
+		fetchNextPage: salesFetchNextPage,
+		hasNextPage: salesHasNextPage,
+		isFetchingNextPage: salesIsFetchingNextPage,
+	} = useInfiniteQuery({
 		queryKey: [
 			"salesOrders",
 			organizationId,
@@ -548,9 +548,9 @@ function RouteComponent() {
 			status,
 			branchId,
 			refundStatus,
-			page,
+			search,
 		],
-		queryFn: () =>
+		queryFn: ({ pageParam }) =>
 			client.salesOrders.list({
 				organizationId: organizationId!,
 				from: derivedFilters.from ? `${derivedFilters.from}T00:00:00.000Z` : undefined,
@@ -564,8 +564,13 @@ function RouteComponent() {
 						: undefined,
 				branchId: branchId || undefined,
 				limit: 50,
-				offset: (page - 1) * 50,
+				offset: pageParam,
 			}),
+		initialPageParam: 0,
+		getNextPageParam: (lastPage, allPages) => {
+			const loaded = allPages.reduce((sum, p) => sum + p.rows.length, 0);
+			return loaded < lastPage.total ? loaded : undefined;
+		},
 		enabled: !!organizationId,
 	});
 
@@ -605,8 +610,8 @@ function RouteComponent() {
 
 	// ── Data mapping ─────────────────────────────────────────────────────────
 
-	const salesApiRows = salesApiResponse?.rows ?? [];
-	const total = salesApiResponse?.total ?? 0;
+	const salesApiRows = salesInfiniteData?.pages.flatMap((p) => p.rows) ?? [];
+	const total = salesInfiniteData?.pages[0]?.total ?? 0;
 
 	const nodeNameMap = new Map(allNodes.map((n) => [n.id, n.name]));
 
@@ -721,8 +726,9 @@ function RouteComponent() {
 						<SalesTab
 							data={salesData}
 							total={total}
-							page={page}
-							onPageChange={handlePageChange}
+							hasNextPage={salesHasNextPage ?? false}
+							isFetchingNextPage={salesIsFetchingNextPage}
+							onLoadMore={salesFetchNextPage}
 							isLoading={salesLoading}
 							isError={salesError}
 							error={salesErrorObj}

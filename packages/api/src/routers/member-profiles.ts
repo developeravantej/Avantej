@@ -1,4 +1,3 @@
-import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
 import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
@@ -6,7 +5,6 @@ import {
 	getMemberProfile,
 	upsertMemberProfile,
 } from "@avantej-core/services/member-profile.service";
-import { requirePermission } from "@avantej-core/services";
 
 const get = tenantProcedure
 	.input(

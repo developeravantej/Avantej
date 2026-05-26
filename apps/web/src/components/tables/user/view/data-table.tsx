@@ -17,12 +17,10 @@ import {
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
-  getPaginationRowModel,
   useReactTable,
   type SortingState,
 } from "@tanstack/react-table";
 import { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -37,23 +35,19 @@ export default function DataTable<TData, TValue>({
   pageSize = 10,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [visibleCount, setVisibleCount] = useState(pageSize);
+
+  const visibleData = data.slice(0, visibleCount);
+  const hasMore = visibleCount < data.length;
 
   const table = useReactTable({
-    data,
+    data: visibleData,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: { pageSize },
-    },
   });
-
-  const showPagination = data.length > pageSize;
-  const pageIndex = table.getState().pagination.pageIndex;
-  const pageCount = table.getPageCount();
 
   return (
     <div className="space-y-2">
@@ -110,34 +104,19 @@ export default function DataTable<TData, TValue>({
         </Table>
       </div>
 
-      {/* Pagination — only rendered when data exceeds pageSize */}
-      {showPagination && (
-        <div className="flex items-center justify-end gap-3">
+      {/* Load more — only rendered when there are hidden rows */}
+      {hasMore && (
+        <div className="flex items-center justify-between pt-1">
           <span className="text-xs text-muted-foreground tabular-nums">
-            Page {pageIndex + 1} of {pageCount}
+            {visibleCount} of {data.length} shown
           </span>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-              className="h-7 w-7 p-0"
-              aria-label="Previous page"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-              className="h-7 w-7 p-0"
-              aria-label="Next page"
-            >
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setVisibleCount((c) => c + pageSize)}
+          >
+            Load more
+          </Button>
         </div>
       )}
     </div>

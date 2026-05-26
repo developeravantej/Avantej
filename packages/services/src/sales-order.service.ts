@@ -48,24 +48,27 @@ function formatDateYYYYMMDD(date: Date): string {
 
 async function generateSalesOrderNumber(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	date: Date
+	_date: Date
 ): Promise<string> {
-	const datePart = formatDateYYYYMMDD(date);
-	const prefix = `SO-${datePart}-`;
-
-	const result = await tenantDb
-		.select({ total: count() })
-		.from(salesOrders)
-		.where(sql`${salesOrders.salesOrderNumber} LIKE ${prefix + "%"}`);
-
-	const seq = (result[0]?.total ?? 0) + 1;
-	return `${prefix}${String(seq).padStart(4, "0")}`;
+	// BE-M8: Use the dedicated sequence (created in migration 0026_pipeline_audit.sql)
+	// instead of COUNT()+1 to prevent duplicate order numbers under concurrent inserts.
+	const result = await tenantDb.execute(
+		sql`SELECT nextval('tenant_sales_order_seq') AS seq`,
+	);
+	const seq = Number((result.rows[0] as { seq: unknown }).seq);
+	return `SO-${String(seq).padStart(6, "0")}`;
 }
 
 async function generateCancellationNumber(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	date: Date
 ): Promise<string> {
+	// NOTE (BE-M8): No dedicated sequence exists for cancellation numbers
+	// (no tenant_cancellation_seq migration has been authored). The COUNT()+1
+	// approach is retained here. Under high concurrent cancellation volume this
+	// could produce duplicates, but cancellations are rare relative to new orders.
+	// To fix: create migration `CREATE SEQUENCE IF NOT EXISTS tenant_cancellation_seq`
+	// and switch to nextval() as done for sales order numbers above.
 	const datePart = formatDateYYYYMMDD(date);
 	const prefix = `CAN-${datePart}-`;
 

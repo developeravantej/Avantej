@@ -3,6 +3,7 @@ import {
 	getAppointmentById,
 	updateAppointment,
 	syncAppointmentToGoogleCalendar,
+	writeAudit,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
@@ -12,10 +13,11 @@ import {
 	assertOrgContextMatch,
 	guardInputBranchForContext,
 } from "../../guards";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { mapPgError } from "../../lib/orpc-error-mapper";
 import { appointmentTypeSchema, statusSchema } from "./schemas";
+import type { TenantTx } from "./types";
 
 export const appointmentsCrudProcedures = {
 	create: tenantProcedure
@@ -209,13 +211,11 @@ export const appointmentsCrudProcedures = {
       // Actor is required by the service layer to fire commission generation
       // when status transitions to 'completed' or 'cancelled' (Phase 1 rule).
       // Without it, commission splits are never created.
-      const actor = context.member
-        ? {
-            userId: context.session?.user?.id ?? "",
-            memberId: context.member.id,
-            role: context.member.role,
-          }
-        : undefined;
+      const actor = {
+        userId: context.session?.user?.id ?? "system",
+        memberId: context.member?.id ?? "system",
+        role: context.member?.role ?? "system",
+      };
 
       const updateParams = {
         status: input.status,
@@ -257,5 +257,80 @@ export const appointmentsCrudProcedures = {
           message: error instanceof Error ? error.message : "Failed to update appointment",
         });
       }
+    }),
+
+  /**
+   * Reinstate package credits for a no-show appointment.
+   * Does NOT change appointment status or reverse commission — trainer still showed up.
+   * Staff-only; requires appointment_management:update permission.
+   */
+  reinstateCredits: tenantProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        appointmentId: z.string().uuid(),
+        reason: z.string().min(1),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      assertOrgContextMatch(context, input);
+
+      await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
+
+      const appt = await getAppointmentById(context.tenantDb, input.appointmentId);
+      if (!appt) throw new ORPCError("NOT_FOUND", { message: "Appointment not found" });
+
+      if (appt.status !== "no-show") {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "Credits can only be reinstated for no-show appointments.",
+        });
+      }
+
+      const creditsToRestore = appt.creditsUsed ?? 0;
+      if (!appt.packageInstanceId || creditsToRestore <= 0) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "This appointment has no package credits to reinstate.",
+        });
+      }
+
+      await context.tenantDb.transaction(async (tx: TenantTx) => {
+        const [pkg] = await tx
+          .select()
+          .from(packageInstances)
+          .where(eq(packageInstances.id, appt.packageInstanceId!))
+          .for("update");
+
+        if (!pkg || (pkg.status !== "active" && pkg.status !== "exhausted")) {
+          throw new ORPCError("BAD_REQUEST", {
+            message: "Package is not in a state where credits can be reinstated.",
+          });
+        }
+
+        await tx
+          .update(packageInstances)
+          .set({
+            creditsUsed: sql`GREATEST(credits_used - ${creditsToRestore}, 0)`,
+            ...(pkg.status === "exhausted" && { status: "active" }),
+            updatedAt: new Date(),
+          })
+          .where(eq(packageInstances.id, appt.packageInstanceId!));
+
+        await writeAudit(tx, {
+          actorUserId: context.session?.user?.id ?? "",
+          actorMemberId: context.member.id,
+          actorRole: context.member.role,
+          action: "appointment.credits_reinstated",
+          entityType: "appointment",
+          entityId: input.appointmentId,
+          summary: `${creditsToRestore} credit(s) reinstated for no-show appointment: ${input.reason}`,
+          changes: {
+            creditsRestored: creditsToRestore,
+            reason: input.reason,
+            packageInstanceId: appt.packageInstanceId,
+          },
+        });
+      });
+
+      return { reinstated: creditsToRestore };
     }),
 };

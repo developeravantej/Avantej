@@ -21,6 +21,7 @@ import {
 	resetCreditsOverride,
 } from "@avantej-core/services";
 import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
+import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { ORPCError } from "@orpc/server";
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
@@ -63,11 +64,17 @@ const listByPackageInstance = tenantProcedure
 		})
 	)
 	.handler(async ({ input, context }) => {
-		
+
 
 		assertOrgContextMatch(context, input);
 		const clientId = context.session?.user?.id;
-		const isOwner = clientId !== undefined;
+
+		// LC-M8: isOwner must compare the session user against the package's actual clientId,
+		// not merely check that a session user ID exists (which is always true for authenticated users).
+		const pkg = await context.tenantDb.query.packageInstances.findFirst({
+			where: eq(packageInstances.id, input.packageInstanceId),
+		});
+		const isOwner = pkg?.clientId !== undefined && pkg.clientId === clientId;
 		const isStaff = !!context.member;
 
 		if (!isOwner && !isStaff) {
@@ -339,7 +346,10 @@ const reschedule = tenantProcedure
 	}))
 	.handler(async ({ input, context }) => {
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
+		// LC-M1: reschedule is an admin-only operation
+		if (context.member.role !== "admin") {
+			throw new ORPCError("FORBIDDEN", { message: "Only admins can reschedule instalments." });
+		}
 		try {
 			return rescheduleInstallment(context.tenantDb, input.installmentId, new Date(input.newDueDate), context.member.userId, input.reason);
 		} catch (err: any) {
@@ -357,7 +367,10 @@ const waive = tenantProcedure
 	}))
 	.handler(async ({ input, context }) => {
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
+		// LC-M1: waive is an admin-only operation
+		if (context.member.role !== "admin") {
+			throw new ORPCError("FORBIDDEN", { message: "Only admins can waive instalments." });
+		}
 		try {
 			return waiveInstallment(context.tenantDb, input.installmentId, context.member.userId, input.reason);
 		} catch (err: any) {

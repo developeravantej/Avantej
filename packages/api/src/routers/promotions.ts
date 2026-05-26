@@ -10,7 +10,6 @@ import {
 	updatePromotion,
 	deactivatePromotion,
 } from "@avantej-core/services/promotions.service";
-import { requirePermission } from "@avantej-core/services";
 
 export const promotionsRouter = {
 	list: tenantProcedure

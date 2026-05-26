@@ -1490,27 +1490,67 @@ export async function listCommissionLedger(
 		offset = 0,
 	} = params;
 
-	// Build filter conditions
-	const conditions: ReturnType<typeof eq>[] = [];
+	// Base filter conditions (status, staffId, date range)
+	const baseConditions: ReturnType<typeof eq>[] = [];
 
 	if (status && status !== "all") {
-		conditions.push(eq(commissionSplits.status, status));
+		baseConditions.push(eq(commissionSplits.status, status));
 	}
 
 	if (staffId) {
-		conditions.push(eq(commissionSplits.staffId, staffId));
+		baseConditions.push(eq(commissionSplits.staffId, staffId));
 	}
 
 	if (from) {
-		conditions.push(gte(commissionSplits.createdAt, from));
+		baseConditions.push(gte(commissionSplits.createdAt, from));
 	}
 
 	if (to) {
-		conditions.push(lte(commissionSplits.createdAt, to));
+		baseConditions.push(lte(commissionSplits.createdAt, to));
 	}
 
-	// Fetch raw splits with appointment and sales order joins for branchId + numbers
-	const allSplits = await tenantDb
+	// RBAC + branchId branch conditions (pushed to SQL via LEFT JOINs)
+	const branchConditions: ReturnType<typeof and>[] = [];
+
+	if (accessibleNodeIds.length > 0) {
+		branchConditions.push(
+			or(
+				inArray(appointments.branchId, accessibleNodeIds),
+				inArray(salesOrders.branchId, accessibleNodeIds),
+			)!,
+		);
+	}
+
+	if (branchId) {
+		branchConditions.push(
+			or(
+				eq(appointments.branchId, branchId),
+				eq(salesOrders.branchId, branchId),
+			)!,
+		);
+	}
+
+	const allConditions = [...baseConditions, ...branchConditions];
+	const whereClause =
+		allConditions.length > 0 ? and(...allConditions) : undefined;
+
+	// 1. Count total matching rows (for pagination metadata)
+	const [countRow] = await tenantDb
+		.select({
+			count: sql<number>`COUNT(*)::int`.mapWith(Number),
+		})
+		.from(commissionSplits)
+		.leftJoin(
+			appointments,
+			eq(commissionSplits.appointmentId, appointments.id),
+		)
+		.leftJoin(salesOrders, eq(commissionSplits.salesOrderId, salesOrders.id))
+		.where(whereClause);
+
+	const total = countRow?.count ?? 0;
+
+	// 2. Fetch paginated rows
+	const paginated = await tenantDb
 		.select({
 			split: commissionSplits,
 			appointmentId: appointments.id,
@@ -1520,36 +1560,15 @@ export async function listCommissionLedger(
 			salesOrderBranchId: salesOrders.branchId,
 		})
 		.from(commissionSplits)
-		.leftJoin(appointments, eq(commissionSplits.appointmentId, appointments.id))
+		.leftJoin(
+			appointments,
+			eq(commissionSplits.appointmentId, appointments.id),
+		)
 		.leftJoin(salesOrders, eq(commissionSplits.salesOrderId, salesOrders.id))
-		.where(conditions.length > 0 ? and(...conditions) : undefined)
-		.orderBy(desc(commissionSplits.createdAt));
-
-	// Apply RBAC filtering + optional branchId filter
-	const scopedSplits = allSplits.filter((row) => {
-		// Determine the effective branchId for this split
-		const effectiveBranch =
-			row.appointmentBranchId ?? row.salesOrderBranchId ?? null;
-
-		// RBAC: must be in accessible nodes (or no restriction if admin sees all)
-		if (accessibleNodeIds.length > 0) {
-			if (!effectiveBranch || !accessibleNodeIds.includes(effectiveBranch)) {
-				return false;
-			}
-		}
-
-		// Optional branchId filter
-		if (branchId && effectiveBranch !== branchId) {
-			return false;
-		}
-
-		return true;
-	});
-
-	const total = scopedSplits.length;
-
-	// Pagination
-	const paginated = scopedSplits.slice(offset, offset + limit);
+		.where(whereClause)
+		.orderBy(desc(commissionSplits.createdAt))
+		.limit(limit)
+		.offset(offset);
 
 	// Enrich staff names from control panel (best-effort)
 	const distinctStaffIds = [...new Set(paginated.map((r) => r.split.staffId))];
@@ -1580,25 +1599,36 @@ export async function listCommissionLedger(
 		branchId: row.appointmentBranchId ?? row.salesOrderBranchId ?? null,
 	}));
 
-	// Compute totals across ALL scoped rows (not just paginated)
-	let pendingTotal = 0;
-	let approvedTotal = 0;
-	let paidTotal = 0;
-	for (const row of scopedSplits) {
-		if (row.split.status === "pending")
-			pendingTotal += row.split.calculatedAmount;
-		else if (row.split.status === "approved")
-			approvedTotal += row.split.calculatedAmount;
-		else if (row.split.status === "paid") paidTotal += row.split.calculatedAmount;
-	}
+	// 3. Compute totals via SQL aggregation over the full filtered set (not just the current page)
+	const [totalsRow] = await tenantDb
+		.select({
+			pending:
+				sql<number>`COALESCE(SUM(CASE WHEN ${commissionSplits.status} = 'pending' THEN ${commissionSplits.calculatedAmount} ELSE 0 END), 0)::int`.mapWith(
+					Number,
+				),
+			approved:
+				sql<number>`COALESCE(SUM(CASE WHEN ${commissionSplits.status} = 'approved' THEN ${commissionSplits.calculatedAmount} ELSE 0 END), 0)::int`.mapWith(
+					Number,
+				),
+			paid: sql<number>`COALESCE(SUM(CASE WHEN ${commissionSplits.status} = 'paid' THEN ${commissionSplits.calculatedAmount} ELSE 0 END), 0)::int`.mapWith(
+				Number,
+			),
+		})
+		.from(commissionSplits)
+		.leftJoin(
+			appointments,
+			eq(commissionSplits.appointmentId, appointments.id),
+		)
+		.leftJoin(salesOrders, eq(commissionSplits.salesOrderId, salesOrders.id))
+		.where(whereClause);
 
 	return {
 		rows,
 		total,
 		totals: {
-			pending: pendingTotal,
-			approved: approvedTotal,
-			paid: paidTotal,
+			pending: totalsRow?.pending ?? 0,
+			approved: totalsRow?.approved ?? 0,
+			paid: totalsRow?.paid ?? 0,
 		},
 	};
 }

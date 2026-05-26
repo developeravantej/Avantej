@@ -8,7 +8,7 @@ import { tenantProcedure } from "../../index";
 import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import type { DispatchStaffSyncFn, GhlSyncResult } from "./shared";
+import type { GhlSyncResult } from "./shared";
 
 export const membersCreateProcedures = {
 	/**

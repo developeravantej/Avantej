@@ -12,7 +12,7 @@
  * - Payment status tracks Stripe PaymentIntent lifecycle
  */
 
-import { pgTable, uuid, text, timestamp, integer, boolean, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, integer, boolean, index, uniqueIndex, jsonb } from "drizzle-orm/pg-core";
 import { hierarchyNodes } from "./hierarchy";
 import { services } from "./services";
 import { members } from "./members";
@@ -129,6 +129,12 @@ export const appointments = pgTable("appointments", {
 	// even without a sales order (which was the only prior guard).
 	isComplimentary: boolean("is_complimentary").notNull().default(false),
 	complimentaryReason: text("complimentary_reason"),
+
+	// Reschedule audit trail — append-only array of {from, to, at, by} entries
+	rescheduleHistory: jsonb("reschedule_history")
+		.$type<Array<{ from: string; to: string; at: string; by: string }>>()
+		.notNull()
+		.default([]),
 }, (table) => ({
 	branchIdIdx: index("appointments_branch_idx").on(table.branchId),
 	serviceIdIdx: index("appointments_service_idx").on(table.serviceId),

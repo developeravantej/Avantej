@@ -11,6 +11,7 @@ import { Plus, AlertTriangle } from "lucide-react";
 import {
 	CreateTierDialog,
 	DeactivateTierDialog,
+	DeleteTierDialog,
 	EMPTY_TIER_FORM as EMPTY_FORM,
 } from "./trainer-tier-dialogs";
 
@@ -22,6 +23,7 @@ export function TrainerTiersPage() {
 
 	const [createOpen, setCreateOpen] = useState(false);
 	const [deactivateTarget, setDeactivateTarget] = useState<string | null>(null);
+	const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 	const [missingRateBanner, setMissingRateBanner] = useState<
 		MissingRateCategory[] | null
 	>(null);
@@ -65,6 +67,17 @@ export function TrainerTiersPage() {
 		errorMessage: (err) => err.message || "Failed to deactivate tier",
 		onSuccess: () => {
 			setDeactivateTarget(null);
+			refetch();
+		},
+	});
+
+	const deleteMutation = useApiMutation({
+		mutationFn: (id: string) =>
+			client.trainerTiers.deleteTier({ organizationId: orgId, id }),
+		successMessage: "Tier deleted",
+		errorMessage: (err) => err.message || "Failed to delete tier",
+		onSuccess: () => {
+			setDeleteTarget(null);
 			refetch();
 		},
 	});
@@ -202,14 +215,24 @@ export function TrainerTiersPage() {
 													Deactivate
 												</Button>
 											) : (
-												<Button
-													variant="outline"
-													size="sm"
-													onClick={() => reactivateMutation.mutate(tier.id)}
-													disabled={reactivateMutation.isPending}
-												>
-													Reactivate
-												</Button>
+												<div className="flex items-center gap-2 justify-end">
+													<Button
+														variant="outline"
+														size="sm"
+														onClick={() => reactivateMutation.mutate(tier.id)}
+														disabled={reactivateMutation.isPending || deleteMutation.isPending}
+													>
+														Reactivate
+													</Button>
+													<Button
+														variant="destructive"
+														size="sm"
+														onClick={() => setDeleteTarget(tier.id)}
+														disabled={deleteMutation.isPending || reactivateMutation.isPending}
+													>
+														Delete
+													</Button>
+												</div>
 											)}
 										</td>
 									</tr>
@@ -240,6 +263,16 @@ export function TrainerTiersPage() {
 					if (deactivateTarget) deactivateMutation.mutate(deactivateTarget);
 				}}
 				isPending={deactivateMutation.isPending}
+			/>
+
+			<DeleteTierDialog
+				open={deleteTarget !== null}
+				targetName={tiers.find((t) => t.id === deleteTarget)?.name ?? null}
+				onCancel={() => setDeleteTarget(null)}
+				onConfirm={() => {
+					if (deleteTarget) deleteMutation.mutate(deleteTarget);
+				}}
+				isPending={deleteMutation.isPending}
 			/>
 		</div>
 	);

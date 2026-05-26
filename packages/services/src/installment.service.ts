@@ -345,6 +345,11 @@ export async function confirmInstallmentPayment(
 			.for("update");
 		if (!pkg) throw new Error("Package instance not found");
 
+		// LC-M3: reject payment confirmation on terminal package statuses
+		if (["cancelled", "expired", "completed"].includes(pkg.status)) {
+			throw new Error(`Cannot confirm payment for a ${pkg.status} package.`);
+		}
+
 		const now = new Date();
 
 		// Mark installment as paid

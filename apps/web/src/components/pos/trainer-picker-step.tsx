@@ -53,44 +53,45 @@ export function TrainerPickerStep({
 	const trainers = (membersQuery.data ?? []) as MemberRow[];
 
 	// ── Handlers ────────────────────────────────────────────────────────────────
+	// FE-M6: keyed by item.id (string) — not array index — so removals/reorders don't corrupt assignments.
 
-	function handleAddTrainer(itemIndex: number) {
-		const current = assignments[itemIndex] ?? [];
+	function handleAddTrainer(itemId: string) {
+		const current = assignments[itemId] ?? [];
 		const nextSlotIndex = current.length;
 		onChange({
 			...assignments,
-			[itemIndex]: [
+			[itemId]: [
 				...current,
 				{ staffId: "", staffName: "", slotIndex: nextSlotIndex },
 			],
 		});
 	}
 
-	function handleRemoveTrainer(itemIndex: number, slotIndex: number) {
-		const current = (assignments[itemIndex] ?? []).filter(
+	function handleRemoveTrainer(itemId: string, slotIndex: number) {
+		const current = (assignments[itemId] ?? []).filter(
 			(a) => a.slotIndex !== slotIndex,
 		);
 		// Re-index slotIndex values after removal
 		const reindexed = current.map(
 			(a, i): TrainerAssignment => ({ ...a, slotIndex: i }),
 		);
-		onChange({ ...assignments, [itemIndex]: reindexed });
+		onChange({ ...assignments, [itemId]: reindexed });
 	}
 
 	function handleSelectTrainer(
-		itemIndex: number,
+		itemId: string,
 		slotIndex: number,
 		userId: string,
 	) {
 		const trainer = trainers.find((t) => t.userId === userId);
-		const current = assignments[itemIndex] ?? [];
+		const current = assignments[itemId] ?? [];
 		const updated = current.map(
 			(a): TrainerAssignment =>
 				a.slotIndex === slotIndex
 					? { ...a, staffId: userId, staffName: trainer?.name ?? userId }
 					: a,
 		);
-		onChange({ ...assignments, [itemIndex]: updated });
+		onChange({ ...assignments, [itemId]: updated });
 	}
 
 	// ── Empty state ──────────────────────────────────────────────────────────────
@@ -106,8 +107,7 @@ export function TrainerPickerStep({
 	// ── Render ───────────────────────────────────────────────────────────────────
 
 	const hasUnassignedItem = serviceItems.some((item) => {
-		const idx = items.indexOf(item);
-		const a = assignments[idx];
+		const a = assignments[item.id];
 		return !a || a.every((x) => !x.staffId);
 	});
 
@@ -125,8 +125,7 @@ export function TrainerPickerStep({
 			)}
 
 			{serviceItems.map((item) => {
-				const itemIndex = items.indexOf(item);
-				const currentAssignments = assignments[itemIndex] ?? [];
+				const currentAssignments = assignments[item.id] ?? [];
 
 				return (
 					<div
@@ -146,7 +145,7 @@ export function TrainerPickerStep({
 								<Select
 									value={assignment.staffId || undefined}
 									onValueChange={(userId) =>
-										handleSelectTrainer(itemIndex, assignment.slotIndex, userId)
+										handleSelectTrainer(item.id, assignment.slotIndex, userId)
 									}
 								>
 									<SelectTrigger className="flex-1 h-8 text-sm">
@@ -170,7 +169,7 @@ export function TrainerPickerStep({
 									size="icon"
 									className="size-8 shrink-0"
 									onClick={() =>
-										handleRemoveTrainer(itemIndex, assignment.slotIndex)
+										handleRemoveTrainer(item.id, assignment.slotIndex)
 									}
 									type="button"
 								>
@@ -183,7 +182,7 @@ export function TrainerPickerStep({
 							variant="outline"
 							size="sm"
 							className="self-start mt-1"
-							onClick={() => handleAddTrainer(itemIndex)}
+							onClick={() => handleAddTrainer(item.id)}
 							type="button"
 						>
 							<UserPlus className="size-3.5 mr-1" />

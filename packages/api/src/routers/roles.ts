@@ -13,7 +13,6 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
 import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
-import { requirePermission } from "@avantej-core/services";
 
 export const rolesRouter = {
 	/**

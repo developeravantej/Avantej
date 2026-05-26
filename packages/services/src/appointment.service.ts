@@ -650,6 +650,23 @@ export async function updateAppointment(
         }
       }
 
+      // B.1.7 — Append reschedule history entry when transitioning to rescheduled
+      if (params.status === "rescheduled" && existing.status !== "rescheduled") {
+        const historyEntry = {
+          from: existing.startTime.toISOString(),
+          to: (params.startTime ?? existing.startTime).toISOString(),
+          at: new Date().toISOString(),
+          by: params.actor?.userId ?? "system",
+        };
+        await tx
+          .update(appointments)
+          .set({
+            rescheduleHistory: sql`COALESCE(reschedule_history, '[]'::jsonb) || ${JSON.stringify([historyEntry])}::jsonb`,
+            updatedAt: new Date(),
+          })
+          .where(eq(appointments.id, id));
+      }
+
       // Commission: create splits when appointment completes
       if (params.status === "completed" && existing.status !== "completed" && existing.serviceId) {
         // P6: double-commission guard — if this appointment is linked to a POS sale
@@ -719,6 +736,36 @@ export async function updateAppointment(
         }
       }
 
+      // Commission: void all non-paid splits when appointment is disputed
+      if (
+        params.status === "disputed" &&
+        existing.status !== "disputed"
+      ) {
+        await (tx as unknown as TenantDb)
+          .update(commissionSplits)
+          .set({ status: "void", notes: "Appointment disputed", updatedAt: new Date() })
+          .where(
+            and(
+              eq(commissionSplits.appointmentId, id),
+              ne(commissionSplits.status, "void"),
+              ne(commissionSplits.status, "paid"),
+            ),
+          );
+
+        if (params.actor) {
+          await writeAudit(tx, {
+            actorUserId: params.actor.userId,
+            actorMemberId: params.actor.memberId,
+            actorRole: params.actor.role,
+            action: "commission.void",
+            entityType: "appointment",
+            entityId: id,
+            summary: `Commission splits voided: appointment ${id} disputed`,
+            changes: { reason: "appointment_disputed" },
+          });
+        }
+      }
+
       // D.2.2 — Audit status changes
       if (params.status !== undefined && params.actor) {
         await writeAudit(tx, {
@@ -779,6 +826,20 @@ async function runAppointmentCommission(
       appointmentId,
       earnReason,
     }));
+    // Also write to audit so ops can see it — use sentinel values since actor is undefined.
+    try {
+      await writeAudit(tx, {
+        actorUserId: "system",
+        actorMemberId: "system",
+        action: "commission.skip",
+        entityType: "appointment",
+        entityId: appointmentId,
+        summary: `Commission skipped for appointment ${appointmentId}: no actor context`,
+        changes: { reason: "no_actor", earnReason },
+      });
+    } catch {
+      // best-effort
+    }
     return;
   }
   if (!appointment.serviceId) {
@@ -872,16 +933,31 @@ async function runAppointmentCommission(
     return;
   }
 
-  await calculateCommissionForAppointment(tx as unknown as TenantDb, {
-    appointmentId,
-    serviceId: appointment.serviceId,
-    sessionTotalCents: appointment.priceSnapshotCents ?? appointment.pricePerClient,
-    attendeeCount,
-    staffAssignments: effectiveAssignments,
-    earnedAt: new Date(), // delivery time (completion OR cancellation)
-    actor,
-    earnReason,
-  });
+  try {
+    await calculateCommissionForAppointment(tx as unknown as TenantDb, {
+      appointmentId,
+      serviceId: appointment.serviceId,
+      sessionTotalCents: appointment.priceSnapshotCents ?? appointment.pricePerClient,
+      attendeeCount,
+      staffAssignments: effectiveAssignments,
+      earnedAt: new Date(), // delivery time (completion OR cancellation)
+      actor,
+      earnReason,
+    });
+  } catch (commErr: unknown) {
+    const msg = commErr instanceof Error ? commErr.message : String(commErr);
+    console.error(JSON.stringify({ event: "commission_calculation_error", appointmentId, earnReason, error: msg }));
+    await writeAudit(tx, {
+      actorUserId: actor.userId,
+      actorMemberId: actor.memberId,
+      action: "commission.error",
+      entityType: "appointment",
+      entityId: appointmentId,
+      summary: `Commission calculation failed for appointment ${appointmentId}: ${msg}`,
+      changes: { earnReason, error: msg },
+    });
+    // Non-fatal: appointment status update must not be blocked by commission errors.
+  }
 }
 
 export type AppointmentHistoryQueryOpts = {

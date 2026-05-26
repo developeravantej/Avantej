@@ -11,6 +11,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
 import { ArrowLeft, PauseCircle } from "lucide-react";
 import { useState } from "react";
+import { MagicLinkActions } from "@/components/customers/customer-360/magic-link-actions";
 import { PackageRow } from "@/components/customers/customer-360/package-row";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -230,6 +231,16 @@ function Customer360Page() {
 					<p className="text-muted-foreground text-xs">
 						Joined {formatDate(member.joinedAt)}
 					</p>
+					{organizationId && profile?.id && (
+						<div className="pt-2">
+							<MagicLinkActions
+								organizationId={organizationId}
+								customerProfileId={profile.id}
+								customerEmail={user.email}
+								isUnclaimed={profile.isUnclaimed ?? false}
+							/>
+						</div>
+					)}
 				</div>
 				{/* === 3.1 membership freeze === */}
 				<div className="flex shrink-0 items-start gap-2">

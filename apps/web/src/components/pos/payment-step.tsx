@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Banknote, Check, CreditCard, Landmark, Link2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -72,15 +72,21 @@ interface PaymentStepProps {
 	items: CartItem[];
 	discountCents: number;
 	taxRateBps: number;
+	/** Pre-computed due-now amount from pos-workflow (first instalment or full total). */
+	dueNowCents: number;
 	method: PaymentMethod | null;
 	paymentReference: string;
 	amountTenderedCents: number;
+	/** Whether the cashier has manually edited the tendered amount. */
+	tenderedTouched: boolean;
 	selectedInstallmentPlanId: string | null;
 	/** Preferred trainer UUID for package purchase — optional. */
 	preferredTrainerId: string | null;
 	onMethodChange: (method: PaymentMethod) => void;
 	onReferenceChange: (ref: string) => void;
 	onAmountTenderedChange: (cents: number) => void;
+	/** Called when the cashier manually edits the tendered amount. */
+	onTenderedTouched: () => void;
 	onInstallmentPlanChange: (planId: string | null) => void;
 	onPreferredTrainerChange: (trainerId: string | null) => void;
 }
@@ -90,28 +96,62 @@ export function PaymentStep({
 	items,
 	discountCents,
 	taxRateBps,
+	dueNowCents,
 	method,
 	paymentReference,
 	amountTenderedCents,
+	tenderedTouched,
 	selectedInstallmentPlanId,
 	preferredTrainerId,
 	onMethodChange,
 	onReferenceChange,
 	onAmountTenderedChange,
+	onTenderedTouched,
 	onInstallmentPlanChange,
 	onPreferredTrainerChange,
 }: PaymentStepProps) {
 	const totalCents = calcTotalCents(items, discountCents, taxRateBps);
 	const amountTenderedRm =
 		amountTenderedCents > 0 ? centsToRm(amountTenderedCents) : "";
-	// Track manual edits so the auto-tender keeps syncing to the (async) taxed total
-	// until the cashier types their own amount.
-	const [tenderedTouched, setTenderedTouched] = useState(false);
+
+	const packageItems = items.filter((i) => i.type === "package" || i.type === "service");
+	const showInstallmentPicker = packageItems.length >= 1;
+
+	// Fetch plans + trainer list up-front (hooks must come before any derived consts that use them)
+	const { data: installmentPlans = [] } = useQuery({
+		queryKey: ["installment-plans", organizationId],
+		queryFn: async () => {
+			return client.installmentPlans.list({
+				organizationId,
+				activeOnly: true,
+			});
+		},
+		enabled: showInstallmentPicker,
+	});
+
+	// Trainer list — only fetched when a package item is in the cart
+	const { data: trainers = [] } = useQuery({
+		queryKey: ["members-trainers", organizationId],
+		queryFn: () => client.members.list({ organizationId, role: "trainer", status: "active" }),
+		enabled: showInstallmentPicker,
+	});
+
+	const planOptions: InstallmentPlanOption[] = installmentPlans.map((p) => ({
+		id: p.id,
+		code: p.code,
+		name: p.name,
+		numInstallments: p.numInstallments,
+		pricePremiumBps: p.pricePremiumBps ?? 0,
+	}));
+
+	const selectedPlanOption = planOptions.find((p) => p.id === selectedInstallmentPlanId) ?? null;
+	// dueNowCents is computed in pos-workflow and passed as a prop (FE-M1)
 
 	useEffect(() => {
 		// Keep cash tendered synced to the due-now amount until the user edits it. The default tax
 		// rate loads asynchronously; without this, an auto-tendered PRE-TAX amount falls
 		// below the taxed total and silently disables Confirm with no on-screen reason.
+		// tenderedTouched is lifted to pos-workflow (FE-M2) so it survives remounts.
 		if (
 			method === "cash" &&
 			!tenderedTouched &&
@@ -128,44 +168,6 @@ export function PaymentStep({
 			? amountTenderedCents - dueNowCents
 			: null;
 
-	const packageItems = items.filter((i) => i.type === "package" || i.type === "service");
-	const showInstallmentPicker = packageItems.length >= 1;
-
-	const { data: installmentPlans = [] } = useQuery({
-		queryKey: ["installment-plans", organizationId],
-		queryFn: async () => {
-			return client.installmentPlans.list({
-				organizationId,
-				activeOnly: true,
-			});
-		},
-		enabled: showInstallmentPicker,
-	});
-
-	const planOptions: InstallmentPlanOption[] = installmentPlans.map((p) => ({
-		id: p.id,
-		code: p.code,
-		name: p.name,
-		numInstallments: p.numInstallments,
-		pricePremiumBps: p.pricePremiumBps ?? 0,
-	}));
-
-	const selectedPlanOption = planOptions.find((p) => p.id === selectedInstallmentPlanId) ?? null;
-	// Amount due at POS = first instalment only (total with premium ÷ numInstallments)
-	const dueNowCents = selectedPlanOption
-		? Math.ceil(
-				(totalCents * (1 + selectedPlanOption.pricePremiumBps / 10000)) /
-					selectedPlanOption.numInstallments,
-			)
-		: totalCents;
-
-	// Trainer list — only fetched when a package item is in the cart
-	const { data: trainers = [] } = useQuery({
-		queryKey: ["members-trainers", organizationId],
-		queryFn: () => client.members.list({ organizationId, role: "trainer", status: "active" }),
-		enabled: showInstallmentPicker,
-	});
-
 	return (
 		<div className="space-y-6">
 			{/* Payment method cards */}
@@ -178,7 +180,7 @@ export function PaymentStep({
 							<button
 								key={m}
 								type="button"
-								onClick={() => onMethodChange(m as any)}
+								onClick={() => onMethodChange(m)}
 								className={`relative flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
 									isSelected
 										? "border-primary bg-primary/5 shadow-sm"
@@ -208,7 +210,7 @@ export function PaymentStep({
 			</div>
 
 			{/* Online payment callout */}
-			{(method as any) === "online" && (
+			{method === "online" && (
 				<StatusCallout variant="info" title="Payment link will be generated">
 					A payment link will be generated after you finalize the sale. Forward
 					it to the customer to collect payment.
@@ -248,7 +250,7 @@ export function PaymentStep({
 								placeholder={centsToRm(dueNowCents)}
 								value={amountTenderedRm}
 								onChange={(e) => {
-									setTenderedTouched(true);
+									onTenderedTouched();
 									onAmountTenderedChange(parseCents(e.target.value));
 								}}
 							/>

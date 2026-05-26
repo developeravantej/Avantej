@@ -18,6 +18,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 
 // ─── ChangeTierDialog ─────────────────────────────────────────────────────────
 
@@ -42,7 +49,8 @@ export function ChangeTierDialog({
 	onSuccess,
 }: ChangeTierDialogProps) {
 	const qc = useQueryClient();
-	const [selectedTierId, setSelectedTierId] = useState<string>("");
+	const NO_TIER = "__none__";
+	const [selectedTierId, setSelectedTierId] = useState<string>(NO_TIER);
 
 	// Fetch active tiers
 	const { data: tiers = [], isLoading: tiersLoading } = useQuery({
@@ -55,8 +63,8 @@ export function ChangeTierDialog({
 
 	// Sync selectedTierId when dialog opens
 	const handleOpenChange = (next: boolean) => {
-		if (next) setSelectedTierId(currentTierId ?? "");
-		else setSelectedTierId("");
+		if (next) setSelectedTierId(currentTierId ?? NO_TIER);
+		else setSelectedTierId(NO_TIER);
 		onOpenChange(next);
 	};
 
@@ -65,7 +73,7 @@ export function ChangeTierDialog({
 			client.trainerTiers.assignToMember({
 				organizationId,
 				memberId,
-				tierId: selectedTierId || null,
+				tierId: selectedTierId === NO_TIER ? null : selectedTierId,
 			}),
 		successMessage: "Tier assigned successfully.",
 		errorMessage: (err) =>
@@ -94,23 +102,26 @@ export function ChangeTierDialog({
 						{tiersLoading ? (
 							<p className="text-sm text-muted-foreground">Loading tiers…</p>
 						) : (
-							<select
-								id="tier-select"
+							<Select
 								value={selectedTierId}
-								onChange={(e) => setSelectedTierId(e.target.value)}
+								onValueChange={setSelectedTierId}
 								disabled={mutation.isPending}
-								className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
 							>
-								<option value="">No tier</option>
-								{tiers.map((tier) => (
-									<option key={tier.id} value={tier.id}>
-										{tier.name}
-										{tier.rank !== undefined
-											? ` (rank ${tier.rank})`
-											: ""}
-									</option>
-								))}
-							</select>
+								<SelectTrigger id="tier-select">
+									<SelectValue placeholder="No tier" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value={NO_TIER}>No tier</SelectItem>
+									{tiers.map((tier) => (
+										<SelectItem key={tier.id} value={tier.id}>
+											{tier.name}
+											{tier.rank !== undefined
+												? ` (rank ${tier.rank})`
+												: ""}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
 						)}
 					</div>
 				</div>
@@ -220,24 +231,27 @@ export function AssignBranchDialog({
 								Loading branches…
 							</p>
 						) : (
-							<select
-								id="branch-select"
+							<Select
 								value={selectedNodeId}
-								onChange={(e) => setSelectedNodeId(e.target.value)}
+								onValueChange={setSelectedNodeId}
 								disabled={mutation.isPending}
-								className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
 							>
-								{nodes.length === 0 ? (
-									<option value="">No nodes available</option>
-								) : (
-									nodes.map((node) => (
-										<option key={node.id} value={node.id}>
-											{"  ".repeat(node.depth ?? 0)}
-											{node.name}
-										</option>
-									))
-								)}
-							</select>
+								<SelectTrigger id="branch-select">
+									<SelectValue placeholder="Select a branch…" />
+								</SelectTrigger>
+								<SelectContent>
+									{nodes.length === 0 ? (
+										<SelectItem value="__empty__">No nodes available</SelectItem>
+									) : (
+										nodes.map((node) => (
+											<SelectItem key={node.id} value={node.id}>
+												{"  ".repeat(node.depth ?? 0)}
+												{node.name}
+											</SelectItem>
+										))
+									)}
+								</SelectContent>
+							</Select>
 						)}
 					</div>
 				</div>

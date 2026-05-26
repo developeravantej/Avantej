@@ -77,10 +77,17 @@ export const packageInstancesCreateProcedures = {
         // server scales by (10000 + price_premium_bps) / 10000 when a plan with a
         // non-zero premium is selected. See zplan/17-04_14-00_installment-premium/plan.md §4.3.
         const basePrice = input.totalPrice ?? null;
+        const pricePremiumBps = planRow?.pricePremiumBps ?? 0;
         const adjustedTotalPrice =
-          basePrice != null && planRow && planRow.pricePremiumBps > 0
-            ? Math.round((basePrice * (10000 + planRow.pricePremiumBps)) / 10000)
+          basePrice != null && pricePremiumBps > 0
+            ? Math.round((basePrice * (10000 + pricePremiumBps)) / 10000)
             : basePrice;
+
+        // LC-C3: scale tax amount by the same premium so the ledger stays consistent
+        const scaledTaxAmount =
+          pricePremiumBps > 0 && input.taxAmount
+            ? Math.round(input.taxAmount * (10000 + pricePremiumBps) / 10000)
+            : (input.taxAmount ?? 0);
 
         // Build XOR owner — exactly one of clientId / walkInCustomerId must be provided
         const ownerField: { clientId: string } | { walkInCustomerId: string } =
@@ -103,47 +110,53 @@ export const packageInstancesCreateProcedures = {
           }
         }
 
-        const created = await createPackageInstance(context.tenantDb, {
-          serviceId: input.serviceId,
-          ...ownerField,
-          source: input.source,
-          assignedBy: input.assignedBy ?? null,
-          purchaseNumber: input.purchaseNumber ?? null,
-          paymentId: input.paymentId ?? null,
-          totalPrice: adjustedTotalPrice,
-          taxAmount: input.taxAmount ?? 0,
-          paymentStatus: input.paymentStatus ?? "pending",
-          paymentMethod: input.paymentMethod ?? null,
-          eSignature: input.eSignature ?? null,
-          termsAgreedAt: input.termsAgreedAt
-            ? new Date(input.termsAgreedAt)
-            : null,
-          creditsTotal: input.creditsTotal,
-          creditsUsed: input.creditsUsed ?? 0,
-          startsAt: new Date(input.startsAt),
-          expiresAt: new Date(input.expiresAt),
-          status: resolvedStatus,
-          remark: input.remark ?? null,
-          paymentPlanType: input.paymentPlanType ?? null,
-          installmentsTotal: resolvedInstallmentsTotal,
-          installmentsPaid: 0,
-          creditsUnlocked: isInstallmentPlan ? 0 : null,
-          preferredTrainerId: input.preferredTrainerId ?? null,
-        });
-
-        // Installment schedule uses created.totalPrice which already includes any plan price premium
-        // Generate installment schedule if payment plan is an installment plan (numInstallments > 1)
-        if (isInstallmentPlan) {
-          await createInstallmentSchedule(context.tenantDb, {
-            packageInstanceId: created.id,
-            creditsTotal: created.creditsTotal,
-            totalPrice: created.totalPrice ?? 0,
-            taxAmount: created.taxAmount ?? 0,
+        // LC-C4: createPackageInstance + createInstallmentSchedule are atomic —
+        // both must succeed or both roll back. Pass tx to both calls.
+        const created = await context.tenantDb.transaction(async (tx: any) => {
+          const instance = await createPackageInstance(tx, {
+            serviceId: input.serviceId,
+            ...ownerField,
+            source: input.source,
+            assignedBy: input.assignedBy ?? null,
+            purchaseNumber: input.purchaseNumber ?? null,
+            paymentId: input.paymentId ?? null,
+            totalPrice: adjustedTotalPrice,
+            taxAmount: scaledTaxAmount,
+            paymentStatus: input.paymentStatus ?? "pending",
+            paymentMethod: input.paymentMethod ?? null,
+            eSignature: input.eSignature ?? null,
+            termsAgreedAt: input.termsAgreedAt
+              ? new Date(input.termsAgreedAt)
+              : null,
+            creditsTotal: input.creditsTotal,
+            creditsUsed: input.creditsUsed ?? 0,
+            startsAt: new Date(input.startsAt),
+            expiresAt: new Date(input.expiresAt),
+            status: resolvedStatus,
+            remark: input.remark ?? null,
+            paymentPlanType: input.paymentPlanType ?? null,
             installmentsTotal: resolvedInstallmentsTotal,
-            intervalDays: effectiveIntervalDays,
-            purchaseDate: new Date(),
+            installmentsPaid: 0,
+            creditsUnlocked: isInstallmentPlan ? 0 : null,
+            preferredTrainerId: input.preferredTrainerId ?? null,
           });
-        }
+
+          // Installment schedule uses instance.totalPrice which already includes any plan price premium.
+          // Generate installment schedule if payment plan is an installment plan (numInstallments > 1).
+          if (isInstallmentPlan) {
+            await createInstallmentSchedule(tx, {
+              packageInstanceId: instance.id,
+              creditsTotal: instance.creditsTotal,
+              totalPrice: instance.totalPrice ?? 0,
+              taxAmount: instance.taxAmount ?? 0,
+              installmentsTotal: resolvedInstallmentsTotal,
+              intervalDays: effectiveIntervalDays,
+              purchaseDate: new Date(),
+            }, { inTransaction: true });
+          }
+
+          return instance;
+        });
 
         // Fan out notifications to branch admins + trainers when the package
         // landed in `pending` status (gate enabled + customer purchase).

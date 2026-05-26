@@ -129,6 +129,30 @@ export async function deactivateTrainerTier(
 	return updated;
 }
 
+export async function deleteTrainerTier(
+	tenantDb: TenantDb,
+	id: string,
+): Promise<void> {
+	const [existing] = await tenantDb
+		.select({ id: trainerTiers.id })
+		.from(trainerTiers)
+		.where(eq(trainerTiers.id, id))
+		.limit(1);
+
+	if (!existing) {
+		throw new Error("Trainer tier not found");
+	}
+
+	// Unassign any members still pointing at this tier
+	await tenantDb
+		.update(members)
+		.set({ trainerTierId: null })
+		.where(eq(members.trainerTierId, id));
+
+	// Hard delete the tier
+	await tenantDb.delete(trainerTiers).where(eq(trainerTiers.id, id));
+}
+
 export async function reactivateTrainerTier(
 	tenantDb: TenantDb,
 	id: string,

@@ -486,6 +486,35 @@ export const serverCustomerProfilesRouterType = {
 		.handler((): { success: boolean; email: string } => {
 			throw new Error("Not implemented - this is only for type inference");
 		}),
+	// Quick Add — staff creates a customer profile without an email/account
+	createUnclaimed: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				firstName: z.string().min(1),
+				lastName: z.string().min(1),
+				phone: z.string().min(1),
+				email: z.string().email().optional(),
+				hierarchyScopeId: z.string().uuid(),
+				dateOfBirth: z.string().datetime().optional(),
+				notes: z.string().optional(),
+			}),
+		)
+		.handler((): { memberId: string; profileId: string; userId: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	// Send a magic-link claim email to an unclaimed customer
+	sendClaimLink: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				customerProfileId: z.string().uuid(),
+				email: z.string().email(),
+			}),
+		)
+		.handler((): { success: boolean; email: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
 };
 
 // Subscriptions router type definition for client type inference.

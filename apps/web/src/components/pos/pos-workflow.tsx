@@ -75,6 +75,7 @@ function formatPaymentLabel(method: PaymentMethod | null): string {
 		manual_transfer: "Bank Transfer (Manual)",
 		fpx: "FPX",
 		stripe: "Stripe",
+		online: "Online (Payment Link)",
 	};
 	return labels[method] ?? (method as string);
 }
@@ -349,6 +350,7 @@ export function PosWorkflow({
 	);
 	const [paymentReference, setPaymentReference] = useState("");
 	const [amountTenderedCents, setAmountTenderedCents] = useState(0);
+	const [tenderedTouched, setTenderedTouched] = useState(false);
 	const [selectedInstallmentPlanId, setSelectedInstallmentPlanId] = useState<
 		string | null
 	>(null);
@@ -434,27 +436,9 @@ export function PosWorkflow({
 		taxRateBps,
 	);
 
-	// Amount the customer pays at POS (first instalment when a plan is selected)
-	const dueNowCents = selectedPlan
-		? Math.ceil(
-				(totalCents * (1 + (selectedPlan.pricePremiumBps ?? 0) / 10000)) /
-					selectedPlan.numInstallments,
-			)
-		: totalCents;
-
 	const hasServiceItems = items.some(
 		(item) => item.type === "service" && item.refId,
 	);
-
-	// ── Submit readiness ───────────────────────────────────────────────────────
-	const hasCustomer =
-		customerTypeMode === "walk_in" || selectedCustomer !== null;
-	const hasItems = items.length > 0;
-	const hasPaymentMethod = paymentMethod !== null;
-	const cashOk =
-		paymentMethod !== "cash" ||
-		(amountTenderedCents >= dueNowCents && amountTenderedCents > 0);
-	const isReadyToSubmit = hasCustomer && hasItems && hasPaymentMethod && cashOk;
 
 	// ── Promo re-validation on items change ───────────────────────────────────
 	const prevSubtotalRef = useRef(subtotalCents);
@@ -549,6 +533,24 @@ export function PosWorkflow({
 		(p) => p.id === selectedInstallmentPlanId,
 	);
 
+	// Amount the customer pays at POS (first instalment when a plan is selected)
+	const dueNowCents = selectedPlan
+		? Math.round(
+				(totalCents * (1 + (selectedPlan.pricePremiumBps ?? 0) / 10000)) /
+					selectedPlan.numInstallments,
+			)
+		: totalCents;
+
+	// ── Submit readiness ───────────────────────────────────────────────────────
+	const hasCustomer =
+		customerTypeMode === "walk_in" || selectedCustomer !== null;
+	const hasItems = items.length > 0;
+	const hasPaymentMethod = paymentMethod !== null;
+	const cashOk =
+		paymentMethod !== "cash" ||
+		(amountTenderedCents >= dueNowCents && amountTenderedCents > 0);
+	const isReadyToSubmit = hasCustomer && hasItems && hasPaymentMethod && cashOk;
+
 	const submitMutation = useApiMutation({
 		mutationFn: async () => {
 			if (!organizationId || !paymentMethod) {
@@ -574,20 +576,23 @@ export function PosWorkflow({
 
 			if (!resolvedBranchId) {
 				throw new Error(
-					"Branch could not be determined. Please select a customer.",
+					"Your account has no branch assigned. Please contact your administrator to assign your account to a branch.",
 				);
 			}
 
+			// FE-M6: assignments are keyed by item.id (string); server expects numeric array-index keys.
+			// Remap item-ID → current array index so the service layer can look up items[index].
 			const filteredAssignments = Object.fromEntries(
 				Object.entries(trainerAssignments)
-					.map(([k, arr]) => [
-						k,
-						arr.filter((a) => a.staffId !== "").map((a) => ({
-							staffId: a.staffId,
-							slotIndex: a.slotIndex,
-						})),
-					])
-					.filter(([, arr]) => (arr as unknown[]).length > 0),
+					.map(([itemId, arr]) => {
+						const arrayIndex = items.findIndex((i) => i.id === itemId);
+						if (arrayIndex === -1) return null;
+						const filtered = arr
+							.filter((a) => a.staffId !== "")
+							.map((a) => ({ staffId: a.staffId, slotIndex: a.slotIndex }));
+						return filtered.length > 0 ? [String(arrayIndex), filtered] : null;
+					})
+					.filter((entry): entry is [string, { staffId: string; slotIndex: number }[]] => entry !== null),
 			);
 
 			return client.pos.recordSale({
@@ -640,6 +645,21 @@ export function PosWorkflow({
 				paymentMethod,
 				timestamp: new Date(),
 			});
+
+			// FE-C1: Reset all sale state after a completed sale
+			setItems([]);
+			setAppliedPromo(null);
+			setPaymentMethod(null);
+			setPaymentReference("");
+			setAmountTenderedCents(0);
+			setTenderedTouched(false);
+			setSelectedInstallmentPlanId(null);
+			setPreferredTrainerId(null);
+			setTrainerAssignments({});
+			setNotes("");
+			setCurrentStep(hideCustomerStep || prefillCustomerId ? 1 : 0);
+			// Keep selectedCustomer if customer is prefilled/locked
+			if (!hideCustomerStep && !prefillCustomerId) setSelectedCustomer(null);
 
 			if (onSaleCreated) {
 				onSaleCreated(data.salesOrderId);
@@ -1102,14 +1122,17 @@ export function PosWorkflow({
 										items={items}
 										discountCents={discountCents}
 										taxRateBps={taxRateBps}
+										dueNowCents={dueNowCents}
 										method={paymentMethod}
 										paymentReference={paymentReference}
 										amountTenderedCents={amountTenderedCents}
+										tenderedTouched={tenderedTouched}
 										selectedInstallmentPlanId={selectedInstallmentPlanId}
 										preferredTrainerId={preferredTrainerId}
 										onMethodChange={setPaymentMethod}
 										onReferenceChange={setPaymentReference}
 										onAmountTenderedChange={setAmountTenderedCents}
+										onTenderedTouched={() => setTenderedTouched(true)}
 										onInstallmentPlanChange={setSelectedInstallmentPlanId}
 										onPreferredTrainerChange={setPreferredTrainerId}
 									/>
@@ -1212,7 +1235,8 @@ export function PosWorkflow({
 										items={items}
 										discountCents={discountCents}
 										taxRateBps={taxRateBps}
-										paymentMethod={paymentMethod as any}
+										dueNowCents={dueNowCents}
+										paymentMethod={paymentMethod}
 										amountTenderedCents={amountTenderedCents}
 									/>
 

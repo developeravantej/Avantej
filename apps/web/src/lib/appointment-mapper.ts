@@ -39,6 +39,8 @@ const CALENDAR_STATUS_MAP: Record<string, "confirmed" | "pending" | "cancelled">
 	pending: "pending",
 	confirmed: "confirmed",
 	completed: "confirmed",
+	rescheduled: "confirmed",
+	disputed: "cancelled",
 	cancelled: "cancelled",
 	"no-show": "cancelled",
 };

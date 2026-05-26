@@ -11,7 +11,16 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -125,20 +134,22 @@ export function AddExceptionDialog({
 					{!preselectedTrainerId && (
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="exception-trainer">Trainer</Label>
-							<select
-								id="exception-trainer"
+							<Select
 								value={trainerId}
-								onChange={(e) => setTrainerId(e.target.value)}
+								onValueChange={setTrainerId}
 								disabled={mutation.isPending}
-								className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
 							>
-								<option value="">Select a trainer…</option>
-								{(trainerRows ?? []).map((r) => (
-									<option key={r.trainerId} value={r.trainerId}>
-										{r.trainerName}
-									</option>
-								))}
-							</select>
+								<SelectTrigger id="exception-trainer">
+									<SelectValue placeholder="Select a trainer…" />
+								</SelectTrigger>
+								<SelectContent>
+									{(trainerRows ?? []).map((r) => (
+										<SelectItem key={r.trainerId} value={r.trainerId}>
+											{r.trainerName}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
 						</div>
 					)}
 
@@ -177,13 +188,12 @@ export function AddExceptionDialog({
 					{/* Date picker */}
 					<div className="flex flex-col gap-1.5">
 						<Label htmlFor="exception-date">Exception Date</Label>
-						<input
+						<Input
 							id="exception-date"
 							type="date"
 							value={date}
 							onChange={(e) => setDate(e.target.value)}
 							disabled={mutation.isPending}
-							className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
 						/>
 					</div>
 
@@ -195,14 +205,13 @@ export function AddExceptionDialog({
 								(optional)
 							</span>
 						</Label>
-						<textarea
+						<Textarea
 							id="exception-reason"
 							value={reason}
 							onChange={(e) => setReason(e.target.value)}
 							placeholder="e.g. Public holiday, trainer leave, venue closure…"
 							rows={2}
 							disabled={mutation.isPending}
-							className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50"
 						/>
 					</div>
 				</div>

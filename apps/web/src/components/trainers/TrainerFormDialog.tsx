@@ -143,7 +143,7 @@ export function TrainerFormDialog({
 				if (!isOpen) onClose();
 			}}
 		>
-			<DialogContent className="sm:max-w-lg overflow-y-auto">
+			<DialogContent className="sm:max-w-lg flex flex-col max-h-[90vh]">
 				<DialogHeader>
 					<DialogTitle>{isEditing ? "Edit Trainer" : "Add Trainer"}</DialogTitle>
 					<DialogDescription>
@@ -153,7 +153,7 @@ export function TrainerFormDialog({
 					</DialogDescription>
 				</DialogHeader>
 
-				<form onSubmit={handleSubmit} className="flex flex-col gap-5 p-4">
+				<form onSubmit={handleSubmit} className="flex flex-col gap-5 p-4 overflow-y-auto flex-1">
 					{/* ── Member Info (create only) ─────────────────────────── */}
 					{!isEditing && (
 						<>

@@ -10,7 +10,6 @@ import {
 	rejectExpense,
 	markExpensePaid,
 } from "@avantej-core/services/expenses.service";
-import { requirePermission } from "@avantej-core/services";
 
 const list = tenantProcedure
 	.input(

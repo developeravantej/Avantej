@@ -462,6 +462,7 @@ export {
 	type CreateTrainerTierResult,
 	createTrainerTier,
 	deactivateTrainerTier,
+	deleteTrainerTier,
 	getConfigsMissingRateForTier,
 	listTrainerTiers,
 	type MissingRateCategory,

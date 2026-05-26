@@ -6,7 +6,7 @@ export const o = os.$context<Context>();
 export const publicProcedure = o;
 
 const requireAuth = o.middleware(async ({ context, next }) => {
-	if (!context.session?.user) {
+	if (!context.session || !context.session.user) {
 		throw new ORPCError("UNAUTHORIZED");
 	}
 	return next({
@@ -28,7 +28,7 @@ const requireTenant = o.middleware(async ({ context, next }) => {
 			message: "User is not a member of this organization",
 		});
 	}
-	return next({ context });
+	return next({});
 });
 
 export const protectedProcedure = publicProcedure.use(requireAuth);

@@ -169,29 +169,34 @@ export async function deactivateInstallmentPlan(
 	tenantDb: TenantDb,
 	id: string,
 ): Promise<typeof installmentPlans.$inferSelect> {
-	const existing = await tenantDb.query.installmentPlans.findFirst({
-		where: eq(installmentPlans.id, id),
+	// LC-M6: wrap existence check + update in a single transaction to prevent
+	// a check-then-update race condition where two concurrent deactivations
+	// both see the plan as active and attempt to update it.
+	return tenantDb.transaction(async (tx) => {
+		const existing = await tx.query.installmentPlans.findFirst({
+			where: eq(installmentPlans.id, id),
+		});
+
+		if (!existing) {
+			throw new Error("Installment plan not found");
+		}
+
+		// Silently clear isDefault if the plan was the current default (mirrors deactivateTaxRate)
+		const [row] = await tx
+			.update(installmentPlans)
+			.set({
+				isActive: false,
+				...(existing.isDefault && { isDefault: false }),
+				updatedAt: new Date(),
+			})
+			.where(eq(installmentPlans.id, id))
+			.returning();
+
+		if (!row) {
+			throw new Error("Failed to deactivate installment plan");
+		}
+		return row;
 	});
-
-	if (!existing) {
-		throw new Error("Installment plan not found");
-	}
-
-	// Silently clear isDefault if the plan was the current default (mirrors deactivateTaxRate)
-	const [row] = await tenantDb
-		.update(installmentPlans)
-		.set({
-			isActive: false,
-			...(existing.isDefault && { isDefault: false }),
-			updatedAt: new Date(),
-		})
-		.where(eq(installmentPlans.id, id))
-		.returning();
-
-	if (!row) {
-		throw new Error("Failed to deactivate installment plan");
-	}
-	return row;
 }
 
 export async function reactivateInstallmentPlan(

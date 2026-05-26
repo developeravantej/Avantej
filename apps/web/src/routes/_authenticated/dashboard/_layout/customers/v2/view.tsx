@@ -3,10 +3,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
 import { Pencil, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { AddCustomerDialog } from "@/components/customers/add-customer-dialog";
 import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
 import { CustomerProfilePanel } from "@/components/customers/customer-profile-panel";
 import { CustomersFilterSidebar } from "@/components/customers/customers-filter-sidebar";
-import { CreateInvitationDialog } from "@/components/invitations/create-invitation-dialog";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
@@ -35,6 +35,7 @@ type DirectoryRow = {
 	name: string;
 	email: string;
 	isDeleted?: boolean | null;
+	isUnclaimed?: boolean;
 };
 
 function CustomersV2Page() {
@@ -92,6 +93,7 @@ function CustomersV2Page() {
 				name: r.name,
 				email: r.email,
 				isDeleted: r.isDeleted ?? null,
+				isUnclaimed: r.isUnclaimed ?? false,
 			})),
 		[rows],
 	);
@@ -197,13 +199,10 @@ function CustomersV2Page() {
 			</div>
 
 			{organizationId && (
-				<CreateInvitationDialog
+				<AddCustomerDialog
 					open={inviteOpen}
 					onOpenChange={setInviteOpen}
 					organizationId={organizationId}
-					lockedRole="client"
-					title="Add Customer"
-					description="Send an invitation. The customer will receive an email with a link to set up their account."
 				/>
 			)}
 

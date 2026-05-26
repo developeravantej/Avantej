@@ -4,9 +4,8 @@ import { tenantProcedure } from "../../index";
 import {
 	requirePermissionOrpc,
 	assertOrgContextMatch,
-	guardInputBranchForContext,
 } from "../../guards";
-import { eq, and, gte, ne } from "drizzle-orm";
+import { eq, and, gte } from "drizzle-orm";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { recurrenceRules } from "@avantej-core/db/schema/tenant/recurrence-rules";
 import { statusSchema } from "./schemas";

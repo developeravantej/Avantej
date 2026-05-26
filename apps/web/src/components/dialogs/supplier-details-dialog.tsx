@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -49,7 +49,7 @@ export function SupplierDetailsDialog({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onClose}>
-			<DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+			<DialogContent className="max-h-[90vh] overflow-y-auto">
 				<DialogHeader>
 					<div className="flex items-center justify-between">
 						<DialogTitle className="text-2xl font-bold flex items-center gap-2">
@@ -208,11 +208,11 @@ export function SupplierDetailsDialog({
 					</div>
 				</div>
 
-				<div className="flex justify-end gap-2 pt-4">
+				<DialogFooter>
 					<Button variant="outline" onClick={onClose}>
 						Close
 					</Button>
-				</div>
+				</DialogFooter>
 			</DialogContent>
 		</Dialog>
 	);

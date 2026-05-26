@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
 import {
@@ -18,7 +18,6 @@ import { useState } from "react";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { StatusCallout } from "@/components/ui/status-callout";
-import { TablePagination } from "@/components/ui/table-pagination";
 import {
 	Dialog,
 	DialogContent,
@@ -382,8 +381,6 @@ function AuditLogPage() {
 	const [fromApplied, setFromApplied] = useState("");
 	const [toApplied, setToApplied] = useState("");
 
-	const [offset, setOffset] = useState(0);
-
 	const [detailRow, setDetailRow] = useState<AuditRowEnriched | null>(null);
 	const [detailOpen, setDetailOpen] = useState(false);
 
@@ -487,7 +484,10 @@ function AuditLogPage() {
 		isLoading,
 		error,
 		refetch,
-	} = useQuery({
+		fetchNextPage,
+		hasNextPage,
+		isFetchingNextPage,
+	} = useInfiniteQuery({
 		queryKey: [
 			"auditLog",
 			"list",
@@ -499,21 +499,25 @@ function AuditLogPage() {
 			fromApplied,
 			toApplied,
 			severityFilter,
-			offset,
 		],
-		queryFn: async () => {
+		queryFn: async ({ pageParam }) => {
 			if (!organizationId) return { rows: [], total: 0 };
 			return client.auditLogs.list({
 				...filterParams,
 				limit: PAGE_LIMIT,
-				offset,
+				offset: pageParam,
 			});
+		},
+		initialPageParam: 0,
+		getNextPageParam: (lastPage, allPages) => {
+			const loaded = allPages.reduce((sum, p) => sum + p.rows.length, 0);
+			return loaded < lastPage.total ? loaded : undefined;
 		},
 		enabled: !!organizationId && canRead,
 	});
 
-	const rows: AuditRowEnriched[] = (listData?.rows ?? []) as AuditRowEnriched[];
-	const total = listData?.total ?? 0;
+	const rows: AuditRowEnriched[] = (listData?.pages.flatMap((p) => p.rows) ?? []) as AuditRowEnriched[];
+	const total = listData?.pages[0]?.total ?? 0;
 
 	const filteredRows = search.trim()
 		? rows.filter(
@@ -523,10 +527,6 @@ function AuditLogPage() {
 					r.action.toLowerCase().includes(search.toLowerCase()),
 			)
 		: rows;
-
-	function resetOffset() {
-		setOffset(0);
-	}
 
 	async function handleExportCsv() {
 		if (!organizationId) return;
@@ -586,7 +586,6 @@ function AuditLogPage() {
 		setFromApplied("");
 		setToApplied("");
 		setSearch("");
-		resetOffset();
 	}
 
 	// ── Guards ─────────────────────────────────────────────────────────────
@@ -714,7 +713,6 @@ function AuditLogPage() {
 							value={severityFilter || "all"}
 							onValueChange={(v) => {
 								setSeverityFilter(v === "all" ? "" : (v as SeverityFilter));
-								resetOffset();
 							}}
 						>
 							<SelectTrigger className="h-9 w-36">
@@ -739,7 +737,6 @@ function AuditLogPage() {
 							value={actorUserId}
 							onChange={(e) => {
 								setActorUserId(e.target.value);
-								resetOffset();
 							}}
 							className="h-9 w-40 font-mono text-xs"
 						/>
@@ -754,7 +751,6 @@ function AuditLogPage() {
 							value={action || "all"}
 							onValueChange={(v) => {
 								setAction(v === "all" ? "" : v);
-								resetOffset();
 							}}
 						>
 							<SelectTrigger className="h-9 w-44">
@@ -780,7 +776,6 @@ function AuditLogPage() {
 							value={entityType || "all"}
 							onValueChange={(v) => {
 								setEntityType(v === "all" ? "" : v);
-								resetOffset();
 							}}
 						>
 							<SelectTrigger className="h-9 w-40">
@@ -808,7 +803,6 @@ function AuditLogPage() {
 							onChange={(e) => setFromInput(e.target.value)}
 							onBlur={() => {
 								setFromApplied(fromInput);
-								resetOffset();
 							}}
 							className="h-9 w-36 rounded-xl border border-[#e5e5e5] bg-white px-3 text-xs outline-none focus:border-[#0a0a0a] font-mono tabular-nums"
 						/>
@@ -825,7 +819,6 @@ function AuditLogPage() {
 							onChange={(e) => setToInput(e.target.value)}
 							onBlur={() => {
 								setToApplied(toInput);
-								resetOffset();
 							}}
 							className="h-9 w-36 rounded-xl border border-[#e5e5e5] bg-white px-3 text-xs outline-none focus:border-[#0a0a0a] font-mono tabular-nums"
 						/>
@@ -841,7 +834,6 @@ function AuditLogPage() {
 								value={branchId || "all"}
 								onValueChange={(v) => {
 									setBranchId(v === "all" ? "" : v);
-									resetOffset();
 								}}
 							>
 								<SelectTrigger className="h-9 w-44">
@@ -1053,20 +1045,22 @@ function AuditLogPage() {
 						</tbody>
 					</table>
 
-					{/* Pagination footer */}
-					{total > PAGE_LIMIT && (
-						<div className="flex items-center justify-between border-t border-[#e5e5e5] bg-[#f3f3f3]/50 px-4 py-2.5">
-							<span className="text-[13px] text-[#737373] font-mono tabular-nums">
-								Showing {Math.min(offset + PAGE_LIMIT, total)} of {total} results
-							</span>
-							<TablePagination
-								page={Math.floor(offset / PAGE_LIMIT)}
-								pageSize={PAGE_LIMIT}
-								totalRows={total}
-								onPageChange={(newPage) => setOffset(newPage * PAGE_LIMIT)}
-							/>
-						</div>
-					)}
+					{/* Load more footer */}
+					<div className="flex items-center justify-between border-t border-[#e5e5e5] bg-[#f3f3f3]/50 px-4 py-2.5">
+						<span className="text-[13px] text-[#737373] font-mono tabular-nums">
+							{rows.length} of {total} results
+						</span>
+						{hasNextPage && (
+							<button
+								type="button"
+								onClick={() => fetchNextPage()}
+								disabled={isFetchingNextPage}
+								className="inline-flex items-center gap-1.5 rounded-lg border border-[#e5e5e5] bg-white px-[14px] py-[8px] text-[13px] font-medium text-[#0a0a0a] transition-colors hover:bg-[#f7f5ee] disabled:opacity-40"
+							>
+								{isFetchingNextPage ? "Loading…" : "Load more"}
+							</button>
+						)}
+					</div>
 				</div>
 			)}
 

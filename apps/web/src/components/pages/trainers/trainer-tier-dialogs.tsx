@@ -101,6 +101,52 @@ export function CreateTierDialog({
 	);
 }
 
+type DeleteProps = {
+	targetName: string | null;
+	open: boolean;
+	onCancel: () => void;
+	onConfirm: () => void;
+	isPending: boolean;
+};
+
+export function DeleteTierDialog({
+	targetName,
+	open,
+	onCancel,
+	onConfirm,
+	isPending,
+}: DeleteProps) {
+	return (
+		<Dialog open={open} onOpenChange={(o) => !o && onCancel()}>
+			<DialogContent className="sm:max-w-sm">
+				<DialogHeader>
+					<DialogTitle>Delete Tier</DialogTitle>
+					<DialogDescription>
+						Permanently delete{" "}
+						<span className="font-semibold text-foreground">
+							{targetName ?? "this tier"}
+						</span>
+						? Any trainers assigned to it will be unassigned. This cannot be
+						undone.
+					</DialogDescription>
+				</DialogHeader>
+				<DialogFooter className="pt-2">
+					<Button variant="outline" onClick={onCancel} disabled={isPending}>
+						Cancel
+					</Button>
+					<Button
+						variant="destructive"
+						onClick={onConfirm}
+						disabled={isPending}
+					>
+						{isPending ? "Deleting..." : "Delete"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
 type DeactivateProps = {
 	targetName: string | null;
 	open: boolean;

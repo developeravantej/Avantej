@@ -8,9 +8,14 @@
 
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { X, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { StaffPicker } from "@/components/calendar/appointment-form/StaffPicker";
 import { useAppointmentFormData } from "@/hooks/useAppointmentFormData";
 import { useUserContext } from "@/hooks/useUserContext";
@@ -82,8 +87,6 @@ export function EditAppointmentModal({
 		},
 	});
 
-	if (!isOpen) return null;
-
 	// Translate members.id → members.userId for submission
 	const findUserId = (membersId: string): string | null => {
 		const found = trainers.find((t) => t.id === membersId);
@@ -118,18 +121,13 @@ export function EditAppointmentModal({
 	};
 
 	return (
-		<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-			<Card className="w-full max-w-md">
-				<CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-4">
-					<div className="flex items-center gap-2">
-						<Users className="size-5 text-muted-foreground" />
-						<CardTitle className="text-lg font-semibold">Edit Staff Assignment</CardTitle>
-					</div>
-					<Button variant="ghost" size="sm" onClick={onClose} className="size-8 p-0">
-						<X className="size-4" />
-					</Button>
-				</CardHeader>
-				<CardContent className="space-y-4">
+		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+			<DialogContent className="sm:max-w-md">
+				<DialogHeader>
+					<DialogTitle>Edit Staff Assignment</DialogTitle>
+				</DialogHeader>
+
+				<div className="space-y-4">
 					{isLoadingStaff ? (
 						<div className="text-sm text-muted-foreground">Loading…</div>
 					) : (
@@ -143,17 +141,24 @@ export function EditAppointmentModal({
 							trainerPlaceholder="Select trainer"
 						/>
 					)}
+				</div>
 
-					<div className="flex gap-3 pt-2 border-t">
-						<Button variant="outline" onClick={onClose} className="flex-1" disabled={updateMutation.isPending}>
-							Cancel
-						</Button>
-						<Button onClick={handleSave} className="flex-1" disabled={updateMutation.isPending}>
-							{updateMutation.isPending ? "Saving..." : "Save"}
-						</Button>
-					</div>
-				</CardContent>
-			</Card>
-		</div>
+				<DialogFooter>
+					<Button
+						variant="outline"
+						onClick={onClose}
+						disabled={updateMutation.isPending}
+					>
+						Cancel
+					</Button>
+					<Button
+						onClick={handleSave}
+						disabled={updateMutation.isPending}
+					>
+						{updateMutation.isPending ? "Saving..." : "Save"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }

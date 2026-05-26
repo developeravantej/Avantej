@@ -7,6 +7,13 @@ import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { writeAudit } from "./audit-log.service";
 
+export class PromoValidationError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "PromoValidationError";
+	}
+}
+
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 
 export type CreatePromotionParams = {
@@ -72,38 +79,44 @@ export async function validatePromoCode(
 	tenantDb: TenantDb,
 	code: string,
 	params: {
-		customerId: string;
+		customerId?: string;
 		orderAmount: number;
 		productIds?: string[];
 		serviceIds?: string[];
 		branchId?: string;
 	},
 ) {
-	// 1. Find promotion by code (case-insensitive)
-	const [promotion] = await tenantDb
+	// 1. Find promotion by code with a row-level lock to prevent concurrent
+	//    usage-count races (BE-C2). .for("update") is a no-op outside a
+	//    transaction so non-transactional callers are unaffected.
+	const lockedPromotion = await tenantDb
 		.select()
 		.from(promotions)
-		.where(sql`lower(${promotions.code}) = lower(${code})`);
+		.where(sql`lower(${promotions.code}) = lower(${code})`)
+		.for("update")
+		.then((rows) => rows[0] ?? null);
 
-	if (!promotion) {
-		throw new Error("Promotion code not found");
+	if (!lockedPromotion) {
+		throw new PromoValidationError("Promotion code not found.");
 	}
+
+	const promotion = lockedPromotion;
 
 	// 2. Check isActive
 	if (!promotion.isActive) {
-		throw new Error("Promotion is not active");
+		throw new PromoValidationError("Promotion is not active.");
 	}
 
 	const now = new Date();
 
 	// 3. Check validFrom
 	if (promotion.validFrom > now) {
-		throw new Error("Promotion not yet valid");
+		throw new PromoValidationError("Promotion not yet valid.");
 	}
 
 	// 4. Check validUntil
 	if (promotion.validUntil && promotion.validUntil < now) {
-		throw new Error("Promotion has expired");
+		throw new PromoValidationError("Promotion has expired.");
 	}
 
 	// 5. Check global usage limit
@@ -111,28 +124,30 @@ export async function validatePromoCode(
 		promotion.usageLimit !== null &&
 		promotion.usageCount >= promotion.usageLimit
 	) {
-		throw new Error("Promotion usage limit reached");
+		throw new PromoValidationError("Promotion usage limit reached.");
 	}
 
-	// 6. Check per-customer limit
-	const [customerUsage] = await tenantDb
-		.select({ usageCount: count() })
-		.from(promotionUsages)
-		.where(
-			and(
-				eq(promotionUsages.promotionId, promotion.id),
-				eq(promotionUsages.customerId, params.customerId),
-			),
-		);
+	// 6. Check per-customer limit — skipped when customerId is not provided (BE-M2)
+	if (params.customerId) {
+		const [customerUsage] = await tenantDb
+			.select({ usageCount: count() })
+			.from(promotionUsages)
+			.where(
+				and(
+					eq(promotionUsages.promotionId, promotion.id),
+					eq(promotionUsages.customerId, params.customerId),
+				),
+			);
 
-	const perCustomerLimit = promotion.perCustomerLimit ?? 1;
-	if (customerUsage && customerUsage.usageCount >= perCustomerLimit) {
-		throw new Error("You have already used this promotion");
+		const perCustomerLimit = promotion.perCustomerLimit ?? 1;
+		if (customerUsage && customerUsage.usageCount >= perCustomerLimit) {
+			throw new PromoValidationError("You have already used this promotion.");
+		}
 	}
 
 	// 7. Check minimum order amount
 	if (params.orderAmount < (promotion.minimumOrderAmount ?? 0)) {
-		throw new Error("Order amount too low for this promotion");
+		throw new PromoValidationError("Order amount too low for this promotion.");
 	}
 
 	// 8. Calculate discount amount

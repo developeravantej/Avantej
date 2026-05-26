@@ -4377,6 +4377,19 @@ CREATE TABLE IF NOT EXISTS scheduled_reports (
 CREATE INDEX IF NOT EXISTS scheduled_reports_due_idx
   ON scheduled_reports(is_active, next_run_at);
 ` },
+	{ hash: "0074_reschedule_history", sql: `-- Add reschedule_history JSONB column to appointments.
+-- Append-only array of {from, to, at, by} entries written each time
+-- an appointment transitions to 'rescheduled' status.
+ALTER TABLE appointments
+  ADD COLUMN IF NOT EXISTS reschedule_history jsonb NOT NULL DEFAULT '[]'::jsonb;
+` },
+	{ hash: "0075_customer_profiles_add_unclaimed", sql: `ALTER TABLE customer_profiles
+  ADD COLUMN IF NOT EXISTS is_unclaimed boolean NOT NULL DEFAULT false;
+
+CREATE INDEX IF NOT EXISTS customer_profiles_is_unclaimed_idx
+  ON customer_profiles (is_unclaimed)
+  WHERE is_unclaimed = true;
+` },
 ] as const;
 
 export const LATEST_MIGRATION_VERSION =

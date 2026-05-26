@@ -269,7 +269,7 @@ export const packageInstancesAssignProcedures = {
 
       // Validate branchId is within caller's accessible scope
       const accessibleNodeIds = context.accessibleNodeIds ?? [];
-      guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+      guardBranchAccessible(input.branchId, accessibleNodeIds);
       // Batch-resolve customerIds (tenant members.id) → userId (control-panel user id)
       const memberRows = await context.tenantDb
         .select({ id: members.id, userId: members.userId })

@@ -18,12 +18,15 @@ import {
 import { user } from "@avantej-core/db/schema/auth";
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { MembershipService } from "@avantej-core/db/services/membership.service";
 import { ORPCError } from "@orpc/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { fireCustomerSync } from "@/services/ghl/customer-sync-trigger";
 import { getBetterAuth } from "@/lib/better-auth";
 import { isPlaceholderEmail } from "@/services/gohighlevel.service";
+
+const UNCLAIMED_EMAIL_DOMAIN = "avantej.placeholder";
 
 export const serverCustomerProfilesRouter = {
 	upsert: protectedProcedure
@@ -616,5 +619,234 @@ export const serverCustomerProfilesRouter = {
 			}
 
 			return { success: true, email: linkedUser.email };
+		}),
+
+	/**
+	 * Quick Add — staff creates a full customer profile without the customer
+	 * having an account yet. Creates a placeholder control-panel user so the
+	 * profile appears in the directory immediately with an "Unclaimed" badge.
+	 * Staff can later call sendClaimLink to let the customer take ownership.
+	 */
+	createUnclaimed: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				firstName: z.string().min(1),
+				lastName: z.string().min(1),
+				phone: z.string().min(1),
+				email: z.string().email().optional(),
+				hierarchyScopeId: z.string().uuid(),
+				dateOfBirth: z.string().datetime().optional(),
+				notes: z.string().optional(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb || !context.honoContext) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database or Hono context not available.",
+				});
+			}
+			if (!context.member) {
+				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
+			}
+
+			try {
+				await requirePermission(
+					context.tenantDb,
+					context.member,
+					"user_management",
+					"create",
+				);
+			} catch (err) {
+				throw new ORPCError("FORBIDDEN", {
+					message: err instanceof Error ? err.message : "Permission denied",
+				});
+			}
+
+			// Validate hierarchy scope access (admins bypass)
+			if (context.member.role !== "admin") {
+				const accessibleNodeIds = context.accessibleNodeIds ?? [];
+				if (!accessibleNodeIds.includes(input.hierarchyScopeId)) {
+					throw new ORPCError("FORBIDDEN", {
+						message: "Hierarchy scope is outside your accessible nodes",
+					});
+				}
+			}
+
+			const cpDb = context.honoContext.get("controlPanelDb");
+			if (!cpDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Control panel database not available",
+				});
+			}
+
+			// Generate a placeholder email unique to this record
+			const placeholderEmail = `unclaimed-${crypto.randomUUID()}@${UNCLAIMED_EMAIL_DOMAIN}`;
+			const userId = crypto.randomUUID();
+			const now = new Date();
+
+			// Insert placeholder user into control panel (no password / account row)
+			// biome-ignore lint/suspicious/noExplicitAny: cpDb retrieved from Hono context is untyped
+			await (cpDb as any).insert(user).values({
+				id: userId,
+				name: `${input.firstName} ${input.lastName}`.trim(),
+				firstName: input.firstName,
+				lastName: input.lastName,
+				email: placeholderEmail,
+				emailVerified: false,
+				phone: input.phone ?? null,
+				createdAt: now,
+				updatedAt: now,
+			});
+
+			// Dual-write: organizationMembers (CP) + members (tenant)
+			// biome-ignore lint/suspicious/noExplicitAny: cpDb is untyped from Hono context
+			const membershipService = new MembershipService(cpDb as any);
+			await membershipService.createMember({
+				userId,
+				organizationId: input.organizationId,
+				role: "client",
+				hierarchyScopeId: input.hierarchyScopeId,
+				tenantDb: context.tenantDb,
+			});
+
+			// Create customer profile flagged as unclaimed
+			const [profile] = await context.tenantDb
+				.insert(customerProfiles)
+				.values({
+					userId,
+					phone: input.phone,
+					isUnclaimed: true,
+					dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
+					notes: input.notes ?? null,
+				})
+				.returning({ id: customerProfiles.id });
+
+			if (!profile) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Failed to create customer profile",
+				});
+			}
+
+			const newMember = await context.tenantDb.query.members.findFirst({
+				where: eq(members.userId, userId),
+			});
+
+			return {
+				memberId: newMember?.id ?? "",
+				profileId: profile.id,
+				userId,
+			};
+		}),
+
+	/**
+	 * Send a magic-link "claim your account" email to an unclaimed customer.
+	 * Updates the placeholder email → real email on the control-panel user,
+	 * then dispatches a magic-link sign-in so the customer can log in and
+	 * take ownership of the pre-filled profile.
+	 */
+	sendClaimLink: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				customerProfileId: z.string().uuid(),
+				email: z.string().email("Invalid email address"),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb || !context.honoContext) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database or Hono context not available.",
+				});
+			}
+			if (!context.member) {
+				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
+			}
+
+			await requirePermission(
+				context.tenantDb,
+				context.member,
+				"customer_management",
+				"update",
+			);
+
+			const profile = await context.tenantDb.query.customerProfiles.findFirst({
+				where: eq(customerProfiles.id, input.customerProfileId),
+			});
+			if (!profile) {
+				throw new ORPCError("NOT_FOUND", { message: "Customer profile not found" });
+			}
+			if (!profile.isUnclaimed) {
+				throw new ORPCError("BAD_REQUEST", {
+					message: "This customer has already claimed their account.",
+				});
+			}
+			if (!profile.userId) {
+				throw new ORPCError("BAD_REQUEST", {
+					message: "Cannot send claim link for a dependent profile",
+				});
+			}
+
+			const cpDb = context.honoContext.get("controlPanelDb");
+			if (!cpDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Control panel database not available",
+				});
+			}
+
+			// biome-ignore lint/suspicious/noExplicitAny: cpDb is untyped from Hono context
+			const existingUser = await (cpDb as any).query.user.findFirst({
+				where: eq(user.id, profile.userId),
+			});
+			if (!existingUser) {
+				throw new ORPCError("NOT_FOUND", { message: "Linked user record not found" });
+			}
+			if (!existingUser.email?.endsWith(`@${UNCLAIMED_EMAIL_DOMAIN}`)) {
+				throw new ORPCError("BAD_REQUEST", {
+					message: "User already has a real email. Use 'Resend sign-in link' instead.",
+				});
+			}
+
+			// Check for email collision with another user
+			// biome-ignore lint/suspicious/noExplicitAny: cpDb is untyped from Hono context
+			const collision = await (cpDb as any).query.user.findFirst({
+				where: eq(user.email, input.email),
+			});
+			if (collision && collision.id !== existingUser.id) {
+				throw new ORPCError("CONFLICT", {
+					message: "Email already in use by another user",
+				});
+			}
+
+			// Swap placeholder → real email and mark verified so magic-link works
+			// biome-ignore lint/suspicious/noExplicitAny: cpDb is untyped from Hono context
+			await (cpDb as any)
+				.update(user)
+				.set({ email: input.email, emailVerified: true, updatedAt: new Date() })
+				.where(eq(user.id, existingUser.id));
+
+			// Clear the unclaimed flag before dispatch — email is now real,
+			// so even if dispatch fails staff can retry via "Resend sign-in link".
+			await context.tenantDb
+				.update(customerProfiles)
+				.set({ isUnclaimed: false, updatedAt: new Date() })
+				.where(eq(customerProfiles.id, input.customerProfileId));
+
+			// Dispatch magic-link sign-in email
+			try {
+				const auth = getBetterAuth(context.honoContext);
+				// biome-ignore lint/suspicious/noExplicitAny: better-auth api typing is dynamic
+				await (auth as any).api.signInMagicLink({
+					body: { email: input.email },
+					headers: context.honoContext.req.raw.headers,
+				});
+			} catch (err) {
+				console.error("[customerProfiles.sendClaimLink] magic-link dispatch failed", err);
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Email updated but magic-link dispatch failed",
+				});
+			}
+
+			return { success: true, email: input.email };
 		}),
 };

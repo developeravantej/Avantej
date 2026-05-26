@@ -118,12 +118,14 @@ export function CustomerStep({
 
 	// ── Render: list + search ─────────────────────────────────────────────────
 
-	const filtered = query.trim()
+	// FE-M5: use debouncedQuery (same value server filtered by) to avoid double-filtering
+	// that causes a flashing empty state between keystroke and debounce settling.
+	const filtered = debouncedQuery.trim()
 		? results.filter(
 				(r) =>
-					r.name.toLowerCase().includes(query.toLowerCase()) ||
-					r.email?.toLowerCase().includes(query.toLowerCase()) ||
-					r.phone?.includes(query),
+					r.name.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
+					r.email?.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
+					r.phone?.includes(debouncedQuery),
 			)
 		: results;
 

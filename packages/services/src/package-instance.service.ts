@@ -13,6 +13,7 @@
 
 import { eq, and, asc, inArray, sql, or, lt, desc } from "drizzle-orm";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
+import { installments } from "@avantej-core/db/schema/tenant/installments";
 import { packageInstanceStatusHistory } from "@avantej-core/db/schema/tenant/package-instance-status-history";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
@@ -628,12 +629,26 @@ export async function cancelPackageInstance(
 		const now = new Date();
 		const previousStatus = pkg.status;
 
+		// LC-C1: cancel outstanding instalment rows before marking package cancelled
+		await tx
+			.update(installments)
+			.set({ status: "cancelled", updatedAt: now })
+			.where(
+				and(
+					eq(installments.packageInstanceId, params.id),
+					inArray(installments.status, ["pending", "overdue"]),
+				),
+			);
+
 		await tx
 			.update(packageInstances)
 			.set({
 				status: "cancelled",
 				cancellationReason: params.reason,
 				cancelledBy: params.actorUserId,
+				nextDueDate: null,
+				gracePeriodEndsAt: null,
+				isLocked: false,
 				updatedAt: now,
 			})
 			.where(eq(packageInstances.id, params.id));
