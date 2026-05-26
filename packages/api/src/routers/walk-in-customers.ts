@@ -13,9 +13,9 @@ const deprecated = (message: string) =>
 		});
 
 export const walkInCustomersRouter = {
-	list: tenantProcedure
-		.input(z.any().optional())
-		.handler(() => ({ items: [], total: 0 })),
+	list: deprecated(
+		"walk-in customers were replaced by customer_profiles — use customers.list",
+	),
 	getById: deprecated("Walk-in customers have been removed"),
 	create: deprecated(
 		"Walk-in customers have been removed — use anonymous walk-in flow",

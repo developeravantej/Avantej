@@ -22,6 +22,7 @@ import { appointmentClients } from "@avantej-core/db/schema/tenant/appointment-c
 import { appointmentStaff } from "@avantej-core/db/schema/tenant/appointment-staff";
 import { commissionSplits } from "@avantej-core/db/schema/tenant/commission-splits";
 import { resolveBufferTime, checkAppointmentBufferConflict } from "./buffer-time.service";
+import { listTrainerAvailabilityExceptions } from "./trainer-availability.service";
 import { evaluateAndExpireIfOverdue, evaluateAndLockIfOverdue } from "./installment.service";
 import { assertValidTransition } from "./utils/appointment-status-machine";
 import { writeAudit } from "./audit-log.service";
@@ -491,10 +492,11 @@ export async function updateAppointment(
   const timeChanged = params.startTime !== undefined || params.duration !== undefined;
   const staffChanged = params.staffAssignments !== undefined;
 
-  if (existingForBuffer.serviceId && (timeChanged || staffChanged)) {
-    // Determine which trainer IDs (members.id) to check buffer conflicts for.
-    // If staffAssignments provided, use those; otherwise fall back to the existing trainerId.
-    let trainerIdsToCheck: string[] = [];
+  // Determine which trainer IDs (members.id) to check conflicts for.
+  // Resolved here (outside all guards) so both the exception check and the
+  // buffer check below can reuse the same list without redundant DB calls.
+  let trainerIdsToCheck: string[] = [];
+  if (timeChanged || staffChanged) {
     if (params.staffAssignments && params.staffAssignments.length > 0) {
       // Resolve all new staff userId → members.id
       const resolved = await Promise.all(
@@ -505,7 +507,33 @@ export async function updateAppointment(
       const trainerId = params.trainerId !== undefined ? params.trainerId : existingForBuffer.trainerId;
       if (trainerId) trainerIdsToCheck = [trainerId];
     }
+  }
 
+  // AP-05 — Trainer availability exceptions (one-off blocked days).
+  // Applies whenever startTime or trainer changes — independent of whether a
+  // serviceId is present. Only 'blocked' exceptions prevent scheduling;
+  // 'timeoff' exceptions are also treated as blocking since the trainer is
+  // unavailable for the full day.
+  if (timeChanged || staffChanged) {
+    const apptDateStr = (() => {
+      const y = startTime.getFullYear();
+      const m = String(startTime.getMonth() + 1).padStart(2, "0");
+      const d = String(startTime.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    })();
+    for (const tId of trainerIdsToCheck) {
+      const exceptions = await listTrainerAvailabilityExceptions(tenantDb, tId, {
+        from: apptDateStr,
+        to: apptDateStr,
+      });
+      const blocking = exceptions.filter((e) => e.kind === "blocked" || e.kind === "timeoff");
+      if (blocking.length > 0) {
+        throw new Error("TRAINER_EXCEPTION: Trainer has an availability exception during this time slot");
+      }
+    }
+  }
+
+  if (existingForBuffer.serviceId && (timeChanged || staffChanged)) {
     for (const tId of trainerIdsToCheck) {
       const bufferMinutes = await resolveBufferTime(tenantDb, existingForBuffer.serviceId, tId);
       if (bufferMinutes > 0) {

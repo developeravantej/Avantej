@@ -1,5 +1,4 @@
 import {
-	listAppointmentsForUser,
 	getAppointmentById,
 	getAppointmentStatusHistory,
 	listAppointmentsWithRecurrence,
@@ -186,7 +185,6 @@ export const appointmentsListProcedures = {
       })
     )
     .handler(async ({ input, context }) => {
-      
 
 		assertOrgContextMatch(context, input);
       const userId = context.session?.user?.id;
@@ -196,14 +194,39 @@ export const appointmentsListProcedures = {
         });
       }
 
-      const items = await listAppointmentsForUser(context.tenantDb, {
-        userId,
-        status: input.status,
-        statuses: input.statuses,
-        startFrom: input.startFrom ? new Date(input.startFrom) : undefined,
-        startTo: input.startTo ? new Date(input.startTo) : undefined,
-        limit: input.limit,
+      const accessibleNodeIds = await resolveAccessibleNodeIds(context);
+
+      // Use recurrence-aware list so virtual occurrences are included.
+      // listAppointmentsWithRecurrence does not accept a userId filter — apply it
+      // post-expansion along with status/statuses/limit.
+      const startFrom = input.startFrom
+        ? new Date(input.startFrom)
+        : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const startTo = input.startTo
+        ? new Date(input.startTo)
+        : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+
+      let items = await listAppointmentsWithRecurrence(context.tenantDb, {
+        organizationId: input.organizationId,
+        startFrom,
+        startTo,
+        accessibleNodeIds,
       });
+
+      // Filter to appointments belonging to the requesting user
+      items = items.filter((r) => r.userId === userId);
+
+      // Apply status filters post-expansion
+      if (input.statuses && input.statuses.length > 0) {
+        const statuses = input.statuses;
+        items = items.filter((r) => statuses.includes(r.status as (typeof statuses)[number]));
+      } else if (input.status) {
+        items = items.filter((r) => r.status === input.status);
+      }
+
+      if (input.limit) {
+        items = items.slice(0, input.limit);
+      }
 
       return items;
     }),

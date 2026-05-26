@@ -9,6 +9,9 @@ import { Loader2 } from "lucide-react";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
 } from "@/components/ui/dialog";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { toast } from "sonner";
@@ -183,6 +186,10 @@ export function ServiceDetailDialogA({
 			<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
 				{/* §22: no bg-background — use explicit !bg-white */}
 				<DialogContent className="!w-[70vw] !max-w-[70vw] max-h-[90vh] flex flex-col p-0 !bg-white">
+					<DialogHeader className="sr-only">
+						<DialogTitle>Service Details</DialogTitle>
+						<DialogDescription>View and manage the details of this service.</DialogDescription>
+					</DialogHeader>
 					{/* ── Header — §10: dialog H2 = text-lg font-bold ── */}
 					<div className="shrink-0 px-5 pt-5 pb-4 border-b border-[#e5e5e5]">
 						<div className="flex items-start justify-between gap-4 pr-8">
@@ -377,6 +384,10 @@ export function ServiceDetailDialogA({
 				onOpenChange={(open) => !open && setShowDeleteConfirm(false)}
 			>
 				<DialogContent className="sm:max-w-sm p-0 !bg-white">
+					<DialogHeader className="sr-only">
+						<DialogTitle>Deactivate service</DialogTitle>
+						<DialogDescription>Deactivate this service to hide it from active lists.</DialogDescription>
+					</DialogHeader>
 					<div className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
 						<div className="flex items-center gap-3">
 							<span className="text-[20px]">⚠</span>

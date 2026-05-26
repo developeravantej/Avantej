@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -1569,11 +1570,8 @@ export function PosWorkflow({
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
 						<DialogTitle>Clear cart?</DialogTitle>
+						<DialogDescription>Changing the customer will clear all items from the cart. This cannot be undone.</DialogDescription>
 					</DialogHeader>
-					<p className="py-2 text-[#737373] text-sm">
-						Changing the customer will clear all items from the cart. This
-						cannot be undone.
-					</p>
 					<DialogFooter>
 						<Button
 							variant="outline"

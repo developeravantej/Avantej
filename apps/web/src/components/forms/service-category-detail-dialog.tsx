@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -201,6 +202,7 @@ export function ServiceCategoryDetailDialog({
 								</div>
 							)}
 						</div>
+						<DialogDescription>View and manage the details of this service category.</DialogDescription>
 					</DialogHeader>
 
 					{isLoading && (
@@ -293,6 +295,7 @@ export function ServiceCategoryDetailDialog({
 						<DialogTitle className="font-heading text-2xl">
 							Deactivate category
 						</DialogTitle>
+						<DialogDescription>Deactivate this category to hide it from active lists.</DialogDescription>
 					</DialogHeader>
 					<p className="text-sm text-muted-foreground">
 						Deactivate &quot;{category?.name}&quot;? It will be hidden from

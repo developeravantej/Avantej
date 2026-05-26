@@ -266,7 +266,7 @@ export const householdsRouter = {
 					? [input.branchId]
 					: isAdmin
 						? null // null = unrestricted
-						: (accessibleNodeIds && accessibleNodeIds.length > 0 ? accessibleNodeIds : null);
+						: (accessibleNodeIds ?? []);
 
 			// If there is no scope restriction, return all households.
 			if (scopeNodeIds === null) {
@@ -274,6 +274,11 @@ export const householdsRouter = {
 					.select()
 					.from(households)
 					.orderBy(asc(households.name));
+			}
+
+			// Safe-guard: no accessible nodes means no households should be visible.
+			if (scopeNodeIds.length === 0) {
+				return [];
 			}
 
 			// Scoped path: find userIds of members whose hierarchyScopeId falls

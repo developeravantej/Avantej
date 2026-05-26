@@ -31,6 +31,7 @@ import { Plus, Search } from "lucide-react";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 	DialogFooter,
@@ -346,6 +347,7 @@ function DataTable<TData extends UomConversionRow, TValue>({
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
 						<DialogTitle>Add UoM Conversion</DialogTitle>
+						<DialogDescription>Create a new unit of measure conversion.</DialogDescription>
 					</DialogHeader>
 					<div className="flex flex-col gap-4 py-2">
 						<div className="flex flex-col gap-1.5">
@@ -427,6 +429,7 @@ function DataTable<TData extends UomConversionRow, TValue>({
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
 						<DialogTitle>Edit UoM Conversion</DialogTitle>
+						<DialogDescription>Update the details of this unit of measure conversion.</DialogDescription>
 					</DialogHeader>
 					<div className="flex flex-col gap-4 py-2">
 						<div className="flex flex-col gap-1.5">

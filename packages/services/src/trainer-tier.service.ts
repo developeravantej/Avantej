@@ -70,6 +70,28 @@ export async function createTrainerTier(
 
 	const tier = inserted[0]!;
 
+	// Scaffold zero-amount stub rows for every active non-conditional commission config
+	// so commission calculation doesn't fail for trainers assigned to this new tier.
+	const activeConfigs = await tenantDb
+		.select({ id: categoryCommissionConfigs.id })
+		.from(categoryCommissionConfigs)
+		.where(
+			and(
+				eq(categoryCommissionConfigs.isActive, true),
+				eq(categoryCommissionConfigs.isConditional, false),
+			),
+		);
+
+	if (activeConfigs.length > 0) {
+		await tenantDb.insert(commissionTierRates).values(
+			activeConfigs.map((config) => ({
+				configId: config.id,
+				trainerTierId: tier.id,
+				amount: 0,
+			})),
+		);
+	}
+
 	const missingRateCategories = await getConfigsMissingRateForTier(tenantDb, tier.id);
 
 	return { tier, missingRateCategories };

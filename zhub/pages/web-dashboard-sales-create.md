@@ -142,18 +142,18 @@
 - CustomerType: member | walk_in
 - LineItemType: service | package | custom
 - CartItem: id, type, refId?, description, quantity, unitPriceCents
-- AppliedPromo: code, discountCents
+- AppliedPromo: code, promotionId, discountCents, description
 - PaymentMethod: cash | card | manual_transfer | fpx | stripe | online
-- InstallmentPlanOption: id, code, name, numInstallments
+- InstallmentPlanOption: id, code, name, numInstallments, pricePremiumBps
 - recordSale input: organizationId, customerType, customerId, customerName, branchId, items[], promotionCode, taxRateId, paymentMethod, paymentReference, amountTenderedCents, installmentPlanCode, preferredTrainerId, notes, itemTrainerAssignments
 
 **Payment method notes:**
-- `cash` — requires amountTenderedCents >= totalCents; change due shown via StatusCallout
+- `cash` — requires amountTenderedCents >= dueNowCents; change due shown via StatusCallout; auto-syncs to dueNowCents until cashier manually edits
 - `card` — optional auth code reference
 - `manual_transfer` — reference required (was `bank_transfer` in older code)
-- `fpx` — no extra input
-- `stripe` — no extra input
-- `online` — shows "payment link will be generated" callout; link sent to customer post-sale
+- `fpx` — in PaymentMethod type but no UI card; not selectable in current PaymentStep
+- `stripe` — in PaymentMethod type but no UI card; not selectable in current PaymentStep
+- `online` — shows "payment link will be generated" callout; pos.ts router transforms this to `stripe` before writing to DB
 
 ---
 

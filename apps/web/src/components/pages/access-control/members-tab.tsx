@@ -44,6 +44,7 @@ import {
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 	DialogFooter,
@@ -354,6 +355,7 @@ function RoleAssignmentSheet({
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle>Assign Role to {user?.name}</DialogTitle>
+				<DialogDescription>Select a role and branch for this member.</DialogDescription>
 				</DialogHeader>
 
 				<div className="p-4 mt-6 space-y-4">
@@ -465,6 +467,7 @@ function InviteUserDialog({
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle>Invite User</DialogTitle>
+					<DialogDescription>Send an invitation email to a new user.</DialogDescription>
 				</DialogHeader>
 
 				<div className="p-4 mt-6 space-y-4">
@@ -1221,6 +1224,7 @@ export function MembersTabPage() {
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
 						<DialogTitle>Edit User: {editingUserDetails?.name}</DialogTitle>
+					<DialogDescription>Update this user's profile details.</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4 py-2">
@@ -1350,6 +1354,7 @@ export function MembersTabPage() {
 						<DialogTitle>
 							Move {movingUser?.name ?? "member"} to a different branch
 						</DialogTitle>
+						<DialogDescription>Select the destination branch for this member.</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-3 py-2">

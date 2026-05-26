@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -175,57 +176,46 @@ export function ServicePicker({
 			)}
 
 			{/* Service Selection Dialog (internal state) */}
-			{isDialogOpen && (
-				<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10001] p-4">
-					<Card className="w-full max-w-md max-h-[80vh] overflow-hidden bg-white shadow-2xl">
-						<CardContent className="p-6">
-							<div className="flex items-center justify-between mb-4">
-								<h3 className="text-lg font-semibold text-brand-primary-1">Select Services</h3>
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={() => setIsDialogOpen(false)}
-									className="size-8 p-0 hover:bg-brand-secondary-3"
-								>
-									<X className="size-4" />
-								</Button>
-							</div>
+			<Dialog open={isDialogOpen} onOpenChange={(o) => { if (!o) setIsDialogOpen(false); }}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle>Select Services</DialogTitle>
+						<DialogDescription>Choose services to add to this appointment.</DialogDescription>
+					</DialogHeader>
 
-							<div className="space-y-2 max-h-60 overflow-y-auto">
-								{!clientId && !isBlockedTiming ? (
-									<div className="text-center py-4 text-brand-secondary-1 text-sm">
-										Select a customer first
-									</div>
-								) : isLoadingPackages ? (
-									<div className="text-center py-4 text-brand-secondary-1 text-sm">
-										Loading available services…
-									</div>
-								) : availableServices.length === 0 ? (
-									<div className="text-center py-4 text-brand-secondary-1 text-sm">
-										All available services have been selected
-									</div>
-								) : (
-									availableServices.map((svc) => (
-										<button
-											key={svc.id}
-											type="button"
-											className="flex items-center justify-between p-3 border border-brand-secondary-3 rounded-lg hover:bg-brand-secondary-3/50 cursor-pointer w-full bg-transparent text-left"
-											onClick={() => handleServiceClick(svc.id)}
-										>
-											<div className="flex justify-between w-full">
-												<span className="font-medium pr-2">{svc.name}</span>
-												<span className="text-sm text-brand-secondary-1">
-													{svc.durationMinutes} min
-												</span>
-											</div>
-										</button>
-									))
-								)}
+					<div className="space-y-2 max-h-60 overflow-y-auto">
+						{!clientId && !isBlockedTiming ? (
+							<div className="text-center py-4 text-brand-secondary-1 text-sm">
+								Select a customer first
 							</div>
-						</CardContent>
-					</Card>
-				</div>
-			)}
+						) : isLoadingPackages ? (
+							<div className="text-center py-4 text-brand-secondary-1 text-sm">
+								Loading available services…
+							</div>
+						) : availableServices.length === 0 ? (
+							<div className="text-center py-4 text-brand-secondary-1 text-sm">
+								All available services have been selected
+							</div>
+						) : (
+							availableServices.map((svc) => (
+								<button
+									key={svc.id}
+									type="button"
+									className="flex items-center justify-between p-3 border border-brand-secondary-3 rounded-lg hover:bg-brand-secondary-3/50 cursor-pointer w-full bg-transparent text-left"
+									onClick={() => handleServiceClick(svc.id)}
+								>
+									<div className="flex justify-between w-full">
+										<span className="font-medium pr-2">{svc.name}</span>
+										<span className="text-sm text-brand-secondary-1">
+											{svc.durationMinutes} min
+										</span>
+										</div>
+									</button>
+								))
+							)}
+						</div>
+					</DialogContent>
+				</Dialog>
 		</div>
 	);
 }

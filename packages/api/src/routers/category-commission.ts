@@ -76,6 +76,13 @@ const upsert = tenantProcedure
 		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "category_commission_management", "create");
 
+		const totalBps = input.slots.reduce((sum, s) => sum + s.weightageBasisPoints, 0);
+		if (totalBps !== 10000) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Commission slot weightages must sum to 10000 basis points (100%). Got: ${totalBps}.`,
+			});
+		}
+
 		try {
 			return await upsertCategoryCommissionConfig(
 				context.tenantDb,

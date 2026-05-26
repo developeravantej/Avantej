@@ -1,4 +1,10 @@
-import { X } from "lucide-react";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import type { Appointment } from "../types";
 import type { OccurrenceEditAction } from "@/types/appointments";
 
@@ -10,35 +16,15 @@ interface OccurrenceActionDialogProps {
 
 export function OccurrenceActionDialog({ appt, onAction, onClose }: OccurrenceActionDialogProps) {
 	return (
-		<div
-			role="presentation"
-			className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40"
-			onClick={onClose}
-			onKeyDown={(e) => {
-				if (e.key === "Escape") onClose();
-			}}
-		>
-			<div
-				role="dialog"
-				aria-modal="true"
-				className="bg-white rounded-lg shadow-xl p-6 w-[360px] max-w-[95vw]"
-				onClick={(e) => e.stopPropagation()}
-				onKeyDown={(e) => e.stopPropagation()}
-			>
-				<div className="flex items-center justify-between mb-4">
-					<h3 className="text-lg font-semibold text-zinc-900">Recurring Appointment</h3>
-					<button
-						type="button"
-						className="text-zinc-400 hover:text-zinc-600"
-						onClick={onClose}
-					>
-						<X className="size-5" />
-					</button>
-				</div>
-				<p className="text-sm text-zinc-500 mb-4">
-					What would you like to do with this occurrence?
-				</p>
-				<div className="flex flex-col gap-2">
+		<Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+			<DialogContent className="sm:max-w-sm">
+				<DialogHeader>
+					<DialogTitle>Recurring Appointment</DialogTitle>
+					<DialogDescription>
+						What would you like to do with this occurrence?
+					</DialogDescription>
+				</DialogHeader>
+				<div className="flex flex-col gap-2 pt-1">
 					<button
 						type="button"
 						className="w-full text-left px-4 py-2.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-sm font-medium text-zinc-700 transition-colors"
@@ -81,15 +67,15 @@ export function OccurrenceActionDialog({ appt, onAction, onClose }: OccurrenceAc
 					>
 						Cancel entire series
 					</button>
+					<button
+						type="button"
+						className="w-full mt-1 px-4 py-2 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-sm text-zinc-500 transition-colors"
+						onClick={onClose}
+					>
+						Never mind
+					</button>
 				</div>
-				<button
-					type="button"
-					className="w-full mt-3 px-4 py-2 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-sm text-zinc-500 transition-colors"
-					onClick={onClose}
-				>
-					Never mind
-				</button>
-			</div>
-		</div>
+			</DialogContent>
+		</Dialog>
 	);
 }

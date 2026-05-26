@@ -14,6 +14,7 @@ import {
 	DialogContent,
 	DialogFooter,
 	DialogHeader,
+	DialogDescription,
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { StaffPicker } from "@/components/calendar/appointment-form/StaffPicker";
@@ -125,6 +126,7 @@ export function EditAppointmentModal({
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle>Edit Staff Assignment</DialogTitle>
+				<DialogDescription>Update the trainer assigned to this appointment.</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-4">

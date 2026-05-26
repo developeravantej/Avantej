@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -142,6 +143,9 @@ export function SupplierFormDialog({
 					<DialogTitle>
 						{mode === "create" ? "Add Supplier" : "Edit Supplier"}
 					</DialogTitle>
+					<DialogDescription>
+						{mode === "create" ? "Fill in the details to add a new supplier." : "Update the details for this supplier."}
+					</DialogDescription>
 				</DialogHeader>
 
 				{/* react-doctor-disable-next-line react-doctor/no-prevent-default -- TanStack Router SPA */}

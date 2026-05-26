@@ -87,7 +87,14 @@ export async function guardInputBranchForContext(
 	context: Context & { tenantDb: TenantDb; member: Member },
 	branchId: string | undefined | null,
 ): Promise<void> {
-	if (!branchId) return;
+	// null means the caller explicitly sent null — an attempt to bypass branch
+	// scoping for org-wide writes. Always forbidden at the tenant member level.
+	if (branchId === null) {
+		throw new ORPCError("FORBIDDEN", {
+			message: "Explicit null branchId is not permitted. Provide a valid branch.",
+		});
+	}
+	if (!branchId) return; // undefined — no branch check needed
 	const accessibleNodeIds = await resolveAccessibleNodeIds(context);
 	guardBranchAccessible(branchId, accessibleNodeIds);
 }

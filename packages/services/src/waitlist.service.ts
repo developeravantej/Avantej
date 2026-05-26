@@ -156,8 +156,8 @@ export async function promoteFromWaitlist(
 			where: eq(classSlots.id, classSlotId),
 		});
 
-		// Update class slot capacity
-		await tx
+		// Update class slot capacity — only if there is still capacity (atomic check-and-increment)
+		const updatedSlots = await tx
 			.update(classSlots)
 			.set({
 				spotsBooked: sql`${classSlots.spotsBooked} + 1`,
@@ -166,7 +166,19 @@ export async function promoteFromWaitlist(
 				isAvailable: sql`(${classSlots.spotsAvailable} - 1) > 0`,
 				updatedAt: new Date(),
 			})
-			.where(eq(classSlots.id, classSlotId));
+			.where(
+				and(
+					eq(classSlots.id, classSlotId),
+					sql`${classSlots.spotsBooked} < ${classSlots.capacity}`,
+				),
+			)
+			.returning({ id: classSlots.id });
+
+		if (updatedSlots.length === 0) {
+			throw new Error(
+				"CLASS_FULL: Class slot is at capacity — cannot promote from waitlist",
+			);
+		}
 
 		// Create the appointment row for the promoted member
 		if (slot) {

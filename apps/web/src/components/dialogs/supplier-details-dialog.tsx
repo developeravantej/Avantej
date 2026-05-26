@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -66,6 +66,9 @@ export function SupplierDetailsDialog({
 							</Badge>
 						)}
 					</div>
+					<DialogDescription>
+						Supplier details and contact information.
+					</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-6">

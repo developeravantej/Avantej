@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -198,6 +199,7 @@ export function BulkCommsComposer({
 							? `Send DM to ${organizationIds.length} tenant${organizationIds.length === 1 ? "" : "s"}`
 							: `Send announcement to ${organizationIds.length} tenant${organizationIds.length === 1 ? "" : "s"}`}
 					</DialogTitle>
+					<DialogDescription>Compose the message to send to the selected tenants.</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-4">

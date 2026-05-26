@@ -34,6 +34,7 @@ import {
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -950,6 +951,7 @@ function RouteComponent() {
 				<DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
 					<DialogHeader>
 						<DialogTitle>Edit {editingNode?.name}</DialogTitle>
+						<DialogDescription>Update the details for this hierarchy node.</DialogDescription>
 					</DialogHeader>
 					<div className="space-y-4">
 						<div className="space-y-2">

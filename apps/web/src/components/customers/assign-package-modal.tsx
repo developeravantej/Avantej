@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -142,6 +142,9 @@ export function AssignPackageModal({
 							to {customerIds.length} customer{customerIds.length !== 1 ? "s" : ""}
 						</span>
 					</DialogTitle>
+					<DialogDescription>
+						Select a package to assign to the selected customer{customerIds.length !== 1 ? "s" : ""}.
+					</DialogDescription>
 				</DialogHeader>
 
 				<form onSubmit={handleSubmit} className="mt-2 space-y-4">

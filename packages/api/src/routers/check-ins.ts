@@ -16,6 +16,7 @@ import {
 	recordCheckIn,
 } from "@avantej-core/services/check-ins.service";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
+import { appointmentClients } from "@avantej-core/db/schema/tenant/appointment-clients";
 import { ORPCError } from "@orpc/server";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -63,6 +64,20 @@ export const checkInsRouter = {
 			await requirePermissionOrpc(context.tenantDb, context.member, "attendance_management", "create");
 
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+
+			if (input.appointmentClientId) {
+				const apptClient = await context.tenantDb.query.appointmentClients.findFirst({
+					where: eq(appointmentClients.id, input.appointmentClientId),
+				});
+				if (!apptClient) {
+					throw new ORPCError("BAD_REQUEST", { message: "appointmentClientId not found" });
+				}
+				if (input.clientId && apptClient.clientId !== input.clientId) {
+					throw new ORPCError("BAD_REQUEST", {
+						message: "appointmentClientId does not belong to the specified client",
+					});
+				}
+			}
 
 			try {
 				return await recordCheckIn(context.tenantDb, {

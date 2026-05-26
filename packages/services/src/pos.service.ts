@@ -385,6 +385,11 @@ export async function recordPosSale(
 					where: eq(taxRates.id, resolved.id),
 				});
 			}
+			// SP-04: no active default tax rate and none explicitly provided — fail loudly
+			// so the operator knows to configure one rather than silently recording 0% tax.
+			if (!taxRate) {
+				throw new Error("NO_TAX_RATE: No active tax rate configured for this organisation. Set a default tax rate or provide an explicit taxRateId.");
+			}
 		}
 		const resolvedTaxRateId: string | null = taxRate?.id ?? null;
 
@@ -616,7 +621,12 @@ export async function recordPosSale(
 				// Plan B Phase 3c.1 — online sales aren't paid until webhook fires.
 				// BE-M1: for installment plans, amountPaid = first installment only (dueNowCents), not full order total.
 				amountPaid: input.paymentMethod === "stripe" ? 0 : dueNowCents,
-				status: input.paymentMethod === "stripe" ? "pending" : "paid",
+				// BE-M2: use "partially_paid" when only the first instalment was collected (dueNowCents < totalCents).
+				status: input.paymentMethod === "stripe"
+					? "pending"
+					: dueNowCents < totalCents
+						? "partially_paid"
+						: "paid",
 			})
 			.returning();
 

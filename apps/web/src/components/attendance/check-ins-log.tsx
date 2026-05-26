@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -114,6 +115,7 @@ function DeleteDialog({
 			<DialogContent className="max-w-sm">
 				<DialogHeader>
 					<DialogTitle>Remove Check-in Record</DialogTitle>
+				<DialogDescription>This action cannot be undone.</DialogDescription>
 				</DialogHeader>
 				<p className="text-muted-foreground text-sm">
 					This will permanently delete the check-in record for{" "}

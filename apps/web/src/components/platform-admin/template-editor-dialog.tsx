@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -139,6 +140,9 @@ export function TemplateEditorDialog(props: TemplateEditorDialogProps) {
 					<DialogTitle>
 						{isEdit ? "Edit template" : "New template"}
 					</DialogTitle>
+					<DialogDescription>
+						{isEdit ? "Update the content of this message template." : "Create a new reusable message template."}
+					</DialogDescription>
 				</DialogHeader>
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 					<div className="space-y-3">

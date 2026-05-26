@@ -245,15 +245,26 @@ export const productsRouter = {
 
 	setBranchPrice: tenantProcedure
 		.input(
-			z.object({
-				organizationId: z.string().uuid(),
-				productId: z.string().uuid(),
-				branchId: z.string().uuid().nullable(),
-				customerType: z.string().nullable().optional(),
-				priceCents: z.number().int().min(0),
-				effectiveFrom: z.string().datetime().optional(),
-				effectiveUntil: z.string().datetime().nullable().optional(),
-			}),
+			z
+				.object({
+					organizationId: z.string().uuid(),
+					productId: z.string().uuid(),
+					branchId: z.string().uuid().nullable(),
+					customerType: z.string().nullable().optional(),
+					priceCents: z.number().int().min(0),
+					effectiveFrom: z.string().datetime().optional(),
+					effectiveUntil: z.string().datetime().nullable().optional(),
+				})
+				.refine(
+					(data) =>
+						!data.effectiveUntil ||
+						!data.effectiveFrom ||
+						new Date(data.effectiveUntil) > new Date(data.effectiveFrom),
+					{
+						message: "effectiveUntil must be after effectiveFrom",
+						path: ["effectiveUntil"],
+					},
+				),
 		)
 		.handler(async ({ input, context }) => {
 			

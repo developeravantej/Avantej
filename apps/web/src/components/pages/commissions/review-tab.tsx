@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -95,6 +96,9 @@ function ReviewDialog({
 					<DialogTitle>
 						{isApprove ? "Approve adjustment?" : "Reject adjustment?"}
 					</DialogTitle>
+					<DialogDescription>
+						{isApprove ? "Confirm approval of this commission adjustment." : "Confirm rejection of this commission adjustment."}
+					</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-4 py-1">

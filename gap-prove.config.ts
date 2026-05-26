@@ -14,8 +14,8 @@ export default defineConfig({
 	workers: 1,
 	reporter: [
 		["list"],
-		["html", { outputFolder: "zplan/2026-05-25-1528-audit-prove/test/html", open: "never" }],
-		["json", { outputFile: "zplan/2026-05-25-1528-audit-prove/test/results.json" }],   // <- the remediation loop reads this
+		["html", { outputFolder: "zplan/2026-05-26-2323-audit-prove/test/html", open: "never" }],
+		["json", { outputFile: "zplan/2026-05-26-2323-audit-prove/test/results.json" }],   // <- the remediation loop reads this
 	],
 	use: {
 		baseURL,

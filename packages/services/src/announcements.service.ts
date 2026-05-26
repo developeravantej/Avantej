@@ -1,10 +1,110 @@
 import { eq, and, desc, inArray, lte, gte, isNull, or, sql, notExists, exists } from "drizzle-orm";
 import { announcements } from "@avantej-core/db/schema/tenant/announcements";
 import { announcementScopes } from "@avantej-core/db/schema/tenant/announcement-scopes";
+import { members } from "@avantej-core/db/schema/tenant/members";
+import { notifications } from "@avantej-core/db/schema/tenant/notifications";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
+
+/**
+ * Expand a list of hierarchy node IDs into the full descendant set
+ * (including the input nodes themselves) using a recursive CTE.
+ * Returns an empty array when called with an empty input.
+ */
+async function expandDescendantNodeIds(
+	tx: TenantDb,
+	rootIds: string[],
+): Promise<string[]> {
+	if (rootIds.length === 0) return [];
+	const result = await tx.execute(sql`
+		WITH RECURSIVE descendants AS (
+			SELECT id FROM hierarchy_nodes WHERE id IN (${sql.join(
+				rootIds.map((id) => sql`${id}::uuid`),
+				sql`, `,
+			)})
+			UNION
+			SELECT hn.id
+			FROM hierarchy_nodes hn
+			INNER JOIN descendants d ON hn.parent_id = d.id
+		)
+		SELECT id FROM descendants
+	`);
+	return result.rows
+		.map((row) => row.id)
+		.filter((id): id is string => typeof id === "string");
+}
+
+/**
+ * Fan out announcement notifications to every member whose hierarchy scope
+ * falls under the announcement's scope, respecting the announcement's
+ * targetAudience. Org-wide announcements (no scoped branches and no
+ * branchId) notify all active members. Runs inside an existing tx.
+ */
+async function dispatchAnnouncementNotifications(
+	tx: TenantDb,
+	params: {
+		announcementId: string;
+		title: string;
+		message: string;
+		priority: "low" | "normal" | "high" | "urgent";
+		targetAudience: "all" | "staff" | "clients";
+		scopedBranchIds: string[];
+		branchId: string | null;
+	},
+): Promise<void> {
+	const rootNodeIds = params.scopedBranchIds.length > 0
+		? params.scopedBranchIds
+		: params.branchId
+			? [params.branchId]
+			: [];
+
+	const memberConditions = [
+		eq(members.status, "active"),
+		isNull(members.deletedAt),
+	];
+
+	if (rootNodeIds.length > 0) {
+		const accessibleNodeIds = await expandDescendantNodeIds(tx, rootNodeIds);
+		if (accessibleNodeIds.length === 0) return;
+		memberConditions.push(inArray(members.hierarchyScopeId, accessibleNodeIds));
+	}
+
+	if (params.targetAudience === "staff") {
+		memberConditions.push(inArray(members.role, ["admin", "trainer", "staff"]));
+	} else if (params.targetAudience === "clients") {
+		memberConditions.push(eq(members.role, "client"));
+	}
+
+	const targetMembers = await tx
+		.select({ userId: members.userId })
+		.from(members)
+		.where(and(...memberConditions));
+
+	if (targetMembers.length === 0) return;
+
+	// De-dup userIds defensively (members table has a unique index on user_id,
+	// but be safe across edge cases).
+	const seen = new Set<string>();
+	const rows = targetMembers
+		.filter((m) => {
+			if (seen.has(m.userId)) return false;
+			seen.add(m.userId);
+			return true;
+		})
+		.map((m) => ({
+			userId: m.userId,
+			type: "system" as const,
+			title: params.title,
+			message: params.message,
+			relatedId: params.announcementId,
+			relatedType: "announcement" as const,
+		}));
+
+	if (rows.length === 0) return;
+	await tx.insert(notifications).values(rows);
+}
 
 export type AnnouncementWithScopes = typeof announcements.$inferSelect & {
 	scopedBranchIds: string[];
@@ -223,6 +323,16 @@ export async function createAnnouncement(
 		}
 
 		await setAnnouncementScopes(tx as unknown as TenantDb, row.id, data.scopedBranchIds ?? []);
+
+		await dispatchAnnouncementNotifications(tx as unknown as TenantDb, {
+			announcementId: row.id,
+			title: row.title,
+			message: row.message,
+			priority: row.priority as "low" | "normal" | "high" | "urgent",
+			targetAudience: row.targetAudience as "all" | "staff" | "clients",
+			scopedBranchIds: data.scopedBranchIds ?? [],
+			branchId: row.branchId ?? null,
+		});
 
 		return { ...row, scopedBranchIds: data.scopedBranchIds ?? [] };
 	});

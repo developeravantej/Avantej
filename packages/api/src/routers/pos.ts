@@ -11,7 +11,7 @@
  * delegating to the service — this is the router-layer defence per plan §4.1 point 3.
  */
 
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
@@ -25,6 +25,7 @@ import { invoices } from "@avantej-core/db/schema/tenant/invoices";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { installments } from "@avantej-core/db/schema/tenant/installments";
 import { services } from "@avantej-core/db/schema/tenant/services";
+import { orgCountryStripeAccounts } from "@avantej-core/db/schema/control-panel/org-country-stripe-accounts";
 
 // Zod schema for a single line item
 const posLineItemSchema = z.object({
@@ -89,31 +90,61 @@ export const posRouter = {
 			// Branch scope check (router-layer per plan §4.1 point 3)
 			await guardInputBranchForContext(context, input.branchId);
 
-			return recordPosSale(context.tenantDb, {
-				customerType: input.customerType,
-				customerId: input.customerId,
-				customerName: input.customerName,
-				branchId: input.branchId,
-				items: input.items,
-				promotionCode: input.promotionCode,
-				taxRateId: input.taxRateId,
-				paymentMethod: input.paymentMethod,
-				paymentReference: input.paymentReference,
-				amountTenderedCents: input.amountTenderedCents,
-				installmentPlanCode: input.installmentPlanCode,
-				notes: input.notes,
-				preferredTrainerId: input.preferredTrainerId,
-				itemTrainerAssignments: input.itemTrainerAssignments
-					? Object.fromEntries(
-							Object.entries(input.itemTrainerAssignments).map(([k, v]) => [parseInt(k, 10), v]),
-						)
-					: undefined,
-				actor: {
-					userId: context.session.user.id,
-					memberId: context.member.id,
-					role: context.member.role,
-				},
-			});
+			// SP-01: Reject stripe payment if the org has no active Stripe account configured
+			if (input.paymentMethod === "stripe") {
+				const controlPanelDb = getControlPanelDb(context);
+				const [stripeAccount] = await controlPanelDb
+					.select({ id: orgCountryStripeAccounts.id })
+					.from(orgCountryStripeAccounts)
+					.where(
+						and(
+							eq(orgCountryStripeAccounts.organizationId, input.organizationId),
+							eq(orgCountryStripeAccounts.chargesEnabled, true),
+						),
+					)
+					.limit(1);
+				if (!stripeAccount) {
+					throw new ORPCError("BAD_REQUEST", {
+						message: "Stripe is not configured for this organisation. Use a different payment method.",
+					});
+				}
+			}
+
+			try {
+				return await recordPosSale(context.tenantDb, {
+					customerType: input.customerType,
+					customerId: input.customerId,
+					customerName: input.customerName,
+					branchId: input.branchId,
+					items: input.items,
+					promotionCode: input.promotionCode,
+					taxRateId: input.taxRateId,
+					paymentMethod: input.paymentMethod,
+					paymentReference: input.paymentReference,
+					amountTenderedCents: input.amountTenderedCents,
+					installmentPlanCode: input.installmentPlanCode,
+					notes: input.notes,
+					preferredTrainerId: input.preferredTrainerId,
+					itemTrainerAssignments: input.itemTrainerAssignments
+						? Object.fromEntries(
+								Object.entries(input.itemTrainerAssignments).map(([k, v]) => [parseInt(k, 10), v]),
+							)
+						: undefined,
+					actor: {
+						userId: context.session.user.id,
+						memberId: context.member.id,
+						role: context.member.role,
+					},
+				});
+			} catch (err) {
+				// SP-04: remap service-layer NO_TAX_RATE sentinel to a client-visible BAD_REQUEST
+				if (err instanceof Error && err.message.startsWith("NO_TAX_RATE:")) {
+					throw new ORPCError("BAD_REQUEST", {
+						message: "No active tax rate is configured for this organisation.",
+					});
+				}
+				throw err;
+			}
 		}),
 
 	/**

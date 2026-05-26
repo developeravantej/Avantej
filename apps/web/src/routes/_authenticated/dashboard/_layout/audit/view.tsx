@@ -21,6 +21,7 @@ import { StatusCallout } from "@/components/ui/status-callout";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
@@ -276,6 +277,7 @@ function ChangesDialog({
 							{formatAbsoluteTime(row.createdAt)}
 						</span>
 					</DialogTitle>
+					<DialogDescription>Full details of this audit log entry.</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-4">

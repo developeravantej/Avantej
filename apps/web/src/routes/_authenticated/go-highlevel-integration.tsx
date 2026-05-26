@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -429,6 +430,7 @@ function GoHighLevelIntegrationPage() {
 							Connect GHL:{" "}
 							{branchNodes.find((b) => b.id === connectBranchId)?.name ?? ""}
 						</DialogTitle>
+						<DialogDescription>Enter your GoHighLevel API key to connect this branch.</DialogDescription>
 					</DialogHeader>
 					<div className="grid gap-4 py-4">
 						<div>

@@ -5,14 +5,13 @@ import {
 	notifyCustomerPackageRejected,
 	clearPendingReviewNotifications,
 } from "@avantej-core/services/notification.service";
-import { calculateCreditsUnlocked } from "@avantej-core/services";
 import { packageInstanceStaff } from "@avantej-core/db/schema/tenant/package-instance-staff";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { installments } from "@avantej-core/db/schema/tenant/installments";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { user } from "@avantej-core/db/schema/auth";
-import { eq, inArray, and, asc } from "drizzle-orm";
+import { eq, inArray, and } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
@@ -297,56 +296,17 @@ export const packageInstancesApproveProcedures = {
               assignedAt: now,
             }).onConflictDoNothing();
 
-            // LC-M4: For instalment-based packages (installmentsTotal > 1) that have not yet
-            // had any payment, automatically confirm the first instalment on approval so that
-            // initial credits are unlocked and the package is immediately usable.
-            if (pkg.installmentsTotal > 1 && pkg.installmentsPaid === 0) {
-              const firstPending = await tx.query.installments.findFirst({
-                where: and(
-                  eq(installments.packageInstanceId, pkg.id),
-                  eq(installments.status, "pending"),
-                ),
-                orderBy: [asc(installments.installmentNumber)],
-              });
-              if (firstPending) {
-                await tx
-                  .update(installments)
-                  .set({
-                    status: "paid",
-                    paidAt: now,
-                    paymentMethod: "manual_transfer",
-                    confirmedBy: context.member!.id,
-                    updatedAt: now,
-                  })
-                  .where(eq(installments.id, firstPending.id));
-
-                const newInstallmentsPaid = 1;
-                const creditsUnlocked = calculateCreditsUnlocked(
-                  pkg.creditsTotal,
-                  newInstallmentsPaid,
-                  pkg.installmentsTotal,
-                );
-
-                // Find next pending instalment to set nextDueDate
-                const nextPending = await tx.query.installments.findFirst({
-                  where: and(
-                    eq(installments.packageInstanceId, pkg.id),
-                    eq(installments.status, "pending"),
-                  ),
-                  orderBy: [asc(installments.installmentNumber)],
-                });
-
-                await tx
-                  .update(packageInstances)
-                  .set({
-                    installmentsPaid: newInstallmentsPaid,
-                    creditsUnlocked: creditsUnlocked,
-                    nextDueDate: nextPending?.dueDate ?? null,
-                    updatedAt: now,
-                  })
-                  .where(eq(packageInstances.id, pkg.id));
-              }
-            }
+            // PS-01: Previously this block silently auto-confirmed the first
+            // instalment with a hardcoded `manual_transfer` paymentMethod when
+            // `installmentsTotal > 1` and `installmentsPaid === 0`. That
+            // misrepresented the real tender (no money had actually moved) and
+            // diverged from the single-row `assignTrainer` procedure, which
+            // never auto-confirms.
+            //
+            // Bulk approve now only assigns the trainer and activates the
+            // package — exactly mirroring `assignTrainer`. First instalments
+            // must be confirmed explicitly via the installments router
+            // (`confirmPayment`) so the real paymentMethod is recorded.
           });
           succeeded.push(pkgId);
           succeededDetails.push({

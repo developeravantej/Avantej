@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -301,6 +302,7 @@ export function ServiceDetailDialog({
 								</div>
 							)}
 						</div>
+						<DialogDescription>View and manage the details of this service.</DialogDescription>
 					</DialogHeader>
 
 					{isLoading && (
@@ -354,6 +356,7 @@ export function ServiceDetailDialog({
 						<DialogTitle className="font-heading text-2xl">
 							Deactivate service
 						</DialogTitle>
+						<DialogDescription>Deactivate this service to hide it from active lists.</DialogDescription>
 					</DialogHeader>
 					<p className="text-sm text-muted-foreground">
 						Deactivate &quot;{service?.name}&quot;? It will be hidden from active

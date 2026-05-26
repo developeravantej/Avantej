@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 	DialogFooter,
@@ -396,6 +397,7 @@ function CustomersComponent() {
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
 						<DialogTitle>My profile</DialogTitle>
+					<DialogDescription>Update your contact details.</DialogDescription>
 					</DialogHeader>
 					<div className="grid gap-4 py-4">
 						<div>
@@ -477,6 +479,7 @@ function CustomersComponent() {
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
 						<DialogTitle>Add Customer</DialogTitle>
+					<DialogDescription>Create a new customer account.</DialogDescription>
 					</DialogHeader>
 					<div className="grid gap-4 py-4">
 						<div>

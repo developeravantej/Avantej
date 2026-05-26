@@ -637,6 +637,112 @@ export async function evaluateAndLockIfOverdue(
 	});
 }
 
+/**
+ * Re-evaluate a package instance's overdue/lock state after an installment
+ * mutation (reschedule, waive, etc.). Designed to run INSIDE an existing
+ * transaction so the caller can compose it with its own row locks.
+ *
+ * SP-02: bidirectional companion to `evaluateAndLockIfOverdue`. Unlike that
+ * helper (which only locks), this one normalises the package state:
+ *  - If every installment is paid/waived/cancelled: clear `nextDueDate`,
+ *    `gracePeriodEndsAt`, and auto-unlock if currently locked (the package
+ *    is fully resolved, so the lock has no remaining basis).
+ *  - Else if no pending installment is currently overdue: clear
+ *    `gracePeriodEndsAt` and set `nextDueDate` to the next pending due date.
+ *    Lock state is left untouched (operator must explicit-unlock).
+ *  - Else (overdue remains): refresh `nextDueDate` to the earliest pending
+ *    due date; do not change the lock here (the periodic job /
+ *    `evaluateAndLockIfOverdue` owns lock transitions).
+ */
+async function evaluateOverdueLock(
+	tx: TenantTx,
+	packageInstanceId: string,
+): Promise<typeof packageInstances.$inferSelect | undefined> {
+	const [pkg] = await tx
+		.select()
+		.from(packageInstances)
+		.where(eq(packageInstances.id, packageInstanceId));
+	if (!pkg) return undefined;
+
+	// Find the earliest still-unpaid installment (pending or overdue).
+	const earliestUnpaid = await tx.query.installments.findFirst({
+		where: and(
+			eq(installments.packageInstanceId, packageInstanceId),
+			inArray(installments.status, ["pending", "overdue"]),
+		),
+		orderBy: [asc(installments.dueDate), asc(installments.installmentNumber)],
+	});
+
+	const now = new Date();
+
+	// Case 1: nothing left to pay — fully resolved. Clear due/grace state and
+	// auto-unlock if currently locked (SP-02: waiving the final instalment
+	// should auto-unlock).
+	if (!earliestUnpaid) {
+		const wasLocked = pkg.isLocked;
+		const [updated] = await tx
+			.update(packageInstances)
+			.set({
+				nextDueDate: null,
+				gracePeriodEndsAt: null,
+				...(wasLocked
+					? { isLocked: false, lockedAt: null, lockedReason: null }
+					: {}),
+				updatedAt: now,
+			})
+			.where(eq(packageInstances.id, packageInstanceId))
+			.returning();
+
+		if (wasLocked) {
+			await logInstallmentEvent(tx, {
+				packageInstanceId,
+				eventType: "package_unlocked",
+				reason: "auto_unlock_on_resolution",
+			});
+		}
+		return updated ?? pkg;
+	}
+
+	const stillOverdue = earliestUnpaid.dueDate <= now;
+
+	// Case 2: still has overdue — refresh nextDueDate, leave lock to the
+	// periodic job / evaluateAndLockIfOverdue.
+	if (stillOverdue) {
+		if (
+			!pkg.nextDueDate ||
+			pkg.nextDueDate.getTime() !== earliestUnpaid.dueDate.getTime()
+		) {
+			const [updated] = await tx
+				.update(packageInstances)
+				.set({ nextDueDate: earliestUnpaid.dueDate, updatedAt: now })
+				.where(eq(packageInstances.id, packageInstanceId))
+				.returning();
+			return updated ?? pkg;
+		}
+		return pkg;
+	}
+
+	// Case 3: no overdue remains — clear grace period and refresh nextDueDate.
+	if (
+		pkg.gracePeriodEndsAt !== null ||
+		!pkg.nextDueDate ||
+		pkg.nextDueDate.getTime() !== earliestUnpaid.dueDate.getTime()
+	) {
+		const [updated] = await tx
+			.update(packageInstances)
+			.set({
+				nextDueDate: earliestUnpaid.dueDate,
+				gracePeriodEndsAt: null,
+				updatedAt: now,
+			})
+			.where(eq(packageInstances.id, packageInstanceId))
+			.returning();
+		return updated ?? pkg;
+	}
+
+	return pkg;
+}
+
 // ---------------------------------------------------------------------------
 // Manual override
 // ---------------------------------------------------------------------------
@@ -937,27 +1043,6 @@ export async function rescheduleInstallment(
 
 		if (!updated) throw new Error("Failed to update installment");
 
-		// Find the next pending installment by installment number (lowest not yet paid)
-		const nextPending = await tx.query.installments.findFirst({
-			where: and(
-				eq(installments.packageInstanceId, installment.packageInstanceId),
-				eq(installments.status, "pending"),
-			),
-			orderBy: [asc(installments.installmentNumber)],
-		});
-
-		// If the rescheduled installment is the next-due one, update the package's nextDueDate
-		if (nextPending && nextPending.id === installmentId) {
-			await tx
-				.update(packageInstances)
-				.set({
-					nextDueDate: newDueDate,
-					gracePeriodEndsAt: null,
-					updatedAt: now,
-				})
-				.where(eq(packageInstances.id, installment.packageInstanceId));
-		}
-
 		// Log the reschedule event
 		await logInstallmentEvent(tx, {
 			packageInstanceId: installment.packageInstanceId,
@@ -967,6 +1052,11 @@ export async function rescheduleInstallment(
 			reason,
 			metadata: JSON.stringify({ oldDueDate: oldDueDate.toISOString(), newDueDate: newDueDate.toISOString() }),
 		});
+
+		// SP-02: Re-evaluate overdue/lock state after the reschedule. This
+		// refreshes nextDueDate to whichever installment is now earliest, and
+		// clears the grace-period flag when no overdue rows remain.
+		await evaluateOverdueLock(tx, installment.packageInstanceId);
 
 		return updated;
 	});
@@ -1042,9 +1132,23 @@ export async function waiveInstallment(
 		if (!pkg) throw new Error("Package instance not found");
 
 		if (pkg.isLocked) {
-			const err = new Error("Cannot waive an installment for a locked package");
-			(err as any).code = "CONFLICT";
-			throw err;
+			// SP-02: Allow waiving when this is the only remaining unpaid
+			// instalment — the package is about to be fully resolved and the
+			// post-waive `evaluateOverdueLock` will auto-unlock it. Block
+			// otherwise (a locked package with multiple outstanding instalments
+			// still requires an explicit admin unlock first).
+			const otherUnpaid = await tx.query.installments.findFirst({
+				where: and(
+					eq(installments.packageInstanceId, pkg.id),
+					inArray(installments.status, ["pending", "overdue"]),
+					sql`${installments.id} <> ${installmentId}`,
+				),
+			});
+			if (otherUnpaid) {
+				const err = new Error("Cannot waive an installment for a locked package");
+				(err as any).code = "CONFLICT";
+				throw err;
+			}
 		}
 
 		const now = new Date();
@@ -1063,22 +1167,11 @@ export async function waiveInstallment(
 			? (pkg.creditsUnlocked ?? 0)
 			: calculateCreditsUnlocked(pkg.creditsTotal, combinedCount, pkg.installmentsTotal);
 
-		// Find next pending installment for nextDueDate update
-		const nextPending = await tx.query.installments.findFirst({
-			where: and(
-				eq(installments.packageInstanceId, pkg.id),
-				eq(installments.status, "pending"),
-			),
-			orderBy: [asc(installments.installmentNumber)],
-		});
-
 		const [updatedPkg] = await tx
 			.update(packageInstances)
 			.set({
 				installmentsWaived: newInstallmentsWaived,
 				creditsUnlocked: newCreditsUnlocked,
-				nextDueDate: nextPending?.dueDate ?? null,
-				gracePeriodEndsAt: null,
 				updatedAt: now,
 			})
 			.where(eq(packageInstances.id, pkg.id))
@@ -1104,7 +1197,15 @@ export async function waiveInstallment(
 
 		await syncPackagePaymentStatus(tx, pkg.id);
 
-		return { installment: updatedInstallment, packageInstance: updatedPkg };
+		// SP-02: Re-evaluate overdue/lock state after the waive. This refreshes
+		// nextDueDate / gracePeriodEndsAt and auto-unlocks the package when the
+		// waive resolves the final outstanding instalment.
+		const reevaluated = await evaluateOverdueLock(tx, pkg.id);
+
+		return {
+			installment: updatedInstallment,
+			packageInstance: reevaluated ?? updatedPkg,
+		};
 	});
 }
 

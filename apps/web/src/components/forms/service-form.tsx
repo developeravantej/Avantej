@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -393,6 +394,9 @@ export function ServiceFormDialog({
 					<DialogTitle className="font-heading text-2xl">
 						{mode === "create" ? "Add New Service" : "Edit Service"}
 					</DialogTitle>
+					<DialogDescription>
+						{mode === "create" ? "Fill in the details to create a new service." : "Update the details for this service."}
+					</DialogDescription>
 				</DialogHeader>
 
 				{/* react-doctor-disable-next-line react-doctor/no-prevent-default -- TanStack Router SPA */}

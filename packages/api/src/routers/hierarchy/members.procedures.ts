@@ -88,10 +88,11 @@ export const hierarchyMembersProcedures = {
       // Check permission
       await requirePermissionOrpc(tenantDb, member, "user_management", "update");
 
-      // Check if user can access the target hierarchy node
-      if (!accessibleNodeIds.includes(input.newHierarchyScopeId) && member.role !== "admin") {
+      // Check if user can access the target hierarchy node.
+      // accessibleNodeIds.length === 0 means unrestricted (admin); skip the check in that case.
+      if (accessibleNodeIds.length > 0 && !accessibleNodeIds.includes(input.newHierarchyScopeId)) {
         throw new ORPCError("FORBIDDEN", {
-          message: "User does not have access to the target hierarchy node",
+          message: "Target hierarchy scope is outside your accessible nodes.",
         });
       }
 
@@ -106,10 +107,11 @@ export const hierarchyMembersProcedures = {
         });
       }
 
-      // Check if user can access the member's current scope (for admin override)
+      // Check if user can access the member's current scope.
+      // accessibleNodeIds.length === 0 means unrestricted (admin); skip the check in that case.
       if (
-        !accessibleNodeIds.includes(memberToReassign.hierarchyScopeId) &&
-        member.role !== "admin"
+        accessibleNodeIds.length > 0 &&
+        !accessibleNodeIds.includes(memberToReassign.hierarchyScopeId)
       ) {
         throw new ORPCError("FORBIDDEN", {
           message: "User does not have access to reassign this member",

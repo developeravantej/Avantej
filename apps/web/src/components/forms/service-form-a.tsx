@@ -16,7 +16,7 @@ import * as z from "zod";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { TimePresetEditor } from "@/features/services/components/TimePresetEditor";
 import { client, orpc } from "@/utils/orpc";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { rmToCents } from "@/lib/money";
 
 // ---------------------------------------------------------------------------
@@ -395,6 +395,12 @@ export function ServiceFormDialogA({
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
 			<DialogContent className="!w-[70vw] !max-w-[70vw] max-h-[90vh] flex flex-col p-0 bg-white">
+				<DialogHeader className="sr-only">
+					<DialogTitle>{mode === "create" ? "Add New Service" : "Edit Service"}</DialogTitle>
+					<DialogDescription>
+						{mode === "create" ? "Fill in the details to create a new service." : "Update the details for this service."}
+					</DialogDescription>
+				</DialogHeader>
 				{/* ── Header ── */}
 				<div className="shrink-0 px-5 pt-5 pb-4 border-b border-[#e5e5e5]">
 					<h2 className="text-[22px] font-extrabold tracking-tight text-[#0a0a0a]">

@@ -1,3 +1,5 @@
+import { ORPCError } from "@orpc/server";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
 import { requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../../guards";
@@ -6,6 +8,7 @@ import {
 	updateClassSlot,
 	cancelClassSlot,
 } from "@avantej-core/services/class-slots.service";
+import { classSlots } from "@avantej-core/db/schema/tenant/class-slots";
 
 const create = tenantProcedure
 	.input(
@@ -62,6 +65,18 @@ const update = tenantProcedure
 
 		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "update")
+
+		if (input.capacity !== undefined) {
+			const current = await context.tenantDb.query.classSlots.findFirst({
+				where: eq(classSlots.id, input.id),
+				columns: { spotsBooked: true },
+			});
+			if (current && input.capacity < (current.spotsBooked ?? 0)) {
+				throw new ORPCError("BAD_REQUEST", {
+					message: `Cannot reduce capacity to ${input.capacity}: ${current.spotsBooked} spots are already booked.`,
+				});
+			}
+		}
 
 		return updateClassSlot(context.tenantDb, input.id, {
 			date: input.date ? new Date(input.date) : undefined,

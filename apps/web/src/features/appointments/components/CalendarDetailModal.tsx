@@ -1,7 +1,14 @@
-import { X, User, Mail, Phone, MapPin, Calendar as CalendarIcon } from "lucide-react";
+import { User, Mail, Phone, MapPin, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import type { UseMutationResult } from "@tanstack/react-query";
@@ -35,18 +42,19 @@ export function CalendarDetailModal({ appointment, updateMutation, onClose, onEd
 	const s = statusStyle(appointment.status);
 
 	return (
-		<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-			<Card className="w-full max-w-2xl max-h-[90vh] overflow-hidden">
-				<CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-4">
-					<div className="flex items-center gap-2">
+		<Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+			<DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
+				<DialogHeader>
+					<DialogTitle className="flex items-center gap-2">
 						<CalendarIcon className="size-5 text-muted-foreground" />
-						<CardTitle className="text-xl font-semibold">Appointment Details</CardTitle>
-					</div>
-					<Button variant="ghost" size="sm" onClick={onClose} className="size-8 p-0">
-						<X className="size-4" />
-					</Button>
-				</CardHeader>
-				<CardContent className="overflow-y-auto max-h-[70vh] space-y-6">
+						Appointment Details
+					</DialogTitle>
+					<DialogDescription>
+						{appointment.service ?? appointment.title}
+					</DialogDescription>
+				</DialogHeader>
+				<Card className="border-0 shadow-none flex-1 overflow-hidden">
+				<CardContent className="overflow-y-auto max-h-[65vh] space-y-6 px-0 pt-0">
 					<div className="flex justify-between items-start">
 						<Badge variant="secondary" className={cn("text-sm px-3 py-1", s.badge)}>{s.label}</Badge>
 						{appointment.status === "pending" && (
@@ -128,7 +136,8 @@ export function CalendarDetailModal({ appointment, updateMutation, onClose, onEd
 						</Button>
 					</div>
 				</CardContent>
-			</Card>
-		</div>
+				</Card>
+			</DialogContent>
+		</Dialog>
 	);
 }

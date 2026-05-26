@@ -183,6 +183,22 @@ export async function applyPromotion(
 	},
 ) {
 	return tenantDb.transaction(async (tx) => {
+		// Re-validate isActive inside the transaction to close the TOCTOU window
+		// between an earlier validatePromoCode call and this apply step (SP-03).
+		const [current] = await tx
+			.select({ isActive: promotions.isActive })
+			.from(promotions)
+			.where(eq(promotions.id, promotionId))
+			.for("update");
+
+		if (!current) {
+			throw new Error("PROMO_NOT_FOUND: Promotion not found");
+		}
+
+		if (!current.isActive) {
+			throw new Error("PROMO_INACTIVE: Promotion code is no longer active");
+		}
+
 		await tx.insert(promotionUsages).values({
 			promotionId,
 			customerId: data.customerId,

@@ -1,5 +1,12 @@
 import React, { useState } from "react";
 import { UserPlus, X, ThumbsDown, Calendar, Plus, Minus } from "lucide-react";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -105,9 +112,13 @@ export function AppointmentFormContent({
 	const selectedSlot = appointmentSlots.find((s) => s.id === selectedAppointmentId);
 
 	return (
-		<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-			<Card className="w-full max-w-7xl max-h-[90vh] py-0 !important overflow-hidden bg-white shadow-2xl relative">
-				<CardContent className="overflow-y-auto relative z-[10000] w-full px-0">
+		<Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+			<DialogContent className="!max-w-[95vw] w-full max-h-[90vh] p-0 overflow-hidden">
+				<DialogHeader className="sr-only">
+					<DialogTitle>Add Appointment</DialogTitle>
+					<DialogDescription>Create a new appointment by selecting a customer, services, date, and trainer.</DialogDescription>
+				</DialogHeader>
+				<div className="overflow-y-auto w-full px-0">
 					<TooltipProvider>
 						<div className="grid grid-cols-6 grid-rows-5">
 							{/* Profile sidebar */}
@@ -492,57 +503,48 @@ export function AppointmentFormContent({
 										</div>
 
 										{/* Multi-slot service dialog */}
-										{multiSlotDialogOpen && selectedAppointmentId && (
-											<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10001] p-4">
-												<Card className="w-full max-w-md max-h-[80vh] overflow-hidden bg-white shadow-2xl">
-													<CardContent className="p-6">
-														<div className="flex items-center justify-between mb-4">
-															<h3 className="text-lg font-semibold text-brand-primary-1">Select Services</h3>
-															<Button
-																variant="ghost"
-																size="sm"
-																onClick={() => setMultiSlotDialogOpen(false)}
-																className="size-8 p-0 hover:bg-brand-secondary-3"
-															>
-																<X className="size-4" />
-															</Button>
-														</div>
-														<div className="space-y-2 max-h-60 overflow-y-auto">
-															{(() => {
-																const currentSlot = appointmentSlots.find((s) => s.id === selectedAppointmentId);
-																const available = services.filter((svc) => {
-																	if (svc.schedulingType !== "class_slot" && !purchasedServiceIds.has(svc.id)) return false;
-																	return !currentSlot?.selectedServices.includes(svc.id);
-																});
-																if (available.length === 0) {
-																	return (
-																		<div className="text-center py-4 text-brand-secondary-1 text-sm">
-																			All available services have been selected
-																		</div>
-																	);
-																}
-																return available.map((svc) => (
-																	<button
-																		key={svc.id}
-																		type="button"
-																		className="flex items-center justify-between p-3 border border-brand-secondary-3 rounded-lg hover:bg-brand-secondary-3/50 cursor-pointer w-full bg-transparent text-left"
-																		onClick={() => {
-																			addServiceToSlot(selectedAppointmentId, svc.id);
-																			setMultiSlotDialogOpen(false);
-																		}}
-																	>
-																		<div className="flex justify-between w-full">
-																			<span className="font-medium pr-2">{svc.name}</span>
-																			<span className="text-sm text-brand-secondary-1">{svc.durationMinutes} min</span>
-																		</div>
-																	</button>
-																));
-															})()}
-														</div>
-													</CardContent>
-												</Card>
-											</div>
-										)}
+										<Dialog open={multiSlotDialogOpen && !!selectedAppointmentId} onOpenChange={(o) => { if (!o) setMultiSlotDialogOpen(false); }}>
+											<DialogContent className="sm:max-w-md">
+												<DialogHeader>
+													<DialogTitle>Select Services</DialogTitle>
+													<DialogDescription>Choose services to add to this appointment slot.</DialogDescription>
+												</DialogHeader>
+												{selectedAppointmentId && (
+													<div className="space-y-2 max-h-60 overflow-y-auto">
+														{(() => {
+															const currentSlot = appointmentSlots.find((s) => s.id === selectedAppointmentId);
+															const available = services.filter((svc) => {
+																if (svc.schedulingType !== "class_slot" && !purchasedServiceIds.has(svc.id)) return false;
+																return !currentSlot?.selectedServices.includes(svc.id);
+															});
+															if (available.length === 0) {
+																return (
+																	<div className="text-center py-4 text-brand-secondary-1 text-sm">
+																		All available services have been selected
+																	</div>
+																);
+															}
+															return available.map((svc) => (
+																<button
+																	key={svc.id}
+																	type="button"
+																	className="flex items-center justify-between p-3 border border-brand-secondary-3 rounded-lg hover:bg-brand-secondary-3/50 cursor-pointer w-full bg-transparent text-left"
+																	onClick={() => {
+																		addServiceToSlot(selectedAppointmentId, svc.id);
+																		setMultiSlotDialogOpen(false);
+																	}}
+																>
+																	<div className="flex justify-between w-full">
+																		<span className="font-medium pr-2">{svc.name}</span>
+																		<span className="text-sm text-brand-secondary-1">{svc.durationMinutes} min</span>
+																	</div>
+																</button>
+															));
+														})()}
+													</div>
+												)}
+											</DialogContent>
+										</Dialog>
 
 										{/* Right column: slot editor / single appointment form */}
 										<div className="col-span-3 row-span-5 p-2 flex flex-col gap-y-4">
@@ -825,8 +827,8 @@ export function AppointmentFormContent({
 							</div>
 						</div>
 					</TooltipProvider>
-				</CardContent>
-			</Card>
+				</div>
+			</DialogContent>
 
 			{/* Auto-submit instead of showing the dev TestDataDialog */}
 			{isTestDialogOpen && testAppointmentData && (() => {
@@ -855,6 +857,6 @@ export function AppointmentFormContent({
 				});
 				return null;
 			})()}
-		</div>
+		</Dialog>
 	);
 }

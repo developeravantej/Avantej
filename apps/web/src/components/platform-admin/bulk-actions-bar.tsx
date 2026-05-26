@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -184,6 +185,7 @@ export function BulkActionsBar({
 								Apply tag to {selectedIds.length} tenant
 								{selectedIds.length === 1 ? "" : "s"}
 							</DialogTitle>
+							<DialogDescription>Choose an existing tag or create a new one to apply.</DialogDescription>
 						</DialogHeader>
 						<div className="space-y-3">
 							<div>
@@ -246,6 +248,7 @@ export function BulkActionsBar({
 								Remove tag from {selectedIds.length} tenant
 								{selectedIds.length === 1 ? "" : "s"}
 							</DialogTitle>
+							<DialogDescription>Select the tag to remove from the selected tenants.</DialogDescription>
 						</DialogHeader>
 						<Select value={removeLabel} onValueChange={setRemoveLabel}>
 							<SelectTrigger data-testid="bulk-remove-tag-select">
@@ -323,6 +326,7 @@ export function BulkActionsBar({
 									Suspend {selectedIds.length} tenant
 									{selectedIds.length === 1 ? "" : "s"}?
 								</DialogTitle>
+								<DialogDescription>Provide a reason for suspending the selected tenants.</DialogDescription>
 							</DialogHeader>
 							<div className="space-y-2">
 								<label className="text-xs text-muted-foreground">
