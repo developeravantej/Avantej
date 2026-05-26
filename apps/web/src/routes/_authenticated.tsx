@@ -25,6 +25,9 @@ export const Route = createFileRoute("/_authenticated")({
 		}
 		return {};
 	},
+	// Don't re-run the auth check on every child navigation — once authenticated,
+	// API calls will handle session expiry. This prevents layout flicker.
+	shouldRevalidate: () => false,
 	component: AuthenticatedLayout,
 });
 

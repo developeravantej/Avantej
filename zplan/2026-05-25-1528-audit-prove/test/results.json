@@ -103,12 +103,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 7554,
+                  "duration": 6562,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-05-25T10:29:13.086Z",
+                  "startTime": "2026-05-25T11:04:27.060Z",
                   "annotations": [],
                   "attachments": [
                     {
@@ -156,7 +156,7 @@
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 60445,
+                  "duration": 43692,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
@@ -164,82 +164,82 @@
                   "steps": [
                     {
                       "title": "T-1 Trainers tab loads — search input + trainer rows or empty state visible",
-                      "duration": 8984
+                      "duration": 6591
                     },
                     {
                       "title": "T-2 Search input — filters list client-side",
-                      "duration": 1001
+                      "duration": 998
                     },
                     {
                       "title": "T-3 Invite Trainer dialog opens with email + hierarchy fields",
-                      "duration": 443
+                      "duration": 421
                     },
                     {
                       "title": "T-6 [BUG] Change Tier opens profile edit form — no tier field",
-                      "duration": 1906
+                      "duration": 1879
                     },
                     {
                       "title": "T-19 [BUG] Assign Branch opens same edit form — no scope/branch field",
-                      "duration": 1890
+                      "duration": 1837
                     },
                     {
                       "title": "TI-1 Tiers tab loads — New Tier button + table or empty state visible",
-                      "duration": 5365
+                      "duration": 3282
                     },
                     {
                       "title": "TI-2 New Tier dialog — name + rank inputs present",
-                      "duration": 1006
+                      "duration": 657
                     },
                     {
                       "title": "TI-4 Deactivate tier — confirm dialog appears; Cancel cancels",
-                      "duration": 5563
+                      "duration": 4559
                     },
                     {
                       "title": "TI-7 Empty tier name — toast fires, mutation NOT called, dialog stays open",
-                      "duration": 1138
+                      "duration": 1195
                     },
                     {
                       "title": "TI-17 Tab switching — navigate away and back to tiers; state resets cleanly",
-                      "duration": 7408
+                      "duration": 5526
                     },
                     {
                       "title": "AV-1 Availability tab loads — grid column headers or empty state visible",
-                      "duration": 5880
+                      "duration": 4185
                     },
                     {
                       "title": "AV-2 Click trainer row in grid — sheet opens with day schedule",
-                      "duration": 341
+                      "duration": 265
                     },
                     {
                       "title": "AV-3 Block Time button opens AddExceptionDialog with kind=blocked",
-                      "duration": 789
+                      "duration": 571
                     },
                     {
                       "title": "AV-4 Add Exception button opens AddExceptionDialog with kind=timeoff",
-                      "duration": 670
+                      "duration": 545
                     },
                     {
                       "title": "AV-5 Utilisation indicator visible in grid (bar or dash-percent)",
-                      "duration": 48
+                      "duration": 38
                     },
                     {
-                      "title": "AV-10 [BUG] Intake Availability sub-tab absent from refactored page",
-                      "duration": 2031
+                      "title": "AV-10 Intake Availability sub-tab present — Set Intake Schedule button visible",
+                      "duration": 548
                     },
                     {
                       "title": "AV-11 Old /availability URL redirects to ?tab=availability",
-                      "duration": 1321
+                      "duration": 1032
                     },
                     {
-                      "title": "AV-12 [BUG] TrainerAvailabilitySheet is read-only — no edit/save button",
-                      "duration": 6691
+                      "title": "AV-12 TrainerAvailabilitySheet has Edit button — schedule is editable",
+                      "duration": 4349
                     },
                     {
                       "title": "AV-14 AddExceptionDialog submit is disabled when trainer+date not selected",
-                      "duration": 6379
+                      "duration": 3918
                     }
                   ],
-                  "startTime": "2026-05-25T10:29:22.446Z",
+                  "startTime": "2026-05-25T11:04:36.033Z",
                   "annotations": [],
                   "attachments": [
                     {
@@ -268,8 +268,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-05-25T10:29:11.816Z",
-    "duration": 72492.64600000001,
+    "startTime": "2026-05-25T11:04:25.450Z",
+    "duration": 55490.076,
     "expected": 2,
     "skipped": 0,
     "unexpected": 0,

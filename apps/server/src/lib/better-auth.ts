@@ -186,7 +186,9 @@ function createBetterAuth(c?: Context) {
     },
   },
   trustedOrigins: [
-    getEnvVar("CORS_ORIGIN") || "http://localhost:3001",
+    getEnvVar("CORS_ORIGIN") || "http://localhost:3021",
+    "http://localhost:3001", // legacy / alternate dev port
+    "http://localhost:3021", // primary dev port
     "http://localhost:4001", // E2E alt port
     "mybettertapp://",
     "exp://",

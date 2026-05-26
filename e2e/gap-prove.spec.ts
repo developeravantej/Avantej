@@ -4,7 +4,7 @@ import { test, expect } from "@playwright/test";
  * Trainers page — 3-tab proof run (Trainers, Tiers, Availability)
  * Session: zplan/2026-05-25-1528-audit-prove
  * All assertions use expect.soft() so a failing step records but the run continues.
- * Intentional soft-fails (document known bugs): T-6, T-19, AV-10, AV-12.
+ * No remaining intentional soft-fails — T-6 and T-19 fixed.
  */
 
 const BASE = "http://avantej.localhost:3021";
@@ -85,39 +85,36 @@ test("Trainers page — 3-tab audit proof run", async ({ page }) => {
 		}
 	});
 
-	await test.step("T-6 [BUG] Change Tier opens profile edit form — no tier field", async () => {
-		// Page auto-selects first trainer — Change Tier appears in detail panel header
-		// KNOWN BUG T-6: Change Tier should open a dedicated tier picker, not the profile edit form.
+	await test.step("T-6 Change Tier opens dedicated tier dialog with tier dropdown", async () => {
+		// T-6 fixed: Change Tier now opens ChangeTierDialog with a tier <select>.
 		const changeTierBtn = page.getByRole("button", { name: "Change Tier" }).first();
 		const found = await waitVisible(changeTierBtn, 8000);
 		if (found) {
 			await changeTierBtn.click();
 			const dialog = page.getByRole("dialog");
 			await expect.soft(dialog).toBeVisible({ timeout: 4000 });
-			// Bug confirmation: dialog is "Edit Trainer", NOT a tier picker
-			const dialogHeading = dialog.getByRole("heading", { name: /edit trainer/i });
-			await expect.soft(dialogHeading).toBeVisible({ timeout: 3000 });
-			// Bug: no tier dropdown inside the dialog
-			const tierField = dialog.locator("[id*='tier' i], [name*='tier' i]").first();
-			const hasTierField = await waitVisible(tierField, 1500);
-			expect.soft(hasTierField).toBe(false); // INTENTIONAL: tier field IS missing (documents T-6)
+			// Dialog title should be "Change Tier", not "Edit Trainer"
+			await expect.soft(dialog.getByRole("heading", { name: /change tier/i })).toBeVisible({ timeout: 3000 });
+			// Tier <select> with id="tier-select" must be present
+			const tierSelect = dialog.locator("select#tier-select");
+			await expect.soft(tierSelect).toBeVisible({ timeout: 3000 });
 			await page.keyboard.press("Escape").catch(() => {});
 		}
 	});
 
-	await test.step("T-19 [BUG] Assign Branch opens same edit form — no scope/branch field", async () => {
-		// KNOWN BUG T-19: Assign Branch should allow changing the trainer's branch node.
-		// In edit mode, TrainerFormDialog.tsx:158 hides email+scope fields.
+	await test.step("T-19 Assign Branch opens dedicated branch dialog with branch dropdown", async () => {
+		// T-19 fixed: Assign Branch now opens AssignBranchDialog with a branch <select>.
 		const assignBranchBtn = page.getByRole("button", { name: "Assign Branch" }).first();
 		const found = await waitVisible(assignBranchBtn, 5000);
 		if (found) {
 			await assignBranchBtn.click();
 			const dialog = page.getByRole("dialog");
 			await expect.soft(dialog).toBeVisible({ timeout: 4000 });
-			// Bug confirmation: branch/scope field is absent in edit mode
-			const scopeField = dialog.locator("[id='trainer-scope'], button[id='trainer-scope']").first();
-			const hasScopeField = await waitVisible(scopeField, 1500);
-			expect.soft(hasScopeField).toBe(false); // INTENTIONAL: branch field IS hidden (documents T-19)
+			// Dialog title should be "Assign Branch"
+			await expect.soft(dialog.getByRole("heading", { name: /assign branch/i })).toBeVisible({ timeout: 3000 });
+			// Branch <select> with id="branch-select" must be present
+			const branchSelect = dialog.locator("select#branch-select");
+			await expect.soft(branchSelect).toBeVisible({ timeout: 5000 });
 			await page.keyboard.press("Escape").catch(() => {});
 		}
 	});
@@ -277,13 +274,17 @@ test("Trainers page — 3-tab audit proof run", async ({ page }) => {
 		expect.soft(hasBar || hasNum || true).toBe(true);
 	});
 
-	await test.step("AV-10 [BUG] Intake Availability sub-tab absent from refactored page", async () => {
-		// KNOWN BUG AV-10: CoachIntakeEditor was not included in the new TrainerAvailabilityTab.
-		// There should be NO 'Intake Availability' tab UI — the feature was dropped in the refactor.
+	await test.step("AV-10 Intake Availability sub-tab present — Set Intake Schedule button visible", async () => {
+		// AV-10 fixed: Intake Availability sub-tab added to TrainerAvailabilityTab.
 		const intakeTabBtn = page.getByRole("tab", { name: /intake availability/i });
-		const hasIntake = await waitVisible(intakeTabBtn, 2000);
-		// Intentional soft-fail: documents that the feature is missing
-		expect.soft(hasIntake).toBe(false); // BUG: intake sub-tab should exist but doesn't (AV-10)
+		await expect.soft(intakeTabBtn).toBeVisible({ timeout: 5000 });
+		const hasIntake = await waitVisible(intakeTabBtn, 3000);
+		if (hasIntake) {
+			await intakeTabBtn.click();
+			// Trainer list with "Set Intake Schedule" buttons should appear
+			const setIntakeBtn = page.getByRole("button", { name: /set intake schedule/i }).first();
+			await expect.soft(setIntakeBtn).toBeVisible({ timeout: 8000 });
+		}
 	});
 
 	await test.step("AV-11 Old /availability URL redirects to ?tab=availability", async () => {

@@ -4,21 +4,21 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/trainers/availability.tsx`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-05-12
+**Last updated:** 2026-05-26
 
 ---
 
 ## 1. What It Does
 
-**Purpose (user perspective):** View and (for trainers, in some flows) edit weekly availability schedules. Two tabs:
-- **General Schedule** — recurring weekly availability per trainer; click a trainer to open a slide-over editor.
-- **Intake Availability** — coach-intake schedules with claim/unclaim of open slots and an editor for the schedule itself.
+**Purpose (user perspective):** View and edit trainer availability schedules. Two sub-tabs rendered by `TrainerAvailabilityTab` (used as a tab panel in the parent page):
+- **Recurring Availability** — weekly recurring slots per trainer shown in a day-of-week grid; click a trainer to open `TrainerAvailabilitySheet` for read/edit.
+- **Intake Availability** — list of all trainers with a "Set Intake Schedule" button per row; opens `CoachIntakeEditor` for that trainer.
 
-Trainers see only their own row; non-trainer roles see all trainers in branches they can access.
+Trainers see only their own row; non-trainer roles see all trainers in accessible branches.
 
-**Produces:** Tabbed page with two day-of-week × trainer tables. Slots are rendered as inline chips per day. Clicking a trainer name opens the relevant editor sheet. Intake rows additionally support claiming / unclaiming specific open slots via a confirmation dialog.
+**Produces:** Sub-tab bar with `role="tablist"` / `role="tab"` ARIA attributes. Recurring tab: `WeeklyGrid` with coloured slot pills per day (Available/Blocked/Time Off), utilisation bar, and booked vs available hours. Intake tab: flat card list per trainer with "Set Intake Schedule" button. Clicking a trainer in the Recurring grid opens `TrainerAvailabilitySheet`; clicking "Set Intake Schedule" opens `CoachIntakeEditor`.
 
-**On success:** Underlying queries refetch (`refetchIntake`); editor sheet closes; toast handled inside the editor/claim dialog components.
+**On success:** `refetch()` is called from the sheet's `onSaved` prop after `TrainerAvailabilitySheet` saves; similarly passed to `AddExceptionDialog` and triggered after `CoachIntakeEditor` saves. Toast is handled inside each child component via `useApiMutation`.
 
 **On failure / error states:**
 - Loading: `<PageLoader/>` on the General tab.
@@ -32,65 +32,81 @@ Trainers see only their own row; non-trainer roles see all trainers in branches 
 
 **Execution flow:**
 ```
-TrainerAvailabilityPage
+TrainerAvailabilityTab
   → useUserContext() → organizationId, currentOrg
   → memberRole = hierarchy.member.role  (lowercased)
   → isTrainerRole = memberRole === "trainer"
-  → callerMemberId = hierarchy.member.id  (cast via MemberWithId helper type — id isn't on UserContextResponse)
+  → callerMemberId = hierarchy.member.id  (MemberWithId helper type — id not on UserContextResponse)
   → useQuery(["trainerAvailabilityByBranch", orgId])
       → client.trainerAvailability.listByBranch({ organizationId })
-  → useQuery(["coachIntakeByBranch", orgId])
-      → client.coachIntake.listByBranch({ organizationId })
-  → rows = useMemo: filter to caller's trainerId when isTrainerRole
-  → slotsByTrainerByDay = useMemo: Map<trainerId, Map<dayOfWeek, slots[]>>; slots sorted by startTime
-  → render Tabs:
-      - "general": table of trainer × DAY_COLUMNS; click trainer → openSheetFor(row)
-      - "intake": <IntakeTab/> (inline sub-component); click trainer → opens CoachIntakeEditor; claim/unclaim → CoachIntakeClaimDialog
-  → <TrainerAvailabilitySheet/> portal for general schedule editor
-  → <CoachIntakeEditor/> portal for intake editor
-  → <CoachIntakeClaimDialog/> portal for claim/unclaim
+  → useQuery(["trainerUtilisation", orgId, weekStart])
+      → client.trainerAvailability.getUtilisation({ organizationId, weekStart })
+  → allRows = useMemo: filter to callerMemberId when isTrainerRole
+  → render sub-tab bar (role="tablist"):
+      "Recurring Availability" | "Intake Availability"
+  → subTab === "intake":
+      flat card list of allRows; each row: avatar + name/spec + "Set Intake Schedule" button
+      button → setCoachIntakeTrainer(row) + setCoachIntakeOpen(true) → <CoachIntakeEditor/>
+  → subTab === "recurring":
+      action bar (Block Time / Add Exception) — hidden for isTrainerRole
+      <WeeklyGrid rows={allRows} utilisation={utilisationData}/>
+        each row: trainer identity + utilisation bar + booked/available hours + day-of-week slot pills
+        click trainer name or any day cell → setSelectedTrainer(row) + setSheetOpen(true)
+  → <TrainerAvailabilitySheet
+        trainer={selectedTrainer}
+        open={sheetOpen}
+        organizationId={organizationId}
+        onSaved={() => refetch()}
+    />
+  → <AddExceptionDialog
+        open={exceptionDialogOpen}
+        defaultKind={exceptionDialogKind}
+        onSuccess={() => refetch()}
+    />
+  → <CoachIntakeEditor open={coachIntakeOpen} trainer={coachIntakeTrainer} onSaved={() => {}}/>
 ```
 
 **Inputs:** No route params or URL search. All state is derived from `useUserContext()` + local `useState`.
 
 **State management:**
-- TanStack Query: `trainerAvailabilityByBranch`, `coachIntakeByBranch`.
+- TanStack Query: `trainerAvailabilityByBranch`, `trainerUtilisation`.
 - Local `useState`:
-  - `selectedTrainer` (`TrainerAvailabilityRow | null`), `sheetOpen` — for the general schedule editor.
-  - `intakeEditorTrainer` (`{ trainerId, trainerName } | null`), `intakeEditorOpen` — for the intake editor.
-  - `claimDialog` — `{ mode: "claim"|"unclaim", trainerId, trainerName, date, startTime, endTime, exceptionId?, existingReason? } | null`.
-- Uses TanStack `Tabs` (`defaultValue="general"`).
+  - `subTab: "recurring" | "intake"` — which sub-tab is active (default `"recurring"`).
+  - `selectedTrainer` (`TrainerAvailabilityRow | null`), `sheetOpen` — for `TrainerAvailabilitySheet`.
+  - `coachIntakeTrainer` (`TrainerAvailabilityRow | null`), `coachIntakeOpen` — for `CoachIntakeEditor`.
+  - `exceptionDialogOpen`, `exceptionDialogKind: "timeoff" | "blocked"` — for `AddExceptionDialog`.
+- Sub-tab is **not** URL-persisted (local state only); no TanStack Router search param.
 
-**Outputs:** Two read-only tables + three child portals (sheet, editor, claim dialog) that own their mutations.
+**Outputs:** Sub-tab bar + conditional content per tab. Recurring: `WeeklyGrid` with slot pills, utilisation bars. Intake: flat trainer card list. Three child portals own their mutations: `TrainerAvailabilitySheet`, `CoachIntakeEditor`, `AddExceptionDialog`.
 
-**Side effects:** `refetchIntake()` after editor save and after claim/unclaim succeed.
+**Side effects:** `refetch()` (trainerAvailabilityByBranch) called after `TrainerAvailabilitySheet.onSaved` and after `AddExceptionDialog.onSuccess`. `CoachIntakeEditor` is passed `onSaved={() => {}}` (no-op currently).
 
 ---
 
 ## 3. What Depends On It
 
 **Calls these API endpoints (typed `client`):**
-- `client.trainerAvailability.listByBranch({ organizationId })` — returns `TrainerAvailabilityRow[]` (one row per trainer in accessible branches, with embedded weekly `slots`). Defined in `packages/api/src/routers/trainer-availability.ts`.
-- `client.coachIntake.listByBranch({ organizationId })` — returns intake schedule rows per trainer (`slots: [{ dayOfWeek, startTime, endTime }]`, plus `hasOpenSlots`). Defined in `packages/api/src/routers/coach-intake.ts`.
-- Child components additionally call `coachIntake.listSlots`, `coachIntake.upsertSlots`, `coachIntake.getOpenSlots`, `coachIntake.claimSlot`, `coachIntake.unclaimSlot`, `coachIntake.listExceptions` (see `coach-intake.ts`).
+- `client.trainerAvailability.listByBranch({ organizationId })` — returns `TrainerAvailabilityRow[]` (one per trainer in accessible branches, with embedded weekly `slots` including `kind`). Defined in `packages/api/src/routers/trainer-availability.ts`.
+- `client.trainerAvailability.getUtilisation({ organizationId, weekStart })` — returns `UtilisationMap` keyed by trainerId with `availableHours`, `bookedHours`, `utilisationPct`. Drives the utilisation bar in each grid row.
+- Child components also call (not directly from this file):
+  - `TrainerAvailabilitySheet`: `trainerAvailability.upsert` — saves recurring slots with `kind` field; invalidates `["trainerAvailabilityByBranch", orgId]`.
+  - `CoachIntakeEditor`: `coachIntake.listSlots`, `coachIntake.upsertSlots`, `coachIntake.getOpenSlots`, etc.
+  - `AddExceptionDialog`: creates exceptions (blocked/time-off) for specific dates.
 
 **Uses these components:**
-- `PageHeader` (`@/components/ui/page-header`) — title + icon + description.
-- `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` — shadcn (TanStack-router-independent).
-- `Table` / `TableHeader` / `TableRow` / `TableHead` / `TableBody` / `TableCell` — shadcn.
-- `StatusCallout` — error / empty / no-org states.
-- `PageLoader` — General tab loading.
-- `TrainerAvailabilitySheet` — `apps/web/src/components/trainers/trainer-availability-sheet.tsx` (also exports `type TrainerAvailabilityRow`).
+- `TrainerAvailabilitySheet` — `apps/web/src/components/trainers/trainer-availability-sheet.tsx` — rebuilt with read/edit modes; receives `organizationId` and `onSaved` props; exports `type TrainerAvailabilityRow`.
 - `CoachIntakeEditor` — `apps/web/src/components/trainers/coach-intake-editor.tsx`.
-- `CoachIntakeClaimDialog` — `apps/web/src/components/trainers/coach-intake-claim-dialog.tsx`.
-- lucide: `CalendarRange`.
-- **Inline sub-component:** `IntakeTab` — renders the intake schedule table with day-of-week chips; defined in the same file (lines 52–177).
+- `AddExceptionDialog` — `apps/web/src/components/calendar/add-exception-dialog.tsx`; fixed to sync `kind` state on programmatic open via `useEffect`.
+- `StatusCallout` — error / empty / no-org states.
+- `PageLoader` — loading state for both sub-tabs.
+- lucide: `CalendarClock` (Intake button), `Plus` (Block Time / Add Exception buttons).
+- **Inline sub-components:** `WeeklyGridRow`, `WeeklyGrid` — recurring availability grid with slot pills and utilisation bars; defined in the same file. No separate `IntakeTab` sub-component — intake content is rendered inline in the main return.
 
 **Uses these hooks:**
 - `useUserContext` — org id, current org hierarchy, member id, role.
-- `useQuery` — both list queries.
-- `useMemo` — `rows` (role-filtered), `slotsByTrainerByDay`.
-- `useState` — sheet/editor/dialog open flags and selections.
+- `useQuery` — `trainerAvailabilityByBranch`, `trainerUtilisation`.
+- `useMemo` — `allRows` (role-filtered), `weekStart`.
+- `useState` — sub-tab, sheet/editor/dialog open flags and selections.
 
 **Navigation: who navigates here:**
 - Sidebar (Scheduling section) — Trainer Availability link.
@@ -104,24 +120,29 @@ TrainerAvailabilityPage
 **DB tables touched (server-side, via routers):**
 | Table | Operation | Notes |
 |-------|-----------|-------|
-| `trainer_availability` | SELECT (and the editor sheet UPDATEs/INSERTs) | Recurring weekly slots: `{ trainerId, dayOfWeek, startTime, endTime, ... }`. Schema in `packages/db/src/schema/tenant/trainer-availability.ts`. |
+| `trainer_availability` | SELECT (and the sheet UPSERTs) | Recurring weekly slots: `{ trainerId, dayOfWeek, startTime, endTime, kind }`. `kind` ∈ `"available" | "blocked" | "timeoff"`. Schema in `packages/db/src/schema/tenant/trainer-availability.ts`. |
 | `coach_intake_availability` | SELECT (editor UPSERTs) | Per-trainer per-day intake schedules. Schema in `packages/db/src/schema/tenant/coach-intake-availability.ts`. |
 | `coach_intake_exceptions` | SELECT / INSERT / DELETE (via claim/unclaim) | Tracks claim/unclaim entries; `coach-intake-exceptions.ts`. |
 
 **Key types:**
 ```typescript
-// Imported from the sheet component, re-used here:
+// Imported from trainer-availability-sheet.tsx:
 type TrainerAvailabilityRow = {
   trainerId: string; trainerName: string; trainerEmail: string | null;
-  slots: Array<{ id: string; dayOfWeek: string; startTime: string; endTime: string; ... }>;
+  specialization?: string | null;
+  slots: Array<{ id: string; dayOfWeek: string; startTime: string; endTime: string; kind?: string }>;
 };
 
-// Local to the route:
-type IntakeRow = {
-  trainerId: string; trainerName: string; trainerEmail: string;
-  slots: Array<{ dayOfWeek: string; startTime: string; endTime: string }>;
-  hasOpenSlots: boolean;
-};
+// Local to trainer-availability-tab.tsx:
+type UtilisationMap = Record<
+  string,
+  { availableHours: number; bookedHours: number; utilisationPct: number }
+>;
+
+// Slot kind values (SlotKind in sheet component):
+type SlotKind = "available" | "blocked" | "timeoff";
+
+// Pill colour mapping: available → green, blocked → red, timeoff → amber
 
 const DAY_COLUMNS = [
   { key: "monday",    label: "Mon" }, { key: "tuesday", label: "Tue" }, { key: "wednesday", label: "Wed" },
@@ -137,19 +158,23 @@ const DAY_COLUMNS = [
 **Test files:** None found for this route.
 
 **Not tested (risk areas):**
-- Role-based row filtering (trainer sees only own row).
-- `slotsByTrainerByDay` memoization correctness on data changes.
-- Empty / error / loading states.
-- Tab switching state isolation (e.g., closing the editor on tab change).
-- Claim/unclaim happy-path + permission failures.
+- Role-based row filtering (trainer sees only own row via `callerMemberId` match).
+- `WeeklyGridRow` `slotsByDay` memoization correctness when `slots` reference changes.
+- Empty / error / loading states on both sub-tabs.
+- Sub-tab switching does not reset `sheetOpen` — if the sheet is open on Recurring and user switches to Intake, the sheet stays mounted (but `trainer` would be stale if refetched).
+- `CoachIntakeEditor` is passed `onSaved={() => {}}` — intake data does not refetch after a save.
+- `TrainerAvailabilitySheet` `kind` field: the sheet always sends `kind` in the upsert payload; if the API does not yet store it, data would be silently ignored.
+- `AddExceptionDialog` programmatic-open `kind` sync: the `useEffect` fix ensures `kind` matches `defaultKind` on open, but has not been tested in all close/reopen sequences.
 
 ---
 
 ## 6. Notes
 
-- **New route (May 2026):** Replaces or augments older per-page trainer schedule UIs by colocating the two related concepts (general schedule + intake) under one tabbed page.
-- **Role narrowing:** `hierarchy.member.id` is not in the generated `UserContextResponse` type, so the file uses a local `MemberWithId` helper type (`NonNullable<typeof currentOrg>["hierarchy"]["member"] & { id?: string }`) to avoid an `any` cast.
-- **`IntakeTab` is inline** — it's defined in the same file (not yet promoted to `@/components/trainers/`). The intake editor and claim dialog ARE separate files. Consider extracting `IntakeTab` if it grows.
-- The General tab `useQuery` casts the response (`as TrainerAvailabilityRow[]`) because the typed client return shape doesn't yet match the consumer type exactly.
-- Tabs UI uses shadcn `Tabs` (string state), not TanStack Router search params — switching tabs is **not** URL-persisted. If deep-linking to "intake" matters, hoist tab state to the route's `validateSearch`.
-- `CoachIntakeEditor` is always mounted (even when no trainer is selected, with empty-string ids) — its `open` flag gates the actual sheet display.
+- **`TrainerAvailabilityTab` is a component, not a route** — it renders as a tab panel inside the parent page; the actual route file simply includes it.
+- **Sub-tabs are not URL-persisted** — `subTab` is local `useState("recurring")`; switching tabs does not update the URL. If deep-linking to "intake" matters, hoist `subTab` to the route's `validateSearch`.
+- **Role narrowing:** `hierarchy.member.id` is not in the generated `UserContextResponse` type; the file uses a local `MemberWithId` helper type (`NonNullable<typeof currentOrg>["hierarchy"]["member"] & { id?: string }`) to avoid an `any` cast.
+- **`TrainerAvailabilitySheet` rebuilt (2026-05-26):** now has read/edit mode toggle within the sheet. Read mode shows existing slots per day. Edit mode shows per-slot HH:MM time inputs, `kind` select (Available/Blocked/Time Off), delete button, and "+ Add window" per day. Saves via `trainerAvailability.upsert` which always includes the `kind` field. Accepts new `organizationId: string | null` and `onSaved?: () => void` props. `handleOpenChange` resets edit state on close.
+- **`AddExceptionDialog` fix (2026-05-26):** added `useEffect(() => { if (open) setKind(defaultKind); }, [open, defaultKind])` so programmatic opens correctly sync `kind` state from `exceptionDialogKind`.
+- **`CoachIntakeEditor` `onSaved` is a no-op** — the intake sub-tab does not currently refetch after the editor saves. This means the Intake list will not reflect changes until a page reload or manual refetch.
+- The `trainerAvailabilityByBranch` query response is cast (`as TrainerAvailabilityRow[]`) because the typed client return shape does not yet fully match the consumer type.
+- Intake content is rendered inline in the main `TrainerAvailabilityTab` return (no separate `IntakeTab` sub-component). `WeeklyGridRow` and `WeeklyGrid` are also inline sub-components in the same file.

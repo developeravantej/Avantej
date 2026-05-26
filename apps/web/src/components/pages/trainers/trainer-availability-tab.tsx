@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { CalendarClock, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { client } from "@/utils/orpc";
 import { useUserContext } from "@/hooks/useUserContext";
@@ -10,6 +10,7 @@ import {
 	type TrainerAvailabilityRow,
 } from "@/components/trainers/trainer-availability-sheet";
 import { AddExceptionDialog } from "@/components/calendar/add-exception-dialog";
+import { CoachIntakeEditor } from "@/components/trainers/coach-intake-editor";
 import { cn } from "@/lib/utils";
 
 const DAY_COLUMNS: Array<{ key: string; label: string }> = [
@@ -329,6 +330,11 @@ export function TrainerAvailabilityTab() {
 		null;
 	const isTrainerRole = memberRole === "trainer";
 
+	const [subTab, setSubTab] = useState<"recurring" | "intake">("recurring");
+	const [coachIntakeOpen, setCoachIntakeOpen] = useState(false);
+	const [coachIntakeTrainer, setCoachIntakeTrainer] =
+		useState<TrainerAvailabilityRow | null>(null);
+
 	const [exceptionDialogOpen, setExceptionDialogOpen] = useState(false);
 	const [exceptionDialogKind, setExceptionDialogKind] = useState<
 		"timeoff" | "blocked"
@@ -382,7 +388,102 @@ export function TrainerAvailabilityTab() {
 
 	return (
 		<>
-			{!isTrainerRole && (
+			{/* ── Sub-tab bar: Recurring / Intake ─────────────────────── */}
+			<div role="tablist" aria-label="Availability views" className="mb-5 flex items-center gap-1 self-start rounded-lg border border-[#e5e5e5] bg-[#f3f3f3] p-1">
+				<button
+					role="tab"
+					type="button"
+					aria-selected={subTab === "recurring"}
+					onClick={() => setSubTab("recurring")}
+					className={cn(
+						"rounded-md px-3 py-1.5 text-[13px] font-medium transition",
+						subTab === "recurring"
+							? "bg-white text-[#0a0a0a] shadow-sm"
+							: "text-[#737373] hover:text-[#0a0a0a]",
+					)}
+				>
+					Recurring Availability
+				</button>
+				<button
+					role="tab"
+					type="button"
+					aria-selected={subTab === "intake"}
+					onClick={() => setSubTab("intake")}
+					className={cn(
+						"rounded-md px-3 py-1.5 text-[13px] font-medium transition",
+						subTab === "intake"
+							? "bg-white text-[#0a0a0a] shadow-sm"
+							: "text-[#737373] hover:text-[#0a0a0a]",
+					)}
+				>
+					Intake Availability
+				</button>
+			</div>
+
+			{/* ── Intake Availability sub-tab ──────────────────────────── */}
+			{subTab === "intake" && (
+				<div className="flex flex-col gap-3">
+					{isLoading ? (
+						<PageLoader />
+					) : allRows.length === 0 ? (
+						<StatusCallout
+							variant="info"
+							title="No trainers"
+							message="No active trainers found in this branch."
+						/>
+					) : (
+						allRows.map((row, idx) => {
+							const colors = avatarColors(idx);
+							return (
+								<div
+									key={row.trainerId}
+									className="flex items-center justify-between rounded-xl border border-[#e5e5e5] bg-white px-5 py-4"
+								>
+									<div className="flex items-center gap-3">
+										<div
+											className={cn(
+												"flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold",
+												colors.bg,
+												colors.text,
+											)}
+										>
+											{trainerInitials(row.trainerName)}
+										</div>
+										<div>
+											<p className="text-sm font-semibold text-[#0a0a0a]">
+												{row.trainerName}
+											</p>
+											{row.specialization ? (
+												<p className="text-[11px] text-[#737373]">
+													{row.specialization}
+												</p>
+											) : row.trainerEmail ? (
+												<p className="text-[11px] text-[#737373]">
+													{row.trainerEmail}
+												</p>
+											) : null}
+										</div>
+									</div>
+									<button
+										type="button"
+										onClick={() => {
+											setCoachIntakeTrainer(row);
+											setCoachIntakeOpen(true);
+										}}
+										className="inline-flex items-center gap-1.5 rounded-[10px] border border-[#e5e5e5] bg-white px-3 py-1.5 text-[13px] font-medium text-[#0a0a0a] transition hover:bg-[#f3f3f3]"
+									>
+										<CalendarClock className="h-3.5 w-3.5" />
+										Set Intake Schedule
+									</button>
+								</div>
+							);
+						})
+					)}
+				</div>
+			)}
+
+			{/* ── Recurring Availability sub-tab ───────────────────────── */}
+			{subTab === "recurring" && !isTrainerRole && (
 				<div className="mb-5 flex flex-wrap items-center justify-end gap-2">
 					<button
 						type="button"
@@ -409,37 +510,39 @@ export function TrainerAvailabilityTab() {
 				</div>
 			)}
 
-			{isLoading ? (
-				<PageLoader />
-			) : isError ? (
-				<StatusCallout
-					variant="error"
-					title="Couldn't load trainer availability"
-					onRetry={() => refetch()}
-				/>
-			) : allRows.length === 0 ? (
-				<StatusCallout
-					variant="info"
-					title="No trainers"
-					message={
-						isTrainerRole
-							? "Your availability has not been set up yet."
-							: "No active trainers found in this branch."
-					}
-				/>
-			) : (
-				<div className="overflow-x-auto">
-					<div style={{ minWidth: "900px" }}>
-						<WeeklyGrid
-							rows={allRows}
-							utilisation={utilisationData ?? {}}
-							onOpenSheet={(row) => {
-								setSelectedTrainer(row);
-								setSheetOpen(true);
-							}}
-						/>
+			{subTab === "recurring" && (
+				isLoading ? (
+					<PageLoader />
+				) : isError ? (
+					<StatusCallout
+						variant="error"
+						title="Couldn't load trainer availability"
+						onRetry={() => refetch()}
+					/>
+				) : allRows.length === 0 ? (
+					<StatusCallout
+						variant="info"
+						title="No trainers"
+						message={
+							isTrainerRole
+								? "Your availability has not been set up yet."
+								: "No active trainers found in this branch."
+						}
+					/>
+				) : (
+					<div className="overflow-x-auto">
+						<div style={{ minWidth: "900px" }}>
+							<WeeklyGrid
+								rows={allRows}
+								utilisation={utilisationData ?? {}}
+								onOpenSheet={(row) => {
+									setSelectedTrainer(row);
+									setSheetOpen(true);
+								}}
+							/>
+						</div>
 					</div>
-				</div>
+				)
 			)}
 
 			<TrainerAvailabilitySheet
@@ -460,6 +563,17 @@ export function TrainerAvailabilityTab() {
 				defaultKind={exceptionDialogKind}
 				onSuccess={() => refetch()}
 			/>
+
+			{organizationId && coachIntakeTrainer && (
+				<CoachIntakeEditor
+					organizationId={organizationId}
+					trainerId={coachIntakeTrainer.trainerId}
+					trainerName={coachIntakeTrainer.trainerName}
+					open={coachIntakeOpen}
+					onOpenChange={setCoachIntakeOpen}
+					onSaved={() => {}}
+				/>
+			)}
 		</>
 	);
 }

@@ -18,6 +18,10 @@ import {
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { type TrainerRow, type TrainerTier } from "@/components/trainers/TrainerCard";
 import { TrainerFormDialog, type FormState } from "@/components/trainers/TrainerFormDialog";
+import {
+	ChangeTierDialog,
+	AssignBranchDialog,
+} from "@/components/trainers/trainer-assignment-dialogs";
 import { client } from "@/utils/orpc";
 import { formatPrice } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -330,6 +334,8 @@ function TrainerDetailPanel({
 	organizationId,
 	hierarchyNodes,
 	onEdit,
+	onChangeTier,
+	onAssignBranch,
 	onSuspend,
 	onReactivate,
 	isMutating,
@@ -339,6 +345,8 @@ function TrainerDetailPanel({
 	organizationId: string;
 	hierarchyNodes: { id: string; name: string }[];
 	onEdit: (t: TrainerRow) => void;
+	onChangeTier: (t: TrainerRow) => void;
+	onAssignBranch: (t: TrainerRow) => void;
 	onSuspend: (id: string) => void;
 	onReactivate: (id: string) => void;
 	isMutating: boolean;
@@ -411,7 +419,7 @@ function TrainerDetailPanel({
 					<Button
 						size="sm"
 						variant="outline"
-						onClick={() => onEdit(trainer)}
+						onClick={() => onChangeTier(trainer)}
 						disabled={isMutating}
 					>
 						Change Tier
@@ -419,7 +427,7 @@ function TrainerDetailPanel({
 					<Button
 						size="sm"
 						variant="outline"
-						onClick={() => onEdit(trainer)}
+						onClick={() => onAssignBranch(trainer)}
 						disabled={isMutating}
 					>
 						Assign Branch
@@ -578,6 +586,8 @@ export function TrainersListPage() {
 	const [selectedTrainer, setSelectedTrainer] = useState<TrainerRow | null>(null);
 	const [sheetOpen, setSheetOpen] = useState(false);
 	const [editingTrainer, setEditingTrainer] = useState<TrainerRow | null>(null);
+	const [changeTierTarget, setChangeTierTarget] = useState<TrainerRow | null>(null);
+	const [assignBranchTarget, setAssignBranchTarget] = useState<TrainerRow | null>(null);
 
 	const { trainers, trainerTiers, isLoading, isError, refetch } =
 		useTrainerData(organizationId, debouncedSearch);
@@ -762,6 +772,8 @@ export function TrainersListPage() {
 							setEditingTrainer(t);
 							setSheetOpen(true);
 						}}
+						onChangeTier={(t) => setChangeTierTarget(t)}
+						onAssignBranch={(t) => setAssignBranchTarget(t)}
 						onSuspend={(id) => suspend.mutate(id)}
 						onReactivate={(id) => reactivate.mutate(id)}
 						isMutating={isAnyPending}
@@ -788,6 +800,36 @@ export function TrainersListPage() {
 					hierarchyNodes={hierarchyNodes as any}
 					onSubmit={handleFormSubmit}
 					isMutating={isAnyPending}
+				/>
+			)}
+
+			{/* Change Tier dialog */}
+			{organizationId && changeTierTarget && (
+				<ChangeTierDialog
+					open={!!changeTierTarget}
+					onOpenChange={(open) => {
+						if (!open) setChangeTierTarget(null);
+					}}
+					organizationId={organizationId}
+					memberId={changeTierTarget.id}
+					trainerName={changeTierTarget.name}
+					currentTierId={changeTierTarget.trainerTierId}
+					onSuccess={() => refetch()}
+				/>
+			)}
+
+			{/* Assign Branch dialog */}
+			{organizationId && assignBranchTarget && (
+				<AssignBranchDialog
+					open={!!assignBranchTarget}
+					onOpenChange={(open) => {
+						if (!open) setAssignBranchTarget(null);
+					}}
+					organizationId={organizationId}
+					memberId={assignBranchTarget.id}
+					trainerName={assignBranchTarget.name}
+					currentBranchId={assignBranchTarget.hierarchyScopeId}
+					onSuccess={() => refetch()}
 				/>
 			)}
 		</div>
