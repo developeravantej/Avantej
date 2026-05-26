@@ -38,7 +38,6 @@ import {
 	Store,
 	Tag,
 	TrendingUp,
-	Undo2,
 	User,
 	UserPlus,
 	Users,
@@ -155,12 +154,6 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 		label: "Finance",
 		items: [
 			{ title: "Sales & Payments", url: "/dashboard/sales/view", icon: BadgeDollarSign },
-			{
-				title: "Refunds",
-				url: "/dashboard/refunds/view",
-				icon: Undo2,
-				permission: "refund_management:read",
-			},
 			{
 				title: "Commissions",
 				url: "/dashboard/commissions/view",

@@ -15,6 +15,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { RefundsTab } from "@/components/refunds/refunds-tab";
 import { useUserContext } from "@/hooks/useUserContext";
 import { formatPrice } from "@/lib/money";
 import { toast } from "sonner";
@@ -34,7 +35,7 @@ const salesSearchSchema = z.object({
 	period: z.string().optional(),
 	kpiPeriod: z.enum(["today", "week", "month"]).default("month"),
 	refundStatus: z.enum(["all", "none", "pending", "partial", "processed"]).default("all"),
-	tab: z.enum(["sales", "payments", "cancelled"]).default("sales"),
+	tab: z.enum(["sales", "payments", "cancelled", "refunds"]).default("sales"),
 	search: z.string().default(""),
 });
 
@@ -987,7 +988,7 @@ function PaymentsTab({ data, isLoading, isError, error, refetch, onSelectPayment
 // ─── Route component ───────────────────────────────────────────────────────────
 
 function RouteComponent() {
-	const { data: userContext } = useUserContext();
+	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 
 	const currentOrg = userContext?.organizations.find(
@@ -1034,7 +1035,7 @@ function RouteComponent() {
 	}
 
 	function handleTabChange(v: string) {
-		navigate({ search: (prev) => ({ ...prev, tab: v as "sales" | "payments" | "cancelled" }) });
+		navigate({ search: (prev) => ({ ...prev, tab: v as "sales" | "payments" | "cancelled" | "refunds" }) });
 	}
 
 	function handleRefundStatusChange(v: "all" | "none" | "pending" | "partial" | "processed") {
@@ -1212,6 +1213,9 @@ function RouteComponent() {
 							{ value: "sales", label: "Sales Orders", count: salesCount },
 							{ value: "payments", label: "Payments", count: paymentsCount },
 							{ value: "cancelled", label: "Cancelled", count: null },
+							...(hasPermission("refund_management:read")
+								? [{ value: "refunds", label: "Refunds", count: null }]
+								: []),
 						].map((t) => (
 							<button
 								key={t.value}
@@ -1285,6 +1289,9 @@ function RouteComponent() {
 							onToChange={(v) => handleFilterChange({ to: v })}
 							onClearDates={() => handleFilterChange({ from: "", to: "" })}
 						/>
+					)}
+					{tab === "refunds" && organizationId && hasPermission("refund_management:read") && (
+						<RefundsTab organizationId={organizationId} />
 					)}
 				</>
 			) : (
