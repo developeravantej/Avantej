@@ -1,19 +1,16 @@
 /**
- * Journey: Cancelling a class slot marks it cancelled; enrolled appointment bookings
- * can be individually cancelled (no automatic cascade from cancelClassSlot itself).
+ * Journey: Cancelling a class slot cascades to all enrolled appointment bookings.
  *
  * Actor: tenant_admin (franchisee@gmail.com)
  * Priority: P1
  *
- * IMPORTANT — architecture note from reading class-slots.service.ts:
- * `cancelClassSlot` only sets isCancelled=true + isAvailable=false on the slot row.
- * It does NOT cascade-cancel the underlying appointment rows (enrollment.procedures.ts
- * `cancelEnrollment` is the per-booking cancel path). This spec therefore:
- *   (a) asserts isCancelled=true on the slot after cancel
- *   (b) asserts the slot's associated appointment(s) can then be individually
- *       cancelled via classSlots.cancelEnrollment
- *   (c) asserts that attempting to enroll a new client into a cancelled slot
- *       returns a BAD_REQUEST error
+ * `cancelClassSlot` sets isCancelled=true + isAvailable=false on the slot AND
+ * atomically cancels all non-cancelled enrolled appointments in the same transaction.
+ * This spec verifies:
+ *   (a) isCancelled=true on the slot after cancel
+ *   (b) enrolled appointments are already cancelled (cascade) — cancelEnrollment
+ *       returns alreadyCancelled=true or NOT_FOUND (never a live appointment remains)
+ *   (c) attempting to enroll a new client into the cancelled slot returns BAD_REQUEST
  *
  * Preconditions:
  *   - At least one active service exists in the tenant
@@ -40,7 +37,7 @@ let createdSlotId = "";
 let enrolledAppointmentIds: string[] = [];
 
 test(
-  "cancel class slot → slot is marked cancelled; enrolled bookings can be individually cancelled; new enroll blocked",
+  "cancel class slot → slot is marked cancelled; enrolled bookings are auto-cancelled (cascade); new enroll blocked",
   { tag: ["@p1"] },
   async ({ page }) => {
     // ── Preconditions ────────────────────────────────────────────────────────
@@ -132,12 +129,12 @@ test(
     expect(cancelledSlot.isCancelled, "Slot should have isCancelled=true after cancel").toBe(true);
     expect(cancelledSlot.isAvailable, "Slot should have isAvailable=false after cancel").toBe(false);
 
-    // ── Assert (b): enrolled appointment bookings can be individually cancelled
-    // cancelClassSlot does NOT cascade — appointments must be cancelled one by one
-    // via classSlots.cancelEnrollment. Verify that procedure succeeds.
+    // ── Assert (b): cascade — enrolled appointments are already cancelled by cancelClassSlot
+    // cancelEnrollment should return alreadyCancelled=true (or NOT_FOUND if the FK was
+    // cleaned up). A live (non-cancelled) appointment remaining would be a regression.
     for (const appointmentId of enrolledAppointmentIds) {
       type CancelEnrollResult = { ok: boolean; alreadyCancelled?: boolean };
-      let result: CancelEnrollResult;
+      let result: CancelEnrollResult | null = null;
       try {
         result = await orpcCall<object, CancelEnrollResult>(
           page,
@@ -149,13 +146,15 @@ test(
           },
         );
       } catch (err) {
-        // If appointment was auto-cancelled by a future slot-cascade mechanism, tolerate NOT_FOUND
+        // NOT_FOUND is acceptable — slot cascade may have cleaned up the appointment
         if (err instanceof OrpcClientError && err.code === "NOT_FOUND") continue;
         throw err;
       }
-      expect(result.ok, `cancelEnrollment should succeed for appointment ${appointmentId}`).toBe(
-        true,
-      );
+      // If cancelEnrollment returned, it must say alreadyCancelled=true (cascade did its job)
+      expect(
+        result?.alreadyCancelled,
+        `Appointment ${appointmentId} should have been auto-cancelled by the slot cascade`,
+      ).toBe(true);
     }
 
     // Clear enrolled ids so afterEach does not double-cancel

@@ -118,27 +118,28 @@ test(
       ).toBe(true);
     }
 
-    // ── 1b: send claim link ──────────────────────────────────────────────────
-    // In dev environments the magic-link email dispatch will likely fail (no SMTP).
-    // sendClaimLink sets isUnclaimed=false BEFORE dispatching the email, so even if
-    // dispatch fails the flag is cleared. We treat dispatch-failure (INTERNAL_SERVER_ERROR)
-    // as a non-fatal result that still proves the DB state was updated.
+    // ── 1b: send claim link ────────────────────────────────────────────
+    // sendClaimLink now dispatches the email BEFORE clearing isUnclaimed (Option A fix).
+    // In dev/CI environments the magic-link email dispatch will likely fail (no SMTP).
+    // When dispatch fails: the procedure throws INTERNAL_SERVER_ERROR and isUnclaimed
+    // stays true — the profile is retryable without manual DB recovery.
+    // When dispatch succeeds: isUnclaimed is cleared to false.
     const claimEmail = `e2e-claim-${Date.now()}@example-e2e.test`;
-    let sendError: string | null = null;
+    let dispatchSucceeded = false;
     try {
       await orpcCall(page, "customerProfiles", "sendClaimLink", {
         organizationId: TEST_ORG_ID,
         customerProfileId: createdProfileId,
         email: claimEmail,
       });
+      dispatchSucceeded = true;
     } catch (err) {
       if (err instanceof OrpcClientError) {
-        // INTERNAL_SERVER_ERROR from email dispatch failure is expected in dev/CI
         if (err.code === "INTERNAL_SERVER_ERROR") {
-          sendError = err.message;
-          // proceed to assert DB state was still updated
+          // Expected in dev/CI — magic-link dispatch failed; isUnclaimed should remain true
+          dispatchSucceeded = false;
         } else if (err.code === "BAD_REQUEST" || err.code === "NOT_FOUND") {
-          // Procedure rejected — means flag logic may have changed; skip remaining assertions
+          // Procedure rejected before dispatch — skip remaining assertions
           test.skip(true, `sendClaimLink rejected: ${err.message}`);
           return;
         } else {
@@ -149,11 +150,9 @@ test(
       }
     }
 
-    // ── Assert 1c: isUnclaimed is now false ──────────────────────────────────
-    // Re-check via customerDirectory.search. sendClaimLink clears the flag
-    // before dispatching the email per commit 693744db ("Fix sendClaimLink: clear
-    // isUnclaimed before dispatch so retry via 'Resend sign-in' works if email
-    // dispatch fails").
+    // ── Assert 1c: isUnclaimed reflects dispatch outcome ─────────────────────
+    // Option A guarantee: isUnclaimed=false ONLY if dispatch succeeded.
+    // If dispatch failed, the profile must remain isUnclaimed=true (retryable).
     type SearchResult2 = DirEntry[] | { items?: DirEntry[] };
     let flagAfterSend: boolean | undefined;
     try {
@@ -179,14 +178,20 @@ test(
     }
 
     if (flagAfterSend !== undefined) {
-      expect(
-        flagAfterSend,
-        `isUnclaimed should be false after sendClaimLink (sendError: ${sendError})`,
-      ).toBe(false);
+      if (dispatchSucceeded) {
+        expect(
+          flagAfterSend,
+          "isUnclaimed should be false after a successful sendClaimLink",
+        ).toBe(false);
+      } else {
+        expect(
+          flagAfterSend,
+          "isUnclaimed must remain true when magic-link dispatch failed (profile is retryable)",
+        ).toBe(true);
+      }
     }
 
-    // Confirm the test reached this point regardless of email dispatch success
-    // (the business-critical part is that the DB flag was cleared).
+    // Confirm the test reached this point regardless of email dispatch outcome.
     expect(createdUserId).toBeTruthy();
   },
 );

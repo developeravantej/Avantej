@@ -1036,6 +1036,61 @@ async function runAppointmentCommission(
   }
 }
 
+/**
+ * Cancel a single appointment inside a caller-supplied transaction.
+ * Used by `cancelClassSlot` to cascade-cancel enrolled appointments atomically.
+ *
+ * - Skips rows already cancelled (idempotent).
+ * - Fires commission logic (cancellation counts as delivery per business policy).
+ * - Writes an `appointment.status_changed` audit row.
+ *
+ * @param tx      Active Drizzle transaction (from the surrounding slot-cancel tx)
+ * @param appt    Full appointment row (must include serviceId, status, etc.)
+ * @param actor   Staff member performing the cancellation — forwarded to commission/audit
+ * @param cancellationReason  Human-readable reason for the cancellation
+ */
+export async function cancelAppointmentInsideTx(
+  tx: TenantTx,
+  appt: typeof appointments.$inferSelect,
+  actor: { userId: string; memberId: string; role: string } | undefined,
+  cancellationReason: string,
+): Promise<void> {
+  // Idempotent: skip already-cancelled appointments
+  if (appt.status === "cancelled") return;
+
+  const now = new Date();
+
+  await tx
+    .update(appointments)
+    .set({
+      status: "cancelled",
+      cancelledAt: now,
+      cancellationReason,
+      updatedAt: now,
+    })
+    .where(eq(appointments.id, appt.id));
+
+  // Commission: cancellation still earns commission per policy
+  if (actor && appt.serviceId) {
+    await runAppointmentCommission(tx, appt.id, { ...appt, status: "cancelled" }, actor, "cancellation");
+  }
+
+  // Audit row
+  if (actor) {
+    await writeAudit(tx, {
+      actorUserId: actor.userId,
+      actorMemberId: actor.memberId,
+      actorRole: actor.role,
+      action: "appointment.status_changed",
+      entityType: "appointment",
+      entityId: appt.id,
+      branchId: appt.branchId,
+      summary: `Appointment cancelled via class slot cascade: ${cancellationReason}`,
+      changes: { from: appt.status, to: "cancelled", reason: cancellationReason },
+    });
+  }
+}
+
 export type AppointmentHistoryQueryOpts = {
 	parsedCursor: { changedAt: Date; id: string } | null;
 	limit: number;

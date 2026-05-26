@@ -104,7 +104,13 @@ const cancel = tenantProcedure
 		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "update")
 
-		return cancelClassSlot(context.tenantDb, input.id, input.cancellationReason);
+		const actor = {
+			userId: context.member.userId,
+			memberId: context.member.id,
+			role: context.member.role,
+		};
+
+		return cancelClassSlot(context.tenantDb, input.id, input.cancellationReason, actor);
 	});
 
 export const classSlotsCrudProcedures = {

@@ -489,6 +489,21 @@ export const serverCustomerProfilesRouter = {
 				});
 			}
 
+			// CU-002: RBAC scope check — admins bypass, staff must have access to the member's node
+			if (context.member.role !== "admin") {
+				const targetMember = await context.tenantDb.query.members.findFirst({
+					where: eq(members.userId, profile.userId),
+				});
+				if (
+					!targetMember ||
+					!(context.accessibleNodeIds ?? []).includes(targetMember.hierarchyScopeId)
+				) {
+					throw new ORPCError("FORBIDDEN", {
+						message: "Customer is outside your accessible scope",
+					});
+				}
+			}
+
 			const controlPanelDb = context.honoContext.get(
 				"controlPanelDb",
 			) as Parameters<typeof getBetterAuth>[0] extends never
@@ -603,6 +618,21 @@ export const serverCustomerProfilesRouter = {
 				});
 			}
 
+			// CU-003: RBAC scope check — admins bypass, staff must have access to the member's node
+			if (context.member.role !== "admin") {
+				const targetMember = await context.tenantDb.query.members.findFirst({
+					where: eq(members.userId, profile.userId),
+				});
+				if (
+					!targetMember ||
+					!(context.accessibleNodeIds ?? []).includes(targetMember.hierarchyScopeId)
+				) {
+					throw new ORPCError("FORBIDDEN", {
+						message: "Customer is outside your accessible scope",
+					});
+				}
+			}
+
 			const cpDb = context.honoContext.get("controlPanelDb");
 			if (!cpDb) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -664,6 +694,8 @@ export const serverCustomerProfilesRouter = {
 				hierarchyScopeId: z.string().uuid(),
 				dateOfBirth: z.string().optional(),
 				notes: z.string().optional(),
+				// CU-007: optional real email from Quick Add form; if omitted a placeholder is generated
+				email: z.string().email().optional(),
 			}),
 		)
 		.handler(async ({ input, context }) => {
@@ -706,47 +738,115 @@ export const serverCustomerProfilesRouter = {
 				});
 			}
 
-			// Generate a placeholder email unique to this record
-			const placeholderEmail = `unclaimed-${crypto.randomUUID()}@${UNCLAIMED_EMAIL_DOMAIN}`;
+			// CU-006: Phone dedup — reject if an active profile already uses this phone
+			const phoneConflict = await context.tenantDb.query.customerProfiles.findFirst({
+				where: and(
+					eq(customerProfiles.phone, input.phone),
+					eq(customerProfiles.isDeleted, false),
+				),
+			});
+			if (phoneConflict) {
+				throw new ORPCError("CONFLICT", {
+					message: "A customer profile with this phone number already exists",
+				});
+			}
+
+			// CU-007: Email dedup — if a real email is supplied, ensure it is not already
+			// taken by another control-panel user before we proceed.
+			if (input.email) {
+				// biome-ignore lint/suspicious/noExplicitAny: cpDb is untyped from Hono context
+				const emailConflict = await (cpDb as any).query.user.findFirst({
+					where: eq(user.email, input.email),
+				});
+				if (emailConflict) {
+					throw new ORPCError("CONFLICT", {
+						message: "A user with this email address already exists",
+					});
+				}
+			}
+
+			// CU-007: Use the supplied email if provided; otherwise generate a placeholder
+			const resolvedEmail = input.email
+				? input.email
+				: `unclaimed-${crypto.randomUUID()}@${UNCLAIMED_EMAIL_DOMAIN}`;
 			const userId = crypto.randomUUID();
 			const now = new Date();
 
-			// Insert placeholder user into control panel (no password / account row)
+			// Step 1 — Insert placeholder/real user into control panel (no password / account row)
 			// biome-ignore lint/suspicious/noExplicitAny: cpDb retrieved from Hono context is untyped
 			await (cpDb as any).insert(user).values({
 				id: userId,
 				name: `${input.firstName} ${input.lastName}`.trim(),
 				firstName: input.firstName,
 				lastName: input.lastName,
-				email: placeholderEmail,
+				email: resolvedEmail,
 				emailVerified: false,
 				phone: input.phone ?? null,
 				createdAt: now,
 				updatedAt: now,
 			});
 
-			// Dual-write: organizationMembers (CP) + members (tenant)
+			// Step 2 — Dual-write: organizationMembers (CP) + members (tenant)
+			// CU-005: If this or step 3 fails, roll back the CP user to avoid orphans.
 			// biome-ignore lint/suspicious/noExplicitAny: cpDb is untyped from Hono context
 			const membershipService = new MembershipService(cpDb as any);
-			await membershipService.createMember({
-				userId,
-				organizationId: input.organizationId,
-				role: "client",
-				hierarchyScopeId: input.hierarchyScopeId,
-				tenantDb: context.tenantDb,
-			});
-
-			// Create customer profile flagged as unclaimed
-			const [profile] = await context.tenantDb
-				.insert(customerProfiles)
-				.values({
+			let tenantMemberId: string | undefined;
+			try {
+				await membershipService.createMember({
 					userId,
-					phone: input.phone,
-					isUnclaimed: true,
-					dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
-					notes: input.notes ?? null,
-				})
-				.returning({ id: customerProfiles.id });
+					organizationId: input.organizationId,
+					role: "client",
+					hierarchyScopeId: input.hierarchyScopeId,
+					tenantDb: context.tenantDb,
+				});
+				// Capture the created tenant member id for potential cleanup
+				const createdMember = await context.tenantDb.query.members.findFirst({
+					where: eq(members.userId, userId),
+				});
+				tenantMemberId = createdMember?.id;
+			} catch (memberErr) {
+				// Step 2 failed — clean up the CP user inserted in step 1
+				try {
+					// biome-ignore lint/suspicious/noExplicitAny: cpDb is untyped from Hono context
+					await (cpDb as any).delete(user).where(eq(user.id, userId));
+				} catch {
+					// best-effort cleanup; log but don't mask the original error
+					console.error("[createUnclaimed] CP user cleanup failed after membershipService error", userId);
+				}
+				throw memberErr;
+			}
+
+			// Step 3 — Create customer profile flagged as unclaimed
+			let profile: { id: string } | undefined;
+			try {
+				const [inserted] = await context.tenantDb
+					.insert(customerProfiles)
+					.values({
+						userId,
+						phone: input.phone,
+						isUnclaimed: true,
+						dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
+						notes: input.notes ?? null,
+					})
+					.returning({ id: customerProfiles.id });
+				profile = inserted;
+			} catch (profileErr) {
+				// Step 3 failed — clean up tenant member (step 2) and CP user (step 1)
+				if (tenantMemberId) {
+					try {
+						await context.tenantDb.delete(members).where(eq(members.id, tenantMemberId));
+					} catch {
+						console.error("[createUnclaimed] tenant member cleanup failed after profile insert error", tenantMemberId);
+					}
+				}
+				try {
+					// biome-ignore lint/suspicious/noExplicitAny: cpDb is untyped from Hono context
+					await (cpDb as any).delete(user).where(eq(user.id, userId));
+				} catch {
+					console.error("[createUnclaimed] CP user cleanup failed after profile insert error", userId);
+				}
+				throw profileErr;
+			}
 
 			if (!profile) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -813,6 +913,21 @@ export const serverCustomerProfilesRouter = {
 				});
 			}
 
+			// CU-004: RBAC scope check — admins bypass, staff must have access to the member's node
+			if (context.member.role !== "admin") {
+				const targetMember = await context.tenantDb.query.members.findFirst({
+					where: eq(members.userId, profile.userId),
+				});
+				if (
+					!targetMember ||
+					!(context.accessibleNodeIds ?? []).includes(targetMember.hierarchyScopeId)
+				) {
+					throw new ORPCError("FORBIDDEN", {
+						message: "Customer is outside your accessible scope",
+					});
+				}
+			}
+
 			const cpDb = context.honoContext.get("controlPanelDb");
 			if (!cpDb) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -851,29 +966,31 @@ export const serverCustomerProfilesRouter = {
 				.set({ email: input.email, emailVerified: true, updatedAt: new Date() })
 				.where(eq(user.id, existingUser.id));
 
-			// Clear the unclaimed flag before dispatch — email is now real,
-			// so even if dispatch fails staff can retry via "Resend sign-in link".
-			await context.tenantDb
-				.update(customerProfiles)
-				.set({ isUnclaimed: false, updatedAt: new Date() })
+			// Dispatch magic-link sign-in email BEFORE clearing the unclaimed flag.
+			// If dispatch fails we throw without touching isUnclaimed, so the profile
+			// stays isUnclaimed=true and staff can retry the full sendClaimLink flow
+			// without manual DB recovery.
+			try {
+				const auth = getBetterAuth(context.honoContext);
+				const frontendURL =
+					getEnvVar("CORS_ORIGIN") || getEnvVar("FRONTEND_URL") || "http://localhost:3021";
+				// biome-ignore lint/suspicious/noExplicitAny: better-auth api typing is dynamic
+				await (auth as any).api.signInMagicLink({
+					body: { email: input.email, callbackURL: `${frontendURL}/dashboard` },
+					headers: context.honoContext.req.raw.headers,
+				});
+			} catch (err) {
+				console.error("[customerProfiles.sendClaimLink] magic-link dispatch failed", err);
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Magic-link dispatch failed; email updated but claim link not sent",
+				});
+			}
+
+			// Email dispatched successfully — now clear the unclaimed flag.
+			await context.tenantDb
+				.update(customerProfiles)
+				.set({ isUnclaimed: false, updatedAt: new Date() })
 				.where(eq(customerProfiles.id, input.customerProfileId));
-
-			// Dispatch magic-link sign-in email
-			try {
-				const auth = getBetterAuth(context.honoContext);
-				const frontendURL =
-					getEnvVar("CORS_ORIGIN") || getEnvVar("FRONTEND_URL") || "http://localhost:3021";
-				// biome-ignore lint/suspicious/noExplicitAny: better-auth api typing is dynamic
-				await (auth as any).api.signInMagicLink({
-					body: { email: input.email, callbackURL: `${frontendURL}/dashboard` },
-					headers: context.honoContext.req.raw.headers,
-				});
-			} catch (err) {
-				console.error("[customerProfiles.sendClaimLink] magic-link dispatch failed", err);
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Email updated but magic-link dispatch failed",
-				});
-			}
 
 			return { success: true, email: input.email };
 		}),

@@ -7,6 +7,8 @@ import { waitlistEntries } from "@avantej-core/db/schema/tenant/waitlist-entries
 import { services } from "@avantej-core/db/schema/tenant/services";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { cancelAppointmentInsideTx } from "./appointment.service";
+import { writeAudit } from "./audit-log.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 
@@ -225,22 +227,61 @@ export async function cancelClassSlot(
 	tenantDb: TenantDb,
 	id: string,
 	cancellationReason?: string,
+	actor?: { userId: string; memberId: string; role: string },
 ) {
-	const [row] = await tenantDb
-		.update(classSlots)
-		.set({
-			isCancelled: true,
-			isAvailable: false,
-			cancellationReason: cancellationReason ?? null,
-			updatedAt: new Date(),
-		})
-		.where(eq(classSlots.id, id))
-		.returning();
+	return tenantDb.transaction(async (tx) => {
+		// 1. Mark the slot itself cancelled
+		const [row] = await tx
+			.update(classSlots)
+			.set({
+				isCancelled: true,
+				isAvailable: false,
+				cancellationReason: cancellationReason ?? null,
+				updatedAt: new Date(),
+			})
+			.where(eq(classSlots.id, id))
+			.returning();
 
-	if (!row) {
-		throw new Error("Class slot not found");
-	}
-	return row;
+		if (!row) {
+			throw new Error("Class slot not found");
+		}
+
+		// Audit: slot cancellation
+		if (actor) {
+			await writeAudit(tx, {
+				actorUserId: actor.userId,
+				actorMemberId: actor.memberId,
+				actorRole: actor.role,
+				action: "class_slot.cancel",
+				entityType: "class_slot",
+				entityId: id,
+				branchId: row.branchId,
+				summary: `Class slot cancelled${cancellationReason ? `: ${cancellationReason}` : ""}`,
+				changes: { cancellationReason: cancellationReason ?? null },
+			});
+		}
+
+		// 2. Cascade-cancel all enrolled (non-cancelled) appointments for this slot
+		const enrolledAppointments = await tx
+			.select()
+			.from(appointments)
+			.where(
+				and(
+					eq(appointments.classSlotId, id),
+					ne(appointments.status, "cancelled"),
+				),
+			);
+
+		const cascadeReason = cancellationReason
+			? `Class slot cancelled: ${cancellationReason}`
+			: "Class slot cancelled";
+
+		for (const appt of enrolledAppointments) {
+			await cancelAppointmentInsideTx(tx, appt, actor, cascadeReason);
+		}
+
+		return { ...row, cancelledAppointmentCount: enrolledAppointments.length };
+	});
 }
 
 export async function incrementBooking(
