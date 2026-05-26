@@ -1,0 +1,116 @@
+{
+  "$rationale": "Prior 2026-05-26-2323 session covered 6 broad domains finding 21 top-level issues. This session targets THIN subsurfaces (got 1 finding or less in prior pass) plus files CHANGED since 98f896af. Excludes already-resolved auth-customers (covered by 0127-incr).",
+  "domains": [
+    {
+      "id": "inventory-warehouse",
+      "name": "Inventory & Warehouse (supply chain)",
+      "verifyTopN": 5,
+      "scope_rationale": "Prior audit OF-01 only touched purchase-orders status roll-up. Goods receipt, stock transfer, supplier/brand/UOM logic was not deeply inspected.",
+      "routers": [
+        "packages/api/src/routers/goods-receipts.ts",
+        "packages/api/src/routers/stock-requests.ts",
+        "packages/api/src/routers/transfer-orders.ts",
+        "packages/api/src/routers/suppliers.ts",
+        "packages/api/src/routers/brands.ts",
+        "packages/api/src/routers/units-of-measure.ts",
+        "packages/api/src/routers/product-categories.ts",
+        "packages/api/src/routers/products.ts",
+        "packages/api/src/routers/purchase-orders.ts"
+      ],
+      "services": [
+        "packages/services/src/purchase-orders.service.ts",
+        "packages/services/src/stock-requests.service.ts",
+        "packages/services/src/transfer-orders.service.ts",
+        "packages/services/src/goods-receipt.service.ts",
+        "packages/services/src/products.service.ts",
+        "packages/services/src/product-categories.service.ts",
+        "packages/services/src/suppliers.service.ts",
+        "packages/services/src/brands.service.ts"
+      ]
+    },
+    {
+      "id": "access-control-rbac",
+      "name": "Access Control, Roles & Invitations",
+      "verifyTopN": 4,
+      "scope_rationale": "Prior audit only flagged ST-04 (hierarchy reassign). Roles/permissions matrix, invitation acceptance flows, registration/onboarding all uninspected. Branch invites are net-new surface.",
+      "routers": [
+        "packages/api/src/routers/roles.ts",
+        "packages/api/src/routers/role-permissions.ts",
+        "packages/api/src/routers/permissions.ts",
+        "packages/api/src/routers/branch-invites.ts",
+        "packages/api/src/routers/registration.ts",
+        "packages/api/src/routers/onboarding.ts",
+        "packages/api/src/routers/organization-settings.ts",
+        "apps/server/src/routers/invitations.ts",
+        "apps/server/src/routers/invitation-acceptance.ts",
+        "packages/api/src/routers/invitations"
+      ],
+      "services": [
+        "packages/services/src/permission.service.ts",
+        "packages/services/src/invitation.service.ts",
+        "packages/services/src/branch-invite.service.ts",
+        "packages/services/src/onboarding.service.ts",
+        "packages/services/src/hierarchy.service.ts",
+        "packages/services/src/organization-settings.service.ts"
+      ]
+    },
+    {
+      "id": "notifications-audit-platform",
+      "name": "Notifications, Audit & Platform jobs (includes CHANGED notification-dispatch)",
+      "verifyTopN": 5,
+      "scope_rationale": "Includes CHANGED file notification-dispatch.service.ts + 0076 notifications migration + email_sent_at column. Plus audit logs and scheduled reports which were untouched in prior pass.",
+      "routers": [
+        "packages/api/src/routers/notifications.ts",
+        "packages/api/src/routers/notification-preferences.ts",
+        "packages/api/src/routers/announcements.ts",
+        "packages/api/src/routers/audit-logs.ts",
+        "packages/api/src/routers/scheduled-reports.ts",
+        "packages/api/src/routers/analytics.ts"
+      ],
+      "services": [
+        "apps/server/src/services/notification-dispatch.service.ts",
+        "packages/services/src/notification.service.ts",
+        "packages/services/src/notification-preference.service.ts",
+        "packages/services/src/announcements.service.ts",
+        "packages/services/src/audit-log.service.ts",
+        "packages/services/src/analytics.service.ts",
+        "apps/server/src/services/scheduled-reports.service.ts",
+        "apps/server/src/services/installment-sweep.service.ts",
+        "apps/server/src/services/tenant-usage-snapshot.service.ts"
+      ]
+    },
+    {
+      "id": "commissions-payouts-refunds-changed",
+      "name": "Commissions, Payouts & Refunds (CHANGED payouts redesign + refund tests)",
+      "verifyTopN": 5,
+      "scope_rationale": "Includes CHANGED files: payouts-tab.tsx redesign, payouts/view.tsx, commissions/view.tsx, operations/approvals.tsx, new refund-state-machine + refund-target-priority + commission-approve integration tests, package-instances/pending.procedures.ts. Prior OF-02/OF-03 were shallow.",
+      "routers": [
+        "packages/api/src/routers/commission-splits",
+        "packages/api/src/routers/commission-splits.ts",
+        "packages/api/src/routers/category-commission.ts",
+        "packages/api/src/routers/payouts.ts",
+        "packages/api/src/routers/refunds",
+        "packages/api/src/routers/refunds.ts",
+        "packages/api/src/routers/cancelled-sales.ts",
+        "packages/api/src/routers/package-instances",
+        "packages/api/src/routers/package-instances.ts",
+        "packages/api/src/routers/expenses.ts"
+      ],
+      "services": [
+        "packages/services/src/commission-calculator.service.ts",
+        "packages/services/src/commission-splits.service.ts",
+        "packages/services/src/payouts.service.ts",
+        "packages/services/src/refunds.service.ts",
+        "packages/services/src/cancelled-sales.service.ts",
+        "packages/services/src/package-instance.service.ts",
+        "packages/services/src/category-commission.service.ts"
+      ],
+      "frontend": [
+        "apps/web/src/components/pages/commissions/payouts-tab.tsx",
+        "apps/web/src/routes/_authenticated/dashboard/_layout/payouts/view.tsx",
+        "apps/web/src/routes/_authenticated/dashboard/_layout/commissions/view.tsx",
+        "apps/web/src/routes/_authenticated/dashboard/_layout/operations/approvals.tsx"
+      ]
+    }
+  ]
+}

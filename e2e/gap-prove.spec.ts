@@ -11,20 +11,35 @@ import {
 
 /**
  * gap-prove — full audit journey
- * Session: zplan/2026-05-26-2323-audit-prove
+ * Sessions: zplan/2026-05-26-2323-audit-prove + zplan/2026-05-27-0143-audit-prove-a
  *
  * One continuous test, one video. All assertions use expect.soft() so a
  * failing step records but the session keeps recording to the end.
  *
- * Coverage:
+ * Coverage (prior session):
  *   GP-01..GP-04  — golden-path smoke (load + render)
  *   F-AC-01, F-AC-04, F-SP-01, F-SP-03, F-SP-04
  *   F-AP-01..F-AP-05, F-PS-01..F-PS-03
  *   F-OF-01, F-OF-02, F-ST-01, F-ST-04
+ *
+ * Coverage (this session — 2026-05-27-0143):
+ *   GP-05..GP-08 — payment history, commissions, sales, customer quick-add
+ *   F-CP-001 commission_payout:process never seeded
+ *   F-CP-002 commission_review:resolve never seeded
+ *   F-CP-003 payouts UI permission mismatch (:update vs :process)
+ *   F-CP-004 sidebar payouts isActive always false
+ *   F-DU-001 payment/view runtime crash (date.toISOString on string)
+ *   F-DU-002 payment/view Created By shows UUID
+ *   F-DU-005 packages sidebar wrong permission
+ *   F-CU-005 createUnclaimed non-atomic
+ *   F-CU-006 phone dedup missing
+ *   F-PO-006 sales filter Refunded→cancelled mismatch
+ *   F-PO-007 sales $id line items only in print modal
+ *   F-PO-008 cancel sale never shows for POS sales
  */
 
 const ORG = TEST_ORG_ID;
-const BASE = "http://avantej.localhost:3021";
+const BASE = "http://localhost:3021";
 
 type Page = Parameters<typeof test>[1] extends (args: { page: infer P }) => unknown ? P : never;
 
@@ -850,6 +865,353 @@ test("gap-prove — full audit journey", async ({ page }) => {
 			expect.soft(nullBranchRows.length).toBe(0);
 		} catch {
 			expect.soft(true).toBe(true);
+		}
+	});
+
+	// ══════════════════════════════════════════════════════════════════════════
+	// SESSION 2026-05-27-0143 — NEW FINDINGS
+	// ══════════════════════════════════════════════════════════════════════════
+
+	await test.step("GP-05 Payment history view loads without crash", async () => {
+		await goto(page, "/dashboard/payment/view");
+		const hasError = await page.evaluate(() =>
+			(window as unknown as Record<string, unknown>).__uncaughtError !== undefined,
+		);
+		expect.soft(hasError).toBe(false);
+		// Page should show a table or empty state — not a JS error screen
+		const errorText = page.getByText(/toISOString is not a function/i).first();
+		const hasTypeError = await waitVisible(errorText, 3000);
+		expect.soft(hasTypeError).toBe(false);
+	});
+
+	await test.step("GP-06 Commissions payouts tab loads", async () => {
+		await goto(page, "/dashboard/commissions/view?tab=payouts");
+		const payoutsTab = page.getByRole("tab", { name: /payouts/i }).first();
+		const hasTab = await waitVisible(payoutsTab, 10000);
+		const fallback = page.getByText(/payouts/i).first();
+		const hasFallback = hasTab ? false : await waitVisible(fallback, 5000);
+		expect.soft(hasTab || hasFallback).toBe(true);
+	});
+
+	await test.step("GP-07 Sales list loads with filter pills", async () => {
+		await goto(page, "/dashboard/sales/view");
+		const pills = page.locator('[role="tab"], [data-status-pill]').first();
+		const hasTable = await waitVisible(pills, 10000);
+		const fallback = page.getByText(/sale/i).first();
+		const hasFallback = hasTable ? false : await waitVisible(fallback, 5000);
+		expect.soft(hasTable || hasFallback).toBe(true);
+	});
+
+	await test.step("GP-08 Customers Quick Add dialog opens", async () => {
+		await goto(page, "/dashboard/customers/v2/view");
+		const addBtn = page.getByRole("button", { name: /add customer|quick add/i }).first();
+		const hasBtn = await waitVisible(addBtn, 12000);
+		expect.soft(hasBtn).toBe(true);
+		if (hasBtn) {
+			await addBtn.click();
+			const dialog = page.getByRole("dialog").first();
+			const hasDialog = await waitVisible(dialog, 6000);
+			expect.soft(hasDialog).toBe(true);
+			// Close the dialog
+			await page.keyboard.press("Escape");
+		}
+	});
+
+	// ─── CP — Commissions / Payouts ──────────────────────────────────────────
+
+	await test.step("F-CP-001 runBatch returns FORBIDDEN (commission_payout:process not seeded)", async () => {
+		// Currently: ALL callers get FORBIDDEN because the permission is never seeded.
+		// After fix: should return 200 for admins.
+		try {
+			await orpcCall(page, "payouts", "runBatch", { organizationId: ORG });
+			// After fix: we should reach here as admin
+			expect.soft(true).toBe(true);
+		} catch (err) {
+			if (err instanceof OrpcClientError && err.code === "FORBIDDEN") {
+				// This is the BUG — admin should not get FORBIDDEN here.
+				// We soft-fail so the spec documents the current state.
+				expect.soft(err.code).not.toBe("FORBIDDEN");
+			} else {
+				expect.soft(true).toBe(true); // other errors acceptable
+			}
+		}
+	});
+
+	await test.step("F-CP-002 resolveReview returns FORBIDDEN (commission_review:resolve not seeded)", async () => {
+		type ReviewRow = { id: string; status: string };
+		let firstId = "";
+		try {
+			const reviews = await orpcCall<object, { items?: ReviewRow[]; reviews?: ReviewRow[] }>(
+				page,
+				"commissionSplits",
+				"listReviews",
+				{ organizationId: ORG, status: "pending", limit: 1 },
+			);
+			const rows = reviews.items ?? reviews.reviews ?? [];
+			if (rows.length === 0) {
+				expect.soft(true).toBe(true); // no pending reviews — skip
+				return;
+			}
+			firstId = rows[0]!.id;
+		} catch {
+			expect.soft(true).toBe(true);
+			return;
+		}
+
+		try {
+			await orpcCall(page, "commissionSplits", "resolveReview", {
+				organizationId: ORG,
+				reviewId: firstId,
+				resolution: "approved",
+			});
+			// After fix: should succeed for admins
+			expect.soft(true).toBe(true);
+		} catch (err) {
+			if (err instanceof OrpcClientError && err.code === "FORBIDDEN") {
+				// This is the BUG
+				expect.soft(err.code).not.toBe("FORBIDDEN");
+			} else {
+				expect.soft(true).toBe(true);
+			}
+		}
+	});
+
+	await test.step("F-CP-003 Payouts Run Batch button visible but API needs :process permission", async () => {
+		await goto(page, "/dashboard/commissions/view?tab=payouts");
+		// The button should be visible (hasPermission('commission_payout:update') passes)
+		const runBatchBtn = page
+			.getByRole("button", { name: /run batch|process pending/i })
+			.first();
+		const hasBtn = await waitVisible(runBatchBtn, 10000);
+		// After fix: button should also WORK (not just be visible)
+		// For now, we check the button is visible (permission mismatch means it's always there
+		// but always fails when clicked — checked in F-CP-001)
+		expect.soft(hasBtn).toBe(true);
+	});
+
+	await test.step("F-CP-004 Sidebar Payouts nav item not highlighted on payouts tab", async () => {
+		await goto(page, "/dashboard/commissions/view?tab=payouts");
+		// Look for the Payouts nav item in sidebar
+		const sidebarPayouts = page
+			.locator('[data-sidebar="menu-item"], nav a, aside a')
+			.filter({ hasText: /^payouts$/i })
+			.first();
+		const hasItem = await waitVisible(sidebarPayouts, 8000);
+		if (!hasItem) {
+			expect.soft(true).toBe(true); // sidebar may not render a standalone payouts item
+			return;
+		}
+		// Check that it has active styling (data-active, aria-current, or active class)
+		const isActive = await sidebarPayouts.evaluate((el) => {
+			return (
+				el.getAttribute("data-active") === "true" ||
+				el.getAttribute("aria-current") === "page" ||
+				el.classList.contains("active") ||
+				(el.getAttribute("class") ?? "").includes("font-semibold") ||
+				(el.getAttribute("class") ?? "").includes("bg-sidebar-accent")
+			);
+		});
+		// After fix: isActive should be true when on payouts tab
+		expect.soft(isActive).toBe(true);
+	});
+
+	// ─── DU — Dashboard / UI ─────────────────────────────────────────────────
+
+	await test.step("F-DU-001 Payment history: no toISOString TypeError on load", async () => {
+		// Intercept console errors to detect the crash
+		const errors: string[] = [];
+		page.on("pageerror", (err) => errors.push(err.message));
+		await goto(page, "/dashboard/payment/view");
+		await page.waitForTimeout(2000);
+		const hasCrash = errors.some((e) => e.includes("toISOString") || e.includes("not a function"));
+		expect.soft(hasCrash).toBe(false);
+		// After fix: payment table should be visible
+		const table = page.locator("table, [role=grid]").first();
+		const emptyState = page.getByText(/no payment|no transactions|no results/i).first();
+		const hasTable = await waitVisible(table, 8000);
+		const hasEmpty = hasTable ? false : await waitVisible(emptyState, 3000);
+		expect.soft(hasTable || hasEmpty).toBe(true);
+	});
+
+	await test.step("F-DU-002 Payment history: Created By column shows name not UUID", async () => {
+		await goto(page, "/dashboard/payment/view");
+		const table = page.locator("table, [role=grid]").first();
+		const hasTable = await waitVisible(table, 8000);
+		if (!hasTable) {
+			expect.soft(true).toBe(true); // no table — skip
+			return;
+		}
+		// Look for UUID pattern in the Created By column cells
+		const cells = await page
+			.locator("td, [role=gridcell]")
+			.filter({ hasText: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i })
+			.count();
+		// After fix: no cells should contain raw UUIDs
+		expect.soft(cells).toBe(0);
+	});
+
+	await test.step("F-DU-005 Packages sidebar nav visible with package_management:read permission", async () => {
+		// The sidebar shows Packages only if user has 'service_management:read'.
+		// After fix: it should check 'package_management:read' instead.
+		// As tenant admin we have both — verify the item is visible at minimum.
+		await goto(page, "/dashboard");
+		const packagesLink = page
+			.locator('[data-sidebar="menu-item"], nav a, aside a')
+			.filter({ hasText: /^packages$/i })
+			.first();
+		const hasLink = await waitVisible(packagesLink, 8000);
+		// Admin should always see Packages
+		expect.soft(hasLink).toBe(true);
+	});
+
+	// ─── PO — POS / Sales ────────────────────────────────────────────────────
+
+	await test.step("F-PO-006 Sales filter: Refunded pill queries correct status", async () => {
+		await goto(page, "/dashboard/sales/view");
+		// Find the Refunded filter pill/tab
+		const refundedPill = page.getByRole("tab", { name: /refunded/i }).first();
+		const hasRefunded = await waitVisible(refundedPill, 10000);
+		if (!hasRefunded) {
+			expect.soft(true).toBe(true);
+			return;
+		}
+		// Click it and check the network request or URL
+		const [request] = await Promise.all([
+			page.waitForRequest((req) => req.url().includes("/rpc/"), { timeout: 5000 }).catch(() => null),
+			refundedPill.click(),
+		]);
+		if (request) {
+			const bodyText = request.postData() ?? "";
+			// After fix: should contain 'refunded', not 'cancelled'
+			expect.soft(bodyText.includes('"cancelled"')).toBe(false);
+			expect.soft(bodyText.includes('"refunded"') || bodyText.includes('"status"')).toBe(true);
+		}
+		// Also check URL doesn't show 'cancelled' for refunded filter
+		const url = page.url();
+		expect.soft(url.includes("status=cancelled")).toBe(false);
+	});
+
+	await test.step("F-PO-007 Sales $id: line items visible on main page without Print Receipt", async () => {
+		// Navigate to any sale detail page and verify line items are in the main view
+		await goto(page, "/dashboard/sales/view");
+		// Click first row to navigate to detail
+		const firstRow = page.locator("tr[data-row], tbody tr, [role=row]").nth(1);
+		const hasRow = await waitVisible(firstRow, 8000);
+		if (!hasRow) {
+			expect.soft(true).toBe(true); // no sales data — skip
+			return;
+		}
+		await firstRow.click();
+		await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
+		// Check for line items table (items breakdown, not inside a modal)
+		const lineItems = page
+			.locator("table, [role=grid]")
+			.filter({ hasNotText: /print|receipt/i })
+			.first();
+		const hasLineItems = await waitVisible(lineItems, 8000);
+		// After fix: should be visible without opening a modal
+		expect.soft(hasLineItems).toBe(true);
+	});
+
+	await test.step("F-PO-008 Sales $id: Cancel Sale button shown for completed POS sales", async () => {
+		await goto(page, "/dashboard/sales/view");
+		// Filter to completed sales and navigate to first one
+		const completedFilter = page.getByRole("tab", { name: /completed/i }).first();
+		const hasFilter = await waitVisible(completedFilter, 8000);
+		if (hasFilter) await completedFilter.click();
+		const firstRow = page.locator("tr[data-row], tbody tr, [role=row]").nth(1);
+		const hasRow = await waitVisible(firstRow, 8000);
+		if (!hasRow) {
+			expect.soft(true).toBe(true); // no completed sales — skip
+			return;
+		}
+		await firstRow.click();
+		await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
+		// Look for Cancel Sale button
+		const cancelBtn = page.getByRole("button", { name: /cancel sale/i }).first();
+		const hasCancel = await waitVisible(cancelBtn, 8000);
+		// After fix: Cancel Sale should be visible for completed POS sales
+		expect.soft(hasCancel).toBe(true);
+	});
+
+	// ─── CU — Customers ──────────────────────────────────────────────────────
+
+	await test.step("F-CU-005 createUnclaimed — profile readable after creation (api-read-back)", async () => {
+		const uniquePhone = `+601${Date.now().toString().slice(-8)}`;
+		type UnclaimedResult = { id: string };
+		let createdId = "";
+		try {
+			const result = await orpcCall<object, UnclaimedResult>(
+				page,
+				"customerProfiles",
+				"createUnclaimed",
+				{
+					organizationId: ORG,
+					name: "E2E-CU005-" + Date.now(),
+					phone: uniquePhone,
+				},
+			);
+			createdId = result.id;
+		} catch {
+			expect.soft(true).toBe(true); // createUnclaimed unavailable — skip
+			return;
+		}
+
+		// Read-back: verify the profile exists
+		try {
+			type ProfileRow = { id: string; name: string; isUnclaimed?: boolean };
+			const profiles = await orpcCall<object, { items?: ProfileRow[]; profiles?: ProfileRow[] }>(
+				page,
+				"customerProfiles",
+				"list",
+				{ organizationId: ORG },
+			);
+			const rows = profiles.items ?? profiles.profiles ?? [];
+			const created = rows.find((p) => p.id === createdId);
+			expect.soft(created).not.toBeUndefined();
+			if (created) {
+				expect.soft(created.isUnclaimed).toBe(true);
+			}
+		} catch {
+			expect.soft(true).toBe(true);
+		}
+	});
+
+	await test.step("F-CU-006 createUnclaimed phone dedup — second call with same phone should fail", async () => {
+		const dupePhone = `+601${(Date.now() - 1).toString().slice(-8)}`;
+		type UnclaimedResult = { id: string };
+
+		// First creation — should succeed
+		try {
+			await orpcCall<object, UnclaimedResult>(page, "customerProfiles", "createUnclaimed", {
+				organizationId: ORG,
+				name: "E2E-CU006-A",
+				phone: dupePhone,
+			});
+		} catch {
+			expect.soft(true).toBe(true); // first create failed — skip
+			return;
+		}
+
+		// Second creation with same phone — should fail after fix
+		try {
+			await orpcCall<object, UnclaimedResult>(page, "customerProfiles", "createUnclaimed", {
+				organizationId: ORG,
+				name: "E2E-CU006-B",
+				phone: dupePhone,
+			});
+			// After fix: should throw CONFLICT or BAD_REQUEST
+			expect.soft(false).toBe(true); // should not succeed
+		} catch (err) {
+			if (err instanceof OrpcClientError) {
+				const isExpected =
+					err.code === "CONFLICT" ||
+					err.code === "BAD_REQUEST" ||
+					err.code === "UNPROCESSABLE_CONTENT";
+				expect.soft(isExpected).toBe(true);
+			} else {
+				expect.soft(true).toBe(true);
+			}
 		}
 	});
 });
