@@ -28,6 +28,16 @@ import { isPlaceholderEmail } from "@/services/gohighlevel.service";
 
 const UNCLAIMED_EMAIL_DOMAIN = "avantej.placeholder";
 
+function getEnvVar(key: string): string | undefined {
+	try {
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		const cloudflare = require("cloudflare:workers");
+		return cloudflare.env?.[key];
+	} catch {
+		return process.env[key];
+	}
+}
+
 export const serverCustomerProfilesRouter = {
 	upsert: protectedProcedure
 		.input(
@@ -217,6 +227,19 @@ export const serverCustomerProfilesRouter = {
 			if (!accessibleNodeIds.includes(target.hierarchyScopeId)) {
 				throw new ORPCError("FORBIDDEN", {
 					message: "Target customer is outside your accessible scope",
+				});
+			}
+
+			// Guard: unclaimed profiles have a placeholder CP user row that would become
+			// orphaned if the profile is deleted without first cleaning up the user record.
+			// Require staff to resolve the unclaimed state (send/cancel claim) first.
+			const existingProfile = await context.tenantDb.query.customerProfiles.findFirst({
+				where: eq(customerProfiles.userId, input.targetUserId),
+			});
+			if (existingProfile?.isUnclaimed) {
+				throw new ORPCError("BAD_REQUEST", {
+					message:
+						"Cannot delete an unclaimed profile. Send the customer their claim link, or contact support to cancel the unclaimed account.",
 				});
 			}
 
@@ -517,9 +540,11 @@ export const serverCustomerProfilesRouter = {
 
 			try {
 				const auth = getBetterAuth(context.honoContext);
+				const frontendURL =
+					getEnvVar("CORS_ORIGIN") || getEnvVar("FRONTEND_URL") || "http://localhost:3021";
 				// biome-ignore lint/suspicious/noExplicitAny: better-auth api typing is dynamic
 				await (auth as any).api.signInMagicLink({
-					body: { email: input.email },
+					body: { email: input.email, callbackURL: `${frontendURL}/dashboard` },
 					headers: context.honoContext.req.raw.headers,
 				});
 			} catch (err) {
@@ -603,9 +628,11 @@ export const serverCustomerProfilesRouter = {
 
 			try {
 				const auth = getBetterAuth(context.honoContext);
+				const frontendURL =
+					getEnvVar("CORS_ORIGIN") || getEnvVar("FRONTEND_URL") || "http://localhost:3021";
 				// biome-ignore lint/suspicious/noExplicitAny: better-auth api typing is dynamic
 				await (auth as any).api.signInMagicLink({
-					body: { email: linkedUser.email },
+					body: { email: linkedUser.email, callbackURL: `${frontendURL}/dashboard` },
 					headers: context.honoContext.req.raw.headers,
 				});
 			} catch (err) {
@@ -634,9 +661,8 @@ export const serverCustomerProfilesRouter = {
 				firstName: z.string().min(1),
 				lastName: z.string().min(1),
 				phone: z.string().min(1),
-				email: z.string().email().optional(),
 				hierarchyScopeId: z.string().uuid(),
-				dateOfBirth: z.string().datetime().optional(),
+				dateOfBirth: z.string().optional(),
 				notes: z.string().optional(),
 			}),
 		)
@@ -835,9 +861,11 @@ export const serverCustomerProfilesRouter = {
 			// Dispatch magic-link sign-in email
 			try {
 				const auth = getBetterAuth(context.honoContext);
+				const frontendURL =
+					getEnvVar("CORS_ORIGIN") || getEnvVar("FRONTEND_URL") || "http://localhost:3021";
 				// biome-ignore lint/suspicious/noExplicitAny: better-auth api typing is dynamic
 				await (auth as any).api.signInMagicLink({
-					body: { email: input.email },
+					body: { email: input.email, callbackURL: `${frontendURL}/dashboard` },
 					headers: context.honoContext.req.raw.headers,
 				});
 			} catch (err) {

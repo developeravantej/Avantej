@@ -7,6 +7,7 @@ import { AllCommissionsPage } from "@/components/pages/commissions/all-tab";
 import { LiabilityTab } from "@/components/pages/commissions/liability-tab";
 import { MyCommissionsPage } from "@/components/pages/commissions/mine-tab";
 import { ReviewTab } from "@/components/pages/commissions/review-tab";
+import { PayoutsTab } from "@/components/pages/commissions/payouts-tab";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 
@@ -18,12 +19,13 @@ export const Route = createFileRoute(
 	},
 	validateSearch: (search: Record<string, unknown>) => ({
 		tab: (search.tab as string | undefined) ?? "mine",
+		recipientId: search.recipientId as string | undefined,
 	}),
 	component: CommissionsPage,
 });
 
 function CommissionsPage() {
-	const { tab } = Route.useSearch();
+	const { tab, recipientId } = Route.useSearch();
 	const navigate = Route.useNavigate();
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
@@ -55,7 +57,10 @@ function CommissionsPage() {
 				]),
 		...(!hasPermission("commission_payout:read")
 			? []
-			: [{ id: "liability", label: "Liability", badge: null as number | null }]),
+			: [
+					{ id: "liability", label: "Liability", badge: null as number | null },
+					{ id: "payouts", label: "Payouts", badge: null as number | null },
+				]),
 	];
 
 	const content =
@@ -65,6 +70,14 @@ function CommissionsPage() {
 			<ReviewTab />
 		) : tab === "liability" ? (
 			<LiabilityTab />
+		) : tab === "payouts" && organizationId ? (
+			<PayoutsTab
+				organizationId={organizationId}
+				recipientId={recipientId}
+				onSelectRecipient={(id) =>
+					navigate({ search: (prev) => ({ ...prev, recipientId: id }) })
+				}
+			/>
 		) : (
 			<MyCommissionsPage />
 		);
@@ -82,7 +95,15 @@ function CommissionsPage() {
 						<button
 							key={pill.id}
 							type="button"
-							onClick={() => navigate({ search: { tab: pill.id } })}
+							onClick={() =>
+								navigate({
+									search: (prev) => ({
+										...prev,
+										tab: pill.id,
+										recipientId: pill.id !== "payouts" ? undefined : prev.recipientId,
+									}),
+								})
+							}
 							className={`rounded-lg px-3 py-1 text-xs font-semibold transition flex items-center gap-1.5 ${tab === pill.id ? "bg-[#0a0a0a] text-white" : "text-muted-foreground hover:text-foreground"}`}
 						>
 							{pill.label}
@@ -96,7 +117,7 @@ function CommissionsPage() {
 				</div>
 			</header>
 
-			<div className="py-6">
+			<div className={tab === "payouts" ? "flex-1 flex flex-col" : "py-6"}>
 				{content}
 			</div>
 		</div>

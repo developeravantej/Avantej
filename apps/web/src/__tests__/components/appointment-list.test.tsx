@@ -7,7 +7,11 @@ import { screen } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
 import { mockClient } from "../helpers/mock-client";
 
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({
+	client: mockClient,
+	orpc: {},
+	queryClient: { invalidateQueries: () => Promise.resolve(), setQueryData: () => {}, getQueryData: () => undefined, clear: () => {} },
+}));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: {
@@ -40,11 +44,16 @@ describe("AppointmentList", () => {
 	});
 
 	it("renders an appointment row when given one appointment", () => {
+		// Use today's date so the component's currentDay filter shows this appointment
+		const todayStart = new Date();
+		todayStart.setHours(9, 0, 0, 0);
+		const todayEnd = new Date();
+		todayEnd.setHours(10, 0, 0, 0);
 		const appt = {
 			id: "appt-1",
 			title: "Session with Alice",
-			start: new Date("2026-05-10T09:00:00Z"),
-			end: new Date("2026-05-10T10:00:00Z"),
+			start: todayStart,
+			end: todayEnd,
 			status: "pending" as const,
 			clientName: "Alice",
 			service: "Personal Training",

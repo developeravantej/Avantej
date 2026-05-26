@@ -22,7 +22,11 @@ vi.mock("@tanstack/react-router", () => ({
 	),
 	useNavigate: useNavigateMock,
 }));
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({
+	client: mockClient,
+	orpc: {},
+	queryClient: { invalidateQueries: () => Promise.resolve(), setQueryData: () => {}, getQueryData: () => undefined, clear: () => {} },
+}));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: {
@@ -82,7 +86,8 @@ describe("Sales view (RouteComponent)", () => {
 	it("renders page heading", async () => {
 		renderWithProviders(<RouteComponent />);
 		await waitFor(() => {
-			expect(screen.getByText("Sales & Payments")).toBeInTheDocument();
+			// Breadcrumb: "Sales / Orders"
+			expect(screen.getByText("Sales")).toBeInTheDocument();
 		});
 	});
 

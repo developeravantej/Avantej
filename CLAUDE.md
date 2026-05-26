@@ -178,6 +178,42 @@ bun scripts/check-drift.ts # exits 1 if any drift section is non-empty
 
 Uses TanStack Router with file-based routing in `apps/web/src/routes/`. Route files generate types in `routeTree.gen.ts` (gitignored by Biome, never edit by hand).
 
+### Native App (`apps/native/`)
+
+Expo / React Native app (member-facing, not admin). Uses **Expo Router** with three route groups:
+
+- `(auth)/` — unauthenticated screens (login, register)
+- `(app)/` — authenticated screens
+- `(drawer)/` — navigation drawer shell
+
+Uses the same oRPC client pattern via `apps/native/utils/orpc.ts` and the same Better-Auth client via `apps/native/lib/auth-client.ts`. Does **not** share route files with `apps/web` — they are separate entry points for different audiences.
+
+### Server-Only Services & Cron
+
+`apps/server/src/services/` contains server-only business logic that cannot be imported by `packages/api` or the web client. Key services:
+
+| Service | Purpose |
+|---------|---------|
+| `ghl/` | GoHighLevel CRM sync (branch and staff) |
+| `neon.service.ts` | Neon branch provisioning for new tenants |
+| `installment-sweep.service.ts` | Marks overdue installments |
+| `notification-dispatch.service.ts` | Sends queued notification emails via Resend |
+| `saas-subscription.service.ts` | Stripe subscription lifecycle |
+| `tenant-usage-snapshot.service.ts` | Usage metering snapshots |
+
+These are wired as Cloudflare Workers **cron triggers** in `wrangler.jsonc` and dispatched in `apps/server/src/index.ts`'s `scheduled` handler:
+
+| Schedule | Handler |
+|----------|---------|
+| `0 * * * *` (hourly) | installment backfill + scheduled reports + **notification dispatch** |
+| `0 1 * * *` (01:00) | usage snapshot |
+| `0 2 * * *` (02:00) | installment sweep |
+| `30 2 * * *` (02:30) | Stripe reconciliation |
+| `0 3 * * *` (03:00) | tenant hard-delete |
+| `0 9 * * *` (09:00) | onboarding alerts |
+
+When adding a new scheduled job: declare the cron in `wrangler.jsonc`, add a branch in the `scheduled` handler, and create the service in `apps/server/src/services/`.
+
 ## Codebase Hub (zhub/)
 
 A pre-built context hub lives at `zhub/` in the project root. Always check it before exploring source files.

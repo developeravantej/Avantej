@@ -119,7 +119,7 @@ function DashboardComponent() {
 	const trendDays = period === "today" ? 1 : period === "this_week" ? 7 : period === "this_year" ? 365 : 30;
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const currentOrg = userContext?.organizations.find(
+	const currentOrg = userContext?.organizations?.find(
 		(o) => o.id === organizationId,
 	);
 	const orgName = currentOrg?.name ?? "Loading…";

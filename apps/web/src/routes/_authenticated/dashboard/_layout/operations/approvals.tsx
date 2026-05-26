@@ -63,6 +63,7 @@ type PendingRow = {
 	preferredTrainerName: string | null;
 	paymentMethod: string | null;
 	paymentStatus: string | null;
+	preferredTimes: Array<{ dayOfWeek: string; time: string; priority: number }>;
 };
 
 type PriorityLevel = "high" | "med" | "low";
@@ -158,6 +159,17 @@ function formatToday(): string {
 		month: "long",
 		year: "numeric",
 	});
+}
+
+function formatPreferredTime(t: { dayOfWeek: string; time: string }): string {
+	const day = t.dayOfWeek.charAt(0).toUpperCase() + t.dayOfWeek.slice(1);
+	// "09:00" → "9:00 AM" style
+	const [hStr, mStr] = t.time.split(":");
+	const h = parseInt(hStr ?? "0", 10);
+	const m = mStr ?? "00";
+	const suffix = h >= 12 ? "PM" : "AM";
+	const h12 = h % 12 === 0 ? 12 : h % 12;
+	return `${day} ${h12}:${m} ${suffix}`;
 }
 
 // ── Sub-components ───────────────────────────────────────────────────────────
@@ -590,7 +602,7 @@ function ExpandedRowDetail({
 
 	return (
 		<div className="border-t border-[#e5e5e5] bg-white px-5 py-5">
-			<div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+			<div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
 				{/* Customer */}
 				<div>
 					<div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
@@ -665,6 +677,31 @@ function ExpandedRowDetail({
 						<div className="mt-1.5 text-sm font-semibold">
 							{row.preferredTrainerName}
 						</div>
+					) : (
+						<div className="mt-1.5 text-sm italic text-muted-foreground">
+							No preference
+						</div>
+					)}
+				</div>
+
+				{/* Preferred times */}
+				<div>
+					<div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+						Preferred times
+					</div>
+					{row.preferredTimes.length > 0 ? (
+						<ol className="mt-1.5 space-y-0.5">
+							{row.preferredTimes.map((t) => (
+								<li key={t.priority} className="flex items-center gap-1.5 text-xs">
+									<span className="font-mono tabular-nums text-[10px] text-muted-foreground">
+										{t.priority}.
+									</span>
+									<span className="font-medium text-[#0a0a0a]">
+										{formatPreferredTime(t)}
+									</span>
+								</li>
+							))}
+						</ol>
 					) : (
 						<div className="mt-1.5 text-sm italic text-muted-foreground">
 							No preference

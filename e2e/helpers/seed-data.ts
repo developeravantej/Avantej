@@ -531,6 +531,90 @@ export interface MinimalPosFixture {
  * plan data required by POS journey specs. Throws (does not skip) when data is
  * missing — run `cd apps/server && bun run scripts/seed-business-data.ts` first.
  */
+// ─── Walk-in customer helpers ─────────────────────────────────────────────────
+
+export interface WalkInCustomerInfo {
+  id: string; // tenant members.id
+  userId: string; // control-panel users.id (returned by createUnclaimed)
+  name: string;
+  branchId: string;
+}
+
+/**
+ * Seed an unclaimed (walk-in style) customer profile using customerProfiles.createUnclaimed.
+ * The profile appears in the POS customer search with type="walk_in".
+ *
+ * Precondition: the admin must have user_management:create permission.
+ * Returns null if seeding fails (caller should skip).
+ */
+export async function seedWalkInCustomer(
+  page: Page,
+  opts: { name: string; phone?: string },
+): Promise<WalkInCustomerInfo | null> {
+  const branchId = await pickFirstBranchId(page);
+
+  // Split name into first/last for the createUnclaimed API
+  const parts = opts.name.trim().split(" ");
+  const firstName = parts[0] ?? "E2E";
+  const lastName = parts.slice(1).join(" ") || "WalkIn";
+  const phone = opts.phone ?? "+60 11-9999 0001";
+
+  type Created = { id?: string; userId?: string; memberId?: string; member?: { id?: string; userId?: string } };
+  try {
+    const result = await orpcCall<object, Created>(
+      page,
+      "customerProfiles",
+      "createUnclaimed",
+      {
+        organizationId: TEST_ORG_ID,
+        firstName,
+        lastName,
+        phone,
+        hierarchyScopeId: branchId,
+      },
+    );
+    // The procedure may return the userId directly or nested under member
+    const userId =
+      result.userId ??
+      result.member?.userId ??
+      result.id ??
+      "";
+    const memberId =
+      result.memberId ??
+      result.member?.id ??
+      result.id ??
+      "";
+    if (!userId && !memberId) return null;
+    return { id: memberId, userId, name: opts.name, branchId };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Idempotent cleanup — soft-delete the walk-in customer by userId.
+ * Swallows NOT_FOUND and FORBIDDEN (caller may have already cleaned up).
+ */
+export async function cleanupWalkInCustomer(
+  page: Page,
+  userId: string,
+): Promise<void> {
+  if (!userId) return;
+  try {
+    await orpcCall(page, "customerProfiles", "softDelete", {
+      organizationId: TEST_ORG_ID,
+      targetUserId: userId,
+    });
+  } catch (err) {
+    if (err instanceof OrpcClientError && (err.code === "NOT_FOUND" || err.code === "FORBIDDEN")) {
+      return;
+    }
+    // Swallow all cleanup errors — test outcome is not affected
+  }
+}
+
+// ─── Minimal POS fixture (Plan B smoke gate) ─────────────────────────────────
+
 export async function seedMinimalPosFixture(
   page: Page,
   orgId: string = TEST_ORG_ID,

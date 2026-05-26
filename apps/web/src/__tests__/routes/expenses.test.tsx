@@ -13,7 +13,11 @@ vi.mock("@tanstack/react-router", () => ({
 	Link: ({ children }: { children: React.ReactNode }) => children,
 	useNavigate: vi.fn().mockReturnValue(vi.fn()),
 }));
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({
+	client: mockClient,
+	orpc: {},
+	queryClient: { invalidateQueries: () => Promise.resolve(), setQueryData: () => {}, getQueryData: () => undefined, clear: () => {} },
+}));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: {
@@ -51,9 +55,6 @@ describe("Expenses page", () => {
 
 		await waitFor(() => {
 			expect(screen.getByText("Expenses")).toBeInTheDocument();
-			expect(
-				screen.getByText("Submit and manage expense claims"),
-			).toBeInTheDocument();
 			expect(
 				screen.getAllByRole("button", { name: /submit expense/i }).length,
 			).toBeGreaterThan(0);

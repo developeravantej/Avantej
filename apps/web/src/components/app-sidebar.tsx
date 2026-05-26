@@ -160,7 +160,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 			{ title: "Sales & Payments", url: "/dashboard/sales/view", icon: BadgeDollarSign },
 			{ title: "Payment History", url: "/dashboard/payment/view", icon: History },
 			{ title: "Cancelled Sales", url: "/dashboard/cancelled-sales/view", icon: Ban, testId: "sidebar-cancelled-sales" },
-			{ title: "Payouts", url: "/dashboard/payouts/view", icon: DollarSign },
+			{ title: "Payouts", url: "/dashboard/commissions/view?tab=payouts", icon: DollarSign },
 			{
 				title: "Refunds",
 				url: "/dashboard/refunds/view",

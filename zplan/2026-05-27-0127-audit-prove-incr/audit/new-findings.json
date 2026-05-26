@@ -1,0 +1,68 @@
+[
+  {
+    "id": "AC-05",
+    "title": "resendMagicLink missing callbackURL — customer lands on server root",
+    "file": "apps/server/src/routers/customer-profiles.ts",
+    "line": 617,
+    "severity": "P2",
+    "status": "missing",
+    "testable": true,
+    "note": "signInMagicLink called without callbackURL; magic link redirects customer to server root (port 3020) instead of frontend /dashboard. Same bug class as the fix applied to sendClaimLink — not propagated to this sibling procedure.",
+    "persistence": null
+  },
+  {
+    "id": "AC-06",
+    "title": "addEmailAndDispatchMagicLink missing callbackURL — customer lands on server root",
+    "file": "apps/server/src/routers/customer-profiles.ts",
+    "line": 531,
+    "severity": "P2",
+    "status": "missing",
+    "testable": true,
+    "note": "signInMagicLink called without callbackURL in the GHL-placeholder-email staff flow. Same root cause as AC-05 — sendClaimLink fix was not propagated here either.",
+    "persistence": null
+  },
+  {
+    "id": "AC-07",
+    "title": "email param accepted in createUnclaimed but silently ignored — dead parameter",
+    "file": "apps/server/src/routers/customer-profiles.ts",
+    "line": 647,
+    "severity": "P2",
+    "status": "missing",
+    "testable": true,
+    "note": "z.string().email().optional() declared in input schema; handler never reads input.email. Placeholder email is always generated regardless. Callers are silently misled. Remove the param or honour it.",
+    "persistence": null
+  },
+  {
+    "id": "AC-08",
+    "title": "softDelete has no guard for unclaimed profiles — leaves orphaned CP user row",
+    "file": "apps/server/src/routers/customer-profiles.ts",
+    "line": 196,
+    "severity": "P3",
+    "status": "missing",
+    "testable": true,
+    "note": "Staff with customer_management:delete can soft-delete a profile while isUnclaimed=true. The corresponding control-panel user row (placeholder email) is not cleaned up. No claim path remains after deletion. softDelete should reject or warn when profile.isUnclaimed=true.",
+    "persistence": "Writes is_deleted=true + deleted_at + deleted_source to customer_profiles; CP user row with placeholder email is NOT cleaned up."
+  },
+  {
+    "id": "AC-09",
+    "title": "createUnclaimed uses z.string().datetime() for dateOfBirth — rejects plain date strings",
+    "file": "apps/server/src/routers/customer-profiles.ts",
+    "line": 649,
+    "severity": "P3",
+    "status": "partial",
+    "testable": true,
+    "note": "Zod 4 z.string().datetime() requires full ISO 8601 datetime (time component mandatory). Plain date strings like '2000-01-15' are rejected before the handler runs. The sibling upsertForCustomer at packages/api/src/routers/customer-profiles.ts:131 intentionally uses z.string().nullable().optional() without .datetime(). Inconsistency likely causes UI breakage for date-of-birth pickers.",
+    "persistence": null
+  },
+  {
+    "id": "AC-10",
+    "title": "createUnclaimed CP user insert has no conflict handling — ugly 500 on UUID collision",
+    "file": "apps/server/src/routers/customer-profiles.ts",
+    "line": 700,
+    "severity": "P3",
+    "status": "partial",
+    "testable": false,
+    "note": "Placeholder email insert into control-panel user table has no onConflictDoNothing/onConflictDoUpdate. UUID v4 collision probability is ~0 but unhandled DB unique violation would surface as HTTP 500 with opaque error. Low real-world risk; cosmetic hardening only.",
+    "persistence": "Writes CP user row on success."
+  }
+]

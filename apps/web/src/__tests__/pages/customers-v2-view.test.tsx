@@ -19,7 +19,11 @@ vi.mock("@tanstack/react-router", () => ({
 	Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 	useNavigate: useNavigateMock,
 }));
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({
+	client: mockClient,
+	orpc: {},
+	queryClient: { invalidateQueries: () => Promise.resolve(), setQueryData: () => {}, getQueryData: () => undefined, clear: () => {} },
+}));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: {
@@ -88,16 +92,16 @@ describe("CustomersV2Page", () => {
 	it("renders page heading", async () => {
 		renderWithProviders(<CustomersV2Page />);
 		await waitFor(() => {
-			expect(screen.getByRole("heading", { name: "Customers" })).toBeInTheDocument();
+			// Breadcrumb "Customers / Directory" — no heading role, just text
+			expect(screen.getByText("Customers")).toBeInTheDocument();
 		});
 	});
 
-	it("renders tab pills", async () => {
+	it("renders Add Customer button", async () => {
 		renderWithProviders(<CustomersV2Page />);
 		await waitFor(() => {
-			expect(screen.getByRole("button", { name: "Customers" })).toBeInTheDocument();
-			expect(screen.getByRole("button", { name: "Packages" })).toBeInTheDocument();
-			expect(screen.getByRole("button", { name: "New Sale" })).toBeInTheDocument();
+			// Tab pills replaced by Add Customer action button
+			expect(screen.getByRole("button", { name: /add customer/i })).toBeInTheDocument();
 		});
 	});
 

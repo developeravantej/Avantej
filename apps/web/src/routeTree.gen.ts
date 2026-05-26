@@ -73,7 +73,6 @@ import { Route as AuthenticatedDashboardLayoutPlatformAdminCommsRouteImport } fr
 import { Route as AuthenticatedDashboardLayoutPlatformAdminBillingRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/billing'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminAuditRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/audit'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminAdminsRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/admins'
-import { Route as AuthenticatedDashboardLayoutPayoutsViewRouteImport } from './routes/_authenticated/dashboard/_layout/payouts/view'
 import { Route as AuthenticatedDashboardLayoutPaymentViewRouteImport } from './routes/_authenticated/dashboard/_layout/payment/view'
 import { Route as AuthenticatedDashboardLayoutPackagesViewRouteImport } from './routes/_authenticated/dashboard/_layout/packages/view'
 import { Route as AuthenticatedDashboardLayoutOperationsApprovalsRouteImport } from './routes/_authenticated/dashboard/_layout/operations/approvals'
@@ -482,12 +481,6 @@ const AuthenticatedDashboardLayoutPlatformAdminAdminsRoute =
     path: '/platform-admin/admins',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
-const AuthenticatedDashboardLayoutPayoutsViewRoute =
-  AuthenticatedDashboardLayoutPayoutsViewRouteImport.update({
-    id: '/payouts/view',
-    path: '/payouts/view',
-    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
-  } as any)
 const AuthenticatedDashboardLayoutPaymentViewRoute =
   AuthenticatedDashboardLayoutPaymentViewRouteImport.update({
     id: '/payment/view',
@@ -741,7 +734,6 @@ export interface FileRoutesByFullPath {
   '/dashboard/operations/approvals': typeof AuthenticatedDashboardLayoutOperationsApprovalsRoute
   '/dashboard/packages/view': typeof AuthenticatedDashboardLayoutPackagesViewRoute
   '/dashboard/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
-  '/dashboard/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   '/dashboard/platform-admin/admins': typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
   '/dashboard/platform-admin/audit': typeof AuthenticatedDashboardLayoutPlatformAdminAuditRoute
   '/dashboard/platform-admin/billing': typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
@@ -839,7 +831,6 @@ export interface FileRoutesByTo {
   '/dashboard/operations/approvals': typeof AuthenticatedDashboardLayoutOperationsApprovalsRoute
   '/dashboard/packages/view': typeof AuthenticatedDashboardLayoutPackagesViewRoute
   '/dashboard/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
-  '/dashboard/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   '/dashboard/platform-admin/admins': typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
   '/dashboard/platform-admin/audit': typeof AuthenticatedDashboardLayoutPlatformAdminAuditRoute
   '/dashboard/platform-admin/billing': typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
@@ -939,7 +930,6 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/operations/approvals': typeof AuthenticatedDashboardLayoutOperationsApprovalsRoute
   '/_authenticated/dashboard/_layout/packages/view': typeof AuthenticatedDashboardLayoutPackagesViewRoute
   '/_authenticated/dashboard/_layout/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
-  '/_authenticated/dashboard/_layout/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   '/_authenticated/dashboard/_layout/platform-admin/admins': typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
   '/_authenticated/dashboard/_layout/platform-admin/audit': typeof AuthenticatedDashboardLayoutPlatformAdminAuditRoute
   '/_authenticated/dashboard/_layout/platform-admin/billing': typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
@@ -1040,7 +1030,6 @@ export interface FileRouteTypes {
     | '/dashboard/operations/approvals'
     | '/dashboard/packages/view'
     | '/dashboard/payment/view'
-    | '/dashboard/payouts/view'
     | '/dashboard/platform-admin/admins'
     | '/dashboard/platform-admin/audit'
     | '/dashboard/platform-admin/billing'
@@ -1138,7 +1127,6 @@ export interface FileRouteTypes {
     | '/dashboard/operations/approvals'
     | '/dashboard/packages/view'
     | '/dashboard/payment/view'
-    | '/dashboard/payouts/view'
     | '/dashboard/platform-admin/admins'
     | '/dashboard/platform-admin/audit'
     | '/dashboard/platform-admin/billing'
@@ -1237,7 +1225,6 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/operations/approvals'
     | '/_authenticated/dashboard/_layout/packages/view'
     | '/_authenticated/dashboard/_layout/payment/view'
-    | '/_authenticated/dashboard/_layout/payouts/view'
     | '/_authenticated/dashboard/_layout/platform-admin/admins'
     | '/_authenticated/dashboard/_layout/platform-admin/audit'
     | '/_authenticated/dashboard/_layout/platform-admin/billing'
@@ -1754,13 +1741,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
-    '/_authenticated/dashboard/_layout/payouts/view': {
-      id: '/_authenticated/dashboard/_layout/payouts/view'
-      path: '/payouts/view'
-      fullPath: '/dashboard/payouts/view'
-      preLoaderRoute: typeof AuthenticatedDashboardLayoutPayoutsViewRouteImport
-      parentRoute: typeof AuthenticatedDashboardLayoutRoute
-    }
     '/_authenticated/dashboard/_layout/payment/view': {
       id: '/_authenticated/dashboard/_layout/payment/view'
       path: '/payment/view'
@@ -2044,7 +2024,6 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutOperationsApprovalsRoute: typeof AuthenticatedDashboardLayoutOperationsApprovalsRoute
   AuthenticatedDashboardLayoutPackagesViewRoute: typeof AuthenticatedDashboardLayoutPackagesViewRoute
   AuthenticatedDashboardLayoutPaymentViewRoute: typeof AuthenticatedDashboardLayoutPaymentViewRoute
-  AuthenticatedDashboardLayoutPayoutsViewRoute: typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   AuthenticatedDashboardLayoutPlatformAdminAdminsRoute: typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
   AuthenticatedDashboardLayoutPlatformAdminAuditRoute: typeof AuthenticatedDashboardLayoutPlatformAdminAuditRoute
   AuthenticatedDashboardLayoutPlatformAdminBillingRoute: typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
@@ -2147,8 +2126,6 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutPackagesViewRoute,
     AuthenticatedDashboardLayoutPaymentViewRoute:
       AuthenticatedDashboardLayoutPaymentViewRoute,
-    AuthenticatedDashboardLayoutPayoutsViewRoute:
-      AuthenticatedDashboardLayoutPayoutsViewRoute,
     AuthenticatedDashboardLayoutPlatformAdminAdminsRoute:
       AuthenticatedDashboardLayoutPlatformAdminAdminsRoute,
     AuthenticatedDashboardLayoutPlatformAdminAuditRoute:

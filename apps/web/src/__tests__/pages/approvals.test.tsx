@@ -20,7 +20,11 @@ vi.mock("@tanstack/react-router", () => ({
 	Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 	useNavigate: useNavigateMock,
 }));
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({
+	client: mockClient,
+	orpc: {},
+	queryClient: { invalidateQueries: () => Promise.resolve(), setQueryData: () => {}, getQueryData: () => undefined, clear: () => {} },
+}));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: {
@@ -31,7 +35,7 @@ vi.mock("@/hooks/useUserContext", () => ({
 					name: "Test Fitness",
 					role: "admin",
 					hierarchy: {
-						member: { id: "member-caller", accessibleNodeIds: ["node-1"] },
+						member: { id: "member-caller", accessibleNodeIds: ["node-1"], role: "admin" },
 					},
 				},
 			],

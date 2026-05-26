@@ -1,6 +1,7 @@
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { preferredTimes } from "@avantej-core/db/schema/tenant/preferred-times";
 import { user } from "@avantej-core/db/schema/auth";
 import { and, eq, inArray, desc, isNull, isNotNull, or } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
@@ -165,6 +166,27 @@ export const packageInstancesPendingProcedures = {
         }
       }
 
+      // Batch-fetch preferred times for all returned package instances
+      const packageInstanceIds = filtered.map((r: PendingRow) => r.id);
+      const preferredTimesMap = new Map<string, Array<{ dayOfWeek: string; time: string; priority: number }>>();
+      if (packageInstanceIds.length > 0) {
+        const timesRows = await context.tenantDb
+          .select({
+            packageInstanceId: preferredTimes.packageInstanceId,
+            dayOfWeek: preferredTimes.dayOfWeek,
+            time: preferredTimes.time,
+            priority: preferredTimes.priority,
+          })
+          .from(preferredTimes)
+          .where(inArray(preferredTimes.packageInstanceId, packageInstanceIds))
+          .orderBy(preferredTimes.priority);
+        for (const t of timesRows) {
+          const existing = preferredTimesMap.get(t.packageInstanceId) ?? [];
+          existing.push({ dayOfWeek: t.dayOfWeek, time: t.time, priority: t.priority });
+          preferredTimesMap.set(t.packageInstanceId, existing);
+        }
+      }
+
       return filtered.map((r: PendingRow) => ({
         ...r,
         customerName: r.clientId
@@ -176,6 +198,7 @@ export const packageInstancesPendingProcedures = {
         preferredTrainerName: r.preferredTrainerId
           ? (preferredTrainerNameMap.get(r.preferredTrainerId) ?? null)
           : null,
+        preferredTimes: preferredTimesMap.get(r.id) ?? [],
       }));
     })
 };
