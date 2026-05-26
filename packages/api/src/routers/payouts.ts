@@ -8,7 +8,7 @@ import { payouts } from "@avantej-core/db/schema/tenant/payouts";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { user } from "@avantej-core/db/schema/auth";
-import { eq, and, desc, inArray, or, isNull, type SQL } from "drizzle-orm";
+import { eq, and, desc, inArray, type SQL } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
@@ -52,11 +52,12 @@ export const payoutsRouter = {
 				conditions.push(eq(payouts.recipientId, input.recipientId));
 			}
 			if (context.accessibleNodeIds?.length) {
+				// Scope to payouts linked to appointments in accessible branches only.
+				// Appointment-less payouts (package/sales-order commissions) have no branch
+				// anchor on the payouts row, so they are excluded for non-admin callers.
+				// Admins bypass this block entirely (accessibleNodeIds is undefined).
 				conditions.push(
-					or(
-						isNull(payouts.appointmentId),
-						inArray(appointments.branchId, context.accessibleNodeIds)
-					) as SQL
+					inArray(appointments.branchId, context.accessibleNodeIds) as SQL
 				);
 			}
 

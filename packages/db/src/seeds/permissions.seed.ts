@@ -128,10 +128,14 @@ const SEED_PERMISSIONS = [
 	{ resource: "category_commission_management", action: "create" },
 	{ resource: "category_commission_management", action: "update" },
 	{ resource: "category_commission_management", action: "delete" },
-	// commission_payout — finance-gated; only owner-level should hold create/update
+	// commission_payout — finance-gated; only owner-level should hold create/update/process
 	{ resource: "commission_payout", action: "read" },
 	{ resource: "commission_payout", action: "create" },
 	{ resource: "commission_payout", action: "update" },
+	{ resource: "commission_payout", action: "process" },
+	// commission_review — dispute resolution; resolve requires manager+ grant
+	{ resource: "commission_review", action: "read" },
+	{ resource: "commission_review", action: "resolve" },
 ];
 
 export async function seedPermissions(

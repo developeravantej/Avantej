@@ -13,7 +13,7 @@
  * remaining notifications or organisations.
  */
 
-import { eq, isNull, and, gte, sql } from "drizzle-orm";
+import { eq, isNull, and, gte, sql, asc } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
@@ -39,6 +39,14 @@ export interface NotificationDispatchReport {
 /** 48-hour cap — avoids re-processing old backlog after a prolonged outage. */
 const LOOKBACK_MS = 48 * 60 * 60 * 1000;
 
+/** Max rows fetched per org per run — cron is hourly so 500/hr handles realistic volume; excess is picked up next cycle. */
+const BATCH_LIMIT = 500;
+
+/** Strip CRLF characters from email subjects to prevent header injection (SI-010). */
+function sanitizeEmailSubject(s: string): string {
+	return s.replace(/[\r\n]+/g, " ").slice(0, 200);
+}
+
 export async function runNotificationEmailDispatch(
 	args: RunNotificationEmailDispatchArgs,
 ): Promise<NotificationDispatchReport> {
@@ -62,6 +70,7 @@ export async function runNotificationEmailDispatch(
 
 			const cutoff = new Date(Date.now() - LOOKBACK_MS);
 
+			// SI-001: bounded fetch — older notifications dispatched first; next cron run picks up the rest.
 			const pending = await tenantDb
 				.select()
 				.from(notifications)
@@ -71,10 +80,27 @@ export async function runNotificationEmailDispatch(
 						isNull(notifications.emailSentAt),
 						gte(notifications.createdAt, cutoff),
 					),
-				);
+				)
+				.orderBy(asc(notifications.createdAt))
+				.limit(BATCH_LIMIT);
 
 			for (const notification of pending) {
 				try {
+					// SI-002: claim-before-send — atomically set emailSentAt so concurrent
+					// workers cannot both send the same notification.
+					const [claimed] = await tenantDb
+						.update(notifications)
+						.set({ emailSentAt: sql`now()` })
+						.where(
+							and(
+								eq(notifications.id, notification.id),
+								isNull(notifications.emailSentAt),
+							),
+						)
+						.returning({ id: notifications.id });
+
+					if (!claimed) continue; // another worker already claimed this row
+
 					// Look up user email from control-panel DB using the cross-DB userId ref.
 					const [recipient] = await controlPanelDb
 						.select({ email: user.email, name: user.name })
@@ -89,19 +115,23 @@ export async function runNotificationEmailDispatch(
 						continue;
 					}
 
-					await sendEmail({
-						to: recipient.email,
-						subject: notification.title,
-						text: notification.message,
-						html: `<p>${escapeHtml(notification.message)}</p>`,
-					});
-
-					await tenantDb
-						.update(notifications)
-						.set({ emailSentAt: sql`now()` })
-						.where(eq(notifications.id, notification.id));
-
-					report.emailsSent++;
+					try {
+						// SI-010: sanitize subject to prevent CRLF header injection.
+						await sendEmail({
+							to: recipient.email,
+							subject: sanitizeEmailSubject(notification.title),
+							text: notification.message,
+							html: `<p>${escapeHtml(notification.message)}</p>`,
+						});
+						report.emailsSent++;
+					} catch (sendErr) {
+						// Roll back the claim so the next cron cycle retries.
+						await tenantDb
+							.update(notifications)
+							.set({ emailSentAt: null })
+							.where(eq(notifications.id, notification.id));
+						throw sendErr;
+					}
 				} catch (notifErr) {
 					report.errors++;
 					console.error(

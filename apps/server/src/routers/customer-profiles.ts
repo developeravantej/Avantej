@@ -11,6 +11,7 @@
  */
 
 import { protectedProcedure } from "@avantej-core/api";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 import {
 	requirePermission,
 	upsertCustomerProfile,
@@ -504,23 +505,9 @@ export const serverCustomerProfilesRouter = {
 				}
 			}
 
-			const controlPanelDb = context.honoContext.get(
-				"controlPanelDb",
-			) as Parameters<typeof getBetterAuth>[0] extends never
-				? never
-				: ReturnType<typeof getBetterAuth> extends never
-					? never
-					: never;
-			// The above is a type-only no-op; we actually fetch via the Hono ctx below.
-			const cpDb = context.honoContext.get("controlPanelDb");
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available",
-				});
-			}
-			void controlPanelDb;
+			const cpDb = getControlPanelDb(context);
 
-			const existingUser = await (cpDb as any).query.user.findFirst({
+			const existingUser = await cpDb.query.user.findFirst({
 				where: eq(user.id, profile.userId),
 			});
 			if (!existingUser) {
@@ -535,7 +522,7 @@ export const serverCustomerProfilesRouter = {
 				});
 			}
 
-			const collision = await (cpDb as any).query.user.findFirst({
+			const collision = await cpDb.query.user.findFirst({
 				where: eq(user.email, input.email),
 			});
 			if (collision && collision.id !== existingUser.id) {
@@ -544,7 +531,7 @@ export const serverCustomerProfilesRouter = {
 				});
 			}
 
-			await (cpDb as any)
+			await cpDb
 				.update(user)
 				.set({
 					email: input.email,
@@ -633,15 +620,9 @@ export const serverCustomerProfilesRouter = {
 				}
 			}
 
-			const cpDb = context.honoContext.get("controlPanelDb");
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available",
-				});
-			}
+			const cpDb = getControlPanelDb(context);
 
-			// biome-ignore lint/suspicious/noExplicitAny: tenant/cp db types differ
-			const linkedUser = await (cpDb as any).query.user.findFirst({
+			const linkedUser = await cpDb.query.user.findFirst({
 				where: eq(user.id, profile.userId),
 			});
 			if (!linkedUser) {
@@ -731,12 +712,7 @@ export const serverCustomerProfilesRouter = {
 				}
 			}
 
-			const cpDb = context.honoContext.get("controlPanelDb");
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available",
-				});
-			}
+			const cpDb = getControlPanelDb(context);
 
 			// CU-006: Phone dedup — reject if an active profile already uses this phone
 			const phoneConflict = await context.tenantDb.query.customerProfiles.findFirst({
@@ -754,8 +730,7 @@ export const serverCustomerProfilesRouter = {
 			// CU-007: Email dedup — if a real email is supplied, ensure it is not already
 			// taken by another control-panel user before we proceed.
 			if (input.email) {
-				// biome-ignore lint/suspicious/noExplicitAny: cpDb is untyped from Hono context
-				const emailConflict = await (cpDb as any).query.user.findFirst({
+				const emailConflict = await cpDb.query.user.findFirst({
 					where: eq(user.email, input.email),
 				});
 				if (emailConflict) {
@@ -773,8 +748,7 @@ export const serverCustomerProfilesRouter = {
 			const now = new Date();
 
 			// Step 1 — Insert placeholder/real user into control panel (no password / account row)
-			// biome-ignore lint/suspicious/noExplicitAny: cpDb retrieved from Hono context is untyped
-			await (cpDb as any).insert(user).values({
+			await cpDb.insert(user).values({
 				id: userId,
 				name: `${input.firstName} ${input.lastName}`.trim(),
 				firstName: input.firstName,
@@ -788,8 +762,7 @@ export const serverCustomerProfilesRouter = {
 
 			// Step 2 — Dual-write: organizationMembers (CP) + members (tenant)
 			// CU-005: If this or step 3 fails, roll back the CP user to avoid orphans.
-			// biome-ignore lint/suspicious/noExplicitAny: cpDb is untyped from Hono context
-			const membershipService = new MembershipService(cpDb as any);
+			const membershipService = new MembershipService(cpDb);
 			let tenantMemberId: string | undefined;
 			try {
 				await membershipService.createMember({
@@ -807,8 +780,7 @@ export const serverCustomerProfilesRouter = {
 			} catch (memberErr) {
 				// Step 2 failed — clean up the CP user inserted in step 1
 				try {
-					// biome-ignore lint/suspicious/noExplicitAny: cpDb is untyped from Hono context
-					await (cpDb as any).delete(user).where(eq(user.id, userId));
+					await cpDb.delete(user).where(eq(user.id, userId));
 				} catch {
 					// best-effort cleanup; log but don't mask the original error
 					console.error("[createUnclaimed] CP user cleanup failed after membershipService error", userId);
@@ -840,8 +812,7 @@ export const serverCustomerProfilesRouter = {
 					}
 				}
 				try {
-					// biome-ignore lint/suspicious/noExplicitAny: cpDb is untyped from Hono context
-					await (cpDb as any).delete(user).where(eq(user.id, userId));
+					await cpDb.delete(user).where(eq(user.id, userId));
 				} catch {
 					console.error("[createUnclaimed] CP user cleanup failed after profile insert error", userId);
 				}
@@ -928,15 +899,9 @@ export const serverCustomerProfilesRouter = {
 				}
 			}
 
-			const cpDb = context.honoContext.get("controlPanelDb");
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available",
-				});
-			}
+			const cpDb = getControlPanelDb(context);
 
-			// biome-ignore lint/suspicious/noExplicitAny: cpDb is untyped from Hono context
-			const existingUser = await (cpDb as any).query.user.findFirst({
+			const existingUser = await cpDb.query.user.findFirst({
 				where: eq(user.id, profile.userId),
 			});
 			if (!existingUser) {
@@ -949,8 +914,7 @@ export const serverCustomerProfilesRouter = {
 			}
 
 			// Check for email collision with another user
-			// biome-ignore lint/suspicious/noExplicitAny: cpDb is untyped from Hono context
-			const collision = await (cpDb as any).query.user.findFirst({
+			const collision = await cpDb.query.user.findFirst({
 				where: eq(user.email, input.email),
 			});
 			if (collision && collision.id !== existingUser.id) {
@@ -960,36 +924,35 @@ export const serverCustomerProfilesRouter = {
 			}
 
 			// Swap placeholder → real email and mark verified so magic-link works
-			// biome-ignore lint/suspicious/noExplicitAny: cpDb is untyped from Hono context
-			await (cpDb as any)
+			await cpDb
 				.update(user)
 				.set({ email: input.email, emailVerified: true, updatedAt: new Date() })
 				.where(eq(user.id, existingUser.id));
 
-			// Dispatch magic-link sign-in email BEFORE clearing the unclaimed flag.
-			// If dispatch fails we throw without touching isUnclaimed, so the profile
-			// stays isUnclaimed=true and staff can retry the full sendClaimLink flow
-			// without manual DB recovery.
-			try {
-				const auth = getBetterAuth(context.honoContext);
-				const frontendURL =
-					getEnvVar("CORS_ORIGIN") || getEnvVar("FRONTEND_URL") || "http://localhost:3021";
-				// biome-ignore lint/suspicious/noExplicitAny: better-auth api typing is dynamic
-				await (auth as any).api.signInMagicLink({
-					body: { email: input.email, callbackURL: `${frontendURL}/dashboard` },
-					headers: context.honoContext.req.raw.headers,
-				});
-			} catch (err) {
-				console.error("[customerProfiles.sendClaimLink] magic-link dispatch failed", err);
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Magic-link dispatch failed; email updated but claim link not sent",
-				});
-			}
-
-			// Email dispatched successfully — now clear the unclaimed flag.
-			await context.tenantDb
-				.update(customerProfiles)
-				.set({ isUnclaimed: false, updatedAt: new Date() })
+			// Dispatch magic-link sign-in email BEFORE clearing the unclaimed flag.
+			// If dispatch fails we throw without touching isUnclaimed, so the profile
+			// stays isUnclaimed=true and staff can retry the full sendClaimLink flow
+			// without manual DB recovery.
+			try {
+				const auth = getBetterAuth(context.honoContext);
+				const frontendURL =
+					getEnvVar("CORS_ORIGIN") || getEnvVar("FRONTEND_URL") || "http://localhost:3021";
+				// biome-ignore lint/suspicious/noExplicitAny: better-auth api typing is dynamic
+				await (auth as any).api.signInMagicLink({
+					body: { email: input.email, callbackURL: `${frontendURL}/dashboard` },
+					headers: context.honoContext.req.raw.headers,
+				});
+			} catch (err) {
+				console.error("[customerProfiles.sendClaimLink] magic-link dispatch failed", err);
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Magic-link dispatch failed; email updated but claim link not sent",
+				});
+			}
+
+			// Email dispatched successfully — now clear the unclaimed flag.
+			await context.tenantDb
+				.update(customerProfiles)
+				.set({ isUnclaimed: false, updatedAt: new Date() })
 				.where(eq(customerProfiles.id, input.customerProfileId));
 
 			return { success: true, email: input.email };

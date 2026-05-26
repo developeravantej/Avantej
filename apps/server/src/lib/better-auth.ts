@@ -319,9 +319,27 @@ function createBetterAuth(c?: Context) {
     expiresIn: 60 * 60 * 8, // 8 hours for development
     updateAge: 60 * 30, // Refresh every 30 minutes
   },
-  secret:
-    getEnvVar("BETTER_AUTH_SECRET") ||
-    "dev-secret-key-minimum-32-characters-long",
+  secret: (() => {
+    const s = getEnvVar("BETTER_AUTH_SECRET");
+    if (!s) {
+      // Two complementary production signals:
+      // 1. NODE_ENV=production — explicitly set in wrangler.jsonc vars
+      // 2. isHttps — true when BETTER_AUTH_URL is an https:// URL (prod deployment)
+      // Either signal triggers a hard startup failure; this prevents forgeable sessions
+      // from a publicly-known fallback key reaching production.
+      if (getEnvVar("NODE_ENV") === "production" || isHttps) {
+        throw new Error(
+          "BETTER_AUTH_SECRET is required in production. " +
+          "Set it via `wrangler secret put BETTER_AUTH_SECRET`."
+        );
+      }
+      console.error(
+        "[better-auth] BETTER_AUTH_SECRET is unset — using insecure dev fallback. DO NOT DEPLOY."
+      );
+      return "dev-secret-key-minimum-32-characters-long";
+    }
+    return s;
+  })(),
   baseURL: getEnvVar("BETTER_AUTH_URL") || "http://localhost:3000",
   advanced: {
     defaultCookieAttributes: {

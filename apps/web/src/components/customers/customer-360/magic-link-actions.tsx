@@ -18,11 +18,11 @@ import { Label } from "@/components/ui/label";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 
-const PLACEHOLDER_DOMAIN = "@ghl.placeholder";
+const PLACEHOLDER_DOMAINS = ["@ghl.placeholder", "@avantej.placeholder"];
 
 function isPlaceholder(email: string | null | undefined): boolean {
 	if (!email) return false;
-	return email.endsWith(PLACEHOLDER_DOMAIN);
+	return PLACEHOLDER_DOMAINS.some((d) => email.endsWith(d));
 }
 
 export function MagicLinkActions(props: {

@@ -120,6 +120,10 @@ export async function seedRBACData(
 		{ resource: "commission_payout", action: "read" },
 		{ resource: "commission_payout", action: "create" },
 		{ resource: "commission_payout", action: "update" },
+		{ resource: "commission_payout", action: "process" },
+		// Commission review (dispute resolution — resolve requires manager+)
+		{ resource: "commission_review", action: "read" },
+		{ resource: "commission_review", action: "resolve" },
 		// Package management (multi-staff Phase 1 — assign staff to package instances)
 		{ resource: "package_management", action: "read" },
 		{ resource: "package_management", action: "create" },

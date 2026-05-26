@@ -51,20 +51,41 @@ import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 
-// Multi-port allowlist for dev/E2E (3001 = web, 4001 = E2E worktrees).
-// Env CORS_ORIGIN adds a prod origin per-request.
-const ALLOWED_ORIGINS = new Set<string>([
-  "http://localhost:3001",
-  "http://localhost:3021",
-  "http://localhost:4001",
-  "http://avantej.localhost:3021",
-  "http://avantej.localhost:3001",
-]);
+// SI-009: localhost origins are only allowed in non-production environments.
+// In production, only the CORS_ORIGIN env var (set per-deployment) grants access.
+// Production is detected by NODE_ENV=production (set in wrangler.jsonc vars) or
+// ENVIRONMENT=production (Wrangler-conventional alternative).
+function isProdEnv(env: Record<string, unknown>): boolean {
+  return env?.NODE_ENV === "production" || env?.ENVIRONMENT === "production";
+}
 function getAllowedOrigin(env: Record<string, unknown>, requestOrigin?: string): string {
-  if (requestOrigin && ALLOWED_ORIGINS.has(requestOrigin)) return requestOrigin;
-  const envOrigin = env?.CORS_ORIGIN;
-  if (requestOrigin && typeof envOrigin === "string" && envOrigin === requestOrigin) return requestOrigin;
-  return ((typeof envOrigin === "string" && envOrigin) || "http://localhost:3001").trim();
+  const isProd = isProdEnv(env);
+  const envOrigin = typeof env?.CORS_ORIGIN === "string" ? env.CORS_ORIGIN.trim() : undefined;
+
+  // Build the full allowed-origins set for this request
+  const allowed = new Set<string>();
+  if (envOrigin) {
+    // Support comma-separated list of origins in CORS_ORIGIN
+    for (const o of envOrigin.split(",").map((s) => s.trim()).filter(Boolean)) {
+      allowed.add(o);
+    }
+  }
+  if (!isProd) {
+    // Localhost origins are only safe in non-production environments
+    allowed.add("http://localhost:3001");
+    allowed.add("http://localhost:3021");
+    allowed.add("http://localhost:4001");
+    allowed.add("http://avantej.localhost:3021");
+    allowed.add("http://avantej.localhost:3001");
+  }
+
+  if (requestOrigin && allowed.has(requestOrigin)) return requestOrigin;
+
+  // Default: first env origin if available; empty string in production (no echo),
+  // fallback to localhost:3001 only in dev when CORS_ORIGIN is unset.
+  const firstEnvOrigin = envOrigin?.split(",")[0]?.trim();
+  if (firstEnvOrigin) return firstEnvOrigin;
+  return isProd ? "" : "http://localhost:3001";
 }
 
 // Combine base router with server-specific routers

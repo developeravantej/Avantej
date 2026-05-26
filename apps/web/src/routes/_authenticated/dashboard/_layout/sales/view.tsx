@@ -722,7 +722,7 @@ const STATUS_PILLS = [
 	{ value: "completed", label: "Paid", dot: "bg-blue-700" },
 	{ value: "confirmed", label: "Partial", dot: "bg-amber-700" },
 	{ value: "overdue", label: "Overdue", dot: "bg-red-700" },
-	{ value: "cancelled", label: "Refunded", dot: "bg-[#737373]" },
+	{ value: "cancelled", label: "Cancelled", dot: "bg-[#737373]" },
 ] as const;
 
 function FilterBar({

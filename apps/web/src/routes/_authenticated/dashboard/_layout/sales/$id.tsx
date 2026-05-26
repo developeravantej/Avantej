@@ -325,6 +325,18 @@ function SalesOrderDetailPage() {
 		enabled: !!organizationId,
 	});
 
+	const { data: lineItemsData } = useQuery({
+		queryKey: ["pos-receipt-items", organizationId, id],
+		queryFn: async () => {
+			if (!organizationId) return null;
+			return client.pos.getReceiptData({ organizationId, salesOrderId: id });
+		},
+		enabled: !!organizationId,
+		retry: 1,
+	});
+
+	const lineItems = lineItemsData?.items ?? [];
+
 	const {
 		data: receiptDataRaw,
 		isLoading: receiptLoading,
@@ -390,7 +402,7 @@ function SalesOrderDetailPage() {
 					</span>
 				</div>
 				<div className="ml-auto flex items-center gap-2">
-					{canCancelSale && order.status === "confirmed" && (
+					{canCancelSale && (order.status === "confirmed" || order.status === "completed") && (
 						<button
 							type="button"
 							className="flex items-center gap-2 rounded-lg bg-red-600 text-white px-4 py-2 text-xs font-semibold transition hover:bg-red-700"
@@ -481,6 +493,35 @@ function SalesOrderDetailPage() {
 					</dl>
 				</div>
 
+				{/* Line Items */}
+				{lineItems.length > 0 && (
+					<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
+						<div className="border-b border-[#e5e5e5] px-5 py-4">
+							<h2 className="text-base font-bold text-[#0a0a0a]">Line Items</h2>
+						</div>
+						<table className="w-full">
+							<thead className="bg-[#f3f3f3]">
+								<tr className="border-b border-[#e5e5e5]">
+									<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">Description</th>
+									<th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-[#737373]">Qty</th>
+									<th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-[#737373]">Unit Price</th>
+									<th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-[#737373]">Total</th>
+								</tr>
+							</thead>
+							<tbody className="divide-y divide-[#e5e5e5]">
+								{lineItems.map((it, idx) => (
+									<tr key={idx} className="hover:bg-[#fafafa]">
+										<td className="px-4 py-3 text-sm text-[#0a0a0a]">{it.description ?? it.serviceName ?? "Item"}</td>
+										<td className="px-4 py-3 text-right font-mono tabular-nums text-sm text-[#0a0a0a]">{it.quantity}</td>
+										<td className="px-4 py-3 text-right font-mono tabular-nums text-sm text-[#0a0a0a]">{formatPrice(it.unitPrice, "MYR")}</td>
+										<td className="px-4 py-3 text-right font-mono tabular-nums text-sm font-semibold text-[#0a0a0a]">{formatPrice(it.totalPrice, "MYR")}</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				)}
+
 				{/* Invoices */}
 				{invoices.length > 0 && (
 					<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
@@ -556,7 +597,7 @@ function SalesOrderDetailPage() {
 				/>
 			)}
 
-			{organizationId && canCancelSale && order.status === "confirmed" && (
+			{organizationId && canCancelSale && (order.status === "confirmed" || order.status === "completed") && (
 				<CancelSaleDialog
 					open={cancelDialogOpen}
 					onOpenChange={setCancelDialogOpen}

@@ -464,7 +464,7 @@ export function PayoutsTab({
 	onSelectRecipient: (id: string) => void;
 }) {
 	const { hasPermission } = useUserContext();
-	const canRunBatch = hasPermission("commission_payout:update");
+	const canRunBatch = hasPermission("commission_payout:process");
 
 	const [activeSubTab, setActiveSubTab] = useState<SubTab>("all");
 	const [drawerOpen, setDrawerOpen] = useState(false);

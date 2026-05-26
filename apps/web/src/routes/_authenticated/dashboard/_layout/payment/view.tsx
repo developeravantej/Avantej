@@ -38,14 +38,14 @@ function RouteComponent() {
 	});
 
 	const paymentsData: PaymentRow[] = invoicesApiData.map((item) => ({
-		date: item.date ? item.date.toISOString() : null,
+		date: item.date ? new Date(item.date).toISOString() : null,
 		invoice: item.invoiceNumber,
 		sales_order: item.salesOrderId ?? null,
 		payment_id: item.paymentId ?? null,
 		mode: item.paymentMode ?? null,
 		total_paid: item.totalAmount,
 		customer_name: item.customerName,
-		created_by: item.createdBy,
+		created_by: item.createdBy ?? null,
 		e_invoice_status: item.eInvoiceStatus ?? null,
 	}));
 
