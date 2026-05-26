@@ -174,7 +174,6 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 			},
 			{ title: "Tax Rates", url: "/dashboard/settings/tax-rates", icon: Tag },
 			{ title: "Expenses", url: "/dashboard/expenses/view", icon: Receipt },
-			{ title: "Products", url: "/dashboard/products/view", icon: Package },
 			{ title: "Packages", url: "/dashboard/packages/view", icon: Package, permission: "service_management:read" },
 		],
 	},
@@ -242,6 +241,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 		collapsible: true,
 		defaultOpen: false,
 		items: [
+			{ title: "Products", url: "/dashboard/products/view", icon: Package },
 			{
 				title: "Notifications",
 				url: "/dashboard/notifications/view",

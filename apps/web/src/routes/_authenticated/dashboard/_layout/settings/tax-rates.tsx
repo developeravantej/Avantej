@@ -282,8 +282,17 @@ function TaxRatesPage() {
 	// ─── Guard ────────────────────────────────────────────────────────────────
 	if (!organizationId) {
 		return (
-			<div className="-m-6 flex min-h-screen items-center justify-center">
-				<p className="text-sm text-[#737373]">Select an organization to manage tax rates.</p>
+			<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+				<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+					<div className="flex items-center gap-3 text-sm">
+						<span className="text-muted-foreground">Settings</span>
+						<span className="text-[#a3a3a3]">/</span>
+						<span className="font-semibold">Tax Rates</span>
+					</div>
+				</header>
+				<div className="flex flex-1 items-center justify-center">
+					<p className="text-sm text-[#737373]">Select an organization to manage tax rates.</p>
+				</div>
 			</div>
 		);
 	}
@@ -292,56 +301,47 @@ function TaxRatesPage() {
 
 	// ─── Render ───────────────────────────────────────────────────────────────
 	return (
-		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6">
-			{/* Page header */}
-			<div className="mb-5 flex items-end justify-between">
-				<div>
-					<p className="mb-1 text-[10px] font-bold tracking-widest uppercase text-[#737373]">
-						TAX CONFIGURATION
-					</p>
-					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-						Tax Rates
-					</h1>
-					<p className="mt-1 text-sm text-[#737373]">
-						{allRows.length} rate{allRows.length !== 1 ? "s" : ""} · {activeCount} active
-					</p>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Settings</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Tax Rates</span>
+				</div>
+				<div className="ml-8 flex items-center gap-1 rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-1">
+					{(
+						[
+							{ key: "all", label: `All (${allRows.length})` },
+							{ key: "active", label: `Active (${activeCount})` },
+							{ key: "inactive", label: `Inactive (${inactiveCount})` },
+						] as const
+					).map(({ key, label }) => (
+						<button
+							key={key}
+							type="button"
+							onClick={() => navigate({ search: { filter: key } })}
+							className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${filter === key ? "bg-[#0a0a0a] text-white" : "text-muted-foreground hover:text-foreground"}`}
+						>
+							{label}
+						</button>
+					))}
 				</div>
 				{canCreate && (
-					<button
-						type="button"
-						onClick={openCreate}
-						disabled={isMutating}
-						className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition disabled:opacity-50"
-					>
-						<Plus className="h-4 w-4" />
-						New Rate
-					</button>
+					<div className="ml-auto flex items-center gap-2">
+						<button
+							type="button"
+							onClick={openCreate}
+							disabled={isMutating}
+							className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626] disabled:opacity-50"
+						>
+							<Plus className="h-3.5 w-3.5" />
+							New Rate
+						</button>
+					</div>
 				)}
-			</div>
+			</header>
 
-			{/* Filter pills */}
-			<div className="mb-5 flex flex-wrap items-center gap-2">
-				{(
-					[
-						{ key: "all", label: `All (${allRows.length})` },
-						{ key: "active", label: `Active (${activeCount})` },
-						{ key: "inactive", label: `Inactive (${inactiveCount})` },
-					] as const
-				).map(({ key, label }) => (
-					<button
-						key={key}
-						type="button"
-						onClick={() => navigate({ search: { filter: key } })}
-						className={
-							filter === key
-								? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold"
-								: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium"
-						}
-					>
-						{label}
-					</button>
-				))}
-			</div>
+			<div className="flex flex-col gap-5 px-6 py-6">
 
 			{/* Error state */}
 			{isError && (
@@ -499,6 +499,8 @@ function TaxRatesPage() {
 					</div>
 				</div>
 			)}
+
+			</div>
 
 			{/* ── Create / Edit Dialog ──────────────────────────────────────────── */}
 			<Dialog

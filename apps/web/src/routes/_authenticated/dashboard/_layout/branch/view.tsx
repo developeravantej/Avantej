@@ -869,25 +869,16 @@ function RouteComponent() {
 
 	return (
 		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
-			{/* ── Page header ──────────────────────────────────────────────────── */}
-			<div className="shrink-0 flex items-start justify-between px-6 pt-6 pb-5">
-				<div>
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
-						LOCATIONS
-					</p>
-					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-						Branch Hierarchy
-					</h1>
-					<p className="text-sm mt-1 text-[#737373]">
-						{isLoadingNodes ? "—" : totalBranches > 0
-							? `${uniqueRegions > 0 ? `${uniqueRegions} regions · ` : ""}${totalBranches} branches · ${totalMembers} members`
-							: "Click any node to expand or view details."}
-					</p>
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Branch</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Overview</span>
 				</div>
-				<div className="flex items-center gap-2">
+				<div className="ml-auto flex items-center gap-2">
 					<button
 						type="button"
-						className="inline-flex items-center gap-1.5 bg-white border border-[#e5e5e5] text-[#0a0a0a] px-3.5 py-2 rounded-[10px] text-[13px] font-medium hover:bg-[#f3f3f3] transition"
+						className="flex items-center gap-2 rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-xs font-semibold transition hover:bg-[#f3f3f3]"
 						onClick={handleExpandAll}
 					>
 						<Maximize2 className="h-4 w-4" />
@@ -896,17 +887,17 @@ function RouteComponent() {
 					<Link to="/dashboard/branch/create">
 						<button
 							type="button"
-							className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition"
+							className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626]"
 						>
 							<Plus className="h-4 w-4" />
 							Add Branch
 						</button>
 					</Link>
 				</div>
-			</div>
+			</header>
 
 			{/* ── Main content ─────────────────────────────────────────────────── */}
-			<div className="flex-1 min-h-0 flex gap-5 px-6 pb-6 overflow-hidden">
+			<div className="flex-1 min-h-0 flex gap-5 px-6 py-6 overflow-hidden">
 				{/* Tree panel */}
 				<div className="w-80 shrink-0 flex flex-col overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white p-4">
 					<div className="flex-1 overflow-y-auto pr-1">

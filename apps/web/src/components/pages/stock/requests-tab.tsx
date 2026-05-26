@@ -5,6 +5,7 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import { client } from "@/utils/orpc";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -463,10 +464,6 @@ export function StockRequestsTabPage() {
 		);
 	}
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
 	if (isError) {
 		return (
 			<div className="p-6">
@@ -477,6 +474,7 @@ export function StockRequestsTabPage() {
 
 	// ---- Render ----
 	return (
+		<Skeleton name="stock-requests-tab" loading={isLoading} fallback={<PageLoader />}>
 		<div className="p-6 space-y-6">
 			{/* Header */}
 			<div className="flex items-center justify-between">
@@ -721,5 +719,6 @@ export function StockRequestsTabPage() {
 				</DialogContent>
 			</Dialog>
 		</div>
+		</Skeleton>
 	);
 }

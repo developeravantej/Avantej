@@ -28,6 +28,7 @@ import { formatPrice, rmToCents } from "@/lib/money";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { Plus, Edit, Percent, Search } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import { useState } from "react";
 
 type PromotionType = "percentage" | "fixed_amount" | "free_item" | "buy_x_get_y";
@@ -348,8 +349,6 @@ export function PromotionsPage() {
 		);
 	}
 
-	if (isLoading) return <PageLoader />;
-
 	if (isError) {
 		return (
 			<div className="p-6">
@@ -363,6 +362,7 @@ export function PromotionsPage() {
 	}
 
 	return (
+		<Skeleton name="services-promotions-page" loading={isLoading} fallback={<PageLoader />}>
 		<div className="flex h-full flex-col overflow-hidden">
 			{/* Action bar */}
 			<div className="flex shrink-0 items-center justify-between pt-2 pb-4">
@@ -879,5 +879,6 @@ export function PromotionsPage() {
 				</DialogContent>
 			</Dialog>
 		</div>
+		</Skeleton>
 	);
 }

@@ -7,8 +7,6 @@ import { CustomerDetailSheet } from "@/components/customers/customer-detail-shee
 import { CustomerProfilePanel } from "@/components/customers/customer-profile-panel";
 import { CustomersFilterSidebar } from "@/components/customers/customers-filter-sidebar";
 import { CreateInvitationDialog } from "@/components/invitations/create-invitation-dialog";
-import { PackagesTab } from "@/components/pages/customers/v2";
-import { PosWorkflow } from "@/components/pos/pos-workflow";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
@@ -20,7 +18,6 @@ export const Route = createFileRoute(
 		await requirePermission("customer_management:read");
 	},
 	validateSearch: (search: Record<string, unknown>) => ({
-		tab: (search.tab as string | undefined) ?? "customers",
 		customer: (search.customer as string | undefined) ?? undefined,
 		showDeleted:
 			search.showDeleted === true || search.showDeleted === "true"
@@ -29,12 +26,6 @@ export const Route = createFileRoute(
 	}),
 	component: CustomersV2Page,
 });
-
-const NAV_TABS = [
-	{ id: "customers", label: "Customers" },
-	{ id: "packages", label: "Packages" },
-	{ id: "new-sale", label: "New Sale" },
-] as const;
 
 const PAGE_LIMIT = 50;
 
@@ -47,10 +38,9 @@ type DirectoryRow = {
 };
 
 function CustomersV2Page() {
-	const { tab, customer, showDeleted: showDeletedSearch } = Route.useSearch();
+	const { customer, showDeleted: showDeletedSearch } = Route.useSearch();
 	const showDeleted = showDeletedSearch === true;
 	const navigate = Route.useNavigate();
-	const activeTab = NAV_TABS.some((t) => t.id === tab) ? tab : "customers";
 
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
@@ -58,8 +48,6 @@ function CustomersV2Page() {
 	const canInvite = hasPermission("user_management:create");
 	const [inviteOpen, setInviteOpen] = useState(false);
 	const [editSheetOpen, setEditSheetOpen] = useState(false);
-	const currentOrg = userContext?.organizations.find((o) => o.id === organizationId);
-	const accessibleNodeIds = currentOrg?.hierarchy?.member?.accessibleNodeIds ?? [];
 
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebounce(search, 300);
@@ -128,33 +116,23 @@ function CustomersV2Page() {
 		});
 	}, [rows, selectedMemberId, navigate]);
 
-	const selectedCustomer = rows.find((r) => r.memberId === selectedMemberId);
-	const selectedUserId = selectedCustomer?.userId ?? null;
 
 	return (
-		<div className="-m-6 flex h-screen flex-col bg-[#f3f3f3] p-6">
-			{/* ── Page header ─────────────────────────────────────────────────── */}
-			<div className="mb-5 flex items-end justify-between shrink-0">
-				<div>
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
-						Customer Directory
-					</p>
-					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-						Customers
-					</h1>
-					<p className="mt-1 text-sm text-[#737373]">
-						<span className="font-mono tabular-nums">{totalCount.toLocaleString()}</span>{" "}
-						customer{totalCount === 1 ? "" : "s"}
-					</p>
+		<div className="-m-6 flex h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Customers</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Directory</span>
 				</div>
-				<div className="flex items-center gap-2">
+				<div className="ml-auto flex items-center gap-2">
 					{selectedMemberId && (
 						<button
 							type="button"
 							onClick={() => setEditSheetOpen(true)}
-							className="inline-flex items-center gap-1.5 border border-[#e5e5e5] bg-white text-[#0a0a0a] px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#f3f3f3] transition"
+							className="flex items-center gap-2 rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-xs font-semibold transition hover:bg-[#f3f3f3]"
 						>
-							<Pencil className="h-4 w-4" />
+							<Pencil className="h-3.5 w-3.5" />
 							Edit Profile
 						</button>
 					)}
@@ -162,42 +140,17 @@ function CustomersV2Page() {
 						<button
 							type="button"
 							onClick={() => setInviteOpen(true)}
-							className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition"
+							className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626]"
 						>
-							<Plus className="h-4 w-4" />
+							<Plus className="h-3.5 w-3.5" />
 							Add Customer
 						</button>
 					)}
 				</div>
-			</div>
-
-			{/* ── Tab pills ───────────────────────────────────────────────────── */}
-			<div className="mb-5 flex flex-wrap items-center gap-2 shrink-0">
-				{NAV_TABS.map((t) => {
-					const isActive = activeTab === t.id;
-					return (
-						<button
-							key={t.id}
-							type="button"
-							onClick={() =>
-								navigate({
-									search: (prev) => ({ ...prev, tab: t.id }),
-								})
-							}
-							className={
-								isActive
-									? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold transition"
-									: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#fafafa] px-3.5 py-1.5 text-[13px] font-medium transition"
-							}
-						>
-							{t.label}
-						</button>
-					);
-				})}
-			</div>
+			</header>
 
 			{/* ── Split-pane: sidebar + tab content ────────────────────────────── */}
-			<div className="flex flex-1 min-h-0 gap-5 overflow-hidden">
+			<div className="flex flex-1 min-h-0 gap-5 overflow-hidden px-6 py-6">
 				<div className="h-full w-[260px] shrink-0">
 					<CustomersFilterSidebar
 						customers={sidebarCustomers}
@@ -233,23 +186,10 @@ function CustomersV2Page() {
 										: "Invite your first customer to get started."
 								}
 							/>
-						) : activeTab === "customers" ? (
+						) : (
 							<CustomerProfilePanel
 								memberId={selectedMemberId}
 								showBackLink={false}
-							/>
-						) : activeTab === "new-sale" ? (
-							<PosWorkflow
-								key={selectedMemberId}
-								prefillCustomerId={selectedMemberId}
-								showHeader={false}
-								hideCustomerStep
-							/>
-						) : (
-							<PackagesTab
-								organizationId={organizationId}
-								clientUserId={selectedUserId ?? undefined}
-								accessibleNodeIds={accessibleNodeIds}
 							/>
 						)}
 					</div>

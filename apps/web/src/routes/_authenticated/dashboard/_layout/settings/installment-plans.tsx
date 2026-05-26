@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Star, CreditCard } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { cn } from "@/lib/utils";
@@ -512,7 +513,14 @@ function InstallmentPlansPage() {
 
 	if (!organizationId) {
 		return (
-			<div className="-m-6 flex h-screen flex-col">
+			<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+				<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+					<div className="flex items-center gap-3 text-sm">
+						<span className="text-muted-foreground">Settings</span>
+						<span className="text-[#a3a3a3]">/</span>
+						<span className="font-semibold">Installment Plans</span>
+					</div>
+				</header>
 				<div className="flex flex-1 items-center justify-center text-sm text-[#6b7170]">
 					Select an organization to manage installment plans.
 				</div>
@@ -520,61 +528,38 @@ function InstallmentPlansPage() {
 		);
 	}
 
-	if (isLoading) return <PageLoader />;
-
 	// ─── Render ───────────────────────────────────────────────────────────────
 
 	return (
-		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6">
-			{/* Page header */}
-			<div className="mb-5 flex items-end justify-between">
-				<div>
-					<p className="mb-1 text-[10px] font-bold tracking-widest uppercase text-[#737373]">
-						INSTALLMENT PLANS
-					</p>
-					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-						Installment Plans
-					</h1>
-					<p className="mt-1 text-sm text-[#737373]">
-						{allRows.length} plan{allRows.length !== 1 ? "s" : ""} · {activeCount} active
-					</p>
+		<Skeleton name="settings-installment-plans" loading={isLoading} fallback={<PageLoader />}>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Settings</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Installment Plans</span>
 				</div>
-				<button
-					type="button"
-					onClick={openCreate}
-					disabled={isMutating}
-					className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition disabled:opacity-50 disabled:cursor-not-allowed"
-				>
-					<Plus className="h-4 w-4" />
-					New Plan
-				</button>
-			</div>
-
-			{/* Filter + sample amount strip */}
-			<div className="mb-5 flex flex-wrap items-center gap-2">
-				{(
-					[
-						{ key: "all", label: `All (${allRows.length})` },
-						{ key: "active", label: `Active (${activeCount})` },
-						{ key: "inactive", label: `Inactive (${inactiveCount})` },
-					] as const
-				).map(({ key, label }) => (
-					<button
-						key={key}
-						type="button"
-						onClick={() => navigate({ search: { filter: key } })}
-						className={
-							filter === key
-								? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold"
-								: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium"
-						}
-					>
-						{label}
-					</button>
-				))}
-
+				<div className="ml-8 flex items-center gap-1 rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-1">
+					{(
+						[
+							{ key: "all", label: `All (${allRows.length})` },
+							{ key: "active", label: `Active (${activeCount})` },
+							{ key: "inactive", label: `Inactive (${inactiveCount})` },
+						] as const
+					).map(({ key, label }) => (
+						<button
+							key={key}
+							type="button"
+							onClick={() => navigate({ search: { filter: key } })}
+							className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${filter === key ? "bg-[#0a0a0a] text-white" : "text-muted-foreground hover:text-foreground"}`}
+						>
+							{label}
+						</button>
+					))}
+				</div>
+				<div className="ml-auto flex items-center gap-2">
 					{/* Sample amount input */}
-					<div className="ml-auto flex items-center gap-1.5 text-xs text-[#737373]">
+					<div className="flex items-center gap-1.5 text-xs text-[#737373]">
 						<span>Sample amount</span>
 						<div className="flex items-center gap-1 rounded-lg border border-[#e5e5e5] bg-white px-2.5 py-1">
 							<span className="font-medium text-[#737373]">RM</span>
@@ -594,7 +579,19 @@ function InstallmentPlansPage() {
 							/>
 						</div>
 					</div>
-			</div>
+					<button
+						type="button"
+						onClick={openCreate}
+						disabled={isMutating}
+						className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626] disabled:opacity-50 disabled:cursor-not-allowed"
+					>
+						<Plus className="h-3.5 w-3.5" />
+						New Plan
+					</button>
+				</div>
+			</header>
+
+			<div className="flex flex-col gap-5 px-6 py-6">
 
 			{/* Error */}
 			{isError && (
@@ -643,6 +640,8 @@ function InstallmentPlansPage() {
 					))}
 				</div>
 			)}
+
+			</div>
 
 			{/* ── Create / Edit Dialog ─────────────────────────────────────────── */}
 			<Dialog
@@ -864,5 +863,6 @@ function InstallmentPlansPage() {
 				</DialogContent>
 			</Dialog>
 		</div>
+		</Skeleton>
 	);
 }

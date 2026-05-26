@@ -375,34 +375,26 @@ function RouteComponent() {
 	// ── Render ────────────────────────────────────────────────────────────
 
 	return (
-		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6 flex flex-col gap-5">
-			{/* ── Page header ── */}
-			<div className="flex items-end justify-between">
-				<div>
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
-						CANCELLED SALES
-					</p>
-					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-						Cancelled Sales
-					</h1>
-					<p className="mt-1 text-sm text-[#737373]">
-						{isLoading
-							? "Loading…"
-							: isFiltered
-								? `${rows.length} of ${allRows.length} cancellations`
-								: `${allRows.length} cancellation${allRows.length !== 1 ? "s" : ""}${allRows.length > 0 ? ` · ${formatPrice(totalVoided, "MYR")} voided` : ""}`}
-					</p>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Sales</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Cancelled</span>
 				</div>
-				<button
-					type="button"
-					onClick={handleExportCsv}
-					disabled={exporting || allRows.length === 0}
-					className="inline-flex items-center gap-1.5 bg-white border border-[#e5e5e5] text-[#0a0a0a] px-3.5 py-2 rounded-[10px] text-[13px] font-medium hover:bg-[#f3f3f3] transition disabled:opacity-50 disabled:cursor-not-allowed"
-				>
-					<Download className="h-4 w-4" />
-					{exporting ? "Exporting…" : "Export CSV"}
-				</button>
-			</div>
+				<div className="ml-auto flex items-center gap-2">
+					<button
+						type="button"
+						onClick={handleExportCsv}
+						disabled={exporting || allRows.length === 0}
+						className="flex items-center gap-2 rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-xs font-semibold transition hover:bg-[#f3f3f3] disabled:opacity-50 disabled:cursor-not-allowed"
+					>
+						<Download className="h-3.5 w-3.5" />
+						{exporting ? "Exporting…" : "Export CSV"}
+					</button>
+				</div>
+			</header>
+			<div className="flex flex-col gap-5 px-6 py-6">
 
 			{/* ── Table card ── */}
 			<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden flex flex-col">
@@ -633,6 +625,7 @@ function RouteComponent() {
 					</div>
 				)}
 			</div>
+		</div>
 		</div>
 	);
 }

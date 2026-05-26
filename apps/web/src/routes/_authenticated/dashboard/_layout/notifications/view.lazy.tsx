@@ -15,6 +15,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Bell } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 
 export const Route = createLazyFileRoute(
 	"/_authenticated/dashboard/_layout/notifications/view",
@@ -112,11 +113,8 @@ function NotificationsViewPage() {
 		);
 	}
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
 	return (
+		<Skeleton name="notifications-view" loading={isLoading} fallback={<PageLoader />}>
 		<div className="p-6 space-y-6">
 			{/* Header */}
 			<div className="flex items-center justify-between">
@@ -175,5 +173,6 @@ function NotificationsViewPage() {
 				<DataTable<NotificationRow, unknown> columns={columns} data={data} />
 			)}
 		</div>
+		</Skeleton>
 	);
 }

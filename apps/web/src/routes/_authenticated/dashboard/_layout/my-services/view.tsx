@@ -26,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Briefcase, Edit } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import { AssignedPackagesTable } from "@/features/my-services/components/assigned-packages-table";
 
 // ─── Route search schema ──────────────────────────────────────────────────────
@@ -200,8 +201,6 @@ function BufferTimeTab({ organizationId }: { organizationId: string }) {
 		},
 	];
 
-	if (isLoading) return <PageLoader />;
-
 	if (isError) {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-48 gap-3 text-destructive">
@@ -214,6 +213,7 @@ function BufferTimeTab({ organizationId }: { organizationId: string }) {
 	}
 
 	return (
+		<Skeleton name="my-services-view" loading={isLoading} fallback={<PageLoader />}>
 		<>
 			{myServices.length === 0 ? (
 				<EmptyState
@@ -344,6 +344,7 @@ function BufferTimeTab({ organizationId }: { organizationId: string }) {
 				</DialogContent>
 			</Dialog>
 		</>
+		</Skeleton>
 	);
 }
 

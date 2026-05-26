@@ -449,6 +449,13 @@ export function CustomerProfilePanel({
 							{label}
 						</TabsTrigger>
 					))}
+					<Link
+						to="/dashboard/sales/create"
+						search={{ customer: memberId }}
+						className="inline-flex items-center rounded-full border border-[#e5e5e5] bg-white px-3.5 py-1.5 text-[13px] font-medium text-[#737373] transition hover:bg-[#fafafa] hover:text-[#0a0a0a]"
+					>
+						New Sale
+					</Link>
 				</TabsList>
 
 				<TabsContent value="overview" className="mt-4 space-y-4">

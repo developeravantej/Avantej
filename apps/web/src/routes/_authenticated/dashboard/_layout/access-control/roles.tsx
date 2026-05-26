@@ -40,43 +40,28 @@ function RolesPage() {
 
 	return (
 		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
-			{/* ── Page header ─────────────────────────────────────────────── */}
-			<div className="shrink-0 px-6 pt-6 pb-4">
-				<div className="mb-4 flex items-end justify-between">
-					<div>
-						<p className="mb-1 text-[10px] font-bold tracking-widest uppercase text-[#737373]">
-							ACCESS CONTROL
-						</p>
-						<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-							Roles &amp; Permissions
-						</h1>
-						<p className="mt-1 text-sm text-[#737373]">
-							Define roles and configure permission levels for your team.
-						</p>
-					</div>
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Settings</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Access Control</span>
 				</div>
-
-				{/* ── Pill tabs ─────────────────────────────────────────────── */}
-				<div className="flex flex-wrap items-center gap-2">
+				<div className="ml-8 flex items-center gap-1 rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-1">
 					{TABS.map((t) => (
 						<button
 							key={t.id}
 							type="button"
 							onClick={() => navigate({ search: { tab: t.id, view } })}
-							className={
-								tab === t.id
-									? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold"
-									: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium"
-							}
+							className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${tab === t.id ? "bg-[#0a0a0a] text-white" : "text-muted-foreground hover:text-foreground"}`}
 						>
 							{t.label}
 						</button>
 					))}
 				</div>
-			</div>
+			</header>
 
 			{/* ── Content card — fills remaining height ─────────────────── */}
-			<div className="mx-6 mb-6 flex-1 overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
+			<div className="mx-6 my-6 flex-1 overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
 				<div className="flex h-full min-h-0 overflow-hidden">{content}</div>
 			</div>
 		</div>

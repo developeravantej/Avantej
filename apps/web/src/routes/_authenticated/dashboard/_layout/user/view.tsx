@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -549,27 +550,16 @@ function UserViewPage() {
 		);
 	}
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
 	return (
-		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6">
-			{/* Page header */}
-			<div className="mb-5 flex items-end justify-between">
-				<div>
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
-						EMPLOYEE DIRECTORY
-					</p>
-					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-						Employees
-					</h1>
-					<p className="mt-1 text-sm text-[#737373]">
-						{isLoading ? "—" : `${memberRows.length} total · grouped by role`}
-					</p>
+		<Skeleton name="user-view" loading={isLoading} fallback={<PageLoader />}>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Users</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Members</span>
 				</div>
-				<div className="flex items-center gap-2">
-					{/* Search */}
+				<div className="ml-auto flex items-center gap-2">
 					<div className="flex items-center gap-2 rounded-xl border border-[#e5e5e5] bg-white px-3 py-2.5">
 						<Search className="h-4 w-4 text-[#737373] flex-shrink-0" />
 						<input
@@ -580,17 +570,17 @@ function UserViewPage() {
 							className="flex-1 bg-transparent text-sm outline-none placeholder:text-[#737373] text-[#0a0a0a] w-40"
 						/>
 					</div>
-					{/* Invite */}
 					<button
 						type="button"
 						onClick={() => setInviteOpen(true)}
-						className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition"
+						className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626]"
 					>
-						<Plus className="h-4 w-4" />
+						<Plus className="h-3.5 w-3.5" />
 						Invite
 					</button>
 				</div>
-			</div>
+			</header>
+			<div className="px-6 py-6">
 
 			{/* Role groups card */}
 			<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
@@ -635,5 +625,7 @@ function UserViewPage() {
 				/>
 			)}
 		</div>
+		</div>
+		</Skeleton>
 	);
 }

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tag } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import DataTable from "@/components/tables/brands/view/data-table";
 import { columns } from "@/components/tables/brands/view/columns";
 import type { BrandRow } from "@/components/tables/brands/view/columns";
@@ -66,10 +67,6 @@ export function BrandsTabPage() {
 		);
 	}
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
 	if (isError) {
 		return (
 			<div className="flex flex-col items-center justify-center py-12">
@@ -95,6 +92,7 @@ export function BrandsTabPage() {
 	}));
 
 	return (
+		<Skeleton name="inventory-brands-tab" loading={isLoading} fallback={<PageLoader />}>
 		<>
 			{tableData.length === 0 && (
 				<EmptyState
@@ -111,5 +109,6 @@ export function BrandsTabPage() {
 				isMutating={deleteMutation.isPending}
 			/>
 		</>
+		</Skeleton>
 	);
 }

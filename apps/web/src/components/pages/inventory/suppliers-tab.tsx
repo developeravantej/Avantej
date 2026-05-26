@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -82,10 +83,6 @@ export function SuppliersTabPage() {
 		);
 	}
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
 	if (isError) {
 		return (
 			<div className="flex flex-col items-center justify-center py-12">
@@ -105,6 +102,7 @@ export function SuppliersTabPage() {
 	}
 
 	return (
+		<Skeleton name="inventory-suppliers-tab" loading={isLoading} fallback={<PageLoader />}>
 		<div className="space-y-6">
 			{/* Header */}
 			<PageHeader
@@ -154,5 +152,6 @@ export function SuppliersTabPage() {
 				isDeactivating={deactivateMutation.isPending}
 			/>
 		</div>
+		</Skeleton>
 	);
 }

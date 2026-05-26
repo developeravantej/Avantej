@@ -109,23 +109,23 @@ export function PaymentStep({
 	const [tenderedTouched, setTenderedTouched] = useState(false);
 
 	useEffect(() => {
-		// Keep cash tendered synced to the total until the user edits it. The default tax
+		// Keep cash tendered synced to the due-now amount until the user edits it. The default tax
 		// rate loads asynchronously; without this, an auto-tendered PRE-TAX amount falls
 		// below the taxed total and silently disables Confirm with no on-screen reason.
 		if (
 			method === "cash" &&
 			!tenderedTouched &&
-			totalCents > 0 &&
-			amountTenderedCents !== totalCents
+			dueNowCents > 0 &&
+			amountTenderedCents !== dueNowCents
 		) {
 			// react-doctor-disable-next-line react-doctor/no-prop-callback-in-effect -- tightly coupled POS step coordination, would benefit from Provider but scope deferred
-			onAmountTenderedChange(totalCents);
+			onAmountTenderedChange(dueNowCents);
 		}
-	}, [method, tenderedTouched, amountTenderedCents, totalCents, onAmountTenderedChange]);
+	}, [method, tenderedTouched, amountTenderedCents, dueNowCents, onAmountTenderedChange]);
 
 	const changeDueCents =
-		method === "cash" && amountTenderedCents >= totalCents
-			? amountTenderedCents - totalCents
+		method === "cash" && amountTenderedCents >= dueNowCents
+			? amountTenderedCents - dueNowCents
 			: null;
 
 	const packageItems = items.filter((i) => i.type === "package" || i.type === "service");
@@ -147,7 +147,17 @@ export function PaymentStep({
 		code: p.code,
 		name: p.name,
 		numInstallments: p.numInstallments,
+		pricePremiumBps: p.pricePremiumBps ?? 0,
 	}));
+
+	const selectedPlanOption = planOptions.find((p) => p.id === selectedInstallmentPlanId) ?? null;
+	// Amount due at POS = first instalment only (total with premium ÷ numInstallments)
+	const dueNowCents = selectedPlanOption
+		? Math.ceil(
+				(totalCents * (1 + selectedPlanOption.pricePremiumBps / 10000)) /
+					selectedPlanOption.numInstallments,
+			)
+		: totalCents;
 
 	// Trainer list — only fetched when a package item is in the cart
 	const { data: trainers = [] } = useQuery({
@@ -232,10 +242,10 @@ export function PaymentStep({
 							<Input
 								id="cash-tendered"
 								type="number"
-								min={centsToRm(totalCents)}
+								min={centsToRm(dueNowCents)}
 								step="0.01"
 								className="pl-9"
-								placeholder={centsToRm(totalCents)}
+								placeholder={centsToRm(dueNowCents)}
 								value={amountTenderedRm}
 								onChange={(e) => {
 									setTenderedTouched(true);
@@ -243,10 +253,10 @@ export function PaymentStep({
 								}}
 							/>
 						</div>
-						{amountTenderedCents > 0 && amountTenderedCents < totalCents && (
+						{amountTenderedCents > 0 && amountTenderedCents < dueNowCents && (
 							<p className="text-destructive text-xs">
-								Tendered amount is less than total. Please collect at least{" "}
-								{formatPrice(totalCents, "MYR")}.
+								Tendered amount is less than due today. Please collect at least{" "}
+								{formatPrice(dueNowCents, "MYR")}.
 							</p>
 						)}
 					</div>
@@ -288,6 +298,22 @@ export function PaymentStep({
 						<p className="text-muted-foreground text-xs">
 							No instalment plans configured. Will charge full amount.
 						</p>
+					)}
+					{selectedPlanOption && (
+						<div className="rounded-lg border border-[#e5e5e5] bg-[#f9f9f9] px-3 py-2.5 text-xs space-y-1 max-w-xs">
+							<div className="flex justify-between font-medium text-[#0a0a0a]">
+								<span>Due today (instalment 1/{selectedPlanOption.numInstallments})</span>
+								<span className="font-mono tabular-nums">{formatPrice(dueNowCents, "MYR")}</span>
+							</div>
+							{selectedPlanOption.pricePremiumBps > 0 && (
+								<div className="flex justify-between text-[#737373]">
+									<span>Total after premium ({(selectedPlanOption.pricePremiumBps / 100).toFixed(0)}%)</span>
+									<span className="font-mono tabular-nums">
+										{formatPrice(Math.round(totalCents * (1 + selectedPlanOption.pricePremiumBps / 10000)), "MYR")}
+									</span>
+								</div>
+							)}
+						</div>
 					)}
 				</div>
 			)}

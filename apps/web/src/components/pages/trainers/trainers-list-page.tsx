@@ -16,6 +16,7 @@ import {
 	BadgeCheck,
 } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import { type TrainerRow, type TrainerTier } from "@/components/trainers/TrainerCard";
 import { TrainerFormDialog, type FormState } from "@/components/trainers/TrainerFormDialog";
 import {
@@ -642,8 +643,6 @@ export function TrainersListPage() {
 		);
 	}
 
-	if (isLoading) return <PageLoader />;
-
 	if (isError) {
 		return (
 			<div className="p-6">
@@ -661,6 +660,7 @@ export function TrainersListPage() {
 		: undefined;
 
 	return (
+		<Skeleton name="trainers-list" loading={isLoading} fallback={<PageLoader />}>
 		<div className="flex h-full">
 			{/* ── Left list panel (300px) ── */}
 			<div className="flex w-[300px] shrink-0 flex-col border-r border-[#e5e5e5] bg-white">
@@ -833,5 +833,6 @@ export function TrainersListPage() {
 				/>
 			)}
 		</div>
+		</Skeleton>
 	);
 }

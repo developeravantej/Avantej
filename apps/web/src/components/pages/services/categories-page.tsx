@@ -4,6 +4,7 @@ import { client, orpc } from "@/utils/orpc";
 import DataTable from "@/components/tables/service-category/view/data-table";
 import { columns } from "@/components/tables/service-category/view/columns";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 
 export function ServiceCategoriesPage() {
 	const { data: userContext } = useUserContext();
@@ -26,10 +27,6 @@ export function ServiceCategoriesPage() {
 		);
 	}
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
 	if (isError) {
 		return (
 			<div className="flex min-h-96 items-center justify-center">
@@ -42,6 +39,7 @@ export function ServiceCategoriesPage() {
 	}
 
 	return (
+		<Skeleton name="services-categories-page" loading={isLoading} fallback={<PageLoader />}>
 		<div className="h-full overflow-hidden">
 			<DataTable
 				columns={columns}
@@ -50,5 +48,6 @@ export function ServiceCategoriesPage() {
 				isLoading={isLoading}
 			/>
 		</div>
+		</Skeleton>
 	);
 }

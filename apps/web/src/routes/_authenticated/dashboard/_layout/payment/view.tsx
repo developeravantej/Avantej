@@ -82,21 +82,15 @@ function RouteComponent() {
 	const count = isLoading ? null : paymentsData.length;
 
 	return (
-		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6 flex flex-col gap-5">
-			{/* ── Page header ── */}
-			<div className="flex items-end justify-between">
-				<div>
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
-						PAYMENT HISTORY
-					</p>
-					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-						Payment History
-					</h1>
-					<p className="mt-1 text-sm text-[#737373]">
-						{count !== null ? `${count} invoice payment${count !== 1 ? "s" : ""}` : "View and manage invoice payments."}
-					</p>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Finance</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Payments</span>
 				</div>
-			</div>
+			</header>
+			<div className="flex flex-col gap-5 px-6 py-6">
 
 			{/* ── Table card ── */}
 			<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
@@ -152,6 +146,7 @@ function RouteComponent() {
 					)}
 				</DialogContent>
 			</Dialog>
+		</div>
 		</div>
 	);
 }

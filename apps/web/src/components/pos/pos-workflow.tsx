@@ -434,6 +434,14 @@ export function PosWorkflow({
 		taxRateBps,
 	);
 
+	// Amount the customer pays at POS (first instalment when a plan is selected)
+	const dueNowCents = selectedPlan
+		? Math.ceil(
+				(totalCents * (1 + (selectedPlan.pricePremiumBps ?? 0) / 10000)) /
+					selectedPlan.numInstallments,
+			)
+		: totalCents;
+
 	const hasServiceItems = items.some(
 		(item) => item.type === "service" && item.refId,
 	);
@@ -445,7 +453,7 @@ export function PosWorkflow({
 	const hasPaymentMethod = paymentMethod !== null;
 	const cashOk =
 		paymentMethod !== "cash" ||
-		(amountTenderedCents >= totalCents && amountTenderedCents > 0);
+		(amountTenderedCents >= dueNowCents && amountTenderedCents > 0);
 	const isReadyToSubmit = hasCustomer && hasItems && hasPaymentMethod && cashOk;
 
 	// ── Promo re-validation on items change ───────────────────────────────────
@@ -1190,9 +1198,11 @@ export function PosWorkflow({
 											</div>
 										)}
 										<div className="flex items-center justify-between bg-[#f3f3f3] px-4 py-3">
-											<span className="text-base font-bold text-[#0a0a0a]">Total</span>
+											<span className="text-base font-bold text-[#0a0a0a]">
+												{selectedPlan ? `Due Today (1/${selectedPlan.numInstallments})` : "Total"}
+											</span>
 											<span className="font-mono tabular-nums text-xl font-bold text-[#0a0a0a]">
-												{formatPrice(totalCents, "MYR")}
+												{formatPrice(dueNowCents, "MYR")}
 											</span>
 										</div>
 									</div>
@@ -1393,9 +1403,17 @@ export function PosWorkflow({
 								)}
 								<hr className="border-t border-[#e5e5e5]" />
 								<div className="flex justify-between text-base font-extrabold text-[#0a0a0a]">
-									<span>Est. Total</span>
-									<span className="font-mono tabular-nums">{formatPrice(totalCents, "MYR")}</span>
+									<span>{selectedPlan ? "Due Today" : "Est. Total"}</span>
+									<span className="font-mono tabular-nums">{formatPrice(dueNowCents, "MYR")}</span>
 								</div>
+								{selectedPlan && totalCents !== dueNowCents && (
+									<div className="flex justify-between text-xs text-[#737373]">
+										<span>Full total ({selectedPlan.numInstallments} instalments)</span>
+										<span className="font-mono tabular-nums">
+											{formatPrice(Math.round(totalCents * (1 + (selectedPlan.pricePremiumBps ?? 0) / 10000)), "MYR")}
+										</span>
+									</div>
+								)}
 							</div>
 						</div>
 

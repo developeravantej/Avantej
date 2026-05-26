@@ -21,6 +21,7 @@ import { getPeriodDates, type Period } from "@/lib/period";
 import { cn } from "@/lib/utils";
 import { client } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 
 // ─── Route search schema ───────────────────────────────────────────────────────
 
@@ -383,7 +384,7 @@ function SalesTab({
 	if (isError) return <ErrorCard error={error} refetch={refetch} />;
 
 	return (
-		<div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+		<div className="flex flex-col">
 			{/* Filter bar */}
 			<FilterBar
 				search={search}
@@ -421,7 +422,7 @@ function SalesTab({
 			</div>
 
 			{/* Table */}
-			<div className="min-h-0 flex-1 overflow-hidden">
+			<div>
 				{isLoading ? (
 					<PageLoader />
 				) : (
@@ -455,17 +456,16 @@ interface PaymentsTabProps {
 function PaymentsTab({ data, isLoading, isError, error, refetch, onSelectPayment }: PaymentsTabProps) {
 	const columns = useMemo(() => buildColumns(onSelectPayment), [onSelectPayment]);
 
-	if (isLoading) return <PageLoader />;
 	if (isError) return <ErrorCard error={error} refetch={refetch} />;
 
 	return (
-		<div className="h-full overflow-hidden">
+		<Skeleton name="sales-view" loading={isLoading} fallback={<PageLoader />}>
 			<PaymentDataTable<PaymentRow, unknown>
 				columns={columns}
 				data={data}
 				emptyTitle="No payments found"
 			/>
-		</div>
+		</Skeleton>
 	);
 }
 
@@ -646,42 +646,37 @@ function RouteComponent() {
 	const paymentsCount = invoicesLoading ? null : paymentsData.length;
 
 	return (
-		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6 flex flex-col gap-5">
-			{/* ── Page header ─────────────────────────────────────────────────── */}
-			<div className="flex items-end justify-between">
-				<div>
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
-						SALES &amp; PAYMENTS
-					</p>
-					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-						Sales &amp; Payments
-					</h1>
-					<p className="mt-1 text-sm text-[#737373]">
-						{salesCount !== null ? `${salesCount} orders` : "All sales orders and payment status across branches."}
-					</p>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Sales</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Orders</span>
 				</div>
-				<div className="flex items-center gap-2">
+				<div className="ml-auto flex items-center gap-2">
 					<button
 						type="button"
-						className="inline-flex items-center gap-1.5 bg-white border border-[#e5e5e5] text-[#0a0a0a] px-3.5 py-2 rounded-[10px] text-[13px] font-medium hover:bg-[#f3f3f3] transition"
+						className="flex items-center gap-2 rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-xs font-semibold transition hover:bg-[#f3f3f3]"
 					>
-						<Download className="h-4 w-4" />
+						<Download className="h-3.5 w-3.5" />
 						Export CSV
 					</button>
+					<div className="mx-1 h-6 w-px bg-[#e5e5e5]" />
 					<Link to="/dashboard/sales/create">
 						<button
 							type="button"
-							className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition"
+							className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626]"
 						>
-							<Plus className="h-4 w-4" />
+							<Plus className="h-3.5 w-3.5" />
 							New Sale
 						</button>
 					</Link>
 				</div>
-			</div>
+			</header>
+			<div className="flex flex-col gap-5 px-6 py-6">
 
 			{/* ── Main card ───────────────────────────────────────────────────── */}
-			<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden flex flex-col" style={{ minHeight: "calc(100vh - 200px)" }}>
+			<div className="border border-[#e5e5e5] bg-white flex flex-col">
 
 			{/* ── KPI strip — always visible ──────────────────────────────────── */}
 			<KpiStrip
@@ -766,6 +761,7 @@ function RouteComponent() {
 				<PageLoader />
 			)}
 			</div>
+		</div>
 		</div>
 	);
 }

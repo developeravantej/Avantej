@@ -70,49 +70,33 @@ function CommissionsPage() {
 		);
 
 	return (
-		<div className="-m-6 min-h-screen bg-[#f3f3f3]">
-			{/* Page header */}
-			<div className="px-6 pt-6 pb-5">
-				<div className="mb-5 flex items-end justify-between">
-					<div>
-						<p className="mb-1 text-[10px] font-bold tracking-widest uppercase text-[#737373]">
-							COMMISSIONS
-						</p>
-						<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-							Commissions
-						</h1>
-						<p className="mt-1 text-sm text-[#737373]">
-							Commission ledger and payout tracking
-						</p>
-					</div>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Finance</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Commissions</span>
 				</div>
-
-				{/* Tab pills */}
-				<div className="flex flex-wrap items-center gap-2">
+				<div className="ml-8 flex items-center gap-1 rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-1">
 					{PILLS.map((pill) => (
 						<button
 							key={pill.id}
 							type="button"
 							onClick={() => navigate({ search: { tab: pill.id } })}
-							className={
-								tab === pill.id
-									? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold inline-flex items-center gap-1.5"
-									: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium inline-flex items-center gap-1.5"
-							}
+							className={`rounded-lg px-3 py-1 text-xs font-semibold transition flex items-center gap-1.5 ${tab === pill.id ? "bg-[#0a0a0a] text-white" : "text-muted-foreground hover:text-foreground"}`}
 						>
 							{pill.label}
 							{pill.badge != null && (
-								<span className="rounded-full bg-red-500 text-white text-[10px] px-1.5 py-0.5 font-bold leading-none">
+								<span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
 									{pill.badge}
 								</span>
 							)}
 						</button>
 					))}
 				</div>
-			</div>
+			</header>
 
-			{/* Content */}
-			<div>
+			<div className="py-6">
 				{content}
 			</div>
 		</div>

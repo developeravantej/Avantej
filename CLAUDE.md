@@ -14,9 +14,12 @@ bun dev:native                 # Expo / React Native
 
 # Database — control-panel only via these scripts (see Tenant Migrations below for tenant DBs)
 bun db:push                    # Push control-panel schema (dev only, never tenant)
-bun db:studio                  # Open Drizzle Studio
-bun db:generate                # Generate control-panel migration
-bun db:migrate                 # Apply control-panel migrations
+bun db:studio:control-panel    # Drizzle Studio for control-panel DB
+bun db:studio:tenant           # Drizzle Studio for tenant DB
+bun db:generate:control-panel  # Generate control-panel migration
+bun db:generate:tenant         # Generate tenant migration (then run gen:migrations)
+bun db:migrate:control-panel   # Apply control-panel migrations
+bun db:migrate:tenant          # Apply tenant migrations locally
 
 # Tenant migrations (file-based, embedded in Worker bundle)
 bun gen:migrations             # Regenerate packages/db/src/generated/tenant-migrations.generated.ts
@@ -25,6 +28,7 @@ bun verify:migrations          # Confirm generated module matches SQL files (CI-
 # Quality
 bun check                      # oxlint (NOT Biome — Biome handles formatting only)
 bun check-types                # tsc -b across the monorepo
+bun doctor                     # Diagnose common dev environment issues
 
 # Server tests (Bun test, from apps/server)
 cd apps/server
@@ -41,6 +45,8 @@ bun test:watch                 # vitest
 # E2E (Playwright, from repo root)
 bunx playwright test           # All e2e specs in ./e2e
 bunx playwright test e2e/<file>.spec.ts  # Single spec
+bun e2e:smoke                  # Quick smoke test (smoke + fixes-verification specs, Chromium only)
+bun e2e:seed                   # Seed business data for E2E tests
 ```
 
 ## Architecture Overview
@@ -102,6 +108,19 @@ const result = await client.myRouter.myProcedure({ ... })
 - `protectedProcedure`: Requires authenticated session
 
 Server-specific procedures (requiring server-only dependencies like Resend) are defined in `apps/server/src/routers/` and merged with shared routers.
+
+### Router File Structure
+
+**CI gate: individual router files must not exceed 400 LOC** (`scripts/ci/check-router-file-loc.mjs`). For routers that grow beyond this, use the split folder module pattern:
+
+```
+packages/api/src/routers/my-router/
+  index.ts              ← re-exports the merged router object
+  list.procedures.ts    ← query procedures
+  create.procedures.ts  ← mutation procedures
+```
+
+The gate runs on every PR touching router files. Newly created routers should use this folder pattern from the start to avoid future splits.
 
 ### Hierarchy & RBAC
 
@@ -170,6 +189,89 @@ A pre-built context hub lives at `zhub/` in the project root. Always check it be
 
 Run `/hub-update` at the end of any feature branch to keep the hub current before merging.
 
+## Frontend Patterns
+
+### Data Fetching (oRPC + TanStack Query)
+
+Both `client` and `orpc` are exported from `@/utils/orpc`. Use them together:
+
+```typescript
+import { client, orpc } from "@/utils/orpc";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+// Queries — use orpc.*.queryOptions() for full TanStack Query integration
+const { data } = useQuery(orpc.services.list.queryOptions({
+  input: { organizationId },
+}));
+
+// Mutations — call client.* directly inside useMutation
+const qc = useQueryClient();
+const mutation = useMutation({
+  mutationFn: (input) => client.services.create(input),
+  onSuccess: () => qc.invalidateQueries(orpc.services.list.queryOptions({ input: { organizationId } })),
+});
+```
+
+For mutations that need automatic toast feedback and query invalidation, use `useApiMutation` from `@/hooks/useApiMutation` instead of raw `useMutation`:
+
+```typescript
+import { useApiMutation } from "@/hooks/useApiMutation";
+
+const mutation = useApiMutation({
+  mutationFn: (input) => client.services.create(input),
+  successMessage: "Service created",
+  errorMessage: (err) => err.message, // or a fixed string, or false to suppress
+  invalidate: [orpc.services.list.queryOptions({ input: { organizationId } }).queryKey],
+});
+```
+
+### Permission Checking (Frontend)
+
+The canonical way to check permissions is via `useUserContext()`, NOT `usePermissions()`:
+
+```typescript
+const { hasPermission, hasAnyPermission, hasRole } = useUserContext();
+
+// Permission format: "resource:action"
+if (hasPermission("user_management:read")) { ... }
+
+// Role check (case-insensitive)
+if (hasRole(["admin", "manager"])) { ... }
+```
+
+System admins bypass all permission checks. Permissions are cached in localStorage and refreshed on mount — after granting new permissions, the user must clear localStorage or wait for the 5-minute stale time.
+
+### Route ↔ Component Structure
+
+Route files in `apps/web/src/routes/` are thin shells. Business logic and UI live in `apps/web/src/components/pages/<area>/`. A route file typically does only context extraction (org ID from `useUserContext`) and renders the page component.
+
+### Router Guards (Backend)
+
+All tenant-scoped procedures should call guards from `packages/api/src/guards.ts`:
+
+```typescript
+import {
+  assertTenantContext,
+  assertOrgContextMatch,
+  guardBranchAccessible,
+  requirePermissionOrpc,
+  guardInputBranchForContext,
+} from "../../guards";
+
+// Inside a handler:
+assertOrgContextMatch(context, input);          // Prevents cross-tenant spoofing
+assertTenantContext(context);                   // Ensures tenantDb + member on context
+guardBranchAccessible(input.branchId, context.accessibleNodeIds); // RBAC node check
+guardInputBranchForContext(input, context);     // Combined: assertOrgContextMatch + RBAC
+requirePermissionOrpc(context, "resource:action"); // Throws FORBIDDEN if permission missing
+```
+
+`requirePermissionOrpc` maps `PermissionDeniedError` from the services layer to an `ORPCError` with code `FORBIDDEN`. All write procedures on suspended tenants automatically return a `403` from `orpc-tenant.middleware` before reaching the handler — no additional guard needed for that.
+
+### Server-Only Router Types
+
+Routers that live in `apps/server/src/routers/` (auth, payments, subscriptions, GHL, etc.) are not importable in `packages/api`. Their types are declared as stubs in `packages/api/src/routers/_types/server-router-types.ts` so the web client gets full type safety. When adding a new server-only router, register its type stub there and merge it in `packages/api/src/routers/index.ts`.
+
 ## Development Notes
 
 - **Biome** handles formatting only (tabs, double quotes, sorted Tailwind classes via `cn`/`cva`/`clsx`).
@@ -178,6 +280,7 @@ Run `/hub-update` at the end of any feature branch to keep the hub current befor
 - OpenAPI docs available at `http://localhost:3020/api-reference`.
 - Server runs on Cloudflare Workers via Wrangler; **don't import Node-only modules** in server code paths.
 - Deps use Bun's `catalog:` (root `package.json`) for shared versions and `workspace:*` for internal packages. Always `bun install` at the repo root after dep changes — never `npm`/`yarn`.
+- **SaaS subscription states**: `orpc-tenant.middleware` enforces subscription access before handlers run. Suspended/cancelled tenants return a `403` with `{ error: "Tenant is {suspended|cancelled}" }`. Past-due tenants get read-only access (`SAAS_PAST_DUE_READONLY`) — write procedures (names prefixed with `create*`, `update*`, `delete*`, etc.) are blocked with `SAAS_BLOCKED`.
 
 ## Stack Constraints (Don't Mix Patterns)
 

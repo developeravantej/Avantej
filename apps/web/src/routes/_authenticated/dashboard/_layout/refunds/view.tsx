@@ -999,30 +999,16 @@ function RefundsLedgerPage() {
 
 	// ── Render ─────────────────────────────────────────────────────────────────
 	return (
-		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6 flex flex-col gap-4">
-			{/* Page header */}
-			<div className="flex items-end justify-between">
-				<div>
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
-						REFUNDS MANAGEMENT
-					</p>
-					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-						Refunds
-					</h1>
-					<p className="mt-1 text-sm text-[#737373]">
-						{rows.length} refund{rows.length !== 1 ? "s" : ""}
-						{outstandingCents > 0 && (
-							<>
-								{" · "}
-								<span className="font-mono tabular-nums">
-									{formatPrice(outstandingCents, "MYR")}
-								</span>{" "}
-								outstanding
-							</>
-						)}
-					</p>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Sales</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Refunds</span>
 				</div>
-			</div>
+				<div className="ml-auto flex items-center gap-2" />
+			</header>
+			<div className="flex flex-col gap-4 px-6 py-6">
 
 			{/* Main card — fills the space */}
 			<div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white border border-[#e5e5e5] rounded-2xl" style={{ minHeight: "calc(100vh - 200px)" }}>
@@ -1305,6 +1291,7 @@ function RefundsLedgerPage() {
 					refundId={processRefundId}
 				/>
 			)}
+		</div>
 		</div>
 	);
 }

@@ -585,22 +585,15 @@ function OnboardingIndexPage() {
 
 	// Happy path — master-detail split pane
 	return (
-		<div className="-m-6 flex h-screen flex-col bg-[#f3f3f3] p-6">
-			{/* Page header */}
-			<div className="mb-5 shrink-0">
-				<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
-					CUSTOMER ONBOARDING
-				</p>
-				<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-					Onboarding QR Codes
-				</h1>
-				<p className="mt-1 text-sm text-[#737373]">
-					Manage QR codes for customer self-registration at each branch.
-				</p>
-			</div>
+		<div className="-m-6 flex h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="font-semibold">Onboarding</span>
+				</div>
+			</header>
 
 			{/* Split layout — Section 14 */}
-			<div className="flex flex-1 min-h-0 rounded-2xl border border-[#e5e5e5] overflow-hidden">
+			<div className="mx-6 my-6 flex flex-1 min-h-0 rounded-2xl border border-[#e5e5e5] overflow-hidden">
 				{/* ---- Left sidebar: branch list ---- */}
 				<div className="flex w-72 shrink-0 flex-col overflow-hidden border-r border-[#e5e5e5] bg-white">
 					{/* Sidebar header */}

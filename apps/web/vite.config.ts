@@ -2,6 +2,7 @@ import { cloudflare } from '@cloudflare/vite-plugin';
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
+import { boneyardPlugin } from "boneyard-js/vite";
 import path from "node:path";
 import { defineConfig, loadEnv } from "vite";
 
@@ -16,6 +17,18 @@ export default defineConfig(({ mode }) => {
 			tailwindcss(),
 			tanstackRouter({}),
 			react(),
+			boneyardPlugin({
+				framework: "react",
+				routes: [
+					"/dashboard/trainers/view",
+					"/dashboard/service/view",
+					"/dashboard/sales/view",
+					"/dashboard/customers/v2/view",
+					"/dashboard/reports/view",
+				],
+				wait: 1500,
+				skipInitial: true,
+			}),
 			...(process.env.CF_DEPLOY === "true" ? [cloudflare()] : []),
 		],
 		resolve: {

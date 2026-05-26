@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/tabs";
 import { ShoppingCart, Plus, CheckCircle, Package, FileText } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import { useState, useCallback } from "react";
 import type { PurchaseOrderRow } from "@/features/purchase-orders/types";
 import { POStatusBadge } from "@/features/purchase-orders/components/POStatusBadge";
@@ -246,11 +247,8 @@ function RouteComponent() {
 		createdAt: item.createdAt,
 	}));
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
 	return (
+		<Skeleton name="purchase-orders-view" loading={isLoading} fallback={<PageLoader />}>
 		<div className="space-y-4">
 			{/* Header */}
 			<div className="flex items-center justify-between">
@@ -400,5 +398,6 @@ function RouteComponent() {
 				</DialogContent>
 			</Dialog>
 		</div>
+		</Skeleton>
 	);
 }

@@ -27,6 +27,7 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { formatPrice } from "@/lib/money";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import { client } from "@/utils/orpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -431,12 +432,9 @@ export function AllCommissionsPage() {
 		);
 	}
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
 	// ── Render ─────────────────────────────────────────────────────────────────
 	return (
+		<Skeleton name="commissions-all-tab" loading={isLoading} fallback={<PageLoader />}>
 		<div className="px-6 pb-6">
 			{/* V1 card */}
 			<div className="overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
@@ -874,5 +872,6 @@ export function AllCommissionsPage() {
 				isPending={voidingId !== null}
 			/>
 		</div>
+		</Skeleton>
 	);
 }

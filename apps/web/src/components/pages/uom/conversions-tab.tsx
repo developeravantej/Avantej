@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ArrowLeftRight } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import DataTable from "@/components/tables/uom-conversions/view/data-table";
 import { columns } from "@/components/tables/uom-conversions/view/columns";
 
@@ -96,10 +97,6 @@ export function UomConversionsTabPage() {
 		);
 	}
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
 	if (isError) {
 		return (
 			<div className="flex flex-col items-center justify-center py-12">
@@ -115,6 +112,7 @@ export function UomConversionsTabPage() {
 	}
 
 	return (
+		<Skeleton name="uom-conversions-tab" loading={isLoading} fallback={<PageLoader />}>
 		<>
 			{conversions.length === 0 && (
 				<EmptyState
@@ -140,5 +138,6 @@ export function UomConversionsTabPage() {
 				isDeleting={deleteMutation.isPending}
 			/>
 		</>
+		</Skeleton>
 	);
 }

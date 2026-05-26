@@ -29,45 +29,34 @@ function PackagesPage() {
 	const activeTab = NAV_TABS.some((t) => t.id === tab) ? tab : "memberships";
 
 	return (
-		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6">
-			{/* Page header */}
-			<div className="mb-5 flex items-end justify-between">
-				<div>
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
-						PACKAGE CATALOG
-					</p>
-					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-						Packages
-					</h1>
-					<p className="mt-1 text-sm text-[#737373]">
-						Manage memberships, session packs, and installment schedules
-					</p>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Packages</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Overview</span>
 				</div>
-			</div>
-
-			{/* Pill tabs */}
-			<div className="mb-5 flex flex-wrap items-center gap-2">
-				{NAV_TABS.map((t) => (
-					<button
-						key={t.id}
-						type="button"
-						onClick={() => navigate({ search: { tab: t.id } })}
-						className={
-							activeTab === t.id
-								? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold"
-								: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium"
-						}
-					>
-						{t.label}
-					</button>
-				))}
-			</div>
+				<div className="ml-8 flex items-center gap-1 rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-1">
+					{NAV_TABS.map((t) => (
+						<button
+							key={t.id}
+							type="button"
+							onClick={() => navigate({ search: { tab: t.id } })}
+							className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${activeTab === t.id ? "bg-[#0a0a0a] text-white" : "text-muted-foreground hover:text-foreground"}`}
+						>
+							{t.label}
+						</button>
+					))}
+				</div>
+			</header>
 
 			{/* Tab content — wrapped in a white card */}
-			<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
-				{activeTab === "memberships" && <MembershipsPage />}
-				{activeTab === "session-packs" && <PackageInstancesPage />}
-				{activeTab === "installments" && <PackageInstallmentsPage />}
+			<div className="px-6 py-6">
+				<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
+					{activeTab === "memberships" && <MembershipsPage />}
+					{activeTab === "session-packs" && <PackageInstancesPage />}
+					{activeTab === "installments" && <PackageInstallmentsPage />}
+				</div>
 			</div>
 		</div>
 	);

@@ -54,4 +54,5 @@ export interface InstallmentPlanOption {
 	code: string;
 	name: string;
 	numInstallments: number;
+	pricePremiumBps: number;
 }

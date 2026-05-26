@@ -94,24 +94,16 @@ function RouteComponent() {
 
 	return (
 		<div className="-m-6 flex h-screen flex-col bg-[#f3f3f3]">
-			{/* ── Page header ── */}
-			<div className="px-6 pt-6 pb-5 flex items-end justify-between shrink-0">
-				<div>
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
-						Schedule
-					</p>
-					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-						Appointments
-					</h1>
-					<p className="mt-1 text-sm text-[#737373]">
-						<span className="font-mono tabular-nums">{appointments.length}</span>{" "}
-						booking{appointments.length !== 1 ? "s" : ""} in view
-					</p>
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Appointments</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Schedule</span>
 				</div>
-			</div>
+			</header>
 
 			{/* ── Split-pane content ── */}
-			<div className="mx-6 mb-6 flex-1 min-h-0 overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
+			<div className="mx-6 my-6 flex-1 min-h-0 overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
 				{canViewAllTrainers ? (
 					/* Admin/Staff: Trainer sidebar + agenda in a horizontal split */
 					<div className="flex h-full min-h-0 overflow-hidden">

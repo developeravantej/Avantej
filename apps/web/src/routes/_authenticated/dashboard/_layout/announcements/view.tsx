@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import {
 	Plus,
 	Search,
@@ -506,8 +507,6 @@ function AnnouncementsViewPage() {
 		);
 	}
 
-	if (isLoading) return <PageLoader />;
-
 	if (isError) {
 		return (
 			<div className="p-6">
@@ -521,31 +520,27 @@ function AnnouncementsViewPage() {
 	// ─── Render ───────────────────────────────────────────────────────────────
 
 	return (
-		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6">
-			{/* Page header */}
-			<div className="mb-6 flex items-end justify-between">
-				<div>
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
-						Internal Communications
-					</p>
-					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-						Announcements
-					</h1>
-					<p className="mt-1 text-sm text-[#737373]">
-						{allRows.length} total
-					</p>
+		<Skeleton name="announcements-view" loading={isLoading} fallback={<PageLoader />}>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Communications</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Announcements</span>
 				</div>
-				<button
-					type="button"
-					onClick={openCreate}
-					disabled={isMutating}
-					className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition disabled:opacity-50"
-				>
-					<Plus className="h-4 w-4" />
-					New
-				</button>
-			</div>
-
+				<div className="ml-auto flex items-center gap-2">
+					<button
+						type="button"
+						onClick={openCreate}
+						disabled={isMutating}
+						className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626] disabled:opacity-50"
+					>
+						<Plus className="h-4 w-4" />
+						New
+					</button>
+				</div>
+			</header>
+			<div className="px-6 py-6">
 			{/* Two-column layout */}
 			<div className="grid grid-cols-[220px_1fr] gap-5">
 
@@ -1163,5 +1158,7 @@ function AnnouncementsViewPage() {
 				</DialogContent>
 			</Dialog>
 		</div>
+		</div>
+		</Skeleton>
 	);
 }

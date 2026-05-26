@@ -11,7 +11,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { requirePermission } from "@/lib/route-guards";
+import { requireRole } from "@/lib/route-guards";
 import { ChevronDown, RefreshCw, Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -1368,7 +1368,7 @@ function ApprovalsPage() {
 		(o) => o.id === organizationId,
 	);
 	const orgName = currentOrg?.name ?? "Your Organisation";
-	const callerRole = currentOrg?.role ?? null;
+	const callerRole = currentOrg?.hierarchy?.member?.role ?? null;
 	type MemberWithId = NonNullable<typeof currentOrg>["hierarchy"]["member"] & {
 		id?: string;
 	};
@@ -1486,7 +1486,26 @@ function ApprovalsPage() {
 	}
 
 	return (
-		<div className="-m-6 min-h-screen bg-[#f3f3f3]">
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			{/* ░░ TOP APP BAR ░░ */}
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Operations</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Approvals</span>
+				</div>
+				<div className="ml-auto flex items-center gap-2">
+					<button
+						type="button"
+						onClick={() => refetch()}
+						className="rounded-lg p-2 text-muted-foreground transition hover:bg-[#f3f3f3] hover:text-foreground"
+						title="Refresh"
+					>
+						<RefreshCw className="size-4" />
+					</button>
+				</div>
+			</header>
+
 			<div className="px-7 py-8">
 				{/* Error banner */}
 				{isError && (
@@ -1613,7 +1632,7 @@ export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/operations/approvals",
 )({
 	beforeLoad: async () => {
-		await requirePermission("package_management:approve");
+		await requireRole(["admin", "trainer"]);
 	},
 	validateSearch: (search: Record<string, unknown>) => ({
 		scope: (

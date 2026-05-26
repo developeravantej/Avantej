@@ -26,6 +26,7 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { centsToRm, formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -413,12 +414,9 @@ export function LiabilityTab() {
 		);
 	}
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
 	// Render
 	return (
+		<Skeleton name="commissions-liability-tab" loading={isLoading} fallback={<PageLoader />}>
 		<div className="px-6 pb-6">
 			{/* KPI band */}
 			<div className="mb-4 grid grid-cols-4 gap-4">
@@ -570,5 +568,6 @@ export function LiabilityTab() {
 				isPending={isMarkingPaid}
 			/>
 		</div>
+		</Skeleton>
 	);
 }

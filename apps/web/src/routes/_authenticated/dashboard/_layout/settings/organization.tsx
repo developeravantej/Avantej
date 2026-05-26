@@ -207,11 +207,20 @@ function OrganizationSettingsPage() {
 
 	if (!organizationId) {
 		return (
-			<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6 flex items-center justify-center">
-				<div className="flex flex-col items-center justify-center text-[#737373]">
-					<Lock className="h-8 w-8 mb-3 opacity-30" />
-					<p className="text-sm font-medium text-[#0a0a0a]">No organization selected</p>
-					<p className="text-xs mt-1">Select an organization to manage settings.</p>
+			<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+				<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+					<div className="flex items-center gap-3 text-sm">
+						<span className="text-muted-foreground">Settings</span>
+						<span className="text-[#a3a3a3]">/</span>
+						<span className="font-semibold">Organization</span>
+					</div>
+				</header>
+				<div className="flex flex-1 items-center justify-center">
+					<div className="flex flex-col items-center justify-center text-[#737373]">
+						<Lock className="h-8 w-8 mb-3 opacity-30" />
+						<p className="text-sm font-medium text-[#0a0a0a]">No organization selected</p>
+						<p className="text-xs mt-1">Select an organization to manage settings.</p>
+					</div>
 				</div>
 			</div>
 		);
@@ -220,27 +229,22 @@ function OrganizationSettingsPage() {
 	// ─── Render ───────────────────────────────────────────────────────────────
 
 	return (
-		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6">
-			{/* Page header */}
-			<div className="mb-5 flex items-end justify-between">
-				<div>
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
-						ORG SETTINGS
-					</p>
-					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-						Organization Settings
-					</h1>
-					<p className="mt-1 text-sm text-[#737373]">
-						Configure organization-wide defaults and policies.
-					</p>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Settings</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Organization</span>
 				</div>
 				{!isAdmin && (
-					<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700">
-						<span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-						Admin only
-					</span>
+					<div className="ml-auto flex items-center gap-2">
+						<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700">
+							<span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+							Admin only
+						</span>
+					</div>
 				)}
-			</div>
+			</header>
 
 			{/* react-doctor-disable-next-line react-doctor/no-prevent-default -- TanStack Router SPA */}
 			<form
@@ -249,7 +253,7 @@ function OrganizationSettingsPage() {
 					e.stopPropagation();
 					form.handleSubmit();
 				}}
-				className="max-w-[720px] space-y-5 pb-24"
+				className="max-w-[720px] space-y-5 px-6 py-6 pb-24"
 			>
 				{/* General Settings */}
 				<FormSection

@@ -29,6 +29,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import type { CanonicalStatus } from "@/components/ui/status-badge";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import { useUserContext } from "@/hooks/useUserContext";
 import { formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
@@ -339,10 +340,6 @@ function SalesOrderDetailPage() {
 		retry: 1,
 	});
 
-	if (orderLoading) {
-		return <PageLoader />;
-	}
-
 	if (orderError || !order) {
 		return (
 			<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6" data-testid="pos-sale-success-screen">
@@ -377,75 +374,63 @@ function SalesOrderDetailPage() {
 		: "—";
 
 	return (
-		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6">
-			{/* ── Detail page header (Section 12.1) ── */}
-			<div className="mb-5">
-				<Link
-					to="/dashboard/sales/view"
-					className="mb-1 inline-flex items-center gap-1 text-[10px] font-bold tracking-widest uppercase text-[#737373] hover:text-[#0a0a0a] transition-colors"
-				>
-					<ChevronLeft className="h-3 w-3" />
-					Sales
-				</Link>
-				<div className="flex items-end justify-between">
-					<div>
-						<h1
-							className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]"
-							data-testid="pos-sale-success-id"
-						>
-							{order.salesOrderNumber}
-						</h1>
-						<div className="mt-1 flex items-center gap-2 text-sm text-[#737373]">
-							<span className="font-mono tabular-nums">{formattedDate}</span>
-							<span>·</span>
-							<SalesStatusBadge status={order.status} />
-						</div>
-					</div>
-
-					{/* Secondary action buttons — detail pages rarely need a primary CTA */}
-					<div className="flex items-center gap-2">
-						{canCancelSale && order.status === "confirmed" && (
-							<button
-								type="button"
-								className="inline-flex items-center gap-1.5 rounded-[10px] bg-red-600 px-3.5 py-2 text-[13px] font-medium text-white transition hover:bg-red-700"
-								onClick={() => setCancelDialogOpen(true)}
-								data-testid="cancel-sale-button"
-							>
-								<XCircle className="h-4 w-4" />
-								Cancel Sale
-							</button>
-						)}
-						{canRequestRefund && (
-							<button
-								type="button"
-								className="inline-flex items-center gap-1.5 rounded-[10px] border border-[#e5e5e5] bg-white px-3.5 py-2 text-[13px] font-medium text-[#0a0a0a] transition hover:bg-[#f3f3f3]"
-								onClick={() => setRefundDialogOpen(true)}
-							>
-								Request Refund
-							</button>
-						)}
-						{canRequestRefund && (
-							<button
-								type="button"
-								className="inline-flex items-center gap-1.5 rounded-[10px] border border-[#e5e5e5] bg-white px-3.5 py-2 text-[13px] font-medium text-[#0a0a0a] transition hover:bg-[#f3f3f3]"
-								onClick={() => setPartialRefundDialogOpen(true)}
-							>
-								Partial Refund
-							</button>
-						)}
+		<Skeleton name="sales-detail" loading={orderLoading} fallback={<PageLoader />}>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<Link
+						to="/dashboard/sales/view"
+						className="text-muted-foreground hover:text-foreground transition-colors"
+					>
+						Sales
+					</Link>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold" data-testid="pos-sale-success-id">
+						{order.salesOrderNumber}
+					</span>
+				</div>
+				<div className="ml-auto flex items-center gap-2">
+					{canCancelSale && order.status === "confirmed" && (
 						<button
 							type="button"
-							className="inline-flex items-center gap-1.5 rounded-[10px] border border-[#e5e5e5] bg-white px-3.5 py-2 text-[13px] font-medium text-[#0a0a0a] transition hover:bg-[#f3f3f3]"
-							onClick={() => setPrintDialogOpen(true)}
-							data-testid="print-receipt-button"
+							className="flex items-center gap-2 rounded-lg bg-red-600 text-white px-4 py-2 text-xs font-semibold transition hover:bg-red-700"
+							onClick={() => setCancelDialogOpen(true)}
+							data-testid="cancel-sale-button"
 						>
-							<Printer className="h-4 w-4" />
-							Print Receipt
+							<XCircle className="h-4 w-4" />
+							Cancel Sale
 						</button>
-					</div>
+					)}
+					{canRequestRefund && (
+						<button
+							type="button"
+							className="flex items-center gap-2 rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-xs font-semibold transition hover:bg-[#f3f3f3]"
+							onClick={() => setRefundDialogOpen(true)}
+						>
+							Request Refund
+						</button>
+					)}
+					{canRequestRefund && (
+						<button
+							type="button"
+							className="flex items-center gap-2 rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-xs font-semibold transition hover:bg-[#f3f3f3]"
+							onClick={() => setPartialRefundDialogOpen(true)}
+						>
+							Partial Refund
+						</button>
+					)}
+					<button
+						type="button"
+						className="flex items-center gap-2 rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-xs font-semibold transition hover:bg-[#f3f3f3]"
+						onClick={() => setPrintDialogOpen(true)}
+						data-testid="print-receipt-button"
+					>
+						<Printer className="h-4 w-4" />
+						Print Receipt
+					</button>
 				</div>
-			</div>
-
+			</header>
+			<div className="px-6 py-6">
 			{/* ── Sections (single-column scroll, Section 12.2) ── */}
 			<div className="space-y-5">
 				{/* Order Summary */}
@@ -632,6 +617,8 @@ function SalesOrderDetailPage() {
 				</DialogContent>
 			</Dialog>
 		</div>
+		</div>
+		</Skeleton>
 	);
 }
 

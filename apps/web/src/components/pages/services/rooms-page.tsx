@@ -6,6 +6,7 @@ import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -268,10 +269,6 @@ export function RoomsPage() {
 		);
 	}
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
 	if (isError) {
 		return (
 			<div className="flex flex-col items-center justify-center py-12">
@@ -291,6 +288,7 @@ export function RoomsPage() {
 	}
 
 	return (
+		<Skeleton name="services-rooms-page" loading={isLoading} fallback={<PageLoader />}>
 		<div className="flex h-full flex-col overflow-hidden">
 			{/* Action bar + filter pills */}
 			<div className="flex shrink-0 items-center justify-between pt-2 pb-4">
@@ -497,6 +495,7 @@ export function RoomsPage() {
 				</DialogContent>
 			</Dialog>
 		</div>
+		</Skeleton>
 	);
 }
 

@@ -6,7 +6,6 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Select,
@@ -558,34 +557,26 @@ function GoogleCalendarPage() {
 	};
 
 	return (
-		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6 flex flex-col">
-			{/* Page header */}
-			<div className="mb-5 flex items-end justify-between">
-				<div>
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
-						CALENDAR INTEGRATION
-					</p>
-					<div className="flex items-center gap-3">
-						<div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#e5e5e5] bg-white">
-							<GoogleGLogo />
-						</div>
-						<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-							Google Calendar
-						</h1>
-					</div>
-					<p className="mt-1 text-sm text-[#737373]">
-						Two-way appointment sync for trainers.
-					</p>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Settings</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Google Calendar</span>
 				</div>
-				<button
-					type="button"
-					onClick={handleConnect}
-					disabled={!organizationId || isUserContextLoading}
-					className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition disabled:opacity-50"
-				>
-					{isUserContextLoading ? "Loading…" : "Connect My Calendar"}
-				</button>
-			</div>
+				<div className="ml-auto flex items-center gap-2">
+					<button
+						type="button"
+						onClick={handleConnect}
+						disabled={!organizationId || isUserContextLoading}
+						className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626] disabled:opacity-50"
+					>
+						{isUserContextLoading ? "Loading…" : "Connect My Calendar"}
+					</button>
+				</div>
+			</header>
+
+			<div className="flex flex-col gap-5 px-6 py-6 flex-1">
 
 			{/* Master-detail split */}
 			<div
@@ -608,6 +599,7 @@ function GoogleCalendarPage() {
 				<div className="overflow-auto">
 					<SettingsSidebar />
 				</div>
+			</div>
 			</div>
 		</div>
 	);

@@ -4,6 +4,7 @@ import { client, orpc } from "@/utils/orpc";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import { ServiceFormDialogA as ServiceFormDialog } from "@/components/forms/service-form-a";
 import { ServiceDetailDialogA as ServiceDetailDialog } from "@/components/forms/service-detail-dialog-a";
 import { centsToRm, formatPrice } from "@/lib/money";
@@ -443,11 +444,10 @@ export function ServicesPage() {
 		);
 	}
 
-	if (isLoading) return <PageLoader />;
-
-	const activeCount = services.filter((s) => s.isActive).length;
+	const activeCount = (services ?? []).filter((s) => s.isActive).length;
 
 	return (
+		<Skeleton name="services-page" loading={isLoading} fallback={<PageLoader />}>
 		<div>
 			{/* ── Subheader: count + New Service ───────────────────────────────── */}
 			<div className="mb-4 flex items-center justify-between">
@@ -831,5 +831,6 @@ export function ServicesPage() {
 				onDelete={handleDeactivate}
 			/>
 		</div>
+		</Skeleton>
 	);
 }

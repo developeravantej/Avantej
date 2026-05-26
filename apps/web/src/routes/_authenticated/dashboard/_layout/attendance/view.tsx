@@ -217,22 +217,15 @@ function AttendancePage() {
 	// ── Render ─────────────────────────────────────────────────────────────
 
 	return (
-		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6">
-			{/* ── Page header ── */}
-			<div className="mb-5 flex items-end justify-between">
-				<div>
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
-						STAFF ATTENDANCE
-					</p>
-					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-						Attendance
-					</h1>
-					<p className="mt-1 text-sm text-[#737373]">
-						Today&apos;s check-ins and drop-ins
-					</p>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Operations</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Attendance</span>
 				</div>
-			</div>
-
+			</header>
+			<div className="px-6 py-6">
 			{/* ── Filters band ── */}
 			<div className="mb-5 rounded-2xl border border-[#e5e5e5] bg-white p-4">
 				<div className="flex flex-wrap items-end gap-4">
@@ -431,6 +424,7 @@ function AttendancePage() {
 					</div>
 				</>
 			)}
+		</div>
 		</div>
 	);
 }

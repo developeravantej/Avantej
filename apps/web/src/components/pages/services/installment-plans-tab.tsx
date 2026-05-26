@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Star, CreditCard } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { cn } from "@/lib/utils";
@@ -503,11 +504,10 @@ export function InstallmentPlansTab() {
 		);
 	}
 
-	if (isLoading) return <PageLoader />;
-
 	// ─── Render ───────────────────────────────────────────────────────────────
 
 	return (
+		<Skeleton name="services-installment-plans-tab" loading={isLoading} fallback={<PageLoader />}>
 		<div>
 			{/* Action bar */}
 			<div className="mb-5 flex flex-wrap items-center gap-2">
@@ -828,5 +828,6 @@ export function InstallmentPlansTab() {
 				</DialogContent>
 			</Dialog>
 		</div>
+		</Skeleton>
 	);
 }

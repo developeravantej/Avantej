@@ -9,6 +9,7 @@ import { DataTable } from "@/components/tables/uom/view/data-table";
 import { columns } from "@/components/tables/uom/view/columns";
 import { Ruler } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 
 export function UnitsTabPage() {
 	const { data: userContext } = useUserContext();
@@ -44,10 +45,6 @@ export function UnitsTabPage() {
 		);
 	}
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
 	if (isError) {
 		return (
 			<div className="flex flex-col items-center justify-center py-12">
@@ -63,6 +60,7 @@ export function UnitsTabPage() {
 	}
 
 	return (
+		<Skeleton name="uom-units-tab" loading={isLoading} fallback={<PageLoader />}>
 		<div className="p-6 space-y-6">
 			<div className="flex items-center gap-3">
 				<div className="p-2 rounded-lg bg-primary/10">
@@ -89,5 +87,6 @@ export function UnitsTabPage() {
 				isDeleting={deleteMutation.isPending}
 			/>
 		</div>
+		</Skeleton>
 	);
 }
