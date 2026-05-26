@@ -27,6 +27,7 @@ export const notifications = pgTable("notifications", {
 	// Status
 	isRead: boolean("is_read").default(false).notNull(),
 	readAt: timestamp("read_at"),
+	emailSentAt: timestamp("email_sent_at", { withTimezone: true }),
 
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({

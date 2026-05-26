@@ -394,6 +394,12 @@ export default {
             .then((r) => console.log(`[scheduled] scheduled-reports done: ${JSON.stringify(r)}`))
             .catch((e) => console.error(`[scheduled] scheduled-reports failed:`, e)),
         );
+        const { runNotificationEmailDispatch } = await import("@/services/notification-dispatch.service");
+        ctx.waitUntil(
+          runNotificationEmailDispatch({ controlPanelDb: cpDb, getTenantDb: (orgId) => getTenantDb(orgId) })
+            .then((r) => console.log(`[scheduled] notification-dispatch done: ${JSON.stringify(r)}`))
+            .catch((e) => console.error(`[scheduled] notification-dispatch failed:`, e)),
+        );
       } else if (cron === "0 9 * * *") {
         const { runOnboardingAlerts } = await import("@/services/onboarding-alerts.service");
         ctx.waitUntil(

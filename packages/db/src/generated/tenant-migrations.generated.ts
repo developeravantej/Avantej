@@ -4390,6 +4390,13 @@ CREATE INDEX IF NOT EXISTS customer_profiles_is_unclaimed_idx
   ON customer_profiles (is_unclaimed)
   WHERE is_unclaimed = true;
 ` },
+	{ hash: "0076_notifications_add_email_sent_at", sql: `ALTER TABLE notifications
+  ADD COLUMN IF NOT EXISTS email_sent_at timestamptz;
+
+CREATE INDEX IF NOT EXISTS notifications_email_sent_at_idx
+  ON notifications (email_sent_at)
+  WHERE email_sent_at IS NULL;
+` },
 ] as const;
 
 export const LATEST_MIGRATION_VERSION =

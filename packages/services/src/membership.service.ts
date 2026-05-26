@@ -76,9 +76,9 @@ export async function freezeMembership(
 				`Package instance ${params.packageInstanceId} not found`,
 			);
 		}
-		if (pkg.status === "paused") {
+		if (pkg.status === "paused" || pkg.status === "frozen") {
 			throw new Error(
-				`Package instance ${params.packageInstanceId} is already paused`,
+				`Package instance ${params.packageInstanceId} cannot be frozen (current status: ${pkg.status}). Resume or unfreeze it first.`,
 			);
 		}
 
