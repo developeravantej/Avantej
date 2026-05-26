@@ -47,10 +47,10 @@ describe("Trainers page", () => {
 		});
 	});
 
-	test("renders Add Trainer button in header", async () => {
+	test("renders Invite Trainer button in header", async () => {
 		renderWithProviders(<TrainersViewPage />);
 		await waitFor(() => {
-			const buttons = screen.getAllByRole("button", { name: /add trainer/i });
+			const buttons = screen.getAllByRole("button", { name: /invite trainer/i });
 			expect(buttons.length).toBeGreaterThan(0);
 		});
 	});
@@ -73,7 +73,7 @@ describe("Trainers page", () => {
 		renderWithProviders(<TrainersViewPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Alice Trainer")).toBeInTheDocument();
+			expect(screen.getAllByText("Alice Trainer").length).toBeGreaterThan(0);
 		});
 	});
 });

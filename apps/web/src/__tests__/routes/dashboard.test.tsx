@@ -113,10 +113,11 @@ describe("Dashboard page", () => {
 		renderWithProviders(<DashboardComponent />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Today")).toBeInTheDocument();
-			expect(screen.getByText("This Week")).toBeInTheDocument();
-			expect(screen.getByText("This Month")).toBeInTheDocument();
-			expect(screen.getByText("This Year")).toBeInTheDocument();
+			// Period pills: labels are "Today", "Week", "Month", "Year"
+			expect(screen.getAllByText("Today").length).toBeGreaterThan(0);
+			expect(screen.getByRole("button", { name: "Week" })).toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "Month" })).toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "Year" })).toBeInTheDocument();
 		});
 	});
 
@@ -146,7 +147,8 @@ describe("Dashboard page", () => {
 		renderWithProviders(<DashboardComponent />);
 
 		await waitFor(() => {
-			expect(screen.getByText(/2[,.]500/)).toBeInTheDocument();
+			// Revenue appears in multiple tiles (hero + KPI grid); assert at least one match
+			expect(screen.getAllByText(/2[,.]500/).length).toBeGreaterThan(0);
 		});
 	});
 
@@ -163,7 +165,8 @@ describe("Dashboard page", () => {
 		renderWithProviders(<DashboardComponent />);
 
 		await waitFor(() => {
-			expect(screen.getByText(/25 orders/)).toBeInTheDocument();
+			// "25 orders" appears in both the hero stat line and the branch table; assert at least one match
+			expect(screen.getAllByText(/25 orders/).length).toBeGreaterThan(0);
 		});
 	});
 
@@ -219,11 +222,12 @@ describe("Dashboard page", () => {
 		renderWithProviders(<DashboardComponent />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Sales Overview")).toBeInTheDocument();
-			// "Appointments" appears both as KPI card title and widget mock
-			expect(screen.getAllByText("Active Members").length).toBeGreaterThan(0);
-			expect(screen.getByText("Revenue by Branch")).toBeInTheDocument();
-			expect(screen.getByText("Staff Performance")).toBeInTheDocument();
+			// KPI tile labels (uppercase in DOM) inside the hero 2x2 grid
+			expect(screen.getByText("Today's Revenue")).toBeInTheDocument();
+			expect(screen.getByText("Active Members")).toBeInTheDocument();
+			// Section headings (sentence-case)
+			expect(screen.getByText("Revenue by branch")).toBeInTheDocument();
+			expect(screen.getByText("Top performers")).toBeInTheDocument();
 		});
 	});
 });
