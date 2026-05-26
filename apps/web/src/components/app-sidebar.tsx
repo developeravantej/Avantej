@@ -14,7 +14,6 @@ import {
 	CalendarRange,
 	ChevronRight,
 	ClipboardCheck,
-	ClipboardList,
 	CreditCard,
 	Database,
 	FileChartColumnIncreasing,
@@ -228,17 +227,6 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 		collapsible: true,
 		defaultOpen: false,
 		items: [
-			{ title: "Products", url: "/dashboard/products/view", icon: Package },
-			{
-				title: "Notifications",
-				url: "/dashboard/notifications/view",
-				icon: Bell,
-			},
-			{
-				title: "Purchase Orders",
-				url: "/dashboard/purchase-orders/view",
-				icon: ClipboardList,
-			},
 			{
 				title: "Inventory Options",
 				url: "/dashboard/inventory-options",
