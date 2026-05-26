@@ -16,6 +16,7 @@ import {
   pickFirstActiveClient,
   pickFirstService,
   recordPosSale,
+  TEST_ORG_ID,
 } from "./helpers/seed-data";
 import { orpcCall } from "./helpers/orpc-client";
 
@@ -85,8 +86,14 @@ test(
       // adminOverview unavailable — fall through to listAll
     }
 
-    // Strategy 2: Use packageInstances.listAll (admin procedure)
-    if (instances.length === 0) {
+    // Strategy 2: Use packageInstances.listAll (admin procedure). Always try
+    // this in addition to adminOverview — overview's default ordering may
+    // exclude the most recent instance when it returns a full page of older
+    // rows, even though the instance does exist.
+    let matchingInstance = instances.find(
+      (pkg) => pkg.salesOrderId === salesOrderId,
+    );
+    if (!matchingInstance) {
       type ListAllResult = PkgInstance[] | { items?: PkgInstance[] };
       try {
         const result = await orpcCall<object, ListAllResult>(
@@ -95,20 +102,17 @@ test(
           "listAll",
           {
             organizationId: TEST_ORG_ID,
-            limit: 50,
+            limit: 200,
           },
         );
-        instances = Array.isArray(result)
+        const more = Array.isArray(result)
           ? result
           : (result as { items?: PkgInstance[] }).items ?? [];
+        matchingInstance = more.find((pkg) => pkg.salesOrderId === salesOrderId);
       } catch {
-        instances = [];
+        // ignore — matchingInstance stays undefined
       }
     }
-
-    const matchingInstance = instances.find(
-      (pkg) => pkg.salesOrderId === salesOrderId,
-    );
 
     if (matchingInstance) {
       expect(

@@ -504,6 +504,14 @@ export async function recordPosSale(
   },
 ): Promise<string> {
   type SaleResult = { salesOrderId: string; id?: string };
+  // Cash sales require amountTenderedCents >= total. Compute a generous tender
+  // covering items + worst-case tax (assume rate is small in test data); the
+  // backend re-derives the true total, so over-tendering is safe.
+  const grossCents = params.items.reduce(
+    (sum, it) => sum + it.quantity * it.unitPriceCents,
+    0,
+  );
+  const amountTenderedCents = Math.ceil(grossCents * 1.2); // 20% buffer for tax
   const result = await orpcCall<object, SaleResult>(page, "pos", "recordSale", {
     organizationId: TEST_ORG_ID,
     customerType: "member",
@@ -512,9 +520,69 @@ export async function recordPosSale(
     branchId: params.branchId,
     items: params.items,
     paymentMethod: params.paymentMethod ?? "cash",
+    amountTenderedCents,
     installmentPlanCode: params.installmentPlanCode,
   });
   return result.salesOrderId ?? result.id ?? "";
+}
+
+// ─── Tax rate helper (POS precondition) ──────────────────────────────────────
+
+/**
+ * Ensure the test tenant has at least one active tax rate.
+ * Idempotent — if any active tax rate exists, returns its id without creating.
+ * Required because pos.recordSale fails with BAD_REQUEST when no tax rate is
+ * configured (see SP-04 in pos.ts).
+ */
+export async function ensureDefaultTaxRate(page: Page): Promise<string | null> {
+  // resolveTaxRate() in pos.service requires: isActive=true AND
+  // effectiveFrom <= now AND (effectiveUntil IS NULL OR effectiveUntil > now).
+  // We must verify the *effective window*, not just isActive.
+  type Rate = {
+    id: string;
+    isActive?: boolean;
+    isDefault?: boolean;
+    effectiveFrom?: string | null;
+    effectiveUntil?: string | null;
+  };
+  const now = Date.now();
+  try {
+    const rates = await orpcCall<object, Rate[]>(page, "taxRates", "list", {
+      organizationId: TEST_ORG_ID,
+      isActive: true,
+    });
+    if (Array.isArray(rates)) {
+      const usable = rates.find((r) => {
+        const from = r.effectiveFrom ? Date.parse(r.effectiveFrom) : -Infinity;
+        const until = r.effectiveUntil ? Date.parse(r.effectiveUntil) : Infinity;
+        return from <= now && now < until;
+      });
+      if (usable) return usable.id;
+    }
+  } catch {
+    // fall through and attempt create
+  }
+  try {
+    const created = await orpcCall<object, { id: string }>(
+      page,
+      "taxRates",
+      "create",
+      {
+        organizationId: TEST_ORG_ID,
+        name: "E2E Default GST",
+        // Unique code per run to avoid colliding with existing rows.
+        code: `E2E-GST-${Date.now()}`,
+        rateInBasisPoints: 0,
+        isDefault: true,
+        // Backdate effectiveFrom by 1 day so resolveTaxRate's `effectiveFrom <= now`
+        // check passes despite any clock skew between Node and Postgres.
+        effectiveFrom: new Date(Date.now() - 86_400_000).toISOString(),
+      },
+    );
+    return created.id ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // ─── Minimal POS fixture (Plan B smoke gate) ─────────────────────────────────
@@ -619,6 +687,17 @@ export async function seedMinimalPosFixture(
   page: Page,
   orgId: string = TEST_ORG_ID,
 ): Promise<MinimalPosFixture> {
+  // Ensure the page has a same-origin URL so relative /rpc/* fetches inside
+  // page.evaluate resolve correctly. If the caller hasn't navigated yet, the
+  // page is at about:blank and fetch() throws (which the pickers swallow as
+  // null, producing a misleading "missing fixtures" error).
+  if (!page.url().startsWith("http")) {
+    await page.goto("/dashboard");
+  }
+  // POS sales require an active tax rate to exist (BAD_REQUEST: "No active tax
+  // rate is configured" otherwise). Ensure one exists; this is idempotent —
+  // existing tax rates are left in place.
+  await ensureDefaultTaxRate(page);
   const trainer = await pickFirstActiveTrainer(page);
   const client = await pickFirstActiveClient(page);
   const service = await pickFirstService(page, {

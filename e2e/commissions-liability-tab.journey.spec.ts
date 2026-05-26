@@ -89,8 +89,11 @@ test(
 		);
 
 		// ── Assert: 4 KPI cards are present ──────────────────────────────────────
+		// The KPI band is the first grid-cols-4 container. We scope each label to
+		// its first occurrence — both KPI cards AND the table column headers contain
+		// these strings, so getByText() resolves to 2 elements and strict mode fires.
 		for (const label of ["Approved (Unpaid)", "Paid", "Manual Adj.", "Net Payable"]) {
-			await expect(page.getByText(label, { exact: false })).toBeVisible({
+			await expect(page.getByText(label, { exact: false }).first()).toBeVisible({
 				timeout: 5_000,
 			});
 		}

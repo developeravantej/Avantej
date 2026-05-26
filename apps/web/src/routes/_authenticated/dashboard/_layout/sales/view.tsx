@@ -650,24 +650,28 @@ function KpiStrip({
 			value: kpiSummary ? formatPrice(kpiSummary.totalSalesCents, "MYR") : null,
 			sub: kpiSummary ? `${kpiSummary.salesCount} transactions` : null,
 			accent: false as const,
+			testId: "sales-kpi-revenue",
 		},
 		{
 			label: "Outstanding",
 			value: kpiSummary ? formatPrice(kpiSummary.outstandingCents, "MYR") : null,
 			sub: kpiSummary && kpiSummary.outstandingCents > 0 ? "partial / overdue" : "all clear",
 			accent: kpiSummary != null && kpiSummary.outstandingCents > 0 ? ("red" as const) : (false as const),
+			testId: "sales-kpi-outstanding",
 		},
 		{
 			label: "Refunded",
 			value: kpiSummary ? formatPrice(kpiSummary.totalRefundedCents, "MYR") : null,
 			sub: null,
 			accent: false as const,
+			testId: "sales-kpi-refunded",
 		},
 		{
 			label: "Net Collected",
 			value: netCollectedCents != null ? formatPrice(netCollectedCents, "MYR") : null,
 			sub: "After refunds",
 			accent: false as const,
+			testId: "sales-kpi-confirmed",
 		},
 	];
 
@@ -681,6 +685,7 @@ function KpiStrip({
 				{tiles.map((tile) => (
 					<div
 						key={tile.label}
+						data-testid={tile.testId}
 						className={cn(
 							"rounded-2xl border border-[#e5e5e5] bg-white p-4",
 							tile.accent === "red" && "border-rose-200 bg-rose-50",
@@ -1220,6 +1225,7 @@ function RouteComponent() {
 							<button
 								key={t.value}
 								type="button"
+								data-testid={`sales-tab-${t.value}`}
 								onClick={() => handleTabChange(t.value)}
 								className={cn(
 									"rounded-full px-3.5 py-1.5 text-[13px] transition-colors",

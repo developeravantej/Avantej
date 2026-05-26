@@ -19,6 +19,7 @@ import {
   pickFirstService,
   pickFirstBranchId,
   recordPosSale,
+  TEST_ORG_ID,
 } from "./helpers/seed-data";
 import { orpcCall } from "./helpers/orpc-client";
 
