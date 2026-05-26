@@ -524,7 +524,7 @@ export function PayoutsTab({
 	];
 
 	return (
-		<div className="px-6 pb-6">
+		<div className="px-6 py-6">
 			{/* KPI band — matches liability tab */}
 			<div className="mb-4 grid grid-cols-4 gap-4">
 				{kpis.map((kpi) => (
