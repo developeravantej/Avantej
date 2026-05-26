@@ -766,7 +766,7 @@ export function AllCommissionsPage() {
 														{row.branchName ?? "—"}
 													</td>
 													<td className="px-[14px] py-[11px] text-right font-mono tabular-nums text-sm text-[#6b7170] align-middle">
-														{row.splitPercentage}%
+														{row.splitPercentage > 0 ? `${row.splitPercentage}%` : "—"}
 													</td>
 													<td className="px-[14px] py-[11px] text-right font-semibold font-mono tabular-nums text-sm text-[#0a0a0a] align-middle">
 														{formatPrice(row.calculatedAmount, "MYR")}

@@ -697,9 +697,25 @@ export async function updateAppointment(
 
       // Commission: create splits when appointment completes
       if (params.status === "completed" && existing.status !== "completed" && existing.serviceId) {
-        // P6: double-commission guard — if this appointment is linked to a POS sale
-        // that already has commission splits, skip.
-        if (updated.salesOrderId) {
+        // App-level dedup: skip if this appointment already has non-void splits
+        // (covers completed → reopened → re-completed sequences).
+        const existingApptSplitsCompleted = await tx
+          .select({ id: commissionSplits.id })
+          .from(commissionSplits)
+          .where(and(
+            eq(commissionSplits.appointmentId, id),
+            ne(commissionSplits.status, "void"),
+          ))
+          .limit(1);
+        if (existingApptSplitsCompleted.length > 0) {
+          console.info(JSON.stringify({
+            event: "commission_skipped_already_exists_for_appointment",
+            appointmentId: id,
+            status: params.status,
+          }));
+        } else if (updated.salesOrderId) {
+          // P6: double-commission guard — if this appointment is linked to a POS sale
+          // that already has commission splits, skip.
           const existingPosSplits = await tx
             .select({ id: commissionSplits.id })
             .from(commissionSplits)
@@ -728,7 +744,23 @@ export async function updateAppointment(
         existing.serviceId &&
         params.actor
       ) {
-        if (updated.salesOrderId) {
+        // App-level dedup: skip if this appointment already has non-void splits
+        // (catches reopen → re-cancel sequences that bypass the status-level guard).
+        const existingApptSplitsCancelled = await tx
+          .select({ id: commissionSplits.id })
+          .from(commissionSplits)
+          .where(and(
+            eq(commissionSplits.appointmentId, id),
+            ne(commissionSplits.status, "void"),
+          ))
+          .limit(1);
+        if (existingApptSplitsCancelled.length > 0) {
+          console.info(JSON.stringify({
+            event: "commission_skipped_already_exists_for_appointment",
+            appointmentId: id,
+            status: params.status,
+          }));
+        } else if (updated.salesOrderId) {
           const existingPosSplits = await tx
             .select({ id: commissionSplits.id })
             .from(commissionSplits)
@@ -750,7 +782,23 @@ export async function updateAppointment(
         existing.serviceId &&
         params.actor
       ) {
-        if (updated.salesOrderId) {
+        // App-level dedup: skip if this appointment already has non-void splits
+        // (catches reopen → re-no-show sequences that bypass the status-level guard).
+        const existingApptSplitsNoShow = await tx
+          .select({ id: commissionSplits.id })
+          .from(commissionSplits)
+          .where(and(
+            eq(commissionSplits.appointmentId, id),
+            ne(commissionSplits.status, "void"),
+          ))
+          .limit(1);
+        if (existingApptSplitsNoShow.length > 0) {
+          console.info(JSON.stringify({
+            event: "commission_skipped_already_exists_for_appointment",
+            appointmentId: id,
+            status: params.status,
+          }));
+        } else if (updated.salesOrderId) {
           const existingPosSplits = await tx
             .select({ id: commissionSplits.id })
             .from(commissionSplits)

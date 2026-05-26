@@ -7,7 +7,6 @@ import {
 	Activity,
 	ArrowLeftRight,
 	BadgeDollarSign,
-	Ban,
 	Bell,
 	Briefcase,
 	Building2,
@@ -18,10 +17,8 @@ import {
 	ClipboardList,
 	CreditCard,
 	Database,
-	DollarSign,
 	FileChartColumnIncreasing,
 	Grid3x3,
-	History,
 	Home,
 	LayoutDashboard,
 	LogOut,
@@ -158,9 +155,6 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 		label: "Finance",
 		items: [
 			{ title: "Sales & Payments", url: "/dashboard/sales/view", icon: BadgeDollarSign },
-			{ title: "Payment History", url: "/dashboard/payment/view", icon: History },
-			{ title: "Cancelled Sales", url: "/dashboard/cancelled-sales/view", icon: Ban, testId: "sidebar-cancelled-sales" },
-			{ title: "Payouts", url: "/dashboard/commissions/view?tab=payouts", icon: DollarSign },
 			{
 				title: "Refunds",
 				url: "/dashboard/refunds/view",
