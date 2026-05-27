@@ -1,14 +1,12 @@
 # zplan/ Audit Ledger
 
-**Last run:** 2026-05-27 02:15
-**Sessions audited:** 1
-**Clean:** 0 · **Needs attention:** 1 · **Critical:** 0
+**Last run:** 2026-05-27 17:30
+**Sessions audited:** 0
+**Clean:** 0 · **Needs attention:** 0 · **Critical:** 0
 
 ## Sessions
 
-| Status | Session | Summary | Report |
-|--------|---------|---------|--------|
-| 🟡 needs-attention | `05-27_02-01_quality-remediation` | 8/8 sections, 4 broken refs (wrong procedure names + stale paths), 3 missing impact callers, not executed | [report](05-27_02-01_quality-remediation/audit/report.md) |
+_No active sessions to audit. Run `/audit` to scan again, or `/audit --all` to include every active session._
 
 ## How to act on this
 

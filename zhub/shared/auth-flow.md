@@ -1,6 +1,6 @@
 # Auth Flow & RBAC
 
-**Last updated:** 2026-05-24 *(Plan D-S7: `assertTenantContext` guard standardization in split routers)*
+**Last updated:** 2026-05-27 *(Sprint 05-27 quality remediation: middleware test coverage + orpc-tenant unknown-org now returns 403 instead of falling through to a procedure-level 500)*
 
 ---
 
@@ -19,6 +19,10 @@ Browser                          Server (Cloudflare Worker)
   |                              orpcTenantMiddleware
   |                              - Extracts organizationId from request body
   |                              - Looks up org in controlPanelDb
+  |                                - If org NOT found → 403 FORBIDDEN immediately
+  |                                  (cross-tenant safety; no DB query on wrong tenant)
+  |                                - If paymentStatus suspended/cancelled → 403
+  |                                  (platformAdmin endpoints bypass)
   |                              - Creates tenantDb connection (org's Neon branch)
   |                              - Sets: ctx.organizationId, ctx.tenantDb, ctx.organization
   |                                        |

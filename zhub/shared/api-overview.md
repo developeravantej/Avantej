@@ -1,6 +1,6 @@
 # API Overview
 
-**Last updated:** 2026-05-24 *(Plan D-S7 router splits + stale procedure catalog refresh)*
+**Last updated:** 2026-05-27 *(Sprint 05-27 quality remediation + server-only router listing)*
 
 All oRPC procedures available in the Avantej platform. Client: `client.routerName.procedureName(input)` from `@/utils/orpc`.
 
@@ -30,13 +30,65 @@ Nine routers were split from monoliths into folders under `packages/api/src/rout
 
 ## New in this update
 
+- **Sprint 05-27 quality remediation** — type-erosion refactor in `payments.ts` (22 → 1 cast) and `customer-profiles.ts` (12 → 3 casts); 130+ new tests across unit / DB integration / real-Stripe / real-Resend / E2E layers; cross-tenant spoof now returns 403 FORBIDDEN at the middleware (previously fell through to a procedure-level 500)
+- **Server-only router listing added** — see section below; previously these were only mentioned in passing
 - **Plan D-S7** — split-router architecture (see table above); CI LOC gates; codemod/refine toolchain documented in `CLAUDE.md`
 - **`members`** — catalogued: `newToday`, `restore`, `retryGhlSync`, `softDelete`, `updateScope` (were missing)
 - **`hierarchy`** — added `listNodesWithStats`
-- **`refunds`** — added `bulkApprove`, `createPartial`
+- **`refunds`** — added `bulkApprove`, `createPartial`; CPR-08: `request` no longer accepts `customerId` (derived server-side from target)
 - **`packageInstances`** — added `bulkAssign`, `bulkApprove`, `bulkReject`, `cancel`, `extend`, `freeze`, `listAssignedToMe`, `unfreeze`
 - **`commissionSplits`** — added `listLedger`, `markPaidById`, `voidById`, `liabilityByStaff`, `listPendingReview`, `resolveReview`
 - **`services`** — added pricing/analytics procedures: `duplicate`, `resolvePrice`, `listPriceOverrides`, `setBranchPrice`, `revenueShareByCategory`, `avgSessionsSoldPerMonth`, `listWithTrainerTiers`
+
+---
+
+## Server-only routers
+
+These live in `apps/server/src/routers/` (not `packages/api`) because they require server-only dependencies (Stripe SDK, Resend, Cloudflare Worker env). They're merged into `appRouter` at runtime and surface the same `client.routerName.procedureName(...)` interface on the web.
+
+### payments
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `createPaymentIntent` | protected | Stripe Direct Charge PI for an appointment on the tenant's Connect account |
+| `sendPaymentLink` | protected | Stripe Payment Link for staff to forward to a customer; idempotent unless `regenerate: true` |
+| `getPaymentStatus` | protected | Return payment fields from the appointment row (synced from webhooks) |
+| `refund` | protected | Stripe refund against the appointment's PaymentIntent on the snapshot acct |
+| `createSetupIntent` | protected | Stripe SetupIntent for saving a card on file (off_session) |
+| `listSavedCards` | protected | List the customer's saved cards on their snapshot Connect acct |
+| `chargeSavedCard` | protected | Off-session charge with optional appointment binding |
+| `createSalesOrderPaymentLink` | protected | Payment Link for a POS sale; idempotent unless `regenerate: true` |
+| `purchasePackage` | protected | Package purchase with Payment Link; creates package_instance |
+
+### customer-profiles (server-only procedures — separate from packages/api one)
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `addEmailAndDispatchMagicLink` | protected | Replace placeholder email + send Better-Auth magic link |
+| `resendMagicLink` | protected | Re-send magic link for a user with a real email |
+| `createUnclaimed` | protected | Quick Add: create CP user + tenant member + customer_profile in one call. Idempotent on phone collision (CU-006) |
+| `sendClaimLink` | protected | Swap unclaimed profile's placeholder email + dispatch magic link |
+
+### partner-stripe
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `startOnboarding` | protected | Generate Stripe Connect OAuth link for partner onboarding (Phase A) |
+| `getStatus` | protected | Return partner's Connect account status (charges_enabled, payouts_enabled) |
+
+### auth
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `userContext` | protected | Current user's orgs + roles + permissions (called on every page load) |
+
+### admin (server-only impersonation)
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `impersonateUser` | protected | Platform admin starts impersonation (super_admin / support only) |
+| `stopImpersonating` | protected | End active impersonation session |
+
+### subscriptions (Stripe SaaS subscriptions for tenant billing)
+| Procedure | Auth | Description |
+|-----------|------|-------------|
+| `checkout` | protected | Create Stripe Checkout Session for SaaS subscription |
+| `manage` | protected | Stripe Billing Portal session for self-serve billing changes |
 
 ---
 
