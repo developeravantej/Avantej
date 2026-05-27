@@ -43,6 +43,10 @@ import {
 	markGhlWebhookFailed,
 	processGhlWebhook,
 } from "@/services/gohighlevel.service";
+import {
+	handleAccountUpdatedForPartner,
+	handleTransferEvent,
+} from "@/services/partner-stripe-webhooks.service";
 
 export const webhookRoutes = new Hono();
 
@@ -321,6 +325,108 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 			} catch (e) {
 				console.error(`[connect webhook] application_fee ledger write failed:`, e);
 			}
+		}
+
+		// Partner branch (S-stripe-payout-webhooks, F-09): account.updated for a
+		// partner-level Connect account (set by the partner OAuth callback). When
+		// metadata.partnerId is present we route to the partner handler instead
+		// of the org-level branch. organizationId metadata identifies the tenant DB.
+		if (
+			event.type === "account.updated" &&
+			(event.data.object as Stripe.Account).metadata?.partnerId
+		) {
+			const account = event.data.object as Stripe.Account;
+			const orgIdMeta = account.metadata?.organizationId;
+			if (!orgIdMeta) {
+				console.warn(
+					`[connect webhook] partner account.updated missing organizationId metadata; acct=${account.id}`,
+				);
+			} else {
+				try {
+					const tenantDb = await getTenantDb(orgIdMeta, c);
+					const result = await handleAccountUpdatedForPartner(tenantDb, {
+						id: account.id,
+						metadata: account.metadata,
+						payouts_enabled: account.payouts_enabled,
+						details_submitted: account.details_submitted,
+						country: account.country ?? null,
+						default_currency: account.default_currency ?? null,
+						requirements: account.requirements
+							? {
+									currently_due: account.requirements.currently_due ?? null,
+									eventually_due: account.requirements.eventually_due ?? null,
+									disabled_reason: account.requirements.disabled_reason ?? null,
+								}
+							: null,
+					});
+					console.log(
+						`[connect webhook] partner account.updated org=${orgIdMeta} acct=${account.id} result=${JSON.stringify(result)}`,
+					);
+				} catch (e) {
+					console.error(
+						`[connect webhook] partner account.updated handler threw for ${event.id}:`,
+						e,
+					);
+				}
+			}
+			await markEventProcessed(event.id, cpDb);
+			return c.json({ received: true }, 200);
+		}
+
+		// Transfer events for partner payouts (S-stripe-payout-webhooks, F-09).
+		// Routes by transfer.metadata.organizationId → tenantDb. metadata.payoutId
+		// links the transfer to the payout row created by `runBatch`. When the
+		// transfer-creation code that sets these labels lands, the chain becomes:
+		//   stripe.transfers.create({ destination: connect_acct, metadata })
+		//   → transfer.created webhook stamps stripeTransferId + recovers `paid`
+		//     if the local update step crashed
+		//   → transfer.reversed webhook calls markPayoutFailed
+		//
+		// NOTE: Stripe Connect emits transfer.{created,updated,reversed} only — there
+		// is no transfer.paid / transfer.failed (those are PAYOUT events on the
+		// connected account's bank schedule, a different concept).
+		if (event.type === "transfer.created" || event.type === "transfer.reversed") {
+			const transfer = event.data.object as Stripe.Transfer;
+			const orgIdMeta = transfer.metadata?.organizationId;
+			if (!orgIdMeta) {
+				console.warn(
+					`[connect webhook] ${event.type} missing organizationId metadata; transfer=${transfer.id}`,
+				);
+			} else {
+				try {
+					const tenantDb = await getTenantDb(orgIdMeta, c);
+					const failureReason =
+						event.type === "transfer.reversed"
+							? `Stripe transfer ${transfer.id} reversed`
+							: undefined;
+					const result = await handleTransferEvent(
+						tenantDb,
+						event.type,
+						{
+							id: transfer.id,
+							amount: transfer.amount,
+							destination:
+								typeof transfer.destination === "string"
+									? transfer.destination
+									: transfer.destination?.id ?? null,
+							metadata: transfer.metadata,
+						},
+						// System actor for webhook-initiated state transitions.
+						"system.stripe.webhook",
+						failureReason,
+					);
+					console.log(
+						`[connect webhook] ${event.type} org=${orgIdMeta} transfer=${transfer.id} result=${JSON.stringify(result)}`,
+					);
+				} catch (e) {
+					console.error(
+						`[connect webhook] ${event.type} handler threw for ${event.id}:`,
+						e,
+					);
+				}
+			}
+			await markEventProcessed(event.id, cpDb);
+			return c.json({ received: true }, 200);
 		}
 
 		if (event.type === "account.updated") {
