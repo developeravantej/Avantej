@@ -1,0 +1,3 @@
+# HTML report bundles are reproducible from results.json — exclude from VCS.
+html/
+html-deep/

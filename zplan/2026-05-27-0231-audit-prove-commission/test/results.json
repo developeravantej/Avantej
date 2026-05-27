@@ -1,0 +1,288 @@
+{
+  "config": {
+    "configFile": "C:\\Project\\Avantej\\gap-prove-commission.config.ts",
+    "rootDir": "C:/Project/Avantej/e2e",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Project/Avantej/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "setup",
+        "name": "setup",
+        "testDir": "C:/Project/Avantej/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/auth\\.setup\\.ts/"
+        ],
+        "timeout": 300000
+      },
+      {
+        "outputDir": "C:/Project/Avantej/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "gap-prove-commission",
+        "name": "gap-prove-commission",
+        "testDir": "C:/Project/Avantej/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/gap-prove-commission\\.spec\\.ts/"
+        ],
+        "timeout": 300000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "html",
+        {
+          "outputFolder": "zplan/2026-05-27-0231-audit-prove-commission/test/html",
+          "open": "never"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "zplan/2026-05-27-0231-audit-prove-commission/test/results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "auth.setup.ts",
+      "file": "auth.setup.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "authenticate",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 300000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5610,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-26T19:13:48.575Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Project\\Avantej\\test-results\\auth.setup.ts-authenticate-setup\\video.webm"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Project\\Avantej\\test-results\\auth.setup.ts-authenticate-setup\\trace.zip"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "17e3fe6f4d9d8bd79c6b-60f085b113a677673906",
+          "file": "auth.setup.ts",
+          "line": 13,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "gap-prove-commission.spec.ts",
+      "file": "gap-prove-commission.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "audit-prove commission — golden paths + finding regressions",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 300000,
+              "annotations": [
+                {
+                  "type": "F-05",
+                  "description": "skip — no approved commission split available in test tenant (data gap)"
+                },
+                {
+                  "type": "F-06",
+                  "description": "skip — no paid commission tied to a sales order (data gap)"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "gap-prove-commission",
+              "projectName": "gap-prove-commission",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 19416,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "steps": [
+                    {
+                      "title": "GP-01 commissions/view loads (All tab default)",
+                      "duration": 3139
+                    },
+                    {
+                      "title": "GP-02 commissions Mine tab",
+                      "duration": 67
+                    },
+                    {
+                      "title": "GP-03 commissions Review tab",
+                      "duration": 69
+                    },
+                    {
+                      "title": "GP-04 commissions Payouts tab + KPI strip",
+                      "duration": 69
+                    },
+                    {
+                      "title": "GP-05 commissions Liability tab",
+                      "duration": 113
+                    },
+                    {
+                      "title": "F-04 createManualAdjustment without target IDs returns BAD_REQUEST (not 500)",
+                      "duration": 699
+                    },
+                    {
+                      "title": "F-05 markPaidById persists paymentReference in audit log",
+                      "duration": 819
+                    },
+                    {
+                      "title": "F-06 refund of paid sale voids/reverses the source commission split",
+                      "duration": 909
+                    },
+                    {
+                      "title": "F-02 getCategoryCommissionConfig should not surface inactive configs to admin form",
+                      "duration": 1465
+                    },
+                    {
+                      "title": "F-11 myCommissions filters by earnedAt (not createdAt)",
+                      "duration": 635
+                    },
+                    {
+                      "title": "F-12 liabilitySummary uses exclusive upper bound (no boundary double-count)",
+                      "duration": 2374
+                    },
+                    {
+                      "title": "F-15 payouts.list shows reversal/clawback rows to recipient (non-admin)",
+                      "duration": 662
+                    },
+                    {
+                      "title": "F-19 recipientSummary.avgPerCycle excludes negative reversals",
+                      "duration": 685
+                    },
+                    {
+                      "title": "F-08 payouts.runBatch links to a payout_batches row",
+                      "duration": 683
+                    },
+                    {
+                      "title": "F-13 POS conditional skip emits an audit row",
+                      "duration": 1
+                    },
+                    {
+                      "title": "F-14 categoryCommission.upsert permission OR(create,update)",
+                      "duration": 689
+                    },
+                    {
+                      "title": "F-01 categoryCommission.upsert preserves isActive on re-save",
+                      "duration": 3108
+                    }
+                  ],
+                  "startTime": "2026-05-26T19:13:56.003Z",
+                  "annotations": [
+                    {
+                      "type": "F-05",
+                      "description": "skip — no approved commission split available in test tenant (data gap)"
+                    },
+                    {
+                      "type": "F-06",
+                      "description": "skip — no paid commission tied to a sales order (data gap)"
+                    }
+                  ],
+                  "attachments": [
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Project\\Avantej\\test-results\\gap-prove-commission-audit-65bb2-n-paths-finding-regressions-gap-prove-commission\\video.webm"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Project\\Avantej\\test-results\\gap-prove-commission-audit-65bb2-n-paths-finding-regressions-gap-prove-commission\\trace.zip"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "06178da3054ebd67fe83-9199fae93048224c101d",
+          "file": "gap-prove-commission.spec.ts",
+          "line": 17,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-05-26T19:13:46.746Z",
+    "duration": 29136.587,
+    "expected": 2,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
