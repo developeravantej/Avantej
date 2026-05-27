@@ -8,6 +8,7 @@ import { organizationRoutes } from "@/routes/organizations.routes";
 import { invitationRoutes } from "@/routes/invitations.routes";
 import { webhookRoutes } from "@/routes/webhooks.routes";
 import { stripeConnectOAuthRoutes } from "@/routes/stripe-connect-oauth.routes";
+import { partnerStripeRouter } from "@/routers/partner-stripe";
 import googleCalendarRoutes from "@/routes/google-calendar";
 import { authRouter } from "@/routers/auth";
 import { serverInvitationRouter } from "@/routers/invitations";
@@ -107,6 +108,7 @@ const appRouter = {
 	ghl: ghlRouter,
 	subscriptions: subscriptionsRouter,
 	stripeConnect: stripeConnectRouter,
+	partnerStripe: partnerStripeRouter,
 	payments: paymentsRouter,
 	platformAdminPayments: platformAdminPaymentsRouter,
 	platformAdminTenants: {

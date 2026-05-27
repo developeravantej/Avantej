@@ -13,7 +13,7 @@
  * - Bank account details are stored for manual payout verification
  */
 
-import { pgTable, uuid, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { boolean, index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 export const partnerStripeAccounts = pgTable("partner_stripe_accounts", {
 	id: uuid("id").primaryKey().defaultRandom(),
@@ -22,19 +22,30 @@ export const partnerStripeAccounts = pgTable("partner_stripe_accounts", {
 	// userId is a text field without a unique CONSTRAINT (only a unique INDEX), and
 	// PostgreSQL FK references require a unique constraint or primary key.
 	partnerId: text("partner_id").notNull(),
-	
+
 	stripeConnectAccountId: text("stripe_connect_account_id").notNull().unique(),
 	stripeConnectStatus: text("stripe_connect_status").default("pending").notNull(), // "pending" | "active" | "restricted" | "rejected"
 	stripeConnectAccountType: text("stripe_connect_account_type").default("partner").notNull(),
-	
+
 	onboardingUrl: text("onboarding_url"),
 	onboardingCompletedAt: timestamp("onboarding_completed_at"),
-	
+
 	bankAccountLast4: text("bank_account_last_4"),
 	bankAccountType: text("bank_account_type"),
-	
-	accountType: text("account_type").default("express").notNull(), // "express" | "standard" | "custom"
-	
+
+	accountType: text("account_type").default("standard").notNull(), // "standard" — MY platforms restricted to Standard + OAuth per ADR-0001 v2
+
+	// Capability state, mirrored from Stripe via account.updated webhook + on-demand refresh.
+	// Migration 0078 added these. payoutsEnabled is the key gate for "can we send money here?"
+	countryCode: text("country_code"),
+	defaultCurrency: text("default_currency"),
+	payoutsEnabled: boolean("payouts_enabled").notNull().default(false),
+	detailsSubmitted: boolean("details_submitted").notNull().default(false),
+	requirementsCurrentlyDue: jsonb("requirements_currently_due"),
+	requirementsEventuallyDue: jsonb("requirements_eventually_due"),
+	requirementsDisabledReason: text("requirements_disabled_reason"),
+	connectAccountUpdatedAt: timestamp("connect_account_updated_at", { withTimezone: true }),
+
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
@@ -42,5 +53,6 @@ export const partnerStripeAccounts = pgTable("partner_stripe_accounts", {
 	stripeConnectAccountIdIdx: index("partner_stripe_accounts_stripe_idx").on(table.stripeConnectAccountId),
 	stripeConnectStatusIdx: index("partner_stripe_accounts_status_idx").on(table.stripeConnectStatus),
 	partnerUniqueIdx: uniqueIndex("partner_stripe_accounts_partner_unique_idx").on(table.partnerId),
+	payoutsEnabledIdx: index("partner_stripe_accounts_payouts_enabled_idx").on(table.payoutsEnabled),
 }));
 
