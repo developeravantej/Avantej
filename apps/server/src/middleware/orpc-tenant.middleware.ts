@@ -126,9 +126,29 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
             where: eq(organizations.id, organizationId),
             columns: { id: true, paymentStatus: true },
           });
+          // Cross-tenant safety: if the requested organizationId doesn't
+          // resolve to any organization, reject with FORBIDDEN BEFORE we
+          // attempt getTenantDb. Without this, getTenantDb fails (no neon
+          // branch for an unknown org), the middleware falls through with
+          // tenantDb=null, and the procedure's assertTenantContext fires
+          // with INTERNAL_SERVER_ERROR (500) — the security guard still
+          // works, but a permission denial surfaced as a 500 is wrong and
+          // creates noisy monitoring. Use 403 here so the surface code
+          // matches the actual reason.
+          //
+          // Invitation endpoints are an exception only when the org exists
+          // (an invitation's target org always exists by construction —
+          // invitations are issued FROM an org). We don't carve out an
+          // invitation bypass here.
+          if (!org) {
+            return c.json(
+              { error: "Forbidden: organization not accessible" },
+              403,
+            );
+          }
           if (
-            org?.paymentStatus === "suspended" ||
-            org?.paymentStatus === "cancelled"
+            org.paymentStatus === "suspended" ||
+            org.paymentStatus === "cancelled"
           ) {
             return c.json(
               {
@@ -139,7 +159,10 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
             );
           }
         } catch (e) {
-          // If we can't check, fall through — handler-level checks remain.
+          // If we can't check (e.g. control-panel DB unavailable), fall
+          // through — handler-level checks remain. We intentionally do NOT
+          // 403 here because that would convert infra failures into auth
+          // errors and mask real outages.
           console.warn("suspension check failed:", e);
         }
       }

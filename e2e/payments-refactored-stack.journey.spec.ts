@@ -95,22 +95,21 @@ test(
       spoofError,
       "Cross-tenant call must throw — tenantMiddleware or assertOrgContextMatch should fire",
     ).not.toBeNull();
-    // FINDING: in the live stack, the cross-tenant spoof is actually rejected
-    // with INTERNAL_SERVER_ERROR. This happens because orpcTenantMiddleware
-    // silently does NOT set context.tenantDb when input.organizationId
-    // doesn't match the authenticated tenant — so by the time the procedure
-    // runs, assertTenantContext fires with code INTERNAL_SERVER_ERROR
-    // ("Tenant database not available"). The spoof IS rejected (no DB query
-    // happens on the wrong tenant), but the response code is suboptimal:
-    // FORBIDDEN would be more accurate semantically. Filed as a follow-up
-    // task — for this regression test, any non-success code is acceptable
-    // because the security property (cross-tenant call rejected before DB
-    // touch) is preserved regardless of the surface code.
+    // The cross-tenant spoof must be rejected with a 403 (FORBIDDEN). This
+    // is enforced by orpc-tenant.middleware.ts: when input.organizationId
+    // doesn't resolve to any organization in the control panel, the
+    // middleware returns 403 BEFORE attempting getTenantDb. Previously this
+    // returned 500 because the middleware fell through silently and
+    // assertTenantContext fired its "tenantDb missing" branch — fixed as
+    // part of this sprint.
+    //
+    // Allow "FORBIDDEN" (when orpc-client parses the body's code field) and
+    // "403" (when it falls back to result.status). Do NOT accept 500/
+    // INTERNAL_SERVER_ERROR — if the middleware regresses to that path,
+    // this test must fail loudly.
     expect(
-      // Accept either the oRPC code (when the helper parses it) or the
-      // raw HTTP status string (when it falls back to result.status).
-      ["FORBIDDEN", "NOT_FOUND", "BAD_REQUEST", "UNAUTHORIZED", "INTERNAL_SERVER_ERROR", "500", "403", "404", "400"].includes(spoofError!.code),
-      `Cross-tenant spoof must be rejected; got ${spoofError!.code} — "${spoofError!.message}"`,
+      ["FORBIDDEN", "403"].includes(spoofError!.code),
+      `Cross-tenant spoof must be rejected with FORBIDDEN/403; got ${spoofError!.code} — "${spoofError!.message}"`,
     ).toBe(true);
 
     // ── Sub-test B: same-org, non-existent appointment → NOT_FOUND ─────────
