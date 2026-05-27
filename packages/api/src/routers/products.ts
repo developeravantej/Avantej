@@ -174,7 +174,6 @@ export const productsRouter = {
 		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
 
-			assertOrgContextMatch(context, input);
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 
 			return getProductStock(context.tenantDb, input.productId, input.branchId);
@@ -197,7 +196,6 @@ export const productsRouter = {
 		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
 
-			assertOrgContextMatch(context, input);
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 
 			return adjustProductStock(context.tenantDb, input.productId, input.branchId, input.delta);
@@ -271,7 +269,6 @@ export const productsRouter = {
 			
 		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
-			assertOrgContextMatch(context, input);
 			if (input.branchId) {
 				guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 			}

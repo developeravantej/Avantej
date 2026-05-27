@@ -1050,7 +1050,12 @@ function BranchSelectionStep({
 // ─── Main Registration Form ──────────────────────────────────────
 
 // react-doctor-disable-next-line react-doctor/prefer-useReducer, react-doctor/no-giant-component -- prefer-useReducer: independent state vars with no cross-state transitions; no-giant-component: multi-step registration form with tight step+state coupling, needs further refactor PR
-export default function RegistrationForm() {
+interface RegistrationFormProps {
+	/** Branch self-signup invite token. Required by registration.complete to prevent cross-org joins. */
+	inviteToken?: string;
+}
+
+export default function RegistrationForm({ inviteToken = "" }: RegistrationFormProps) {
 	const { user, refetch } = useAuth();
 	const [currentStep, setCurrentStep] = useState(0);
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1163,6 +1168,7 @@ export default function RegistrationForm() {
 		setIsSubmitting(true);
 		try {
 			await client.registration.complete({
+				inviteToken,
 				phone: `${phoneCountry.dialCode}${personalDetails.phone}`,
 				idPassportNo: personalDetails.idPassportNo,
 				addressType: personalDetails.addressType,

@@ -45,7 +45,8 @@ function RouteComponent() {
 		mode: item.paymentMode ?? null,
 		total_paid: item.totalAmount,
 		customer_name: item.customerName,
-		created_by: item.createdBy ?? null,
+		// DU-002: prefer resolved name over raw UUID; fall back through UUID then em-dash
+		created_by: (item as typeof item & { createdByName?: string | null }).createdByName ?? item.createdBy ?? "—",
 		e_invoice_status: item.eInvoiceStatus ?? null,
 	}));
 

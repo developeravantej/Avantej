@@ -66,9 +66,11 @@ export interface RequestRefundInput {
 	taxAmountCents?: number;
 	reason: string;
 	notes?: string;
-	// Customer + branch — service auto-pulls from target if not provided.
-	// Pull priority: salesOrderId > paymentId > packageInstanceId
-	customerId?: string;
+	// Customer + branch — service DERIVES these from the target record.
+	// Pull priority: salesOrderId > paymentId > packageInstanceId.
+	// CPR-08: customerId must NOT be supplied by callers; it is always derived
+	// server-side. customerName and branchId are accepted as hints only when
+	// they cannot be auto-derived (e.g. payment/packageInstance targets).
 	customerName?: string;
 	branchId?: string;
 	// Optional line-item breakdown for the refund (Phase 3 Task 3.2)
@@ -360,9 +362,12 @@ export async function requestRefund(
 		const now = new Date();
 
 		// ------------------------------------------------------------------
-		// Auto-fill customer / branch from target (priority: SO > payment > pkg)
+		// CPR-08: Derive customer from the refund target — NEVER trust caller input.
+		// Priority: salesOrderId > paymentId > packageInstanceId.
+		// customerId is always authoritative from the target record so a malicious
+		// caller cannot attribute a refund to the wrong customer.
 		// ------------------------------------------------------------------
-		let customerId = input.customerId;
+		let derivedCustomerId: string | undefined;
 		let customerName = input.customerName;
 		let branchId = input.branchId;
 
@@ -375,7 +380,7 @@ export async function requestRefund(
 					code: "NOT_FOUND",
 					message: `Sales order ${input.salesOrderId} not found`,
 				};
-			customerId = customerId ?? order.customerId ?? "";
+			derivedCustomerId = order.customerId ?? undefined;
 			customerName = customerName ?? order.customerName;
 			branchId = branchId ?? order.branchId;
 		} else if (input.paymentId) {
@@ -387,8 +392,8 @@ export async function requestRefund(
 					code: "NOT_FOUND",
 					message: `Payment ${input.paymentId} not found`,
 				};
-			customerId = customerId ?? payment.customerId;
-			customerName = customerName ?? payment.customerId; // no name on payments; use ID as fallback
+			derivedCustomerId = payment.customerId ?? undefined;
+			customerName = customerName ?? payment.customerId ?? undefined; // no name on payments; use ID as fallback
 		} else if (input.packageInstanceId) {
 			const instance = await tx.query.packageInstances.findFirst({
 				where: (pi, { eq: eqFn }) =>
@@ -399,9 +404,12 @@ export async function requestRefund(
 					code: "NOT_FOUND",
 					message: `Package instance ${input.packageInstanceId} not found`,
 				};
-			customerId = customerId ?? instance.clientId ?? undefined;
+			derivedCustomerId = instance.clientId ?? undefined;
 			customerName = customerName ?? instance.clientId ?? undefined; // no name on package_instances; use ID as fallback
 		}
+
+		// Authoritative customer is derived; ignore any caller-supplied customerId entirely.
+		const customerId = derivedCustomerId;
 
 		if (!customerId || !customerName) {
 			throw {

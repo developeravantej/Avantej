@@ -54,6 +54,8 @@ export type Resource =
 	// Customers
 	| "customer_management"
 	| "walk_in_customer_management"
+	// Org configuration
+	| "organization_settings"
 	// Reporting
 	| "reports"
 	// Audit log

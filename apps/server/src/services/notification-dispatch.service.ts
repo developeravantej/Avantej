@@ -2,23 +2,33 @@
  * Notification Email Dispatcher — ST-02.
  *
  * Hourly cron iterates every active organization, opens its tenant DB,
- * finds un-emailed announcement notifications created within the last 48 hours,
+ * finds un-emailed announcement notifications created within the last 7 days,
  * looks up the recipient's email from the control-panel `user` table, and
  * sends a minimal email via Resend.
  *
  * Only type="announcement" is handled here; other notification types have no
  * email template yet and are silently skipped.
  *
- * On Resend error: the failure is logged and counted but does NOT abort the
- * remaining notifications or organisations.
+ * Dispatch semantics:
+ *   - At-most-once delivery: `email_sent_at` is set to now() BEFORE calling
+ *     sendEmail. If sendEmail throws the row stays claimed and is NOT retried —
+ *     preventing duplicate sends at the cost of occasional missed sends.
+ *   - NAP-05: rows are claimed inside a transaction with SELECT … FOR UPDATE
+ *     SKIP LOCKED so concurrent cron invocations cannot double-send.
+ *   - NAP-02: if the recipient's notification_preferences.emailEnabled=false the
+ *     notification is stamped (email_sent_at=now()) and skipped without sending.
+ *   - SI-001: batch size is capped via NOTIFICATION_BATCH_SIZE env var (default 200).
+ *   - NAP-08: lookback widened to 7 days; rows older than 24 h emit a console.warn.
+ *   - SI-010: email subject sanitized against CRLF injection.
  */
 
-import { eq, isNull, and, gte, sql, asc } from "drizzle-orm";
+import { eq, isNull, and, gte, sql, asc, inArray } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { notifications } from "@avantej-core/db/schema/tenant/notifications";
+import { notificationPreferences } from "@avantej-core/db/schema/tenant/notification-preferences";
 import { user } from "@avantej-core/db/schema/auth";
 import { sendEmail } from "@/lib/email";
 
@@ -28,23 +38,35 @@ type CpDb = NeonDatabase<typeof controlPanelSchema>;
 export interface RunNotificationEmailDispatchArgs {
 	controlPanelDb: CpDb;
 	getTenantDb: (organizationId: string) => Promise<unknown>;
+	/** Override NOTIFICATION_BATCH_SIZE for testing. */
+	batchSize?: number;
 }
 
 export interface NotificationDispatchReport {
 	orgsScanned: number;
 	emailsSent: number;
+	suppressed: number;
 	errors: number;
 }
 
-/** 48-hour cap — avoids re-processing old backlog after a prolonged outage. */
-const LOOKBACK_MS = 48 * 60 * 60 * 1000;
+/** NAP-08: widened from 48 h to 7 days. */
+const LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** Max rows fetched per org per run — cron is hourly so 500/hr handles realistic volume; excess is picked up next cycle. */
-const BATCH_LIMIT = 500;
+/** Rows older than this threshold within the 7-day window get a stale-row warning. */
+const STALE_WARN_MS = 24 * 60 * 60 * 1000;
 
-/** Strip CRLF characters from email subjects to prevent header injection (SI-010). */
+/** SI-010: strip CRLF characters from email subjects to prevent header injection. */
 function sanitizeEmailSubject(s: string): string {
 	return s.replace(/[\r\n]+/g, " ").slice(0, 200);
+}
+
+function escapeHtml(s: string): string {
+	return s
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;")
+		.replace(/'/g, "&#39;");
 }
 
 export async function runNotificationEmailDispatch(
@@ -52,9 +74,17 @@ export async function runNotificationEmailDispatch(
 ): Promise<NotificationDispatchReport> {
 	const { controlPanelDb, getTenantDb } = args;
 
+	// SI-001: configurable batch cap to prevent OOM on large tenants.
+	const batchSize =
+		args.batchSize ??
+		(process.env["NOTIFICATION_BATCH_SIZE"]
+			? Number(process.env["NOTIFICATION_BATCH_SIZE"])
+			: 200);
+
 	const report: NotificationDispatchReport = {
 		orgsScanned: 0,
 		emailsSent: 0,
+		suppressed: 0,
 		errors: 0,
 	};
 
@@ -68,47 +98,95 @@ export async function runNotificationEmailDispatch(
 		try {
 			const tenantDb = (await getTenantDb(org.id)) as TenantDb;
 
+			// NAP-08: 7-day lookback (widened from 48 h).
 			const cutoff = new Date(Date.now() - LOOKBACK_MS);
+			const staleThreshold = new Date(Date.now() - STALE_WARN_MS);
 
-			// SI-001: bounded fetch — older notifications dispatched first; next cron run picks up the rest.
-			const pending = await tenantDb
-				.select()
-				.from(notifications)
-				.where(
-					and(
-						eq(notifications.type, "announcement"),
-						isNull(notifications.emailSentAt),
-						gte(notifications.createdAt, cutoff),
-					),
-				)
-				.orderBy(asc(notifications.createdAt))
-				.limit(BATCH_LIMIT);
+			// NAP-05 + NAP-01: SELECT … FOR UPDATE SKIP LOCKED inside a transaction
+			// atomically claims this batch. No other concurrent dispatcher can claim
+			// the same rows until this transaction commits.
+			await tenantDb.transaction(async (tx) => {
+				// SI-001: bounded fetch — oldest-first so no rows starve across runs.
+				const pending = await tx
+					.select()
+					.from(notifications)
+					.where(
+						and(
+							eq(notifications.type, "announcement"),
+							isNull(notifications.emailSentAt),
+							gte(notifications.createdAt, cutoff),
+						),
+					)
+					.orderBy(asc(notifications.createdAt))
+					.limit(batchSize)
+					.for("update", { skipLocked: true });
 
-			for (const notification of pending) {
-				try {
-					// SI-002: claim-before-send — atomically set emailSentAt so concurrent
-					// workers cannot both send the same notification.
-					const [claimed] = await tenantDb
-						.update(notifications)
-						.set({ emailSentAt: sql`now()` })
-						.where(
-							and(
-								eq(notifications.id, notification.id),
-								isNull(notifications.emailSentAt),
-							),
-						)
-						.returning({ id: notifications.id });
+				if (pending.length === 0) return;
 
-					if (!claimed) continue; // another worker already claimed this row
+				// NAP-08: warn on stale rows that have been waiting > 24 h.
+				const staleRows = pending.filter(
+					(n) => n.createdAt < staleThreshold,
+				);
+				if (staleRows.length > 0) {
+					console.warn(
+						`[notification-dispatch] org=${org.id} — ${staleRows.length} stale notification(s) (>24 h old) in dispatch batch`,
+						{
+							oldestCreatedAt: staleRows[0]?.createdAt,
+							staleIds: staleRows.map((n) => n.id),
+						},
+					);
+				}
 
-					// Look up user email from control-panel DB using the cross-DB userId ref.
-					const [recipient] = await controlPanelDb
-						.select({ email: user.email, name: user.name })
-						.from(user)
-						.where(eq(user.id, notification.userId))
-						.limit(1);
+				// NAP-01 (claim-before-send): stamp email_sent_at NOW, before any
+				// network call, to prevent re-sends if a later DB write fails.
+				// Rows already claimed by a concurrent worker are filtered out by
+				// the FOR UPDATE SKIP LOCKED above, so every id here is genuinely
+				// unclaimed.
+				const ids = pending.map((n) => n.id);
+				await tx
+					.update(notifications)
+					.set({ emailSentAt: sql`now()` })
+					.where(inArray(notifications.id, ids));
 
-					if (!recipient?.email) {
+				// NAP-02: bulk-fetch notification preferences for all affected users.
+				const userIds = [...new Set(pending.map((n) => n.userId))];
+				const prefRows = await tx
+					.select({
+						userId: notificationPreferences.userId,
+						emailEnabled: notificationPreferences.emailEnabled,
+					})
+					.from(notificationPreferences)
+					.where(inArray(notificationPreferences.userId, userIds));
+
+				// Build a fast lookup map; absent row → default (emailEnabled=true).
+				const prefByUserId = new Map(
+					prefRows.map((p) => [p.userId, p.emailEnabled]),
+				);
+
+				// Resolve recipient emails from control-panel DB.
+				const userRows = await controlPanelDb
+					.select({ id: user.id, email: user.email, name: user.name })
+					.from(user)
+					.where(inArray(user.id, userIds));
+				const emailByUserId = new Map(
+					userRows.map((u) => [u.id, u.email]),
+				);
+
+				// Dispatch each claimed notification.
+				for (const notification of pending) {
+					// NAP-02: honour per-user email preference (default true when no row).
+					const emailEnabled = prefByUserId.get(notification.userId) ?? true;
+					if (!emailEnabled) {
+						// Row is already claimed (email_sent_at set above). No send.
+						report.suppressed++;
+						console.info(
+							`[notification-dispatch] org=${org.id} notification=${notification.id} suppressed (emailEnabled=false for userId=${notification.userId})`,
+						);
+						continue;
+					}
+
+					const recipientEmail = emailByUserId.get(notification.userId);
+					if (!recipientEmail) {
 						console.warn(
 							`[notification-dispatch] org=${org.id} notification=${notification.id} — no email for userId=${notification.userId}, skipping`,
 						);
@@ -116,30 +194,27 @@ export async function runNotificationEmailDispatch(
 					}
 
 					try {
-						// SI-010: sanitize subject to prevent CRLF header injection.
+						// SI-010: sanitize subject against CRLF header injection.
+						// NAP-01 (at-most-once): if sendEmail throws here, we do NOT
+						// roll back email_sent_at. The row stays claimed. The user
+						// misses this send but will NOT receive a duplicate on the next
+						// cron run. Correct tradeoff for transactional emails.
 						await sendEmail({
-							to: recipient.email,
+							to: recipientEmail,
 							subject: sanitizeEmailSubject(notification.title),
 							text: notification.message,
 							html: `<p>${escapeHtml(notification.message)}</p>`,
 						});
 						report.emailsSent++;
 					} catch (sendErr) {
-						// Roll back the claim so the next cron cycle retries.
-						await tenantDb
-							.update(notifications)
-							.set({ emailSentAt: null })
-							.where(eq(notifications.id, notification.id));
-						throw sendErr;
+						report.errors++;
+						console.error(
+							`[notification-dispatch] org=${org.id} notification=${notification.id} send failed (row claimed, no retry):`,
+							sendErr instanceof Error ? sendErr.message : String(sendErr),
+						);
 					}
-				} catch (notifErr) {
-					report.errors++;
-					console.error(
-						`[notification-dispatch] org=${org.id} notification=${notification.id} send failed:`,
-						notifErr instanceof Error ? notifErr.message : String(notifErr),
-					);
 				}
-			}
+			});
 		} catch (orgErr) {
 			report.errors++;
 			console.error(
@@ -150,13 +225,4 @@ export async function runNotificationEmailDispatch(
 	}
 
 	return report;
-}
-
-function escapeHtml(s: string): string {
-	return s
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#39;");
 }

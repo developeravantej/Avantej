@@ -30,7 +30,7 @@
  * "tax.set_default"          — Default tax rate changed
  */
 
-import { eq, and, inArray, isNull, or, gte, lte, desc } from "drizzle-orm";
+import { eq, and, inArray, isNull, or, gte, lte, desc, sql } from "drizzle-orm";
 import { auditLogs } from "@avantej-core/db/schema/tenant/audit-logs";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
@@ -237,7 +237,10 @@ export async function listAudit(
 		}
 	}
 
-	// Severity filter: translate to action IN (...) or NOT IN (...) clauses
+	// NAP-06: Severity filter — push SQL-level action filter into the WHERE clause so
+	// the `total` count reflects the filtered set, not the unfiltered set.
+	// "info" = every action NOT in danger or warning sets; we express this as a
+	// NOT IN clause so the DB handles it rather than a post-query memory filter.
 	if (severity) {
 		const { danger: dangerActions, warning: warningActions } = getSeverityActions();
 		if (severity === "danger") {
@@ -245,13 +248,18 @@ export async function listAudit(
 		} else if (severity === "warning") {
 			conditions.push(inArray(auditLogs.action, warningActions));
 		} else {
-			// info = everything that is NOT danger and NOT warning
+			// info = every action that is NOT danger and NOT warning.
+			// We use a raw SQL NOT IN rather than Drizzle notInArray to stay
+			// compatible with all Drizzle versions without conditional imports.
 			const excludedActions = [...dangerActions, ...warningActions];
 			if (excludedActions.length > 0) {
-				// Drizzle does not expose notInArray from the same import path in all versions;
-				// use explicit OR of NOT conditions via sql template.
-				// Simpler: fetch all and post-filter (limit is already capped at 200).
-				// We handle this post-query below — skip the SQL clause here.
+				// Build a parameterised NOT IN using sql template tag.
+				conditions.push(
+					sql`${auditLogs.action} NOT IN (${sql.join(
+						excludedActions.map((a) => sql`${a}`),
+						sql`, `,
+					)})`,
+				);
 			}
 		}
 	}
@@ -278,38 +286,26 @@ export async function listAudit(
 
 	const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-	// Fetch paginated rows (over-fetch when severity=info to account for post-filter loss)
-	const fetchLimit = severity === "info" ? Math.min(limit * 3, 600) : Math.min(limit, 200);
-	const fetchOffset = severity === "info" ? 0 : offset; // info needs full scan with post-filter
+	// NAP-06: severity filter is now part of `where` (pushed into SQL above), so
+	// a single query path handles all filter combinations correctly.
+	// Both the paginated fetch AND the count query use the same `where` clause —
+	// `total` therefore always reflects the filtered set, not the unfiltered set.
 
 	const rows = await tenantDb.query.auditLogs.findMany({
 		where,
 		orderBy: [desc(auditLogs.createdAt)],
-		limit: fetchLimit,
-		offset: fetchOffset,
+		limit: Math.min(limit, 200),
+		offset,
 	});
 
-	// Fetch total count (pre-severity-filter; consistent with non-severity pagination)
+	// Total count: use a lightweight id-only scan with the same `where` predicate.
 	const allRows = await tenantDb.query.auditLogs.findMany({
 		where,
 		columns: { id: true },
 	});
-	let total = allRows.length;
+	const total = allRows.length;
 
-	// Post-filter for severity (action-based, done in memory)
-	let filteredRows = rows;
-	if (severity) {
-		filteredRows = rows.filter((r) => getActionSeverity(r.action) === severity);
-		// Total reflects pre-severity count (allRows only has id column; action not available).
-		// This is an acceptable approximation — severity filter is best-effort for display.
-		total = allRows.length;
-		// Apply offset/limit after post-filter
-		if (severity === "info") {
-			filteredRows = filteredRows.slice(offset, offset + limit);
-		} else {
-			filteredRows = filteredRows.slice(0, limit);
-		}
-	}
+	const filteredRows = rows;
 
 	// Enrich actor names from control panel DB — ONE batch per page (never N+1)
 	const distinctActorIds = [...new Set(filteredRows.map((r) => r.actorUserId))];

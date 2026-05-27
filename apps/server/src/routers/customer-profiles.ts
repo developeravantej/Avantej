@@ -714,17 +714,29 @@ export const serverCustomerProfilesRouter = {
 
 			const cpDb = getControlPanelDb(context);
 
-			// CU-006: Phone dedup — reject if an active profile already uses this phone
-			const phoneConflict = await context.tenantDb.query.customerProfiles.findFirst({
+			// CU-006: Phone dedup — if an active profile already uses this phone, return it
+			// instead of creating a duplicate. Idempotent behaviour is preferred for Quick Add
+			// UX: double-submitting the same form (network retry, accidental re-click) must
+			// not produce two profiles for the same person.
+			const existingByPhone = await context.tenantDb.query.customerProfiles.findFirst({
 				where: and(
-					eq(customerProfiles.phone, input.phone),
+					eq(customerProfiles.phone, input.phone.trim()),
 					eq(customerProfiles.isDeleted, false),
 				),
 			});
-			if (phoneConflict) {
-				throw new ORPCError("CONFLICT", {
-					message: "A customer profile with this phone number already exists",
-				});
+			if (existingByPhone) {
+				// Return the existing profile's key fields so the caller can navigate to it.
+				// The member record pre-exists; look it up for a consistent response shape.
+				const existingMember = existingByPhone.userId
+					? await context.tenantDb.query.members.findFirst({
+							where: eq(members.userId, existingByPhone.userId),
+					  })
+					: undefined;
+				return {
+					memberId: existingMember?.id ?? "",
+					profileId: existingByPhone.id,
+					userId: existingByPhone.userId ?? "",
+				};
 			}
 
 			// CU-007: Email dedup — if a real email is supplied, ensure it is not already

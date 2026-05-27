@@ -7,14 +7,23 @@ import {
 	useProcessForRecipient,
 	type PayoutListItem,
 	type RecipientSummaryResult,
+	type ProcessForRecipientParams,
 } from "@/features/payouts/api";
 import { RunBatchDrawer } from "@/features/payouts/components/run-batch-drawer";
 import type { StaffOption } from "@/features/payouts/components/run-batch-drawer";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 import { formatPrice } from "@/lib/money";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -163,6 +172,8 @@ function PerRecipientPanel({
 	onSelectRecipient: (id: string) => void;
 }) {
 	const [search, setSearch] = useState("");
+	const [recipientPaymentMethod, setRecipientPaymentMethod] =
+		useState<ProcessForRecipientParams["paymentMethod"]>("bank_transfer");
 
 	const recipients = useMemo(() => {
 		const map = new Map<string, { name: string; pendingCents: number; pendingCount: number }>();
@@ -277,28 +288,57 @@ function PerRecipientPanel({
 								</div>
 							</div>
 							{canRunBatch && (
-								<button
-									type="button"
-									className="inline-flex items-center gap-1.5 rounded-lg border border-[#e5e5e5] bg-white px-[14px] py-[8px] text-[13px] font-medium text-[#0a0a0a] transition-colors hover:bg-[#f7f5ee] disabled:opacity-40"
-									onClick={() =>
-										processForRecipient.mutate({
-											organizationId,
-											recipientId: selectedRecipient.id,
-											paymentMethod: "bank_transfer",
-										})
-									}
-									disabled={processForRecipient.isPending || pendingForRecipient === 0}
-								>
-									{processForRecipient.isPending ? (
-										<RefreshCw className="h-3.5 w-3.5 animate-spin" />
-									) : (
-										<Play className="h-3.5 w-3.5" />
-									)}
-									Process Pending
-									{pendingForRecipient > 0 && (
-										<span className="font-mono tabular-nums">· {formatPrice(pendingForRecipient, "MYR")}</span>
-									)}
-								</button>
+								<div className="flex items-center gap-2">
+									{/* CPR-10: payment method selector for per-recipient processing */}
+									<Select
+										value={recipientPaymentMethod}
+										onValueChange={(v) =>
+											setRecipientPaymentMethod(
+												v as ProcessForRecipientParams["paymentMethod"],
+											)
+										}
+									>
+										<SelectTrigger className="h-[34px] w-[140px] text-[12px]">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+											<SelectItem value="cash">Cash</SelectItem>
+											<SelectItem value="check">Cheque</SelectItem>
+											<SelectItem value="other">Other / Adjustment</SelectItem>
+										</SelectContent>
+									</Select>
+									<button
+										type="button"
+										className="inline-flex items-center gap-1.5 rounded-lg border border-[#e5e5e5] bg-white px-[14px] py-[8px] text-[13px] font-medium text-[#0a0a0a] transition-colors hover:bg-[#f7f5ee] disabled:opacity-40"
+										onClick={() =>
+											processForRecipient.mutate(
+												{
+													organizationId,
+													recipientId: selectedRecipient.id,
+													paymentMethod: recipientPaymentMethod,
+												},
+												{
+													// CPR-11: surface actual server error message
+													onError: (err) => {
+														toast.error(err.message ?? "Failed to process payouts");
+													},
+												},
+											)
+										}
+										disabled={processForRecipient.isPending || pendingForRecipient === 0}
+									>
+										{processForRecipient.isPending ? (
+											<RefreshCw className="h-3.5 w-3.5 animate-spin" />
+										) : (
+											<Play className="h-3.5 w-3.5" />
+										)}
+										Process Pending
+										{pendingForRecipient > 0 && (
+											<span className="font-mono tabular-nums">· {formatPrice(pendingForRecipient, "MYR")}</span>
+										)}
+									</button>
+								</div>
 							)}
 						</div>
 

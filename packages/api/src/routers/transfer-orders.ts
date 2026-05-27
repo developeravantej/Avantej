@@ -77,6 +77,9 @@ export const transferOrdersRouter = {
 						notes: z.string().optional(),
 					})
 				),
+			}).refine((d) => d.fromBranchId !== d.toBranchId, {
+				message: "Transfer source and destination must be different branches",
+				path: ["toBranchId"],
 			})
 		)
 		.handler(async ({ input, context }) => {

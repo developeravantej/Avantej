@@ -1,3 +1,4 @@
+import { ORPCError } from "@orpc/server";
 import { eq, and, asc, or, ilike, sql } from "drizzle-orm";
 import { products } from "@avantej-core/db/schema/tenant/products";
 import { productStock } from "@avantej-core/db/schema/tenant/product-stock";
@@ -182,7 +183,8 @@ export async function adjustStock(
 	branchId: string,
 	delta: number
 ): Promise<typeof productStock.$inferSelect> {
-	// Try atomic update first
+	// Try atomic update first.
+	// For negative deltas, gate the UPDATE so quantity cannot go below zero.
 	const [updated] = await tenantDb
 		.update(productStock)
 		.set({
@@ -192,7 +194,10 @@ export async function adjustStock(
 		.where(
 			and(
 				eq(productStock.productId, productId),
-				eq(productStock.branchId, branchId)
+				eq(productStock.branchId, branchId),
+				...(delta < 0
+					? [sql`${productStock.quantity} + ${delta} >= 0`]
+					: []),
 			)
 		)
 		.returning();
@@ -201,7 +206,16 @@ export async function adjustStock(
 		return updated;
 	}
 
-	// No existing record - insert with delta as initial quantity
+	// No row was updated. Distinguish two cases:
+	// 1. Negative delta — either no row existed (no stock to deduct) or the
+	//    constraint prevented going below zero (insufficient stock).
+	if (delta < 0) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: `Insufficient stock for product ${productId} at branch ${branchId}`,
+		});
+	}
+
+	// 2. Positive delta with no existing row — insert with delta as initial quantity.
 	const [row] = await tenantDb
 		.insert(productStock)
 		.values({

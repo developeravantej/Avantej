@@ -21,7 +21,9 @@ export const refundsLifecycleProcedures = {
 				taxAmountCents: z.number().int().min(0).optional(),
 				reason: z.string().min(1).max(1000),
 				notes: z.string().max(2000).optional(),
-				customerId: z.string().optional(),
+				// CPR-08: customerId is derived server-side from the target record;
+				// callers must NOT supply it. customerName + branchId accepted as hints
+				// when they cannot be auto-derived (payment/packageInstance targets).
 				customerName: z.string().optional(),
 				branchId: z.string().uuid().optional(),
 			}),
@@ -45,7 +47,6 @@ export const refundsLifecycleProcedures = {
 					taxAmountCents: input.taxAmountCents,
 					reason: input.reason,
 					notes: input.notes,
-					customerId: input.customerId,
 					customerName: input.customerName,
 					branchId: input.branchId,
 					actor: {

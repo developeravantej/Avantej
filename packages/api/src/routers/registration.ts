@@ -2,8 +2,9 @@ import { organizationBranches } from "@avantej-core/db/schema/control-panel/orga
 import { user } from "@avantej-core/db/schema/auth";
 import { MembershipService } from "@avantej-core/db/services/membership.service";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { invitations } from "@avantej-core/db/schema/tenant/invitations";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { eq, isNotNull } from "drizzle-orm";
+import { and, eq, gt, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { z } from "zod";
@@ -71,6 +72,9 @@ export const registrationRouter = {
 	complete: protectedProcedure
 		.input(
 			z.object({
+				// Branch self-signup invite token — required to prove the user was
+				// issued a valid invite for this org. Prevents unauthenticated cross-org joins.
+				inviteToken: z.string().min(1),
 				// Personal details
 				phone: z.string().min(1),
 				idPassportNo: z.string().min(1),
@@ -130,7 +134,40 @@ export const registrationRouter = {
 				});
 			}
 
-			// 3. Check user is not already a member of this organization
+			// 3. Validate & atomically redeem the branch invite (CAS pattern).
+			//    A single UPDATE with the full validation predicate in the WHERE clause
+			//    prevents TOCTOU races: two concurrent calls on a maxUses=1 invite
+			//    both matching the read-then-validate pattern would each succeed,
+			//    producing useCount=2. This collapses validate + increment into one
+			//    round-trip whose result confirms success or failure atomically.
+			const [redeemedInvite] = await context.tenantDb
+				.update(invitations)
+				.set({ usesCount: sql`${invitations.usesCount} + 1` })
+				.where(
+					and(
+						eq(invitations.token, input.inviteToken),
+						eq(invitations.kind, "branch_self_signup"),
+						eq(invitations.isActive, true),
+						// maxUses null = unlimited; otherwise require usesCount < maxUses
+						or(
+							isNull(invitations.maxUses),
+							sql`${invitations.usesCount} < ${invitations.maxUses}`
+						),
+						gt(invitations.expiresAt, sql`now()`),
+						// Invite must be scoped to the same branch the user selected
+						eq(invitations.hierarchyScopeId, branch[0].tenantNodeId),
+					)
+				)
+				.returning({ id: invitations.id, hierarchyScopeId: invitations.hierarchyScopeId });
+
+			if (!redeemedInvite) {
+				throw new ORPCError("FORBIDDEN", {
+					message:
+						"Invite token is invalid, expired, fully redeemed, or does not belong to this branch.",
+				});
+			}
+
+			// 4. Check user is not already a member of this organization
 			const existingMember = await context.tenantDb.query.members.findFirst({
 				where: eq(members.userId, userId),
 			});
@@ -141,18 +178,19 @@ export const registrationRouter = {
 				});
 			}
 
-			// 4. Create member first (dual-write: control panel + tenant)
+			// 5. Create member first (dual-write: control panel + tenant)
 			//    Done before user update so that if this fails, user stays in registration state
 			const membershipService = new MembershipService(controlPanelDb);
 			await membershipService.createMember({
 				userId,
 				organizationId: input.organizationId,
 				role: "client",
-				hierarchyScopeId: branch[0].tenantNodeId,
+				hierarchyScopeId: redeemedInvite.hierarchyScopeId,
+				invitationId: redeemedInvite.id,
 				tenantDb: context.tenantDb,
 			});
 
-			// 5. Update user profile fields and set role to "user" (marks registration as complete)
+			// 6. Update user profile fields and set role to "user" (marks registration as complete)
 			await controlPanelDb
 				.update(user)
 				.set({

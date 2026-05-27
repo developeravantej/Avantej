@@ -113,7 +113,8 @@ export function RequestRefundDialog({
 					taxAmountCents: taxCents,
 					reason: value.reason,
 					notes: value.notes?.trim() || undefined,
-					customerId,
+					// CPR-08: customerId is derived server-side from the target record;
+					// callers must NOT supply it. customerName + branchId stay as hints.
 					customerName,
 					branchId,
 				});

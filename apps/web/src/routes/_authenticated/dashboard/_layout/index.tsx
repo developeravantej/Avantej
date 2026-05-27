@@ -3,6 +3,7 @@ import { z } from "zod";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import {
+	AlertTriangle,
 	Calendar,
 	ChevronRight,
 	Plus,
@@ -111,18 +112,20 @@ const revenueChartConfig = {
 	revenue: { label: "Revenue (MYR)", color: "#0a0a0a" },
 } satisfies ChartConfig;
 
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 function DashboardComponent() {
 	const { period } = Route.useSearch();
 	const navigate = Route.useNavigate();
 	const trendDays = period === "today" ? 1 : period === "this_week" ? 7 : period === "this_year" ? 365 : 30;
-	const { data: userContext } = useUserContext();
+	const { data: userContext, hasRole } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const currentOrg = userContext?.organizations?.find(
 		(o) => o.id === organizationId,
 	);
 	const orgName = currentOrg?.name ?? "Loading…";
+	const isAdminOrManager = hasRole(["admin", "manager"]);
 
 	// ── Queries ──
 	const kpisQuery = useQuery({
@@ -327,12 +330,24 @@ function DashboardComponent() {
 						<div className="mt-1 flex items-baseline gap-3">
 							{kpisQuery.isLoading ? (
 								<Skeleton className="h-14 w-72" />
+							) : kpisQuery.isError ? (
+								<span className="flex items-center gap-2 text-destructive">
+									<AlertTriangle className="size-5 shrink-0" />
+									<span className="text-lg font-semibold">Failed to load</span>
+									<button
+										type="button"
+										onClick={() => kpisQuery.refetch()}
+										className="text-sm underline underline-offset-2 hover:opacity-70"
+									>
+										Retry
+									</button>
+								</span>
 							) : (
 								<span className="font-mono text-6xl font-extrabold leading-none tracking-tight tabular-nums">
 									{formatPrice(kpis?.totalSales ?? 0, "MYR")}
 								</span>
 							)}
-							{revenueDelta !== null && (
+							{!kpisQuery.isError && revenueDelta !== null && (
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<Badge
@@ -378,6 +393,8 @@ function DashboardComponent() {
 						<KpiTile
 							label="Today's Revenue"
 							loading={todayKpisQuery.isLoading}
+							isError={todayKpisQuery.isError}
+							onRetry={() => todayKpisQuery.refetch()}
 							value={formatPrice(todayKpis?.totalSales ?? 0, "MYR")}
 							subline={`${todayKpis?.salesOrderCount ?? 0} orders`}
 							chip={todayKpis?.totalSales ? "▲ live" : undefined}
@@ -386,6 +403,8 @@ function DashboardComponent() {
 						<KpiTile
 							label="Appointments"
 							loading={todayKpisQuery.isLoading}
+							isError={todayKpisQuery.isError}
+							onRetry={() => todayKpisQuery.refetch()}
 							value={`${todayKpis?.completedAppointments ?? 0} / ${todayKpis?.totalAppointments ?? 0}`}
 							progressPct={
 								todayKpis?.totalAppointments
@@ -401,6 +420,8 @@ function DashboardComponent() {
 						<KpiTile
 							label="Active Members"
 							loading={kpisQuery.isLoading}
+							isError={kpisQuery.isError}
+							onRetry={() => kpisQuery.refetch()}
 							value={String(kpis?.activeMembersCount ?? 0)}
 							subline={
 								newTodayQuery.data?.count
@@ -413,6 +434,8 @@ function DashboardComponent() {
 						<KpiTile
 							label="Largest Sale Today"
 							loading={largestTodayQuery.isLoading}
+							isError={largestTodayQuery.isError}
+							onRetry={() => largestTodayQuery.refetch()}
 							value={
 								largestTodayQuery.data
 									? formatPrice(largestTodayQuery.data.totalAmount, "MYR")
@@ -427,32 +450,35 @@ function DashboardComponent() {
 					</div>
 				</section>
 
-				{/* ── ANALYTICS HEADER ── */}
-				<div className="flex items-center justify-between">
-					<h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-						Analytics
-					</h2>
-					<Link
-						to="/dashboard/sales/view"
-						search={{
-							from: "",
-							to: "",
-							status: "",
-							branchId: "",
-							kpiPeriod: "month",
-							refundStatus: "all",
-							tab: "sales",
-						}}
-						className="text-xs font-medium text-muted-foreground hover:text-foreground"
-					>
-						View all →
-					</Link>
-				</div>
+				{/* ── ANALYTICS HEADER (admin/manager only) ── */}
+				{isAdminOrManager && (
+					<div className="flex items-center justify-between">
+						<h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+							Analytics
+						</h2>
+						<Link
+							to="/dashboard/sales/view"
+							search={{
+								from: "",
+								to: "",
+								status: "",
+								branchId: "",
+								kpiPeriod: "month",
+								refundStatus: "all",
+								tab: "sales",
+							}}
+							className="text-xs font-medium text-muted-foreground hover:text-foreground"
+						>
+							View all →
+						</Link>
+					</div>
+				)}
 
 				{/* ── 12-col grid ── */}
 				<section className="grid grid-cols-12 gap-5">
 
-					{/* Revenue trend (large) */}
+					{/* Revenue trend (admin/manager only) */}
+					{isAdminOrManager && (
 					<div className="col-span-12 rounded-2xl border border-[#e5e5e5] bg-white p-6 transition hover:shadow-md lg:col-span-8">
 						<div className="mb-5 flex items-start justify-between">
 							<div>
@@ -469,86 +495,116 @@ function DashboardComponent() {
 							</div>
 						</div>
 
-						<div className="mb-5 grid grid-cols-3 gap-6">
-							<TrendStat
-								label="This period"
-								value={formatPrice(kpis?.totalSales ?? 0, "MYR")}
-								tooltip="Total revenue collected in the selected period"
-							/>
-							<TrendStat
-								label="Avg / day"
-								value={formatPrice(
-									Math.round((kpis?.totalSales ?? 0) / periodDays),
-									"MYR",
-								)}
-								tooltip={`Daily average over ${periodDays} day${periodDays === 1 ? "" : "s"}`}
-							/>
-							<TrendStat
-								label="vs prev"
-								value={
-									revenueDelta !== null
-										? `${revenueDelta >= 0 ? "+" : ""}${revenueDelta.toFixed(1)}%`
-										: "—"
-								}
-								tone={
-									revenueDelta === null
-										? undefined
-										: revenueDelta >= 0
-											? "green"
-											: "red"
-								}
-								tooltip="Change vs. the same-length period immediately before"
-							/>
-						</div>
-
-						{revenueSeriesQuery.isLoading ? (
-							<Skeleton className="h-40 w-full" />
-						) : (
-							<ChartContainer config={revenueChartConfig} className="!aspect-auto h-40 w-full">
-								<AreaChart
-									data={revenueChartData}
-									margin={{ top: 4, right: 0, bottom: 0, left: 0 }}
+						{kpisQuery.isError ? (
+							<div className="flex items-center gap-2 py-4 text-destructive text-sm">
+								<AlertTriangle className="size-4 shrink-0" />
+								<span>Failed to load revenue data.</span>
+								<button
+									type="button"
+									onClick={() => { void kpisQuery.refetch(); void revenueSeriesQuery.refetch(); }}
+									className="underline underline-offset-2 hover:opacity-70"
 								>
-									<defs>
-										<linearGradient id="trendgrad" x1="0" y1="0" x2="0" y2="1">
-											<stop offset="0%" stopColor="#0a0a0a" stopOpacity={0.18} />
-											<stop offset="100%" stopColor="#0a0a0a" stopOpacity={0} />
-										</linearGradient>
-									</defs>
-									<XAxis dataKey="day" hide />
-									<ChartTooltip
-										content={
-											<ChartTooltipContent
-												formatter={(value) => formatPrice(Number(value), "MYR")}
-												hideLabel
-											/>
+									Retry
+								</button>
+							</div>
+						) : (
+							<>
+								<div className="mb-5 grid grid-cols-3 gap-6">
+									<TrendStat
+										label="This period"
+										value={formatPrice(kpis?.totalSales ?? 0, "MYR")}
+										tooltip="Total revenue collected in the selected period"
+									/>
+									<TrendStat
+										label="Avg / day"
+										value={formatPrice(
+											Math.round((kpis?.totalSales ?? 0) / periodDays),
+											"MYR",
+										)}
+										tooltip={`Daily average over ${periodDays} day${periodDays === 1 ? "" : "s"}`}
+									/>
+									<TrendStat
+										label="vs prev"
+										value={
+											revenueDelta !== null
+												? `${revenueDelta >= 0 ? "+" : ""}${revenueDelta.toFixed(1)}%`
+												: "—"
 										}
+										tone={
+											revenueDelta === null
+												? undefined
+												: revenueDelta >= 0
+													? "green"
+													: "red"
+										}
+										tooltip="Change vs. the same-length period immediately before"
 									/>
-									<Area
-										type="monotone"
-										dataKey="revenue"
-										stroke="#0a0a0a"
-										strokeWidth={2}
-										fill="url(#trendgrad)"
-										dot={false}
-									/>
-								</AreaChart>
-							</ChartContainer>
-						)}
-						<div className="mt-2 flex justify-between text-[10px] font-medium text-[#a3a3a3]">
-							<span>{period === "today" ? "Start of day" : `${trendDays}d ago`}</span>
-							{period !== "today" && (
-								<>
-									<span>{Math.round((trendDays * 3) / 4)}d ago</span>
-									<span>{Math.round(trendDays / 2)}d ago</span>
-									<span>{Math.round(trendDays / 4)}d ago</span>
-								</>
-							)}
-							<span>Today</span>
-						</div>
-					</div>
+								</div>
 
-					{/* Revenue by branch */}
+								{revenueSeriesQuery.isLoading ? (
+									<Skeleton className="h-40 w-full" />
+								) : revenueSeriesQuery.isError ? (
+									<div className="flex h-40 items-center justify-center gap-2 rounded-xl border border-[#e5e5e5] text-destructive text-sm">
+										<AlertTriangle className="size-4 shrink-0" />
+										<span>Chart failed to load.</span>
+										<button
+											type="button"
+											onClick={() => revenueSeriesQuery.refetch()}
+											className="underline underline-offset-2 hover:opacity-70"
+										>
+											Retry
+										</button>
+									</div>
+								) : (
+									<ChartContainer config={revenueChartConfig} className="!aspect-auto h-40 w-full">
+										<AreaChart
+											data={revenueChartData}
+											margin={{ top: 4, right: 0, bottom: 0, left: 0 }}
+										>
+											<defs>
+												<linearGradient id="trendgrad" x1="0" y1="0" x2="0" y2="1">
+													<stop offset="0%" stopColor="#0a0a0a" stopOpacity={0.18} />
+													<stop offset="100%" stopColor="#0a0a0a" stopOpacity={0} />
+												</linearGradient>
+											</defs>
+											<XAxis dataKey="day" hide />
+											<ChartTooltip
+												content={
+													<ChartTooltipContent
+														formatter={(value) => formatPrice(Number(value), "MYR")}
+														hideLabel
+													/>
+												}
+											/>
+											<Area
+												type="monotone"
+												dataKey="revenue"
+												stroke="#0a0a0a"
+												strokeWidth={2}
+												fill="url(#trendgrad)"
+												dot={false}
+											/>
+										</AreaChart>
+									</ChartContainer>
+								)}
+								<div className="mt-2 flex justify-between text-[10px] font-medium text-[#a3a3a3]">
+									<span>{period === "today" ? "Start of day" : `${trendDays}d ago`}</span>
+									{period !== "today" && (
+										<>
+											<span>{Math.round((trendDays * 3) / 4)}d ago</span>
+											<span>{Math.round(trendDays / 2)}d ago</span>
+											<span>{Math.round(trendDays / 4)}d ago</span>
+										</>
+									)}
+									<span>Today</span>
+								</div>
+							</>
+						)}
+					</div>
+					)}
+
+					{/* Revenue by branch (admin/manager only) */}
+					{isAdminOrManager && (
 					<div className="col-span-12 flex flex-col rounded-2xl border border-[#e5e5e5] bg-white p-6 transition hover:shadow-md lg:col-span-4">
 						<div className="mb-5 flex items-start justify-between">
 							<div>
@@ -559,54 +615,68 @@ function DashboardComponent() {
 							</div>
 						</div>
 
-						<div className="space-y-4">
-							{(kpis?.revenueByBranch ?? []).map((b, idx) => {
-								const total = kpis?.totalSales ?? 1;
-								const pct = total > 0 ? (b.totalRevenue / total) * 100 : 0;
-								const colors = ["#0a0a0a", "#d6cdb1", "#a3a3a3", "#737373"];
-								return (
-									<div key={b.branchId}>
-										<div className="mb-1.5 flex items-baseline justify-between">
-											<div className="flex items-center gap-2">
-												<div
-													className="size-2 rounded-sm"
-													style={{ background: colors[idx % colors.length] }}
-												/>
-												<span className="text-xs font-medium">
-													{b.branchName ?? "Unnamed"}
+						{kpisQuery.isError ? (
+							<div className="flex flex-1 items-center justify-center gap-2 text-destructive text-sm">
+								<AlertTriangle className="size-4 shrink-0" />
+								<span>Failed to load.</span>
+								<button
+									type="button"
+									onClick={() => kpisQuery.refetch()}
+									className="underline underline-offset-2 hover:opacity-70"
+								>
+									Retry
+								</button>
+							</div>
+						) : (
+							<div className="space-y-4">
+								{(kpis?.revenueByBranch ?? []).map((b, idx) => {
+									const total = kpis?.totalSales ?? 1;
+									const pct = total > 0 ? (b.totalRevenue / total) * 100 : 0;
+									const colors = ["#0a0a0a", "#d6cdb1", "#a3a3a3", "#737373"];
+									return (
+										<div key={b.branchId}>
+											<div className="mb-1.5 flex items-baseline justify-between">
+												<div className="flex items-center gap-2">
+													<div
+														className="size-2 rounded-sm"
+														style={{ background: colors[idx % colors.length] }}
+													/>
+													<span className="text-xs font-medium">
+														{b.branchName ?? "Unnamed"}
+													</span>
+												</div>
+												<span className="font-mono text-sm font-bold tabular-nums">
+													{formatPrice(b.totalRevenue, "MYR")}
 												</span>
 											</div>
-											<span className="font-mono text-sm font-bold tabular-nums">
-												{formatPrice(b.totalRevenue, "MYR")}
-											</span>
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<Progress
+														value={pct}
+														className="h-1 bg-[#e5e5e5]"
+														indicatorStyle={{ backgroundColor: colors[idx % colors.length] }}
+													/>
+												</TooltipTrigger>
+												<TooltipContent>
+													{pct < 1 ? "<1" : pct.toFixed(1)}% of total · {b.orderCount} orders
+												</TooltipContent>
+											</Tooltip>
+											<div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+												<span>{b.orderCount} orders</span>
+												<span className="font-mono tabular-nums">
+													{pct < 1 ? "<1" : pct.toFixed(0)}%
+												</span>
+											</div>
 										</div>
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<Progress
-													value={pct}
-													className="h-1 bg-[#e5e5e5]"
-													indicatorStyle={{ backgroundColor: colors[idx % colors.length] }}
-												/>
-											</TooltipTrigger>
-											<TooltipContent>
-												{pct < 1 ? "<1" : pct.toFixed(1)}% of total · {b.orderCount} orders
-											</TooltipContent>
-										</Tooltip>
-										<div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
-											<span>{b.orderCount} orders</span>
-											<span className="font-mono tabular-nums">
-												{pct < 1 ? "<1" : pct.toFixed(0)}%
-											</span>
-										</div>
+									);
+								})}
+								{(kpis?.revenueByBranch?.length ?? 0) === 0 && (
+									<div className="text-xs text-muted-foreground italic">
+										No branch revenue yet for this period.
 									</div>
-								);
-							})}
-							{(kpis?.revenueByBranch?.length ?? 0) === 0 && (
-								<div className="text-xs text-muted-foreground italic">
-									No branch revenue yet for this period.
-								</div>
-							)}
-						</div>
+								)}
+							</div>
+						)}
 
 						<Link
 							to="/dashboard/branch/view"
@@ -615,8 +685,9 @@ function DashboardComponent() {
 							View all branches →
 						</Link>
 					</div>
+					)}
 
-					{/* Needs attention */}
+					{/* Needs attention (visible to all) */}
 					<div className="col-span-12 rounded-2xl border border-[#e5e5e5] bg-white p-6 transition hover:shadow-md lg:col-span-4">
 						<div className="mb-4 flex items-start justify-between">
 							<div>
@@ -631,7 +702,8 @@ function DashboardComponent() {
 						<PendingApprovalsInline organizationId={organizationId} />
 					</div>
 
-					{/* Top performers */}
+					{/* Top performers (admin/manager only) */}
+					{isAdminOrManager && (
 					<div className="col-span-12 rounded-2xl border border-[#e5e5e5] bg-white p-6 transition hover:shadow-md lg:col-span-4">
 						<div className="mb-4 flex items-start justify-between">
 							<div>
@@ -650,65 +722,81 @@ function DashboardComponent() {
 											<Skeleton className="h-3 flex-1" />
 										</li>
 									))
-								: staff.slice(0, 4).map((s, idx) => {
-										const displayName =
-											s.staffName ??
-											(s.staffId ? `Staff ${s.staffId.slice(0, 6)}` : "Unknown");
-										return (
-											<li
-												key={s.staffId}
-												className={`flex items-center gap-3 ${
-													s.appointmentsCompleted === 0 ? "opacity-50" : ""
-												}`}
+								: staffQuery.isError
+									? (
+										<li className="flex items-center gap-2 text-destructive text-xs">
+											<AlertTriangle className="size-3.5 shrink-0" />
+											<span>Failed to load.</span>
+											<button
+												type="button"
+												onClick={() => staffQuery.refetch()}
+												className="underline underline-offset-2 hover:opacity-70"
 											>
-												<Tooltip>
-													<TooltipTrigger asChild>
-														<div className="relative shrink-0">
-															<Avatar className="size-7">
-																<AvatarFallback
-																	className={`text-[11px] font-bold ${
-																		idx === 0
-																			? "bg-[#0a0a0a] text-white"
-																			: "bg-[#f3f3f3] text-foreground"
-																	}`}
-																>
-																	{getInitials(displayName)}
-																</AvatarFallback>
-															</Avatar>
-															{idx === 0 && (
-																<span className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-[#d6cdb1] text-[9px] font-bold">
-																	#1
-																</span>
-															)}
+												Retry
+											</button>
+										</li>
+									)
+									: staff.slice(0, 4).map((s, idx) => {
+											const displayName =
+												s.staffName ??
+												(s.staffId ? `Staff ${s.staffId.slice(0, 6)}` : "Unknown");
+											return (
+												<li
+													key={s.staffId}
+													className={`flex items-center gap-3 ${
+														s.appointmentsCompleted === 0 ? "opacity-50" : ""
+													}`}
+												>
+													<Tooltip>
+														<TooltipTrigger asChild>
+															<div className="relative shrink-0">
+																<Avatar className="size-7">
+																	<AvatarFallback
+																		className={`text-[11px] font-bold ${
+																			idx === 0
+																				? "bg-[#0a0a0a] text-white"
+																				: "bg-[#f3f3f3] text-foreground"
+																		}`}
+																	>
+																		{getInitials(displayName)}
+																	</AvatarFallback>
+																</Avatar>
+																{idx === 0 && (
+																	<span className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-[#d6cdb1] text-[9px] font-bold">
+																		#1
+																	</span>
+																)}
+															</div>
+														</TooltipTrigger>
+														<TooltipContent>{displayName}</TooltipContent>
+													</Tooltip>
+													<div className="min-w-0 flex-1">
+														<div className="truncate text-xs font-semibold">
+															{displayName}
 														</div>
-													</TooltipTrigger>
-													<TooltipContent>{displayName}</TooltipContent>
-												</Tooltip>
-												<div className="min-w-0 flex-1">
-													<div className="truncate text-xs font-semibold">
-														{displayName}
+														<div className="text-[10px] text-muted-foreground">
+															{s.appointmentsCompleted} sessions
+														</div>
 													</div>
-													<div className="text-[10px] text-muted-foreground">
-														{s.appointmentsCompleted} sessions
+													<div className="text-right">
+														<div className="font-mono text-xs font-bold tabular-nums">
+															{formatPrice(s.totalCommission ?? 0, "MYR")}
+														</div>
 													</div>
-												</div>
-												<div className="text-right">
-													<div className="font-mono text-xs font-bold tabular-nums">
-														{formatPrice(s.totalCommission ?? 0, "MYR")}
-													</div>
-												</div>
-											</li>
-										);
-									})}
-							{!staffQuery.isLoading && staff.length === 0 && (
+												</li>
+											);
+										})}
+							{!staffQuery.isLoading && !staffQuery.isError && staff.length === 0 && (
 								<li className="text-xs italic text-muted-foreground">
 									No staff activity for this period.
 								</li>
 							)}
 						</ul>
 					</div>
+					)}
 
-					{/* Recent activity */}
+					{/* Recent activity (admin/manager only) */}
+					{isAdminOrManager && (
 					<div className="col-span-12 rounded-2xl border border-[#e5e5e5] bg-white p-6 transition hover:shadow-md lg:col-span-4">
 						<div className="mb-4 flex items-start justify-between">
 							<div>
@@ -731,30 +819,44 @@ function DashboardComponent() {
 											<Skeleton className="h-3 flex-1" />
 										</li>
 									))
-								: auditRows.slice(0, 5).map((row: any) => (
-										<li key={row.id} className="flex gap-3 text-xs">
-											<Tooltip>
-												<TooltipTrigger asChild>
-													<div
-														className={`mt-1.5 size-1.5 shrink-0 cursor-default rounded-full ${severityDotColor(row.severity)}`}
-													/>
-												</TooltipTrigger>
-												<TooltipContent>{severityLabel(row.severity)}</TooltipContent>
-											</Tooltip>
-											<div className="min-w-0">
-												<div className="truncate">
-													<b>{row.actorName ?? "System"}</b>{" "}
-													<span className="text-muted-foreground">
-														· {row.action}
-													</span>
-												</div>
-												<div className="mt-0.5 text-[10px] text-muted-foreground">
-													{timeAgo(row.createdAt)}
-												</div>
-											</div>
+								: auditQuery.isError
+									? (
+										<li className="flex items-center gap-2 text-destructive text-xs">
+											<AlertTriangle className="size-3.5 shrink-0" />
+											<span>Failed to load activity.</span>
+											<button
+												type="button"
+												onClick={() => auditQuery.refetch()}
+												className="underline underline-offset-2 hover:opacity-70"
+											>
+												Retry
+											</button>
 										</li>
-									))}
-							{!auditQuery.isLoading && auditRows.length === 0 && (
+									)
+									: auditRows.slice(0, 5).map((row: any) => (
+											<li key={row.id} className="flex gap-3 text-xs">
+												<Tooltip>
+													<TooltipTrigger asChild>
+														<div
+															className={`mt-1.5 size-1.5 shrink-0 cursor-default rounded-full ${severityDotColor(row.severity)}`}
+														/>
+													</TooltipTrigger>
+													<TooltipContent>{severityLabel(row.severity)}</TooltipContent>
+												</Tooltip>
+												<div className="min-w-0">
+													<div className="truncate">
+														<b>{row.actorName ?? "System"}</b>{" "}
+														<span className="text-muted-foreground">
+															· {row.action}
+														</span>
+													</div>
+													<div className="mt-0.5 text-[10px] text-muted-foreground">
+														{timeAgo(row.createdAt)}
+													</div>
+												</div>
+											</li>
+										))}
+							{!auditQuery.isLoading && !auditQuery.isError && auditRows.length === 0 && (
 								<li className="text-xs italic text-muted-foreground">
 									No recent activity.
 								</li>
@@ -768,14 +870,17 @@ function DashboardComponent() {
 							Open full audit log →
 						</Link>
 					</div>
+					)}
 
-					{/* Today's appointments timeline */}
+					{/* Today's appointments timeline (visible to all) */}
 					<div className="col-span-12 rounded-2xl border border-[#e5e5e5] bg-white p-6 transition hover:shadow-md">
 						<div className="mb-5 flex items-center justify-between">
 							<div>
 								<div className="text-sm font-semibold">Today's appointments</div>
 								<div className="mt-0.5 text-xs text-muted-foreground">
-									{appts.length} booking{appts.length === 1 ? "" : "s"}
+									{apptsTodayQuery.isError
+										? "Could not load"
+										: `${appts.length} booking${appts.length === 1 ? "" : "s"}`}
 								</div>
 							</div>
 							<div className="flex items-center gap-2">
@@ -788,32 +893,48 @@ function DashboardComponent() {
 							</div>
 						</div>
 
-						<div className="grid grid-cols-15 gap-0.5 text-[10px] font-medium text-muted-foreground">
-							{Array.from({ length: 15 }, (_, i) => i + 8).map((h) => (
-								<span key={h} className="text-center">{h}</span>
-							))}
-						</div>
+						{apptsTodayQuery.isError ? (
+							<div className="flex h-32 items-center justify-center gap-2 rounded-xl border border-[#e5e5e5] text-destructive text-sm">
+								<AlertTriangle className="size-4 shrink-0" />
+								<span>Failed to load appointments.</span>
+								<button
+									type="button"
+									onClick={() => apptsTodayQuery.refetch()}
+									className="underline underline-offset-2 hover:opacity-70"
+								>
+									Retry
+								</button>
+							</div>
+						) : (
+							<>
+								<div className="grid grid-cols-15 gap-0.5 text-[10px] font-medium text-muted-foreground">
+									{Array.from({ length: 15 }, (_, i) => i + 8).map((h) => (
+										<span key={h} className="text-center">{h}</span>
+									))}
+								</div>
 
-						<div
-							className="mt-2 grid h-24 gap-0.5 rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-2"
-							style={{ gridTemplateColumns: "repeat(15, minmax(0, 1fr))" }}
-						>
-							{Array.from({ length: 15 }, (_, i) => i + 8).map((h) => {
-								const n = hourBuckets.get(h) ?? 0;
-								if (n === 0) return <div key={h} />;
-								return (
-									<Tooltip key={h}>
-										<TooltipTrigger asChild>
-											<div className="flex flex-col items-center justify-center gap-1 rounded-md bg-[#0a0a0a] px-1 py-1 text-[10px] font-bold text-white cursor-default">
-												<span>{h}:00</span>
-												<span className="font-mono opacity-70">×{n}</span>
-											</div>
-										</TooltipTrigger>
-										<TooltipContent>{n} booking{n === 1 ? "" : "s"} at {h}:00</TooltipContent>
-									</Tooltip>
-								);
-							})}
-						</div>
+								<div
+									className="mt-2 grid h-24 gap-0.5 rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-2"
+									style={{ gridTemplateColumns: "repeat(15, minmax(0, 1fr))" }}
+								>
+									{Array.from({ length: 15 }, (_, i) => i + 8).map((h) => {
+										const n = hourBuckets.get(h) ?? 0;
+										if (n === 0) return <div key={h} />;
+										return (
+											<Tooltip key={h}>
+												<TooltipTrigger asChild>
+													<div className="flex flex-col items-center justify-center gap-1 rounded-md bg-[#0a0a0a] px-1 py-1 text-[10px] font-bold text-white cursor-default">
+														<span>{h}:00</span>
+														<span className="font-mono opacity-70">×{n}</span>
+													</div>
+												</TooltipTrigger>
+												<TooltipContent>{n} booking{n === 1 ? "" : "s"} at {h}:00</TooltipContent>
+											</Tooltip>
+										);
+									})}
+								</div>
+							</>
+						)}
 					</div>
 				</section>
 
@@ -837,6 +958,8 @@ function KpiTile(props: {
 	progressPct?: number;
 	progressLabel?: string;
 	loading?: boolean;
+	isError?: boolean;
+	onRetry?: () => void;
 }) {
 	const chipBg =
 		props.chipTone === "green"
@@ -852,12 +975,26 @@ function KpiTile(props: {
 			</div>
 			{props.loading ? (
 				<Skeleton className="mt-2 h-7 w-24" />
+			) : props.isError ? (
+				<div className="mt-2 flex items-center gap-1.5 text-destructive text-xs">
+					<AlertTriangle className="size-3.5 shrink-0" />
+					<span>—</span>
+					{props.onRetry && (
+						<button
+							type="button"
+							onClick={props.onRetry}
+							className="underline underline-offset-2 hover:opacity-70"
+						>
+							Retry
+						</button>
+					)}
+				</div>
 			) : (
 				<div className="mt-2 font-mono text-2xl font-bold tabular-nums">
 					{props.value}
 				</div>
 			)}
-			{props.progressPct !== undefined ? (
+			{!props.isError && props.progressPct !== undefined ? (
 				<>
 					<Progress
 						value={props.progressPct}
@@ -868,7 +1005,7 @@ function KpiTile(props: {
 						{props.progressLabel}
 					</div>
 				</>
-			) : (
+			) : !props.isError ? (
 				<div className="mt-1 flex items-center gap-2 text-[11px]">
 					{props.chip && (
 						<Badge variant="outline" className={`px-2 py-0.5 text-[10px] font-bold ${chipBg}`}>
@@ -879,7 +1016,7 @@ function KpiTile(props: {
 						<span className="text-muted-foreground">{props.subline}</span>
 					)}
 				</div>
-			)}
+			) : null}
 		</div>
 	);
 }
@@ -916,7 +1053,7 @@ function TrendStat(props: {
 }
 
 function PendingApprovalsInline({ organizationId }: { organizationId: string }) {
-	const { data, isLoading } = useQuery({
+	const { data, isLoading, isError, refetch } = useQuery({
 		queryKey: ["packageInstances", "listPending", organizationId],
 		queryFn: () =>
 			client.packageInstances.listPending({ organizationId, limit: 5 }),
@@ -942,6 +1079,22 @@ function PendingApprovalsInline({ organizationId }: { organizationId: string }) 
 					</li>
 				))}
 			</ul>
+		);
+	}
+
+	if (isError) {
+		return (
+			<div className="flex items-center gap-2 text-destructive text-xs">
+				<AlertTriangle className="size-3.5 shrink-0" />
+				<span>Failed to load approvals.</span>
+				<button
+					type="button"
+					onClick={() => refetch()}
+					className="underline underline-offset-2 hover:opacity-70"
+				>
+					Retry
+				</button>
+			</div>
 		);
 	}
 

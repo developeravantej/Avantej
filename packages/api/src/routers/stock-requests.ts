@@ -1,9 +1,8 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch, guardInputBranchForContext, resolveAccessibleNodeIds } from "../guards";
 import {
-
 	listStockRequests,
 	getStockRequestById,
 	createStockRequest,
@@ -11,6 +10,35 @@ import {
 	fulfillStockRequest,
 	rejectStockRequest,
 } from "@avantej-core/services";
+import type { Context } from "../context";
+import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import type { members } from "@avantej-core/db/schema/tenant/members";
+
+type Member = typeof members.$inferSelect;
+type TenantDb = NeonDatabase<typeof tenantSchema>;
+
+/**
+ * IW-09: Guard that the caller has access to at least one of the stock request's
+ * branch nodes (fromBranchId or toBranchId). Callers who cannot access either
+ * branch receive FORBIDDEN.
+ */
+async function guardStockRequestBranchAccess(
+	context: Context & { tenantDb: TenantDb; member: Member },
+	request: { fromBranchId?: string | null; toBranchId: string },
+): Promise<void> {
+	const accessibleNodeIds = await resolveAccessibleNodeIds(context);
+
+	const hasToBranch = accessibleNodeIds.includes(request.toBranchId);
+	const hasFromBranch =
+		!request.fromBranchId || accessibleNodeIds.includes(request.fromBranchId);
+
+	if (!hasToBranch && !hasFromBranch) {
+		throw new ORPCError("FORBIDDEN", {
+			message: "You do not have access to any branch on this stock request",
+		});
+	}
+}
 
 export const stockRequestsRouter = {
 	list: tenantProcedure
@@ -23,12 +51,8 @@ export const stockRequestsRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "read")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "read");
 
 			return listStockRequests(context.tenantDb, {
 				status: input.status,
@@ -46,12 +70,8 @@ export const stockRequestsRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "read")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "read");
 
 			const request = await getStockRequestById(context.tenantDb, input.id);
 			if (!request) {
@@ -82,12 +102,14 @@ export const stockRequestsRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "create");
 
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "create")
+			// IW-09: Verify caller has RBAC access to both branch nodes
+			await guardInputBranchForContext(context, input.toBranchId);
+			if (input.fromBranchId) {
+				await guardInputBranchForContext(context, input.fromBranchId);
+			}
 
 			return createStockRequest(context.tenantDb, {
 				dateIssued: new Date(input.dateIssued),
@@ -108,12 +130,15 @@ export const stockRequestsRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "approve");
 
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "approve")
+			// IW-09: Load request and verify caller can access at least one of its branch nodes
+			const request = await getStockRequestById(context.tenantDb, input.id);
+			if (!request) {
+				throw new ORPCError("NOT_FOUND", { message: `Stock request not found: ${input.id}` });
+			}
+			await guardStockRequestBranchAccess(context, request);
 
 			return approveStockRequest(context.tenantDb, input.id);
 		}),
@@ -126,12 +151,15 @@ export const stockRequestsRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "reject");
 
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "reject")
+			// IW-09: Load request and verify caller can access at least one of its branch nodes
+			const request = await getStockRequestById(context.tenantDb, input.id);
+			if (!request) {
+				throw new ORPCError("NOT_FOUND", { message: `Stock request not found: ${input.id}` });
+			}
+			await guardStockRequestBranchAccess(context, request);
 
 			return rejectStockRequest(context.tenantDb, input.id);
 		}),
@@ -150,12 +178,15 @@ export const stockRequestsRouter = {
 			})
 		)
 		.handler(async ({ input, context }) => {
-			
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "update");
 
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "update")
+			// IW-09: Load request and verify caller can access at least one of its branch nodes
+			const request = await getStockRequestById(context.tenantDb, input.id);
+			if (!request) {
+				throw new ORPCError("NOT_FOUND", { message: `Stock request not found: ${input.id}` });
+			}
+			await guardStockRequestBranchAccess(context, request);
 
 			return fulfillStockRequest(context.tenantDb, input.id, input.items);
 		}),

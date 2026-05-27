@@ -27,7 +27,6 @@ import {
 	shouldSkipIntegration,
 } from "../tests/helpers/integration-setup";
 import {
-	sendEmail,
 	sendVerificationEmail,
 	sendPasswordResetEmail,
 	__resetResendClient,

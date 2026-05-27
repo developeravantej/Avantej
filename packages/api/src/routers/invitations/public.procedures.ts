@@ -285,8 +285,14 @@ export const invitationsPublicProcedures = {
       return {
         invitation: {
           id: invitation.id,
+          // email is kept — the signup form pre-fills it, and the server
+          // validates the match on acceptWithSignup regardless. Removing it
+          // here would silently send an empty email and cause a confusing
+          // server-side rejection for unauthenticated new users.
           email: invitation.email,
-          role: invitation.role,
+          // role (exact tenant RBAC string) is NOT returned — it has no
+          // display utility on the acceptance UI and would leak internal
+          // role nomenclature to anyone who obtains the token URL.
           status: invitation.status,
           expiresAt: invitation.expiresAt,
           createdAt: invitation.createdAt,

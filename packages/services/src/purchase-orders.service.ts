@@ -247,25 +247,84 @@ export async function receiveItems(
 	purchaseOrderId: string,
 	receivedItems: Array<{ itemId: string; receivedQty: number }>,
 ) {
+	if (receivedItems.length === 0) {
+		throw new Error("receivedItems must not be empty");
+	}
+
 	return tenantDb.transaction(async (tx) => {
-		for (const item of receivedItems) {
-			await tx
-				.update(purchaseOrderItems)
-				.set({
-					receivedQty: sql`${purchaseOrderItems.receivedQty} + ${item.receivedQty}`,
-				})
-				.where(eq(purchaseOrderItems.id, item.itemId));
+		// IW-06 (mirrors IW-05 createReceipt precondition pattern):
+		// 1. Row-lock the PO to prevent concurrent receipt races.
+		const [po] = await tx
+			.select()
+			.from(purchaseOrders)
+			.where(eq(purchaseOrders.id, purchaseOrderId))
+			.for("update");
+
+		if (!po) {
+			throw new Error(`Purchase order ${purchaseOrderId} not found`);
 		}
 
-		const allItems = await tx
+		// 2. Status guard: only receive items on approved / ordered / partially-received POs.
+		const allowedStatuses = ["approved", "ordered", "partially_received"];
+		if (!allowedStatuses.includes(po.status)) {
+			throw new Error(
+				`Cannot receive items on a purchase order with status "${po.status}". ` +
+				`Allowed statuses: ${allowedStatuses.join(", ")}.`,
+			);
+		}
+
+		// 3. Fetch all PO items and build an allowed-item set for scope validation.
+		const existingItems = await tx
 			.select()
 			.from(purchaseOrderItems)
 			.where(eq(purchaseOrderItems.purchaseOrderId, purchaseOrderId));
 
-		const allFullyReceived = allItems.every(
+		const legalItemIds = new Set(existingItems.map((i) => i.id));
+
+		// Validate every input item belongs to this PO (reject cross-PO mixing).
+		for (const item of receivedItems) {
+			if (!legalItemIds.has(item.itemId)) {
+				throw new Error(
+					`Item ${item.itemId} does not belong to purchase order ${purchaseOrderId}`,
+				);
+			}
+		}
+
+		// 4. Apply over-receipt clamp and update receivedQty with scoped WHERE clause.
+		const itemMap = new Map(existingItems.map((i) => [i.id, i]));
+
+		for (const item of receivedItems) {
+			const existing = itemMap.get(item.itemId)!;
+			const remaining = existing.orderedQty - existing.receivedQty;
+			const clampedQty = Math.min(item.receivedQty, remaining);
+
+			if (clampedQty <= 0) {
+				// Already fully received — skip silently (idempotent).
+				continue;
+			}
+
+			// Scope the UPDATE to both id AND purchaseOrderId for safety.
+			await tx
+				.update(purchaseOrderItems)
+				.set({
+					receivedQty: sql`${purchaseOrderItems.receivedQty} + ${clampedQty}`,
+				})
+				.where(
+					and(
+						eq(purchaseOrderItems.id, item.itemId),
+						eq(purchaseOrderItems.purchaseOrderId, purchaseOrderId),
+					),
+				);
+
+			// Sync the in-memory map so status rollup below is accurate.
+			existing.receivedQty += clampedQty;
+		}
+
+		// 5. Roll PO status based on updated totals (re-read from memory map after clamp).
+		const allFullyReceived = existingItems.every(
 			(item) => item.receivedQty >= item.orderedQty,
 		);
-		const anyReceived = allItems.some((item) => item.receivedQty > 0);
+		const anyReceived = existingItems.some((item) => item.receivedQty > 0);
 
 		const updateData: Record<string, unknown> = {
 			updatedAt: new Date(),

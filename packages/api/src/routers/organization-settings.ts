@@ -6,10 +6,9 @@
  */
 
 import { getSetting, upsertSetting } from "@avantej-core/services";
-import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { assertOrgContextMatch } from "../guards";
+import { assertOrgContextMatch, requirePermissionOrpc } from "../guards";
 
 export const organizationSettingsRouter = {
 	get: tenantProcedure
@@ -25,7 +24,7 @@ export const organizationSettingsRouter = {
 		.input(z.object({ organizationId: z.string().uuid(), key: z.string(), value: z.string() }))
 		.handler(async ({ input, context }) => {
 		assertOrgContextMatch(context, input);
-									if (context.member.role !== "admin") throw new ORPCError("FORBIDDEN", { message: "Admin only" });
+			await requirePermissionOrpc(context.tenantDb, context.member, "organization_settings", "update");
 			return upsertSetting(context.tenantDb, input.key, input.value, context.member.userId);
 		}),
 };

@@ -88,7 +88,14 @@ export const branchInvitesRouter = {
 			
 			
 			await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "read");
-			return listAllBranchInvites(context.tenantDb, context.accessibleNodeIds ?? [], getWebUrl());
+			const rows = await listAllBranchInvites(context.tenantDb, context.accessibleNodeIds ?? [], getWebUrl());
+			// AC-A-06: strip token from list responses — only expose it on create/regenerate
+			return rows.map((row) => ({
+				...row,
+				invite: row.invite
+					? (({ token: _stripped, ...rest }) => rest)(row.invite)
+					: null,
+			}));
 		}),
 
 	/**
@@ -115,9 +122,12 @@ export const branchInvitesRouter = {
 
 			const webUrl = getWebUrl();
 
+			// AC-A-06: token is not returned in list responses to limit plaintext
+			// token exposure. The raw token is only returned on create/regenerate
+			// (one-time exposure). The QR URL still allows scanning without the token
+			// being echoed back in bulk list responses.
 			return invites.map((invite) => ({
 				id: invite.id,
-				token: invite.token,
 				url: `${webUrl}/onboarding/${invite.token}?org=${input.organizationId}`,
 				hierarchyScopeId: invite.hierarchyScopeId,
 				usesCount: invite.usesCount,

@@ -160,7 +160,15 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 			},
 			{ title: "Tax Rates", url: "/dashboard/settings/tax-rates", icon: Tag },
 			{ title: "Expenses", url: "/dashboard/expenses/view", icon: Receipt },
-			{ title: "Packages", url: "/dashboard/packages/view", icon: Package, permission: "service_management:read" },
+			// DU-005: guard Packages with its own permission (not service_management:read)
+			{ title: "Packages", url: "/dashboard/packages/view", icon: Package, permission: "package_management:read" },
+			// CP-004: dedicated Payouts nav item — active check relies on query-string-aware isActive logic in NavGroup
+			{
+				title: "Payouts",
+				url: "/dashboard/commissions/view?tab=payouts",
+				icon: BadgeDollarSign,
+				permission: "commission_payout:read",
+			},
 		],
 	},
 
@@ -355,10 +363,19 @@ function NavGroup({
 	const renderItems = () => (
 		<SidebarMenu>
 			{visibleItems.map((item) => {
+				// CP-004: handle items whose url contains a query string (e.g. ?tab=payouts)
+				// pathname never contains "?", so we must split before comparing.
+				const [itemPath, itemQs] = item.url.split("?");
 				const isActive =
 					item.url === "/dashboard"
 						? pathname === "/dashboard"
-						: pathname.startsWith(item.url);
+						: itemQs
+							? pathname.startsWith(itemPath) &&
+							  // TanStack Router's location.search is a typed object;
+							  // use window.location.search for the raw query string.
+							  new URLSearchParams(window.location.search).get("tab") ===
+									new URLSearchParams(itemQs).get("tab")
+							: pathname.startsWith(itemPath);
 				const badge = badges?.[item.url];
 
 				return (
