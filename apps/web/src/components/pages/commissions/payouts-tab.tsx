@@ -1,13 +1,9 @@
 import { useMemo, useState } from "react";
 import { MoreHorizontal, Play, RefreshCw, Users } from "lucide-react";
 import {
-	type CancelPayoutParams,
-	type MarkFailedParams,
-	type MarkPaidParams,
 	type PayoutListItem,
 	type ProcessForRecipientParams,
 	type RecipientSummaryResult,
-	type RetryPayoutParams,
 	useCancelPayout,
 	useConfirmPayoutViaStripe,
 	useLiabilitySummary,
@@ -169,7 +165,7 @@ function PayoutRowActions({
 				{canConfirmStripe && (
 					<>
 						<DropdownMenuItem
-							onClick={handleConfirmStripe}
+							onClick={() => setActiveDialog("confirmStripe")}
 							className="text-indigo-700 focus:bg-indigo-50 focus:text-indigo-700"
 						>
 							Confirm via Stripe
@@ -180,20 +176,20 @@ function PayoutRowActions({
 				{(status === "pending" || status === "processing") && (
 					<>
 						<DropdownMenuItem
-							onClick={handleMarkPaid}
+							onClick={() => setActiveDialog("markPaid")}
 							className="text-emerald-700 focus:bg-emerald-50 focus:text-emerald-700"
 						>
 							Mark Paid {isStripeConnect ? "(manual ref)" : ""}
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
-							onClick={handleMarkFailed}
+							onClick={() => setActiveDialog("markFailed")}
 							className="text-rose-600 focus:bg-rose-50 focus:text-rose-600"
 						>
 							Mark Failed
 						</DropdownMenuItem>
 						<DropdownMenuItem
-							onClick={handleCancel}
+							onClick={() => setActiveDialog("cancel")}
 							className="text-rose-600 focus:bg-rose-50 focus:text-rose-600"
 						>
 							Cancel
@@ -203,14 +199,14 @@ function PayoutRowActions({
 				{status === "failed" && (
 					<>
 						<DropdownMenuItem
-							onClick={handleRetry}
+							onClick={() => setActiveDialog("retry")}
 							className="text-blue-600 focus:bg-blue-50 focus:text-blue-600"
 						>
 							Retry
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
-							onClick={handleCancel}
+							onClick={() => setActiveDialog("cancel")}
 							className="text-rose-600 focus:bg-rose-50 focus:text-rose-600"
 						>
 							Cancel
@@ -218,6 +214,35 @@ function PayoutRowActions({
 					</>
 				)}
 			</DropdownMenuContent>
+
+			{/* Dialogs render alongside the menu — each owns its form + mutation.
+			    They're conditionally mounted via `payout` prop (null = closed) so
+			    Radix's Dialog focus traps don't fight with the dropdown's. */}
+			<MarkPaidDialog
+				organizationId={organizationId}
+				payout={activeDialog === "markPaid" ? payout : null}
+				onClose={close}
+			/>
+			<MarkFailedDialog
+				organizationId={organizationId}
+				payout={activeDialog === "markFailed" ? payout : null}
+				onClose={close}
+			/>
+			<RetryPayoutDialog
+				organizationId={organizationId}
+				payout={activeDialog === "retry" ? payout : null}
+				onClose={close}
+			/>
+			<CancelPayoutDialog
+				organizationId={organizationId}
+				payout={activeDialog === "cancel" ? payout : null}
+				onClose={close}
+			/>
+			<ConfirmViaStripeDialog
+				organizationId={organizationId}
+				payout={activeDialog === "confirmStripe" ? payout : null}
+				onClose={close}
+			/>
 		</DropdownMenu>
 	);
 }
