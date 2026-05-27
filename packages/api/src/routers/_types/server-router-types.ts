@@ -2733,4 +2733,35 @@ export const partnerStripeRouterType = {
 				throw new Error("Not implemented - this is only for type inference");
 			},
 		),
+	confirmAllViaStripe: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				payoutIds: z.array(z.string().uuid()).min(1).max(100),
+			}),
+		)
+		.handler(
+			(): {
+				succeeded: number;
+				failed: number;
+				rows: Array<
+					| { payoutId: string; ok: true; stripeTransferId: string }
+					| {
+							payoutId: string;
+							ok: false;
+							errorCode:
+								| "NOT_FOUND"
+								| "BAD_REQUEST_STATUS"
+								| "BAD_REQUEST_METHOD"
+								| "PARTNER_NOT_ONBOARDED"
+								| "PARTNER_NOT_PAYOUTS_ENABLED"
+								| "STRIPE_TRANSFER_FAILED"
+								| "UNKNOWN";
+							errorMessage: string;
+					  }
+				>;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 };

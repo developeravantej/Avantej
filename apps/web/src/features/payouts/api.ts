@@ -426,6 +426,57 @@ export type ConfirmViaStripeParams = {
 	payoutId: string;
 };
 
+export type BulkConfirmRow =
+	| { payoutId: string; ok: true; stripeTransferId: string }
+	| {
+			payoutId: string;
+			ok: false;
+			errorCode:
+				| "NOT_FOUND"
+				| "BAD_REQUEST_STATUS"
+				| "BAD_REQUEST_METHOD"
+				| "PARTNER_NOT_ONBOARDED"
+				| "PARTNER_NOT_PAYOUTS_ENABLED"
+				| "STRIPE_TRANSFER_FAILED"
+				| "UNKNOWN";
+			errorMessage: string;
+	  };
+
+export type BulkConfirmResult = {
+	succeeded: number;
+	failed: number;
+	rows: BulkConfirmRow[];
+};
+
+export type ConfirmAllViaStripeParams = {
+	organizationId: string;
+	payoutIds: string[];
+};
+
+/** Bulk: fire `stripe.transfers.create` for each pending stripe_connect payout.
+ * Serial server-side (Stripe rate-limit safety). Returns per-row outcomes so
+ * the UI can show "N confirmed, M failed (reasons)" instead of all-or-nothing. */
+export function useConfirmAllPayoutsViaStripe(organizationId: string) {
+	return useApiMutation<BulkConfirmResult, ConfirmAllViaStripeParams>({
+		mutationFn: (params) =>
+			client.partnerStripe.confirmAllViaStripe({
+				organizationId: params.organizationId,
+				payoutIds: params.payoutIds,
+			}) as Promise<BulkConfirmResult>,
+		successMessage: (result) =>
+			result.failed === 0
+				? `Confirmed ${result.succeeded} payout${result.succeeded !== 1 ? "s" : ""} via Stripe.`
+				: `Confirmed ${result.succeeded}/${result.succeeded + result.failed} (${result.failed} failed — see rows for details).`,
+		errorMessage: (err) => err.message || "Bulk confirm via Stripe failed.",
+		invalidate: [
+			payoutKeys.list(organizationId),
+			commissionKeys.liability(organizationId, {}),
+			["commissions"],
+			["commissionLiability"],
+		],
+	});
+}
+
 /** Fire `stripe.transfers.create` for a pending stripe_connect payout.
  * Idempotent via `confirm-payout:<id>` key on Stripe's side. */
 export function useConfirmPayoutViaStripe(organizationId: string) {

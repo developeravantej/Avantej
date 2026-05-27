@@ -31,6 +31,7 @@ import {
 } from "@/services/partner-stripe.service";
 import {
 	ConfirmPayoutError,
+	confirmAllPayoutsViaStripe,
 	confirmPayoutViaStripe,
 } from "@/services/confirm-payout-via-stripe.service";
 
@@ -353,5 +354,52 @@ export const partnerStripeRouter = {
 				}
 				throw err;
 			}
+		}),
+
+	/**
+	 * Bulk variant of `confirmViaStripe`. Iterates the input list serially
+	 * (avoids burst-tripping Stripe's per-account rate limit) and returns a
+	 * per-row outcome — `{ succeeded, failed, rows: [...] }` — so the UI can
+	 * render "N confirmed, M failed (reasons)" instead of an all-or-nothing
+	 * throw. Each row's failure is independently audited via the single-row
+	 * service's `payout.confirm_via_stripe.failed` audit write.
+	 */
+	confirmAllViaStripe: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				payoutIds: z.array(z.string().uuid()).min(1).max(100),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			const ctx = context as {
+				organizationId?: string;
+				tenantDb?: import("drizzle-orm/neon-serverless").NeonDatabase<
+					typeof import("@avantej-core/db/schema/tenant-schema")
+				>;
+				member?: { userId: string; id: string; role: string };
+			};
+			const orgId = ctx.organizationId ?? input.organizationId;
+			if (!orgId) {
+				throw new ORPCError("BAD_REQUEST", { message: "No organization context" });
+			}
+			if (!ctx.tenantDb || !ctx.member) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "No tenant DB / member on context",
+				});
+			}
+			return confirmAllPayoutsViaStripe(
+				ctx.tenantDb,
+				input.payoutIds,
+				{
+					organizationId: orgId,
+					actor: {
+						userId: ctx.member.userId,
+						memberId: ctx.member.id,
+						role: ctx.member.role,
+					},
+				},
+				() => getStripeClient(),
+			);
 		}),
 };
