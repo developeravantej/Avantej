@@ -22,6 +22,7 @@ export * from "./check-ins";
 export * from "./coach-intake-availability";
 export * from "./coach-intake-exceptions";
 export * from "./class-slots";
+export * from "./commission-cycle-configs";
 export * from "./commission-splits";
 export * from "./customer-profiles";
 export * from "./dashboard-snapshots";

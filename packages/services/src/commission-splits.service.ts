@@ -46,6 +46,7 @@ import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { ORPCError } from "@orpc/server";
 import { writeAudit } from "./audit-log.service";
+import { resolveCycleBoundsForDate } from "./commission-cycle.service";
 import { getDescendantNodeIds } from "./hierarchy.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
@@ -287,18 +288,10 @@ async function computeOrderDiscountBps(
 	return Math.round((discountCents / grossCents) * 10_000); // basis points
 }
 
-/**
- * Inclusive monthly cycle bounds [start, end) anchored to the split's earnedAt.
- * Same convention used by `getOrCreatePayoutBatch` callers when finance closes
- * a calendar-month period. (Custom cycle definitions live with the batch row;
- * at split-creation time we do not yet know which batch will absorb the row,
- * so we use the canonical month boundary.)
- */
-function getCycleBoundsForDate(d: Date): { start: Date; end: Date } {
-	const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1, 0, 0, 0, 0));
-	const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1, 0, 0, 0, 0));
-	return { start, end };
-}
+// `getCycleBoundsForDate` removed in S-cycle-window-alignment — replaced by
+// `resolveCycleBoundsForDate` in `commission-cycle.service.ts` which honours
+// per-(branch | tenant) policy. Preserved logic for `calendar_month` is the
+// fallback when no policy row exists.
 
 export interface CommissionCapDecision {
 	/** True when the split must be skipped entirely (e.g. order discount above threshold). */
@@ -332,6 +325,10 @@ export async function applyCommissionCaps(
 		staffId: string;
 		amountCents: number;
 		earnedAt: Date;
+		// S-cycle-window-alignment: callers MAY pass the parent branchId so the
+		// cap cycle is resolved against the branch's configured policy. When
+		// omitted, the tenant-wide policy (or default UTC calendar month) is used.
+		branchId?: string | null;
 	},
 ): Promise<CommissionCapDecision> {
 	const tdb = db as TenantDb;
@@ -389,7 +386,40 @@ export async function applyCommissionCaps(
 		config.maxPerCycleCents !== undefined &&
 		config.maxPerCycleCents >= 0
 	) {
-		const { start, end } = getCycleBoundsForDate(params.earnedAt);
+		// S-cycle-window-alignment: resolve cycle bounds via configured policy
+		// (branch-specific → tenant-wide → calendar-month default) instead of
+		// hardcoded UTC calendar month. If the caller didn't pass `branchId`,
+		// derive it from the parent (appointment | sales_order | package_instance).
+		// At most one extra SELECT — `branch_id` is on the parent row directly.
+		let resolvedBranchId: string | null = params.branchId ?? null;
+		if (resolvedBranchId === null) {
+			if (params.appointmentId) {
+				const [r] = await tdb
+					.select({ branchId: appointments.branchId })
+					.from(appointments)
+					.where(eq(appointments.id, params.appointmentId))
+					.limit(1);
+				resolvedBranchId = r?.branchId ?? null;
+			} else if (params.salesOrderId) {
+				const [r] = await tdb
+					.select({ branchId: salesOrders.branchId })
+					.from(salesOrders)
+					.where(eq(salesOrders.id, params.salesOrderId))
+					.limit(1);
+				resolvedBranchId = r?.branchId ?? null;
+			}
+			// packageInstances doesn't carry a branchId column directly — fall back
+			// to tenant-wide policy when only packageInstanceId is set.
+		}
+		const { start, end } = await resolveCycleBoundsForDate(
+			tdb,
+			resolvedBranchId,
+			params.earnedAt,
+		);
+		// CPR-07: join through configVersionId to filter by the specific category —
+		// the cap must be measured per-staff per-cycle *per-category*, not across all
+		// categories. Splits without a configVersionId (legacy manual rows) are
+		// excluded from the sum, which is the safe conservative choice.
 		const [agg] = await tdb
 			.select({
 				total:
@@ -398,9 +428,14 @@ export async function applyCommissionCaps(
 					),
 			})
 			.from(commissionSplits)
+			.innerJoin(
+				categoryCommissionConfigVersions,
+				eq(commissionSplits.configVersionId, categoryCommissionConfigVersions.id),
+			)
 			.where(
 				and(
 					eq(commissionSplits.staffId, params.staffId),
+					eq(categoryCommissionConfigVersions.categoryId, categoryId),
 					ne(commissionSplits.status, "void"),
 					gte(commissionSplits.earnedAt, start),
 					sql`${commissionSplits.earnedAt} < ${end}`,
@@ -869,7 +904,11 @@ export async function voidCommissionSplitsForSalesOrder(
 	reason: string,
 	actor: { userId: string; memberId: string; role: string },
 ): Promise<CommissionSplit[]> {
-	const rows = await tenantDb
+	// CPR-06: Wrap all reads and writes in a single transaction to prevent
+	// partial-void state if any step fails, and to serialise concurrent mutations
+	// on the same sales order.
+	return tenantDb.transaction(async (tx) => {
+	const rows = await tx
 		.select()
 		.from(commissionSplits)
 		.where(and(
@@ -888,7 +927,7 @@ export async function voidCommissionSplitsForSalesOrder(
 
 	for (const row of rows) {
 		if (row.appointmentId) {
-			const [appt] = await tenantDb
+			const [appt] = await tx
 				.select({ status: appointments.status })
 				.from(appointments)
 				.where(eq(appointments.id, row.appointmentId))
@@ -912,14 +951,14 @@ export async function voidCommissionSplitsForSalesOrder(
 	if (toVoid.length === 0) return [];
 
 	const ids = toVoid.map(r => r.id);
-	const updated = await tenantDb
+	const updated = await tx
 		.update(commissionSplits)
 		.set({ status: "void", notes: reason, updatedAt: new Date() })
 		.where(inArray(commissionSplits.id, ids))
 		.returning();
 
 	for (const row of updated) {
-		await writeAudit(tenantDb, {
+		await writeAudit(tx as unknown as TenantDb, {
 			actorUserId: actor.userId,
 			actorMemberId: actor.memberId,
 			actorRole: actor.role,
@@ -932,6 +971,7 @@ export async function voidCommissionSplitsForSalesOrder(
 	}
 
 	return updated;
+	}); // end transaction
 }
 
 export interface CreateManualAdjustmentParams {
