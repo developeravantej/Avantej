@@ -289,6 +289,20 @@ export interface RunBatchParams {
 	 * across re-runs.
 	 */
 	branchId?: string | null;
+	/**
+	 * S-payouts-state-machine: when true (default), the inserted payout row is
+	 * created at status='paid' immediately AND the linked commission_splits are
+	 * flipped to status='paid' — the legacy "cash flow" semantics every existing
+	 * caller depends on.
+	 *
+	 * When false, the payout is created at status='pending' and the linked splits
+	 * remain at status='approved' (but carry the payoutId). The operator must
+	 * later call `markPayoutPaid` to settle the row out-of-band — appropriate for
+	 * bank_transfer / check methods that don't settle in-band.
+	 *
+	 * Default remains true for backward compat. New non-cash flows should opt in.
+	 */
+	confirmImmediately?: boolean;
 }
 
 export interface RunBatchResult {
@@ -329,7 +343,14 @@ export async function runBatch(
 		reference,
 		paidByUserId,
 		branchId,
+		confirmImmediately = true,
 	} = params;
+
+	// S-payouts-state-machine: when the operator opts into the state machine
+	// (confirmImmediately=false), the payout enters at 'pending' and linked
+	// splits stay at 'approved' until `markPayoutPaid` settles the row.
+	const payoutInitialStatus: "paid" | "pending" = confirmImmediately ? "paid" : "pending";
+	const splitInitialStatus: "paid" | "approved" = confirmImmediately ? "paid" : "approved";
 
 	try {
 		return await tenantDb.transaction(async (tx) => {
@@ -392,10 +413,12 @@ export async function runBatch(
 						deductionsCents: 0,
 						currency: "myr",
 						payoutMethod: paymentMethod,
-						status: "paid",
-						paidAt: now,
-						manualPayoutConfirmedAt: now,
-						manualPayoutConfirmedBy: paidByUserId,
+						status: payoutInitialStatus,
+						// paidAt + manual confirmation only set when we're entering 'paid'
+						// directly. For 'pending', these are filled later by markPayoutPaid.
+						paidAt: confirmImmediately ? now : null,
+						manualPayoutConfirmedAt: confirmImmediately ? now : null,
+						manualPayoutConfirmedBy: confirmImmediately ? paidByUserId : null,
 						batchId: batch.id,
 						description: reference ?? null,
 						notes: reference
@@ -411,13 +434,16 @@ export async function runBatch(
 				payoutIds.push(newPayout.id);
 				totalAmountCents += group.totalCents;
 
-				// 5. Mark splits as paid and link to the new payout row
+				// 5. Link splits to the new payout row.
+				// In confirmImmediately mode the splits also flip to 'paid' here;
+				// in state-machine mode they stay at 'approved' (carry the payoutId)
+				// and flip to 'paid' later when `markPayoutPaid` fires.
 				await tx
 					.update(commissionSplits)
 					.set({
-						status: "paid",
-						paidBy: paidByUserId,
-						paidAt: now,
+						status: splitInitialStatus,
+						paidBy: confirmImmediately ? paidByUserId : null,
+						paidAt: confirmImmediately ? now : null,
 						payoutId: newPayout.id,
 						updatedAt: now,
 					})
@@ -602,5 +628,291 @@ export async function processForRecipient(
 		reference: params.reference,
 		paidByUserId: params.paidByUserId,
 		branchId: params.branchId ?? null,
+	});
+}
+
+// ---------------------------------------------------------------------------
+// State machine — individual payout row transitions
+// ---------------------------------------------------------------------------
+//
+// S-payouts-state-machine: prior to this work `runBatch` was the ONLY producer
+// of payout rows and inserted them directly at `status='paid'` for every method.
+// The `pending` / `processing` / `failed` / `canceled` enum values were
+// unreachable. These four transition helpers — each FOR UPDATE-locked on the
+// payout row to serialise concurrent callers (mirrors F-07's refund-row-lock
+// pattern) — make the full lifecycle reachable so operators can confirm wire/
+// cheque payouts manually and so Stripe payout webhooks (F-09) have a target
+// state to flip to.
+//
+// Each transition:
+//   1. Locks the payout row via SELECT ... FOR UPDATE (concurrency).
+//   2. Validates the from-state matches the allowed set (state-machine guard).
+//   3. Mutates payout + linked commission_splits in a single transaction.
+//   4. Writes an audit_log row capturing actor + reason.
+
+export interface PayoutActor {
+	userId: string;
+	memberId?: string;
+	role?: string;
+}
+
+async function lockPayoutForUpdate(
+	tx: Parameters<Parameters<TenantDb["transaction"]>[0]>[0],
+	payoutId: string,
+) {
+	const [row] = await tx
+		.select()
+		.from(payouts)
+		.where(eq(payouts.id, payoutId))
+		.for("update")
+		.limit(1);
+	if (!row) {
+		throw Object.assign(new Error(`Payout ${payoutId} not found`), {
+			code: "NOT_FOUND",
+		});
+	}
+	return row;
+}
+
+/**
+ * `pending | processing → paid`.
+ *
+ * Operator-initiated when the out-of-band settlement (wire, cheque) clears.
+ * `paymentReference` is required so the audit trail captures the external
+ * transaction id; stored on the payout row's `description` if absent and
+ * always echoed into the audit changes payload.
+ *
+ * Flips linked commission_splits (where `payoutId = id` AND status='approved')
+ * to status='paid', mirroring the bulk update path in runBatch.
+ */
+export async function markPayoutPaid(
+	tenantDb: TenantDb,
+	payoutId: string,
+	params: { paymentReference: string; actor: PayoutActor },
+): Promise<typeof payouts.$inferSelect> {
+	return tenantDb.transaction(async (tx) => {
+		const row = await lockPayoutForUpdate(tx, payoutId);
+		if (row.status !== "pending" && row.status !== "processing") {
+			throw Object.assign(
+				new Error(
+					`Cannot mark payout paid: current status '${row.status}' — only pending or processing payouts can be marked paid`,
+				),
+				{ code: "BAD_REQUEST" },
+			);
+		}
+		const now = new Date();
+		const [updated] = await tx
+			.update(payouts)
+			.set({
+				status: "paid",
+				paidAt: now,
+				manualPayoutConfirmedAt: now,
+				manualPayoutConfirmedBy: params.actor.userId,
+				// Append reference to description if not already present (preserve any prior text).
+				description: row.description
+					? `${row.description} | ref: ${params.paymentReference}`
+					: `Payment ref: ${params.paymentReference}`,
+				updatedAt: now,
+			})
+			.where(eq(payouts.id, payoutId))
+			.returning();
+		if (!updated) throw new Error(`markPayoutPaid: payout ${payoutId} update returned no row`);
+
+		// Flip linked approved splits to paid. Splits that are already paid (idempotency
+		// safety from a stuck pending payout that was partially synced) are left alone.
+		await tx
+			.update(commissionSplits)
+			.set({
+				status: "paid",
+				paidBy: params.actor.userId,
+				paidAt: now,
+				updatedAt: now,
+			})
+			.where(
+				and(
+					eq(commissionSplits.payoutId, payoutId),
+					eq(commissionSplits.status, "approved"),
+				),
+			);
+
+		await writeAudit(tx, {
+			actorUserId: params.actor.userId,
+			actorMemberId: params.actor.memberId,
+			actorRole: params.actor.role,
+			action: "payout.mark_paid",
+			entityType: "payout",
+			entityId: payoutId,
+			summary: `Payout marked paid (ref: ${params.paymentReference})`,
+			changes: {
+				previousStatus: row.status,
+				newStatus: "paid",
+				paymentReference: params.paymentReference,
+			},
+		});
+
+		return updated;
+	});
+}
+
+/**
+ * `pending | processing → failed`.
+ *
+ * Operator-initiated when a bank rejects the transfer or a cheque bounces.
+ * `reason` is required so the failure cause is preserved. Linked commission
+ * splits stay at status='approved' so a follow-up `retryPayout` keeps the
+ * existing payoutId linkage intact.
+ */
+export async function markPayoutFailed(
+	tenantDb: TenantDb,
+	payoutId: string,
+	params: { reason: string; actor: PayoutActor },
+): Promise<typeof payouts.$inferSelect> {
+	return tenantDb.transaction(async (tx) => {
+		const row = await lockPayoutForUpdate(tx, payoutId);
+		if (row.status !== "pending" && row.status !== "processing") {
+			throw Object.assign(
+				new Error(
+					`Cannot mark payout failed: current status '${row.status}' — only pending or processing payouts can be failed`,
+				),
+				{ code: "BAD_REQUEST" },
+			);
+		}
+		const now = new Date();
+		const [updated] = await tx
+			.update(payouts)
+			.set({
+				status: "failed",
+				notes: row.notes ? `${row.notes}\nFailed: ${params.reason}` : `Failed: ${params.reason}`,
+				updatedAt: now,
+			})
+			.where(eq(payouts.id, payoutId))
+			.returning();
+		if (!updated) throw new Error(`markPayoutFailed: payout ${payoutId} update returned no row`);
+
+		await writeAudit(tx, {
+			actorUserId: params.actor.userId,
+			actorMemberId: params.actor.memberId,
+			actorRole: params.actor.role,
+			action: "payout.mark_failed",
+			entityType: "payout",
+			entityId: payoutId,
+			summary: `Payout marked failed: ${params.reason}`,
+			changes: { previousStatus: row.status, newStatus: "failed", reason: params.reason },
+		});
+
+		return updated;
+	});
+}
+
+/**
+ * `failed → pending`.
+ *
+ * Reset a failed payout for another attempt. Clears `paidAt` (which should
+ * already be null but defense-in-depth). Linked splits are untouched — they
+ * remain at status='approved' for the duration of the retry.
+ */
+export async function retryPayout(
+	tenantDb: TenantDb,
+	payoutId: string,
+	params: { actor: PayoutActor },
+): Promise<typeof payouts.$inferSelect> {
+	return tenantDb.transaction(async (tx) => {
+		const row = await lockPayoutForUpdate(tx, payoutId);
+		if (row.status !== "failed") {
+			throw Object.assign(
+				new Error(
+					`Cannot retry payout: current status '${row.status}' — only failed payouts can be retried`,
+				),
+				{ code: "BAD_REQUEST" },
+			);
+		}
+		const now = new Date();
+		const [updated] = await tx
+			.update(payouts)
+			.set({
+				status: "pending",
+				paidAt: null,
+				updatedAt: now,
+			})
+			.where(eq(payouts.id, payoutId))
+			.returning();
+		if (!updated) throw new Error(`retryPayout: payout ${payoutId} update returned no row`);
+
+		await writeAudit(tx, {
+			actorUserId: params.actor.userId,
+			actorMemberId: params.actor.memberId,
+			actorRole: params.actor.role,
+			action: "payout.retry",
+			entityType: "payout",
+			entityId: payoutId,
+			summary: "Payout reset to pending for retry",
+			changes: { previousStatus: "failed", newStatus: "pending" },
+		});
+
+		return updated;
+	});
+}
+
+/**
+ * `pending | failed → canceled`.
+ *
+ * Cancel a payout that should not be retried (e.g. recipient terminated, data
+ * error). Linked commission_splits revert to status='approved' and have their
+ * `payoutId` cleared so they're re-eligible for a future batch.
+ *
+ * Guard: a paid payout cannot be cancelled — issue a refund/clawback flow
+ * instead.
+ */
+export async function cancelPayout(
+	tenantDb: TenantDb,
+	payoutId: string,
+	params: { reason: string; actor: PayoutActor },
+): Promise<typeof payouts.$inferSelect> {
+	return tenantDb.transaction(async (tx) => {
+		const row = await lockPayoutForUpdate(tx, payoutId);
+		if (row.status !== "pending" && row.status !== "failed") {
+			throw Object.assign(
+				new Error(
+					`Cannot cancel payout: current status '${row.status}' — only pending or failed payouts can be canceled`,
+				),
+				{ code: "BAD_REQUEST" },
+			);
+		}
+		const now = new Date();
+		const [updated] = await tx
+			.update(payouts)
+			.set({
+				status: "canceled",
+				notes: row.notes ? `${row.notes}\nCanceled: ${params.reason}` : `Canceled: ${params.reason}`,
+				updatedAt: now,
+			})
+			.where(eq(payouts.id, payoutId))
+			.returning();
+		if (!updated) throw new Error(`cancelPayout: payout ${payoutId} update returned no row`);
+
+		// Revert linked splits to approved + clear payoutId so they can be re-batched.
+		await tx
+			.update(commissionSplits)
+			.set({
+				status: "approved",
+				payoutId: null,
+				paidAt: null,
+				paidBy: null,
+				updatedAt: now,
+			})
+			.where(eq(commissionSplits.payoutId, payoutId));
+
+		await writeAudit(tx, {
+			actorUserId: params.actor.userId,
+			actorMemberId: params.actor.memberId,
+			actorRole: params.actor.role,
+			action: "payout.cancel",
+			entityType: "payout",
+			entityId: payoutId,
+			summary: `Payout canceled: ${params.reason}`,
+			changes: { previousStatus: row.status, newStatus: "canceled", reason: params.reason },
+		});
+
+		return updated;
 	});
 }

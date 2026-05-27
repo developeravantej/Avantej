@@ -37,6 +37,8 @@ Per-iteration diffs: `loop/iteration-0.md`, `loop/iteration-1.md`. Loop state: `
 > - **S-partner-stripe-onboarding** (from F-10) — partner Stripe Connect OAuth flow; architectural decision required.
 > - **S-payouts-state-machine** (from F-16, F-17) — `pending → processing → paid` plus retry/cancel surface; needs procedures + UI.
 > - ~~**S-refund-row-lock** (from F-07)~~ — **FIXED in iteration 2** (see `loop/iteration-2.md`). `SELECT … FOR UPDATE` on the parent target row + cap check now runs for both partial and full approve. Runtime-proven via `gap-prove-f07-refund-lock.spec.ts`: 2 concurrent `approveRefund` calls → exactly 1 succeeds, 1 rejects with BAD_REQUEST.
+> - ~~**S-cycle-window-alignment** (from F-03)~~ — **FIXED in iteration 3** (see `loop/iteration-3.md`). New `commission_cycle_configs` table with per-(branch|tenant) policy. Migration 0077. `applyCommissionCaps` resolves cycle bounds via policy. Unit-proven: 11/11 cases including the May-21 vs calendar-month regression.
+> - ~~**S-payouts-state-machine** (from F-16, F-17)~~ — **FIXED in iteration 4** (see `loop/iteration-4.md`). `runBatch` opt-in `confirmImmediately:false` puts the payout in `pending`; `markPaid` / `markFailed` / `retry` / `cancel` procedures complete the lifecycle. Each transition FOR-UPDATE-locks the payout row. Runtime-proven via `gap-prove-payouts-state-machine.spec.ts`: LC-01..LC-07 all pass, including 2-way concurrent `markPaid` race. Unblocks S-stripe-payout-webhooks (still blocked by S-partner-stripe-onboarding).
 
 ## 1. Build gate
 `bun run check-types` (cold, after `.tsbuildinfo` sweep): **GREEN**.

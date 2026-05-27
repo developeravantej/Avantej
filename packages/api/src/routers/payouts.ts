@@ -6,14 +6,25 @@
 
 import { payouts } from "@avantej-core/db/schema/tenant/payouts";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
+import { payoutBatches } from "@avantej-core/db/schema/tenant/payout-batches";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { user } from "@avantej-core/db/schema/auth";
-import { eq, and, desc, inArray, or, type SQL } from "drizzle-orm";
+import { eq, and, desc, inArray, isNull, isNotNull, or, type SQL } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
 import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
-import { previewBatch, processCommissionReversals, processForRecipient, recipientSummary, runBatch } from "@avantej-core/services/payouts.service";
+import {
+	cancelPayout,
+	markPayoutFailed,
+	markPayoutPaid,
+	previewBatch,
+	processCommissionReversals,
+	processForRecipient,
+	recipientSummary,
+	retryPayout,
+	runBatch,
+} from "@avantej-core/services/payouts.service";
 import { getControlPanelDb } from "../lib/context-helpers";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
@@ -57,26 +68,36 @@ export const payoutsRouter = {
 				// too (descendant nodes of their hierarchyScopeId), an admin should
 				// see every payout in the tenant regardless of branch anchor.
 				//
-				// F-15: a non-admin sees a row when EITHER
-				//   (a) they ARE the recipient — covers their own reversal/clawback
-				//       adjustments and package/sales-order commissions which have
-				//       no appointmentId and therefore no branch anchor, OR
-				//   (b) the joined appointment's branchId is within their accessible
-				//       hierarchy nodes — covers viewing other staff's payouts inside
-				//       their scope (e.g. a manager seeing trainers in their branch).
-				//
-				// Implemented as a single OR predicate so the existing leftJoin still
-				// runs as one query (no N+1). Tenant isolation is preserved by the
-				// surrounding `context.tenantDb` connection — payouts has no
-				// cross-tenant column.
+				// CP-009: a non-admin sees a row when EITHER
+				//   (a) they ARE the recipient (own payouts always visible), OR
+				//   (b) the payout is appointment-linked AND the appointment's branchId
+				//       is within their accessible hierarchy nodes, OR
+				//   (c) the payout is batch-linked (no appointmentId) AND the batch's
+				//       branchId is within their accessible hierarchy nodes.
+				// Batch payouts that have NEITHER an appointment NOR a scoped batch
+				// (batchId IS NULL or batch.branchId IS NULL) are NOT visible to
+				// non-admins unless they are the recipient — this prevents org-wide
+				// batch payout leakage to branch-scoped staff.
 				const callerUserId = context.member?.userId ?? context.session?.user?.id;
-				const branchPredicate = inArray(
-					appointments.branchId,
-					context.accessibleNodeIds,
+
+				// Arm (b): appointment-linked payout, scoped by appointment.branchId
+				const appointmentBranchPredicate = and(
+					isNotNull(payouts.appointmentId),
+					inArray(appointments.branchId, context.accessibleNodeIds),
 				);
+
+				// Arm (c): batch payout (no appointmentId), scoped by payoutBatches.branchId
+				const batchBranchPredicate = and(
+					isNull(payouts.appointmentId),
+					isNotNull(payouts.batchId),
+					inArray(payoutBatches.branchId, context.accessibleNodeIds),
+				);
+
+				const branchScopePredicate = or(appointmentBranchPredicate, batchBranchPredicate);
+
 				const rbacPredicate = callerUserId
-					? or(eq(payouts.recipientId, callerUserId), branchPredicate)
-					: branchPredicate;
+					? or(eq(payouts.recipientId, callerUserId), branchScopePredicate)
+					: branchScopePredicate;
 				conditions.push(rbacPredicate as SQL);
 			}
 
@@ -84,6 +105,7 @@ export const payoutsRouter = {
 				.select({ payout: payouts })
 				.from(payouts)
 				.leftJoin(appointments, eq(payouts.appointmentId, appointments.id))
+				.leftJoin(payoutBatches, eq(payouts.batchId, payoutBatches.id))
 				.where(conditions.length > 0 ? and(...conditions) : undefined)
 				.orderBy(desc(payouts.createdAt))
 				.limit(input.limit)
@@ -201,6 +223,10 @@ export const payoutsRouter = {
 				// the caller must have RBAC access to the branch. When omitted
 				// the batch is created with branchId=NULL (cross-branch).
 				branchId: z.string().uuid().optional(),
+				// S-payouts-state-machine: when false, payouts enter at status='pending'
+				// and linked splits stay at status='approved' until `markPaid` settles
+				// the row. Defaults to true for backward compat with existing callers.
+				confirmImmediately: z.boolean().optional(),
 			}),
 		)
 		.handler(async ({ input, context }) => {
@@ -227,6 +253,7 @@ export const payoutsRouter = {
 					reference: input.reference,
 					paidByUserId: context.member.userId,
 					branchId: input.branchId ?? null,
+					confirmImmediately: input.confirmImmediately,
 				});
 			} catch (err) {
 				if (err instanceof Error) {
@@ -340,6 +367,142 @@ export const payoutsRouter = {
 					}
 				}
 				throw err;
+			}
+		}),
+
+	// ----------------------------------------------------------------------
+	// State machine — individual payout row transitions
+	// (S-payouts-state-machine). Admin-only via commission_payout:process.
+	// Service helpers carry FOR UPDATE locks for concurrency.
+	// ----------------------------------------------------------------------
+
+	/**
+	 * `pending | processing → paid` for an individual payout row. Operator
+	 * confirms an out-of-band settlement (wire / cheque / Stripe webhook).
+	 */
+	markPaid: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				id: z.string().uuid(),
+				paymentReference: z.string().min(1).max(200),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "process");
+			try {
+				return await markPayoutPaid(context.tenantDb, input.id, {
+					paymentReference: input.paymentReference,
+					actor: {
+						userId: context.member.userId,
+						memberId: context.member.id,
+						role: context.member.role,
+					},
+				});
+			} catch (err) {
+				if (err instanceof ORPCError) throw err;
+				const e = err as { code?: string; message?: string };
+				if (e?.code === "BAD_REQUEST") throw new ORPCError("BAD_REQUEST", { message: e.message });
+				if (e?.code === "NOT_FOUND") throw new ORPCError("NOT_FOUND", { message: e.message });
+				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Failed to mark payout paid" });
+			}
+		}),
+
+	/**
+	 * `pending | processing → failed`. Operator records the failure reason
+	 * (bank rejection, bounced cheque, etc.). Linked splits stay at 'approved'
+	 * so a subsequent `retry` keeps the existing payout linkage.
+	 */
+	markFailed: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				id: z.string().uuid(),
+				reason: z.string().min(1).max(1000),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "process");
+			try {
+				return await markPayoutFailed(context.tenantDb, input.id, {
+					reason: input.reason,
+					actor: {
+						userId: context.member.userId,
+						memberId: context.member.id,
+						role: context.member.role,
+					},
+				});
+			} catch (err) {
+				if (err instanceof ORPCError) throw err;
+				const e = err as { code?: string; message?: string };
+				if (e?.code === "BAD_REQUEST") throw new ORPCError("BAD_REQUEST", { message: e.message });
+				if (e?.code === "NOT_FOUND") throw new ORPCError("NOT_FOUND", { message: e.message });
+				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Failed to mark payout failed" });
+			}
+		}),
+
+	/**
+	 * `failed → pending`. Reset for another attempt. No effect on linked splits.
+	 */
+	retry: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				id: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "process");
+			try {
+				return await retryPayout(context.tenantDb, input.id, {
+					actor: {
+						userId: context.member.userId,
+						memberId: context.member.id,
+						role: context.member.role,
+					},
+				});
+			} catch (err) {
+				if (err instanceof ORPCError) throw err;
+				const e = err as { code?: string; message?: string };
+				if (e?.code === "BAD_REQUEST") throw new ORPCError("BAD_REQUEST", { message: e.message });
+				if (e?.code === "NOT_FOUND") throw new ORPCError("NOT_FOUND", { message: e.message });
+				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Failed to retry payout" });
+			}
+		}),
+
+	/**
+	 * `pending | failed → canceled`. Reverts linked commission_splits to
+	 * 'approved' and clears their payoutId so they can be re-batched.
+	 */
+	cancel: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				id: z.string().uuid(),
+				reason: z.string().min(1).max(1000),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "process");
+			try {
+				return await cancelPayout(context.tenantDb, input.id, {
+					reason: input.reason,
+					actor: {
+						userId: context.member.userId,
+						memberId: context.member.id,
+						role: context.member.role,
+					},
+				});
+			} catch (err) {
+				if (err instanceof ORPCError) throw err;
+				const e = err as { code?: string; message?: string };
+				if (e?.code === "BAD_REQUEST") throw new ORPCError("BAD_REQUEST", { message: e.message });
+				if (e?.code === "NOT_FOUND") throw new ORPCError("NOT_FOUND", { message: e.message });
+				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Failed to cancel payout" });
 			}
 		}),
 };
