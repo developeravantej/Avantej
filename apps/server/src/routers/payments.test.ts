@@ -8,6 +8,8 @@ import { createPaymentsRouter } from "./payments";
 const ORG_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const APPT_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
+const MOCK_MEMBER = { id: "member-1", role: "admin", hierarchyScopeId: "scope-1", userId: "user-1" };
+
 function makeTenantDb(rows: unknown[]) {
 	const chain = {
 		from: mock(() => chain),
@@ -47,7 +49,7 @@ describe("paymentsRouter.getPaymentStatus", () => {
 		const result = await callProcedure(
 			router.getPaymentStatus,
 			{ organizationId: ORG_ID, appointmentId: APPT_ID },
-			{ tenantDb: makeTenantDb([appt]) },
+			{ tenantDb: makeTenantDb([appt]), member: MOCK_MEMBER },
 		);
 		expect(result.paymentStatus).toBe("paid");
 		expect(result.stripePaymentIntentId).toBe("pi_123");
@@ -59,7 +61,7 @@ describe("paymentsRouter.getPaymentStatus", () => {
 			callProcedure(
 				router.getPaymentStatus,
 				{ organizationId: ORG_ID, appointmentId: APPT_ID },
-				{ tenantDb: makeTenantDb([]) },
+				{ tenantDb: makeTenantDb([]), member: MOCK_MEMBER },
 			),
 		).rejects.toMatchObject({ code: "NOT_FOUND" });
 	});
@@ -94,6 +96,7 @@ describe("paymentsRouter.refund", () => {
 					tenantDb: makeTenantDb([
 						{ ...paidAppt, paymentStatus: "pending" },
 					]),
+					member: MOCK_MEMBER,
 				},
 			),
 		).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
@@ -119,7 +122,7 @@ describe("paymentsRouter.refund", () => {
 				appointmentId: APPT_ID,
 				reason: "requested_by_customer",
 			},
-			{ tenantDb: makeTenantDb([paidAppt]) },
+			{ tenantDb: makeTenantDb([paidAppt]), member: MOCK_MEMBER },
 		);
 
 		expect(result.refundId).toBe("re_123");
@@ -155,6 +158,7 @@ describe("paymentsRouter.refund", () => {
 					tenantDb: makeTenantDb([
 						{ ...paidAppt, stripeConnectAccountIdSnapshot: null },
 					]),
+					member: MOCK_MEMBER,
 				},
 			),
 		).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });

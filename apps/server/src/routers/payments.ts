@@ -33,6 +33,7 @@ import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { protectedProcedure } from "@avantej-core/api";
 import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
+import { assertOrgContextMatch, assertTenantContext } from "@avantej-core/api/guards";
 import { getStripeClient } from "@/lib/stripe";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { services } from "@avantej-core/db/schema/tenant/services";
@@ -149,24 +150,13 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const tenantDb = (context as { tenantDb?: unknown }).tenantDb as
-					| {
-							select: (...args: unknown[]) => { from: (...a: unknown[]) => any };
-							update: (...args: unknown[]) => { set: (...a: unknown[]) => any };
-					  }
-					| undefined;
-				if (!tenantDb) {
-					throw new ORPCError("INTERNAL_SERVER_ERROR", {
-						message: "Tenant DB unavailable",
-					});
-				}
+				assertOrgContextMatch(context, input);
+				assertTenantContext(context);
 
-				const controlPanelDb = getControlPanelDb(
-					context as unknown as Parameters<typeof getControlPanelDb>[0],
-				);
+				const controlPanelDb = getControlPanelDb(context);
 
 				// Fetch appointment + service.
-				const [appt] = await (tenantDb as any)
+				const [appt] = await context.tenantDb
 					.select()
 					.from(appointments)
 					.where(eq(appointments.id, input.appointmentId))
@@ -181,7 +171,7 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				}
 
 				// Phase 4: resolve Connect account per the branch's country.
-				const countryCode = await resolveBranchCountryCode(appt.branchId, tenantDb as never);
+				const countryCode = await resolveBranchCountryCode(appt.branchId, context.tenantDb);
 				const acct = countryCode
 					? await getConnectAccountForOrgCountry(input.organizationId, countryCode, controlPanelDb)
 					: await getConnectAccountForOrg(input.organizationId, controlPanelDb);
@@ -210,7 +200,7 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				);
 
 				// Persist snapshot fields so historical rows survive Phase 4 schema move.
-				await (tenantDb as any)
+				await context.tenantDb
 					.update(appointments)
 					.set({
 						stripePaymentIntentId: pi.id,
@@ -244,23 +234,12 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const tenantDb = (context as { tenantDb?: unknown }).tenantDb as
-					| {
-							select: (...args: unknown[]) => { from: (...a: unknown[]) => any };
-							update: (...args: unknown[]) => { set: (...a: unknown[]) => any };
-					  }
-					| undefined;
-				if (!tenantDb) {
-					throw new ORPCError("INTERNAL_SERVER_ERROR", {
-						message: "Tenant DB unavailable",
-					});
-				}
+				assertOrgContextMatch(context, input);
+				assertTenantContext(context);
 
-				const controlPanelDb = getControlPanelDb(
-					context as unknown as Parameters<typeof getControlPanelDb>[0],
-				);
+				const controlPanelDb = getControlPanelDb(context);
 
-				const [appt] = await (tenantDb as any)
+				const [appt] = await context.tenantDb
 					.select()
 					.from(appointments)
 					.where(eq(appointments.id, input.appointmentId))
@@ -291,7 +270,7 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				}
 
 				// Phase 4: resolve Connect account per the branch's country.
-				const countryCode = await resolveBranchCountryCode(appt.branchId, tenantDb as never);
+				const countryCode = await resolveBranchCountryCode(appt.branchId, context.tenantDb);
 				const acct = countryCode
 					? await getConnectAccountForOrgCountry(input.organizationId, countryCode, controlPanelDb)
 					: await getConnectAccountForOrg(input.organizationId, controlPanelDb);
@@ -299,7 +278,7 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				// Fetch service name for the line item.
 				let productName = "Appointment payment";
 				if (appt.serviceId) {
-					const [svc] = await (tenantDb as any)
+					const [svc] = await context.tenantDb
 						.select({ name: services.name })
 						.from(services)
 						.where(eq(services.id, appt.serviceId))
@@ -345,7 +324,7 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 					{ stripeAccount: acct.acctId },
 				);
 
-				await (tenantDb as any)
+				await context.tenantDb
 					.update(appointments)
 					.set({
 						stripePaymentLinkId: link.id,
@@ -374,18 +353,10 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const tenantDb = (context as { tenantDb?: unknown }).tenantDb as
-					| {
-							select: (...args: unknown[]) => { from: (...a: unknown[]) => any };
-					  }
-					| undefined;
-				if (!tenantDb) {
-					throw new ORPCError("INTERNAL_SERVER_ERROR", {
-						message: "Tenant DB unavailable",
-					});
-				}
+				assertOrgContextMatch(context, input);
+				assertTenantContext(context);
 
-				const [appt] = await (tenantDb as any)
+				const [appt] = await context.tenantDb
 					.select({
 						id: appointments.id,
 						paymentStatus: appointments.paymentStatus,
@@ -419,18 +390,10 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const tenantDb = (context as { tenantDb?: unknown }).tenantDb as
-					| {
-							select: (...args: unknown[]) => { from: (...a: unknown[]) => any };
-					  }
-					| undefined;
-				if (!tenantDb) {
-					throw new ORPCError("INTERNAL_SERVER_ERROR", {
-						message: "Tenant DB unavailable",
-					});
-				}
+				assertOrgContextMatch(context, input);
+				assertTenantContext(context);
 
-				const [appt] = await (tenantDb as any)
+				const [appt] = await context.tenantDb
 					.select()
 					.from(appointments)
 					.where(eq(appointments.id, input.appointmentId))
@@ -494,21 +457,12 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const tenantDb = (context as { tenantDb?: unknown }).tenantDb as
-					| {
-							select: (...a: unknown[]) => { from: (...a: unknown[]) => any };
-							update: (...a: unknown[]) => { set: (...a: unknown[]) => any };
-					  }
-					| undefined;
-				if (!tenantDb) {
-					throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant DB unavailable" });
-				}
+				assertOrgContextMatch(context, input);
+				assertTenantContext(context);
 
-				const controlPanelDb = getControlPanelDb(
-					context as unknown as Parameters<typeof getControlPanelDb>[0],
-				);
+				const controlPanelDb = getControlPanelDb(context);
 
-				const [profile] = await (tenantDb as any)
+				const [profile] = await context.tenantDb
 					.select()
 					.from(customerProfiles)
 					.where(eq(customerProfiles.id, input.customerProfileId))
@@ -534,7 +488,7 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 
 				const stripe = resolveStripe();
 				const { customerId } = await getOrCreateStripeCustomer({
-					tenantDb: tenantDb as never,
+					tenantDb: context.tenantDb,
 					stripe,
 					customerProfileId: input.customerProfileId,
 					connectAccountId: stripeAccountId,
@@ -569,14 +523,10 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const tenantDb = (context as { tenantDb?: unknown }).tenantDb as
-					| { select: (...a: unknown[]) => { from: (...a: unknown[]) => any } }
-					| undefined;
-				if (!tenantDb) {
-					throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant DB unavailable" });
-				}
+				assertOrgContextMatch(context, input);
+				assertTenantContext(context);
 
-				const [profile] = await (tenantDb as any)
+				const [profile] = await context.tenantDb
 					.select()
 					.from(customerProfiles)
 					.where(eq(customerProfiles.id, input.customerProfileId))
@@ -620,21 +570,12 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const tenantDb = (context as { tenantDb?: unknown }).tenantDb as
-					| {
-							select: (...a: unknown[]) => { from: (...a: unknown[]) => any };
-							update: (...a: unknown[]) => { set: (...a: unknown[]) => any };
-					  }
-					| undefined;
-				if (!tenantDb) {
-					throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant DB unavailable" });
-				}
+				assertOrgContextMatch(context, input);
+				assertTenantContext(context);
 
-				const controlPanelDb = getControlPanelDb(
-					context as unknown as Parameters<typeof getControlPanelDb>[0],
-				);
+				const controlPanelDb = getControlPanelDb(context);
 
-				const [profile] = await (tenantDb as any)
+				const [profile] = await context.tenantDb
 					.select()
 					.from(customerProfiles)
 					.where(eq(customerProfiles.id, input.customerProfileId))
@@ -659,7 +600,7 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				let acct: ResolvedConnectAccount;
 				let stripeAccountId: string;
 				if (input.appointmentId) {
-					const [appt] = await (tenantDb as any)
+					const [appt] = await context.tenantDb
 						.select()
 						.from(appointments)
 						.where(eq(appointments.id, input.appointmentId))
@@ -669,7 +610,7 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 					}
 					const countryCode = await resolveBranchCountryCode(
 						appt.branchId,
-						tenantDb as never,
+						context.tenantDb,
 					);
 					acct = countryCode
 						? await getConnectAccountForOrgCountry(
@@ -739,24 +680,13 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const tenantDb = (context as { tenantDb?: unknown }).tenantDb as
-					| {
-							select: (...args: unknown[]) => { from: (...a: unknown[]) => any };
-							update: (...args: unknown[]) => { set: (...a: unknown[]) => any };
-					  }
-					| undefined;
-				if (!tenantDb) {
-					throw new ORPCError("INTERNAL_SERVER_ERROR", {
-						message: "Tenant DB unavailable",
-					});
-				}
+				assertOrgContextMatch(context, input);
+				assertTenantContext(context);
 
-				const controlPanelDb = getControlPanelDb(
-					context as unknown as Parameters<typeof getControlPanelDb>[0],
-				);
+				const controlPanelDb = getControlPanelDb(context);
 
 				// 1. Sales order.
-				const [salesOrder] = await (tenantDb as any)
+				const [salesOrder] = await context.tenantDb
 					.select()
 					.from(salesOrders)
 					.where(eq(salesOrders.id, input.salesOrderId))
@@ -766,7 +696,7 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				}
 
 				// 2. Invoice (via salesOrderId).
-				const [invoice] = await (tenantDb as any)
+				const [invoice] = await context.tenantDb
 					.select()
 					.from(invoices)
 					.where(eq(invoices.salesOrderId, input.salesOrderId))
@@ -783,7 +713,7 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				}
 
 				// 3. Payment row.
-				const [payment] = await (tenantDb as any)
+				const [payment] = await context.tenantDb
 					.select()
 					.from(payments)
 					.where(eq(payments.id, invoice.paymentId))
@@ -816,7 +746,7 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				// 4. Resolve Connect acct via the sale's branch country (Phase 4).
 				const countryCode = await resolveBranchCountryCode(
 					salesOrder.branchId,
-					tenantDb as never,
+					context.tenantDb,
 				);
 				const acct = countryCode
 					? await getConnectAccountForOrgCountry(
@@ -871,7 +801,7 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				);
 
 				// 6. Persist link + acct snapshot on the payment row.
-				await (tenantDb as any)
+				await context.tenantDb
 					.update(payments)
 					.set({
 						paymentLinkUrl: link.url,
@@ -908,21 +838,16 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const tenantDb = (context as { tenantDb?: unknown }).tenantDb as
-					| { update: (...a: unknown[]) => { set: (...a: unknown[]) => any } }
-					| undefined;
-				if (!tenantDb) {
-					throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant DB unavailable" });
-				}
+				assertOrgContextMatch(context, input);
+				assertTenantContext(context);
+
 				if (!input.clientId && !input.walkInCustomerId) {
 					throw new ORPCError("BAD_REQUEST", {
 						message: "Either clientId or walkInCustomerId is required",
 					});
 				}
 
-				const controlPanelDb = getControlPanelDb(
-					context as unknown as Parameters<typeof getControlPanelDb>[0],
-				);
+				const controlPanelDb = getControlPanelDb(context);
 				// Phase 4 follow-up: derive branch country from service-prices or
 				// from customer's primary branch — currently uses legacy org-level acct.
 				const acct = await getConnectAccountForOrg(input.organizationId, controlPanelDb);
@@ -933,7 +858,7 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 				const ownerFields = input.clientId
 					? { clientId: input.clientId }
 					: { walkInCustomerId: input.walkInCustomerId! };
-				const pkg = await createPackageInstance(tenantDb as never, {
+				const pkg = await createPackageInstance(context.tenantDb, {
 					serviceId: input.serviceId,
 					...(ownerFields as { clientId: string } | { walkInCustomerId: string }),
 					source: "purchased",

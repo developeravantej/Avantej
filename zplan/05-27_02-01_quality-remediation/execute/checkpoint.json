@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "sessionPath": "zplan/05-27_02-01_quality-remediation",
+  "planPath": "zplan/05-27_02-01_quality-remediation/plan/plan.md",
+  "updatedAt": "2026-05-27T02:50:00Z",
+  "status": "complete",
+  "gitHeadAtStart": "9fe2ef1d3fad5b73f7f68bb6c52fd46549463cbe",
+  "lastCompletedPhase": 3,
+  "currentPhase": null,
+  "totalPhases": 3,
+  "pendingPhases": [],
+  "phaseAgents": {
+    "1": [
+      { "role": "Agent A (server-tests)", "logWritten": true },
+      { "role": "Agent B (web-tests)", "logWritten": true }
+    ],
+    "2": [
+      { "role": "Agent C (server-refactor)", "logWritten": true }
+    ]
+  },
+  "taskCoverage": {
+    "1": { "total": 4, "done": 4, "missed": 0 },
+    "3": { "total": 2, "done": 2, "missed": 0 },
+    "2": { "total": 3, "done": 3, "missed": 0 }
+  },
+  "missedTasks": [],
+  "resolvedDecisions": [
+    { "id": "OQ1", "title": "Keep StripeClientLike DI in payments.ts", "decision": "Keep", "reason": "Orthogonal to type fix; preserves offline testability" },
+    { "id": "OQ2", "title": "mock.module teardown in bun:test", "decision": "Works", "reason": "Confirmed via Agent A — use relative paths not @/ aliases" },
+    { "id": "SCOPE-1", "title": "Agent C modified orpc-tenant.middleware.ts", "decision": "Revert + spawn follow-up", "reason": "Out of plan scope; security fix flagged as separate ticket" }
+  ],
+  "openQuestions": [],
+  "nextActions": ["User confirmation to mark session complete via /done"],
+  "subagentRetryLog": []
+}
