@@ -29,6 +29,10 @@ import {
 	deriveStripeConnectStatus,
 	signPartnerOAuthState,
 } from "@/services/partner-stripe.service";
+import {
+	ConfirmPayoutError,
+	confirmPayoutViaStripe,
+} from "@/services/confirm-payout-via-stripe.service";
 
 function getEnvVar(key: string): string | undefined {
 	try {
@@ -269,5 +273,73 @@ export const partnerStripeRouter = {
 				detailsSubmitted,
 				requirementsCurrentlyDue: acct.requirements?.currently_due ?? [],
 			};
+		}),
+
+	/**
+	 * Phase C of S-partner-stripe-onboarding: confirm a pending payout by firing
+	 * a Stripe Connect Transfer to the recipient's partner_stripe_accounts.
+	 * Operator-initiated; admin-only via commission_payout:process.
+	 *
+	 * The webhook handlers from Phase B (iteration 6) will receive the
+	 * resulting `transfer.created` event — by then the local row is already
+	 * `paid` (we update synchronously here) so the webhook is a no-op confirm.
+	 *
+	 * Maps the service-layer ConfirmPayoutError codes to oRPC error codes the
+	 * UI can present to the operator without exposing raw Stripe messages.
+	 */
+	confirmViaStripe: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				payoutId: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			const ctx = context as {
+				organizationId?: string;
+				tenantDb?: import("drizzle-orm/neon-serverless").NeonDatabase<
+					typeof import("@avantej-core/db/schema/tenant-schema")
+				>;
+				member?: { userId: string; id: string; role: string };
+			};
+			const orgId = ctx.organizationId ?? input.organizationId;
+			if (!orgId) {
+				throw new ORPCError("BAD_REQUEST", { message: "No organization context" });
+			}
+			if (!ctx.tenantDb || !ctx.member) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "No tenant DB / member on context",
+				});
+			}
+			try {
+				return await confirmPayoutViaStripe(
+					ctx.tenantDb,
+					input.payoutId,
+					{
+						organizationId: orgId,
+						actor: {
+							userId: ctx.member.userId,
+							memberId: ctx.member.id,
+							role: ctx.member.role,
+						},
+					},
+					() => getStripeClient(),
+				);
+			} catch (err) {
+				if (err instanceof ConfirmPayoutError) {
+					switch (err.code) {
+						case "NOT_FOUND":
+							throw new ORPCError("NOT_FOUND", { message: err.message });
+						case "BAD_REQUEST_STATUS":
+						case "BAD_REQUEST_METHOD":
+						case "PARTNER_NOT_ONBOARDED":
+						case "PARTNER_NOT_PAYOUTS_ENABLED":
+							throw new ORPCError("BAD_REQUEST", { message: err.message });
+						case "STRIPE_TRANSFER_FAILED":
+							throw new ORPCError("BAD_GATEWAY", { message: err.message });
+					}
+				}
+				throw err;
+			}
 		}),
 };

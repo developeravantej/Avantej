@@ -278,7 +278,7 @@ export interface RunBatchParams {
 	staffIds: string[];
 	periodStart: Date;
 	periodEnd: Date;
-	paymentMethod: "bank_transfer" | "cash" | "check" | "other";
+	paymentMethod: "bank_transfer" | "cash" | "check" | "other" | "stripe_connect";
 	reference?: string;
 	paidByUserId: string; // context.member.userId
 	/**
@@ -598,7 +598,7 @@ export async function recipientSummary(
 
 export interface ProcessForRecipientParams {
 	recipientId: string;
-	paymentMethod: "bank_transfer" | "cash" | "check" | "other";
+	paymentMethod: "bank_transfer" | "cash" | "check" | "other" | "stripe_connect";
 	reference?: string;
 	paidByUserId: string;
 	periodStart?: Date;

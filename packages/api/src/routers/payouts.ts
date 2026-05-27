@@ -217,7 +217,7 @@ export const payoutsRouter = {
 				staffIds: z.array(z.string()).min(1).max(50),
 				periodStart: z.coerce.date(),
 				periodEnd: z.coerce.date(),
-				paymentMethod: z.enum(["bank_transfer", "cash", "check", "other"]),
+				paymentMethod: z.enum(["bank_transfer", "cash", "check", "other", "stripe_connect"]),
 				reference: z.string().max(200).optional(),
 				// Optional branch anchor for the payout batch row. When provided
 				// the caller must have RBAC access to the branch. When omitted
@@ -329,7 +329,7 @@ export const payoutsRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				recipientId: z.string(),
-				paymentMethod: z.enum(["bank_transfer", "cash", "check", "other"]),
+				paymentMethod: z.enum(["bank_transfer", "cash", "check", "other", "stripe_connect"]),
 				reference: z.string().max(200).optional(),
 				periodStart: z.coerce.date().optional(),
 				periodEnd: z.coerce.date().optional(),
