@@ -9,6 +9,7 @@ import { cancelledSalesRouter } from "./cancelled-sales";
 import { categoryBufferOverridesRouter } from "./category-buffer-overrides";
 import { categoryCommissionRouter } from "./category-commission";
 import { checkInsRouter } from "./check-ins";
+import { commissionCycleRouter } from "./commission-cycle";
 import { classSlotsRouter } from "./class-slots";
 import { coachIntakeRouter } from "./coach-intake";
 import { commissionSplitsRouter } from "./commission-splits";
@@ -108,6 +109,7 @@ export const baseRouter = {
 	waitlist: waitlistRouter,
 	commissionSplits: commissionSplitsRouter,
 	categoryCommission: categoryCommissionRouter,
+	commissionCycle: commissionCycleRouter,
 	purchaseOrders: purchaseOrdersRouter,
 	goodsReceipts: goodsReceiptsRouter,
 	promotions: promotionsRouter,
