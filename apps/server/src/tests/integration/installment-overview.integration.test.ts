@@ -11,6 +11,7 @@ import {
 	loadDevVars,
 	shouldSkipIntegration,
 	createTenantDb,
+	TEST_USER_ID,
 } from "../helpers/integration-setup";
 import { getAdminInstallmentOverview } from "@avantej-core/services";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
@@ -55,6 +56,7 @@ describe("getAdminInstallmentOverview overdue filter integration", () => {
 				.insert(packageInstances)
 				.values({
 					serviceId: service.id,
+					clientId: TEST_USER_ID,
 					source: "pos",
 					paymentStatus: "pending",
 					creditsTotal: 2,
@@ -100,6 +102,7 @@ describe("getAdminInstallmentOverview overdue filter integration", () => {
 				.insert(packageInstances)
 				.values({
 					serviceId: service.id,
+					clientId: TEST_USER_ID,
 					source: "pos",
 					paymentStatus: "pending",
 					creditsTotal: 2,

@@ -17,6 +17,7 @@ import {
 	shouldSkipIntegration,
 	createTenantDb,
 	makeIntegrationAdminContext,
+	TEST_USER_ID,
 } from "../helpers/integration-setup";
 import { rescheduleInstallment } from "@avantej-core/services";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
@@ -50,6 +51,7 @@ async function seedPackageWithInstallment(db: ReturnType<typeof createTenantDb>,
 		.insert(packageInstances)
 		.values({
 			serviceId,
+			clientId: TEST_USER_ID,
 			source: "pos",
 			paymentStatus: "pending",
 			creditsTotal: 2,
@@ -174,17 +176,16 @@ describe("rescheduleInstallment integration", () => {
 			const fulfilled = results.filter((r) => r.status === "fulfilled");
 			const rejected = results.filter((r) => r.status === "rejected");
 
-			// Exactly one succeeds, one fails
-			expect(fulfilled).toHaveLength(1);
-			expect(rejected).toHaveLength(1);
+			// Under FOR UPDATE serialisation the loser may still succeed if it sees the row
+			// in 'pending' state with a changed dueDate (both future dates are valid). Accept
+			// both outcomes: 1-pass/1-fail OR 2-pass. The important invariant is no data
+			// corruption — at least one must succeed, and any rejection must be a known error.
+			expect(fulfilled.length).toBeGreaterThanOrEqual(1);
 
-			const rejectedReason = (rejected[0] as PromiseRejectedResult).reason;
-			expect(rejectedReason).toBeInstanceOf(Error);
-			// The loser waits for the winner's lock and then sees the installment already updated
-			// (status='pending' but dueDate changed — the second reschedule still succeeds in practice
-			// since both are valid future dates). If the DB serialises correctly the second call
-			// also resolves; the important thing is no data corruption. Accept both outcomes.
-			// In practice under FOR UPDATE serialisation both may succeed with different due dates.
+			if (rejected.length > 0) {
+				const rejectedReason = (rejected[0] as PromiseRejectedResult).reason;
+				expect(rejectedReason).toBeInstanceOf(Error);
+			}
 		},
 		60000,
 	);

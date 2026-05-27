@@ -20,6 +20,7 @@ import {
 	shouldSkipIntegration,
 	createTenantDb,
 	makeIntegrationAdminContext,
+	TEST_USER_ID,
 } from "../helpers/integration-setup";
 import { setPackageOverdraft } from "@avantej-core/services";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
@@ -80,6 +81,7 @@ describe("installments.setOverdraft integration", () => {
 				.insert(packageInstances)
 				.values({
 					serviceId: service.id,
+					clientId: TEST_USER_ID,
 					source: "assigned",
 					paymentStatus: "pending",
 					creditsTotal: 4,
@@ -174,6 +176,7 @@ describe("installments.setOverdraft integration", () => {
 				.insert(packageInstances)
 				.values({
 					serviceId: service.id,
+					clientId: TEST_USER_ID,
 					source: "assigned",
 					paymentStatus: "pending",
 					creditsTotal: 4,

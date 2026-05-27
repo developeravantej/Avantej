@@ -12,6 +12,7 @@ import {
 	shouldSkipIntegration,
 	createTenantDb,
 	makeIntegrationAdminContext,
+	TEST_USER_ID,
 } from "../helpers/integration-setup";
 import { processRefund } from "@avantej-core/services";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
@@ -67,6 +68,7 @@ describe("processRefund integration", () => {
 				.insert(packageInstances)
 				.values({
 					serviceId: service.id,
+					clientId: TEST_USER_ID,
 					source: "pos",
 					paymentStatus: "pending",
 					creditsTotal: 4,
@@ -159,6 +161,7 @@ describe("processRefund integration", () => {
 				.insert(packageInstances)
 				.values({
 					serviceId: service.id,
+					clientId: TEST_USER_ID,
 					source: "pos",
 					paymentStatus: "paid",
 					creditsTotal: 2,

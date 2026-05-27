@@ -74,6 +74,7 @@ async function makeTestPackage(): Promise<string> {
 		.insert(packageInstances)
 		.values({
 			serviceId: svc.id,
+			clientId: TEST_USER_ID,
 			source: "assigned",
 			assignedBy: TEST_USER_ID,
 			creditsTotal: 10,

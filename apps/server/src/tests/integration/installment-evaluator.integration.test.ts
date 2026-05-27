@@ -12,6 +12,7 @@ import {
 	loadDevVars,
 	shouldSkipIntegration,
 	createTenantDb,
+	TEST_USER_ID,
 } from "../helpers/integration-setup";
 import { evaluateAndLockIfOverdue } from "@avantej-core/services";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
@@ -58,6 +59,7 @@ describe("evaluateAndLockIfOverdue integration", () => {
 				.insert(packageInstances)
 				.values({
 					serviceId: service.id,
+					clientId: TEST_USER_ID,
 					source: "pos",
 					paymentStatus: "pending",
 					creditsTotal: 6,
@@ -152,6 +154,7 @@ describe("evaluateAndLockIfOverdue integration", () => {
 				.insert(packageInstances)
 				.values({
 					serviceId: service.id,
+					clientId: TEST_USER_ID,
 					source: "pos",
 					paymentStatus: "pending",
 					creditsTotal: 2,

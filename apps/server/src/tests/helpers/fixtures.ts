@@ -4,6 +4,52 @@ const BRANCH_NODE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
 const MEMBER_ID = "bbbbbbbb-0000-4000-8000-000000000001";
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Package Instance Fixtures
+//
+// XOR REQUIREMENT — pkg_owner_xor constraint (migration 0027_walkin_commission.sql):
+//   (client_id IS NULL) <> (walk_in_customer_id IS NULL)
+//
+// Exactly ONE of clientId or walkInCustomerId must be supplied.
+// Passing both or neither throws an early descriptive error rather than
+// propagating a confusing Postgres check constraint violation.
+//
+// Most tests want a regular client — pass { clientId, ... }.
+// Walk-in tests should pass { walkInCustomerId, ... } instead.
+// ──────────────────────────────────────────────────────────────────────────────
+export function makePackageInstance(opts: {
+	serviceId: string;
+	clientId?: string | null;
+	walkInCustomerId?: string | null;
+	[key: string]: unknown;
+}) {
+	const { clientId = null, walkInCustomerId = null, serviceId, ...rest } = opts;
+	const hasClient = clientId != null;
+	const hasWalkIn = walkInCustomerId != null;
+	if (hasClient === hasWalkIn) {
+		throw new Error(
+			"makePackageInstance: must supply exactly one of clientId or walkInCustomerId (XOR). " +
+				`Received clientId=${JSON.stringify(clientId)}, walkInCustomerId=${JSON.stringify(walkInCustomerId)}.`,
+		);
+	}
+
+	const now = new Date();
+	return {
+		id: randomUUID(),
+		serviceId,
+		clientId,
+		walkInCustomerId,
+		source: "assigned" as string,
+		paymentStatus: "pending" as string,
+		creditsTotal: 1,
+		creditsUsed: 0,
+		status: "active" as string,
+		startsAt: now,
+		expiresAt: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000),
+		...rest,
+	};
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Expense Fixtures
 // ──────────────────────────────────────────────────────────────────────────────
 export function makeExpense(overrides: Partial<Record<string, unknown>> = {}) {
