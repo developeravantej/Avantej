@@ -11,6 +11,26 @@
  * Pattern matches `runScheduledReports` in scheduled-reports.service.ts:
  * loop orgs from the control panel, skip dead ones, accumulate a per-run
  * report. Per-row failures are logged + counted but never kill the batch.
+ *
+ * CONCURRENCY / LOCK-ORDER SAFETY (F-INS-3)
+ * ------------------------------------------
+ * The outer candidate SELECT is intentionally non-locking — it is a cheap
+ * read that identifies work items.  The actual mutation happens inside
+ * `evaluateAndLockIfOverdue`, which opens its own serialisable transaction
+ * and acquires row locks in the canonical order:
+ *
+ *   1. package_instances  FOR UPDATE  (PARENT)
+ *   2. installments        FOR UPDATE  (CHILD, via CAS UPDATE with status='pending' guard)
+ *
+ * The payment-confirmation path (`confirmInstallmentPayment`) uses the same
+ * lock order, so the two paths cannot deadlock.  The CAS precondition on the
+ * installment UPDATE means that if a payment was confirmed between the outer
+ * SELECT and the per-row transaction, the UPDATE will match 0 rows and the
+ * sweep silently skips that row — no inconsistent state is written.
+ *
+ * This is the open-on-read (TOCTOU) mitigation: we accept that the outer
+ * candidate scan may be stale; the correctness guarantee lives inside the
+ * per-row transaction via the CAS WHERE clause.
  */
 
 import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";

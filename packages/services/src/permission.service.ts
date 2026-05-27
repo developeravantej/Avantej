@@ -65,7 +65,9 @@ export type Resource =
 	// Point of Sale (tracking-pages P4)
 	| "pos"
 	// Refunds Ledger (tracking-pages P5)
-	| "refund_management";
+	| "refund_management"
+	// Installment / financing management
+	| "installment_management";
 export type Action =
 	| "create"
 	| "read"

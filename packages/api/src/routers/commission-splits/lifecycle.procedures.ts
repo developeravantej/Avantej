@@ -187,6 +187,7 @@ const markPaidBatchProcedure = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
+		// F-PAY-3: route Liability mark-paid through payouts pipeline so KPIs include these settlements
 
 
 

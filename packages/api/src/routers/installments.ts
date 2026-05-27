@@ -121,11 +121,7 @@ const manualUnlock = tenantProcedure
 		
 
 		assertOrgContextMatch(context, input);
-		if (context.member.role !== "admin") {
-			throw new ORPCError("FORBIDDEN", {
-				message: "Admin role required",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
 
 		const actor = {
 			userId: context.session!.user.id,
@@ -157,11 +153,7 @@ const processRefundProcedure = tenantProcedure
 		
 
 		assertOrgContextMatch(context, input);
-		if (context.member.role !== "admin") {
-			throw new ORPCError("FORBIDDEN", {
-				message: "Admin role required",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
 
 		const actor = {
 			userId: context.session!.user.id,
@@ -249,11 +241,7 @@ const suggestRefund = tenantProcedure
 		
 
 		assertOrgContextMatch(context, input);
-		if (context.member.role !== "admin") {
-			throw new ORPCError("FORBIDDEN", {
-				message: "Admin role required",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
 
 		return getSuggestedRefund(context.tenantDb, input.packageInstanceId);
 	});
@@ -274,9 +262,7 @@ const adjustCreditsProcedure = tenantProcedure
 		
 
 		assertOrgContextMatch(context, input);
-		if (context.member.role !== "admin") {
-			throw new ORPCError("FORBIDDEN", { message: "Admin role required" });
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
 
 		const actor = {
 			userId: context.session!.user.id,
@@ -316,11 +302,7 @@ const setOverdraft = tenantProcedure
 		
 
 		assertOrgContextMatch(context, input);
-		if (context.member.role !== "admin") {
-			throw new ORPCError("FORBIDDEN", {
-				message: "Admin role required",
-			});
-		}
+		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
 
 		const actor = {
 			userId: context.session!.user.id,
@@ -346,10 +328,8 @@ const reschedule = tenantProcedure
 	}))
 	.handler(async ({ input, context }) => {
 		assertOrgContextMatch(context, input);
-		// LC-M1: reschedule is an admin-only operation
-		if (context.member.role !== "admin") {
-			throw new ORPCError("FORBIDDEN", { message: "Only admins can reschedule instalments." });
-		}
+		// LC-M1: reschedule requires installment write permission
+		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
 		try {
 			return rescheduleInstallment(context.tenantDb, input.installmentId, new Date(input.newDueDate), context.member.userId, input.reason);
 		} catch (err: any) {
@@ -367,10 +347,8 @@ const waive = tenantProcedure
 	}))
 	.handler(async ({ input, context }) => {
 		assertOrgContextMatch(context, input);
-		// LC-M1: waive is an admin-only operation
-		if (context.member.role !== "admin") {
-			throw new ORPCError("FORBIDDEN", { message: "Only admins can waive instalments." });
-		}
+		// LC-M1: waive requires installment write permission
+		await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
 		try {
 			return waiveInstallment(context.tenantDb, input.installmentId, context.member.userId, input.reason);
 		} catch (err: any) {

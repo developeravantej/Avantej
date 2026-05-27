@@ -19,6 +19,13 @@ import {
 	useRetryPayout,
 } from "@/features/payouts/api";
 import { PartnerStripeCard } from "@/features/payouts/components/partner-stripe-card";
+import {
+	CancelPayoutDialog,
+	ConfirmViaStripeDialog,
+	MarkFailedDialog,
+	MarkPaidDialog,
+	RetryPayoutDialog,
+} from "@/features/payouts/components/payout-action-dialogs";
 import { RunBatchDrawer } from "@/features/payouts/components/run-batch-drawer";
 import type { StaffOption } from "@/features/payouts/components/run-batch-drawer";
 import {
@@ -108,6 +115,15 @@ function PayoutRowActions({
 	organizationId: string;
 	canProcess: boolean;
 }) {
+	// One slot drives which dialog is open. null = closed. Each item in the
+	// dropdown sets this; the dialog component then owns the form + mutation.
+	type DialogKind = "markPaid" | "markFailed" | "retry" | "cancel" | "confirmStripe";
+	const [activeDialog, setActiveDialog] = useState<DialogKind | null>(null);
+
+	// Surface pending state on the trigger button. Each mutation runs inside
+	// its dialog component now, so we read from the same hooks here just to
+	// reflect the loading state on the row — actual `mutate` calls happen
+	// in the dialog.
 	const markPaid = useMarkPayoutPaid(organizationId);
 	const markFailed = useMarkPayoutFailed(organizationId);
 	const retry = useRetryPayout(organizationId);
@@ -130,58 +146,7 @@ function PayoutRowActions({
 		return null;
 	}
 
-	function handleMarkPaid() {
-		const ref = window.prompt("Enter payment reference (bank ref, cheque no., etc.):");
-		if (ref === null) return;
-		if (!ref.trim()) {
-			toast.error("Payment reference is required");
-			return;
-		}
-		const params: MarkPaidParams = { organizationId, id: payout.id, paymentReference: ref.trim() };
-		markPaid.mutate(params);
-	}
-
-	function handleMarkFailed() {
-		const reason = window.prompt("Enter failure reason (bank rejection, bounced cheque, etc.):");
-		if (reason === null) return;
-		if (!reason.trim()) {
-			toast.error("Failure reason is required");
-			return;
-		}
-		if (!window.confirm(`Mark this payout as failed?\n\nReason: ${reason.trim()}`)) return;
-		const params: MarkFailedParams = { organizationId, id: payout.id, reason: reason.trim() };
-		markFailed.mutate(params);
-	}
-
-	function handleRetry() {
-		if (!window.confirm("Reset this payout to pending for another attempt?")) return;
-		const params: RetryPayoutParams = { organizationId, id: payout.id };
-		retry.mutate(params);
-	}
-
-	function handleCancel() {
-		const reason = window.prompt("Enter cancellation reason:");
-		if (reason === null) return;
-		if (!reason.trim()) {
-			toast.error("Cancellation reason is required");
-			return;
-		}
-		if (!window.confirm(`Cancel this payout?\n\nReason: ${reason.trim()}\n\nLinked commission splits will revert to 'approved' and can be re-batched.`)) return;
-		const params: CancelPayoutParams = { organizationId, id: payout.id, reason: reason.trim() };
-		cancel.mutate(params);
-	}
-
-	function handleConfirmStripe() {
-		if (
-			!window.confirm(
-				`Fire a Stripe Connect Transfer for this payout?\n\n` +
-				`This calls stripe.transfers.create with idempotency key confirm-payout:${payout.id}, ` +
-				`flips the payout to 'paid', and marks the linked commission splits paid. ` +
-				`The partner must have a fully-onboarded Stripe Connect account with payouts enabled.`,
-			)
-		) return;
-		confirmStripe.mutate({ organizationId, payoutId: payout.id });
-	}
+	const close = () => setActiveDialog(null);
 
 	return (
 		<DropdownMenu>
@@ -191,6 +156,7 @@ function PayoutRowActions({
 					disabled={isBusy}
 					className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[#8a8f91] transition-colors hover:bg-[#f3f3f3] hover:text-[#0a0a0a] disabled:opacity-40"
 					aria-label="Payout actions"
+					data-testid="payout-row-actions"
 				>
 					{isBusy ? (
 						<RefreshCw className="h-3.5 w-3.5 animate-spin" />
@@ -371,11 +337,12 @@ function PerRecipientPanel({
 			if (!existing) {
 				map.set(p.recipientId, {
 					name: p.recipientName,
+					// F-PAY-4: signed sum so reversals reduce the total
 					pendingCents: p.status === "pending" ? p.amount : 0,
 					pendingCount: p.status === "pending" ? 1 : 0,
 				});
 			} else if (p.status === "pending") {
-				existing.pendingCents += p.amount;
+				existing.pendingCents += p.amount; // F-PAY-4: signed sum so reversals reduce the total
 				existing.pendingCount += 1;
 			}
 		}
@@ -398,6 +365,7 @@ function PerRecipientPanel({
 	}, [payouts, recipientId]);
 
 	const pendingForRecipient = useMemo(
+		// F-PAY-4: signed sum so reversals reduce the total
 		() => recipientPayouts.filter((p) => p.status === "pending").reduce((s, p) => s + p.amount, 0),
 		[recipientPayouts],
 	);
@@ -733,7 +701,7 @@ export function PayoutsTab({
 		() =>
 			payouts
 				.filter((p) => p.status === "paid" && p.paidAt != null && new Date(p.paidAt) >= monthStart)
-				.reduce((s, p) => s + p.amount, 0),
+				.reduce((s, p) => s + p.amount, 0), // F-PAY-4: signed sum so reversals reduce the total
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[payouts],
 	);
@@ -742,6 +710,7 @@ export function PayoutsTab({
 		const paid = payouts.filter(
 			(p) => p.status === "paid" && p.paidAt != null && new Date(p.paidAt) >= monthStart && p.amount >= 0,
 		);
+		// F-PAY-4: signed sum so reversals reduce the total (filter already excludes p.amount < 0)
 		return paid.length === 0 ? 0 : Math.round(paid.reduce((s, p) => s + p.amount, 0) / paid.length);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [payouts]);

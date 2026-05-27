@@ -478,6 +478,15 @@ export default {
             .then((r) => console.log(`[scheduled] reconciliation done: ${JSON.stringify(r)}`))
             .catch((e) => console.error(`[scheduled] reconciliation failed:`, e)),
         );
+        // F-SAAS-2: past-due grace-period sweeper. Finds subscriptions whose
+        // gracePeriodEndsAt has elapsed and suspends them. Folded into this
+        // existing slot to stay within the Workers Free 5-cron limit.
+        const { sweepPastDueSubscriptions } = await import("@/services/saas-subscription.service");
+        ctx.waitUntil(
+          sweepPastDueSubscriptions(cpDb)
+            .then((r) => console.log(`[scheduled] past-due-sweep done: ${JSON.stringify(r)}`))
+            .catch((e) => console.error(`[scheduled] past-due-sweep failed:`, e)),
+        );
       } else {
         console.warn(`[scheduled] unknown cron='${cron}' — no handler`);
       }

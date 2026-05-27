@@ -317,8 +317,9 @@ export type ConfirmInstallmentPaymentParams = {
 };
 
 export async function confirmInstallmentPayment(
-	tenantDb: NeonDatabase<typeof tenantSchema>,
+	tenantDb: TenantDb | TenantTx,
 	params: ConfirmInstallmentPaymentParams,
+	opts?: { inTransaction?: boolean },
 ): Promise<{
 	installment: typeof installments.$inferSelect;
 	packageInstance: typeof packageInstances.$inferSelect;
@@ -327,27 +328,51 @@ export async function confirmInstallmentPayment(
 		installmentId: params.installmentId,
 		paymentMethod: params.paymentMethod,
 		confirmedBy: params.confirmedBy,
+		inTransaction: opts?.inTransaction ?? false,
 	});
 
-	const result = await tenantDb.transaction(async (tx) => {
-		// Lock the installment row to prevent concurrent double-payment
+	const run = async (tx: TenantTx) => {
+		// -----------------------------------------------------------------------
+		// CANONICAL LOCK ORDER: PARENT (package_instances) → CHILD (installments)
+		//
+		// Both confirmInstallmentPayment and evaluateAndLockIfOverdue (sweep path)
+		// must acquire locks in this order to prevent deadlocks.  Taking the child
+		// lock first would create a cycle when the sweep concurrently holds the
+		// parent and waits for the child.
+		//
+		// When opts.inTransaction = true the caller already holds its own tx and
+		// its own row locks; the FOR UPDATE clauses below are still issued so that
+		// concurrent sweep jobs that share the canonical lock order will block
+		// rather than conflict.
+		// -----------------------------------------------------------------------
+
+		// 1. Lock the package instance first (PARENT)
+		// We must read packageInstanceId from the installment row first.
+		const [probe] = await tx
+			.select({ packageInstanceId: installments.packageInstanceId })
+			.from(installments)
+			.where(eq(installments.id, params.installmentId));
+		if (!probe) throw new Error("Installment not found");
+
+		const [pkg] = await tx
+			.select()
+			.from(packageInstances)
+			.where(eq(packageInstances.id, probe.packageInstanceId))
+			.for("update");
+		if (!pkg) throw new Error("Package instance not found");
+
+		// 2. Lock the installment row second (CHILD)
 		const [installment] = await tx
 			.select()
 			.from(installments)
 			.where(eq(installments.id, params.installmentId))
 			.for("update");
 		if (!installment) throw new Error("Installment not found");
+
+		// CAS-style re-check: status may have changed while we waited for locks
 		if (installment.status !== "pending" && installment.status !== "overdue") {
 			throw new Error(`Installment is already ${installment.status}`);
 		}
-
-		// Lock the package instance row to prevent concurrent installmentsPaid increment
-		const [pkg] = await tx
-			.select()
-			.from(packageInstances)
-			.where(eq(packageInstances.id, installment.packageInstanceId))
-			.for("update");
-		if (!pkg) throw new Error("Package instance not found");
 
 		// LC-M3: reject payment confirmation on terminal package statuses
 		if (["cancelled", "expired", "completed"].includes(pkg.status)) {
@@ -459,11 +484,30 @@ export async function confirmInstallmentPayment(
 		await syncPackagePaymentStatus(tx, pkg.id);
 
 		return { installment: updatedInstallment, packageInstance: updatedPkg };
-	});
+	};
+
+	if (opts?.inTransaction) {
+		// Caller is already inside a transaction — run the body directly.
+		// markCompleteIfFinal opens its own tx so it cannot run here; at POS
+		// purchase time the package has 0 creditsUsed so it would be a no-op
+		// anyway.  The caller may invoke markCompleteIfFinal post-commit if
+		// needed.
+		return run(tenantDb as TenantTx);
+	}
+
+	// Standard path: probe packageInstanceId outside tx (non-mutating), then
+	// open a new transaction for all mutations.
+	const [probe] = await (tenantDb as TenantDb)
+		.select({ packageInstanceId: installments.packageInstanceId })
+		.from(installments)
+		.where(eq(installments.id, params.installmentId));
+	if (!probe) throw new Error("Installment not found");
+
+	const result = await (tenantDb as TenantDb).transaction(run);
 
 	// Post-transaction: attempt auto-completion. Runs its own serializable tx;
 	// idempotent — safe to call even when conditions aren't fully met yet.
-	await markCompleteIfFinal(tenantDb, result.packageInstance.id);
+	await markCompleteIfFinal(tenantDb as TenantDb, result.packageInstance.id);
 
 	return result;
 }
@@ -509,6 +553,18 @@ export async function evaluateAndExpireIfOverdue(
 /**
  * Evaluate a package instance and lock it if overdue past the grace period.
  * Safe to call repeatedly (idempotent).
+ *
+ * CANONICAL LOCK ORDER: PARENT (package_instances) → CHILD (installments)
+ *
+ * This function acquires the package_instances row lock first, then locks
+ * individual installment rows before mutating them.  The same order is used by
+ * confirmInstallmentPayment, rescheduleInstallment, and waiveInstallment.
+ * Diverging from this order risks deadlock when the sweep cron and a concurrent
+ * payment confirmation race on the same rows.
+ *
+ * CAS-style guard: after taking the installment row lock we re-check that each
+ * row is still pending before marking it overdue.  Rows paid while we waited
+ * for the lock are silently skipped (0 rows affected = no-op, not an error).
  */
 export async function evaluateAndLockIfOverdue(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
@@ -523,7 +579,11 @@ export async function evaluateAndLockIfOverdue(
 	const gracePeriodDays = await getGracePeriodDaysForPackage(tenantDb, packageInstanceId);
 
 	return tenantDb.transaction(async (tx) => {
-		// Lock the package instance to prevent concurrent grace period start / lock
+		// -----------------------------------------------------------------------
+		// CANONICAL LOCK ORDER: PARENT (package_instances) → CHILD (installments)
+		// -----------------------------------------------------------------------
+
+		// 1. Lock the package instance first (PARENT)
 		const [pkg] = await tx
 			.select()
 			.from(packageInstances)
@@ -552,13 +612,25 @@ export async function evaluateAndLockIfOverdue(
 		const now = new Date();
 
 		if (pkg.nextDueDate < now) {
-			// Bulk-mark ALL pending installments with dueDate < now as overdue (not just the first)
+			// 2. Lock the candidate installment rows (CHILD) before mutating them.
+			//    Select with FOR UPDATE so a concurrent confirmInstallmentPayment
+			//    that already holds the child lock will block us (not deadlock —
+			//    both paths now share the same parent-first order).
+			//
+			// CAS-style guard: the UPDATE below includes `status = 'pending'` so
+			// rows paid while we waited for the lock produce 0 affected rows and
+			// are silently skipped rather than overwritten with 'overdue'.
 			const overdueRows = await tx
 				.update(installments)
 				.set({ status: "overdue", updatedAt: now })
 				.where(
 					and(
 						eq(installments.packageInstanceId, packageInstanceId),
+						// CAS precondition: only flip rows that are still pending.
+						// If a concurrent payment confirmed this row between the
+						// outer SELECT (sweep candidate scan) and now, its status
+						// will be 'paid' and this WHERE will exclude it — the
+						// 0-affected-rows result is the correct no-op outcome.
 						eq(installments.status, "pending"),
 						lte(installments.dueDate, now),
 					),
@@ -995,8 +1067,29 @@ export async function rescheduleInstallment(
 	actorId: string,
 	reason: string,
 ): Promise<typeof installments.$inferSelect> {
+	// Probe packageInstanceId outside tx (non-mutating) so we can acquire the
+	// parent lock first inside the transaction.
+	const [probe] = await tenantDb
+		.select({ packageInstanceId: installments.packageInstanceId })
+		.from(installments)
+		.where(eq(installments.id, installmentId));
+	if (!probe) throw new Error("Installment not found");
+
 	return tenantDb.transaction(async (tx) => {
-		// Lock installment first — matches confirmInstallmentPayment lock order to avoid deadlock
+		// -----------------------------------------------------------------------
+		// CANONICAL LOCK ORDER: PARENT (package_instances) → CHILD (installments)
+		// See confirmInstallmentPayment for the rationale.
+		// -----------------------------------------------------------------------
+
+		// 1. Lock the package instance first (PARENT)
+		const [pkg] = await tx
+			.select()
+			.from(packageInstances)
+			.where(eq(packageInstances.id, probe.packageInstanceId))
+			.for("update");
+		if (!pkg) throw new Error("Package instance not found");
+
+		// 2. Lock the installment row second (CHILD)
 		const [installment] = await tx
 			.select()
 			.from(installments)
@@ -1004,19 +1097,12 @@ export async function rescheduleInstallment(
 			.for("update");
 		if (!installment) throw new Error("Installment not found");
 
+		// CAS-style re-check after acquiring locks
 		if (installment.status === "paid" || installment.status === "waived") {
 			const err = new Error("Cannot reschedule a paid or waived installment");
 			(err as any).code = "CONFLICT";
 			throw err;
 		}
-
-		// Lock package second — same order as confirmInstallmentPayment
-		const [pkg] = await tx
-			.select()
-			.from(packageInstances)
-			.where(eq(packageInstances.id, installment.packageInstanceId))
-			.for("update");
-		if (!pkg) throw new Error("Package instance not found");
 
 		if (pkg.isLocked) {
 			const err = new Error("Cannot reschedule an installment for a locked package");
@@ -1114,7 +1200,29 @@ export async function waiveInstallment(
 	actorId: string,
 	reason: string,
 ): Promise<{ installment: typeof installments.$inferSelect; packageInstance: typeof packageInstances.$inferSelect }> {
+	// Probe packageInstanceId outside tx (non-mutating) so we can acquire the
+	// parent lock first inside the transaction.
+	const [probe] = await tenantDb
+		.select({ packageInstanceId: installments.packageInstanceId })
+		.from(installments)
+		.where(eq(installments.id, installmentId));
+	if (!probe) throw new Error("Installment not found");
+
 	return tenantDb.transaction(async (tx) => {
+		// -----------------------------------------------------------------------
+		// CANONICAL LOCK ORDER: PARENT (package_instances) → CHILD (installments)
+		// See confirmInstallmentPayment for the rationale.
+		// -----------------------------------------------------------------------
+
+		// 1. Lock the package instance first (PARENT)
+		const [pkg] = await tx
+			.select()
+			.from(packageInstances)
+			.where(eq(packageInstances.id, probe.packageInstanceId))
+			.for("update");
+		if (!pkg) throw new Error("Package instance not found");
+
+		// 2. Lock the installment row second (CHILD)
 		const [installment] = await tx
 			.select()
 			.from(installments)
@@ -1122,18 +1230,12 @@ export async function waiveInstallment(
 			.for("update");
 		if (!installment) throw new Error("Installment not found");
 
+		// CAS-style re-check after acquiring locks
 		if (["paid", "waived", "cancelled"].includes(installment.status)) {
 			const err = new Error(`Cannot waive an installment with status: ${installment.status}`);
 			(err as any).code = "CONFLICT";
 			throw err;
 		}
-
-		const [pkg] = await tx
-			.select()
-			.from(packageInstances)
-			.where(eq(packageInstances.id, installment.packageInstanceId))
-			.for("update");
-		if (!pkg) throw new Error("Package instance not found");
 
 		if (pkg.isLocked) {
 			// SP-02: Allow waiving when this is the only remaining unpaid

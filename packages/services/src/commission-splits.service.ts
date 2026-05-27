@@ -2009,6 +2009,11 @@ export interface ReverseForRefundResult {
  *      - Full refund (amount >= total / refund has no items): -split.calculatedAmount
  *      - Partial refund (creditsRefunded < creditsTotal): pro-rate by
  *        creditsRefunded / creditsTotal of the package instance, capped at split amount
+ *      - F-COM-C: Partial sales-order refund (line-level via refund_items, or a
+ *        full-order refund whose amountCents is < order.totalAmount): pro-rate by
+ *        SUM(refund_items.amountCents for that order) / sales_orders.totalAmount,
+ *        applied uniformly to every candidate split on the order. ratio==1 falls
+ *        through to the full-clawback path.
  *   3. Skip splits already fully reversed (sum of prior reversals == -split.calculatedAmount).
  *      Subsequent reversals against the same split (e.g. multi-step refunds) are allowed
  *      up to the unreversed remainder.
@@ -2149,45 +2154,66 @@ export async function reverseForRefund(
 		}
 	}
 
-	// F-COM-C fix (2026-05-27 audit-prove-a): compute per-salesOrder refund ratio for
-	// proportional reversal. commission_splits has no salesOrderItemId column so we
-	// cannot do per-line reversal; proportional is the correct fallback.
-	// Ratio = refund.amountCents / salesOrder.totalAmount, capped at 1.
-	// Full refund (ratio=1) keeps existing full-reversal behaviour.
-	// NOTE: if/when commission_splits gains a salesOrderItemId FK, replace this with
-	// per-line scoping (reverse only splits whose salesOrderItemId is in the refund items).
+	// F-COM-C: pro-rate sales-order split reversals.
+	//
+	// commission_splits has no salesOrderItemId column, so when a refund only
+	// touches some lines of a multi-line order we cannot reverse splits per-line.
+	// Instead, build a per-order ratio = SUM(refund_items.amountCents for items
+	// belonging to that order) / sales_orders.totalAmount, capped at 1. That ratio
+	// is then applied uniformly to every candidate split on the order.
+	//
+	// Behaviour by refund shape:
+	//   - Full-order refund (refund.salesOrderId set, no refund_items with
+	//     salesOrderItemId): ratio = refund.amountCents / order.totalAmount → 1
+	//     for a full-amount refund, falling through to the existing full-clawback
+	//     path when ratio==1.
+	//   - Line-level refund (refund_items carry salesOrderItemId): ratio = SUM of
+	//     those items' amountCents / order.totalAmount. Strictly < 1 for a partial
+	//     refund of a multi-line order.
+	//
+	// NOTE: if/when commission_splits gains a salesOrderItemId FK, replace this
+	// with strict per-line scoping (reverse only the splits whose source line is
+	// in the refund items).
 	const salesOrderPartialRatios = new Map<string, number>(); // salesOrderId → 0..1
-	if (refund.salesOrderId) {
-		const [orderRow] = await tdb
-			.select({ totalAmount: salesOrders.totalAmount })
-			.from(salesOrders)
-			.where(eq(salesOrders.id, refund.salesOrderId))
-			.limit(1);
-		const orderTotal = orderRow?.totalAmount ?? 0;
-		const ratio = orderTotal > 0 ? Math.min(1, refund.amountCents / orderTotal) : 1;
-		salesOrderPartialRatios.set(refund.salesOrderId, ratio);
-	}
-	// Resolve additional salesOrderIds that entered via refund_items (line-level path)
+	// Resolve refund_items → salesOrderId so we can attribute line refund amounts
+	// to their parent order. amountByOrder accumulates refunded cents per order.
+	const amountByOrder = new Map<string, number>();
 	if (itemSalesOrderItemIds.length > 0) {
 		const soiRows = await tdb
-			.select({ salesOrderId: salesOrderItems.salesOrderId })
+			.select({
+				id: salesOrderItems.id,
+				salesOrderId: salesOrderItems.salesOrderId,
+			})
 			.from(salesOrderItems)
 			.where(inArray(salesOrderItems.id, itemSalesOrderItemIds));
-		const extraOrderIds = [...new Set(soiRows.map((r) => r.salesOrderId))].filter(
-			(id) => !salesOrderPartialRatios.has(id),
+		const soiToOrder = new Map<string, string>(
+			soiRows.map((r) => [r.id, r.salesOrderId]),
 		);
-		if (extraOrderIds.length > 0) {
-			const orderRows = await tdb
-				.select({ id: salesOrders.id, totalAmount: salesOrders.totalAmount })
-				.from(salesOrders)
-				.where(inArray(salesOrders.id, extraOrderIds));
-			for (const o of orderRows) {
-				// For line-level refunds the amountCents is the refund item total, not the
-				// full order refund — use itemSalesOrderItemIds-scoped approach: ratio=1 for
-				// items-scoped splits (we've already narrowed candidateSplits to those items'
-				// orders, so full reversal of those is correct).
-				salesOrderPartialRatios.set(o.id, 1);
-			}
+		for (const item of items) {
+			if (!item.salesOrderItemId) continue;
+			const orderId = soiToOrder.get(item.salesOrderItemId);
+			if (!orderId) continue;
+			amountByOrder.set(
+				orderId,
+				(amountByOrder.get(orderId) ?? 0) + (item.amountCents ?? 0),
+			);
+		}
+	}
+	// Always include refund.salesOrderId (full-order refund path with no items)
+	if (refund.salesOrderId && !amountByOrder.has(refund.salesOrderId)) {
+		amountByOrder.set(refund.salesOrderId, refund.amountCents);
+	}
+	if (amountByOrder.size > 0) {
+		const orderRows = await tdb
+			.select({ id: salesOrders.id, totalAmount: salesOrders.totalAmount })
+			.from(salesOrders)
+			.where(inArray(salesOrders.id, [...amountByOrder.keys()]));
+		for (const o of orderRows) {
+			const refunded = amountByOrder.get(o.id) ?? 0;
+			const total = o.totalAmount ?? 0;
+			// F-COM-C: pro-rate sales-order split reversals
+			const ratio = total > 0 ? Math.min(1, refunded / total) : 1;
+			salesOrderPartialRatios.set(o.id, ratio);
 		}
 	}
 

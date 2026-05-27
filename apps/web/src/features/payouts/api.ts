@@ -87,6 +87,8 @@ export type RunBatchParams = {
 	branchId?: string;
 	paymentMethod: "bank_transfer" | "cash" | "check" | "other";
 	reference?: string;
+	// F-PAY-10: forward confirmImmediately so bank-transfer batches can stay in pending/processing until explicit confirmation
+	confirmImmediately?: boolean;
 };
 
 export type RunBatchResult = {
@@ -190,6 +192,7 @@ export function useRecipientSummary(
 export function useRunBatch(organizationId: string) {
 	return useApiMutation<RunBatchResult, RunBatchParams>({
 		mutationFn: (params: RunBatchParams) =>
+			// F-PAY-10: forward confirmImmediately so bank-transfer batches can stay in pending/processing until explicit confirmation
 			client.payouts.runBatch({
 				organizationId: params.organizationId,
 				staffIds: params.staffIds,
@@ -197,6 +200,7 @@ export function useRunBatch(organizationId: string) {
 				periodEnd: new Date(params.periodEnd),
 				paymentMethod: params.paymentMethod,
 				reference: params.reference,
+				confirmImmediately: params.confirmImmediately ?? true,
 			}) as Promise<RunBatchResult>,
 		successMessage: (result) =>
 			`${result.payoutIds.length} payout${result.payoutIds.length !== 1 ? "s" : ""} created — ${result.splitCount} splits processed.`,

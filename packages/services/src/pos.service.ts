@@ -28,9 +28,7 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { ORPCError } from "@orpc/server";
 import { writeAudit } from "./audit-log.service";
 import { validatePromoCode } from "./promotions.service";
-import { createInstallmentSchedule, calculateCreditsUnlocked, syncPackagePaymentStatus, calculateInstallmentAmounts } from "./installment.service";
-import { installments } from "@avantej-core/db/schema/tenant/installments";
-import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
+import { createInstallmentSchedule, calculateCreditsUnlocked, calculateInstallmentAmounts, confirmInstallmentPayment } from "./installment.service";
 // Agent 2.3 — Phase 2 Wave 3b — J2 — fallback tax-rate resolution
 import { resolveTaxRate } from "./tax.service";
 import * as branchStatsCache from "./branch-stats-cache.service";
@@ -736,6 +734,7 @@ export async function recordPosSale(
 					}
 
 					// Auto-confirm installment #1: customer pays the first installment at the counter.
+					// F-INS-2: route through confirmInstallmentPayment so audit + completion fire
 					if (scheduleRows.length > 0) {
 						const first = scheduleRows[0]!;
 						const creditsAfterFirst = calculateCreditsUnlocked(service.sessionCount!, 1, installmentsTotal);
@@ -748,25 +747,16 @@ export async function recordPosSale(
 							nextDueDate: nextDueDate?.toISOString() ?? null,
 						});
 
-						await tx
-							.update(installments)
-							.set({ status: "paid", paidAt: now, paymentMethod: input.paymentMethod, confirmedBy: input.actor.userId, updatedAt: now })
-							.where(eq(installments.id, first.id));
-
-						await tx
-							.update(packageInstances)
-							.set({ installmentsPaid: 1, creditsUnlocked: creditsAfterFirst, nextDueDate, updatedAt: now })
-							.where(eq(packageInstances.id, pkgInstance.id));
-
-						await tx.insert(installmentEvents).values([
-							{ packageInstanceId: pkgInstance.id, installmentId: first.id, eventType: "payment_received", actorId: input.actor.userId, amount: first.amount },
-							{ packageInstanceId: pkgInstance.id, installmentId: first.id, eventType: "credits_unlocked", actorId: input.actor.userId, metadata: JSON.stringify({ creditsUnlocked: creditsAfterFirst }) },
-						]);
+						await confirmInstallmentPayment(
+							tx,
+							{
+								installmentId: first.id,
+								paymentMethod: input.paymentMethod,
+								confirmedBy: input.actor.userId,
+							},
+							{ inTransaction: true },
+						);
 						console.log("[pos] installment #1 auto-confirmed", { packageInstanceId: pkgInstance.id, creditsAfterFirst });
-
-						// 05-17 Task 1.4: reflect the partial payment in paymentStatus so reports
-						// don't read "paid" while installments #2..N are still pending.
-						await syncPackagePaymentStatus(tx, pkgInstance.id);
 					}
 				}
 			}
