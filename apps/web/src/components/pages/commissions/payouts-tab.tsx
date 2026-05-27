@@ -9,6 +9,7 @@ import {
 	type RecipientSummaryResult,
 	type RetryPayoutParams,
 	useCancelPayout,
+	useConfirmPayoutViaStripe,
 	useLiabilitySummary,
 	useMarkPayoutFailed,
 	useMarkPayoutPaid,
@@ -17,6 +18,7 @@ import {
 	useRecipientSummary,
 	useRetryPayout,
 } from "@/features/payouts/api";
+import { PartnerStripeCard } from "@/features/payouts/components/partner-stripe-card";
 import { RunBatchDrawer } from "@/features/payouts/components/run-batch-drawer";
 import type { StaffOption } from "@/features/payouts/components/run-batch-drawer";
 import {
@@ -110,9 +112,18 @@ function PayoutRowActions({
 	const markFailed = useMarkPayoutFailed(organizationId);
 	const retry = useRetryPayout(organizationId);
 	const cancel = useCancelPayout(organizationId);
-	const isBusy = markPaid.isPending || markFailed.isPending || retry.isPending || cancel.isPending;
+	const confirmStripe = useConfirmPayoutViaStripe(organizationId);
+	const isBusy =
+		markPaid.isPending ||
+		markFailed.isPending ||
+		retry.isPending ||
+		cancel.isPending ||
+		confirmStripe.isPending;
 
 	const { status } = payout;
+	const isStripeConnect = payout.paymentMethod === "stripe_connect";
+	const canConfirmStripe =
+		(status === "pending" || status === "processing") && isStripeConnect;
 
 	// Terminal statuses or no permission — render nothing
 	if (!canProcess || status === "paid" || status === "canceled" || status === "cancelled") {
@@ -160,6 +171,18 @@ function PayoutRowActions({
 		cancel.mutate(params);
 	}
 
+	function handleConfirmStripe() {
+		if (
+			!window.confirm(
+				`Fire a Stripe Connect Transfer for this payout?\n\n` +
+				`This calls stripe.transfers.create with idempotency key confirm-payout:${payout.id}, ` +
+				`flips the payout to 'paid', and marks the linked commission splits paid. ` +
+				`The partner must have a fully-onboarded Stripe Connect account with payouts enabled.`,
+			)
+		) return;
+		confirmStripe.mutate({ organizationId, payoutId: payout.id });
+	}
+
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
@@ -176,14 +199,25 @@ function PayoutRowActions({
 					)}
 				</button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end" className="w-44">
+			<DropdownMenuContent align="end" className="w-48">
+				{canConfirmStripe && (
+					<>
+						<DropdownMenuItem
+							onClick={handleConfirmStripe}
+							className="text-indigo-700 focus:bg-indigo-50 focus:text-indigo-700"
+						>
+							Confirm via Stripe
+						</DropdownMenuItem>
+						<DropdownMenuSeparator />
+					</>
+				)}
 				{(status === "pending" || status === "processing") && (
 					<>
 						<DropdownMenuItem
 							onClick={handleMarkPaid}
 							className="text-emerald-700 focus:bg-emerald-50 focus:text-emerald-700"
 						>
-							Mark Paid
+							Mark Paid {isStripeConnect ? "(manual ref)" : ""}
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
@@ -738,6 +772,14 @@ export function PayoutsTab({
 					</div>
 				))}
 			</div>
+
+			{/* Partner Stripe Connect onboarding (S-partner-stripe-onboarding, PR #32).
+			    Lets an admin wire up a coach's Stripe Connect account so the row-level
+			    `Confirm via Stripe` action can fire `stripe.transfers.create`. Only
+			    visible when the operator has permission to process payouts. */}
+			{canRunBatch ? (
+				<PartnerStripeCard organizationId={organizationId} />
+			) : null}
 
 			{/* Main card */}
 			<div className="overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
