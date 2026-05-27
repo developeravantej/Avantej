@@ -72,7 +72,11 @@ export function calculateCreditsUnlocked(
 
 /**
  * Split a total price into installment amounts.
- * The first installment absorbs any rounding remainder.
+ * The LAST installment absorbs any rounding remainder, matching the tax-
+ * remainder convention used elsewhere in this service (see :247-249).
+ * Audit F-INS-1 (2026-05-27 audit-prove-a session): prior implementation
+ * placed the remainder on installment #1, which was inconsistent with the
+ * tax-remainder behaviour and surprising for operators reading schedules.
  * Returns an array of length `installmentsTotal`.
  */
 export function calculateInstallmentAmounts(
@@ -83,7 +87,7 @@ export function calculateInstallmentAmounts(
 	const remainder = totalPrice - base * installmentsTotal;
 	const amounts: number[] = [];
 	for (let i = 0; i < installmentsTotal; i++) {
-		amounts.push(i === 0 ? base + remainder : base);
+		amounts.push(i === installmentsTotal - 1 ? base + remainder : base);
 	}
 	return amounts;
 }

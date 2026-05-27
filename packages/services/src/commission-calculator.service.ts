@@ -10,12 +10,13 @@
  * a single statement.
  */
 
-import { eq, and, asc, inArray, sql } from "drizzle-orm";
+import { eq, and, asc, inArray, sql, desc } from "drizzle-orm";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
 import { salesOrderItems } from "@avantej-core/db/schema/tenant/sales-order-items";
 import { categoryCommissionConfigs } from "@avantej-core/db/schema/tenant/category-commission-configs";
+import { categoryCommissionConfigVersions } from "@avantej-core/db/schema/tenant/category-commission-config-versions";
 import { commissionCoachSlots } from "@avantej-core/db/schema/tenant/commission-coach-slots";
 import { commissionTierRates } from "@avantej-core/db/schema/tenant/commission-tier-rates";
 import { commissionConditions } from "@avantej-core/db/schema/tenant/commission-conditions";
@@ -474,6 +475,34 @@ async function _buildSplits(
 		eligibleAssignments,
 	);
 
+	// F-COM-B fix (2026-05-27 audit-prove-a): resolve the latest configVersionId for
+	// this category so automatic splits carry it. applyCommissionCaps INNER JOINs
+	// commission_splits against categoryCommissionConfigVersions on configVersionId —
+	// splits with configVersionId IS NULL are excluded from the per-cycle cap sum,
+	// silently allowing the cap to be exceeded on every automatic split.
+	// Manual splits (via createCommissionSplit) may legitimately have configVersionId
+	// NULL — this path is automatic only, so we always supply it.
+	const [latestVersion] = await db
+		.select({ id: categoryCommissionConfigVersions.id })
+		.from(categoryCommissionConfigVersions)
+		.where(eq(categoryCommissionConfigVersions.categoryId, p.config.categoryId))
+		.orderBy(desc(categoryCommissionConfigVersions.versionNumber))
+		.limit(1);
+	// latestVersion may be null for tenants that haven't run the trigger-creating
+	// migration yet. In that case configVersionId stays undefined (null in DB) and
+	// the cap will be unconstrained — the same behaviour as before this fix, but
+	// logged so ops can identify tenants that need migration.
+	const resolvedConfigVersionId = latestVersion?.id ?? undefined;
+	if (!resolvedConfigVersionId) {
+		console.warn(JSON.stringify({
+			event: "commission_no_config_version_found",
+			categoryId: p.config.categoryId,
+			configId: p.config.id,
+			appointmentId: p.appointmentId,
+			salesOrderId: p.salesOrderId,
+		}));
+	}
+
 	// Per-staff loop using effectiveWeightage instead of raw slot weightage
 	for (let i = 0; i < eligibleAssignments.length; i++) {
 		const assignment = eligibleAssignments[i];
@@ -622,6 +651,12 @@ async function _buildSplits(
 				.values({
 					...(p.appointmentId ? { appointmentId: p.appointmentId } : {}),
 					...(p.salesOrderId ? { salesOrderId: p.salesOrderId } : {}),
+					// F-COM-B: configVersionId anchors this automatic split to the immutable
+					// config snapshot at creation time. Required for applyCommissionCaps to
+					// include this split in the per-cycle cap aggregate (INNER JOIN on
+					// categoryCommissionConfigVersions). undefined → DB stores NULL for tenants
+					// without version rows (pre-migration), which is safe but uncapped.
+					configVersionId: resolvedConfigVersionId,
 					staffId: assignment.staffId,
 					splitPercentage,
 					calculatedAmount: cappedAmount,

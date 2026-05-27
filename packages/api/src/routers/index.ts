@@ -25,6 +25,7 @@ export const appRouter = {
 	ghl: serverRouterTypes.ghlRouterType,
 	subscriptions: serverRouterTypes.subscriptionsRouterType,
 	stripeConnect: serverRouterTypes.stripeConnectRouterType,
+	partnerStripe: serverRouterTypes.partnerStripeRouterType,
 	payments: serverRouterTypes.paymentsRouterType,
 	platformAdminPayments: serverRouterTypes.platformAdminPaymentsRouterType,
 	platformAdminTenants: {

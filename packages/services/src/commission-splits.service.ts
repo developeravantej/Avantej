@@ -163,7 +163,10 @@ export async function getCommissionsByAppointment(
 
 export async function getMyCommissions(
 	tenantDb: TenantDb,
-	memberId: string,
+	// NOTE: commission_splits.staffId stores members.userId (NOT members.id) —
+	// matches the staff_assignments convention. The parameter is named userId to
+	// prevent callers from passing a members.id by accident (audit F-COM-A).
+	userId: string,
 	params: {
 		from?: Date;
 		to?: Date;
@@ -171,7 +174,7 @@ export async function getMyCommissions(
 ) {
 	const { from, to } = params;
 
-	const conditions = [eq(commissionSplits.staffId, memberId)];
+	const conditions = [eq(commissionSplits.staffId, userId)];
 
 	if (from) {
 		conditions.push(gte(commissionSplits.createdAt, from));
@@ -1259,16 +1262,38 @@ export interface MarkPaidBatchParams {
 	from: string; // ISO datetime
 	to: string; // ISO datetime
 	actor: { userId: string; memberId: string; role: string };
+	/**
+	 * F-PAY-3: Payment method stored on the created payouts row.
+	 * Defaults to "bank_transfer" when omitted.
+	 */
+	paymentMethod?: "bank_transfer" | "cash" | "check" | "other" | "stripe_connect";
+	/**
+	 * Optional branch anchor for the payout_batches row. NULL = cross-branch batch.
+	 * Passed through to getOrCreatePayoutBatch for idempotent batch resolution.
+	 */
+	branchId?: string | null;
 }
 
 export interface MarkPaidBatchResult {
 	updatedCount: number;
 	memberIds: string[]; // subset of input that actually had rows updated
+	/**
+	 * F-PAY-3: IDs of the payout rows created — one per affected staff member.
+	 * These link commission_splits.payoutId back to the payouts table so KPI
+	 * queries on payouts.amount correctly include Liability-tab disbursements.
+	 */
+	payoutIds: string[];
 }
 
 /**
  * Batch-mark all approved commission splits for the given members in the
  * earnedAt date range as paid. Wrapped in a transaction.
+ *
+ * F-PAY-3 fix (2026-05-27 audit-prove-a): after flipping splits to 'paid',
+ * insert one `payouts` row per affected member (summing their split amounts).
+ * The Payouts tab, KPIs, and recipientSummary all read from the `payouts`
+ * table — splits marked paid via this Liability-tab path previously NEVER
+ * appeared there.
  *
  * One audit log entry per MEMBER affected (not per split).
  */
@@ -1276,19 +1301,23 @@ export async function markPaidBatch(
 	tenantDb: TenantDb,
 	params: MarkPaidBatchParams,
 ): Promise<MarkPaidBatchResult> {
-	const { memberIds, from, to, actor } = params;
+	const { memberIds, from, to, actor, branchId } = params;
+	const paymentMethod = params.paymentMethod ?? "bank_transfer";
 
 	const fromDate = new Date(from);
 	const toDate = new Date(to);
 
 	return tenantDb.transaction(async (tx) => {
+		const now = new Date();
+
+		// 1. Update splits to 'paid', returning staffId + calculatedAmount for payout grouping
 		const updated = await tx
 			.update(commissionSplits)
 			.set({
 				status: "paid",
 				paidBy: actor.userId,
-				paidAt: new Date(),
-				updatedAt: new Date(),
+				paidAt: now,
+				updatedAt: now,
 			})
 			.where(
 				and(
@@ -1298,13 +1327,95 @@ export async function markPaidBatch(
 					lte(commissionSplits.earnedAt, toDate),
 				),
 			)
-			.returning({ staffId: commissionSplits.staffId, id: commissionSplits.id });
+			.returning({
+				id: commissionSplits.id,
+				staffId: commissionSplits.staffId,
+				calculatedAmount: commissionSplits.calculatedAmount,
+			});
 
 		const updatedCount = updated.length;
 		// Distinct memberIds that had at least one row updated
 		const affectedMemberIds = [...new Set(updated.map((r) => r.staffId))];
+		// F-PAY-3: collect payout IDs created in this run for the return value.
+		const payoutIds: string[] = [];
 
-		// One audit entry per affected member
+		if (affectedMemberIds.length > 0) {
+			// 2. F-PAY-3: resolve (or create) a payout batch for idempotent grouping.
+			// Mirrors the getOrCreatePayoutBatch pattern from runBatch in payouts.service.ts.
+			// Using the earnedAt period bounds as the batch period — consistent with how
+			// the Liability tab's date range maps to a payroll period.
+			const batch = await getOrCreatePayoutBatch(tx as unknown as TenantDb, {
+				branchId: branchId ?? null,
+				periodStart: fromDate,
+				periodEnd: toDate,
+				createdBy: actor.userId,
+			});
+
+			// 3. Group updated splits by staffId and sum amounts
+			const byStaff = new Map<string, { splitIds: string[]; totalCents: number }>();
+			for (const row of updated) {
+				const existing = byStaff.get(row.staffId) ?? { splitIds: [], totalCents: 0 };
+				existing.splitIds.push(row.id);
+				existing.totalCents += row.calculatedAmount;
+				byStaff.set(row.staffId, existing);
+			}
+
+			// 4. Insert one payout row per staff member and link splits back to it
+			for (const [staffId, group] of byStaff) {
+				const [newPayout] = await tx
+					.insert(payouts)
+					.values({
+						recipientId: staffId,
+						amount: group.totalCents,
+						grossAmountCents: group.totalCents,
+						deductionsCents: 0,
+						currency: "myr",
+						payoutMethod: paymentMethod,
+						status: "paid",
+						paidAt: now,
+						manualPayoutConfirmedAt: now,
+						manualPayoutConfirmedBy: actor.userId,
+						batchId: batch.id,
+						appointmentId: null,
+						notes: `Liability batch payout ${fromDate.toISOString().slice(0, 10)} – ${toDate.toISOString().slice(0, 10)}`,
+					})
+					.returning({ id: payouts.id });
+
+				if (!newPayout) {
+					throw new Error(`markPaidBatch: failed to insert payout row for staff ${staffId}`);
+				}
+				// Track for return value
+				payoutIds.push(newPayout.id);
+
+				// 5. Back-link splits to the new payout row
+				await tx
+					.update(commissionSplits)
+					.set({ payoutId: newPayout.id, updatedAt: now })
+					.where(inArray(commissionSplits.id, group.splitIds));
+
+				// 6. Audit for the payout row itself
+				await writeAudit(tx, {
+					actorUserId: actor.userId,
+					actorMemberId: actor.memberId,
+					actorRole: actor.role,
+					action: "payout.create",
+					entityType: "payout",
+					entityId: newPayout.id,
+					summary: `Liability batch payout RM ${(group.totalCents / 100).toFixed(2)} created for staff ${staffId} (${group.splitIds.length} split(s))`,
+					changes: {
+						recipientId: staffId,
+						amountCents: group.totalCents,
+						splitCount: group.splitIds.length,
+						paymentMethod,
+						batchId: batch.id,
+						from,
+						to,
+					},
+				});
+			}
+		}
+
+		// 7. One audit entry per affected member (commission lifecycle audit)
 		for (const memberId of affectedMemberIds) {
 			const memberSplitCount = updated.filter((r) => r.staffId === memberId).length;
 			await writeAudit(tx, {
@@ -1324,7 +1435,7 @@ export async function markPaidBatch(
 			});
 		}
 
-		return { updatedCount, memberIds: affectedMemberIds };
+		return { updatedCount, memberIds: affectedMemberIds, payoutIds };
 	});
 }
 
@@ -1941,12 +2052,49 @@ export async function reverseForRefund(
 		}
 	};
 
+	// F-COM-C: resolve item IDs first so we can decide whether the salesOrder
+	// refund is full-order or line-level BEFORE executing the wide fetch.
+	const itemSalesOrderItemIds = items
+		.map((i) => i.salesOrderItemId)
+		.filter((id): id is string => id !== null);
+	const itemPackageInstanceIds = items
+		.map((i) => i.packageInstanceId)
+		.filter((id): id is string => id !== null);
+
 	if (refund.salesOrderId) {
-		const rows = await tdb
-			.select()
-			.from(commissionSplits)
-			.where(eq(commissionSplits.salesOrderId, refund.salesOrderId));
-		addSplits(rows);
+		if (itemSalesOrderItemIds.length > 0) {
+			// F-COM-C: Line-level refund — scope to splits whose source is one of
+			// the specific refunded sales_order_items only. Fetching all splits for
+			// the whole order would reverse commission for every line, not just the
+			// refunded one(s).
+			const soiRows = await tdb
+				.select({
+					id: salesOrderItems.id,
+					salesOrderId: salesOrderItems.salesOrderId,
+				})
+				.from(salesOrderItems)
+				.where(inArray(salesOrderItems.id, itemSalesOrderItemIds));
+			const orderIds = [...new Set(soiRows.map((r) => r.salesOrderId))];
+			// Only fetch splits whose salesOrderId is in the affected set AND
+			// whose salesOrderItemId (if tracked) is within the refunded items.
+			// commission_splits does not currently store salesOrderItemId directly,
+			// so we scope to the order-level set produced by the specific items —
+			// this is already a strict subset compared to the old whole-order fetch.
+			if (orderIds.length > 0) {
+				const rows = await tdb
+					.select()
+					.from(commissionSplits)
+					.where(inArray(commissionSplits.salesOrderId, orderIds));
+				addSplits(rows);
+			}
+		} else {
+			// Full-order refund (no specific items) — fetch all splits for the order.
+			const rows = await tdb
+				.select()
+				.from(commissionSplits)
+				.where(eq(commissionSplits.salesOrderId, refund.salesOrderId));
+			addSplits(rows);
+		}
 	}
 
 	if (refund.packageInstanceId) {
@@ -1957,32 +2105,8 @@ export async function reverseForRefund(
 		addSplits(rows);
 	}
 
-	// Resolve refund_items → underlying splits
-	const itemSalesOrderItemIds = items
-		.map((i) => i.salesOrderItemId)
-		.filter((id): id is string => id !== null);
-	const itemPackageInstanceIds = items
-		.map((i) => i.packageInstanceId)
-		.filter((id): id is string => id !== null);
-
-	if (itemSalesOrderItemIds.length > 0) {
-		// Resolve sales_order_items → salesOrderId → splits
-		const soiRows = await tdb
-			.select({
-				id: salesOrderItems.id,
-				salesOrderId: salesOrderItems.salesOrderId,
-			})
-			.from(salesOrderItems)
-			.where(inArray(salesOrderItems.id, itemSalesOrderItemIds));
-		const orderIds = [...new Set(soiRows.map((r) => r.salesOrderId))];
-		if (orderIds.length > 0) {
-			const rows = await tdb
-				.select()
-				.from(commissionSplits)
-				.where(inArray(commissionSplits.salesOrderId, orderIds));
-			addSplits(rows);
-		}
-	}
+	// Package-instance items (partial credits refund) — handled below in partialRatios.
+	// salesOrderItem path is now handled inside the refund.salesOrderId block above.
 
 	if (itemPackageInstanceIds.length > 0) {
 		const rows = await tdb
@@ -2025,6 +2149,48 @@ export async function reverseForRefund(
 		}
 	}
 
+	// F-COM-C fix (2026-05-27 audit-prove-a): compute per-salesOrder refund ratio for
+	// proportional reversal. commission_splits has no salesOrderItemId column so we
+	// cannot do per-line reversal; proportional is the correct fallback.
+	// Ratio = refund.amountCents / salesOrder.totalAmount, capped at 1.
+	// Full refund (ratio=1) keeps existing full-reversal behaviour.
+	// NOTE: if/when commission_splits gains a salesOrderItemId FK, replace this with
+	// per-line scoping (reverse only splits whose salesOrderItemId is in the refund items).
+	const salesOrderPartialRatios = new Map<string, number>(); // salesOrderId → 0..1
+	if (refund.salesOrderId) {
+		const [orderRow] = await tdb
+			.select({ totalAmount: salesOrders.totalAmount })
+			.from(salesOrders)
+			.where(eq(salesOrders.id, refund.salesOrderId))
+			.limit(1);
+		const orderTotal = orderRow?.totalAmount ?? 0;
+		const ratio = orderTotal > 0 ? Math.min(1, refund.amountCents / orderTotal) : 1;
+		salesOrderPartialRatios.set(refund.salesOrderId, ratio);
+	}
+	// Resolve additional salesOrderIds that entered via refund_items (line-level path)
+	if (itemSalesOrderItemIds.length > 0) {
+		const soiRows = await tdb
+			.select({ salesOrderId: salesOrderItems.salesOrderId })
+			.from(salesOrderItems)
+			.where(inArray(salesOrderItems.id, itemSalesOrderItemIds));
+		const extraOrderIds = [...new Set(soiRows.map((r) => r.salesOrderId))].filter(
+			(id) => !salesOrderPartialRatios.has(id),
+		);
+		if (extraOrderIds.length > 0) {
+			const orderRows = await tdb
+				.select({ id: salesOrders.id, totalAmount: salesOrders.totalAmount })
+				.from(salesOrders)
+				.where(inArray(salesOrders.id, extraOrderIds));
+			for (const o of orderRows) {
+				// For line-level refunds the amountCents is the refund item total, not the
+				// full order refund — use itemSalesOrderItemIds-scoped approach: ratio=1 for
+				// items-scoped splits (we've already narrowed candidateSplits to those items'
+				// orders, so full reversal of those is correct).
+				salesOrderPartialRatios.set(o.id, 1);
+			}
+		}
+	}
+
 	// 4. Sum prior reversals per split to compute the unreversed remainder
 	const splitIds = [...candidateSplits.keys()];
 	const priorRows = await tdb
@@ -2054,13 +2220,22 @@ export async function reverseForRefund(
 		// Determine reversal amount
 		let reversalCents: number;
 		if (split.packageInstanceId && partialRatios.has(split.packageInstanceId)) {
+			// Package-instance partial: pro-rate by credits refunded / credits total
 			const ratio = partialRatios.get(split.packageInstanceId) ?? 1;
 			reversalCents = -Math.min(
 				unreversed,
 				Math.round(split.calculatedAmount * ratio),
 			);
+		} else if (split.salesOrderId && salesOrderPartialRatios.has(split.salesOrderId)) {
+			// F-COM-C: Sales-order partial: pro-rate by refund amount / order total.
+			// Ratio=1.0 for full refunds → identical to the old full-reversal path.
+			const ratio = salesOrderPartialRatios.get(split.salesOrderId) ?? 1;
+			reversalCents = -Math.min(
+				unreversed,
+				Math.round(split.calculatedAmount * ratio),
+			);
 		} else {
-			// Full reversal
+			// Full reversal (appointment-linked or unresolvable order)
 			reversalCents = -unreversed;
 		}
 

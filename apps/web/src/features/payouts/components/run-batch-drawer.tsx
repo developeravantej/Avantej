@@ -413,6 +413,7 @@ export function RunBatchDrawer({
 								<SelectItem value="bank_transfer">Bank Transfer</SelectItem>
 								<SelectItem value="cash">Cash</SelectItem>
 								<SelectItem value="check">Cheque</SelectItem>
+								<SelectItem value="stripe_connect">Stripe Connect</SelectItem>
 								<SelectItem value="other">Other</SelectItem>
 							</SelectContent>
 						</Select>

@@ -179,11 +179,16 @@ const markPaidBatchProcedure = tenantProcedure
 			memberIds: z.array(z.string().uuid()).min(1),
 			from: z.string().datetime(),
 			to: z.string().datetime(),
+			// F-PAY-3: payment method for the payouts row created per member.
+			// Defaults to "bank_transfer" when omitted.
+			paymentMethod: z
+				.enum(["bank_transfer", "cash", "check", "other", "stripe_connect"])
+				.optional(),
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-		
+
+
 
 		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "update");
@@ -193,6 +198,7 @@ const markPaidBatchProcedure = tenantProcedure
 				memberIds: input.memberIds,
 				from: input.from,
 				to: input.to,
+				paymentMethod: input.paymentMethod,
 				actor: {
 					userId: context.session.user.id,
 					memberId: context.member.id,

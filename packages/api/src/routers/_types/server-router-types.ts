@@ -2665,3 +2665,72 @@ export const platformAdminMigrationsRouterType = {
 			throw new Error("Not implemented - this is only for type inference");
 		}),
 };
+
+// Partner Stripe Connect router type definition for client type inference.
+// Real impl in apps/server/src/routers/partner-stripe.ts (uses Stripe SDK + OAuth).
+export const partnerStripeRouterType = {
+	createOnboardingUrl: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				partnerId: z.string().min(1),
+				countryCode: z
+					.string()
+					.length(2)
+					.regex(/^[A-Za-z]{2}$/)
+					.optional(),
+			}),
+		)
+		.handler((): { onboardingUrl: string; partnerId: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	getStatus: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				partnerId: z.string().min(1),
+			}),
+		)
+		.handler(
+			(): {
+				partnerId: string;
+				stripeAccountId: string | null;
+				connectStatus: string;
+				chargesEnabled: boolean;
+				payoutsEnabled: boolean;
+				detailsSubmitted: boolean;
+				onboardingCompletedAt: Date | null;
+				countryCode: string | null;
+				defaultCurrency: string | null;
+				requirementsCurrentlyDue: string[];
+				requirementsDisabledReason: string | null;
+				connectAccountUpdatedAt: Date | null;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	refresh: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				partnerId: z.string().min(1),
+			}),
+		)
+		.handler(
+			(): { status: string; payoutsEnabled: boolean; detailsSubmitted: boolean } => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	confirmViaStripe: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				payoutId: z.string().uuid(),
+			}),
+		)
+		.handler(
+			(): { payoutId: string; stripeTransferId: string; status: "paid" } => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+};

@@ -4,6 +4,7 @@ import { commissionCoachSlots } from "@avantej-core/db/schema/tenant/commission-
 import { commissionTierRates } from "@avantej-core/db/schema/tenant/commission-tier-rates";
 import { commissionConditions } from "@avantej-core/db/schema/tenant/commission-conditions";
 import { commissionConditionRates } from "@avantej-core/db/schema/tenant/commission-condition-rates";
+import { writeAudit } from "./audit-log.service";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
@@ -216,22 +217,61 @@ export async function upsertCategoryCommissionConfig(
 			}
 		}
 
-		return getCategoryCommissionConfig(tx as unknown as TenantDb, input.categoryId);
+		const result = await getCategoryCommissionConfig(tx as unknown as TenantDb, input.categoryId);
+
+		// F-COM-D: write audit log for commission config changes
+		await writeAudit(tx, {
+			actorUserId: _actor.userId ?? "",
+			actorMemberId: _actor.id,
+			actorRole: _actor.role,
+			action: "category_commission.upsert",
+			entityType: "category_commission",
+			entityId: config?.id,
+			summary: `Category commission upserted for category ${input.categoryId}`,
+			changes: {
+				categoryId: input.categoryId,
+				paymentType: input.paymentType,
+				isConditional: input.isConditional,
+				maxCoaches: input.maxCoaches,
+				slotCount: input.slots.length,
+				rateCount: input.rates?.length ?? 0,
+				conditionCount: input.conditions?.length ?? 0,
+			},
+		});
+
+		return result;
 	});
 }
 
 export async function deleteCategoryCommissionConfig(
 	tenantDb: TenantDb,
 	categoryId: string,
+	_actor?: { userId?: string; id?: string; role?: string },
 ): Promise<{ deleted: true }> {
-	const deleted = await tenantDb
-		.delete(categoryCommissionConfigs)
-		.where(eq(categoryCommissionConfigs.categoryId, categoryId))
-		.returning();
+	return tenantDb.transaction(async (tx) => {
+		const deleted = await tx
+			.delete(categoryCommissionConfigs)
+			.where(eq(categoryCommissionConfigs.categoryId, categoryId))
+			.returning();
 
-	if (deleted.length === 0) {
-		throw new Error("No commission config found for this category");
-	}
+		if (deleted.length === 0) {
+			throw new Error("No commission config found for this category");
+		}
 
-	return { deleted: true };
+		// F-COM-D: write audit log so delete is traceable
+		if (_actor) {
+			await writeAudit(tx, {
+				actorUserId: _actor.userId ?? "",
+				actorMemberId: _actor.id,
+				actorRole: _actor.role,
+				action: "category_commission.delete",
+				entityType: "category_commission",
+				entityId: deleted[0]?.id,
+				summary: `Category commission config deleted for category ${categoryId}`,
+				changes: { categoryId, deletedConfigId: deleted[0]?.id },
+			});
+		}
+
+		return { deleted: true };
+	});
 }

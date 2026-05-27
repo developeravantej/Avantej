@@ -230,3 +230,217 @@ export function invalidatePayouts(organizationId: string) {
 	queryClient.invalidateQueries({ queryKey: payoutKeys.all(organizationId) });
 	queryClient.invalidateQueries({ queryKey: ["commissionLiability"] });
 }
+
+// ---------------------------------------------------------------------------
+// F-PAY-6: per-row state-machine mutation hooks (gated by commission_payout:process)
+// ---------------------------------------------------------------------------
+
+export type MarkPaidParams = {
+	organizationId: string;
+	id: string;
+	paymentReference: string;
+};
+
+export type MarkFailedParams = {
+	organizationId: string;
+	id: string;
+	reason: string;
+};
+
+export type RetryPayoutParams = {
+	organizationId: string;
+	id: string;
+};
+
+export type CancelPayoutParams = {
+	organizationId: string;
+	id: string;
+	reason: string;
+};
+
+export function useMarkPayoutPaid(organizationId: string) {
+	return useApiMutation<unknown, MarkPaidParams>({
+		mutationFn: (params) =>
+			client.payouts.markPaid({
+				organizationId: params.organizationId,
+				id: params.id,
+				paymentReference: params.paymentReference,
+			}),
+		successMessage: "Payout marked as paid",
+		errorMessage: (err) => err.message,
+		invalidate: [
+			payoutKeys.list(organizationId),
+			commissionKeys.liability(organizationId, {}),
+			["commissions"],
+			["commissionLiability"],
+		],
+	});
+}
+
+export function useMarkPayoutFailed(organizationId: string) {
+	return useApiMutation<unknown, MarkFailedParams>({
+		mutationFn: (params) =>
+			client.payouts.markFailed({
+				organizationId: params.organizationId,
+				id: params.id,
+				reason: params.reason,
+			}),
+		successMessage: "Payout marked as failed",
+		errorMessage: (err) => err.message,
+		invalidate: [
+			payoutKeys.list(organizationId),
+			commissionKeys.liability(organizationId, {}),
+			["commissions"],
+			["commissionLiability"],
+		],
+	});
+}
+
+export function useRetryPayout(organizationId: string) {
+	return useApiMutation<unknown, RetryPayoutParams>({
+		mutationFn: (params) =>
+			client.payouts.retry({
+				organizationId: params.organizationId,
+				id: params.id,
+			}),
+		successMessage: "Payout queued for retry",
+		errorMessage: (err) => err.message,
+		invalidate: [
+			payoutKeys.list(organizationId),
+			commissionKeys.liability(organizationId, {}),
+			["commissions"],
+			["commissionLiability"],
+		],
+	});
+}
+
+export function useCancelPayout(organizationId: string) {
+	return useApiMutation<unknown, CancelPayoutParams>({
+		mutationFn: (params) =>
+			client.payouts.cancel({
+				organizationId: params.organizationId,
+				id: params.id,
+				reason: params.reason,
+			}),
+		successMessage: "Payout cancelled",
+		errorMessage: (err) => err.message,
+		invalidate: [
+			payoutKeys.list(organizationId),
+			commissionKeys.liability(organizationId, {}),
+			["commissions"],
+			["commissionLiability"],
+		],
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Partner Stripe Connect — S-partner-stripe-onboarding (PR #32)
+// ---------------------------------------------------------------------------
+
+export const partnerStripeKeys = {
+	status: (orgId: string, partnerId: string) =>
+		["partnerStripe", orgId, "status", partnerId] as const,
+};
+
+export type PartnerStripeStatus = {
+	partnerId: string;
+	stripeAccountId: string | null;
+	connectStatus: string;
+	chargesEnabled: boolean;
+	payoutsEnabled: boolean;
+	detailsSubmitted: boolean;
+	onboardingCompletedAt: Date | null;
+	countryCode: string | null;
+	defaultCurrency: string | null;
+	requirementsCurrentlyDue: string[];
+	requirementsDisabledReason: string | null;
+	connectAccountUpdatedAt: Date | null;
+};
+
+/** Read the cached partner_stripe_accounts row for one staff member. */
+export function usePartnerStripeStatus(
+	organizationId: string | null,
+	partnerId: string | null,
+) {
+	return useQuery<PartnerStripeStatus>({
+		queryKey: partnerStripeKeys.status(organizationId ?? "", partnerId ?? ""),
+		queryFn: () =>
+			client.partnerStripe.getStatus({
+				organizationId: organizationId ?? "",
+				partnerId: partnerId ?? "",
+			}) as unknown as Promise<PartnerStripeStatus>,
+		enabled: !!organizationId && !!partnerId,
+		staleTime: 30_000,
+	});
+}
+
+export type CreateOnboardingUrlParams = {
+	organizationId: string;
+	partnerId: string;
+	countryCode?: string;
+};
+
+/** Build a Stripe Connect OAuth URL + redirect to it so the operator
+ * completes Stripe-hosted onboarding under their own login. */
+export function useCreatePartnerOnboardingUrl(organizationId: string) {
+	return useApiMutation<{ onboardingUrl: string; partnerId: string }, CreateOnboardingUrlParams>({
+		mutationFn: (params) =>
+			client.partnerStripe.createOnboardingUrl({
+				organizationId: params.organizationId,
+				partnerId: params.partnerId,
+				countryCode: params.countryCode,
+			}),
+		errorMessage: (err) => err.message || "Failed to start Stripe onboarding.",
+		invalidate: [],
+		onSuccess: (result) => {
+			if (typeof window !== "undefined") {
+				window.location.assign(result.onboardingUrl);
+			}
+		},
+	});
+}
+
+/** Re-pull capability state from Stripe. */
+export function useRefreshPartnerStripe(organizationId: string) {
+	return useApiMutation<
+		{ status: string; payoutsEnabled: boolean; detailsSubmitted: boolean },
+		{ organizationId: string; partnerId: string }
+	>({
+		mutationFn: (params) =>
+			client.partnerStripe.refresh({
+				organizationId: params.organizationId,
+				partnerId: params.partnerId,
+			}),
+		successMessage: "Stripe Connect status refreshed.",
+		errorMessage: (err) => err.message || "Failed to refresh from Stripe.",
+		invalidate: [["partnerStripe", organizationId]],
+	});
+}
+
+export type ConfirmViaStripeParams = {
+	organizationId: string;
+	payoutId: string;
+};
+
+/** Fire `stripe.transfers.create` for a pending stripe_connect payout.
+ * Idempotent via `confirm-payout:<id>` key on Stripe's side. */
+export function useConfirmPayoutViaStripe(organizationId: string) {
+	return useApiMutation<
+		{ payoutId: string; stripeTransferId: string; status: "paid" },
+		ConfirmViaStripeParams
+	>({
+		mutationFn: (params) =>
+			client.partnerStripe.confirmViaStripe({
+				organizationId: params.organizationId,
+				payoutId: params.payoutId,
+			}),
+		successMessage: (result) => `Stripe transfer ${result.stripeTransferId} created.`,
+		errorMessage: (err) => err.message || "Failed to confirm via Stripe.",
+		invalidate: [
+			payoutKeys.list(organizationId),
+			commissionKeys.liability(organizationId, {}),
+			["commissions"],
+			["commissionLiability"],
+		],
+	});
+}

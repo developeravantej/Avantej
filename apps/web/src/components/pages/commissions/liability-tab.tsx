@@ -27,6 +27,7 @@ import { centsToRm, formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { Skeleton } from "boneyard-js/react";
+import { payoutKeys } from "@/features/payouts/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -304,6 +305,8 @@ export function LiabilityTab() {
 			["commissionLiability"],
 			["commissions"],
 			["my-commissions"],
+			// F-PAY-1: invalidate payouts list so Payouts tab refreshes after markPaidBatch
+			payoutKeys.list(organizationId ?? ""),
 		],
 		onSuccess: () => {
 			setMarkPaidOpen(false);

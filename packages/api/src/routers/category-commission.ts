@@ -142,7 +142,11 @@ const deleteConfig = tenantProcedure
 		await requirePermissionOrpc(context.tenantDb, context.member, "category_commission_management", "delete");
 
 		try {
-			return await deleteCategoryCommissionConfig(context.tenantDb, input.categoryId);
+			return await deleteCategoryCommissionConfig(context.tenantDb, input.categoryId, {
+				userId: context.member.userId,
+				id: context.member.id,
+				role: context.member.role,
+			});
 		} catch (error) {
 			if (error instanceof ORPCError) throw error;
 			throw new ORPCError("BAD_REQUEST", {

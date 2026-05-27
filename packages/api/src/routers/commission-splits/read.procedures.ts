@@ -78,7 +78,11 @@ const myCommissions = tenantProcedure
 		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
 
-		return getMyCommissions(context.tenantDb, context.member.id, {
+		// F-COM-A fix (2026-05-27 audit-prove-a session): commission_splits.staffId
+		// is members.userId (matches staff_assignments convention), not members.id.
+		// Passing member.id here would always return an empty ledger for every
+		// trainer.
+		return getMyCommissions(context.tenantDb, context.member.userId, {
 			from: input.from ? new Date(input.from) : undefined,
 			to: input.to ? new Date(input.to) : undefined,
 		});
