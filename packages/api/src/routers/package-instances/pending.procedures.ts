@@ -7,7 +7,7 @@ import { and, eq, inArray, desc, isNull, isNotNull, or } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import { assertOrgContextMatch } from "../../guards";
+import { assertOrgContextMatch, guardBranchAccessible } from "../../guards";
 import { getControlPanelDb } from "../../lib/context-helpers";
 
 export const packageInstancesPendingProcedures = {
@@ -33,6 +33,12 @@ export const packageInstancesPendingProcedures = {
       
       
 		assertOrgContextMatch(context, input);
+      // Guard: if the caller supplied an explicit branchId, confirm it sits within
+      // their accessible hierarchy. Without this check a trainer could pass an
+      // arbitrary branchId outside their scope and see cross-branch pending packages.
+      if (input.branchId) {
+        guardBranchAccessible(input.branchId, context.accessibleNodeIds);
+      }
       const callerRole = context.member.role;
       if (callerRole !== "admin" && callerRole !== "trainer") {
         throw new ORPCError("FORBIDDEN", {
