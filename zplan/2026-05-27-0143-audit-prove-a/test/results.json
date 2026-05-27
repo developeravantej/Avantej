@@ -1,0 +1,420 @@
+{
+  "config": {
+    "configFile": "C:\\Project\\Avantej\\gap-prove.config.ts",
+    "rootDir": "C:/Project/Avantej/e2e",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Project/Avantej/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "setup",
+        "name": "setup",
+        "testDir": "C:/Project/Avantej/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/auth\\.setup\\.ts/"
+        ],
+        "timeout": 300000
+      },
+      {
+        "outputDir": "C:/Project/Avantej/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "gap-prove",
+        "name": "gap-prove",
+        "testDir": "C:/Project/Avantej/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/gap-prove\\.spec\\.ts/"
+        ],
+        "timeout": 300000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "html",
+        {
+          "outputFolder": "zplan/2026-05-27-0143-audit-prove-a/test/html",
+          "open": "never"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "zplan/2026-05-27-0143-audit-prove-a/test/results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "auth.setup.ts",
+      "file": "auth.setup.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "authenticate",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 300000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 6231,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-27T01:04:52.214Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Project\\Avantej\\test-results\\auth.setup.ts-authenticate-setup\\video.webm"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Project\\Avantej\\test-results\\auth.setup.ts-authenticate-setup\\trace.zip"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "17e3fe6f4d9d8bd79c6b-60f085b113a677673906",
+          "file": "auth.setup.ts",
+          "line": 13,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "gap-prove.spec.ts",
+      "file": "gap-prove.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "gap-prove — full audit journey",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 300000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "gap-prove",
+              "projectName": "gap-prove",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 234871,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n    at C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:200:23\n    at C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:171:2",
+                    "location": {
+                      "file": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts",
+                      "column": 23,
+                      "line": 200
+                    },
+                    "snippet": "\u001b[0m \u001b[90m 198 |\u001b[39m \t\t\t})\u001b[33m;\u001b[39m\n \u001b[90m 199 |\u001b[39m \t\t\t\u001b[90m// After fix: this MUST throw. If it succeeds, the guard is still missing.\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 200 |\u001b[39m \t\t\texpect\u001b[33m.\u001b[39msoft(\u001b[36mfalse\u001b[39m)\u001b[33m.\u001b[39mtoBe(\u001b[36mtrue\u001b[39m)\u001b[33m;\u001b[39m \u001b[90m// should not reach here\u001b[39m\n \u001b[90m     |\u001b[39m \t\t\t                   \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 201 |\u001b[39m \t\t} \u001b[36mcatch\u001b[39m (err) {\n \u001b[90m 202 |\u001b[39m \t\t\t\u001b[90m// Any OrpcClientError means the guard is in place (sale was blocked)\u001b[39m\n \u001b[90m 203 |\u001b[39m \t\t\texpect\u001b[33m.\u001b[39msoft(err \u001b[36minstanceof\u001b[39m \u001b[33mOrpcClientError\u001b[39m)\u001b[33m.\u001b[39mtoBe(\u001b[36mtrue\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts",
+                        "column": 23,
+                        "line": 200
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n\n  198 | \t\t\t});\n  199 | \t\t\t// After fix: this MUST throw. If it succeeds, the guard is still missing.\n> 200 | \t\t\texpect.soft(false).toBe(true); // should not reach here\n      | \t\t\t                   ^\n  201 | \t\t} catch (err) {\n  202 | \t\t\t// Any OrpcClientError means the guard is in place (sale was blocked)\n  203 | \t\t\texpect.soft(err instanceof OrpcClientError).toBe(true);\n    at C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:200:23\n    at C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:171:2"
+                    },
+                    {
+                      "location": {
+                        "file": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts",
+                        "column": 37,
+                        "line": 1033
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n\n  1031 | \t\tconst hasTable = await waitVisible(table, 8000);\n  1032 | \t\tconst hasEmpty = hasTable ? false : await waitVisible(emptyState, 3000);\n> 1033 | \t\texpect.soft(hasTable || hasEmpty).toBe(true);\n       | \t\t                                  ^\n  1034 | \t});\n  1035 |\n  1036 | \tawait test.step(\"F-DU-002 Payment history: Created By column shows name not UUID\", async () => {\n    at C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:1033:37\n    at C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:1020:2"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "steps": [
+                    {
+                      "title": "GP-01 Dashboard home loads KPI cards",
+                      "duration": 5521
+                    },
+                    {
+                      "title": "GP-02 Customers v2 directory renders list",
+                      "duration": 21249
+                    },
+                    {
+                      "title": "GP-03 POS flow opens and shows items step",
+                      "duration": 16816
+                    },
+                    {
+                      "title": "GP-04 Appointments calendar renders",
+                      "duration": 4917
+                    },
+                    {
+                      "title": "F-AC-01 Households list — scoped staff with empty nodeIds returns [] not all",
+                      "duration": 689
+                    },
+                    {
+                      "title": "F-AC-04 updateRole — audit_logs row created after role change",
+                      "duration": 753
+                    },
+                    {
+                      "title": "F-SP-01 POS rejects stripe paymentMethod when org has no Stripe account",
+                      "duration": 3766,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n    at C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:200:23\n    at C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:171:2",
+                        "location": {
+                          "file": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts",
+                          "column": 23,
+                          "line": 200
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 198 |\u001b[39m \t\t\t})\u001b[33m;\u001b[39m\n \u001b[90m 199 |\u001b[39m \t\t\t\u001b[90m// After fix: this MUST throw. If it succeeds, the guard is still missing.\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 200 |\u001b[39m \t\t\texpect\u001b[33m.\u001b[39msoft(\u001b[36mfalse\u001b[39m)\u001b[33m.\u001b[39mtoBe(\u001b[36mtrue\u001b[39m)\u001b[33m;\u001b[39m \u001b[90m// should not reach here\u001b[39m\n \u001b[90m     |\u001b[39m \t\t\t                   \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 201 |\u001b[39m \t\t} \u001b[36mcatch\u001b[39m (err) {\n \u001b[90m 202 |\u001b[39m \t\t\t\u001b[90m// Any OrpcClientError means the guard is in place (sale was blocked)\u001b[39m\n \u001b[90m 203 |\u001b[39m \t\t\texpect\u001b[33m.\u001b[39msoft(err \u001b[36minstanceof\u001b[39m \u001b[33mOrpcClientError\u001b[39m)\u001b[33m.\u001b[39mtoBe(\u001b[36mtrue\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                      }
+                    },
+                    {
+                      "title": "F-SP-03 Promo code re-validated at recordSale even if deactivated after validate",
+                      "duration": 631
+                    },
+                    {
+                      "title": "F-SP-04 Tax rate — POS sale on org with no active rate does not silently zero-tax",
+                      "duration": 3206
+                    },
+                    {
+                      "title": "F-AP-01 Waitlist promotion — spotsBooked must not exceed capacity",
+                      "duration": 741
+                    },
+                    {
+                      "title": "F-AP-02 listForUser returns virtual recurrence occurrences for client",
+                      "duration": 1722
+                    },
+                    {
+                      "title": "F-AP-03 Check-in with non-existent appointmentClientId returns BAD_REQUEST",
+                      "duration": 676
+                    },
+                    {
+                      "title": "F-AP-04 Class slot capacity cannot be reduced below spotsBooked",
+                      "duration": 746
+                    },
+                    {
+                      "title": "F-AP-05 Reschedule into trainer exception returns conflict error",
+                      "duration": 3351
+                    },
+                    {
+                      "title": "F-PS-01 bulkApprove first installment must require paymentMethod input",
+                      "duration": 4387
+                    },
+                    {
+                      "title": "F-PS-02 setBranchPrice with null branchId returns FORBIDDEN for non-admin",
+                      "duration": 1636
+                    },
+                    {
+                      "title": "F-PS-03 createTrainerTier scaffolds commission_tier_rates rows",
+                      "duration": 1091
+                    },
+                    {
+                      "title": "F-OF-01 Goods receipt creation advances PO status to partially_received",
+                      "duration": 804
+                    },
+                    {
+                      "title": "F-OF-02 Payout batch excludes pending (unapproved) commission splits",
+                      "duration": 1567
+                    },
+                    {
+                      "title": "F-ST-01 Announcement creation dispatches notifications to scoped members",
+                      "duration": 719
+                    },
+                    {
+                      "title": "F-ST-04 Member hierarchy reassignment to out-of-scope branch returns FORBIDDEN",
+                      "duration": 2027
+                    },
+                    {
+                      "title": "PC-AP-01 classSlots spotsBooked never exceeds capacity (full scan)",
+                      "duration": 744
+                    },
+                    {
+                      "title": "PC-PS-02 service_price_overrides has no null-branchId row",
+                      "duration": 610
+                    },
+                    {
+                      "title": "GP-05 Payment history view loads without crash",
+                      "duration": 8643
+                    },
+                    {
+                      "title": "GP-06 Commissions payouts tab loads",
+                      "duration": 14939
+                    },
+                    {
+                      "title": "GP-07 Sales list loads with filter pills",
+                      "duration": 15261
+                    },
+                    {
+                      "title": "GP-08 Customers Quick Add dialog opens",
+                      "duration": 22115
+                    },
+                    {
+                      "title": "F-CP-001 runBatch returns FORBIDDEN (commission_payout:process not seeded)",
+                      "duration": 2278
+                    },
+                    {
+                      "title": "F-CP-002 resolveReview returns FORBIDDEN (commission_review:resolve not seeded)",
+                      "duration": 603
+                    },
+                    {
+                      "title": "F-CP-003 Payouts Run Batch button visible but API needs :process permission",
+                      "duration": 4160
+                    },
+                    {
+                      "title": "F-CP-004 Sidebar Payouts nav item not highlighted on payouts tab",
+                      "duration": 12108
+                    },
+                    {
+                      "title": "F-DU-001 Payment history: no toISOString TypeError on load",
+                      "duration": 18719,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32mtrue\u001b[39m\nReceived: \u001b[31mfalse\u001b[39m\n    at C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:1033:37\n    at C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts:1020:2",
+                        "location": {
+                          "file": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts",
+                          "column": 37,
+                          "line": 1033
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 1031 |\u001b[39m \t\t\u001b[36mconst\u001b[39m hasTable \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m waitVisible(table\u001b[33m,\u001b[39m \u001b[35m8000\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 1032 |\u001b[39m \t\t\u001b[36mconst\u001b[39m hasEmpty \u001b[33m=\u001b[39m hasTable \u001b[33m?\u001b[39m \u001b[36mfalse\u001b[39m \u001b[33m:\u001b[39m \u001b[36mawait\u001b[39m waitVisible(emptyState\u001b[33m,\u001b[39m \u001b[35m3000\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 1033 |\u001b[39m \t\texpect\u001b[33m.\u001b[39msoft(hasTable \u001b[33m||\u001b[39m hasEmpty)\u001b[33m.\u001b[39mtoBe(\u001b[36mtrue\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m      |\u001b[39m \t\t                                  \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 1034 |\u001b[39m \t})\u001b[33m;\u001b[39m\n \u001b[90m 1035 |\u001b[39m\n \u001b[90m 1036 |\u001b[39m \t\u001b[36mawait\u001b[39m test\u001b[33m.\u001b[39mstep(\u001b[32m\"F-DU-002 Payment history: Created By column shows name not UUID\"\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m () \u001b[33m=>\u001b[39m {\u001b[0m"
+                      }
+                    },
+                    {
+                      "title": "F-DU-002 Payment history: Created By column shows name not UUID",
+                      "duration": 14176
+                    },
+                    {
+                      "title": "F-DU-005 Packages sidebar nav visible with package_management:read permission",
+                      "duration": 5073
+                    },
+                    {
+                      "title": "F-PO-006 Sales filter: Refunded pill queries correct status",
+                      "duration": 14534
+                    },
+                    {
+                      "title": "F-PO-007 Sales $id: line items visible on main page without Print Receipt",
+                      "duration": 4778
+                    },
+                    {
+                      "title": "F-PO-008 Sales $id: Cancel Sale button shown for completed POS sales",
+                      "duration": 14174
+                    },
+                    {
+                      "title": "F-CU-005 createUnclaimed — profile readable after creation (api-read-back)",
+                      "duration": 604
+                    },
+                    {
+                      "title": "F-CU-006 createUnclaimed phone dedup — second call with same phone should fail",
+                      "duration": 642
+                    }
+                  ],
+                  "startTime": "2026-05-27T01:05:00.469Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "C:\\Project\\Avantej\\test-results\\gap-prove-gap-prove-—-full-audit-journey-gap-prove\\test-failed-1.png"
+                    },
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Project\\Avantej\\test-results\\gap-prove-gap-prove-—-full-audit-journey-gap-prove\\video.webm"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "C:\\Project\\Avantej\\test-results\\gap-prove-gap-prove-—-full-audit-journey-gap-prove\\error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Project\\Avantej\\test-results\\gap-prove-gap-prove-—-full-audit-journey-gap-prove\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Project\\Avantej\\e2e\\gap-prove.spec.ts",
+                    "column": 23,
+                    "line": 200
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "dd3c5cbdefb9dd224d5c-50d483e2eb30e1bc2d2b",
+          "file": "gap-prove.spec.ts",
+          "line": 67,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-05-27T01:04:50.799Z",
+    "duration": 249042.312,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

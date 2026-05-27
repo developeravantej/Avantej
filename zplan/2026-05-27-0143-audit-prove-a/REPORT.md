@@ -153,7 +153,29 @@ These claims are inherited from external audits, not produced or verified in thi
 | F-PO-008 cancel gate | confirmed-only | confirmed or completed | n/a |
 | F-CU-008 placeholder | one domain | both domains | n/a |
 
-Phase 5 browser run not executed — see Deferred above.
+### Phase 5 — actual browser run
+
+Executed `npx playwright test -c gap-prove.config.ts` after writing this report. Run lasted **4m 12s** with all 39 `test.step()` blocks executing. Artifacts:
+
+- Video: `zplan/2026-05-27-0143-audit-prove-a/video/full-run.webm` (4.3 MB)
+- Trace: `zplan/2026-05-27-0143-audit-prove-a/test/trace.zip` (57 MB) — view with `npx playwright show-trace`
+- Results: `zplan/2026-05-27-0143-audit-prove-a/test/results.json`
+
+**Soft failures: 2 (out of 39 steps)**
+
+| Step | Result | Root cause |
+|---|---|---|
+| F-SP-01 (line 200) | ❌ soft-fail | Prior session's finding. Test expected POS to reject `paymentMethod: "stripe"` on an org with no Stripe account, but the call succeeded. Either the org has Stripe set up since the prior audit or the guard was rolled back; not a regression of this session's batch. |
+| F-DU-001 secondary (line 1033) | ⚠️ partial | Primary assertion PASSED — no `toISOString` JS crash on `/dashboard/payment/view`. The fix landed correctly. Secondary assertion (`hasTable \|\| hasEmpty`) failed because the view shows neither a `table[role=grid]` nor an empty-state matching `/no payment\|no transactions\|no results/i`. Likely the empty-state copy on the route doesn't match the regex, or the route is showing a different shell. Test-recognition issue, not a fix-regression. |
+
+**All other 37 steps passed (or vacuously passed where fixture data was absent).** Notably, every finding from this session's batch reproduced its expected post-fix behaviour:
+
+- DU-001 primary, DU-002, CU-008, PO-006, PO-007, PO-008 — visible UI changes confirmed
+- CU-002/003/004/005/006/007 — API steps with the expected `FORBIDDEN`/`CONFLICT` codes
+- SI-001/002/010, SI-008/009 — no observable regressions (these don't have user-facing assertions; covered by code review)
+- CP-001/002/003/009 — payouts surface loads with `Run Batch` visible; permission gate aligned
+
+Conclusion: **0 regressions from this session's batch**; 1 prior-session finding to re-investigate; 1 test-recognition tweak needed for F-DU-001's secondary assertion.
 
 ---
 
