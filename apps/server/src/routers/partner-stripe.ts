@@ -157,13 +157,20 @@ export const partnerStripeRouter = {
 				.from(partnerStripeAccounts)
 				.where(eq(partnerStripeAccounts.partnerId, input.partnerId))
 				.limit(1);
+			// Shape aligned with the type stub in
+			// `packages/api/src/routers/_types/server-router-types.ts:partnerStripeRouterType.getStatus`
+			// — the web client types are inferred from the stub, so the runtime shape
+			// MUST use these exact field names (stripeAccountId / connectStatus / etc.)
+			// for the table card + status pill to read data correctly.
 			if (!row) {
 				return {
-					connected: false,
-					stripeConnectAccountId: null as string | null,
-					status: "pending" as const,
+					partnerId: input.partnerId,
+					stripeAccountId: null as string | null,
+					connectStatus: "pending" as string,
+					chargesEnabled: false,
 					payoutsEnabled: false,
 					detailsSubmitted: false,
+					onboardingCompletedAt: null as Date | null,
 					countryCode: null as string | null,
 					defaultCurrency: null as string | null,
 					requirementsCurrentlyDue: [] as string[],
@@ -172,11 +179,16 @@ export const partnerStripeRouter = {
 				};
 			}
 			return {
-				connected: true,
-				stripeConnectAccountId: row.stripeConnectAccountId,
-				status: row.stripeConnectStatus,
+				partnerId: input.partnerId,
+				stripeAccountId: row.stripeConnectAccountId,
+				connectStatus: row.stripeConnectStatus,
+				// Partner Connect accounts only receive transfers — they never charge
+				// customers — so chargesEnabled is always false from the platform's
+				// perspective. Surfaced for parity with the org-level getAccountStatus shape.
+				chargesEnabled: false,
 				payoutsEnabled: row.payoutsEnabled,
 				detailsSubmitted: row.detailsSubmitted,
+				onboardingCompletedAt: row.onboardingCompletedAt,
 				countryCode: row.countryCode,
 				defaultCurrency: row.defaultCurrency,
 				requirementsCurrentlyDue: Array.isArray(row.requirementsCurrentlyDue)
