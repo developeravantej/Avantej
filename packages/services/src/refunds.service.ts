@@ -563,6 +563,56 @@ export async function approveRefund(
 			};
 		}
 
+		// F-07 — Lock the PARENT target row (sales_order, payment, or package_instance)
+		// BEFORE reading remaining-refundable, so concurrent approveRefund calls against
+		// the same target serialize on the cap check. Without this lock, two TXs can
+		// both read SUM(refunds.amountCents) before either commits, both compute the
+		// same `remainingCents`, and both pass the cap → over-approval. The parent
+		// row is held until COMMIT, which forces the second TX to re-read post-commit.
+		//
+		// The cap re-validation that follows now ALWAYS runs (was previously partial-only),
+		// closing the symmetrical hole where a full-approve path skipped the check
+		// entirely. A full-approve whose `existing.amountCents` exceeds the now-current
+		// remaining is rejected with BAD_REQUEST.
+		if (existing.salesOrderId) {
+			await tx
+				.select({ id: salesOrders.id })
+				.from(salesOrders)
+				.where(eq(salesOrders.id, existing.salesOrderId))
+				.for("update");
+		} else if (existing.paymentId) {
+			await tx
+				.select({ id: payments.id })
+				.from(payments)
+				.where(eq(payments.id, existing.paymentId))
+				.for("update");
+		} else if (existing.packageInstanceId) {
+			await tx
+				.select({ id: packageInstances.id })
+				.from(packageInstances)
+				.where(eq(packageInstances.id, existing.packageInstanceId))
+				.for("update");
+		}
+
+		// Compute remaining-refundable on the target (now under the parent lock).
+		// `existing.amountCents` is added back because computeRemaining* counts this
+		// pending refund in its SUM — the cap should reflect previously-settled
+		// refunds only.
+		let remainingCents = existing.amountCents;
+		if (existing.salesOrderId) {
+			const info = await computeRemainingBySalesOrder(tx, existing.salesOrderId);
+			remainingCents = info.remainingCents + existing.amountCents;
+		} else if (existing.paymentId) {
+			const info = await computeRemainingByPayment(tx, existing.paymentId);
+			remainingCents = info.remainingCents + existing.amountCents;
+		} else if (existing.packageInstanceId) {
+			const info = await computeRemainingByPackageInstance(
+				tx,
+				existing.packageInstanceId,
+			);
+			remainingCents = info.remainingCents + existing.amountCents;
+		}
+
 		// 1.5 — Validate partial-approve amount when provided
 		let effectiveAmountCents = existing.amountCents;
 		let isPartial = false;
@@ -584,34 +634,19 @@ export async function approveRefund(
 				};
 			}
 
-			// Validate against remaining-refundable on the target
-			let remainingCents = existing.amountCents; // default: requested is the cap
-
-			if (existing.salesOrderId) {
-				const info = await computeRemainingBySalesOrder(tx, existing.salesOrderId);
-				// remaining excludes this pending refund (counted in computeRemainingBySalesOrder);
-				// add back this row's requested amount so the cap reflects only previously-settled refunds
-				remainingCents = info.remainingCents + existing.amountCents;
-			} else if (existing.paymentId) {
-				const info = await computeRemainingByPayment(tx, existing.paymentId);
-				remainingCents = info.remainingCents + existing.amountCents;
-			} else if (existing.packageInstanceId) {
-				const info = await computeRemainingByPackageInstance(
-					tx,
-					existing.packageInstanceId,
-				);
-				remainingCents = info.remainingCents + existing.amountCents;
-			}
-
-			if (approve > remainingCents) {
-				throw {
-					code: "BAD_REQUEST",
-					message: `approveAmountCents (${approve}) exceeds remaining refundable amount (${remainingCents})`,
-				};
-			}
-
 			effectiveAmountCents = approve;
 			isPartial = approve < existing.amountCents;
+		}
+
+		// Always validate the effective amount against the now-current remaining cap.
+		// This catches both partial-approve and full-approve over-cap scenarios,
+		// including the race where two concurrent requestRefund inserts each
+		// passed their own (unlocked) cap check.
+		if (effectiveAmountCents > remainingCents) {
+			throw {
+				code: "BAD_REQUEST",
+				message: `Refund amount (${effectiveAmountCents}) exceeds remaining refundable amount (${remainingCents})`,
+			};
 		}
 
 		const now = new Date();

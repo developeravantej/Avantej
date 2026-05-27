@@ -36,7 +36,7 @@ Per-iteration diffs: `loop/iteration-0.md`, `loop/iteration-1.md`. Loop state: `
 > - **S-stripe-payout-webhooks** (from F-09) — add `payout.*` / `transfer.*` handlers; blocked by S-partner-stripe-onboarding.
 > - **S-partner-stripe-onboarding** (from F-10) — partner Stripe Connect OAuth flow; architectural decision required.
 > - **S-payouts-state-machine** (from F-16, F-17) — `pending → processing → paid` plus retry/cancel surface; needs procedures + UI.
-> - **S-refund-row-lock** (from F-07) — `SELECT … FOR UPDATE` on `sales_orders` inside `approveRefund` to prevent concurrent double-approve; concurrency repro is out of scope for the single-session video.
+> - ~~**S-refund-row-lock** (from F-07)~~ — **FIXED in iteration 2** (see `loop/iteration-2.md`). `SELECT … FOR UPDATE` on the parent target row + cap check now runs for both partial and full approve. Runtime-proven via `gap-prove-f07-refund-lock.spec.ts`: 2 concurrent `approveRefund` calls → exactly 1 succeeds, 1 rejects with BAD_REQUEST.
 
 ## 1. Build gate
 `bun run check-types` (cold, after `.tsbuildinfo` sweep): **GREEN**.
