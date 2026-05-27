@@ -66,6 +66,18 @@ export default defineConfig({
 			dependencies: ["setup"],
 		},
 		{
+			name: "journeys-e2e-firefox",
+			use: { ...devices["Desktop Firefox"], storageState: TENANT_ADMIN_AUTH },
+			testMatch: /(?<!anon)\.journey\.spec\.ts/,
+			dependencies: ["setup"],
+		},
+		{
+			name: "journeys-e2e-webkit",
+			use: { ...devices["Desktop Safari"], storageState: TENANT_ADMIN_AUTH },
+			testMatch: /(?<!anon)\.journey\.spec\.ts/,
+			dependencies: ["setup"],
+		},
+		{
 			name: "journeys-anon",
 			use: { ...devices["Desktop Chrome"] },
 			testMatch: /\.anon\.journey\.spec\.ts/,

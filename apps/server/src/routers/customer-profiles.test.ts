@@ -586,21 +586,35 @@ describe("serverCustomerProfilesRouter.createUnclaimed", () => {
 		).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
 	});
 
-	it("phone already in use → CONFLICT", async () => {
-		// profileFindFirst returns a conflict row
+	it("phone already in use → returns existing profile idempotently (CU-006)", async () => {
+		// CU-006: phone dedup is idempotent rather than CONFLICT — double-submitting
+		// the Quick Add form (network retry, accidental re-click) must not create
+		// two profiles for the same person. The procedure now returns the existing
+		// profile's IDs so the caller can navigate to it.
 		profileFindFirst.mockImplementation(async () => ({
 			id: "existing-profile",
 			phone: INPUT.phone,
 			isDeleted: false,
+			userId: USER_ID,
+		}));
+		memberFindFirst.mockImplementation(async () => ({
+			id: "existing-member",
+			userId: USER_ID,
 		}));
 
-		await expect(
-			callProcedure(
-				serverCustomerProfilesRouter.createUnclaimed,
-				INPUT,
-				makeBaseContext(),
-			),
-		).rejects.toMatchObject({ code: "CONFLICT" });
+		const result = await callProcedure(
+			serverCustomerProfilesRouter.createUnclaimed,
+			INPUT,
+			makeBaseContext(),
+		);
+
+		expect(result).toMatchObject({
+			profileId: "existing-profile",
+			memberId: "existing-member",
+			userId: USER_ID,
+		});
+		// Membership service must NOT have been called (no new member created)
+		expect(mockMembershipServiceCreateMember.mock.calls.length).toBe(0);
 	});
 
 	it("cpDb missing → INTERNAL_SERVER_ERROR", async () => {
