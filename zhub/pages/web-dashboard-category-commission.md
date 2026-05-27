@@ -4,7 +4,7 @@
 **File:** `apps/web/src/components/forms/category-commission-form.tsx`
 **Platform:** web
 **Auth required:** authenticated + `category_commission_management:read` + `category_commission_management:create`
-**Last updated:** 2026-04-22
+**Last updated:** 2026-05-27
 
 ---
 
@@ -117,3 +117,11 @@ Click "Commission Config" button on category row
 - **Slot colors:** Progress bar cycles 5 colors: blue, emerald, amber, violet, rose.
 - **Max coaches:** 1-10 range; limits simultaneous coach assignments per appointment.
 - **POS note:** For POS sales, first condition (lowest index) applied automatically.
+
+### 2026-05-27 audit-prove commission delta
+
+- **F-01** `upsertCategoryCommissionConfig` — service now SELECTs the prior `isActive` before the DELETE+INSERT and preserves it across the upsert. Fixes silent re-activation when editing a deactivated config.
+- **F-02** `getCategoryCommissionConfig` — accepts optional `includeInactive` (default `true` for back-compat); the admin form continues to see inactive configs by default.
+- **F-14** `categoryCommission.upsert` permission widened to `category_commission_management:create` OR `:update` (hasPermission fallback) so editing an existing config no longer requires `create`.
+- **NEW cycle policy** Per-(branch | tenant) commission cap cycle policy via `commission_cycle_configs` (migration 0077). `applyCommissionCaps` now resolves cycle bounds via `resolveCycleBoundsForDate(db, branchId, earnedAt)` from the new `commission-cycle.service.ts` instead of hardcoded UTC calendar-month. Supported cycle types: `calendar_month | monthly_anchored | semi_monthly | weekly`. Admin UI for editing the policy is deferred — defaults still produce calendar-month behaviour.
+- Source: `packages/services/src/category-commission.service.ts`, `packages/services/src/commission-cycle.service.ts`, `packages/services/src/commission-splits.service.ts`, `packages/api/src/routers/category-commission.ts`, `packages/db/src/schema/tenant/commission-cycle-configs.ts`, `packages/db/src/migrations/tenant/0077_commission_cycle_configs.sql`.

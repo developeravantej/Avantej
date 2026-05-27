@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/commissions/my.tsx`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-05-12
+**Last updated:** 2026-05-27
 
 ---
 
@@ -82,3 +82,8 @@
 - Simple wrapper using `makeTabRedirect()` utility from `@/lib/tab-redirect`
 - No component logic; purely routing configuration
 - Actual "My Commissions" content is rendered in `/dashboard/commissions/view` with tab="mine"
+
+### 2026-05-27 audit-prove commission delta
+
+- **F-11** The downstream service `commissionSplits.getMyCommissions` now filters by `earnedAt` (was `createdAt`) so "Mine" reflects when commission was earned, not when the row was inserted. Affects the "My Commissions" tab this stub redirects into.
+- Source: `packages/services/src/commission-splits.service.ts:getMyCommissions`.

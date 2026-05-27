@@ -30,6 +30,13 @@ Nine routers were split from monoliths into folders under `packages/api/src/rout
 
 ## New in this update
 
+- **PR #32 / audit-prove commission (2026-05-27)** — commission engine + payouts hardening:
+  - `payouts` gained per-row state-machine procedures: `markPaid` / `markFailed` / `retry` / `cancel` (each FOR-UPDATE-locked). `runBatch` gained optional `confirmImmediately` (defaults true; when false the payout lands at `pending` for non-cash methods). `runBatch.paymentMethod` enum extended with `"stripe_connect"`. Optional `branchId` input on `runBatch` / `processForRecipient` for batch-row anchoring.
+  - `partnerStripe` (server-only) gained `refresh` (re-pulls capability state from Stripe) and `confirmViaStripe(payoutId)` (fires `stripe.transfers.create` with idempotency key `confirm-payout:<id>`). Phase A's `createOnboardingUrl` is admin-only via `commission_payout:create`.
+  - `commissionSplits.createManualAdjustment` now accepts `packageInstanceId` and validates target XOR at the router (no more raw Postgres CHECK leak).
+  - `commissionSplits.markPaidById` now plumbs `paymentReference` to the row + audit changes.
+  - `categoryCommission.upsert` permission widened to `create` OR `update`.
+  - New tenant migrations: 0077 (`commission_cycle_configs` — per-(branch | tenant) cap cycle policy) + 0078 (`partner_stripe_accounts` capability columns: `payouts_enabled`, `requirements_*`, `country_code`, `default_currency`, `connect_account_updated_at`).
 - **Sprint 05-27 quality remediation** — type-erosion refactor in `payments.ts` (22 → 1 cast) and `customer-profiles.ts` (12 → 3 casts); 130+ new tests across unit / DB integration / real-Stripe / real-Resend / E2E layers; cross-tenant spoof now returns 403 FORBIDDEN at the middleware (previously fell through to a procedure-level 500)
 - **Server-only router listing added** — see section below; previously these were only mentioned in passing
 - **Plan D-S7** — split-router architecture (see table above); CI LOC gates; codemod/refine toolchain documented in `CLAUDE.md`
@@ -68,10 +75,14 @@ These live in `apps/server/src/routers/` (not `packages/api`) because they requi
 | `sendClaimLink` | protected | Swap unclaimed profile's placeholder email + dispatch magic link |
 
 ### partner-stripe
+Partner-level Stripe Connect onboarding + payout origination (S-partner-stripe-onboarding, PR #32). Uses Standard accounts via OAuth per ADR-0001 v2 (MY platforms restricted from Express/Custom). State signed with `BETTER_AUTH_SECRET` HMAC; 5-part format `orgId.partnerId.country.ts.sig` rejects the org-level 3- and 4-part legacy formats (cross-flow replay protection). OAuth callback lives at `/api/stripe/connect/partner/callback` (Hono route, not oRPC). Webhook handlers in `apps/server/src/services/partner-stripe-webhooks.service.ts` consume `account.updated` (partner branch via `metadata.partnerId`) and `transfer.{created,reversed}`.
+
 | Procedure | Auth | Description |
 |-----------|------|-------------|
-| `startOnboarding` | protected | Generate Stripe Connect OAuth link for partner onboarding (Phase A) |
-| `getStatus` | protected | Return partner's Connect account status (charges_enabled, payouts_enabled) |
+| `createOnboardingUrl` | protected | Build Stripe Connect OAuth authorize URL for a partner; signs CSRF state; verifies partner is an active member of the tenant before signing |
+| `getStatus` | protected | Read cached `partner_stripe_accounts` row — deterministic shape (always-present fields) regardless of whether the row exists |
+| `refresh` | protected | Re-pull capability state from Stripe and persist it (`accounts.retrieve` → derive `pending | active | restricted | rejected`) |
+| `confirmViaStripe` | protected | Fire `stripe.transfers.create` for a pending payout. Guards: status=pending + method=stripe_connect + partner has Connect account + `payouts_enabled=true`. Idempotency key `confirm-payout:<payoutId>`. Maps service errors → oRPC codes (NOT_FOUND / BAD_REQUEST / BAD_GATEWAY) |
 
 ### auth
 | Procedure | Auth | Description |
@@ -164,11 +175,13 @@ These live in `apps/server/src/routers/` (not `packages/api`) because they requi
 | `upsert` | protected | Set/clear category buffer override for a specific member (requires user_management or service_management update) |
 
 ## category-commission
+PR #32: `upsert` permission widened to `category_commission_management:create` OR `:update` (was `create`-only). `getByCategory` now accepts optional `includeInactive` (defaults true so the admin form continues to see deactivated configs to re-enable). The DELETE+INSERT in `upsertCategoryCommissionConfig` now reads the prior `isActive` and preserves it across the re-insert (no more silent re-activation on edit). Per-cycle commission caps (`maxPerCycleCents`) are no longer bound to UTC calendar-month — `applyCommissionCaps` resolves the window via `commission_cycle_configs` (migration 0077): per-(branch | tenant) policy with types `calendar_month | monthly_anchored | semi_monthly | weekly`.
+
 | Procedure | Auth | Description |
 |-----------|------|-------------|
 | `delete` | protected | Delete commission config for category |
-| `getByCategory` | protected | Get commission config for a product category |
-| `upsert` | protected | Create/update commission config with slots and conditional rates |
+| `getByCategory` | protected | Get commission config for a product category; optional `includeInactive` (default true) |
+| `upsert` | protected | Create/update commission config with slots and conditional rates; accepts `create` OR `update` permission |
 
 ## check-ins
 | Procedure | Auth | Description |
@@ -381,9 +394,19 @@ These live in `apps/server/src/routers/` (not `packages/api`) because they requi
 | `unfreeze` | protected | Unfreeze a frozen package instance |
 
 ## payouts
+Per-row state machine added in PR #32 (S-payouts-state-machine). Lifecycle: `pending → paid` (via `markPaid` or `confirmViaStripe`), `pending|processing → failed` (`markFailed`), `failed → pending` (`retry`), `pending|failed → canceled` (`cancel`, also reverts linked splits to `approved`). Each transition acquires `SELECT … FOR UPDATE` on the payout row. `runBatch` gained `confirmImmediately?: boolean` (default true preserves legacy cash-flow semantics; `false` inserts at `pending` for non-cash methods so the operator settles via `markPaid` / `confirmViaStripe`). `paymentMethod` enum extended with `"stripe_connect"`.
+
 | Procedure | Auth | Description |
 |-----------|------|-------------|
-| `list` | protected | List payouts to staff/suppliers |
+| `list` | protected | List payouts to staff/suppliers; admin RBAC-bypasses, non-admins see rows where they're the recipient OR (appointment branch | batch branch) ∈ accessibleNodeIds (PR #32 F-15 refinement) |
+| `previewBatch` | protected | Preview the approved splits that would be batched for given staff in a period (no writes) |
+| `runBatch` | protected | Insert payout rows + flip splits; optional `confirmImmediately` (default true) + `branchId` (anchors `payout_batches`); supports `bank_transfer | cash | check | other | stripe_connect` |
+| `processForRecipient` | protected | Thin wrapper over `runBatch` scoped to one recipient; defaults period to first-of-month → now |
+| `recipientSummary` | protected | Lifetime payout stats for a recipient (`totalPaid` includes reversals; `avgPerCycle` excludes negative rows + groups by `batchId` when non-null) |
+| `markPaid` | protected | `pending|processing → paid`. Operator-initiated when out-of-band settlement clears. `paymentReference` required. Flips linked `commission_splits` to paid |
+| `markFailed` | protected | `pending|processing → failed`. Records reason in notes. Linked splits untouched so a `retry` keeps the existing payout linkage |
+| `retry` | protected | `failed → pending`. Resets `paidAt`. No effect on linked splits |
+| `cancel` | protected | `pending|failed → canceled`. Reverts linked commission_splits to `approved` and clears their `payoutId` (re-eligible for a future batch) |
 
 ## permissions
 | Procedure | Auth | Description |

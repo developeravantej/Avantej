@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/commissions/view.tsx`
 **Platform:** web
 **Auth required:** authenticated
-**Last updated:** 2026-05-12
+**Last updated:** 2026-05-27
 
 ---
 
@@ -99,3 +99,7 @@ const TABS = [
 - **Permission gating:** If all gated tabs are hidden, the user still sees `MyCommissionsPage` (always visible). No empty-state for "no tabs available".
 - **Delegated data loading:** Each tab is fully self-contained — handle its own queries, errors, and bulk actions. Nothing flows back through the route.
 - **Companion deep-dive:** see `web-dashboard-commissions-view.md` for the All Commissions tab (ledger, bulk actions, void flow) and `web-dashboard-commissions-my.md` for the legacy redirect.
+
+### 2026-05-27 audit-prove commission delta
+
+Underlying service hardening from the audit-prove commission session (see `web-dashboard-commissions-view.md` for details): manual-adjustment XOR is now validated at the router (F-04); `markPaidById` persists `paymentReference` (F-05); refund→reversal flips fully-reversed splits to `void` and `liabilityByStaff` / `liabilitySummary` LEFT-JOIN a pre-aggregated reversal subquery (F-06); `myCommissions` filters by `earnedAt` not `createdAt` (F-11); `liabilitySummary` upper bound is now exclusive (`lt`) to prevent boundary double-count (F-12). No route-level changes here. Source: `packages/services/src/commission-splits.service.ts`, `packages/api/src/routers/commission-splits/lifecycle.procedures.ts`.

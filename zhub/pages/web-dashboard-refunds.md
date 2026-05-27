@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/refunds/view.tsx`
 **Platform:** web
 **Auth required:** authenticated + rbac(`refund_management:read`)
-**Last updated:** 2026-05-12
+**Last updated:** 2026-05-27
 
 > Companion doc: [`web-dashboard-refunds-view.md`](./web-dashboard-refunds-view.md) — deeper details on the ledger page (KPI strip, target cell, audit drawer). This file is the route-group index; both docs describe the same single route.
 
@@ -134,3 +134,9 @@ See `web-dashboard-refunds-view.md` §4 for the full `RefundRow` shape and refun
 - **Currency**: amounts stored in cents (`amountCents`, `taxAmountCents`); formatted via `formatPrice` from `@/lib/money`.
 - **Concurrency**: backend `processRefund` uses `SELECT FOR UPDATE` on target rows to prevent races with concurrent writes.
 - **`auditQuery` shape**: `(data as { rows?: AuditRow[] } | undefined)?.rows ?? []` — narrowed at the call site because the audit endpoint isn't strictly typed.
+
+### 2026-05-27 audit-prove commission delta
+
+- **F-07** `approveRefund` now `SELECT … FOR UPDATE`s the parent target (sales_order / payment / package_instance) so the remaining-refundable cap check serializes against concurrent approvals — prevents double-approve where two concurrent calls each individually pass the cap but exceed it together.
+- **F-06** Refund approval is now the upstream caller for the commission-split reversal + status-flip flow (fully-reversed splits become `void`; liability deducts reversals). Commission-side detail in `web-dashboard-commissions-view.md`.
+- Source: `packages/services/src/refunds.service.ts`, `packages/services/src/commission-splits.service.ts`.

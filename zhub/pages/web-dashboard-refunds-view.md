@@ -4,7 +4,7 @@
 **File:** `apps/web/src/routes/_authenticated/dashboard/_layout/refunds/view.tsx`
 **Platform:** web
 **Auth required:** authenticated + `refund_management:read` (approve gated by `:approve`, process by `:process`)
-**Last updated:** 2026-05-12
+**Last updated:** 2026-05-27
 
 ---
 
@@ -172,3 +172,9 @@ const REFUND_STATUS_MAP = {
 - **Legacy cancelled sales** (`cancelledAmount > 0` and no refund rows) are NOT migrated; surface via the sales detail page's "Already refunded (legacy)" indicator.
 - **Concurrency safety**: backend `processRefund` uses `SELECT FOR UPDATE` on sales-order / payment / package-instance rows.
 - **`formatPrice` import** is `@/lib/money`.
+
+### 2026-05-27 audit-prove commission delta
+
+- **F-07** `approveRefund` now `SELECT … FOR UPDATE`s the parent target (sales_order / payment / package_instance) so the remaining-refundable cap check serializes against concurrent approvals. Fixes the double-approve race where two concurrent calls each individually pass the cap but exceed it in sum.
+- **F-06** Refund approval now triggers commission-split status flip (fully-reversed → `void`) and reversal-aware liability — refunds flow is the caller; commission-side detail in `web-dashboard-commissions-view.md`.
+- Source: `packages/services/src/refunds.service.ts`, `packages/services/src/commission-splits.service.ts`.

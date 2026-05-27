@@ -7,7 +7,7 @@
 
 **Platform:** web
 **Auth required:** authenticated (rbac `user_management:read` enforced server-side)
-**Last updated:** 2026-05-12
+**Last updated:** 2026-05-27
 
 ---
 
@@ -115,4 +115,13 @@ interface PayoutRow {
 - The page uses the generic sales DataTable (`apps/web/src/components/tables/sales/view/data-table.tsx`) rather than a payout-specific table component.
 - **Lazy-route split (Phase 5 of web-debt-cleanup):** `view.tsx` is now a minimal `createFileRoute` stub; all component code lives in `view.lazy.tsx` via `createLazyFileRoute`. This keeps the route out of the initial dashboard bundle.
 - Row shape adds optional `batchId` field (payouts may belong to a batch run); the column file may surface this when present.
+
+### 2026-05-27 audit-prove commission delta
+
+- **F-08** `runBatch` now wires `getOrCreatePayoutBatch` into its transaction — every inserted payout row carries a non-null `batchId` and `payout_batches.totalCents` is recomputed via a single GROUP BY. The procedure also accepts an optional `branchId` input (`guardBranchAccessible` when supplied).
+- **F-15 refinement** `payouts.list` non-admin RBAC predicate refined: admins bypass (role check); non-admins see rows where `recipientId === viewer.userId` OR `appointments.branchId IN accessibleNodeIds` OR (appointment-less + `payout_batches.branchId IN accessibleNodeIds`). Stops branch-scoped staff from seeing org-wide batch payouts.
+- **F-19** `recipientSummary.avgPerCycle` now groups by `batchId` (fallback `paidAt::date`) and excludes negative reversal rows.
+- **NEW state machine** Per-row procedures `payouts.markPaid` / `markFailed` / `retry` / `cancel`; each transition is FOR-UPDATE-locked. `runBatch.confirmImmediately` defaults `true` (legacy cash flow); when `false`, payouts insert at `pending` and linked splits stay `approved` until `markPaid` settles.
+- **NEW Stripe Connect path** `paymentMethod: "stripe_connect"` enum value added. `partnerStripe.confirmViaStripe(payoutId)` (server-only router) fires `stripe.transfers.create` for a pending stripe_connect payout with idempotency key `confirm-payout:<id>`.
+- Source: `packages/services/src/payouts.service.ts`, `packages/api/src/routers/payouts.ts`, `apps/server/src/routers/partner-stripe.ts`, `apps/server/src/services/confirm-payout-via-stripe.service.ts`.
 

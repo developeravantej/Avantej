@@ -8,7 +8,7 @@
 - `apps/web/src/components/pages/commissions/liability-tab.tsx` — `LiabilityTab`
 **Platform:** web
 **Auth required:** authenticated + (per-tab) `commission_management:read` / `commission_payout:read`
-**Last updated:** 2026-05-12
+**Last updated:** 2026-05-27
 
 ---
 
@@ -147,3 +147,12 @@ None yet. Chrome-verified: KPI strip RM 0.00 × 3, all 5 status tabs, filters re
 - `listCommissionLedger` does in-memory RBAC filtering on `branchId ∈ accessibleNodeIds` (not SQL WHERE).
 - `createCommissionSplit` is idempotent via `onConflictDoNothing()` + follow-up `findFirst` on duplicate.
 - Audit action key: `commission.mark_paid` (underscore, not camelCase).
+
+### 2026-05-27 audit-prove commission delta
+
+- **F-04** `commissionSplits.createManualAdjustment` — router now validates the appointment/salesOrder/packageInstance XOR before INSERT; raises clean `BAD_REQUEST` instead of leaking the raw Postgres CHECK error.
+- **F-05** `commissionSplits.markPaidById` — `paymentReference` is now persisted (notes + audit `changes` payload).
+- **F-06** Refund → reversal now flips fully-reversed splits to `void`; `liabilityByStaff` and `liabilitySummary` LEFT-JOIN a pre-aggregated `commission_split_reversals` subquery so refunded commission no longer shows as still owed.
+- **F-11** `commissionSplits.myCommissions` date filter switched from `createdAt` to `earnedAt` (matches ledger semantics).
+- **F-12** `liabilitySummary` upper bound switched `lte → lt` on the `to` cursor to prevent the boundary double-count between adjacent windows.
+- Source: `packages/services/src/commission-splits.service.ts`, `packages/api/src/routers/commission-splits/lifecycle.procedures.ts`.
