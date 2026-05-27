@@ -714,13 +714,20 @@ export async function approveCommissionSplits(
 
 export interface MarkPaidParams {
 	payoutId?: string;
+	/**
+	 * Free-form reference string (e.g. bank transaction ID, cheque number).
+	 * Stored in the audit changes payload and appended to the split's notes
+	 * field. Not a UUID FK — distinct from `payoutId` which links to payouts.id.
+	 */
+	paymentReference?: string;
 	actor: { userId: string; memberId: string; role: string };
 }
 
 /**
  * Bulk mark approved commission splits as paid.
  * All ids must be status='approved'. Any non-approved id causes BAD_REQUEST.
- * Optionally links a payoutId to each split.
+ * Optionally links a payoutId to each split. Optionally records a
+ * paymentReference string in audit + notes (no dedicated column).
  */
 export async function markCommissionSplitsPaid(
 	tenantDb: TenantDb,
@@ -744,17 +751,43 @@ export async function markCommissionSplitsPaid(
 		}
 
 		const now = new Date();
-		const updated = await tx
-			.update(commissionSplits)
-			.set({
-				status: "paid",
-				paidBy: params.actor.userId,
-				paidAt: now,
-				...(params.payoutId !== undefined && { payoutId: params.payoutId }),
-				updatedAt: now,
-			})
-			.where(inArray(commissionSplits.id, ids))
-			.returning();
+		// Per-row update so we can append paymentReference to each split's notes
+		// without clobbering existing content. Falls back to a bulk update when
+		// no reference is supplied.
+		let updated: CommissionSplit[];
+		if (params.paymentReference) {
+			const ref = params.paymentReference;
+			updated = [];
+			for (const row of existing) {
+				const refSuffix = `Payment ref: ${ref}`;
+				const nextNotes = row.notes ? `${row.notes} | ${refSuffix}` : refSuffix;
+				const [u] = await tx
+					.update(commissionSplits)
+					.set({
+						status: "paid",
+						paidBy: params.actor.userId,
+						paidAt: now,
+						...(params.payoutId !== undefined && { payoutId: params.payoutId }),
+						notes: nextNotes,
+						updatedAt: now,
+					})
+					.where(eq(commissionSplits.id, row.id))
+					.returning();
+				if (u) updated.push(u);
+			}
+		} else {
+			updated = await tx
+				.update(commissionSplits)
+				.set({
+					status: "paid",
+					paidBy: params.actor.userId,
+					paidAt: now,
+					...(params.payoutId !== undefined && { payoutId: params.payoutId }),
+					updatedAt: now,
+				})
+				.where(inArray(commissionSplits.id, ids))
+				.returning();
+		}
 
 		for (const row of updated) {
 			await writeAudit(tx, {
@@ -769,6 +802,7 @@ export async function markCommissionSplitsPaid(
 					previousStatus: "approved",
 					newStatus: "paid",
 					payoutId: params.payoutId ?? null,
+					paymentReference: params.paymentReference ?? null,
 				},
 			});
 		}
@@ -904,8 +938,9 @@ export interface CreateManualAdjustmentParams {
 	staffId: string; // members.userId (cross-DB)
 	amountCents: number; // Can be negative (clawback)
 	note: string; // Required
-	salesOrderId?: string;
-	appointmentId?: string;
+	salesOrderId?: string | null;
+	appointmentId?: string | null;
+	packageInstanceId?: string | null;
 	actor: { userId: string; memberId: string; role: string };
 }
 
@@ -998,6 +1033,26 @@ export async function liabilitySummary(
 	// Single aggregation query using conditional sums grouped by staffId.
 	// If categoryId is provided, we LEFT JOIN appointments and salesOrders, then
 	// filter to splits that have a matching category (or are manual with no source).
+	//
+	// Invariant: refunded commission must NOT show as owed.
+	//   approvedUnpaid = SUM(calculatedAmount WHERE status=approved AND splitType=automatic)
+	//                  + SUM(reversal.amountCents WHERE source.status=approved AND splitType=automatic)
+	//   paid           = SUM(calculatedAmount WHERE status=paid)
+	//                  + SUM(reversal.amountCents WHERE source.status=paid)
+	// reversal.amountCents is negative → reduces the bucket. Reversals are joined
+	// via a pre-aggregated subquery (one row per split) so the outer GROUP BY does
+	// NOT double-count split rows. Single SQL query — no N+1.
+	const reversalsSubquery = tenantDb
+		.select({
+			splitId: commissionSplitReversals.reversedSplitId,
+			total: sql<number>`COALESCE(SUM(${commissionSplitReversals.amountCents}), 0)`
+				.mapWith(Number)
+				.as("reversal_total"),
+		})
+		.from(commissionSplitReversals)
+		.groupBy(commissionSplitReversals.reversedSplitId)
+		.as("rev");
+
 	let rows: { staffId: string; approvedUnpaid: number; paid: number; manualAdj: number }[];
 
 	if (categoryId) {
@@ -1013,11 +1068,20 @@ export async function liabilitySummary(
 						     AND ${commissionSplits.splitType} = 'automatic'
 						THEN ${commissionSplits.calculatedAmount} ELSE 0 END
 					), 0)
+					+ COALESCE(SUM(
+						CASE WHEN ${commissionSplits.status} = 'approved'
+						     AND ${commissionSplits.splitType} = 'automatic'
+						THEN COALESCE(${reversalsSubquery.total}, 0) ELSE 0 END
+					), 0)
 				`.mapWith(Number),
 				paid: sql<number>`
 					COALESCE(SUM(
 						CASE WHEN ${commissionSplits.status} = 'paid'
 						THEN ${commissionSplits.calculatedAmount} ELSE 0 END
+					), 0)
+					+ COALESCE(SUM(
+						CASE WHEN ${commissionSplits.status} = 'paid'
+						THEN COALESCE(${reversalsSubquery.total}, 0) ELSE 0 END
 					), 0)
 				`.mapWith(Number),
 				manualAdj: sql<number>`
@@ -1031,6 +1095,7 @@ export async function liabilitySummary(
 			.from(commissionSplits)
 			.leftJoin(appointments, eq(commissionSplits.appointmentId, appointments.id))
 			.leftJoin(services, eq(appointments.serviceId, services.id))
+			.leftJoin(reversalsSubquery, eq(reversalsSubquery.splitId, commissionSplits.id))
 			.where(
 				and(
 					...baseConditions,
@@ -1064,11 +1129,20 @@ export async function liabilitySummary(
 						     AND ${commissionSplits.splitType} = 'automatic'
 						THEN ${commissionSplits.calculatedAmount} ELSE 0 END
 					), 0)
+					+ COALESCE(SUM(
+						CASE WHEN ${commissionSplits.status} = 'approved'
+						     AND ${commissionSplits.splitType} = 'automatic'
+						THEN COALESCE(${reversalsSubquery.total}, 0) ELSE 0 END
+					), 0)
 				`.mapWith(Number),
 				paid: sql<number>`
 					COALESCE(SUM(
 						CASE WHEN ${commissionSplits.status} = 'paid'
 						THEN ${commissionSplits.calculatedAmount} ELSE 0 END
+					), 0)
+					+ COALESCE(SUM(
+						CASE WHEN ${commissionSplits.status} = 'paid'
+						THEN COALESCE(${reversalsSubquery.total}, 0) ELSE 0 END
 					), 0)
 				`.mapWith(Number),
 				manualAdj: sql<number>`
@@ -1080,6 +1154,7 @@ export async function liabilitySummary(
 				`.mapWith(Number),
 			})
 			.from(commissionSplits)
+			.leftJoin(reversalsSubquery, eq(reversalsSubquery.splitId, commissionSplits.id))
 			.where(and(...baseConditions))
 			.groupBy(commissionSplits.staffId) as { staffId: string; approvedUnpaid: number; paid: number; manualAdj: number }[];
 	}
@@ -1220,6 +1295,20 @@ export async function createManualAdjustment(
 	tenantDb: TenantDb,
 	params: CreateManualAdjustmentParams,
 ): Promise<CommissionSplit> {
+	// Defense-in-depth XOR check: the commission_splits_must_target_one DB CHECK
+	// enforces this at the row level (Postgres 23514). Validating here gives a
+	// clean error message before the insert runs, so callers that bypass the
+	// router (tests, services) get the same protection as router callers.
+	const targetCount =
+		(params.appointmentId ? 1 : 0) +
+		(params.salesOrderId ? 1 : 0) +
+		(params.packageInstanceId ? 1 : 0);
+	if (targetCount !== 1) {
+		throw new Error(
+			"XOR target violation: exactly one of appointmentId/salesOrderId/packageInstanceId required",
+		);
+	}
+
 	// Duplicate guard: reject if a non-void manual split already exists for the
 	// same staff + appointment combination. Prevents accidental double-entry.
 	if (params.appointmentId) {
@@ -1248,6 +1337,7 @@ export async function createManualAdjustment(
 		.values({
 			appointmentId: params.appointmentId ?? null,
 			salesOrderId: params.salesOrderId ?? null,
+			packageInstanceId: params.packageInstanceId ?? null,
 			staffId: params.staffId,
 			splitPercentage: 0,
 			calculatedAmount: params.amountCents,
@@ -1268,7 +1358,13 @@ export async function createManualAdjustment(
 		entityType: "commission_split",
 		entityId: inserted!.id,
 		summary: `Manual commission adjustment for staff ${params.staffId}: ${params.amountCents} cents`,
-		changes: { amountCents: params.amountCents, note: params.note },
+		changes: {
+			amountCents: params.amountCents,
+			note: params.note,
+			appointmentId: params.appointmentId ?? null,
+			salesOrderId: params.salesOrderId ?? null,
+			packageInstanceId: params.packageInstanceId ?? null,
+		},
 	});
 
 	return inserted!;

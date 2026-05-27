@@ -9,10 +9,12 @@ import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { commissionSplitReversals } from "@avantej-core/db/schema/tenant/commission-split-reversals";
 import { commissionSplits } from "@avantej-core/db/schema/tenant/commission-splits";
+import { payoutBatches } from "@avantej-core/db/schema/tenant/payout-batches";
 import { payouts } from "@avantej-core/db/schema/tenant/payouts";
 import { and, between, eq, inArray, isNull, max, sql, sum } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { writeAudit } from "./audit-log.service";
+import { getOrCreatePayoutBatch } from "./commission-splits.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
@@ -279,6 +281,14 @@ export interface RunBatchParams {
 	paymentMethod: "bank_transfer" | "cash" | "check" | "other";
 	reference?: string;
 	paidByUserId: string; // context.member.userId
+	/**
+	 * Optional branch anchor for the resulting payout_batches row. When omitted
+	 * the batch is created with branchId=NULL (cross-branch / unscoped batch).
+	 * `getOrCreatePayoutBatch` is idempotent per (branchId, periodStart, periodEnd),
+	 * so the same (branchId|NULL, period) tuple will resolve to the same batch
+	 * across re-runs.
+	 */
+	branchId?: string | null;
 }
 
 export interface RunBatchResult {
@@ -294,6 +304,16 @@ export interface RunBatchResult {
  * The entire operation runs in a single transaction. Uses SELECT FOR UPDATE to
  * prevent concurrent runs from double-paying the same splits.
  *
+ * Batch grouping (F-08): every payout row produced by this run is linked to a
+ * single `payout_batches` row resolved idempotently from
+ * `(branchId | NULL, periodStart, periodEnd)`. The batch's `totalCents` is
+ * recomputed from the inserted payouts after insert.
+ *
+ * Invariant: SUM(payouts.amount WHERE batchId=B) === payout_batches[B].totalCents
+ * (holds because both sides are computed from the same inserted rows in the
+ * same transaction; idempotent re-runs with the same period reuse the existing
+ * batch and update totalCents to the new sum).
+ *
  * @throws Error with code "EMPTY_BATCH" when no qualifying splits are found.
  * @throws Error with code "CONFLICT" on PostgreSQL 23505 (duplicate payout).
  */
@@ -301,7 +321,15 @@ export async function runBatch(
 	tenantDb: TenantDb,
 	params: RunBatchParams,
 ): Promise<RunBatchResult> {
-	const { staffIds, periodStart, periodEnd, paymentMethod, reference, paidByUserId } = params;
+	const {
+		staffIds,
+		periodStart,
+		periodEnd,
+		paymentMethod,
+		reference,
+		paidByUserId,
+		branchId,
+	} = params;
 
 	try {
 		return await tenantDb.transaction(async (tx) => {
@@ -329,7 +357,18 @@ export async function runBatch(
 				);
 			}
 
-			// 2. Group by staffId
+			// 2. Resolve the payout batch up-front so every inserted payout row
+			//    carries a non-null batchId. Idempotent: a re-run with the same
+			//    (branchId|NULL, periodStart, periodEnd) reuses the existing
+			//    pending/processing batch instead of creating a duplicate.
+			const batch = await getOrCreatePayoutBatch(tx as unknown as TenantDb, {
+				branchId: branchId ?? null,
+				periodStart,
+				periodEnd,
+				createdBy: paidByUserId,
+			});
+
+			// 3. Group by staffId
 			const byStaff = new Map<string, { splitIds: string[]; totalCents: number }>();
 			for (const row of locked) {
 				const existing = byStaff.get(row.staffId) ?? { splitIds: [], totalCents: 0 };
@@ -342,7 +381,7 @@ export async function runBatch(
 			const payoutIds: string[] = [];
 			let totalAmountCents = 0;
 
-			// 3. Insert one payout row per staff member + update splits
+			// 4. Insert one payout row per staff member + update splits
 			for (const [staffId, group] of byStaff) {
 				const [newPayout] = await tx
 					.insert(payouts)
@@ -357,6 +396,7 @@ export async function runBatch(
 						paidAt: now,
 						manualPayoutConfirmedAt: now,
 						manualPayoutConfirmedBy: paidByUserId,
+						batchId: batch.id,
 						description: reference ?? null,
 						notes: reference
 							? `Batch payout ref: ${reference}`
@@ -371,7 +411,7 @@ export async function runBatch(
 				payoutIds.push(newPayout.id);
 				totalAmountCents += group.totalCents;
 
-				// 4. Mark splits as paid and link to the new payout row
+				// 5. Mark splits as paid and link to the new payout row
 				await tx
 					.update(commissionSplits)
 					.set({
@@ -383,7 +423,7 @@ export async function runBatch(
 					})
 					.where(inArray(commissionSplits.id, group.splitIds));
 
-				// 5. Audit emission (auditor continuity — one entry per payout
+				// 6. Audit emission (auditor continuity — one entry per payout
 				//    + one per split flipped to paid, mirroring the existing
 				//    per-split convention from `markCommissionSplitsPaid`).
 				await writeAudit(tx, {
@@ -398,6 +438,7 @@ export async function runBatch(
 						splitCount: group.splitIds.length,
 						paymentMethod,
 						reference: reference ?? null,
+						batchId: batch.id,
 					},
 				});
 				for (const splitId of group.splitIds) {
@@ -411,6 +452,26 @@ export async function runBatch(
 					});
 				}
 			}
+
+			// 7. Recompute the batch total from the actual inserted rows in a
+			//    single GROUP BY query — no per-payout UPDATE. Also stamp
+			//    finalizedAt to mark the batch as closed for this run. On an
+			//    idempotent re-run the SUM reflects ALL payouts now wired to
+			//    this batch (including any from a prior partial run that
+			//    reused the same batch row), so the invariant continues to
+			//    hold.
+			const [totals] = await tx
+				.select({ sum: sum(payouts.amount).mapWith(Number) })
+				.from(payouts)
+				.where(eq(payouts.batchId, batch.id));
+
+			await tx
+				.update(payoutBatches)
+				.set({
+					totalCents: totals?.sum ?? totalAmountCents,
+					finalizedAt: now,
+				})
+				.where(eq(payoutBatches.id, batch.id));
 
 			return { payoutIds, totalAmountCents, splitCount: locked.length };
 		});
@@ -445,8 +506,14 @@ export interface RecipientSummaryResult {
  * Return lifetime stats for a single payout recipient.
  *
  * Two-query approach:
- *   Q1 — aggregate: SUM(amount) WHERE status='paid', MAX(paidAt)
- *   Q2 — recent 100 paid rows to compute average per distinct cycle (paidAt date)
+ *   Q1 — aggregate: SUM(amount) WHERE status='paid', MAX(paidAt). `totalPaid`
+ *        intentionally INCLUDES reversal/adjustment rows (negative amounts) —
+ *        clawbacks are real money out the door and must net into lifetime totals.
+ *   Q2 — recent 100 paid rows to compute average per cycle. Only positive-amount
+ *        rows participate (reversal adjustments are a different concept from a
+ *        payout cycle and would distort the per-cycle mean). Cycles are grouped
+ *        by `batchId` when non-null so two same-day batches do NOT collapse into
+ *        one cycle; legacy rows without a batchId fall back to `paidAt::date`.
  */
 export async function recipientSummary(
 	tenantDb: TenantDb,
@@ -466,7 +533,11 @@ export async function recipientSummary(
 
 	// Q2: recent 100 paid rows to derive avg-per-cycle
 	const recent = await tenantDb
-		.select({ amount: payouts.amount, paidAt: payouts.paidAt })
+		.select({
+			amount: payouts.amount,
+			paidAt: payouts.paidAt,
+			batchId: payouts.batchId,
+		})
 		.from(payouts)
 		.where(and(eq(payouts.recipientId, recipientId), eq(payouts.status, "paid")))
 		.orderBy(sql`${payouts.paidAt} desc nulls last`)
@@ -474,16 +545,22 @@ export async function recipientSummary(
 
 	let avgPerCycleCents = 0;
 	if (recent.length > 0) {
-		// Group by calendar date of paidAt to count distinct cycles
+		// Group cycles by batchId (preferred) or paidAt::date (legacy fallback).
+		// Skip negative-amount rows — reversal adjustments are not payout cycles.
 		const cycleMap = new Map<string, number>();
 		for (const row of recent) {
-			const dateKey = row.paidAt
-				? new Date(row.paidAt).toISOString().slice(0, 10)
-				: "unknown";
-			cycleMap.set(dateKey, (cycleMap.get(dateKey) ?? 0) + row.amount);
+			if (row.amount < 0) continue;
+			const cycleKey = row.batchId
+				? `batch:${row.batchId}`
+				: row.paidAt
+					? `date:${new Date(row.paidAt).toISOString().slice(0, 10)}`
+					: "unknown";
+			cycleMap.set(cycleKey, (cycleMap.get(cycleKey) ?? 0) + row.amount);
 		}
-		const cycleTotal = [...cycleMap.values()].reduce((s, v) => s + v, 0);
-		avgPerCycleCents = Math.round(cycleTotal / cycleMap.size);
+		if (cycleMap.size > 0) {
+			const cycleTotal = [...cycleMap.values()].reduce((s, v) => s + v, 0);
+			avgPerCycleCents = Math.round(cycleTotal / cycleMap.size);
+		}
 	}
 
 	return { lifetimePaidCents, avgPerCycleCents, lastPayoutAt };
@@ -500,6 +577,7 @@ export interface ProcessForRecipientParams {
 	paidByUserId: string;
 	periodStart?: Date;
 	periodEnd?: Date;
+	branchId?: string | null;
 }
 
 /**
@@ -523,5 +601,6 @@ export async function processForRecipient(
 		paymentMethod: params.paymentMethod,
 		reference: params.reference,
 		paidByUserId: params.paidByUserId,
+		branchId: params.branchId ?? null,
 	});
 }

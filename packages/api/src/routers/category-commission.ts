@@ -2,6 +2,7 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
 import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { hasPermission } from "@avantej-core/services/permission.service";
 import {
 	getCategoryCommissionConfig,
 	upsertCategoryCommissionConfig,
@@ -74,7 +75,27 @@ const upsert = tenantProcedure
 		
 
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "category_commission_management", "create");
+		// Upsert authorizes EITHER `create` OR `update` — a user granted only one of the
+		// two actions should still be able to use the upsert endpoint (the operation may
+		// resolve to either an insert or an update at runtime). Check `create` first
+		// (the common case for first-time category setup) and fall back to `update`.
+		const canCreate = await hasPermission(
+			context.tenantDb,
+			context.member,
+			"category_commission_management",
+			"create",
+		);
+		if (!canCreate) {
+			// Reuse requirePermissionOrpc so the FORBIDDEN message + mapping path stays
+			// consistent with the rest of the codebase. If the user lacks `update` too,
+			// this throws the canonical ORPCError("FORBIDDEN").
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"category_commission_management",
+				"update",
+			);
+		}
 
 		const totalBps = input.slots.reduce((sum, s) => sum + s.weightageBasisPoints, 0);
 		if (totalBps !== 10000) {

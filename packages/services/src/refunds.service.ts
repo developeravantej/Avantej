@@ -13,6 +13,7 @@
 
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
+import { installments } from "@avantej-core/db/schema/tenant/installments";
 import { invoices } from "@avantej-core/db/schema/tenant/invoices";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { payments } from "@avantej-core/db/schema/tenant/payments";
@@ -36,7 +37,10 @@ import {
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { writeAudit } from "./audit-log.service";
 import { reverseForRefund } from "./commission-splits.service";
-import { appendPaymentStatusHistory } from "./status-history.helper";
+import {
+	appendPackageInstanceStatusHistory,
+	appendPaymentStatusHistory,
+} from "./status-history.helper";
 
 // ---------------------------------------------------------------------------
 // Internal type aliases
@@ -646,6 +650,75 @@ export async function approveRefund(
 			initiatedBy: params.actor.userId,
 			actor: params.actor,
 		});
+
+		// CPR-05: when a full refund is approved against a package instance, cancel the
+		// instance and zero its credits within this same transaction so the customer
+		// cannot continue consuming a fully-refunded package.
+		if (existing.packageInstanceId) {
+			const [pkgInstance] = await tx
+				.select()
+				.from(packageInstances)
+				.where(eq(packageInstances.id, existing.packageInstanceId))
+				.for("update");
+
+			if (pkgInstance) {
+				const totalPrice = pkgInstance.totalPrice ?? 0;
+				const isFullRefund = totalPrice > 0 && effectiveAmountCents >= totalPrice;
+
+				if (isFullRefund && pkgInstance.status !== "cancelled") {
+					const now = new Date();
+					const previousStatus = pkgInstance.status;
+
+					// Cancel outstanding instalment rows before marking package cancelled
+					await tx
+						.update(installments)
+						.set({ status: "cancelled", updatedAt: now })
+						.where(
+							and(
+								eq(installments.packageInstanceId, existing.packageInstanceId),
+								inArray(installments.status, ["pending", "overdue"]),
+							),
+						);
+
+					// Zero out remaining credits and cancel the instance
+					await tx
+						.update(packageInstances)
+						.set({
+							status: "cancelled",
+							creditsUsed: pkgInstance.creditsTotal ?? pkgInstance.creditsUsed,
+							cancellationReason: `Full refund approved: ${existing.refundNumber}`,
+							cancelledBy: params.actor.userId,
+							updatedAt: now,
+						})
+						.where(eq(packageInstances.id, existing.packageInstanceId));
+
+					await appendPackageInstanceStatusHistory(tx, existing.packageInstanceId, {
+						fromStatus: previousStatus,
+						toStatus: "cancelled",
+						changedBy: params.actor.userId,
+						reason: `Full refund approved: ${existing.refundNumber}`,
+					});
+
+					await writeAudit(tx, {
+						actorUserId: params.actor.userId,
+						actorMemberId: params.actor.memberId,
+						actorRole: params.actor.role,
+						action: "package.cancelled",
+						entityType: "package_instance",
+						entityId: existing.packageInstanceId,
+						branchId: existing.branchId ?? undefined,
+						summary: `Package instance ${existing.packageInstanceId} cancelled due to full refund ${existing.refundNumber}`,
+						changes: {
+							previousStatus,
+							refundId: id,
+							refundNumber: existing.refundNumber,
+							effectiveAmountCents,
+							totalPrice,
+						},
+					});
+				}
+			}
+		}
 
 		await writeAudit(tx, {
 			actorUserId: params.actor.userId,

@@ -7,20 +7,23 @@
 	"compatibility_flags": ["nodejs_compat"],
 	"vars": {
 		"NODE_ENV": "production",
-		"INSTALLMENTS_LOCK_ON_OPEN": "true"
+		"INSTALLMENTS_LOCK_ON_OPEN": "true",
+		"CORS_ORIGIN": "https://avantej-core.developer-avantej.workers.dev",
+		"BETTER_AUTH_URL": "https://avantej-core-server.developer-avantej.workers.dev"
 		// Add public environment variables here
-		// Example: "CORS_ORIGIN": "https://your-domain.com"
+		// Comma-separate CORS_ORIGIN if multiple frontends need access.
 	},
 	// For sensitive data, use:
 	// wrangler secret put SECRET_NAME
 	// Don't add secrets to "vars" - they're visible in the dashboard!
 	//
 	// Scheduled jobs (Plan C ADR-0021 + Plan E ADR-0023 / ADR-0026). All crons
-	// dispatch into the `scheduled` export in src/index.ts:
+	// dispatch into the `scheduled` export in src/index.ts. Capped at 5 to fit
+	// the Workers Free plan limit; reconciliation runs alongside the installment
+	// sweep at 02:00 UTC instead of its own 02:30 slot.
 	//   - hourly: webhook backfill (Plan C C.1)
 	//   - daily 01:00 UTC: tenant usage snapshot (Plan E E.2)
-	//   - daily 02:30 UTC: nightly reconciliation (Plan C C.5)
-	//   - daily 02:00 UTC: installment sweep (Phase 4 installments)
+	//   - daily 02:00 UTC: installment sweep + nightly reconciliation (Plan C C.5 + Phase 4)
 	//   - daily 03:00 UTC: hard-delete sweeper for overdue tenants (Plan E E.8)
 	//   - daily 09:00 UTC: onboarding-stuck alert (Plan C C.6)
 	"triggers": {
@@ -28,7 +31,6 @@
 			"0 * * * *",
 			"0 1 * * *",
 			"0 2 * * *",
-			"30 2 * * *",
 			"0 3 * * *",
 			"0 9 * * *"
 		]

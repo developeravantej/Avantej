@@ -212,6 +212,15 @@ export async function getDashboardKpis(
 	// "lapsed" = a customer_profile that had at least one active package that expired in [from, to]
 	//            AND has no active package starting on or after the expiry date.
 	// active_at_start = customer_profiles with an active package that started before `from`.
+	// NAP-03: scope customer_profiles to those with at least one sales_order in accessible branches.
+	const churnBranchClause =
+		nodeIds.length > 0
+			? sql`AND cp.user_id IN (
+				SELECT DISTINCT so.customer_id FROM sales_orders so
+				WHERE so.branch_id = ANY(ARRAY[${sql.join(nodeIds.map((id) => sql`${id}::uuid`), sql`, `)}])
+			  )`
+			: sql``;
+
 	const churnResult = await tenantDb.execute<{ churn_pct: string }>(sql`
 		WITH active_at_start AS (
 			SELECT DISTINCT cp.id AS customer_id
@@ -219,6 +228,7 @@ export async function getDashboardKpis(
 			JOIN package_instances pi ON pi.client_id = cp.user_id
 			WHERE pi.status = 'active'
 			  AND pi.starts_at < ${from}
+			  ${churnBranchClause}
 		),
 		lapsed AS (
 			SELECT DISTINCT cp.id AS customer_id
@@ -232,6 +242,7 @@ export async function getDashboardKpis(
 			        AND pi2.status = 'active'
 			        AND pi2.starts_at >= pi.expires_at
 			  )
+			  ${churnBranchClause}
 		)
 		SELECT
 			CASE WHEN COUNT(a.customer_id) = 0 THEN 0
@@ -243,6 +254,12 @@ export async function getDashboardKpis(
 	const churnRatePct = Number(churnResult.rows[0]?.churn_pct ?? 0);
 
 	// 3c. Avg LTV — average cumulative spend per customer with at least one order on/before `to`
+	// NAP-03: scope to accessible branches via sales_orders.branch_id filter.
+	const ltvBranchClause =
+		nodeIds.length > 0
+			? sql`AND branch_id = ANY(ARRAY[${sql.join(nodeIds.map((id) => sql`${id}::uuid`), sql`, `)}])`
+			: sql``;
+
 	const ltvResult = await tenantDb.execute<{ avg_ltv: string }>(sql`
 		SELECT ROUND(AVG(customer_total)::numeric, 0) AS avg_ltv
 		FROM (
@@ -250,6 +267,7 @@ export async function getDashboardKpis(
 			FROM sales_orders
 			WHERE date <= ${to}
 			  AND status IN ('confirmed', 'completed')
+			  ${ltvBranchClause}
 			GROUP BY customer_id
 		) t
 	`);
@@ -506,6 +524,17 @@ export async function getMemberCountSeries(
 	params: TimeSeriesParams,
 ): Promise<MemberCountPoint[]> {
 	const { from, to } = buildDateSpine(params.days);
+	const nodeIds = params.accessibleNodeIds;
+
+	// NAP-03: when scoped, restrict to customers who have at least one sales_order
+	// in an accessible branch. Admin (empty nodeIds) sees org-wide.
+	const memberCountBranchClause =
+		nodeIds.length > 0
+			? sql`AND cp.user_id IN (
+				SELECT DISTINCT so.customer_id FROM sales_orders so
+				WHERE so.branch_id = ANY(ARRAY[${sql.join(nodeIds.map((id) => sql`${id}::uuid`), sql`, `)}])
+			  )`
+			: sql``;
 
 	// Single SQL: generate_series date spine + correlated count
 	const rows = await tenantDb.execute<{ day: string; active_members: string }>(sql`
@@ -527,6 +556,7 @@ export async function getMemberCountSeries(
 		LEFT JOIN customer_profiles cp
 			ON  cp.user_id = pi.client_id
 			AND cp.is_deleted = false
+			${memberCountBranchClause}
 		GROUP BY s.day
 		ORDER BY s.day
 	`);
@@ -547,6 +577,16 @@ export async function getChurnSeries(
 	params: TimeSeriesParams,
 ): Promise<ChurnSeriesPoint[]> {
 	const { from, to } = buildDateSpine(params.days);
+	const nodeIds = params.accessibleNodeIds;
+
+	// NAP-03: scope to customers associated with accessible branches.
+	const churnSeriesBranchFilter =
+		nodeIds.length > 0
+			? sql`AND pi.client_id IN (
+				SELECT DISTINCT so.customer_id FROM sales_orders so
+				WHERE so.branch_id = ANY(ARRAY[${sql.join(nodeIds.map((id) => sql`${id}::uuid`), sql`, `)}])
+			  )`
+			: sql``;
 
 	const rows = await tenantDb.execute<{ day: string; churn_pct: string }>(sql`
 		WITH spine AS (
@@ -566,6 +606,7 @@ export async function getChurnSeries(
 				ON  pi.status = 'active'
 				AND pi.starts_at::date < s.day
 				AND pi.expires_at::date >= s.day
+			${churnSeriesBranchFilter}
 			GROUP BY s.day
 		),
 		-- For each day: how many customers lapsed (last package expired that day, no renewal)
@@ -582,6 +623,7 @@ export async function getChurnSeries(
 				  AND pi2.status = 'active'
 				  AND pi2.starts_at::date >= pi.expires_at::date
 			)
+			${churnSeriesBranchFilter}
 			GROUP BY s.day
 		)
 		SELECT
@@ -611,6 +653,13 @@ export async function getLtvSeries(
 	params: TimeSeriesParams,
 ): Promise<LtvSeriesPoint[]> {
 	const { from, to } = buildDateSpine(params.days);
+	const nodeIds = params.accessibleNodeIds;
+
+	// NAP-03: scope sales_orders to accessible branches.
+	const ltvSeriesBranchClause =
+		nodeIds.length > 0
+			? sql`AND so.branch_id = ANY(ARRAY[${sql.join(nodeIds.map((id) => sql`${id}::uuid`), sql`, `)}])`
+			: sql``;
 
 	const rows = await tenantDb.execute<{ day: string; avg_ltv_cents: string }>(sql`
 		WITH spine AS (
@@ -630,6 +679,7 @@ export async function getLtvSeries(
 			JOIN sales_orders so
 				ON  so.date::date <= s.day
 				AND so.status IN ('confirmed', 'completed')
+				${ltvSeriesBranchClause}
 			GROUP BY s.day, so.customer_id
 		)
 		SELECT
@@ -657,6 +707,9 @@ export async function getClassFillRateSeries(
 ): Promise<FillRateSeriesPoint[]> {
 	const { from, to } = buildDateSpine(params.days);
 	const keys = spineKeys(from, params.days);
+	const nodeIds = params.accessibleNodeIds;
+	// NAP-03: apply branch filter from accessibleNodeIds (was missing from this function).
+	const fillSeriesBranchFilter = resolveBranchFilter(undefined, nodeIds);
 
 	const dayExpr = sql<string>`to_char(date_trunc('day', ${classSlots.date}), 'YYYY-MM-DD')`;
 
@@ -672,6 +725,9 @@ export async function getClassFillRateSeries(
 				gte(classSlots.date, from),
 				lte(classSlots.date, to),
 				eq(classSlots.isCancelled, false),
+				fillSeriesBranchFilter.length > 0
+					? inArray(classSlots.branchId, fillSeriesBranchFilter)
+					: undefined,
 			),
 		)
 		.groupBy(dayExpr);

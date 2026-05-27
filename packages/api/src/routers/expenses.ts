@@ -126,6 +126,17 @@ const approve = tenantProcedure
 		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "update");
 
+		// CPR-03: load expense first to enforce separation-of-duties
+		const expense = await getExpenseById(context.tenantDb, input.id);
+		if (!expense) {
+			throw new ORPCError("NOT_FOUND", { message: `Expense not found: ${input.id}` });
+		}
+		if (expense.submittedBy === context.member.userId) {
+			throw new ORPCError("FORBIDDEN", {
+				message: "Cannot approve your own expense submission",
+			});
+		}
+
 		try {
 			return await approveExpense(
 				context.tenantDb,
@@ -184,6 +195,17 @@ const markPaid = tenantProcedure
 
 		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "update");
+
+		// CPR-03: enforce separation-of-duties — submitter cannot mark own expense paid
+		const expenseForPay = await getExpenseById(context.tenantDb, input.id);
+		if (!expenseForPay) {
+			throw new ORPCError("NOT_FOUND", { message: `Expense not found: ${input.id}` });
+		}
+		if (expenseForPay.submittedBy === context.member.userId) {
+			throw new ORPCError("FORBIDDEN", {
+				message: "Cannot mark your own expense submission as paid",
+			});
+		}
 
 		try {
 			return await markExpensePaid(

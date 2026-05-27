@@ -428,13 +428,6 @@ export default {
             .then((r) => console.log(`[scheduled] onboarding-alerts done: ${JSON.stringify(r)}`))
             .catch((e) => console.error(`[scheduled] onboarding-alerts failed:`, e)),
         );
-      } else if (cron === "30 2 * * *") {
-        const { runReconciliation } = await import("@/services/reconciler.service");
-        ctx.waitUntil(
-          runReconciliation({ controlPanelDb: cpDb, stripe: getStripeClient() })
-            .then((r) => console.log(`[scheduled] reconciliation done: ${JSON.stringify(r)}`))
-            .catch((e) => console.error(`[scheduled] reconciliation failed:`, e)),
-        );
       } else if (cron === "0 3 * * *") {
         // Plan E E.8 — hard-delete overdue soft-deleted tenants.
         const { hardDeleteOverdueTenants } = await import(
@@ -472,6 +465,14 @@ export default {
           })
             .then((r) => console.log(`[scheduled] installment-sweep done: ${JSON.stringify(r)}`))
             .catch((e) => console.error(`[scheduled] installment-sweep failed:`, e)),
+        );
+        // Folded in from the retired "30 2 * * *" slot to stay under the
+        // Workers Free 5-cron limit. Plan C C.5 nightly Stripe reconciliation.
+        const { runReconciliation } = await import("@/services/reconciler.service");
+        ctx.waitUntil(
+          runReconciliation({ controlPanelDb: cpDb, stripe: getStripeClient() })
+            .then((r) => console.log(`[scheduled] reconciliation done: ${JSON.stringify(r)}`))
+            .catch((e) => console.error(`[scheduled] reconciliation failed:`, e)),
         );
       } else {
         console.warn(`[scheduled] unknown cron='${cron}' — no handler`);

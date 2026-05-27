@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {requirePermissionOrpc, assertOrgContextMatch, guardInputBranchForContext } from "../guards";
 import {
 
 	listTransferOrders,
@@ -87,6 +87,10 @@ export const transferOrdersRouter = {
 		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "transfer_orders", "create")
 
+			// Guard: caller must have access to both source and destination branches
+			await guardInputBranchForContext(context, input.fromBranchId);
+			await guardInputBranchForContext(context, input.toBranchId);
+
 			return createTransferOrder(context.tenantDb, {
 				dateIssued: new Date(input.dateIssued),
 				fromBranchId: input.fromBranchId,
@@ -112,6 +116,19 @@ export const transferOrdersRouter = {
 		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "transfer_orders", "update")
 
+			// Guard: caller must have access to at least one of the involved branches
+			const orderForTransit = await getTransferOrderById(context.tenantDb, input.id);
+			if (!orderForTransit) {
+				throw new ORPCError("NOT_FOUND", { message: `Transfer order not found: ${input.id}` });
+			}
+			const accessibleIds = context.accessibleNodeIds ?? [];
+			if (
+				!accessibleIds.includes(orderForTransit.fromBranchId) &&
+				!accessibleIds.includes(orderForTransit.toBranchId)
+			) {
+				throw new ORPCError("FORBIDDEN", { message: "You do not have access to either branch of this transfer order." });
+			}
+
 			return markTransferInTransit(context.tenantDb, input.id);
 		}),
 
@@ -136,6 +153,19 @@ export const transferOrdersRouter = {
 		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "transfer_orders", "approve")
 
+			// Guard: caller must have access to at least one of the involved branches
+			const orderForComplete = await getTransferOrderById(context.tenantDb, input.id);
+			if (!orderForComplete) {
+				throw new ORPCError("NOT_FOUND", { message: `Transfer order not found: ${input.id}` });
+			}
+			const accessibleIdsComplete = context.accessibleNodeIds ?? [];
+			if (
+				!accessibleIdsComplete.includes(orderForComplete.fromBranchId) &&
+				!accessibleIdsComplete.includes(orderForComplete.toBranchId)
+			) {
+				throw new ORPCError("FORBIDDEN", { message: "You do not have access to either branch of this transfer order." });
+			}
+
 			return completeTransfer(context.tenantDb, input.id, input.items);
 		}),
 
@@ -153,6 +183,19 @@ export const transferOrdersRouter = {
 
 		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "transfer_orders", "update")
+
+			// Guard: caller must have access to at least one of the involved branches
+			const orderForCancel = await getTransferOrderById(context.tenantDb, input.id);
+			if (!orderForCancel) {
+				throw new ORPCError("NOT_FOUND", { message: `Transfer order not found: ${input.id}` });
+			}
+			const accessibleIdsCancel = context.accessibleNodeIds ?? [];
+			if (
+				!accessibleIdsCancel.includes(orderForCancel.fromBranchId) &&
+				!accessibleIdsCancel.includes(orderForCancel.toBranchId)
+			) {
+				throw new ORPCError("FORBIDDEN", { message: "You do not have access to either branch of this transfer order." });
+			}
 
 			return cancelTransfer(context.tenantDb, input.id);
 		}),

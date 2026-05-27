@@ -207,8 +207,7 @@ These are wired as Cloudflare Workers **cron triggers** in `wrangler.jsonc` and 
 |----------|---------|
 | `0 * * * *` (hourly) | installment backfill + scheduled reports + **notification dispatch** |
 | `0 1 * * *` (01:00) | usage snapshot |
-| `0 2 * * *` (02:00) | installment sweep |
-| `30 2 * * *` (02:30) | Stripe reconciliation |
+| `0 2 * * *` (02:00) | installment sweep + Stripe reconciliation |
 | `0 3 * * *` (03:00) | tenant hard-delete |
 | `0 9 * * *` (09:00) | onboarding alerts |
 

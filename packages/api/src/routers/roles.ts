@@ -29,7 +29,7 @@ export const rolesRouter = {
 
 			
 
-			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read")
+			await requirePermissionOrpc(context.tenantDb, context.member, "role_management", "read")
 
 			const items = await context.tenantDb
 				.select()
@@ -60,7 +60,7 @@ export const rolesRouter = {
 			
 
 		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "create")
+			await requirePermissionOrpc(context.tenantDb, context.member, "role_management", "create")
 
 			try {
 				const [created] = await context.tenantDb
@@ -114,7 +114,7 @@ export const rolesRouter = {
 			
 
 		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update")
+			await requirePermissionOrpc(context.tenantDb, context.member, "role_management", "update")
 
 			// Check role exists and is not system
 			const existing = await context.tenantDb.query.roles.findFirst({
@@ -186,7 +186,7 @@ export const rolesRouter = {
 			
 
 		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "delete")
+			await requirePermissionOrpc(context.tenantDb, context.member, "role_management", "delete")
 
 			const existing = await context.tenantDb.query.roles.findFirst({
 				where: eq(roles.id, input.id),

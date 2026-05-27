@@ -28,7 +28,7 @@ export const permissionsRouter = {
 			
 
 		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read")
+			await requirePermissionOrpc(context.tenantDb, context.member, "role_management", "read")
 
 			const items = await context.tenantDb
 				.select()

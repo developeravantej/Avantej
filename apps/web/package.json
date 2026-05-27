@@ -15,7 +15,7 @@
     "e2e:test:real": "E2E_REAL_GHL=1 playwright test --config playwright.config.real.ts",
     "e2e:install": "playwright install chromium",
     "wrangler:dev": "wrangler dev --port=3022",
-    "deploy": "bun run build && wrangler deploy"
+    "deploy": "CF_DEPLOY=true vite build && wrangler deploy"
   },
   "dependencies": {
     "@avantej-core/api": "workspace:*",

@@ -21,8 +21,10 @@ import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
+import { members } from "@avantej-core/db/schema/tenant/members";
 import {
 	getDashboardKpis,
+	getDescendantNodeIds,
 	listDueScheduledReports,
 	markScheduledReportFailed,
 	markScheduledReportSent,
@@ -93,16 +95,62 @@ export async function runScheduledReports(
 			const due = await listDueScheduledReports(tenantDb, now);
 			if (due.length === 0) continue;
 
-			// Org-wide cron reports → no RBAC scoping. Fetch all node IDs in the
-			// tenant once per org, reused for every due report below.
-			const allNodes = await tenantDb
-				.select({ id: hierarchyNodes.id })
-				.from(hierarchyNodes);
-			const accessibleNodeIds = allNodes.map((n) => n.id);
-
 			for (const sr of due) {
 				report.reportsDue++;
 				try {
+					// NAP-04: resolve the creator's scope instead of using all-tenant nodes.
+					// `createdBy` is a control-panel user ID stored as text in this tenant's
+					// members table under `userId`.
+					let accessibleNodeIds: string[];
+
+					if (sr.createdBy) {
+						const [creator] = await tenantDb
+							.select({
+								status: members.status,
+								deletedAt: members.deletedAt,
+								hierarchyScopeId: members.hierarchyScopeId,
+								role: members.role,
+							})
+							.from(members)
+							.where(eq(members.userId, sr.createdBy));
+
+						if (!creator) {
+							// Creator no longer exists in this tenant — skip run.
+							console.warn(
+								`[scheduled-reports] org=${org.id} row=${sr.id} creator userId=${sr.createdBy} not found in members; skipping`,
+							);
+							continue;
+						}
+
+						if (creator.status !== "active" || creator.deletedAt !== null) {
+							// Creator is deactivated or soft-deleted — skip run.
+							console.warn(
+								`[scheduled-reports] org=${org.id} row=${sr.id} creator userId=${sr.createdBy} is deactivated/deleted; skipping`,
+							);
+							continue;
+						}
+
+						if (creator.role === "admin") {
+							// Admin creators see all nodes in the tenant.
+							const allNodes = await tenantDb
+								.select({ id: hierarchyNodes.id })
+								.from(hierarchyNodes);
+							accessibleNodeIds = allNodes.map((n) => n.id);
+						} else {
+							// Scope to the creator's hierarchy subtree.
+							accessibleNodeIds = await getDescendantNodeIds(
+								tenantDb,
+								creator.hierarchyScopeId,
+							);
+						}
+					} else {
+						// No creator recorded (legacy rows) — fall back to all-tenant scope.
+						const allNodes = await tenantDb
+							.select({ id: hierarchyNodes.id })
+							.from(hierarchyNodes);
+						accessibleNodeIds = allNodes.map((n) => n.id);
+					}
+
 					await sendSingleReport({
 						tenantDb,
 						orgName: org.name,
@@ -157,13 +205,31 @@ async function sendSingleReport(args: {
 
 	const kpis = await getDashboardKpis(tenantDb, { period, accessibleNodeIds });
 
-	const recipients = row.recipients
+	const rawRecipients = row.recipients
 		.split(",")
 		.map((r) => r.trim())
 		.filter(Boolean);
 
-	if (recipients.length === 0) {
+	if (rawRecipients.length === 0) {
 		throw new Error("No valid recipients");
+	}
+
+	// NAP-04: validate recipient format. Tenant DB has no email column to cross-check
+	// against (emails live in the control-panel DB); reject syntactically invalid
+	// addresses so obviously bad entries don't reach Resend.
+	const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+	const recipients = rawRecipients.filter((email) => {
+		if (!EMAIL_RE.test(email)) {
+			console.warn(
+				`[scheduled-reports] org=${orgId} row=${row.id} recipient "${email}" failed format check; skipping`,
+			);
+			return false;
+		}
+		return true;
+	});
+
+	if (recipients.length === 0) {
+		throw new Error("No valid recipients after format validation");
 	}
 
 	// Build attachment based on requested format. Dynamic import keeps jsPDF

@@ -124,6 +124,7 @@ const manualAdjustment = tenantProcedure
 			note: z.string().min(1),
 			salesOrderId: z.string().uuid().optional(),
 			appointmentId: z.string().uuid().optional(),
+			packageInstanceId: z.string().uuid().optional(),
 		}),
 	)
 	.handler(async ({ input, context }) => {
@@ -132,6 +133,20 @@ const manualAdjustment = tenantProcedure
 
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "create");
 
+		// Input-level XOR validation: manual adjustment requires exactly one target.
+		// Guards against the DB CHECK `commission_splits_must_target_one` (Postgres 23514)
+		// leaking raw SQL via the catch-all below.
+		const targetCount =
+			(input.appointmentId ? 1 : 0) +
+			(input.salesOrderId ? 1 : 0) +
+			(input.packageInstanceId ? 1 : 0);
+		if (targetCount !== 1) {
+			throw new ORPCError("BAD_REQUEST", {
+				message:
+					"Manual adjustment requires exactly one of appointmentId, salesOrderId, or packageInstanceId",
+			});
+		}
+
 		try {
 			return await createManualAdjustment(context.tenantDb, {
 				staffId: input.staffId,
@@ -139,6 +154,7 @@ const manualAdjustment = tenantProcedure
 				note: input.note,
 				salesOrderId: input.salesOrderId,
 				appointmentId: input.appointmentId,
+				packageInstanceId: input.packageInstanceId,
 				actor: {
 					userId: context.session.user.id,
 					memberId: context.member.id,
@@ -211,11 +227,12 @@ const markPaidByIdProcedure = tenantProcedure
 		assertOrgContextMatch(context, input);
 		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "process");
 
-		// Re-use existing markCommissionSplitsPaid (FOR UPDATE + audit commission.mark_paid)
-		// with paymentReference stored as payoutId field note (no dedicated column yet).
+		// Re-use existing markCommissionSplitsPaid (FOR UPDATE + audit commission.mark_paid).
+		// paymentReference is recorded in the audit payload and appended to each split's
+		// notes column — there is no dedicated paymentReference column on commission_splits.
 		try {
 			return await markCommissionSplitsPaid(context.tenantDb, input.ids, {
-				payoutId: undefined, // paymentReference is a reference string, not a UUID FK
+				paymentReference: input.paymentReference,
 				actor: {
 					userId: context.session.user.id,
 					memberId: context.member.id,

@@ -54,14 +54,7 @@ export const branchInvitesRouter = {
 		assertOrgContextMatch(context, input);
 		guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			// Permission: hierarchy_management (existing resource for branch admin actions)
-			try {
-
-				await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "create");
-			} catch {
-				throw new ORPCError("FORBIDDEN", {
-					message: "You do not have permission to create branch invites.",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "create");
 
 			const invite = await createBranchInvite(context.tenantDb, {
 				branchId: input.branchId,
@@ -94,12 +87,7 @@ export const branchInvitesRouter = {
 		.handler(async ({ context }) => {
 			
 			
-			try {
-
-				await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "read");
-			} catch {
-				throw new ORPCError("FORBIDDEN", { message: "You do not have permission to read branch invites." });
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "read");
 			return listAllBranchInvites(context.tenantDb, context.accessibleNodeIds ?? [], getWebUrl());
 		}),
 
@@ -121,14 +109,7 @@ export const branchInvitesRouter = {
 		assertOrgContextMatch(context, input);
 		guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			// Permission: hierarchy_management read
-			try {
-
-				await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "read");
-			} catch {
-				throw new ORPCError("FORBIDDEN", {
-					message: "You do not have permission to view branch invites.",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "read");
 
 			const invites = await listBranchInvites(context.tenantDb, input.branchId);
 
@@ -164,25 +145,29 @@ export const branchInvitesRouter = {
 
 		assertOrgContextMatch(context, input);
 			// Permission: hierarchy_management delete
-			try {
+			await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "delete");
 
-				await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "delete");
-			} catch {
-				throw new ORPCError("FORBIDDEN", {
-					message: "You do not have permission to revoke branch invites.",
+			// Load invite first to validate branch access before mutating
+			const { invitations: invitationsTable } = await import(
+				"@avantej-core/db/schema/tenant/invitations"
+			);
+			const { eq: eqRevoke, and: andRevoke } = await import("drizzle-orm");
+			const existingInvite = await context.tenantDb.query.invitations.findFirst({
+				where: andRevoke(
+					eqRevoke(invitationsTable.id, input.id),
+					eqRevoke(invitationsTable.kind, "branch_self_signup")
+				),
+			});
+
+			if (!existingInvite) {
+				throw new ORPCError("NOT_FOUND", {
+					message: "Branch invite not found.",
 				});
 			}
 
-			const updated = await revokeBranchInvite(context.tenantDb, input.id).catch(
-				(err: unknown) => {
-					if (err instanceof Error && err.message.includes("not found")) {
-						throw new ORPCError("NOT_FOUND", {
-							message: "Branch invite not found.",
-						});
-					}
-					throw err;
-				}
-			);
+			guardBranchAccessible(existingInvite.hierarchyScopeId, context.accessibleNodeIds ?? []);
+
+			const updated = await revokeBranchInvite(context.tenantDb, input.id);
 
 			return {
 				id: updated.id,
@@ -211,14 +196,7 @@ export const branchInvitesRouter = {
 
 		assertOrgContextMatch(context, input);
 			// Permission: hierarchy_management create (creating a replacement)
-			try {
-
-				await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "create");
-			} catch {
-				throw new ORPCError("FORBIDDEN", {
-					message: "You do not have permission to regenerate branch invites.",
-				});
-			}
+			await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "create");
 
 			// Look up old invite to get branchId
 			const { invitations } = await import(
@@ -237,6 +215,9 @@ export const branchInvitesRouter = {
 					message: "Branch invite not found.",
 				});
 			}
+
+			// Guard: caller must have access to this invite's branch
+			guardBranchAccessible(oldInvite.hierarchyScopeId, context.accessibleNodeIds ?? []);
 
 			// Revoke old
 			await revokeBranchInvite(context.tenantDb, input.id);
