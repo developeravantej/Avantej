@@ -190,16 +190,8 @@ export async function markPastDue(
 	db?: CpDb,
 	/**
 	 * F-SAAS-3: Stripe event creation timestamp (unix seconds from event.created).
-	 * Used to guard against out-of-order webhook delivery.
-	 *
-	 * NOTE: We compare against subscriptions.updatedAt as a proxy for the last-applied
-	 * event timestamp because the schema has no dedicated last_stripe_event_at column.
-	 * This is an imperfect guard — updatedAt can be moved by app writes unrelated to
-	 * Stripe events — but it prevents the most common replay scenario where a stale
-	 * re-delivery arrives minutes/hours after the current state has already advanced.
-	 *
-	 * TODO (follow-up): Add a last_stripe_event_at timestamp column to subscriptions
-	 * (migration required) so this comparison is always precise.
+	 * Guards against out-of-order webhook delivery. `lastStripeEventAt` is the
+	 * canonical anchor — `updatedAt` is the legacy-row fallback only.
 	 */
 	stripeEventCreatedAt?: number,
 ): Promise<void> {
@@ -208,7 +200,12 @@ export async function markPastDue(
 
 	// F-SAAS-3: Fetch the current row to check ordering before mutating.
 	const [existing] = await cpDb
-		.select({ id: subscriptions.id, updatedAt: subscriptions.updatedAt, organizationId: subscriptions.stripeSubscriptionId })
+		.select({
+			id: subscriptions.id,
+			lastStripeEventAt: subscriptions.lastStripeEventAt,
+			updatedAt: subscriptions.updatedAt,
+			organizationId: subscriptions.stripeSubscriptionId,
+		})
 		.from(subscriptions)
 		.where(eq(subscriptions.stripeSubscriptionId, stripeSubscriptionId))
 		.limit(1);
@@ -219,13 +216,17 @@ export async function markPastDue(
 		);
 	}
 
-	// F-SAAS-3: Skip stale events. If the incoming event pre-dates the row's last
-	// write, a newer event already ran — silently no-op to avoid clobbering.
-	if (stripeEventCreatedAt !== undefined) {
-		const incomingEventDate = new Date(stripeEventCreatedAt * 1000);
-		if (existing.updatedAt && incomingEventDate <= existing.updatedAt) {
+	// F-SAAS-3: Skip stale events. Anchor on lastStripeEventAt (canonical), fall
+	// back to updatedAt for any legacy rows the backfill missed.
+	const incomingEventDate =
+		stripeEventCreatedAt !== undefined
+			? new Date(stripeEventCreatedAt * 1000)
+			: undefined;
+	if (incomingEventDate !== undefined) {
+		const anchor = existing.lastStripeEventAt ?? existing.updatedAt;
+		if (anchor && incomingEventDate <= anchor) {
 			console.warn(
-				`[saas-subscription] markPastDue: skipping stale event (event.created=${incomingEventDate.toISOString()} <= updatedAt=${existing.updatedAt.toISOString()}) for sub=${stripeSubscriptionId}`,
+				`[saas-subscription] markPastDue: skipping stale event (event.created=${incomingEventDate.toISOString()} <= lastStripeEventAt=${anchor.toISOString()}) for sub=${stripeSubscriptionId}`,
 			);
 			return;
 		}
@@ -242,6 +243,10 @@ export async function markPastDue(
 				pastDueAt: now,
 				gracePeriodEndsAt: new Date(now.getTime() + GRACE_PERIOD_MS),
 				updatedAt: now,
+				// F-SAAS-3: advance the canonical anchor on every Stripe-driven write.
+				...(incomingEventDate !== undefined
+					? { lastStripeEventAt: incomingEventDate }
+					: {}),
 			})
 			.where(eq(subscriptions.stripeSubscriptionId, stripeSubscriptionId))
 			.returning({ id: subscriptions.id });
@@ -265,7 +270,8 @@ export async function markActive(
 	db?: CpDb,
 	/**
 	 * F-SAAS-3: Stripe event creation timestamp (unix seconds from event.created).
-	 * See markPastDue for the full ordering-guard rationale and TODO note.
+	 * See markPastDue for the ordering-guard rationale; lastStripeEventAt is the
+	 * canonical anchor.
 	 */
 	stripeEventCreatedAt?: number,
 ): Promise<void> {
@@ -274,7 +280,11 @@ export async function markActive(
 
 	// F-SAAS-3: Fetch the current row to check ordering before mutating.
 	const [existing] = await cpDb
-		.select({ id: subscriptions.id, updatedAt: subscriptions.updatedAt })
+		.select({
+			id: subscriptions.id,
+			lastStripeEventAt: subscriptions.lastStripeEventAt,
+			updatedAt: subscriptions.updatedAt,
+		})
 		.from(subscriptions)
 		.where(eq(subscriptions.stripeSubscriptionId, stripeSubscriptionId))
 		.limit(1);
@@ -285,12 +295,16 @@ export async function markActive(
 		);
 	}
 
-	// F-SAAS-3: Skip stale events.
-	if (stripeEventCreatedAt !== undefined) {
-		const incomingEventDate = new Date(stripeEventCreatedAt * 1000);
-		if (existing.updatedAt && incomingEventDate <= existing.updatedAt) {
+	// F-SAAS-3: Skip stale events. Anchor on lastStripeEventAt.
+	const incomingEventDate =
+		stripeEventCreatedAt !== undefined
+			? new Date(stripeEventCreatedAt * 1000)
+			: undefined;
+	if (incomingEventDate !== undefined) {
+		const anchor = existing.lastStripeEventAt ?? existing.updatedAt;
+		if (anchor && incomingEventDate <= anchor) {
 			console.warn(
-				`[saas-subscription] markActive: skipping stale event (event.created=${incomingEventDate.toISOString()} <= updatedAt=${existing.updatedAt.toISOString()}) for sub=${stripeSubscriptionId}`,
+				`[saas-subscription] markActive: skipping stale event (event.created=${incomingEventDate.toISOString()} <= lastStripeEventAt=${anchor.toISOString()}) for sub=${stripeSubscriptionId}`,
 			);
 			return;
 		}
@@ -305,6 +319,10 @@ export async function markActive(
 				pastDueAt: null,
 				gracePeriodEndsAt: null,
 				updatedAt: now,
+				// F-SAAS-3: advance the canonical anchor on every Stripe-driven write.
+				...(incomingEventDate !== undefined
+					? { lastStripeEventAt: incomingEventDate }
+					: {}),
 			})
 			.where(eq(subscriptions.stripeSubscriptionId, stripeSubscriptionId))
 			.returning({ id: subscriptions.id });
