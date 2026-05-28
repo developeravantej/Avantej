@@ -67,18 +67,23 @@ The PR #32 work is **type-check green across the monorepo** and several paths ha
 | **`runBatch` with `paymentMethod: "stripe_connect"` + `confirmImmediately: false`** | The path exists end-to-end but never exercised together — the iter 4 state-machine spec used `bank_transfer` | A regression here means non-cash batches never land at `pending` correctly | Integration test: call `runBatch({ paymentMethod: "stripe_connect", confirmImmediately: false })`, assert inserted payouts have `status='pending'` and linked splits stay at `approved` |
 | **`lastStripeEventAt` schema column + service usage** | Drizzle schema fix is type-check only; the migration + service logic ran on the live DB but never under test | An out-of-order webhook could now use the wrong anchor; the F-SAAS-3 guard could mis-skip | Integration test: insert subscription row with `lastStripeEventAt = T0`, fire `markPastDue` twice — once with `event.created < T0` (should skip), once with `event.created > T0` (should apply); assert the skip + the advance |
 | **`Item 1` partial unique index behavior on `commission_cycle_configs`** | Schema + migration exist; the partial unique indexes (one tenant-wide + one per branch) are CHECK'd by DB but never exercised by a test that tries to insert duplicates | A duplicate insert under concurrent admin edits could 23505 with a confusing message instead of being upserted | Integration test: concurrent `upsert` for same (`branchId=null`), assert one wins, other no-ops or returns the existing row |
+| **`partnerStripe.createOnboardingUrl` router handler** | The HMAC service it calls IS unit-tested (`partner-stripe.service.test.ts` 11/11); the router-level checks — member active in this tenant, env vars present, URL params built — are NOT | A wrong/missing env (`STRIPE_CONNECT_CLIENT_ID`, `BETTER_AUTH_SECRET`) surfaces only at first prod use | Integration test: missing env → BAD_REQUEST or INTERNAL_SERVER_ERROR with the expected message; inactive member → BAD_REQUEST; happy path → returns a parseable `connect.stripe.com/oauth/authorize` URL with the signed state |
+| **`partnerStripe.getStatus` router handler** | Shape is read by `PartnerStripeCard` + the card is consumed by the payouts tab — neither is runtime-tested, so the deterministic empty-state shape (when no row exists) has never been exercised | UI silently breaks when the operator picks a partner who has never been onboarded | Integration test: call `getStatus({ partnerId: <never-onboarded> })`, assert the deterministic empty shape (`connected: false` semantics via `stripeAccountId: null`); call again after a row exists, assert all fields populated |
+| **`partnerStripe.confirmViaStripe` router-level error mapping** | `ConfirmPayoutError` → `ORPCError` code mapping (NOT_FOUND / BAD_REQUEST / BAD_GATEWAY) is in the router handler; the service tests assert the service-level errors but NOT the router-level oRPC code each maps to | Wrong oRPC code → UI shows the wrong error category, possibly with retry semantics that bypass the actual failure mode | Integration test through the router: trigger each `ConfirmPayoutError` variant (`PARTNER_NOT_ONBOARDED`, `BAD_REQUEST_STATUS`, `STRIPE_TRANSFER_FAILED` via stubbed Stripe), assert each maps to the documented oRPC code |
+| **5 `markEventProcessed(eventId, cpDb)` call sites in `webhooks.routes.ts`** | These were pre-existing buggy calls using the wrong object-shape signature — Phase B's commit fixed all 5 in one sweep. The fix is type-check-only — no test confirms the dedup actually works for the new partner-branch webhook paths | A duplicate webhook delivery from Stripe could double-process (account.updated could re-fire side effects; transfer.created could fire a second `markPayoutPaid` recovery) | Integration test: fire the same `account.updated` event id twice through `handleAccountUpdatedForPartner`'s code path, assert second call is a no-op (the `claimWebhookEvent` / `markEventProcessed` pair short-circuits it) |
 
 ### Suggested batch order
 
-Tier-by-tier preventative testing pass would cost ~3 days and is worth doing before any production rollout:
+Tier-by-tier preventative testing pass — ~3.5 days total, worth doing before any production rollout:
 
-1. **Half-day** — F-11 / F-12 / F-19 integration tests (cheapest, finds easy regressions).
-2. **Half-day** — `commissionCycle` router + UI Playwright (Item 1 has zero runtime exercise).
-3. **One day** — Partner-Stripe OAuth callback + webhook route dispatcher tests (security-adjacent, deserve real proof).
-4. **Half-day** — Dialog components Playwright (low risk but fully untested).
-5. **Half-day** — `lastStripeEventAt` ordering guard integration test (correctness gate for subscription lifecycle).
+1. **Half-day** — F-11 / F-12 / F-19 integration tests (cheapest, finds easy regressions in the deep-spec's vacuous assertions).
+2. **Half-day** — `commissionCycle` router (3 procedures + partial-unique-index concurrency) + admin UI Playwright. Item 1 has zero runtime exercise.
+3. **One day** — Partner-Stripe OAuth callback + webhook route dispatcher (signature verification, `markEventProcessed` dedup) tests. Security-adjacent, deserve real proof.
+4. **Half-day** — All four `partnerStripe.*` router handlers (`createOnboardingUrl`, `getStatus`, `confirmViaStripe` error mapping, `refresh`) — thin handlers but the env-var + ConfirmPayoutError → oRPC mapping is genuinely untested.
+5. **Half-day** — Dialog components Playwright sweep (5 dialogs × open/submit/close = 15 cases).
+6. **Half-day** — `lastStripeEventAt` ordering-guard integration test (F-SAAS-3 correctness gate for subscription lifecycle).
 
-Past that, the long-tail items (transfer.created recovery, bulk router shape, runBatch stripe_connect+confirmImmediately:false) can land alongside the Tier-1 work in items 1–5 of this brief.
+Past that, the long-tail items (transfer.created recovery branch, bulk router response shape, `runBatch` stripe_connect+confirmImmediately:false) can land alongside the Tier-1 work in items 1–5 of this brief.
 
 ---
 
