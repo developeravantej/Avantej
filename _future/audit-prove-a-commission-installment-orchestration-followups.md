@@ -119,15 +119,62 @@ It's not in any code path. Likely a one-off byproduct of a tool run.
 
 ---
 
+## 7. Functionally verify the code changes this session shipped
+
+### Problem
+Every fix landed during this orchestration pass is **type-check green** but the vast majority were **not exercised at runtime**. The gap-prove harness `e2e/gap-prove-commission-installment.spec.ts` ran but its assertions for F-COM-A and F-PAY-6 were inconclusive (no fixtures matching tenant-admin's userId). The full integration test suite (`apps/server/src/tests/integration/`) was attempted twice and killed both times after long no-output stretches. So the verification floor for this session's deliverables is "compiles correctly" — not "behaves correctly."
+
+### Inventory of what's verified vs. type-check-only
+
+| Change | Type-check | Functional proof | Where |
+|---|---|---|---|
+| F-COM-A — `getMyCommissions(userId)` swap | ✅ | ❌ — spec returned 0 (no fixture); needs `seedCommissionSplit` (see #5 above) | `read.procedures.ts:85` |
+| F-COM-B — `configVersionId` on inserts | ✅ | ❌ — already-applied verification; never exercised this session | `commission-calculator.service.ts:659` |
+| F-COM-C — proration on partial sales-order refund | ✅ | ❌ — fresh code, no test fires the partial-line refund path through `reverseForRefund` | `commission-splits.service.ts:2150-2230` |
+| F-COM-D — `categoryCommission` audit_log | ✅ | ❌ — already-applied verification | `category-commission.service.ts:115-277` |
+| F-INS-1 — rounding remainder on LAST installment | ✅ | ⚠ parity test still passes but no test asserts last-row-absorbs-remainder | `installment.service.ts:82-93` |
+| F-INS-2 — POS routes through `confirmInstallmentPayment(tx, {…}, { inTransaction: true })` | ✅ | ❌ — fresh refactor; no test verifies the audit_log row + `markCompleteIfFinal` actually fire end-to-end | `pos.service.ts:738-770` + `installment.service.ts:319-488` |
+| F-INS-4 — `requirePermissionOrpc(..., "service_management", "update")` × 7 mutations | ✅ | ❌ — no test runs as a non-admin with the permission granted | `installments.ts` |
+| F-PAY-1 — Liability invalidates payouts list cache | ✅ | ❌ — already-applied verification | `liability-tab.tsx:308-309` |
+| F-PAY-3 — Liability mark-paid creates payouts row + audit | ✅ | ❌ — no test runs `markPaidBatch` and inspects the resulting `payouts` row | `commission-splits.service.ts` + `payouts.service.ts` |
+| F-PAY-4 — signed sums in KPIs (no `Math.abs` on totals) | ✅ | ❌ — already-applied verification | `payouts-tab.tsx` |
+| F-PAY-6 — row action DropdownMenu + 4 mutation hooks | ✅ | ❌ — spec couldn't find the trigger (no payout rows) | `payouts-tab.tsx` + `features/payouts/api.ts` |
+| F-PAY-10 — `useRunBatch` forwards `confirmImmediately` | ✅ | ❌ — no test exercises `confirmImmediately: false` | `features/payouts/api.ts:190-210` |
+| **Follow-up #1** — `lastStripeEventAt` anchor in `markPastDue`/`markActive` | ✅ | ❌ — `saas-subscription.service.integration.test.ts` was NOT run after the change; the anchor-skip + anchor-advance paths have no fresh proof | `saas-subscription.service.ts` |
+| Follow-up #2 — TS7056 fix | ✅ | ✅ build verified — `bunx turbo build --filter=@avantej-core/api` exit 0 + dts emits | `routers/index.ts` |
+| Follow-up #3 — `pkg_owner_xor` fixtures | ✅ | ⚠ single file passed (`installments.integration.test.ts` 2 pass/0 fail); full suite never completed | `tests/helpers/fixtures.ts` + 10 inline call sites |
+
+### Why deferred
+Real-DB integration tests against Neon take many minutes per file. The orchestration was time-boxed to fixes + handoff prompts — exhaustive runtime verification was out of scope. Type-check green + REPORT.md sign-off was the gate, and that gate held.
+
+### Suggested verification batch
+About 2 hours of work if done sequentially:
+
+1. **Re-run the existing integration suite** — `cd apps/server && bun test src/tests/integration/` (let it complete; previous attempts were killed early). If anything new fails, that's where to look first.
+2. **F-INS-2 integration test** — POS a 1-installment sale + assert `audit_log` has `action='installment.paid'` AND the package_instance flipped to completed via `markCompleteIfFinal`. This is the most behavior-changing fix and has zero runtime coverage.
+3. **F-SAAS-3 integration test** — fire `markPastDue` twice on the same subscription, second event with `event.created < lastStripeEventAt`; assert the second call is a no-op. Critical for webhook replay safety.
+4. **F-PAY-3 integration test** — call `markPaidBatch`, assert a `payouts` row was created AND `audit_log` got a `payout.create` entry.
+5. **F-COM-C integration test** — partial-line refund on a multi-line sale with two different trainers; assert reversal amount is proportional, not full.
+
+These five integration tests would land verification floor from "compiles" to "behaves correctly under the most-likely paths."
+
+### Effort
+**~2 hours** for the 5 named integration tests + the re-run. Could be split into separate commits per test for cleaner review.
+
+---
+
 ## Sequencing recommendation
+
+⚠️ IMPORTANT — **start with Item 7.** Type-check green ≠ functional proof. The 5 integration tests in Item 7 should land BEFORE any production rollout of this branch.
 
 If picked up as a single cleanup pass, the order that minimizes context switches:
 
-1. (6) Delete the temp file — trivial
-2. (4) Drop the unused import — trivial
-3. (3) Fix the Stripe SDK narrowing — small, lands `bun check-types` green even on the strictest path
-4. (1) `lastStripeEventAt` NOT NULL promotion — single migration + small service cleanup
-5. (2) `installment_management` permission resource — multi-file but contained
-6. (5) Seeded gap-prove re-record — biggest item, do last when the rest of the branch is settled
+1. **(7) Functional verification batch — ~2 hours, NOT optional before prod**
+2. (6) Delete the temp file — trivial
+3. (4) Drop the unused import — trivial
+4. (3) Fix the Stripe SDK narrowing — small, lands `bun check-types` green even on the strictest path
+5. (1) `lastStripeEventAt` NOT NULL promotion — single migration + small service cleanup
+6. (2) `installment_management` permission resource — multi-file but contained
+7. (5) Seeded gap-prove re-record — biggest item, do last when the rest of the branch is settled
 
-Items 1–4 are sub-1-hour each and could land in a single "polish" commit. Items 5–6 deserve their own commits with clear before/after rationale.
+Items 2–5 are sub-1-hour each and could land in a single "polish" commit. Items 1, 6, 7 deserve their own commits with clear before/after rationale.
