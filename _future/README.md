@@ -14,6 +14,7 @@ Each file in this folder is a self-contained brief: scope, why it was deferred, 
 | `commission-splits-per-line-refund.md` | `commission_splits.salesOrderItemId` FK so partial refunds clawback only the refunded line's trainer (today uses proportional across the whole order) | 3–5 days |
 | `audit-prove-a-followups.md` | 3 deferred items from May 2026 audit-prove-a runs: CPR-04 commission reversal timing policy, AC-A-06 invitation token hash-at-rest, PO-005 POS "Online" payment Stripe Checkout | 1–5 days each |
 | `audit-prove-commission-followups.md` | 9 follow-ups from the audit-prove commission session (PR #32): Stripe Accounts v2 migration, tenant-timezone cycle bounds, per-partner Stripe detail page, e2e operator-flow proof, live-Stripe CI gate, P3 commission-engine omnibus, bulk markPaid/cancel, cycle audit history, candidate domains for next audit-prove run | 1 day – 2 weeks each |
+| `audit-prove-a-commission-installment-orchestration-followups.md` | 6 small/polish items surfaced by the human-gated orchestration re-verification of PR #32: `last_stripe_event_at` NOT NULL promotion, restoring `installment_management` permission resource, fixing Stripe SDK type narrowing in `confirm-payout-via-stripe.service.ts`, dropping unused test import, re-recording gap-prove with seeded fixtures, deleting a stray temp file | 30 sec – half-day each |
 
 ### Recently shipped — briefs removed
 
