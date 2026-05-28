@@ -25,6 +25,63 @@ Source-of-truth references:
 
 ---
 
+## 0. Testing gaps from this session — verify before any production rollout
+
+The PR #32 work is **type-check green across the monorepo** and several paths have runtime proof, but a meaningful chunk shipped without live-runtime verification. This section is the honest inventory. Order it ahead of any of items #1–9 if you're prepping a production deploy.
+
+### Already runtime-verified — keep ✓
+
+| Surface | Proof | Location |
+|---|---|---|
+| F-04 createManualAdjustment XOR (BAD_REQUEST, no SQL leak) | Live oRPC hit + DB read-back | `e2e/gap-prove-commission-deep.spec.ts` |
+| F-05 paymentReference persistence to row notes | Live API + read-back | `e2e/gap-prove-commission-deep.spec.ts` |
+| F-06 refund→reversal flips split to `void` + liability subtracts | Live refund flow + read-back | `e2e/gap-prove-commission-deep.spec.ts` |
+| F-08 payout_batches populated by runBatch with non-null batchId | Live API + payouts.list read-back | `e2e/gap-prove-commission-deep.spec.ts` |
+| F-15 admin RBAC bypass | Caught + fixed by the deep spec | iter 4 commit `96442a7d` |
+| F-07 refund row-lock | Concurrent approveRefund race; exactly one succeeds | `e2e/gap-prove-f07-refund-lock.spec.ts` |
+| Payouts state machine LC-01..LC-07 (markPaid/markFailed/retry/cancel) | 2.3 min e2e + concurrent markPaid race | `e2e/gap-prove-payouts-state-machine.spec.ts` |
+| `deriveCycleBounds` math (4 cycle types + boundary cases) | 11/11 bun-test, 77 ms | `packages/services/src/commission-cycle.service.test.ts` |
+| Partner-Stripe HMAC state signing/verification (incl. tampered partnerId) | 11/11 bun-test | `apps/server/src/services/partner-stripe.service.test.ts` |
+| Partner-Stripe webhook handler routing decisions | 10/10 bun-test with mocked Drizzle | `apps/server/src/services/partner-stripe-webhooks.service.test.ts` |
+| `confirmPayoutViaStripe` guards + happy path + Stripe rejection + bulk aggregation | 4 integration tests against real tenant DB + stubbed Stripe client | `apps/server/src/services/confirm-payout-via-stripe.integration.test.ts` |
+
+### Type-checked but NOT runtime-verified — verify before production
+
+| Surface | Test gap | Risk if broken | Suggested proof |
+|---|---|---|---|
+| **F-13 POS conditional-skip audit row** | Tolerant placeholder in original spec; no runtime exercise | Operators won't see a skip reason in audit_log when a POS sale silently produces zero commissions | Seed a conditional commission config with `minQuantity ≥ 5`, fire a POS sale with `quantity=1`, assert one `commission.skip` audit row exists |
+| **F-14 `categoryCommission.upsert` OR(create,update)** | Can't swap permissions mid-spec; only checked the code path | Permission migrations could regress this silently | Seed a tenant member granted only `update` (not `create`), call upsert, assert success |
+| **F-01 / F-02 `categoryCommission` re-save preserves `isActive` + `includeInactive` flag** | Light assertion in spec — re-fetch confirms but doesn't validate the prior-state preservation under the destructive DELETE+INSERT | A deactivated config could silently reactivate on edit | Integration test: deactivate a config via direct DB UPDATE, re-save via `upsert`, assert `isActive` still false |
+| **F-11 `myCommissions` earnedAt filter** | Spec ran with no out-of-window seed data — assertion was effectively vacuous | Returns wrong rows in payroll views if `earnedAt` regresses to `createdAt` | Seed a split with `earnedAt = now − 60d, createdAt = now`, query with current-month window, assert the row is excluded |
+| **F-12 `liabilitySummary` lt upper bound (boundary)** | Same — no boundary-timestamped seed exercised | Splits double-counted at month boundaries | Seed a split at exactly `2026-05-01T00:00:00Z`, query both `[Apr, May]` and `[May, Jun]` windows, assert it appears in exactly one |
+| **F-19 `recipientSummary.avgPerCycle` excludes reversals** | Spec asserted `≥ 0` only; no reversal seed | Negative reversal rows drag the average down for trainers with clawbacks | Seed 2 paid + 1 negative-reversal row for one staffId, assert `avgPerCycle` equals the mean of just the positives |
+| **`partnerStripe.refresh` procedure** | No test at all | A stale-cache refresh could silently fail; capability flags drift from Stripe | Stub a Stripe `accounts.retrieve` return, call refresh, assert row updated |
+| **OAuth callback route `/api/stripe/connect/partner/callback`** | No test — manual recipe only | A forged state could slip through (CSRF), or a real callback could miss the UPSERT path | Generate a signed state via `signPartnerOAuthState`, POST to the route with a stub token-exchange, assert `partner_stripe_accounts` row inserted + redirect URL correct |
+| **Webhook route dispatcher in `webhooks.routes.ts` (partner branch)** | The handler service is unit-tested; the route-level dispatch wrapping is NOT — `markEventProcessed` calls, header extraction, signature verification all untested for the new branches | Webhook delivery could fail silently or get dedup-blocked incorrectly | Send a synthetic `account.updated` payload with a valid `Stripe-Signature` header at the dev server, assert the partner row updated + `markEventProcessed` called exactly once |
+| **`partner-stripe-card.tsx` PartnerStripeCard component** | Type-clean only; no runtime click-through | Onboarding URL redirect could fail; status pill could mis-render an enum the server returns | Playwright spec: open payouts tab, pick a partner, assert the card mounts + status pill matches the cached `getStatus` shape; click Onboard, assert redirect target |
+| **5 Dialog components** (MarkPaid / MarkFailed / Retry / Cancel / ConfirmViaStripe) | Type-clean only — replaced `window.prompt` versions whose behavior IS proven, but the new Dialog wiring isn't | Submit-disabled-when-invalid could regress; auto-close on success could miss the mutation completing | Playwright spec per dialog: open from row action, type input, click submit, assert mutation fired + dialog closed |
+| **`commissionCycle.{list, upsert, delete}` router procedures** | No test at all — server-side anchor-day validation untested | Range validation could regress + raw 23514 surfaces leak to UI | Bun integration test: upsert each cycle_type with invalid `anchorDay`, assert BAD_REQUEST with the expected message |
+| **`commission-cycles.tsx` admin UI** | Type-clean only — never clicked | Form could fail to submit; branch picker could include branches with existing overrides | Playwright spec: navigate to the page, create a tenant-wide policy, create a branch override, delete the override, assert each step's DB state |
+| **`partner-stripe-webhooks.service.ts` `transfer.created` recovery path** (idempotently marks paid when local row is stuck `pending`) | Tested for routing + state-machine guard, but NOT for the recovery branch | If operator's confirmViaStripe crashes mid-flight, the webhook should recover the row — recovery path could regress without this test catching it | Bun integration test: insert a pending payout with a `payoutId` in metadata, fire `handleTransferEvent("transfer.created", ...)`, assert row went `pending → paid` |
+| **Bulk `confirmAllViaStripe` router** | Service has 4 integration tests; the oRPC handler that maps service errors to ORPCError codes is NOT tested | Caller would see generic 500s on partial failures instead of typed error rows | Integration test that hits the router handler (not the service directly) with a 50-row input, asserts the response shape includes `succeeded` + `failed` + per-row `errorCode` |
+| **`runBatch` with `paymentMethod: "stripe_connect"` + `confirmImmediately: false`** | The path exists end-to-end but never exercised together — the iter 4 state-machine spec used `bank_transfer` | A regression here means non-cash batches never land at `pending` correctly | Integration test: call `runBatch({ paymentMethod: "stripe_connect", confirmImmediately: false })`, assert inserted payouts have `status='pending'` and linked splits stay at `approved` |
+| **`lastStripeEventAt` schema column + service usage** | Drizzle schema fix is type-check only; the migration + service logic ran on the live DB but never under test | An out-of-order webhook could now use the wrong anchor; the F-SAAS-3 guard could mis-skip | Integration test: insert subscription row with `lastStripeEventAt = T0`, fire `markPastDue` twice — once with `event.created < T0` (should skip), once with `event.created > T0` (should apply); assert the skip + the advance |
+| **`Item 1` partial unique index behavior on `commission_cycle_configs`** | Schema + migration exist; the partial unique indexes (one tenant-wide + one per branch) are CHECK'd by DB but never exercised by a test that tries to insert duplicates | A duplicate insert under concurrent admin edits could 23505 with a confusing message instead of being upserted | Integration test: concurrent `upsert` for same (`branchId=null`), assert one wins, other no-ops or returns the existing row |
+
+### Suggested batch order
+
+Tier-by-tier preventative testing pass would cost ~3 days and is worth doing before any production rollout:
+
+1. **Half-day** — F-11 / F-12 / F-19 integration tests (cheapest, finds easy regressions).
+2. **Half-day** — `commissionCycle` router + UI Playwright (Item 1 has zero runtime exercise).
+3. **One day** — Partner-Stripe OAuth callback + webhook route dispatcher tests (security-adjacent, deserve real proof).
+4. **Half-day** — Dialog components Playwright (low risk but fully untested).
+5. **Half-day** — `lastStripeEventAt` ordering guard integration test (correctness gate for subscription lifecycle).
+
+Past that, the long-tail items (transfer.created recovery, bulk router shape, runBatch stripe_connect+confirmImmediately:false) can land alongside the Tier-1 work in items 1–5 of this brief.
+
+---
+
 ## 1. Stripe Accounts v2 migration (when MY market opens)
 
 ### Problem
