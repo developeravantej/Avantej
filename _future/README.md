@@ -11,6 +11,7 @@ Each file in this folder is a self-contained brief: scope, why it was deferred, 
 | `announcements-read-receipts.md` | Full ack tracking subsystem (views, ack counts, read rate) | 3–5 days |
 | `nps-module.md` | NPS survey schema + reporting (mobile collects, web aggregates) | 5–7 days |
 | `messaging-system.md` | Internal messaging — powers customer bulk Send Message | 2+ weeks |
+| `commission-splits-per-line-refund.md` | `commission_splits.salesOrderItemId` FK so partial refunds clawback only the refunded line's trainer (today uses proportional across the whole order) | 3–5 days |
 
 ### Recently shipped — briefs removed
 
