@@ -13,6 +13,7 @@ Each file in this folder is a self-contained brief: scope, why it was deferred, 
 | `messaging-system.md` | Internal messaging — powers customer bulk Send Message | 2+ weeks |
 | `commission-splits-per-line-refund.md` | `commission_splits.salesOrderItemId` FK so partial refunds clawback only the refunded line's trainer (today uses proportional across the whole order) | 3–5 days |
 | `audit-prove-a-followups.md` | 3 deferred items from May 2026 audit-prove-a runs: CPR-04 commission reversal timing policy, AC-A-06 invitation token hash-at-rest, PO-005 POS "Online" payment Stripe Checkout | 1–5 days each |
+| `audit-prove-commission-followups.md` | 9 follow-ups from the audit-prove commission session (PR #32): Stripe Accounts v2 migration, tenant-timezone cycle bounds, per-partner Stripe detail page, e2e operator-flow proof, live-Stripe CI gate, P3 commission-engine omnibus, bulk markPaid/cancel, cycle audit history, candidate domains for next audit-prove run | 1 day – 2 weeks each |
 
 ### Recently shipped — briefs removed
 
