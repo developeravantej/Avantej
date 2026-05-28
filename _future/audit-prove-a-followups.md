@@ -182,6 +182,98 @@ Several of these pieces exist for the appointment-based `payments.sendPaymentLin
 
 ---
 
+## Verification status of the 62 shipped fixes
+
+**Honest disclosure (added 2026-05-28):** The audit-prove-a sessions shipped 62 remediations, but only a **subset** was actually verified by running tests against the running app. Most fixes are confirmed by type-check + code review only. Calling this out so the reviewer / next person knows where to put smoke-test effort before declaring done-done.
+
+### Verified by running tests
+
+| Coverage | What ran | Evidence |
+|---|---|---|
+| Commission + refund + POS state machines | `apps/server/src/tests/integration/{refund-state-machine,refund-target-priority,commission-approve-invariants,commission-dedup-pos-vs-appointment,no-show-still-pays,cancel-reopen-cancel,package-credit-consumption,pos-permission-and-suspended}.test.ts` | 26 pass / 0 fail / 1 skip — re-ran after each iteration |
+| SaaS subscription lifecycle | `apps/server/src/services/saas-subscription.service.integration.test.ts` | 14/14 pass — after F-SAAS-1/2/3 + last_stripe_event_at migration |
+| Installment flow (after FU-1 fixture XOR fix) | `apps/server/src/tests/integration/installment-*.test.ts` | Background run inconclusive — see "to verify" below |
+| Monorepo type-check | `bun check-types` | 3/3 packages green WITHOUT `--force` (FU-3 win) |
+
+### Verified by code review only (no behavior test)
+
+The following groups passed type-check + had agents trace the fix end-to-end against the audit finding, but no integration or browser test was executed against the change:
+
+**Backend correctness (likely sound, but unverified):**
+- **NAP-01..09 + SI-001/002/010** — notification dispatch full rewrite (FOR UPDATE SKIP LOCKED, emailEnabled honor, 7d lookback + stale warn, CRLF sanitize, batch limit). No test simulates concurrent cron runs or Resend failure modes.
+- **NAP-03** — analytics raw-SQL `accessibleNodeIds` injection across 6 functions. No test asserts a branch-scoped staff returns scoped data only.
+- **NAP-04** — scheduled reports inherit creator scope. No test simulates a deactivated creator.
+- **AC-A-01/02/03/04/05/07/08** — RBAC role-permissions / role_management / branch-invites / member deactivation / registration invite-token / TOCTOU / org-settings RBAC. No integration test covers these — would need a non-admin auth fixture which doesn't exist.
+- **IW-01/03/04/05/06/07/08/09** — inventory state-machine + row locks + branch RBAC. No multi-process race test exists.
+- **CPR-06/07/08/09** — commission void tx wrapper, per-category cap, refund customerId derivation, package-instance branch guard. Partially covered by `commission-approve-invariants` but the edge cases (concurrent void, cross-category attribution) aren't asserted.
+- **CU-005/006** — createUnclaimed atomic rollback + phone dedup. No integration test simulates the cross-DB failure path.
+- **F-INS-3** — cron-vs-payment race fix. Agent R reported 11 pass / 11 fail with the 11 failures being pre-existing `pkg_owner_xor` fixture issues (since fixed by FU-1). **Should be re-run** — see below.
+- **F-COM-A/B** — already-shipped (verified by agents inspecting the on-disk code).
+- **F-PAY-3** — unified mark-paid pipeline. `commission-approve-invariants` exercises adjacent paths; the Liability → payouts row creation specifically is not asserted.
+
+**Frontend (UI-shaped — no Playwright run):**
+- **DU-001/002/003/004/005** — payment view crash, Created By name, dashboard error states + role-gating, sidebar Packages permission. Manual UI smoke recommended.
+- **CP-003/004** — payouts UI permission gate + sidebar isActive query-string fix. Manual UI smoke recommended.
+- **CPR-10/11/12** — payouts-tab payment-method selector + error toast + reversal badge sign. Manual UI smoke recommended.
+- **PO-006/007/008** — sales filter pill, line items, cancel button. Most were "already-shipped" no-ops (audit findings stale). Manual UI smoke recommended.
+- **F-PAY-1/4/6/10** — Liability cache invalidation, signed-amount KPIs, per-row DropdownMenu, confirmImmediately forwarding. Manual UI smoke recommended.
+
+**Config / build-infra (not behavior-testable):**
+- **SI-008** — BETTER_AUTH_SECRET fallback hardened. Tested by reading the IIFE; can only be truly verified by deploying with the env var missing.
+- **SI-009** — CORS allowlist dev-only. Tested by reading the function; can only be truly verified with a prod-like deploy.
+
+### Should be re-run before declaring done
+
+Quick test loop a reviewer should run before merging:
+
+```bash
+# 1. Type check (already green but cheap to re-confirm)
+bun check-types
+
+# 2. Integration tests across the touched paths
+cd apps/server
+bun test src/tests/integration/refund-state-machine.test.ts \
+         src/tests/integration/refund-target-priority.test.ts \
+         src/tests/integration/commission-approve-invariants.test.ts \
+         src/tests/integration/commission-dedup-pos-vs-appointment.test.ts \
+         src/tests/integration/no-show-still-pays.test.ts \
+         src/tests/integration/cancel-reopen-cancel.test.ts \
+         src/tests/integration/package-credit-consumption.test.ts \
+         src/tests/integration/pos-permission-and-suspended.test.ts
+
+# 3. The 6 installment integration tests that FU-1 refactored — confirm
+#    pkg_owner_xor failures are gone and installment paths still pass
+bun test src/tests/integration/installment-evaluator.integration.test.ts \
+         src/tests/integration/installment-overview.integration.test.ts \
+         src/tests/integration/installment-refund.integration.test.ts \
+         src/tests/integration/installment-reschedule.integration.test.ts \
+         src/tests/integration/installments.integration.test.ts \
+         src/tests/integration/membership-holds.test.ts
+
+# 4. SaaS lifecycle tests
+bun test src/services/saas-subscription.service.integration.test.ts
+
+# 5. UI smoke (manual, ~15 min):
+#    - log in as franchisee@gmail.com / password123
+#    - open Commissions → Payouts → click Run Batch → confirm payment method selector exists
+#    - confirm a reversal row renders as -RM (not +RM)
+#    - open Payments view → confirm Created By shows a name not a UUID
+#    - open Dashboard → check error states fire when offline (DevTools throttle)
+#    - sidebar Payouts item highlights when on ?tab=payouts
+```
+
+If steps 1–4 are green and step 5 manual smoke passes the 5 cases listed, the branch is ready to merge.
+
+### Known unverifiable items
+
+- **F-SAAS-1/2 lockout** — only fires when an org is genuinely past-due → suspended in production. Not exercisable locally without faking Stripe webhook timing.
+- **SI-008/009** — env-var-conditional behavior; needs a deploy to confirm.
+- **NAP-05 concurrent cron race** — requires running two Workers simultaneously hitting the same tenant DB. Not feasible in local dev.
+
+These three should be tested **via staged-production smoke** before the branch ships to real customers.
+
+---
+
 ## Cross-cutting notes
 
 - All three items are tracked in audit-prove-a session REPORTs. A future audit pass should surface them again if not yet implemented — no risk of being forgotten.
