@@ -36,6 +36,7 @@ import {
 } from "@avantej-core/services";
 import { calculateCommissionForAppointment } from "@avantej-core/services";
 import { trainerTiers } from "@avantej-core/db/schema/tenant/trainer-tiers";
+import { commissionTierRates } from "@avantej-core/db/schema/tenant/commission-tier-rates";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { serviceCategories } from "@avantej-core/db/schema/tenant/service-categories";
 import { services } from "@avantej-core/db/schema/tenant/services";
@@ -201,13 +202,14 @@ afterAll(async () => {
 			.update(members)
 			.set({ trainerTierId: null })
 			.where(inArray(members.id, createdMemberIds));
-		await tenantDb
-			.delete(members)
-			.where(inArray(members.id, createdMemberIds));
+		await tenantDb.delete(members).where(inArray(members.id, createdMemberIds));
 	}
 
 	// 6. Delete trainer tiers
 	if (createdTierIds.length > 0) {
+		await tenantDb
+			.delete(commissionTierRates)
+			.where(inArray(commissionTierRates.trainerTierId, createdTierIds));
 		await tenantDb
 			.delete(trainerTiers)
 			.where(inArray(trainerTiers.id, createdTierIds));
@@ -226,7 +228,9 @@ describe("Commission Calculator — appointment path", () => {
 		if (shouldSkipIntegration()) return;
 
 		// Setup: category + service + config
-		const { categoryId, serviceId } = await createCategoryAndService(`TC001-${TS}`);
+		const { categoryId, serviceId } = await createCategoryAndService(
+			`TC001-${TS}`,
+		);
 
 		await upsertCategoryCommissionConfig(
 			tenantDb,
@@ -235,7 +239,9 @@ describe("Commission Calculator — appointment path", () => {
 				paymentType: "fixed",
 				isConditional: false,
 				maxCoaches: 1,
-				slots: [{ slotIndex: 0, label: "Head Trainer", weightageBasisPoints: 10000 }],
+				slots: [
+					{ slotIndex: 0, label: "Head Trainer", weightageBasisPoints: 10000 },
+				],
 				rates: [{ trainerTierId: tierId, amount: 5000 }], // RM50 = 5000 cents
 			},
 			ACTOR,
@@ -269,7 +275,9 @@ describe("Commission Calculator — appointment path", () => {
 	test("TC-CC-002: variable non-conditional — 10% of session total", async () => {
 		if (shouldSkipIntegration()) return;
 
-		const { categoryId, serviceId } = await createCategoryAndService(`TC002-${TS}`);
+		const { categoryId, serviceId } = await createCategoryAndService(
+			`TC002-${TS}`,
+		);
 
 		await upsertCategoryCommissionConfig(
 			tenantDb,
@@ -278,7 +286,9 @@ describe("Commission Calculator — appointment path", () => {
 				paymentType: "variable",
 				isConditional: false,
 				maxCoaches: 1,
-				slots: [{ slotIndex: 0, label: "Head Trainer", weightageBasisPoints: 10000 }],
+				slots: [
+					{ slotIndex: 0, label: "Head Trainer", weightageBasisPoints: 10000 },
+				],
 				rates: [{ trainerTierId: tierId, amount: 1000 }], // 10% in basis points
 			},
 			ACTOR,
@@ -307,7 +317,9 @@ describe("Commission Calculator — appointment path", () => {
 	test("TC-CC-003: unfilled slot redistribution — single trainer absorbs 100% weightage", async () => {
 		if (shouldSkipIntegration()) return;
 
-		const { categoryId, serviceId } = await createCategoryAndService(`TC003-${TS}`);
+		const { categoryId, serviceId } = await createCategoryAndService(
+			`TC003-${TS}`,
+		);
 
 		// 2 slots: Head (60%), Asst (40%). Only Head present → Head gets 100%.
 		await upsertCategoryCommissionConfig(
@@ -370,7 +382,9 @@ describe("Commission Calculator — appointment path", () => {
 	test("TC-CC-005: trainer without tier — no split created", async () => {
 		if (shouldSkipIntegration()) return;
 
-		const { categoryId, serviceId } = await createCategoryAndService(`TC005-${TS}`);
+		const { categoryId, serviceId } = await createCategoryAndService(
+			`TC005-${TS}`,
+		);
 
 		await upsertCategoryCommissionConfig(
 			tenantDb,
@@ -379,7 +393,9 @@ describe("Commission Calculator — appointment path", () => {
 				paymentType: "fixed",
 				isConditional: false,
 				maxCoaches: 1,
-				slots: [{ slotIndex: 0, label: "Head Trainer", weightageBasisPoints: 10000 }],
+				slots: [
+					{ slotIndex: 0, label: "Head Trainer", weightageBasisPoints: 10000 },
+				],
 				rates: [{ trainerTierId: tierId, amount: 5000 }],
 			},
 			ACTOR,

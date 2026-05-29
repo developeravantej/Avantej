@@ -47,6 +47,7 @@ import {
 } from "@avantej-core/services";
 
 import { trainerTiers } from "@avantej-core/db/schema/tenant/trainer-tiers";
+import { commissionTierRates } from "@avantej-core/db/schema/tenant/commission-tier-rates";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { serviceCategories } from "@avantej-core/db/schema/tenant/service-categories";
 import { services } from "@avantej-core/db/schema/tenant/services";
@@ -276,13 +277,14 @@ afterAll(async () => {
 			.update(members)
 			.set({ trainerTierId: null })
 			.where(inArray(members.id, createdMemberIds));
-		await tenantDb
-			.delete(members)
-			.where(inArray(members.id, createdMemberIds));
+		await tenantDb.delete(members).where(inArray(members.id, createdMemberIds));
 	}
 
 	// 8. Trainer tiers
 	if (createdTierIds.length > 0) {
+		await tenantDb
+			.delete(commissionTierRates)
+			.where(inArray(commissionTierRates.trainerTierId, createdTierIds));
 		await tenantDb
 			.delete(trainerTiers)
 			.where(inArray(trainerTiers.id, createdTierIds));
@@ -301,7 +303,9 @@ describe("Commission Rule — Phase 1 integration", () => {
 	test("TC-CR-I001: cancellation → commission split with earnReason='cancellation'", async () => {
 		if (shouldSkipIntegration()) return;
 
-		const { categoryId, serviceId } = await createCategoryAndService(`TC-I001-${TS}`);
+		const { categoryId, serviceId } = await createCategoryAndService(
+			`TC-I001-${TS}`,
+		);
 
 		await upsertCategoryCommissionConfig(
 			tenantDb,
@@ -310,7 +314,9 @@ describe("Commission Rule — Phase 1 integration", () => {
 				paymentType: "fixed",
 				isConditional: false,
 				maxCoaches: 1,
-				slots: [{ slotIndex: 0, label: "Head Trainer", weightageBasisPoints: 10000 }],
+				slots: [
+					{ slotIndex: 0, label: "Head Trainer", weightageBasisPoints: 10000 },
+				],
 				rates: [{ trainerTierId: tierId, amount: 7500 }],
 			},
 			ACTOR,
@@ -346,7 +352,9 @@ describe("Commission Rule — Phase 1 integration", () => {
 	test("TC-CR-I002: completion → commission split with earnReason='completion'", async () => {
 		if (shouldSkipIntegration()) return;
 
-		const { categoryId, serviceId } = await createCategoryAndService(`TC-I002-${TS}`);
+		const { categoryId, serviceId } = await createCategoryAndService(
+			`TC-I002-${TS}`,
+		);
 
 		await upsertCategoryCommissionConfig(
 			tenantDb,
@@ -355,7 +363,9 @@ describe("Commission Rule — Phase 1 integration", () => {
 				paymentType: "fixed",
 				isConditional: false,
 				maxCoaches: 1,
-				slots: [{ slotIndex: 0, label: "Head Trainer", weightageBasisPoints: 10000 }],
+				slots: [
+					{ slotIndex: 0, label: "Head Trainer", weightageBasisPoints: 10000 },
+				],
 				rates: [{ trainerTierId: tierId, amount: 7500 }],
 			},
 			ACTOR,
@@ -388,7 +398,9 @@ describe("Commission Rule — Phase 1 integration", () => {
 	test("TC-CR-I003: POS service sale sets commissionDeferred=true; appointment completion then creates split", async () => {
 		if (shouldSkipIntegration()) return;
 
-		const { categoryId, serviceId } = await createCategoryAndService(`TC-I003-${TS}`);
+		const { categoryId, serviceId } = await createCategoryAndService(
+			`TC-I003-${TS}`,
+		);
 
 		await upsertCategoryCommissionConfig(
 			tenantDb,
@@ -397,7 +409,9 @@ describe("Commission Rule — Phase 1 integration", () => {
 				paymentType: "fixed",
 				isConditional: false,
 				maxCoaches: 1,
-				slots: [{ slotIndex: 0, label: "Head Trainer", weightageBasisPoints: 10000 }],
+				slots: [
+					{ slotIndex: 0, label: "Head Trainer", weightageBasisPoints: 10000 },
+				],
 				rates: [{ trainerTierId: tierId, amount: 5000 }],
 			},
 			ACTOR,
@@ -448,7 +462,9 @@ describe("Commission Rule — Phase 1 integration", () => {
 	test("TC-CR-I004: POS product sale → immediate split with earnReason='pos_product'", async () => {
 		if (shouldSkipIntegration()) return;
 
-		const { categoryId, serviceId } = await createCategoryAndService(`TC-I004-${TS}`);
+		const { categoryId, serviceId } = await createCategoryAndService(
+			`TC-I004-${TS}`,
+		);
 
 		await upsertCategoryCommissionConfig(
 			tenantDb,
@@ -457,7 +473,9 @@ describe("Commission Rule — Phase 1 integration", () => {
 				paymentType: "fixed",
 				isConditional: false,
 				maxCoaches: 1,
-				slots: [{ slotIndex: 0, label: "Head Trainer", weightageBasisPoints: 10000 }],
+				slots: [
+					{ slotIndex: 0, label: "Head Trainer", weightageBasisPoints: 10000 },
+				],
 				rates: [{ trainerTierId: tierId, amount: 3000 }],
 			},
 			ACTOR,
@@ -500,7 +518,9 @@ describe("Commission Rule — Phase 1 integration", () => {
 	test("TC-CR-I005: sale cancelled after appointment completed → split preserved (not voided)", async () => {
 		if (shouldSkipIntegration()) return;
 
-		const { categoryId, serviceId } = await createCategoryAndService(`TC-I005-${TS}`);
+		const { categoryId, serviceId } = await createCategoryAndService(
+			`TC-I005-${TS}`,
+		);
 
 		await upsertCategoryCommissionConfig(
 			tenantDb,
@@ -509,7 +529,9 @@ describe("Commission Rule — Phase 1 integration", () => {
 				paymentType: "fixed",
 				isConditional: false,
 				maxCoaches: 1,
-				slots: [{ slotIndex: 0, label: "Head Trainer", weightageBasisPoints: 10000 }],
+				slots: [
+					{ slotIndex: 0, label: "Head Trainer", weightageBasisPoints: 10000 },
+				],
 				rates: [{ trainerTierId: tierId, amount: 4000 }],
 			},
 			ACTOR,
@@ -554,10 +576,12 @@ describe("Commission Rule — Phase 1 integration", () => {
 		const remaining = await tenantDb
 			.select()
 			.from(commissionSplits)
-			.where(and(
-				eq(commissionSplits.id, splits[0]!.id),
-				eq(commissionSplits.status, "pending"),
-			));
+			.where(
+				and(
+					eq(commissionSplits.id, splits[0]!.id),
+					eq(commissionSplits.status, "pending"),
+				),
+			);
 		expect(remaining).toHaveLength(1);
 	}, 30000);
 
@@ -570,7 +594,9 @@ describe("Commission Rule — Phase 1 integration", () => {
 	test("TC-CR-I006: sale cancelled before appointment delivery → split is voided", async () => {
 		if (shouldSkipIntegration()) return;
 
-		const { categoryId, serviceId } = await createCategoryAndService(`TC-I006-${TS}`);
+		const { categoryId, serviceId } = await createCategoryAndService(
+			`TC-I006-${TS}`,
+		);
 
 		await upsertCategoryCommissionConfig(
 			tenantDb,
@@ -579,7 +605,9 @@ describe("Commission Rule — Phase 1 integration", () => {
 				paymentType: "fixed",
 				isConditional: false,
 				maxCoaches: 1,
-				slots: [{ slotIndex: 0, label: "Head Trainer", weightageBasisPoints: 10000 }],
+				slots: [
+					{ slotIndex: 0, label: "Head Trainer", weightageBasisPoints: 10000 },
+				],
 				rates: [{ trainerTierId: tierId, amount: 2000 }],
 			},
 			ACTOR,
