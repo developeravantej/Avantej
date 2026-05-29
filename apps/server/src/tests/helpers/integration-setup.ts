@@ -83,7 +83,19 @@ function getSharedPool(url: string): Pool {
 	neonConfig.webSocketConstructor = ws;
 	let pool = poolByUrl.get(url);
 	if (!pool) {
-		pool = new Pool({ connectionString: url });
+		pool = new Pool({
+			connectionString: url,
+			// Safety net for runaway SERVER-side queries: a query that blocks on a
+			// row lock self-aborts instead of hanging indefinitely.
+			statement_timeout: 20_000,
+			connectionTimeoutMillis: 15_000,
+			// NOTE: this does NOT cover the per-test hangs in membership-holds /
+			// branch-invite. Those are pool-CLIENT exhaustion — an earlier test in
+			// the file leaks a checked-out client (an unreleased transaction), and a
+			// pg-style pool has no acquire timeout, so a later test waits forever for
+			// a free client (hits Bun's 30s test timeout, not statement_timeout).
+			// Tracked as a separate follow-up; see zplan/2026-05-29-future-work-omnibus.
+		});
 		poolByUrl.set(url, pool);
 	}
 	return pool;
