@@ -1533,6 +1533,20 @@ export interface LiabilityByStaffRow {
 	paidCents: number;
 }
 
+/**
+ * Max staff rows returned by liabilityByStaff. Exposed so the procedure layer can
+ * surface a `hasMore` flag instead of silently truncating (F-COM-07).
+ */
+export const LIABILITY_BY_STAFF_LIMIT = 500;
+
+export interface LiabilityByStaffResult {
+	rows: LiabilityByStaffRow[];
+	/** Number of staff rows returned (≤ LIABILITY_BY_STAFF_LIMIT). */
+	totalCount: number;
+	/** True when more staff rows exist beyond the returned page (result was truncated). */
+	hasMore: boolean;
+}
+
 export interface LiabilityByStaffParams {
 	branchId?: string; // optional — filter to a specific branch
 	from?: Date; // earnedAt range start (inclusive)
@@ -1557,7 +1571,10 @@ export async function liabilityByStaff(
 	tenantDb: TenantDb,
 	controlPanelDb: ControlPanelDb,
 	params: LiabilityByStaffParams,
-): Promise<LiabilityByStaffRow[]> {
+): Promise<LiabilityByStaffResult> {
+	// Fetch one extra row beyond the cap so we can detect (and report) truncation
+	// without a second COUNT query. F-COM-07.
+	const fetchLimit = LIABILITY_BY_STAFF_LIMIT + 1;
 	const { branchId, from, to, accessibleNodeIds } = params;
 
 	// Build conditions on commissionSplits directly
@@ -1623,7 +1640,7 @@ export async function liabilityByStaff(
 			.leftJoin(salesOrders, eq(commissionSplits.salesOrderId, salesOrders.id))
 			.where(and(...branchConditions))
 			.groupBy(commissionSplits.staffId)
-			.limit(500) as { staffId: string; pendingCents: number; approvedCents: number; paidCents: number }[];
+			.limit(fetchLimit) as { staffId: string; pendingCents: number; approvedCents: number; paidCents: number }[];
 	} else {
 		rows = await tenantDb
 			.select({
@@ -1650,10 +1667,17 @@ export async function liabilityByStaff(
 			.from(commissionSplits)
 			.where(and(...conditions))
 			.groupBy(commissionSplits.staffId)
-			.limit(500) as { staffId: string; pendingCents: number; approvedCents: number; paidCents: number }[];
+			.limit(fetchLimit) as { staffId: string; pendingCents: number; approvedCents: number; paidCents: number }[];
 	}
 
-	if (rows.length === 0) return [];
+	// Detect truncation: if we got the sentinel extra row, there are more staff
+	// beyond the cap. Trim back to the documented limit before enriching/returning.
+	const hasMore = rows.length > LIABILITY_BY_STAFF_LIMIT;
+	if (hasMore) {
+		rows = rows.slice(0, LIABILITY_BY_STAFF_LIMIT);
+	}
+
+	if (rows.length === 0) return { rows: [], totalCount: 0, hasMore: false };
 
 	// Enrich names from control-panel (best-effort)
 	const staffIds = rows.map((r) => r.staffId);
@@ -1670,13 +1694,15 @@ export async function liabilityByStaff(
 		// Best-effort — fall back to staffId as name
 	}
 
-	return rows.map((r) => ({
+	const enriched = rows.map((r) => ({
 		staffId: r.staffId,
 		staffName: staffNameMap.get(r.staffId) ?? r.staffId,
 		pendingCents: r.pendingCents,
 		approvedCents: r.approvedCents,
 		paidCents: r.paidCents,
 	}));
+
+	return { rows: enriched, totalCount: enriched.length, hasMore };
 }
 
 // ---------------------------------------------------------------------------

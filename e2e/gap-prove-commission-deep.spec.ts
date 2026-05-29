@@ -335,10 +335,11 @@ test("audit-prove deep — F-05 paymentReference / F-06 refund reversal / F-08 p
 		}
 		// Capture pre-refund liability
 		type LiabRow = { staffId: string; paidCents: number; approvedCents: number; pendingCents: number };
-		const liabBefore = await orpcCall<object, LiabRow[]>(page, "commissionSplits", "liabilityByStaff", {
+		type LiabResult = { rows: LiabRow[]; totalCount: number; hasMore: boolean };
+		const liabBefore = await orpcCall<object, LiabResult>(page, "commissionSplits", "liabilityByStaff", {
 			organizationId: TEST_ORG_ID,
 		});
-		const beforeRow = liabBefore.find((r) => r.staffId === posSplit!.staffId);
+		const beforeRow = liabBefore.rows.find((r) => r.staffId === posSplit!.staffId);
 		const paidBefore = beforeRow?.paidCents ?? 0;
 
 		// Request + approve a refund of the sale
@@ -368,10 +369,10 @@ test("audit-prove deep — F-05 paymentReference / F-06 refund reversal / F-08 p
 		const splitAfter = rowsAfter.find((r) => r.id === posSplit!.id);
 		expect.soft(splitAfter?.status, "split should flip to void after full reversal").toBe("void");
 
-		const liabAfter = await orpcCall<object, LiabRow[]>(page, "commissionSplits", "liabilityByStaff", {
+		const liabAfter = await orpcCall<object, LiabResult>(page, "commissionSplits", "liabilityByStaff", {
 			organizationId: TEST_ORG_ID,
 		});
-		const afterRow = liabAfter.find((r) => r.staffId === posSplit!.staffId);
+		const afterRow = liabAfter.rows.find((r) => r.staffId === posSplit!.staffId);
 		const paidAfter = afterRow?.paidCents ?? 0;
 		expect.soft(
 			paidAfter < paidBefore,

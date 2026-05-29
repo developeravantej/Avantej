@@ -470,6 +470,18 @@ export default {
             .then((r) => console.log(`[scheduled] installment-sweep done: ${JSON.stringify(r)}`))
             .catch((e) => console.error(`[scheduled] installment-sweep failed:`, e)),
         );
+        // F-SALE-08: package-expiry sweep. Transitions active package
+        // instances to 'expired' once expiresAt has passed. Folded into this
+        // existing slot to stay within the Workers Free 5-cron limit.
+        const { runPackageExpirySweep } = await import("@/services/package-expiry.service");
+        ctx.waitUntil(
+          runPackageExpirySweep({
+            controlPanelDb: cpDb,
+            getTenantDb: (orgId) => getTenantDb(orgId),
+          })
+            .then((r) => console.log(`[scheduled] package-expiry done: ${JSON.stringify(r)}`))
+            .catch((e) => console.error(`[scheduled] package-expiry failed:`, e)),
+        );
         // Folded in from the retired "30 2 * * *" slot to stay under the
         // Workers Free 5-cron limit. Plan C C.5 nightly Stripe reconciliation.
         const { runReconciliation } = await import("@/services/reconciler.service");

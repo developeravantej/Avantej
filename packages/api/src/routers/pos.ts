@@ -56,6 +56,9 @@ export const posRouter = {
 				items: z.array(posLineItemSchema).min(1),
 				// Promo
 				promotionCode: z.string().optional(),
+				// Credit-point redemption (F-CRM-02). Non-negative integer; applied as a
+				// discount at 1 point = 1 cent, capped at the post-promo subtotal. Members only.
+				creditPointsToRedeem: z.number().int().min(0).optional(),
 				// Tax
 				taxRateId: z.string().uuid().optional(),
 				// Payment
@@ -118,6 +121,7 @@ export const posRouter = {
 					branchId: input.branchId,
 					items: input.items,
 					promotionCode: input.promotionCode,
+					creditPointsToRedeem: input.creditPointsToRedeem,
 					taxRateId: input.taxRateId,
 					paymentMethod: input.paymentMethod,
 					paymentReference: input.paymentReference,

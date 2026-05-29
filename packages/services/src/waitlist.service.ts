@@ -3,10 +3,13 @@ import { waitlistEntries } from "@avantej-core/db/schema/tenant/waitlist-entries
 import { classSlots } from "@avantej-core/db/schema/tenant/class-slots";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { appointmentClients } from "@avantej-core/db/schema/tenant/appointment-clients";
+import { services } from "@avantej-core/db/schema/tenant/services";
+import { notifyWaitlistPromotion } from "./notification.service";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
+type TenantTx = Parameters<Parameters<TenantDb["transaction"]>[0]>[0];
 
 export async function listWaitlistEntries(
 	tenantDb: TenantDb,
@@ -46,81 +49,123 @@ export async function addToWaitlist(
 	tenantDb: TenantDb,
 	data: { classSlotId: string; memberId: string; userId: string },
 ): Promise<typeof waitlistEntries.$inferSelect> {
-	// Check class slot exists and is full
-	const slot = await tenantDb.query.classSlots.findFirst({
-		where: eq(classSlots.id, data.classSlotId),
-	});
+	// Lock the slot row and re-check capacity inside a transaction so two
+	// concurrent joins can't both read a stale `isFull` and over-fill / both
+	// race onto the same position. (F-CRM-10)
+	return tenantDb.transaction(async (tx) => {
+		// Lock the slot row FOR UPDATE so concurrent joins serialize behind us.
+		const [slot] = await tx
+			.select()
+			.from(classSlots)
+			.where(eq(classSlots.id, data.classSlotId))
+			.for("update");
 
-	if (!slot) {
-		throw new Error("Class slot not found");
-	}
+		if (!slot) {
+			throw new Error("Class slot not found");
+		}
 
-	if (!slot.isFull) {
-		throw new Error("Class slot is not full. Book directly instead of joining the waitlist.");
-	}
+		if (!slot.isFull) {
+			throw new Error("Class slot is not full. Book directly instead of joining the waitlist.");
+		}
 
-	// Check member not already on waitlist for this slot
-	const existing = await tenantDb.query.waitlistEntries.findFirst({
-		where: and(
-			eq(waitlistEntries.classSlotId, data.classSlotId),
-			eq(waitlistEntries.userId, data.userId),
-			eq(waitlistEntries.status, "waiting"),
-		),
-	});
-
-	if (existing) {
-		throw new Error("Member is already on the waitlist for this class slot");
-	}
-
-	// Compute position
-	const [result] = await tenantDb
-		.select({ value: count() })
-		.from(waitlistEntries)
-		.where(
-			and(
+		// Check member not already on waitlist for this slot
+		const existing = await tx.query.waitlistEntries.findFirst({
+			where: and(
 				eq(waitlistEntries.classSlotId, data.classSlotId),
+				eq(waitlistEntries.userId, data.userId),
 				eq(waitlistEntries.status, "waiting"),
 			),
-		);
+		});
 
-	const position = (result?.value ?? 0) + 1;
+		if (existing) {
+			throw new Error("Member is already on the waitlist for this class slot");
+		}
 
-	// Insert waitlist entry
-	const [row] = await tenantDb
-		.insert(waitlistEntries)
-		.values({
-			classSlotId: data.classSlotId,
-			userId: data.userId,
-			position,
-			status: "waiting",
-		})
-		.returning();
+		// Compute position
+		const [result] = await tx
+			.select({ value: count() })
+			.from(waitlistEntries)
+			.where(
+				and(
+					eq(waitlistEntries.classSlotId, data.classSlotId),
+					eq(waitlistEntries.status, "waiting"),
+				),
+			);
 
-	if (!row) {
-		throw new Error("Failed to create waitlist entry");
-	}
+		const position = (result?.value ?? 0) + 1;
 
-	return row;
+		// Insert waitlist entry
+		const [row] = await tx
+			.insert(waitlistEntries)
+			.values({
+				classSlotId: data.classSlotId,
+				userId: data.userId,
+				position,
+				status: "waiting",
+			})
+			.returning();
+
+		if (!row) {
+			throw new Error("Failed to create waitlist entry");
+		}
+
+		return row;
+	});
 }
 
 export async function removeFromWaitlist(
 	tenantDb: TenantDb,
 	id: string,
 ): Promise<typeof waitlistEntries.$inferSelect> {
-	const [row] = await tenantDb
-		.update(waitlistEntries)
-		.set({
-			status: "cancelled",
-			updatedAt: new Date(),
-		})
-		.where(eq(waitlistEntries.id, id))
-		.returning();
+	return tenantDb.transaction(async (tx) => {
+		const [row] = await tx
+			.update(waitlistEntries)
+			.set({
+				status: "cancelled",
+				updatedAt: new Date(),
+			})
+			.where(eq(waitlistEntries.id, id))
+			.returning();
 
-	if (!row) {
-		throw new Error("Waitlist entry not found");
+		if (!row) {
+			throw new Error("Waitlist entry not found");
+		}
+
+		// Compact positions of the remaining "waiting" entries so they stay
+		// contiguous (1,2,3...) instead of leaving a gap where this entry was. (F-CRM-05)
+		await compactWaitlistPositions(tx, row.classSlotId);
+
+		return row;
+	});
+}
+
+/**
+ * Re-number the remaining `waiting` entries of a slot to contiguous positions
+ * (1,2,3...) ordered by their current position. Runs inside the caller's tx.
+ */
+async function compactWaitlistPositions(
+	tx: TenantTx,
+	classSlotId: string,
+): Promise<void> {
+	const remaining = await tx
+		.select({ id: waitlistEntries.id })
+		.from(waitlistEntries)
+		.where(
+			and(
+				eq(waitlistEntries.classSlotId, classSlotId),
+				eq(waitlistEntries.status, "waiting"),
+			),
+		)
+		.orderBy(asc(waitlistEntries.position));
+
+	let position = 1;
+	for (const entry of remaining) {
+		await tx
+			.update(waitlistEntries)
+			.set({ position, updatedAt: new Date() })
+			.where(eq(waitlistEntries.id, entry.id));
+		position += 1;
 	}
-
-	return row;
 }
 
 export async function promoteFromWaitlist(
@@ -128,60 +173,87 @@ export async function promoteFromWaitlist(
 	classSlotId: string,
 ): Promise<(typeof waitlistEntries.$inferSelect) | null> {
 	return tenantDb.transaction(async (tx) => {
-		// Find earliest "waiting" entry
-		const entry = await tx.query.waitlistEntries.findFirst({
-			where: and(
-				eq(waitlistEntries.classSlotId, classSlotId),
-				eq(waitlistEntries.status, "waiting"),
-			),
-			orderBy: [asc(waitlistEntries.position)],
-		});
-
-		if (!entry) {
-			return null;
-		}
-
-		// Promote the entry
-		const [promoted] = await tx
-			.update(waitlistEntries)
-			.set({
-				status: "promoted",
-				updatedAt: new Date(),
-			})
-			.where(eq(waitlistEntries.id, entry.id))
-			.returning();
-
-		// Fetch slot so we can build the appointment
-		const slot = await tx.query.classSlots.findFirst({
-			where: eq(classSlots.id, classSlotId),
-		});
-
-		// Update class slot capacity — only if there is still capacity (atomic check-and-increment)
-		const updatedSlots = await tx
-			.update(classSlots)
-			.set({
-				spotsBooked: sql`${classSlots.spotsBooked} + 1`,
-				spotsAvailable: sql`${classSlots.spotsAvailable} - 1`,
-				isFull: sql`(${classSlots.spotsBooked} + 1) >= ${classSlots.capacity}`,
-				isAvailable: sql`(${classSlots.spotsAvailable} - 1) > 0`,
-				updatedAt: new Date(),
-			})
-			.where(
-				and(
-					eq(classSlots.id, classSlotId),
-					sql`${classSlots.spotsBooked} < ${classSlots.capacity}`,
-				),
-			)
-			.returning({ id: classSlots.id });
-
-		if (updatedSlots.length === 0) {
+		const result = await promoteFromWaitlistInsideTx(tx, classSlotId);
+		if (result === "full") {
 			throw new Error(
 				"CLASS_FULL: Class slot is at capacity — cannot promote from waitlist",
 			);
 		}
+		return result;
+	});
+}
 
-		// Create the appointment row for the promoted member
-		if (slot) {
+/**
+ * Core promotion logic, runnable inside a caller's transaction so it can be
+ * reused (e.g. by class-slot cancellation freeing spots).
+ *
+ * Returns:
+ *  - the promoted entry on success
+ *  - `null` when there is no waiting entry to promote
+ *  - the literal `"full"` when a waiting entry exists but the slot has no free
+ *    capacity (or is cancelled). Callers that promote opportunistically should
+ *    treat `"full"` as a stop signal; the public wrapper turns it into the
+ *    CLASS_FULL error to preserve the previous throwing contract.
+ */
+export async function promoteFromWaitlistInsideTx(
+	tx: TenantTx,
+	classSlotId: string,
+): Promise<(typeof waitlistEntries.$inferSelect) | null | "full"> {
+	// Find earliest "waiting" entry
+	const entry = await tx.query.waitlistEntries.findFirst({
+		where: and(
+			eq(waitlistEntries.classSlotId, classSlotId),
+			eq(waitlistEntries.status, "waiting"),
+		),
+		orderBy: [asc(waitlistEntries.position)],
+	});
+
+	if (!entry) {
+		return null;
+	}
+
+	// Atomic check-and-increment: only claim a spot when the slot is live and
+	// below capacity. A cancelled slot never has free spots to promote into.
+	const updatedSlots = await tx
+		.update(classSlots)
+		.set({
+			spotsBooked: sql`${classSlots.spotsBooked} + 1`,
+			spotsAvailable: sql`${classSlots.spotsAvailable} - 1`,
+			isFull: sql`(${classSlots.spotsBooked} + 1) >= ${classSlots.capacity}`,
+			isAvailable: sql`(${classSlots.spotsAvailable} - 1) > 0`,
+			updatedAt: new Date(),
+		})
+		.where(
+			and(
+				eq(classSlots.id, classSlotId),
+				eq(classSlots.isCancelled, false),
+				sql`${classSlots.spotsBooked} < ${classSlots.capacity}`,
+			),
+		)
+		.returning({ id: classSlots.id });
+
+	if (updatedSlots.length === 0) {
+		// No capacity claimed — leave the entry "waiting" and signal full.
+		return "full";
+	}
+
+	// Promote the entry now that we have secured a spot
+	const [promoted] = await tx
+		.update(waitlistEntries)
+		.set({
+			status: "promoted",
+			updatedAt: new Date(),
+		})
+		.where(eq(waitlistEntries.id, entry.id))
+		.returning();
+
+	// Fetch slot so we can build the appointment
+	const slot = await tx.query.classSlots.findFirst({
+		where: eq(classSlots.id, classSlotId),
+	});
+
+	// Create the appointment row for the promoted member
+	if (slot) {
 			const [sh, sm] = slot.startTime.split(":").map(Number);
 			const [eh, em] = slot.endTime.split(":").map(Number);
 			const startTime = new Date(slot.date);
@@ -224,9 +296,38 @@ export async function promoteFromWaitlist(
 					.update(waitlistEntries)
 					.set({ appointmentId: appt.id, bookedAt: new Date(), updatedAt: new Date() })
 					.where(eq(waitlistEntries.id, entry.id));
+
+				// Notify the promoted member that a spot opened up. Best-effort:
+				// a notification failure must not roll back the promotion. (F-SVC-01)
+				// Audit-prove M1: the notify INSERT runs inside a SAVEPOINT (nested
+				// tx) so that if it fails it rolls back only the savepoint — the outer
+				// promotion transaction stays valid and can still COMMIT. A bare
+				// try/catch would NOT protect us: a failed statement poisons the
+				// surrounding PG transaction, turning the later COMMIT into a ROLLBACK.
+				let className: string | null = null;
+				if (slot.serviceId) {
+					const svc = await tx.query.services.findFirst({
+						where: eq(services.id, slot.serviceId),
+						columns: { name: true },
+					});
+					className = svc?.name ?? null;
+				}
+				try {
+					await tx.transaction(async (inner) => {
+						await notifyWaitlistPromotion(inner, {
+							userId: entry.userId,
+							classSlotId: slot.id,
+							appointmentId: appt.id,
+							className,
+						});
+					});
+				} catch {
+					// swallow — notify is non-critical; the savepoint rolled back,
+					// the outer promotion transaction is unaffected.
+				}
 			}
 		}
 
-		return promoted ?? null;
-	});
+	return promoted ?? null;
 }
+

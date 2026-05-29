@@ -9,6 +9,7 @@ import { MembershipService } from "@avantej-core/db/services/membership.service"
 import { writeAudit } from "@avantej-core/services/audit-log.service";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
+import type { DispatchStaffSyncFn, GhlSyncResult } from "./shared";
 
 export const membersStatusProcedures = {
 	/**
@@ -108,6 +109,27 @@ export const membersStatusProcedures = {
         changes: { statusBefore: member.status, statusAfter: "suspended" },
       });
 
+      // Best-effort GHL staff sync — mirrors the deactivate flow in
+      // archive.procedures.ts. Operation "update" reflects the status change;
+      // the dispatcher decides how to apply it in GHL. Soft-fail like create.
+      const dispatchStaffSync = context.honoContext?.get(
+        "dispatchStaffSync"
+      ) as DispatchStaffSyncFn | undefined;
+
+      let ghlSync: GhlSyncResult | undefined;
+      if (dispatchStaffSync) {
+        ghlSync = await dispatchStaffSync({
+          controlPanelDb,
+          tenantDb: context.tenantDb,
+          organizationId: input.organizationId,
+          memberId: input.memberId,
+          operation: "update",
+        }).catch((err: unknown) => ({
+          status: "error" as const,
+          error: err instanceof Error ? err.message : String(err),
+        }));
+      }
+
       return {
         success: true,
         member: {
@@ -118,6 +140,7 @@ export const membersStatusProcedures = {
           status: updatedMember.status,
           joinedAt: updatedMember.joinedAt,
         },
+        ghlSync,
       };
     }),
 
@@ -218,6 +241,27 @@ export const membersStatusProcedures = {
         changes: { statusBefore: member.status, statusAfter: "active" },
       });
 
+      // Best-effort GHL staff sync — mirrors the deactivate flow in
+      // archive.procedures.ts. Operation "update" reflects the status change;
+      // the dispatcher decides how to apply it in GHL. Soft-fail like create.
+      const dispatchStaffSync = context.honoContext?.get(
+        "dispatchStaffSync"
+      ) as DispatchStaffSyncFn | undefined;
+
+      let ghlSync: GhlSyncResult | undefined;
+      if (dispatchStaffSync) {
+        ghlSync = await dispatchStaffSync({
+          controlPanelDb,
+          tenantDb: context.tenantDb,
+          organizationId: input.organizationId,
+          memberId: input.memberId,
+          operation: "update",
+        }).catch((err: unknown) => ({
+          status: "error" as const,
+          error: err instanceof Error ? err.message : String(err),
+        }));
+      }
+
       return {
         success: true,
         member: {
@@ -228,6 +272,7 @@ export const membersStatusProcedures = {
           status: updatedMember.status,
           joinedAt: updatedMember.joinedAt,
         },
+        ghlSync,
       };
     })
 };

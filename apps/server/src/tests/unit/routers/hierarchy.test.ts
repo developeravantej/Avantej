@@ -11,6 +11,19 @@ import { describe, it, expect, mock, beforeEach } from "bun:test";
 import { createAdminContext, createStaffContext } from "../../helpers/context.factory";
 import { createMockTenantDb } from "../../helpers/db-mock.factory";
 
+// Import the REAL service subpath modules so we can spread their genuine
+// exports and override only the functions under test. NOTE: mocking the
+// `@avantej-core/services` BARREL directly breaks Bun's named-export resolution
+// for `export *` re-exports (the router/guards import `listNodesWithStats`,
+// `PermissionDeniedError`, etc. from the barrel and fail to load with "Export
+// named X not found"). Mocking the specific subpath modules the barrel
+// re-exports keeps those named exports resolvable while still intercepting the
+// functions under test.
+import * as realPermissionService from "@avantej-core/services/permission.service";
+import * as realHierarchyService from "@avantej-core/services/hierarchy.service";
+import * as realHierarchyValidationService from "@avantej-core/services/hierarchy-validation.service";
+import * as realMemberService from "@avantej-core/services/member.service";
+
 // ── Service mocks ─────────────────────────────────────────────────────────────
 
 const mockRequirePermission = mock(() => Promise.resolve());
@@ -34,21 +47,39 @@ const UPDATED_NODE = { ...CREATED_NODE, name: "KL Branch Updated" };
 const mockUpdateHierarchyNode = mock(() => Promise.resolve(UPDATED_NODE));
 const mockDeleteHierarchyNode = mock(() => Promise.resolve());
 const mockMoveHierarchyNode = mock(() => Promise.resolve(CREATED_NODE));
+const mockListNodesWithStats = mock(() => Promise.resolve([]));
+const mockGetMembersByHierarchyScope = mock(() => Promise.resolve([]));
+const mockUpdateMemberHierarchyScope = mock(() => Promise.resolve({}));
+const mockBulkUpdateMemberHierarchyScope = mock(() => Promise.resolve([]));
+const mockGetAllOrganizationMembersWithUserDetails = mock(() => Promise.resolve([]));
 
-mock.module("@avantej-core/services", () => ({
+mock.module("@avantej-core/services/permission.service", () => ({
+	...realPermissionService,
 	requirePermission: mockRequirePermission,
+}));
+
+mock.module("@avantej-core/services/hierarchy.service", () => ({
+	...realHierarchyService,
 	getDescendantNodeIds: mockGetDescendantNodeIds,
-	validateParentAccess: mockValidateParentAccess,
-	validateHierarchyRules: mockValidateHierarchyRules,
 	createHierarchyNode: mockCreateHierarchyNode,
 	updateHierarchyNode: mockUpdateHierarchyNode,
 	deleteHierarchyNode: mockDeleteHierarchyNode,
 	moveHierarchyNode: mockMoveHierarchyNode,
-	listNodesWithStats: mock(() => Promise.resolve([])),
-	getMembersByHierarchyScope: mock(() => Promise.resolve([])),
-	updateMemberHierarchyScope: mock(() => Promise.resolve({})),
-	bulkUpdateMemberHierarchyScope: mock(() => Promise.resolve([])),
-	getAllOrganizationMembersWithUserDetails: mock(() => Promise.resolve([])),
+	listNodesWithStats: mockListNodesWithStats,
+}));
+
+mock.module("@avantej-core/services/hierarchy-validation.service", () => ({
+	...realHierarchyValidationService,
+	validateParentAccess: mockValidateParentAccess,
+	validateHierarchyRules: mockValidateHierarchyRules,
+}));
+
+mock.module("@avantej-core/services/member.service", () => ({
+	...realMemberService,
+	getMembersByHierarchyScope: mockGetMembersByHierarchyScope,
+	updateMemberHierarchyScope: mockUpdateMemberHierarchyScope,
+	bulkUpdateMemberHierarchyScope: mockBulkUpdateMemberHierarchyScope,
+	getAllOrganizationMembersWithUserDetails: mockGetAllOrganizationMembersWithUserDetails,
 }));
 
 import { hierarchyRouter } from "@avantej-core/api/routers/hierarchy";

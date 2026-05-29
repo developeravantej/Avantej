@@ -222,22 +222,103 @@ export async function revokeInvitation(
   return updated;
 }
 
+/** Invitation validity window (resend extends expiry by this amount). */
+const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Minimum gap between successive resends of the same invitation. */
+const RESEND_COOLDOWN_MS = 5 * 60 * 1000;
+
+/**
+ * Error thrown when a resend is attempted within the cooldown window.
+ * The handler maps this to a 429-style TOO_MANY_REQUESTS response.
+ */
+export class InvitationResendCooldownError extends Error {
+  readonly retryAfterMs: number;
+  constructor(retryAfterMs: number) {
+    super("Invitation was resent too recently. Please wait before resending again.");
+    this.name = "InvitationResendCooldownError";
+    this.retryAfterMs = retryAfterMs;
+  }
+}
+
+/**
+ * Revoke all pending invitations for an email
+ *
+ * Marks every still-pending invitation matching the given email (in this
+ * tenant) as "declined". Used when a member is removed so a stale, still-valid
+ * invitation token cannot be used to rejoin the organization.
+ *
+ * @param email - Invitee email (case-insensitive)
+ * @param tenantDb - Tenant database client
+ * @returns Number of invitations revoked
+ */
+export async function revokePendingInvitationsByEmail(
+  email: string,
+  tenantDb: NeonDatabase<typeof tenantSchema>
+): Promise<number> {
+  if (!email) {
+    return 0;
+  }
+
+  const result = await tenantDb
+    .update(invitations)
+    .set({ status: "declined" })
+    .where(
+      and(
+        eq(invitations.email, email.toLowerCase()),
+        eq(invitations.status, "pending")
+      )
+    )
+    .returning();
+
+  return result.length;
+}
+
 /**
  * Resend invitation
  *
  * Updates expiration date and returns the invitation for resending.
  * Note: The caller should send the email with the updated expiration.
  *
+ * Rate limiting: there is no dedicated "last resent" column, but every resend
+ * (and the initial create) sets expiresAt = now + 7 days. So the time of the
+ * last send can be derived as (expiresAt - 7 days). If that derived send time
+ * is within RESEND_COOLDOWN_MS of now, the resend is rejected. This prevents
+ * indefinitely extending the expiry by hammering resend.
+ *
  * @param invitationId - Invitation ID
  * @param tenantDb - Tenant database client
  * @returns Updated invitation record
+ * @throws InvitationResendCooldownError if resent within the cooldown window
  */
 export async function resendInvitation(
   invitationId: string,
   tenantDb: NeonDatabase<typeof tenantSchema>
 ): Promise<typeof invitations.$inferSelect> {
+  const now = Date.now();
+
+  const existing = await tenantDb.query.invitations.findFirst({
+    where: eq(invitations.id, invitationId),
+  });
+
+  if (!existing) {
+    throw new Error("Invitation not found");
+  }
+
+  // Derive the time of the last send from the current expiry. Only enforce the
+  // cooldown for still-pending invitations (expired ones should be resendable
+  // to revive them). The derived last-send is in the future relative to now
+  // only when the invitation is still within its TTL.
+  if (existing.status === "pending") {
+    const lastSentAt = existing.expiresAt.getTime() - INVITATION_TTL_MS;
+    const elapsed = now - lastSentAt;
+    if (elapsed >= 0 && elapsed < RESEND_COOLDOWN_MS) {
+      throw new InvitationResendCooldownError(RESEND_COOLDOWN_MS - elapsed);
+    }
+  }
+
   // Extend expiration by 7 days from now
-  const newExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const newExpiresAt = new Date(now + INVITATION_TTL_MS);
 
   const [updated] = await tenantDb
     .update(invitations)

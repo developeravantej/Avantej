@@ -573,6 +573,39 @@ export async function updateAppointment(
         assertValidTransition(existing.status, params.status);
       }
 
+      // B.1.3a — F-SVC-05 — Package lock re-check for forward status transitions.
+      // createAppointment rejects bookings against a locked package instance
+      // (see lockedPkg.isLocked check). updateAppointment must mirror that gate:
+      // transitioning an appointment forward into an active/booked state
+      // (confirmed / completed / rescheduled) keeps the credit consumed and is
+      // therefore equivalent to a booking. Terminal releases (cancelled / no-show)
+      // are intentionally exempt — they free credits and must remain possible even
+      // while the package is locked so a member can unwind a blocked booking.
+      const FORWARD_STATUSES = ["confirmed", "completed", "rescheduled"] as const;
+      const isForwardTransition =
+        params.status !== undefined &&
+        params.status !== existing.status &&
+        (FORWARD_STATUSES as readonly string[]).includes(params.status);
+      if (isForwardTransition && existing.packageInstanceId) {
+        // Mirror createAppointment: evaluate expiry/lock first, then read under lock.
+        await evaluateAndExpireIfOverdue(tx as unknown as TenantDb, existing.packageInstanceId);
+        await evaluateAndLockIfOverdue(
+          tx as unknown as NeonDatabase<typeof tenantSchema>,
+          existing.packageInstanceId,
+        );
+        const [lockedPkg] = await tx
+          .select()
+          .from(packageInstances)
+          .where(eq(packageInstances.id, existing.packageInstanceId))
+          .for("update");
+        // allowCreditOverdraft bypasses the lock for trusted customers, matching createAppointment.
+        if (lockedPkg?.isLocked && !lockedPkg.allowCreditOverdraft) {
+          throw new Error(
+            "Package is locked due to unpaid installment. Please complete your payment to continue booking.",
+          );
+        }
+      }
+
       // B.1.4 — Cancellation credit restore
       if (
         params.status === "cancelled" &&

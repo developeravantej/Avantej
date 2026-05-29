@@ -11,7 +11,14 @@
  * ```
  */
 
-import { eq, and, asc, inArray, sql, or, lt, desc } from "drizzle-orm";
+import { eq, and, asc, inArray, sql, or, lt, lte, desc } from "drizzle-orm";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function assertUuids(ids: string[], label: string): void {
+	for (const id of ids) {
+		if (!UUID_RE.test(id)) throw new Error(`Invalid UUID in ${label}: ${id}`);
+	}
+}
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { installments } from "@avantej-core/db/schema/tenant/installments";
 import { packageInstanceStatusHistory } from "@avantej-core/db/schema/tenant/package-instance-status-history";
@@ -227,6 +234,8 @@ export async function listMemberships(
 	if (accessibleNodeIds.length === 0) {
 		return { rows: [], total: 0 };
 	}
+
+	assertUuids(accessibleNodeIds, "listMemberships");
 
 	// Build the accessible-node array literal (same pattern as customer-directory.service.ts:106)
 	const nodeArrayLiteral = sql.raw(
@@ -975,4 +984,33 @@ export async function markCompleteIfFinal(
 			},
 		});
 	});
+}
+
+/**
+ * Transition overdue active package instances to 'expired'.
+ *
+ * Idempotent: a single conditional UPDATE flips rows where the package is
+ * still `active` and its `expiresAt` is on-or-before `now`. Frozen and any
+ * already-terminal statuses (expired/cancelled/completed) are untouched
+ * because the WHERE clause only matches `status = 'active'`. Re-running is
+ * safe — already-expired rows no longer match.
+ *
+ * @returns the number of rows transitioned to 'expired'.
+ */
+export async function expireOverduePackageInstances(
+	tenantDb: TenantDb,
+	now: Date = new Date(),
+): Promise<number> {
+	const updated = await tenantDb
+		.update(packageInstances)
+		.set({ status: "expired", updatedAt: now })
+		.where(
+			and(
+				eq(packageInstances.status, "active"),
+				lte(packageInstances.expiresAt, now),
+			),
+		)
+		.returning({ id: packageInstances.id });
+
+	return updated.length;
 }

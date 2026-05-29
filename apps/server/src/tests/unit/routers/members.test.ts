@@ -13,13 +13,43 @@
  */
 
 import { describe, it, expect, mock, beforeEach } from "bun:test";
+import { ORPCError } from "@orpc/server";
 import { createAdminContext, createStaffContext } from "../../helpers/context.factory";
 import { createMockTenantDb } from "../../helpers/db-mock.factory";
 import { makeMember } from "../../helpers/fixtures";
 
+// Import the REAL service subpath modules so we can spread their genuine
+// exports (classes, types, helpers) and override only the functions under test.
+// NOTE: mocking the `@avantej-core/services` BARREL directly breaks Bun's
+// named-export resolution for `export *` re-exports (the router/guards import
+// `getMembersNewToday`, `PermissionDeniedError`, etc. from the barrel and fail
+// to load). Mocking the specific subpath modules the barrel re-exports keeps
+// those named exports resolvable while still intercepting the functions.
+import * as realPermissionService from "@avantej-core/services/permission.service";
+import * as realHierarchyService from "@avantej-core/services/hierarchy.service";
+import * as realHierarchyValidationService from "@avantej-core/services/hierarchy-validation.service";
+import * as realMemberService from "@avantej-core/services/member.service";
+import * as realMemberStatsService from "@avantej-core/services/member-stats.service";
+
 // ── Mock external service dependencies ──────────────────────────────────────
 
-const mockRequirePermission = mock(() => Promise.resolve());
+// Mirror the real requirePermission contract closely enough for the router
+// guards: a missing tenantDb is an internal error, a missing member is a
+// permission failure (maps to FORBIDDEN via the "Permission denied" prefix in
+// guards.mapToOrpcForbidden). Individual tests override with mockResolved/
+// RejectedValueOnce as needed.
+const mockRequirePermission = mock(
+	async (tenantDb: unknown, member: unknown) => {
+		if (!tenantDb) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: "Tenant database not available",
+			});
+		}
+		if (!member) {
+			throw new Error("Permission denied: user is not a member");
+		}
+	},
+);
 const mockDeactivateMember = mock(async (_db: unknown, memberId: string, _actor: unknown) => ({
 	id: memberId,
 	userId: "u-1",
@@ -29,6 +59,9 @@ const mockDeactivateMember = mock(async (_db: unknown, memberId: string, _actor:
 	joinedAt: new Date(),
 }));
 const mockWriteAudit = mock(() => Promise.resolve());
+const mockGetDescendantNodeIds = mock(() => Promise.resolve([]));
+const mockValidateParentAccess = mock(() => {});
+const mockGetMembersNewToday = mock(() => Promise.resolve({ count: 0, members: [] }));
 
 const mockUpdateMemberRole = mock(() => Promise.resolve());
 const mockReactivateMember = mock(() => Promise.resolve());
@@ -37,16 +70,29 @@ class MockMembershipService {
 	reactivateMember = mockReactivateMember;
 }
 
-mock.module("@avantej-core/services", () => ({
+mock.module("@avantej-core/services/permission.service", () => ({
+	...realPermissionService,
 	requirePermission: mockRequirePermission,
-	deactivateMember: mockDeactivateMember,
-	writeAudit: mockWriteAudit,
-	getDescendantNodeIds: mock(() => Promise.resolve([])),
-	validateParentAccess: mock(() => {}),
+}));
+
+mock.module("@avantej-core/services/hierarchy.service", () => ({
+	...realHierarchyService,
+	getDescendantNodeIds: mockGetDescendantNodeIds,
+}));
+
+mock.module("@avantej-core/services/hierarchy-validation.service", () => ({
+	...realHierarchyValidationService,
+	validateParentAccess: mockValidateParentAccess,
 }));
 
 mock.module("@avantej-core/services/member.service", () => ({
+	...realMemberService,
 	deactivateMember: mockDeactivateMember,
+}));
+
+mock.module("@avantej-core/services/member-stats.service", () => ({
+	...realMemberStatsService,
+	getMembersNewToday: mockGetMembersNewToday,
 }));
 
 mock.module("@avantej-core/services/audit-log.service", () => ({

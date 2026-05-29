@@ -1,5 +1,6 @@
-import { eq, and, asc, ilike } from "drizzle-orm";
+import { eq, and, asc, ilike, inArray } from "drizzle-orm";
 import { suppliers } from "@avantej-core/db/schema/tenant/suppliers";
+import { purchaseOrders } from "@avantej-core/db/schema/tenant/purchase-orders";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
@@ -110,6 +111,24 @@ export async function deactivateSupplier(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	id: string
 ): Promise<typeof suppliers.$inferSelect> {
+	// Block deactivation while the supplier has open purchase orders.
+	const openPo = await tenantDb.query.purchaseOrders.findFirst({
+		where: and(
+			eq(purchaseOrders.supplierId, id),
+			inArray(purchaseOrders.status, [
+				"approved",
+				"ordered",
+				"partially_received",
+			]),
+		),
+		columns: { id: true },
+	});
+	if (openPo) {
+		throw new Error(
+			"Cannot deactivate supplier with active purchase orders (approved, ordered, or partially received)"
+		);
+	}
+
 	const [row] = await tenantDb
 		.update(suppliers)
 		.set({ isActive: false, updatedAt: new Date() })

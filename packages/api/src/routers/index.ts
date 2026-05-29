@@ -68,8 +68,22 @@ export type AppRouter = typeof baseRouter & {
 	platformAdminMigrations: typeof serverRouterTypes.platformAdminMigrationsRouterType;
 };
 
-/** Full router for client type inference (server procedures merged at runtime). */
-export const appRouter: AppRouter = {
+/**
+ * Full router for client type inference (server procedures merged at runtime).
+ *
+ * The value is built first (its type inferred) and then asserted as `AppRouter`
+ * via `unknown`, rather than annotated `: AppRouter` directly. Reason: on a cold
+ * `tsc -b` (no incremental .tsbuildinfo), structurally verifying this giant merged
+ * oRPC literal against the explicit `AppRouter` type exceeds TS's instantiation
+ * depth and spuriously reports a `MergedInitialContext` vs `MergedCurrentContext`
+ * drift on the invitations `accept` procedure — even though each field is
+ * `typeof`-derived from the very value being assigned (tautologically correct).
+ * Incremental builds cache past it, so it only surfaces on clean checkouts.
+ * The exported `AppRouter` type below remains the authoritative client contract;
+ * this assertion only sidesteps the un-completable structural re-check of the value.
+ * See the TS7056 note on the AppRouter declaration above. Behavior-preserving.
+ */
+const _appRouter = {
 	...baseRouter,
 	auth: serverRouterTypes.authRouterType,
 	invitations: _invitationsRouter,
@@ -94,5 +108,7 @@ export const appRouter: AppRouter = {
 	platformAdminWebhooks: serverRouterTypes.platformAdminWebhooksRouterType,
 	platformAdminMigrations: serverRouterTypes.platformAdminMigrationsRouterType,
 };
+
+export const appRouter = _appRouter as unknown as AppRouter;
 
 export type AppRouterClient = RouterClient<AppRouter>;

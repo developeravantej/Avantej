@@ -217,10 +217,10 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 		type LiabRow = { staffId: string; paidCents: number; pendingCents: number; approvedCents: number };
 		let liabPaid = -1;
 		try {
-			const rows = await orpcCall<object, LiabRow[]>(page, "commissionSplits", "liabilityByStaff", {
+			const result = await orpcCall<object, { rows: LiabRow[]; totalCount: number; hasMore: boolean }>(page, "commissionSplits", "liabilityByStaff", {
 				organizationId: TEST_ORG_ID,
 			});
-			const row = rows.find((r) => r.staffId === paidWithSO!.staffId);
+			const row = result.rows.find((r) => r.staffId === paidWithSO!.staffId);
 			liabPaid = row?.paidCents ?? -1;
 		} catch {
 			// ignore

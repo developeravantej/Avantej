@@ -219,6 +219,73 @@ export async function notifyCustomerPackageRejected(
 }
 
 /**
+ * Insert a customer notification when they are promoted off a class-slot
+ * waitlist into a confirmed booking.
+ *
+ * Accepts either a tenant DB client or an in-flight transaction — it only
+ * performs an INSERT, so both satisfy the call.
+ */
+export async function notifyWaitlistPromotion(
+  db: Pick<NeonDatabase<typeof tenantSchema>, "insert">,
+  params: {
+    userId: string;
+    classSlotId: string;
+    appointmentId?: string;
+    className?: string | null;
+  },
+): Promise<void> {
+  const classLabel = params.className ?? "your class";
+  await db.insert(notifications).values({
+    userId: params.userId,
+    type: "waitlist_promotion",
+    title: "A spot opened up — you're booked in",
+    message: `A spot opened up for ${classLabel} and you've been booked in from the waitlist.`,
+    relatedId: params.appointmentId ?? params.classSlotId,
+    relatedType: params.appointmentId ? "appointment" : "class_slot",
+  });
+}
+
+/**
+ * Insert a "hierarchy_reassignment" notification for each member whose
+ * hierarchy scope changed because the node they were assigned to (or one of
+ * its ancestors) was deleted. Called from the hierarchy delete procedure after
+ * a successful delete + auto-reassign.
+ *
+ * Best-effort: inserts one row per affected user. If `userIds` is empty, this
+ * is a no-op and returns 0. Accepts either a tenant DB client or a transaction
+ * (only INSERT is performed).
+ *
+ * Returns the number of notification rows inserted.
+ */
+export async function notifyHierarchyReassignment(
+  db: Pick<NeonDatabase<typeof tenantSchema>, "insert">,
+  params: {
+    userIds: string[];
+    deletedNodeId: string;
+    deletedNodeName?: string | null;
+  },
+): Promise<number> {
+  const uniqueUserIds = Array.from(new Set(params.userIds.filter(Boolean)));
+  if (uniqueUserIds.length === 0) return 0;
+
+  const nodeLabel = params.deletedNodeName ?? "a location";
+  const title = "Your branch assignment changed";
+  const message = `The location "${nodeLabel}" was removed, so your branch assignment has been moved to its parent. Your access may have changed.`;
+
+  await db.insert(notifications).values(
+    uniqueUserIds.map((userId) => ({
+      userId,
+      type: "hierarchy_reassignment",
+      title,
+      message,
+      relatedId: params.deletedNodeId,
+      relatedType: "hierarchy_node",
+    })),
+  );
+  return uniqueUserIds.length;
+}
+
+/**
  * Mark "package_pending_review" notifications for a given package as read,
  * across every staff member they were sent to. Called after the package is
  * assigned or rejected so the notification clears from staff bell icons.

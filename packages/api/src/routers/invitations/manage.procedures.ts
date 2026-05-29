@@ -128,10 +128,19 @@ export const invitationsManageProcedures = {
         });
       }
 
-      const updated = await resendInvitation(
-        input.invitationId,
-        context.tenantDb
-      );
+      let updated;
+      try {
+        updated = await resendInvitation(input.invitationId, context.tenantDb);
+      } catch (error) {
+        // Rate-limit cooldown: resendInvitation throws InvitationResendCooldownError
+        // when the invitation was resent within the cooldown window.
+        if (error instanceof Error && error.name === "InvitationResendCooldownError") {
+          throw new ORPCError("TOO_MANY_REQUESTS", {
+            message: error.message,
+          });
+        }
+        throw error;
+      }
 
       const organizationName = context.organization?.name || "the organization";
 

@@ -63,21 +63,16 @@ async function generateCancellationNumber(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	date: Date
 ): Promise<string> {
-	// NOTE (BE-M8): No dedicated sequence exists for cancellation numbers
-	// (no tenant_cancellation_seq migration has been authored). The COUNT()+1
-	// approach is retained here. Under high concurrent cancellation volume this
-	// could produce duplicates, but cancellations are rare relative to new orders.
-	// To fix: create migration `CREATE SEQUENCE IF NOT EXISTS tenant_cancellation_seq`
-	// and switch to nextval() as done for sales order numbers above.
+	// BE-M8: Use the dedicated sequence (created in migration 0080) instead of
+	// COUNT()+1 to prevent duplicate cancellation numbers under concurrent
+	// cancellations, mirroring generateSalesOrderNumber above.
 	const datePart = formatDateYYYYMMDD(date);
 	const prefix = `CAN-${datePart}-`;
 
-	const result = await tenantDb
-		.select({ total: count() })
-		.from(salesOrders)
-		.where(sql`${salesOrders.cancellationNumber} LIKE ${prefix + "%"}`);
-
-	const seq = (result[0]?.total ?? 0) + 1;
+	const result = await tenantDb.execute(
+		sql`SELECT nextval('tenant_cancellation_seq') AS seq`,
+	);
+	const seq = Number((result.rows[0] as { seq: unknown }).seq);
 	return `${prefix}${String(seq).padStart(4, "0")}`;
 }
 

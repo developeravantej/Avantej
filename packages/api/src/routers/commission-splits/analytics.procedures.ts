@@ -79,6 +79,11 @@ const liabilitySummaryProcedure = tenantProcedure
  * liabilityByStaff (§1.9): single GROUP BY query — one row per staff with
  * pending/approved/paid totals. LIMIT 500. Scoped by accessibleNodeIds.
  * Requires commission_management:read.
+ *
+ * Returns `{ rows, totalCount, hasMore }` (F-COM-07) so callers can detect when
+ * the staff list was truncated at the 500-row cap instead of silently dropping
+ * rows. `hasMore === true` signals the org exceeds the cap and a narrower
+ * branch/date filter (or future cursor pagination) is needed.
  */
 const liabilityByStaffProcedure = tenantProcedure
 	.input(

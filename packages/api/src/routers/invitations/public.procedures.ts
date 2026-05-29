@@ -1,6 +1,7 @@
 import { user } from "@avantej-core/db/schema/auth";
 import { invitations } from "@avantej-core/db/schema/tenant/invitations";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { MembershipService } from "@avantej-core/db/services/membership.service";
 import { getInvitationByToken, validateInvitation } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
@@ -102,6 +103,18 @@ export const invitationsPublicProcedures = {
         invitationId: invitation!.id,
         tenantDb: context.tenantDb,
       });
+
+      // Client-role members need a customer_profiles stub so they can be
+      // onboarded (mirrors the apps/server accept override, which also fires
+      // GHL sync). The base path runs without GHL; we still create the stub so
+      // clients accepting via this path aren't left without a profile row.
+      // Idempotent via onConflictDoNothing on the unique userId.
+      if (invitation!.role === "client") {
+        await context.tenantDb
+          .insert(customerProfiles)
+          .values({ userId: context.session.user.id })
+          .onConflictDoNothing({ target: customerProfiles.userId });
+      }
 
       return {
         success: true,

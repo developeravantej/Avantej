@@ -1,6 +1,7 @@
-import { eq, and, gte, lte, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, lt, inArray, ne } from "drizzle-orm";
 import { coachIntakeAvailability } from "@avantej-core/db/schema/tenant/coach-intake-availability";
 import { coachIntakeExceptions } from "@avantej-core/db/schema/tenant/coach-intake-exceptions";
+import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { user } from "@avantej-core/db/schema/auth";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
@@ -174,6 +175,56 @@ export async function computeOpenIntakeSlots(
 		claimedKeys.add(`${dateStr}|${exc.startTime}|${exc.endTime}`);
 	}
 
+	// F-CRM-08: also subtract the trainer's REAL appointments so a slot that
+	// overlaps an existing booking is not shown as open. coach_intake_availability
+	// and appointments both key trainerId on members.id, so we match directly.
+	// One range query (not per-slot): fetch the trainer's non-cancelled
+	// appointments whose start falls within the requested window, then test each
+	// candidate intake slot for time overlap on its calendar day.
+	const apptRangeStart = new Date(`${startDate}T00:00:00`);
+	// Exclusive upper bound = day AFTER endDate at 00:00 local, so the whole of
+	// endDate is covered regardless of appointment time.
+	const apptRangeEnd = new Date(`${endDate}T00:00:00`);
+	apptRangeEnd.setDate(apptRangeEnd.getDate() + 1);
+
+	const trainerAppointments = await tenantDb
+		.select({
+			startTime: appointments.startTime,
+			endTime: appointments.endTime,
+		})
+		.from(appointments)
+		.where(
+			and(
+				eq(appointments.trainerId, trainerId),
+				gte(appointments.startTime, apptRangeStart),
+				lt(appointments.startTime, apptRangeEnd),
+				// Cancelled appointments free the slot back up.
+				ne(appointments.status, "cancelled"),
+			),
+		);
+
+	// Build a slot Date from a calendar date + HH:MM in local time, matching the
+	// local-time day iteration used below and the appointment timestamps (which
+	// are stored without a timezone).
+	const slotDate = (dateStr: string, hhmm: string): Date =>
+		new Date(`${dateStr}T${hhmm.length === 5 ? `${hhmm}:00` : hhmm}`);
+
+	const overlapsAppointment = (
+		dateStr: string,
+		startHHMM: string,
+		endHHMM: string,
+	): boolean => {
+		const winStart = slotDate(dateStr, startHHMM).getTime();
+		const winEnd = slotDate(dateStr, endHHMM).getTime();
+		for (const appt of trainerAppointments) {
+			const aStart = appt.startTime.getTime();
+			const aEnd = appt.endTime.getTime();
+			// Half-open overlap: [winStart, winEnd) intersects [aStart, aEnd)
+			if (winStart < aEnd && aStart < winEnd) return true;
+		}
+		return false;
+	};
+
 	// 3. Iterate each calendar day
 	const result: OpenIntakeDay[] = [];
 	const current = new Date(`${startDate}T12:00:00`);
@@ -186,7 +237,9 @@ export async function computeOpenIntakeSlots(
 		if (dayWindows && dayWindows.length > 0) {
 			const dateStr = toDateString(current);
 			const openWindows = dayWindows.filter(
-				(w) => !claimedKeys.has(`${dateStr}|${w.startTime}|${w.endTime}`),
+				(w) =>
+					!claimedKeys.has(`${dateStr}|${w.startTime}|${w.endTime}`) &&
+					!overlapsAppointment(dateStr, w.startTime, w.endTime),
 			);
 
 			if (openWindows.length > 0) {

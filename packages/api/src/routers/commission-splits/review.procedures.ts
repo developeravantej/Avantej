@@ -6,6 +6,7 @@ import {
 	listPendingReview,
 	resolvePendingReview,
 } from "@avantej-core/services/commission-splits.service";
+import { hasPermission } from "@avantej-core/services";
 import { getControlPanelDb } from "../../lib/context-helpers";
 
 // ---------------------------------------------------------------------------
@@ -43,7 +44,16 @@ const listPendingReviewProcedure = tenantProcedure
 	});
 
 // resolveReview: promote pending_review → pending (approve) or void (reject).
-// Requires commission_review:resolve (distinct from bulk approve permission).
+//
+// F-COM-05 (best-guess product decision): authorize via EITHER
+// `commission_review:resolve` OR `commission_payout:create`.
+// Rationale: manual adjustments are created by `createManualAdjustment`, which is
+// gated on `commission_payout:create`. An operator entitled to create adjustments
+// frequently lacks the distinct `commission_review:resolve` permission, which
+// blocked the self-serve flow (create → resolve). Accepting either permission lets
+// an authorized payout operator resolve the adjustments they are entitled to,
+// without weakening the guard to "no permission required". Members holding only
+// `commission_review:resolve` (dedicated reviewers) are unaffected.
 const resolveReviewProcedure = tenantProcedure
 	.input(
 		z.discriminatedUnion("action", [
@@ -66,7 +76,23 @@ const resolveReviewProcedure = tenantProcedure
 		
 
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "commission_review", "resolve")
+
+		// F-COM-05: accept EITHER commission_review:resolve OR commission_payout:create.
+		const canResolve = await hasPermission(
+			context.tenantDb,
+			context.member,
+			"commission_review",
+			"resolve",
+		);
+		if (!canResolve) {
+			// Fall back to the payout-operator permission; throws FORBIDDEN if neither held.
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"commission_payout",
+				"create",
+			);
+		}
 
 		try {
 			return await resolvePendingReview(

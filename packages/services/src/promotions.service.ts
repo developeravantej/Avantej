@@ -150,6 +150,38 @@ export async function validatePromoCode(
 		throw new PromoValidationError("Order amount too low for this promotion.");
 	}
 
+	// 7a. Check branch scope (F-CRM-06). A null promotion.branchId is org-wide
+	//     and applies to any branch; a non-null branchId must match exactly.
+	if (promotion.branchId !== null && params.branchId !== promotion.branchId) {
+		throw new PromoValidationError("Promotion is not valid for this branch.");
+	}
+
+	// 7b. Check applicable product/service scope (F-CRM-03). When either
+	//     applicable list is non-empty, the order must contain at least one item
+	//     from the matching set. Empty/null lists = applies to everything.
+	const applicableProductIds = promotion.applicableProductIds ?? [];
+	const applicableServiceIds = promotion.applicableServiceIds ?? [];
+	const isProductScoped = applicableProductIds.length > 0;
+	const isServiceScoped = applicableServiceIds.length > 0;
+
+	if (isProductScoped || isServiceScoped) {
+		const orderProductIds = params.productIds ?? [];
+		const orderServiceIds = params.serviceIds ?? [];
+
+		const productMatch =
+			isProductScoped &&
+			orderProductIds.some((id) => applicableProductIds.includes(id));
+		const serviceMatch =
+			isServiceScoped &&
+			orderServiceIds.some((id) => applicableServiceIds.includes(id));
+
+		if (!productMatch && !serviceMatch) {
+			throw new PromoValidationError(
+				"Promotion does not apply to any item in this order.",
+			);
+		}
+	}
+
 	// 8. Calculate discount amount
 	let discountAmount: number;
 
@@ -199,20 +231,33 @@ export async function applyPromotion(
 			throw new Error("PROMO_INACTIVE: Promotion code is no longer active");
 		}
 
+		// Atomic check-and-increment of the global usage limit (F-CRM-04). The
+		// conditional WHERE makes the limit enforcement concurrency-safe: only one
+		// of N racing transactions can take the final slot. 0 rows affected means
+		// the limit was already reached, so we reject before recording usage.
+		const [updated] = await tx
+			.update(promotions)
+			.set({
+				usageCount: sql`${promotions.usageCount} + 1`,
+			})
+			.where(
+				and(
+					eq(promotions.id, promotionId),
+					sql`(${promotions.usageLimit} IS NULL OR ${promotions.usageCount} < ${promotions.usageLimit})`,
+				),
+			)
+			.returning();
+
+		if (!updated) {
+			throw new Error("PROMO_LIMIT_REACHED: Promotion usage limit reached");
+		}
+
 		await tx.insert(promotionUsages).values({
 			promotionId,
 			customerId: data.customerId,
 			salesOrderId: data.salesOrderId,
 			discountAmount: data.discountAmount,
 		});
-
-		const [updated] = await tx
-			.update(promotions)
-			.set({
-				usageCount: sql`${promotions.usageCount} + 1`,
-			})
-			.where(eq(promotions.id, promotionId))
-			.returning();
 
 		return updated;
 	});

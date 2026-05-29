@@ -6,6 +6,7 @@ import {
 	cancelReceipt,
 	createReceipt,
 	createSupplierInvoice,
+	updateSupplierInvoice,
 	disputeInvoice,
 	getInvoicePreview,
 	getReceiptById,
@@ -112,7 +113,12 @@ export const goodsReceiptsRouter = {
 		assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "update");
 			try {
-				return await cancelReceipt(context.tenantDb, input.id);
+				return await cancelReceipt(context.tenantDb, input.id, {
+					userId: context.member.userId,
+					memberId: context.member.id,
+					role: context.member.role,
+					branchId: context.member.hierarchyScopeId ?? undefined,
+				});
 			} catch (error) {
 				throw new ORPCError("BAD_REQUEST", {
 					message:
@@ -152,6 +158,37 @@ export const goodsReceiptsRouter = {
 				invoiceDate: new Date(input.invoiceDate),
 				dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
 			});
+		}),
+
+	// F-INV-04: edit a supplier invoice while pending/disputed.
+	updateInvoice: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				invoiceId: z.string().uuid(),
+				invoiceNumber: z.string().min(1).optional(),
+				totalCents: z.number().int().nonnegative().optional(),
+				taxCents: z.number().int().nonnegative().optional(),
+				invoiceDate: z.string().datetime().optional(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "update");
+			try {
+				return await updateSupplierInvoice(context.tenantDb, {
+					invoiceId: input.invoiceId,
+					invoiceNumber: input.invoiceNumber,
+					totalCents: input.totalCents,
+					taxCents: input.taxCents,
+					invoiceDate: input.invoiceDate ? new Date(input.invoiceDate) : undefined,
+				});
+			} catch (error) {
+				throw new ORPCError("BAD_REQUEST", {
+					message:
+						error instanceof Error ? error.message : "Failed to update invoice",
+				});
+			}
 		}),
 
 	listInvoices: tenantProcedure

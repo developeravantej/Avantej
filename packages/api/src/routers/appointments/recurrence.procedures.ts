@@ -130,7 +130,20 @@ export const appointmentsRecurrenceProcedures = {
           endsAfterOccurrences: z.number().int().min(1).optional(),
           endsOn: z.string().datetime().optional(),
         }).optional(),
-      })
+      }).refine(
+        (data) => {
+          // F-SVC-06: reject an end date that falls before the split point.
+          // fromDate is a "YYYY-MM-DD" date; endsOn is an ISO datetime.
+          if (!data.recurrence?.endsOn) return true;
+          const fromDate = new Date(`${data.fromDate}T00:00:00.000Z`);
+          const endsOn = new Date(data.recurrence.endsOn);
+          return endsOn.getTime() >= fromDate.getTime();
+        },
+        {
+          message: "Recurrence end date (endsOn) must not be before the split date (fromDate).",
+          path: ["recurrence", "endsOn"],
+        },
+      )
     )
     .handler(async ({ input, context }) => {
 		assertOrgContextMatch(context, input);

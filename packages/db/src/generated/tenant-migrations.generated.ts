@@ -4493,6 +4493,77 @@ UPDATE "partner_stripe_accounts"
 CREATE INDEX IF NOT EXISTS "partner_stripe_accounts_payouts_enabled_idx"
   ON "partner_stripe_accounts" ("payouts_enabled");
 ` },
+	{ hash: "0079_stock_movements", sql: `-- Migration: 0079 — stock_movements audit trail (F-INV-06)
+-- Records every product-stock mutation with a signed delta and the source
+-- document (goods receipt, transfer order, manual adjustment, etc.) so stock
+-- changes are traceable. Previously adjustStock() mutated product_stock with no
+-- audit linkage, losing the "who/why/from-what-document" trail.
+--
+-- Idempotent: re-runs on partially-migrated tenants are safe.
+
+CREATE TABLE IF NOT EXISTS "stock_movements" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "product_id" uuid NOT NULL REFERENCES "products"("id") ON DELETE CASCADE,
+  "branch_id" uuid NOT NULL REFERENCES "hierarchy_nodes"("id") ON DELETE RESTRICT,
+  "delta" integer NOT NULL,
+  "quantity_after" integer,
+  "reason" text NOT NULL,
+  "source_type" text,
+  "source_id" uuid,
+  "actor_user_id" text,
+  "created_at" timestamptz NOT NULL DEFAULT now()
+);
+--> statement-breakpoint
+
+CREATE INDEX IF NOT EXISTS "stock_movements_product_branch_idx"
+  ON "stock_movements" ("product_id", "branch_id");
+--> statement-breakpoint
+
+CREATE INDEX IF NOT EXISTS "stock_movements_source_idx"
+  ON "stock_movements" ("source_type", "source_id");
+` },
+	{ hash: "0080_cancellation_sequence", sql: `-- Migration: 0080 — tenant_cancellation_seq (F-SALE-09)
+-- generateCancellationNumber() used COUNT(*)+1 over existing cancellation
+-- numbers, which races under concurrent cancellations (two cancellations can
+-- read the same count and mint duplicate CAN-YYYYMMDD-NNNN numbers). Switch to a
+-- DB sequence (same pattern as tenant_sales_order_seq) so number allocation is
+-- atomic. The date prefix still groups by day; the sequence is globally
+-- monotonic (numbers do not reset daily — uniqueness is the guarantee, not
+-- per-day reset).
+--
+-- Idempotent: re-runs on partially-migrated tenants are safe.
+
+CREATE SEQUENCE IF NOT EXISTS "tenant_cancellation_seq";
+` },
+	{ hash: "0081_credit_point_ledger", sql: `-- Migration: 0081 — credit_point_ledger (F-CRM-02, best-guess loyalty redemption)
+-- customer_profiles.credit_points was write-only: points could be stored but
+-- never consumed, with no audit trail. This adds an append-only ledger so every
+-- earn/redeem/adjust is recorded with a running balance_after. The authoritative
+-- balance remains customer_profiles.credit_points; the ledger is the audit trail.
+--
+-- BEST-GUESS PRODUCT DECISION (review): redemption valuation is 1 point = 1 cent
+-- of discount, applied at POS via an optional creditPointsToRedeem input, capped
+-- at the customer's balance and the order subtotal. Adjust the rate/policy here
+-- and in redeemCreditPoints() if product intends otherwise.
+--
+-- Idempotent: re-runs on partially-migrated tenants are safe.
+
+CREATE TABLE IF NOT EXISTS "credit_point_ledger" (
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "customer_user_id" text NOT NULL,
+  "delta" integer NOT NULL,
+  "balance_after" integer NOT NULL,
+  "reason" text NOT NULL,
+  "source_type" text,
+  "source_id" uuid,
+  "actor_user_id" text,
+  "created_at" timestamptz NOT NULL DEFAULT now()
+);
+--> statement-breakpoint
+
+CREATE INDEX IF NOT EXISTS "credit_point_ledger_customer_idx"
+  ON "credit_point_ledger" ("customer_user_id");
+` },
 ] as const;
 
 export const LATEST_MIGRATION_VERSION =

@@ -36,6 +36,9 @@ export const hierarchyReadProcedures = {
         });
       }
 
+      // Check permission
+      await requirePermissionOrpc(tenantDb, member, "hierarchy_management", "read");
+
       // Use the accessibleNodeIds from context (already calculated in createContext)
       const finalAccessibleNodeIds = accessibleNodeIds || [];
 

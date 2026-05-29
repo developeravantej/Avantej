@@ -57,6 +57,8 @@ export * from "./preferred-times";
 export * from "./product-categories";
 export * from "./product-stock";
 export * from "./products";
+export * from "./credit-point-ledger";
+export * from "./stock-movements";
 export * from "./promotions";
 export * from "./purchase-orders";
 export * from "./recurrence-rules";

@@ -151,7 +151,12 @@ export {
 } from "./customer-directory.service";
 // Customer profile services
 export {
+	adjustCreditPoints,
+	applyCreditPointDeltaTx,
+	type CreditPointMutationParams,
+	type CreditPointMutationResult,
 	getCustomerProfile,
+	redeemCreditPoints,
 	type UpsertCustomerProfileParams,
 	upsertCustomerProfile,
 } from "./customer-profile.service";
@@ -287,6 +292,7 @@ export {
 	cancelPackageInstance,
 	type CreatePackageInstanceParams,
 	createPackageInstance,
+	expireOverduePackageInstances,
 	type ExtendPackageInstanceParams,
 	extendPackageInstance,
 	type FreezePackageInstanceParams,

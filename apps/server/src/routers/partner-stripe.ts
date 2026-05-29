@@ -77,6 +77,7 @@ export const partnerStripeRouter = {
 					typeof import("@avantej-core/db/schema/tenant-schema")
 				>;
 				session?: { user?: { email?: string } };
+				accessibleNodeIds?: string[];
 			};
 			const orgId = ctx.organizationId ?? input.organizationId;
 			if (!orgId) {
@@ -88,7 +89,11 @@ export const partnerStripeRouter = {
 
 			// Verify the partner is a real, active member of THIS tenant.
 			const [member] = await ctx.tenantDb
-				.select({ userId: members.userId, status: members.status })
+				.select({
+					userId: members.userId,
+					status: members.status,
+					hierarchyScopeId: members.hierarchyScopeId,
+				})
 				.from(members)
 				.where(eq(members.userId, input.partnerId))
 				.limit(1);
@@ -98,6 +103,17 @@ export const partnerStripeRouter = {
 			if (member.status !== "active") {
 				throw new ORPCError("BAD_REQUEST", {
 					message: `Partner is not active (status=${member.status})`,
+				});
+			}
+
+			// F-COM-09 (RBAC): the caller may only onboard partners whose branch
+			// (hierarchy scope) falls within their accessible node set. Mirrors the
+			// branch-access guard on read paths (read.procedures.ts:121) and the
+			// member-scope checks in customer-profiles.ts.
+			const accessibleNodeIds = ctx.accessibleNodeIds ?? [];
+			if (!accessibleNodeIds.includes(member.hierarchyScopeId)) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Partner is outside your accessible scope",
 				});
 			}
 

@@ -11,6 +11,9 @@ import { tenantProcedure } from "../../index";
 import { requirePermissionOrpc, assertOrgContextMatch, assertTenantContext } from "../../guards";
 import { tryGetControlPanelDb } from "../../lib/context-helpers";
 import type { ControlPanelDb } from "../../lib/context-helpers";
+import { notifyHierarchyReassignment } from "@avantej-core/services/notification.service";
+import { members } from "@avantej-core/db/schema/tenant/members";
+import { inArray } from "drizzle-orm";
 
 export const hierarchyDeleteProcedures = {
 	deleteNode: tenantProcedure
@@ -131,9 +134,59 @@ export const hierarchyDeleteProcedures = {
         }
       }
 
+      // Collect members affected by this delete BEFORE it happens. With
+      // autoReassignMembers, every member scoped to the deleted node OR any of
+      // its descendants (which are recursively deleted) gets moved to the
+      // parent/root. We capture them up-front so we can notify them after a
+      // successful delete (their row's hierarchyScopeId no longer matches the
+      // deleted subtree once reassigned).
+      let affectedMemberUserIds: string[] = [];
+      let deletedNodeName: string | null = null;
+      if (deleteOptions.autoReassignMembers) {
+        try {
+          const subtreeIds = await getDescendantNodeIds(tenantDb, input.nodeId);
+          const idsToCheck =
+            subtreeIds.length > 0 ? subtreeIds : [input.nodeId];
+          const affectedMembers = await tenantDb.query.members.findMany({
+            where: inArray(members.hierarchyScopeId, idsToCheck),
+            columns: { userId: true },
+          });
+          affectedMemberUserIds = affectedMembers.map((m: { userId: string }) => m.userId);
+          const deletedNode = await tenantDb.query.hierarchyNodes.findFirst({
+            where: (nodes: any, { eq: eqOp }: any) => eqOp(nodes.id, input.nodeId),
+            columns: { name: true },
+          });
+          deletedNodeName = deletedNode?.name ?? null;
+        } catch (collectErr) {
+          // Non-fatal: if we can't enumerate affected members we still delete,
+          // we just can't notify them. Log so the gap is visible.
+          console.error(
+            "Failed to collect members for hierarchy reassignment notification:",
+            collectErr,
+          );
+        }
+      }
+
       // Delete node with automatic handling
       try {
         await deleteHierarchyNode(tenantDb, input.nodeId, deleteOptions);
+
+        // Best-effort: notify each reassigned member that their scope changed.
+        // Never fail the delete on a notification error — but DO log it.
+        if (affectedMemberUserIds.length > 0) {
+          try {
+            await notifyHierarchyReassignment(tenantDb, {
+              userIds: affectedMemberUserIds,
+              deletedNodeId: input.nodeId,
+              deletedNodeName,
+            });
+          } catch (notifyErr) {
+            console.error(
+              "Failed to notify reassigned members after hierarchy delete:",
+              notifyErr,
+            );
+          }
+        }
 
         // Sync: remove deleted branches from organization_branches registry
         if (controlPanelDb && branchNodeIds.length > 0) {

@@ -87,12 +87,26 @@ export async function convertWalkInPaymentToPackage(
 
 		// 2. Verify target package_instance exists.
 		const [pkg] = await tx
-			.select({ id: packageInstances.id })
+			.select({ id: packageInstances.id, clientId: packageInstances.clientId })
 			.from(packageInstances)
 			.where(eq(packageInstances.id, targetPackageInstanceId));
 		if (!pkg) {
 			throw new ORPCError("NOT_FOUND", {
 				message: `Target package_instance ${targetPackageInstanceId} not found`,
+			});
+		}
+
+		// 2a. SECURITY (F-CRM-09): verify the walk-in payment and the target
+		// package belong to the SAME customer. `package_instances.client_id` holds
+		// the member's user id; the walk-in payment links to its customer via
+		// `customer_id` (members.userId) / `user_id` (Control Panel user.id). Reject
+		// any attempt to convert one customer's payment into another's package.
+		const walkInOwnerIds = [walkIn.customerId, walkIn.userId].filter(
+			(id): id is string => id != null,
+		);
+		if (!pkg.clientId || !walkInOwnerIds.includes(pkg.clientId)) {
+			throw new ORPCError("FORBIDDEN", {
+				message: `Walk-in payment ${walkInPaymentId} does not belong to the owner of package_instance ${targetPackageInstanceId}`,
 			});
 		}
 

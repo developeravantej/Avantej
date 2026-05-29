@@ -3,11 +3,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { AllCommissionsPage } from "@/components/pages/commissions/all-tab";
 import { LiabilityTab } from "@/components/pages/commissions/liability-tab";
+import { ManualAdjustmentDialog } from "@/components/pages/commissions/manual-adjustment-dialog";
 import { MyCommissionsPage } from "@/components/pages/commissions/mine-tab";
 import { ReviewTab } from "@/components/pages/commissions/review-tab";
 import { PayoutsTab } from "@/components/pages/commissions/payouts-tab";
+import { Button } from "@/components/ui/button";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
 
@@ -42,6 +45,11 @@ function CommissionsPage() {
 		staleTime: 30_000,
 	});
 	const pendingReviewTotal = reviewMeta?.total ?? 0;
+
+	// F-COM-01: gate the "New Adjustment" trigger on the same permission the
+	// manualAdjustment procedure requires (commission_payout:create).
+	const canCreateAdjustment = hasPermission("commission_payout:create");
+	const [adjustmentOpen, setAdjustmentOpen] = useState(false);
 
 	const PILLS = [
 		{ id: "mine", label: "My Commissions", badge: null as number | null },
@@ -115,11 +123,31 @@ function CommissionsPage() {
 						</button>
 					))}
 				</div>
+
+				{canCreateAdjustment && (
+					<div className="ml-auto">
+						<Button
+							size="sm"
+							className="h-8 bg-[#0a0a0a] text-white hover:bg-[#262626]"
+							onClick={() => setAdjustmentOpen(true)}
+						>
+							New Adjustment
+						</Button>
+					</div>
+				)}
 			</header>
 
 			<div className={tab === "payouts" ? "flex-1 flex flex-col" : "py-6"}>
 				{content}
 			</div>
+
+			{canCreateAdjustment && organizationId && (
+				<ManualAdjustmentDialog
+					open={adjustmentOpen}
+					onOpenChange={setAdjustmentOpen}
+					organizationId={organizationId}
+				/>
+			)}
 		</div>
 	);
 }

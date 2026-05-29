@@ -58,6 +58,13 @@ export async function createTaxRate(
 	tenantDb: TenantDb,
 	data: CreateTaxRateParams,
 ): Promise<typeof taxRates.$inferSelect> {
+	if (
+		data.effectiveUntil !== undefined &&
+		data.effectiveUntil <= data.effectiveFrom
+	) {
+		throw new Error("effectiveUntil must be after effectiveFrom");
+	}
+
 	return tenantDb.transaction(async (tx) => {
 		if (data.isDefault) {
 			await tx
@@ -93,6 +100,26 @@ export async function updateTaxRate(
 	id: string,
 	data: Partial<CreateTaxRateParams>,
 ): Promise<typeof taxRates.$inferSelect> {
+	// Validate the effective window using the resulting values (incoming
+	// overrides where provided, otherwise the existing row's values).
+	if (data.effectiveFrom !== undefined || data.effectiveUntil !== undefined) {
+		const existing = await tenantDb.query.taxRates.findFirst({
+			where: eq(taxRates.id, id),
+			columns: { effectiveFrom: true, effectiveUntil: true },
+		});
+		if (!existing) {
+			throw new Error("Tax rate not found");
+		}
+		const effectiveFrom = data.effectiveFrom ?? existing.effectiveFrom;
+		const effectiveUntil =
+			data.effectiveUntil !== undefined
+				? data.effectiveUntil
+				: existing.effectiveUntil;
+		if (effectiveUntil != null && effectiveUntil <= effectiveFrom) {
+			throw new Error("effectiveUntil must be after effectiveFrom");
+		}
+	}
+
 	const [row] = await tenantDb
 		.update(taxRates)
 		.set({

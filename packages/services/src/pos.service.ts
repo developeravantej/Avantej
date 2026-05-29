@@ -22,11 +22,13 @@ import { taxRates } from "@avantej-core/db/schema/tenant/tax-rates";
 import { promotions, promotionUsages } from "@avantej-core/db/schema/tenant/promotions";
 import { installmentPlans } from "@avantej-core/db/schema/tenant/installment-plans";
 import { walkInCustomers } from "@avantej-core/db/schema/tenant/walk-in-customers";
+import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { ORPCError } from "@orpc/server";
 import { writeAudit } from "./audit-log.service";
+import { applyCreditPointDeltaTx } from "./customer-profile.service";
 import { validatePromoCode } from "./promotions.service";
 import { createInstallmentSchedule, calculateCreditsUnlocked, calculateInstallmentAmounts, confirmInstallmentPayment } from "./installment.service";
 // Agent 2.3 — Phase 2 Wave 3b — J2 — fallback tax-rate resolution
@@ -60,6 +62,12 @@ export interface RecordPosSaleInput {
 	items: PosLineItem[];
 	// Promo
 	promotionCode?: string; // validated server-side
+	// Credit-point redemption (F-CRM-02). Non-negative integer count of points to
+	// spend. Applied as a discount AFTER any promo, at 1 point = 1 cent (best-guess
+	// product decision — see comment in recordPosSale), capped at the post-promo
+	// subtotal so the payable total never goes below zero. Only consumed if the
+	// sale commits (redeemed inside the same transaction). Members only.
+	creditPointsToRedeem?: number;
 	// Tax — undefined means no tax (0%)
 	taxRateId?: string;
 	// Payment
@@ -88,6 +96,8 @@ export interface RecordPosSaleResult {
 	installmentIds?: string[];
 	subtotalCents: number;
 	discountCents: number;
+	/** F-CRM-02: credit points actually redeemed on this sale (1 point = 1 cent). */
+	creditPointsRedeemed: number;
 	taxCents: number;
 	totalCents: number;
 	changeDueCents?: number; // for cash payments where tendered > total
@@ -269,6 +279,21 @@ export async function recordPosSale(
 	}
 
 	// ------------------------------------------------------------------
+	// F-CRM-02: credit-point redemption is members-only (balance lives on
+	// customer_profiles keyed by the member's userId). Reject up front so the
+	// operator gets a clean error rather than a silent no-op.
+	// ------------------------------------------------------------------
+	const requestedRedeemPoints = Math.max(
+		0,
+		Math.floor(input.creditPointsToRedeem ?? 0),
+	);
+	if (requestedRedeemPoints > 0 && input.customerType !== "member") {
+		throw new ORPCError("BAD_REQUEST", {
+			message: "Credit points can only be redeemed for member customers.",
+		});
+	}
+
+	// ------------------------------------------------------------------
 	// BE-C5: Validate walk-in customerId against walk_in_customers table
 	// ------------------------------------------------------------------
 	if (input.customerType === "walk_in" && input.customerId !== "anonymous") {
@@ -332,6 +357,14 @@ export async function recordPosSale(
 				.filter((i) => i.type === "service" || i.type === "package")
 				.map((i) => i.refId)
 				.filter((id): id is string => !!id);
+			// Audit-prove H1: a promotion scoped solely to products (applicableProductIds
+			// non-empty, applicableServiceIds empty) is wrongly rejected unless the cart's
+			// product refIds are passed too. Collect product line-item refIds alongside
+			// services so validatePromoCode can match product-scoped promos.
+			const productIds = input.items
+				.filter((i) => i.type === "product")
+				.map((i) => i.refId)
+				.filter((id): id is string => !!id);
 
 			// validatePromoCode throws on failure — use the tx-compatible call
 			// (Drizzle tx is structurally compatible with TenantDb for SELECT operations)
@@ -343,6 +376,7 @@ export async function recordPosSale(
 					customerId: input.customerType === "walk_in" ? undefined : input.customerId,
 					orderAmount: subtotalCents,
 					serviceIds: serviceIds.length > 0 ? serviceIds : undefined,
+					productIds: productIds.length > 0 ? productIds : undefined,
 					branchId: input.branchId,
 				},
 			);
@@ -355,6 +389,49 @@ export async function recordPosSale(
 			throw new ORPCError("BAD_REQUEST", {
 				message: "Discount cannot exceed subtotal",
 			});
+		}
+
+		// Step 4b: Apply credit-point redemption (F-CRM-02).
+		//
+		// ASSUMPTION (best-guess product decision, flagged for review):
+		//   1 credit point == 1 cent of discount.
+		//
+		// Redemption is applied AFTER the promo discount and capped at the
+		// post-promo subtotal (subtotal - promoDiscount) so it can never push the
+		// payable total below zero. We additionally clamp to the customer's actual
+		// available balance (read with FOR UPDATE inside this tx) so an over-request
+		// degrades gracefully to "spend what you have" instead of failing the sale.
+		// The deduction + ledger insert run in THIS transaction, so points are only
+		// consumed if the whole sale commits.
+		let creditPointsRedeemed = 0;
+		let creditDiscountCents = 0;
+		if (requestedRedeemPoints > 0 && input.customerType === "member") {
+			const postPromoSubtotalCents = subtotalCents - discountCents;
+
+			// Lock the profile row and read the live balance.
+			const [profile] = await tx
+				.select({ creditPoints: customerProfiles.creditPoints })
+				.from(customerProfiles)
+				.where(eq(customerProfiles.userId, input.customerId))
+				.for("update")
+				.limit(1);
+
+			const availablePoints = profile?.creditPoints ?? 0;
+			// 1 point = 1 cent, capped at post-promo subtotal and available balance.
+			creditPointsRedeemed = Math.min(
+				requestedRedeemPoints,
+				postPromoSubtotalCents,
+				availablePoints,
+			);
+
+			if (creditPointsRedeemed > 0) {
+				creditDiscountCents = creditPointsRedeemed; // 1 point == 1 cent
+				// Persist the deduction + ledger row atomically within this tx.
+				// sourceId backfilled below once the sales order id is known would be
+				// ideal, but sourceType+reason are recorded now; we instead defer the
+				// ledger write until after the sales order is inserted (see Step 7b)
+				// so sourceId can reference it.
+			}
 		}
 
 		// Step 5: Compute tax
@@ -391,7 +468,13 @@ export async function recordPosSale(
 		}
 		const resolvedTaxRateId: string | null = taxRate?.id ?? null;
 
-		const taxBase = Math.max(0, subtotalCents - discountCents);
+		// F-CRM-02: credit redemption reduces the taxable base alongside the promo
+		// discount (1 point = 1 cent). Already capped to the post-promo subtotal and
+		// available balance above, so (subtotal - discount - creditDiscount) >= 0.
+		const taxBase = Math.max(
+			0,
+			subtotalCents - discountCents - creditDiscountCents,
+		);
 		const taxCents = Math.floor((taxBase * (taxRate?.rateInBasisPoints ?? 0)) / 10000);
 		const totalCents = taxBase + taxCents;
 
@@ -453,6 +536,22 @@ export async function recordPosSale(
 			.returning();
 
 		if (!salesOrder) throw new Error("Failed to insert sales_order");
+
+		// Step 7b: Consume redeemed credit points (F-CRM-02).
+		// Now that we have the sales order id we record the deduction + ledger row
+		// with sourceType='pos_redemption' and sourceId = the sales order id. The
+		// profile row was already locked FOR UPDATE above; applyCreditPointDeltaTx
+		// re-locks (cheap, same tx) and validates the balance stays non-negative.
+		if (creditPointsRedeemed > 0) {
+			await applyCreditPointDeltaTx(tx, {
+				customerUserId: input.customerId,
+				signedDelta: -creditPointsRedeemed,
+				reason: `POS sale ${salesOrder.salesOrderNumber} — credit redemption`,
+				sourceType: "pos_redemption",
+				sourceId: salesOrder.id,
+				actorUserId: input.actor.userId,
+			});
+		}
 
 		// Step 8: Insert N sales_order_items
 		// Agent 2.3 — J2: snapshot the active tax rate id on every line so
@@ -572,6 +671,18 @@ export async function recordPosSale(
 				quantity: 1,
 				unitPrice: -discountCents, // negative to represent deduction
 				totalPrice: -discountCents,
+			});
+		}
+
+		// Credit-point redemption discount item (F-CRM-02, 1 point = 1 cent)
+		if (creditDiscountCents > 0) {
+			await tx.insert(paymentItems).values({
+				paymentId: payment.id,
+				itemType: "discount",
+				description: `Credit points redeemed (${creditPointsRedeemed} pts)`,
+				quantity: 1,
+				unitPrice: -creditDiscountCents,
+				totalPrice: -creditDiscountCents,
 			});
 		}
 
@@ -775,6 +886,7 @@ export async function recordPosSale(
 			changes: {
 				subtotalCents,
 				discountCents,
+				creditPointsRedeemed,
 				taxCents,
 				totalCents,
 				items: input.items.length,
@@ -805,6 +917,7 @@ export async function recordPosSale(
 			installmentIds: installmentIds.length > 0 ? installmentIds : undefined,
 			subtotalCents,
 			discountCents,
+			creditPointsRedeemed,
 			taxCents,
 			totalCents,
 			changeDueCents,

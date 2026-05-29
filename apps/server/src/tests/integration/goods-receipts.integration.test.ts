@@ -160,7 +160,12 @@ describe("Goods Receipt Integration (Agent 2.11)", () => {
 		});
 		createdReceiptIds.push(receipt.id);
 
-		const cancelled = await cancelReceipt(tenantDb, receipt.id);
+		const cancelled = await cancelReceipt(tenantDb, receipt.id, {
+			userId: TEST_MEMBER_ID,
+			memberId: TEST_MEMBER_ID,
+			role: "admin",
+			branchId: TEST_BRANCH_NODE_ID,
+		});
 		expect(cancelled!.status).toBe("cancelled");
 
 		const after = await readStock(item.productId, TEST_BRANCH_NODE_ID);

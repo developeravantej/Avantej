@@ -2,6 +2,7 @@ import { ORPCError } from "@orpc/server";
 import { eq, and, asc, or, ilike, sql } from "drizzle-orm";
 import { products } from "@avantej-core/db/schema/tenant/products";
 import { productStock } from "@avantej-core/db/schema/tenant/product-stock";
+import { stockMovements } from "@avantej-core/db/schema/tenant/stock-movements";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
@@ -177,11 +178,26 @@ export async function upsertProductStock(
 	return row;
 }
 
+/**
+ * Optional audit metadata for a stock movement (F-INV-06). When provided,
+ * `adjustStock` appends a row to `stock_movements` recording the signed delta,
+ * resulting quantity, a human reason, and the source document. All fields are
+ * optional so existing callers remain backward-compatible — a default reason
+ * of "adjustment" is used when none is supplied.
+ */
+export type StockMovementMeta = {
+	reason?: string;
+	sourceType?: string;
+	sourceId?: string;
+	actorUserId?: string;
+};
+
 export async function adjustStock(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	productId: string,
 	branchId: string,
-	delta: number
+	delta: number,
+	meta: StockMovementMeta = {}
 ): Promise<typeof productStock.$inferSelect> {
 	// Try atomic update first.
 	// For negative deltas, gate the UPDATE so quantity cannot go below zero.
@@ -203,6 +219,13 @@ export async function adjustStock(
 		.returning();
 
 	if (updated) {
+		await recordStockMovement(tenantDb, {
+			productId,
+			branchId,
+			delta,
+			quantityAfter: updated.quantity,
+			meta,
+		});
 		return updated;
 	}
 
@@ -228,5 +251,40 @@ export async function adjustStock(
 	if (!row) {
 		throw new Error("Failed to adjust stock");
 	}
+
+	await recordStockMovement(tenantDb, {
+		productId,
+		branchId,
+		delta,
+		quantityAfter: row.quantity,
+		meta,
+	});
 	return row;
+}
+
+/**
+ * Append an append-only audit row to `stock_movements`. Runs on whatever
+ * client (tx or pool) the caller passed to `adjustStock`, so it commits in the
+ * SAME transaction as the stock mutation.
+ */
+async function recordStockMovement(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	args: {
+		productId: string;
+		branchId: string;
+		delta: number;
+		quantityAfter: number;
+		meta: StockMovementMeta;
+	}
+): Promise<void> {
+	await tenantDb.insert(stockMovements).values({
+		productId: args.productId,
+		branchId: args.branchId,
+		delta: args.delta,
+		quantityAfter: args.quantityAfter,
+		reason: args.meta.reason ?? "adjustment",
+		sourceType: args.meta.sourceType ?? null,
+		sourceId: args.meta.sourceId ?? null,
+		actorUserId: args.meta.actorUserId ?? null,
+	});
 }

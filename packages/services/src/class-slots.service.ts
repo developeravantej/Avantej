@@ -8,6 +8,7 @@ import { services } from "@avantej-core/db/schema/tenant/services";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { cancelAppointmentInsideTx } from "./appointment.service";
+import { promoteFromWaitlistInsideTx } from "./waitlist.service";
 import { writeAudit } from "./audit-log.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
@@ -280,7 +281,30 @@ export async function cancelClassSlot(
 			await cancelAppointmentInsideTx(tx, appt, actor, cascadeReason);
 		}
 
-		return { ...row, cancelledAppointmentCount: enrolledAppointments.length };
+		// 3. Attempt to promote waiting entries into any freed capacity, then
+		//    notify the promoted member (notification is handled inside the
+		//    promotion helper). Bounded by the number of spots just freed so we
+		//    never over-promote, and stops as soon as there's nothing left to
+		//    promote or no capacity remains.
+		//
+		//    NOTE: when the *whole* slot is being cancelled (the common case for
+		//    this function), the promotion helper's `isCancelled = false` guard
+		//    means it returns "full" immediately and no booking is created — we
+		//    do not strand members in a dead slot. The loop still runs cheaply
+		//    and is correct for the (rare) caller that frees capacity without
+		//    tearing the slot down.
+		let promotedCount = 0;
+		for (let i = 0; i < enrolledAppointments.length; i++) {
+			const result = await promoteFromWaitlistInsideTx(tx, id);
+			if (result === null || result === "full") break;
+			promotedCount += 1;
+		}
+
+		return {
+			...row,
+			cancelledAppointmentCount: enrolledAppointments.length,
+			promotedFromWaitlistCount: promotedCount,
+		};
 	});
 }
 
@@ -288,28 +312,37 @@ export async function incrementBooking(
 	tenantDb: TenantDb,
 	id: string,
 ) {
-	const slot = await tenantDb.query.classSlots.findFirst({
-		where: eq(classSlots.id, id),
-	});
-	if (!slot) throw new Error("Class slot not found");
-	if (slot.isFull) throw new Error("Class slot is full");
-	if (slot.isCancelled) throw new Error("Class slot is cancelled");
-
-	const newSpotsBooked = slot.spotsBooked + 1;
-	const newSpotsAvailable = Math.max(0, slot.capacity - newSpotsBooked);
-	const newIsFull = newSpotsBooked >= slot.capacity;
-
+	// Atomic check-and-increment: the conditional WHERE guarantees we only
+	// claim a spot when the slot is live and still below capacity. Two
+	// concurrent bookings can no longer both read a stale count and over-fill —
+	// at most one wins per free spot, and a full slot affects 0 rows. (F-SVC-09)
 	const [updated] = await tenantDb
 		.update(classSlots)
 		.set({
-			spotsBooked: newSpotsBooked,
-			spotsAvailable: newSpotsAvailable,
-			isFull: newIsFull,
-			isAvailable: !newIsFull && !slot.isCancelled,
+			spotsBooked: sql`${classSlots.spotsBooked} + 1`,
+			spotsAvailable: sql`GREATEST(${classSlots.capacity} - (${classSlots.spotsBooked} + 1), 0)`,
+			isFull: sql`(${classSlots.spotsBooked} + 1) >= ${classSlots.capacity}`,
+			isAvailable: sql`(${classSlots.spotsBooked} + 1) < ${classSlots.capacity}`,
 			updatedAt: new Date(),
 		})
-		.where(eq(classSlots.id, id))
+		.where(
+			and(
+				eq(classSlots.id, id),
+				eq(classSlots.isCancelled, false),
+				sql`${classSlots.spotsBooked} < ${classSlots.capacity}`,
+			),
+		)
 		.returning();
+
+	if (!updated) {
+		// Distinguish "not found / cancelled" from "full" for a useful message.
+		const slot = await tenantDb.query.classSlots.findFirst({
+			where: eq(classSlots.id, id),
+		});
+		if (!slot) throw new Error("Class slot not found");
+		if (slot.isCancelled) throw new Error("Class slot is cancelled");
+		throw new Error("Class slot is full");
+	}
 
 	return updated;
 }

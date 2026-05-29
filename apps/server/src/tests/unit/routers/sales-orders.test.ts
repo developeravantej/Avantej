@@ -7,12 +7,41 @@
  */
 
 import { describe, it, expect, mock, beforeEach } from "bun:test";
+import { ORPCError } from "@orpc/server";
 import { createAdminContext, createStaffContext } from "../../helpers/context.factory";
 import { createMockTenantDb } from "../../helpers/db-mock.factory";
 
+// Import the REAL service subpath modules so we can spread their genuine
+// exports (including the CANCELLATION_REASON_CATEGORIES / SALES_ORDER_REFUND_STATUSES
+// constants the router consumes at module-eval time) and override only the
+// functions under test. NOTE: mocking the `@avantej-core/services` BARREL
+// directly breaks Bun's named-export resolution for `export *` re-exports (the
+// router imports `getSalesOrderStatusHistory`, `requirePermission`, etc. from
+// the barrel and fails to load with "Export named X not found"). Mocking the
+// specific subpath modules the barrel re-exports keeps those named exports
+// resolvable while still intercepting the functions under test.
+import * as realPermissionService from "@avantej-core/services/permission.service";
+import * as realSalesOrderService from "@avantej-core/services/sales-order.service";
+
 // ── Service mocks ─────────────────────────────────────────────────────────────
 
-const mockRequirePermission = mock(() => Promise.resolve());
+// Mirror the real requirePermission contract closely enough for the router
+// guards (the sales-orders router calls requirePermissionOrpc directly rather
+// than assertTenantContext): a missing tenantDb is an internal error, a missing
+// member is a permission failure (guards.mapToOrpcForbidden maps the
+// "Permission denied" prefix to FORBIDDEN). Tests override per-call as needed.
+const mockRequirePermission = mock(
+	async (tenantDb: unknown, member: unknown) => {
+		if (!tenantDb) {
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message: "Tenant database not available",
+			});
+		}
+		if (!member) {
+			throw new Error("Permission denied: user is not a member");
+		}
+	},
+);
 
 const CREATED_ORDER = {
 	id: "so-0001",
@@ -34,8 +63,13 @@ const mockCancelSalesOrder = mock(() =>
 	Promise.resolve({ ...CREATED_ORDER, status: "cancelled" as const }),
 );
 
-mock.module("@avantej-core/services", () => ({
+mock.module("@avantej-core/services/permission.service", () => ({
+	...realPermissionService,
 	requirePermission: mockRequirePermission,
+}));
+
+mock.module("@avantej-core/services/sales-order.service", () => ({
+	...realSalesOrderService,
 	listSalesOrders: mock(() => Promise.resolve({ rows: [], total: 0 })),
 	getSalesOrderById: mock(() => Promise.resolve(null)),
 	createSalesOrder: mockCreateSalesOrder,
@@ -45,8 +79,6 @@ mock.module("@avantej-core/services", () => ({
 	getSalesOrderKpiSummary: mock(() => Promise.resolve({})),
 	getLargestSaleToday: mock(() => Promise.resolve(null)),
 	getLatestCompletedSalesOrder: mock(() => Promise.resolve(null)),
-	CANCELLATION_REASON_CATEGORIES: ["customer_request", "error", "other"] as const,
-	SALES_ORDER_REFUND_STATUSES: ["none", "partial", "full"] as const,
 }));
 
 mock.module("@avantej-core/api/lib/context-helpers", () => ({

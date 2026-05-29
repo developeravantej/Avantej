@@ -35,7 +35,29 @@ export const serviceCategoryConfigRouter = {
 				enableCancellationWindow: z.boolean().optional(),
 				cancellationCutoffHours: z.number().int().min(0).nullable().optional(),
 				bufferTimeMinutes: z.number().int().min(0).max(480).optional(),
-			}),
+			}).refine(
+				(data) => {
+					// F-SVC-08: a buffer longer than the booking itself is invalid.
+					// This config row does not know a concrete service's duration, but when a
+					// category defaultDuration is set the buffer must not exceed it. When no
+					// defaultDuration is set we fall back to the absolute .max(480) cap above.
+					// Limitation: services that override the category default with a shorter
+					// duration are not validated here (no service duration in this context).
+					if (
+						data.defaultDuration != null &&
+						data.bufferTimeMinutes != null &&
+						data.bufferTimeMinutes > data.defaultDuration
+					) {
+						return false;
+					}
+					return true;
+				},
+				{
+					message:
+						"bufferTimeMinutes must not exceed the category defaultDuration.",
+					path: ["bufferTimeMinutes"],
+				},
+			),
 		)
 		.handler(async ({ input, context }) => {
 		assertOrgContextMatch(context, input);

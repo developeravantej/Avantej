@@ -12,6 +12,20 @@ import { createAdminContext, createStaffContext } from "../../helpers/context.fa
 import { createMockTenantDb } from "../../helpers/db-mock.factory";
 import { makeMember } from "../../helpers/fixtures";
 
+// Import the REAL service subpath modules so we can spread their genuine
+// exports and override only the functions under test. NOTE: mocking the
+// `@avantej-core/services` BARREL directly breaks Bun's named-export resolution
+// for `export *` re-exports (the router/guards import `createInvitation`,
+// `PermissionDeniedError`, etc. from the barrel — including via runtime dynamic
+// `await import("@avantej-core/services")` — and fail to load with "Export
+// named X not found"). Mocking the specific subpath modules the barrel
+// re-exports keeps those named exports resolvable (the barrel re-export picks
+// up the mocked subpath) while still intercepting the functions under test.
+import * as realPermissionService from "@avantej-core/services/permission.service";
+import * as realHierarchyService from "@avantej-core/services/hierarchy.service";
+import * as realHierarchyValidationService from "@avantej-core/services/hierarchy-validation.service";
+import * as realInvitationService from "@avantej-core/services/invitation.service";
+
 // ── Service mocks ─────────────────────────────────────────────────────────────
 
 const mockRequirePermission = mock(() => Promise.resolve());
@@ -38,22 +52,37 @@ const mockRevokeInvitation = mock(() =>
 );
 const mockGetInvitationByToken = mock(() => Promise.resolve(CREATED_INVITATION));
 const mockValidateInvitation = mock(() => ({ isValid: true, error: null }));
+const mockListInvitations = mock(() => Promise.resolve([]));
+const mockResendInvitation = mock(() => Promise.resolve(CREATED_INVITATION));
 
 const mockCreateMember = mock(() => Promise.resolve());
 class MockMembershipService {
 	createMember = mockCreateMember;
 }
 
-mock.module("@avantej-core/services", () => ({
+mock.module("@avantej-core/services/permission.service", () => ({
+	...realPermissionService,
 	requirePermission: mockRequirePermission,
+}));
+
+mock.module("@avantej-core/services/hierarchy.service", () => ({
+	...realHierarchyService,
 	getDescendantNodeIds: mockGetDescendantNodeIds,
+}));
+
+mock.module("@avantej-core/services/hierarchy-validation.service", () => ({
+	...realHierarchyValidationService,
 	validateParentAccess: mockValidateParentAccess,
+}));
+
+mock.module("@avantej-core/services/invitation.service", () => ({
+	...realInvitationService,
 	createInvitation: mockCreateInvitation,
 	revokeInvitation: mockRevokeInvitation,
 	getInvitationByToken: mockGetInvitationByToken,
 	validateInvitation: mockValidateInvitation,
-	listInvitations: mock(() => Promise.resolve([])),
-	resendInvitation: mock(() => Promise.resolve(CREATED_INVITATION)),
+	listInvitations: mockListInvitations,
+	resendInvitation: mockResendInvitation,
 	checkSoftDeletedCustomerBlock: mockCheckSoftDeletedCustomerBlock,
 }));
 

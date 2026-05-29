@@ -8,6 +8,7 @@ import {
 	getTransferOrderById,
 	createTransferOrder,
 	markInTransit as markTransferInTransit,
+	markTransferReceived,
 	completeTransfer,
 	cancelTransfer,
 } from "@avantej-core/services";
@@ -135,6 +136,45 @@ export const transferOrdersRouter = {
 			return markTransferInTransit(context.tenantDb, input.id);
 		}),
 
+	// F-INV-05: mark a transfer received at destination (in_transit ->
+	// received_pending_acceptance). Records received quantities WITHOUT moving
+	// stock — stock moves only on `complete` (acceptance).
+	markReceived: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				id: z.string().uuid(),
+				items: z.array(
+					z.object({
+						itemId: z.string().uuid(),
+						quantityReceived: z.number().int().min(0),
+					})
+				),
+			})
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(context.tenantDb, context.member, "transfer_orders", "update")
+
+			const orderForReceived = await getTransferOrderById(context.tenantDb, input.id);
+			if (!orderForReceived) {
+				throw new ORPCError("NOT_FOUND", { message: `Transfer order not found: ${input.id}` });
+			}
+			const accessibleIdsReceived = context.accessibleNodeIds ?? [];
+			if (
+				!accessibleIdsReceived.includes(orderForReceived.fromBranchId) &&
+				!accessibleIdsReceived.includes(orderForReceived.toBranchId)
+			) {
+				throw new ORPCError("FORBIDDEN", { message: "You do not have access to either branch of this transfer order." });
+			}
+
+			try {
+				return await markTransferReceived(context.tenantDb, input.id, input.items);
+			} catch (error) {
+				throw new ORPCError("BAD_REQUEST", { message: error instanceof Error ? error.message : "Failed to mark transfer received" });
+			}
+		}),
+
 	complete: tenantProcedure
 		.input(
 			z.object({
@@ -169,7 +209,11 @@ export const transferOrdersRouter = {
 				throw new ORPCError("FORBIDDEN", { message: "You do not have access to either branch of this transfer order." });
 			}
 
-			return completeTransfer(context.tenantDb, input.id, input.items);
+			try {
+				return await completeTransfer(context.tenantDb, input.id, input.items, context.member.userId);
+			} catch (error) {
+				throw new ORPCError("BAD_REQUEST", { message: error instanceof Error ? error.message : "Failed to complete transfer" });
+			}
 		}),
 
 	cancel: tenantProcedure
