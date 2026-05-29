@@ -83,7 +83,15 @@ export const serviceCrudProcedures = {
 				});
 			}
 
-			await guardInputBranchForContext(context, service.branchId);
+			// guardInputBranchForContext forbids a null branchId because, on a
+			// write, null is an attempt to bypass branch scoping. Here branchId is
+			// the stored value of an existing record — null simply means an
+			// org-wide service, which is viewable by any member holding
+			// service_management:read (already enforced above). Only enforce branch
+			// accessibility when the service is pinned to a specific branch.
+			if (service.branchId) {
+				await guardInputBranchForContext(context, service.branchId);
+			}
 
 			return service;
 		}),

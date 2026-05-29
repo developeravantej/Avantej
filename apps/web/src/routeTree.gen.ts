@@ -27,7 +27,6 @@ import { Route as authSignInLinkRouteImport } from './routes/(auth)/sign-in-link
 import { Route as authSetupPasswordRouteImport } from './routes/(auth)/setup-password'
 import { Route as authLoginRouteImport } from './routes/(auth)/login'
 import { Route as AuthenticatedUserViewRouteImport } from './routes/_authenticated/user/view'
-import { Route as AuthenticatedServiceViewRouteImport } from './routes/_authenticated/service/view'
 import { Route as AuthenticatedServiceCategoryViewRouteImport } from './routes/_authenticated/service-category/view'
 import { Route as AuthenticatedDashboardLayoutRouteImport } from './routes/_authenticated/dashboard/_layout'
 import { Route as AuthenticatedBillingConnectRouteImport } from './routes/_authenticated/billing.connect'
@@ -198,12 +197,6 @@ const AuthenticatedUserViewRoute = AuthenticatedUserViewRouteImport.update({
   path: '/user/view',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedServiceViewRoute =
-  AuthenticatedServiceViewRouteImport.update({
-    id: '/service/view',
-    path: '/service/view',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
 const AuthenticatedServiceCategoryViewRoute =
   AuthenticatedServiceCategoryViewRouteImport.update({
     id: '/service-category/view',
@@ -712,7 +705,6 @@ export interface FileRoutesByFullPath {
   '/billing/connect': typeof AuthenticatedBillingConnectRoute
   '/dashboard': typeof AuthenticatedDashboardLayoutRouteWithChildren
   '/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
-  '/service/view': typeof AuthenticatedServiceViewRoute
   '/user/view': typeof AuthenticatedUserViewRoute
   '/dashboard/inventory-options': typeof AuthenticatedDashboardLayoutInventoryOptionsRoute
   '/dashboard/': typeof AuthenticatedDashboardLayoutIndexRoute
@@ -810,7 +802,6 @@ export interface FileRoutesByTo {
   '/appointment/view': typeof AuthenticatedAppointmentViewRoute
   '/billing/connect': typeof AuthenticatedBillingConnectRoute
   '/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
-  '/service/view': typeof AuthenticatedServiceViewRoute
   '/user/view': typeof AuthenticatedUserViewRoute
   '/dashboard/inventory-options': typeof AuthenticatedDashboardLayoutInventoryOptionsRoute
   '/dashboard': typeof AuthenticatedDashboardLayoutIndexRoute
@@ -910,7 +901,6 @@ export interface FileRoutesById {
   '/_authenticated/billing/connect': typeof AuthenticatedBillingConnectRoute
   '/_authenticated/dashboard/_layout': typeof AuthenticatedDashboardLayoutRouteWithChildren
   '/_authenticated/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
-  '/_authenticated/service/view': typeof AuthenticatedServiceViewRoute
   '/_authenticated/user/view': typeof AuthenticatedUserViewRoute
   '/_authenticated/dashboard/_layout/inventory-options': typeof AuthenticatedDashboardLayoutInventoryOptionsRoute
   '/_authenticated/dashboard/_layout/': typeof AuthenticatedDashboardLayoutIndexRoute
@@ -1011,7 +1001,6 @@ export interface FileRouteTypes {
     | '/billing/connect'
     | '/dashboard'
     | '/service-category/view'
-    | '/service/view'
     | '/user/view'
     | '/dashboard/inventory-options'
     | '/dashboard/'
@@ -1109,7 +1098,6 @@ export interface FileRouteTypes {
     | '/appointment/view'
     | '/billing/connect'
     | '/service-category/view'
-    | '/service/view'
     | '/user/view'
     | '/dashboard/inventory-options'
     | '/dashboard'
@@ -1208,7 +1196,6 @@ export interface FileRouteTypes {
     | '/_authenticated/billing/connect'
     | '/_authenticated/dashboard/_layout'
     | '/_authenticated/service-category/view'
-    | '/_authenticated/service/view'
     | '/_authenticated/user/view'
     | '/_authenticated/dashboard/_layout/inventory-options'
     | '/_authenticated/dashboard/_layout/'
@@ -1430,13 +1417,6 @@ declare module '@tanstack/react-router' {
       path: '/user/view'
       fullPath: '/user/view'
       preLoaderRoute: typeof AuthenticatedUserViewRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/service/view': {
-      id: '/_authenticated/service/view'
-      path: '/service/view'
-      fullPath: '/service/view'
-      preLoaderRoute: typeof AuthenticatedServiceViewRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/service-category/view': {
@@ -2252,7 +2232,6 @@ interface AuthenticatedRouteChildren {
   AuthenticatedBillingConnectRoute: typeof AuthenticatedBillingConnectRoute
   AuthenticatedDashboardLayoutRoute: typeof AuthenticatedDashboardLayoutRouteWithChildren
   AuthenticatedServiceCategoryViewRoute: typeof AuthenticatedServiceCategoryViewRoute
-  AuthenticatedServiceViewRoute: typeof AuthenticatedServiceViewRoute
   AuthenticatedUserViewRoute: typeof AuthenticatedUserViewRoute
 }
 
@@ -2266,7 +2245,6 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardLayoutRoute:
     AuthenticatedDashboardLayoutRouteWithChildren,
   AuthenticatedServiceCategoryViewRoute: AuthenticatedServiceCategoryViewRoute,
-  AuthenticatedServiceViewRoute: AuthenticatedServiceViewRoute,
   AuthenticatedUserViewRoute: AuthenticatedUserViewRoute,
 }
 

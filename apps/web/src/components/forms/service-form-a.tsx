@@ -11,89 +11,21 @@
 import { useEffect, useMemo } from "react";
 import { useForm } from "@tanstack/react-form";
 import { useQuery } from "@tanstack/react-query";
-import * as z from "zod";
 
-import { useApiMutation } from "@/hooks/useApiMutation";
 import { TimePresetEditor } from "@/features/services/components/TimePresetEditor";
 import { client, orpc } from "@/utils/orpc";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { rmToCents } from "@/lib/money";
+import {
+	type ServiceFormInput,
+	type ServiceInitialData,
+	buildDefaultValues,
+	serviceFormSchema,
+} from "@/features/services/service-form-schema";
+import { useServiceFormMutation } from "@/features/services/useServiceFormMutation";
 
 // ---------------------------------------------------------------------------
-// 1. Schemas
+// 1. Props
 // ---------------------------------------------------------------------------
-
-const timePresetConfigSchema = z.object({
-	recurringDays: z.array(z.string()).min(1, "Pick at least one day"),
-	timeSlotsPerDay: z.record(z.string(), z.array(z.string()).min(1)),
-});
-
-const baseServiceFields = z.object({
-	name: z
-		.string()
-		.min(1, "Service name is required")
-		.max(200, "Name must be 200 characters or fewer"),
-	categoryId: z.string().uuid("Category is required"),
-	sessionDurationMinutes: z
-		.number()
-		.int()
-		.min(1, "Duration must be at least 1 minute"),
-	maxAttendees: z.number().int().min(1, "Must have at least 1 attendee"),
-	price: z
-		.number({ message: "Price is required" })
-		.min(0, "Price must be 0 or more")
-		.transform((v) => rmToCents(v)),
-	sessions: z.number().int().min(0, "Sessions cannot be negative"),
-	taxable: z.boolean(),
-	taxPercentage: z.number().int().min(0).max(100).optional(),
-	expirable: z.boolean(),
-	duration: z.number().int().min(1).optional(),
-	duration_unit: z.enum(["day", "week", "month", "year"]).optional(),
-	availablePaymentPlans: z.array(z.string()),
-	installmentIntervalDays: z.number().int().min(1).optional(),
-	gracePeriodDays: z.number().int().min(0).max(90).nullable().optional(),
-});
-
-const serviceFormSchema = baseServiceFields.and(
-	z.discriminatedUnion("schedulingType", [
-		z.object({ schedulingType: z.literal("appointment-based") }),
-		z.object({
-			schedulingType: z.literal("time-preset"),
-			timePresetConfig: timePresetConfigSchema,
-		}),
-	]),
-);
-
-type ServiceFormInput = z.input<typeof serviceFormSchema>;
-type ServiceFormOutput = z.output<typeof serviceFormSchema>;
-
-// ---------------------------------------------------------------------------
-// 2. Props
-// ---------------------------------------------------------------------------
-
-interface ServiceInitialData {
-	id: string;
-	name: string;
-	categoryId: string;
-	sessionDurationMinutes: number;
-	maxAttendees: number;
-	/** Price in dollars (data-table pre-divides by 100) */
-	price: number;
-	sessions: number;
-	taxable: boolean;
-	taxPercentage: number;
-	expirable: boolean;
-	duration: number;
-	duration_unit: string;
-	schedulingType: "appointment-based" | "time-preset";
-	availablePaymentPlans: string[];
-	installmentIntervalDays: number;
-	gracePeriodDays: number | null;
-	timePresetConfig?: {
-		recurringDays: string[];
-		timeSlotsPerDay: Record<string, string[]>;
-	};
-}
 
 interface ServiceFormDialogProps {
 	isOpen: boolean;
@@ -104,69 +36,7 @@ interface ServiceFormDialogProps {
 }
 
 // ---------------------------------------------------------------------------
-// 3. Helpers
-// ---------------------------------------------------------------------------
-
-function toExpiryDays(duration: number, unit: string): number {
-	if (unit === "year") return duration * 365;
-	if (unit === "month") return duration * 30;
-	if (unit === "week") return duration * 7;
-	return duration;
-}
-
-function buildDefaultValues(initialData?: ServiceInitialData): ServiceFormInput {
-	if (initialData) {
-		const base = {
-			name: initialData.name,
-			categoryId: initialData.categoryId,
-			sessionDurationMinutes: initialData.sessionDurationMinutes,
-			maxAttendees: initialData.maxAttendees,
-			price: initialData.price,
-			sessions: initialData.sessions,
-			taxable: initialData.taxable,
-			taxPercentage: initialData.taxPercentage ?? 6,
-			expirable: initialData.expirable,
-			duration: initialData.duration ?? 1,
-			duration_unit:
-				(initialData.duration_unit as "day" | "week" | "month" | "year") ??
-				"day",
-			availablePaymentPlans: initialData.availablePaymentPlans ?? [],
-			installmentIntervalDays: initialData.installmentIntervalDays ?? 30,
-			gracePeriodDays: initialData.gracePeriodDays ?? null,
-		};
-		if (initialData.schedulingType === "time-preset") {
-			return {
-				...base,
-				schedulingType: "time-preset" as const,
-				timePresetConfig: initialData.timePresetConfig ?? {
-					recurringDays: [],
-					timeSlotsPerDay: {},
-				},
-			};
-		}
-		return { ...base, schedulingType: "appointment-based" as const };
-	}
-	return {
-		name: "",
-		categoryId: "",
-		sessionDurationMinutes: 60,
-		maxAttendees: 1,
-		price: 0,
-		sessions: 0,
-		taxable: false,
-		taxPercentage: 6,
-		expirable: false,
-		duration: 1,
-		duration_unit: "day",
-		schedulingType: "appointment-based",
-		availablePaymentPlans: [],
-		installmentIntervalDays: 30,
-		gracePeriodDays: null,
-	};
-}
-
-// ---------------------------------------------------------------------------
-// 4. Design-A shared style tokens
+// 2. Design-A shared style tokens
 // ---------------------------------------------------------------------------
 
 const labelCls =
@@ -229,68 +99,12 @@ export function ServiceFormDialogA({
 		[activePlans],
 	);
 
-	const mutation = useApiMutation({
-		mutationFn: (values: ServiceFormOutput) => {
-			const wireSchedulingType =
-				values.schedulingType === "time-preset"
-					? ("class_slot" as const)
-					: ("appointment" as const);
-
-			const hasInstallmentPlan = values.availablePaymentPlans.some(
-				(code) => (plansMap.get(code)?.numInstallments ?? 1) > 1,
-			);
-
-			const commonFields = {
-				organizationId,
-				name: values.name,
-				categoryId: values.categoryId || null,
-				duration: values.sessionDurationMinutes,
-				durationUnitType: "minutes" as const,
-				maxAttendees: values.maxAttendees ?? 1,
-				attendanceThreshold: null,
-				branchId: null,
-				isActive: true,
-				price: values.price != null ? values.price : null,
-				taxable: values.taxable,
-				taxPercentage: values.taxable
-					? Math.round(values.taxPercentage ?? 0)
-					: 0,
-				schedulingType: wireSchedulingType,
-				sessionCount: values.sessions > 0 ? values.sessions : null,
-				expirable: values.expirable,
-				expiryDays:
-					values.expirable && values.duration
-						? toExpiryDays(values.duration, values.duration_unit ?? "day")
-						: null,
-				availablePaymentPlans:
-					values.availablePaymentPlans.length > 0
-						? values.availablePaymentPlans
-						: undefined,
-				installmentIntervalDays: hasInstallmentPlan
-					? values.installmentIntervalDays
-					: undefined,
-				gracePeriodDays: hasInstallmentPlan ? values.gracePeriodDays : null,
-				timePresetConfig:
-					values.schedulingType === "time-preset" && values.timePresetConfig
-						? values.timePresetConfig
-						: null,
-			};
-
-			if (mode === "edit") {
-				return client.services.update({
-					...commonFields,
-					id: initialData!.id,
-				});
-			}
-			return client.services.create(commonFields);
-		},
-		successMessage:
-			mode === "create"
-				? "Service created successfully"
-				: "Service updated successfully",
-		errorMessage: (err) => err?.message || "Failed to save service",
-		invalidate: [orpc.services.list.key()],
-		onSuccess: () => onClose(),
+	const mutation = useServiceFormMutation({
+		organizationId,
+		mode,
+		initialData,
+		plansMap,
+		onClose,
 	});
 
 	const form = useForm({
