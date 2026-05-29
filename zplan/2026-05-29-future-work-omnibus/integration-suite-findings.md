@@ -47,5 +47,19 @@ After excluding the 4 files above, the isolated baseline **still hung (124)** wi
 
 Until then, the **healthy subset** runs+exits under the pool fix; the gate should run that subset and the systemic fix should precede trusting a full-suite green.
 
+### Update 2 — ROOT CAUSE FOUND: bun:test + neon-serverless WebSocket transport
+The per-test hangs are NOT product bugs (every affected service call runs in ~1s in a plain Bun script) and NOT contention (hang solo + isolated). They are a **bun's test runner × `@neondatabase/serverless` WebSocket** interaction. Two sub-classes:
+
+1. **Read-path queries** (e.g. `getInviteContext`/`membership-holds (b) resume`) — FIXED ✓ by `neonConfig.poolQueryViaFetch = true` (commit `d415c9e1`), which routes non-transactional pool queries over Neon's SQL-over-HTTP endpoint instead of the misbehaving `ws` transport. With this, the full run's hang count dropped from many to **exactly one**.
+
+2. **Throw-inside-`tenantDb.transaction()`** (e.g. `freezeMembership rejects when already paused`) — STILL HANGS. Transactions can't use the fetch transport, so the rollback path still rides the `ws` WebSocket, which wedges under bun:test. Tried and did NOT help: native `WebSocket` constructor, `pipelineConnect=false`, `statement_timeout`/`connectionTimeoutMillis`. One such wedge **cascades** — it stalls the run so no later file executes (which is why a full green has never been observed).
+
+**Remaining decision (transaction-throw class) — pick one:**
+- **(A) Quarantine** the throw-inside-transaction tests (`test.skip` + comment pointing here). Their product code is proven correct standalone, so coverage loss is minimal. Enumerate iteratively (each wedge hides the next) or by code-analysis (cross-ref `.rejects`/`toThrow` tests with services using `tenantDb.transaction`). Makes the full suite green + complete now.
+- **(B) Driver/runtime change** — bump `@neondatabase/serverless` (+ `drizzle-orm`) to a version that handles WS transaction rollback under Bun, OR run integration tests' DB connection via `pg` over TCP instead of neon-serverless. Cleanest long-term but (bump) touches production Worker code paths / (pg) is a test-infra migration.
+- **(C) Resilience wrapper** — wrap `tenantDb.transaction` in the test helper with an explicit BEGIN/ROLLBACK + hard timeout so a wedged rollback fails fast instead of cascading. Test-only, no prod impact, but more code.
+
+Recommendation: **(A) now** to unblock a complete green run + CI gate, with **(B) driver bump** investigated separately (it may fix it globally and is the proper resolution).
+
 ## Current branch
 `fix/integration-suite-hang` — commits: `da0d7c83` (pool fix + renames), `670dd8cc` (isolation), `43bfef79` (script fixes + cleanup), `8d4e2c67` (pool timeouts). Type-check/oxlint green (lint-staged passed on each commit).
