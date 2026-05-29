@@ -18,6 +18,9 @@
  * Wired via apps/server/bunfig.toml: [test] preload = ["./src/tests/preload.ts"].
  */
 import { afterAll } from "bun:test";
+import { neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
+import { runTenantMigrations } from "@avantej-core/db";
 import { closeAllTestPools, loadDevVars } from "./helpers/integration-setup";
 import { createTestBranch, deleteTestBranch } from "./helpers/neon-branch";
 
@@ -45,9 +48,17 @@ if (process.env.ISOLATED_TEST_DB === "true") {
 	const branch = await createTestBranch({ apiKey, projectId, name });
 	process.env.TENANT_DATABASE_URL = branch.connectionUri;
 	provisionedBranch = { projectId, branchId: branch.branchId };
+
+	// The parent project's schema can lag behind the committed tenant migrations,
+	// so bring the fresh branch fully up to date (idempotent — applies only the
+	// pending ones). Without this, tests on newer columns fail (e.g.
+	// notifications.email_sent_at from migration 0076). Needs the ws transport;
+	// set it here since getSharedPool hasn't run yet at preload time.
+	neonConfig.webSocketConstructor = ws;
+	const applied = await runTenantMigrations(branch.connectionUri);
 	// eslint-disable-next-line no-console
 	console.log(
-		`[preload] isolated tenant DB ready — branch ${branch.branchId} (${name})`,
+		`[preload] isolated tenant DB ready — branch ${branch.branchId} (${name}); migrations: ${applied}`,
 	);
 }
 
