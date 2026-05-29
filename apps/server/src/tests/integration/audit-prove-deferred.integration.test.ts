@@ -12,7 +12,7 @@
  *  1. F-INV-06  — stock_movements audit trail (products.service.adjustStock)
  *  2. F-CRM-02  — credit_point_ledger (customer-profile.service.adjust/redeem)
  *  3. F-SALE-09 — cancellation-number sequence (sales-order.service.cancel)
- *  4. F-INV-05  — transfer acceptance state (SKIPPED — heavy two-branch fixture)
+ *  4. F-INV-05  — transfer acceptance state (markTransferReceived/completeTransfer)
  *
  * SHARED DB: every row created here is tracked and deleted in afterAll. Text
  * fields are namespaced `APDEF_<n>` so stragglers are trivially identifiable.
@@ -34,6 +34,10 @@ import { productStock } from "@avantej-core/db/schema/tenant/product-stock";
 import { stockMovements } from "@avantej-core/db/schema/tenant/stock-movements";
 import { unitsOfMeasure } from "@avantej-core/db/schema/tenant/units-of-measure";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
+import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
+import { members } from "@avantej-core/db/schema/tenant/members";
+import { transferOrders } from "@avantej-core/db/schema/tenant/transfer-orders";
+import { transferOrderItems } from "@avantej-core/db/schema/tenant/transfer-order-items";
 
 // Services via SUBPATH (not the barrel) to avoid mock/load issues.
 import { adjustStock } from "@avantej-core/services/products.service";
@@ -45,6 +49,13 @@ import {
 	createSalesOrder,
 	cancelSalesOrder,
 } from "@avantej-core/services/sales-order.service";
+import {
+	createTransferOrder,
+	markInTransit,
+	markTransferReceived,
+	completeTransfer,
+	getTransferOrderById,
+} from "@avantej-core/services/transfer-orders.service";
 
 import {
 	shouldSkipIntegration,
@@ -95,6 +106,9 @@ const created = {
 	salesOrderIds: [] as string[],
 	customerProfileIds: [] as string[],
 	customerUserIds: [] as string[],
+	transferOrderIds: [] as string[],
+	memberIds: [] as string[],
+	hierarchyNodeIds: [] as string[],
 };
 
 let pool: Pool | undefined;
@@ -123,7 +137,9 @@ afterAll(async () => {
 		if (created.customerUserIds.length > 0) {
 			await tenantDb
 				.delete(creditPointLedger)
-				.where(inArray(creditPointLedger.customerUserId, created.customerUserIds));
+				.where(
+					inArray(creditPointLedger.customerUserId, created.customerUserIds),
+				);
 		}
 	} catch (e) {
 		console.warn("[APDEF cleanup] credit_point_ledger:", e);
@@ -136,6 +152,23 @@ afterAll(async () => {
 		}
 	} catch (e) {
 		console.warn("[APDEF cleanup] customer_profiles:", e);
+	}
+	// Transfer orders first: their items cascade on header delete, but stock
+	// rows they touched are cleaned by productId below. Delete the headers
+	// (and their items) before the hierarchy node they reference (restrict).
+	try {
+		if (created.transferOrderIds.length > 0) {
+			await tenantDb
+				.delete(transferOrderItems)
+				.where(
+					inArray(transferOrderItems.transferOrderId, created.transferOrderIds),
+				);
+			await tenantDb
+				.delete(transferOrders)
+				.where(inArray(transferOrders.id, created.transferOrderIds));
+		}
+	} catch (e) {
+		console.warn("[APDEF cleanup] transfer_orders:", e);
 	}
 	try {
 		if (created.productIds.length > 0) {
@@ -159,7 +192,9 @@ afterAll(async () => {
 	}
 	try {
 		if (created.productIds.length > 0) {
-			await tenantDb.delete(products).where(inArray(products.id, created.productIds));
+			await tenantDb
+				.delete(products)
+				.where(inArray(products.id, created.productIds));
 		}
 	} catch (e) {
 		console.warn("[APDEF cleanup] products:", e);
@@ -181,6 +216,28 @@ afterAll(async () => {
 		}
 	} catch (e) {
 		console.warn("[APDEF cleanup] sales_orders:", e);
+	}
+	// Member referenced by transfer headers (restrict) — safe now that the
+	// transfer headers above are gone.
+	try {
+		if (created.memberIds.length > 0) {
+			await tenantDb
+				.delete(members)
+				.where(inArray(members.id, created.memberIds));
+		}
+	} catch (e) {
+		console.warn("[APDEF cleanup] members:", e);
+	}
+	// Source hierarchy node LAST: product_stock (restrict) + transfer headers
+	// (restrict) that referenced it were deleted above.
+	try {
+		if (created.hierarchyNodeIds.length > 0) {
+			await tenantDb
+				.delete(hierarchyNodes)
+				.where(inArray(hierarchyNodes.id, created.hierarchyNodeIds));
+		}
+	} catch (e) {
+		console.warn("[APDEF cleanup] hierarchy_nodes:", e);
 	}
 	try {
 		await pool.end();
@@ -211,7 +268,10 @@ async function seedProduct(tag: string): Promise<string> {
 }
 
 // Helper: seed a customer_profiles row with a starting balance, return userId.
-async function seedCustomer(tag: string, startBalance: number): Promise<string> {
+async function seedCustomer(
+	tag: string,
+	startBalance: number,
+): Promise<string> {
 	const userId = `APDEF_USER_${tag}_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
 	const [row] = await tenantDb
 		.insert(customerProfiles)
@@ -333,7 +393,11 @@ describe("audit-prove deferred features (real tenant DB)", () => {
 			// What we then PROVE unconditionally is the real invariant: the balance
 			// and ledger were not mutated by the failed over-redeem.
 			const SENTINEL = "__APDEF_TIMEOUT__";
-			let overRedeemOutcome: "rejected-insufficient" | "rejected-other" | "timeout" | "resolved";
+			let overRedeemOutcome:
+				| "rejected-insufficient"
+				| "rejected-other"
+				| "timeout"
+				| "resolved";
 			try {
 				const res = await Promise.race([
 					redeemCreditPoints(tenantDb, {
@@ -406,7 +470,11 @@ describe("audit-prove deferred features (real tenant DB)", () => {
 			const cancelled1 = await cancelSalesOrder(
 				tenantDb,
 				order1.id,
-				{ cancelledBy: TEST_USER_ID, reason: "APDEF_cancel_a", refundAmount: 0 },
+				{
+					cancelledBy: TEST_USER_ID,
+					reason: "APDEF_cancel_a",
+					refundAmount: 0,
+				},
 				actor,
 			);
 			expect(cancelled1.status).toBe("cancelled");
@@ -416,33 +484,186 @@ describe("audit-prove deferred features (real tenant DB)", () => {
 			const cancelled2 = await cancelSalesOrder(
 				tenantDb,
 				order2.id,
-				{ cancelledBy: TEST_USER_ID, reason: "APDEF_cancel_b", refundAmount: 0 },
+				{
+					cancelledBy: TEST_USER_ID,
+					reason: "APDEF_cancel_b",
+					refundAmount: 0,
+				},
 				actor,
 			);
 			expect(cancelled2.cancellationNumber).toMatch(/^CAN-\d{8}-\d{4}$/);
 
 			// Sequence allocates uniquely — the two numbers must differ.
-			expect(cancelled2.cancellationNumber).not.toBe(cancelled1.cancellationNumber);
+			expect(cancelled2.cancellationNumber).not.toBe(
+				cancelled1.cancellationNumber,
+			);
 		},
 		TIMEOUT,
 	);
 
 	// --- 4. F-INV-05 — transfer acceptance state ---------------------------
-	// SKIPPED: a faithful test needs heavy fixtures — two distinct branch nodes
-	// with stock, a product seeded at the source branch, and a transfer_orders +
-	// transfer_order_items header/line pair — plus createTransferOrder runs in a
-	// tx. The test branch (TEST_BRANCH_NODE_ID) is the only known seeded node, so
-	// a reliable source/destination pair can't be set up without provisioning
-	// extra hierarchy_nodes (and cleaning them up under FK restrict). Marking
-	// skip rather than shipping a flaky test, per the brief.
-	// TODO(F-INV-05): seed two branch nodes + source stock, then exercise
-	// createTransferOrder → markTransferReceived (expect status
-	// "received_pending_acceptance") → completeTransfer (expect "completed" and
-	// stock moved into the destination branch's product_stock row).
-	it.skip(
+	// Two-branch fixture: TEST_BRANCH_NODE_ID is the DESTINATION; we seed a
+	// second `hierarchy_nodes` row (APDEF-namespaced) as the SOURCE. The known
+	// test branch has a null parent/country, so the sibling source uses the same
+	// (FK-valid) null parent. A product is seeded with SOURCE stock so the
+	// acceptance-time deduction has stock to move. createTransferOrder needs a
+	// real `members.id` for issued_by, so we seed an APDEF member too. All rows
+	// are torn down FK-ordered in afterAll (transfer rows + product_stock BEFORE
+	// the source node, which is onDelete:restrict).
+	it(
 		"F-INV-05: markTransferReceived → received_pending_acceptance → completeTransfer → completed",
-		() => {
-			// intentionally skipped — see comment above
+		async () => {
+			if (shouldSkipIntegration()) return;
+
+			const stamp = `${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+			const destBranchId = TEST_BRANCH_NODE_ID;
+
+			// --- Seed SOURCE branch (sibling of the dest test branch) ----------
+			const [sourceNode] = await tenantDb
+				.insert(hierarchyNodes)
+				.values({
+					name: `APDEF_SRC_BRANCH_${stamp}`,
+					slug: `apdef_src_branch_${stamp}`,
+					type: "branch",
+					parentId: null,
+					depth: 3,
+					countryNodeId: null,
+				})
+				.returning({ id: hierarchyNodes.id });
+			const sourceBranchId = sourceNode!.id;
+			created.hierarchyNodeIds.push(sourceBranchId);
+
+			// --- Seed an APDEF member to be the transfer's issued_by ----------
+			const [member] = await tenantDb
+				.insert(members)
+				.values({
+					userId: `APDEF_MEMBER_${stamp}`,
+					role: "admin",
+					hierarchyScopeId: destBranchId,
+					status: "active",
+				})
+				.returning({ id: members.id });
+			const issuedByMemberId = member!.id;
+			created.memberIds.push(issuedByMemberId);
+
+			// --- Seed a product with SOURCE stock ------------------------------
+			const productId = await seedProduct("INV05");
+			const SOURCE_START = 50;
+			const TRANSFER_QTY = 20;
+			const sourceStock = await adjustStock(
+				tenantDb,
+				productId,
+				sourceBranchId,
+				SOURCE_START,
+				{ reason: "APDEF_seed_source", sourceType: "APDEF_seed" },
+			);
+			expect(sourceStock.quantity).toBe(SOURCE_START);
+
+			// Baseline destination stock (may be 0/absent → treat as 0).
+			const destBefore = await tenantDb
+				.select({ quantity: productStock.quantity })
+				.from(productStock)
+				.where(
+					and(
+						eq(productStock.productId, productId),
+						eq(productStock.branchId, destBranchId),
+					),
+				);
+			const destQtyBefore = destBefore[0]?.quantity ?? 0;
+
+			// --- Create transfer order (header + 1 item) ----------------------
+			const transfer = await createTransferOrder(tenantDb, {
+				dateIssued: new Date(),
+				fromBranchId: sourceBranchId,
+				toBranchId: destBranchId,
+				issuedByMemberId,
+				notes: `APDEF_TRANSFER_${stamp}`,
+				items: [{ productId, quantityTransferred: TRANSFER_QTY }],
+			});
+			created.transferOrderIds.push(transfer.id);
+			expect(transfer.status).toBe("pending");
+			expect(transfer.items.length).toBe(1);
+			const itemId = transfer.items[0]!.id;
+
+			// pending → in_transit (markTransferReceived requires in_transit).
+			const inTransit = await markInTransit(tenantDb, transfer.id);
+			expect(inTransit.status).toBe("in_transit");
+
+			// --- markTransferReceived: records qty, NO stock move yet ---------
+			const received = await markTransferReceived(tenantDb, transfer.id, [
+				{ itemId, quantityReceived: TRANSFER_QTY },
+			]);
+			expect(received.status).toBe("received_pending_acceptance");
+
+			// Stock must NOT have moved yet (source unchanged, dest unchanged).
+			const srcAfterReceive = await tenantDb
+				.select({ quantity: productStock.quantity })
+				.from(productStock)
+				.where(
+					and(
+						eq(productStock.productId, productId),
+						eq(productStock.branchId, sourceBranchId),
+					),
+				);
+			expect(srcAfterReceive[0]!.quantity).toBe(SOURCE_START);
+
+			// Received quantity was recorded on the item.
+			const afterReceive = await getTransferOrderById(tenantDb, transfer.id);
+			expect(afterReceive!.items[0]!.quantityReceived).toBe(TRANSFER_QTY);
+
+			// --- completeTransfer: stock MOVES here, status → completed -------
+			const completed = await completeTransfer(
+				tenantDb,
+				transfer.id,
+				[{ itemId, quantityReceived: TRANSFER_QTY }],
+				TEST_USER_ID,
+			);
+			expect(completed.status).toBe("completed");
+			expect(completed.completedAt).not.toBeNull();
+
+			// Source decreased by TRANSFER_QTY.
+			const srcAfter = await tenantDb
+				.select({ quantity: productStock.quantity })
+				.from(productStock)
+				.where(
+					and(
+						eq(productStock.productId, productId),
+						eq(productStock.branchId, sourceBranchId),
+					),
+				);
+			expect(srcAfter[0]!.quantity).toBe(SOURCE_START - TRANSFER_QTY);
+
+			// Destination increased by TRANSFER_QTY.
+			const destAfter = await tenantDb
+				.select({ quantity: productStock.quantity })
+				.from(productStock)
+				.where(
+					and(
+						eq(productStock.productId, productId),
+						eq(productStock.branchId, destBranchId),
+					),
+				);
+			expect(destAfter[0]!.quantity).toBe(destQtyBefore + TRANSFER_QTY);
+
+			// --- stock_movements audit rows for the transfer (F-INV-06) -------
+			const movements = await tenantDb
+				.select()
+				.from(stockMovements)
+				.where(
+					and(
+						eq(stockMovements.productId, productId),
+						eq(stockMovements.sourceType, "transfer_order"),
+						eq(stockMovements.sourceId, transfer.id),
+					),
+				);
+			// One deduction (source) + one addition (destination).
+			expect(movements.length).toBe(2);
+			const sourceLeg = movements.find((m) => m.branchId === sourceBranchId)!;
+			const destLeg = movements.find((m) => m.branchId === destBranchId)!;
+			expect(sourceLeg.delta).toBe(-TRANSFER_QTY);
+			expect(destLeg.delta).toBe(TRANSFER_QTY);
+			expect(destLeg.actorUserId).toBe(TEST_USER_ID);
 		},
+		TIMEOUT,
 	);
 });
