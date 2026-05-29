@@ -34,5 +34,18 @@ Investigation of "the integration suite has a bug." Three distinct issues found;
 
 **Interim:** exclude `branch-invite`, `membership-holds`, `refund-target-priority`, `auth-email` (last is real-Resend-dependent) from the gating suite, or `.skip` the specific hanging tests with a comment pointing here.
 
+### Update — the hang is PERVASIVE, not a few files
+After excluding the 4 files above, the isolated baseline **still hung (124)** with new 30s timeouts in `promotions` ("minimum order amount enforcement") and a 60s-timeout test. So excluding files is futile — the leak is widespread. The full integration suite has likely **never run green end-to-end**; prior sessions only ran 8-file subsets.
+
+**Strong correlation:** the hanging tests are the ones asserting an operation **throws/rejects** (`branch-invite GONE`, `freezeMembership rejects when already paused`, `promotions min-order enforcement`, `membership-holds (b) resume` which re-resumes and expects a throw). Hypothesis: when a service throws **inside `tenantDb.transaction(async tx => …)`**, the neon-serverless + drizzle transaction wrapper isn't releasing the pooled client on the error path. Each such test leaks one client; after the pool's max is reached, the next acquire blocks forever.
+
+**Recommended systemic fix (its own session, ~1–2 days):**
+1. Reproduce in isolation: in a standalone script, call a service that throws inside a transaction N times against a shared pool with small `max`; confirm clients are not returned (pool exhausts).
+2. If confirmed a driver/wrapper bug: pin/upgrade `@neondatabase/serverless` + `drizzle-orm`, or wrap `tenantDb.transaction` in the test helper to guarantee `client.release()`/rollback in a `finally`.
+3. Belt-and-braces: add a real **acquire timeout** around pool checkout in the test helper so any future leak fails fast (clear error) instead of hanging — making the suite always complete.
+4. Re-run the FULL suite (all 45 files) isolated → must exit on its own; record the true green baseline.
+
+Until then, the **healthy subset** runs+exits under the pool fix; the gate should run that subset and the systemic fix should precede trusting a full-suite green.
+
 ## Current branch
 `fix/integration-suite-hang` — commits: `da0d7c83` (pool fix + renames), `670dd8cc` (isolation), `43bfef79` (script fixes + cleanup), `8d4e2c67` (pool timeouts). Type-check/oxlint green (lint-staged passed on each commit).
