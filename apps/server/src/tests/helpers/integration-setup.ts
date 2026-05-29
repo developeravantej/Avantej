@@ -86,10 +86,15 @@ function getSharedPool(url: string): Pool {
 			connectionString: url,
 			// Neon requires TLS; test env trusts the endpoint cert.
 			ssl: { rejectUnauthorized: false },
-			// Safety net for a query that blocks on a row lock — self-abort instead
-			// of hanging indefinitely.
 			statement_timeout: 20_000,
 			connectionTimeoutMillis: 15_000,
+			// Break the cascade: when a transaction's rollback wedges under bun:test,
+			// the session sits "idle in transaction" holding row locks, so later
+			// tests block on those locks (one 30s hang stalls the whole run). These
+			// make Postgres terminate the stuck session and time out lock waits, so a
+			// wedged test fails FAST and the suite still runs to completion.
+			idle_in_transaction_session_timeout: 10_000,
+			lock_timeout: 10_000,
 			max: 10,
 		});
 		poolByUrl.set(url, pool);
