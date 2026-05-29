@@ -120,23 +120,51 @@ export async function closeAllTestPools(): Promise<void> {
 }
 
 /**
- * Create a Drizzle client for the tenant test database.
- * Uses a process-shared WebSocket Neon pool (required for Bun on Windows/Node).
+ * Wrap `db.transaction` with a JS-level timeout race. Under bun's test runner
+ * drizzle's transaction ROLLBACK promise can fail to settle when the callback
+ * throws — the JS await hangs forever even though the server-side session is
+ * already idle/aborted. No DB-level timeout fixes a never-settling promise, so a
+ * wedged transaction would stall the test to bun's 30s timeout and (via held
+ * locks) cascade to the rest of the run. Racing against a 15s timeout makes a
+ * wedged transaction reject FAST; the idle_in_transaction/lock timeouts on the
+ * pool then release the server-side locks. Healthy transactions (sub-second) are
+ * unaffected — the race only fires on a genuine wedge.
+ */
+function withTxTimeout<T extends { transaction: (...args: any[]) => Promise<any> }>(
+	db: T,
+): T {
+	const original = db.transaction.bind(db);
+	(db as { transaction: unknown }).transaction = (...args: unknown[]) =>
+		Promise.race([
+			original(...args),
+			new Promise((_resolve, reject) =>
+				setTimeout(
+					() => reject(new Error("integration test transaction timed out (15s)")),
+					15_000,
+				),
+			),
+		]);
+	return db;
+}
+
+/**
+ * Create a Drizzle client for the tenant test database (node-postgres over TCP).
  */
 export function createTenantDb() {
 	const url = process.env.TENANT_DATABASE_URL;
 	if (!url) throw new Error("TENANT_DATABASE_URL is not set in .dev.vars");
-	return drizzle({ client: getSharedPool(url), schema: tenantSchema });
+	return withTxTimeout(drizzle({ client: getSharedPool(url), schema: tenantSchema }));
 }
 
 /**
- * Create a Drizzle client for the control panel database.
- * Uses a process-shared WebSocket Neon pool.
+ * Create a Drizzle client for the control panel database (node-postgres over TCP).
  */
 export function createControlPanelDb() {
 	const url = process.env.DATABASE_URL;
 	if (!url) throw new Error("DATABASE_URL is not set in .dev.vars");
-	return drizzle({ client: getSharedPool(url), schema: controlPanelSchema });
+	return withTxTimeout(
+		drizzle({ client: getSharedPool(url), schema: controlPanelSchema }),
+	);
 }
 
 /**
