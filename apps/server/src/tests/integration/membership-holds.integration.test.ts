@@ -229,12 +229,7 @@ describe("Membership Holds Integration (J4)", () => {
 		expect(list[1]?.id).toBe(first.id);
 	}, 30000);
 
-	// QUARANTINED: hangs under bun:test. The assertion is a throw raised INSIDE
-	// tenantDb.transaction(); the WS rollback path wedges under Bun's runner (the
-	// service is proven correct in a plain Bun script). One wedge cascades and
-	// stalls the whole run. See zplan/2026-05-29-future-work-omnibus/integration-suite-findings.md
-	// (option B — neon-serverless/driver bump — is the proper global fix).
-	test.skip("freezeMembership rejects when package already paused", async () => {
+	test("freezeMembership rejects when package already paused", async () => {
 		if (shouldSkipIntegration()) return;
 
 		const pkgId = await makeTestPackage();

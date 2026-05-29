@@ -1,11 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { Pool } from "@neondatabase/serverless";
-import { neonConfig } from "@neondatabase/serverless";
-import ws from "ws";
-import { drizzle } from "drizzle-orm/neon-serverless";
+import pg from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
 import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+
+const { Pool } = pg;
+type Pool = pg.Pool;
 
 export const TEST_ORG_ID = "996febce-aaad-4ded-8f47-02d2b566c8ee";
 export const TEST_BRANCH_NODE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
@@ -63,46 +64,33 @@ export function shouldSkipIntegration(): boolean {
 }
 
 /**
- * Pools use a WebSocket transport (`ws`). A Neon branch has a finite connection
- * cap, so the previous behaviour — every integration file opening its own pool
- * via `createTenantDb()` and never closing it — accumulated open connections
- * across the ~45-file suite until the cap was hit, at which point the next
- * connection attempt blocked indefinitely (the "long no-output stretch → killed"
- * hang). Single files and small batches stayed under the cap, which is why they
- * passed while the full suite hung.
+ * Tests connect via `node-postgres` (`pg`) over direct TCP — NOT the
+ * `@neondatabase/serverless` driver used in the Cloudflare Worker. Both
+ * neon-serverless transports misbehave under Bun's test runner: the `ws`
+ * WebSocket wedges on transaction ROLLBACK (throw-in-transaction tests hang to
+ * the 30s timeout), and `poolQueryViaFetch` intermittently throws "socket
+ * connection was closed unexpectedly". `pg` over TCP is solid under Bun and
+ * handles transactions + multi-statement cleanly.
  *
- * Fix: memoise one pool per connection URL for the whole test process. Every
- * file shares the same pool, so the connection count stays flat regardless of
- * how many files run. `closeAllTestPools()` (a global afterAll, wired in
- * src/tests/preload.ts) ends the shared pools so the process exits on its own
- * instead of being kept alive by open sockets.
+ * One pool per connection URL is memoised for the whole process so the Neon
+ * branch connection count stays flat across the ~45-file suite (per-call pools
+ * with no teardown previously exhausted the cap and hung). `closeAllTestPools()`
+ * (a global afterAll in src/tests/preload.ts) drains them so the process exits.
  */
 const poolByUrl = new Map<string, Pool>();
 
 function getSharedPool(url: string): Pool {
-	neonConfig.webSocketConstructor = ws;
-	// Route single (non-transactional) pool queries over Neon's SQL-over-HTTP
-	// endpoint instead of the WebSocket transport, which wedges under Bun's test
-	// runner (tests hang to the 30s timeout though the same call runs in ~1s in a
-	// plain Bun script). This fixed the read-path hangs (e.g. membership-holds
-	// "(b) resume").
-	// Opt-out for tests that run multi-statement migrations (fetch mode can't send
-	// multiple commands in one prepared statement). Default on.
-	neonConfig.poolQueryViaFetch = process.env.POOL_FETCH !== "off";
 	let pool = poolByUrl.get(url);
 	if (!pool) {
 		pool = new Pool({
 			connectionString: url,
-			// Safety net for runaway SERVER-side queries: a query that blocks on a
-			// row lock self-aborts instead of hanging indefinitely.
+			// Neon requires TLS; test env trusts the endpoint cert.
+			ssl: { rejectUnauthorized: false },
+			// Safety net for a query that blocks on a row lock — self-abort instead
+			// of hanging indefinitely.
 			statement_timeout: 20_000,
 			connectionTimeoutMillis: 15_000,
-			// NOTE: this does NOT cover the per-test hangs in membership-holds /
-			// branch-invite. Those are pool-CLIENT exhaustion — an earlier test in
-			// the file leaks a checked-out client (an unreleased transaction), and a
-			// pg-style pool has no acquire timeout, so a later test waits forever for
-			// a free client (hits Bun's 30s test timeout, not statement_timeout).
-			// Tracked as a separate follow-up; see zplan/2026-05-29-future-work-omnibus.
+			max: 10,
 		});
 		poolByUrl.set(url, pool);
 	}
