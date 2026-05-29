@@ -64,6 +64,7 @@ beforeAll(async () => {
 		.insert(hierarchyNodes)
 		.values({
 			name: `Test Branch for PO ${Date.now()}`,
+			slug: `test-branch-po-${Date.now()}`,
 			type: "branch",
 			depth: 4,
 		} as any)

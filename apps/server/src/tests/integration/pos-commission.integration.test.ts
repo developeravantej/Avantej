@@ -118,6 +118,7 @@ beforeAll(async () => {
 		.values({
 			id: TEST_BRANCH_NODE_ID,
 			name: `POS Integration Test Branch ${TS}`,
+			slug: `pos-integration-test-branch-${TS}`,
 			type: "branch",
 			depth: 4,
 		} as any)
