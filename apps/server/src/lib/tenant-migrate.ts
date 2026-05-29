@@ -6,7 +6,7 @@
  *
  * Used by:
  *  - Drift detection script (`scripts/check-drift.ts`)
- *  - Integration tests (`apps/server/src/tests/integration/tenant-migrate.test.ts`)
+ *  - Integration tests (`apps/server/src/tests/integration/tenant-migrate.integration.test.ts`)
  *  - Future tenant provisioning gate (Node contexts only)
  *
  * Cloudflare Workers compatibility: NOT directly usable from Workers because

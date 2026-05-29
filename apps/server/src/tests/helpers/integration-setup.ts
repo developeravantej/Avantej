@@ -63,26 +63,67 @@ export function shouldSkipIntegration(): boolean {
 }
 
 /**
+ * Pools use a WebSocket transport (`ws`). A Neon branch has a finite connection
+ * cap, so the previous behaviour — every integration file opening its own pool
+ * via `createTenantDb()` and never closing it — accumulated open connections
+ * across the ~45-file suite until the cap was hit, at which point the next
+ * connection attempt blocked indefinitely (the "long no-output stretch → killed"
+ * hang). Single files and small batches stayed under the cap, which is why they
+ * passed while the full suite hung.
+ *
+ * Fix: memoise one pool per connection URL for the whole test process. Every
+ * file shares the same pool, so the connection count stays flat regardless of
+ * how many files run. `closeAllTestPools()` (a global afterAll, wired in
+ * src/tests/preload.ts) ends the shared pools so the process exits on its own
+ * instead of being kept alive by open sockets.
+ */
+const poolByUrl = new Map<string, Pool>();
+
+function getSharedPool(url: string): Pool {
+	neonConfig.webSocketConstructor = ws;
+	let pool = poolByUrl.get(url);
+	if (!pool) {
+		pool = new Pool({ connectionString: url });
+		poolByUrl.set(url, pool);
+	}
+	return pool;
+}
+
+/**
+ * End every shared pool. Idempotent. Registered as a global afterAll in
+ * `src/tests/preload.ts` so the suite process exits without being killed.
+ */
+export async function closeAllTestPools(): Promise<void> {
+	const pools = [...poolByUrl.values()];
+	poolByUrl.clear();
+	await Promise.all(
+		pools.map((pool) =>
+			pool.end().catch(() => {
+				// Already ended elsewhere — swallow so one failure doesn't block
+				// the rest from draining.
+			}),
+		),
+	);
+}
+
+/**
  * Create a Drizzle client for the tenant test database.
- * Uses WebSocket-compatible Neon pool (required for Bun on Windows/Node).
+ * Uses a process-shared WebSocket Neon pool (required for Bun on Windows/Node).
  */
 export function createTenantDb() {
-	neonConfig.webSocketConstructor = ws;
 	const url = process.env.TENANT_DATABASE_URL;
 	if (!url) throw new Error("TENANT_DATABASE_URL is not set in .dev.vars");
-	const pool = new Pool({ connectionString: url });
-	return drizzle({ client: pool, schema: tenantSchema });
+	return drizzle({ client: getSharedPool(url), schema: tenantSchema });
 }
 
 /**
  * Create a Drizzle client for the control panel database.
+ * Uses a process-shared WebSocket Neon pool.
  */
 export function createControlPanelDb() {
-	neonConfig.webSocketConstructor = ws;
 	const url = process.env.DATABASE_URL;
 	if (!url) throw new Error("DATABASE_URL is not set in .dev.vars");
-	const pool = new Pool({ connectionString: url });
-	return drizzle({ client: pool, schema: controlPanelSchema });
+	return drizzle({ client: getSharedPool(url), schema: controlPanelSchema });
 }
 
 /**
