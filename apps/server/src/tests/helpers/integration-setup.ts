@@ -86,7 +86,9 @@ function getSharedPool(url: string): Pool {
 	// runner (tests hang to the 30s timeout though the same call runs in ~1s in a
 	// plain Bun script). This fixed the read-path hangs (e.g. membership-holds
 	// "(b) resume").
-	neonConfig.poolQueryViaFetch = true;
+	// Opt-out for tests that run multi-statement migrations (fetch mode can't send
+	// multiple commands in one prepared statement). Default on.
+	neonConfig.poolQueryViaFetch = process.env.POOL_FETCH !== "off";
 	let pool = poolByUrl.get(url);
 	if (!pool) {
 		pool = new Pool({
