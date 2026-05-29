@@ -40,6 +40,7 @@ import {
 	upsertCategoryCommissionConfig,
 } from "@avantej-core/services";
 import { trainerTiers } from "@avantej-core/db/schema/tenant/trainer-tiers";
+import { commissionTierRates } from "@avantej-core/db/schema/tenant/commission-tier-rates";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { serviceCategories } from "@avantej-core/db/schema/tenant/service-categories";
 import { services } from "@avantej-core/db/schema/tenant/services";
@@ -67,7 +68,7 @@ let tenantDb: ReturnType<typeof createTenantDb>;
 // Shared test state (populated in beforeAll)
 let tierId: string;
 let trainerMemberId: string; // members.id — UUID (the WRONG value to pass as staffId)
-let trainerUserId: string;   // members.userId — text (the CORRECT value)
+let trainerUserId: string; // members.userId — text (the CORRECT value)
 let serviceId: string;
 let appointmentId: string;
 
@@ -208,11 +209,14 @@ afterAll(async () => {
 				.set({ trainerTierId: null })
 				.where(eq(members.id, memberId));
 		}
-		await tenantDb
-			.delete(members)
-			.where(inArray(members.id, createdMemberIds));
+		await tenantDb.delete(members).where(inArray(members.id, createdMemberIds));
 	}
 	if (createdTierIds.length > 0) {
+		// Delete the child commission_tier_rates first — they FK-reference
+		// trainer_tiers (onDelete: restrict), so the tier delete fails otherwise.
+		await tenantDb
+			.delete(commissionTierRates)
+			.where(inArray(commissionTierRates.trainerTierId, createdTierIds));
 		await tenantDb
 			.delete(trainerTiers)
 			.where(inArray(trainerTiers.id, createdTierIds));
