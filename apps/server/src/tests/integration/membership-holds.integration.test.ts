@@ -252,7 +252,7 @@ describe("Membership Holds Integration (J4)", () => {
 				reason: "medical",
 				createdBy: TEST_USER_ID,
 			}),
-		).rejects.toThrow("already paused");
+		).rejects.toThrow("cannot be frozen");
 
 		// Touch services schema to keep the import meaningful for Drizzle
 		// (relations resolution validates against the schema barrel).
