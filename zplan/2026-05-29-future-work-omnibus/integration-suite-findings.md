@@ -61,5 +61,18 @@ The per-test hangs are NOT product bugs (every affected service call runs in ~1s
 
 Recommendation: **(A) now** to unblock a complete green run + CI gate, with **(B) driver bump** investigated separately (it may fix it globally and is the proper resolution).
 
+### Update 3 — RESOLVED: suite now runs to completion (+ the real confound)
+The persistent `EXIT=124` on full runs was dominated by a **stale-`dist/` double-run**: the manual command `bun test src/tests/integration/` substring-matches `dist/src/tests/integration/*.js`, so Bun executed COMPILED copies (varying/old code — leaking pools, no skips) alongside the fixed source. The project's real `test:integration` script (`src/**/*.integration.test.ts`, `.ts`-anchored) is immune; only ad-hoc directory invocations hit it.
+
+**Definitive source-only run** (`ISOLATED_TEST_DB=true`, all 46 `.ts` files, dist excluded, membership throw-test skipped):
+- **EXIT=1, Ran 213 tests across 46 files in 184s — 190 pass / 2 skip / 21 fail, ZERO hangs.**
+
+So the suite went from "hangs forever, never completes" → **completes in ~3 min with a clean pass/fail**. `poolQueryViaFetch` fixed every read-path + non-transactional-throw hang (incl. the earlier promotions hang); only one genuine throw-inside-transaction test (`freezeMembership rejects`) is skipped.
+
+**Always run integration tests via the `.ts`-anchored form** (`bun run test:integration`, or `bun test $(ls src/tests/integration/*.integration.test.ts)`) — never the bare directory, or stale `dist/` copies double-run. Optional hardening: stop `tsc -b` emitting test files to `dist/`, or scope bun test discovery to `src`.
+
+### The 21 failures — NEW baseline to triage (separate from the hang bug)
+These are real, FAST assertion failures (never visible before because the suite never completed). Mix of: commission (`appointment-commission` TC-AC-003 dup-guard, `commission-rule` TC-CR-I005, `commission-versioning` a/b), `promotions` (usage/limit counting), `goods-receipts` (4 receipt/stock/3-way-match), several `(unnamed)` (beforeAll/afterAll setup failures), and one 37s outlier `org > creates organization with full lifecycle` (hits the **non-isolated control-panel DB** — likely contention/data, ties to the control-panel-isolation follow-up). Likely a blend of pre-existing fixture gaps (flagged in the audit summaries), data expectations vs the CoW branch, and a few possibly-real regressions. Triage is its own task.
+
 ## Current branch
 `fix/integration-suite-hang` — commits: `da0d7c83` (pool fix + renames), `670dd8cc` (isolation), `43bfef79` (script fixes + cleanup), `8d4e2c67` (pool timeouts). Type-check/oxlint green (lint-staged passed on each commit).
