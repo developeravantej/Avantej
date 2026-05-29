@@ -25,6 +25,8 @@ vi.mock("@/hooks/useUserContext", () => ({
 			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
 		},
 		hasPermission: vi.fn().mockReturnValue(true),
+		hasAnyPermission: vi.fn().mockReturnValue(true),
+		hasRole: vi.fn().mockReturnValue(true),
 	}),
 }));
 vi.mock("@/lib/currency", () => ({
