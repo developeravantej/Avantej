@@ -81,6 +81,12 @@ const poolByUrl = new Map<string, Pool>();
 
 function getSharedPool(url: string): Pool {
 	neonConfig.webSocketConstructor = ws;
+	// Route single (non-transactional) pool queries over Neon's SQL-over-HTTP
+	// endpoint instead of the WebSocket transport, which wedges under Bun's test
+	// runner (tests hang to the 30s timeout though the same call runs in ~1s in a
+	// plain Bun script). This fixed the read-path hangs (e.g. membership-holds
+	// "(b) resume").
+	neonConfig.poolQueryViaFetch = true;
 	let pool = poolByUrl.get(url);
 	if (!pool) {
 		pool = new Pool({
