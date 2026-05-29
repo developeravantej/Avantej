@@ -8,7 +8,7 @@
 
 ## 1. Problem
 
-Three parallel frontend patterns (fat routes, `components/pages/`, partial `features/`). `packages/api/src/routers/index.ts` is 2,838 lines of type stubs. Top routes exceed 1,000 LOC. Legacy duplicate routes under `/_authenticated/*` coexist with dashboard versions. No lint-enforced import boundaries. api-overview and zhub index drift from live routes.
+Three parallel frontend patterns (fat routes, `components/pages/`, partial `features/`). `packages/api/src/routers/index.ts` is 2,838 lines of type stubs. Top routes exceed 1,000 LOC. Legacy duplicate routes under `/_authenticated/*` coexist with dashboard versions. No lint-enforced import boundaries. The API overview and page inventory (previously in zhub, now retired) drift from live routes.
 
 ---
 
@@ -18,7 +18,7 @@ Three parallel frontend patterns (fat routes, `components/pages/`, partial `feat
 2. **`routers/index.ts` <150 LOC** — type stubs extracted.
 3. **Legacy route consolidation** — single canonical dashboard path per feature.
 4. **oxlint import boundaries** for web packages and feature isolation.
-5. **Documentation automation** — api-overview generator + zhub route coverage check.
+5. **Documentation automation** — api-overview generator + route coverage check.
 
 ---
 
@@ -28,7 +28,7 @@ Three parallel frontend patterns (fat routes, `components/pages/`, partial `feat
 - [ ] `packages/api/src/routers/index.ts` ≤150 lines
 - [ ] Zero full implementations at `apps/web/src/routes/_authenticated/{appointment,service,service-category,user}/view.tsx` (redirect or deleted)
 - [ ] oxlint `no-restricted-imports` rules active in CI
-- [ ] `bun scripts/gen-api-overview.ts` (or equivalent) produces diff-free output vs committed zhub file
+- [ ] `bun scripts/gen-api-overview.ts` (or equivalent) produces diff-free output vs the committed API overview
 - [ ] `useApiMutation` on 100% of dashboard mutations (0 raw `useMutation`)
 - [ ] react-doctor diff gate fails PR on score regression
 
@@ -51,7 +51,7 @@ Each sprint PR must include:
 - Thin route shell
 - Lazy import if page bundle heavy
 - Vitest for primary page component
-- zhub page create/update
+- knowledge-graph page create/update (previously zhub, now retired)
 
 ---
 
@@ -113,9 +113,9 @@ Follow `apps/web/src/features/.README.md`:
 | ID | Task | Effort |
 |----|------|--------|
 | D.6.1 | `scripts/gen-api-overview.ts` — read merged `appRouter` keys | L |
-| D.6.2 | CI: fail if `zhub/shared/api-overview.md` stale when `packages/api/**` changes | M |
-| D.6.3 | `/hub-update` command OR `scripts/check-zhub-routes.ts` | M |
-| D.6.4 | Update `zhub/index.md`: customers v2, packages/view, reports, platform-admin section | M |
+| D.6.2 | CI: fail if the API overview (enumerate from `packages/api/src/routers/`) is stale when `packages/api/**` changes | M |
+| D.6.3 | `/graphify . --update` command OR `scripts/check-routes.ts` | M |
+| D.6.4 | Update the page inventory (`graphify-out/GRAPH_REPORT.md`): customers v2, packages/view, reports, platform-admin section | M |
 | D.6.5 | Deprecate `docs/api-reference.md` → pointer to live OpenAPI | S |
 | D.6.6 | `docs/adr/README.md` index | S |
 
@@ -142,7 +142,7 @@ bun scripts/check-route-loc.ts --max 400
 bun check
 bun check-types
 cd apps/web && bun test --run
-bun scripts/gen-api-overview.ts && git diff --exit-code zhub/shared/api-overview.md
+bun scripts/gen-api-overview.ts && git diff --exit-code graphify-out/
 ```
 
 ---

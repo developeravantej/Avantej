@@ -204,7 +204,7 @@ The `invoice_status` enum includes `overdue`, but nothing transitions an invoice
 ### P2 — `getReceiptData` and `payouts.list` are heavy inline router logic with no service backing  (`pos.ts:155`, `payouts.ts:26`)
 Both procedures hand-roll multi-table joins + cross-DB enrichment directly in the router instead of a service function (unlike every sibling procedure). This is a testability/consistency gap (router-layer DB logic can't be unit-tested at the service boundary, and the project convention is procedures→services). Not broken, but inconsistent and fragile.
 
-### P2 — Catalog drift in `zhub/shared/api-overview.md`  (`zhub/shared/api-overview.md:296-312, 197-213, 361-369`)
+### P2 — Catalog drift in the API overview (enumerate from `packages/api/src/routers/`)
 The catalog is materially stale vs. the actual owned routers:
 - **sales-orders**: catalog lists 6 procedures; actual router has 9 — missing `kpiSummary`, `largestToday`, `getLatest`.
 - **installments**: catalog lists only 3 (`adjustCredits`, `confirmPayment`, `processRefund`); actual router has 12 — missing `listByPackageInstance`, `manualUnlock`, `reschedule`, `waive`, `resetOverride`, `adminOverview`, `getEvents`, `suggestRefund`, `setOverdraft`.

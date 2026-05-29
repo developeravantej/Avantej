@@ -176,4 +176,4 @@ Branch is ready for review. Suggest:
    - `analytics.service.ts` (raw SQL parameterization for branch filter)
 2. Stage to a non-prod tenant; smoke-test refund→payout, package refund, transfer order lifecycle, scheduled report email.
 3. Open separate tickets for: CPR-04 (policy), AC-A-06 (migration), PO-005 (feature), API dts (build infra).
-4. Merge to main, then run `/hub-update` to refresh the codebase hub.
+4. Merge to main, then run `/graphify . --update` to refresh the knowledge graph.

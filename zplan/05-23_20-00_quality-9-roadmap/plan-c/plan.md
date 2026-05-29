@@ -84,7 +84,7 @@ C.9 Integration tests + staging verification
 | ID | File | Change | Effort |
 |----|------|--------|--------|
 | C.4.1 | `packages/api/src/index.ts` | Chain: session → tenantDb + member + organizationId | M |
-| C.4.2 | Document three tiers in `zhub/shared/auth-flow.md` | public / protected / tenant | S |
+| C.4.2 | Document three tiers in `CLAUDE.md` (auth/RBAC/context flow) | public / protected / tenant | S |
 
 ### C.5 — Router migration (batched PRs)
 

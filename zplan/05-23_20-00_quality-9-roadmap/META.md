@@ -10,7 +10,7 @@ decisions:
   ci_database: current Neon development database (same as local dev; no separate ci-e2e sandbox)
 linked_docs:
   - docs/FEATURE_WIRING_AUDIT.md
-  - zhub/index.md
+  - graphify-out/GRAPH_REPORT.md
   - CLAUDE.md
 ---
 

@@ -3,7 +3,7 @@
 Scope: refunds, payouts, commission-splits, category-commission, tax-rates, expenses routers + their backing services and the commission calculator/math.
 All procedures are `tenantProcedure` (= protected: session + tenant context + RBAC via `accessibleNodeIds`). Amounts are integer cents. Cross-DB ids (`staffId`, `recipientId`, `submittedBy`, `requestedBy`) are plain `text` = `members.userId`.
 
-Note on api-overview drift: `base-router.ts` registers all six routers (`payouts`, `expenses`, `commissionSplits`, `categoryCommission`, `taxRates`, `refunds`). `zhub/shared/api-overview.md` is STALE for `payouts` (see Gap P2-DOC).
+Note on api-overview drift: `base-router.ts` registers all six routers (`payouts`, `expenses`, `commissionSplits`, `categoryCommission`, `taxRates`, `refunds`). The API overview (enumerate from `packages/api/src/routers/`) was STALE for `payouts` (see Gap P2-DOC).
 
 ---
 
@@ -181,7 +181,7 @@ persistence: { tenant, table: tax_rates, where: "isActive=true", expect: "after 
 ### P3 — `upsertCategoryCommissionConfig` is delete+reinsert: breaks existing split config-version anchoring  (`packages/services/src/category-commission.service.ts:153`)  [implemented | testable:false]
 `upsert` deletes the existing `categoryCommissionConfigs` row (cascading to slots/rates/conditions) and inserts a fresh one with a NEW id every save. Splits anchored via `configVersionId`/`getLatestConfigVersionForCategory` rely on the immutable `category_commission_config_versions` snapshot (populated by a DB trigger per the comment), so dispute reproduction depends on that trigger firing on every delete+reinsert. If the version trigger is keyed on the config row rather than category, historical anchoring may be lost on re-save. Flagged for verification — not provable from these files alone (trigger lives in a migration outside this domain's owned files).
 
-### P2-DOC — api-overview.md omits 4 of 5 payouts procedures  (`zhub/shared/api-overview.md:331`)  [n/a | testable:false]
+### P2-DOC — API overview omits 4 of 5 payouts procedures  (enumerate from `packages/api/src/routers/`)  [n/a | testable:false]
 The `## payouts` section lists only `list`. The router also exposes `previewBatch`, `runBatch`, `recipientSummary`, `processForRecipient` (all in `payouts.ts`). Doc is stale vs code. (All other domain routers match the overview.)
 
 ---

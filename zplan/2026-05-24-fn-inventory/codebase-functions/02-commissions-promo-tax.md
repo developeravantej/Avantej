@@ -181,8 +181,8 @@ Verified: POS sets `commissionDeferred=true` on service lines (`pos.service.ts:4
 
 ### P4 — Doc / surface discrepancies
 
-**P4.1 — `zhub/shared/api-overview.md` commission-splits table is stale.**
-`api-overview.md:128-139` lists only 9 procedures. The router actually exposes **15** (`commission-splits/index.ts`). Missing from docs: `listLedger`, `markPaidById`, `voidById`, `liabilityByStaff`, `listPendingReview`, `resolveReview`. Run `/hub-update`.
+**P4.1 — the API overview (enumerate from `packages/api/src/routers/`) commission-splits table is stale.**
+The API overview lists only 9 procedures. The router actually exposes **15** (`commission-splits/index.ts`). Missing from docs: `listLedger`, `markPaidById`, `voidById`, `liabilityByStaff`, `listPendingReview`, `resolveReview`. Run `/graphify . --update`.
 
 **P4.2 — api-overview labels all as "protected" — understates RBAC.**
 Every commission/promo/tax procedure enforces a *specific* permission:action inside the handler (e.g. `commission_review:resolve`, `commission_payout:update`); the doc's flat "protected" hides this. Minor, but the per-procedure permission matrix is undocumented.

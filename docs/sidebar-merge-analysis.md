@@ -17,7 +17,7 @@ or absorbing a thin page into a richer one.
 
 ## 2. Role View + Access Control – Roles → one "Roles" page
 
-**Current:** `/dashboard/role/view` (read-only role list) and `/dashboard/access-control/roles` (roles CRUD wizard) coexist. The zhub explicitly flags this overlap.
+**Current:** `/dashboard/role/view` (read-only role list) and `/dashboard/access-control/roles` (roles CRUD wizard) coexist. The codebase docs explicitly flag this overlap (previously documented in zhub, now retired).
 **Problem:** Two routes do almost the same job. Role View is read-only; Access Control – Roles adds a creation wizard. They should be one page.
 **Fix:** Keep `/dashboard/access-control/roles` (the richer one with CRUD). Delete the Staff → "User Roles" nav item and route.
 **Nav item removed:** User Roles (under Staff)
@@ -72,7 +72,7 @@ or absorbing a thin page into a richer one.
 ## 8. UoM + UoM Conversions → "Units of Measure" (tabs)
 
 **Current:** Two nav items, two routes in the Inventory group.
-**Problem:** UoM Conversions are meaningless without the base units present. They belong together. The zhub also notes that deleting a base UoM while conversions exist fails silently — a single page makes that constraint visible.
+**Problem:** UoM Conversions are meaningless without the base units present. They belong together. The codebase docs also note that deleting a base UoM while conversions exist fails silently — a single page makes that constraint visible.
 **Fix:** Single "Units of Measure" page — tab **Units** and tab **Conversions**.
 **Nav item removed:** UoM Conversions
 

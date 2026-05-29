@@ -2,7 +2,7 @@
 
 Scope: server-only routers in `apps/server/src/routers/` (platform-admin, billing, integrations, auth, invitations) + tenant cross-cutting routers in `packages/api/src/routers/` + backing services in `packages/services/src/`. `payments.ts` deliberately skipped (owned by money-flow agent).
 
-Citations are `file:line`. "Uncatalogued" = not present in `zhub/shared/api-overview.md` (only `admin`, `auth`, `invitations`, `tenant-admin` from the server side, plus the tenant cross-cutting routers, appear there; all `platform-admin-*`, `subscriptions`, `stripe-connect`, `ghl`, `scheduled-reports`, `onboarding` are absent).
+Citations are `file:line`. "Uncatalogued" = not present in the API overview (enumerate from `packages/api/src/routers/`) (only `admin`, `auth`, `invitations`, `tenant-admin` from the server side, plus the tenant cross-cutting routers, appear there; all `platform-admin-*`, `subscriptions`, `stripe-connect`, `ghl`, `scheduled-reports`, `onboarding` are absent).
 
 ---
 
@@ -145,6 +145,6 @@ Factory `createStripeConnectRouter`; exports HMAC helpers `signOAuthState` (`:10
 
 11. **GHL custom-field bootstrap is best-effort/non-fatal.** `ghl.ts:87-94` and `:385-392`: `ensureCustomFieldsExist` failures are caught and only `console.warn`'d. A branch can be marked "connected" with custom fields missing; only basic name/email/phone sync works. Documented behavior, but means branch-differentiation via custom fields can silently be absent. Possibly-intentional.
 
-### Catalog discrepancies (vs `zhub/shared/api-overview.md`)
+### Catalog discrepancies (vs the API overview — enumerate from `packages/api/src/routers/`)
 
-12. All `platform-admin-*` routers, `subscriptions`, `stripe-connect`, `ghl`, `scheduled-reports`, and `onboarding` are **uncatalogued** in `api-overview.md`. Catalogued from this domain: `admin`, `auth`, `invitations`, `tenant-admin` (server) + the tenant cross-cutting routers (announcements, notifications, notification-preferences, audit-logs, user-activity-log, analytics, google-calendar, registration). The catalog claims "47 routers" but the platform-admin surface (20+ routers, ~80 procedures) and the integration/billing routers are entirely undocumented there. The hub needs a `/hub-update` pass to add these.
+12. All `platform-admin-*` routers, `subscriptions`, `stripe-connect`, `ghl`, `scheduled-reports`, and `onboarding` are **uncatalogued** in the API overview. Catalogued from this domain: `admin`, `auth`, `invitations`, `tenant-admin` (server) + the tenant cross-cutting routers (announcements, notifications, notification-preferences, audit-logs, user-activity-log, analytics, google-calendar, registration). The catalog claims "47 routers" but the platform-admin surface (20+ routers, ~80 procedures) and the integration/billing routers are entirely undocumented there. The knowledge graph needs a `/graphify . --update` pass to add these.

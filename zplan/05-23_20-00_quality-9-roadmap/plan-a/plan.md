@@ -77,7 +77,7 @@ Without Plan A, Plan B smoke work has no regression net.
 | A.2.1 | `README.md` | Biome = format only; `bun check` = oxlint; password `password1234`; OpenAPI `avantej.localhost:3020`; list all 5 packages | S |
 | A.2.2 | `docs/testing/_setup.md` | Ports 3021/3020; hosts `avantej.localhost` | S |
 | A.2.3 | `CONTRIBUTING.md` | Replace root `bun test` with explicit server/web paths | S |
-| A.2.4 | `README.md` top | "Start here" → CONTRIBUTING → zhub → CLAUDE | S |
+| A.2.4 | `README.md` top | "Start here" → CONTRIBUTING → graphify-out/GRAPH_REPORT → CLAUDE | S |
 | A.2.5 | `e2e/README.md` (new) | Auth setup, credentials, smoke vs journey, single-spec command | S |
 | A.2.6 | RHF status | Grep remaining RHF imports; document count + sunset in CONTRIBUTING or complete removal list | S |
 

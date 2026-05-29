@@ -76,7 +76,7 @@ These recur across domains and are the highest-value fixes after the build:
 | Staff, Access, Branches & Onboarding | `audit/08-*.md` | 12 | listAllMembers scope leak; retryGhlSync ungated; markExpiredInvitations unwired |
 
 ## 3. Doc drift (P3)
-`zhub/shared/api-overview.md` is stale across every domain: undocumented routers (`scheduledReports`, `userActivityLog`, `trainers`, `branchInvites`, `households`, `member-profiles`, `coach-intake`), most `google-calendar`/`trainer-availability`/`waitlist` procedures, `installments` (12 procs vs 3 documented), and several renamed procedures. Worth a `/hub-update` pass.
+The API overview (enumerate from `packages/api/src/routers/`) was stale across every domain: undocumented routers (`scheduledReports`, `userActivityLog`, `trainers`, `branchInvites`, `households`, `member-profiles`, `coach-intake`), most `google-calendar`/`trainer-availability`/`waitlist` procedures, `installments` (12 procs vs 3 documented), and several renamed procedures. Worth a `/graphify . --update` pass.
 
 ## 4. Verification notes
 Conductor independently confirmed (read or `tsc`): all 9 build-break clusters (✅), the commission-reversal orphan (grep — tests only), `markExpiredInvitations` unwired (grep — no prod caller), `hierarchy.listAllMembers` shape, and **corrected** the false `itemNet` P1 and the over-stated walk-in "dead CRUD" (route is an intentional LEGACY redirect to `customers/v2/view`). Remaining P1/P2 feature findings are 📋 agent-reported from disjoint read-only file ownership and are reliable but not each line-verified.

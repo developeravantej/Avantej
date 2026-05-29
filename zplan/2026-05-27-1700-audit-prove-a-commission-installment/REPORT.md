@@ -161,4 +161,4 @@ Branch `audit-prove-a/commission-installment-20260527-1700` is ready for review.
 
 3. **Open the 3 follow-up tickets** (last_stripe_event_at migration, TS7056, fixture cleanup).
 
-4. **Merge to main** → run `/hub-update` to refresh codebase hub.
+4. **Merge to main** → run `/graphify . --update` to refresh the knowledge graph.

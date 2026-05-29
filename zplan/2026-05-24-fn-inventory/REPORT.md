@@ -61,7 +61,7 @@ This is the *only* error CI actually catches today; everything in §1.2 slips th
 
 ## 2. Cross-cutting themes (every domain hit these)
 
-1. **`zhub/shared/api-overview.md` is badly stale** (all 6 domains). It claims 52 routers / understates procedure counts everywhere: installments 3→12, payouts 1→5, sales-orders 6→9, members 8→13, commission-splits 9→15; omits the entire server `payments` router (9 procs) and **all** `platform-admin-*`/`subscriptions`/`stripe-connect`/`ghl`/`scheduled-reports`/`onboarding` routers (~80 procedures uncatalogued). It also lists nonexistent procedures (`trainer-tiers.delete`, service-members `assign`/`updateBuffer`) and mislabels others (goods-receipts `list` is really `listForPo`). **Regenerate it.**
+1. **The API overview (enumerate from `packages/api/src/routers/`) is badly stale** (all 6 domains). It claims 52 routers / understates procedure counts everywhere: installments 3→12, payouts 1→5, sales-orders 6→9, members 8→13, commission-splits 9→15; omits the entire server `payments` router (9 procs) and **all** `platform-admin-*`/`subscriptions`/`stripe-connect`/`ghl`/`scheduled-reports`/`onboarding` routers (~80 procedures uncatalogued). It also lists nonexistent procedures (`trainer-tiers.delete`, service-members `assign`/`updateBuffer`) and mislabels others (goods-receipts `list` is really `listForPo`). **Regenerate it.**
 
 2. **Orphaned (dead) service functions** — written + often unit-tested, but no router/cron calls them:
    - `processCommissionReversals` (`payouts.service.ts:38`) ✅ — commission clawback runner, zero callers.
@@ -165,7 +165,7 @@ This is the *only* error CI actually catches today; everything in §1.2 slips th
 14. RBAC scope enforcement in `hasPermission` (§2.5).
 
 ### P3 — Hygiene
-15. Regenerate `zhub/shared/api-overview.md` (§2.1); update stale memory note (§4-05).
+15. Regenerate the API overview (enumerate from `packages/api/src/routers/`) (§2.1); update stale memory note (§4-05).
 16. Dedupe `void`/`voidById`, the two membership service files; remove orphan service fns or expose them.
 
 ---

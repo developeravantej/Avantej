@@ -54,7 +54,7 @@ Plans D and E may overlap **after** Plan C batch 1 (read-only `tenantProcedure` 
 |-----------|-----------------|---------------------|
 | **Architecture** | C | `tenantProcedure` on all tenant writes; branch scoped; no `honoContext.get` leaks |
 | **Code organization** | D | No route >400 LOC; `routers/index.ts` <150 LOC; zero legacy duplicate routes |
-| **Documentation** | A (P0), D/E (ongoing) | README/CONTRIBUTING accurate; api-overview synced; zhub ⊆ routes |
+| **Documentation** | A (P0), D/E (ongoing) | README/CONTRIBUTING accurate; api-overview synced; page inventory ⊆ routes (previously zhub, now retired) |
 | **Test coverage** | A, B, E | Server unit in CI; smoke E2E green; router tests for POS/appt/payments |
 | **CI / automation** | A, B | 6+ required checks; integration on `main`; pinned Bun; cache |
 | **Production readiness** | C, E | SaaS write gate; Resend prod; CF rate limits; wiring honest |
@@ -68,7 +68,7 @@ Plans D and E may overlap **after** Plan C batch 1 (read-only `tenantProcedure` 
 - [ ] Staging past-due tenant cannot mutate data (SaaS middleware)
 - [ ] `grep` shows no route file under `apps/web/src/routes/` above 400 LOC (excluding layouts)
 - [ ] `docs/FEATURE_WIRING_AUDIT.md` updated — every former gap marked **shipped** or **removed**
-- [ ] `zhub/shared/api-overview.md` matches live `appRouter` keys (generator or manual verify)
+- [ ] The API overview (enumerate from `packages/api/src/routers/`) matches live `appRouter` keys (generator or manual verify)
 - [ ] Dimension scorecard re-audit ≥ 9 on all seven (repeat agent audit or checklist in `overview.md` §Scorecard)
 
 ---

@@ -103,7 +103,7 @@ The user has also manually verified all 6 POS audit scenarios (sidebar/confirm "
    - `apps/web/src/features/appointments/components/{CalendarDetailModal,OccurrenceActionDialog}.tsx`
    - `apps/web/src/routes/_authenticated/dashboard/_layout/{audit,branch}/view.tsx`, `…/go-highlevel-integration.tsx`
    - `e2e/gap-prove.spec.ts`, `gap-prove.config.ts`
-   - `zhub/{index.md,pages/web-dashboard-sales-create.md}`
+   - knowledge graph (`graphify-out/`) — page inventory + sales-create page (previously zhub, now retired)
 
 2. **PS-01 behaviour change** — flag to operations: bulk-approving instalment packages now leaves the first instalment in `pending` rather than silently posting it as `manual_transfer`. Document in operator-facing release notes.
 

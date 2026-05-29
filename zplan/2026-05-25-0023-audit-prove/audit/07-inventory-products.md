@@ -217,11 +217,11 @@ persistence: { tenant, table: "product_categories/brands/units_of_measure", wher
 `upsertProductStock` sets `quantity` to an absolute value (not a delta) and is not called by any owned router (only `adjustStock` is wired to `products.adjustStock`). If exposed/used elsewhere it would clobber on-hand without a ledger. No router surface in this domain references it.
 persistence: { tenant, table: "product_stock.quantity", where: "product+branch", expect: "no caller in inventory domain" }
 
-### P3 — api-overview.md stale vs goods-receipts router  (zhub/shared/api-overview.md:184-194)  [implemented | testable:false]
+### P3 — API overview stale vs goods-receipts router  (enumerate from `packages/api/src/routers/`)  [implemented | testable:false]
 Doc lists goods-receipts procedures `create, disputeInvoice, getById, getInvoicePreview, list, listInvoices, markInvoicePaid, update`. Actual router (goods-receipts.ts) has `listForPo, getById, create, cancel, createInvoice, listInvoices, matchInvoice, disputeInvoice, markInvoicePaid, getInvoicePreview`. Discrepancies: doc lists `list` + `update` that **do not exist**; doc omits real `listForPo`, `cancel`, `createInvoice`, `matchInvoice`. Pure documentation drift.
 persistence: { n/a — doc }
 
-### P3 — api-overview.md lists transfer-orders procedure names not all matching  (zhub/shared/api-overview.md:541-549)  [implemented | testable:false]
+### P3 — API overview lists transfer-orders procedure names not all matching  (enumerate from `packages/api/src/routers/`)  [implemented | testable:false]
 Doc matches actual transfer-orders router (cancel/complete/create/getById/list/markInTransit) — OK. Noted for completeness: stock-requests doc (490-498) matches. Promotions doc lists `apply/create/deactivate/list/update/validate` = matches. Products doc omits `getStock`/`adjustStock` listed but includes them (366-373) — matches. Only goods-receipts (P3 above) is materially stale.
 persistence: { n/a — doc }
 

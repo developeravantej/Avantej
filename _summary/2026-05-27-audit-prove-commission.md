@@ -201,7 +201,7 @@ Pushed `audit-prove-a/commission-installment-20260527-1700` to origin. Created *
 
 ### Hub update
 
-Ran `/hub-update`. Dispatched one parallel agent to update 8 affected `zhub/pages/` files (commissions-view, commissions-my, commissions, category-commission, payouts-view, payouts, refunds-view, refunds) with concise delta blocks pointing at source files. Updated `zhub/shared/api-overview.md` with the new partner-stripe + payouts state-machine procedures. Updated `zhub/index.md` with a new "PR #32 audit-prove commission" session block at the top of the changelog.
+Ran the codebase-hub refresh (now `/graphify . --update`). Dispatched one parallel agent to update 8 affected page docs (commissions-view, commissions-my, commissions, category-commission, payouts-view, payouts, refunds-view, refunds) with concise delta blocks pointing at source files. Updated the API overview with the new partner-stripe + payouts state-machine procedures, and the page inventory with a new "PR #32 audit-prove commission" session block at the top of the changelog. (These zhub docs have since been retired in favor of the knowledge graph.)
 
 Commit `34c08a85` — 10 files, 88 insertions, 14 deletions.
 

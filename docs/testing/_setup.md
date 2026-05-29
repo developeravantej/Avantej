@@ -276,8 +276,8 @@ If any box is unchecked, fix it before executing a protocol. A partial setup gua
 
 ## Appendix B — Cross-references
 
-- Auth and cookie model: `zhub/shared/auth-flow.md`
-- Page inventory: `zhub/index.md`
+- Auth and cookie model: `CLAUDE.md`
+- Page inventory: `graphify-out/GRAPH_REPORT.md`
 - Buffer-cascade reference: `docs/BUFFER_TIME_TESTING.md`
 - Installment reference: `docs/INSTALLMENT_TESTING.md`
 - Master plan: `zplan/17-04_13-00_admin-flow-test-coverage/plan.md`

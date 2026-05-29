@@ -1487,11 +1487,11 @@ If any test reveals a bug, fix it under a new commit. If all validation passes, 
 
 ---
 
-## Task 15: Update memory + zhub
+## Task 15: Update memory + knowledge graph
 
-- [ ] **Step 1: Update zhub api overview**
+- [ ] **Step 1: Refresh the knowledge graph**
 
-Run `/hub-update` (a project slash command) to refresh `zhub/shared/api-overview.md` and any per-page entries reflecting the new procedures and behavior.
+Run `/graphify . --update` to refresh the knowledge graph reflecting the new procedures and behavior.
 
 - [ ] **Step 2: Update GHL memory**
 
@@ -1504,8 +1504,8 @@ Edit `~/.claude/projects/-Users-ngchwanlii-App-prod-avantej-core/memory/ghl-agen
 - [ ] **Step 3: Commit**
 
 ```bash
-git add zhub/ ~/.claude/projects/.../ghl-agency-id.md
-git commit -m "docs: update zhub + memory after GHL staff sync wiring shipped"
+git add graphify-out/ ~/.claude/projects/.../ghl-agency-id.md
+git commit -m "docs: update knowledge graph + memory after GHL staff sync wiring shipped"
 ```
 
 ---

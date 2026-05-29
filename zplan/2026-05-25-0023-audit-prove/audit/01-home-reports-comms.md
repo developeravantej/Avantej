@@ -3,7 +3,7 @@
 Audit of the Home (dashboard KPIs/widgets), Reports, Announcements, Notifications, and Audit Log surfaces.
 Read-only. All `file:line` refs are repo-relative to `C:\Project\Avantej`.
 
-Cross-checked against `zhub/shared/api-overview.md`.
+Cross-checked against the API overview (enumerate from `packages/api/src/routers/`).
 
 ---
 
@@ -194,7 +194,7 @@ Why it matters: the bell polls `getUnreadCount` frequently; an N-row fetch per p
 ### P4 — `notificationPreferences.get` does not create a default row despite docstring  (notification-preference.service.ts:30)  [status: partial | testable: true]
 The service docstring says "Creates default row if not found", but `getNotificationPreferences` returns `null` and never inserts. Defaulting only happens on `upsert`. The UI must therefore tolerate `null` (it appears to). Behaviour vs documentation mismatch — low risk but a stale contract.
 
-### P5 — Doc drift vs `zhub/shared/api-overview.md`  (zhub/shared/api-overview.md:51-55)  [status: partial | testable: false]
+### P5 — Doc drift vs the API overview (enumerate from `packages/api/src/routers/`)  [status: partial | testable: false]
 - `analytics` section lists ONLY `getDashboardKpis` + `getStaffPerformance` (lines 54-55). MISSING: `getRevenueSeries`, `getMemberCountSeries`, `getChurnSeries`, `getLtvSeries`, `getClassFillRateSeries` — 5 procedures absent from the overview.
 - `audit-logs` section (lines 79-82) lists only `list`; MISSING `exportCsv`.
 - `scheduled-reports` router has NO section at all in the overview (registered as `scheduledReports` in base-router but undocumented).

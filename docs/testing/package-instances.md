@@ -2,7 +2,7 @@
 
 **Page:** `/dashboard/packages/instances/view`
 **Covers:** PI1, PI2, PI3, PI4 (from `zplan/17-04_13-00_admin-flow-test-coverage/plan.md` §4.8)
-**Authoring reference:** `zhub/pages/web-dashboard-packages-instances-view.md`
+**Authoring reference:** the route's source under `apps/web/src/routes/` (`/dashboard/packages/instances/view`)
 
 > Setup, login, MCP cheat sheet, seed fixtures, cleanup rules, results-file naming, and the runtime-UUID resolver (`js` snippet) all live in `docs/testing/_setup.md`. This protocol DOES NOT duplicate them — every `<fixture>.id` placeholder below is resolved via `_setup.md` §1.2.
 

@@ -98,7 +98,7 @@ persistence: none (stub returns constant; never queries `walk_in_customers`). Ex
 `convertToPackage` and `convertWalkInPaymentToPackage` are fully implemented (atomic, idempotent, status-history-aware) but grep across `apps/web/src` finds **zero** callers of `walkInCustomers.convertToPackage`. The "walk-in pays drop-in then upgrades to a pack" journey described in the service header is unreachable from the UI — a dead-end feature. The conversion is testable directly at the API boundary.
 persistence: `{ tenant, table: payments, where: id=walkInPaymentId, expect: status='converted', metadata.convertedToPaymentId set }` + new row `{ table: payments, where: convertedFromPaymentId=walkInPaymentId, expect: status='succeeded' }` + `{ table: payment_status_history (via appendPaymentStatusHistory), where: paymentId=walkInPaymentId, expect: succeeded→converted }`.
 
-### P1 — `customerDirectory.getStats` not documented in api-overview, plus `listLeadSources`/`getStats`/`convertToPackage` missing from doc (`zhub/shared/api-overview.md:161-172,565-569`) [status: implemented | testable: true]
+### P1 — `customerDirectory.getStats` not documented in api-overview, plus `listLeadSources`/`getStats`/`convertToPackage` missing from doc (API overview — enumerate from `packages/api/src/routers/`) [status: implemented | testable: true]
 Discrepancies vs `api-overview.md`:
 - `customer-directory` section lists only `getById` + `list`; **`getStats` is missing** (router line 70).
 - `customer-profiles` section lists `get`/`upsert`/`upsertForCustomer` but **omits `listLeadSources`** (router line 200) and all server-only procedures (`softDelete`, `restore`, `retryGhlSync`, `addEmailAndDispatchMagicLink`, `resendMagicLink`).

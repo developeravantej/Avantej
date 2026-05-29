@@ -25,7 +25,7 @@ public flow uses `publicProcedure`.
 | `weeklySchedule` | protected | Next-7-days appointments + class slots. Gate: `appointment_management:read`. | `getTrainerWeeklySchedule` |
 | `weeklyStatsBatch` | protected | Batch stats up to 100 trainers. Gate: `user_management:approve`. | `getTrainerWeeklyStatsBatch` |
 
-NOTE: not catalogued in `zhub/shared/api-overview.md` (no `trainers` section). [discrepancy]
+NOTE: not catalogued in the API overview (enumerate from `packages/api/src/routers/`) — no `trainers` section. [discrepancy]
 
 ### trainer-tiers.ts (`packages/api/src/routers/trainer-tiers.ts`)
 | Name | Auth | Purpose | Logic fn |
@@ -106,7 +106,7 @@ NOTE: gated on `user_management`, not a `role_management` resource (which exists
 | `regenerate` | protected | Revoke + create fresh invite for same branch. Gate: `...:create`. **No `guardBranchAccessible`.** | `revokeBranchInvite` + `createBranchInvite` |
 
 NOTE: entire `branchInvites` router (registered in `base-router.ts:135`) is absent from
-`zhub/shared/api-overview.md`. [discrepancy]
+the API overview (enumerate from `packages/api/src/routers/`). [discrepancy]
 
 ### invitations/* (`packages/api/src/routers/invitations/`) — `invitations.ts` is a re-export shim
 | Name | Auth | Purpose | Logic fn |

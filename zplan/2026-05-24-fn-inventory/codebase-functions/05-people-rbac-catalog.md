@@ -243,7 +243,7 @@ Audit of People/RBAC/Hierarchy/Org/Service-Catalog routers + services. All route
 
 8. **`organizationSettings.upsert` bypasses the RBAC system.** `organization-settings.ts:28` hard-codes `if (context.member.role !== "admin") throw FORBIDDEN` instead of `requirePermissionOrpc`. A custom role with org-admin-equivalent permissions but `role !== "admin"` (text) cannot write settings. Inconsistent with the rest of the domain.
 
-### P3 — Doc drift (zhub/shared/api-overview.md)
+### P3 — Doc drift (API overview — enumerate from `packages/api/src/routers/`)
 
 9. **api-overview.md badly understates the members router.** Documents 8 procs (members.ts:245-252); actual = 13 (`members/index.ts`): missing `updateScope`, `softDelete`, `restore`, `retryGhlSync`, `newToday`. (Doc was written pre folder-split.)
 10. **`service-members` doc lists `assign` + `updateBuffer`** (api-overview.md:429,434) which **do not exist**; omits the fact that `listForMember`/`remove` are mis-wired (#1,#2).

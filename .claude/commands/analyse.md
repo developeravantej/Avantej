@@ -1,10 +1,10 @@
 # /analyse — Codebase Health Audit
 
-You are running a comprehensive codebase health audit. Your job is to find what's **missing, broken, incomplete, or orphaned** — not to document what exists (that's what `/hub` does).
+You are running a comprehensive codebase health audit. Your job is to find what's **missing, broken, incomplete, or orphaned** — not to document what exists (that's what `/graphify` does).
 
 ## Pre-requisites
 
-Before launching agents, read `zhub/index.md` fully. Extract every item from the "Known Issues" section into a checklist. Agents must tag re-discovered known issues as `[KNOWN]` so the report highlights **new** findings.
+Before launching agents, read `CLAUDE.md` and (if present) `graphify-out/GRAPH_REPORT.md` for already-documented constraints and known issues. Build a checklist of any pre-existing issues you find. Agents must tag re-discovered known issues as `[KNOWN]` so the report highlights **new** findings.
 
 ## Output
 
@@ -42,7 +42,7 @@ Severity levels: `CRITICAL` (runtime errors, data loss), `BUG` (wrong behavior),
 
 ## Audit Agents
 
-Launch the following agents **in parallel**. Each agent gets the zhub known-issues checklist and its specific instructions below.
+Launch the following agents **in parallel**. Each agent gets the known-issues checklist and its specific instructions below.
 
 ---
 
@@ -73,7 +73,7 @@ Launch the following agents **in parallel**. Each agent gets the zhub known-issu
 **Goal:** Find API procedures that no frontend page ever calls.
 
 **Steps:**
-1. Read `zhub/shared/api-overview.md` to get the full procedure list.
+1. Enumerate the full procedure list from `packages/api/src/routers/` and `apps/server/src/routers/` (or `graphify-out/graph.json` if present).
 2. For each procedure, grep `apps/web/src/` and `apps/native/` for usage (search for the procedure name in client calls like `client.router.procedure` or `orpc.router.procedure`).
 3. Categorize:
    - **Dead procedures**: not called from any frontend.
@@ -99,7 +99,7 @@ Launch the following agents **in parallel**. Each agent gets the zhub known-issu
    - Hardcoded currency strings (`"usd"`, `"USD"`, `"MYR"`) that should come from config
    - Hardcoded tax rates (`* 1.1`, `* 0.1`, `0.06`, `0.08`) that should come from DB
    - Hardcoded magic numbers in business logic
-2. For each finding, check if it's in zhub's known issues. Tag accordingly.
+2. For each finding, check if it's in the known-issues checklist. Tag accordingly.
 3. Exclude: test files, seed scripts, and legitimate uses (e.g., `setTimeout` for animation).
 
 **Output:** `zanalyse/gaps/stub-detection.md`
@@ -128,7 +128,7 @@ Launch the following agents **in parallel**. Each agent gets the zhub known-issu
 **Goal:** Find unreachable code, duplicate routes, and unused exports.
 
 **Steps:**
-1. From zhub/index.md, identify pages flagged as "legacy route" or "duplicate of dashboard version". Verify they still exist.
+1. From `CLAUDE.md` or `graphify-out/GRAPH_REPORT.md` (if present), identify pages flagged as "legacy route" or "duplicate of dashboard version". Verify they still exist.
 2. Check for route files in `apps/web/src/routes/` that are NOT referenced in navigation (sidebar, links, breadcrumbs) — only reachable by direct URL.
 3. In `packages/services/src/`, find exported functions that are never imported anywhere.
 4. In `packages/api/src/routers/`, find procedures defined but not registered in the router index.
@@ -169,8 +169,8 @@ Launch the following agents **in parallel**. Each agent gets the zhub known-issu
 
 ## Important Rules
 
-- Use `zhub/` as your starting point. Don't re-trace the full stack from scratch.
+- Use `graphify-out/` (if present) and `CLAUDE.md` as your starting point. Don't re-trace the full stack from scratch.
 - Every finding must have a concrete "what to do" — no vague observations.
-- Tag `[KNOWN]` for anything already in zhub's Known Issues. The value of this audit is **new** discoveries.
+- Tag `[KNOWN]` for anything already in the known-issues checklist. The value of this audit is **new** discoveries.
 - Don't suggest fixes that require architectural changes. Keep recommendations scoped to the current architecture.
 - Exclude test files, seed scripts, and migration files from stub/mock detection (those are expected to have mocks).

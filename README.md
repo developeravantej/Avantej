@@ -1,6 +1,6 @@
 # avantej-core
 
-**Start here:** [CONTRIBUTING.md](CONTRIBUTING.md) → [zhub/index.md](zhub/index.md) → [CLAUDE.md](CLAUDE.md)
+**Start here:** [CONTRIBUTING.md](CONTRIBUTING.md) → [graphify-out/GRAPH_REPORT.md](graphify-out/GRAPH_REPORT.md) → [CLAUDE.md](CLAUDE.md)
 
 ## Login Credentials
 
@@ -106,7 +106,7 @@ avantej-core/
 │   ├── db/          # Drizzle schemas + migrations
 │   ├── services/    # Business logic
 │   └── types/       # Shared types
-└── zhub/            # Route/API context hub
+└── zhub/shared/     # schema ERD + drift CI artifacts
 ```
 
 ## Scripts

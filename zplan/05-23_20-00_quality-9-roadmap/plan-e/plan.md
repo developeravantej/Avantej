@@ -24,7 +24,7 @@ Refresh audit, then ship each domain with:
 - Router exposure (if new procedures needed)
 - UI connection (if not already calling API)
 - Unit + integration test
-- zhub + FEATURE_WIRING doc update
+- knowledge-graph (previously zhub, now retired) + FEATURE_WIRING doc update
 
 ---
 
@@ -59,7 +59,7 @@ Refresh audit, then ship each domain with:
 | Service | `packages/services/src/trainer-availability.service.ts` | Expose `isTrainerAvailable(trainerId, start, end)` |
 | Test | `apps/server/src/tests/integration/trainer-availability-booking.integration.test.ts` | Book outside window → CONFLICT |
 | UI | None if API enforces | — |
-| Docs | zhub appointment pages | Note enforcement |
+| Docs | appointment page docs (previously zhub, now retired) | Note enforcement |
 
 **Effort:** M
 
@@ -251,7 +251,7 @@ E.0 refresh
 - [ ] Unit test
 - [ ] Integration test
 - [ ] FEATURE_WIRING_AUDIT.md section → Fully Wired
-- [ ] zhub updated (if user-visible)
+- [ ] knowledge graph updated via `/graphify . --update` (if user-visible)
 ```
 
 ---

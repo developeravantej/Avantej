@@ -221,7 +221,7 @@ persistence: n/a (unused).
 The `list` procedure uses `listAppointmentsWithRecurrence` exclusively; `listAppointments` (with its SQL-side RBAC) is retained but not used by the audited router. Possible stale/duplicate path — confirm test/other-domain usage before removal.
 persistence: read-only.
 
-### P3 — api-overview.md is stale for this domain (multiple procedures undocumented)  (zhub/shared/api-overview.md:131-139, 196-200, 526-531)  [status: implemented | testable: false]
+### P3 — API overview is stale for this domain (multiple procedures undocumented)  (enumerate from `packages/api/src/routers/`)  [status: implemented | testable: false]
 Discrepancies vs. live code:
 - `class-slots`: overview omits `enrollClient` and `cancelEnrollment` (both live in `enrollment.procedures.ts`).
 - `google-calendar`: overview lists only `disconnect`/`status`; live router also exposes `orgStatus`, `updateSettings`, `syncNow`, `listConnectedCalendars`.

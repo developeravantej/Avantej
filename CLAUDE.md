@@ -213,16 +213,16 @@ These are wired as Cloudflare Workers **cron triggers** in `wrangler.jsonc` and 
 
 When adding a new scheduled job: declare the cron in `wrangler.jsonc`, add a branch in the `scheduled` handler, and create the service in `apps/server/src/services/`.
 
-## Codebase Hub (zhub/)
+## Codebase Knowledge Graph (Graphify)
 
-A pre-built context hub lives at `zhub/` in the project root. Always check it before exploring source files.
+The `/hub` + `/hub-update` skills and their `zhub/` page docs have been **retired**. For codebase relationship/architecture exploration, use **Graphify** (`/graphify`). It builds a queryable knowledge graph (symbols, typed edges, community clusters) with interactive HTML + JSON + report output in `graphify-out/`.
 
-- **`zhub/index.md`** — full page inventory: every route, purpose, and known bugs/limitations. Read this first on any task.
-- **`zhub/pages/<name>.md`** — deep dive per page: components, hooks, API calls, data flow, gotchas.
-- **`zhub/shared/auth-flow.md`** — cookie config, RBAC model, context pipeline. Read before any auth work.
-- **`zhub/shared/api-overview.md`** — all 47 routers with procedure names and auth levels. Read before any API work.
+- `/graphify .` — build the full graph
+- `/graphify query "how does auth connect to tenant middleware?"` — BFS relationship query
+- `/graphify path "orpcTenantMiddleware" "createContext"` — shortest path between two concepts
+- `/graphify . --update` — incremental re-extraction after changes
 
-Run `/hub-update` at the end of any feature branch to keep the hub current before merging.
+> **Note on `zhub/`:** the folder still exists but now holds **only schema/drift CI artifacts** (`zhub/shared/schema-*.md`) written by `scripts/gen-erd.ts`, `dump-fks.ts`, `dump-tenant-fks.ts`, and read by `scripts/check-drift.ts`. Do not delete it — the `drift-check` CI gate depends on it. The old per-page docs (`index.md`, `pages/`, `api-overview.md`, `auth-flow.md`) are gone.
 
 ## Frontend Patterns
 

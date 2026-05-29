@@ -214,7 +214,7 @@ Rejecting a pending package sets `status='cancelled'`, writes audit + status-his
 ### P3 — No `delete` / explicit `deactivate` for services or service-categories  (packages/api/src/routers/services/crud.procedures.ts; service-categories.ts)  [missing | testable:false]
 Neither router exposes a delete; removal is only via `update(isActive:false)`. `service.service.ts` and `service-category.service.ts` have no delete/deactivate fn. Likely intentional (soft-delete convention via `isActive`), but there is no dedicated "deactivate" procedure, so callers must know to PATCH `isActive`. Distinguish: intentional soft-delete model, but undocumented and undiscoverable.
 
-### P3 — api-overview discrepancies  (zhub/shared/api-overview.md:462-471, 311-314)  [n/a | testable:false]
+### P3 — API overview discrepancies  (enumerate from `packages/api/src/routers/`)  [n/a | testable:false]
 1. service-members section (lines 462-471) lists `assign` and `updateBuffer` procedures that do not exist as router keys, and describes `listForMember`/`remove` with behaviours their broken bodies don't match (see P1). Overview is stale/ahead of the broken code.
 2. `bulkAssign` (line 313) is described "Bulk assign trainers to pending packages", but the actual handler bulk-CREATES new `source='assigned'` package_instances for a list of customers — it does not operate on existing pending packages and is about customer assignment, not trainer assignment. Semantic mismatch (compounds P1, since the handler is also broken).
 

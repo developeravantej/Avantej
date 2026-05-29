@@ -215,7 +215,7 @@ Note: `resolvePrice` (`products.ts:207`) has **no `requirePermissionOrpc` gate**
 19. **Dead import in purchase-orders router.** `purchase-orders.ts:13` imports `requirePermission` from `@avantej-core/services` but it is never called (router uses `requirePermissionOrpc` exclusively; grep for `requirePermission(` → no matches). Lint/cleanup.
 20. **Stray malformed-whitespace blocks** (leftover from agent-log removal) litter handler bodies across all 10 routers (e.g. `products.ts:38-44`) — cosmetic, not functional.
 
-### Discrepancies with `zhub/shared/api-overview.md`
+### Discrepancies with the API overview (enumerate from `packages/api/src/routers/`)
 
 21. **goods-receipts:** hub lists a procedure `list` (api-overview.md:171) but the router exposes **`listForPo`** (`goods-receipts.ts:20`) — different name and it *requires* a `purchaseOrderId`. Hub also omits the router's **`cancel`**, **`createInvoice`**, and **`matchInvoice`** procedures entirely. Hub is stale/inaccurate for this router.
 22. **products:** hub (api-overview.md:329-339) omits the branch-pricing procedures `resolvePrice`, `listPriceOverrides`, `setBranchPrice` that exist in the router (`products.ts:207,230,245`). Hub lists `expireBranchPrice`/`deleteBranchPrice` but not the three above.

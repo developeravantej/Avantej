@@ -138,5 +138,5 @@ If you're using Claude Code or similar AI tooling, `CLAUDE.md` at the repo root 
 
 ## Where to ask questions
 
-- **Architecture / multi-tenancy:** see `zhub/shared/auth-flow.md` and `zhub/shared/api-overview.md`.
+- **Architecture / multi-tenancy:** see `CLAUDE.md` (auth/RBAC/context flow) and enumerate routers from `packages/api/src/routers/` (or `graphify-out/graph.json`).
 - **Anything else:** ask in `#engineering` on Slack.

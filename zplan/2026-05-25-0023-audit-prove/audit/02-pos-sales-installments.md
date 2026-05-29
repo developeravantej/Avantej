@@ -171,7 +171,7 @@ persistence: read-only metric; misleading value.
 `recordPosSale` validates only that `unitPriceCents >= 0` and `quantity >= 1`, then computes subtotal directly from the client values. It never calls `resolveServicePrice`/`resolveProductPrice` to confirm the price matches the configured branch/customer-type price. A tampered client (or a stale cart after a price change) can record a sale at an arbitrary non-negative price. The pricing resolver exists and is used elsewhere (products/services routers) but is not enforced at the POS write boundary. Distinguish: may be intentional (POS allows manual/custom pricing via `type:"custom"`), but service/product line items arguably should be validated against the resolved price or flagged.
 persistence: { tenant, table: "sales_order_items.unit_price / payments.amount", where: "new order", expect: "stores whatever the client sent" }
 
-### P2 — Doc drift: installments router exposes 12 procedures; api-overview documents 3  (zhub/shared/api-overview.md:229-234 vs packages/api/src/routers/installments.ts:381-394)  [status: implemented | testable: false]
+### P2 — Doc drift: installments router exposes 12 procedures; API overview documents 3  (enumerate from `packages/api/src/routers/` vs packages/api/src/routers/installments.ts:381-394)  [status: implemented | testable: false]
 Undocumented and live: `listByPackageInstance`, `manualUnlock`, `reschedule`, `waive`, `resetOverride`, `adminOverview`, `getEvents`, `suggestRefund`, `setOverdraft`. The installments admin page and refund dialog depend on several of these. Doc materially understates the surface.
 
 ### P2 — No payment-creation service; payment rows only written inline in POS  (packages/services/src/payments.service.ts)  [status: partial | testable: false]
@@ -181,7 +181,7 @@ Undocumented and live: `listByPackageInstance`, `manualUnlock`, `reschedule`, `w
 `sales-order.service.ts` uses `count()+1` with a 4-digit pad (`SO-YYYYMMDD-0001`) — the exact race condition MEMORY notes were fixed for POS, which uses `nextval('tenant_sales_order_seq')` with a 6-digit pad (`SO-YYYYMMDD-000001`). Bare `salesOrders.create` (and `generateCancellationNumber`) still use the racy count-based path and a different number format. Concurrent `createSalesOrder` calls in the same day can collide / produce duplicate numbers; formats are inconsistent across creation sites.
 persistence: { tenant, table: "sales_orders.sales_order_number", where: "created via salesOrders.create", expect: "SO-YYYYMMDD-NNNN (4-digit, count-based)" }
 
-### P3 — Doc drift: sales-orders (`kpiSummary`, `largestToday`, `getLatest`) and cancelled-sales (`exportCsv`) undocumented  (zhub/shared/api-overview.md:438-446, 100-104)  [status: implemented | testable: false]
+### P3 — Doc drift: sales-orders (`kpiSummary`, `largestToday`, `getLatest`) and cancelled-sales (`exportCsv`) undocumented  (API overview — enumerate from `packages/api/src/routers/`)  [status: implemented | testable: false]
 These procedures are live and wired to the sales-view KPI strip / dashboard / CSV export but are absent from the API overview. Also `invoices.paymentStatusHistory` is described as invoice-scoped but its input/query is `paymentId` against `payment_status_history` (no invoice-level history table exists).
 
 ### P3 — Carry-over from prior POS audit (`"online"` payment method)  (apps/web/src/components/pos/payment-step.tsx:61 — outside owned files)  [status: partial | testable: true]
