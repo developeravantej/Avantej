@@ -25,3 +25,31 @@ All 21 are **pre-existing test/fixture bugs** — NOT caused by the suite-hang f
 1. C1 (slug) + C2 (uuid) + C3 (FK order) — mechanical, biggest win.
 2. C4 + C5 — commission constraint/version semantics.
 3. C6 + C7 — gate out / mock; not core-logic coverage.
+
+---
+
+## Update — per-file isolated runner is the way to RUN the suite (2026-05-29)
+
+`bun test src/tests/integration/` can never complete: a single wedged test (a
+query blocked on a leaked pool client — pg has no acquire timeout, and bun's
+test-timeout kills a test mid-query leaving the client checked out) stalls the
+WHOLE runner unboundedly. No transport (ws/fetch/pg) or DB timeout fixes it.
+
+**Solution shipped:** `scripts/run-integration-isolated.ts` (`bun run test:integration:isolated`)
+runs each file in its OWN bun process with a hard per-file timeout, sharing one
+migrated Neon branch. A wedged file is killed and the runner moves on — the suite
+ALWAYS completes with per-file results.
+
+**First complete per-file baseline (per-file timeout 75s):**
+`29 files pass / 11 fail / 6 timeout` of 46.
+
+- **6 TIMEOUT (deep bun:test+DB wedge — own session, consider Node runner):**
+  audit-prove-fixes, branch-invite, expenses, org, promotions, purchase-orders.
+- **11 FAIL (fixture/assertion bugs — clusters C2/C3/C4/C5 + a few):**
+  appointment-commission, auth-email, commission-calculator, commission-rule,
+  commission-versioning, goods-receipts, membership-holds, pos-commission,
+  refund-items, staff-id-convention, tenant-migrate.
+- **29 PASS** — the healthy core, runs green and exits.
+
+CI can gate on `test:integration:isolated` (completes + reports), treating the
+6 wedge files as a known quarantine list until the Node-runner migration.

@@ -13,6 +13,7 @@
     "test": "SKIP_INTEGRATION_TESTS=true bun test",
     "test:unit": "SKIP_INTEGRATION_TESTS=true bun test src/tests/unit/routers src/middleware src/lib src/cron src/routers/payments.test.ts src/routers/stripe-connect.test.ts",
     "test:integration": "bun test src/**/*.integration.test.ts",
+    "test:integration:isolated": "bun run scripts/run-integration-isolated.ts",
     "test:neon": "bun test src/services/neon.service.test.ts",
     "test:neon:integration": "bun test src/services/neon.service.integration.test.ts",
     "test:org:integration": "bun test src/tests/integration/org.integration.test.ts",
