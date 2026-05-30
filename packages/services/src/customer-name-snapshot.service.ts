@@ -86,6 +86,42 @@ export async function propagateCustomerNameForward(
 }
 
 /**
+ * Erasure hook (PDPA / right-to-be-forgotten).
+ *
+ * Removes the customer's name from ALL denormalized snapshots — every status,
+ * historical rows included — so the name does not survive in appointment +
+ * package snapshots after the source `user` row is hard-deleted/anonymized.
+ *
+ * Call this from any future hard-erasure flow that removes/anonymizes a
+ * customer's control-panel user record. It is deliberately NOT wired into the
+ * reversible soft-delete (which keeps the user row, so the name stays
+ * resolvable and the action can be undone).
+ *
+ * NOTE: sales_orders.customer_name is intentionally left untouched — invoices
+ * are financial records retained under a separate legal-obligation basis. If a
+ * given erasure request also requires scrubbing financial records, handle that
+ * explicitly in the erasure flow.
+ */
+export async function scrubCustomerNameSnapshots(
+	tenantDb: TenantDb,
+	userId: string,
+): Promise<{ appointments: number; packages: number }> {
+	const [apptRes, pkgRes] = await Promise.all([
+		tenantDb
+			.update(appointments)
+			.set({ customerName: null })
+			.where(eq(appointments.userId, userId))
+			.returning({ id: appointments.id }),
+		tenantDb
+			.update(packageInstances)
+			.set({ customerName: null })
+			.where(eq(packageInstances.clientId, userId))
+			.returning({ id: packageInstances.id }),
+	]);
+	return { appointments: apptRes.length, packages: pkgRes.length };
+}
+
+/**
  * Re-resolve forward-facing snapshots for ONE tenant from the live user table and
  * overwrite any that have drifted. Only writes rows whose snapshot differs from the
  * current name, so a no-op run does no writes.

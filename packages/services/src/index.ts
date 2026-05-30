@@ -78,6 +78,7 @@ export {
 	propagateCustomerNameForward,
 	refreshTenantCustomerNameSnapshots,
 	runCustomerNameRefresh,
+	scrubCustomerNameSnapshots,
 } from "./customer-name-snapshot.service";
 // Brand services
 export * from "./brands.service";

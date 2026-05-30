@@ -561,25 +561,32 @@ export default {
 				);
 				// Heal drifted customer_name snapshots (rename paths that bypass the
 				// forward-propagate, e.g. a failed propagate or an external writer).
-				// Only writes rows whose snapshot differs from the live name. Folded
-				// into this slot to stay within the Workers Free 5-cron limit.
-				const { runCustomerNameRefresh } = await import(
-					"@avantej-core/services"
-				);
-				ctx.waitUntil(
-					runCustomerNameRefresh({
-						controlPanelDb: cpDb,
-						getTenantDb: (orgId) => getTenantDb(orgId),
-					})
-						.then((r) =>
-							console.log(
-								`[scheduled] customer-name-refresh done: ${JSON.stringify(r)}`,
+				// Only writes rows whose snapshot differs from the live name.
+				//
+				// This is a low-urgency safety net — real renames propagate immediately,
+				// so this only catches rare failures/bypasses. It is the 5th all-tenant
+				// sweep folded into this slot, so to stay well under the Workers
+				// subrequest budget it runs WEEKLY (Sundays) rather than nightly. Urgent
+				// heals can be run on demand via `backfill --refresh`.
+				if (new Date().getUTCDay() === 0) {
+					const { runCustomerNameRefresh } = await import(
+						"@avantej-core/services"
+					);
+					ctx.waitUntil(
+						runCustomerNameRefresh({
+							controlPanelDb: cpDb,
+							getTenantDb: (orgId) => getTenantDb(orgId),
+						})
+							.then((r) =>
+								console.log(
+									`[scheduled] customer-name-refresh done: ${JSON.stringify(r)}`,
+								),
+							)
+							.catch((e) =>
+								console.error(`[scheduled] customer-name-refresh failed:`, e),
 							),
-						)
-						.catch((e) =>
-							console.error(`[scheduled] customer-name-refresh failed:`, e),
-						),
-				);
+					);
+				}
 				// Folded in from the retired "30 2 * * *" slot to stay under the
 				// Workers Free 5-cron limit. Plan C C.5 nightly Stripe reconciliation.
 				const { runReconciliation } = await import(
