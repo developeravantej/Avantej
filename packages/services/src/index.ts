@@ -67,6 +67,9 @@ export {
 	exportAuditCsv,
 	getActionSeverity,
 	listAudit,
+	listCustomerLogs,
+	type CustomerLogEntry,
+	type ListCustomerLogsParams,
 	type WriteAuditParams,
 	writeAudit,
 } from "./audit-log.service";
@@ -105,6 +108,28 @@ export {
 	calculateCommissionForAppointment,
 	calculateCommissionForPos,
 } from "./commission-calculator.service";
+// Commission pipeline sub-modules (gather / plan / persist)
+export {
+	type CommissionContext,
+	type MemberSnapshot,
+	type RateTable,
+	type ConditionalRateTable,
+	type LoadCommissionContextInput,
+	loadCommissionContext,
+} from "./commission/context";
+export {
+	type PlanInput,
+	type PlannedSplit,
+	type SkipReason,
+	type SkipReasonCode,
+	type SplitPlan,
+	planSplits,
+} from "./commission/plan";
+export {
+	type PersistInput,
+	type CommissionSplitRow,
+	persistSplits,
+} from "./commission/persist";
 // Commission split services
 export {
 	approveCommissionSplits,

@@ -15,13 +15,16 @@ import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 import {
 	requirePermission,
 	upsertCustomerProfile,
+	writeAudit,
 } from "@avantej-core/services";
 import { user } from "@avantej-core/db/schema/auth";
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { appointments } from "@avantej-core/db/schema/tenant/appointments";
+import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { MembershipService } from "@avantej-core/db/services/membership.service";
 import { ORPCError } from "@orpc/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, gte, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { fireCustomerSync } from "@/services/ghl/customer-sync-trigger";
 import { getBetterAuth } from "@/lib/better-auth";
@@ -59,12 +62,15 @@ export const serverCustomerProfilesRouter = {
 		.handler(async ({ input, context }) => {
 			if (!context.tenantDb) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
+					message:
+						"Tenant database not available. Ensure organization context is set.",
 				});
 			}
 			const userId = context.session?.user?.id;
 			if (!userId) {
-				throw new ORPCError("UNAUTHORIZED", { message: "User session required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "User session required",
+				});
 			}
 
 			const updated = await upsertCustomerProfile(context.tenantDb, {
@@ -81,9 +87,15 @@ export const serverCustomerProfilesRouter = {
 				...(input.emergencyContactPhone !== undefined && {
 					emergencyContactPhone: input.emergencyContactPhone,
 				}),
-				...(input.medicalNotes !== undefined && { medicalNotes: input.medicalNotes }),
-				...(input.fitnessGoals !== undefined && { fitnessGoals: input.fitnessGoals }),
-				...(input.creditPoints !== undefined && { creditPoints: input.creditPoints }),
+				...(input.medicalNotes !== undefined && {
+					medicalNotes: input.medicalNotes,
+				}),
+				...(input.fitnessGoals !== undefined && {
+					fitnessGoals: input.fitnessGoals,
+				}),
+				...(input.creditPoints !== undefined && {
+					creditPoints: input.creditPoints,
+				}),
 				...(input.notes !== undefined && { notes: input.notes }),
 			});
 
@@ -126,11 +138,14 @@ export const serverCustomerProfilesRouter = {
 		.handler(async ({ context, input }) => {
 			if (!context.tenantDb) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
+					message:
+						"Tenant database not available. Ensure organization context is set.",
 				});
 			}
 			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Member context required",
+				});
 			}
 
 			await requirePermission(
@@ -141,10 +156,15 @@ export const serverCustomerProfilesRouter = {
 			);
 
 			const target = await context.tenantDb.query.members.findFirst({
-				where: and(eq(members.userId, input.targetUserId), eq(members.role, "client")),
+				where: and(
+					eq(members.userId, input.targetUserId),
+					eq(members.role, "client"),
+				),
 			});
 			if (!target) {
-				throw new ORPCError("NOT_FOUND", { message: "Target customer not found" });
+				throw new ORPCError("NOT_FOUND", {
+					message: "Target customer not found",
+				});
 			}
 
 			const accessibleNodeIds = context.accessibleNodeIds ?? [];
@@ -204,11 +224,14 @@ export const serverCustomerProfilesRouter = {
 		.handler(async ({ context, input }) => {
 			if (!context.tenantDb) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
+					message:
+						"Tenant database not available. Ensure organization context is set.",
 				});
 			}
 			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Member context required",
+				});
 			}
 
 			await requirePermission(
@@ -219,10 +242,15 @@ export const serverCustomerProfilesRouter = {
 			);
 
 			const target = await context.tenantDb.query.members.findFirst({
-				where: and(eq(members.userId, input.targetUserId), eq(members.role, "client")),
+				where: and(
+					eq(members.userId, input.targetUserId),
+					eq(members.role, "client"),
+				),
 			});
 			if (!target) {
-				throw new ORPCError("NOT_FOUND", { message: "Target customer not found" });
+				throw new ORPCError("NOT_FOUND", {
+					message: "Target customer not found",
+				});
 			}
 			const accessibleNodeIds = context.accessibleNodeIds ?? [];
 			if (!accessibleNodeIds.includes(target.hierarchyScopeId)) {
@@ -234,9 +262,10 @@ export const serverCustomerProfilesRouter = {
 			// Guard: unclaimed profiles have a placeholder CP user row that would become
 			// orphaned if the profile is deleted without first cleaning up the user record.
 			// Require staff to resolve the unclaimed state (send/cancel claim) first.
-			const existingProfile = await context.tenantDb.query.customerProfiles.findFirst({
-				where: eq(customerProfiles.userId, input.targetUserId),
-			});
+			const existingProfile =
+				await context.tenantDb.query.customerProfiles.findFirst({
+					where: eq(customerProfiles.userId, input.targetUserId),
+				});
 			if (existingProfile?.isUnclaimed) {
 				throw new ORPCError("BAD_REQUEST", {
 					message:
@@ -258,7 +287,9 @@ export const serverCustomerProfilesRouter = {
 				.returning();
 
 			if (!updated) {
-				throw new ORPCError("NOT_FOUND", { message: "Customer profile not found" });
+				throw new ORPCError("NOT_FOUND", {
+					message: "Customer profile not found",
+				});
 			}
 
 			let ghlSync: Awaited<ReturnType<typeof fireCustomerSync>> | undefined;
@@ -295,11 +326,14 @@ export const serverCustomerProfilesRouter = {
 		.handler(async ({ context, input }) => {
 			if (!context.tenantDb) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
+					message:
+						"Tenant database not available. Ensure organization context is set.",
 				});
 			}
 			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Member context required",
+				});
 			}
 
 			await requirePermission(
@@ -310,10 +344,15 @@ export const serverCustomerProfilesRouter = {
 			);
 
 			const target = await context.tenantDb.query.members.findFirst({
-				where: and(eq(members.userId, input.targetUserId), eq(members.role, "client")),
+				where: and(
+					eq(members.userId, input.targetUserId),
+					eq(members.role, "client"),
+				),
 			});
 			if (!target) {
-				throw new ORPCError("NOT_FOUND", { message: "Target customer not found" });
+				throw new ORPCError("NOT_FOUND", {
+					message: "Target customer not found",
+				});
 			}
 			const accessibleNodeIds = context.accessibleNodeIds ?? [];
 			if (!accessibleNodeIds.includes(target.hierarchyScopeId)) {
@@ -323,11 +362,14 @@ export const serverCustomerProfilesRouter = {
 			}
 
 			// Verify the profile exists and is actually deleted before restoring
-			const existingProfile = await context.tenantDb.query.customerProfiles.findFirst({
-				where: eq(customerProfiles.userId, input.targetUserId),
-			});
+			const existingProfile =
+				await context.tenantDb.query.customerProfiles.findFirst({
+					where: eq(customerProfiles.userId, input.targetUserId),
+				});
 			if (!existingProfile) {
-				throw new ORPCError("NOT_FOUND", { message: "Customer profile not found" });
+				throw new ORPCError("NOT_FOUND", {
+					message: "Customer profile not found",
+				});
 			}
 			if (!existingProfile.isDeleted) {
 				throw new ORPCError("BAD_REQUEST", { message: "not-deleted" });
@@ -346,7 +388,9 @@ export const serverCustomerProfilesRouter = {
 				.returning();
 
 			if (!updated) {
-				throw new ORPCError("NOT_FOUND", { message: "Customer profile not found" });
+				throw new ORPCError("NOT_FOUND", {
+					message: "Customer profile not found",
+				});
 			}
 
 			let ghlSync: Awaited<ReturnType<typeof fireCustomerSync>> | undefined;
@@ -385,11 +429,14 @@ export const serverCustomerProfilesRouter = {
 		.handler(async ({ context, input }) => {
 			if (!context.tenantDb) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
+					message:
+						"Tenant database not available. Ensure organization context is set.",
 				});
 			}
 			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Member context required",
+				});
 			}
 
 			await requirePermission(
@@ -403,7 +450,9 @@ export const serverCustomerProfilesRouter = {
 				where: eq(customerProfiles.id, input.customerProfileId),
 			});
 			if (!profile) {
-				throw new ORPCError("NOT_FOUND", { message: "Customer profile not found" });
+				throw new ORPCError("NOT_FOUND", {
+					message: "Customer profile not found",
+				});
 			}
 			// Phase 4: dependent profiles (account_group members) have no user_id
 			// and therefore no Avantej login or GHL sync surface.
@@ -414,10 +463,15 @@ export const serverCustomerProfilesRouter = {
 			}
 
 			const target = await context.tenantDb.query.members.findFirst({
-				where: and(eq(members.userId, profile.userId), eq(members.role, "client")),
+				where: and(
+					eq(members.userId, profile.userId),
+					eq(members.role, "client"),
+				),
 			});
 			if (!target) {
-				throw new ORPCError("NOT_FOUND", { message: "Customer member not found" });
+				throw new ORPCError("NOT_FOUND", {
+					message: "Customer member not found",
+				});
 			}
 			const accessibleNodeIds = context.accessibleNodeIds ?? [];
 			if (!accessibleNodeIds.includes(target.hierarchyScopeId)) {
@@ -468,7 +522,9 @@ export const serverCustomerProfilesRouter = {
 				});
 			}
 			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Member context required",
+				});
 			}
 			await requirePermission(
 				context.tenantDb,
@@ -481,7 +537,9 @@ export const serverCustomerProfilesRouter = {
 				where: eq(customerProfiles.id, input.customerProfileId),
 			});
 			if (!profile) {
-				throw new ORPCError("NOT_FOUND", { message: "Customer profile not found" });
+				throw new ORPCError("NOT_FOUND", {
+					message: "Customer profile not found",
+				});
 			}
 			if (!profile.userId) {
 				throw new ORPCError("BAD_REQUEST", {
@@ -497,7 +555,9 @@ export const serverCustomerProfilesRouter = {
 				});
 				if (
 					!targetMember ||
-					!(context.accessibleNodeIds ?? []).includes(targetMember.hierarchyScopeId)
+					!(context.accessibleNodeIds ?? []).includes(
+						targetMember.hierarchyScopeId,
+					)
 				) {
 					throw new ORPCError("FORBIDDEN", {
 						message: "Customer is outside your accessible scope",
@@ -543,7 +603,9 @@ export const serverCustomerProfilesRouter = {
 			try {
 				const auth = getBetterAuth(context.honoContext);
 				const frontendURL =
-					getEnvVar("CORS_ORIGIN") || getEnvVar("FRONTEND_URL") || "http://localhost:3021";
+					getEnvVar("CORS_ORIGIN") ||
+					getEnvVar("FRONTEND_URL") ||
+					"http://localhost:3021";
 				// biome-ignore lint/suspicious/noExplicitAny: better-auth api typing is dynamic
 				await (auth as any).api.signInMagicLink({
 					body: { email: input.email, callbackURL: `${frontendURL}/dashboard` },
@@ -583,7 +645,9 @@ export const serverCustomerProfilesRouter = {
 				});
 			}
 			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Member context required",
+				});
 			}
 			await requirePermission(
 				context.tenantDb,
@@ -596,7 +660,9 @@ export const serverCustomerProfilesRouter = {
 				where: eq(customerProfiles.id, input.customerProfileId),
 			});
 			if (!profile) {
-				throw new ORPCError("NOT_FOUND", { message: "Customer profile not found" });
+				throw new ORPCError("NOT_FOUND", {
+					message: "Customer profile not found",
+				});
 			}
 			if (!profile.userId) {
 				throw new ORPCError("BAD_REQUEST", {
@@ -612,7 +678,9 @@ export const serverCustomerProfilesRouter = {
 				});
 				if (
 					!targetMember ||
-					!(context.accessibleNodeIds ?? []).includes(targetMember.hierarchyScopeId)
+					!(context.accessibleNodeIds ?? []).includes(
+						targetMember.hierarchyScopeId,
+					)
 				) {
 					throw new ORPCError("FORBIDDEN", {
 						message: "Customer is outside your accessible scope",
@@ -640,19 +708,25 @@ export const serverCustomerProfilesRouter = {
 			try {
 				const auth = getBetterAuth(context.honoContext);
 				const frontendURL =
-					getEnvVar("CORS_ORIGIN") || getEnvVar("FRONTEND_URL") || "http://localhost:3021";
+					getEnvVar("CORS_ORIGIN") ||
+					getEnvVar("FRONTEND_URL") ||
+					"http://localhost:3021";
 				// biome-ignore lint/suspicious/noExplicitAny: better-auth api typing is dynamic
 				await (auth as any).api.signInMagicLink({
-					body: { email: linkedUser.email, callbackURL: `${frontendURL}/dashboard` },
+					body: {
+						email: linkedUser.email,
+						callbackURL: `${frontendURL}/dashboard`,
+					},
 					headers: context.honoContext.req.raw.headers,
 				});
 			} catch (err) {
+				const detail = err instanceof Error ? err.message : String(err);
 				console.error(
 					"[customerProfiles.resendMagicLink] dispatch failed",
 					err,
 				);
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Magic-link dispatch failed",
+					message: `Magic-link dispatch failed: ${detail}`,
 				});
 			}
 
@@ -686,7 +760,9 @@ export const serverCustomerProfilesRouter = {
 				});
 			}
 			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Member context required",
+				});
 			}
 
 			try {
@@ -718,19 +794,20 @@ export const serverCustomerProfilesRouter = {
 			// instead of creating a duplicate. Idempotent behaviour is preferred for Quick Add
 			// UX: double-submitting the same form (network retry, accidental re-click) must
 			// not produce two profiles for the same person.
-			const existingByPhone = await context.tenantDb.query.customerProfiles.findFirst({
-				where: and(
-					eq(customerProfiles.phone, input.phone.trim()),
-					eq(customerProfiles.isDeleted, false),
-				),
-			});
+			const existingByPhone =
+				await context.tenantDb.query.customerProfiles.findFirst({
+					where: and(
+						eq(customerProfiles.phone, input.phone.trim()),
+						eq(customerProfiles.isDeleted, false),
+					),
+				});
 			if (existingByPhone) {
 				// Return the existing profile's key fields so the caller can navigate to it.
 				// The member record pre-exists; look it up for a consistent response shape.
 				const existingMember = existingByPhone.userId
 					? await context.tenantDb.query.members.findFirst({
 							where: eq(members.userId, existingByPhone.userId),
-					  })
+						})
 					: undefined;
 				return {
 					memberId: existingMember?.id ?? "",
@@ -795,7 +872,10 @@ export const serverCustomerProfilesRouter = {
 					await cpDb.delete(user).where(eq(user.id, userId));
 				} catch {
 					// best-effort cleanup; log but don't mask the original error
-					console.error("[createUnclaimed] CP user cleanup failed after membershipService error", userId);
+					console.error(
+						"[createUnclaimed] CP user cleanup failed after membershipService error",
+						userId,
+					);
 				}
 				throw memberErr;
 			}
@@ -818,15 +898,23 @@ export const serverCustomerProfilesRouter = {
 				// Step 3 failed — clean up tenant member (step 2) and CP user (step 1)
 				if (tenantMemberId) {
 					try {
-						await context.tenantDb.delete(members).where(eq(members.id, tenantMemberId));
+						await context.tenantDb
+							.delete(members)
+							.where(eq(members.id, tenantMemberId));
 					} catch {
-						console.error("[createUnclaimed] tenant member cleanup failed after profile insert error", tenantMemberId);
+						console.error(
+							"[createUnclaimed] tenant member cleanup failed after profile insert error",
+							tenantMemberId,
+						);
 					}
 				}
 				try {
 					await cpDb.delete(user).where(eq(user.id, userId));
 				} catch {
-					console.error("[createUnclaimed] CP user cleanup failed after profile insert error", userId);
+					console.error(
+						"[createUnclaimed] CP user cleanup failed after profile insert error",
+						userId,
+					);
 				}
 				throw profileErr;
 			}
@@ -869,7 +957,9 @@ export const serverCustomerProfilesRouter = {
 				});
 			}
 			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Member context required",
+				});
 			}
 
 			await requirePermission(
@@ -883,7 +973,9 @@ export const serverCustomerProfilesRouter = {
 				where: eq(customerProfiles.id, input.customerProfileId),
 			});
 			if (!profile) {
-				throw new ORPCError("NOT_FOUND", { message: "Customer profile not found" });
+				throw new ORPCError("NOT_FOUND", {
+					message: "Customer profile not found",
+				});
 			}
 			if (!profile.isUnclaimed) {
 				throw new ORPCError("BAD_REQUEST", {
@@ -903,7 +995,9 @@ export const serverCustomerProfilesRouter = {
 				});
 				if (
 					!targetMember ||
-					!(context.accessibleNodeIds ?? []).includes(targetMember.hierarchyScopeId)
+					!(context.accessibleNodeIds ?? []).includes(
+						targetMember.hierarchyScopeId,
+					)
 				) {
 					throw new ORPCError("FORBIDDEN", {
 						message: "Customer is outside your accessible scope",
@@ -917,47 +1011,65 @@ export const serverCustomerProfilesRouter = {
 				where: eq(user.id, profile.userId),
 			});
 			if (!existingUser) {
-				throw new ORPCError("NOT_FOUND", { message: "Linked user record not found" });
-			}
-			if (!existingUser.email?.endsWith(`@${UNCLAIMED_EMAIL_DOMAIN}`)) {
-				throw new ORPCError("BAD_REQUEST", {
-					message: "User already has a real email. Use 'Resend sign-in link' instead.",
+				throw new ORPCError("NOT_FOUND", {
+					message: "Linked user record not found",
 				});
 			}
+			// Self-heal: if the user already has a real email (isUnclaimed flag got out
+			// of sync), dispatch to their existing email and clear the flag — no throw.
+			const alreadyHasRealEmail = !existingUser.email?.endsWith(
+				`@${UNCLAIMED_EMAIL_DOMAIN}`,
+			);
+			const dispatchEmail = alreadyHasRealEmail
+				? existingUser.email!
+				: input.email;
 
-			// Check for email collision with another user
-			const collision = await cpDb.query.user.findFirst({
-				where: eq(user.email, input.email),
-			});
-			if (collision && collision.id !== existingUser.id) {
-				throw new ORPCError("CONFLICT", {
-					message: "Email already in use by another user",
+			if (!alreadyHasRealEmail) {
+				// Check for email collision with another user before swapping
+				const collision = await cpDb.query.user.findFirst({
+					where: eq(user.email, input.email),
 				});
-			}
+				if (collision && collision.id !== existingUser.id) {
+					throw new ORPCError("CONFLICT", {
+						message: "Email already in use by another user",
+					});
+				}
 
-			// Swap placeholder → real email and mark verified so magic-link works
-			await cpDb
-				.update(user)
-				.set({ email: input.email, emailVerified: true, updatedAt: new Date() })
-				.where(eq(user.id, existingUser.id));
+				// Swap placeholder → real email and mark verified so magic-link works
+				await cpDb
+					.update(user)
+					.set({
+						email: input.email,
+						emailVerified: true,
+						updatedAt: new Date(),
+					})
+					.where(eq(user.id, existingUser.id));
+			}
 
 			// Dispatch magic-link sign-in email BEFORE clearing the unclaimed flag.
-			// If dispatch fails we throw without touching isUnclaimed, so the profile
-			// stays isUnclaimed=true and staff can retry the full sendClaimLink flow
-			// without manual DB recovery.
+			// If dispatch fails we throw without touching isUnclaimed, so staff can retry.
 			try {
 				const auth = getBetterAuth(context.honoContext);
 				const frontendURL =
-					getEnvVar("CORS_ORIGIN") || getEnvVar("FRONTEND_URL") || "http://localhost:3021";
+					getEnvVar("CORS_ORIGIN") ||
+					getEnvVar("FRONTEND_URL") ||
+					"http://localhost:3021";
 				// biome-ignore lint/suspicious/noExplicitAny: better-auth api typing is dynamic
 				await (auth as any).api.signInMagicLink({
-					body: { email: input.email, callbackURL: `${frontendURL}/dashboard` },
+					body: {
+						email: dispatchEmail,
+						callbackURL: `${frontendURL}/dashboard`,
+					},
 					headers: context.honoContext.req.raw.headers,
 				});
 			} catch (err) {
-				console.error("[customerProfiles.sendClaimLink] magic-link dispatch failed", err);
+				const detail = err instanceof Error ? err.message : String(err);
+				console.error(
+					"[customerProfiles.sendClaimLink] magic-link dispatch failed",
+					err,
+				);
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Magic-link dispatch failed; email updated but claim link not sent",
+					message: `Magic-link dispatch failed: ${detail}`,
 				});
 			}
 
@@ -967,6 +1079,192 @@ export const serverCustomerProfilesRouter = {
 				.set({ isUnclaimed: false, updatedAt: new Date() })
 				.where(eq(customerProfiles.id, input.customerProfileId));
 
-			return { success: true, email: input.email };
+			return { success: true, email: dispatchEmail };
+		}),
+
+	/**
+	 * Change the display name on a customer's control-panel user account.
+	 * Requires customer_management:update permission.
+	 */
+	updateName: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				targetUserId: z.string(),
+				newName: z.string().min(1, "Name cannot be empty").max(120),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database not available.",
+				});
+			}
+			if (!context.member) {
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Member context required",
+				});
+			}
+
+			await requirePermission(
+				context.tenantDb,
+				context.member,
+				"customer_management",
+				"update",
+			);
+
+			const cpDb = getControlPanelDb(context);
+
+			const existingUser = await cpDb.query.user.findFirst({
+				where: eq(user.id, input.targetUserId),
+			});
+			if (!existingUser) {
+				throw new ORPCError("NOT_FOUND", {
+					message: "Linked user record not found",
+				});
+			}
+
+			const trimmed = input.newName.trim();
+			if (existingUser.name === trimmed) {
+				return { ok: true, name: existingUser.name };
+			}
+
+			await cpDb
+				.update(user)
+				.set({ name: trimmed, updatedAt: new Date() })
+				.where(eq(user.id, existingUser.id));
+
+			// Audit log
+			const targetMember = await context.tenantDb!.query.members.findFirst({
+				where: eq(members.userId, input.targetUserId),
+				columns: { id: true, hierarchyScopeId: true },
+			});
+			if (targetMember && context.member) {
+				await writeAudit(context.tenantDb!, {
+					actorUserId: context.member.userId,
+					actorMemberId: context.member.id,
+					actorRole: context.member.role ?? undefined,
+					action: "customer.name_updated",
+					entityType: "member",
+					entityId: targetMember.id,
+					branchId: targetMember.hierarchyScopeId ?? undefined,
+					summary: `Updated name to "${trimmed}"`,
+				}).catch(() => {});
+			}
+
+			// Propagate-forward: refresh the denormalized customer_name snapshot on
+			// FORWARD-FACING records only, so lists keep showing the current name
+			// without a cross-DB lookup. Past/financial records keep their snapshot:
+			//   - appointments: only UPCOMING + still-active statuses (past sessions frozen)
+			//   - packages: only ACTIVE/PENDING (expired/cancelled frozen)
+			//   - sales orders: never touched (immutable financial record)
+			// Best-effort: a failure here never fails the rename.
+			await Promise.all([
+				context
+					.tenantDb!.update(appointments)
+					.set({ customerName: trimmed })
+					.where(
+						and(
+							eq(appointments.userId, input.targetUserId),
+							gte(appointments.startTime, new Date()),
+							inArray(appointments.status, ["pending", "confirmed"]),
+						),
+					),
+				context
+					.tenantDb!.update(packageInstances)
+					.set({ customerName: trimmed })
+					.where(
+						and(
+							eq(packageInstances.clientId, input.targetUserId),
+							inArray(packageInstances.status, ["active", "pending"]),
+						),
+					),
+			]).catch(() => {});
+
+			return { ok: true, name: trimmed };
+		}),
+
+	/**
+	 * Change the email address on a customer's control-panel user account.
+	 * Requires customer_management:update permission. Rejects if the new email
+	 * is already in use by a different user.
+	 */
+	updateEmail: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				targetUserId: z.string(),
+				newEmail: z.string().email("Invalid email address"),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.tenantDb || !context.honoContext) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Tenant database or Hono context not available.",
+				});
+			}
+			if (!context.member) {
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Member context required",
+				});
+			}
+
+			await requirePermission(
+				context.tenantDb,
+				context.member,
+				"customer_management",
+				"update",
+			);
+
+			const cpDb = getControlPanelDb(context);
+
+			const existingUser = await cpDb.query.user.findFirst({
+				where: eq(user.id, input.targetUserId),
+			});
+			if (!existingUser) {
+				throw new ORPCError("NOT_FOUND", {
+					message: "Linked user record not found",
+				});
+			}
+
+			const normalised = input.newEmail.toLowerCase().trim();
+
+			if (existingUser.email?.toLowerCase() === normalised) {
+				return { ok: true, email: existingUser.email };
+			}
+
+			const collision = await cpDb.query.user.findFirst({
+				where: eq(user.email, normalised),
+			});
+			if (collision && collision.id !== existingUser.id) {
+				throw new ORPCError("CONFLICT", {
+					message: "Email already in use by another account",
+				});
+			}
+
+			await cpDb
+				.update(user)
+				.set({ email: normalised, emailVerified: false, updatedAt: new Date() })
+				.where(eq(user.id, existingUser.id));
+
+			// Audit log
+			const targetMember = await context.tenantDb!.query.members.findFirst({
+				where: eq(members.userId, input.targetUserId),
+				columns: { id: true, hierarchyScopeId: true },
+			});
+			if (targetMember && context.member) {
+				await writeAudit(context.tenantDb!, {
+					actorUserId: context.member.userId,
+					actorMemberId: context.member.id,
+					actorRole: context.member.role ?? undefined,
+					action: "customer.email_updated",
+					entityType: "member",
+					entityId: targetMember.id,
+					branchId: targetMember.hierarchyScopeId ?? undefined,
+					summary: `Updated email to "${normalised}"`,
+				}).catch(() => {});
+			}
+
+			return { ok: true, email: normalised };
 		}),
 };

@@ -10,14 +10,14 @@ import { leadSources } from "@avantej-core/db/schema/tenant/lead-sources";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import {
 	getCustomerProfile,
-
 	upsertCustomerProfile,
+	writeAudit,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 
 export const customerProfilesRouter = {
 	get: tenantProcedure
@@ -27,8 +27,6 @@ export const customerProfilesRouter = {
 			}),
 		)
 		.handler(async ({ context }) => {
-			
-
 			const userId = context.session?.user?.id;
 			if (!userId) {
 				throw new ORPCError("UNAUTHORIZED", {
@@ -62,9 +60,7 @@ export const customerProfilesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			const userId = context.session?.user?.id;
 			if (!userId) {
 				throw new ORPCError("UNAUTHORIZED", {
@@ -79,9 +75,7 @@ export const customerProfilesRouter = {
 				userId,
 				...(input.phone !== undefined && { phone: input.phone }),
 				...(input.dateOfBirth !== undefined && {
-					dateOfBirth: input.dateOfBirth
-						? new Date(input.dateOfBirth)
-						: null,
+					dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
 				}),
 				...(input.gender !== undefined && { gender: input.gender }),
 				...(input.address !== undefined && { address: input.address }),
@@ -144,11 +138,13 @@ export const customerProfilesRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "customer_management", "update");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"customer_management",
+				"update",
+			);
 
 			// Verify targetUserId is a client member in this tenant
 			const target = await context.tenantDb.query.members.findFirst({
@@ -171,7 +167,7 @@ export const customerProfilesRouter = {
 				});
 			}
 
-			return upsertCustomerProfile(context.tenantDb, {
+			const result = await upsertCustomerProfile(context.tenantDb, {
 				userId: input.targetUserId,
 				phone: input.phone,
 				dateOfBirth: input.dateOfBirth
@@ -190,6 +186,19 @@ export const customerProfilesRouter = {
 				campaignId: input.campaignId,
 				// === /3.2 ===
 			});
+
+			await writeAudit(context.tenantDb, {
+				actorUserId: context.member.userId,
+				actorMemberId: context.member.id,
+				actorRole: context.member.role ?? undefined,
+				action: "customer.profile_updated",
+				entityType: "member",
+				entityId: target.id,
+				branchId: target.hierarchyScopeId ?? undefined,
+				summary: `Updated profile for customer`,
+			}).catch(() => {});
+
+			return result;
 		}),
 
 	// === 3.2 lead source / attribution ===
@@ -205,12 +214,13 @@ export const customerProfilesRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			const rows = await context.tenantDb
 				.select()
 				.from(leadSources)
-				.where(input.includeInactive ? undefined : eq(leadSources.isActive, true))
+				.where(
+					input.includeInactive ? undefined : eq(leadSources.isActive, true),
+				)
 				.orderBy(asc(leadSources.name));
 			return rows;
 		}),

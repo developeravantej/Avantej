@@ -7,7 +7,15 @@
  * Replaces the previous package_assignments table with enhanced functionality.
  */
 
-import { pgTable, uuid, text, integer, boolean, timestamp, index } from "drizzle-orm/pg-core";
+import {
+	pgTable,
+	uuid,
+	text,
+	integer,
+	boolean,
+	timestamp,
+	index,
+} from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { members } from "./members";
 import { payments } from "./payments";
@@ -15,102 +23,138 @@ import { services } from "./services";
 import { walkInCustomers } from "./walk-in-customers";
 import { salesOrders } from "./sales-orders";
 
-export const packageInstances = pgTable("package_instances", {
-	id: uuid("id").primaryKey().defaultRandom(),
-	serviceId: uuid("service_id")
-		.notNull()
-		.references(() => services.id, { onDelete: "restrict" }),
-	clientId: text("client_id"),
-	walkInCustomerId: uuid("walk_in_customer_id").references(() => walkInCustomers.id, { onDelete: "restrict" }),
+export const packageInstances = pgTable(
+	"package_instances",
+	{
+		id: uuid("id").primaryKey().defaultRandom(),
+		serviceId: uuid("service_id")
+			.notNull()
+			.references(() => services.id, { onDelete: "restrict" }),
+		clientId: text("client_id"),
+		walkInCustomerId: uuid("walk_in_customer_id").references(
+			() => walkInCustomers.id,
+			{ onDelete: "restrict" },
+		),
 
-	// Source tracking
-	source: text("source").notNull(), // "assigned" | "purchased"
-	assignedBy: text("assigned_by"),
+		// Denormalized customer name snapshot (read-scaling: avoids cross-DB lookup to
+		// the shared control-panel `user` table on package list renders). Populated at
+		// create time; refreshed by the propagate-forward step in the customer rename
+		// flow for ACTIVE packages only. Nullable: legacy rows fall back to live lookup.
+		customerName: text("customer_name"),
 
-	// Purchase details
-	purchaseNumber: text("purchase_number").unique(),
-	paymentId: uuid("payment_id")
-		.references(() => payments.id, { onDelete: "set null" }),
+		// Source tracking
+		source: text("source").notNull(), // "assigned" | "purchased"
+		assignedBy: text("assigned_by"),
 
-	// Pricing
-	totalPrice: integer("total_price"),
-	taxAmount: integer("tax_amount").default(0),
+		// Purchase details
+		purchaseNumber: text("purchase_number").unique(),
+		paymentId: uuid("payment_id").references(() => payments.id, {
+			onDelete: "set null",
+		}),
 
-	// Payment tracking
-	paymentStatus: text("payment_status").notNull(), // "pending" | "paid" | "failed" | "refunded"
-	paymentMethod: text("payment_method"),
+		// Pricing
+		totalPrice: integer("total_price"),
+		taxAmount: integer("tax_amount").default(0),
 
-	// Agreement
-	eSignature: text("e_signature"),
-	termsAgreedAt: timestamp("terms_agreed_at"),
+		// Payment tracking
+		paymentStatus: text("payment_status").notNull(), // "pending" | "paid" | "failed" | "refunded"
+		paymentMethod: text("payment_method"),
 
-	// Session tracking
-	creditsTotal: integer("credits_total").notNull(),
-	creditsRemaining: integer("credits_remaining")
-		.generatedAlwaysAs(sql`COALESCE(credits_unlocked, credits_total) - credits_used`)
-		.notNull(),
-	creditsUsed: integer("credits_used").default(0).notNull(),
+		// Agreement
+		eSignature: text("e_signature"),
+		termsAgreedAt: timestamp("terms_agreed_at"),
 
-	// Validity
-	startsAt: timestamp("starts_at").notNull(),
-	expiresAt: timestamp("expires_at").notNull(),
+		// Session tracking
+		creditsTotal: integer("credits_total").notNull(),
+		creditsRemaining: integer("credits_remaining")
+			.generatedAlwaysAs(
+				sql`COALESCE(credits_unlocked, credits_total) - credits_used`,
+			)
+			.notNull(),
+		creditsUsed: integer("credits_used").default(0).notNull(),
 
-	// Freeze
-	frozenUntil: timestamp("frozen_until", { withTimezone: true }),
+		// Validity
+		startsAt: timestamp("starts_at").notNull(),
+		expiresAt: timestamp("expires_at").notNull(),
 
-	// Status
-	status: text("status").notNull(), // "pending" | "active" | "frozen" | "completed" | "expired" | "exhausted" | "cancelled"
+		// Freeze
+		frozenUntil: timestamp("frozen_until", { withTimezone: true }),
 
-	// Approval flow (Pattern C — assignment IS approval)
-	// Set when an admin/trainer assigns a primary trainer to a `source: "purchased"`
-	// package that started in `pending` state. Null for legacy / non-gated rows.
-	assignedTrainerId: uuid("assigned_trainer_id"),
-	preferredTrainerId: uuid("preferred_trainer_id").references(() => members.id),
-	assignedTrainerAssignedBy: text("assigned_trainer_assigned_by"),
-	assignedTrainerAssignedAt: timestamp("assigned_trainer_assigned_at"),
-	approvedAt: timestamp("approved_at"),
-	approvedBy: text("approved_by"),
-	cancellationReason: text("cancellation_reason"),
-	cancelledBy: text("cancelled_by"),
+		// Status
+		status: text("status").notNull(), // "pending" | "active" | "frozen" | "completed" | "expired" | "exhausted" | "cancelled"
 
-	remark: text("remark"),
+		// Approval flow (Pattern C — assignment IS approval)
+		// Set when an admin/trainer assigns a primary trainer to a `source: "purchased"`
+		// package that started in `pending` state. Null for legacy / non-gated rows.
+		assignedTrainerId: uuid("assigned_trainer_id"),
+		preferredTrainerId: uuid("preferred_trainer_id").references(
+			() => members.id,
+		),
+		assignedTrainerAssignedBy: text("assigned_trainer_assigned_by"),
+		assignedTrainerAssignedAt: timestamp("assigned_trainer_assigned_at"),
+		approvedAt: timestamp("approved_at"),
+		approvedBy: text("approved_by"),
+		cancellationReason: text("cancellation_reason"),
+		cancelledBy: text("cancelled_by"),
 
-	// Reconciliation link back to the sales_order that created this package instance (0051)
-	salesOrderId: uuid("sales_order_id").references(() => salesOrders.id),
+		remark: text("remark"),
 
-	// Installment tracking
-	paymentPlanType: text("payment_plan_type"), // 'full' | 'half' | 'quarterly' | null (null = legacy)
-	installmentsTotal: integer("installments_total").default(1).notNull(),
-	installmentsPaid: integer("installments_paid").default(0).notNull(),
-	installmentsWaived: integer("installments_waived").default(0).notNull(),
-	creditsUnlocked: integer("credits_unlocked"), // null = all credits available (legacy); integer = installment-controlled
-	nextDueDate: timestamp("next_due_date", { withTimezone: true }),
-	gracePeriodEndsAt: timestamp("grace_period_ends_at", { withTimezone: true }),
-	isLocked: boolean("is_locked").default(false).notNull(),
-	lockedAt: timestamp("locked_at", { withTimezone: true }),
-	lockedReason: text("locked_reason"),
+		// Reconciliation link back to the sales_order that created this package instance (0051)
+		salesOrderId: uuid("sales_order_id").references(() => salesOrders.id),
 
-	// When true, payment confirmations use max(current, formula) rather than overwriting
-	creditsAdminOverride: boolean("credits_admin_override").default(false).notNull(),
+		// Installment tracking
+		paymentPlanType: text("payment_plan_type"), // 'full' | 'half' | 'quarterly' | null (null = legacy)
+		installmentsTotal: integer("installments_total").default(1).notNull(),
+		installmentsPaid: integer("installments_paid").default(0).notNull(),
+		installmentsWaived: integer("installments_waived").default(0).notNull(),
+		creditsUnlocked: integer("credits_unlocked"), // null = all credits available (legacy); integer = installment-controlled
+		nextDueDate: timestamp("next_due_date", { withTimezone: true }),
+		gracePeriodEndsAt: timestamp("grace_period_ends_at", {
+			withTimezone: true,
+		}),
+		isLocked: boolean("is_locked").default(false).notNull(),
+		lockedAt: timestamp("locked_at", { withTimezone: true }),
+		lockedReason: text("locked_reason"),
 
-	// When true, credit-consuming operations (appointment booking, check-in)
-	// ignore the isLocked flag. Admin override for VIP / trusted customers.
-	allowCreditOverdraft: boolean("allow_credit_overdraft").default(false).notNull(),
+		// When true, payment confirmations use max(current, formula) rather than overwriting
+		creditsAdminOverride: boolean("credits_admin_override")
+			.default(false)
+			.notNull(),
 
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-	updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (table) => ({
-	clientIdIdx: index("package_instances_client_idx").on(table.clientId),
-	sourceIdx: index("package_instances_source_idx").on(table.source),
-	statusIdx: index("package_instances_status_idx").on(table.status),
-	paymentStatusIdx: index("package_instances_payment_status_idx").on(table.paymentStatus),
-	expiresAtIdx: index("package_instances_expires_idx").on(table.expiresAt),
-	clientStatusIdx: index("package_instances_client_status_idx")
-		.on(table.clientId, table.status),
-	purchaseNumberIdx: index("package_instances_purchase_number_idx").on(table.purchaseNumber),
-	serviceIdIdx: index("package_instances_service_idx").on(table.serviceId),
-	isLockedIdx: index("package_instances_is_locked_idx").on(table.isLocked),
-	nextDueDateIdx: index("package_instances_next_due_date_idx").on(table.nextDueDate),
-	walkInCustomerIdIdx: index("pkg_instances_walk_in_idx").on(table.walkInCustomerId),
-	salesOrderIdIdx: index("package_instances_sales_order_id_idx").on(table.salesOrderId),
-}));
+		// When true, credit-consuming operations (appointment booking, check-in)
+		// ignore the isLocked flag. Admin override for VIP / trusted customers.
+		allowCreditOverdraft: boolean("allow_credit_overdraft")
+			.default(false)
+			.notNull(),
+
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+		updatedAt: timestamp("updated_at").defaultNow().notNull(),
+	},
+	(table) => ({
+		clientIdIdx: index("package_instances_client_idx").on(table.clientId),
+		sourceIdx: index("package_instances_source_idx").on(table.source),
+		statusIdx: index("package_instances_status_idx").on(table.status),
+		paymentStatusIdx: index("package_instances_payment_status_idx").on(
+			table.paymentStatus,
+		),
+		expiresAtIdx: index("package_instances_expires_idx").on(table.expiresAt),
+		clientStatusIdx: index("package_instances_client_status_idx").on(
+			table.clientId,
+			table.status,
+		),
+		purchaseNumberIdx: index("package_instances_purchase_number_idx").on(
+			table.purchaseNumber,
+		),
+		serviceIdIdx: index("package_instances_service_idx").on(table.serviceId),
+		isLockedIdx: index("package_instances_is_locked_idx").on(table.isLocked),
+		nextDueDateIdx: index("package_instances_next_due_date_idx").on(
+			table.nextDueDate,
+		),
+		walkInCustomerIdIdx: index("pkg_instances_walk_in_idx").on(
+			table.walkInCustomerId,
+		),
+		salesOrderIdIdx: index("package_instances_sales_order_id_idx").on(
+			table.salesOrderId,
+		),
+	}),
+);

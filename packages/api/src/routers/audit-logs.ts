@@ -1,8 +1,11 @@
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
- listAudit, exportAuditCsv } from "@avantej-core/services";
+	listAudit,
+	exportAuditCsv,
+	listCustomerLogs,
+} from "@avantej-core/services";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 const severitySchema = z.enum(["info", "warning", "danger"]);
@@ -14,8 +17,8 @@ const sharedFilters = z.object({
 	entityType: z.string().optional(),
 	entityId: z.string().optional(),
 	branchId: z.string().uuid().optional(),
-	from: z.string().optional(),   // ISO datetime string
-	to: z.string().optional(),     // ISO datetime string
+	from: z.string().optional(), // ISO datetime string
+	to: z.string().optional(), // ISO datetime string
 	severity: severitySchema.optional(),
 });
 
@@ -28,12 +31,13 @@ export const auditLogsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "audit_log", "read");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"audit_log",
+				"read",
+			);
 
 			const controlPanelDb = getControlPanelDb(context);
 
@@ -59,12 +63,13 @@ export const auditLogsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "audit_log", "read");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"audit_log",
+				"read",
+			);
 
 			const controlPanelDb = getControlPanelDb(context);
 
@@ -79,6 +84,42 @@ export const auditLogsRouter = {
 				severity: input.severity,
 				accessibleNodeIds: context.accessibleNodeIds ?? [],
 				maxRows: input.maxRows,
+			});
+		}),
+
+	/**
+	 * Merged audit + activity log feed scoped to a single customer.
+	 *
+	 * Requires customer_management:read. Returns staff actions recorded against
+	 * the customer entity AND the customer's own self-service activity.
+	 */
+	listForCustomer: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				memberId: z.string().uuid(), // customers members.id
+				memberUserId: z.string(), // customers members.userId
+				limit: z.number().int().min(1).max(200).default(50),
+				offset: z.number().int().min(0).default(0),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"customer_management",
+				"read",
+			);
+
+			const controlPanelDb = getControlPanelDb(context);
+
+			return listCustomerLogs(controlPanelDb, context.tenantDb, {
+				memberId: input.memberId,
+				memberUserId: input.memberUserId,
+				accessibleNodeIds: context.accessibleNodeIds ?? [],
+				limit: input.limit,
+				offset: input.offset,
 			});
 		}),
 };

@@ -13,7 +13,8 @@
 
 import { eq, and, asc, inArray, sql, or, lt, lte, desc } from "drizzle-orm";
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function assertUuids(ids: string[], label: string): void {
 	for (const id of ids) {
 		if (!UUID_RE.test(id)) throw new Error(`Invalid UUID in ${label}: ${id}`);
@@ -34,10 +35,10 @@ type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 
 export type ListPackageInstancesForClientParams = {
-  clientId: string;
-  status?: string;
-  source?: "assigned" | "purchased";
-  limit?: number;
+	clientId: string;
+	status?: string;
+	source?: "assigned" | "purchased";
+	limit?: number;
 };
 
 type ClientOwner =
@@ -45,125 +46,128 @@ type ClientOwner =
 	| { clientId?: never; walkInCustomerId: string };
 
 export type CreatePackageInstanceParams = ClientOwner & {
-  serviceId: string;
-  source: "assigned" | "purchased";
-  assignedBy?: string | null;
-  purchaseNumber?: string | null;
-  paymentId?: string | null;
-  totalPrice?: number | null;
-  taxAmount?: number;
-  paymentStatus?: string;
-  paymentMethod?: string | null;
-  eSignature?: string | null;
-  termsAgreedAt?: Date | null;
-  creditsTotal: number;
-  creditsUsed?: number;
-  startsAt: Date;
-  expiresAt: Date;
-  status?: string;
-  remark?: string | null;
-  paymentPlanType?: string | null;
-  installmentsTotal?: number;
-  installmentsPaid?: number;
-  creditsUnlocked?: number | null;
-  preferredTrainerId?: string | null;
-  /** Reconciliation FK added by migration 0051 — populate when originating from a sales order. */
-  salesOrderId?: string | null;
+	serviceId: string;
+	/** Denormalized customer name snapshot, resolved cross-DB by the caller at create time. */
+	customerName?: string | null;
+	source: "assigned" | "purchased";
+	assignedBy?: string | null;
+	purchaseNumber?: string | null;
+	paymentId?: string | null;
+	totalPrice?: number | null;
+	taxAmount?: number;
+	paymentStatus?: string;
+	paymentMethod?: string | null;
+	eSignature?: string | null;
+	termsAgreedAt?: Date | null;
+	creditsTotal: number;
+	creditsUsed?: number;
+	startsAt: Date;
+	expiresAt: Date;
+	status?: string;
+	remark?: string | null;
+	paymentPlanType?: string | null;
+	installmentsTotal?: number;
+	installmentsPaid?: number;
+	creditsUnlocked?: number | null;
+	preferredTrainerId?: string | null;
+	/** Reconciliation FK added by migration 0051 — populate when originating from a sales order. */
+	salesOrderId?: string | null;
 };
 
 export type UpdatePackageInstanceParams = {
-  paymentStatus?: string;
-  paymentMethod?: string | null;
-  creditsUsed?: number;
-  creditsUnlocked?: number | null;
-  installmentsPaid?: number;
-  nextDueDate?: Date | null;
-  gracePeriodEndsAt?: Date | null;
-  isLocked?: boolean;
-  lockedAt?: Date | null;
-  lockedReason?: string | null;
-  status?: string;
+	paymentStatus?: string;
+	paymentMethod?: string | null;
+	creditsUsed?: number;
+	creditsUnlocked?: number | null;
+	installmentsPaid?: number;
+	nextDueDate?: Date | null;
+	gracePeriodEndsAt?: Date | null;
+	isLocked?: boolean;
+	lockedAt?: Date | null;
+	lockedReason?: string | null;
+	status?: string;
 };
 
 /**
  * List package instances for a client (user_id from Control Panel).
  */
 export async function listPackageInstancesForClient(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  params: ListPackageInstancesForClientParams
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	params: ListPackageInstancesForClientParams,
 ): Promise<(typeof packageInstances.$inferSelect)[]> {
-  const { clientId, status, source, limit = 50 } = params;
+	const { clientId, status, source, limit = 50 } = params;
 
-  const conditions = [eq(packageInstances.clientId, clientId)];
-  if (status) {
-    conditions.push(eq(packageInstances.status, status));
-  }
-  if (source) {
-    conditions.push(eq(packageInstances.source, source));
-  }
+	const conditions = [eq(packageInstances.clientId, clientId)];
+	if (status) {
+		conditions.push(eq(packageInstances.status, status));
+	}
+	if (source) {
+		conditions.push(eq(packageInstances.source, source));
+	}
 
-  return tenantDb.query.packageInstances.findMany({
-    where: and(...conditions),
-    orderBy: [asc(packageInstances.createdAt)],
-    limit: Math.min(limit, 200),
-  });
+	return tenantDb.query.packageInstances.findMany({
+		where: and(...conditions),
+		orderBy: [asc(packageInstances.createdAt)],
+		limit: Math.min(limit, 200),
+	});
 }
 
 /**
  * Get a package instance by ID.
  */
 export async function getPackageInstanceById(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  id: string
-): Promise<(typeof packageInstances.$inferSelect) | null> {
-  const row = await tenantDb.query.packageInstances.findFirst({
-    where: eq(packageInstances.id, id),
-  });
-  return row ?? null;
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	id: string,
+): Promise<typeof packageInstances.$inferSelect | null> {
+	const row = await tenantDb.query.packageInstances.findFirst({
+		where: eq(packageInstances.id, id),
+	});
+	return row ?? null;
 }
 
 /**
  * Create a package instance.
  */
 export async function createPackageInstance(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  params: CreatePackageInstanceParams
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	params: CreatePackageInstanceParams,
 ): Promise<typeof packageInstances.$inferSelect> {
-  const [row] = await tenantDb
-    .insert(packageInstances)
-    .values({
-      serviceId: params.serviceId,
-      clientId: params.clientId ?? null,
-      walkInCustomerId: params.walkInCustomerId ?? null,
-      source: params.source,
-      assignedBy: params.assignedBy ?? null,
-      purchaseNumber: params.purchaseNumber ?? null,
-      paymentId: params.paymentId ?? null,
-      totalPrice: params.totalPrice ?? null,
-      taxAmount: params.taxAmount ?? 0,
-      paymentStatus: params.paymentStatus ?? "pending",
-      paymentMethod: params.paymentMethod ?? null,
-      eSignature: params.eSignature ?? null,
-      termsAgreedAt: params.termsAgreedAt ?? null,
-      creditsTotal: params.creditsTotal,
-      creditsUsed: params.creditsUsed ?? 0,
-      startsAt: params.startsAt,
-      expiresAt: params.expiresAt,
-      status: params.status ?? "active",
-      remark: params.remark ?? null,
-      paymentPlanType: params.paymentPlanType ?? null,
-      installmentsTotal: params.installmentsTotal ?? 1,
-      installmentsPaid: params.installmentsPaid ?? 0,
-      creditsUnlocked: params.creditsUnlocked ?? null,
-      preferredTrainerId: params.preferredTrainerId ?? null,
-      salesOrderId: params.salesOrderId ?? null,
-    })
-    .returning();
+	const [row] = await tenantDb
+		.insert(packageInstances)
+		.values({
+			serviceId: params.serviceId,
+			clientId: params.clientId ?? null,
+			walkInCustomerId: params.walkInCustomerId ?? null,
+			customerName: params.customerName ?? null,
+			source: params.source,
+			assignedBy: params.assignedBy ?? null,
+			purchaseNumber: params.purchaseNumber ?? null,
+			paymentId: params.paymentId ?? null,
+			totalPrice: params.totalPrice ?? null,
+			taxAmount: params.taxAmount ?? 0,
+			paymentStatus: params.paymentStatus ?? "pending",
+			paymentMethod: params.paymentMethod ?? null,
+			eSignature: params.eSignature ?? null,
+			termsAgreedAt: params.termsAgreedAt ?? null,
+			creditsTotal: params.creditsTotal,
+			creditsUsed: params.creditsUsed ?? 0,
+			startsAt: params.startsAt,
+			expiresAt: params.expiresAt,
+			status: params.status ?? "active",
+			remark: params.remark ?? null,
+			paymentPlanType: params.paymentPlanType ?? null,
+			installmentsTotal: params.installmentsTotal ?? 1,
+			installmentsPaid: params.installmentsPaid ?? 0,
+			creditsUnlocked: params.creditsUnlocked ?? null,
+			preferredTrainerId: params.preferredTrainerId ?? null,
+			salesOrderId: params.salesOrderId ?? null,
+		})
+		.returning();
 
-  if (!row) {
-    throw new Error("Failed to create package instance");
-  }
-  return row;
+	if (!row) {
+		throw new Error("Failed to create package instance");
+	}
+	return row;
 }
 
 // ----------------------------------------------------------------
@@ -279,6 +283,7 @@ export async function listMemberships(
 			pi.id                                                            AS package_instance_id,
 			m.id                                                             AS member_id,
 			pi.client_id                                                     AS client_id,
+			pi.customer_name                                                 AS customer_name,
 			pi.service_id                                                    AS service_id,
 			pi.starts_at                                                     AS starts_at,
 			pi.expires_at                                                    AS expires_at,
@@ -330,6 +335,7 @@ export async function listMemberships(
 		package_instance_id: string;
 		member_id: string;
 		client_id: string;
+		customer_name: string | null;
 		service_id: string;
 		starts_at: Date;
 		expires_at: Date;
@@ -352,13 +358,21 @@ export async function listMemberships(
 	}
 
 	// ----------------------------------------------------------------
-	// Step 2: cross-DB batch lookup for clientName
+	// Step 2: cross-DB batch lookup for clientName.
+	// Read-scaling: only look up LEGACY rows missing the denormalized snapshot.
 	// ----------------------------------------------------------------
-	const clientIds = [...new Set(tenantRows.map((r) => r.client_id))];
-	const userRows = await controlPanelDb
-		.select({ id: user.id, name: user.name })
-		.from(user)
-		.where(inArray(user.id, clientIds));
+	const clientIds = [
+		...new Set(
+			tenantRows.filter((r) => !r.customer_name).map((r) => r.client_id),
+		),
+	];
+	const userRows =
+		clientIds.length > 0
+			? await controlPanelDb
+					.select({ id: user.id, name: user.name })
+					.from(user)
+					.where(inArray(user.id, clientIds))
+			: [];
 
 	const userMap = new Map(userRows.map((u) => [u.id, u.name]));
 
@@ -369,7 +383,7 @@ export async function listMemberships(
 		packageInstanceId: r.package_instance_id,
 		memberId: r.member_id,
 		clientId: r.client_id,
-		clientName: userMap.get(r.client_id) ?? "Unknown",
+		clientName: r.customer_name ?? userMap.get(r.client_id) ?? "Unknown",
 		serviceId: r.service_id,
 		serviceName: r.service_name,
 		startsAt: r.starts_at,
@@ -390,55 +404,71 @@ export async function listMemberships(
  * Update a package instance by ID. Only provided fields are updated.
  */
 export async function updatePackageInstance(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  id: string,
-  params: UpdatePackageInstanceParams,
-  actor?: { userId: string; reason?: string; notes?: string },
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	id: string,
+	params: UpdatePackageInstanceParams,
+	actor?: { userId: string; reason?: string; notes?: string },
 ): Promise<typeof packageInstances.$inferSelect> {
-  // Capture prior status for history if status is changing.
-  let previousStatus: string | null = null;
-  if (params.status !== undefined) {
-    const [existing] = await tenantDb
-      .select({ status: packageInstances.status })
-      .from(packageInstances)
-      .where(eq(packageInstances.id, id));
-    previousStatus = existing?.status ?? null;
-  }
+	// Capture prior status for history if status is changing.
+	let previousStatus: string | null = null;
+	if (params.status !== undefined) {
+		const [existing] = await tenantDb
+			.select({ status: packageInstances.status })
+			.from(packageInstances)
+			.where(eq(packageInstances.id, id));
+		previousStatus = existing?.status ?? null;
+	}
 
-  const [row] = await tenantDb
-    .update(packageInstances)
-    .set({
-      ...(params.paymentStatus !== undefined && { paymentStatus: params.paymentStatus }),
-      ...(params.paymentMethod !== undefined && { paymentMethod: params.paymentMethod }),
-      ...(params.creditsUsed !== undefined && { creditsUsed: params.creditsUsed }),
-      ...(params.creditsUnlocked !== undefined && { creditsUnlocked: params.creditsUnlocked }),
-      ...(params.installmentsPaid !== undefined && { installmentsPaid: params.installmentsPaid }),
-      ...(params.nextDueDate !== undefined && { nextDueDate: params.nextDueDate }),
-      ...(params.gracePeriodEndsAt !== undefined && { gracePeriodEndsAt: params.gracePeriodEndsAt }),
-      ...(params.isLocked !== undefined && { isLocked: params.isLocked }),
-      ...(params.lockedAt !== undefined && { lockedAt: params.lockedAt }),
-      ...(params.lockedReason !== undefined && { lockedReason: params.lockedReason }),
-      ...(params.status !== undefined && { status: params.status }),
-      updatedAt: new Date(),
-    })
-    .where(eq(packageInstances.id, id))
-    .returning();
+	const [row] = await tenantDb
+		.update(packageInstances)
+		.set({
+			...(params.paymentStatus !== undefined && {
+				paymentStatus: params.paymentStatus,
+			}),
+			...(params.paymentMethod !== undefined && {
+				paymentMethod: params.paymentMethod,
+			}),
+			...(params.creditsUsed !== undefined && {
+				creditsUsed: params.creditsUsed,
+			}),
+			...(params.creditsUnlocked !== undefined && {
+				creditsUnlocked: params.creditsUnlocked,
+			}),
+			...(params.installmentsPaid !== undefined && {
+				installmentsPaid: params.installmentsPaid,
+			}),
+			...(params.nextDueDate !== undefined && {
+				nextDueDate: params.nextDueDate,
+			}),
+			...(params.gracePeriodEndsAt !== undefined && {
+				gracePeriodEndsAt: params.gracePeriodEndsAt,
+			}),
+			...(params.isLocked !== undefined && { isLocked: params.isLocked }),
+			...(params.lockedAt !== undefined && { lockedAt: params.lockedAt }),
+			...(params.lockedReason !== undefined && {
+				lockedReason: params.lockedReason,
+			}),
+			...(params.status !== undefined && { status: params.status }),
+			updatedAt: new Date(),
+		})
+		.where(eq(packageInstances.id, id))
+		.returning();
 
-  if (!row) {
-    throw new Error("Package instance not found");
-  }
+	if (!row) {
+		throw new Error("Package instance not found");
+	}
 
-  // Append status history if status actually changed.
-  if (params.status !== undefined && params.status !== previousStatus) {
-    await appendPackageInstanceStatusHistory(tenantDb, id, {
-      fromStatus: previousStatus,
-      toStatus: params.status,
-      changedBy: actor?.userId ?? "system",
-      reason: actor?.reason,
-      notes: actor?.notes,
-    });
-  }
-  return row;
+	// Append status history if status actually changed.
+	if (params.status !== undefined && params.status !== previousStatus) {
+		await appendPackageInstanceStatusHistory(tenantDb, id, {
+			fromStatus: previousStatus,
+			toStatus: params.status,
+			changedBy: actor?.userId ?? "system",
+			reason: actor?.reason,
+			notes: actor?.notes,
+		});
+	}
+	return row;
 }
 
 export type PackageInstanceHistoryQueryOpts = {
@@ -459,9 +489,15 @@ export async function getPackageInstanceStatusHistory(
 				eq(packageInstanceStatusHistory.packageInstanceId, packageInstanceId),
 				parsedCursor
 					? or(
-							lt(packageInstanceStatusHistory.changedAt, parsedCursor.changedAt),
+							lt(
+								packageInstanceStatusHistory.changedAt,
+								parsedCursor.changedAt,
+							),
 							and(
-								eq(packageInstanceStatusHistory.changedAt, parsedCursor.changedAt),
+								eq(
+									packageInstanceStatusHistory.changedAt,
+									parsedCursor.changedAt,
+								),
 								lt(packageInstanceStatusHistory.id, parsedCursor.id),
 							),
 						)
@@ -541,6 +577,7 @@ export async function listAssignedToMember(
 		.select({
 			id: packageInstances.id,
 			clientId: packageInstances.clientId,
+			customerName: packageInstances.customerName,
 			serviceId: packageInstances.serviceId,
 			status: packageInstances.status,
 			creditsRemaining: packageInstances.creditsRemaining,
@@ -583,12 +620,11 @@ export async function listAssignedToMember(
 
 	return rows.map((r) => ({
 		...r,
-		clientDisplayName: r.clientId
-			? (clientMap.get(r.clientId)?.name ?? null)
-			: null,
-		clientEmail: r.clientId
-			? (clientMap.get(r.clientId)?.email ?? null)
-			: null,
+		// Prefer the denormalized snapshot; fall back to the live lookup for legacy rows.
+		clientDisplayName:
+			r.customerName ??
+			(r.clientId ? (clientMap.get(r.clientId)?.name ?? null) : null),
+		clientEmail: r.clientId ? (clientMap.get(r.clientId)?.email ?? null) : null,
 	}));
 }
 
@@ -629,10 +665,14 @@ export async function cancelPackageInstance(
 			.for("update");
 
 		if (!pkg) {
-			throw Object.assign(new Error("Package instance not found"), { code: "NOT_FOUND" });
+			throw Object.assign(new Error("Package instance not found"), {
+				code: "NOT_FOUND",
+			});
 		}
 		if (pkg.status === "cancelled") {
-			throw Object.assign(new Error("Package is already cancelled"), { code: "CONFLICT" });
+			throw Object.assign(new Error("Package is already cancelled"), {
+				code: "CONFLICT",
+			});
 		}
 
 		const now = new Date();
@@ -712,11 +752,15 @@ export async function freezePackageInstance(
 			.for("update");
 
 		if (!pkg) {
-			throw Object.assign(new Error("Package instance not found"), { code: "NOT_FOUND" });
+			throw Object.assign(new Error("Package instance not found"), {
+				code: "NOT_FOUND",
+			});
 		}
 		if (pkg.status !== "active") {
 			throw Object.assign(
-				new Error(`Only active packages can be frozen (current status: ${pkg.status})`),
+				new Error(
+					`Only active packages can be frozen (current status: ${pkg.status})`,
+				),
 				{ code: "BAD_REQUEST" },
 			);
 		}
@@ -738,7 +782,9 @@ export async function freezePackageInstance(
 			toStatus: "frozen",
 			changedBy: params.actorUserId,
 			reason: params.reason,
-			notes: frozenUntil ? `Frozen until ${frozenUntil.toISOString()}` : undefined,
+			notes: frozenUntil
+				? `Frozen until ${frozenUntil.toISOString()}`
+				: undefined,
 		});
 
 		await writeAudit(tx, {
@@ -749,7 +795,10 @@ export async function freezePackageInstance(
 			entityType: "package_instance",
 			entityId: params.id,
 			summary: `Package instance ${params.id} frozen${frozenUntil ? ` until ${frozenUntil.toISOString()}` : ""}`,
-			changes: { frozenUntil: frozenUntil?.toISOString() ?? null, reason: params.reason },
+			changes: {
+				frozenUntil: frozenUntil?.toISOString() ?? null,
+				reason: params.reason,
+			},
 		});
 
 		return { id: params.id, status: "frozen" as const, frozenUntil };
@@ -778,7 +827,9 @@ export async function unfreezePackageInstance(
 			.for("update");
 
 		if (!pkg) {
-			throw Object.assign(new Error("Package instance not found"), { code: "NOT_FOUND" });
+			throw Object.assign(new Error("Package instance not found"), {
+				code: "NOT_FOUND",
+			});
 		}
 		if (pkg.status !== "frozen") {
 			throw Object.assign(
@@ -848,15 +899,16 @@ export async function extendPackageInstance(
 			.for("update");
 
 		if (!pkg) {
-			throw Object.assign(new Error("Package instance not found"), { code: "NOT_FOUND" });
+			throw Object.assign(new Error("Package instance not found"), {
+				code: "NOT_FOUND",
+			});
 		}
 
 		const terminalStatuses = ["cancelled", "expired", "completed"];
 		if (terminalStatuses.includes(pkg.status)) {
-			throw Object.assign(
-				new Error(`Cannot extend a ${pkg.status} package`),
-				{ code: "BAD_REQUEST" },
-			);
+			throw Object.assign(new Error(`Cannot extend a ${pkg.status} package`), {
+				code: "BAD_REQUEST",
+			});
 		}
 
 		if (!pkg.expiresAt) {
@@ -866,7 +918,9 @@ export async function extendPackageInstance(
 			);
 		}
 
-		const newExpiresAt = new Date(pkg.expiresAt.getTime() + params.addDays * 24 * 60 * 60 * 1000);
+		const newExpiresAt = new Date(
+			pkg.expiresAt.getTime() + params.addDays * 24 * 60 * 60 * 1000,
+		);
 		const now = new Date();
 
 		await tx

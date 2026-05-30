@@ -30,8 +30,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { useUserContext } from "@/hooks/useUserContext";
+import { LogsTab } from "@/features/customers-detail/components/LogsTab";
 import { formatPrice } from "@/lib/money";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -201,6 +202,10 @@ export function CustomerProfilePanel({
 	const [profileForm, setProfileForm] =
 		useState<ProfileFormState>(EMPTY_PROFILE_FORM);
 	const [formDirty, setFormDirty] = useState(false);
+	const [nameEdit, setNameEdit] = useState("");
+	const [nameEditDirty, setNameEditDirty] = useState(false);
+	const [emailEdit, setEmailEdit] = useState("");
+	const [emailEditDirty, setEmailEditDirty] = useState(false);
 
 	const {
 		data: detail,
@@ -245,9 +250,26 @@ export function CustomerProfilePanel({
 			notes: profile?.notes ?? "",
 		});
 		setFormDirty(false);
+		setNameEditDirty(false);
+		setEmailEditDirty(false);
 		// intentional: profile in deps would wipe unsaved form edits on every background refetch
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [memberId]);
+
+	// Seed name/email whenever the server value arrives (handles async loads and
+	// post-mutation refetches). Guard with dirty flags so in-progress edits are
+	// not overwritten. Dirty flags intentionally excluded from deps.
+	useEffect(() => {
+		if (!detail) return;
+		if (!nameEditDirty) setNameEdit(detail.user.name ?? "");
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [detail?.user?.name, memberId]);
+
+	useEffect(() => {
+		if (!detail) return;
+		if (!emailEditDirty) setEmailEdit(detail.user.email ?? "");
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [detail?.user?.email, memberId]);
 
 	const upsertMutation = useApiMutation({
 		mutationFn: () => {
@@ -275,9 +297,48 @@ export function CustomerProfilePanel({
 		errorMessage: (err) => err.message || "Failed to update profile.",
 		invalidate: [
 			["customerDirectory", "detail", organizationId, memberId],
-			["customerDirectory", organizationId],
+			orpc.customerDirectory.list.key(),
+			["customerLogs", organizationId, memberId],
 		],
 		onSuccess: () => setFormDirty(false),
+	});
+
+	const updateNameMutation = useApiMutation({
+		mutationFn: () => {
+			if (!detail) throw new Error("No customer data loaded");
+			return client.customerProfiles.updateName({
+				organizationId: organizationId!,
+				targetUserId: detail.member.userId,
+				newName: nameEdit.trim(),
+			});
+		},
+		successMessage: "Name updated.",
+		errorMessage: (err) => err.message || "Failed to update name.",
+		invalidate: [
+			["customerDirectory", "detail", organizationId, memberId],
+			orpc.customerDirectory.list.key(),
+			["customerLogs", organizationId, memberId],
+		],
+		onSuccess: () => setNameEditDirty(false),
+	});
+
+	const updateEmailMutation = useApiMutation({
+		mutationFn: () => {
+			if (!detail) throw new Error("No customer data loaded");
+			return client.customerProfiles.updateEmail({
+				organizationId: organizationId!,
+				targetUserId: detail.member.userId,
+				newEmail: emailEdit.trim(),
+			});
+		},
+		successMessage: "Email updated.",
+		errorMessage: (err) => err.message || "Failed to update email.",
+		invalidate: [
+			["customerDirectory", "detail", organizationId, memberId],
+			orpc.customerDirectory.list.key(),
+			["customerLogs", organizationId, memberId],
+		],
+		onSuccess: () => setEmailEditDirty(false),
 	});
 
 	const { data: upcomingAppts } = useQuery({
@@ -377,7 +438,13 @@ export function CustomerProfilePanel({
 		<div className="space-y-6 p-6">
 			{showBackLink && (
 				<Button variant="ghost" size="sm" asChild className="-ml-1">
-					<Link to="/dashboard/customers/v2/view" search={{} as any}>
+					<Link
+						to="/dashboard/customers/v2/view"
+						search={(_prev) => ({
+							customer: undefined,
+							showDeleted: undefined,
+						})}
+					>
 						<ArrowLeft className="mr-1 h-4 w-4" />
 						Customers
 					</Link>
@@ -450,6 +517,7 @@ export function CustomerProfilePanel({
 							},
 							{ value: "payments", label: "Payments" },
 							{ value: "appointments", label: "Appointments" },
+							{ value: "logs", label: "Logs" },
 						] as const
 					).map(({ value, label }) => (
 						<TabsTrigger
@@ -475,6 +543,64 @@ export function CustomerProfilePanel({
 							<CardTitle className="text-base">Profile</CardTitle>
 						</CardHeader>
 						<CardContent className="space-y-4">
+							<div className="flex flex-col gap-1.5">
+								<Label htmlFor="cd-name">Name</Label>
+								<div className="flex gap-2">
+									<Input
+										id="cd-name"
+										type="text"
+										placeholder="Full name"
+										value={nameEdit}
+										onChange={(e) => {
+											setNameEdit(e.target.value);
+											setNameEditDirty(
+												e.target.value.trim() !== (detail?.user.name ?? ""),
+											);
+										}}
+									/>
+									{nameEditDirty && (
+										<Button
+											type="button"
+											size="sm"
+											disabled={
+												updateNameMutation.isPending || !nameEdit.trim()
+											}
+											onClick={() => updateNameMutation.mutate()}
+										>
+											{updateNameMutation.isPending ? "Saving…" : "Save"}
+										</Button>
+									)}
+								</div>
+							</div>
+							<div className="flex flex-col gap-1.5">
+								<Label htmlFor="cd-email">Email</Label>
+								<div className="flex gap-2">
+									<Input
+										id="cd-email"
+										type="email"
+										placeholder="customer@example.com"
+										value={emailEdit}
+										onChange={(e) => {
+											setEmailEdit(e.target.value);
+											setEmailEditDirty(
+												e.target.value.trim() !== (detail?.user.email ?? ""),
+											);
+										}}
+									/>
+									{emailEditDirty && (
+										<Button
+											type="button"
+											size="sm"
+											disabled={
+												updateEmailMutation.isPending || !emailEdit.trim()
+											}
+											onClick={() => updateEmailMutation.mutate()}
+										>
+											{updateEmailMutation.isPending ? "Saving…" : "Save"}
+										</Button>
+									)}
+								</div>
+							</div>
 							<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 								<div className="flex flex-col gap-1.5">
 									<Label htmlFor="cd-phone">Phone</Label>
@@ -880,6 +1006,14 @@ export function CustomerProfilePanel({
 							)}
 						</CardContent>
 					</Card>
+				</TabsContent>
+
+				<TabsContent value="logs" className="mt-4">
+					<LogsTab
+						organizationId={organizationId!}
+						memberId={member.id}
+						memberUserId={member.userId}
+					/>
 				</TabsContent>
 			</Tabs>
 		</div>
