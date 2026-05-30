@@ -65,7 +65,8 @@ function StatusPill({ active }: { active: boolean }) {
 }
 
 // Field label — matches service-form-a.tsx labelCls exactly
-const labelCls = "block text-[11px] font-semibold uppercase tracking-widest text-[#737373] mb-1";
+const labelCls =
+	"block text-[11px] font-semibold uppercase tracking-widest text-[#737373] mb-1";
 
 function SectionDivider({ label }: { label: string }) {
 	return (
@@ -91,7 +92,13 @@ function FieldRow({
 	return (
 		<div className="mb-3">
 			<p className={labelCls}>{label}</p>
-			<div className={mono ? "text-[13px] text-[#0a0a0a] font-mono tabular-nums" : "text-[13px] text-[#0a0a0a]"}>
+			<div
+				className={
+					mono
+						? "text-[13px] text-[#0a0a0a] font-mono tabular-nums"
+						: "text-[13px] text-[#0a0a0a]"
+				}
+			>
 				{children}
 			</div>
 		</div>
@@ -114,7 +121,7 @@ export function ServiceDetailDialogA({
 		durationUnitType: string | null;
 		maxAttendees: number;
 		price: number | null;
-		schedulingType: string | null;
+		schedulingType: string;
 		isActive: boolean;
 		description: string | null;
 		type: string | null;
@@ -188,24 +195,43 @@ export function ServiceDetailDialogA({
 				<DialogContent className="!w-[70vw] !max-w-[70vw] max-h-[90vh] flex flex-col p-0 !bg-white">
 					<DialogHeader className="sr-only">
 						<DialogTitle>Service Details</DialogTitle>
-						<DialogDescription>View and manage the details of this service.</DialogDescription>
+						<DialogDescription>
+							View and manage the details of this service.
+						</DialogDescription>
 					</DialogHeader>
 					{/* ── Header — §10: dialog H2 = text-lg font-bold ── */}
 					<div className="shrink-0 px-5 pt-5 pb-4 border-b border-[#e5e5e5]">
 						<div className="flex items-start justify-between gap-4 pr-8">
 							<div>
-									{/* matches edit form: text-[22px] font-extrabold tracking-tight */}
+								{/* matches edit form: text-[22px] font-extrabold tracking-tight */}
 								<h2 className="text-[22px] font-extrabold tracking-tight text-[#0a0a0a]">
 									{service?.name ?? "Service Details"}
 								</h2>
 								{service && (
 									<p className="text-[13px] text-[#737373] mt-1">
-										{service.schedulingType === "class_slot" ? "Class slot" : "Appointment"}
+										{service.schedulingType === "class_slot"
+											? "Class slot"
+											: "Appointment"}
 										{service.duration != null && (
-											<> · <span className="font-mono tabular-nums">{formatDuration(service.duration, service.durationUnitType)}</span></>
+											<>
+												{" "}
+												·{" "}
+												<span className="font-mono tabular-nums">
+													{formatDuration(
+														service.duration,
+														service.durationUnitType,
+													)}
+												</span>
+											</>
 										)}
 										{service.price != null && (
-											<> · <span className="font-mono tabular-nums">{formatPrice(service.price, "MYR")}</span></>
+											<>
+												{" "}
+												·{" "}
+												<span className="font-mono tabular-nums">
+													{formatPrice(service.price, "MYR")}
+												</span>
+											</>
 										)}
 									</p>
 								)}
@@ -254,7 +280,6 @@ export function ServiceDetailDialogA({
 
 						{service && !isLoading && (
 							<div className="grid grid-cols-2 divide-x divide-[#e5e5e5]">
-
 								{/* LEFT: Overview + Scheduling + Timestamps */}
 								<div className="px-5 py-4 space-y-5">
 									<div>
@@ -265,13 +290,17 @@ export function ServiceDetailDialogA({
 												<StatusPill active={service.isActive} />
 											</FieldRow>
 											<FieldRow label="Type">
-												<span className="capitalize">{service.type ?? "—"}</span>
+												<span className="capitalize">
+													{service.type ?? "—"}
+												</span>
 											</FieldRow>
 											<FieldRow label="Recommended">
 												{service.isRecommended ? "Yes" : "No"}
 											</FieldRow>
 											{service.description && (
-												<FieldRow label="Description">{service.description}</FieldRow>
+												<FieldRow label="Description">
+													{service.description}
+												</FieldRow>
 											)}
 										</div>
 									</div>
@@ -280,11 +309,16 @@ export function ServiceDetailDialogA({
 										<SectionDivider label="Scheduling" />
 										<div className="grid grid-cols-2 gap-x-6">
 											<FieldRow label="Type">
-												{service.schedulingType === "class_slot" ? "Class slot" : "Appointment"}
+												{service.schedulingType === "class_slot"
+													? "Class slot"
+													: "Appointment"}
 											</FieldRow>
 											{/* §1: duration is numeric — mono */}
 											<FieldRow label="Duration" mono>
-												{formatDuration(service.duration, service.durationUnitType)}
+												{formatDuration(
+													service.duration,
+													service.durationUnitType,
+												)}
 											</FieldRow>
 											<FieldRow label="Max attendees" mono>
 												{service.maxAttendees}
@@ -299,14 +333,16 @@ export function ServiceDetailDialogA({
 												<div className="mt-2">
 													<p className={labelCls}>Recurring days</p>
 													<div className="flex flex-wrap gap-1 mt-1">
-														{service.timePresetConfig.recurringDays.map((day) => (
-															<span
-																key={day}
-																className="inline-block border border-[#e5e5e5] rounded-md px-2 py-0.5 text-[11px] font-medium text-[#0a0a0a]"
-															>
-																{day}
-															</span>
-														))}
+														{service.timePresetConfig.recurringDays.map(
+															(day) => (
+																<span
+																	key={day}
+																	className="inline-block border border-[#e5e5e5] rounded-md px-2 py-0.5 text-[11px] font-medium text-[#0a0a0a]"
+																>
+																	{day}
+																</span>
+															),
+														)}
 													</div>
 												</div>
 											)}
@@ -314,8 +350,12 @@ export function ServiceDetailDialogA({
 
 									{/* §1: dates = text-[10px] text-[#737373] font-mono tabular-nums */}
 									<div className="border-t border-[#e5e5e5] pt-4 grid grid-cols-2 gap-x-6">
-										<FieldRow label="Created" mono>{formatDate(service.createdAt)}</FieldRow>
-										<FieldRow label="Updated" mono>{formatDate(service.updatedAt)}</FieldRow>
+										<FieldRow label="Created" mono>
+											{formatDate(service.createdAt)}
+										</FieldRow>
+										<FieldRow label="Updated" mono>
+											{formatDate(service.updatedAt)}
+										</FieldRow>
 									</div>
 								</div>
 
@@ -325,11 +365,15 @@ export function ServiceDetailDialogA({
 									<div className="grid grid-cols-2 gap-x-6">
 										{/* §1: price = mono */}
 										<FieldRow label="Price" mono>
-											{service.price != null ? formatPrice(service.price, "MYR") : "—"}
+											{service.price != null
+												? formatPrice(service.price, "MYR")
+												: "—"}
 										</FieldRow>
 										{/* §1: percentage = mono */}
 										<FieldRow label="Taxable" mono>
-											{service.taxable ? `Yes (${service.taxPercentage}%)` : "No"}
+											{service.taxable
+												? `Yes (${service.taxPercentage}%)`
+												: "No"}
 										</FieldRow>
 										{/* §1: count = mono */}
 										<FieldRow label="Sessions" mono>
@@ -360,7 +404,6 @@ export function ServiceDetailDialogA({
 										</div>
 									)}
 								</div>
-
 							</div>
 						)}
 					</div>
@@ -386,7 +429,9 @@ export function ServiceDetailDialogA({
 				<DialogContent className="sm:max-w-sm p-0 !bg-white">
 					<DialogHeader className="sr-only">
 						<DialogTitle>Deactivate service</DialogTitle>
-						<DialogDescription>Deactivate this service to hide it from active lists.</DialogDescription>
+						<DialogDescription>
+							Deactivate this service to hide it from active lists.
+						</DialogDescription>
 					</DialogHeader>
 					<div className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
 						<div className="flex items-center gap-3">
@@ -403,7 +448,8 @@ export function ServiceDetailDialogA({
 							<span className="font-semibold text-[#0a0a0a]">
 								&ldquo;{service?.name}&rdquo;
 							</span>
-							? It will be hidden from active lists. You can reactivate it later by editing.
+							? It will be hidden from active lists. You can reactivate it later
+							by editing.
 						</p>
 					</div>
 					<div className="px-6 pb-6 flex items-center justify-end gap-3">

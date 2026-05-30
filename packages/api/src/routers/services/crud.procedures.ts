@@ -18,7 +18,6 @@ import { validateInstallmentPlanCodes } from "./installment-plan-validation";
 import {
 	durationUnitSchema,
 	priceUnitSchema,
-	schedulingTypeSchema,
 	serviceTypeSchema,
 	timePresetConfigSchema,
 } from "./schemas";
@@ -32,7 +31,6 @@ export const serviceCrudProcedures = {
 				branchId: z.string().uuid().nullable().optional(),
 				isActive: z.boolean().optional(),
 				type: serviceTypeSchema.optional(),
-				schedulingType: schedulingTypeSchema.optional(),
 			}),
 		)
 		.handler(async ({ input, context }) => {
@@ -53,7 +51,6 @@ export const serviceCrudProcedures = {
 				branchId: input.branchId ?? undefined,
 				isActive: input.isActive,
 				type: input.type,
-				schedulingType: input.schedulingType,
 				accessibleNodeIds,
 			});
 		}),
@@ -119,7 +116,6 @@ export const serviceCrudProcedures = {
 				isRecommended: z.boolean().optional(),
 				location: z.string().nullable().optional(),
 				features: z.array(z.string()).nullable().optional(),
-				schedulingType: schedulingTypeSchema.optional(),
 				sessionCount: z.number().int().min(1).nullable().optional(),
 				expirable: z.boolean().optional(),
 				expiryDays: z.number().int().min(1).nullable().optional(),
@@ -143,7 +139,10 @@ export const serviceCrudProcedures = {
 			await guardInputBranchForContext(context, input.branchId);
 
 			if (input.availablePaymentPlans?.length) {
-				await validateInstallmentPlanCodes(context, input.availablePaymentPlans);
+				await validateInstallmentPlanCodes(
+					context,
+					input.availablePaymentPlans,
+				);
 			}
 
 			try {
@@ -167,7 +166,6 @@ export const serviceCrudProcedures = {
 					isRecommended: input.isRecommended,
 					location: input.location ?? null,
 					features: input.features ?? null,
-					schedulingType: input.schedulingType,
 					sessionCount: input.sessionCount ?? null,
 					expirable: input.expirable,
 					expiryDays: input.expiryDays ?? null,
@@ -221,7 +219,6 @@ export const serviceCrudProcedures = {
 				isRecommended: z.boolean().optional(),
 				location: z.string().nullable().optional(),
 				features: z.array(z.string()).nullable().optional(),
-				schedulingType: schedulingTypeSchema.optional(),
 				sessionCount: z.number().int().min(1).nullable().optional(),
 				expirable: z.boolean().optional(),
 				expiryDays: z.number().int().min(1).nullable().optional(),
@@ -253,7 +250,10 @@ export const serviceCrudProcedures = {
 			await guardInputBranchForContext(context, input.branchId);
 
 			if (input.availablePaymentPlans?.length) {
-				await validateInstallmentPlanCodes(context, input.availablePaymentPlans);
+				await validateInstallmentPlanCodes(
+					context,
+					input.availablePaymentPlans,
+				);
 			}
 
 			try {
@@ -277,7 +277,6 @@ export const serviceCrudProcedures = {
 					isRecommended: input.isRecommended,
 					location: input.location,
 					features: input.features,
-					schedulingType: input.schedulingType,
 					sessionCount: input.sessionCount,
 					expirable: input.expirable,
 					expiryDays: input.expiryDays,

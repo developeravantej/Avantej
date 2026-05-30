@@ -4,8 +4,8 @@
  * and the validation/defaults logic is independently testable.
  *
  * - Prices use z.number().transform((v) => rmToCents(v))
- * - timePresetConfig is persisted as a jsonb column when schedulingType = "class_slot"
- * - schedulingType maps: UI "appointment-based" → wire "appointment"; UI "time-preset" → wire "class_slot"
+ * - schedulingType is now a property of the service category, not the service.
+ *   The form shows timePresetConfig when the selected category has schedulingType = "class_slot".
  */
 
 import * as z from "zod";
@@ -20,7 +20,7 @@ export const timePresetConfigSchema = z.object({
 	timeSlotsPerDay: z.record(z.string(), z.array(z.string()).min(1)),
 });
 
-export const baseServiceFields = z.object({
+export const serviceFormSchema = z.object({
 	name: z
 		.string()
 		.min(1, "Service name is required")
@@ -44,17 +44,8 @@ export const baseServiceFields = z.object({
 	availablePaymentPlans: z.array(z.string()),
 	installmentIntervalDays: z.number().int().min(1).optional(),
 	gracePeriodDays: z.number().int().min(0).max(90).nullable().optional(),
+	timePresetConfig: timePresetConfigSchema.optional(),
 });
-
-export const serviceFormSchema = baseServiceFields.and(
-	z.discriminatedUnion("schedulingType", [
-		z.object({ schedulingType: z.literal("appointment-based") }),
-		z.object({
-			schedulingType: z.literal("time-preset"),
-			timePresetConfig: timePresetConfigSchema,
-		}),
-	]),
-);
 
 export type ServiceFormInput = z.input<typeof serviceFormSchema>;
 export type ServiceFormOutput = z.output<typeof serviceFormSchema>;
@@ -77,7 +68,6 @@ export interface ServiceInitialData {
 	expirable: boolean;
 	duration: number;
 	duration_unit: string;
-	schedulingType: "appointment-based" | "time-preset";
 	availablePaymentPlans: string[];
 	installmentIntervalDays: number;
 	gracePeriodDays: number | null;
@@ -102,7 +92,7 @@ export function buildDefaultValues(
 	initialData?: ServiceInitialData,
 ): ServiceFormInput {
 	if (initialData) {
-		const base = {
+		return {
 			name: initialData.name,
 			categoryId: initialData.categoryId,
 			sessionDurationMinutes: initialData.sessionDurationMinutes,
@@ -119,18 +109,8 @@ export function buildDefaultValues(
 			availablePaymentPlans: initialData.availablePaymentPlans ?? [],
 			installmentIntervalDays: initialData.installmentIntervalDays ?? 30,
 			gracePeriodDays: initialData.gracePeriodDays ?? null,
+			timePresetConfig: initialData.timePresetConfig,
 		};
-		if (initialData.schedulingType === "time-preset") {
-			return {
-				...base,
-				schedulingType: "time-preset" as const,
-				timePresetConfig: initialData.timePresetConfig ?? {
-					recurringDays: [],
-					timeSlotsPerDay: {},
-				},
-			};
-		}
-		return { ...base, schedulingType: "appointment-based" as const };
 	}
 	return {
 		name: "",
@@ -144,7 +124,6 @@ export function buildDefaultValues(
 		expirable: false,
 		duration: 1,
 		duration_unit: "day",
-		schedulingType: "appointment-based",
 		availablePaymentPlans: [],
 		installmentIntervalDays: 30,
 		gracePeriodDays: null,

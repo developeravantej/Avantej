@@ -1,8 +1,7 @@
 /**
  * Create/update mutation for the service form.
  * Extracted from service-form so the wire-mapping logic
- * (UI scheduling type → API scheduling type, expiry-days computation,
- * installment-plan gating) is isolated and testable.
+ * (expiry-days computation, installment-plan gating) is isolated and testable.
  */
 
 import { useApiMutation } from "@/hooks/useApiMutation";
@@ -34,11 +33,6 @@ export function useServiceFormMutation({
 }: UseServiceFormMutationParams) {
 	return useApiMutation({
 		mutationFn: (values: ServiceFormOutput) => {
-			const wireSchedulingType =
-				values.schedulingType === "time-preset"
-					? ("class_slot" as const)
-					: ("appointment" as const);
-
 			const hasInstallmentPlan = values.availablePaymentPlans.some(
 				(code) => (plansMap.get(code)?.numInstallments ?? 1) > 1,
 			);
@@ -58,7 +52,6 @@ export function useServiceFormMutation({
 				taxPercentage: values.taxable
 					? Math.round(values.taxPercentage ?? 0)
 					: 0,
-				schedulingType: wireSchedulingType,
 				sessionCount: values.sessions > 0 ? values.sessions : null,
 				expirable: values.expirable,
 				expiryDays:
@@ -73,10 +66,7 @@ export function useServiceFormMutation({
 					? values.installmentIntervalDays
 					: undefined,
 				gracePeriodDays: hasInstallmentPlan ? values.gracePeriodDays : null,
-				timePresetConfig:
-					values.schedulingType === "time-preset" && values.timePresetConfig
-						? values.timePresetConfig
-						: null,
+				timePresetConfig: values.timePresetConfig ?? null,
 			};
 
 			if (mode === "edit") {

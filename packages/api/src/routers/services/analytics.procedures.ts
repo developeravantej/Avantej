@@ -11,7 +11,7 @@ import {
 	requirePermissionOrpc,
 	resolveAccessibleNodeIds,
 } from "../../guards";
-import { schedulingTypeSchema, serviceTypeSchema } from "./schemas";
+import { serviceTypeSchema } from "./schemas";
 
 export const serviceAnalyticsProcedures = {
 	revenueShareByCategory: tenantProcedure
@@ -88,7 +88,6 @@ export const serviceAnalyticsProcedures = {
 				branchId: z.string().uuid().nullable().optional(),
 				isActive: z.boolean().optional(),
 				type: serviceTypeSchema.optional(),
-				schedulingType: schedulingTypeSchema.optional(),
 			}),
 		)
 		.handler(async ({ input, context }) => {
@@ -109,7 +108,6 @@ export const serviceAnalyticsProcedures = {
 				branchId: input.branchId ?? undefined,
 				isActive: input.isActive,
 				type: input.type,
-				schedulingType: input.schedulingType,
 				accessibleNodeIds,
 			});
 		}),

@@ -7,8 +7,12 @@ import {
 } from "@avantej-core/services";
 
 // Shared mocks
-const mockFindMany = mock((..._args: any[]): Promise<any[]> => Promise.resolve([]));
-const mockFindFirst = mock((..._args: any[]): Promise<any> => Promise.resolve(null));
+const mockFindMany = mock(
+	(..._args: any[]): Promise<any[]> => Promise.resolve([]),
+);
+const mockFindFirst = mock(
+	(..._args: any[]): Promise<any> => Promise.resolve(null),
+);
 const mockReturning = mock((): Promise<any[]> => Promise.resolve([]));
 const mockValues = mock((..._args: any[]) => ({ returning: mockReturning }));
 const mockInsert = mock((..._args: any[]) => ({ values: mockValues }));
@@ -92,15 +96,6 @@ describe("listServices", () => {
 		expect(callArg.where).toBeDefined();
 	});
 
-	test("applies schedulingType filter", async () => {
-		mockFindMany.mockResolvedValueOnce([]);
-
-		await listServices(mockTenantDb, { schedulingType: "class_slot" });
-
-		const callArg = mockFindMany.mock.calls[0]![0];
-		expect(callArg.where).toBeDefined();
-	});
-
 	test("post-filters by accessibleNodeIds", async () => {
 		const allServices = [
 			{ id: "s1", branchId: "br1" },
@@ -109,7 +104,9 @@ describe("listServices", () => {
 		];
 		mockFindMany.mockResolvedValueOnce(allServices);
 
-		const result = await listServices(mockTenantDb, { accessibleNodeIds: ["br1", "br3"] });
+		const result = await listServices(mockTenantDb, {
+			accessibleNodeIds: ["br1", "br3"],
+		});
 
 		expect(result).toHaveLength(2);
 		expect(result.map((s) => s.id)).toEqual(["s1", "s3"]);
@@ -123,7 +120,9 @@ describe("listServices", () => {
 		];
 		mockFindMany.mockResolvedValueOnce(allServices);
 
-		const result = await listServices(mockTenantDb, { accessibleNodeIds: ["br1"] });
+		const result = await listServices(mockTenantDb, {
+			accessibleNodeIds: ["br1"],
+		});
 
 		expect(result).toHaveLength(2);
 		expect(result.map((s) => s.id)).toEqual(["s1", "s2"]);
@@ -192,7 +191,6 @@ describe("createService", () => {
 		expect(valuesArg.taxPercentage).toBe(0);
 		expect(valuesArg.isRecommended).toBe(false);
 		expect(valuesArg.priceUnit).toBe("session");
-		expect(valuesArg.schedulingType).toBe("appointment");
 		expect(valuesArg.expirable).toBe(false);
 	});
 
@@ -220,7 +218,6 @@ describe("createService", () => {
 			isRecommended: true,
 			location: "Studio A",
 			features: ["mat provided", "towel service"],
-			schedulingType: "class_slot",
 			sessionCount: 10,
 			expirable: true,
 			expiryDays: 30,
@@ -239,7 +236,6 @@ describe("createService", () => {
 		expect(valuesArg.isRecommended).toBe(true);
 		expect(valuesArg.location).toBe("Studio A");
 		expect(valuesArg.features).toEqual(["mat provided", "towel service"]);
-		expect(valuesArg.schedulingType).toBe("class_slot");
 		expect(valuesArg.sessionCount).toBe(10);
 		expect(valuesArg.expirable).toBe(true);
 		expect(valuesArg.expiryDays).toBe(30);
@@ -253,7 +249,7 @@ describe("createService", () => {
 				name: "Test",
 				duration: 60,
 				maxAttendees: 1,
-			})
+			}),
 		).rejects.toThrow("Failed to create service");
 	});
 
@@ -285,7 +281,11 @@ describe("createService", () => {
 
 describe("updateService", () => {
 	test("updates and returns the service", async () => {
-		const updatedService = { id: "s1", name: "Updated Training", isActive: false };
+		const updatedService = {
+			id: "s1",
+			name: "Updated Training",
+			isActive: false,
+		};
 		const mockReturningUpd = mock(() => Promise.resolve([updatedService]));
 		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
@@ -342,7 +342,6 @@ describe("updateService", () => {
 			sessionCount: 10,
 			expirable: true,
 			expiryDays: 60,
-			schedulingType: "class_slot",
 			features: ["feature1"],
 			location: "Room B",
 			attendanceThreshold: 3,
@@ -352,7 +351,6 @@ describe("updateService", () => {
 		expect(setArg.sessionCount).toBe(10);
 		expect(setArg.expirable).toBe(true);
 		expect(setArg.expiryDays).toBe(60);
-		expect(setArg.schedulingType).toBe("class_slot");
 		expect(setArg.features).toEqual(["feature1"]);
 		expect(setArg.location).toBe("Room B");
 		expect(setArg.attendanceThreshold).toBe(3);
@@ -365,7 +363,7 @@ describe("updateService", () => {
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd as any }));
 
 		await expect(
-			updateService(mockTenantDb, "nonexistent", { name: "X" })
+			updateService(mockTenantDb, "nonexistent", { name: "X" }),
 		).rejects.toThrow("Service not found");
 	});
 });

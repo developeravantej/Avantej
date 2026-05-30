@@ -4,8 +4,7 @@
  * - Zod schema colocated
  * - organizationId is a prop, never a form field
  * - Prices use z.number().transform((v) => Math.round(v * 100))
- * - timePresetConfig is persisted as a jsonb column when schedulingType = "class_slot"
- * - schedulingType maps: UI "appointment-based" → wire "appointment"; UI "time-preset" → wire "class_slot"
+ * - timePresetConfig is shown when the selected category has schedulingType = "class_slot"
  */
 
 import { useEffect, useMemo } from "react";
@@ -14,7 +13,13 @@ import { useQuery } from "@tanstack/react-query";
 
 import { TimePresetEditor } from "@/features/services/components/TimePresetEditor";
 import { client, orpc } from "@/utils/orpc";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import {
 	type ServiceFormInput,
 	type ServiceInitialData,
@@ -133,20 +138,6 @@ export function ServiceFormDialogA({
 		);
 	}
 
-	function handleSchedulingTypeChange(
-		type: "appointment-based" | "time-preset",
-	) {
-		form.setFieldValue("schedulingType", type);
-		if (type === "appointment-based") {
-			form.setFieldValue("timePresetConfig" as never, undefined as never);
-		} else {
-			form.setFieldValue(
-				"timePresetConfig" as never,
-				{ recurringDays: [], timeSlotsPerDay: {} } as never,
-			);
-		}
-	}
-
 	function handleRecurringDayToggle(day: string) {
 		const config = getTimePresetConfig();
 		const isSelected = config.recurringDays.includes(day);
@@ -210,9 +201,13 @@ export function ServiceFormDialogA({
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
 			<DialogContent className="!w-[70vw] !max-w-[70vw] max-h-[90vh] flex flex-col p-0 bg-white">
 				<DialogHeader className="sr-only">
-					<DialogTitle>{mode === "create" ? "Add New Service" : "Edit Service"}</DialogTitle>
+					<DialogTitle>
+						{mode === "create" ? "Add New Service" : "Edit Service"}
+					</DialogTitle>
 					<DialogDescription>
-						{mode === "create" ? "Fill in the details to create a new service." : "Update the details for this service."}
+						{mode === "create"
+							? "Fill in the details to create a new service."
+							: "Update the details for this service."}
 					</DialogDescription>
 				</DialogHeader>
 				{/* ── Header ── */}
@@ -349,78 +344,31 @@ export function ServiceFormDialogA({
 									</form.Field>
 								</div>
 
-								{/* Scheduling */}
-								<form.Subscribe selector={(s) => s.values.schedulingType}>
-									{(schedulingType) => {
-										const timePresetConfig =
-											schedulingType === "time-preset"
-												? ((form.state.values as ServiceFormInput & {
-														timePresetConfig?: {
-															recurringDays: string[];
-															timeSlotsPerDay: Record<string, string[]>;
-														};
-													}).timePresetConfig ?? {
-														recurringDays: [],
-														timeSlotsPerDay: {},
-													})
-												: undefined;
+								{/* Scheduling — driven by the selected category's schedulingType */}
+								<form.Subscribe selector={(s) => s.values.categoryId}>
+									{(categoryId) => {
+										const selectedCategory = serviceCategories.find(
+											(c) => c.id === categoryId,
+										);
+										const isClassSlot =
+											selectedCategory?.schedulingType === "class_slot";
+										if (!isClassSlot) return null;
+										const timePresetConfig = getTimePresetConfig();
 										return (
 											<div>
 												<SectionDivider label="Scheduling" />
-
-												<div className="space-y-2 mb-3">
-													<label className="flex items-center gap-2 cursor-pointer">
-														<input
-															type="radio"
-															name="schedulingType"
-															value="appointment-based"
-															checked={schedulingType === "appointment-based"}
-															onChange={() =>
-																handleSchedulingTypeChange("appointment-based")
-															}
-															disabled={mutation.isPending}
-															className="h-4 w-4 accent-[#0a0a0a]"
-														/>
-														<span className="text-[13px] text-[#0a0a0a]">
-															Appointment-based
-														</span>
-													</label>
-													<label className="flex items-center gap-2 cursor-pointer">
-														<input
-															type="radio"
-															name="schedulingType"
-															value="time-preset"
-															checked={schedulingType === "time-preset"}
-															onChange={() =>
-																handleSchedulingTypeChange("time-preset")
-															}
-															disabled={mutation.isPending}
-															className="h-4 w-4 accent-[#0a0a0a]"
-														/>
-														<span className="text-[13px] text-[#0a0a0a]">
-															Time-preset (Fixed Schedule)
-														</span>
-													</label>
-												</div>
-
-												<p className="text-[11px] text-[#737373]">
-													{schedulingType === "appointment-based"
-														? "Sessions are booked flexibly based on coach and client availability"
-														: "Sessions occur on predefined recurring time slots (e.g., every Monday 7 PM)"}
+												<p className="text-[11px] text-[#737373] mb-3">
+													This category uses fixed time slots. Define the
+													recurring schedule below.
 												</p>
-
-												{schedulingType === "time-preset" && timePresetConfig && (
-													<div className="mt-4">
-														<TimePresetEditor
-															config={timePresetConfig}
-															isPending={mutation.isPending}
-															onDayToggle={handleRecurringDayToggle}
-															onAddSlot={addTimeSlot}
-															onRemoveSlot={removeTimeSlot}
-															onUpdateSlot={updateTimeSlot}
-														/>
-													</div>
-												)}
+												<TimePresetEditor
+													config={timePresetConfig}
+													isPending={mutation.isPending}
+													onDayToggle={handleRecurringDayToggle}
+													onAddSlot={addTimeSlot}
+													onRemoveSlot={removeTimeSlot}
+													onUpdateSlot={updateTimeSlot}
+												/>
 											</div>
 										);
 									}}
@@ -450,7 +398,9 @@ export function ServiceFormDialogA({
 														value={field.state.value ?? 0}
 														onBlur={field.handleBlur}
 														onChange={(e) =>
-															field.handleChange(parseFloat(e.target.value) || 0)
+															field.handleChange(
+																parseFloat(e.target.value) || 0,
+															)
 														}
 													/>
 													<FieldError errors={field.state.meta.errors} />
@@ -515,7 +465,9 @@ export function ServiceFormDialogA({
 														type="checkbox"
 														className="h-4 w-4 accent-[#0a0a0a] cursor-pointer"
 														checked={field.state.value}
-														onChange={(e) => field.handleChange(e.target.checked)}
+														onChange={(e) =>
+															field.handleChange(e.target.checked)
+														}
 													/>
 													<span className="text-[13px] text-[#0a0a0a] font-medium">
 														Taxable
@@ -540,7 +492,10 @@ export function ServiceFormDialogA({
 													<form.Field name="taxPercentage">
 														{(field) => (
 															<div>
-																<label htmlFor={field.name} className={labelCls}>
+																<label
+																	htmlFor={field.name}
+																	className={labelCls}
+																>
 																	Tax %
 																</label>
 																<input
@@ -697,10 +652,7 @@ export function ServiceFormDialogA({
 																		disabled={mutation.isPending}
 																		onChange={(e) => {
 																			const next = e.target.checked
-																				? [
-																						...availablePaymentPlans,
-																						plan.code,
-																					]
+																				? [...availablePaymentPlans, plan.code]
 																				: availablePaymentPlans.filter(
 																						(p) => p !== plan.code,
 																					);
