@@ -19,6 +19,7 @@
  */
 
 import { decrypt } from "@avantej-core/db";
+import { refreshTenantCustomerNameSnapshots } from "@avantej-core/services";
 import { getControlPanelDb } from "../src/lib/db";
 import { user as cpUsers } from "@avantej-core/db/schema/auth";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
@@ -57,6 +58,10 @@ loadDevVars();
 
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
+// --refresh: after filling NULL snapshots, also re-resolve forward-facing rows and
+// overwrite any whose snapshot has drifted from the live name (heals rename paths
+// that bypassed the forward-propagate). No-op writes are skipped.
+const refresh = args.includes("--refresh");
 const filterArg = args.find((a) => a.startsWith("--filter="));
 const filter = filterArg ? filterArg.split("=")[1] : null;
 
@@ -154,6 +159,16 @@ async function backfillTenant(
 	} else {
 		appts = apptRows.filter((r) => r.userId && nameMap.get(r.userId)).length;
 		pkgs = pkgRows.filter((r) => r.clientId && nameMap.get(r.clientId)).length;
+	}
+
+	// --refresh: heal drift on forward-facing rows that already carry a (stale) snapshot.
+	if (refresh && !dryRun) {
+		const healed = await refreshTenantCustomerNameSnapshots(
+			tenantDb,
+			controlPanelDb,
+		);
+		appts += healed.appointments;
+		pkgs += healed.packages;
 	}
 
 	return { appts, pkgs };

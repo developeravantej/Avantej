@@ -383,7 +383,7 @@ export async function listMemberships(
 		packageInstanceId: r.package_instance_id,
 		memberId: r.member_id,
 		clientId: r.client_id,
-		clientName: r.customer_name ?? userMap.get(r.client_id) ?? "Unknown",
+		clientName: r.customer_name || userMap.get(r.client_id) || "Unknown",
 		serviceId: r.service_id,
 		serviceName: r.service_name,
 		startsAt: r.starts_at,
@@ -620,9 +620,10 @@ export async function listAssignedToMember(
 
 	return rows.map((r) => ({
 		...r,
-		// Prefer the denormalized snapshot; fall back to the live lookup for legacy rows.
+		// Prefer the denormalized snapshot; fall back to the live lookup for legacy
+		// rows (|| so an empty snapshot also falls back, not blank).
 		clientDisplayName:
-			r.customerName ??
+			r.customerName ||
 			(r.clientId ? (clientMap.get(r.clientId)?.name ?? null) : null),
 		clientEmail: r.clientId ? (clientMap.get(r.clientId)?.email ?? null) : null,
 	}));

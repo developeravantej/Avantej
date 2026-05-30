@@ -115,7 +115,7 @@ export const packageInstancesCreateProcedures = {
 							.from(cpUsers)
 							.where(eq(cpUsers.id, input.clientId))
 							.limit(1);
-						customerNameSnapshot = row[0]?.name ?? null;
+						customerNameSnapshot = row[0]?.name || null;
 					} catch {
 						customerNameSnapshot = null;
 					}

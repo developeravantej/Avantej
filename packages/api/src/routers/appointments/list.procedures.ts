@@ -267,9 +267,10 @@ export const appointmentsListProcedures = {
 					trainerName: trainerMemberId
 						? (profileMap.get(trainerMemberId) ?? null)
 						: null,
-					// Prefer the denormalized snapshot; fall back to the live lookup for legacy rows.
+					// Prefer the denormalized snapshot; fall back to the live lookup for
+					// legacy rows (|| so an empty snapshot also falls back, not blank).
 					clientName:
-						r.customerName ??
+						r.customerName ||
 						(r.userId ? (userMap.get(r.userId) ?? null) : null),
 				};
 			});

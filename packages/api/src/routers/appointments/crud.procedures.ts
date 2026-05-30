@@ -15,6 +15,7 @@ import {
 } from "../../guards";
 import { eq, sql } from "drizzle-orm";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
+import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { user as cpUsers } from "@avantej-core/db/schema/auth";
 import { getControlPanelDb } from "../../lib/context-helpers";
 import { mapPgError } from "../../lib/orpc-error-mapper";
@@ -41,7 +42,9 @@ async function resolveCustomerName(
 			.from(cpUsers)
 			.where(eq(cpUsers.id, userId))
 			.limit(1);
-		return row[0]?.name ?? null;
+		// `|| null` (not `??`): treat an empty name as absent so list views fall
+		// back to the live lookup rather than rendering a blank.
+		return row[0]?.name || null;
 	} catch {
 		return null;
 	}
@@ -403,5 +406,124 @@ export const appointmentsCrudProcedures = {
 			});
 
 			return { reinstated: creditsToRestore };
+		}),
+
+	/**
+	 * Reschedule an existing, not-yet-happened appointment to a new time.
+	 *
+	 * Update-in-place: moves startTime/duration and sets status "rescheduled".
+	 * Deliberately does NOT touch credits (no re-debit, no reinstate) and never
+	 * passes a terminal status (completed/cancelled), so commission generation is
+	 * not triggered. Appends an entry to the append-only reschedule_history trail.
+	 * Booking clashes surface as a typed CONFLICT via mapPgError.
+	 */
+	reschedule: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				appointmentId: z.string().uuid(),
+				newStartTime: z.string().datetime(),
+				newDuration: z.number().int().min(1).optional(),
+				reason: z.string().max(500).optional(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"appointment_management",
+				"update",
+			);
+
+			const existing = await getAppointmentById(
+				context.tenantDb,
+				input.appointmentId,
+			);
+			if (!existing) {
+				throw new ORPCError("NOT_FOUND", { message: "Appointment not found" });
+			}
+			await guardInputBranchForContext(context, existing.branchId);
+
+			const reschedulable = ["pending", "confirmed", "rescheduled"];
+			if (!reschedulable.includes(existing.status)) {
+				throw new ORPCError("BAD_REQUEST", {
+					message: `Cannot reschedule an appointment with status "${existing.status}". Only upcoming sessions can be moved.`,
+				});
+			}
+
+			const fromIso = existing.startTime.toISOString();
+			const newStart = new Date(input.newStartTime);
+			const actor = {
+				userId: context.session?.user?.id ?? "system",
+				memberId: context.member?.id ?? "system",
+				role: context.member?.role ?? "system",
+			};
+
+			try {
+				const updated = await updateAppointment(
+					context.tenantDb,
+					input.appointmentId,
+					{
+						startTime: newStart,
+						duration: input.newDuration ?? existing.duration,
+						status: "rescheduled",
+						actor,
+					},
+				);
+
+				// Append to the append-only reschedule history trail.
+				const entry = {
+					from: fromIso,
+					to: newStart.toISOString(),
+					at: new Date().toISOString(),
+					by: actor.userId,
+				};
+				const newHistory = [...(existing.rescheduleHistory ?? []), entry];
+				await context.tenantDb
+					.update(appointments)
+					.set({ rescheduleHistory: newHistory, updatedAt: new Date() })
+					.where(eq(appointments.id, input.appointmentId));
+
+				await writeAudit(context.tenantDb, {
+					actorUserId: actor.userId,
+					actorMemberId: context.member.id,
+					actorRole: context.member.role,
+					action: "appointment.rescheduled",
+					entityType: "appointment",
+					entityId: input.appointmentId,
+					summary: `Appointment rescheduled from ${fromIso} to ${newStart.toISOString()}${
+						input.reason ? `: ${input.reason}` : ""
+					}`,
+					changes: {
+						from: fromIso,
+						to: newStart.toISOString(),
+						reason: input.reason ?? null,
+					},
+				});
+
+				// Fire-and-forget Google Calendar sync — never blocks the response.
+				const gcalConfig = {
+					clientId: process.env.GOOGLE_CLIENT_ID ?? "",
+					clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+				};
+				syncAppointmentToGoogleCalendar(
+					context.tenantDb,
+					updated,
+					"update",
+					gcalConfig,
+				).catch((err) => console.error("GCal reschedule sync error:", err));
+
+				return { ...updated, rescheduleHistory: newHistory };
+			} catch (error) {
+				const mapped = mapPgError(error);
+				if (mapped) throw mapped;
+				throw new ORPCError("BAD_REQUEST", {
+					message:
+						error instanceof Error
+							? error.message
+							: "Failed to reschedule appointment",
+				});
+			}
 		}),
 };

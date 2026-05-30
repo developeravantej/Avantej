@@ -73,6 +73,12 @@ export {
 	type WriteAuditParams,
 	writeAudit,
 } from "./audit-log.service";
+// Customer name snapshot services
+export {
+	propagateCustomerNameForward,
+	refreshTenantCustomerNameSnapshots,
+	runCustomerNameRefresh,
+} from "./customer-name-snapshot.service";
 // Brand services
 export * from "./brands.service";
 // Buffer time services
@@ -361,6 +367,17 @@ export {
 	type PreferredTimeInput,
 	upsertPreferredTimes,
 } from "./preferred-time.service";
+// Schedule proposal service
+export {
+	proposeSchedule,
+	coverageForPreferredTimes,
+	type ProposedSlot,
+	type ProposedSlotStatus,
+	type ProposeScheduleParams,
+	type ProposeScheduleResult,
+	type PreferredTimeCoverage,
+	type CoverageResult,
+} from "./schedule-proposal.service";
 // Product category services
 export * from "./product-categories.service";
 // Product services

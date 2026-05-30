@@ -69,7 +69,7 @@ export function createPurchaseProcedures(
 							.from(cpUsers)
 							.where(eq(cpUsers.id, input.clientId))
 							.limit(1);
-						customerNameSnapshot = nameRow[0]?.name ?? null;
+						customerNameSnapshot = nameRow[0]?.name || null;
 					} catch {
 						customerNameSnapshot = null;
 					}

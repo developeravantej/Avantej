@@ -58,36 +58,43 @@ import { logger } from "hono/logger";
 // Production is detected by NODE_ENV=production (set in wrangler.jsonc vars) or
 // ENVIRONMENT=production (Wrangler-conventional alternative).
 function isProdEnv(env: Record<string, unknown>): boolean {
-  return env?.NODE_ENV === "production" || env?.ENVIRONMENT === "production";
+	return env?.NODE_ENV === "production" || env?.ENVIRONMENT === "production";
 }
-function getAllowedOrigin(env: Record<string, unknown>, requestOrigin?: string): string {
-  const isProd = isProdEnv(env);
-  const envOrigin = typeof env?.CORS_ORIGIN === "string" ? env.CORS_ORIGIN.trim() : undefined;
+function getAllowedOrigin(
+	env: Record<string, unknown>,
+	requestOrigin?: string,
+): string {
+	const isProd = isProdEnv(env);
+	const envOrigin =
+		typeof env?.CORS_ORIGIN === "string" ? env.CORS_ORIGIN.trim() : undefined;
 
-  // Build the full allowed-origins set for this request
-  const allowed = new Set<string>();
-  if (envOrigin) {
-    // Support comma-separated list of origins in CORS_ORIGIN
-    for (const o of envOrigin.split(",").map((s) => s.trim()).filter(Boolean)) {
-      allowed.add(o);
-    }
-  }
-  if (!isProd) {
-    // Localhost origins are only safe in non-production environments
-    allowed.add("http://localhost:3001");
-    allowed.add("http://localhost:3021");
-    allowed.add("http://localhost:4001");
-    allowed.add("http://avantej.localhost:3021");
-    allowed.add("http://avantej.localhost:3001");
-  }
+	// Build the full allowed-origins set for this request
+	const allowed = new Set<string>();
+	if (envOrigin) {
+		// Support comma-separated list of origins in CORS_ORIGIN
+		for (const o of envOrigin
+			.split(",")
+			.map((s) => s.trim())
+			.filter(Boolean)) {
+			allowed.add(o);
+		}
+	}
+	if (!isProd) {
+		// Localhost origins are only safe in non-production environments
+		allowed.add("http://localhost:3001");
+		allowed.add("http://localhost:3021");
+		allowed.add("http://localhost:4001");
+		allowed.add("http://avantej.localhost:3021");
+		allowed.add("http://avantej.localhost:3001");
+	}
 
-  if (requestOrigin && allowed.has(requestOrigin)) return requestOrigin;
+	if (requestOrigin && allowed.has(requestOrigin)) return requestOrigin;
 
-  // Default: first env origin if available; empty string in production (no echo),
-  // fallback to localhost:3001 only in dev when CORS_ORIGIN is unset.
-  const firstEnvOrigin = envOrigin?.split(",")[0]?.trim();
-  if (firstEnvOrigin) return firstEnvOrigin;
-  return isProd ? "" : "http://localhost:3001";
+	// Default: first env origin if available; empty string in production (no echo),
+	// fallback to localhost:3001 only in dev when CORS_ORIGIN is unset.
+	const firstEnvOrigin = envOrigin?.split(",")[0]?.trim();
+	if (firstEnvOrigin) return firstEnvOrigin;
+	return isProd ? "" : "http://localhost:3001";
 }
 
 // Combine base router with server-specific routers
@@ -143,26 +150,29 @@ app.use(logger());
 
 // Manual CORS — replaces hono/cors to guarantee per-request origin resolution
 app.use("/*", async (c, next) => {
-  const origin = getAllowedOrigin(c.env as Record<string, unknown>, c.req.header("Origin"));
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Credentials": "true",
-  };
+	const origin = getAllowedOrigin(
+		c.env as Record<string, unknown>,
+		c.req.header("Origin"),
+	);
+	const corsHeaders = {
+		"Access-Control-Allow-Origin": origin,
+		"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+		"Access-Control-Allow-Headers": "Content-Type, Authorization",
+		"Access-Control-Allow-Credentials": "true",
+	};
 
-  if (c.req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: { ...corsHeaders, "Access-Control-Max-Age": "86400" },
-    });
-  }
+	if (c.req.method === "OPTIONS") {
+		return new Response(null, {
+			status: 204,
+			headers: { ...corsHeaders, "Access-Control-Max-Age": "86400" },
+		});
+	}
 
-  await next();
+	await next();
 
-  for (const [k, v] of Object.entries(corsHeaders)) {
-    c.header(k, v);
-  }
+	for (const [k, v] of Object.entries(corsHeaders)) {
+		c.header(k, v);
+	}
 });
 
 // Database middleware: Creates request-scoped connection pools
@@ -204,41 +214,47 @@ app.use(
 // Create a new Request with mutable headers for Cloudflare Workers compatibility
 // Uses request-scoped Better-Auth instance for transaction support
 app.on(["POST", "GET"], "/api/auth/*", async (c) => {
-  const origin = getAllowedOrigin(c.env as Record<string, unknown>, c.req.header("Origin"));
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Credentials": "true",
-  };
+	const origin = getAllowedOrigin(
+		c.env as Record<string, unknown>,
+		c.req.header("Origin"),
+	);
+	const corsHeaders = {
+		"Access-Control-Allow-Origin": origin,
+		"Access-Control-Allow-Credentials": "true",
+	};
 
-  try {
-    // Clone the request to get a new body stream (required for Cloudflare Workers)
-    const clonedRequest = c.req.raw.clone();
-    const headers = new Headers(clonedRequest.headers);
-    const newRequest = new Request(clonedRequest.url, {
-      method: clonedRequest.method,
-      headers: headers,
-      body: clonedRequest.body,
-      ...(clonedRequest.body && { duplex: "half" }),
-    });
+	try {
+		// Clone the request to get a new body stream (required for Cloudflare Workers)
+		const clonedRequest = c.req.raw.clone();
+		const headers = new Headers(clonedRequest.headers);
+		const newRequest = new Request(clonedRequest.url, {
+			method: clonedRequest.method,
+			headers: headers,
+			body: clonedRequest.body,
+			...(clonedRequest.body && { duplex: "half" }),
+		});
 
-    const auth = getBetterAuth(c);
-    const response = await auth.handler(newRequest);
+		const auth = getBetterAuth(c);
+		const response = await auth.handler(newRequest);
 
-    const newHeaders = new Headers(response.headers);
-    for (const [k, v] of Object.entries(corsHeaders)) newHeaders.set(k, v);
+		const newHeaders = new Headers(response.headers);
+		for (const [k, v] of Object.entries(corsHeaders)) newHeaders.set(k, v);
 
-    return new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: newHeaders,
-    });
-  } catch (err) {
-    console.error("[auth handler]", err);
-    return new Response(
-      JSON.stringify({ error: "Internal server error", detail: String(err) }),
-      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-    );
-  }
+		return new Response(response.body, {
+			status: response.status,
+			statusText: response.statusText,
+			headers: newHeaders,
+		});
+	} catch (err) {
+		console.error("[auth handler]", err);
+		return new Response(
+			JSON.stringify({ error: "Internal server error", detail: String(err) }),
+			{
+				status: 500,
+				headers: { "Content-Type": "application/json", ...corsHeaders },
+			},
+		);
+	}
 });
 
 // Custom auth routes following OpenAPI contract
@@ -260,77 +276,77 @@ app.route("/api/stripe/connect/oauth", stripeConnectOAuthRoutes);
 app.route("/api/stripe/connect/partner", partnerStripeOAuthRoutes);
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
-  plugins: [
-    new OpenAPIReferencePlugin({
-      schemaConverters: [new ZodToJsonSchemaConverter()],
-    }),
-  ],
-  interceptors: [
-    onError((error) => {
-      console.error(error);
-    }),
-  ],
+	plugins: [
+		new OpenAPIReferencePlugin({
+			schemaConverters: [new ZodToJsonSchemaConverter()],
+		}),
+	],
+	interceptors: [
+		onError((error) => {
+			console.error(error);
+		}),
+	],
 });
 
 export const rpcHandler = new RPCHandler(appRouter, {
-  interceptors: [
-    onError((error) => {
-      console.error(error);
-    }),
-  ],
+	interceptors: [
+		onError((error) => {
+			console.error(error);
+		}),
+	],
 });
 
 // oRPC and OpenAPI handlers - only for specific prefixes
 app.use("/rpc/*", async (c, next) => {
-  const context = await createContext({ context: c });
+	const context = await createContext({ context: c });
 
-  const rpcResult = await rpcHandler.handle(c.req.raw, {
-    prefix: "/rpc",
-    context: context,
-  });
+	const rpcResult = await rpcHandler.handle(c.req.raw, {
+		prefix: "/rpc",
+		context: context,
+	});
 
-  if (rpcResult.matched) {
-    // Re-attach any Set-Cookie headers stored by impersonation procedures.
-    // oRPC builds its own Response object and doesn't inherit Hono context headers,
-    // so impersonation handlers stash cookies via c.set("__impersonationSetCookie__", string[])
-    // and we merge them here before returning to the browser.
-    const impersonationCookies = c.get("__impersonationSetCookie__");
-    if (impersonationCookies && impersonationCookies.length > 0) {
-      const merged = new Headers(rpcResult.response.headers);
-      for (const cookie of impersonationCookies) {
-        merged.append("Set-Cookie", cookie);
-      }
-      // Build a new Response (not c.newResponse) to preserve status + merged headers
-      const mergedResponse = new Response(rpcResult.response.body, {
-        status: rpcResult.response.status,
-        statusText: rpcResult.response.statusText,
-        headers: merged,
-      });
-      return mergedResponse;
-    }
-    return c.newResponse(rpcResult.response.body, rpcResult.response);
-  }
+	if (rpcResult.matched) {
+		// Re-attach any Set-Cookie headers stored by impersonation procedures.
+		// oRPC builds its own Response object and doesn't inherit Hono context headers,
+		// so impersonation handlers stash cookies via c.set("__impersonationSetCookie__", string[])
+		// and we merge them here before returning to the browser.
+		const impersonationCookies = c.get("__impersonationSetCookie__");
+		if (impersonationCookies && impersonationCookies.length > 0) {
+			const merged = new Headers(rpcResult.response.headers);
+			for (const cookie of impersonationCookies) {
+				merged.append("Set-Cookie", cookie);
+			}
+			// Build a new Response (not c.newResponse) to preserve status + merged headers
+			const mergedResponse = new Response(rpcResult.response.body, {
+				status: rpcResult.response.status,
+				statusText: rpcResult.response.statusText,
+				headers: merged,
+			});
+			return mergedResponse;
+		}
+		return c.newResponse(rpcResult.response.body, rpcResult.response);
+	}
 
-  await next();
+	await next();
 });
 
 app.use("/api-reference/*", async (c, next) => {
-  const context = await createContext({ context: c });
+	const context = await createContext({ context: c });
 
-  const apiResult = await apiHandler.handle(c.req.raw, {
-    prefix: "/api-reference",
-    context: context,
-  });
+	const apiResult = await apiHandler.handle(c.req.raw, {
+		prefix: "/api-reference",
+		context: context,
+	});
 
-  if (apiResult.matched) {
-    return c.newResponse(apiResult.response.body, apiResult.response);
-  }
+	if (apiResult.matched) {
+		return c.newResponse(apiResult.response.body, apiResult.response);
+	}
 
-  await next();
+	await next();
 });
 
 app.get("/", (c) => {
-  return c.text("OK");
+	return c.text("OK");
 });
 
 // Phase 8.2 — liveness + readiness endpoints. Unauthenticated; no DB write.
@@ -340,34 +356,33 @@ app.get("/", (c) => {
 app.get("/health", (c) => c.json({ status: "ok" }));
 
 app.get("/ready", async (c) => {
-  try {
-    const { getControlPanelDb } = await import("@/lib/db");
-    const cpDb = getControlPanelDb();
-    // Lightweight ping — single-row SELECT 1.
-    await cpDb.execute("select 1");
-    return c.json({ status: "ready" });
-  } catch (err) {
-    return c.json(
-      {
-        status: "not_ready",
-        error: err instanceof Error ? err.message : String(err),
-      },
-      503,
-    );
-  }
+	try {
+		const { getControlPanelDb } = await import("@/lib/db");
+		const cpDb = getControlPanelDb();
+		// Lightweight ping — single-row SELECT 1.
+		await cpDb.execute("select 1");
+		return c.json({ status: "ready" });
+	} catch (err) {
+		return c.json(
+			{
+				status: "not_ready",
+				error: err instanceof Error ? err.message : String(err),
+			},
+			503,
+		);
+	}
 });
 
 app.onError((err, c) => {
-  console.error("[onError]", err);
-  const origin = getAllowedOrigin(c.env as Record<string, unknown>, c.req.header("Origin"));
-  return c.json(
-    { error: err.message || "Internal server error" },
-    500,
-    {
-      "Access-Control-Allow-Origin": origin,
-      "Access-Control-Allow-Credentials": "true",
-    }
-  );
+	console.error("[onError]", err);
+	const origin = getAllowedOrigin(
+		c.env as Record<string, unknown>,
+		c.req.header("Origin"),
+	);
+	return c.json({ error: err.message || "Internal server error" }, 500, {
+		"Access-Control-Allow-Origin": origin,
+		"Access-Control-Allow-Credentials": "true",
+	});
 });
 
 // Plan C C.1 + C.6: scheduled handler dispatches cron triggers to services.
@@ -378,132 +393,231 @@ app.onError((err, c) => {
 //
 // ADR-0021 — CF Cron over external cron / DO alarms.
 export default {
-  fetch: app.fetch,
-  scheduled: async (
-    event: ScheduledController | { cron: string },
-    _env: unknown,
-    ctx: ExecutionContext,
-  ): Promise<void> => {
-    const cron = "cron" in event ? event.cron : "";
-    console.log(`[scheduled] firing cron='${cron}'`);
+	fetch: app.fetch,
+	scheduled: async (
+		event: ScheduledController | { cron: string },
+		_env: unknown,
+		ctx: ExecutionContext,
+	): Promise<void> => {
+		const cron = "cron" in event ? event.cron : "";
+		console.log(`[scheduled] firing cron='${cron}'`);
 
-    // Lazy imports — avoid top-level side effects on cold start.
-    const { getControlPanelDb } = await import("@/lib/db");
-    const { getStripeClient } = await import("@/lib/stripe");
+		// Lazy imports — avoid top-level side effects on cold start.
+		const { getControlPanelDb } = await import("@/lib/db");
+		const { getStripeClient } = await import("@/lib/stripe");
 
-    // CF Workers scheduled handler doesn't get a Hono Context — fall back to
-    // singleton DB (this is the documented exception per @/lib/db.ts).
-    const cpDb = getControlPanelDb();
+		// CF Workers scheduled handler doesn't get a Hono Context — fall back to
+		// singleton DB (this is the documented exception per @/lib/db.ts).
+		const cpDb = getControlPanelDb();
 
-    try {
-      if (cron === "0 * * * *") {
-        const { runWebhookBackfill } = await import("@/services/webhook-backfill.service");
-        ctx.waitUntil(
-          runWebhookBackfill({ controlPanelDb: cpDb, stripe: getStripeClient() })
-            .then((r) => console.log(`[scheduled] backfill done: ${JSON.stringify(r)}`))
-            .catch((e) => console.error(`[scheduled] backfill failed:`, e)),
-        );
+		try {
+			if (cron === "0 * * * *") {
+				const { runWebhookBackfill } = await import(
+					"@/services/webhook-backfill.service"
+				);
+				ctx.waitUntil(
+					runWebhookBackfill({
+						controlPanelDb: cpDb,
+						stripe: getStripeClient(),
+					})
+						.then((r) =>
+							console.log(`[scheduled] backfill done: ${JSON.stringify(r)}`),
+						)
+						.catch((e) => console.error(`[scheduled] backfill failed:`, e)),
+				);
 
-        // Phase 5.6: also process due scheduled reports hourly.
-        const { runScheduledReports } = await import("@/services/scheduled-reports.service");
-        const { getTenantDb } = await import("@/lib/db");
-        const dashboardUrl =
-          (_env as { WEB_APP_URL?: string })?.WEB_APP_URL ??
-          "https://app.avantej.com";
-        ctx.waitUntil(
-          runScheduledReports({
-            controlPanelDb: cpDb,
-            getTenantDb: (orgId) => getTenantDb(orgId),
-            dashboardUrl,
-          })
-            .then((r) => console.log(`[scheduled] scheduled-reports done: ${JSON.stringify(r)}`))
-            .catch((e) => console.error(`[scheduled] scheduled-reports failed:`, e)),
-        );
-        const { runNotificationEmailDispatch } = await import("@/services/notification-dispatch.service");
-        ctx.waitUntil(
-          runNotificationEmailDispatch({ controlPanelDb: cpDb, getTenantDb: (orgId) => getTenantDb(orgId) })
-            .then((r) => console.log(`[scheduled] notification-dispatch done: ${JSON.stringify(r)}`))
-            .catch((e) => console.error(`[scheduled] notification-dispatch failed:`, e)),
-        );
-      } else if (cron === "0 9 * * *") {
-        const { runOnboardingAlerts } = await import("@/services/onboarding-alerts.service");
-        ctx.waitUntil(
-          runOnboardingAlerts({ controlPanelDb: cpDb })
-            .then((r) => console.log(`[scheduled] onboarding-alerts done: ${JSON.stringify(r)}`))
-            .catch((e) => console.error(`[scheduled] onboarding-alerts failed:`, e)),
-        );
-      } else if (cron === "0 3 * * *") {
-        // Plan E E.8 — hard-delete overdue soft-deleted tenants.
-        const { hardDeleteOverdueTenants } = await import(
-          "@/services/tenant-deletion.service"
-        );
-        const neonApiKey = (_env as { NEON_API_KEY?: string })?.NEON_API_KEY;
-        ctx.waitUntil(
-          hardDeleteOverdueTenants({ controlPanelDb: cpDb, neonApiKey })
-            .then((r) => console.log(`[scheduled] tenant-hard-delete done: ${JSON.stringify(r)}`))
-            .catch((e) => console.error(`[scheduled] tenant-hard-delete failed:`, e)),
-        );
-      } else if (cron === "0 1 * * *") {
-        // Plan E E.2 — tenant usage snapshot.
-        const { runTenantUsageSnapshots } = await import(
-          "@/services/tenant-usage-snapshot.service"
-        );
-        const { getTenantDb } = await import("@/lib/db");
-        ctx.waitUntil(
-          runTenantUsageSnapshots({
-            controlPanelDb: cpDb,
-            getTenantDb: (orgId) => getTenantDb(orgId),
-          })
-            .then((r) => console.log(`[scheduled] usage-snapshot done: ${JSON.stringify(r)}`))
-            .catch((e) => console.error(`[scheduled] usage-snapshot failed:`, e)),
-        );
-      } else if (cron === "0 2 * * *") {
-        // Phase 4 installments — daily installment sweep. Phase 8.1 wired the
-        // real multi-tenant service.
-        const { runInstallmentSweep } = await import("@/services/installment-sweep.service");
-        const { getTenantDb } = await import("@/lib/db");
-        ctx.waitUntil(
-          runInstallmentSweep({
-            controlPanelDb: cpDb,
-            getTenantDb: (orgId) => getTenantDb(orgId),
-          })
-            .then((r) => console.log(`[scheduled] installment-sweep done: ${JSON.stringify(r)}`))
-            .catch((e) => console.error(`[scheduled] installment-sweep failed:`, e)),
-        );
-        // F-SALE-08: package-expiry sweep. Transitions active package
-        // instances to 'expired' once expiresAt has passed. Folded into this
-        // existing slot to stay within the Workers Free 5-cron limit.
-        const { runPackageExpirySweep } = await import("@/services/package-expiry.service");
-        ctx.waitUntil(
-          runPackageExpirySweep({
-            controlPanelDb: cpDb,
-            getTenantDb: (orgId) => getTenantDb(orgId),
-          })
-            .then((r) => console.log(`[scheduled] package-expiry done: ${JSON.stringify(r)}`))
-            .catch((e) => console.error(`[scheduled] package-expiry failed:`, e)),
-        );
-        // Folded in from the retired "30 2 * * *" slot to stay under the
-        // Workers Free 5-cron limit. Plan C C.5 nightly Stripe reconciliation.
-        const { runReconciliation } = await import("@/services/reconciler.service");
-        ctx.waitUntil(
-          runReconciliation({ controlPanelDb: cpDb, stripe: getStripeClient() })
-            .then((r) => console.log(`[scheduled] reconciliation done: ${JSON.stringify(r)}`))
-            .catch((e) => console.error(`[scheduled] reconciliation failed:`, e)),
-        );
-        // F-SAAS-2: past-due grace-period sweeper. Finds subscriptions whose
-        // gracePeriodEndsAt has elapsed and suspends them. Folded into this
-        // existing slot to stay within the Workers Free 5-cron limit.
-        const { sweepPastDueSubscriptions } = await import("@/services/saas-subscription.service");
-        ctx.waitUntil(
-          sweepPastDueSubscriptions(cpDb)
-            .then((r) => console.log(`[scheduled] past-due-sweep done: ${JSON.stringify(r)}`))
-            .catch((e) => console.error(`[scheduled] past-due-sweep failed:`, e)),
-        );
-      } else {
-        console.warn(`[scheduled] unknown cron='${cron}' — no handler`);
-      }
-    } catch (e) {
-      console.error(`[scheduled] dispatch threw for cron='${cron}':`, e);
-    }
-  },
+				// Phase 5.6: also process due scheduled reports hourly.
+				const { runScheduledReports } = await import(
+					"@/services/scheduled-reports.service"
+				);
+				const { getTenantDb } = await import("@/lib/db");
+				const dashboardUrl =
+					(_env as { WEB_APP_URL?: string })?.WEB_APP_URL ??
+					"https://app.avantej.com";
+				ctx.waitUntil(
+					runScheduledReports({
+						controlPanelDb: cpDb,
+						getTenantDb: (orgId) => getTenantDb(orgId),
+						dashboardUrl,
+					})
+						.then((r) =>
+							console.log(
+								`[scheduled] scheduled-reports done: ${JSON.stringify(r)}`,
+							),
+						)
+						.catch((e) =>
+							console.error(`[scheduled] scheduled-reports failed:`, e),
+						),
+				);
+				const { runNotificationEmailDispatch } = await import(
+					"@/services/notification-dispatch.service"
+				);
+				ctx.waitUntil(
+					runNotificationEmailDispatch({
+						controlPanelDb: cpDb,
+						getTenantDb: (orgId) => getTenantDb(orgId),
+					})
+						.then((r) =>
+							console.log(
+								`[scheduled] notification-dispatch done: ${JSON.stringify(r)}`,
+							),
+						)
+						.catch((e) =>
+							console.error(`[scheduled] notification-dispatch failed:`, e),
+						),
+				);
+			} else if (cron === "0 9 * * *") {
+				const { runOnboardingAlerts } = await import(
+					"@/services/onboarding-alerts.service"
+				);
+				ctx.waitUntil(
+					runOnboardingAlerts({ controlPanelDb: cpDb })
+						.then((r) =>
+							console.log(
+								`[scheduled] onboarding-alerts done: ${JSON.stringify(r)}`,
+							),
+						)
+						.catch((e) =>
+							console.error(`[scheduled] onboarding-alerts failed:`, e),
+						),
+				);
+			} else if (cron === "0 3 * * *") {
+				// Plan E E.8 — hard-delete overdue soft-deleted tenants.
+				const { hardDeleteOverdueTenants } = await import(
+					"@/services/tenant-deletion.service"
+				);
+				const neonApiKey = (_env as { NEON_API_KEY?: string })?.NEON_API_KEY;
+				ctx.waitUntil(
+					hardDeleteOverdueTenants({ controlPanelDb: cpDb, neonApiKey })
+						.then((r) =>
+							console.log(
+								`[scheduled] tenant-hard-delete done: ${JSON.stringify(r)}`,
+							),
+						)
+						.catch((e) =>
+							console.error(`[scheduled] tenant-hard-delete failed:`, e),
+						),
+				);
+			} else if (cron === "0 1 * * *") {
+				// Plan E E.2 — tenant usage snapshot.
+				const { runTenantUsageSnapshots } = await import(
+					"@/services/tenant-usage-snapshot.service"
+				);
+				const { getTenantDb } = await import("@/lib/db");
+				ctx.waitUntil(
+					runTenantUsageSnapshots({
+						controlPanelDb: cpDb,
+						getTenantDb: (orgId) => getTenantDb(orgId),
+					})
+						.then((r) =>
+							console.log(
+								`[scheduled] usage-snapshot done: ${JSON.stringify(r)}`,
+							),
+						)
+						.catch((e) =>
+							console.error(`[scheduled] usage-snapshot failed:`, e),
+						),
+				);
+			} else if (cron === "0 2 * * *") {
+				// Phase 4 installments — daily installment sweep. Phase 8.1 wired the
+				// real multi-tenant service.
+				const { runInstallmentSweep } = await import(
+					"@/services/installment-sweep.service"
+				);
+				const { getTenantDb } = await import("@/lib/db");
+				ctx.waitUntil(
+					runInstallmentSweep({
+						controlPanelDb: cpDb,
+						getTenantDb: (orgId) => getTenantDb(orgId),
+					})
+						.then((r) =>
+							console.log(
+								`[scheduled] installment-sweep done: ${JSON.stringify(r)}`,
+							),
+						)
+						.catch((e) =>
+							console.error(`[scheduled] installment-sweep failed:`, e),
+						),
+				);
+				// F-SALE-08: package-expiry sweep. Transitions active package
+				// instances to 'expired' once expiresAt has passed. Folded into this
+				// existing slot to stay within the Workers Free 5-cron limit.
+				const { runPackageExpirySweep } = await import(
+					"@/services/package-expiry.service"
+				);
+				ctx.waitUntil(
+					runPackageExpirySweep({
+						controlPanelDb: cpDb,
+						getTenantDb: (orgId) => getTenantDb(orgId),
+					})
+						.then((r) =>
+							console.log(
+								`[scheduled] package-expiry done: ${JSON.stringify(r)}`,
+							),
+						)
+						.catch((e) =>
+							console.error(`[scheduled] package-expiry failed:`, e),
+						),
+				);
+				// Heal drifted customer_name snapshots (rename paths that bypass the
+				// forward-propagate, e.g. a failed propagate or an external writer).
+				// Only writes rows whose snapshot differs from the live name. Folded
+				// into this slot to stay within the Workers Free 5-cron limit.
+				const { runCustomerNameRefresh } = await import(
+					"@avantej-core/services"
+				);
+				ctx.waitUntil(
+					runCustomerNameRefresh({
+						controlPanelDb: cpDb,
+						getTenantDb: (orgId) => getTenantDb(orgId),
+					})
+						.then((r) =>
+							console.log(
+								`[scheduled] customer-name-refresh done: ${JSON.stringify(r)}`,
+							),
+						)
+						.catch((e) =>
+							console.error(`[scheduled] customer-name-refresh failed:`, e),
+						),
+				);
+				// Folded in from the retired "30 2 * * *" slot to stay under the
+				// Workers Free 5-cron limit. Plan C C.5 nightly Stripe reconciliation.
+				const { runReconciliation } = await import(
+					"@/services/reconciler.service"
+				);
+				ctx.waitUntil(
+					runReconciliation({ controlPanelDb: cpDb, stripe: getStripeClient() })
+						.then((r) =>
+							console.log(
+								`[scheduled] reconciliation done: ${JSON.stringify(r)}`,
+							),
+						)
+						.catch((e) =>
+							console.error(`[scheduled] reconciliation failed:`, e),
+						),
+				);
+				// F-SAAS-2: past-due grace-period sweeper. Finds subscriptions whose
+				// gracePeriodEndsAt has elapsed and suspends them. Folded into this
+				// existing slot to stay within the Workers Free 5-cron limit.
+				const { sweepPastDueSubscriptions } = await import(
+					"@/services/saas-subscription.service"
+				);
+				ctx.waitUntil(
+					sweepPastDueSubscriptions(cpDb)
+						.then((r) =>
+							console.log(
+								`[scheduled] past-due-sweep done: ${JSON.stringify(r)}`,
+							),
+						)
+						.catch((e) =>
+							console.error(`[scheduled] past-due-sweep failed:`, e),
+						),
+				);
+			} else {
+				console.warn(`[scheduled] unknown cron='${cron}' — no handler`);
+			}
+		} catch (e) {
+			console.error(`[scheduled] dispatch threw for cron='${cron}':`, e);
+		}
+	},
 };

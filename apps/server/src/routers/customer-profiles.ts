@@ -13,6 +13,7 @@
 import { protectedProcedure } from "@avantej-core/api";
 import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 import {
+	propagateCustomerNameForward,
 	requirePermission,
 	upsertCustomerProfile,
 	writeAudit,
@@ -20,11 +21,9 @@ import {
 import { user } from "@avantej-core/db/schema/auth";
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { members } from "@avantej-core/db/schema/tenant/members";
-import { appointments } from "@avantej-core/db/schema/tenant/appointments";
-import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { MembershipService } from "@avantej-core/db/services/membership.service";
 import { ORPCError } from "@orpc/server";
-import { and, eq, gte, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { fireCustomerSync } from "@/services/ghl/customer-sync-trigger";
 import { getBetterAuth } from "@/lib/better-auth";
@@ -608,7 +607,10 @@ export const serverCustomerProfilesRouter = {
 					"http://localhost:3021";
 				// biome-ignore lint/suspicious/noExplicitAny: better-auth api typing is dynamic
 				await (auth as any).api.signInMagicLink({
-					body: { email: input.email, callbackURL: `${frontendURL}/dashboard` },
+					body: {
+						email: input.email,
+						callbackURL: `${frontendURL}/set-password`,
+					},
 					headers: context.honoContext.req.raw.headers,
 				});
 			} catch (err) {
@@ -715,7 +717,7 @@ export const serverCustomerProfilesRouter = {
 				await (auth as any).api.signInMagicLink({
 					body: {
 						email: linkedUser.email,
-						callbackURL: `${frontendURL}/dashboard`,
+						callbackURL: `${frontendURL}/set-password`,
 					},
 					headers: context.honoContext.req.raw.headers,
 				});
@@ -1058,7 +1060,7 @@ export const serverCustomerProfilesRouter = {
 				await (auth as any).api.signInMagicLink({
 					body: {
 						email: dispatchEmail,
-						callbackURL: `${frontendURL}/dashboard`,
+						callbackURL: `${frontendURL}/set-password`,
 					},
 					headers: context.honoContext.req.raw.headers,
 				});
@@ -1153,33 +1155,15 @@ export const serverCustomerProfilesRouter = {
 			}
 
 			// Propagate-forward: refresh the denormalized customer_name snapshot on
-			// FORWARD-FACING records only, so lists keep showing the current name
-			// without a cross-DB lookup. Past/financial records keep their snapshot:
-			//   - appointments: only UPCOMING + still-active statuses (past sessions frozen)
-			//   - packages: only ACTIVE/PENDING (expired/cancelled frozen)
-			//   - sales orders: never touched (immutable financial record)
-			// Best-effort: a failure here never fails the rename.
-			await Promise.all([
-				context
-					.tenantDb!.update(appointments)
-					.set({ customerName: trimmed })
-					.where(
-						and(
-							eq(appointments.userId, input.targetUserId),
-							gte(appointments.startTime, new Date()),
-							inArray(appointments.status, ["pending", "confirmed"]),
-						),
-					),
-				context
-					.tenantDb!.update(packageInstances)
-					.set({ customerName: trimmed })
-					.where(
-						and(
-							eq(packageInstances.clientId, input.targetUserId),
-							inArray(packageInstances.status, ["active", "pending"]),
-						),
-					),
-			]).catch(() => {});
+			// FORWARD-FACING records only (upcoming/recurring appointments, current
+			// packages). Past sessions, expired/cancelled packages, and all sales
+			// orders stay frozen. Best-effort: a failure never fails the rename — the
+			// daily refresh cron heals any miss.
+			await propagateCustomerNameForward(
+				context.tenantDb!,
+				input.targetUserId,
+				trimmed,
+			).catch(() => {});
 
 			return { ok: true, name: trimmed };
 		}),
