@@ -13,10 +13,17 @@ export type PendingRow = {
 	preferredTrainerName: string | null;
 	paymentMethod: string | null;
 	paymentStatus: string | null;
+	approvedAt: string | Date | null;
+	updatedAt: string | Date | null;
 	preferredTimes: Array<{ dayOfWeek: string; time: string; priority: number }>;
 };
 
 export type PriorityLevel = "high" | "med" | "low";
+export type ApprovalStatus =
+	| "awaiting_payment"
+	| "pending"
+	| "approved"
+	| "rejected";
 export type DateGroup = "today" | "yesterday" | "earlier" | "older";
 
 export type TrainerMember = {

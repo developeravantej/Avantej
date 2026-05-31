@@ -1,4 +1,9 @@
-import type { PendingRow, PriorityLevel, DateGroup } from "./approvals.types";
+import type {
+	ApprovalStatus,
+	PendingRow,
+	PriorityLevel,
+	DateGroup,
+} from "./approvals.types";
 
 export function formatDate(value: string | Date | null | undefined): string {
 	if (!value) return "—";
@@ -72,6 +77,30 @@ export function formatOverdue(createdAt: string | Date): string {
 	return `${days}d ${remHrs}h overdue`;
 }
 
+// Returns the date that best represents "when this row was actioned"
+// — approval date for approved, updatedAt (rejection time) for rejected, createdAt for pending.
+export function getActionDate(
+	row: PendingRow,
+	approvalStatus: ApprovalStatus,
+): Date {
+	if (approvalStatus === "approved" && row.approvedAt) {
+		return new Date(row.approvedAt);
+	}
+	if (approvalStatus === "rejected" && row.updatedAt) {
+		return new Date(row.updatedAt);
+	}
+	return new Date(row.createdAt);
+}
+
+export function formatActionDateTime(date: Date): string {
+	const y = date.getFullYear();
+	const m = String(date.getMonth() + 1).padStart(2, "0");
+	const d = String(date.getDate()).padStart(2, "0");
+	const hh = String(date.getHours()).padStart(2, "0");
+	const mm = String(date.getMinutes()).padStart(2, "0");
+	return `${y}-${m}-${d} ${hh}:${mm}`;
+}
+
 export function getInitials(name: string | null): string {
 	if (!name) return "?";
 	return name
@@ -90,7 +119,10 @@ export function formatToday(): string {
 	});
 }
 
-export function formatPreferredTime(t: { dayOfWeek: string; time: string }): string {
+export function formatPreferredTime(t: {
+	dayOfWeek: string;
+	time: string;
+}): string {
 	const day = t.dayOfWeek.charAt(0).toUpperCase() + t.dayOfWeek.slice(1);
 	// "09:00" → "9:00 AM" style
 	const [hStr, mStr] = t.time.split(":");

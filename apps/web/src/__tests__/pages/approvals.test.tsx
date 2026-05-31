@@ -23,7 +23,12 @@ vi.mock("@tanstack/react-router", () => ({
 vi.mock("@/utils/orpc", () => ({
 	client: mockClient,
 	orpc: {},
-	queryClient: { invalidateQueries: () => Promise.resolve(), setQueryData: () => {}, getQueryData: () => undefined, clear: () => {} },
+	queryClient: {
+		invalidateQueries: () => Promise.resolve(),
+		setQueryData: () => {},
+		getQueryData: () => undefined,
+		clear: () => {},
+	},
 }));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
@@ -35,7 +40,11 @@ vi.mock("@/hooks/useUserContext", () => ({
 					name: "Test Fitness",
 					role: "admin",
 					hierarchy: {
-						member: { id: "member-caller", accessibleNodeIds: ["node-1"], role: "admin" },
+						member: {
+							id: "member-caller",
+							accessibleNodeIds: ["node-1"],
+							role: "admin",
+						},
 					},
 				},
 			],
@@ -45,7 +54,10 @@ vi.mock("@/hooks/useUserContext", () => ({
 	}),
 }));
 vi.mock("@/hooks/useApiMutation", () => ({
-	useApiMutation: (opts: { mutationFn: () => unknown; onSuccess?: () => void }) => ({
+	useApiMutation: (opts: {
+		mutationFn: () => unknown;
+		onSuccess?: () => void;
+	}) => ({
 		mutate: vi.fn().mockImplementation(async () => {
 			const result = await opts.mutationFn();
 			opts.onSuccess?.();
@@ -56,7 +68,9 @@ vi.mock("@/hooks/useApiMutation", () => ({
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/components/ui/empty-state", () => ({
-	EmptyState: ({ title }: { title: string }) => <div data-testid="empty-state">{title}</div>,
+	EmptyState: ({ title }: { title: string }) => (
+		<div data-testid="empty-state">{title}</div>
+	),
 }));
 vi.mock("@/components/ui/status-callout", () => ({
 	StatusCallout: ({ message }: { message: string }) => <div>{message}</div>,
@@ -85,7 +99,9 @@ const makePendingRow = (overrides: Record<string, unknown> = {}) => ({
 });
 
 beforeAll(async () => {
-	await import("@/routes/_authenticated/dashboard/_layout/operations/approvals");
+	await import(
+		"@/routes/_authenticated/dashboard/_layout/operations/approvals"
+	);
 });
 
 describe("ApprovalsPage", () => {
@@ -106,52 +122,27 @@ describe("ApprovalsPage", () => {
 	});
 
 	it("renders hero stats when pending packages exist", async () => {
-		mockClient.packageInstances.listPending.mockResolvedValue([makePendingRow()]);
+		mockClient.packageInstances.listPending.mockResolvedValue([
+			makePendingRow(),
+		]);
 		renderWithProviders(<ApprovalsPage />);
 		await waitFor(() => {
-			expect(screen.getByText(/pending package approvals/i)).toBeInTheDocument();
+			expect(
+				screen.getByText(/pending package approvals/i),
+			).toBeInTheDocument();
 		});
 		// Hero shows total count in large monospace text
 		expect(screen.getAllByText("1").length).toBeGreaterThan(0);
 	});
 
 	it("renders inbox row with customer name", async () => {
-		mockClient.packageInstances.listPending.mockResolvedValue([makePendingRow()]);
+		mockClient.packageInstances.listPending.mockResolvedValue([
+			makePendingRow(),
+		]);
 		renderWithProviders(<ApprovalsPage />);
 		await waitFor(() => {
 			expect(screen.getByText("Dana Customer")).toBeInTheDocument();
 			expect(screen.getByText("Yoga Package")).toBeInTheDocument();
-		});
-	});
-
-	it("bulk-action bar appears after selecting a row", async () => {
-		const user = userEvent.setup();
-		mockClient.packageInstances.listPending.mockResolvedValue([makePendingRow()]);
-		renderWithProviders(<ApprovalsPage />);
-		await waitFor(() => expect(screen.getByText("Dana Customer")).toBeInTheDocument());
-
-		// Click the checkbox (role=checkbox, aria-checked=false)
-		const checkbox = screen.getByRole("checkbox", { name: undefined });
-		await user.click(checkbox);
-
-		await waitFor(() => {
-			expect(screen.getByText(/1 selected/i)).toBeInTheDocument();
-		});
-	});
-
-	it("Approve all visible hero button selects all rows", async () => {
-		const user = userEvent.setup();
-		mockClient.packageInstances.listPending.mockResolvedValue([
-			makePendingRow({ id: "pkg-1" }),
-			makePendingRow({ id: "pkg-2", customerName: "Eve Customer" }),
-		]);
-		renderWithProviders(<ApprovalsPage />);
-		await waitFor(() => expect(screen.getByText("Dana Customer")).toBeInTheDocument());
-
-		await user.click(screen.getByRole("button", { name: /approve all visible/i }));
-
-		await waitFor(() => {
-			expect(screen.getByText(/2 selected/i)).toBeInTheDocument();
 		});
 	});
 
@@ -162,12 +153,11 @@ describe("ApprovalsPage", () => {
 			makePendingRow({ id: "pkg-2", customerName: "Eve Customer" }),
 		]);
 		renderWithProviders(<ApprovalsPage />);
-		await waitFor(() => expect(screen.getByText("Dana Customer")).toBeInTheDocument());
-
-		await user.type(
-			screen.getByPlaceholderText(/search customer/i),
-			"Eve",
+		await waitFor(() =>
+			expect(screen.getByText("Dana Customer")).toBeInTheDocument(),
 		);
+
+		await user.type(screen.getByPlaceholderText(/search customer/i), "Eve");
 
 		await waitFor(() => {
 			expect(screen.queryByText("Dana Customer")).not.toBeInTheDocument();

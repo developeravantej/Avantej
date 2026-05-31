@@ -189,9 +189,17 @@ export const packageInstancesCreateProcedures = {
 					return instance;
 				});
 
-				// Fan out notifications to branch admins + trainers when the package
-				// landed in `pending` status (gate enabled + customer purchase).
-				if (created.status === "pending") {
+				// Fan out the "ready to assign" notification to branch admins + trainers
+				// ONLY when the package is actually assignable now — i.e. it landed in
+				// `pending` status AND payment has already been received. Deferred/unpaid
+				// packages (manual transfer pending, online awaiting webhook) are hidden
+				// from the assignment queue until paid, so notifying trainers here would
+				// be a dead ping; that notification fires later from `confirmPayment` once
+				// the money lands. (Approvals payment-stage feature, 2026-05-31.)
+				const paymentReceivedAtCreate =
+					created.paymentStatus === "paid" ||
+					created.paymentStatus === "partially_paid";
+				if (created.status === "pending" && paymentReceivedAtCreate) {
 					try {
 						await notifyStaffOfPendingPackage(context.tenantDb, created.id);
 					} catch (err) {

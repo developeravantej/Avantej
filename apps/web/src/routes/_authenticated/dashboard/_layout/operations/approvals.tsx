@@ -13,21 +13,25 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
-import { downloadCsv, getPriority } from "@/features/approvals/approvals.helpers";
-import type { PendingRow, PriorityLevel } from "@/features/approvals/approvals.types";
-import { BulkActionBar } from "@/features/approvals/components/BulkActionBar";
-import { BulkApproveDialog } from "@/features/approvals/components/BulkApproveDialog";
-import { BulkRejectDialog } from "@/features/approvals/components/BulkRejectDialog";
+import {
+	downloadCsv,
+	getPriority,
+} from "@/features/approvals/approvals.helpers";
+import type {
+	ApprovalStatus,
+	PendingRow,
+	PriorityLevel,
+} from "@/features/approvals/approvals.types";
 import { FilterBar } from "@/features/approvals/components/FilterBar";
 import { HeroStats } from "@/features/approvals/components/HeroStats";
 import { InboxList } from "@/features/approvals/components/InboxList";
+import { ScheduleSessionsPanel } from "@/features/approvals/components/ScheduleSessionsPanel";
 import { RejectPackageDialog } from "@/components/forms/reject-package-dialog";
-import { EmptyState } from "@/components/ui/empty-state";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { useUserContext } from "@/hooks/useUserContext";
 import { requireRole } from "@/lib/route-guards";
-import { client } from "@/utils/orpc";
+import { orpc } from "@/utils/orpc";
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
@@ -56,30 +60,34 @@ function ApprovalsPage() {
 		navigate({ search: (prev) => ({ ...prev, scope: s }), replace: true });
 	};
 
+	const [approvalStatus, setApprovalStatus] =
+		useState<ApprovalStatus>("pending");
+
 	const {
 		data: rows,
 		isLoading,
 		isError,
 		refetch,
 	} = useQuery({
-		queryKey: ["packageInstances", "listPending", organizationId, scope],
-		queryFn: () =>
-			client.packageInstances.listPending({
+		...orpc.packageInstances.listPending.queryOptions({
+			input: {
 				organizationId: organizationId!,
 				scope,
 				limit: 100,
-			}),
+				approvalStatus,
+			},
+		}),
 		enabled: !!organizationId && (isAdmin || isTrainer),
 	});
 
 	// Dialog state
 	const [rejectPkg, setRejectPkg] = useState<PendingRow | null>(null);
-	const [bulkApproveOpen, setBulkApproveOpen] = useState(false);
-	const [bulkRejectOpen, setBulkRejectOpen] = useState(false);
+	// Page-level schedule panel — lives here (not in a row) so it survives the
+	// package leaving the pending list after assignment.
+	const [schedulePkgId, setSchedulePkgId] = useState<string | null>(null);
 
 	// Inbox UI state
 	const [expandedId, setExpandedId] = useState<string | null>(null);
-	const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
 	const [search, setSearch] = useState("");
 	const [priorityFilter, setPriorityFilter] = useState<"all" | PriorityLevel>(
 		"all",
@@ -114,34 +122,8 @@ function ApprovalsPage() {
 		[list],
 	);
 
-	const allChecked =
-		filtered.length > 0 && filtered.every((r) => checkedIds.has(r.id));
-
-	function toggleAll() {
-		if (allChecked) {
-			setCheckedIds(new Set());
-		} else {
-			setCheckedIds(new Set(filtered.map((r) => r.id)));
-		}
-	}
-
-	function toggleCheck(id: string) {
-		setCheckedIds((prev) => {
-			const next = new Set(prev);
-			if (next.has(id)) next.delete(id);
-			else next.add(id);
-			return next;
-		});
-	}
-
 	function handleReject(row: PendingRow) {
 		setRejectPkg(row);
-	}
-
-	// Bulk approve: no bulk mutation exists in the file; stubbed visually in BulkActionBar.
-	// The "Approve all visible" hero CTA selects all visible rows (surfacing the bulk bar).
-	function handleApproveAllVisible() {
-		setCheckedIds(new Set(filtered.map((r) => r.id)));
 	}
 
 	if (!organizationId) {
@@ -192,26 +174,16 @@ function ApprovalsPage() {
 
 				{isLoading ? (
 					<PageLoader label="Loading…" />
-				) : list.length === 0 ? (
-					<div className="flex min-h-[60vh] items-center justify-center">
-						<EmptyState
-							icon={RefreshCw}
-							title="All caught up"
-							description="No packages waiting for trainer assignment."
-						/>
-					</div>
 				) : (
 					<>
 						{/* Hero */}
 						<HeroStats
 							list={list}
 							orgName={orgName}
-							filteredCount={filtered.length}
-							onApproveAll={handleApproveAllVisible}
-							onExport={() => downloadCsv(filtered)}
+							approvalStatus={approvalStatus}
 						/>
 
-						{/* Filter bar */}
+						{/* Filter bar (always visible so an empty tab never traps the user) */}
 						<FilterBar
 							search={search}
 							onSearch={setSearch}
@@ -220,20 +192,27 @@ function ApprovalsPage() {
 							scope={scope}
 							onScope={setScope}
 							counts={priorityCounts}
-						/>
-
-						{/* Bulk-action bar — appears only when rows are selected */}
-						<BulkActionBar
-							checkedIds={checkedIds}
-							list={list}
-							isAdmin={isAdmin}
-							onApprove={() => setBulkApproveOpen(true)}
-							onReject={() => setBulkRejectOpen(true)}
-							onClear={() => setCheckedIds(new Set())}
+							approvalStatus={approvalStatus}
+							onApprovalStatus={(s) => {
+								setApprovalStatus(s);
+								setExpandedId(null);
+							}}
+							onExport={() => downloadCsv(filtered)}
+							exportDisabled={list.length === 0}
 						/>
 
 						{/* Inbox list */}
-						{filtered.length === 0 ? (
+						{list.length === 0 ? (
+							<div className="mt-4 rounded-2xl border border-[#e5e5e5] bg-white px-5 py-12 text-center text-sm text-muted-foreground">
+								{approvalStatus === "awaiting_payment"
+									? "No packages awaiting payment confirmation."
+									: approvalStatus === "approved"
+										? "No approved packages yet."
+										: approvalStatus === "rejected"
+											? "No rejected packages."
+											: "No packages waiting for trainer assignment."}
+							</div>
+						) : filtered.length === 0 ? (
 							<div className="mt-4 rounded-2xl border border-[#e5e5e5] bg-white px-5 py-10 text-center text-sm text-muted-foreground">
 								No results match your search.
 							</div>
@@ -241,17 +220,17 @@ function ApprovalsPage() {
 							<InboxList
 								filtered={filtered}
 								expandedId={expandedId}
-								checkedIds={checkedIds}
 								isAdmin={isAdmin}
 								isTrainer={isTrainer}
 								callerMemberId={callerMemberId}
 								organizationId={organizationId}
-								onToggle={(id) =>
-									setExpandedId(expandedId === id ? null : id)
-								}
-								onCheck={toggleCheck}
+								approvalStatus={approvalStatus}
+								onToggle={(id) => setExpandedId(expandedId === id ? null : id)}
 								onAssigned={() => refetch()}
 								onReject={handleReject}
+								onSchedule={(packageInstanceId) =>
+									setSchedulePkgId(packageInstanceId)
+								}
 							/>
 						)}
 
@@ -276,26 +255,13 @@ function ApprovalsPage() {
 				onRejected={() => refetch()}
 			/>
 
-			<BulkApproveDialog
-				open={bulkApproveOpen}
-				onOpenChange={setBulkApproveOpen}
+			<ScheduleSessionsPanel
+				open={schedulePkgId !== null}
+				onClose={() => setSchedulePkgId(null)}
 				organizationId={organizationId}
-				selectedRows={list.filter((r) => checkedIds.has(r.id))}
-				onDone={() => {
-					setCheckedIds(new Set());
-					refetch();
-				}}
-			/>
-
-			<BulkRejectDialog
-				open={bulkRejectOpen}
-				onOpenChange={setBulkRejectOpen}
-				organizationId={organizationId}
-				selectedRows={list.filter((r) => checkedIds.has(r.id))}
-				onDone={() => {
-					setCheckedIds(new Set());
-					refetch();
-				}}
+				packageInstanceId={schedulePkgId}
+				mode="full"
+				onScheduled={() => refetch()}
 			/>
 		</div>
 	);
@@ -308,9 +274,9 @@ export const Route = createFileRoute(
 		await requireRole(["admin", "trainer"]);
 	},
 	validateSearch: (search: Record<string, unknown>) => ({
-		scope: (
-			search.scope === "assignable_to_me" ? "assignable_to_me" : "all"
-		) as "all" | "assignable_to_me",
+		scope: (search.scope === "assignable_to_me" ? "assignable_to_me" : "all") as
+			| "all"
+			| "assignable_to_me",
 	}),
 	component: ApprovalsPage,
 });

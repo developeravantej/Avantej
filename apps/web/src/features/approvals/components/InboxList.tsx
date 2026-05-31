@@ -1,32 +1,42 @@
-import { getDateGroup } from "../approvals.helpers";
-import type { DateGroup, PendingRow } from "../approvals.types";
+import { getActionDate, getDateGroup } from "../approvals.helpers";
+import type { ApprovalStatus, DateGroup, PendingRow } from "../approvals.types";
 import { GroupHeader, InboxRow } from "./InboxRow";
 
 export function InboxList({
 	filtered,
 	expandedId,
-	checkedIds,
 	isAdmin,
 	isTrainer,
 	callerMemberId,
 	organizationId,
+	approvalStatus,
 	onToggle,
-	onCheck,
 	onAssigned,
 	onReject,
+	onSchedule,
 }: {
 	filtered: PendingRow[];
 	expandedId: string | null;
-	checkedIds: Set<string>;
 	isAdmin: boolean;
 	isTrainer: boolean;
 	callerMemberId: string | null;
 	organizationId: string;
+	approvalStatus: ApprovalStatus;
 	onToggle: (id: string) => void;
-	onCheck: (id: string) => void;
 	onAssigned: () => void;
 	onReject: (row: PendingRow) => void;
+	onSchedule: (packageInstanceId: string) => void;
 }) {
+	const groupFor = (r: PendingRow) =>
+		getDateGroup({ ...r, createdAt: getActionDate(r, approvalStatus) });
+
+	const olderLabel =
+		approvalStatus === "approved"
+			? "Earlier approvals"
+			: approvalStatus === "rejected"
+				? "Earlier rejections"
+				: "Older than 3 days · past SLA";
+
 	const groups: Array<{
 		key: DateGroup;
 		label: string;
@@ -35,22 +45,22 @@ export function InboxList({
 		{
 			key: "today",
 			label: "Today",
-			rows: filtered.filter((r) => getDateGroup(r) === "today"),
+			rows: filtered.filter((r) => groupFor(r) === "today"),
 		},
 		{
 			key: "yesterday",
 			label: "Yesterday",
-			rows: filtered.filter((r) => getDateGroup(r) === "yesterday"),
+			rows: filtered.filter((r) => groupFor(r) === "yesterday"),
 		},
 		{
 			key: "earlier",
 			label: "Earlier",
-			rows: filtered.filter((r) => getDateGroup(r) === "earlier"),
+			rows: filtered.filter((r) => groupFor(r) === "earlier"),
 		},
 		{
 			key: "older",
-			label: "Older than 3 days · past SLA",
-			rows: filtered.filter((r) => getDateGroup(r) === "older"),
+			label: olderLabel,
+			rows: filtered.filter((r) => groupFor(r) === "older"),
 		},
 	];
 
@@ -66,16 +76,16 @@ export function InboxList({
 							<InboxRow
 								row={row}
 								isExpanded={expandedId === row.id}
-								isChecked={checkedIds.has(row.id)}
 								isAdmin={isAdmin}
 								isTrainer={isTrainer}
 								callerMemberId={callerMemberId}
 								organizationId={organizationId}
+								approvalStatus={approvalStatus}
 								isFirstInList={filtered.indexOf(row) === 0}
 								onToggle={() => onToggle(row.id)}
-								onCheck={() => onCheck(row.id)}
 								onAssigned={onAssigned}
 								onReject={onReject}
+								onSchedule={onSchedule}
 							/>
 						</div>
 					)),

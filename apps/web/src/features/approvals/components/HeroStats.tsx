@@ -1,18 +1,25 @@
-import { formatPriceShort, formatToday, getPriority } from "../approvals.helpers";
-import type { PendingRow } from "../approvals.types";
+import {
+	formatPriceShort,
+	formatToday,
+	getPriority,
+} from "../approvals.helpers";
+import type { ApprovalStatus, PendingRow } from "../approvals.types";
+
+const HERO_LABEL: Record<ApprovalStatus, string> = {
+	awaiting_payment: "Packages awaiting payment",
+	pending: "Pending package approvals",
+	approved: "Approved packages",
+	rejected: "Rejected packages",
+};
 
 export function HeroStats({
 	list,
 	orgName,
-	filteredCount,
-	onApproveAll,
-	onExport,
+	approvalStatus,
 }: {
 	list: PendingRow[];
 	orgName: string;
-	filteredCount: number;
-	onApproveAll: () => void;
-	onExport: () => void;
+	approvalStatus: ApprovalStatus;
 }) {
 	const totalPending = list.length;
 	const pendingValueCents = list.reduce((s, r) => s + (r.totalPrice ?? 0), 0);
@@ -21,7 +28,9 @@ export function HeroStats({
 	// Oldest pending — computable from real data
 	const oldestMs =
 		list.length > 0
-			? Math.max(...list.map((r) => Date.now() - new Date(r.createdAt).getTime()))
+			? Math.max(
+					...list.map((r) => Date.now() - new Date(r.createdAt).getTime()),
+				)
 			: 0;
 	const oldestHrs = Math.floor(oldestMs / (1000 * 60 * 60));
 	const oldestDays = Math.floor(oldestHrs / 24);
@@ -50,7 +59,7 @@ export function HeroStats({
 				</div>
 
 				<div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-					Pending package approvals
+					{HERO_LABEL[approvalStatus]}
 				</div>
 				<div className="mt-1 flex items-baseline gap-3">
 					<span className="font-mono text-6xl font-extrabold leading-none tracking-tight tabular-nums text-[#0a0a0a]">
@@ -92,24 +101,6 @@ export function HeroStats({
 							</span>
 						</>
 					)}
-				</div>
-
-				<div className="mt-7 flex items-center gap-2">
-					<button
-						type="button"
-						onClick={onApproveAll}
-						className="flex items-center gap-1.5 rounded-lg bg-[#0a0a0a] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#262626]"
-					>
-						Approve all visible ({filteredCount})
-					</button>
-					<button
-						type="button"
-						onClick={onExport}
-						disabled={list.length === 0}
-						className="flex items-center gap-1.5 rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-xs font-medium transition-colors hover:bg-[#f3f3f3] disabled:opacity-40"
-					>
-						Export queue
-					</button>
 				</div>
 			</div>
 		</section>

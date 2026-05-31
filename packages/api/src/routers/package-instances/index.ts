@@ -5,7 +5,7 @@ import { packageInstancesListsProcedures } from "./lists.procedures";
 import { packageInstancesPendingProcedures } from "./pending.procedures";
 import { packageInstancesAssignProcedures } from "./assign.procedures";
 import { packageInstancesApproveProcedures } from "./approve.procedures";
-import { packageInstancesBulkRejectProcedures } from "./bulk-reject.procedures";
+import { packageInstancesConfirmPaymentProcedures } from "./confirm-payment.procedures";
 import { packageInstancesLifecycleProcedures } from "./lifecycle.procedures";
 import { packageInstancesHistoryProcedures } from "./history.procedures";
 
@@ -16,7 +16,7 @@ export const packageInstancesRouter = {
 	...packageInstancesPendingProcedures,
 	...packageInstancesAssignProcedures,
 	...packageInstancesApproveProcedures,
-	...packageInstancesBulkRejectProcedures,
+	...packageInstancesConfirmPaymentProcedures,
 	...packageInstancesLifecycleProcedures,
 	...packageInstancesHistoryProcedures,
 };

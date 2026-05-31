@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { CalendarClock } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
 	Popover,
@@ -7,14 +8,67 @@ import {
 } from "@/components/ui/popover";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { cn } from "@/lib/utils";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import {
 	formatDate,
 	formatPreferredTime,
 	formatPrice,
 } from "../approvals.helpers";
-import type { PendingRow, TrainerMember } from "../approvals.types";
+import type {
+	ApprovalStatus,
+	PendingRow,
+	TrainerMember,
+} from "../approvals.types";
+import { ConfirmPaymentDialog } from "./ConfirmPaymentDialog";
 import { TrainerAvatar } from "./TrainerAvatar";
+
+/**
+ * Shows how many of the package's preferred times the given trainer can cover.
+ * One bounded query (≤ 4 preferred times). Rendered for the selected trainer in
+ * the assign popover and for the caller in the self-assign path — deliberately
+ * not per-trainer-row to avoid N concurrent queries on popover open.
+ */
+function CoverageChip({
+	organizationId,
+	trainerId,
+	packageInstanceId,
+	enabled,
+}: {
+	organizationId: string;
+	trainerId: string | null;
+	packageInstanceId: string;
+	enabled: boolean;
+}) {
+	const { data } = useQuery({
+		...orpc.trainerAvailability.coverageForPreferredTimes.queryOptions({
+			input: {
+				organizationId,
+				trainerId: trainerId ?? "",
+				packageInstanceId,
+			},
+		}),
+		enabled: enabled && !!trainerId,
+		staleTime: 60_000,
+	});
+	if (!data || data.totalCount === 0) return null;
+	const full = data.coveredCount === data.totalCount;
+	return (
+		<span
+			className={cn(
+				"inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+				full
+					? "bg-emerald-100 text-emerald-700"
+					: data.coveredCount === 0
+						? "bg-rose-100 text-rose-700"
+						: "bg-amber-100 text-amber-700",
+			)}
+			title="Preferred times this trainer is available for"
+		>
+			<CalendarClock className="size-2.5" />
+			Covers {data.coveredCount}/{data.totalCount}
+		</span>
+	);
+}
 
 export function ExpandedRowDetail({
 	row,
@@ -22,30 +76,40 @@ export function ExpandedRowDetail({
 	isTrainer,
 	callerMemberId,
 	organizationId,
+	approvalStatus,
 	onAssigned,
 	onReject,
+	onSchedule,
 }: {
 	row: PendingRow;
 	isAdmin: boolean;
 	isTrainer: boolean;
 	callerMemberId: string | null;
 	organizationId: string;
+	approvalStatus: ApprovalStatus;
 	onAssigned: () => void;
 	onReject: (row: PendingRow) => void;
+	/** Open the page-level schedule panel for this package. Lifted to the page so
+	 *  it survives the row leaving the pending list after assignment. */
+	onSchedule: (packageInstanceId: string) => void;
 }) {
 	const [popoverOpen, setPopoverOpen] = useState(false);
 	const [selectedTrainerId, setSelectedTrainerId] = useState("");
+	const [confirmPayOpen, setConfirmPayOpen] = useState(false);
 
 	const { data: members = [], isLoading: loadingTrainers } = useQuery({
-		queryKey: ["members", organizationId, "trainer-list"],
-		queryFn: () => client.members.list({ organizationId }),
+		...orpc.members.list.queryOptions({ input: { organizationId } }),
 		enabled: popoverOpen && isAdmin,
 	});
 
 	const trainers = useMemo(
 		() =>
 			(members as TrainerMember[])
-				.filter((m) => (m.role === "trainer" || m.role === "admin") && m.status === "active")
+				.filter(
+					(m) =>
+						(m.role === "trainer" || m.role === "admin") &&
+						m.status === "active",
+				)
 				.sort((a, b) => {
 					const aPreferred = a.id === row.preferredTrainerId ? -1 : 0;
 					const bPreferred = b.id === row.preferredTrainerId ? -1 : 0;
@@ -54,7 +118,9 @@ export function ExpandedRowDetail({
 		[members, row.preferredTrainerId],
 	);
 
-	const selectedTrainerName = trainers.find((t) => t.id === selectedTrainerId)?.name;
+	const selectedTrainerName = trainers.find(
+		(t) => t.id === selectedTrainerId,
+	)?.name;
 
 	const assignMutation = useApiMutation({
 		mutationFn: () => {
@@ -71,6 +137,10 @@ export function ExpandedRowDetail({
 		onSuccess: () => {
 			setPopoverOpen(false);
 			setSelectedTrainerId("");
+			// Journey A step 4–5: package is now active — go straight to scheduling.
+			// onSchedule first: this row leaves the pending list on refetch, so the
+			// panel must live at the page level to survive the unmount.
+			onSchedule(row.id);
 			onAssigned();
 		},
 	});
@@ -87,7 +157,11 @@ export function ExpandedRowDetail({
 		successMessage: "You've been assigned as trainer.",
 		errorMessage: (err) => err?.message ?? "Failed to self-assign.",
 		invalidate: [["packageInstances"], ["notifications"]],
-		onSuccess: () => onAssigned(),
+		// Journey B step 3: land on the same scheduling step after self-assign.
+		onSuccess: () => {
+			onSchedule(row.id);
+			onAssigned();
+		},
 	});
 
 	return (
@@ -182,7 +256,10 @@ export function ExpandedRowDetail({
 					{row.preferredTimes.length > 0 ? (
 						<ol className="mt-1.5 space-y-0.5">
 							{row.preferredTimes.map((t) => (
-								<li key={t.priority} className="flex items-center gap-1.5 text-xs">
+								<li
+									key={t.priority}
+									className="flex items-center gap-1.5 text-xs"
+								>
 									<span className="font-mono tabular-nums text-[10px] text-muted-foreground">
 										{t.priority}.
 									</span>
@@ -202,7 +279,37 @@ export function ExpandedRowDetail({
 
 			{/* Action row */}
 			<div className="mt-5 flex items-center gap-2">
-				{isAdmin && (
+				{/* Awaiting-payment stage — method-aware:
+				    - failed        → read-only "Payment failed" note (Reject only; no manual mark-paid)
+				    - stripe/online → read-only "Processing" (auto-confirms via webhook; no button)
+				    - offline       → "Confirm payment received" (admin) */}
+				{approvalStatus === "awaiting_payment" &&
+					(row.paymentStatus === "failed" ? (
+						<span className="inline-flex items-center gap-1.5 rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
+							Payment failed — resolve or reject
+						</span>
+					) : row.paymentMethod === "stripe" ? (
+						<span
+							className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700"
+							title="Online payments confirm automatically once the gateway clears."
+						>
+							<span className="relative flex size-1.5">
+								<span className="absolute inline-flex size-full animate-ping rounded-full bg-blue-500 opacity-60" />
+								<span className="relative inline-flex size-1.5 rounded-full bg-blue-500" />
+							</span>
+							Processing online payment…
+						</span>
+					) : isAdmin ? (
+						<button
+							type="button"
+							onClick={() => setConfirmPayOpen(true)}
+							className="rounded-lg bg-[#0a0a0a] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#262626]"
+						>
+							Confirm payment received
+						</button>
+					) : null)}
+
+				{isAdmin && approvalStatus !== "awaiting_payment" && (
 					<Popover
 						open={popoverOpen}
 						onOpenChange={(o) => {
@@ -215,7 +322,9 @@ export function ExpandedRowDetail({
 								type="button"
 								className="rounded-lg bg-[#0a0a0a] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#262626]"
 							>
-								Approve &amp; assign
+								{approvalStatus === "pending"
+									? "Approve & assign"
+									: "Re-assign"}
 							</button>
 						</PopoverTrigger>
 
@@ -262,9 +371,7 @@ export function ExpandedRowDetail({
 												}
 												className={cn(
 													"flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors",
-													isSelected
-														? "bg-[#0a0a0a]"
-														: "hover:bg-[#f5f5f5]",
+													isSelected ? "bg-[#0a0a0a]" : "hover:bg-[#f5f5f5]",
 												)}
 											>
 												<TrainerAvatar
@@ -322,7 +429,17 @@ export function ExpandedRowDetail({
 							</div>
 
 							{/* Popover footer */}
-							<div className="border-t border-[#f0f0f0] p-3">
+							<div className="space-y-2 border-t border-[#f0f0f0] p-3">
+								{selectedTrainerId && row.preferredTimes.length > 0 && (
+									<div className="flex justify-center">
+										<CoverageChip
+											organizationId={organizationId}
+											trainerId={selectedTrainerId}
+											packageInstanceId={row.id}
+											enabled={popoverOpen}
+										/>
+									</div>
+								)}
 								<button
 									type="button"
 									disabled={!selectedTrainerId || assignMutation.isPending}
@@ -340,27 +457,59 @@ export function ExpandedRowDetail({
 					</Popover>
 				)}
 
-				{isTrainer && (
+				{isTrainer && approvalStatus !== "awaiting_payment" && (
+					<div className="flex items-center gap-2">
+						<button
+							type="button"
+							disabled={!callerMemberId || selfAssignMutation.isPending}
+							onClick={() => selfAssignMutation.mutate()}
+							className="rounded-lg bg-[#0a0a0a] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#262626] disabled:opacity-40"
+						>
+							{selfAssignMutation.isPending ? "Assigning…" : "Assign me"}
+						</button>
+						{row.preferredTimes.length > 0 && (
+							<CoverageChip
+								organizationId={organizationId}
+								trainerId={callerMemberId}
+								packageInstanceId={row.id}
+								enabled={isTrainer}
+							/>
+						)}
+					</div>
+				)}
+
+				{/* Already-approved rows: schedule the sessions for the active package. */}
+				{approvalStatus === "approved" && (
 					<button
 						type="button"
-						disabled={!callerMemberId || selfAssignMutation.isPending}
-						onClick={() => selfAssignMutation.mutate()}
-						className="rounded-lg bg-[#0a0a0a] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#262626] disabled:opacity-40"
+						onClick={() => onSchedule(row.id)}
+						className="inline-flex items-center gap-1.5 rounded-lg bg-[#0a0a0a] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#262626]"
 					>
-						{selfAssignMutation.isPending ? "Assigning…" : "Assign me"}
+						<CalendarClock className="size-3.5" />
+						Schedule sessions
 					</button>
 				)}
 
-				{isAdmin && (
-					<button
-						type="button"
-						onClick={() => onReject(row)}
-						className="ml-auto rounded-lg px-3 py-2 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50"
-					>
-						Reject…
-					</button>
-				)}
+				{isAdmin &&
+					(approvalStatus === "pending" ||
+						approvalStatus === "awaiting_payment") && (
+						<button
+							type="button"
+							onClick={() => onReject(row)}
+							className="ml-auto rounded-lg px-3 py-2 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50"
+						>
+							Reject…
+						</button>
+					)}
 			</div>
+
+			<ConfirmPaymentDialog
+				open={confirmPayOpen}
+				onOpenChange={setConfirmPayOpen}
+				organizationId={organizationId}
+				row={row}
+				onConfirmed={onAssigned}
+			/>
 		</div>
 	);
 }

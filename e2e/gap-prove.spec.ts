@@ -6,7 +6,6 @@ import {
 	pickFirstActiveClient,
 	pickFirstService,
 	pickFirstBranchId,
-	pickFirstInstallmentPlan,
 } from "./helpers/seed-data";
 
 /**
@@ -41,7 +40,11 @@ import {
 const ORG = TEST_ORG_ID;
 const BASE = "http://localhost:3021";
 
-type Page = Parameters<typeof test>[1] extends (args: { page: infer P }) => unknown ? P : never;
+type Page = Parameters<typeof test>[1] extends (args: {
+	page: infer P;
+}) => unknown
+	? P
+	: never;
 
 async function waitVisible(
 	locator: ReturnType<Page["locator"]>,
@@ -56,7 +59,9 @@ async function waitVisible(
 /** Navigate to route and wait for network idle + no spinner */
 async function goto(page: Page, path: string) {
 	await page.goto(`${BASE}${path}`);
-	await page.waitForLoadState("networkidle", { timeout: 20000 }).catch(() => {});
+	await page
+		.waitForLoadState("networkidle", { timeout: 20000 })
+		.catch(() => {});
 	await page
 		.locator(".animate-spin")
 		.first()
@@ -78,7 +83,8 @@ test("gap-prove — full audit journey", async ({ page }) => {
 		const liveText = page.getByText(/live/i).first();
 		const hasRev = await waitVisible(revLabel, 10000);
 		const hasBtn = hasRev ? false : await waitVisible(newSaleBtn, 5000);
-		const hasLive = (hasRev || hasBtn) ? false : await waitVisible(liveText, 3000);
+		const hasLive =
+			hasRev || hasBtn ? false : await waitVisible(liveText, 3000);
 		expect.soft(hasRev || hasBtn || hasLive).toBe(true);
 	});
 
@@ -109,7 +115,10 @@ test("gap-prove — full audit journey", async ({ page }) => {
 		const apptText = page.getByText("Appointments").first();
 		const hasAppt = await waitVisible(apptText, 12000);
 		// Fallback: any heading with appointment text
-		const heading = page.getByRole("heading").filter({ hasText: /appointment/i }).first();
+		const heading = page
+			.getByRole("heading")
+			.filter({ hasText: /appointment/i })
+			.first();
 		const hasHeading = hasAppt ? false : await waitVisible(heading, 5000);
 		expect.soft(hasAppt || hasHeading).toBe(true);
 	});
@@ -129,9 +138,14 @@ test("gap-prove — full audit journey", async ({ page }) => {
 		// token would return all households. We surface the API shape here.
 		type HouseholdRow = { id: string; name?: string };
 		try {
-			const rows = await orpcCall<object, HouseholdRow[]>(page, "households", "list", {
-				organizationId: ORG,
-			});
+			const rows = await orpcCall<object, HouseholdRow[]>(
+				page,
+				"households",
+				"list",
+				{
+					organizationId: ORG,
+				},
+			);
 			// Admin may see rows — that's fine. We just confirm no crash.
 			expect.soft(Array.isArray(rows)).toBe(true);
 		} catch (err) {
@@ -147,12 +161,20 @@ test("gap-prove — full audit journey", async ({ page }) => {
 	await test.step("F-AC-04 updateRole — audit_logs row created after role change", async () => {
 		// Verify the audit_logs endpoint is reachable and returns expected shape.
 		// The endpoint returns { items: AuditRow[], total: number } (paginated).
-		type AuditPage = { items: { id: string; action: string }[]; total?: number };
+		type AuditPage = {
+			items: { id: string; action: string }[];
+			total?: number;
+		};
 		try {
-			const result = await orpcCall<object, AuditPage>(page, "auditLogs", "list", {
-				organizationId: ORG,
-				limit: 5,
-			});
+			const result = await orpcCall<object, AuditPage>(
+				page,
+				"auditLogs",
+				"list",
+				{
+					organizationId: ORG,
+					limit: 5,
+				},
+			);
 			// Accept either { items: [...] } or a plain array (future shape change)
 			const items = Array.isArray(result) ? result : (result?.items ?? []);
 			expect.soft(Array.isArray(items)).toBe(true);
@@ -211,14 +233,19 @@ test("gap-prove — full audit journey", async ({ page }) => {
 		let promoId = "";
 		let promoCode = "";
 		try {
-			const created = await orpcCall<object, PromoResult>(page, "promotions", "create", {
-				organizationId: ORG,
-				name: "E2E-SP03-" + Date.now(),
-				code: "E2E-SP03-" + Date.now(),
-				discountType: "fixed",
-				discountValue: 100,
-				isActive: true,
-			});
+			const created = await orpcCall<object, PromoResult>(
+				page,
+				"promotions",
+				"create",
+				{
+					organizationId: ORG,
+					name: "E2E-SP03-" + Date.now(),
+					code: "E2E-SP03-" + Date.now(),
+					discountType: "fixed",
+					discountValue: 100,
+					isActive: true,
+				},
+			);
 			promoId = created.id;
 			promoCode = created.code;
 		} catch {
@@ -288,23 +315,28 @@ test("gap-prove — full audit journey", async ({ page }) => {
 		}
 		try {
 			type SaleResult = { salesOrderId: string; taxCents?: number };
-			const result = await orpcCall<object, SaleResult>(page, "pos", "recordSale", {
-				organizationId: ORG,
-				customerType: "member",
-				customerId: client.userId,
-				customerName: client.name,
-				branchId,
-				items: [
-					{
-						type: "service",
-						refId: service.id,
-						description: service.name,
-						quantity: 1,
-						unitPriceCents: 10000,
-					},
-				],
-				paymentMethod: "cash",
-			});
+			const result = await orpcCall<object, SaleResult>(
+				page,
+				"pos",
+				"recordSale",
+				{
+					organizationId: ORG,
+					customerType: "member",
+					customerId: client.userId,
+					customerName: client.name,
+					branchId,
+					items: [
+						{
+							type: "service",
+							refId: service.id,
+							description: service.name,
+							quantity: 1,
+							unitPriceCents: 10000,
+						},
+					],
+					paymentMethod: "cash",
+				},
+			);
 			// After fix: if sale proceeds, taxCents should be explicitly set (not undefined)
 			expect.soft(result.taxCents !== undefined).toBe(true);
 		} catch (err) {
@@ -322,9 +354,14 @@ test("gap-prove — full audit journey", async ({ page }) => {
 		// Simplified: list class slots and verify the API call works.
 		type ClassSlotRow = { id: string; spotsBooked?: number; capacity?: number };
 		try {
-			const slots = await orpcCall<object, ClassSlotRow[]>(page, "classSlots", "list", {
-				organizationId: ORG,
-			});
+			const slots = await orpcCall<object, ClassSlotRow[]>(
+				page,
+				"classSlots",
+				"list",
+				{
+					organizationId: ORG,
+				},
+			);
 			expect.soft(Array.isArray(slots)).toBe(true);
 			// After fix: every slot must satisfy spotsBooked <= capacity
 			for (const slot of slots) {
@@ -347,13 +384,22 @@ test("gap-prove — full audit journey", async ({ page }) => {
 			expect.soft(true).toBe(true);
 			return;
 		}
-		type ApptRow = { id: string; isVirtual?: boolean; recurrenceGroupId?: string | null };
+		type ApptRow = {
+			id: string;
+			isVirtual?: boolean;
+			recurrenceGroupId?: string | null;
+		};
 		type ListResult = { items?: ApptRow[]; appointments?: ApptRow[] };
 		try {
-			const result = await orpcCall<object, ListResult>(page, "appointments", "listForUser", {
-				organizationId: ORG,
-				userId: client.userId,
-			});
+			const result = await orpcCall<object, ListResult>(
+				page,
+				"appointments",
+				"listForUser",
+				{
+					organizationId: ORG,
+					userId: client.userId,
+				},
+			);
 			const rows = result.items ?? result.appointments ?? [];
 			expect.soft(Array.isArray(rows)).toBe(true);
 			// After fix: if recurring appointments exist, virtual occurrences should appear.
@@ -388,9 +434,14 @@ test("gap-prove — full audit journey", async ({ page }) => {
 		let slotId = "";
 		let currentBooked = 0;
 		try {
-			const slots = await orpcCall<object, ClassSlotRow[]>(page, "classSlots", "list", {
-				organizationId: ORG,
-			});
+			const slots = await orpcCall<object, ClassSlotRow[]>(
+				page,
+				"classSlots",
+				"list",
+				{
+					organizationId: ORG,
+				},
+			);
 			const bookedSlot = slots.find((s) => (s.spotsBooked ?? 0) > 0);
 			if (!bookedSlot) {
 				expect.soft(true).toBe(true); // no slots with bookings — skip
@@ -463,18 +514,23 @@ test("gap-prove — full audit journey", async ({ page }) => {
 			const startBefore = new Date(tomorrow);
 			startBefore.setHours(8, 0, 0, 0);
 			type Created = { id: string };
-			const appt = await orpcCall<object, Created>(page, "appointments", "create", {
-				organizationId: ORG,
-				type: "private",
-				startTime: startBefore.toISOString(),
-				duration: 60,
-				branchId,
-				status: "confirmed",
-				sessionTotal: 1,
-				pricePerClient: 0,
-				userId: client.userId,
-				trainerId: trainer.memberId,
-			});
+			const appt = await orpcCall<object, Created>(
+				page,
+				"appointments",
+				"create",
+				{
+					organizationId: ORG,
+					type: "private",
+					startTime: startBefore.toISOString(),
+					duration: 60,
+					branchId,
+					status: "confirmed",
+					sessionTotal: 1,
+					pricePerClient: 0,
+					userId: client.userId,
+					trainerId: trainer.memberId,
+				},
+			);
 
 			// Reschedule INTO the exception window (10:00 — blocked)
 			await orpcCall(page, "appointments", "update", {
@@ -500,70 +556,10 @@ test("gap-prove — full audit journey", async ({ page }) => {
 
 	// ─── PS — Packages / Services / Trainers ─────────────────────────────────
 
-	await test.step("F-PS-01 bulkApprove first installment must require paymentMethod input", async () => {
-		// Create a package instance with installments, then call bulkApprove.
-		// After fix: the first installment should not auto-confirm with hardcoded 'manual_transfer'.
-		const service = await pickFirstService(page, { isPackage: true });
-		const client = await pickFirstActiveClient(page);
-		const plan = await pickFirstInstallmentPlan(page);
-		if (!service || !client || !plan) {
-			expect.soft(true).toBe(true);
-			return;
-		}
-
-		// Create a package instance with an installment plan
-		type Created = { id: string; installments?: { id: string; status: string; paymentMethod?: string }[] };
-		let instanceId = "";
-		try {
-			const created = await orpcCall<object, Created>(page, "packageInstances", "create", {
-				organizationId: ORG,
-				serviceId: service.id,
-				clientId: client.userId,
-				source: "purchased",
-				creditsTotal: service.sessionCount ?? 1,
-				startsAt: new Date().toISOString(),
-				expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-				totalPrice: 100000,
-				paymentStatus: "pending",
-				paymentMethod: "manual_transfer",
-				installmentPlanCode: plan.code,
-			});
-			instanceId = created.id;
-		} catch {
-			expect.soft(true).toBe(true); // create not available — skip
-			return;
-		}
-
-		// Call bulkApprove
-		try {
-			type ApproveResult = {
-				packageInstance?: { installments?: { id: string; status: string; paymentMethod?: string }[] };
-				installments?: { id: string; status: string; paymentMethod?: string }[];
-			};
-			const result = await orpcCall<object, ApproveResult>(
-				page,
-				"packageInstances",
-				"bulkApprove",
-				{
-					organizationId: ORG,
-					packageInstanceId: instanceId,
-				},
-			);
-			const installments =
-				result.packageInstance?.installments ?? result.installments ?? [];
-			const first = installments.find((i) => i.status === "confirmed");
-			if (first) {
-				// After fix: paymentMethod should NOT be hardcoded; it should come from input
-				// For now, assert it's not silently auto-confirmed without a provided method
-				// The absence of paymentMethod on the result signals the gap
-				expect.soft(first.paymentMethod).not.toBeUndefined();
-			}
-		} catch (err) {
-			if (err instanceof OrpcClientError) {
-				// Error is acceptable — the important thing is it doesn't silently confirm
-				expect.soft(true).toBe(true);
-			}
-		}
+	await test.step("F-PS-01 REMOVED — bulkApprove procedure was deleted", async () => {
+		// The bulk-approve feature (UI + `packageInstances.bulkApprove` procedure) was
+		// removed. Single-package approval is via `assignTrainer`; this gap no longer applies.
+		expect.soft(true).toBe(true);
 	});
 
 	await test.step("F-PS-02 setBranchPrice with null branchId returns FORBIDDEN for non-admin", async () => {
@@ -601,11 +597,16 @@ test("gap-prove — full audit journey", async ({ page }) => {
 		};
 		let tierId = "";
 		try {
-			const tier = await orpcCall<object, TierResult>(page, "trainerTiers", "create", {
-				organizationId: ORG,
-				name: tierName,
-				rank: 99,
-			});
+			const tier = await orpcCall<object, TierResult>(
+				page,
+				"trainerTiers",
+				"create",
+				{
+					organizationId: ORG,
+					name: tierName,
+					rank: 99,
+				},
+			);
 			tierId = tier.id;
 			// After fix: missingRateCategories should be empty (rows scaffolded)
 			expect.soft((tier.missingRateCategories ?? []).length).toBe(0);
@@ -617,7 +618,12 @@ test("gap-prove — full audit journey", async ({ page }) => {
 		// Verify commission rates exist for the new tier
 		if (tierId) {
 			try {
-				type RateRow = { id: string; tierId: string; categoryId: string; rate: number };
+				type RateRow = {
+					id: string;
+					tierId: string;
+					categoryId: string;
+					rate: number;
+				};
 				const rates = await orpcCall<object, RateRow[]>(
 					page,
 					"commissionTierRates",
@@ -650,10 +656,15 @@ test("gap-prove — full audit journey", async ({ page }) => {
 
 		// Try to pick or create a PO
 		try {
-			const pos = await orpcCall<object, PoResult[]>(page, "purchaseOrders", "list", {
-				organizationId: ORG,
-				status: "approved",
-			});
+			const pos = await orpcCall<object, PoResult[]>(
+				page,
+				"purchaseOrders",
+				"list",
+				{
+					organizationId: ORG,
+					status: "approved",
+				},
+			);
 			const first = pos[0];
 			if (!first) {
 				expect.soft(true).toBe(true); // no approved POs — skip
@@ -680,10 +691,15 @@ test("gap-prove — full audit journey", async ({ page }) => {
 
 		// Verify PO status advanced
 		try {
-			const po = await orpcCall<object, PoResult>(page, "purchaseOrders", "getById", {
-				organizationId: ORG,
-				id: poId,
-			});
+			const po = await orpcCall<object, PoResult>(
+				page,
+				"purchaseOrders",
+				"getById",
+				{
+					organizationId: ORG,
+					id: poId,
+				},
+			);
 			const advanced =
 				po.status === "partially_received" ||
 				po.status === "received" ||
@@ -779,12 +795,21 @@ test("gap-prove — full audit journey", async ({ page }) => {
 		// After fix: notifications should exist for org-scoped announcement
 		if (announcementId) {
 			try {
-				type NotifRow = { id: string; referenceId?: string; referenceType?: string };
-				const notifs = await orpcCall<object, NotifRow[]>(page, "notifications", "list", {
-					organizationId: ORG,
-					referenceType: "announcement",
-					referenceId: announcementId,
-				});
+				type NotifRow = {
+					id: string;
+					referenceId?: string;
+					referenceType?: string;
+				};
+				const notifs = await orpcCall<object, NotifRow[]>(
+					page,
+					"notifications",
+					"list",
+					{
+						organizationId: ORG,
+						referenceType: "announcement",
+						referenceId: announcementId,
+					},
+				);
 				// After fix: at least one notification per member in scope
 				expect.soft(Array.isArray(notifs)).toBe(true);
 				// If the dispatch is implemented, length > 0. If not, length === 0 (the gap).
@@ -835,9 +860,14 @@ test("gap-prove — full audit journey", async ({ page }) => {
 	await test.step("PC-AP-01 classSlots spotsBooked never exceeds capacity (full scan)", async () => {
 		type SlotRow = { id: string; spotsBooked?: number; capacity?: number };
 		try {
-			const slots = await orpcCall<object, SlotRow[]>(page, "classSlots", "list", {
-				organizationId: ORG,
-			});
+			const slots = await orpcCall<object, SlotRow[]>(
+				page,
+				"classSlots",
+				"list",
+				{
+					organizationId: ORG,
+				},
+			);
 			for (const slot of slots) {
 				if (slot.spotsBooked != null && slot.capacity != null) {
 					expect.soft(slot.spotsBooked).toBeLessThanOrEqual(slot.capacity);
@@ -874,8 +904,10 @@ test("gap-prove — full audit journey", async ({ page }) => {
 
 	await test.step("GP-05 Payment history view loads without crash", async () => {
 		await goto(page, "/dashboard/payment/view");
-		const hasError = await page.evaluate(() =>
-			(window as unknown as Record<string, unknown>).__uncaughtError !== undefined,
+		const hasError = await page.evaluate(
+			() =>
+				(window as unknown as Record<string, unknown>).__uncaughtError !==
+				undefined,
 		);
 		expect.soft(hasError).toBe(false);
 		// Page should show a table or empty state — not a JS error screen
@@ -904,7 +936,9 @@ test("gap-prove — full audit journey", async ({ page }) => {
 
 	await test.step("GP-08 Customers Quick Add dialog opens", async () => {
 		await goto(page, "/dashboard/customers/v2/view");
-		const addBtn = page.getByRole("button", { name: /add customer|quick add/i }).first();
+		const addBtn = page
+			.getByRole("button", { name: /add customer|quick add/i })
+			.first();
 		const hasBtn = await waitVisible(addBtn, 12000);
 		expect.soft(hasBtn).toBe(true);
 		if (hasBtn) {
@@ -941,12 +975,14 @@ test("gap-prove — full audit journey", async ({ page }) => {
 		type ReviewRow = { id: string; status: string };
 		let firstId = "";
 		try {
-			const reviews = await orpcCall<object, { items?: ReviewRow[]; reviews?: ReviewRow[] }>(
-				page,
-				"commissionSplits",
-				"listReviews",
-				{ organizationId: ORG, status: "pending", limit: 1 },
-			);
+			const reviews = await orpcCall<
+				object,
+				{ items?: ReviewRow[]; reviews?: ReviewRow[] }
+			>(page, "commissionSplits", "listReviews", {
+				organizationId: ORG,
+				status: "pending",
+				limit: 1,
+			});
 			const rows = reviews.items ?? reviews.reviews ?? [];
 			if (rows.length === 0) {
 				expect.soft(true).toBe(true); // no pending reviews — skip
@@ -1023,11 +1059,15 @@ test("gap-prove — full audit journey", async ({ page }) => {
 		page.on("pageerror", (err) => errors.push(err.message));
 		await goto(page, "/dashboard/payment/view");
 		await page.waitForTimeout(2000);
-		const hasCrash = errors.some((e) => e.includes("toISOString") || e.includes("not a function"));
+		const hasCrash = errors.some(
+			(e) => e.includes("toISOString") || e.includes("not a function"),
+		);
 		expect.soft(hasCrash).toBe(false);
 		// After fix: payment table should be visible
 		const table = page.locator("table, [role=grid]").first();
-		const emptyState = page.getByText(/no payment|no transactions|no results/i).first();
+		const emptyState = page
+			.getByText(/no payment|no transactions|no results/i)
+			.first();
 		const hasTable = await waitVisible(table, 8000);
 		const hasEmpty = hasTable ? false : await waitVisible(emptyState, 3000);
 		expect.soft(hasTable || hasEmpty).toBe(true);
@@ -1044,7 +1084,10 @@ test("gap-prove — full audit journey", async ({ page }) => {
 		// Look for UUID pattern in the Created By column cells
 		const cells = await page
 			.locator("td, [role=gridcell]")
-			.filter({ hasText: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i })
+			.filter({
+				hasText:
+					/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+			})
 			.count();
 		// After fix: no cells should contain raw UUIDs
 		expect.soft(cells).toBe(0);
@@ -1077,14 +1120,18 @@ test("gap-prove — full audit journey", async ({ page }) => {
 		}
 		// Click it and check the network request or URL
 		const [request] = await Promise.all([
-			page.waitForRequest((req) => req.url().includes("/rpc/"), { timeout: 5000 }).catch(() => null),
+			page
+				.waitForRequest((req) => req.url().includes("/rpc/"), { timeout: 5000 })
+				.catch(() => null),
 			refundedPill.click(),
 		]);
 		if (request) {
 			const bodyText = request.postData() ?? "";
 			// After fix: should contain 'refunded', not 'cancelled'
 			expect.soft(bodyText.includes('"cancelled"')).toBe(false);
-			expect.soft(bodyText.includes('"refunded"') || bodyText.includes('"status"')).toBe(true);
+			expect
+				.soft(bodyText.includes('"refunded"') || bodyText.includes('"status"'))
+				.toBe(true);
 		}
 		// Also check URL doesn't show 'cancelled' for refunded filter
 		const url = page.url();
@@ -1102,7 +1149,9 @@ test("gap-prove — full audit journey", async ({ page }) => {
 			return;
 		}
 		await firstRow.click();
-		await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
+		await page
+			.waitForLoadState("networkidle", { timeout: 10000 })
+			.catch(() => {});
 		// Check for line items table (items breakdown, not inside a modal)
 		const lineItems = page
 			.locator("table, [role=grid]")
@@ -1116,7 +1165,9 @@ test("gap-prove — full audit journey", async ({ page }) => {
 	await test.step("F-PO-008 Sales $id: Cancel Sale button shown for completed POS sales", async () => {
 		await goto(page, "/dashboard/sales/view");
 		// Filter to completed sales and navigate to first one
-		const completedFilter = page.getByRole("tab", { name: /completed/i }).first();
+		const completedFilter = page
+			.getByRole("tab", { name: /completed/i })
+			.first();
 		const hasFilter = await waitVisible(completedFilter, 8000);
 		if (hasFilter) await completedFilter.click();
 		const firstRow = page.locator("tr[data-row], tbody tr, [role=row]").nth(1);
@@ -1126,9 +1177,13 @@ test("gap-prove — full audit journey", async ({ page }) => {
 			return;
 		}
 		await firstRow.click();
-		await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
+		await page
+			.waitForLoadState("networkidle", { timeout: 10000 })
+			.catch(() => {});
 		// Look for Cancel Sale button
-		const cancelBtn = page.getByRole("button", { name: /cancel sale/i }).first();
+		const cancelBtn = page
+			.getByRole("button", { name: /cancel sale/i })
+			.first();
 		const hasCancel = await waitVisible(cancelBtn, 8000);
 		// After fix: Cancel Sale should be visible for completed POS sales
 		expect.soft(hasCancel).toBe(true);
@@ -1160,12 +1215,10 @@ test("gap-prove — full audit journey", async ({ page }) => {
 		// Read-back: verify the profile exists
 		try {
 			type ProfileRow = { id: string; name: string; isUnclaimed?: boolean };
-			const profiles = await orpcCall<object, { items?: ProfileRow[]; profiles?: ProfileRow[] }>(
-				page,
-				"customerProfiles",
-				"list",
-				{ organizationId: ORG },
-			);
+			const profiles = await orpcCall<
+				object,
+				{ items?: ProfileRow[]; profiles?: ProfileRow[] }
+			>(page, "customerProfiles", "list", { organizationId: ORG });
 			const rows = profiles.items ?? profiles.profiles ?? [];
 			const created = rows.find((p) => p.id === createdId);
 			expect.soft(created).not.toBeUndefined();
@@ -1183,11 +1236,16 @@ test("gap-prove — full audit journey", async ({ page }) => {
 
 		// First creation — should succeed
 		try {
-			await orpcCall<object, UnclaimedResult>(page, "customerProfiles", "createUnclaimed", {
-				organizationId: ORG,
-				name: "E2E-CU006-A",
-				phone: dupePhone,
-			});
+			await orpcCall<object, UnclaimedResult>(
+				page,
+				"customerProfiles",
+				"createUnclaimed",
+				{
+					organizationId: ORG,
+					name: "E2E-CU006-A",
+					phone: dupePhone,
+				},
+			);
 		} catch {
 			expect.soft(true).toBe(true); // first create failed — skip
 			return;
@@ -1195,11 +1253,16 @@ test("gap-prove — full audit journey", async ({ page }) => {
 
 		// Second creation with same phone — should fail after fix
 		try {
-			await orpcCall<object, UnclaimedResult>(page, "customerProfiles", "createUnclaimed", {
-				organizationId: ORG,
-				name: "E2E-CU006-B",
-				phone: dupePhone,
-			});
+			await orpcCall<object, UnclaimedResult>(
+				page,
+				"customerProfiles",
+				"createUnclaimed",
+				{
+					organizationId: ORG,
+					name: "E2E-CU006-B",
+					phone: dupePhone,
+				},
+			);
 			// After fix: should throw CONFLICT or BAD_REQUEST
 			expect.soft(false).toBe(true); // should not succeed
 		} catch (err) {
