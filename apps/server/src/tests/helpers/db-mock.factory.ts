@@ -13,6 +13,11 @@ function createSelectChain(returnValue: unknown = []) {
 		"innerJoin",
 		"groupBy",
 		"having",
+		// `.for("update")` / `.for("share")` row-locks. Returns the chain so it can
+		// be awaited directly (await select()….for("update")) or chained with
+		// `.then(...)`. Without this, any service using a row-lock (validatePromoCode,
+		// voidCommissionSplit, …) throws on the mock.
+		"for",
 	];
 
 	for (const method of methods) {
@@ -88,6 +93,8 @@ export function createMockTenantDb() {
 		update: updateMock,
 		delete: deleteMock,
 		select: selectMock,
+		// execute: used for pg_advisory_xact_lock and raw SQL in applyCommissionCaps
+		execute: mock(() => Promise.resolve([])),
 		// transaction filled after instance reference is captured below
 		query: {
 			expenses: createQueryTable(),

@@ -114,6 +114,8 @@ export * from "./class-slots.service";
 export {
 	calculateCommissionForAppointment,
 	calculateCommissionForPos,
+	calculateOriginationCommission,
+	type CalculateOriginationParams,
 } from "./commission-calculator.service";
 // Commission pipeline sub-modules (gather / plan / persist)
 export {
@@ -189,6 +191,8 @@ export {
 	type CreditPointMutationResult,
 	getCustomerProfile,
 	redeemCreditPoints,
+	restoreCustomerProfile,
+	softDeleteCustomerProfile,
 	type UpsertCustomerProfileParams,
 	upsertCustomerProfile,
 } from "./customer-profile.service";
@@ -388,6 +392,8 @@ export {
 	type PaymentHistoryQueryOpts,
 	getPaymentStatusHistory,
 } from "./payments.service";
+// Pure money arithmetic helpers (no DB) — discount / tax / premium
+export * from "./money-math";
 // Promotion services
 export * from "./promotions.service";
 // Purchase order services
@@ -593,3 +599,16 @@ export {
 	redeemBranchInvite,
 } from "./onboarding.service";
 // #endregion
+
+// Commission tracks config service (Phase 3 — Task #23)
+export {
+	deactivateTrack,
+	type CommissionTrackWithDetails,
+	listTracksForCategory,
+	setCoachSlots,
+	type SetCoachSlotsInput,
+	setTrackRates,
+	type SetTrackRatesInput,
+	upsertTrack,
+	type UpsertTrackInput,
+} from "./commission-tracks.service";

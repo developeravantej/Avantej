@@ -155,7 +155,11 @@ export function makePromotion(
 ) {
 	return {
 		id: randomUUID(),
-		branchId: BRANCH_NODE_ID,
+		// Org-wide by default (applies to any branch). The branch-scope guard in
+		// validatePromoCode only engages when branchId is non-null, so tests that
+		// exercise discount math don't need to thread a matching params.branchId.
+		// Override with a node id to test branch-scoped rejection.
+		branchId: null,
 		code: "PROMO10",
 		name: "10% Off Promo",
 		description: null,
@@ -270,7 +274,9 @@ export function makeMember(overrides: Partial<Record<string, unknown>> = {}) {
 // ──────────────────────────────────────────────────────────────────────────────
 // Class Slot Fixtures
 // ──────────────────────────────────────────────────────────────────────────────
-export function makeClassSlot(overrides: Partial<Record<string, unknown>> = {}) {
+export function makeClassSlot(
+	overrides: Partial<Record<string, unknown>> = {},
+) {
 	return {
 		id: randomUUID(),
 		branchId: BRANCH_NODE_ID,

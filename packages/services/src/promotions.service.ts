@@ -6,6 +6,7 @@ import {
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { writeAudit } from "./audit-log.service";
+import { calculatePromoDiscount } from "./money-math";
 
 export class PromoValidationError extends Error {
 	constructor(message: string) {
@@ -182,24 +183,13 @@ export async function validatePromoCode(
 		}
 	}
 
-	// 8. Calculate discount amount
-	let discountAmount: number;
-
-	if (promotion.type === "percentage") {
-		discountAmount = Math.floor(
-			(params.orderAmount * promotion.value) / 10000,
-		);
-		if (
-			promotion.maximumDiscount !== null &&
-			discountAmount > promotion.maximumDiscount
-		) {
-			discountAmount = promotion.maximumDiscount;
-		}
-	} else if (promotion.type === "fixed_amount") {
-		discountAmount = Math.min(promotion.value, params.orderAmount);
-	} else {
-		discountAmount = promotion.value;
-	}
+	// 8. Calculate discount amount (pure helper — see money-math.ts / .test.ts)
+	const discountAmount = calculatePromoDiscount({
+		type: promotion.type,
+		value: promotion.value,
+		orderAmount: params.orderAmount,
+		maximumDiscount: promotion.maximumDiscount,
+	});
 
 	// 9. Return result
 	return { promotion, discountAmount };
@@ -305,7 +295,12 @@ export async function createPromotion(
 			entityId: row.id,
 			branchId: data.branchId,
 			summary: `Created promotion "${data.name}" (code: ${data.code})`,
-			changes: { code: data.code, name: data.name, type: data.type, value: data.value },
+			changes: {
+				code: data.code,
+				name: data.name,
+				type: data.type,
+				value: data.value,
+			},
 		});
 
 		return row;
