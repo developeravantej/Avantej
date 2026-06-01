@@ -5,7 +5,6 @@ import {
 	type ProcessForRecipientParams,
 	type RecipientSummaryResult,
 	useCancelPayout,
-	useConfirmPayoutViaStripe,
 	useLiabilitySummary,
 	useMarkPayoutFailed,
 	useMarkPayoutPaid,
@@ -14,10 +13,8 @@ import {
 	useRecipientSummary,
 	useRetryPayout,
 } from "@/features/payouts/api";
-import { PartnerStripeCard } from "@/features/payouts/components/partner-stripe-card";
 import {
 	CancelPayoutDialog,
-	ConfirmViaStripeDialog,
 	MarkFailedDialog,
 	MarkPaidDialog,
 	RetryPayoutDialog,
@@ -40,7 +37,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { formatPrice } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -54,7 +51,15 @@ function firstOfMonthIso(): string {
 
 function todayEndIso(): string {
 	const now = new Date();
-	return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
+	return new Date(
+		now.getFullYear(),
+		now.getMonth(),
+		now.getDate(),
+		23,
+		59,
+		59,
+		999,
+	).toISOString();
 }
 
 function formatRelativeDate(date: Date | string | null | undefined): string {
@@ -73,20 +78,53 @@ function formatRelativeDate(date: Date | string | null | undefined): string {
 function formatAbsoluteDate(date: Date | string | null | undefined): string {
 	if (!date) return "—";
 	const d = date instanceof Date ? date : new Date(date);
-	return d.toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric" });
+	return d.toLocaleDateString("en-MY", {
+		day: "numeric",
+		month: "short",
+		year: "numeric",
+	});
 }
 
 function StatusBadge({ status }: { status: string }) {
 	const map: Record<string, { label: string; dot: string; cls: string }> = {
-		pending: { label: "Pending", dot: "bg-amber-500", cls: "bg-amber-50 text-amber-700" },
-		processing: { label: "Processing", dot: "bg-blue-500", cls: "bg-blue-50 text-blue-700" },
-		paid: { label: "Paid", dot: "bg-emerald-500", cls: "bg-emerald-50 text-emerald-700" },
-		failed: { label: "Failed", dot: "bg-rose-500", cls: "bg-rose-50 text-rose-700" },
-		canceled: { label: "Cancelled", dot: "bg-slate-400", cls: "bg-slate-100 text-slate-500" },
+		pending: {
+			label: "Pending",
+			dot: "bg-amber-500",
+			cls: "bg-amber-50 text-amber-700",
+		},
+		processing: {
+			label: "Processing",
+			dot: "bg-blue-500",
+			cls: "bg-blue-50 text-blue-700",
+		},
+		paid: {
+			label: "Paid",
+			dot: "bg-emerald-500",
+			cls: "bg-emerald-50 text-emerald-700",
+		},
+		failed: {
+			label: "Failed",
+			dot: "bg-rose-500",
+			cls: "bg-rose-50 text-rose-700",
+		},
+		canceled: {
+			label: "Cancelled",
+			dot: "bg-slate-400",
+			cls: "bg-slate-100 text-slate-500",
+		},
 	};
-	const config = map[status] ?? { label: status, dot: "bg-slate-400", cls: "bg-slate-100 text-slate-500" };
+	const config = map[status] ?? {
+		label: status,
+		dot: "bg-slate-400",
+		cls: "bg-slate-100 text-slate-500",
+	};
 	return (
-		<span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold", config.cls)}>
+		<span
+			className={cn(
+				"inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+				config.cls,
+			)}
+		>
 			<span className={cn("h-1.5 w-1.5 rounded-full", config.dot)} />
 			{config.label}
 		</span>
@@ -113,7 +151,7 @@ function PayoutRowActions({
 }) {
 	// One slot drives which dialog is open. null = closed. Each item in the
 	// dropdown sets this; the dialog component then owns the form + mutation.
-	type DialogKind = "markPaid" | "markFailed" | "retry" | "cancel" | "confirmStripe";
+	type DialogKind = "markPaid" | "markFailed" | "retry" | "cancel";
 	const [activeDialog, setActiveDialog] = useState<DialogKind | null>(null);
 
 	// Surface pending state on the trigger button. Each mutation runs inside
@@ -124,21 +162,21 @@ function PayoutRowActions({
 	const markFailed = useMarkPayoutFailed(organizationId);
 	const retry = useRetryPayout(organizationId);
 	const cancel = useCancelPayout(organizationId);
-	const confirmStripe = useConfirmPayoutViaStripe(organizationId);
 	const isBusy =
 		markPaid.isPending ||
 		markFailed.isPending ||
 		retry.isPending ||
-		cancel.isPending ||
-		confirmStripe.isPending;
+		cancel.isPending;
 
 	const { status } = payout;
-	const isStripeConnect = payout.paymentMethod === "stripe_connect";
-	const canConfirmStripe =
-		(status === "pending" || status === "processing") && isStripeConnect;
 
 	// Terminal statuses or no permission — render nothing
-	if (!canProcess || status === "paid" || status === "canceled" || status === "cancelled") {
+	if (
+		!canProcess ||
+		status === "paid" ||
+		status === "canceled" ||
+		status === "cancelled"
+	) {
 		return null;
 	}
 
@@ -162,24 +200,13 @@ function PayoutRowActions({
 				</button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="end" className="w-48">
-				{canConfirmStripe && (
-					<>
-						<DropdownMenuItem
-							onClick={() => setActiveDialog("confirmStripe")}
-							className="text-indigo-700 focus:bg-indigo-50 focus:text-indigo-700"
-						>
-							Confirm via Stripe
-						</DropdownMenuItem>
-						<DropdownMenuSeparator />
-					</>
-				)}
 				{(status === "pending" || status === "processing") && (
 					<>
 						<DropdownMenuItem
 							onClick={() => setActiveDialog("markPaid")}
 							className="text-emerald-700 focus:bg-emerald-50 focus:text-emerald-700"
 						>
-							Mark Paid {isStripeConnect ? "(manual ref)" : ""}
+							Mark Paid
 						</DropdownMenuItem>
 						<DropdownMenuSeparator />
 						<DropdownMenuItem
@@ -238,11 +265,6 @@ function PayoutRowActions({
 				payout={activeDialog === "cancel" ? payout : null}
 				onClose={close}
 			/>
-			<ConfirmViaStripeDialog
-				organizationId={organizationId}
-				payout={activeDialog === "confirmStripe" ? payout : null}
-				onClose={close}
-			/>
 		</DropdownMenu>
 	);
 }
@@ -262,7 +284,9 @@ function AllPayoutsTable({
 		return (
 			<div className="flex min-h-64 flex-col items-center justify-center gap-1 py-16">
 				<p className="text-sm font-medium text-[#0a0a0a]">No payouts yet</p>
-				<p className="text-xs text-[#737373]">Use "Run Batch" to create payouts from approved commission splits.</p>
+				<p className="text-xs text-[#737373]">
+					Use "Run Batch" to create payouts from approved commission splits.
+				</p>
 			</div>
 		);
 	}
@@ -272,12 +296,22 @@ function AllPayoutsTable({
 			<table className="w-full">
 				<thead>
 					<tr>
-						{["Date", "Recipient", "Gross", "Deductions", "Net", "Reference", "Status", ""].map((h) => (
+						{[
+							"Date",
+							"Recipient",
+							"Gross",
+							"Deductions",
+							"Net",
+							"Reference",
+							"Status",
+							"",
+						].map((h) => (
 							<th
 								key={h || "__actions"}
 								className={cn(
 									"border-b border-[#e5e5e5] px-[14px] py-[9px] text-left text-[11px] font-semibold uppercase tracking-[.06em] text-[#8a8f91] whitespace-nowrap",
-									(h === "Gross" || h === "Deductions" || h === "Net") && "text-right",
+									(h === "Gross" || h === "Deductions" || h === "Net") &&
+										"text-right",
 									h === "" && "w-10",
 								)}
 							>
@@ -292,40 +326,64 @@ function AllPayoutsTable({
 						return (
 							<tr
 								key={row.id}
-								className={cn("border-b border-[#f7f5ee] last:border-0", isReversal ? "bg-red-50/40" : "hover:bg-[#fcfaf6]")}
+								className={cn(
+									"border-b border-[#f7f5ee] last:border-0",
+									isReversal ? "bg-red-50/40" : "hover:bg-[#fcfaf6]",
+								)}
 							>
 								<td className="px-[14px] py-[11px] align-middle">
-									<span className="text-sm text-[#4a4f51]">{formatRelativeDate(row.paidAt ?? row.createdAt)}</span>
+									<span className="text-sm text-[#4a4f51]">
+										{formatRelativeDate(row.paidAt ?? row.createdAt)}
+									</span>
 								</td>
 								<td className="px-[14px] py-[11px] align-middle">
-									<span className="text-sm font-medium text-[#0a0a0a]">{row.recipientName}</span>
-								</td>
-								<td className="px-[14px] py-[11px] text-right align-middle">
-									<span className="font-mono text-sm tabular-nums text-[#4a4f51]">{formatPrice(Math.abs(row.grossAmountCents), "MYR")}</span>
+									<span className="text-sm font-medium text-[#0a0a0a]">
+										{row.recipientName}
+									</span>
 								</td>
 								<td className="px-[14px] py-[11px] text-right align-middle">
 									<span className="font-mono text-sm tabular-nums text-[#4a4f51]">
-										{row.deductionsCents > 0 ? `-${formatPrice(row.deductionsCents, "MYR")}` : "—"}
+										{formatPrice(Math.abs(row.grossAmountCents), "MYR")}
 									</span>
 								</td>
 								<td className="px-[14px] py-[11px] text-right align-middle">
-									<span className={cn("font-mono text-sm font-semibold tabular-nums", isReversal ? "text-red-600" : "text-[#0a0a0a]")}>
-										{isReversal ? "-" : ""}{formatPrice(Math.abs(row.amount), "MYR")}
+									<span className="font-mono text-sm tabular-nums text-[#4a4f51]">
+										{row.deductionsCents > 0
+											? `-${formatPrice(row.deductionsCents, "MYR")}`
+											: "—"}
+									</span>
+								</td>
+								<td className="px-[14px] py-[11px] text-right align-middle">
+									<span
+										className={cn(
+											"font-mono text-sm font-semibold tabular-nums",
+											isReversal ? "text-red-600" : "text-[#0a0a0a]",
+										)}
+									>
+										{isReversal ? "-" : ""}
+										{formatPrice(Math.abs(row.amount), "MYR")}
 									</span>
 									{isReversal && (
 										<span className="ml-2 inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
-											<span className="h-1.5 w-1.5 rounded-full bg-rose-500" />Reversal
+											<span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+											Reversal
 										</span>
 									)}
 								</td>
 								<td className="max-w-[160px] px-[14px] py-[11px] align-middle">
-									<span className="block truncate font-mono text-xs text-[#8a8f91]">{row.description ?? row.reference ?? "—"}</span>
+									<span className="block truncate font-mono text-xs text-[#8a8f91]">
+										{row.description ?? row.reference ?? "—"}
+									</span>
 								</td>
 								<td className="px-[14px] py-[11px] align-middle">
 									<StatusBadge status={row.status} />
 								</td>
 								<td className="px-[14px] py-[11px] align-middle">
-									<PayoutRowActions payout={row} organizationId={organizationId} canProcess={canProcess} />
+									<PayoutRowActions
+										payout={row}
+										organizationId={organizationId}
+										canProcess={canProcess}
+									/>
 								</td>
 							</tr>
 						);
@@ -334,6 +392,19 @@ function AllPayoutsTable({
 			</table>
 		</div>
 	);
+}
+
+// ─── Role label helper (mirrors liability-tab.tsx) ──────────────────────────
+
+function roleTypeLabel(roleType: string): string {
+	const labels: Record<string, string> = {
+		trainer: "Trainer",
+		sales: "Sales",
+		marketing: "Marketing",
+		referrer: "Referral",
+		delivery_legacy: "Delivery (legacy)",
+	};
+	return labels[roleType] ?? roleType;
 }
 
 // ─── Per Recipient panel ──────────────────────────────────────────────────────
@@ -356,7 +427,10 @@ function PerRecipientPanel({
 		useState<ProcessForRecipientParams["paymentMethod"]>("bank_transfer");
 
 	const recipients = useMemo(() => {
-		const map = new Map<string, { name: string; pendingCents: number; pendingCount: number }>();
+		const map = new Map<
+			string,
+			{ name: string; pendingCents: number; pendingCount: number }
+		>();
 		for (const p of payouts) {
 			const existing = map.get(p.recipientId);
 			if (!existing) {
@@ -380,8 +454,12 @@ function PerRecipientPanel({
 		return recipients.filter((r) => r.name.toLowerCase().includes(lower));
 	}, [recipients, search]);
 
-	const selectedRecipient = recipients.find((r) => r.id === recipientId) ?? null;
-	const { data: summary, isLoading: summaryLoading } = useRecipientSummary(organizationId, recipientId ?? null);
+	const selectedRecipient =
+		recipients.find((r) => r.id === recipientId) ?? null;
+	const { data: summary, isLoading: summaryLoading } = useRecipientSummary(
+		organizationId,
+		recipientId ?? null,
+	);
 	const processForRecipient = useProcessForRecipient(organizationId);
 
 	const recipientPayouts = useMemo(() => {
@@ -391,11 +469,43 @@ function PerRecipientPanel({
 
 	const pendingForRecipient = useMemo(
 		// F-PAY-4: signed sum so reversals reduce the total
-		() => recipientPayouts.filter((p) => p.status === "pending").reduce((s, p) => s + p.amount, 0),
+		() =>
+			recipientPayouts
+				.filter((p) => p.status === "pending")
+				.reduce((s, p) => s + p.amount, 0),
 		[recipientPayouts],
 	);
 
 	const typedSummary = summary as RecipientSummaryResult | undefined;
+
+	// Phase 4: fetch liabilitySummary for the current month to get the
+	// recipient's byRoleType breakdown. Uses the same date range as the
+	// PayoutsTab KPI prefetch (firstOfMonth → todayEnd).
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	type AnyRecord = Record<string, any>;
+	const { data: liabData } = useQuery({
+		...orpc.commissionSplits.liabilitySummary.queryOptions({
+			input: {
+				organizationId,
+				from: firstOfMonthIso(),
+				to: todayEndIso(),
+			},
+		}),
+		enabled: !!recipientId,
+		staleTime: 30_000,
+	});
+	const recipientByRoleType: Record<string, number> = useMemo(() => {
+		if (!recipientId || !liabData) return {};
+		// Cast via unknown: byRoleType was added in Phase 4 but dist may not yet be rebuilt.
+		const trainers = ((liabData as unknown as AnyRecord).trainers ??
+			[]) as AnyRecord[];
+		const match = trainers.find((t) => t.memberId === recipientId);
+		const byRoleType = match?.byRoleType as Record<string, number> | undefined;
+		return byRoleType ?? {};
+	}, [liabData, recipientId]);
+	const roleTypeEntries = Object.entries(recipientByRoleType).filter(
+		([, v]) => v > 0,
+	);
 
 	return (
 		<div className="flex min-h-[520px]">
@@ -412,11 +522,15 @@ function PerRecipientPanel({
 				</div>
 				<div className="flex-1 overflow-auto">
 					{filteredRecipients.length === 0 ? (
-						<div className="p-4 text-center text-xs text-[#737373]">No recipients</div>
+						<div className="p-4 text-center text-xs text-[#737373]">
+							No recipients
+						</div>
 					) : (
 						<>
 							<div className="px-4 pb-1 pt-3">
-								<span className="text-[10px] font-bold uppercase tracking-widest text-[#8a8f91]">Recipients</span>
+								<span className="text-[10px] font-bold uppercase tracking-widest text-[#8a8f91]">
+									Recipients
+								</span>
 							</div>
 							{filteredRecipients.map((r) => {
 								const isActive = r.id === recipientId;
@@ -427,17 +541,28 @@ function PerRecipientPanel({
 										onClick={() => onSelectRecipient(r.id)}
 										className={cn(
 											"w-full border-l-[3px] px-4 py-2.5 text-left transition-colors",
-											isActive ? "border-l-[#0a0a0a] bg-[#f7f5ee]" : "border-l-transparent hover:bg-[#fcfaf6]",
+											isActive
+												? "border-l-[#0a0a0a] bg-[#f7f5ee]"
+												: "border-l-transparent hover:bg-[#fcfaf6]",
 										)}
 									>
 										<div className="flex items-center gap-3">
-											<div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white", isActive ? "bg-[#0a0a0a]" : "bg-[#737373]")}>
+											<div
+												className={cn(
+													"flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white",
+													isActive ? "bg-[#0a0a0a]" : "bg-[#737373]",
+												)}
+											>
 												{getInitials(r.name)}
 											</div>
 											<div className="min-w-0 flex-1">
-												<div className="truncate text-xs font-semibold text-[#0a0a0a]">{r.name}</div>
+												<div className="truncate text-xs font-semibold text-[#0a0a0a]">
+													{r.name}
+												</div>
 												<div className="font-mono text-[11px] tabular-nums text-[#737373]">
-													{r.pendingCents > 0 ? `${formatPrice(r.pendingCents, "MYR")} pending` : "No pending"}
+													{r.pendingCents > 0
+														? `${formatPrice(r.pendingCents, "MYR")} pending`
+														: "No pending"}
 												</div>
 											</div>
 											{r.pendingCount > 0 && (
@@ -465,8 +590,12 @@ function PerRecipientPanel({
 									{getInitials(selectedRecipient.name)}
 								</div>
 								<div>
-									<div className="text-sm font-semibold text-[#0a0a0a]">{selectedRecipient.name}</div>
-									<div className="text-[11px] text-[#737373]">Payout history and lifetime stats</div>
+									<div className="text-sm font-semibold text-[#0a0a0a]">
+										{selectedRecipient.name}
+									</div>
+									<div className="text-[11px] text-[#737373]">
+										Payout history and lifetime stats
+									</div>
 								</div>
 							</div>
 							{canRunBatch && (
@@ -484,7 +613,9 @@ function PerRecipientPanel({
 											<SelectValue />
 										</SelectTrigger>
 										<SelectContent>
-											<SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+											<SelectItem value="bank_transfer">
+												Bank Transfer
+											</SelectItem>
 											<SelectItem value="cash">Cash</SelectItem>
 											<SelectItem value="check">Cheque</SelectItem>
 											<SelectItem value="other">Other / Adjustment</SelectItem>
@@ -503,12 +634,16 @@ function PerRecipientPanel({
 												{
 													// CPR-11: surface actual server error message
 													onError: (err) => {
-														toast.error(err.message ?? "Failed to process payouts");
+														toast.error(
+															err.message ?? "Failed to process payouts",
+														);
 													},
 												},
 											)
 										}
-										disabled={processForRecipient.isPending || pendingForRecipient === 0}
+										disabled={
+											processForRecipient.isPending || pendingForRecipient === 0
+										}
 									>
 										{processForRecipient.isPending ? (
 											<RefreshCw className="h-3.5 w-3.5 animate-spin" />
@@ -517,7 +652,9 @@ function PerRecipientPanel({
 										)}
 										Process Pending
 										{pendingForRecipient > 0 && (
-											<span className="font-mono tabular-nums">· {formatPrice(pendingForRecipient, "MYR")}</span>
+											<span className="font-mono tabular-nums">
+												· {formatPrice(pendingForRecipient, "MYR")}
+											</span>
 										)}
 									</button>
 								</div>
@@ -527,24 +664,62 @@ function PerRecipientPanel({
 						{/* Recipient KPI mini-band */}
 						<div className="grid grid-cols-4 border-b border-[#e5e5e5] bg-[#f9f9f9]">
 							{[
-								{ label: "Lifetime Paid", value: summaryLoading ? null : formatPrice(typedSummary?.lifetimePaidCents ?? 0, "MYR"), color: "" },
+								{
+									label: "Lifetime Paid",
+									value: summaryLoading
+										? null
+										: formatPrice(typedSummary?.lifetimePaidCents ?? 0, "MYR"),
+									color: "",
+								},
 								{
 									label: "Current Cycle",
-									value: summaryLoading ? null : formatPrice(pendingForRecipient, "MYR"),
+									value: summaryLoading
+										? null
+										: formatPrice(pendingForRecipient, "MYR"),
 									color: "text-amber-600",
 									sub: `${recipientPayouts.filter((p) => p.status === "pending").length} pending`,
 								},
-								{ label: "Last Payout", value: summaryLoading ? null : (typedSummary?.lastPayoutAt ? formatRelativeDate(typedSummary.lastPayoutAt) : "—"), color: "" },
-								{ label: "Avg per Cycle", value: summaryLoading ? null : formatPrice(typedSummary?.avgPerCycleCents ?? 0, "MYR"), color: "" },
+								{
+									label: "Last Payout",
+									value: summaryLoading
+										? null
+										: typedSummary?.lastPayoutAt
+											? formatRelativeDate(typedSummary.lastPayoutAt)
+											: "—",
+									color: "",
+								},
+								{
+									label: "Avg per Cycle",
+									value: summaryLoading
+										? null
+										: formatPrice(typedSummary?.avgPerCycleCents ?? 0, "MYR"),
+									color: "",
+								},
 							].map((kpi) => (
-								<div key={kpi.label} className="border-r border-[#e5e5e5] px-5 py-3 last:border-r-0">
-									<div className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">{kpi.label}</div>
+								<div
+									key={kpi.label}
+									className="border-r border-[#e5e5e5] px-5 py-3 last:border-r-0"
+								>
+									<div className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+										{kpi.label}
+									</div>
 									{kpi.value === null ? (
 										<div className="mt-1.5 h-5 w-20 animate-pulse rounded bg-[#e5e5e5]" />
 									) : (
-										<div className={cn("mt-1 font-mono text-lg font-bold tabular-nums text-[#0a0a0a]", kpi.color)}>{kpi.value}</div>
+										<div
+											className={cn(
+												"mt-1 font-mono text-lg font-bold tabular-nums text-[#0a0a0a]",
+												kpi.color,
+											)}
+										>
+											{kpi.value}
+										</div>
 									)}
-									{kpi.sub && <div className="mt-0.5 text-[11px] text-[#737373]">{kpi.sub}</div>}
+									{kpi.sub && (
+										<div className="mt-0.5 text-[11px] text-[#737373]">
+											{kpi.sub}
+										</div>
+									)}
 								</div>
 							))}
 						</div>
@@ -553,50 +728,102 @@ function PerRecipientPanel({
 						<div className="flex flex-1 overflow-hidden">
 							{/* Breakdown sidebar */}
 							<div className="w-[300px] shrink-0 overflow-auto border-r border-[#e5e5e5] p-5">
-								<div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[#8a8f91]">Current Cycle Breakdown</div>
+								<div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[#8a8f91]">
+									Current Cycle Breakdown
+								</div>
 								<div className="mb-4 rounded-xl border border-[#e5e5e5] bg-[#f7f7f7] p-3.5">
 									<div className="flex items-center justify-between border-b border-[#e5e5e5] py-2">
-										<span className="text-xs text-[#737373]">Gross commissions</span>
+										<span className="text-xs text-[#737373]">
+											Gross commissions
+										</span>
 										<span className="font-mono text-sm font-semibold tabular-nums text-[#0a0a0a]">
 											{formatPrice(
-												recipientPayouts.filter((p) => p.status === "pending").reduce((s, p) => s + p.grossAmountCents, 0),
+												recipientPayouts
+													.filter((p) => p.status === "pending")
+													.reduce((s, p) => s + p.grossAmountCents, 0),
 												"MYR",
 											)}
 										</span>
 									</div>
 									<div className="flex items-center justify-between border-b border-[#e5e5e5] py-2">
-										<span className="text-xs text-[#737373]">Total deductions</span>
+										<span className="text-xs text-[#737373]">
+											Total deductions
+										</span>
 										<span className="font-mono text-sm tabular-nums text-red-600">
 											{(() => {
-												const d = recipientPayouts.filter((p) => p.status === "pending").reduce((s, p) => s + p.deductionsCents, 0);
+												const d = recipientPayouts
+													.filter((p) => p.status === "pending")
+													.reduce((s, p) => s + p.deductionsCents, 0);
 												return d > 0 ? `-${formatPrice(d, "MYR")}` : "—";
 											})()}
 										</span>
 									</div>
 									<div className="mt-1 flex items-center justify-between border-t border-[#e5e5e5] pt-3">
-										<span className="text-sm font-semibold text-[#0a0a0a]">Net Payout</span>
-										<span className="font-mono text-base font-bold tabular-nums text-[#0a0a0a]">{formatPrice(pendingForRecipient, "MYR")}</span>
+										<span className="text-sm font-semibold text-[#0a0a0a]">
+											Net Payout
+										</span>
+										<span className="font-mono text-base font-bold tabular-nums text-[#0a0a0a]">
+											{formatPrice(pendingForRecipient, "MYR")}
+										</span>
 									</div>
 								</div>
 
-								<div className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#8a8f91]">Pending Payouts</div>
-								{recipientPayouts.filter((p) => p.status === "pending").length === 0 ? (
-									<p className="text-xs text-[#737373]">No pending payouts for this recipient.</p>
-								) : (
-									<div className="space-y-1.5">
-										{recipientPayouts.filter((p) => p.status === "pending").map((p) => (
-											<div key={p.id} className="rounded-lg border border-[#e5e5e5] bg-white p-2.5">
-												<div className="flex items-start justify-between gap-2">
-													<div className="min-w-0">
-														<p className="truncate text-xs font-semibold text-[#0a0a0a]">{p.description ?? p.reference ?? "Payout"}</p>
-														<p className="text-[11px] text-[#737373]">{formatRelativeDate(p.createdAt)}</p>
-													</div>
-													<span className="shrink-0 font-mono text-xs font-semibold tabular-nums text-[#0a0a0a]">
-														{formatPrice(Math.abs(p.amount), "MYR")}
+								{/* Phase 4: role breakdown from liabilitySummary */}
+								{roleTypeEntries.length > 0 && (
+									<>
+										<div className="mb-2 mt-3 text-[10px] font-bold uppercase tracking-widest text-[#8a8f91]">
+											By Role (This Month)
+										</div>
+										<div className="mb-4 space-y-1.5">
+											{roleTypeEntries.map(([role, cents]) => (
+												<div
+													key={role}
+													className="flex items-center justify-between rounded-lg border border-[#e5e5e5] bg-[#f9f9f9] px-3 py-2"
+												>
+													<span className="text-xs text-[#4a4f51]">
+														{roleTypeLabel(role)}
+													</span>
+													<span className="font-mono text-xs font-semibold tabular-nums text-[#0a0a0a]">
+														{formatPrice(cents, "MYR")}
 													</span>
 												</div>
-											</div>
-										))}
+											))}
+										</div>
+									</>
+								)}
+
+								<div className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#8a8f91]">
+									Pending Payouts
+								</div>
+								{recipientPayouts.filter((p) => p.status === "pending")
+									.length === 0 ? (
+									<p className="text-xs text-[#737373]">
+										No pending payouts for this recipient.
+									</p>
+								) : (
+									<div className="space-y-1.5">
+										{recipientPayouts
+											.filter((p) => p.status === "pending")
+											.map((p) => (
+												<div
+													key={p.id}
+													className="rounded-lg border border-[#e5e5e5] bg-white p-2.5"
+												>
+													<div className="flex items-start justify-between gap-2">
+														<div className="min-w-0">
+															<p className="truncate text-xs font-semibold text-[#0a0a0a]">
+																{p.description ?? p.reference ?? "Payout"}
+															</p>
+															<p className="text-[11px] text-[#737373]">
+																{formatRelativeDate(p.createdAt)}
+															</p>
+														</div>
+														<span className="shrink-0 font-mono text-xs font-semibold tabular-nums text-[#0a0a0a]">
+															{formatPrice(Math.abs(p.amount), "MYR")}
+														</span>
+													</div>
+												</div>
+											))}
 									</div>
 								)}
 							</div>
@@ -604,43 +831,63 @@ function PerRecipientPanel({
 							{/* Payout history */}
 							<div className="flex-1 overflow-auto">
 								<div className="border-b border-[#e5e5e5] px-6 py-3">
-									<span className="text-[10px] font-bold uppercase tracking-widest text-[#8a8f91]">Payout History</span>
+									<span className="text-[10px] font-bold uppercase tracking-widest text-[#8a8f91]">
+										Payout History
+									</span>
 								</div>
 								{recipientPayouts.length === 0 ? (
 									<div className="flex h-32 items-center justify-center">
-										<p className="text-sm text-[#737373]">No payouts for this recipient yet</p>
+										<p className="text-sm text-[#737373]">
+											No payouts for this recipient yet
+										</p>
 									</div>
 								) : (
 									<table className="w-full">
 										<thead>
 											<tr>
-												{["Date", "Gross", "Net", "Bank Ref", "Status"].map((h) => (
-													<th
-														key={h}
-														className={cn(
-															"border-b border-[#e5e5e5] px-[14px] py-[9px] text-left text-[11px] font-semibold uppercase tracking-[.06em] text-[#8a8f91] whitespace-nowrap",
-															(h === "Gross" || h === "Net") && "text-right",
-														)}
-													>
-														{h}
-													</th>
-												))}
+												{["Date", "Gross", "Net", "Bank Ref", "Status"].map(
+													(h) => (
+														<th
+															key={h}
+															className={cn(
+																"border-b border-[#e5e5e5] px-[14px] py-[9px] text-left text-[11px] font-semibold uppercase tracking-[.06em] text-[#8a8f91] whitespace-nowrap",
+																(h === "Gross" || h === "Net") && "text-right",
+															)}
+														>
+															{h}
+														</th>
+													),
+												)}
 											</tr>
 										</thead>
 										<tbody>
 											{recipientPayouts.map((row) => (
-												<tr key={row.id} className="border-b border-[#f7f5ee] last:border-0 hover:bg-[#fcfaf6]">
+												<tr
+													key={row.id}
+													className="border-b border-[#f7f5ee] last:border-0 hover:bg-[#fcfaf6]"
+												>
 													<td className="px-[14px] py-[11px] align-middle">
-														<span className="text-sm text-[#4a4f51]">{row.paidAt ? formatAbsoluteDate(row.paidAt) : formatRelativeDate(row.createdAt)}</span>
+														<span className="text-sm text-[#4a4f51]">
+															{row.paidAt
+																? formatAbsoluteDate(row.paidAt)
+																: formatRelativeDate(row.createdAt)}
+														</span>
 													</td>
 													<td className="px-[14px] py-[11px] text-right align-middle">
-														<span className="font-mono text-sm tabular-nums text-[#4a4f51]">{formatPrice(Math.abs(row.grossAmountCents), "MYR")}</span>
+														<span className="font-mono text-sm tabular-nums text-[#4a4f51]">
+															{formatPrice(
+																Math.abs(row.grossAmountCents),
+																"MYR",
+															)}
+														</span>
 													</td>
 													<td className="px-[14px] py-[11px] text-right align-middle">
-														<span className="font-mono text-sm font-semibold tabular-nums text-[#0a0a0a]">{formatPrice(Math.abs(row.amount), "MYR")}</span>
+														<span className="font-mono text-sm font-semibold tabular-nums text-[#0a0a0a]">
+															{formatPrice(Math.abs(row.amount), "MYR")}
+														</span>
 													</td>
 													<td className="max-w-[140px] px-[14px] py-[11px] align-middle">
-														{row.reference ?? row.description ? (
+														{(row.reference ?? row.description) ? (
 															<span className="rounded bg-[#f3f3f3] px-1.5 py-0.5 font-mono text-xs text-[#4a4f51]">
 																{row.reference ?? row.description}
 															</span>
@@ -663,7 +910,9 @@ function PerRecipientPanel({
 					<div className="flex flex-1 items-center justify-center">
 						<div className="space-y-2 text-center">
 							<Users className="mx-auto h-10 w-10 text-[#c4c4c4]" />
-							<p className="text-sm font-medium text-[#737373]">Select a recipient to view their ledger</p>
+							<p className="text-sm font-medium text-[#737373]">
+								Select a recipient to view their ledger
+							</p>
 						</div>
 					</div>
 				)}
@@ -695,15 +944,18 @@ export function PayoutsTab({
 	useLiabilitySummary(organizationId, firstOfMonthIso(), todayEndIso()); // prefetch for KPI
 
 	const { data: membersData } = useQuery({
-		queryKey: ["members-staff-list", organizationId],
-		queryFn: () => client.members.list({ organizationId, status: "active" }),
+		...orpc.members.list.queryOptions({
+			input: { organizationId, status: "active" },
+		}),
 		enabled: canRunBatch,
 		staleTime: 60_000,
 	});
 
 	const staffOptions = useMemo<StaffOption[]>(() => {
 		if (!membersData) return [];
-		return (membersData as Array<{ role: string; userId: string; name: string }>)
+		return (
+			membersData as Array<{ role: string; userId: string; name: string }>
+		)
 			.filter((m) => m.role !== "client")
 			.map((m) => ({ id: m.userId, name: m.name }));
 	}, [membersData]);
@@ -725,30 +977,69 @@ export function PayoutsTab({
 	const disbursedThisMonth = useMemo(
 		() =>
 			payouts
-				.filter((p) => p.status === "paid" && p.paidAt != null && new Date(p.paidAt) >= monthStart)
+				.filter(
+					(p) =>
+						p.status === "paid" &&
+						p.paidAt != null &&
+						new Date(p.paidAt) >= monthStart,
+				)
 				.reduce((s, p) => s + p.amount, 0), // F-PAY-4: signed sum so reversals reduce the total
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[payouts],
 	);
-	const pendingCount = useMemo(() => new Set(payouts.filter((p) => p.status === "pending").map((p) => p.recipientId)).size, [payouts]);
+	const pendingCount = useMemo(
+		() =>
+			new Set(
+				payouts.filter((p) => p.status === "pending").map((p) => p.recipientId),
+			).size,
+		[payouts],
+	);
 	const avgPayout = useMemo(() => {
 		const paid = payouts.filter(
-			(p) => p.status === "paid" && p.paidAt != null && new Date(p.paidAt) >= monthStart && p.amount >= 0,
+			(p) =>
+				p.status === "paid" &&
+				p.paidAt != null &&
+				new Date(p.paidAt) >= monthStart &&
+				p.amount >= 0,
 		);
 		// F-PAY-4: signed sum so reversals reduce the total (filter already excludes p.amount < 0)
-		return paid.length === 0 ? 0 : Math.round(paid.reduce((s, p) => s + p.amount, 0) / paid.length);
+		return paid.length === 0
+			? 0
+			: Math.round(paid.reduce((s, p) => s + p.amount, 0) / paid.length);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [payouts]);
 	const lastBatchAt = useMemo(() => {
 		const paid = payouts.filter((p) => p.status === "paid" && p.paidAt != null);
-		return paid.length === 0 ? null : paid.reduce((t, p) => Math.max(t, new Date(p.paidAt!).getTime()), 0);
+		return paid.length === 0
+			? null
+			: paid.reduce((t, p) => Math.max(t, new Date(p.paidAt!).getTime()), 0);
 	}, [payouts]);
 
 	const kpis = [
-		{ label: "Disbursed (This Month)", value: isLoading ? null : formatPrice(disbursedThisMonth, "MYR") },
-		{ label: "Pending Recipients", value: isLoading ? null : String(pendingCount) },
-		{ label: "Avg Payout", value: isLoading ? null : (avgPayout > 0 ? formatPrice(avgPayout, "MYR") : "—") },
-		{ label: "Last Batch", value: isLoading ? null : (lastBatchAt ? formatRelativeDate(new Date(lastBatchAt)) : "—") },
+		{
+			label: "Disbursed (This Month)",
+			value: isLoading ? null : formatPrice(disbursedThisMonth, "MYR"),
+		},
+		{
+			label: "Pending Recipients",
+			value: isLoading ? null : String(pendingCount),
+		},
+		{
+			label: "Avg Payout",
+			value: isLoading
+				? null
+				: avgPayout > 0
+					? formatPrice(avgPayout, "MYR")
+					: "—",
+		},
+		{
+			label: "Last Batch",
+			value: isLoading
+				? null
+				: lastBatchAt
+					? formatRelativeDate(new Date(lastBatchAt))
+					: "—",
+		},
 	];
 
 	return (
@@ -756,30 +1047,31 @@ export function PayoutsTab({
 			{/* KPI band — matches liability tab */}
 			<div className="mb-4 grid grid-cols-4 gap-4">
 				{kpis.map((kpi) => (
-					<div key={kpi.label} className="rounded-2xl border border-[#e5e5e5] bg-white px-5 py-4">
-						<div className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">{kpi.label}</div>
+					<div
+						key={kpi.label}
+						className="rounded-2xl border border-[#e5e5e5] bg-white px-5 py-4"
+					>
+						<div className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+							{kpi.label}
+						</div>
 						{kpi.value === null ? (
 							<div className="mt-2 h-7 w-28 animate-pulse rounded bg-[#e5e5e5]" />
 						) : (
-							<div className="mt-1 font-mono text-2xl font-bold tabular-nums text-[#0a0a0a]">{kpi.value}</div>
+							<div className="mt-1 font-mono text-2xl font-bold tabular-nums text-[#0a0a0a]">
+								{kpi.value}
+							</div>
 						)}
 					</div>
 				))}
 			</div>
 
-			{/* Partner Stripe Connect onboarding (S-partner-stripe-onboarding, PR #32).
-			    Lets an admin wire up a coach's Stripe Connect account so the row-level
-			    `Confirm via Stripe` action can fire `stripe.transfers.create`. Only
-			    visible when the operator has permission to process payouts. */}
-			{canRunBatch ? (
-				<PartnerStripeCard organizationId={organizationId} />
-			) : null}
-
 			{/* Main card */}
 			<div className="overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
 				{/* Toolbar */}
 				<div className="flex items-center justify-between border-b border-[#e5e5e5] px-6 py-3">
-					<span className="text-sm font-semibold text-[#0a0a0a]">Payout Records</span>
+					<span className="text-sm font-semibold text-[#0a0a0a]">
+						Payout Records
+					</span>
 					<div className="flex items-center gap-2">
 						{/* Sub-tab pills */}
 						<div className="flex items-center gap-1 rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-1">
@@ -790,7 +1082,9 @@ export function PayoutsTab({
 									onClick={() => setActiveSubTab(id)}
 									className={cn(
 										"rounded-lg px-3 py-1 text-xs font-semibold transition",
-										activeSubTab === id ? "bg-[#0a0a0a] text-white" : "text-[#737373] hover:text-[#0a0a0a]",
+										activeSubTab === id
+											? "bg-[#0a0a0a] text-white"
+											: "text-[#737373] hover:text-[#0a0a0a]",
 									)}
 								>
 									{id === "all" ? "All Payouts" : "Per Recipient"}
@@ -817,7 +1111,11 @@ export function PayoutsTab({
 							<div className="h-5 w-5 animate-spin rounded-full border-2 border-[#0a0a0a] border-t-transparent" />
 						</div>
 					) : (
-						<AllPayoutsTable payouts={payouts} organizationId={organizationId} canProcess={canRunBatch} />
+						<AllPayoutsTable
+							payouts={payouts}
+							organizationId={organizationId}
+							canProcess={canRunBatch}
+						/>
 					)
 				) : (
 					<PerRecipientPanel

@@ -48,7 +48,6 @@ export * from "./notifications";
 export * from "./organization-settings";
 export * from "./package-instances";
 export * from "./package-instance-staff";
-export * from "./partner-stripe-accounts";
 export * from "./payment-items";
 export * from "./payments";
 export * from "./payouts";
@@ -135,4 +134,11 @@ export * from "./households";
 
 // #region Design-backfill — branch stats cache (Migration 0059)
 export * from "./branch-stats-cache";
+// #endregion
+
+// #region Agent C — Commission Tracks (Migration 0083)
+export * from "./commission-tracks";
+export * from "./commission-track-rates";
+export * from "./commission-track-versions";
+export * from "./earner-tiers";
 // #endregion

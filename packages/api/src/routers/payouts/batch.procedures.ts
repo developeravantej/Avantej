@@ -7,7 +7,11 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../../guards";
 import {
 	previewBatch,
 	processCommissionReversals,
@@ -34,14 +38,16 @@ export const payoutsBatchProcedures = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
-			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "read");
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"commission_payout",
+				"read",
+			);
 
 			const controlPanelDb = getControlPanelDb(context);
 
@@ -66,7 +72,7 @@ export const payoutsBatchProcedures = {
 				staffIds: z.array(z.string()).min(1).max(50),
 				periodStart: z.coerce.date(),
 				periodEnd: z.coerce.date(),
-				paymentMethod: z.enum(["bank_transfer", "cash", "check", "other", "stripe_connect"]),
+				paymentMethod: z.enum(["bank_transfer", "cash", "check", "other"]),
 				reference: z.string().max(200).optional(),
 				// Optional branch anchor for the payout batch row. When provided
 				// the caller must have RBAC access to the branch. When omitted
@@ -79,14 +85,16 @@ export const payoutsBatchProcedures = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-
-
-
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			if (input.branchId) {
 				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			}
-			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "process");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"commission_payout",
+				"process",
+			);
 
 			await processCommissionReversals(context.tenantDb, {
 				userId: context.member.userId,
@@ -135,7 +143,7 @@ export const payoutsBatchProcedures = {
 			z.object({
 				organizationId: z.string().uuid(),
 				recipientId: z.string(),
-				paymentMethod: z.enum(["bank_transfer", "cash", "check", "other", "stripe_connect"]),
+				paymentMethod: z.enum(["bank_transfer", "cash", "check", "other"]),
 				reference: z.string().max(200).optional(),
 				periodStart: z.coerce.date().optional(),
 				periodEnd: z.coerce.date().optional(),
@@ -143,14 +151,16 @@ export const payoutsBatchProcedures = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-
-
-
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			if (input.branchId) {
 				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			}
-			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "process")
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"commission_payout",
+				"process",
+			);
 
 			try {
 				return await processForRecipient(context.tenantDb, {
@@ -166,7 +176,9 @@ export const payoutsBatchProcedures = {
 				if (err instanceof Error) {
 					const code = (err as { code?: string }).code;
 					if (code === "EMPTY_BATCH") {
-						throw new ORPCError("BAD_REQUEST", { message: "No approved splits in range" });
+						throw new ORPCError("BAD_REQUEST", {
+							message: "No approved splits in range",
+						});
 					}
 					if (code === "CONFLICT") {
 						throw new ORPCError("CONFLICT", { message: err.message });

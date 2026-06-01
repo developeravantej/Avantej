@@ -1,25 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMutation } from "@tanstack/react-query";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client, queryClient } from "@/utils/orpc";
-
-// ---------------------------------------------------------------------------
-// Query keys
-// ---------------------------------------------------------------------------
-
-export const payoutKeys = {
-	all: (orgId: string) => ["payouts", orgId] as const,
-	list: (orgId: string) => ["payouts", orgId, "list"] as const,
-	preview: (orgId: string, params: PreviewBatchParams) =>
-		["payouts", orgId, "preview", params] as const,
-	recipientSummary: (orgId: string, recipientId: string) =>
-		["payouts", orgId, "recipientSummary", recipientId] as const,
-};
-
-export const commissionKeys = {
-	liability: (orgId: string, filters?: Record<string, unknown>) =>
-		["commissionLiability", orgId, filters] as const,
-};
+import { client, orpc, queryClient } from "@/utils/orpc";
 
 // ---------------------------------------------------------------------------
 // Types (mirroring the service layer to avoid cross-package import in web app)
@@ -110,12 +92,9 @@ export type ProcessForRecipientParams = {
 
 export function usePayoutsList(organizationId: string | null) {
 	return useQuery({
-		queryKey: payoutKeys.list(organizationId ?? ""),
-		queryFn: () =>
-			client.payouts.list({
-				organizationId: organizationId ?? "",
-				limit: 100,
-			}),
+		...orpc.payouts.list.queryOptions({
+			input: { organizationId: organizationId ?? "", limit: 100 },
+		}),
 		enabled: !!organizationId,
 		staleTime: 30_000,
 	});
@@ -127,13 +106,9 @@ export function useLiabilitySummary(
 	to: string,
 ) {
 	return useQuery({
-		queryKey: commissionKeys.liability(organizationId ?? "", { from, to }),
-		queryFn: () =>
-			client.commissionSplits.liabilitySummary({
-				organizationId: organizationId ?? "",
-				from,
-				to,
-			}),
+		...orpc.commissionSplits.liabilitySummary.queryOptions({
+			input: { organizationId: organizationId ?? "", from, to },
+		}),
 		enabled: !!organizationId && !!from && !!to,
 		staleTime: 30_000,
 	});
@@ -145,15 +120,15 @@ export function usePreviewBatch(
 	enabled: boolean,
 ) {
 	return useQuery<PreviewBatchResult>({
-		queryKey: payoutKeys.preview(organizationId ?? "", params),
-		queryFn: () =>
-			client.payouts.previewBatch({
+		...orpc.payouts.previewBatch.queryOptions({
+			input: {
 				organizationId: organizationId ?? "",
 				staffIds: params.staffIds,
 				periodStart: new Date(params.periodStart),
 				periodEnd: new Date(params.periodEnd),
 				branchId: params.branchId,
-			}) as Promise<PreviewBatchResult>,
+			},
+		}),
 		enabled:
 			!!organizationId &&
 			enabled &&
@@ -171,15 +146,12 @@ export function useRecipientSummary(
 	recipientId: string | null,
 ) {
 	return useQuery<RecipientSummaryResult>({
-		queryKey: payoutKeys.recipientSummary(
-			organizationId ?? "",
-			recipientId ?? "",
-		),
-		queryFn: () =>
-			client.payouts.recipientSummary({
+		...orpc.payouts.recipientSummary.queryOptions({
+			input: {
 				organizationId: organizationId ?? "",
 				recipientId: recipientId ?? "",
-			}) as Promise<RecipientSummaryResult>,
+			},
+		}),
 		enabled: !!organizationId && !!recipientId,
 		staleTime: 30_000,
 	});
@@ -205,8 +177,8 @@ export function useRunBatch(organizationId: string) {
 		successMessage: (result) =>
 			`${result.payoutIds.length} payout${result.payoutIds.length !== 1 ? "s" : ""} created — ${result.splitCount} splits processed.`,
 		invalidate: [
-			payoutKeys.list(organizationId),
-			commissionKeys.liability(organizationId, {}),
+			[["payouts", "list"]],
+			[["commissionSplits", "liabilitySummary"]],
 			["commissions"],
 			["commissionLiability"],
 		],
@@ -224,14 +196,14 @@ export function useProcessForRecipient(organizationId: string) {
 				reference: params.reference,
 			}),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: payoutKeys.all(organizationId) });
+			queryClient.invalidateQueries({ queryKey: [["payouts"]] });
 			queryClient.invalidateQueries({ queryKey: ["commissionLiability"] });
 		},
 	});
 }
 
-export function invalidatePayouts(organizationId: string) {
-	queryClient.invalidateQueries({ queryKey: payoutKeys.all(organizationId) });
+export function invalidatePayouts(_organizationId: string) {
+	queryClient.invalidateQueries({ queryKey: [["payouts"]] });
 	queryClient.invalidateQueries({ queryKey: ["commissionLiability"] });
 }
 
@@ -273,8 +245,8 @@ export function useMarkPayoutPaid(organizationId: string) {
 		successMessage: "Payout marked as paid",
 		errorMessage: (err) => err.message,
 		invalidate: [
-			payoutKeys.list(organizationId),
-			commissionKeys.liability(organizationId, {}),
+			[["payouts", "list"]],
+			[["commissionSplits", "liabilitySummary"]],
 			["commissions"],
 			["commissionLiability"],
 		],
@@ -292,8 +264,8 @@ export function useMarkPayoutFailed(organizationId: string) {
 		successMessage: "Payout marked as failed",
 		errorMessage: (err) => err.message,
 		invalidate: [
-			payoutKeys.list(organizationId),
-			commissionKeys.liability(organizationId, {}),
+			[["payouts", "list"]],
+			[["commissionSplits", "liabilitySummary"]],
 			["commissions"],
 			["commissionLiability"],
 		],
@@ -310,8 +282,8 @@ export function useRetryPayout(organizationId: string) {
 		successMessage: "Payout queued for retry",
 		errorMessage: (err) => err.message,
 		invalidate: [
-			payoutKeys.list(organizationId),
-			commissionKeys.liability(organizationId, {}),
+			[["payouts", "list"]],
+			[["commissionSplits", "liabilitySummary"]],
 			["commissions"],
 			["commissionLiability"],
 		],
@@ -329,171 +301,8 @@ export function useCancelPayout(organizationId: string) {
 		successMessage: "Payout cancelled",
 		errorMessage: (err) => err.message,
 		invalidate: [
-			payoutKeys.list(organizationId),
-			commissionKeys.liability(organizationId, {}),
-			["commissions"],
-			["commissionLiability"],
-		],
-	});
-}
-
-// ---------------------------------------------------------------------------
-// Partner Stripe Connect — S-partner-stripe-onboarding (PR #32)
-// ---------------------------------------------------------------------------
-
-export const partnerStripeKeys = {
-	status: (orgId: string, partnerId: string) =>
-		["partnerStripe", orgId, "status", partnerId] as const,
-};
-
-export type PartnerStripeStatus = {
-	partnerId: string;
-	stripeAccountId: string | null;
-	connectStatus: string;
-	chargesEnabled: boolean;
-	payoutsEnabled: boolean;
-	detailsSubmitted: boolean;
-	onboardingCompletedAt: Date | null;
-	countryCode: string | null;
-	defaultCurrency: string | null;
-	requirementsCurrentlyDue: string[];
-	requirementsDisabledReason: string | null;
-	connectAccountUpdatedAt: Date | null;
-};
-
-/** Read the cached partner_stripe_accounts row for one staff member. */
-export function usePartnerStripeStatus(
-	organizationId: string | null,
-	partnerId: string | null,
-) {
-	return useQuery<PartnerStripeStatus>({
-		queryKey: partnerStripeKeys.status(organizationId ?? "", partnerId ?? ""),
-		queryFn: () =>
-			client.partnerStripe.getStatus({
-				organizationId: organizationId ?? "",
-				partnerId: partnerId ?? "",
-			}) as unknown as Promise<PartnerStripeStatus>,
-		enabled: !!organizationId && !!partnerId,
-		staleTime: 30_000,
-	});
-}
-
-export type CreateOnboardingUrlParams = {
-	organizationId: string;
-	partnerId: string;
-	countryCode?: string;
-};
-
-/** Build a Stripe Connect OAuth URL + redirect to it so the operator
- * completes Stripe-hosted onboarding under their own login. */
-export function useCreatePartnerOnboardingUrl(organizationId: string) {
-	return useApiMutation<{ onboardingUrl: string; partnerId: string }, CreateOnboardingUrlParams>({
-		mutationFn: (params) =>
-			client.partnerStripe.createOnboardingUrl({
-				organizationId: params.organizationId,
-				partnerId: params.partnerId,
-				countryCode: params.countryCode,
-			}),
-		errorMessage: (err) => err.message || "Failed to start Stripe onboarding.",
-		invalidate: [],
-		onSuccess: (result) => {
-			if (typeof window !== "undefined") {
-				window.location.assign(result.onboardingUrl);
-			}
-		},
-	});
-}
-
-/** Re-pull capability state from Stripe. */
-export function useRefreshPartnerStripe(organizationId: string) {
-	return useApiMutation<
-		{ status: string; payoutsEnabled: boolean; detailsSubmitted: boolean },
-		{ organizationId: string; partnerId: string }
-	>({
-		mutationFn: (params) =>
-			client.partnerStripe.refresh({
-				organizationId: params.organizationId,
-				partnerId: params.partnerId,
-			}),
-		successMessage: "Stripe Connect status refreshed.",
-		errorMessage: (err) => err.message || "Failed to refresh from Stripe.",
-		invalidate: [["partnerStripe", organizationId]],
-	});
-}
-
-export type ConfirmViaStripeParams = {
-	organizationId: string;
-	payoutId: string;
-};
-
-export type BulkConfirmRow =
-	| { payoutId: string; ok: true; stripeTransferId: string }
-	| {
-			payoutId: string;
-			ok: false;
-			errorCode:
-				| "NOT_FOUND"
-				| "BAD_REQUEST_STATUS"
-				| "BAD_REQUEST_METHOD"
-				| "PARTNER_NOT_ONBOARDED"
-				| "PARTNER_NOT_PAYOUTS_ENABLED"
-				| "STRIPE_TRANSFER_FAILED"
-				| "UNKNOWN";
-			errorMessage: string;
-	  };
-
-export type BulkConfirmResult = {
-	succeeded: number;
-	failed: number;
-	rows: BulkConfirmRow[];
-};
-
-export type ConfirmAllViaStripeParams = {
-	organizationId: string;
-	payoutIds: string[];
-};
-
-/** Bulk: fire `stripe.transfers.create` for each pending stripe_connect payout.
- * Serial server-side (Stripe rate-limit safety). Returns per-row outcomes so
- * the UI can show "N confirmed, M failed (reasons)" instead of all-or-nothing. */
-export function useConfirmAllPayoutsViaStripe(organizationId: string) {
-	return useApiMutation<BulkConfirmResult, ConfirmAllViaStripeParams>({
-		mutationFn: (params) =>
-			client.partnerStripe.confirmAllViaStripe({
-				organizationId: params.organizationId,
-				payoutIds: params.payoutIds,
-			}) as Promise<BulkConfirmResult>,
-		successMessage: (result) =>
-			result.failed === 0
-				? `Confirmed ${result.succeeded} payout${result.succeeded !== 1 ? "s" : ""} via Stripe.`
-				: `Confirmed ${result.succeeded}/${result.succeeded + result.failed} (${result.failed} failed — see rows for details).`,
-		errorMessage: (err) => err.message || "Bulk confirm via Stripe failed.",
-		invalidate: [
-			payoutKeys.list(organizationId),
-			commissionKeys.liability(organizationId, {}),
-			["commissions"],
-			["commissionLiability"],
-		],
-	});
-}
-
-/** Fire `stripe.transfers.create` for a pending stripe_connect payout.
- * Idempotent via `confirm-payout:<id>` key on Stripe's side. */
-export function useConfirmPayoutViaStripe(organizationId: string) {
-	return useApiMutation<
-		{ payoutId: string; stripeTransferId: string; status: "paid" },
-		ConfirmViaStripeParams
-	>({
-		mutationFn: (params) =>
-			client.partnerStripe.confirmViaStripe({
-				organizationId: params.organizationId,
-				payoutId: params.payoutId,
-			}),
-		successMessage: (result) => `Stripe transfer ${result.stripeTransferId} created.`,
-		errorMessage: (err) => err.message || "Failed to confirm via Stripe.",
-		invalidate: [
-			payoutKeys.list(organizationId),
-			commissionKeys.liability(organizationId, {}),
+			[["payouts", "list"]],
+			[["commissionSplits", "liabilitySummary"]],
 			["commissions"],
 			["commissionLiability"],
 		],

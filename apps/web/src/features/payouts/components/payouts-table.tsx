@@ -52,7 +52,6 @@ function paymentMethodLabel(method: string | undefined): string {
 	if (!method) return "—";
 	const labels: Record<string, string> = {
 		bank_transfer: "Bank Transfer",
-		stripe_connect: "Stripe",
 		manual_bank_transfer: "Bank Transfer",
 		cash: "Cash",
 		check: "Cheque",
@@ -260,10 +259,7 @@ export function PayoutsTable({ data, isLoading }: PayoutsTableProps) {
 						>
 							{row.getVisibleCells().map((cell) => (
 								<TableCell key={cell.id} className="py-3">
-									{flexRender(
-										cell.column.columnDef.cell,
-										cell.getContext(),
-									)}
+									{flexRender(cell.column.columnDef.cell, cell.getContext())}
 								</TableCell>
 							))}
 						</TableRow>

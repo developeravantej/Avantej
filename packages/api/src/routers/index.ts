@@ -52,7 +52,6 @@ export type AppRouter = typeof baseRouter & {
 	ghl: typeof serverRouterTypes.ghlRouterType;
 	subscriptions: typeof serverRouterTypes.subscriptionsRouterType;
 	stripeConnect: typeof serverRouterTypes.stripeConnectRouterType;
-	partnerStripe: typeof serverRouterTypes.partnerStripeRouterType;
 	payments: typeof serverRouterTypes.paymentsRouterType;
 	platformAdminPayments: typeof serverRouterTypes.platformAdminPaymentsRouterType;
 	platformAdminTenants: _PlatformAdminTenantsRouter;
@@ -93,7 +92,6 @@ const _appRouter = {
 	ghl: serverRouterTypes.ghlRouterType,
 	subscriptions: serverRouterTypes.subscriptionsRouterType,
 	stripeConnect: serverRouterTypes.stripeConnectRouterType,
-	partnerStripe: serverRouterTypes.partnerStripeRouterType,
 	payments: serverRouterTypes.paymentsRouterType,
 	platformAdminPayments: serverRouterTypes.platformAdminPaymentsRouterType,
 	platformAdminTenants: _platformAdminTenantsRouter,

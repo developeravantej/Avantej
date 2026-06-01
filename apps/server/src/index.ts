@@ -8,8 +8,6 @@ import { organizationRoutes } from "@/routes/organizations.routes";
 import { invitationRoutes } from "@/routes/invitations.routes";
 import { webhookRoutes } from "@/routes/webhooks.routes";
 import { stripeConnectOAuthRoutes } from "@/routes/stripe-connect-oauth.routes";
-import { partnerStripeOAuthRoutes } from "@/routes/partner-stripe-oauth.routes";
-import { partnerStripeRouter } from "@/routers/partner-stripe";
 import googleCalendarRoutes from "@/routes/google-calendar";
 import { authRouter } from "@/routers/auth";
 import { serverInvitationRouter } from "@/routers/invitations";
@@ -116,7 +114,6 @@ const appRouter = {
 	ghl: ghlRouter,
 	subscriptions: subscriptionsRouter,
 	stripeConnect: stripeConnectRouter,
-	partnerStripe: partnerStripeRouter,
 	payments: paymentsRouter,
 	platformAdminPayments: platformAdminPaymentsRouter,
 	platformAdminTenants: {
@@ -273,7 +270,6 @@ app.route("/api/invitations", invitationRoutes);
 // Webhook routes (external integrations)
 app.route("/webhooks", webhookRoutes);
 app.route("/api/stripe/connect/oauth", stripeConnectOAuthRoutes);
-app.route("/api/stripe/connect/partner", partnerStripeOAuthRoutes);
 
 export const apiHandler = new OpenAPIHandler(appRouter, {
 	plugins: [

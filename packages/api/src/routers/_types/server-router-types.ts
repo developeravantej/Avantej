@@ -78,6 +78,12 @@ export const authRouterType = {
 		.handler((): { message: string } => {
 			throw new Error("Not implemented - this is only for type inference");
 		}),
+	// Set a password for an account that has none yet (post magic-link claim).
+	setPassword: protectedProcedure
+		.input(z.object({ newPassword: z.string().min(8) }))
+		.handler((): { success: boolean; alreadySet: boolean } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
 };
 
 // Server-specific invitation procedures type definition for client type inference
@@ -144,7 +150,12 @@ export const adminRouterType = {
 
 	/** Returns platform admin status for the current caller. Safe for any authenticated user. */
 	me: protectedProcedure.handler(
-		(): { isPlatformAdmin: false; role: null } | { isPlatformAdmin: true; role: "super_admin" | "support" | "billing" } => {
+		():
+			| { isPlatformAdmin: false; role: null }
+			| {
+					isPlatformAdmin: true;
+					role: "super_admin" | "support" | "billing";
+			  } => {
 			throw new Error("Not implemented - this is only for type inference");
 		},
 	),
@@ -238,9 +249,11 @@ export const adminRouterType = {
 				role: z.enum(["super_admin", "support", "billing"]),
 			}),
 		)
-		.handler((): { success: true; role: "super_admin" | "support" | "billing" } => {
-			throw new Error("Not implemented - this is only for type inference");
-		}),
+		.handler(
+			(): { success: true; role: "super_admin" | "support" | "billing" } => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 
 	/** Revoke platform admin role — super_admin only. Cannot revoke own role. */
 	revokePlatformAdmin: protectedProcedure
@@ -398,7 +411,12 @@ export const adminRouterType = {
 export const tenantAdminRouterType = {
 	/** Impersonate a staff member in the caller's own organization. */
 	impersonateMember: protectedProcedure
-		.input(z.object({ targetMemberId: z.string().uuid(), organizationId: z.string().uuid() }))
+		.input(
+			z.object({
+				targetMemberId: z.string().uuid(),
+				organizationId: z.string().uuid(),
+			}),
+		)
 		.handler(
 			(): {
 				success: true;
@@ -412,11 +430,9 @@ export const tenantAdminRouterType = {
 	/** Stop an active tenant-admin impersonation session. */
 	stopImpersonating: protectedProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
-		.handler(
-			(): { success: true; redirectTo: string } => {
-				throw new Error("Not implemented - this is only for type inference");
-			},
-		),
+		.handler((): { success: true; redirectTo: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
 };
 
 // Server-side customerProfiles overrides type definition for client type inference.
@@ -452,13 +468,12 @@ export const serverCustomerProfilesRouterType = {
 		)
 		.handler(
 			(): {
-				ghlSync:
-					| {
-							status: "synced" | "skipped" | "error";
-							ghlContactId?: string;
-							error?: string;
-							reason?: string;
-					  };
+				ghlSync: {
+					status: "synced" | "skipped" | "error";
+					ghlContactId?: string;
+					error?: string;
+					reason?: string;
+				};
 			} => {
 				throw new Error("Not implemented - this is only for type inference");
 			},
@@ -513,6 +528,30 @@ export const serverCustomerProfilesRouterType = {
 			}),
 		)
 		.handler((): { success: boolean; email: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	// Change the display name on a customer's control-panel user account
+	updateName: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				targetUserId: z.string(),
+				newName: z.string().min(1).max(120),
+			}),
+		)
+		.handler((): { ok: boolean; name: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	// Change the email address on a customer's control-panel user account
+	updateEmail: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				targetUserId: z.string(),
+				newEmail: z.string().email(),
+			}),
+		)
+		.handler((): { ok: boolean; email: string; verificationSent?: boolean } => {
 			throw new Error("Not implemented - this is only for type inference");
 		}),
 };
@@ -984,11 +1023,9 @@ export const platformAdminAuditRouterType = {
 				throw new Error("Not implemented - this is only for type inference");
 			},
 		),
-	listActionTypes: protectedProcedure.handler(
-		(): { actionTypes: string[] } => {
-			throw new Error("Not implemented - this is only for type inference");
-		},
-	),
+	listActionTypes: protectedProcedure.handler((): { actionTypes: string[] } => {
+		throw new Error("Not implemented - this is only for type inference");
+	}),
 };
 
 // Platform Admin — Tenants router types (Plan E E.1).
@@ -1158,12 +1195,8 @@ export const platformAdminTenantsCommsTypes = {
 				organizationIds: z.array(z.string().uuid()).min(1).max(100),
 				title: z.string().trim().min(1).max(200),
 				bodyMarkdown: z.string().trim().min(1).max(20000),
-				priority: z
-					.enum(["low", "normal", "high", "urgent"])
-					.default("normal"),
-				targetAudience: z
-					.enum(["all", "staff", "clients"])
-					.default("all"),
+				priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
+				targetAudience: z.enum(["all", "staff", "clients"]).default("all"),
 				templateId: z.string().uuid().optional(),
 			}),
 		)
@@ -1504,11 +1537,9 @@ export const platformAdminTenantsFeatureFlagsRouterType = {
 				notes: z.string().max(1000).optional(),
 			}),
 		)
-		.handler(
-			(): { ok: true; featureKey: _FeatureKey; enabled: boolean } => {
-				throw new Error("Not implemented - this is only for type inference");
-			},
-		),
+		.handler((): { ok: true; featureKey: _FeatureKey; enabled: boolean } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
 	clearOverride: protectedProcedure
 		.input(
 			z.object({
@@ -1516,11 +1547,9 @@ export const platformAdminTenantsFeatureFlagsRouterType = {
 				featureKey: _featureKeyZ,
 			}),
 		)
-		.handler(
-			(): { ok: true } => {
-				throw new Error("Not implemented - this is only for type inference");
-			},
-		),
+		.handler((): { ok: true } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
 };
 
 // Platform Admin — Tenant Tags + Bulk Ops types (Plan F.1).
@@ -1653,13 +1682,11 @@ export const platformAdminTenantsHealthRouterType = {
 			(): {
 				snapshotDate: string | null;
 				healthScore: number | null;
-				riskFlags:
-					| Array<{
-							code: string;
-							severity: "info" | "warn" | "critical";
-							observedAt: string;
-					  }>
-					| null;
+				riskFlags: Array<{
+					code: string;
+					severity: "info" | "warn" | "critical";
+					observedAt: string;
+				}> | null;
 			} => {
 				throw new Error("Not implemented - this is only for type inference");
 			},
@@ -1829,64 +1856,60 @@ export const platformAdminTenantsBillingRouterType = {
 
 // Platform Admin — Mission Control Dashboard types (Plan F.1.5 — Agent M).
 export const platformAdminDashboardRouterType = {
-	getOverview: protectedProcedure
-		.input(z.object({}).default({}))
-		.handler(
-			(): {
-				counts: {
-					total: number;
-					active: number;
-					trialing: number;
-					pastDue: number;
-					unpaid: number;
-					cancelled: number;
-				};
-				subs: { activeCount: number; trialingCount: number };
-				mrr: { cents: number; estimateAvailable: boolean };
-				recentActions: Array<{
-					actorUserId: string;
-					actorEmail?: string;
-					action: string;
-					targetOrgId?: string;
-					targetOrgName?: string;
-					createdAt: string;
-				}>;
-				atRisk: Array<{
-					orgId: string;
-					orgName: string;
-					healthScore: number | null;
-					criticalFlagCount: number;
-				}>;
-				recentSignups: Array<{
-					orgId: string;
-					orgName: string;
-					createdAt: string;
-				}>;
-			} => {
-				throw new Error("Not implemented - this is only for type inference");
-			},
-		),
+	getOverview: protectedProcedure.input(z.object({}).default({})).handler(
+		(): {
+			counts: {
+				total: number;
+				active: number;
+				trialing: number;
+				pastDue: number;
+				unpaid: number;
+				cancelled: number;
+			};
+			subs: { activeCount: number; trialingCount: number };
+			mrr: { cents: number; estimateAvailable: boolean };
+			recentActions: Array<{
+				actorUserId: string;
+				actorEmail?: string;
+				action: string;
+				targetOrgId?: string;
+				targetOrgName?: string;
+				createdAt: string;
+			}>;
+			atRisk: Array<{
+				orgId: string;
+				orgName: string;
+				healthScore: number | null;
+				criticalFlagCount: number;
+			}>;
+			recentSignups: Array<{
+				orgId: string;
+				orgName: string;
+				createdAt: string;
+			}>;
+		} => {
+			throw new Error("Not implemented - this is only for type inference");
+		},
+	),
 };
 
 // Platform Admin — Revenue Aggregator types (Plan F.2 — Agent V).
 export const platformAdminRevenueRouterType = {
-	getKpis: protectedProcedure
-		.input(z.object({}).default({}))
-		.handler(
-			(): {
-				mrr: { cents: number; estimateAvailable: boolean };
-				arr: { cents: number; estimateAvailable: boolean };
-				activeSubsCount: number;
-				trialingSubsCount: number;
-				cancelledLast30d: number;
-				churnRatePct: number;
-				newMrrLast30dCents: number;
-				churnedMrrLast30dCents: number;
-				netNewMrrLast30dCents: number;
-			} => {
-				throw new Error("Not implemented - this is only for type inference");
-			},
-		),
+	getKpis: protectedProcedure.input(z.object({}).default({})).handler(
+		(): {
+			mrr: { cents: number; estimateAvailable: boolean };
+			arr: { cents: number; estimateAvailable: boolean };
+			activeSubsCount: number;
+			trialingSubsCount: number;
+			cancelledLast30d: number;
+			churnRatePct: number;
+			newMrrLast30dCents: number;
+			churnedMrrLast30dCents: number;
+			netNewMrrLast30dCents: number;
+		} => {
+			throw new Error("Not implemented - this is only for type inference");
+		},
+	),
 	getCohortRetention: protectedProcedure
 		.input(
 			z.object({
@@ -2050,7 +2073,10 @@ export const platformAdminCommsRouterType = {
 				subject: z.string().trim().min(1).max(200).optional(),
 				bodyMarkdown: z.string().trim().min(1).max(20000).optional(),
 				priority: z.enum(["info", "warning", "critical"]).optional().nullable(),
-				targetAudience: z.enum(["all", "staff", "clients"]).optional().nullable(),
+				targetAudience: z
+					.enum(["all", "staff", "clients"])
+					.optional()
+					.nullable(),
 			}),
 		)
 		.handler(
@@ -2328,11 +2354,9 @@ export const platformAdminCouponsRouterType = {
 				maxRedemptions: z.number().int().min(1).optional(),
 			}),
 		)
-		.handler(
-			(): { couponId: string; name: string; valid: boolean } => {
-				throw new Error("Not implemented - this is only for type inference");
-			},
-		),
+		.handler((): { couponId: string; name: string; valid: boolean } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
 	deleteCoupon: protectedProcedure
 		.input(z.object({ couponId: z.string().min(1) }))
 		.handler((): { ok: true } => {
@@ -2346,11 +2370,9 @@ export const platformAdminCouponsRouterType = {
 				notes: z.string().max(1000).optional(),
 			}),
 		)
-		.handler(
-			(): { ok: true; couponId: string; customerId: string } => {
-				throw new Error("Not implemented - this is only for type inference");
-			},
-		),
+		.handler((): { ok: true; couponId: string; customerId: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
 	removeCoupon: protectedProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler((): { ok: true } => {
@@ -2383,52 +2405,50 @@ export const platformAdminCouponsRouterType = {
 // TOP-LEVEL router (NOT under platformAdminTenants). Read-only aggregate
 // across all tenants. Live Stripe reads per ADR-0033.
 export const platformAdminBillingRouterType = {
-	getOverview: protectedProcedure
-		.input(z.object({}).default({}))
-		.handler(
-			(): {
-				kpis: {
-					activeSubsCount: number;
-					mrr: { cents: number; estimateAvailable: boolean };
-					refundsLast30dCount: number;
-					refundsLast30dAmountCents: number;
-					couponsCount: number;
-				};
-				recentInvoices: Array<{
-					orgId: string;
-					orgName: string;
-					invoiceId: string;
-					invoiceNumber: string | null;
-					amountPaid: number;
-					status: string | null;
-					currency: string;
-					createdAt: Date;
-				}>;
-				recentRefunds: Array<{
-					refundId: string;
-					orgId: string;
-					orgName: string;
-					amountCents: number;
-					reason: string;
-					refundedAt: Date;
-					actorEmail: string | null;
-				}>;
-				activeCoupons: Array<{
-					id: string;
-					name: string | null;
-					percentOff: number | null;
-					amountOff: number | null;
-					currency: string | null;
-					duration: "once" | "repeating" | "forever";
-					timesRedeemed: number;
-					valid: boolean;
-					createdAt: Date;
-				}>;
-				stripeAvailable: boolean;
-			} => {
-				throw new Error("Not implemented - this is only for type inference");
-			},
-		),
+	getOverview: protectedProcedure.input(z.object({}).default({})).handler(
+		(): {
+			kpis: {
+				activeSubsCount: number;
+				mrr: { cents: number; estimateAvailable: boolean };
+				refundsLast30dCount: number;
+				refundsLast30dAmountCents: number;
+				couponsCount: number;
+			};
+			recentInvoices: Array<{
+				orgId: string;
+				orgName: string;
+				invoiceId: string;
+				invoiceNumber: string | null;
+				amountPaid: number;
+				status: string | null;
+				currency: string;
+				createdAt: Date;
+			}>;
+			recentRefunds: Array<{
+				refundId: string;
+				orgId: string;
+				orgName: string;
+				amountCents: number;
+				reason: string;
+				refundedAt: Date;
+				actorEmail: string | null;
+			}>;
+			activeCoupons: Array<{
+				id: string;
+				name: string | null;
+				percentOff: number | null;
+				amountOff: number | null;
+				currency: string | null;
+				duration: "once" | "repeating" | "forever";
+				timesRedeemed: number;
+				valid: boolean;
+				createdAt: Date;
+			}>;
+			stripeAvailable: boolean;
+		} => {
+			throw new Error("Not implemented - this is only for type inference");
+		},
+	),
 	listInvoicesCrossTenant: protectedProcedure
 		.input(
 			z.object({
@@ -2552,38 +2572,36 @@ export const platformAdminHealthRouterType = {
 // Platform Admin — Webhooks Log types (Plan F.4 — Agent Wh).
 // Read-only view over processed_webhook_events (Stripe dedupe table).
 export const platformAdminWebhooksRouterType = {
-	getOverview: protectedProcedure
-		.input(z.object({}).default({}))
-		.handler(
-			(): {
-				kpis: {
-					totalLast24h: number;
-					totalLast7d: number;
-					duplicatesLast7d: number;
-					uniqueEventTypes: number;
-					successesLast7d: number;
-					failuresLast7d: number;
-				};
-				byEventType: Array<{
-					eventType: string;
-					count: number;
-					lastSeenAt: string;
-				}>;
-				recent: Array<{
-					id: string;
-					eventId: string;
-					eventType: string;
-					source: string;
-					receivedAt: string;
-					processedAt: string | null;
-					attempts: number;
-					status: "succeeded" | "failed" | "pending";
-					error: string | null;
-				}>;
-			} => {
-				throw new Error("Not implemented - this is only for type inference");
-			},
-		),
+	getOverview: protectedProcedure.input(z.object({}).default({})).handler(
+		(): {
+			kpis: {
+				totalLast24h: number;
+				totalLast7d: number;
+				duplicatesLast7d: number;
+				uniqueEventTypes: number;
+				successesLast7d: number;
+				failuresLast7d: number;
+			};
+			byEventType: Array<{
+				eventType: string;
+				count: number;
+				lastSeenAt: string;
+			}>;
+			recent: Array<{
+				id: string;
+				eventId: string;
+				eventType: string;
+				source: string;
+				receivedAt: string;
+				processedAt: string | null;
+				attempts: number;
+				status: "succeeded" | "failed" | "pending";
+				error: string | null;
+			}>;
+		} => {
+			throw new Error("Not implemented - this is only for type inference");
+		},
+	),
 	listEvents: protectedProcedure
 		.input(
 			z.object({
@@ -2621,9 +2639,7 @@ export const platformAdminMigrationsRouterType = {
 	listMigrations: protectedProcedure
 		.input(
 			z.object({
-				schema: z
-					.enum(["control-panel", "tenant"])
-					.default("control-panel"),
+				schema: z.enum(["control-panel", "tenant"]).default("control-panel"),
 			}),
 		)
 		.handler(
@@ -2655,113 +2671,11 @@ export const platformAdminMigrationsRouterType = {
 	getMigrationFile: protectedProcedure
 		.input(
 			z.object({
-				schema: z
-					.enum(["control-panel", "tenant"])
-					.default("control-panel"),
+				schema: z.enum(["control-panel", "tenant"]).default("control-panel"),
 				tag: z.string(),
 			}),
 		)
 		.handler((): { sql: string; tag: string } => {
 			throw new Error("Not implemented - this is only for type inference");
 		}),
-};
-
-// Partner Stripe Connect router type definition for client type inference.
-// Real impl in apps/server/src/routers/partner-stripe.ts (uses Stripe SDK + OAuth).
-export const partnerStripeRouterType = {
-	createOnboardingUrl: protectedProcedure
-		.input(
-			z.object({
-				organizationId: z.string().uuid(),
-				partnerId: z.string().min(1),
-				countryCode: z
-					.string()
-					.length(2)
-					.regex(/^[A-Za-z]{2}$/)
-					.optional(),
-			}),
-		)
-		.handler((): { onboardingUrl: string; partnerId: string } => {
-			throw new Error("Not implemented - this is only for type inference");
-		}),
-	getStatus: protectedProcedure
-		.input(
-			z.object({
-				organizationId: z.string().uuid(),
-				partnerId: z.string().min(1),
-			}),
-		)
-		.handler(
-			(): {
-				partnerId: string;
-				stripeAccountId: string | null;
-				connectStatus: string;
-				chargesEnabled: boolean;
-				payoutsEnabled: boolean;
-				detailsSubmitted: boolean;
-				onboardingCompletedAt: Date | null;
-				countryCode: string | null;
-				defaultCurrency: string | null;
-				requirementsCurrentlyDue: string[];
-				requirementsDisabledReason: string | null;
-				connectAccountUpdatedAt: Date | null;
-			} => {
-				throw new Error("Not implemented - this is only for type inference");
-			},
-		),
-	refresh: protectedProcedure
-		.input(
-			z.object({
-				organizationId: z.string().uuid(),
-				partnerId: z.string().min(1),
-			}),
-		)
-		.handler(
-			(): { status: string; payoutsEnabled: boolean; detailsSubmitted: boolean } => {
-				throw new Error("Not implemented - this is only for type inference");
-			},
-		),
-	confirmViaStripe: protectedProcedure
-		.input(
-			z.object({
-				organizationId: z.string().uuid(),
-				payoutId: z.string().uuid(),
-			}),
-		)
-		.handler(
-			(): { payoutId: string; stripeTransferId: string; status: "paid" } => {
-				throw new Error("Not implemented - this is only for type inference");
-			},
-		),
-	confirmAllViaStripe: protectedProcedure
-		.input(
-			z.object({
-				organizationId: z.string().uuid(),
-				payoutIds: z.array(z.string().uuid()).min(1).max(100),
-			}),
-		)
-		.handler(
-			(): {
-				succeeded: number;
-				failed: number;
-				rows: Array<
-					| { payoutId: string; ok: true; stripeTransferId: string }
-					| {
-							payoutId: string;
-							ok: false;
-							errorCode:
-								| "NOT_FOUND"
-								| "BAD_REQUEST_STATUS"
-								| "BAD_REQUEST_METHOD"
-								| "PARTNER_NOT_ONBOARDED"
-								| "PARTNER_NOT_PAYOUTS_ENABLED"
-								| "STRIPE_TRANSFER_FAILED"
-								| "UNKNOWN";
-							errorMessage: string;
-					  }
-				>;
-			} => {
-				throw new Error("Not implemented - this is only for type inference");
-			},
-		),
 };

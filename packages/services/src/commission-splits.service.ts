@@ -18,8 +18,10 @@
 
 import {
 	and,
+	asc,
 	desc,
 	eq,
+	gt,
 	gte,
 	inArray,
 	lte,
@@ -36,6 +38,7 @@ import { services } from "@avantej-core/db/schema/tenant/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { categoryCommissionConfigs } from "@avantej-core/db/schema/tenant/category-commission-configs";
 import { categoryCommissionConfigVersions } from "@avantej-core/db/schema/tenant/category-commission-config-versions";
+import { commissionTracks } from "@avantej-core/db/schema/tenant/commission-tracks";
 import { promotionUsages } from "@avantej-core/db/schema/tenant/promotions";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { payoutBatches } from "@avantej-core/db/schema/tenant/payout-batches";
@@ -75,7 +78,15 @@ export async function listCommissionSplits(
 		accessibleNodeIds?: string[];
 	} = {},
 ) {
-	const { memberId, appointmentId, from, to, limit = 50, offset = 0, accessibleNodeIds } = params;
+	const {
+		memberId,
+		appointmentId,
+		from,
+		to,
+		limit = 50,
+		offset = 0,
+		accessibleNodeIds,
+	} = params;
 
 	const conditions = [];
 
@@ -99,12 +110,16 @@ export async function listCommissionSplits(
 	// appointment (branchId on appointments) or a salesOrder (branchId on salesOrders).
 	// LEFT JOIN both and require at least one of the resolved branchIds to be accessible.
 	if (accessibleNodeIds !== undefined && accessibleNodeIds.length > 0) {
-		const baseConditions = conditions.length > 0 ? and(...conditions) : undefined;
+		const baseConditions =
+			conditions.length > 0 ? and(...conditions) : undefined;
 
 		return tenantDb
 			.select({ split: commissionSplits })
 			.from(commissionSplits)
-			.leftJoin(appointments, eq(commissionSplits.appointmentId, appointments.id))
+			.leftJoin(
+				appointments,
+				eq(commissionSplits.appointmentId, appointments.id),
+			)
 			.leftJoin(salesOrders, eq(commissionSplits.salesOrderId, salesOrders.id))
 			.where(
 				and(
@@ -218,7 +233,11 @@ export async function getMyCommissions(
  */
 async function resolveCategoryIdForSplit(
 	db: TenantDb | TenantTx,
-	source: { appointmentId?: string | null; salesOrderId?: string | null; packageInstanceId?: string | null },
+	source: {
+		appointmentId?: string | null;
+		salesOrderId?: string | null;
+		packageInstanceId?: string | null;
+	},
 ): Promise<string | null> {
 	const tdb = db as TenantDb;
 	if (source.appointmentId) {
@@ -332,6 +351,13 @@ export async function applyCommissionCaps(
 		// cap cycle is resolved against the branch's configured policy. When
 		// omitted, the tenant-wide policy (or default UTC calendar month) is used.
 		branchId?: string | null;
+		/**
+		 * Task #16/#18: delivery track ID for per-track cap isolation (GAPS #8).
+		 * When provided, the cap SUM filters by commission_splits.track_id
+		 * (LEFT JOIN, no INNER JOIN on configVersionId — avoids excluding NULL rows).
+		 * When absent, falls back to the legacy configVersionId INNER JOIN path.
+		 */
+		trackId?: string | null;
 	},
 ): Promise<CommissionCapDecision> {
 	const tdb = db as TenantDb;
@@ -346,22 +372,44 @@ export async function applyCommissionCaps(
 		return { skip: false, amountCents: params.amountCents, reason: null };
 	}
 
-	const [config] = await tdb
-		.select({
-			maxPerCycleCents: categoryCommissionConfigs.maxPerCycleCents,
-			excludeIfDiscountAbovePct:
-				categoryCommissionConfigs.excludeIfDiscountAbovePct,
-		})
-		.from(categoryCommissionConfigs)
-		.where(
-			and(
-				eq(categoryCommissionConfigs.categoryId, categoryId),
-				eq(categoryCommissionConfigs.isActive, true),
-			),
-		)
-		.limit(1);
+	// Task #18 / GAPS #8: read cap config from commission_tracks when trackId is
+	// available (preferred), otherwise fall back to categoryCommissionConfigs.
+	// Cap fields on commission_tracks mirror those on categoryCommissionConfigs
+	// (maxPerCycleCents, excludeIfDiscountAbovePct) — migration 0083 copies them.
+	let capConfig: {
+		maxPerCycleCents: number | null | undefined;
+		excludeIfDiscountAbovePct: number | null | undefined;
+	} | null = null;
 
-	if (!config) {
+	if (params.trackId) {
+		const [trackRow] = await tdb
+			.select({
+				maxPerCycleCents: commissionTracks.maxPerCycleCents,
+				excludeIfDiscountAbovePct: commissionTracks.excludeIfDiscountAbovePct,
+			})
+			.from(commissionTracks)
+			.where(eq(commissionTracks.id, params.trackId))
+			.limit(1);
+		capConfig = trackRow ?? null;
+	} else {
+		const [configRow] = await tdb
+			.select({
+				maxPerCycleCents: categoryCommissionConfigs.maxPerCycleCents,
+				excludeIfDiscountAbovePct:
+					categoryCommissionConfigs.excludeIfDiscountAbovePct,
+			})
+			.from(categoryCommissionConfigs)
+			.where(
+				and(
+					eq(categoryCommissionConfigs.categoryId, categoryId),
+					eq(categoryCommissionConfigs.isActive, true),
+				),
+			)
+			.limit(1);
+		capConfig = configRow ?? null;
+	}
+
+	if (!capConfig) {
 		return { skip: false, amountCents: params.amountCents, reason: null };
 	}
 
@@ -369,15 +417,15 @@ export async function applyCommissionCaps(
 	//    package instances are not promotion-discounted in the current model).
 	if (
 		params.salesOrderId &&
-		config.excludeIfDiscountAbovePct !== null &&
-		config.excludeIfDiscountAbovePct !== undefined
+		capConfig.excludeIfDiscountAbovePct !== null &&
+		capConfig.excludeIfDiscountAbovePct !== undefined
 	) {
 		const discountBps = await computeOrderDiscountBps(db, params.salesOrderId);
-		if (discountBps > config.excludeIfDiscountAbovePct) {
+		if (discountBps > capConfig.excludeIfDiscountAbovePct) {
 			return {
 				skip: true,
 				amountCents: 0,
-				reason: `Commission excluded: order discount ${(discountBps / 100).toFixed(2)}% exceeds category threshold ${(config.excludeIfDiscountAbovePct / 100).toFixed(2)}%`,
+				reason: `Commission excluded: order discount ${(discountBps / 100).toFixed(2)}% exceeds category threshold ${(capConfig.excludeIfDiscountAbovePct / 100).toFixed(2)}%`,
 			};
 		}
 	}
@@ -385,9 +433,9 @@ export async function applyCommissionCaps(
 	// 2) Per-cycle cap. Sum non-void splits for trainer in the calendar month
 	//    that contains earnedAt; cap the new amount so the running total ≤ cap.
 	if (
-		config.maxPerCycleCents !== null &&
-		config.maxPerCycleCents !== undefined &&
-		config.maxPerCycleCents >= 0
+		capConfig.maxPerCycleCents !== null &&
+		capConfig.maxPerCycleCents !== undefined &&
+		capConfig.maxPerCycleCents >= 0
 	) {
 		// S-cycle-window-alignment: resolve cycle bounds via configured policy
 		// (branch-specific → tenant-wide → calendar-month default) instead of
@@ -419,46 +467,107 @@ export async function applyCommissionCaps(
 			resolvedBranchId,
 			params.earnedAt,
 		);
-		// CPR-07: join through configVersionId to filter by the specific category —
-		// the cap must be measured per-staff per-cycle *per-category*, not across all
-		// categories. Splits without a configVersionId (legacy manual rows) are
-		// excluded from the sum, which is the safe conservative choice.
-		const [agg] = await tdb
-			.select({
-				total:
-					sql<number>`COALESCE(SUM(${commissionSplits.calculatedAmount}), 0)`.mapWith(
-						Number,
+
+		// GAPS #11 — close the cap race with a pg_advisory_xact_lock.
+		//
+		// The old SELECT-SUM-then-INSERT pattern had a TOCTOU race: two concurrent
+		// transactions for the same (staffId, cycle, track) would both read the
+		// pre-insert total and both insert, exceeding the cap.
+		//
+		// Fix: acquire a transaction-scoped advisory lock keyed on
+		// (staffId | trackOrCategoryId | cycleStart-ISO). Two concurrent earns
+		// for the same scope will serialize here — the second waits until the
+		// first commits/rolls back, then reads the updated total.
+		//
+		// pg_advisory_xact_lock is automatically released at transaction end.
+		// It is a no-op outside an explicit transaction (auto-commit), which is
+		// safe — individual inserts are atomic anyway.
+		const lockScope = `${params.staffId}|${params.trackId ?? categoryId}|${start.toISOString()}`;
+		await tdb.execute(
+			sql`SELECT pg_advisory_xact_lock(hashtext(${lockScope}))`,
+		);
+
+		// GAPS #8 — NO INNER JOIN on configVersionId.
+		//
+		// The old aggregate used INNER JOIN category_commission_config_versions via
+		// configVersionId, which excluded splits where configVersionId IS NULL (e.g.
+		// legacy manual rows or pre-migration rows). This silently under-counted the
+		// cap total, allowing cap overruns.
+		//
+		// New approach: when trackId is available, filter by commission_splits.track_id
+		// directly — no JOIN needed, no NULL exclusion. This is also the correct
+		// per-track isolation (GAPS #8): caps are PER-TRACK, so a trainer who earns
+		// on two tracks has independent ceilings.
+		//
+		// When trackId is absent (legacy fallback path), use LEFT JOIN +
+		// COALESCE so NULL configVersionId rows are included conservatively.
+		let agg: { total: number } | undefined;
+
+		if (params.trackId) {
+			// Track path: filter by track_id directly (no JOIN, no NULL exclusion)
+			const [row] = await tdb
+				.select({
+					total:
+						sql<number>`COALESCE(SUM(${commissionSplits.calculatedAmount}), 0)`.mapWith(
+							Number,
+						),
+				})
+				.from(commissionSplits)
+				.where(
+					and(
+						eq(commissionSplits.staffId, params.staffId),
+						eq(commissionSplits.trackId, params.trackId),
+						ne(commissionSplits.status, "void"),
+						gte(commissionSplits.earnedAt, start),
+						sql`${commissionSplits.earnedAt} < ${end}`,
 					),
-			})
-			.from(commissionSplits)
-			.innerJoin(
-				categoryCommissionConfigVersions,
-				eq(commissionSplits.configVersionId, categoryCommissionConfigVersions.id),
-			)
-			.where(
-				and(
-					eq(commissionSplits.staffId, params.staffId),
-					eq(categoryCommissionConfigVersions.categoryId, categoryId),
-					ne(commissionSplits.status, "void"),
-					gte(commissionSplits.earnedAt, start),
-					sql`${commissionSplits.earnedAt} < ${end}`,
-				),
-			);
+				);
+			agg = row;
+		} else {
+			// Legacy fallback: LEFT JOIN so NULL configVersionId rows are included.
+			// The SUM covers all splits for this staff+category+cycle regardless
+			// of whether configVersionId is set.
+			const [row] = await tdb
+				.select({
+					total:
+						sql<number>`COALESCE(SUM(${commissionSplits.calculatedAmount}), 0)`.mapWith(
+							Number,
+						),
+				})
+				.from(commissionSplits)
+				.leftJoin(
+					categoryCommissionConfigVersions,
+					eq(
+						commissionSplits.configVersionId,
+						categoryCommissionConfigVersions.id,
+					),
+				)
+				.where(
+					and(
+						eq(commissionSplits.staffId, params.staffId),
+						sql`COALESCE(${categoryCommissionConfigVersions.categoryId}, ${commissionSplits.trackId}::text) IS NOT DISTINCT FROM ${categoryId}`,
+						ne(commissionSplits.status, "void"),
+						gte(commissionSplits.earnedAt, start),
+						sql`${commissionSplits.earnedAt} < ${end}`,
+					),
+				);
+			agg = row;
+		}
 
 		const alreadyCents = agg?.total ?? 0;
-		const remaining = config.maxPerCycleCents - alreadyCents;
+		const remaining = capConfig.maxPerCycleCents - alreadyCents;
 		if (remaining <= 0) {
 			return {
 				skip: true,
 				amountCents: 0,
-				reason: `Commission skipped: trainer reached per-cycle cap of ${config.maxPerCycleCents} cents (already ${alreadyCents})`,
+				reason: `Commission skipped: trainer reached per-cycle cap of ${capConfig.maxPerCycleCents} cents (already ${alreadyCents})`,
 			};
 		}
 		if (params.amountCents > remaining) {
 			return {
 				skip: false,
 				amountCents: remaining,
-				reason: `Commission capped from ${params.amountCents} to ${remaining} cents — per-cycle limit ${config.maxPerCycleCents}`,
+				reason: `Commission capped from ${params.amountCents} to ${remaining} cents — per-cycle limit ${capConfig.maxPerCycleCents}`,
 			};
 		}
 	}
@@ -562,7 +671,9 @@ export async function createCommissionSplit(
 	}
 
 	const sourceCount =
-		(appointmentId ? 1 : 0) + (salesOrderId ? 1 : 0) + (packageInstanceId ? 1 : 0);
+		(appointmentId ? 1 : 0) +
+		(salesOrderId ? 1 : 0) +
+		(packageInstanceId ? 1 : 0);
 	if (sourceCount === 0) {
 		throw new ORPCError("BAD_REQUEST", {
 			message:
@@ -594,8 +705,10 @@ export async function createCommissionSplit(
 	}
 	const finalAmountCents = capDecision.amountCents;
 	const capNoteSuffix = capDecision.reason
-		? (notes ? `${notes} | ${capDecision.reason}` : capDecision.reason)
-		: notes ?? null;
+		? notes
+			? `${notes} | ${capDecision.reason}`
+			: capDecision.reason
+		: (notes ?? null);
 
 	const [inserted] = await (db as TenantDb)
 		.insert(commissionSplits)
@@ -668,7 +781,6 @@ export async function createCommissionSplit(
 	return existing;
 }
 
-
 // ---------------------------------------------------------------------------
 // Lifecycle transitions
 // ---------------------------------------------------------------------------
@@ -711,7 +823,9 @@ export async function approveCommissionSplits(
 			});
 		}
 
-		const earned = existing.map((r) => r.earnedAt.getTime()).sort((a, b) => a - b);
+		const earned = existing
+			.map((r) => r.earnedAt.getTime())
+			.sort((a, b) => a - b);
 		const spreadDays = (earned[earned.length - 1]! - earned[0]!) / 86_400_000;
 		if (spreadDays > 31) {
 			throw new ORPCError("BAD_REQUEST", {
@@ -867,10 +981,14 @@ export async function voidCommissionSplit(
 			.for("update");
 
 		if (!existing) {
-			throw new ORPCError("NOT_FOUND", { message: "Commission split not found" });
+			throw new ORPCError("NOT_FOUND", {
+				message: "Commission split not found",
+			});
 		}
 		if (existing.status === "paid") {
-			throw new ORPCError("BAD_REQUEST", { message: "Cannot void a paid commission split. Contact finance." });
+			throw new ORPCError("BAD_REQUEST", {
+				message: "Cannot void a paid commission split. Contact finance.",
+			});
 		}
 		if (existing.status === "void") {
 			return existing; // Idempotent
@@ -911,69 +1029,77 @@ export async function voidCommissionSplitsForSalesOrder(
 	// partial-void state if any step fails, and to serialise concurrent mutations
 	// on the same sales order.
 	return tenantDb.transaction(async (tx) => {
-	const rows = await tx
-		.select()
-		.from(commissionSplits)
-		.where(and(
-			eq(commissionSplits.salesOrderId, salesOrderId),
-			ne(commissionSplits.status, "void"),
-			ne(commissionSplits.status, "paid"),
-		));
+		const rows = await tx
+			.select()
+			.from(commissionSplits)
+			.where(
+				and(
+					eq(commissionSplits.salesOrderId, salesOrderId),
+					ne(commissionSplits.status, "void"),
+					ne(commissionSplits.status, "paid"),
+				),
+			);
 
-	if (rows.length === 0) return [];
+		if (rows.length === 0) return [];
 
-	// Task 1.7: skip splits whose linked appointment has already been delivered
-	// (status = 'completed' or 'cancelled'). Those splits were earned at delivery
-	// time and must not be voided when the parent sale is cancelled after the fact.
-	const toVoid: typeof rows = [];
-	const skipped: typeof rows = [];
+		// Task 1.7: skip splits whose linked appointment has already been delivered
+		// (status = 'completed' or 'cancelled'). Those splits were earned at delivery
+		// time and must not be voided when the parent sale is cancelled after the fact.
+		const toVoid: typeof rows = [];
+		const skipped: typeof rows = [];
 
-	for (const row of rows) {
-		if (row.appointmentId) {
-			const [appt] = await tx
-				.select({ status: appointments.status })
-				.from(appointments)
-				.where(eq(appointments.id, row.appointmentId))
-				.limit(1);
+		for (const row of rows) {
+			if (row.appointmentId) {
+				const [appt] = await tx
+					.select({ status: appointments.status })
+					.from(appointments)
+					.where(eq(appointments.id, row.appointmentId))
+					.limit(1);
 
-			if (appt?.status === "completed" || appt?.status === "cancelled" || appt?.status === "no_show") {
-				skipped.push(row);
-				console.info(JSON.stringify({
-					event: "commission_void_skipped_delivered",
-					splitId: row.id,
-					appointmentId: row.appointmentId,
-					appointmentStatus: appt.status,
-					salesOrderId,
-				}));
-				continue;
+				if (
+					appt?.status === "completed" ||
+					appt?.status === "cancelled" ||
+					appt?.status === "no_show"
+				) {
+					skipped.push(row);
+					console.info(
+						JSON.stringify({
+							event: "commission_void_skipped_delivered",
+							splitId: row.id,
+							appointmentId: row.appointmentId,
+							appointmentStatus: appt.status,
+							salesOrderId,
+						}),
+					);
+					continue;
+				}
 			}
+			toVoid.push(row);
 		}
-		toVoid.push(row);
-	}
 
-	if (toVoid.length === 0) return [];
+		if (toVoid.length === 0) return [];
 
-	const ids = toVoid.map(r => r.id);
-	const updated = await tx
-		.update(commissionSplits)
-		.set({ status: "void", notes: reason, updatedAt: new Date() })
-		.where(inArray(commissionSplits.id, ids))
-		.returning();
+		const ids = toVoid.map((r) => r.id);
+		const updated = await tx
+			.update(commissionSplits)
+			.set({ status: "void", notes: reason, updatedAt: new Date() })
+			.where(inArray(commissionSplits.id, ids))
+			.returning();
 
-	for (const row of updated) {
-		await writeAudit(tx as unknown as TenantDb, {
-			actorUserId: actor.userId,
-			actorMemberId: actor.memberId,
-			actorRole: actor.role,
-			action: "commission.void",
-			entityType: "commission_split",
-			entityId: row.id,
-			summary: `Commission voided on sales order cancellation: ${reason}`,
-			changes: { salesOrderId, reason },
-		});
-	}
+		for (const row of updated) {
+			await writeAudit(tx as unknown as TenantDb, {
+				actorUserId: actor.userId,
+				actorMemberId: actor.memberId,
+				actorRole: actor.role,
+				action: "commission.void",
+				entityType: "commission_split",
+				entityId: row.id,
+				summary: `Commission voided on sales order cancellation: ${reason}`,
+				changes: { salesOrderId, reason },
+			});
+		}
 
-	return updated;
+		return updated;
 	}); // end transaction
 }
 
@@ -1002,6 +1128,11 @@ export interface LiabilitySummaryTrainer {
 	paidCents: number;
 	manualAdjustmentCents: number; // manual splits where status IN (pending, approved)
 	netPayableCents: number; // approvedUnpaidCents + manualAdjustmentCents
+	/**
+	 * Breakdown of approvedUnpaidCents by roleType.
+	 * NULL roleType rows are keyed as "delivery_legacy" (GAPS #22).
+	 */
+	byRoleType: Record<string, number>;
 }
 
 export interface LiabilitySummaryResult {
@@ -1011,6 +1142,8 @@ export interface LiabilitySummaryResult {
 		paidCents: number;
 		manualAdjustmentCents: number;
 		netPayableCents: number;
+		/** Breakdown of approvedUnpaidCents by roleType across all trainers. */
+		byRoleType: Record<string, number>;
 	};
 }
 
@@ -1019,6 +1152,10 @@ export interface LiabilitySummaryParams {
 	to: string; // ISO datetime (inclusive end)
 	hierarchyNodeId?: string; // optional scope to hierarchy subtree
 	categoryId?: string; // optional filter by service category
+	/** SQL-side filter: only include splits for this track. */
+	trackId?: string;
+	/** SQL-side filter: only include splits with this roleType (NULL treated as "delivery_legacy"). */
+	roleType?: string;
 }
 
 /**
@@ -1038,7 +1175,7 @@ export async function liabilitySummary(
 	controlPanelDb: ControlPanelDb,
 	params: LiabilitySummaryParams,
 ): Promise<LiabilitySummaryResult> {
-	const { from, to, hierarchyNodeId, categoryId } = params;
+	const { from, to, hierarchyNodeId, categoryId, trackId, roleType } = params;
 
 	const fromDate = new Date(from);
 	const toDate = new Date(to);
@@ -1046,10 +1183,21 @@ export async function liabilitySummary(
 	// Build staff scope from hierarchy if needed
 	let staffIdScope: string[] | null = null;
 	if (hierarchyNodeId) {
-		const descendantNodeIds = await getDescendantNodeIds(tenantDb, hierarchyNodeId);
+		const descendantNodeIds = await getDescendantNodeIds(
+			tenantDb,
+			hierarchyNodeId,
+		);
 		if (descendantNodeIds.length === 0) {
 			// No nodes found — return empty result
-			return { trainers: [], totals: { approvedUnpaidCents: 0, paidCents: 0, manualAdjustmentCents: 0, netPayableCents: 0 } };
+			return {
+				trainers: [],
+				totals: {
+					approvedUnpaidCents: 0,
+					paidCents: 0,
+					manualAdjustmentCents: 0,
+					netPayableCents: 0,
+				},
+			};
 		}
 		// Fetch userIds of members whose hierarchyScopeId is within the descendant set
 		const scopedMembers = await tenantDb
@@ -1058,7 +1206,15 @@ export async function liabilitySummary(
 			.where(inArray(members.hierarchyScopeId, descendantNodeIds));
 		staffIdScope = scopedMembers.map((m) => m.userId);
 		if (staffIdScope.length === 0) {
-			return { trainers: [], totals: { approvedUnpaidCents: 0, paidCents: 0, manualAdjustmentCents: 0, netPayableCents: 0 } };
+			return {
+				trainers: [],
+				totals: {
+					approvedUnpaidCents: 0,
+					paidCents: 0,
+					manualAdjustmentCents: 0,
+					netPayableCents: 0,
+				},
+			};
 		}
 	}
 
@@ -1073,7 +1229,22 @@ export async function liabilitySummary(
 		baseConditions.push(inArray(commissionSplits.staffId, staffIdScope));
 	}
 
-	// Single aggregation query using conditional sums grouped by staffId.
+	// SQL-side track / roleType filters (Phase 4, GAPS #22 — never in-memory).
+	// NULL roleType is treated as "delivery_legacy": when the caller requests
+	// roleType=null specifically, we match IS NULL; when they pass the string
+	// "delivery_legacy" we also match IS NULL for backwards compat.
+	if (trackId) {
+		baseConditions.push(eq(commissionSplits.trackId, trackId));
+	}
+	if (roleType !== undefined) {
+		if (roleType === null || roleType === "delivery_legacy") {
+			baseConditions.push(sql`${commissionSplits.roleType} IS NULL`);
+		} else {
+			baseConditions.push(eq(commissionSplits.roleType, roleType));
+		}
+	}
+
+	// Single aggregation query using conditional sums grouped by staffId + roleType.
 	// If categoryId is provided, we LEFT JOIN appointments and salesOrders, then
 	// filter to splits that have a matching category (or are manual with no source).
 	//
@@ -1088,23 +1259,32 @@ export async function liabilitySummary(
 	const reversalsSubquery = tenantDb
 		.select({
 			splitId: commissionSplitReversals.reversedSplitId,
-			total: sql<number>`COALESCE(SUM(${commissionSplitReversals.amountCents}), 0)`
-				.mapWith(Number)
-				.as("reversal_total"),
+			total:
+				sql<number>`COALESCE(SUM(${commissionSplitReversals.amountCents}), 0)`
+					.mapWith(Number)
+					.as("reversal_total"),
 		})
 		.from(commissionSplitReversals)
 		.groupBy(commissionSplitReversals.reversedSplitId)
 		.as("rev");
 
-	let rows: { staffId: string; approvedUnpaid: number; paid: number; manualAdj: number }[];
+	let rows: {
+		staffId: string;
+		roleType: string | null;
+		approvedUnpaid: number;
+		paid: number;
+		manualAdj: number;
+	}[];
 
 	if (categoryId) {
 		// Category filter: appointment path → appointments.serviceId → services.categoryId
 		//                  sales order path → sales_order_items.serviceId → services.categoryId
 		// Manual splits with neither appointmentId nor salesOrderId are excluded.
-		rows = await tenantDb
+		rows = (await tenantDb
 			.select({
 				staffId: commissionSplits.staffId,
+				// NULL roleType = delivery (legacy). COALESCE to sentinel so GROUP BY collapses correctly.
+				roleType: sql<string | null>`${commissionSplits.roleType}`,
 				approvedUnpaid: sql<number>`
 					COALESCE(SUM(
 						CASE WHEN ${commissionSplits.status} = 'approved'
@@ -1136,9 +1316,15 @@ export async function liabilitySummary(
 				`.mapWith(Number),
 			})
 			.from(commissionSplits)
-			.leftJoin(appointments, eq(commissionSplits.appointmentId, appointments.id))
+			.leftJoin(
+				appointments,
+				eq(commissionSplits.appointmentId, appointments.id),
+			)
 			.leftJoin(services, eq(appointments.serviceId, services.id))
-			.leftJoin(reversalsSubquery, eq(reversalsSubquery.splitId, commissionSplits.id))
+			.leftJoin(
+				reversalsSubquery,
+				eq(reversalsSubquery.splitId, commissionSplits.id),
+			)
 			.where(
 				and(
 					...baseConditions,
@@ -1160,12 +1346,21 @@ export async function liabilitySummary(
 					)`,
 				),
 			)
-			.groupBy(commissionSplits.staffId) as { staffId: string; approvedUnpaid: number; paid: number; manualAdj: number }[];
+			.groupBy(commissionSplits.staffId, commissionSplits.roleType)) as {
+			staffId: string;
+			roleType: string | null;
+			approvedUnpaid: number;
+			paid: number;
+			manualAdj: number;
+		}[];
 	} else {
-		// No category filter — simple aggregation
-		rows = await tenantDb
+		// No category filter — simple aggregation grouped by (staffId, roleType).
+		// Grouping by roleType produces one row per (staff, roleType) so the caller
+		// can aggregate byRoleType breakdowns without a second query.
+		rows = (await tenantDb
 			.select({
 				staffId: commissionSplits.staffId,
+				roleType: sql<string | null>`${commissionSplits.roleType}`,
 				approvedUnpaid: sql<number>`
 					COALESCE(SUM(
 						CASE WHEN ${commissionSplits.status} = 'approved'
@@ -1197,17 +1392,35 @@ export async function liabilitySummary(
 				`.mapWith(Number),
 			})
 			.from(commissionSplits)
-			.leftJoin(reversalsSubquery, eq(reversalsSubquery.splitId, commissionSplits.id))
+			.leftJoin(
+				reversalsSubquery,
+				eq(reversalsSubquery.splitId, commissionSplits.id),
+			)
 			.where(and(...baseConditions))
-			.groupBy(commissionSplits.staffId) as { staffId: string; approvedUnpaid: number; paid: number; manualAdj: number }[];
+			.groupBy(commissionSplits.staffId, commissionSplits.roleType)) as {
+			staffId: string;
+			roleType: string | null;
+			approvedUnpaid: number;
+			paid: number;
+			manualAdj: number;
+		}[];
 	}
 
 	if (rows.length === 0) {
-		return { trainers: [], totals: { approvedUnpaidCents: 0, paidCents: 0, manualAdjustmentCents: 0, netPayableCents: 0 } };
+		return {
+			trainers: [],
+			totals: {
+				approvedUnpaidCents: 0,
+				paidCents: 0,
+				manualAdjustmentCents: 0,
+				netPayableCents: 0,
+				byRoleType: {},
+			},
+		};
 	}
 
 	// Enrich names from control-panel user table (best-effort — same pattern as listCommissionLedger)
-	const distinctStaffIds = rows.map((r) => r.staffId);
+	const distinctStaffIds = [...new Set(rows.map((r) => r.staffId))];
 	const staffNameMap = new Map<string, string>();
 	try {
 		const { user } = await import("@avantej-core/db/schema/auth");
@@ -1223,34 +1436,69 @@ export async function liabilitySummary(
 		// Best-effort: if control panel is unavailable, names fall back to userId
 	}
 
-	// Build per-trainer result rows
-	const trainers: LiabilitySummaryTrainer[] = rows.map((row) => {
-		const approvedUnpaidCents = row.approvedUnpaid;
-		const paidCents = row.paid;
-		const manualAdjustmentCents = row.manualAdj;
-		const netPayableCents = approvedUnpaidCents + manualAdjustmentCents;
-		return {
-			memberId: row.staffId,
-			name: staffNameMap.get(row.staffId) ?? row.staffId,
-			approvedUnpaidCents,
-			paidCents,
-			manualAdjustmentCents,
-			netPayableCents,
+	// Rows are now (staffId, roleType) tuples. Collapse them into per-trainer entries
+	// accumulating the byRoleType breakdown. NULL roleType → "delivery_legacy" (GAPS #22).
+	const trainerMap = new Map<
+		string,
+		{
+			approvedUnpaidCents: number;
+			paidCents: number;
+			manualAdjustmentCents: number;
+			byRoleType: Record<string, number>;
+		}
+	>();
+
+	for (const row of rows) {
+		const roleKey = row.roleType ?? "delivery_legacy";
+		const existing = trainerMap.get(row.staffId) ?? {
+			approvedUnpaidCents: 0,
+			paidCents: 0,
+			manualAdjustmentCents: 0,
+			byRoleType: {},
 		};
-	});
+		existing.approvedUnpaidCents += row.approvedUnpaid;
+		existing.paidCents += row.paid;
+		existing.manualAdjustmentCents += row.manualAdj;
+		existing.byRoleType[roleKey] =
+			(existing.byRoleType[roleKey] ?? 0) + row.approvedUnpaid;
+		trainerMap.set(row.staffId, existing);
+	}
+
+	const trainers: LiabilitySummaryTrainer[] = [];
+	for (const [staffId, agg] of trainerMap) {
+		trainers.push({
+			memberId: staffId,
+			name: staffNameMap.get(staffId) ?? staffId,
+			approvedUnpaidCents: agg.approvedUnpaidCents,
+			paidCents: agg.paidCents,
+			manualAdjustmentCents: agg.manualAdjustmentCents,
+			netPayableCents: agg.approvedUnpaidCents + agg.manualAdjustmentCents,
+			byRoleType: agg.byRoleType,
+		});
+	}
 
 	// Aggregate totals from per-trainer rows (cheap JS reduction)
+	const totalByRoleType: Record<string, number> = {};
 	const totals = trainers.reduce(
-		(acc, t) => ({
-			approvedUnpaidCents: acc.approvedUnpaidCents + t.approvedUnpaidCents,
-			paidCents: acc.paidCents + t.paidCents,
-			manualAdjustmentCents: acc.manualAdjustmentCents + t.manualAdjustmentCents,
-			netPayableCents: acc.netPayableCents + t.netPayableCents,
-		}),
-		{ approvedUnpaidCents: 0, paidCents: 0, manualAdjustmentCents: 0, netPayableCents: 0 },
+		(acc, t) => {
+			acc.approvedUnpaidCents += t.approvedUnpaidCents;
+			acc.paidCents += t.paidCents;
+			acc.manualAdjustmentCents += t.manualAdjustmentCents;
+			acc.netPayableCents += t.netPayableCents;
+			for (const [role, amount] of Object.entries(t.byRoleType)) {
+				totalByRoleType[role] = (totalByRoleType[role] ?? 0) + amount;
+			}
+			return acc;
+		},
+		{
+			approvedUnpaidCents: 0,
+			paidCents: 0,
+			manualAdjustmentCents: 0,
+			netPayableCents: 0,
+		},
 	);
 
-	return { trainers, totals };
+	return { trainers, totals: { ...totals, byRoleType: totalByRoleType } };
 }
 
 // ---------------------------------------------------------------------------
@@ -1266,7 +1514,7 @@ export interface MarkPaidBatchParams {
 	 * F-PAY-3: Payment method stored on the created payouts row.
 	 * Defaults to "bank_transfer" when omitted.
 	 */
-	paymentMethod?: "bank_transfer" | "cash" | "check" | "other" | "stripe_connect";
+	paymentMethod?: "bank_transfer" | "cash" | "check" | "other";
 	/**
 	 * Optional branch anchor for the payout_batches row. NULL = cross-branch batch.
 	 * Passed through to getOrCreatePayoutBatch for idempotent batch resolution.
@@ -1352,9 +1600,15 @@ export async function markPaidBatch(
 			});
 
 			// 3. Group updated splits by staffId and sum amounts
-			const byStaff = new Map<string, { splitIds: string[]; totalCents: number }>();
+			const byStaff = new Map<
+				string,
+				{ splitIds: string[]; totalCents: number }
+			>();
 			for (const row of updated) {
-				const existing = byStaff.get(row.staffId) ?? { splitIds: [], totalCents: 0 };
+				const existing = byStaff.get(row.staffId) ?? {
+					splitIds: [],
+					totalCents: 0,
+				};
 				existing.splitIds.push(row.id);
 				existing.totalCents += row.calculatedAmount;
 				byStaff.set(row.staffId, existing);
@@ -1382,7 +1636,9 @@ export async function markPaidBatch(
 					.returning({ id: payouts.id });
 
 				if (!newPayout) {
-					throw new Error(`markPaidBatch: failed to insert payout row for staff ${staffId}`);
+					throw new Error(
+						`markPaidBatch: failed to insert payout row for staff ${staffId}`,
+					);
 				}
 				// Track for return value
 				payoutIds.push(newPayout.id);
@@ -1417,7 +1673,9 @@ export async function markPaidBatch(
 
 		// 7. One audit entry per affected member (commission lifecycle audit)
 		for (const memberId of affectedMemberIds) {
-			const memberSplitCount = updated.filter((r) => r.staffId === memberId).length;
+			const memberSplitCount = updated.filter(
+				(r) => r.staffId === memberId,
+			).length;
 			await writeAudit(tx, {
 				actorUserId: actor.userId,
 				actorMemberId: actor.memberId,
@@ -1473,7 +1731,9 @@ export async function createManualAdjustment(
 		});
 		if (dupe) {
 			throw Object.assign(
-				new Error(`A manual adjustment for this staff member and appointment already exists (split ${dupe.id}). Void it first before creating another.`),
+				new Error(
+					`A manual adjustment for this staff member and appointment already exists (split ${dupe.id}). Void it first before creating another.`,
+				),
 				{ code: "CONFLICT" },
 			);
 		}
@@ -1481,7 +1741,8 @@ export async function createManualAdjustment(
 
 	// High-value flag: amounts above the threshold enter "pending_review" so they
 	// need explicit approval before appearing in payout calculations.
-	const requiresReview = Math.abs(params.amountCents) >= MANUAL_REVIEW_THRESHOLD_CENTS;
+	const requiresReview =
+		Math.abs(params.amountCents) >= MANUAL_REVIEW_THRESHOLD_CENTS;
 
 	const [inserted] = await tenantDb
 		.insert(commissionSplits)
@@ -1531,6 +1792,13 @@ export interface LiabilityByStaffRow {
 	pendingCents: number;
 	approvedCents: number;
 	paidCents: number;
+	/**
+	 * roleType snapshot from commission_splits.role_type.
+	 * NULL means "Delivery (legacy)" — row predates commission tracks (GAPS #22).
+	 */
+	roleType: string | null;
+	/** trackId from commission_splits.track_id — null for legacy delivery rows. */
+	trackId: string | null;
 }
 
 /**
@@ -1553,6 +1821,13 @@ export interface LiabilityByStaffParams {
 	to?: Date; // earnedAt range end (inclusive)
 	/** Caller must pass context.accessibleNodeIds. Empty array = admin (no restriction). */
 	accessibleNodeIds: string[];
+	/** SQL-side filter: only include splits for this track (Phase 4). */
+	trackId?: string;
+	/**
+	 * SQL-side filter: only include splits with this roleType (Phase 4, GAPS #22).
+	 * Pass null or "delivery_legacy" to match legacy rows where roleType IS NULL.
+	 */
+	roleType?: string | null;
 }
 
 /**
@@ -1575,7 +1850,14 @@ export async function liabilityByStaff(
 	// Fetch one extra row beyond the cap so we can detect (and report) truncation
 	// without a second COUNT query. F-COM-07.
 	const fetchLimit = LIABILITY_BY_STAFF_LIMIT + 1;
-	const { branchId, from, to, accessibleNodeIds } = params;
+	const {
+		branchId,
+		from,
+		to,
+		accessibleNodeIds,
+		trackId: filterTrackId,
+		roleType: filterRoleType,
+	} = params;
 
 	// Build conditions on commissionSplits directly
 	const conditions = [ne(commissionSplits.status, "void")];
@@ -1583,13 +1865,34 @@ export async function liabilityByStaff(
 	if (from) conditions.push(gte(commissionSplits.earnedAt, from));
 	if (to) conditions.push(lte(commissionSplits.earnedAt, to));
 
+	// SQL-side track / roleType filters (Phase 4, GAPS #22)
+	if (filterTrackId) {
+		conditions.push(eq(commissionSplits.trackId, filterTrackId));
+	}
+	if (filterRoleType !== undefined) {
+		if (filterRoleType === null || filterRoleType === "delivery_legacy") {
+			conditions.push(sql`${commissionSplits.roleType} IS NULL`);
+		} else {
+			conditions.push(eq(commissionSplits.roleType, filterRoleType));
+		}
+	}
+
 	// When branchId or accessibleNodeIds scope is needed, resolve via JOIN.
 	// Otherwise run the simpler no-join query.
 	const needsBranchJoin =
 		branchId !== undefined ||
 		(accessibleNodeIds !== undefined && accessibleNodeIds.length > 0);
 
-	let rows: { staffId: string; pendingCents: number; approvedCents: number; paidCents: number }[];
+	// Each row now carries (staffId, roleType, trackId) in addition to the
+	// status buckets so callers can segment/display by track or role.
+	let rows: {
+		staffId: string;
+		roleType: string | null;
+		trackId: string | null;
+		pendingCents: number;
+		approvedCents: number;
+		paidCents: number;
+	}[];
 
 	if (needsBranchJoin) {
 		// LEFT JOIN appointments + salesOrders to resolve the effective branchId
@@ -1613,9 +1916,11 @@ export async function liabilityByStaff(
 			);
 		}
 
-		rows = await tenantDb
+		rows = (await tenantDb
 			.select({
 				staffId: commissionSplits.staffId,
+				roleType: sql<string | null>`${commissionSplits.roleType}`,
+				trackId: sql<string | null>`${commissionSplits.trackId}`,
 				pendingCents: sql<number>`
 					COALESCE(SUM(
 						CASE WHEN ${commissionSplits.status} = 'pending'
@@ -1636,15 +1941,31 @@ export async function liabilityByStaff(
 				`.mapWith(Number),
 			})
 			.from(commissionSplits)
-			.leftJoin(appointments, eq(commissionSplits.appointmentId, appointments.id))
+			.leftJoin(
+				appointments,
+				eq(commissionSplits.appointmentId, appointments.id),
+			)
 			.leftJoin(salesOrders, eq(commissionSplits.salesOrderId, salesOrders.id))
 			.where(and(...branchConditions))
-			.groupBy(commissionSplits.staffId)
-			.limit(fetchLimit) as { staffId: string; pendingCents: number; approvedCents: number; paidCents: number }[];
+			.groupBy(
+				commissionSplits.staffId,
+				commissionSplits.roleType,
+				commissionSplits.trackId,
+			)
+			.limit(fetchLimit)) as {
+			staffId: string;
+			roleType: string | null;
+			trackId: string | null;
+			pendingCents: number;
+			approvedCents: number;
+			paidCents: number;
+		}[];
 	} else {
-		rows = await tenantDb
+		rows = (await tenantDb
 			.select({
 				staffId: commissionSplits.staffId,
+				roleType: sql<string | null>`${commissionSplits.roleType}`,
+				trackId: sql<string | null>`${commissionSplits.trackId}`,
 				pendingCents: sql<number>`
 					COALESCE(SUM(
 						CASE WHEN ${commissionSplits.status} = 'pending'
@@ -1666,8 +1987,19 @@ export async function liabilityByStaff(
 			})
 			.from(commissionSplits)
 			.where(and(...conditions))
-			.groupBy(commissionSplits.staffId)
-			.limit(fetchLimit) as { staffId: string; pendingCents: number; approvedCents: number; paidCents: number }[];
+			.groupBy(
+				commissionSplits.staffId,
+				commissionSplits.roleType,
+				commissionSplits.trackId,
+			)
+			.limit(fetchLimit)) as {
+			staffId: string;
+			roleType: string | null;
+			trackId: string | null;
+			pendingCents: number;
+			approvedCents: number;
+			paidCents: number;
+		}[];
 	}
 
 	// Detect truncation: if we got the sentinel extra row, there are more staff
@@ -1680,7 +2012,7 @@ export async function liabilityByStaff(
 	if (rows.length === 0) return { rows: [], totalCount: 0, hasMore: false };
 
 	// Enrich names from control-panel (best-effort)
-	const staffIds = rows.map((r) => r.staffId);
+	const staffIds = [...new Set(rows.map((r) => r.staffId))];
 	const staffNameMap = new Map<string, string>();
 	try {
 		const { user } = await import("@avantej-core/db/schema/auth");
@@ -1694,12 +2026,15 @@ export async function liabilityByStaff(
 		// Best-effort — fall back to staffId as name
 	}
 
-	const enriched = rows.map((r) => ({
+	const enriched: LiabilityByStaffRow[] = rows.map((r) => ({
 		staffId: r.staffId,
 		staffName: staffNameMap.get(r.staffId) ?? r.staffId,
 		pendingCents: r.pendingCents,
 		approvedCents: r.approvedCents,
 		paidCents: r.paidCents,
+		// NULL roleType = Delivery (legacy) — GAPS #22 consistent treatment
+		roleType: r.roleType ?? null,
+		trackId: r.trackId ?? null,
 	}));
 
 	return { rows: enriched, totalCount: enriched.length, hasMore };
@@ -1714,6 +2049,10 @@ export interface CommissionLedgerRow extends CommissionSplit {
 	appointmentNumber: string | null; // appointment.id (no number field)
 	salesOrderNumber: string | null; // sales_orders.salesOrderNumber
 	branchId: string | null; // from appointment.branchId or salesOrders.branchId
+	// trackId and roleType are already on CommissionSplit (from the schema), but
+	// we document them here explicitly to make the Phase 4 contract clear.
+	// roleType: string | null  — null = "Delivery (legacy)", GAPS #22
+	// trackId: string | null   — null for pre-track rows
 }
 
 export interface CommissionLedgerResult {
@@ -1735,6 +2074,13 @@ export interface ListCommissionLedgerParams {
 	accessibleNodeIds: string[];
 	limit?: number;
 	offset?: number;
+	/** SQL-side filter: only include splits for this track (Phase 4). */
+	trackId?: string;
+	/**
+	 * SQL-side filter: only include splits with this roleType (Phase 4, GAPS #22).
+	 * Pass null or "delivery_legacy" to match legacy rows where roleType IS NULL.
+	 */
+	roleType?: string | null;
 }
 
 /**
@@ -1761,6 +2107,8 @@ export async function listCommissionLedger(
 		accessibleNodeIds,
 		limit = 100,
 		offset = 0,
+		trackId: filterTrackId,
+		roleType: filterRoleType,
 	} = params;
 
 	// Base filter conditions (status, staffId, date range)
@@ -1780,6 +2128,18 @@ export async function listCommissionLedger(
 
 	if (to) {
 		baseConditions.push(lte(commissionSplits.createdAt, to));
+	}
+
+	// SQL-side track / roleType filters (Phase 4, GAPS #22 — never in-memory)
+	if (filterTrackId) {
+		baseConditions.push(eq(commissionSplits.trackId, filterTrackId));
+	}
+	if (filterRoleType !== undefined) {
+		if (filterRoleType === null || filterRoleType === "delivery_legacy") {
+			baseConditions.push(sql`${commissionSplits.roleType} IS NULL`);
+		} else {
+			baseConditions.push(eq(commissionSplits.roleType, filterRoleType));
+		}
 	}
 
 	// RBAC + branchId branch conditions (pushed to SQL via LEFT JOINs)
@@ -1813,10 +2173,7 @@ export async function listCommissionLedger(
 			count: sql<number>`COUNT(*)::int`.mapWith(Number),
 		})
 		.from(commissionSplits)
-		.leftJoin(
-			appointments,
-			eq(commissionSplits.appointmentId, appointments.id),
-		)
+		.leftJoin(appointments, eq(commissionSplits.appointmentId, appointments.id))
 		.leftJoin(salesOrders, eq(commissionSplits.salesOrderId, salesOrders.id))
 		.where(whereClause);
 
@@ -1833,10 +2190,7 @@ export async function listCommissionLedger(
 			salesOrderBranchId: salesOrders.branchId,
 		})
 		.from(commissionSplits)
-		.leftJoin(
-			appointments,
-			eq(commissionSplits.appointmentId, appointments.id),
-		)
+		.leftJoin(appointments, eq(commissionSplits.appointmentId, appointments.id))
 		.leftJoin(salesOrders, eq(commissionSplits.salesOrderId, salesOrders.id))
 		.where(whereClause)
 		.orderBy(desc(commissionSplits.createdAt))
@@ -1888,10 +2242,7 @@ export async function listCommissionLedger(
 			),
 		})
 		.from(commissionSplits)
-		.leftJoin(
-			appointments,
-			eq(commissionSplits.appointmentId, appointments.id),
-		)
+		.leftJoin(appointments, eq(commissionSplits.appointmentId, appointments.id))
 		.leftJoin(salesOrders, eq(commissionSplits.salesOrderId, salesOrders.id))
 		.where(whereClause);
 
@@ -1903,6 +2254,116 @@ export async function listCommissionLedger(
 			approved: totalsRow?.approved ?? 0,
 			paid: totalsRow?.paid ?? 0,
 		},
+	};
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4 — Commission Liability CSV export (backend service)
+// ---------------------------------------------------------------------------
+
+export interface ExportLiabilityCsvParams {
+	from: string; // ISO datetime
+	to: string; // ISO datetime
+	hierarchyNodeId?: string;
+	categoryId?: string;
+	trackId?: string;
+	roleType?: string | null;
+}
+
+export interface ExportLiabilityCsvResult {
+	csv: string;
+	rowCount: number; // number of trainer data rows (not counting header/totals)
+}
+
+/**
+ * Build a commission-liability CSV from the liabilitySummary result.
+ *
+ * Column layout (Phase 4):
+ *   Staff Member, Role, Track ID, Approved Unpaid (RM), Paid (RM), Manual Adj (RM), Net Payable (RM)
+ *
+ * - "Role" replaces the old hard-coded "Trainer" value — uses the trainer's
+ *   dominant roleType from byRoleType (highest approvedUnpaid contribution).
+ *   NULL roleType renders as "Delivery (legacy)" (GAPS #22).
+ * - "Track ID" is the trackId filter when a single track is requested;
+ *   "All" when no filter applied (multiple tracks may be included per trainer).
+ * - Amounts are formatted as decimal RM with 2 decimal places (consistent with
+ *   the existing frontend CSV export format).
+ * - Last row is a TOTALS row (matches frontend convention for e2e spec compatibility).
+ * - Returns empty CSV (header only) when no trainer rows exist.
+ */
+export async function exportLiabilityCsv(
+	tenantDb: TenantDb,
+	controlPanelDb: ControlPanelDb,
+	params: ExportLiabilityCsvParams,
+): Promise<ExportLiabilityCsvResult> {
+	const summary = await liabilitySummary(tenantDb, controlPanelDb, params);
+
+	function centsToRmStr(cents: number): string {
+		return (cents / 100).toFixed(2);
+	}
+
+	function csvCell(value: string): string {
+		return `"${value.replace(/"/g, '""')}"`;
+	}
+
+	const header = [
+		"Staff Member",
+		"Role",
+		"Track ID",
+		"Approved Unpaid (RM)",
+		"Paid (RM)",
+		"Manual Adj (RM)",
+		"Net Payable (RM)",
+	]
+		.map(csvCell)
+		.join(",");
+
+	const trackIdLabel = params.trackId ?? "All";
+
+	const dataRows = summary.trainers.map((t) => {
+		// Determine dominant roleType from byRoleType breakdown.
+		// The "dominant" role is the one contributing most to approvedUnpaid.
+		// If no roleType data, fall back to "Delivery (legacy)".
+		let dominantRole = "Delivery (legacy)";
+		if (Object.keys(t.byRoleType).length > 0) {
+			const topRole = Object.entries(t.byRoleType).sort(
+				(a, b) => b[1] - a[1],
+			)[0];
+			if (topRole) {
+				dominantRole =
+					topRole[0] === "delivery_legacy" ? "Delivery (legacy)" : topRole[0];
+			}
+		}
+
+		return [
+			csvCell(t.name),
+			csvCell(dominantRole),
+			csvCell(trackIdLabel),
+			csvCell(centsToRmStr(t.approvedUnpaidCents)),
+			csvCell(centsToRmStr(t.paidCents)),
+			csvCell(centsToRmStr(t.manualAdjustmentCents)),
+			csvCell(centsToRmStr(t.netPayableCents)),
+		].join(",");
+	});
+
+	const totalsRow = [
+		csvCell("TOTALS"),
+		csvCell(""),
+		csvCell(trackIdLabel),
+		csvCell(centsToRmStr(summary.totals.approvedUnpaidCents)),
+		csvCell(centsToRmStr(summary.totals.paidCents)),
+		csvCell(centsToRmStr(summary.totals.manualAdjustmentCents)),
+		csvCell(centsToRmStr(summary.totals.netPayableCents)),
+	].join(",");
+
+	const allLines: string[] = [header, ...dataRows];
+	if (summary.trainers.length > 0) {
+		allLines.push(totalsRow);
+	}
+
+	return {
+		csv: allLines.join("\n"),
+		rowCount: dataRows.length,
 	};
 }
 
@@ -2027,7 +2488,7 @@ export interface ReverseForRefundResult {
  *
  * Strategy:
  *   1. Resolve the set of commission_splits linked to the refund's targets:
- *      - refund.salesOrderId          → splits with salesOrderId
+ *      - refund.salesOrderId          → splits with salesOrderId (delivery + origination)
  *      - refund.packageInstanceId     → splits with packageInstanceId
  *      - refund_items.salesOrderItemId → resolve to splits via the item's salesOrderId
  *      - refund_items.packageInstanceId (partial) → splits with that packageInstanceId
@@ -2035,17 +2496,24 @@ export interface ReverseForRefundResult {
  *      - Full refund (amount >= total / refund has no items): -split.calculatedAmount
  *      - Partial refund (creditsRefunded < creditsTotal): pro-rate by
  *        creditsRefunded / creditsTotal of the package instance, capped at split amount
- *      - F-COM-C: Partial sales-order refund (line-level via refund_items, or a
- *        full-order refund whose amountCents is < order.totalAmount): pro-rate by
- *        SUM(refund_items.amountCents for that order) / sales_orders.totalAmount,
- *        applied uniformly to every candidate split on the order. ratio==1 falls
- *        through to the full-clawback path.
+ *      - F-COM-C / GAPS #6 / #16: Partial sales-order refund — pro-rate by
+ *        refundedAmountCents / sales_orders.totalAmount, applied uniformly to EVERY
+ *        candidate split on the order (delivery + origination both clawed back
+ *        proportionally). ratio==1 → full clawback.
  *   3. Skip splits already fully reversed (sum of prior reversals == -split.calculatedAmount).
  *      Subsequent reversals against the same split (e.g. multi-step refunds) are allowed
  *      up to the unreversed remainder.
  *   4. Insert commission_split_reversals rows in the same transaction. The self-FK is
  *      DEFERRABLE so reversal-of-reversal chains can be inserted in any order.
  *   5. Caller (refunds.service) wraps this in its own tx; we accept either tenantDb or tx.
+ *
+ * GAPS #6/#16 (Phase 3): origination splits on the same salesOrderId are included in the
+ * candidate set and receive proportional reversals via the existing salesOrderPartialRatios
+ * mechanism — no separate origination-specific code path needed. The track_id on each split
+ * provides per-track isolation already.
+ *
+ * Performance: the salesOrderId split fetch is paginated (BATCH_SIZE=500) to avoid
+ * unbounded IN() queries as stacked tracks (delivery + origination) grow the split count.
  *
  * Returns the list of inserted reversal IDs. No payout adjustment row is created here —
  * the next payout batch run picks up unsettled reversals via payout_adjustment_id IS NULL.
@@ -2073,7 +2541,10 @@ export async function reverseForRefund(
 		.where(eq(refundItems.refundId, refundId));
 
 	// 2. Build the candidate split set
-	const candidateSplits = new Map<string, typeof commissionSplits.$inferSelect>();
+	const candidateSplits = new Map<
+		string,
+		typeof commissionSplits.$inferSelect
+	>();
 
 	const addSplits = (rows: (typeof commissionSplits.$inferSelect)[]) => {
 		for (const row of rows) {
@@ -2092,12 +2563,43 @@ export async function reverseForRefund(
 		.map((i) => i.packageInstanceId)
 		.filter((id): id is string => id !== null);
 
+	// GAPS #6/#16 / F-COM-C: batch/paginate split fetches to prevent unbounded IN()
+	// queries as stacked tracks (delivery + origination) grow the split count per order.
+	const SPLIT_FETCH_BATCH = 500;
+
+	/**
+	 * Paginated fetch of all commission_splits for a given salesOrderId.
+	 * Ordered by id (uuid, stable) so batches are deterministic.
+	 * Includes ALL tracks (delivery + origination) — proportional reversal is
+	 * applied uniformly to each by the salesOrderPartialRatios mechanism below.
+	 */
+	async function fetchSplitsForOrderPaginated(orderId: string): Promise<void> {
+		let lastId: string | null = null;
+		while (true) {
+			const batch = await tdb
+				.select()
+				.from(commissionSplits)
+				.where(
+					and(
+						eq(commissionSplits.salesOrderId, orderId),
+						...(lastId ? [gt(commissionSplits.id, lastId)] : []),
+					),
+				)
+				.orderBy(asc(commissionSplits.id))
+				.limit(SPLIT_FETCH_BATCH);
+			addSplits(batch);
+			if (batch.length < SPLIT_FETCH_BATCH) break;
+			const last = batch[batch.length - 1];
+			lastId = last?.id ?? null;
+			if (!lastId) break;
+		}
+	}
+
 	if (refund.salesOrderId) {
 		if (itemSalesOrderItemIds.length > 0) {
-			// F-COM-C: Line-level refund — scope to splits whose source is one of
-			// the specific refunded sales_order_items only. Fetching all splits for
-			// the whole order would reverse commission for every line, not just the
-			// refunded one(s).
+			// F-COM-C: Line-level refund — scope to splits whose source order covers
+			// the specific refunded sales_order_items. commission_splits does not store
+			// salesOrderItemId directly, so we scope to the parent orderIds.
 			const soiRows = await tdb
 				.select({
 					id: salesOrderItems.id,
@@ -2106,25 +2608,14 @@ export async function reverseForRefund(
 				.from(salesOrderItems)
 				.where(inArray(salesOrderItems.id, itemSalesOrderItemIds));
 			const orderIds = [...new Set(soiRows.map((r) => r.salesOrderId))];
-			// Only fetch splits whose salesOrderId is in the affected set AND
-			// whose salesOrderItemId (if tracked) is within the refunded items.
-			// commission_splits does not currently store salesOrderItemId directly,
-			// so we scope to the order-level set produced by the specific items —
-			// this is already a strict subset compared to the old whole-order fetch.
-			if (orderIds.length > 0) {
-				const rows = await tdb
-					.select()
-					.from(commissionSplits)
-					.where(inArray(commissionSplits.salesOrderId, orderIds));
-				addSplits(rows);
+			// Fetch splits for each affected order using paginated helper (GAPS #16 fix).
+			// Includes both delivery and origination tracks — reversal ratio applied uniformly.
+			for (const orderId of orderIds) {
+				await fetchSplitsForOrderPaginated(orderId);
 			}
 		} else {
-			// Full-order refund (no specific items) — fetch all splits for the order.
-			const rows = await tdb
-				.select()
-				.from(commissionSplits)
-				.where(eq(commissionSplits.salesOrderId, refund.salesOrderId));
-			addSplits(rows);
+			// Full-order refund (no specific items) — paginated fetch for the order.
+			await fetchSplitsForOrderPaginated(refund.salesOrderId);
 		}
 	}
 
@@ -2172,10 +2663,7 @@ export async function reverseForRefund(
 			if (creditsTotal > 0) {
 				const ratio = Math.min(1, item.creditsRefunded / creditsTotal);
 				const prev = partialRatios.get(item.packageInstanceId) ?? 0;
-				partialRatios.set(
-					item.packageInstanceId,
-					Math.min(1, prev + ratio),
-				);
+				partialRatios.set(item.packageInstanceId, Math.min(1, prev + ratio));
 			}
 		}
 	}
@@ -2248,9 +2736,10 @@ export async function reverseForRefund(
 	const priorRows = await tdb
 		.select({
 			splitId: commissionSplitReversals.reversedSplitId,
-			total: sql<number>`COALESCE(SUM(${commissionSplitReversals.amountCents}), 0)`.mapWith(
-				Number,
-			),
+			total:
+				sql<number>`COALESCE(SUM(${commissionSplitReversals.amountCents}), 0)`.mapWith(
+					Number,
+				),
 		})
 		.from(commissionSplitReversals)
 		.where(inArray(commissionSplitReversals.reversedSplitId, splitIds))
@@ -2278,7 +2767,10 @@ export async function reverseForRefund(
 				unreversed,
 				Math.round(split.calculatedAmount * ratio),
 			);
-		} else if (split.salesOrderId && salesOrderPartialRatios.has(split.salesOrderId)) {
+		} else if (
+			split.salesOrderId &&
+			salesOrderPartialRatios.has(split.salesOrderId)
+		) {
 			// F-COM-C: Sales-order partial: pro-rate by refund amount / order total.
 			// Ratio=1.0 for full refunds → identical to the old full-reversal path.
 			const ratio = salesOrderPartialRatios.get(split.salesOrderId) ?? 1;
@@ -2338,6 +2830,10 @@ export interface ListPendingReviewParams {
 	accessibleNodeIds: string[];
 	limit: number;
 	cursor?: { earnedAt: string; id: string };
+	/** Optional SQL-side filter by commission track id. */
+	trackId?: string | null;
+	/** Optional SQL-side filter by role type. */
+	roleType?: string | null;
 }
 
 export interface PendingReviewRow {
@@ -2352,6 +2848,9 @@ export interface PendingReviewRow {
 	createdByUserId: string | null;
 	createdByName: string;
 	earnedAt: string;
+	/** NULL means "Delivery (legacy)" — originated before commission tracks. */
+	roleType: string | null;
+	trackId: string | null;
 }
 
 export interface ListPendingReviewResult {
@@ -2367,25 +2866,41 @@ export async function listPendingReview(
 ): Promise<ListPendingReviewResult> {
 	// Scope filter — mirror listCommissionLedger pattern.
 	// Splits with no appointmentId and no salesOrderId (pure manual) are always visible.
-	const scopeCondition = params.accessibleNodeIds.length > 0
-		? or(
-				sql`${commissionSplits.appointmentId} IS NULL AND ${commissionSplits.salesOrderId} IS NULL`,
-				inArray(
-					sql`(SELECT branch_id FROM appointments WHERE id = ${commissionSplits.appointmentId})::uuid`,
-					params.accessibleNodeIds,
-				),
-				inArray(
-					sql`(SELECT branch_id FROM sales_orders WHERE id = ${commissionSplits.salesOrderId})::uuid`,
-					params.accessibleNodeIds,
-				),
-			)
+	const scopeCondition =
+		params.accessibleNodeIds.length > 0
+			? or(
+					sql`${commissionSplits.appointmentId} IS NULL AND ${commissionSplits.salesOrderId} IS NULL`,
+					inArray(
+						sql`(SELECT branch_id FROM appointments WHERE id = ${commissionSplits.appointmentId})::uuid`,
+						params.accessibleNodeIds,
+					),
+					inArray(
+						sql`(SELECT branch_id FROM sales_orders WHERE id = ${commissionSplits.salesOrderId})::uuid`,
+						params.accessibleNodeIds,
+					),
+				)
+			: sql`true`;
+
+	// Optional SQL-side filters (Task #26)
+	const trackCondition = params.trackId
+		? eq(commissionSplits.trackId, params.trackId)
+		: sql`true`;
+	const roleCondition = params.roleType
+		? eq(commissionSplits.roleType, params.roleType)
 		: sql`true`;
 
 	// COUNT query for badge
 	const [countRow] = await tenantDb
 		.select({ count: sql<number>`COUNT(*)::int` })
 		.from(commissionSplits)
-		.where(and(eq(commissionSplits.status, "pending_review"), scopeCondition));
+		.where(
+			and(
+				eq(commissionSplits.status, "pending_review"),
+				scopeCondition,
+				trackCondition,
+				roleCondition,
+			),
+		);
 	const total = countRow?.count ?? 0;
 
 	// Row query with cursor
@@ -2396,15 +2911,27 @@ export async function listPendingReview(
 	const rows = await tenantDb
 		.select()
 		.from(commissionSplits)
-		.where(and(eq(commissionSplits.status, "pending_review"), scopeCondition, cursorCondition))
+		.where(
+			and(
+				eq(commissionSplits.status, "pending_review"),
+				scopeCondition,
+				trackCondition,
+				roleCondition,
+				cursorCondition,
+			),
+		)
 		.orderBy(desc(commissionSplits.earnedAt), desc(commissionSplits.id))
 		.limit(params.limit);
 
 	// Batch display-name lookup from control-panel DB — mirror liabilityByStaff pattern
-	const userIds = [...new Set([
-		...rows.map(r => r.staffId),
-		...rows.map(r => r.createdByUserId).filter((id): id is string => id != null),
-	])];
+	const userIds = [
+		...new Set([
+			...rows.map((r) => r.staffId),
+			...rows
+				.map((r) => r.createdByUserId)
+				.filter((id): id is string => id != null),
+		]),
+	];
 
 	const nameMap = new Map<string, string>();
 	if (userIds.length > 0) {
@@ -2423,7 +2950,7 @@ export async function listPendingReview(
 		}
 	}
 
-	const resultRows: PendingReviewRow[] = rows.map(r => ({
+	const resultRows: PendingReviewRow[] = rows.map((r) => ({
 		id: r.id,
 		staffId: r.staffId,
 		staffName: nameMap.get(r.staffId) ?? r.staffId,
@@ -2433,14 +2960,19 @@ export async function listPendingReview(
 		salesOrderId: r.salesOrderId ?? null,
 		createdAt: r.createdAt.toISOString(),
 		createdByUserId: r.createdByUserId ?? null,
-		createdByName: r.createdByUserId ? (nameMap.get(r.createdByUserId) ?? "(unknown)") : "(unknown)",
+		createdByName: r.createdByUserId
+			? (nameMap.get(r.createdByUserId) ?? "(unknown)")
+			: "(unknown)",
 		earnedAt: r.earnedAt.toISOString(),
+		roleType: r.roleType ?? null,
+		trackId: r.trackId ?? null,
 	}));
 
 	const lastRow = rows[rows.length - 1];
-	const nextCursor = rows.length < params.limit || !lastRow
-		? null
-		: { earnedAt: lastRow.earnedAt.toISOString(), id: lastRow.id };
+	const nextCursor =
+		rows.length < params.limit || !lastRow
+			? null
+			: { earnedAt: lastRow.earnedAt.toISOString(), id: lastRow.id };
 
 	return { rows: resultRows, total, nextCursor };
 }
@@ -2454,7 +2986,12 @@ export async function resolvePendingReview(
 	id: string,
 	action: "approve" | "reject",
 	reason: string | null,
-	actor: { userId: string; memberId: string; role: string; accessibleNodeIds: string[] },
+	actor: {
+		userId: string;
+		memberId: string;
+		role: string;
+		accessibleNodeIds: string[];
+	},
 ): Promise<CommissionSplit> {
 	return tenantDb.transaction(async (tx) => {
 		// 1. Lock the row
@@ -2465,7 +3002,9 @@ export async function resolvePendingReview(
 			.for("update");
 
 		if (!split) {
-			throw new ORPCError("NOT_FOUND", { message: "Commission split not found" });
+			throw new ORPCError("NOT_FOUND", {
+				message: "Commission split not found",
+			});
 		}
 
 		// 2. Scope check — verify the earner's branch is within actor's accessible nodes
@@ -2477,7 +3016,10 @@ export async function resolvePendingReview(
 				.where(eq(members.userId, split.staffId))
 				.limit(1);
 
-			if (earnerMember?.hierarchyScopeId && !actor.accessibleNodeIds.includes(earnerMember.hierarchyScopeId)) {
+			if (
+				earnerMember?.hierarchyScopeId &&
+				!actor.accessibleNodeIds.includes(earnerMember.hierarchyScopeId)
+			) {
 				throw new ORPCError("FORBIDDEN", {
 					message: "You do not have access to this commission split",
 					data: { code: "OUT_OF_SCOPE" },
@@ -2512,7 +3054,11 @@ export async function resolvePendingReview(
 				entityType: "commission_split",
 				entityId: id,
 				summary: `Manual adjustment approved for staff ${split.staffId} — ${split.calculatedAmount} cents`,
-				changes: { previousStatus: "pending_review", newStatus: "pending", reason: reason ?? null },
+				changes: {
+					previousStatus: "pending_review",
+					newStatus: "pending",
+					reason: reason ?? null,
+				},
 			});
 
 			return updated!;
@@ -2533,7 +3079,11 @@ export async function resolvePendingReview(
 				entityType: "commission_split",
 				entityId: id,
 				summary: `Commission split voided during review for staff ${split.staffId}`,
-				changes: { previousStatus: "pending_review", newStatus: "void", reason },
+				changes: {
+					previousStatus: "pending_review",
+					newStatus: "void",
+					reason,
+				},
 			});
 
 			// 6. Review-rejected audit (second row distinguishes this void from a generic admin void)
@@ -2552,4 +3102,3 @@ export async function resolvePendingReview(
 		}
 	});
 }
-

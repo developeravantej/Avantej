@@ -95,7 +95,8 @@ export async function processCommissionReversals(
 				})
 				.returning({ id: payouts.id });
 
-			if (!newPayout) throw new Error(`Failed to insert payout for staff ${staffId}`);
+			if (!newPayout)
+				throw new Error(`Failed to insert payout for staff ${staffId}`);
 			payoutIds.push(newPayout.id);
 
 			// 4. Link reversal rows to the new payout adjustment
@@ -118,7 +119,11 @@ export async function processCommissionReversals(
 				entityType: "payout",
 				entityId: newPayout.id,
 				summary: `Commission reversal adjustment RM ${(totalNegativeAmountCents / 100).toFixed(2)} for staff ${staffId} (${reversals.length} reversal(s))`,
-				changes: { recipientId: staffId, amountCents: totalNegativeAmountCents, reversalCount: reversals.length },
+				changes: {
+					recipientId: staffId,
+					amountCents: totalNegativeAmountCents,
+					reversalCount: reversals.length,
+				},
 			});
 			for (const splitId of splitIds) {
 				await writeAudit(tx, {
@@ -278,7 +283,7 @@ export interface RunBatchParams {
 	staffIds: string[];
 	periodStart: Date;
 	periodEnd: Date;
-	paymentMethod: "bank_transfer" | "cash" | "check" | "other" | "stripe_connect";
+	paymentMethod: "bank_transfer" | "cash" | "check" | "other";
 	reference?: string;
 	paidByUserId: string; // context.member.userId
 	/**
@@ -349,8 +354,12 @@ export async function runBatch(
 	// S-payouts-state-machine: when the operator opts into the state machine
 	// (confirmImmediately=false), the payout enters at 'pending' and linked
 	// splits stay at 'approved' until `markPayoutPaid` settles the row.
-	const payoutInitialStatus: "paid" | "pending" = confirmImmediately ? "paid" : "pending";
-	const splitInitialStatus: "paid" | "approved" = confirmImmediately ? "paid" : "approved";
+	const payoutInitialStatus: "paid" | "pending" = confirmImmediately
+		? "paid"
+		: "pending";
+	const splitInitialStatus: "paid" | "approved" = confirmImmediately
+		? "paid"
+		: "approved";
 
 	try {
 		return await tenantDb.transaction(async (tx) => {
@@ -372,10 +381,9 @@ export async function runBatch(
 				.for("update");
 
 			if (locked.length === 0) {
-				throw Object.assign(
-					new Error("No approved splits in range"),
-					{ code: "EMPTY_BATCH" },
-				);
+				throw Object.assign(new Error("No approved splits in range"), {
+					code: "EMPTY_BATCH",
+				});
 			}
 
 			// 2. Resolve the payout batch up-front so every inserted payout row
@@ -390,9 +398,15 @@ export async function runBatch(
 			});
 
 			// 3. Group by staffId
-			const byStaff = new Map<string, { splitIds: string[]; totalCents: number }>();
+			const byStaff = new Map<
+				string,
+				{ splitIds: string[]; totalCents: number }
+			>();
 			for (const row of locked) {
-				const existing = byStaff.get(row.staffId) ?? { splitIds: [], totalCents: 0 };
+				const existing = byStaff.get(row.staffId) ?? {
+					splitIds: [],
+					totalCents: 0,
+				};
 				existing.splitIds.push(row.id);
 				existing.totalCents += row.calculatedAmount;
 				byStaff.set(row.staffId, existing);
@@ -474,7 +488,10 @@ export async function runBatch(
 						entityType: "commission_split",
 						entityId: splitId,
 						summary: `Commission split marked paid via batch payout ${newPayout.id}`,
-						changes: { payoutId: newPayout.id, paymentReference: reference ?? null },
+						changes: {
+							payoutId: newPayout.id,
+							paymentReference: reference ?? null,
+						},
 					});
 				}
 			}
@@ -503,14 +520,19 @@ export async function runBatch(
 		});
 	} catch (err) {
 		// Surface empty-batch as a distinguishable error
-		if (err instanceof Error && (err as NodeJS.ErrnoException & { code?: string }).code === "EMPTY_BATCH") {
+		if (
+			err instanceof Error &&
+			(err as NodeJS.ErrnoException & { code?: string }).code === "EMPTY_BATCH"
+		) {
 			throw err;
 		}
 		// Catch PostgreSQL duplicate-key (23505) — concurrent payout for same staff+period
 		const pgErr = err as { code?: string };
 		if (pgErr?.code === "23505") {
 			throw Object.assign(
-				new Error("A payout for one or more of these staff members in this period already exists"),
+				new Error(
+					"A payout for one or more of these staff members in this period already exists",
+				),
 				{ code: "CONFLICT" },
 			);
 		}
@@ -552,7 +574,9 @@ export async function recipientSummary(
 			lastPayoutAt: max(payouts.paidAt),
 		})
 		.from(payouts)
-		.where(and(eq(payouts.recipientId, recipientId), eq(payouts.status, "paid")));
+		.where(
+			and(eq(payouts.recipientId, recipientId), eq(payouts.status, "paid")),
+		);
 
 	const lifetimePaidCents = agg?.totalPaid ?? 0;
 	const lastPayoutAt = agg?.lastPayoutAt ? new Date(agg.lastPayoutAt) : null;
@@ -565,7 +589,9 @@ export async function recipientSummary(
 			batchId: payouts.batchId,
 		})
 		.from(payouts)
-		.where(and(eq(payouts.recipientId, recipientId), eq(payouts.status, "paid")))
+		.where(
+			and(eq(payouts.recipientId, recipientId), eq(payouts.status, "paid")),
+		)
 		.orderBy(sql`${payouts.paidAt} desc nulls last`)
 		.limit(100);
 
@@ -598,7 +624,7 @@ export async function recipientSummary(
 
 export interface ProcessForRecipientParams {
 	recipientId: string;
-	paymentMethod: "bank_transfer" | "cash" | "check" | "other" | "stripe_connect";
+	paymentMethod: "bank_transfer" | "cash" | "check" | "other";
 	reference?: string;
 	paidByUserId: string;
 	periodStart?: Date;
@@ -618,7 +644,9 @@ export async function processForRecipient(
 	params: ProcessForRecipientParams,
 ): Promise<RunBatchResult> {
 	const now = new Date();
-	const defaultPeriodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+	const defaultPeriodStart = new Date(
+		Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+	);
 
 	return runBatch(tenantDb, {
 		staffIds: [params.recipientId],
@@ -716,7 +744,10 @@ export async function markPayoutPaid(
 			})
 			.where(eq(payouts.id, payoutId))
 			.returning();
-		if (!updated) throw new Error(`markPayoutPaid: payout ${payoutId} update returned no row`);
+		if (!updated)
+			throw new Error(
+				`markPayoutPaid: payout ${payoutId} update returned no row`,
+			);
 
 		// Flip linked approved splits to paid. Splits that are already paid (idempotency
 		// safety from a stuck pending payout that was partially synced) are left alone.
@@ -782,12 +813,17 @@ export async function markPayoutFailed(
 			.update(payouts)
 			.set({
 				status: "failed",
-				notes: row.notes ? `${row.notes}\nFailed: ${params.reason}` : `Failed: ${params.reason}`,
+				notes: row.notes
+					? `${row.notes}\nFailed: ${params.reason}`
+					: `Failed: ${params.reason}`,
 				updatedAt: now,
 			})
 			.where(eq(payouts.id, payoutId))
 			.returning();
-		if (!updated) throw new Error(`markPayoutFailed: payout ${payoutId} update returned no row`);
+		if (!updated)
+			throw new Error(
+				`markPayoutFailed: payout ${payoutId} update returned no row`,
+			);
 
 		await writeAudit(tx, {
 			actorUserId: params.actor.userId,
@@ -797,7 +833,11 @@ export async function markPayoutFailed(
 			entityType: "payout",
 			entityId: payoutId,
 			summary: `Payout marked failed: ${params.reason}`,
-			changes: { previousStatus: row.status, newStatus: "failed", reason: params.reason },
+			changes: {
+				previousStatus: row.status,
+				newStatus: "failed",
+				reason: params.reason,
+			},
 		});
 
 		return updated;
@@ -836,7 +876,8 @@ export async function retryPayout(
 			})
 			.where(eq(payouts.id, payoutId))
 			.returning();
-		if (!updated) throw new Error(`retryPayout: payout ${payoutId} update returned no row`);
+		if (!updated)
+			throw new Error(`retryPayout: payout ${payoutId} update returned no row`);
 
 		await writeAudit(tx, {
 			actorUserId: params.actor.userId,
@@ -883,12 +924,17 @@ export async function cancelPayout(
 			.update(payouts)
 			.set({
 				status: "canceled",
-				notes: row.notes ? `${row.notes}\nCanceled: ${params.reason}` : `Canceled: ${params.reason}`,
+				notes: row.notes
+					? `${row.notes}\nCanceled: ${params.reason}`
+					: `Canceled: ${params.reason}`,
 				updatedAt: now,
 			})
 			.where(eq(payouts.id, payoutId))
 			.returning();
-		if (!updated) throw new Error(`cancelPayout: payout ${payoutId} update returned no row`);
+		if (!updated)
+			throw new Error(
+				`cancelPayout: payout ${payoutId} update returned no row`,
+			);
 
 		// Revert linked splits to approved + clear payoutId so they can be re-batched.
 		await tx
@@ -910,7 +956,11 @@ export async function cancelPayout(
 			entityType: "payout",
 			entityId: payoutId,
 			summary: `Payout canceled: ${params.reason}`,
-			changes: { previousStatus: row.status, newStatus: "canceled", reason: params.reason },
+			changes: {
+				previousStatus: row.status,
+				newStatus: "canceled",
+				reason: params.reason,
+			},
 		});
 
 		return updated;

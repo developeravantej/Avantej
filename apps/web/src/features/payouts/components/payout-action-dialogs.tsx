@@ -31,7 +31,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatPrice } from "@/lib/money";
 import {
 	useCancelPayout,
-	useConfirmPayoutViaStripe,
 	useMarkPayoutFailed,
 	useMarkPayoutPaid,
 	useRetryPayout,
@@ -72,7 +71,11 @@ interface MarkPaidProps {
 	onClose: () => void;
 }
 
-export function MarkPaidDialog({ organizationId, payout, onClose }: MarkPaidProps) {
+export function MarkPaidDialog({
+	organizationId,
+	payout,
+	onClose,
+}: MarkPaidProps) {
 	const [reference, setReference] = useState("");
 	const mutation = useMarkPayoutPaid(organizationId);
 
@@ -98,46 +101,64 @@ export function MarkPaidDialog({ organizationId, payout, onClose }: MarkPaidProp
 
 	return (
 		<Dialog open={!!payout} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>Mark payout as paid</DialogTitle>
-					<DialogDescription>
-						Record the external payment reference (wire id, cheque number, transfer id).
-						Flips the payout to <strong>paid</strong> and marks the linked commission
-						splits paid in the same transaction.
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						PAYOUT HISTORY
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Mark payout as paid
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
+						Record the external payment reference (wire id, cheque number,
+						transfer id). Flips the payout to <strong>paid</strong> and marks
+						the linked commission splits paid in the same transaction.
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="space-y-3 py-2">
-					<PayoutSummaryRow payout={payout} />
-					<div className="space-y-1.5">
-						<Label htmlFor="paymentReference">
-							Payment reference <span className="text-destructive">*</span>
-						</Label>
-						<Input
-							id="paymentReference"
-							value={reference}
-							onChange={(e) => setReference(e.target.value)}
-							placeholder="e.g. WIRE-2026-05-27-001"
-							maxLength={200}
-							autoFocus
-							disabled={mutation.isPending}
-							onKeyDown={(e) => {
-								if (e.key === "Enter" && valid) handleSubmit();
-							}}
-						/>
-						<p className="text-xs text-[#737373]">
-							Required. Persisted on the row's notes + audit log so the external
-							transaction stays linked to the commission record.
-						</p>
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					<div className="space-y-3 py-2">
+						<PayoutSummaryRow payout={payout} />
+						<div className="space-y-1.5">
+							<Label htmlFor="paymentReference">
+								Payment reference <span className="text-rose-600">*</span>
+							</Label>
+							<Input
+								id="paymentReference"
+								value={reference}
+								onChange={(e) => setReference(e.target.value)}
+								placeholder="e.g. WIRE-2026-05-27-001"
+								maxLength={200}
+								autoFocus
+								disabled={mutation.isPending}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" && valid) handleSubmit();
+								}}
+							/>
+							<p className="text-xs text-[#737373]">
+								Required. Persisted on the row's notes + audit log so the
+								external transaction stays linked to the commission record.
+							</p>
+						</div>
 					</div>
 				</div>
 
-				<DialogFooter>
-					<Button variant="outline" onClick={onClose} disabled={mutation.isPending}>
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+					<Button
+						variant="outline"
+						onClick={onClose}
+						disabled={mutation.isPending}
+					>
 						Cancel
 					</Button>
-					<Button onClick={handleSubmit} disabled={!valid || mutation.isPending}>
+					<Button
+						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+						onClick={handleSubmit}
+						disabled={!valid || mutation.isPending}
+					>
 						{mutation.isPending ? "Marking paid…" : "Mark paid"}
 					</Button>
 				</DialogFooter>
@@ -154,7 +175,11 @@ interface MarkFailedProps {
 	onClose: () => void;
 }
 
-export function MarkFailedDialog({ organizationId, payout, onClose }: MarkFailedProps) {
+export function MarkFailedDialog({
+	organizationId,
+	payout,
+	onClose,
+}: MarkFailedProps) {
 	const [reason, setReason] = useState("");
 	const mutation = useMarkPayoutFailed(organizationId);
 
@@ -168,48 +193,68 @@ export function MarkFailedDialog({ organizationId, payout, onClose }: MarkFailed
 
 	const handleSubmit = async () => {
 		if (!valid) return;
-		await mutation.mutateAsync({ organizationId, id: payout.id, reason: trimmed });
+		await mutation.mutateAsync({
+			organizationId,
+			id: payout.id,
+			reason: trimmed,
+		});
 		onClose();
 	};
 
 	return (
 		<Dialog open={!!payout} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>Mark payout as failed</DialogTitle>
-					<DialogDescription>
-						Record why the payout couldn't be settled (bank rejection, bounced cheque,
-						transfer error). Linked commission splits stay at <strong>approved</strong>
-						with their <code className="text-[10px] font-mono">payoutId</code> intact,
-						so a future <strong>Retry</strong> picks up where this left off.
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						PAYOUT HISTORY
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Mark payout as failed
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
+						Record why the payout couldn't be settled (bank rejection, bounced
+						cheque, transfer error). Linked commission splits stay at{" "}
+						<strong>approved</strong>
+						with their <code className="text-[10px] font-mono">payoutId</code>{" "}
+						intact, so a future <strong>Retry</strong> picks up where this left
+						off.
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="space-y-3 py-2">
-					<PayoutSummaryRow payout={payout} />
-					<div className="space-y-1.5">
-						<Label htmlFor="failureReason">
-							Reason <span className="text-destructive">*</span>
-						</Label>
-						<Textarea
-							id="failureReason"
-							value={reason}
-							onChange={(e) => setReason(e.target.value)}
-							placeholder="e.g. Bank rejected: account closed; need updated details"
-							maxLength={1000}
-							rows={3}
-							autoFocus
-							disabled={mutation.isPending}
-						/>
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					<div className="space-y-3 py-2">
+						<PayoutSummaryRow payout={payout} />
+						<div className="space-y-1.5">
+							<Label htmlFor="failureReason">
+								Reason <span className="text-rose-600">*</span>
+							</Label>
+							<Textarea
+								id="failureReason"
+								value={reason}
+								onChange={(e) => setReason(e.target.value)}
+								placeholder="e.g. Bank rejected: account closed; need updated details"
+								maxLength={1000}
+								rows={3}
+								autoFocus
+								disabled={mutation.isPending}
+							/>
+						</div>
 					</div>
 				</div>
 
-				<DialogFooter>
-					<Button variant="outline" onClick={onClose} disabled={mutation.isPending}>
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+					<Button
+						variant="outline"
+						onClick={onClose}
+						disabled={mutation.isPending}
+					>
 						Back
 					</Button>
 					<Button
-						variant="destructive"
+						className="bg-red-600 hover:bg-red-700 text-white"
 						onClick={handleSubmit}
 						disabled={!valid || mutation.isPending}
 					>
@@ -229,7 +274,11 @@ interface CancelProps {
 	onClose: () => void;
 }
 
-export function CancelPayoutDialog({ organizationId, payout, onClose }: CancelProps) {
+export function CancelPayoutDialog({
+	organizationId,
+	payout,
+	onClose,
+}: CancelProps) {
 	const [reason, setReason] = useState("");
 	const mutation = useCancelPayout(organizationId);
 
@@ -243,48 +292,66 @@ export function CancelPayoutDialog({ organizationId, payout, onClose }: CancelPr
 
 	const handleSubmit = async () => {
 		if (!valid) return;
-		await mutation.mutateAsync({ organizationId, id: payout.id, reason: trimmed });
+		await mutation.mutateAsync({
+			organizationId,
+			id: payout.id,
+			reason: trimmed,
+		});
 		onClose();
 	};
 
 	return (
 		<Dialog open={!!payout} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>Cancel payout</DialogTitle>
-					<DialogDescription>
-						The linked commission splits will revert to <strong>approved</strong>
-						{" "}and become eligible for a future batch — their{" "}
-						<code className="text-[10px] font-mono">payoutId</code> is cleared. The
-						reason is persisted to the audit log.
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						PAYOUT HISTORY
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Cancel payout
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
+						The linked commission splits will revert to{" "}
+						<strong>approved</strong> and become eligible for a future batch —
+						their <code className="text-[10px] font-mono">payoutId</code> is
+						cleared. The reason is persisted to the audit log.
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="space-y-3 py-2">
-					<PayoutSummaryRow payout={payout} />
-					<div className="space-y-1.5">
-						<Label htmlFor="cancelReason">
-							Reason <span className="text-destructive">*</span>
-						</Label>
-						<Textarea
-							id="cancelReason"
-							value={reason}
-							onChange={(e) => setReason(e.target.value)}
-							placeholder="e.g. Recipient bank details incorrect; will re-batch after correction"
-							maxLength={1000}
-							rows={3}
-							autoFocus
-							disabled={mutation.isPending}
-						/>
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					<div className="space-y-3 py-2">
+						<PayoutSummaryRow payout={payout} />
+						<div className="space-y-1.5">
+							<Label htmlFor="cancelReason">
+								Reason <span className="text-rose-600">*</span>
+							</Label>
+							<Textarea
+								id="cancelReason"
+								value={reason}
+								onChange={(e) => setReason(e.target.value)}
+								placeholder="e.g. Recipient bank details incorrect; will re-batch after correction"
+								maxLength={1000}
+								rows={3}
+								autoFocus
+								disabled={mutation.isPending}
+							/>
+						</div>
 					</div>
 				</div>
 
-				<DialogFooter>
-					<Button variant="outline" onClick={onClose} disabled={mutation.isPending}>
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+					<Button
+						variant="outline"
+						onClick={onClose}
+						disabled={mutation.isPending}
+					>
 						Back
 					</Button>
 					<Button
-						variant="destructive"
+						className="bg-red-600 hover:bg-red-700 text-white"
 						onClick={handleSubmit}
 						disabled={!valid || mutation.isPending}
 					>
@@ -304,7 +371,11 @@ interface RetryProps {
 	onClose: () => void;
 }
 
-export function RetryPayoutDialog({ organizationId, payout, onClose }: RetryProps) {
+export function RetryPayoutDialog({
+	organizationId,
+	payout,
+	onClose,
+}: RetryProps) {
 	const mutation = useRetryPayout(organizationId);
 
 	if (!payout) return null;
@@ -316,97 +387,46 @@ export function RetryPayoutDialog({ organizationId, payout, onClose }: RetryProp
 
 	return (
 		<Dialog open={!!payout} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>Retry payout</DialogTitle>
-					<DialogDescription>
-						Resets the payout from <strong>failed</strong> to <strong>pending</strong>
-						{" "}for another attempt. Linked commission splits aren't touched — their{" "}
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						PAYOUT HISTORY
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Retry payout
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
+						Resets the payout from <strong>failed</strong> to{" "}
+						<strong>pending</strong> for another attempt. Linked commission
+						splits aren't touched — their{" "}
 						<code className="text-[10px] font-mono">payoutId</code> linkage is
 						preserved.
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="space-y-3 py-2">
-					<PayoutSummaryRow payout={payout} />
-				</div>
-
-				<DialogFooter>
-					<Button variant="outline" onClick={onClose} disabled={mutation.isPending}>
-						Back
-					</Button>
-					<Button onClick={handleSubmit} disabled={mutation.isPending}>
-						{mutation.isPending ? "Retrying…" : "Retry payout"}
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
-	);
-}
-
-// ─── ConfirmViaStripeDialog (no input — rich confirmation) ──────────────────
-
-interface ConfirmStripeProps {
-	organizationId: string;
-	payout: PayoutListItem | null;
-	onClose: () => void;
-}
-
-export function ConfirmViaStripeDialog({
-	organizationId,
-	payout,
-	onClose,
-}: ConfirmStripeProps) {
-	const mutation = useConfirmPayoutViaStripe(organizationId);
-
-	if (!payout) return null;
-
-	const handleSubmit = async () => {
-		await mutation.mutateAsync({ organizationId, payoutId: payout.id });
-		onClose();
-	};
-
-	return (
-		<Dialog open={!!payout} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className="sm:max-w-lg">
-				<DialogHeader>
-					<DialogTitle>Confirm payout via Stripe Connect</DialogTitle>
-					<DialogDescription>
-						Calls <code className="text-[10px] font-mono">stripe.transfers.create</code>{" "}
-						to send the funds to the partner's Stripe Connect account, then flips this
-						payout to <strong>paid</strong> and marks the linked commission splits
-						paid in the same transaction.
-					</DialogDescription>
-				</DialogHeader>
-
-				<div className="space-y-3 py-2">
-					<PayoutSummaryRow payout={payout} />
-
-					<div className="rounded-md border border-indigo-200 bg-indigo-50/60 px-3 py-2 text-xs space-y-1 text-indigo-900">
-						<div className="font-semibold">Pre-flight</div>
-						<ul className="list-disc pl-4 space-y-0.5">
-							<li>Partner must have a fully-onboarded Stripe Connect account.</li>
-							<li>
-								<code className="text-[10px] font-mono">payouts_enabled</code> must
-								be true (check the Partner Stripe Connect card above).
-							</li>
-							<li>
-								Idempotency key{" "}
-								<code className="text-[10px] font-mono">
-									confirm-payout:{payout.id.slice(0, 8)}…
-								</code>{" "}
-								— a retry won't double-transfer.
-							</li>
-						</ul>
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					<div className="space-y-3 py-2">
+						<PayoutSummaryRow payout={payout} />
 					</div>
 				</div>
 
-				<DialogFooter>
-					<Button variant="outline" onClick={onClose} disabled={mutation.isPending}>
-						Cancel
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+					<Button
+						variant="outline"
+						onClick={onClose}
+						disabled={mutation.isPending}
+					>
+						Back
 					</Button>
-					<Button onClick={handleSubmit} disabled={mutation.isPending}>
-						{mutation.isPending ? "Firing transfer…" : "Confirm via Stripe"}
+					<Button
+						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+						onClick={handleSubmit}
+						disabled={mutation.isPending}
+					>
+						{mutation.isPending ? "Retrying…" : "Retry payout"}
 					</Button>
 				</DialogFooter>
 			</DialogContent>
