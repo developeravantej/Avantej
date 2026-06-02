@@ -28,10 +28,11 @@ const ORG_SUSPENDED = "f0000000-0000-4000-8000-0000000000a1";
 const ORG_CANCELLED = "f0000000-0000-4000-8000-0000000000a2";
 const ORG_ACTIVE = "f0000000-0000-4000-8000-0000000000a3";
 const ORG_LAPSED = "f0000000-0000-4000-8000-0000000000a4";
+const ORG_PROVISIONED = "f0000000-0000-4000-8000-0000000000a5";
 const SUB_ACTIVE = "f0000000-0000-4000-8000-0000000000b1";
 const SUB_LAPSED = "f0000000-0000-4000-8000-0000000000b2";
 
-const ALL_ORGS = [ORG_SUSPENDED, ORG_CANCELLED, ORG_ACTIVE, ORG_LAPSED];
+const ALL_ORGS = [ORG_SUSPENDED, ORG_CANCELLED, ORG_ACTIVE, ORG_LAPSED, ORG_PROVISIONED];
 const ALL_SUBS = [SUB_ACTIVE, SUB_LAPSED];
 
 function buildApp() {
@@ -42,17 +43,20 @@ function buildApp() {
 	return app;
 }
 
-/** POST an /rpc call for `organizationId`; returns the HTTP status. */
-async function callRpc(
-	path: string,
-	organizationId: string,
-	method?: string,
-): Promise<number> {
+/**
+ * POST an /rpc call for `organizationId`; returns the HTTP status.
+ *
+ * Mirrors the REAL oRPC RPCLink wire: the procedure is in the URL PATH and the
+ * body carries only input — NO `method`. The gate must derive admin-bypass +
+ * write-detection from the path, so we deliberately send no method here (an
+ * earlier version injected `method`, which masked a always-false bypass bug).
+ */
+async function callRpc(path: string, organizationId: string): Promise<number> {
 	const app = buildApp();
 	const res = await app.request(path, {
 		method: "POST",
 		headers: { "content-type": "application/json" },
-		body: JSON.stringify({ organizationId, method: method ?? path.replace(/^\/rpc\//, "").replace(/\//g, ".") }),
+		body: JSON.stringify({ organizationId }),
 	});
 	return res.status;
 }
@@ -103,6 +107,7 @@ beforeAll(async () => {
 	await seedOrg(ORG_CANCELLED, "cancelled", null);
 	await seedOrg(ORG_ACTIVE, "active", SUB_ACTIVE);
 	await seedOrg(ORG_LAPSED, "active", SUB_LAPSED); // lifecycle active, sub lapsed
+	await seedOrg(ORG_PROVISIONED, "active", null); // admin-provisioned, no sub yet
 });
 
 afterAll(cleanup);
@@ -134,13 +139,16 @@ describe("tenant access gates (orpcTenantMiddleware)", () => {
 		).not.toBe(403);
 	});
 
-	it("C3: platform-admin call bypasses the suspension gate", async () => {
+	it("C3: platform-admin recovery call (resume) on a suspended tenant bypasses the gate — by URL path, no body method", async () => {
+		// The deadlock guard: an admin must be able to act ON a suspended tenant.
+		// Bypass is derived from the path, NOT a body `method` (which the real
+		// client never sends).
 		expect(
-			await callRpc(
-				"/rpc/platformAdminTenants/suspendTenant",
-				ORG_SUSPENDED,
-				"platformAdminTenants.suspendTenant",
-			),
+			await callRpc("/rpc/platformAdminTenants/resumeTenant", ORG_SUSPENDED),
 		).not.toBe(403);
+	});
+
+	it("B4: admin-provisioned tenant (active, no subscription) is NOT write-locked", async () => {
+		expect(await callRpc("/rpc/salesOrders/create", ORG_PROVISIONED)).not.toBe(403);
 	});
 });

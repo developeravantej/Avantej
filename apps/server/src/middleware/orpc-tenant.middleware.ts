@@ -126,9 +126,18 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
       // see isAppBlocked). Platform-admin endpoints bypass so ops can
       // resume/cancel/inspect. A later Layer-2 read-only billing gate sits
       // beside this self-contained block.
-      const methodStr = String(method ?? "");
+      //
+      // Procedure identity is taken from the URL PATH — the oRPC RPCLink wire
+      // format encodes the procedure in the path (/rpc/<router>/<proc>) and the
+      // body is { json: input } with NO `method`. Deriving the bypass from a
+      // body `method` makes it always-false, which would 403 every platform-admin
+      // recovery call (resume / forceCancel / reTrial) against the suspended
+      // target tenant — a deadlock with no way back.
+      const procPath = c.req.path
+        .replace(/^\/rpc\//, "")
+        .replace(/\//g, ".");
       const isPlatformAdminCall =
-        methodStr.startsWith("platformAdmin") || methodStr.startsWith("admin.");
+        procPath.startsWith("platformAdmin") || procPath.startsWith("admin.");
       if (!isPlatformAdminCall) {
         try {
           const cpDb = getControlPanelDb(c);
@@ -167,15 +176,23 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
           // deferred until the locked-out UX and a read-side exempt-list
           // (auth/userContext, subscriptions) are verified — blocking reads
           // here would lock a tenant out of the screens needed to subscribe.
-          const procName = c.req.path
-            .replace(/^\/rpc\//, "")
-            .replace(/\//g, ".");
           const isBillingExempt =
-            procName.startsWith("subscriptions") ||
-            procName.startsWith("registration");
-          if (org && !isBillingExempt && isWriteProcedure(procName)) {
+            procPath.startsWith("subscriptions") ||
+            procPath.startsWith("registration");
+          // Only gate tenants actually on the SaaS billing path (those with a
+          // subscription). An admin-provisioned tenant (paymentStatus=active,
+          // no subscription yet) must NOT be write-locked — the Layer-1
+          // lifecycle gate already governs its access. Without this guard,
+          // evaluateAccess(null sub) returns `block` (trial_expired_no_sub) and
+          // 403s a healthy provisioned tenant.
+          if (
+            org &&
+            org.subscriptionId &&
+            !isBillingExempt &&
+            isWriteProcedure(procPath)
+          ) {
             let sub: SubStateInput = null;
-            if (org.subscriptionId) {
+            {
               const subRow = await cpDb.query.subscriptions.findFirst({
                 where: eq(subscriptions.id, org.subscriptionId),
                 columns: {
