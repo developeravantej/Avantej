@@ -16,37 +16,63 @@ export type CreateInvoiceParams = {
 	paymentMode?: string;
 	totalAmount: number;
 	amountPaid?: number;
-	status: "draft" | "sent" | "paid" | "partially_paid" | "overdue" | "cancelled";
+	status:
+		| "draft"
+		| "sent"
+		| "paid"
+		| "partially_paid"
+		| "overdue"
+		| "cancelled";
 	eInvoiceStatus?: string;
 	eInvoiceId?: string;
 };
 
-export type UpdateInvoiceParams = Partial<Omit<CreateInvoiceParams, "createdBy">>;
+export type UpdateInvoiceParams = Partial<
+	Omit<CreateInvoiceParams, "createdBy">
+>;
 
-function formatDateYYYYMMDD(date: Date): string {
+/** Local-date → YYYYMMDD (zero-padded month/day). Pure. */
+export function formatDateYYYYMMDD(date: Date): string {
 	const y = date.getFullYear();
 	const m = String(date.getMonth() + 1).padStart(2, "0");
 	const d = String(date.getDate()).padStart(2, "0");
 	return `${y}${m}${d}`;
 }
 
+/**
+ * Compose the invoice number from a date and a monotonic sequence value:
+ * `INV-YYYYMMDD-NNNNNN`. The sequence comes from `nextval('tenant_invoice_seq')`
+ * (collision-free); this just formats it. Pure — unit-tested. The 6-digit pad
+ * is a minimum width, not a cap: a seq past 999999 grows rather than truncates.
+ */
+export function buildInvoiceNumber(date: Date, seq: number): string {
+	return `INV-${formatDateYYYYMMDD(date)}-${String(seq).padStart(6, "0")}`;
+}
+
 async function generateInvoiceNumber(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	date: Date
+	date: Date,
 ): Promise<string> {
-	const datePart = formatDateYYYYMMDD(date);
 	const result = await tenantDb.execute<{ seq: string }>(
-		sql`SELECT nextval('tenant_invoice_seq') AS seq`
+		sql`SELECT nextval('tenant_invoice_seq') AS seq`,
 	);
 	const seq = Number((result.rows[0] as { seq: string | number }).seq);
-	return `INV-${datePart}-${String(seq).padStart(6, "0")}`;
+	return buildInvoiceNumber(date, seq);
 }
 
 export async function listInvoices(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: { status?: string; customerId?: string; from?: Date; to?: Date; salesOrderId?: string; accessibleNodeIds?: string[] } = {}
+	params: {
+		status?: string;
+		customerId?: string;
+		from?: Date;
+		to?: Date;
+		salesOrderId?: string;
+		accessibleNodeIds?: string[];
+	} = {},
 ): Promise<(typeof invoices.$inferSelect)[]> {
-	const { status, customerId, from, to, salesOrderId, accessibleNodeIds } = params;
+	const { status, customerId, from, to, salesOrderId, accessibleNodeIds } =
+		params;
 
 	// When accessibleNodeIds is provided, scope to invoices whose linked sales order
 	// falls within the accessible branches. Invoices with no sales order (orphans) are
@@ -59,7 +85,8 @@ export async function listInvoices(
 		if (customerId) invoiceConditions.push(eq(invoices.customerId, customerId));
 		if (from) invoiceConditions.push(gte(invoices.date, from));
 		if (to) invoiceConditions.push(lte(invoices.date, to));
-		if (salesOrderId) invoiceConditions.push(eq(invoices.salesOrderId, salesOrderId));
+		if (salesOrderId)
+			invoiceConditions.push(eq(invoices.salesOrderId, salesOrderId));
 		invoiceConditions.push(inArray(salesOrders.branchId, accessibleNodeIds));
 
 		return tenantDb
@@ -96,8 +123,8 @@ export async function listInvoices(
 
 export async function getInvoiceById(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
-): Promise<(typeof invoices.$inferSelect) | null> {
+	id: string,
+): Promise<typeof invoices.$inferSelect | null> {
 	const row = await tenantDb.query.invoices.findFirst({
 		where: eq(invoices.id, id),
 	});
@@ -106,9 +133,11 @@ export async function getInvoiceById(
 
 export async function createInvoice(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: CreateInvoiceParams
+	params: CreateInvoiceParams,
 ): Promise<typeof invoices.$inferSelect> {
-	const invoiceNumber = params.invoiceNumber ?? (await generateInvoiceNumber(tenantDb, params.date));
+	const invoiceNumber =
+		params.invoiceNumber ??
+		(await generateInvoiceNumber(tenantDb, params.date));
 
 	const [row] = await tenantDb
 		.insert(invoices)
@@ -139,23 +168,35 @@ export async function createInvoice(
 export async function updateInvoice(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	id: string,
-	params: UpdateInvoiceParams
+	params: UpdateInvoiceParams,
 ): Promise<typeof invoices.$inferSelect> {
 	const [row] = await tenantDb
 		.update(invoices)
 		.set({
-			...(params.invoiceNumber !== undefined && { invoiceNumber: params.invoiceNumber }),
-			...(params.salesOrderId !== undefined && { salesOrderId: params.salesOrderId }),
+			...(params.invoiceNumber !== undefined && {
+				invoiceNumber: params.invoiceNumber,
+			}),
+			...(params.salesOrderId !== undefined && {
+				salesOrderId: params.salesOrderId,
+			}),
 			...(params.paymentId !== undefined && { paymentId: params.paymentId }),
 			...(params.date !== undefined && { date: params.date }),
 			...(params.dueDate !== undefined && { dueDate: params.dueDate }),
 			...(params.customerId !== undefined && { customerId: params.customerId }),
-			...(params.customerName !== undefined && { customerName: params.customerName }),
-			...(params.paymentMode !== undefined && { paymentMode: params.paymentMode }),
-			...(params.totalAmount !== undefined && { totalAmount: params.totalAmount }),
+			...(params.customerName !== undefined && {
+				customerName: params.customerName,
+			}),
+			...(params.paymentMode !== undefined && {
+				paymentMode: params.paymentMode,
+			}),
+			...(params.totalAmount !== undefined && {
+				totalAmount: params.totalAmount,
+			}),
 			...(params.amountPaid !== undefined && { amountPaid: params.amountPaid }),
 			...(params.status !== undefined && { status: params.status }),
-			...(params.eInvoiceStatus !== undefined && { eInvoiceStatus: params.eInvoiceStatus }),
+			...(params.eInvoiceStatus !== undefined && {
+				eInvoiceStatus: params.eInvoiceStatus,
+			}),
 			...(params.eInvoiceId !== undefined && { eInvoiceId: params.eInvoiceId }),
 			updatedAt: new Date(),
 		})
