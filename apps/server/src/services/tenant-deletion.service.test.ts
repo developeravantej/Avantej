@@ -46,19 +46,23 @@ interface Op {
  *   - update(table).set(obj).where(...)            → records
  *   - delete(table).where(...)                     → records
  */
-function makeCpDb(selects: Row[][]) {
+function makeCpDb(selects: (Row[] | Error)[]) {
 	const queue = [...selects];
 	const ops: Op[] = [];
 	let lastInsertValues: Row = {};
 
-	const next = () => queue.shift() ?? [];
+	// An Error in the queue simulates a DB failure for that select (rejects).
+	const next = (): Promise<Row[]> => {
+		const v = queue.shift() ?? [];
+		return v instanceof Error ? Promise.reject(v) : Promise.resolve(v);
+	};
 
 	const selectChain: Record<string, unknown> = {
 		from: () => selectChain,
 		where: () => selectChain,
-		limit: () => Promise.resolve(next()),
+		limit: () => next(),
 		then: (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
-			Promise.resolve(next()).then(res, rej),
+			next().then(res, rej),
 	};
 
 	const db = {
@@ -310,6 +314,59 @@ describe("hardDeleteOverdueTenants", () => {
 		expect(
 			ops.some((o) => o.kind === "delete" && o.table === organizations),
 		).toBe(false);
+	});
+
+	it("stamps and counts an orphan deletion row whose org is already gone, without a Neon drop", async () => {
+		// Edge: the organization row was removed out-of-band, so the per-org
+		// lookup returns []. The sweeper stamps hard_deleted_at and counts it as
+		// deleted, but performs NO Neon drop and NO org delete. (Latent risk: a
+		// Neon project orphaned by that out-of-band deletion would never be
+		// cleaned here — pinned so the behavior is visible, not accidental.)
+		const { db, ops } = makeCpDb([
+			[{ id: "del-1", organizationId: "org-gone" }],
+			[], // org lookup → already gone
+		]);
+		let dropCalls = 0;
+		const result = await hardDeleteOverdueTenants({
+			controlPanelDb: db,
+			deleteNeonProject: async () => {
+				dropCalls += 1;
+			},
+			now: FIXED_NOW,
+		});
+		expect(result).toEqual({ scanned: 1, deleted: 1, errors: [] });
+		expect(dropCalls).toBe(0);
+		expect(
+			ops.some((o) => o.kind === "update" && o.table === tenantDeletions),
+		).toBe(true);
+		expect(
+			ops.some((o) => o.kind === "delete" && o.table === organizations),
+		).toBe(false);
+	});
+
+	it("is fail-soft on a mid-sweep DB error, not just Neon failures", async () => {
+		// org-A's per-org SELECT throws a DB error; org-B must still be processed.
+		const { db, ops } = makeCpDb([
+			[
+				{ id: "del-1", organizationId: "org-A" },
+				{ id: "del-2", organizationId: "org-B" },
+			],
+			new Error("connection reset"), // org-A lookup fails
+			[{ id: "org-B", neonProjectId: null }], // org-B lookup ok
+		]);
+		const result = await hardDeleteOverdueTenants({
+			controlPanelDb: db,
+			deleteNeonProject: async () => {},
+			now: FIXED_NOW,
+		});
+		expect(result.scanned).toBe(2);
+		expect(result.deleted).toBe(1);
+		expect(result.errors).toEqual([
+			{ organizationId: "org-A", error: "connection reset" },
+		]);
+		expect(
+			ops.filter((o) => o.kind === "delete" && o.table === organizations),
+		).toHaveLength(1);
 	});
 
 	it("returns an empty result when nothing is overdue", async () => {
