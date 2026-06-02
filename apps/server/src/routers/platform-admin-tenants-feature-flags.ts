@@ -45,7 +45,7 @@ import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptio
 import { tenantFeatureOverrides } from "@avantej-core/db/schema/control-panel/tenant-feature-overrides";
 import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { user as userTable } from "@avantej-core/db/schema/auth";
-import { getTierLimits, type Tier } from "@avantej-core/types";
+import { getTierLimits, resolveEffectiveTier, type Tier } from "@avantej-core/types";
 
 function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
 	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
@@ -65,9 +65,6 @@ function adminUserIdFrom(context: unknown): string {
 	return id;
 }
 
-const VALID_TIERS: ReadonlyArray<Tier> = ["basic", "professional", "enterprise"];
-const LIVE_STATUSES = new Set(["active", "trialing", "past_due"]);
-
 const FEATURE_KEYS = [
 	"ghl",
 	"googleCalendar",
@@ -77,13 +74,6 @@ const FEATURE_KEYS = [
 ] as const;
 type FeatureKey = (typeof FEATURE_KEYS)[number];
 const featureKeyEnum = z.enum(FEATURE_KEYS);
-
-function coerceTier(value: string | null | undefined): Tier {
-	if (value && (VALID_TIERS as ReadonlyArray<string>).includes(value)) {
-		return value as Tier;
-	}
-	return "basic";
-}
 
 export type OverrideMetadata = {
 	enabled: boolean;
@@ -121,8 +111,7 @@ async function resolveTier(
 		where: eq(subscriptions.id, orgSubscriptionId),
 		columns: { id: true, tier: true, status: true },
 	});
-	if (sub && LIVE_STATUSES.has(sub.status)) return coerceTier(sub.tier);
-	return "basic";
+	return resolveEffectiveTier(sub ?? null).tier ?? "basic";
 }
 
 async function fetchOverrides(

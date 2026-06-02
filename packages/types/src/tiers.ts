@@ -123,3 +123,48 @@ export function getTierStripePriceId(tier: Tier): string {
   }
   throw new Error(`Unknown tier for Stripe price lookup: ${tier}`);
 }
+
+/**
+ * Subscription statuses that count as "live" — the tenant is paying, in a
+ * trial, or within the past-due grace window (ADR-0009). Any other status
+ * (canceled / unpaid / incomplete / paused) is NOT live and falls back to the
+ * basic tier for entitlement + fee purposes. Values mirror Stripe subscription
+ * statuses.
+ */
+export const LIVE_SUBSCRIPTION_STATUSES: ReadonlySet<string> = new Set([
+  "active",
+  "trialing",
+  "past_due",
+]);
+
+/**
+ * Resolve a tenant's EFFECTIVE tier and application-fee basis points from its
+ * subscription row. The single source of truth for "what tier/fee applies right
+ * now", shared by the Connect charge path and the platform-admin feature-flags
+ * view so they cannot diverge.
+ *
+ * A non-live subscription (canceled/unpaid/etc.) — or no subscription, or an
+ * unrecognized tier — resolves to the basic tier. This prevents a lapsed tenant
+ * from keeping a higher tier's discounted application fee (a canceled enterprise
+ * tenant previously kept the 1.5% fee, under-collecting platform revenue).
+ *
+ * `tier` is `null` when there is no live, recognized tier; callers that need a
+ * concrete tier treat `null` as basic. `appFeeBps` is always concrete.
+ */
+export function resolveEffectiveTier(
+  sub: { tier: string; status: string } | null | undefined,
+): { tier: Tier | null; appFeeBps: number } {
+  if (sub && LIVE_SUBSCRIPTION_STATUSES.has(sub.status)) {
+    const tier =
+      sub.tier === "basic" ||
+      sub.tier === "professional" ||
+      sub.tier === "enterprise"
+        ? sub.tier
+        : null;
+    return {
+      tier,
+      appFeeBps: (tier ? TIER_LIMITS[tier] : TIER_LIMITS.basic).appFeeBps,
+    };
+  }
+  return { tier: null, appFeeBps: TIER_LIMITS.basic.appFeeBps };
+}
