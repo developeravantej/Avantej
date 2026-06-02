@@ -23,9 +23,11 @@ const PAYOUT_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 
 /**
  * tenantDb whose role lookups all miss (so hasPermission falls back to the
- * `member.role === "admin"` rule) and whose transaction throws a marker — if
- * a guard failed to reject and the service ran, we'd see SERVICE_REACHED rather
- * than FORBIDDEN.
+ * `member.role === "admin"` rule). Its transaction throws a BAD_REQUEST-coded
+ * error — standing in for the service reaching its own state check. So a call
+ * that passes both guards surfaces as BAD_REQUEST (service reached), while a
+ * call a guard rejects surfaces as FORBIDDEN. That contrast is what makes the
+ * FORBIDDEN assertions meaningful (vs. a procedure that rejects everything).
  */
 function makeGuardDb() {
 	return {
@@ -35,7 +37,9 @@ function makeGuardDb() {
 			rolePermissions: { findFirst: mock(() => Promise.resolve(undefined)) },
 		},
 		transaction: () => {
-			throw new Error("SERVICE_REACHED");
+			throw Object.assign(new Error("service reached"), {
+				code: "BAD_REQUEST",
+			});
 		},
 	} as unknown as never;
 }
@@ -96,4 +100,60 @@ describe("payouts lifecycle — commission_payout:process permission guard", () 
 			).rejects.toMatchObject({ code: "FORBIDDEN" });
 		});
 	}
+});
+
+describe("payouts lifecycle — positive control + perimeter edges", () => {
+	// Positive control: an admin (default member) with a matching org passes
+	// BOTH guards and reaches the service, which here surfaces as BAD_REQUEST.
+	// Without this, the FORBIDDEN tests above could pass on a procedure that
+	// rejects everything.
+	for (const { name, extra } of PROCEDURES) {
+		it(`${name} passes both guards for a permitted admin and reaches the service`, async () => {
+			await expect(
+				call(
+					// biome-ignore lint/suspicious/noExplicitAny: dynamic procedure access
+					(payoutsRouter as any)[name],
+					{ organizationId: ORG_ID, ...extra },
+					{
+						context: createMockContext({
+							organizationId: ORG_ID,
+							tenantDb: makeGuardDb(),
+						}),
+					},
+				),
+			).rejects.toMatchObject({ code: "BAD_REQUEST" });
+		});
+	}
+
+	it("markPaid rejects when the caller is not a member (null member)", async () => {
+		await expect(
+			call(
+				payoutsRouter.markPaid,
+				{ organizationId: ORG_ID, id: PAYOUT_ID, paymentReference: "WIRE-1" },
+				{
+					context: createMockContext({
+						organizationId: ORG_ID,
+						tenantDb: makeGuardDb(),
+						member: null,
+					}),
+				},
+			),
+		).rejects.toMatchObject({ code: "FORBIDDEN" });
+	});
+
+	it("markPaid rejects an empty paymentReference at input validation (before the handler)", async () => {
+		// zod runs before the handler; an empty ref must not reach the guards/service.
+		await expect(
+			call(
+				payoutsRouter.markPaid,
+				{ organizationId: ORG_ID, id: PAYOUT_ID, paymentReference: "" },
+				{
+					context: createMockContext({
+						organizationId: ORG_ID,
+						tenantDb: makeGuardDb(),
+					}),
+				},
+			),
+		).rejects.toMatchObject({ code: "BAD_REQUEST" });
+	});
 });
