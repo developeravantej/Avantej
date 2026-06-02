@@ -27,8 +27,8 @@ import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptio
 import { orgCountryStripeAccounts } from "@avantej-core/db/schema/control-panel/org-country-stripe-accounts";
 import { platformPaymentLedger } from "@avantej-core/db/schema/control-panel/platform-payment-ledger";
 import { tenantUsageSnapshots } from "@avantej-core/db/schema/control-panel/tenant-usage-snapshots";
-import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { getStripeClient } from "@/lib/stripe";
+import { recordAdminAction } from "@/services/admin-audit.service";
 
 function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
@@ -269,7 +269,7 @@ export const platformAdminTenantsRouter = {
 				throw new ORPCError("NOT_FOUND", { message: "Tenant not found" });
 			}
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_suspend",
 				targetOrganizationId: input.organizationId,
@@ -303,7 +303,7 @@ export const platformAdminTenantsRouter = {
 				throw new ORPCError("NOT_FOUND", { message: "Tenant not found" });
 			}
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_resume",
 				targetOrganizationId: input.organizationId,
@@ -359,7 +359,7 @@ export const platformAdminTenantsRouter = {
 				.set({ paymentStatus: "cancelled", updatedAt: new Date() })
 				.where(eq(organizations.id, input.organizationId));
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_force_cancel",
 				targetOrganizationId: input.organizationId,
@@ -417,7 +417,7 @@ export const platformAdminTenantsRouter = {
 				},
 			);
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_issue_credit",
 				targetOrganizationId: input.organizationId,
@@ -466,7 +466,7 @@ export const platformAdminTenantsRouter = {
 				throw new ORPCError("NOT_FOUND", { message: "Tenant not found" });
 			}
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_re_trial",
 				targetOrganizationId: input.organizationId,

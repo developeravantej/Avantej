@@ -21,7 +21,11 @@ import {
 	platformAdminProcedure as adminProcedure,
 	superAdminProcedure,
 } from "@avantej-core/api";
-import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
+import {
+	recordAdminAction,
+	recordAdminActions,
+	type AdminActionInput,
+} from "@/services/admin-audit.service";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { tenantTags } from "@avantej-core/db/schema/control-panel/tenant-tags";
 
@@ -153,7 +157,7 @@ export const platformAdminTenantsTagsRouter = {
 					),
 				);
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_tag_add",
 				targetOrganizationId: input.organizationId,
@@ -185,7 +189,7 @@ export const platformAdminTenantsTagsRouter = {
 				)
 				.returning({ id: tenantTags.id });
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_tag_remove",
 				targetOrganizationId: input.organizationId,
@@ -216,7 +220,7 @@ export const platformAdminTenantsTagsRouter = {
 			const existingIds = new Set(existing.map((r) => r.id));
 
 			let inserted = 0;
-			const auditRows: Array<typeof adminSessionActions.$inferInsert> = [];
+			const auditRows: AdminActionInput[] = [];
 			for (const orgId of input.organizationIds) {
 				if (!existingIds.has(orgId)) continue;
 				const res = await cpDb
@@ -242,7 +246,7 @@ export const platformAdminTenantsTagsRouter = {
 				});
 			}
 			if (auditRows.length > 0) {
-				await cpDb.insert(adminSessionActions).values(auditRows);
+				await recordAdminActions(cpDb, auditRows);
 			}
 
 			return {
@@ -266,7 +270,7 @@ export const platformAdminTenantsTagsRouter = {
 			assertBulkSize(input.organizationIds);
 
 			let removed = 0;
-			const auditRows: Array<typeof adminSessionActions.$inferInsert> = [];
+			const auditRows: AdminActionInput[] = [];
 			for (const orgId of input.organizationIds) {
 				const res = await cpDb
 					.delete(tenantTags)
@@ -285,7 +289,7 @@ export const platformAdminTenantsTagsRouter = {
 					metadata: { label: input.label, removed: res.length > 0 },
 				});
 			}
-			await cpDb.insert(adminSessionActions).values(auditRows);
+			await recordAdminActions(cpDb, auditRows);
 
 			return {
 				ok: true as const,
@@ -308,7 +312,7 @@ export const platformAdminTenantsTagsRouter = {
 
 			let suspended = 0;
 			const failures: Array<{ organizationId: string; error: string }> = [];
-			const auditRows: Array<typeof adminSessionActions.$inferInsert> = [];
+			const auditRows: AdminActionInput[] = [];
 
 			for (const orgId of input.organizationIds) {
 				try {
@@ -349,7 +353,7 @@ export const platformAdminTenantsTagsRouter = {
 				}
 			}
 			if (auditRows.length > 0) {
-				await cpDb.insert(adminSessionActions).values(auditRows);
+				await recordAdminActions(cpDb, auditRows);
 			}
 
 			return {

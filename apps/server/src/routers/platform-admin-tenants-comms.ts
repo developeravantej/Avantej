@@ -26,11 +26,11 @@ import {
 } from "@avantej-core/api";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { users } from "@avantej-core/db/schema/control-panel/users";
-import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { notifications } from "@avantej-core/db/schema/tenant/notifications";
 import { announcements } from "@avantej-core/db/schema/tenant/announcements";
 import { sendEmail } from "@/lib/email";
 import { getTenantDb } from "@/lib/db";
+import { recordAdminAction } from "@/services/admin-audit.service";
 
 function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
 	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
@@ -145,7 +145,7 @@ export const platformAdminTenantsCommsRouter = {
 			}
 
 			try {
-				await cpDb.insert(adminSessionActions).values({
+				await recordAdminAction(cpDb, {
 					adminUserId,
 					actionType: "tenant_dm",
 					targetOrganizationId: org.id,
@@ -199,7 +199,7 @@ export const platformAdminTenantsCommsRouter = {
 				})
 				.returning({ id: announcements.id });
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_announcement_create",
 				targetOrganizationId: org.id,
@@ -268,7 +268,7 @@ export const platformAdminTenantsCommsRouter = {
 				} catch (e) {
 					console.error("[bulk-dm] in-app failed for", orgId, e);
 				}
-				await cpDb.insert(adminSessionActions).values({
+				await recordAdminAction(cpDb, {
 					adminUserId,
 					actionType: "tenant_dm",
 					targetOrganizationId: org.id,
@@ -341,7 +341,7 @@ export const platformAdminTenantsCommsRouter = {
 						createdBy: adminUserId,
 					})
 					.returning({ id: announcements.id });
-				await cpDb.insert(adminSessionActions).values({
+				await recordAdminAction(cpDb, {
 					adminUserId,
 					actionType: "tenant_announcement_create",
 					targetOrganizationId: org.id,

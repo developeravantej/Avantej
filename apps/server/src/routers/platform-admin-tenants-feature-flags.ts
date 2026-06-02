@@ -43,9 +43,9 @@ import {
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 import { tenantFeatureOverrides } from "@avantej-core/db/schema/control-panel/tenant-feature-overrides";
-import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { user as userTable } from "@avantej-core/db/schema/auth";
 import { getTierLimits, resolveEffectiveTier, type Tier } from "@avantej-core/types";
+import { recordAdminAction } from "@/services/admin-audit.service";
 
 function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
 	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
@@ -277,7 +277,7 @@ export const platformAdminTenantsFeatureFlagsRouter = {
 				});
 			}
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_feature_override_set",
 				targetOrganizationId: input.organizationId,
@@ -316,7 +316,7 @@ export const platformAdminTenantsFeatureFlagsRouter = {
 					),
 				);
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_feature_override_clear",
 				targetOrganizationId: input.organizationId,

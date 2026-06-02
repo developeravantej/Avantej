@@ -26,7 +26,7 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { tenantDeletions } from "@avantej-core/db/schema/control-panel/tenant-deletions";
-import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
+import { recordAdminAction } from "@/services/admin-audit.service";
 
 export const SOFT_DELETE_GRACE_DAYS = 30;
 
@@ -116,7 +116,7 @@ export async function requestTenantDeletion(
 		.set({ paymentStatus: "cancelled", updatedAt: now })
 		.where(eq(organizations.id, deps.organizationId));
 
-	await deps.controlPanelDb.insert(adminSessionActions).values({
+	await recordAdminAction(deps.controlPanelDb, {
 		adminUserId: deps.requestedByUserId,
 		actionType: "tenant_soft_delete",
 		targetOrganizationId: deps.organizationId,
@@ -157,7 +157,7 @@ export async function restoreTenantDeletion(
 		.set({ paymentStatus: "active", updatedAt: now })
 		.where(eq(organizations.id, deps.organizationId));
 
-	await deps.controlPanelDb.insert(adminSessionActions).values({
+	await recordAdminAction(deps.controlPanelDb, {
 		adminUserId: deps.requestedByUserId,
 		actionType: "tenant_restore",
 		targetOrganizationId: deps.organizationId,

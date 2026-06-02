@@ -33,8 +33,8 @@ import {
 } from "@avantej-core/api";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
-import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { getStripeClient } from "@/lib/stripe";
+import { recordAdminAction } from "@/services/admin-audit.service";
 import { getTierStripePriceId, type Tier } from "@avantej-core/types";
 
 // ── Stripe surface used by this router. Kept minimal for testability. ──────
@@ -402,7 +402,7 @@ export function createPlatformAdminTenantsBillingRouter(
 				}
 
 				// Audit success only.
-				await cpDb.insert(adminSessionActions).values({
+				await recordAdminAction(cpDb, {
 					adminUserId,
 					actionType: "tenant_invoice_refund",
 					targetOrganizationId: input.organizationId,
@@ -611,7 +611,7 @@ export function createPlatformAdminTenantsBillingRouter(
 					.where(eq(subscriptions.id, sub.id));
 
 				// Audit success.
-				await cpDb.insert(adminSessionActions).values({
+				await recordAdminAction(cpDb, {
 					adminUserId,
 					actionType: "tenant_tier_change",
 					targetOrganizationId: input.organizationId,

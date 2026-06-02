@@ -47,8 +47,8 @@ import {
 } from "@avantej-core/api";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
-import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { getStripeClient } from "@/lib/stripe";
+import { recordAdminAction } from "@/services/admin-audit.service";
 
 // ── Stripe surface used by this router (minimal, for testability). ─────────
 type StripeCoupon = {
@@ -266,7 +266,7 @@ export function createPlatformAdminCouponsRouter(
 					});
 				}
 
-				await cpDb.insert(adminSessionActions).values({
+				await recordAdminAction(cpDb, {
 					adminUserId,
 					actionType: "coupon_create",
 					metadata: {
@@ -307,7 +307,7 @@ export function createPlatformAdminCouponsRouter(
 					});
 				}
 
-				await cpDb.insert(adminSessionActions).values({
+				await recordAdminAction(cpDb, {
 					adminUserId,
 					actionType: "coupon_delete",
 					metadata: { couponId: input.couponId },
@@ -356,7 +356,7 @@ export function createPlatformAdminCouponsRouter(
 					});
 				}
 
-				await cpDb.insert(adminSessionActions).values({
+				await recordAdminAction(cpDb, {
 					adminUserId,
 					actionType: "coupon_apply",
 					targetOrganizationId: input.organizationId,
@@ -405,7 +405,7 @@ export function createPlatformAdminCouponsRouter(
 					});
 				}
 
-				await cpDb.insert(adminSessionActions).values({
+				await recordAdminAction(cpDb, {
 					adminUserId,
 					actionType: "coupon_remove",
 					targetOrganizationId: input.organizationId,
