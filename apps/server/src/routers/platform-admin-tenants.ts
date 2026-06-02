@@ -28,6 +28,7 @@ import { orgCountryStripeAccounts } from "@avantej-core/db/schema/control-panel/
 import { platformPaymentLedger } from "@avantej-core/db/schema/control-panel/platform-payment-ledger";
 import { tenantUsageSnapshots } from "@avantej-core/db/schema/control-panel/tenant-usage-snapshots";
 import { getStripeClient } from "@/lib/stripe";
+import { transitionTenant } from "@/services/tenant-lifecycle.service";
 import { recordAdminAction } from "@/services/admin-audit.service";
 
 function adminUserIdFrom(context: unknown): string {
@@ -256,27 +257,18 @@ export const platformAdminTenantsRouter = {
 			const cpDb = cpDbFromContext(context);
 			const adminUserId = adminUserIdFrom(context);
 
-			const [updated] = await cpDb
-				.update(organizations)
-				.set({ paymentStatus: "suspended", updatedAt: new Date() })
-				.where(eq(organizations.id, input.organizationId))
-				.returning({
-					id: organizations.id,
-					paymentStatus: organizations.paymentStatus,
-				});
-
-			if (!updated) {
-				throw new ORPCError("NOT_FOUND", { message: "Tenant not found" });
-			}
-
-			await recordAdminAction(cpDb, {
+			// ADR-0024: any non-deleted -> suspended. Write + audit routed
+			// through the lifecycle module (assertTransition + status write
+			// + audit row); actionType preserved.
+			const { paymentStatus } = await transitionTenant(cpDb, {
+				organizationId: input.organizationId,
+				to: "suspended",
 				adminUserId,
+				reason: input.reason,
 				actionType: "tenant_suspend",
-				targetOrganizationId: input.organizationId,
-				metadata: { reason: input.reason },
 			});
 
-			return { ok: true, paymentStatus: updated.paymentStatus };
+			return { ok: true, paymentStatus };
 		}),
 
 	resumeTenant: superAdminProcedure
@@ -290,27 +282,17 @@ export const platformAdminTenantsRouter = {
 			const cpDb = cpDbFromContext(context);
 			const adminUserId = adminUserIdFrom(context);
 
-			const [updated] = await cpDb
-				.update(organizations)
-				.set({ paymentStatus: "active", updatedAt: new Date() })
-				.where(eq(organizations.id, input.organizationId))
-				.returning({
-					id: organizations.id,
-					paymentStatus: organizations.paymentStatus,
-				});
-
-			if (!updated) {
-				throw new ORPCError("NOT_FOUND", { message: "Tenant not found" });
-			}
-
-			await recordAdminAction(cpDb, {
+			// ADR-0024: suspended -> active (resume). assertTransition will
+			// reject a resume from any other state (PRECONDITION_FAILED).
+			const { paymentStatus } = await transitionTenant(cpDb, {
+				organizationId: input.organizationId,
+				to: "active",
 				adminUserId,
+				reason: input.reason,
 				actionType: "tenant_resume",
-				targetOrganizationId: input.organizationId,
-				metadata: { reason: input.reason },
 			});
 
-			return { ok: true, paymentStatus: updated.paymentStatus };
+			return { ok: true, paymentStatus };
 		}),
 
 	forceCancelTenant: superAdminProcedure
@@ -325,45 +307,16 @@ export const platformAdminTenantsRouter = {
 			const cpDb = cpDbFromContext(context);
 			const adminUserId = adminUserIdFrom(context);
 
-			const [org] = await cpDb
-				.select({
-					id: organizations.id,
-					subscriptionId: organizations.subscriptionId,
-				})
-				.from(organizations)
-				.where(eq(organizations.id, input.organizationId));
-
-			if (!org) {
-				throw new ORPCError("NOT_FOUND", { message: "Tenant not found" });
-			}
-
-			let stripeSubCanceled: string | null = null;
-			if (input.cancelStripeSubscription && org.subscriptionId) {
-				const [sub] = await cpDb
-					.select({ stripeSubscriptionId: subscriptions.stripeSubscriptionId })
-					.from(subscriptions)
-					.where(eq(subscriptions.id, org.subscriptionId));
-				if (sub?.stripeSubscriptionId) {
-					try {
-						await getStripeClient().subscriptions.cancel(sub.stripeSubscriptionId);
-						stripeSubCanceled = sub.stripeSubscriptionId;
-					} catch (e) {
-						const msg = e instanceof Error ? e.message : String(e);
-						console.error(`[forceCancelTenant] stripe cancel failed:`, msg);
-					}
-				}
-			}
-
-			await cpDb
-				.update(organizations)
-				.set({ paymentStatus: "cancelled", updatedAt: new Date() })
-				.where(eq(organizations.id, input.organizationId));
-
-			await recordAdminAction(cpDb, {
+			// ADR-0024 force-cancel: any non-deleted -> cancelled. The single
+			// stripe.subscriptions.cancel side-effect lives inside the lifecycle
+			// module's force-cancel path (gated on cancelStripeSubscription).
+			const { stripeSubCanceled } = await transitionTenant(cpDb, {
+				organizationId: input.organizationId,
+				to: "cancelled",
 				adminUserId,
+				reason: input.reason,
 				actionType: "tenant_force_cancel",
-				targetOrganizationId: input.organizationId,
-				metadata: { reason: input.reason, stripeSubCanceled },
+				cancelStripeSubscription: input.cancelStripeSubscription,
 			});
 
 			return { ok: true, stripeSubCanceled };
@@ -449,31 +402,21 @@ export const platformAdminTenantsRouter = {
 				now.getTime() + input.extendDays * 24 * 60 * 60 * 1000,
 			);
 
-			const [updated] = await cpDb
-				.update(organizations)
-				.set({
-					trialEndsAt: newTrialEnd,
-					paymentStatus: "active",
-					updatedAt: now,
-				})
-				.where(eq(organizations.id, input.organizationId))
-				.returning({
-					id: organizations.id,
-					trialEndsAt: organizations.trialEndsAt,
-				});
-
-			if (!updated) {
-				throw new ORPCError("NOT_FOUND", { message: "Tenant not found" });
-			}
-
-			await recordAdminAction(cpDb, {
+			// ADR-0024 re-trial: trial | suspended -> active, extending the trial
+			// window. assertTransition rejects re-trial from active/past_due/
+			// cancelled (PRECONDITION_FAILED). trialEndsAt update stays here.
+			const { trialEndsAt } = await transitionTenant(cpDb, {
+				organizationId: input.organizationId,
+				to: "active",
 				adminUserId,
+				reason: input.reason,
 				actionType: "tenant_re_trial",
-				targetOrganizationId: input.organizationId,
-				metadata: { reason: input.reason, extendDays: input.extendDays },
+				metadata: { extendDays: input.extendDays },
+				trialEndsAt: newTrialEnd,
+				now,
 			});
 
-			return { ok: true, trialEndsAt: updated.trialEndsAt };
+			return { ok: true, trialEndsAt };
 		}),
 
 	// E.4 — Activation funnel for one tenant.

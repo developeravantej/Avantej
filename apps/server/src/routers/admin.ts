@@ -32,6 +32,7 @@ import {
 	syncUserRole,
 	getFirstActiveOrgForUser,
 } from "@/services/admin.service";
+import { transitionTenant } from "@/services/tenant-lifecycle.service";
 import { getBetterAuth } from "@/lib/better-auth";
 
 // Impersonation procedures restrict to super_admin / support roles, built from the
@@ -799,14 +800,17 @@ export const adminRouter = {
 				});
 			}
 
-			// Update payment status to suspended
-			await controlPanelDb
-				.update(organizations)
-				.set({
-					paymentStatus: "suspended",
-					updatedAt: new Date(),
-				})
-				.where(eq(organizations.id, input.id));
+			// ADR-0024: any non-deleted → suspended. Route the write + audit
+			// through the lifecycle module. (This dead/zero-caller proc wrote
+			// no audit before; routing it through the module deliberately adds
+			// a `tenant_suspend` row — consistent with the other suspend paths.)
+			await transitionTenant(controlPanelDb, {
+				organizationId: input.id,
+				to: "suspended",
+				adminUserId: context.session!.user.id,
+				reason: input.reason,
+				actionType: "tenant_suspend",
+			});
 
 			// Get updated org with member count
 			const updatedOrg = await controlPanelDb.query.organizations.findFirst({
@@ -872,14 +876,18 @@ export const adminRouter = {
 				});
 			}
 
-			// Update payment status to active
-			await controlPanelDb
-				.update(organizations)
-				.set({
-					paymentStatus: "active",
-					updatedAt: new Date(),
-				})
-				.where(eq(organizations.id, input.id));
+			// ADR-0024 resume: suspended → active. Route the write + audit
+			// through the lifecycle module. This proc has no `reason` input, so
+			// a synthetic reason is supplied for the (new) audit row. (Dead/
+			// zero-caller proc; previously wrote no audit — adding one here is
+			// the deliberate change.)
+			await transitionTenant(controlPanelDb, {
+				organizationId: input.id,
+				to: "active",
+				adminUserId: context.session!.user.id,
+				reason: "unsuspend",
+				actionType: "tenant_resume",
+			});
 
 			// Get updated org with member count
 			const updatedOrg = await controlPanelDb.query.organizations.findFirst({

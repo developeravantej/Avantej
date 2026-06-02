@@ -15,6 +15,13 @@ import { members } from "@avantej-core/db/schema/tenant/members";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { getDescendantNodeIds } from "@avantej-core/services";
 import { getBetterAuth } from "@/lib/better-auth";
+import { isAppBlocked } from "@/services/tenant-lifecycle.service";
+import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
+import {
+  evaluateAccess,
+  isWriteProcedure,
+  type SubStateInput,
+} from "@/middleware/require-active-saas-sub.middleware";
 
 export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
   // Only process oRPC routes
@@ -114,8 +121,11 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
         return;
       }
 
-      // Plan E E.3 / ADR-0024 — block oRPC mutations on suspended tenants.
-      // Platform-admin endpoints bypass so ops can resume/cancel.
+      // ─── ADR-0024 suspension/cancellation gate (Layer 1) ───────────────
+      // Block oRPC mutations on app-blocked tenants (suspended | cancelled —
+      // see isAppBlocked). Platform-admin endpoints bypass so ops can
+      // resume/cancel/inspect. A later Layer-2 read-only billing gate sits
+      // beside this self-contained block.
       const methodStr = String(method ?? "");
       const isPlatformAdminCall =
         methodStr.startsWith("platformAdmin") || methodStr.startsWith("admin.");
@@ -124,12 +134,15 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
           const cpDb = getControlPanelDb(c);
           const org = await cpDb.query.organizations.findFirst({
             where: eq(organizations.id, organizationId),
-            columns: { id: true, paymentStatus: true },
+            columns: {
+              id: true,
+              paymentStatus: true,
+              subscriptionId: true,
+              trialEndsAt: true,
+            },
           });
-          if (
-            org?.paymentStatus === "suspended" ||
-            org?.paymentStatus === "cancelled"
-          ) {
+          // `org` may be undefined (unknown org) — fall through then.
+          if (org && isAppBlocked(org.paymentStatus)) {
             return c.json(
               {
                 error: `Tenant is ${org.paymentStatus}`,
@@ -137,6 +150,56 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
               },
               403,
             );
+          }
+
+          // ─── ADR-0003/0009 SaaS-subscription read-only gate (Layer 2) ───
+          // A lapsed SaaS subscription (past_due past grace / canceled /
+          // unpaid / trial-expired) puts the tenant in read-only: WRITE
+          // (mutation) procedures are blocked, reads pass. The billing escape
+          // hatch (subscriptions.*) and signup (registration.*) are exempt so a
+          // lapsed tenant can still reach checkout to recover. Platform-admin
+          // already bypassed above. We only load the subscription row for write
+          // procedures (reads skip this entirely).
+          //
+          // NOTE: this enforces read-only (block writes) for BOTH the
+          // read_only and block decisions. The stricter ADR-0003 full lockout
+          // (trial-expired = no access at all, including reads) is intentionally
+          // deferred until the locked-out UX and a read-side exempt-list
+          // (auth/userContext, subscriptions) are verified — blocking reads
+          // here would lock a tenant out of the screens needed to subscribe.
+          const procName = c.req.path
+            .replace(/^\/rpc\//, "")
+            .replace(/\//g, ".");
+          const isBillingExempt =
+            procName.startsWith("subscriptions") ||
+            procName.startsWith("registration");
+          if (org && !isBillingExempt && isWriteProcedure(procName)) {
+            let sub: SubStateInput = null;
+            if (org.subscriptionId) {
+              const subRow = await cpDb.query.subscriptions.findFirst({
+                where: eq(subscriptions.id, org.subscriptionId),
+                columns: {
+                  status: true,
+                  pastDueAt: true,
+                  gracePeriodEndsAt: true,
+                  trialEndsAt: true,
+                },
+              });
+              if (subRow) sub = subRow;
+            }
+            const decision = evaluateAccess(sub, new Date(), org.trialEndsAt);
+            if (
+              decision.decision === "read_only" ||
+              decision.decision === "block"
+            ) {
+              return c.json(
+                {
+                  error: `Read-only: SaaS subscription ${decision.reason}`,
+                  saas: decision.reason,
+                },
+                403,
+              );
+            }
           }
         } catch (e) {
           // If we can't check, fall through — handler-level checks remain.

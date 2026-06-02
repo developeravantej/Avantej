@@ -26,7 +26,7 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { tenantDeletions } from "@avantej-core/db/schema/control-panel/tenant-deletions";
-import { recordAdminAction } from "@/services/admin-audit.service";
+import { applyTenantStatus } from "@/services/tenant-lifecycle.service";
 
 export const SOFT_DELETE_GRACE_DAYS = 30;
 
@@ -111,20 +111,20 @@ export async function requestTenantDeletion(
 			hardDeleteAfter: tenantDeletions.hardDeleteAfter,
 		});
 
-	await deps.controlPanelDb
-		.update(organizations)
-		.set({ paymentStatus: "cancelled", updatedAt: now })
-		.where(eq(organizations.id, deps.organizationId));
-
-	await recordAdminAction(deps.controlPanelDb, {
+	// ADR-0024: any non-deleted → cancelled. Soft-delete is a control-panel
+	// state flip with NO Stripe side-effect — route through applyTenantStatus
+	// (status write + verbatim audit metadata, no assert, no Stripe cancel).
+	await applyTenantStatus(deps.controlPanelDb, {
+		organizationId: deps.organizationId,
+		to: "cancelled",
 		adminUserId: deps.requestedByUserId,
 		actionType: "tenant_soft_delete",
-		targetOrganizationId: deps.organizationId,
 		metadata: {
 			tenantDeletionId: row!.id,
 			hardDeleteAfter: hardDeleteAfter.toISOString(),
 			exportUrlPresent: Boolean(deps.exportUrl),
 		},
+		now,
 	});
 
 	return { id: row!.id, hardDeleteAfter: row!.hardDeleteAfter };
@@ -152,16 +152,17 @@ export async function restoreTenantDeletion(
 		.set({ restoredAt: now })
 		.where(eq(tenantDeletions.id, open.id));
 
-	await deps.controlPanelDb
-		.update(organizations)
-		.set({ paymentStatus: "active", updatedAt: now })
-		.where(eq(organizations.id, deps.organizationId));
-
-	await recordAdminAction(deps.controlPanelDb, {
+	// GDPR restore is `cancelled → active` — an ADR-0026 recovery edge that is
+	// intentionally NOT in the ADR-0024 transition table. Use applyTenantStatus
+	// (status write + audit, no assertTransition) so the restore is not rejected
+	// by the lifecycle guard.
+	await applyTenantStatus(deps.controlPanelDb, {
+		organizationId: deps.organizationId,
+		to: "active",
 		adminUserId: deps.requestedByUserId,
 		actionType: "tenant_restore",
-		targetOrganizationId: deps.organizationId,
 		metadata: { tenantDeletionId: open.id },
+		now,
 	});
 
 	return { id: open.id };

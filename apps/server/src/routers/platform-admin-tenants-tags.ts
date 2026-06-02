@@ -26,6 +26,7 @@ import {
 	recordAdminActions,
 	type AdminActionInput,
 } from "@/services/admin-audit.service";
+import { writeTenantPaymentStatus } from "@/services/tenant-lifecycle.service";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { tenantTags } from "@avantej-core/db/schema/control-panel/tenant-tags";
 
@@ -316,11 +317,14 @@ export const platformAdminTenantsTagsRouter = {
 
 			for (const orgId of input.organizationIds) {
 				try {
-					const [updated] = await cpDb
-						.update(organizations)
-						.set({ paymentStatus: "suspended", updatedAt: new Date() })
-						.where(eq(organizations.id, orgId))
-						.returning({ id: organizations.id });
+					// ADR-0024: any non-deleted → suspended is always legal,
+					// so the bare lifecycle write (no per-row audit) is used;
+					// the batched audit below records one row per target.
+					const updated = await writeTenantPaymentStatus(
+						cpDb,
+						orgId,
+						"suspended",
+					);
 					if (!updated) {
 						failures.push({ organizationId: orgId, error: "not_found" });
 					} else {
