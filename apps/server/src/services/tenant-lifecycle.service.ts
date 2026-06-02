@@ -93,7 +93,7 @@ const LEGAL_TO_FROM: Record<string, readonly string[] | null> = {
  * ADR-0024 legal-transition table (lines 47-58), admin/ops + soft-delete edges.
  *
  *   - suspended:  any non-deleted → suspended      (admin suspendTenant / bulkSuspend)
- *   - active:     suspended → active (resume) AND trial|suspended → active (reTrial)
+ *   - active:     {trial, suspended, active, past_due} → active (resume + reTrial)
  *   - cancelled:  any non-deleted → cancelled       (admin forceCancelTenant / soft-delete)
  *
  * "any non-deleted" includes the target state itself (self-transitions are
@@ -107,11 +107,12 @@ const LEGAL_TO_FROM: Record<string, readonly string[] | null> = {
  * `cancelled → deleted` (Plan E.8 hard-delete cron) removes the row; it never
  * writes `paymentStatus='deleted'`, so it is not modelled as a write target.
  *
- * DIVERGENCE NOTE: ADR-0024 prose (lines 118-122) says reTrial is also valid on
- * an already-active/paid tenant, but the transition table (line 57) enumerates
- * the sources as `trial | suspended`. We encode the table (the normative
- * source). reTrial from `active`/`past_due` will therefore throw
- * PRECONDITION_FAILED.
+ * reTrial sources: the ADR-0024 table (line 57) enumerates `trial | suspended`,
+ * but the prose is broader — L115 "clears any prior suspension / past_due" and
+ * L118-122 applies reTrial to already-active/paid tenants. We follow the prose
+ * (reTrial is a permissive recovery / sales concession), so the `active` target
+ * accepts {trial, suspended, active, past_due} — every non-deleted, non-cancelled
+ * source. `cancelled` requires a fresh subscription, not reTrial.
  */
 
 /**
