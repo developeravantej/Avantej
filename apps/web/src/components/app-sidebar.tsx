@@ -471,12 +471,14 @@ const PLATFORM_ADMIN_PRIMARY: PlatformAdminNavItem[] = [
 	},
 	{ title: "Tenants", url: "/dashboard/platform-admin/tenants", icon: Building2 },
 	{ title: "Billing", url: "/dashboard/platform-admin/billing", icon: Receipt },
-	{ title: "Health", url: "/dashboard/platform-admin/health", icon: Activity },
-	{ title: "Comms", url: "/dashboard/platform-admin/comms", icon: MessageSquare },
 ];
 
-// Infrequent ops tools — collapsed into the "System" group by default.
+// Secondary + infrequent surfaces — collapsed into the "System" group by
+// default. Routes/code unchanged; only de-emphasized in the nav so the primary
+// list stays the three core ops objects (Mission Control / Tenants / Billing).
 const PLATFORM_ADMIN_SYSTEM: PlatformAdminNavItem[] = [
+	{ title: "Health", url: "/dashboard/platform-admin/health", icon: Activity },
+	{ title: "Comms", url: "/dashboard/platform-admin/comms", icon: MessageSquare },
 	{ title: "Webhooks", url: "/dashboard/platform-admin/webhooks", icon: Webhook },
 	{ title: "Audit", url: "/dashboard/platform-admin/audit", icon: ScrollText },
 	{ title: "Users", url: "/dashboard/platform-admin/users", icon: Users },
