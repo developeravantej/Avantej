@@ -1,4 +1,4 @@
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import type { FormState } from "@/components/trainers/TrainerFormDialog";
 
@@ -17,8 +17,10 @@ export function useTrainerActions({
 	onCreateSuccess,
 	onUpdateSuccess,
 }: Options) {
+	// The trainer list is driven by orpc.members.list (role: "trainer"); invalidate
+	// that exact query key, not the legacy ["trainers", …] key which never matched.
 	const invalidateTrainers = [
-		["trainers", organizationId],
+		orpc.members.list.key(),
 		["trainerProfiles", organizationId],
 	];
 
@@ -89,14 +91,14 @@ export function useTrainerActions({
 		mutationFn: (memberId) =>
 			client.members.suspend({ organizationId, memberId }),
 		successMessage: "Trainer suspended.",
-		invalidate: [["trainers", organizationId]],
+		invalidate: [orpc.members.list.key()],
 	});
 
 	const reactivate = useApiMutation<unknown, string>({
 		mutationFn: (memberId) =>
 			client.members.reactivate({ organizationId, memberId }),
 		successMessage: "Trainer reactivated.",
-		invalidate: [["trainers", organizationId]],
+		invalidate: [orpc.members.list.key()],
 	});
 
 	const assignTier = useApiMutation<
@@ -106,7 +108,7 @@ export function useTrainerActions({
 		mutationFn: ({ memberId, tierId }) =>
 			client.trainerTiers.assignToMember({ organizationId, memberId, tierId }),
 		successMessage: "Tier assigned",
-		invalidate: [["trainers", organizationId]],
+		invalidate: [orpc.members.list.key()],
 	});
 
 	const isAnyPending =
@@ -116,5 +118,12 @@ export function useTrainerActions({
 		reactivate.isPending ||
 		assignTier.isPending;
 
-	return { createTrainer, updateProfile, suspend, reactivate, assignTier, isAnyPending };
+	return {
+		createTrainer,
+		updateProfile,
+		suspend,
+		reactivate,
+		assignTier,
+		isAnyPending,
+	};
 }

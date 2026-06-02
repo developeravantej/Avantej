@@ -90,7 +90,11 @@ export async function runOnboardingAlerts(
 
 	// Resolve super_admin recipients.
 	const superAdmins = await controlPanelDb
-		.select({ userId: platformAdmins.userId, email: authUser.email, name: authUser.name })
+		.select({
+			userId: platformAdmins.userId,
+			email: authUser.email,
+			name: authUser.name,
+		})
 		.from(platformAdmins)
 		.innerJoin(authUser, eq(authUser.id, platformAdmins.userId))
 		.where(eq(platformAdmins.role, "super_admin"));
@@ -137,7 +141,10 @@ function buildHtmlBody(
 	const rows = stuck
 		.map((row) => {
 			const days = row.connectAccountUpdatedAt
-				? Math.floor((now.getTime() - row.connectAccountUpdatedAt.getTime()) / (24 * 60 * 60 * 1000))
+				? Math.floor(
+						(now.getTime() - row.connectAccountUpdatedAt.getTime()) /
+							(24 * 60 * 60 * 1000),
+					)
 				: "?";
 			const ds = row.detailsSubmitted ? "submitted" : "NOT submitted";
 			return `

@@ -38,7 +38,9 @@ export function ServicePricingPage() {
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const queryClient = useQueryClient();
 
-	const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+	const [selectedServiceId, setSelectedServiceId] = useState<string | null>(
+		null,
+	);
 	const [addDialogOpen, setAddDialogOpen] = useState(false);
 	const [expireConfirmId, setExpireConfirmId] = useState<string | null>(null);
 	const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -53,8 +55,9 @@ export function ServicePricingPage() {
 	});
 
 	const { data: hierarchyData } = useQuery({
-		queryKey: ["hierarchy-nodes", organizationId],
-		queryFn: () => client.hierarchy.listNodes({ organizationId: organizationId! }),
+		...orpc.hierarchy.listNodes.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 	});
 
@@ -68,19 +71,21 @@ export function ServicePricingPage() {
 		isError: overridesError,
 		refetch: refetchOverrides,
 	} = useQuery({
-		queryKey: ["service-price-overrides", organizationId, selectedServiceId],
-		queryFn: () =>
-			client.services.listPriceOverrides({
-				organizationId: organizationId!,
-				serviceId: selectedServiceId!,
-			}),
+		...orpc.services.listPriceOverrides.queryOptions({
+			input: { organizationId: organizationId!, serviceId: selectedServiceId! },
+		}),
 		enabled: !!organizationId && !!selectedServiceId,
 	});
 
 	function invalidateOverrides() {
-		void queryClient.invalidateQueries({
-			queryKey: ["service-price-overrides", organizationId, selectedServiceId],
-		});
+		void queryClient.invalidateQueries(
+			orpc.services.listPriceOverrides.queryOptions({
+				input: {
+					organizationId: organizationId!,
+					serviceId: selectedServiceId!,
+				},
+			}),
+		);
 	}
 
 	async function handleExpire() {
@@ -121,7 +126,7 @@ export function ServicePricingPage() {
 
 	if (!organizationId) {
 		return (
-			<div className="flex min-h-96 items-center justify-center text-muted-foreground">
+			<div className="flex min-h-96 items-center justify-center text-[#737373]">
 				Select an organization to manage pricing.
 			</div>
 		);
@@ -187,7 +192,14 @@ export function ServicePricingPage() {
 					<table className="w-full">
 						<thead>
 							<tr className="border-b border-[#e5e5e5] bg-[#f3f3f3]">
-								{["Branch", "Customer Type", "Price", "Effective From", "Effective Until", ""].map((h, i) => (
+								{[
+									"Branch",
+									"Customer Type",
+									"Price",
+									"Effective From",
+									"Effective Until",
+									"",
+								].map((h, i) => (
 									<th
 										key={i}
 										className="py-3 px-3 text-[10px] uppercase tracking-widest font-bold text-[#737373] text-left whitespace-nowrap"
@@ -199,10 +211,14 @@ export function ServicePricingPage() {
 						</thead>
 						<tbody>
 							{overrides.map((row) => (
-								<tr key={row.id} className="border-b border-[#e5e5e5] transition-colors hover:bg-[#f3f3f3]/60">
+								<tr
+									key={row.id}
+									className="border-b border-[#e5e5e5] transition-colors hover:bg-[#f3f3f3]/60"
+								>
 									<td className="py-3 px-3 text-[13px] text-[#0a0a0a] whitespace-nowrap">
 										{row.branchId
-											? ((branchMap.get(row.branchId) as string | undefined) ?? row.branchId)
+											? ((branchMap.get(row.branchId) as string | undefined) ??
+												row.branchId)
 											: "Org-wide / All branches"}
 									</td>
 									<td className="py-3 px-3 text-[13px] text-[#0a0a0a] whitespace-nowrap">
@@ -218,7 +234,9 @@ export function ServicePricingPage() {
 									<td className="py-3 px-3 text-[13px] text-[#0a0a0a] whitespace-nowrap">
 										{formatDateOrOpen(row.effectiveFrom)}
 										{new Date(row.effectiveFrom) > new Date() && (
-											<span className="ml-1 inline-flex items-center rounded-md bg-blue-50 border border-blue-200 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">Scheduled</span>
+											<span className="ml-1 inline-flex items-center rounded-md bg-blue-50 border border-blue-200 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
+												Scheduled
+											</span>
 										)}
 									</td>
 									<td className="py-3 px-3 text-[13px] text-[#0a0a0a] whitespace-nowrap">
@@ -264,19 +282,36 @@ export function ServicePricingPage() {
 			)}
 
 			{/* Expire confirmation */}
-			<Dialog open={!!expireConfirmId} onOpenChange={() => setExpireConfirmId(null)}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>Expire price override?</DialogTitle>
-						<DialogDescription>
-							This will set the effective-until date to now, ending the override immediately.
+			<Dialog
+				open={!!expireConfirmId}
+				onOpenChange={() => setExpireConfirmId(null)}
+			>
+				<DialogContent
+					className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							SERVICE CATALOG
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Expire price override?
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
+							This will set the effective-until date to now, ending the override
+							immediately.
 						</DialogDescription>
 					</DialogHeader>
-					<DialogFooter>
+					<div className="px-6 pt-4 pb-2 overflow-y-auto" />
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button variant="outline" onClick={() => setExpireConfirmId(null)}>
 							Cancel
 						</Button>
-						<Button onClick={handleExpire} disabled={isExpiring}>
+						<Button
+							className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+							onClick={handleExpire}
+							disabled={isExpiring}
+						>
 							{isExpiring ? "Expiring..." : "Expire Override"}
 						</Button>
 					</DialogFooter>
@@ -284,19 +319,36 @@ export function ServicePricingPage() {
 			</Dialog>
 
 			{/* Delete confirmation */}
-			<Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>Delete price override?</DialogTitle>
-						<DialogDescription>
-							This will permanently remove the override. This action cannot be undone.
+			<Dialog
+				open={!!deleteConfirmId}
+				onOpenChange={() => setDeleteConfirmId(null)}
+			>
+				<DialogContent
+					className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							SERVICE CATALOG
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Delete price override?
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
+							This will permanently remove the override. This action cannot be
+							undone.
 						</DialogDescription>
 					</DialogHeader>
-					<DialogFooter>
+					<div className="px-6 pt-4 pb-2 overflow-y-auto" />
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
 							Cancel
 						</Button>
-						<Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+						<Button
+							className="bg-red-600 hover:bg-red-700 text-white"
+							onClick={handleDelete}
+							disabled={isDeleting}
+						>
 							{isDeleting ? "Deleting..." : "Delete Override"}
 						</Button>
 					</DialogFooter>

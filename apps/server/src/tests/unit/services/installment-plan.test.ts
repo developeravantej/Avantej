@@ -183,7 +183,10 @@ describe("createInstallmentPlan", () => {
 	});
 
 	test("does NOT clear defaults when isDefault is false", async () => {
-		const created = makeInstallmentPlan({ isDefault: false, code: "quarterly" });
+		const created = makeInstallmentPlan({
+			isDefault: false,
+			code: "quarterly",
+		});
 
 		let updateCalled = false;
 		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {

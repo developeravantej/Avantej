@@ -41,11 +41,15 @@ beforeAll(() => {
 afterAll(async () => {
 	if (SKIP) return;
 	if (createdPriceIds.length > 0) {
-		await tenantDb.delete(servicePrices).where(inArray(servicePrices.id, createdPriceIds));
+		await tenantDb
+			.delete(servicePrices)
+			.where(inArray(servicePrices.id, createdPriceIds));
 	}
 	if (createdServiceIds.length > 0) {
 		// service_prices cascades on services delete, but we already cleaned up.
-		await tenantDb.delete(services).where(inArray(services.id, createdServiceIds));
+		await tenantDb
+			.delete(services)
+			.where(inArray(services.id, createdServiceIds));
 	}
 });
 
@@ -81,7 +85,9 @@ async function addOverride(args: {
 			customerType: args.customerType,
 			priceCents: args.priceCents,
 			...(args.effectiveFrom ? { effectiveFrom: args.effectiveFrom } : {}),
-			...(args.effectiveUntil !== undefined ? { effectiveUntil: args.effectiveUntil } : {}),
+			...(args.effectiveUntil !== undefined
+				? { effectiveUntil: args.effectiveUntil }
+				: {}),
 		})
 		.returning();
 	createdPriceIds.push(row!.id);
@@ -92,7 +98,12 @@ describe("Branch Pricing — Agent 2.2 (J2)", () => {
 	test("(a) no overrides → falls back to services.price", async () => {
 		if (SKIP) return;
 		const serviceId = await makeService(10000);
-		const price = await resolveServicePrice(tenantDb, serviceId, TEST_BRANCH_NODE_ID, null);
+		const price = await resolveServicePrice(
+			tenantDb,
+			serviceId,
+			TEST_BRANCH_NODE_ID,
+			null,
+		);
 		expect(price).toBe(10000);
 	});
 
@@ -105,7 +116,12 @@ describe("Branch Pricing — Agent 2.2 (J2)", () => {
 			customerType: null,
 			priceCents: 8500,
 		});
-		const price = await resolveServicePrice(tenantDb, serviceId, TEST_BRANCH_NODE_ID, null);
+		const price = await resolveServicePrice(
+			tenantDb,
+			serviceId,
+			TEST_BRANCH_NODE_ID,
+			null,
+		);
 		expect(price).toBe(8500);
 	});
 
@@ -124,7 +140,12 @@ describe("Branch Pricing — Agent 2.2 (J2)", () => {
 			customerType: null,
 			priceCents: 7000,
 		});
-		const price = await resolveServicePrice(tenantDb, serviceId, TEST_BRANCH_NODE_ID, null);
+		const price = await resolveServicePrice(
+			tenantDb,
+			serviceId,
+			TEST_BRANCH_NODE_ID,
+			null,
+		);
 		expect(price).toBe(7000);
 	});
 
@@ -143,7 +164,12 @@ describe("Branch Pricing — Agent 2.2 (J2)", () => {
 			customerType: "vip",
 			priceCents: 5000,
 		});
-		const vip = await resolveServicePrice(tenantDb, serviceId, TEST_BRANCH_NODE_ID, "vip");
+		const vip = await resolveServicePrice(
+			tenantDb,
+			serviceId,
+			TEST_BRANCH_NODE_ID,
+			"vip",
+		);
 		expect(vip).toBe(5000);
 		// Non-vip customer still gets the branch-generic price
 		const generic = await resolveServicePrice(
@@ -176,7 +202,12 @@ describe("Branch Pricing — Agent 2.2 (J2)", () => {
 			customerType: null,
 			priceCents: 8500,
 		});
-		const price = await resolveServicePrice(tenantDb, serviceId, TEST_BRANCH_NODE_ID, null);
+		const price = await resolveServicePrice(
+			tenantDb,
+			serviceId,
+			TEST_BRANCH_NODE_ID,
+			null,
+		);
 		// Branch override expired → falls through to org-wide 8500
 		expect(price).toBe(8500);
 
@@ -190,7 +221,12 @@ describe("Branch Pricing — Agent 2.2 (J2)", () => {
 			effectiveFrom: twoDaysAgo,
 			effectiveUntil: yesterday,
 		});
-		const price2 = await resolveServicePrice(tenantDb, serviceId2, TEST_BRANCH_NODE_ID, null);
+		const price2 = await resolveServicePrice(
+			tenantDb,
+			serviceId2,
+			TEST_BRANCH_NODE_ID,
+			null,
+		);
 		expect(price2).toBe(9999);
 	});
 });

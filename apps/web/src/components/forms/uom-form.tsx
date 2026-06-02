@@ -39,7 +39,7 @@ function FieldError({ errors }: { errors: unknown[] }) {
 	return (
 		<>
 			{errors.map((error, i) => (
-				<p key={i} className="text-sm text-destructive">
+				<p key={i} className="text-sm text-rose-600">
 					{typeof error === "string"
 						? error
 						: (error as { message?: string })?.message || "Invalid value"}
@@ -108,12 +108,18 @@ export function UomFormDialog({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						UNITS OF MEASURE
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
 						{mode === "create" ? "Add New UoM" : "Edit UoM"}
 					</DialogTitle>
-					<DialogDescription>
+					<DialogDescription className="text-sm text-[#737373]">
 						{mode === "create"
 							? "Create a new unit of measure."
 							: "Update the unit of measure details."}
@@ -127,44 +133,45 @@ export function UomFormDialog({
 						e.stopPropagation();
 						form.handleSubmit();
 					}}
-					className="space-y-4"
 				>
-					<form.Field name="name">
-						{(field) => (
-							<div className="space-y-2">
-								<Label htmlFor={field.name}>
-									Name <span className="text-destructive">*</span>
-								</Label>
-								<Input
-									id={field.name}
-									placeholder="e.g., Piece, Kilogram"
-									value={field.state.value}
-									onBlur={field.handleBlur}
-									onChange={(e) => field.handleChange(e.target.value)}
-								/>
-								<FieldError errors={field.state.meta.errors} />
-							</div>
-						)}
-					</form.Field>
+					<div className="px-6 pt-4 pb-2 space-y-4">
+						<form.Field name="name">
+							{(field) => (
+								<div className="flex flex-col gap-1.5">
+									<Label htmlFor={field.name}>
+										Name <span className="text-rose-600">*</span>
+									</Label>
+									<Input
+										id={field.name}
+										placeholder="e.g., Piece, Kilogram"
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(e) => field.handleChange(e.target.value)}
+									/>
+									<FieldError errors={field.state.meta.errors} />
+								</div>
+							)}
+						</form.Field>
 
-					<form.Field name="description">
-						{(field) => (
-							<div className="space-y-2">
-								<Label htmlFor={field.name}>Description</Label>
-								<Textarea
-									id={field.name}
-									placeholder="Optional description for this UoM"
-									rows={3}
-									value={field.state.value ?? ""}
-									onBlur={field.handleBlur}
-									onChange={(e) => field.handleChange(e.target.value)}
-								/>
-								<FieldError errors={field.state.meta.errors} />
-							</div>
-						)}
-					</form.Field>
+						<form.Field name="description">
+							{(field) => (
+								<div className="flex flex-col gap-1.5">
+									<Label htmlFor={field.name}>Description</Label>
+									<Textarea
+										id={field.name}
+										placeholder="Optional description for this UoM"
+										rows={3}
+										value={field.state.value ?? ""}
+										onBlur={field.handleBlur}
+										onChange={(e) => field.handleChange(e.target.value)}
+									/>
+									<FieldError errors={field.state.meta.errors} />
+								</div>
+							)}
+						</form.Field>
+					</div>
 
-					<DialogFooter>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button
 							type="button"
 							variant="outline"
@@ -173,7 +180,11 @@ export function UomFormDialog({
 						>
 							Cancel
 						</Button>
-						<Button type="submit" disabled={mutation.isPending}>
+						<Button
+							type="submit"
+							disabled={mutation.isPending}
+							className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+						>
 							{mutation.isPending
 								? mode === "create"
 									? "Adding..."

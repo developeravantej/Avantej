@@ -117,7 +117,11 @@ describe("Sales Tax Snapshot (Agent 2.3 — J2)", () => {
 		if (!rate) throw new Error("seed failed: tax rate");
 		createdTaxRateIds.push(rate.id);
 
-		const resolved = await resolveTaxRate(tenantDb, TEST_BRANCH_NODE_ID, new Date());
+		const resolved = await resolveTaxRate(
+			tenantDb,
+			TEST_BRANCH_NODE_ID,
+			new Date(),
+		);
 		expect(resolved).not.toBeNull();
 		expect(resolved!.rateInBasisPoints).toBeGreaterThanOrEqual(0);
 
@@ -179,7 +183,11 @@ describe("Sales Tax Snapshot (Agent 2.3 — J2)", () => {
 		if (!newRate) throw new Error("seed failed: new tax rate");
 		createdTaxRateIds.push(newRate.id);
 
-		const resolvedNow = await resolveTaxRate(tenantDb, TEST_BRANCH_NODE_ID, new Date());
+		const resolvedNow = await resolveTaxRate(
+			tenantDb,
+			TEST_BRANCH_NODE_ID,
+			new Date(),
+		);
 		expect(resolvedNow?.id).toBe(newRate.id);
 
 		const newOrder = await seedSalesOrderWithItem({
@@ -210,7 +218,11 @@ describe("Sales Tax Snapshot (Agent 2.3 — J2)", () => {
 		// tests' state, so simulate the "no active rate" branch by querying with
 		// an `at` timestamp far in the past (before any rate could be effective).
 		const ancient = new Date("1970-01-01T00:00:00Z");
-		const resolved = await resolveTaxRate(tenantDb, TEST_BRANCH_NODE_ID, ancient);
+		const resolved = await resolveTaxRate(
+			tenantDb,
+			TEST_BRANCH_NODE_ID,
+			ancient,
+		);
 		expect(resolved).toBeNull();
 
 		const { item } = await seedSalesOrderWithItem({

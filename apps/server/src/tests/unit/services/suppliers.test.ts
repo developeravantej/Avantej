@@ -7,11 +7,21 @@ import {
 	deactivateSupplier,
 } from "@avantej-core/services";
 
-const mockFindMany = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve([]));
-const mockFindFirst = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve(null));
-const mockReturning = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve([]));
-const mockValues = mock<(...args: any[]) => any>(() => ({ returning: mockReturning }));
-const mockInsert = mock<(...args: any[]) => any>(() => ({ values: mockValues }));
+const mockFindMany = mock<(...args: any[]) => Promise<any>>(() =>
+	Promise.resolve([]),
+);
+const mockFindFirst = mock<(...args: any[]) => Promise<any>>(() =>
+	Promise.resolve(null),
+);
+const mockReturning = mock<(...args: any[]) => Promise<any>>(() =>
+	Promise.resolve([]),
+);
+const mockValues = mock<(...args: any[]) => any>(() => ({
+	returning: mockReturning,
+}));
+const mockInsert = mock<(...args: any[]) => any>(() => ({
+	values: mockValues,
+}));
 const mockUpdate = mock<(...args: any[]) => any>(() => ({
 	set: mock(() => ({
 		where: mock(() => ({ returning: mockReturning })),
@@ -67,7 +77,9 @@ describe("listSuppliers", () => {
 	});
 
 	test("applies search filter when provided", async () => {
-		mockFindMany.mockResolvedValueOnce([{ id: "s1", name: "Supplier A", isActive: true }]);
+		mockFindMany.mockResolvedValueOnce([
+			{ id: "s1", name: "Supplier A", isActive: true },
+		]);
 
 		await listSuppliers(mockTenantDb, { search: "Supplier A" });
 
@@ -152,7 +164,9 @@ describe("createSupplier", () => {
 	test("throws 'Failed to create supplier' when insert returns empty", async () => {
 		mockReturning.mockResolvedValueOnce([]);
 
-		await expect(createSupplier(mockTenantDb, { name: "Supplier A" })).rejects.toThrow("Failed to create supplier");
+		await expect(
+			createSupplier(mockTenantDb, { name: "Supplier A" }),
+		).rejects.toThrow("Failed to create supplier");
 	});
 });
 
@@ -164,7 +178,9 @@ describe("updateSupplier", () => {
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		const result = await updateSupplier(mockTenantDb, "s1", { name: "Updated Name" });
+		const result = await updateSupplier(mockTenantDb, "s1", {
+			name: "Updated Name",
+		});
 
 		expect(result as any).toEqual(updatedSupplier);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
@@ -176,13 +192,19 @@ describe("updateSupplier", () => {
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		await expect(updateSupplier(mockTenantDb, "nonexistent", { name: "X" })).rejects.toThrow("Supplier not found");
+		await expect(
+			updateSupplier(mockTenantDb, "nonexistent", { name: "X" }),
+		).rejects.toThrow("Supplier not found");
 	});
 });
 
 describe("deactivateSupplier", () => {
 	test("sets isActive=false via update (soft delete)", async () => {
-		const deactivatedSupplier = { id: "s1", name: "Supplier A", isActive: false };
+		const deactivatedSupplier = {
+			id: "s1",
+			name: "Supplier A",
+			isActive: false,
+		};
 		const mockReturningUpd = mock(() => Promise.resolve([deactivatedSupplier]));
 		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
@@ -204,6 +226,8 @@ describe("deactivateSupplier", () => {
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		await expect(deactivateSupplier(mockTenantDb, "nonexistent")).rejects.toThrow("Supplier not found");
+		await expect(
+			deactivateSupplier(mockTenantDb, "nonexistent"),
+		).rejects.toThrow("Supplier not found");
 	});
 });

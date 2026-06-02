@@ -288,7 +288,9 @@ function HasQrPane({
 						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
 							Branch
 						</p>
-						<h2 className="text-lg font-bold text-[#0a0a0a]">{row.branchName}</h2>
+						<h2 className="text-lg font-bold text-[#0a0a0a]">
+							{row.branchName}
+						</h2>
 						<p className="mt-0.5 text-sm text-[#737373]">
 							Customers scan this code to self-register at this branch.
 						</p>
@@ -334,7 +336,9 @@ function HasQrPane({
 								{invite.usesCount}
 							</p>
 							{invite.maxUses !== null && (
-								<p className="text-xs text-[#737373]">of {invite.maxUses} max</p>
+								<p className="text-xs text-[#737373]">
+									of {invite.maxUses} max
+								</p>
 							)}
 						</div>
 						<div className="rounded-2xl border border-[#e5e5e5] bg-white px-4 py-3">
@@ -536,7 +540,10 @@ function OnboardingIndexPage() {
 						<div className="h-4 w-24 rounded bg-[#e5e5e5] animate-pulse mb-4" />
 						<div className="space-y-2">
 							{[1, 2, 3, 4].map((i) => (
-								<div key={i} className="h-12 w-full rounded-xl bg-[#e5e5e5] animate-pulse" />
+								<div
+									key={i}
+									className="h-12 w-full rounded-xl bg-[#e5e5e5] animate-pulse"
+								/>
 							))}
 						</div>
 					</div>
@@ -715,22 +722,28 @@ function OnboardingIndexPage() {
 				open={confirmRevokeId !== null}
 				onOpenChange={(open) => !open && setConfirmRevokeId(null)}
 			>
-				<DialogContent className="sm:max-w-sm">
-					<DialogHeader>
+				<DialogContent
+					className="sm:max-w-sm p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							BRANCH MANAGEMENT
+						</p>
 						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
 							Revoke QR code?
 						</DialogTitle>
 						<DialogDescription className="text-sm text-[#737373]">
-							This QR will stop working immediately. Already-registered customers
-							are not affected.
+							This QR will stop working immediately. Already-registered
+							customers are not affected.
 						</DialogDescription>
 					</DialogHeader>
-					<DialogFooter>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button variant="outline" onClick={() => setConfirmRevokeId(null)}>
 							Cancel
 						</Button>
 						<Button
-							variant="destructive"
+							className="bg-red-600 hover:bg-red-700 text-white"
 							disabled={revokeMutation.isPending}
 							onClick={handleRevokeConfirm}
 						>
@@ -745,8 +758,14 @@ function OnboardingIndexPage() {
 				open={confirmRegenerateId !== null}
 				onOpenChange={(open) => !open && setConfirmRegenerateId(null)}
 			>
-				<DialogContent className="sm:max-w-sm">
-					<DialogHeader>
+				<DialogContent
+					className="sm:max-w-sm p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							BRANCH MANAGEMENT
+						</p>
 						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
 							Regenerate QR code?
 						</DialogTitle>
@@ -755,7 +774,7 @@ function OnboardingIndexPage() {
 							printed materials.
 						</DialogDescription>
 					</DialogHeader>
-					<DialogFooter>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button
 							variant="outline"
 							onClick={() => setConfirmRegenerateId(null)}
@@ -763,6 +782,7 @@ function OnboardingIndexPage() {
 							Cancel
 						</Button>
 						<Button
+							className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
 							disabled={regenerateMutation.isPending}
 							onClick={handleRegenerateConfirm}
 						>

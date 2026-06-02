@@ -36,99 +36,103 @@ afterAll(async () => {
 });
 
 describe("getAdminInstallmentOverview overdue filter integration", () => {
-	test(
-		"package with nextDueDate in the past (no evaluator run) appears in overdue filter",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("package with nextDueDate in the past (no evaluator run) appears in overdue filter", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const [service] = await tenantDb.select({ id: services.id }).from(services).limit(1);
-			if (!service) {
-				console.warn("[integration] No services found — skipping");
-				return;
-			}
+		const [service] = await tenantDb
+			.select({ id: services.id })
+			.from(services)
+			.limit(1);
+		if (!service) {
+			console.warn("[integration] No services found — skipping");
+			return;
+		}
 
-			const now = new Date();
-			const future = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
-			// nextDueDate 5 minutes ago — evaluator hasn't run yet (gracePeriodEndsAt = null)
-			const justOverdue = new Date(now.getTime() - 5 * 60 * 1000);
+		const now = new Date();
+		const future = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+		// nextDueDate 5 minutes ago — evaluator hasn't run yet (gracePeriodEndsAt = null)
+		const justOverdue = new Date(now.getTime() - 5 * 60 * 1000);
 
-			const [pkg] = await tenantDb
-				.insert(packageInstances)
-				.values({
-					serviceId: service.id,
-					clientId: TEST_USER_ID,
-					source: "pos",
-					paymentStatus: "pending",
-					creditsTotal: 2,
-					creditsUsed: 0,
-					creditsUnlocked: 0,
-					paymentPlanType: "half",
-					installmentsTotal: 2,
-					installmentsPaid: 0,
-					isLocked: false,
-					allowCreditOverdraft: false,
-					status: "active",
-					startsAt: justOverdue,
-					expiresAt: future,
-					nextDueDate: justOverdue,
-					gracePeriodEndsAt: null, // evaluator has NOT run
-				})
-				.returning();
+		const [pkg] = await tenantDb
+			.insert(packageInstances)
+			.values({
+				serviceId: service.id,
+				clientId: TEST_USER_ID,
+				source: "pos",
+				paymentStatus: "pending",
+				creditsTotal: 2,
+				creditsUsed: 0,
+				creditsUnlocked: 0,
+				paymentPlanType: "half",
+				installmentsTotal: 2,
+				installmentsPaid: 0,
+				isLocked: false,
+				allowCreditOverdraft: false,
+				status: "active",
+				startsAt: justOverdue,
+				expiresAt: future,
+				nextDueDate: justOverdue,
+				gracePeriodEndsAt: null, // evaluator has NOT run
+			})
+			.returning();
 
-			if (!pkg) throw new Error("Failed to insert test packageInstance");
-			createdPackageInstanceIds.push(pkg.id);
+		if (!pkg) throw new Error("Failed to insert test packageInstance");
+		createdPackageInstanceIds.push(pkg.id);
 
-			const result = await getAdminInstallmentOverview(tenantDb, { status: "overdue", limit: 200 });
+		const result = await getAdminInstallmentOverview(tenantDb, {
+			status: "overdue",
+			limit: 200,
+		});
 
-			const found = result.items.some((item) => item.id === pkg.id);
-			expect(found).toBe(true);
-		},
-		30000,
-	);
+		const found = result.items.some((item) => item.id === pkg.id);
+		expect(found).toBe(true);
+	}, 30000);
 
-	test(
-		"active package (nextDueDate in future) does NOT appear in overdue filter",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("active package (nextDueDate in future) does NOT appear in overdue filter", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const [service] = await tenantDb.select({ id: services.id }).from(services).limit(1);
-			if (!service) return;
+		const [service] = await tenantDb
+			.select({ id: services.id })
+			.from(services)
+			.limit(1);
+		if (!service) return;
 
-			const now = new Date();
-			const future = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
-			const nextDue = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+		const now = new Date();
+		const future = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+		const nextDue = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-			const [pkg] = await tenantDb
-				.insert(packageInstances)
-				.values({
-					serviceId: service.id,
-					clientId: TEST_USER_ID,
-					source: "pos",
-					paymentStatus: "pending",
-					creditsTotal: 2,
-					creditsUsed: 0,
-					creditsUnlocked: 0,
-					paymentPlanType: "half",
-					installmentsTotal: 2,
-					installmentsPaid: 0,
-					isLocked: false,
-					allowCreditOverdraft: false,
-					status: "active",
-					startsAt: now,
-					expiresAt: future,
-					nextDueDate: nextDue,
-					gracePeriodEndsAt: null,
-				})
-				.returning();
+		const [pkg] = await tenantDb
+			.insert(packageInstances)
+			.values({
+				serviceId: service.id,
+				clientId: TEST_USER_ID,
+				source: "pos",
+				paymentStatus: "pending",
+				creditsTotal: 2,
+				creditsUsed: 0,
+				creditsUnlocked: 0,
+				paymentPlanType: "half",
+				installmentsTotal: 2,
+				installmentsPaid: 0,
+				isLocked: false,
+				allowCreditOverdraft: false,
+				status: "active",
+				startsAt: now,
+				expiresAt: future,
+				nextDueDate: nextDue,
+				gracePeriodEndsAt: null,
+			})
+			.returning();
 
-			if (!pkg) throw new Error("Failed to insert test packageInstance");
-			createdPackageInstanceIds.push(pkg.id);
+		if (!pkg) throw new Error("Failed to insert test packageInstance");
+		createdPackageInstanceIds.push(pkg.id);
 
-			const result = await getAdminInstallmentOverview(tenantDb, { status: "overdue", limit: 200 });
+		const result = await getAdminInstallmentOverview(tenantDb, {
+			status: "overdue",
+			limit: 200,
+		});
 
-			const found = result.items.some((item) => item.id === pkg.id);
-			expect(found).toBe(false);
-		},
-		30000,
-	);
+		const found = result.items.some((item) => item.id === pkg.id);
+		expect(found).toBe(false);
+	}, 30000);
 });

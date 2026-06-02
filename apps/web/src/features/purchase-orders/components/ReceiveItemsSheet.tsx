@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,21 +23,23 @@ export type ReceiveItemsSheetProps = {
 	onDone: () => void;
 };
 
-export function ReceiveItemsSheet({ poId, organizationId, onClose, onDone }: ReceiveItemsSheetProps) {
+export function ReceiveItemsSheet({
+	poId,
+	organizationId,
+	onClose,
+	onDone,
+}: ReceiveItemsSheetProps) {
 	const [quantities, setQuantities] = useState<Record<string, string>>({});
 
 	const { data: detail, isLoading } = useQuery({
-		queryKey: ["purchaseOrders", organizationId, poId],
-		queryFn: async () => {
-			if (!poId || !organizationId) return null;
-			return client.purchaseOrders.getById({ organizationId, id: poId });
-		},
+		...orpc.purchaseOrders.getById.queryOptions({
+			input: { organizationId, id: poId ?? "" },
+		}),
 		enabled: !!poId && !!organizationId,
 	});
 
 	const { data: products = [] } = useQuery({
-		queryKey: ["products", organizationId],
-		queryFn: () => client.products.list({ organizationId }),
+		...orpc.products.list.queryOptions({ input: { organizationId } }),
 		enabled: !!poId && !!organizationId,
 	});
 
@@ -47,8 +49,9 @@ export function ReceiveItemsSheet({ poId, organizationId, onClose, onDone }: Rec
 	);
 
 	const receiveMutation = useApiMutation({
-		mutationFn: (input: Parameters<typeof client.purchaseOrders.receiveItems>[0]) =>
-			client.purchaseOrders.receiveItems(input),
+		mutationFn: (
+			input: Parameters<typeof client.purchaseOrders.receiveItems>[0],
+		) => client.purchaseOrders.receiveItems(input),
 		successMessage: "Items received successfully.",
 		errorMessage: (err) => `Failed to receive items: ${err.message}`,
 		onSuccess: () => {
@@ -81,7 +84,12 @@ export function ReceiveItemsSheet({ poId, organizationId, onClose, onDone }: Rec
 	const items = detail?.items ?? [];
 
 	return (
-		<Dialog open={!!poId} onOpenChange={(open) => { if (!open) onClose(); }}>
+		<Dialog
+			open={!!poId}
+			onOpenChange={(open) => {
+				if (!open) onClose();
+			}}
+		>
 			<DialogContent className="sm:max-w-lg overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>Receive Items</DialogTitle>
@@ -105,41 +113,54 @@ export function ReceiveItemsSheet({ poId, organizationId, onClose, onDone }: Rec
 						</p>
 					)}
 
-					{!isLoading && items.map((item) => {
-						const remaining = item.orderedQty - (item.receivedQty ?? 0);
-						return (
-							<div key={item.id} className="space-y-1.5">
-								<div className="flex items-center justify-between">
-									<Label className="text-sm font-medium truncate max-w-[60%]">
-										{(productNameMap.get(item.productId) as any) ?? item.productId}
-									</Label>
-									<span className="text-xs text-muted-foreground">
-										Ordered: {item.orderedQty} | Received: {item.receivedQty ?? 0} | Remaining: {remaining}
-									</span>
+					{!isLoading &&
+						items.map((item) => {
+							const remaining = item.orderedQty - (item.receivedQty ?? 0);
+							return (
+								<div key={item.id} className="space-y-1.5">
+									<div className="flex items-center justify-between">
+										<Label className="text-sm font-medium truncate max-w-[60%]">
+											{(productNameMap.get(item.productId) as any) ??
+												item.productId}
+										</Label>
+										<span className="text-xs text-muted-foreground">
+											Ordered: {item.orderedQty} | Received:{" "}
+											{item.receivedQty ?? 0} | Remaining: {remaining}
+										</span>
+									</div>
+									<Input
+										type="number"
+										min="0"
+										max={remaining}
+										step="1"
+										placeholder={`Max ${remaining}`}
+										value={quantities[item.id] ?? ""}
+										onChange={(e) =>
+											setQuantities((prev) => ({
+												...prev,
+												[item.id]: e.target.value,
+											}))
+										}
+									/>
 								</div>
-								<Input
-									type="number"
-									min="0"
-									max={remaining}
-									step="1"
-									placeholder={`Max ${remaining}`}
-									value={quantities[item.id] ?? ""}
-									onChange={(e) =>
-										setQuantities((prev) => ({ ...prev, [item.id]: e.target.value }))
-									}
-								/>
-							</div>
-						);
-					})}
+							);
+						})}
 
 					{!isLoading && items.length > 0 && (
 						<>
 							<Separator />
 							<div className="flex gap-2 justify-end">
-								<Button variant="outline" onClick={onClose} disabled={receiveMutation.isPending}>
+								<Button
+									variant="outline"
+									onClick={onClose}
+									disabled={receiveMutation.isPending}
+								>
 									Cancel
 								</Button>
-								<Button onClick={handleSubmit} disabled={receiveMutation.isPending}>
+								<Button
+									onClick={handleSubmit}
+									disabled={receiveMutation.isPending}
+								>
 									{receiveMutation.isPending ? "Saving…" : "Confirm Receipt"}
 								</Button>
 							</div>

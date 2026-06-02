@@ -87,8 +87,7 @@ export function SupplierFormDialog({
 						id: initialData!.id!,
 						...values,
 					}),
-		successMessage:
-			mode === "create" ? "Supplier created" : "Supplier updated",
+		successMessage: mode === "create" ? "Supplier created" : "Supplier updated",
 		errorMessage: (err) => err.message || "Failed to save supplier",
 		invalidate: [orpc.suppliers.list.key()],
 		onSuccess: () => onClose(),
@@ -134,17 +133,25 @@ export function SupplierFormDialog({
 	}, [isOpen, initialData, form]);
 
 	const inputClass =
-		"mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm";
+		"mt-1 block w-full p-2 rounded-md border-[#e5e5e5] shadow-sm focus:border-black focus:ring-black sm:text-sm";
 
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-				<DialogHeader>
-					<DialogTitle>
+			<DialogContent
+				className="sm:max-w-2xl p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						SUPPLIERS
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
 						{mode === "create" ? "Add Supplier" : "Edit Supplier"}
 					</DialogTitle>
-					<DialogDescription>
-						{mode === "create" ? "Fill in the details to add a new supplier." : "Update the details for this supplier."}
+					<DialogDescription className="text-sm text-[#737373]">
+						{mode === "create"
+							? "Fill in the details to add a new supplier."
+							: "Update the details for this supplier."}
 					</DialogDescription>
 				</DialogHeader>
 
@@ -155,19 +162,20 @@ export function SupplierFormDialog({
 						e.stopPropagation();
 						form.handleSubmit();
 					}}
-					className="space-y-4"
 				>
-					<SupplierDetailsSection
-						form={form as unknown as SupplierFormApi}
-						inputClass={inputClass}
-					/>
+					<div className="px-6 pt-4 pb-2 overflow-y-auto max-h-[65vh] space-y-4">
+						<SupplierDetailsSection
+							form={form as unknown as SupplierFormApi}
+							inputClass={inputClass}
+						/>
 
-					<SupplierContactSection
-						form={form as unknown as SupplierFormApi}
-						inputClass={inputClass}
-					/>
+						<SupplierContactSection
+							form={form as unknown as SupplierFormApi}
+							inputClass={inputClass}
+						/>
+					</div>
 
-					<DialogFooter>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button
 							type="button"
 							variant="outline"
@@ -176,7 +184,11 @@ export function SupplierFormDialog({
 						>
 							Cancel
 						</Button>
-						<Button type="submit" disabled={mutation.isPending}>
+						<Button
+							type="submit"
+							disabled={mutation.isPending}
+							className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+						>
 							{mutation.isPending
 								? mode === "create"
 									? "Adding..."

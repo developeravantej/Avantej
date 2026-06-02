@@ -242,10 +242,7 @@ describe("buildUserPayload", () => {
 			appointmentsEnabled: true,
 			assignedDataOnly: true,
 		});
-		expect(result.scopes).toEqual([
-			"contacts.write",
-			"conversations.write",
-		]);
+		expect(result.scopes).toEqual(["contacts.write", "conversations.write"]);
 		expect(result.scopesAssignedToOnly).toEqual(result.scopes);
 	});
 

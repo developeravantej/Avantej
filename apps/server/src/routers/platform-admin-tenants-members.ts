@@ -25,61 +25,31 @@
  */
 
 import { z } from "zod";
-import { and, asc, count, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	ilike,
+	inArray,
+	isNull,
+	or,
+} from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
+import { adminProcedure } from "@/lib/admin-procedure";
 import { user as cpUsers } from "@avantej-core/db/schema/auth";
 import { members as tenantMembers } from "@avantej-core/db/schema/tenant/members";
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 
-function requirePlatformAdmin(
-	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">,
-) {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
-			}
-			const cpDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
-			const adminRecord = await cpDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", { message: "Admin access required" });
-			}
-			if (
-				allowRoles &&
-				!allowRoles.includes(
-					adminRecord.role as "super_admin" | "support" | "billing",
-				)
-			) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Your platform admin role does not permit this action",
-				});
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
-
 function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
-		"controlPanelDb",
-	) as NeonDatabase<typeof controlPanelSchema> | undefined;
+	const db = (
+		context as { honoContext?: { get: (k: string) => unknown } }
+	).honoContext?.get("controlPanelDb") as
+		| NeonDatabase<typeof controlPanelSchema>
+		| undefined;
 	if (!db)
 		throw new ORPCError("INTERNAL_SERVER_ERROR", {
 			message: "Control panel DB unavailable",
@@ -159,8 +129,10 @@ export const platformAdminTenantsMembersRouter = {
 
 			const whereParts = [isNull(tenantMembers.deletedAt)];
 			if (input.role) whereParts.push(eq(tenantMembers.role, input.role));
-			if (userIdFilter) whereParts.push(inArray(tenantMembers.userId, userIdFilter));
-			const whereExpr = whereParts.length === 1 ? whereParts[0] : and(...whereParts);
+			if (userIdFilter)
+				whereParts.push(inArray(tenantMembers.userId, userIdFilter));
+			const whereExpr =
+				whereParts.length === 1 ? whereParts[0] : and(...whereParts);
 
 			let total = 0;
 			let memberRows: Array<{
@@ -214,7 +186,10 @@ export const platformAdminTenantsMembersRouter = {
 
 			// Stitch CP user fields.
 			const userIds = Array.from(new Set(memberRows.map((m) => m.userId)));
-			let userMap: Record<string, { name: string | null; email: string | null; lastLoginAt: Date | null }> = {};
+			let userMap: Record<
+				string,
+				{ name: string | null; email: string | null; lastLoginAt: Date | null }
+			> = {};
 			if (userIds.length > 0) {
 				const cpRows = await cpDb
 					.select({
@@ -228,13 +203,21 @@ export const platformAdminTenantsMembersRouter = {
 				userMap = Object.fromEntries(
 					cpRows.map((r) => [
 						r.id,
-						{ name: r.name ?? null, email: r.email ?? null, lastLoginAt: r.lastLoginAt ?? null },
+						{
+							name: r.name ?? null,
+							email: r.email ?? null,
+							lastLoginAt: r.lastLoginAt ?? null,
+						},
 					]),
 				);
 			}
 
 			const rows: MemberRosterRow[] = memberRows.map((m) => {
-				const cp = userMap[m.userId] ?? { name: null, email: null, lastLoginAt: null };
+				const cp = userMap[m.userId] ?? {
+					name: null,
+					email: null,
+					lastLoginAt: null,
+				};
 				return {
 					id: m.id,
 					userId: m.userId,
@@ -257,7 +240,10 @@ export const platformAdminTenantsMembersRouter = {
 		.handler(async ({ input }) => {
 			const tenantDb = await tryOpenTenantDb(input.organizationId);
 			if (!tenantDb) {
-				return { totalMembers: 0, byRole: [] as Array<{ role: string; count: number }> };
+				return {
+					totalMembers: 0,
+					byRole: [] as Array<{ role: string; count: number }>,
+				};
 			}
 			try {
 				const [{ value: totalVal } = { value: 0 }] = await tenantDb
@@ -275,7 +261,10 @@ export const platformAdminTenantsMembersRouter = {
 
 				return {
 					totalMembers: total,
-					byRole: grouped.map((g) => ({ role: g.role, count: Number(g.value ?? 0) })),
+					byRole: grouped.map((g) => ({
+						role: g.role,
+						count: Number(g.value ?? 0),
+					})),
 				};
 			} catch (err) {
 				const msg = err instanceof Error ? err.message : String(err);

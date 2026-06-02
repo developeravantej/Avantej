@@ -25,8 +25,14 @@ import { evaluateAccess } from "@/middleware/require-active-saas-sub.middleware"
 
 /** Minimal surface of the Stripe client used by this router. */
 type StripeClientLike = {
-	checkout: { sessions: { create: (params: unknown) => Promise<{ id: string; url: string | null }> } };
-	billingPortal: { sessions: { create: (params: unknown) => Promise<{ url: string }> } };
+	checkout: {
+		sessions: {
+			create: (params: unknown) => Promise<{ id: string; url: string | null }>;
+		};
+	};
+	billingPortal: {
+		sessions: { create: (params: unknown) => Promise<{ url: string }> };
+	};
 };
 
 function getEnvVar(key: string): string | undefined {
@@ -39,229 +45,242 @@ function getEnvVar(key: string): string | undefined {
 	} catch {
 		// Not in Cloudflare Workers runtime.
 	}
-	const globalEnv = (globalThis as { env?: Record<string, string | undefined> }).env;
+	const globalEnv = (globalThis as { env?: Record<string, string | undefined> })
+		.env;
 	if (globalEnv?.[key] !== undefined) return globalEnv[key];
 	return process.env[key];
 }
 
-const TIER_TO_PRICE_ENV: Record<"basic" | "professional" | "enterprise", string> = {
+const TIER_TO_PRICE_ENV: Record<
+	"basic" | "professional" | "enterprise",
+	string
+> = {
 	basic: "STRIPE_PRICE_BASIC",
 	professional: "STRIPE_PRICE_PROFESSIONAL",
 	enterprise: "STRIPE_PRICE_ENTERPRISE",
 };
 
-export function createSubscriptionsRouter(stripeClientOverride?: StripeClientLike) {
+export function createSubscriptionsRouter(
+	stripeClientOverride?: StripeClientLike,
+) {
 	const resolveStripe = (): StripeClientLike =>
 		stripeClientOverride ?? (getStripeClient() as unknown as StripeClientLike);
 
 	return {
-	createCheckoutSession: protectedProcedure
-		.input(
-			z.object({
-				tier: z.enum(["basic", "professional", "enterprise"]),
-				organizationId: z.string().uuid(),
-			}),
-		)
-		.handler(async ({ context, input }) => {
-			const orgId =
-				(context as { organizationId?: string }).organizationId ??
-				input.organizationId;
-			if (!orgId) {
-				throw new ORPCError("BAD_REQUEST", {
-					message: "No organization context (must select an organization first)",
-				});
-			}
+		createCheckoutSession: protectedProcedure
+			.input(
+				z.object({
+					tier: z.enum(["basic", "professional", "enterprise"]),
+					organizationId: z.string().uuid(),
+				}),
+			)
+			.handler(async ({ context, input }) => {
+				const orgId =
+					(context as { organizationId?: string }).organizationId ??
+					input.organizationId;
+				if (!orgId) {
+					throw new ORPCError("BAD_REQUEST", {
+						message:
+							"No organization context (must select an organization first)",
+					});
+				}
 
-			const priceEnv = TIER_TO_PRICE_ENV[input.tier];
-			const priceId = getEnvVar(priceEnv);
-			if (!priceId) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: `${priceEnv} is not configured`,
-				});
-			}
+				const priceEnv = TIER_TO_PRICE_ENV[input.tier];
+				const priceId = getEnvVar(priceEnv);
+				if (!priceId) {
+					throw new ORPCError("INTERNAL_SERVER_ERROR", {
+						message: `${priceEnv} is not configured`,
+					});
+				}
 
-			const [org] = await controlPanelDb
-				.select()
-				.from(organizations)
-				.where(eq(organizations.id, orgId))
-				.limit(1);
-			if (!org) {
-				throw new ORPCError("NOT_FOUND", { message: "Organization not found" });
-			}
-
-			const webAppUrl = getEnvVar("WEB_APP_URL") ?? "http://localhost:3001";
-			const userEmail = (context as { session?: { user?: { email?: string } } }).session?.user?.email;
-
-			const stripe = resolveStripe();
-			// We let Stripe Checkout create the Stripe Customer (customer_email + customer_creation default).
-			// The Customer ID is delivered to us via the customer.subscription.created webhook,
-			// which upsertSubscriptionFromStripe persists. Org→sub link via metadata.organizationId
-			// is wired in Task 15.
-			const session = await stripe.checkout.sessions.create({
-				mode: "subscription",
-				customer_email: userEmail,
-				line_items: [{ price: priceId, quantity: 1 }],
-				success_url: `${webAppUrl}/subscribe?session_id={CHECKOUT_SESSION_ID}`,
-				cancel_url: `${webAppUrl}/subscribe?canceled=1`,
-				client_reference_id: orgId,
-				subscription_data: { metadata: { organizationId: orgId } },
-				metadata: { organizationId: orgId },
-			});
-
-			return { checkoutUrl: session.url ?? "", sessionId: session.id };
-		}),
-
-	getStatus: protectedProcedure
-		.input(z.object({ organizationId: z.string().uuid() }))
-		.handler(async ({ context, input }) => {
-			const orgId =
-				(context as { organizationId?: string }).organizationId ??
-				input.organizationId;
-			if (!orgId) {
-				throw new ORPCError("BAD_REQUEST", {
-					message: "No organization context",
-				});
-			}
-
-			const [org] = await controlPanelDb
-				.select()
-				.from(organizations)
-				.where(eq(organizations.id, orgId))
-				.limit(1);
-			if (!org) {
-				throw new ORPCError("NOT_FOUND", { message: "Organization not found" });
-			}
-
-			let sub: {
-				status: string;
-				tier: string | null;
-				currentPeriodEnd: Date | null;
-				pastDueAt: Date | null;
-				gracePeriodEndsAt: Date | null;
-				trialEndsAt: Date | null;
-			} | null = null;
-			if (org.subscriptionId) {
-				const [row] = await controlPanelDb
+				const [org] = await controlPanelDb
 					.select()
-					.from(subscriptions)
-					.where(eq(subscriptions.id, org.subscriptionId))
+					.from(organizations)
+					.where(eq(organizations.id, orgId))
 					.limit(1);
-				if (row) {
-					sub = {
-						status: row.status,
-						tier: row.tier,
-						currentPeriodEnd: row.currentPeriodEnd,
-						pastDueAt: row.pastDueAt,
-						gracePeriodEndsAt: row.gracePeriodEndsAt,
-						trialEndsAt: row.trialEndsAt,
+				if (!org) {
+					throw new ORPCError("NOT_FOUND", {
+						message: "Organization not found",
+					});
+				}
+
+				const webAppUrl = getEnvVar("WEB_APP_URL") ?? "http://localhost:3001";
+				const userEmail = (
+					context as { session?: { user?: { email?: string } } }
+				).session?.user?.email;
+
+				const stripe = resolveStripe();
+				// We let Stripe Checkout create the Stripe Customer (customer_email + customer_creation default).
+				// The Customer ID is delivered to us via the customer.subscription.created webhook,
+				// which upsertSubscriptionFromStripe persists. Org→sub link via metadata.organizationId
+				// is wired in Task 15.
+				const session = await stripe.checkout.sessions.create({
+					mode: "subscription",
+					customer_email: userEmail,
+					line_items: [{ price: priceId, quantity: 1 }],
+					success_url: `${webAppUrl}/subscribe?session_id={CHECKOUT_SESSION_ID}`,
+					cancel_url: `${webAppUrl}/subscribe?canceled=1`,
+					client_reference_id: orgId,
+					subscription_data: { metadata: { organizationId: orgId } },
+					metadata: { organizationId: orgId },
+				});
+
+				return { checkoutUrl: session.url ?? "", sessionId: session.id };
+			}),
+
+		getStatus: protectedProcedure
+			.input(z.object({ organizationId: z.string().uuid() }))
+			.handler(async ({ context, input }) => {
+				const orgId =
+					(context as { organizationId?: string }).organizationId ??
+					input.organizationId;
+				if (!orgId) {
+					throw new ORPCError("BAD_REQUEST", {
+						message: "No organization context",
+					});
+				}
+
+				const [org] = await controlPanelDb
+					.select()
+					.from(organizations)
+					.where(eq(organizations.id, orgId))
+					.limit(1);
+				if (!org) {
+					throw new ORPCError("NOT_FOUND", {
+						message: "Organization not found",
+					});
+				}
+
+				let sub: {
+					status: string;
+					tier: string | null;
+					currentPeriodEnd: Date | null;
+					pastDueAt: Date | null;
+					gracePeriodEndsAt: Date | null;
+					trialEndsAt: Date | null;
+				} | null = null;
+				if (org.subscriptionId) {
+					const [row] = await controlPanelDb
+						.select()
+						.from(subscriptions)
+						.where(eq(subscriptions.id, org.subscriptionId))
+						.limit(1);
+					if (row) {
+						sub = {
+							status: row.status,
+							tier: row.tier,
+							currentPeriodEnd: row.currentPeriodEnd,
+							pastDueAt: row.pastDueAt,
+							gracePeriodEndsAt: row.gracePeriodEndsAt,
+							trialEndsAt: row.trialEndsAt,
+						};
+					}
+				}
+
+				const decision = evaluateAccess(
+					sub
+						? {
+								status: sub.status,
+								pastDueAt: sub.pastDueAt,
+								gracePeriodEndsAt: sub.gracePeriodEndsAt,
+								trialEndsAt: sub.trialEndsAt,
+							}
+						: null,
+					new Date(),
+					org.trialEndsAt,
+				);
+
+				const banner =
+					decision.decision === "allow" ? (decision.banner ?? null) : null;
+				const blockedReason =
+					decision.decision === "block" || decision.decision === "read_only"
+						? decision.reason
+						: null;
+
+				if (sub) {
+					return {
+						status: sub.status,
+						tier: sub.tier,
+						currentPeriodEnd: sub.currentPeriodEnd,
+						pastDueAt: sub.pastDueAt,
+						gracePeriodEndsAt: sub.gracePeriodEndsAt,
+						trialEndsAt: sub.trialEndsAt,
+						decision: decision.decision,
+						banner,
+						blockedReason,
 					};
 				}
-			}
 
-			const decision = evaluateAccess(
-				sub
-					? {
-							status: sub.status,
-							pastDueAt: sub.pastDueAt,
-							gracePeriodEndsAt: sub.gracePeriodEndsAt,
-							trialEndsAt: sub.trialEndsAt,
-					  }
-					: null,
-				new Date(),
-				org.trialEndsAt,
-			);
+				// No subscription — derive from org trial state.
+				if (org.trialEndsAt && org.trialEndsAt.getTime() > Date.now()) {
+					return {
+						status: "trialing" as const,
+						tier: null,
+						currentPeriodEnd: null,
+						pastDueAt: null,
+						gracePeriodEndsAt: null,
+						trialEndsAt: org.trialEndsAt,
+						decision: decision.decision,
+						banner,
+						blockedReason,
+					};
+				}
 
-			const banner =
-				decision.decision === "allow" ? decision.banner ?? null : null;
-			const blockedReason =
-				decision.decision === "block" || decision.decision === "read_only"
-					? decision.reason
-					: null;
-
-			if (sub) {
 				return {
-					status: sub.status,
-					tier: sub.tier,
-					currentPeriodEnd: sub.currentPeriodEnd,
-					pastDueAt: sub.pastDueAt,
-					gracePeriodEndsAt: sub.gracePeriodEndsAt,
-					trialEndsAt: sub.trialEndsAt,
-					decision: decision.decision,
-					banner,
-					blockedReason,
-				};
-			}
-
-			// No subscription — derive from org trial state.
-			if (org.trialEndsAt && org.trialEndsAt.getTime() > Date.now()) {
-				return {
-					status: "trialing" as const,
+					status: "none" as const,
 					tier: null,
 					currentPeriodEnd: null,
 					pastDueAt: null,
 					gracePeriodEndsAt: null,
-					trialEndsAt: org.trialEndsAt,
+					trialEndsAt: null,
 					decision: decision.decision,
 					banner,
 					blockedReason,
 				};
-			}
+			}),
 
-			return {
-				status: "none" as const,
-				tier: null,
-				currentPeriodEnd: null,
-				pastDueAt: null,
-				gracePeriodEndsAt: null,
-				trialEndsAt: null,
-				decision: decision.decision,
-				banner,
-				blockedReason,
-			};
-		}),
+		billingPortal: protectedProcedure
+			.input(z.object({ organizationId: z.string().uuid() }))
+			.handler(async ({ context, input }) => {
+				const orgId =
+					(context as { organizationId?: string }).organizationId ??
+					input.organizationId;
+				if (!orgId) {
+					throw new ORPCError("BAD_REQUEST", {
+						message: "No organization context",
+					});
+				}
 
-	billingPortal: protectedProcedure
-		.input(z.object({ organizationId: z.string().uuid() }))
-		.handler(async ({ context, input }) => {
-			const orgId =
-				(context as { organizationId?: string }).organizationId ??
-				input.organizationId;
-			if (!orgId) {
-				throw new ORPCError("BAD_REQUEST", {
-					message: "No organization context",
+				const [org] = await controlPanelDb
+					.select()
+					.from(organizations)
+					.where(eq(organizations.id, orgId))
+					.limit(1);
+				if (!org?.subscriptionId) {
+					throw new ORPCError("PRECONDITION_FAILED", {
+						message: "No active subscription",
+					});
+				}
+
+				const [sub] = await controlPanelDb
+					.select()
+					.from(subscriptions)
+					.where(eq(subscriptions.id, org.subscriptionId))
+					.limit(1);
+				if (!sub) {
+					throw new ORPCError("NOT_FOUND", {
+						message: "Subscription record missing",
+					});
+				}
+
+				const stripe = resolveStripe();
+				const webAppUrl = getEnvVar("WEB_APP_URL") ?? "http://localhost:3001";
+				const portal = await stripe.billingPortal.sessions.create({
+					customer: sub.stripeCustomerId,
+					return_url: `${webAppUrl}/dashboard/billing`,
 				});
-			}
-
-			const [org] = await controlPanelDb
-				.select()
-				.from(organizations)
-				.where(eq(organizations.id, orgId))
-				.limit(1);
-			if (!org?.subscriptionId) {
-				throw new ORPCError("PRECONDITION_FAILED", {
-					message: "No active subscription",
-				});
-			}
-
-			const [sub] = await controlPanelDb
-				.select()
-				.from(subscriptions)
-				.where(eq(subscriptions.id, org.subscriptionId))
-				.limit(1);
-			if (!sub) {
-				throw new ORPCError("NOT_FOUND", {
-					message: "Subscription record missing",
-				});
-			}
-
-			const stripe = resolveStripe();
-			const webAppUrl = getEnvVar("WEB_APP_URL") ?? "http://localhost:3001";
-			const portal = await stripe.billingPortal.sessions.create({
-				customer: sub.stripeCustomerId,
-				return_url: `${webAppUrl}/dashboard/billing`,
-			});
-			return { portalUrl: portal.url };
-		}),
+				return { portalUrl: portal.url };
+			}),
 	};
 }
 

@@ -57,7 +57,8 @@ async function seedPackageInstance(opts: {
 	clientId?: string;
 }) {
 	const someService = await tenantDb.query.services.findFirst();
-	if (!someService) throw new Error("no services row in tenant DB; cannot test");
+	if (!someService)
+		throw new Error("no services row in tenant DB; cannot test");
 
 	const now = new Date();
 	const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);

@@ -27,7 +27,7 @@ import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
+import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
 import { platformPaymentLedger } from "@avantej-core/db/schema/control-panel/platform-payment-ledger";
 import { platformDisputeQueue } from "@avantej-core/db/schema/control-panel/platform-dispute-queue";
 import {
@@ -38,53 +38,18 @@ import { orgCountryStripeAccounts } from "@avantej-core/db/schema/control-panel/
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { getStripeClient } from "@/lib/stripe";
 
-// Local re-impl of requirePlatformAdmin to avoid exporting from admin.ts.
-function requirePlatformAdmin(
-	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">,
-) {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
-			}
-			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!controlPanelDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
-			const adminRecord = await controlPanelDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", { message: "Admin access required" });
-			}
-			if (
-				allowRoles &&
-				!allowRoles.includes(
-					adminRecord.role as "super_admin" | "support" | "billing",
-				)
-			) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Your platform admin role does not permit this action",
-				});
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
-
-function cpDbFromContext(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
-		"controlPanelDb",
-	) as NeonDatabase<typeof controlPanelSchema> | undefined;
-	if (!db) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Control panel DB unavailable" });
+function cpDbFromContext(
+	context: unknown,
+): NeonDatabase<typeof controlPanelSchema> {
+	const db = (
+		context as { honoContext?: { get: (k: string) => unknown } }
+	).honoContext?.get("controlPanelDb") as
+		| NeonDatabase<typeof controlPanelSchema>
+		| undefined;
+	if (!db)
+		throw new ORPCError("INTERNAL_SERVER_ERROR", {
+			message: "Control panel DB unavailable",
+		});
 	return db;
 }
 
@@ -99,7 +64,10 @@ export const platformAdminPaymentsRouter = {
 		// Application fees collected this month (sum of platform_payment_ledger).
 		const [feesRow] = await cpDb
 			.select({
-				total: sql<number>`COALESCE(SUM(${platformPaymentLedger.applicationFee}), 0)`.as("total"),
+				total:
+					sql<number>`COALESCE(SUM(${platformPaymentLedger.applicationFee}), 0)`.as(
+						"total",
+					),
 			})
 			.from(platformPaymentLedger)
 			.where(
@@ -112,7 +80,10 @@ export const platformAdminPaymentsRouter = {
 		// SaaS revenue this month.
 		const [saasRow] = await cpDb
 			.select({
-				total: sql<number>`COALESCE(SUM(${platformPaymentLedger.amount}), 0)`.as("total"),
+				total:
+					sql<number>`COALESCE(SUM(${platformPaymentLedger.amount}), 0)`.as(
+						"total",
+					),
 			})
 			.from(platformPaymentLedger)
 			.where(
@@ -132,9 +103,12 @@ export const platformAdminPaymentsRouter = {
 			.where(isNull(paymentDriftLog.resolvedAt))
 			.groupBy(paymentDriftLog.severity);
 
-		const criticalDrift = driftBySeverity.find((r) => r.severity === "critical")?.count ?? 0;
-		const warnDrift = driftBySeverity.find((r) => r.severity === "warn")?.count ?? 0;
-		const infoDrift = driftBySeverity.find((r) => r.severity === "info")?.count ?? 0;
+		const criticalDrift =
+			driftBySeverity.find((r) => r.severity === "critical")?.count ?? 0;
+		const warnDrift =
+			driftBySeverity.find((r) => r.severity === "warn")?.count ?? 0;
+		const infoDrift =
+			driftBySeverity.find((r) => r.severity === "info")?.count ?? 0;
 
 		// Open disputes.
 		const [disputesRow] = await cpDb
@@ -195,9 +169,12 @@ export const platformAdminPaymentsRouter = {
 		.handler(async ({ context, input }) => {
 			const cpDb = cpDbFromContext(context);
 			const filters = [];
-			if (input.severity) filters.push(eq(paymentDriftLog.severity, input.severity));
-			if (input.resolved === true) filters.push(isNotNull(paymentDriftLog.resolvedAt));
-			if (input.resolved === false) filters.push(isNull(paymentDriftLog.resolvedAt));
+			if (input.severity)
+				filters.push(eq(paymentDriftLog.severity, input.severity));
+			if (input.resolved === true)
+				filters.push(isNotNull(paymentDriftLog.resolvedAt));
+			if (input.resolved === false)
+				filters.push(isNull(paymentDriftLog.resolvedAt));
 			const where = filters.length ? and(...filters) : undefined;
 
 			const rows = await cpDb
@@ -213,7 +190,8 @@ export const platformAdminPaymentsRouter = {
 		.input(z.object({ driftId: z.string().uuid() }))
 		.handler(async ({ context, input }) => {
 			const cpDb = cpDbFromContext(context);
-			const session = (context as { session?: { user?: { id?: string } } }).session;
+			const session = (context as { session?: { user?: { id?: string } } })
+				.session;
 			const adminUserId = session?.user?.id ?? "system";
 			const updated = await cpDb
 				.update(paymentDriftLog)
@@ -251,11 +229,16 @@ export const platformAdminPaymentsRouter = {
 		.input(z.object({ disputeId: z.string() }))
 		.handler(async ({ context, input }) => {
 			const cpDb = cpDbFromContext(context);
-			const session = (context as { session?: { user?: { id?: string } } }).session;
+			const session = (context as { session?: { user?: { id?: string } } })
+				.session;
 			const adminUserId = session?.user?.id ?? "system";
 			const updated = await cpDb
 				.update(platformDisputeQueue)
-				.set({ handledAt: new Date(), handledBy: adminUserId, updatedAt: new Date() })
+				.set({
+					handledAt: new Date(),
+					handledBy: adminUserId,
+					updatedAt: new Date(),
+				})
 				.where(eq(platformDisputeQueue.disputeId, input.disputeId))
 				.returning({ id: platformDisputeQueue.id });
 			if (updated.length === 0) {
@@ -274,7 +257,8 @@ export const platformAdminPaymentsRouter = {
 				stripeAccountId: orgCountryStripeAccounts.stripeAccountId,
 				status: orgCountryStripeAccounts.stripeConnectStatus,
 				detailsSubmitted: orgCountryStripeAccounts.detailsSubmitted,
-				connectAccountUpdatedAt: orgCountryStripeAccounts.connectAccountUpdatedAt,
+				connectAccountUpdatedAt:
+					orgCountryStripeAccounts.connectAccountUpdatedAt,
 				orgName: organizations.name,
 				orgSlug: organizations.slug,
 			})
@@ -293,11 +277,13 @@ export const platformAdminPaymentsRouter = {
 		return { stuck: rows };
 	}),
 
-	runReconciliationNow: adminProcedure
+	runReconciliationNow: protectedProcedure
 		.use(requirePlatformAdmin(["super_admin"]))
 		.handler(async ({ context }) => {
 			const cpDb = cpDbFromContext(context);
-			const { runReconciliation } = await import("@/services/reconciler.service");
+			const { runReconciliation } = await import(
+				"@/services/reconciler.service"
+			);
 			const report = await runReconciliation({
 				controlPanelDb: cpDb,
 				stripe: getStripeClient(),
@@ -305,11 +291,13 @@ export const platformAdminPaymentsRouter = {
 			return report;
 		}),
 
-	runWebhookBackfillNow: adminProcedure
+	runWebhookBackfillNow: protectedProcedure
 		.use(requirePlatformAdmin(["super_admin"]))
 		.handler(async ({ context }) => {
 			const cpDb = cpDbFromContext(context);
-			const { runWebhookBackfill } = await import("@/services/webhook-backfill.service");
+			const { runWebhookBackfill } = await import(
+				"@/services/webhook-backfill.service"
+			);
 			const report = await runWebhookBackfill({
 				controlPanelDb: cpDb,
 				stripe: getStripeClient(),

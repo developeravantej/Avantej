@@ -1,15 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
-import { Pencil, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AddCustomerDialog } from "@/components/customers/add-customer-dialog";
-import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
 import { CustomerProfilePanel } from "@/components/customers/customer-profile-panel";
 import { CustomersFilterSidebar } from "@/components/customers/customers-filter-sidebar";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUserContext } from "@/hooks/useUserContext";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/customers/v2/view",
@@ -48,7 +47,6 @@ function CustomersV2Page() {
 	const canRead = hasPermission("customer_management:read");
 	const canInvite = hasPermission("user_management:create");
 	const [inviteOpen, setInviteOpen] = useState(false);
-	const [editSheetOpen, setEditSheetOpen] = useState(false);
 
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebounce(search, 300);
@@ -63,17 +61,15 @@ function CustomersV2Page() {
 	};
 
 	const { data: listData, isLoading } = useQuery({
-		queryKey: ["customerDirectory", organizationId, debouncedSearch, showDeleted],
-		queryFn: async () => {
-			if (!organizationId) return { rows: [], total: 0 };
-			return client.customerDirectory.list({
-				organizationId,
+		...orpc.customerDirectory.list.queryOptions({
+			input: {
+				organizationId: organizationId!,
 				search: debouncedSearch || undefined,
 				includeDeleted: showDeleted || undefined,
 				limit: PAGE_LIMIT,
 				offset: 0,
-			});
-		},
+			},
+		}),
 		enabled: !!organizationId && canRead,
 		// Don't flicker the sidebar on tab switches / window focus.
 		staleTime: 5 * 60_000,
@@ -118,7 +114,6 @@ function CustomersV2Page() {
 		});
 	}, [rows, selectedMemberId, navigate]);
 
-
 	return (
 		<div className="-m-6 flex h-screen flex-col bg-[#f3f3f3]">
 			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
@@ -128,16 +123,6 @@ function CustomersV2Page() {
 					<span className="font-semibold">Directory</span>
 				</div>
 				<div className="ml-auto flex items-center gap-2">
-					{selectedMemberId && (
-						<button
-							type="button"
-							onClick={() => setEditSheetOpen(true)}
-							className="flex items-center gap-2 rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-xs font-semibold transition hover:bg-[#f3f3f3]"
-						>
-							<Pencil className="h-3.5 w-3.5" />
-							Edit Profile
-						</button>
-					)}
 					{canInvite && (
 						<button
 							type="button"
@@ -192,6 +177,7 @@ function CustomersV2Page() {
 							<CustomerProfilePanel
 								memberId={selectedMemberId}
 								showBackLink={false}
+								onDeleted={() => setSelectedMemberId(null)}
 							/>
 						)}
 					</div>
@@ -203,16 +189,6 @@ function CustomersV2Page() {
 					open={inviteOpen}
 					onOpenChange={setInviteOpen}
 					organizationId={organizationId}
-				/>
-			)}
-
-			{organizationId && selectedMemberId && (
-				<CustomerDetailSheet
-					memberId={selectedMemberId}
-					organizationId={organizationId}
-					open={editSheetOpen}
-					onOpenChange={setEditSheetOpen}
-					onSaved={() => {}}
 				/>
 			)}
 		</div>
@@ -227,4 +203,3 @@ function EmptyPane({ heading, helper }: { heading: string; helper: string }) {
 		</div>
 	);
 }
-

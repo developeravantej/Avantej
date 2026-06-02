@@ -43,7 +43,9 @@ describe("syncCustomerToGhl", () => {
 		const args = {
 			...baseArgs,
 			controlPanelDb: {
-				query: { ghlBranchLinks: { findFirst: mock(() => Promise.resolve(null)) } },
+				query: {
+					ghlBranchLinks: { findFirst: mock(() => Promise.resolve(null)) },
+				},
 			} as any,
 		};
 		const result = await syncCustomerToGhl(args);
@@ -54,10 +56,9 @@ describe("syncCustomerToGhl", () => {
 	test("returns status='synced' on happy path create", async () => {
 		(globalThis as any).fetch = mock(() =>
 			Promise.resolve(
-				new Response(
-					JSON.stringify({ id: "ct_new", email: "a@b.com" }),
-					{ status: 200 },
-				),
+				new Response(JSON.stringify({ id: "ct_new", email: "a@b.com" }), {
+					status: 200,
+				}),
 			),
 		);
 		const tenantInsert = mock(() => Promise.resolve());
@@ -80,8 +81,12 @@ describe("syncCustomerToGhl", () => {
 				},
 			} as any,
 			tenantDb: {
-				insert: () => ({ values: () => ({ onConflictDoUpdate: tenantInsert }) }),
-				query: { ghlContactLinks: { findFirst: mock(() => Promise.resolve(null)) } },
+				insert: () => ({
+					values: () => ({ onConflictDoUpdate: tenantInsert }),
+				}),
+				query: {
+					ghlContactLinks: { findFirst: mock(() => Promise.resolve(null)) },
+				},
 			} as any,
 			decryptApiKey: (s: string) => s.replace("encrypted_", ""),
 		};
@@ -115,8 +120,12 @@ describe("syncCustomerToGhl", () => {
 				},
 			} as any,
 			tenantDb: {
-				insert: () => ({ values: () => ({ onConflictDoUpdate: tenantInsert }) }),
-				query: { ghlContactLinks: { findFirst: mock(() => Promise.resolve(null)) } },
+				insert: () => ({
+					values: () => ({ onConflictDoUpdate: tenantInsert }),
+				}),
+				query: {
+					ghlContactLinks: { findFirst: mock(() => Promise.resolve(null)) },
+				},
 			} as any,
 			decryptApiKey: (s: string) => s,
 		};
@@ -135,7 +144,9 @@ describe("syncCustomerToGhl", () => {
 		(globalThis as any).fetch = mock(() =>
 			Promise.resolve(
 				new Response(
-					JSON.stringify({ contact: { id: "ct_new_after_restore", email: "a@b.com" } }),
+					JSON.stringify({
+						contact: { id: "ct_new_after_restore", email: "a@b.com" },
+					}),
 					{ status: 200 },
 				),
 			),
@@ -161,7 +172,9 @@ describe("syncCustomerToGhl", () => {
 				},
 			} as any,
 			tenantDb: {
-				insert: () => ({ values: () => ({ onConflictDoUpdate: tenantInsert }) }),
+				insert: () => ({
+					values: () => ({ onConflictDoUpdate: tenantInsert }),
+				}),
 				query: {
 					ghlContactLinks: {
 						findFirst: mock(() =>
@@ -171,7 +184,7 @@ describe("syncCustomerToGhl", () => {
 								customerProfileId: "cp_1",
 								branchNodeId: "branch_1",
 								ghlLocationId: "loc_1",
-								syncStatus: "deleted",  // ← key: link exists but marked deleted
+								syncStatus: "deleted", // ← key: link exists but marked deleted
 							}),
 						),
 					},

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
 import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { useEffect } from "react";
 import { useForm } from "@tanstack/react-form";
@@ -103,41 +103,36 @@ function OrganizationSettingsPage() {
 	// ─── Queries ─────────────────────────────────────────────────────────────
 
 	const { data: gracePeriodData, isLoading: l1 } = useQuery({
-		queryKey: ["organizationSettings", organizationId, "grace_period_days"],
-		queryFn: () =>
-			organizationId
-				? client.organizationSettings.get({ organizationId, key: "grace_period_days" })
-				: Promise.resolve(null),
+		...orpc.organizationSettings.get.queryOptions({
+			input: { organizationId: organizationId!, key: "grace_period_days" },
+		}),
 		enabled: !!organizationId,
 		staleTime: 60_000,
 	});
 
 	const { data: commissionData, isLoading: l2 } = useQuery({
-		queryKey: ["organizationSettings", organizationId, "commission_percentage"],
-		queryFn: () =>
-			organizationId
-				? client.organizationSettings.get({ organizationId, key: "commission_percentage" })
-				: Promise.resolve(null),
+		...orpc.organizationSettings.get.queryOptions({
+			input: { organizationId: organizationId!, key: "commission_percentage" },
+		}),
 		enabled: !!organizationId,
 		staleTime: 60_000,
 	});
 
 	const { data: localeData, isLoading: l3 } = useQuery({
-		queryKey: ["organizationSettings", organizationId, "locale"],
-		queryFn: () =>
-			organizationId
-				? client.organizationSettings.get({ organizationId, key: "locale" })
-				: Promise.resolve(null),
+		...orpc.organizationSettings.get.queryOptions({
+			input: { organizationId: organizationId!, key: "locale" },
+		}),
 		enabled: !!organizationId,
 		staleTime: 60_000,
 	});
 
 	const { data: packageApprovalData, isLoading: l4 } = useQuery({
-		queryKey: ["organizationSettings", organizationId, "package_approval.required"],
-		queryFn: () =>
-			organizationId
-				? client.organizationSettings.get({ organizationId, key: "package_approval.required" })
-				: Promise.resolve(null),
+		...orpc.organizationSettings.get.queryOptions({
+			input: {
+				organizationId: organizationId!,
+				key: "package_approval.required",
+			},
+		}),
 		enabled: !!organizationId,
 		staleTime: 60_000,
 	});
@@ -198,10 +193,18 @@ function OrganizationSettingsPage() {
 			commissionPct: cm?.value
 				? parseFloat(cm.value) || DEFAULT_VALUES.commissionPct
 				: DEFAULT_VALUES.commissionPct,
-			locale: (lc?.value as OrgSettingsValues["locale"]) ?? DEFAULT_VALUES.locale,
+			locale:
+				(lc?.value as OrgSettingsValues["locale"]) ?? DEFAULT_VALUES.locale,
 			packageApprovalRequired: (pa?.value ?? "true") === "true",
 		});
-	}, [isLoading, gracePeriodData, commissionData, localeData, packageApprovalData, form]);
+	}, [
+		isLoading,
+		gracePeriodData,
+		commissionData,
+		localeData,
+		packageApprovalData,
+		form,
+	]);
 
 	// ─── Guard: no org selected ───────────────────────────────────────────────
 
@@ -218,8 +221,12 @@ function OrganizationSettingsPage() {
 				<div className="flex flex-1 items-center justify-center">
 					<div className="flex flex-col items-center justify-center text-[#737373]">
 						<Lock className="h-8 w-8 mb-3 opacity-30" />
-						<p className="text-sm font-medium text-[#0a0a0a]">No organization selected</p>
-						<p className="text-xs mt-1">Select an organization to manage settings.</p>
+						<p className="text-sm font-medium text-[#0a0a0a]">
+							No organization selected
+						</p>
+						<p className="text-xs mt-1">
+							Select an organization to manage settings.
+						</p>
 					</div>
 				</div>
 			</div>

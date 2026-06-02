@@ -12,25 +12,25 @@ import type { createMiddleware } from "hono/factory";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type MakeHonoContextOpts = {
-  headers?: Record<string, string>;
-  params?: Record<string, string>;
-  path?: string;
-  /** Pre-populate c.get("user") */
-  user?: { id: string; [key: string]: unknown } | null;
-  /** Pre-populate c.get("session") */
-  session?: unknown;
-  /** Pre-populate c.get("organization") */
-  organization?: unknown;
-  /** Pre-populate c.get("organizationId") */
-  organizationId?: string;
-  /** Pre-populate c.get("tenantDb") */
-  tenantDb?: unknown;
-  /** Pre-populate c.get("adminRecord") */
-  adminRecord?: unknown;
-  /** Pre-populate c.get("adminRole") */
-  adminRole?: string;
-  /** Pre-populate c.get("controlPanelDb") — used by getControlPanelDb(c) shortcut */
-  controlPanelDb?: unknown;
+	headers?: Record<string, string>;
+	params?: Record<string, string>;
+	path?: string;
+	/** Pre-populate c.get("user") */
+	user?: { id: string; [key: string]: unknown } | null;
+	/** Pre-populate c.get("session") */
+	session?: unknown;
+	/** Pre-populate c.get("organization") */
+	organization?: unknown;
+	/** Pre-populate c.get("organizationId") */
+	organizationId?: string;
+	/** Pre-populate c.get("tenantDb") */
+	tenantDb?: unknown;
+	/** Pre-populate c.get("adminRecord") */
+	adminRecord?: unknown;
+	/** Pre-populate c.get("adminRole") */
+	adminRole?: string;
+	/** Pre-populate c.get("controlPanelDb") — used by getControlPanelDb(c) shortcut */
+	controlPanelDb?: unknown;
 };
 
 export type HonoContextStub = ReturnType<typeof makeHonoContext>;
@@ -48,52 +48,56 @@ export type HonoContextStub = ReturnType<typeof makeHonoContext>;
  * - `c.json(body, status?)` returns `{ __response: true, body, status }`.
  */
 export function makeHonoContext(opts: MakeHonoContextOpts = {}) {
-  const store = new Map<string, unknown>();
+	const store = new Map<string, unknown>();
 
-  // Seed pre-populated values
-  if (opts.user !== undefined) store.set("user", opts.user);
-  if (opts.session !== undefined) store.set("session", opts.session);
-  if (opts.organization !== undefined) store.set("organization", opts.organization);
-  if (opts.organizationId !== undefined) store.set("organizationId", opts.organizationId);
-  if (opts.tenantDb !== undefined) store.set("tenantDb", opts.tenantDb);
-  if (opts.adminRecord !== undefined) store.set("adminRecord", opts.adminRecord);
-  if (opts.adminRole !== undefined) store.set("adminRole", opts.adminRole);
-  if (opts.controlPanelDb !== undefined) store.set("controlPanelDb", opts.controlPanelDb);
+	// Seed pre-populated values
+	if (opts.user !== undefined) store.set("user", opts.user);
+	if (opts.session !== undefined) store.set("session", opts.session);
+	if (opts.organization !== undefined)
+		store.set("organization", opts.organization);
+	if (opts.organizationId !== undefined)
+		store.set("organizationId", opts.organizationId);
+	if (opts.tenantDb !== undefined) store.set("tenantDb", opts.tenantDb);
+	if (opts.adminRecord !== undefined)
+		store.set("adminRecord", opts.adminRecord);
+	if (opts.adminRole !== undefined) store.set("adminRole", opts.adminRole);
+	if (opts.controlPanelDb !== undefined)
+		store.set("controlPanelDb", opts.controlPanelDb);
 
-  // Build case-insensitive header lookup
-  const normalizedHeaders: Record<string, string> = {};
-  for (const [k, v] of Object.entries(opts.headers ?? {})) {
-    normalizedHeaders[k.toLowerCase()] = v;
-  }
+	// Build case-insensitive header lookup
+	const normalizedHeaders: Record<string, string> = {};
+	for (const [k, v] of Object.entries(opts.headers ?? {})) {
+		normalizedHeaders[k.toLowerCase()] = v;
+	}
 
-  // Real Headers object for c.req.raw.headers
-  const rawHeaders = new Headers(opts.headers ?? {});
+	// Real Headers object for c.req.raw.headers
+	const rawHeaders = new Headers(opts.headers ?? {});
 
-  const c = {
-    get(key: string) {
-      return store.get(key);
-    },
-    set(key: string, value: unknown) {
-      store.set(key, value);
-    },
-    json(body: unknown, status?: number) {
-      return { __response: true, body, status: status ?? 200 };
-    },
-    req: {
-      param(name: string): string | undefined {
-        return (opts.params ?? {})[name];
-      },
-      header(name: string): string | undefined {
-        return normalizedHeaders[name.toLowerCase()];
-      },
-      path: opts.path ?? "/",
-      raw: {
-        headers: rawHeaders,
-      },
-    },
-  };
+	const c = {
+		get(key: string) {
+			return store.get(key);
+		},
+		set(key: string, value: unknown) {
+			store.set(key, value);
+		},
+		json(body: unknown, status?: number) {
+			return { __response: true, body, status: status ?? 200 };
+		},
+		req: {
+			param(name: string): string | undefined {
+				return (opts.params ?? {})[name];
+			},
+			header(name: string): string | undefined {
+				return normalizedHeaders[name.toLowerCase()];
+			},
+			path: opts.path ?? "/",
+			raw: {
+				headers: rawHeaders,
+			},
+		},
+	};
 
-  return c;
+	return c;
 }
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
@@ -110,14 +114,14 @@ export function makeHonoContext(opts: MakeHonoContextOpts = {}) {
  * `rate-limit.middleware.test.ts`.
  */
 export async function runMiddleware(
-  middleware: ReturnType<typeof createMiddleware>,
-  c: ReturnType<typeof makeHonoContext>,
+	middleware: ReturnType<typeof createMiddleware>,
+	c: ReturnType<typeof makeHonoContext>,
 ): Promise<{ response: unknown; nextCalled: boolean }> {
-  let nextCalled = false;
-  const next = async () => {
-    nextCalled = true;
-  };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const response = await (middleware as any)(c, next);
-  return { response, nextCalled };
+	let nextCalled = false;
+	const next = async () => {
+		nextCalled = true;
+	};
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const response = await (middleware as any)(c, next);
+	return { response, nextCalled };
 }

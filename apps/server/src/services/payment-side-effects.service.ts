@@ -54,7 +54,10 @@ export interface OnAppointmentPaidArgs {
  * e.g. 12345 + "MYR" -> "MYR 123.45". Falls back gracefully if currency is
  * unknown.
  */
-function formatMoney(amountCents: number | null, currency: string | null): string {
+export function formatMoney(
+	amountCents: number | null,
+	currency: string | null,
+): string {
 	if (amountCents == null) return "—";
 	const major = (amountCents / 100).toFixed(2);
 	return currency ? `${currency.toUpperCase()} ${major}` : major;
@@ -65,7 +68,9 @@ function formatMoney(amountCents: number | null, currency: string | null): strin
  * marked `paid`. All three side effects are best-effort and independently
  * caught — none can fail the webhook ack.
  */
-export async function onAppointmentPaid(args: OnAppointmentPaidArgs): Promise<void> {
+export async function onAppointmentPaid(
+	args: OnAppointmentPaidArgs,
+): Promise<void> {
 	const {
 		tenantDb,
 		controlPanelDb,
@@ -85,7 +90,12 @@ export async function onAppointmentPaid(args: OnAppointmentPaidArgs): Promise<vo
 		const updated = await tenantDb
 			.update(appointments)
 			.set({ status: "confirmed", updatedAt: new Date() })
-			.where(and(eq(appointments.id, appointmentId), eq(appointments.status, "pending")))
+			.where(
+				and(
+					eq(appointments.id, appointmentId),
+					eq(appointments.status, "pending"),
+				),
+			)
 			.returning({ id: appointments.id, status: appointments.status });
 
 		if (updated.length > 0) {

@@ -27,8 +27,7 @@ import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
+import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
@@ -72,16 +71,20 @@ type StripePaymentMethod = {
 	card?: { brand: string; last4: string } | null;
 };
 
-type StripeCustomer = {
-	id: string;
-	balance?: number;
-	currency?: string | null;
-	invoice_settings?: { default_payment_method?: string | StripePaymentMethod | null } | null;
-	default_source?: string | null;
-} | {
-	deleted: true;
-	id: string;
-};
+type StripeCustomer =
+	| {
+			id: string;
+			balance?: number;
+			currency?: string | null;
+			invoice_settings?: {
+				default_payment_method?: string | StripePaymentMethod | null;
+			} | null;
+			default_source?: string | null;
+	  }
+	| {
+			deleted: true;
+			id: string;
+	  };
 
 type StripeRefund = {
 	id: string;
@@ -152,54 +155,16 @@ export type StripeClientLike = {
 };
 
 // ── Auth gates ──────────────────────────────────────────────────────────────
-function requirePlatformAdmin(
-	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">,
-) {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
-			}
-			const cpDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
-			const adminRecord = await cpDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", { message: "Admin access required" });
-			}
-			if (
-				allowRoles &&
-				!allowRoles.includes(
-					adminRecord.role as "super_admin" | "support" | "billing",
-				)
-			) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Your platform admin role does not permit this action",
-				});
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
-const superAdminProcedure = protectedProcedure.use(
+const superAdminProcedure = adminProcedure.use(
 	requirePlatformAdmin(["super_admin"]),
 );
 
 function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
-		"controlPanelDb",
-	) as NeonDatabase<typeof controlPanelSchema> | undefined;
+	const db = (
+		context as { honoContext?: { get: (k: string) => unknown } }
+	).honoContext?.get("controlPanelDb") as
+		| NeonDatabase<typeof controlPanelSchema>
+		| undefined;
 	if (!db)
 		throw new ORPCError("INTERNAL_SERVER_ERROR", {
 			message: "Control panel DB unavailable",
@@ -210,7 +175,10 @@ function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
 function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
 	const id = session?.user?.id;
-	if (!id) throw new ORPCError("UNAUTHORIZED", { message: "No admin user in session" });
+	if (!id)
+		throw new ORPCError("UNAUTHORIZED", {
+			message: "No admin user in session",
+		});
 	return id;
 }
 
@@ -236,9 +204,10 @@ async function resolveStripeCustomerId(
 	return { customerId: sub?.stripeCustomerId ?? null, orgFound: true };
 }
 
-function normalizeChargeRefund(
-	charge: StripeInvoice["charge"],
-): { refunded: boolean; refundedAmount: number } {
+function normalizeChargeRefund(charge: StripeInvoice["charge"]): {
+	refunded: boolean;
+	refundedAmount: number;
+} {
 	if (!charge || typeof charge === "string") {
 		return { refunded: false, refundedAmount: 0 };
 	}
@@ -419,7 +388,9 @@ export function createPlatformAdminTenantsBillingRouter(
 					});
 				}
 
-				const paymentIntentId = normalizePaymentIntentId(invoice.payment_intent);
+				const paymentIntentId = normalizePaymentIntentId(
+					invoice.payment_intent,
+				);
 				if (!paymentIntentId) {
 					throw new ORPCError("BAD_REQUEST", {
 						message: "Invoice has no payment_intent — cannot refund",

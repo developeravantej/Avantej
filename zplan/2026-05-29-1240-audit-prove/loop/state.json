@@ -1,0 +1,33 @@
+{
+  "iteration": 1,
+  "exitReason": "tier1-resolved (22 fixed, 1 already-fixed); deferred S- items remain",
+  "gateAfter": "GREEN (cold type-check 3/3 + lint 0 errors); audit-prove integration 8/0; Playwright proof 2/2; unit 112 pass / 5 fail (all pre-existing, zero new regressions)",
+  "postReview": "diff-review H1/M1/M2 fixed; pre-existing index.ts:75 AppRouter cold-build error fixed via documented `as unknown as AppRouter` assertion (TS7056-class workaround)",
+  "branch": "audit-prove/remediation-20260529-1240",
+  "targets": [
+    { "id": "F-CRM-03", "batch": "A", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["packages/services/src/promotions.service.ts"] },
+    { "id": "F-CRM-06", "batch": "A", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["packages/services/src/promotions.service.ts"] },
+    { "id": "F-CRM-04", "batch": "A", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["packages/services/src/promotions.service.ts"] },
+    { "id": "F-SVC-01", "batch": "B", "kind": "missing-side-effect", "status": "open", "attempts": 0, "ownedFiles": ["packages/services/src/waitlist.service.ts", "packages/services/src/notification.service.ts"] },
+    { "id": "F-SVC-04", "batch": "B", "kind": "missing-side-effect", "status": "open", "attempts": 0, "ownedFiles": ["packages/services/src/class-slots.service.ts", "packages/services/src/waitlist.service.ts"] },
+    { "id": "F-SVC-09", "batch": "B", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["packages/services/src/class-slots.service.ts"] },
+    { "id": "F-CRM-05", "batch": "B", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["packages/services/src/waitlist.service.ts"] },
+    { "id": "F-CRM-10", "batch": "B", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["packages/services/src/waitlist.service.ts"] },
+    { "id": "F-AUTH-09", "batch": "C", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["packages/api/src/routers/hierarchy/read.procedures.ts"] },
+    { "id": "F-AUTH-07", "batch": "C", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["packages/api/src/routers/invitations/manage.procedures.ts", "packages/services/src/invitation.service.ts"] },
+    { "id": "F-AUTH-08", "batch": "C", "kind": "missing-side-effect", "status": "open", "attempts": 0, "ownedFiles": ["packages/api/src/routers/members/status.procedures.ts"] },
+    { "id": "F-AUTH-04", "batch": "C", "kind": "missing-side-effect", "status": "open", "attempts": 0, "ownedFiles": ["packages/api/src/routers/members/removal.procedures.ts"] },
+    { "id": "F-INV-08", "batch": "D", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["packages/services/src/tax-rates.service.ts"] },
+    { "id": "F-INV-07", "batch": "D", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["packages/services/src/suppliers.service.ts"] },
+    { "id": "F-INV-02", "batch": "D", "kind": "missing-side-effect", "status": "open", "attempts": 0, "ownedFiles": ["packages/services/src/goods-receipt.service.ts"] },
+    { "id": "F-COM-04", "batch": "E", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["packages/services/src/commission-calculator.service.ts"] },
+    { "id": "F-COM-09", "batch": "E", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["apps/server/src/routers/partner-stripe.ts"] },
+    { "id": "F-COM-07", "batch": "E", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["packages/services/src/commission-splits.service.ts", "packages/api/src/routers/commission-splits/analytics.procedures.ts"] },
+    { "id": "F-SVC-06", "batch": "F", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["packages/api/src/routers/appointments/recurrence.procedures.ts"] },
+    { "id": "F-SVC-08", "batch": "F", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["packages/api/src/routers/service-category-config.ts"] },
+    { "id": "F-SVC-05", "batch": "F", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["packages/services/src/appointment.service.ts"] },
+    { "id": "F-CRM-09", "batch": "G", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["packages/services/src/walk-in.service.ts"] },
+    { "id": "F-CRM-07", "batch": "G", "kind": "partial", "status": "open", "attempts": 0, "ownedFiles": ["packages/services/src/customer-profile.service.ts"] }
+  ],
+  "deferred": ["F-SALE-09", "F-INV-06", "F-INV-05", "F-SALE-08", "F-COM-01", "F-COM-05", "F-COM-02", "F-CRM-08", "F-CRM-02", "F-AUTH-03", "F-AUTH-05", "F-INV-04"]
+}

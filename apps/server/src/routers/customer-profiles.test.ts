@@ -153,7 +153,9 @@ const cpUserDeleteWhere = mock(async () => undefined);
 const cpUserDeleteChain = mock(() => ({ where: cpUserDeleteWhere }));
 
 // tenantDb.insert chain (customerProfiles)
-const tenantInsertReturning = mock(async () => [{ id: PROFILE_ID }] as unknown[]);
+const tenantInsertReturning = mock(
+	async () => [{ id: PROFILE_ID }] as unknown[],
+);
 const tenantInsertValues = mock(() => ({ returning: tenantInsertReturning }));
 const tenantInsertChain = mock(() => ({ values: tenantInsertValues }));
 
@@ -262,8 +264,9 @@ describe("serverCustomerProfilesRouter.addEmailAndDispatchMagicLink", () => {
 
 		const cpDb = makeMockCpDb();
 		const context = makeBaseContext({ honoContext: makeHonoContext(cpDb) });
-		(context.tenantDb as ReturnType<typeof makeMockTenantDb>).query.customerProfiles.findFirst =
-			profileFindFirst;
+		(
+			context.tenantDb as ReturnType<typeof makeMockTenantDb>
+		).query.customerProfiles.findFirst = profileFindFirst;
 
 		const result = await callProcedure(
 			serverCustomerProfilesRouter.addEmailAndDispatchMagicLink,
@@ -288,7 +291,10 @@ describe("serverCustomerProfilesRouter.addEmailAndDispatchMagicLink", () => {
 	});
 
 	it("missing tenantDb + honoContext → INTERNAL_SERVER_ERROR", async () => {
-		const context = makeBaseContext({ tenantDb: undefined, honoContext: undefined });
+		const context = makeBaseContext({
+			tenantDb: undefined,
+			honoContext: undefined,
+		});
 
 		await expect(
 			callProcedure(
@@ -314,7 +320,10 @@ describe("serverCustomerProfilesRouter.addEmailAndDispatchMagicLink", () => {
 	});
 
 	it("profile has no userId (dependent) → BAD_REQUEST", async () => {
-		profileFindFirst.mockImplementation(async () => ({ id: PROFILE_ID, userId: null }));
+		profileFindFirst.mockImplementation(async () => ({
+			id: PROFILE_ID,
+			userId: null,
+		}));
 
 		const context = makeBaseContext();
 
@@ -328,7 +337,10 @@ describe("serverCustomerProfilesRouter.addEmailAndDispatchMagicLink", () => {
 	});
 
 	it("cpDb missing (getControlPanelDb throws) → INTERNAL_SERVER_ERROR", async () => {
-		profileFindFirst.mockImplementation(async () => ({ id: PROFILE_ID, userId: USER_ID }));
+		profileFindFirst.mockImplementation(async () => ({
+			id: PROFILE_ID,
+			userId: USER_ID,
+		}));
 
 		// honoContext.get("controlPanelDb") returns null → getControlPanelDb throws
 		const context = makeBaseContext({ honoContext: makeHonoContext(null) });
@@ -343,7 +355,10 @@ describe("serverCustomerProfilesRouter.addEmailAndDispatchMagicLink", () => {
 	});
 
 	it("existing user has real (non-placeholder) email → BAD_REQUEST", async () => {
-		profileFindFirst.mockImplementation(async () => ({ id: PROFILE_ID, userId: USER_ID }));
+		profileFindFirst.mockImplementation(async () => ({
+			id: PROFILE_ID,
+			userId: USER_ID,
+		}));
 		cpUserFindFirst.mockImplementationOnce(async () => ({
 			id: USER_ID,
 			email: "already.real@example.com",
@@ -361,11 +376,20 @@ describe("serverCustomerProfilesRouter.addEmailAndDispatchMagicLink", () => {
 	});
 
 	it("email collision with another user → CONFLICT", async () => {
-		profileFindFirst.mockImplementation(async () => ({ id: PROFILE_ID, userId: USER_ID }));
+		profileFindFirst.mockImplementation(async () => ({
+			id: PROFILE_ID,
+			userId: USER_ID,
+		}));
 		// First call: existingUser (placeholder email); second call: collision (different user)
 		cpUserFindFirst
-			.mockImplementationOnce(async () => ({ id: USER_ID, email: PLACEHOLDER_EMAIL }))
-			.mockImplementationOnce(async () => ({ id: "other-user", email: REAL_EMAIL }));
+			.mockImplementationOnce(async () => ({
+				id: USER_ID,
+				email: PLACEHOLDER_EMAIL,
+			}))
+			.mockImplementationOnce(async () => ({
+				id: "other-user",
+				email: REAL_EMAIL,
+			}));
 
 		const context = makeBaseContext();
 
@@ -379,9 +403,15 @@ describe("serverCustomerProfilesRouter.addEmailAndDispatchMagicLink", () => {
 	});
 
 	it("Better-Auth dispatch throws → INTERNAL_SERVER_ERROR (console.error called)", async () => {
-		profileFindFirst.mockImplementation(async () => ({ id: PROFILE_ID, userId: USER_ID }));
+		profileFindFirst.mockImplementation(async () => ({
+			id: PROFILE_ID,
+			userId: USER_ID,
+		}));
 		cpUserFindFirst
-			.mockImplementationOnce(async () => ({ id: USER_ID, email: PLACEHOLDER_EMAIL }))
+			.mockImplementationOnce(async () => ({
+				id: USER_ID,
+				email: PLACEHOLDER_EMAIL,
+			}))
 			.mockImplementationOnce(async () => null);
 
 		mockSignInMagicLink.mockImplementation(async () => {
@@ -424,8 +454,14 @@ describe("serverCustomerProfilesRouter.resendMagicLink", () => {
 	});
 
 	it("happy path — dispatches magic link to existing real email, returns {success, email}", async () => {
-		profileFindFirst.mockImplementation(async () => ({ id: PROFILE_ID, userId: USER_ID }));
-		cpUserFindFirst.mockImplementation(async () => ({ id: USER_ID, email: REAL_EMAIL }));
+		profileFindFirst.mockImplementation(async () => ({
+			id: PROFILE_ID,
+			userId: USER_ID,
+		}));
+		cpUserFindFirst.mockImplementation(async () => ({
+			id: USER_ID,
+			email: REAL_EMAIL,
+		}));
 
 		const result = await callProcedure(
 			serverCustomerProfilesRouter.resendMagicLink,
@@ -470,7 +506,10 @@ describe("serverCustomerProfilesRouter.resendMagicLink", () => {
 	});
 
 	it("cpDb missing → INTERNAL_SERVER_ERROR", async () => {
-		profileFindFirst.mockImplementation(async () => ({ id: PROFILE_ID, userId: USER_ID }));
+		profileFindFirst.mockImplementation(async () => ({
+			id: PROFILE_ID,
+			userId: USER_ID,
+		}));
 
 		await expect(
 			callProcedure(
@@ -482,8 +521,14 @@ describe("serverCustomerProfilesRouter.resendMagicLink", () => {
 	});
 
 	it("linked user has placeholder email → BAD_REQUEST", async () => {
-		profileFindFirst.mockImplementation(async () => ({ id: PROFILE_ID, userId: USER_ID }));
-		cpUserFindFirst.mockImplementation(async () => ({ id: USER_ID, email: PLACEHOLDER_EMAIL }));
+		profileFindFirst.mockImplementation(async () => ({
+			id: PROFILE_ID,
+			userId: USER_ID,
+		}));
+		cpUserFindFirst.mockImplementation(async () => ({
+			id: USER_ID,
+			email: PLACEHOLDER_EMAIL,
+		}));
 
 		await expect(
 			callProcedure(
@@ -495,8 +540,14 @@ describe("serverCustomerProfilesRouter.resendMagicLink", () => {
 	});
 
 	it("Better-Auth dispatch throws → INTERNAL_SERVER_ERROR (console.error called)", async () => {
-		profileFindFirst.mockImplementation(async () => ({ id: PROFILE_ID, userId: USER_ID }));
-		cpUserFindFirst.mockImplementation(async () => ({ id: USER_ID, email: REAL_EMAIL }));
+		profileFindFirst.mockImplementation(async () => ({
+			id: PROFILE_ID,
+			userId: USER_ID,
+		}));
+		cpUserFindFirst.mockImplementation(async () => ({
+			id: USER_ID,
+			email: REAL_EMAIL,
+		}));
 
 		mockSignInMagicLink.mockImplementation(async () => {
 			throw new Error("timeout");
@@ -540,13 +591,22 @@ describe("serverCustomerProfilesRouter.createUnclaimed", () => {
 		// No phone conflict by default
 		profileFindFirst.mockImplementation(async () => undefined);
 		// memberFindFirst after insert — returns a created member
-		memberFindFirst.mockImplementation(async () => ({ id: "new-member-id", userId: USER_ID }));
+		memberFindFirst.mockImplementation(async () => ({
+			id: "new-member-id",
+			userId: USER_ID,
+		}));
 		// cpDb.insert chain
-		cpUserInsertChain.mockImplementation(() => ({ values: cpUserInsertValues }));
+		cpUserInsertChain.mockImplementation(() => ({
+			values: cpUserInsertValues,
+		}));
 		cpUserInsertValues.mockImplementation(async () => undefined);
 		// tenantDb.insert → returning profile id
-		tenantInsertChain.mockImplementation(() => ({ values: tenantInsertValues }));
-		tenantInsertValues.mockImplementation(() => ({ returning: tenantInsertReturning }));
+		tenantInsertChain.mockImplementation(() => ({
+			values: tenantInsertValues,
+		}));
+		tenantInsertValues.mockImplementation(() => ({
+			returning: tenantInsertReturning,
+		}));
 		tenantInsertReturning.mockImplementation(async () => [{ id: PROFILE_ID }]);
 	});
 
@@ -629,7 +689,10 @@ describe("serverCustomerProfilesRouter.createUnclaimed", () => {
 
 	it("supplied email already taken → CONFLICT", async () => {
 		// No phone conflict, but email collision
-		cpUserFindFirst.mockImplementation(async () => ({ id: "other", email: REAL_EMAIL }));
+		cpUserFindFirst.mockImplementation(async () => ({
+			id: "other",
+			email: REAL_EMAIL,
+		}));
 
 		await expect(
 			callProcedure(
@@ -750,7 +813,10 @@ describe("serverCustomerProfilesRouter.sendClaimLink", () => {
 
 	it("CP user already has real email → BAD_REQUEST", async () => {
 		profileFindFirst.mockImplementation(async () => UNCLAIMED_PROFILE);
-		cpUserFindFirst.mockImplementation(async () => ({ id: USER_ID, email: REAL_EMAIL }));
+		cpUserFindFirst.mockImplementation(async () => ({
+			id: USER_ID,
+			email: REAL_EMAIL,
+		}));
 
 		await expect(
 			callProcedure(
@@ -765,7 +831,10 @@ describe("serverCustomerProfilesRouter.sendClaimLink", () => {
 		profileFindFirst.mockImplementation(async () => UNCLAIMED_PROFILE);
 		cpUserFindFirst
 			.mockImplementationOnce(async () => PLACEHOLDER_USER)
-			.mockImplementationOnce(async () => ({ id: "someone-else", email: REAL_EMAIL }));
+			.mockImplementationOnce(async () => ({
+				id: "someone-else",
+				email: REAL_EMAIL,
+			}));
 
 		await expect(
 			callProcedure(

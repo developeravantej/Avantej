@@ -33,13 +33,13 @@ import { TIER_LIMITS, type Tier } from "@avantej-core/types";
  * @param amountTotal - Total amount in cents (null if not provided)
  * @returns Tier name: "basic", "professional", or "enterprise"
  */
-function determineTier(amountTotal: number | null): string {
-  if (!amountTotal) return "basic";
+export function determineTier(amountTotal: number | null): string {
+	if (!amountTotal) return "basic";
 
-  // Amount is in cents
-  if (amountTotal >= 29900) return "enterprise"; // $299/mo or more
-  if (amountTotal >= 9900) return "professional"; // $99/mo or more
-  return "basic"; // $49/mo
+	// Amount is in cents
+	if (amountTotal >= 29900) return "enterprise"; // $299/mo or more
+	if (amountTotal >= 9900) return "professional"; // $99/mo or more
+	return "basic"; // $49/mo
 }
 
 /**
@@ -48,17 +48,17 @@ function determineTier(amountTotal: number | null): string {
  * @param tier - Subscription tier
  * @returns Maximum number of organizations allowed
  */
-function getTierOrgLimit(tier: string): number {
-  switch (tier) {
-    case "enterprise":
-      return 10;
-    case "professional":
-      return 3;
-    case "basic":
-      return 1;
-    default:
-      return 1;
-  }
+export function getTierOrgLimit(tier: string): number {
+	switch (tier) {
+		case "enterprise":
+			return 10;
+		case "professional":
+			return 3;
+		case "basic":
+			return 1;
+		default:
+			return 1;
+	}
 }
 
 /**
@@ -67,14 +67,14 @@ function getTierOrgLimit(tier: string): number {
  * @param name - Organization name
  * @returns URL-safe slug
  */
-function generateSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, "") // Remove special characters
-    .replace(/\s+/g, "-") // Replace spaces with hyphens
-    .replace(/-+/g, "-") // Replace multiple hyphens with single
-    .replace(/^-|-$/g, ""); // Remove leading/trailing hyphens
+export function generateSlug(name: string): string {
+	return name
+		.toLowerCase()
+		.trim()
+		.replace(/[^\w\s-]/g, "") // Remove special characters
+		.replace(/\s+/g, "-") // Replace spaces with hyphens
+		.replace(/-+/g, "-") // Replace multiple hyphens with single
+		.replace(/^-|-$/g, ""); // Remove leading/trailing hyphens
 }
 
 /**
@@ -85,11 +85,11 @@ function generateSlug(name: string): string {
  * @returns Drizzle client for tenant database
  */
 function createTenantDbClient(connectionString: string) {
-  const tenantPool = new Pool({ connectionString });
-  return drizzle({
-    client: tenantPool,
-    schema: tenantSchema,
-  });
+	const tenantPool = new Pool({ connectionString });
+	return drizzle({
+		client: tenantPool,
+		schema: tenantSchema,
+	});
 }
 
 /**
@@ -113,143 +113,147 @@ function createTenantDbClient(connectionString: string) {
  * 8. Add user as admin member
  */
 export async function handleCheckoutCompleted(
-  session: Stripe.Checkout.Session
+	session: Stripe.Checkout.Session,
 ) {
-  const subscriptionId = session.subscription as string;
-  const customerId = session.customer as string;
-  const userId = session.metadata?.userId; // Set during checkout
+	const subscriptionId = session.subscription as string;
+	const customerId = session.customer as string;
+	const userId = session.metadata?.userId; // Set during checkout
 
-  if (!subscriptionId || !customerId) {
-    throw new Error(
-      "Missing required Stripe session data: subscription or customer"
-    );
-  }
+	if (!subscriptionId || !customerId) {
+		throw new Error(
+			"Missing required Stripe session data: subscription or customer",
+		);
+	}
 
-  // Step 1: Check idempotency - use subscription ID as key
-  // Better approach: Check subscriptions table for existing subscription
-  const existingSubscription =
-    await controlPanelDb.query.subscriptions.findFirst({
-      where: eq(subscriptions.stripeSubscriptionId, subscriptionId),
-    });
+	// Step 1: Check idempotency - use subscription ID as key
+	// Better approach: Check subscriptions table for existing subscription
+	const existingSubscription =
+		await controlPanelDb.query.subscriptions.findFirst({
+			where: eq(subscriptions.stripeSubscriptionId, subscriptionId),
+		});
 
-  if (existingSubscription) {
-    // Find organization linked to this subscription
-    const org = await controlPanelDb.query.organizations.findFirst({
-      where: eq(organizations.subscriptionId, existingSubscription.id),
-    });
+	if (existingSubscription) {
+		// Find organization linked to this subscription
+		const org = await controlPanelDb.query.organizations.findFirst({
+			where: eq(organizations.subscriptionId, existingSubscription.id),
+		});
 
-    if (org) {
-      console.log(
-        `Organization already exists for subscription ${subscriptionId}`
-      );
-      return org;
-    }
-  }
+		if (org) {
+			console.log(
+				`Organization already exists for subscription ${subscriptionId}`,
+			);
+			return org;
+		}
+	}
 
-  // Step 2: Provision organization atomically
-  return await controlPanelDb.transaction(async (tx) => {
-    // 2.1: Create subscription record (in control panel DB)
-    const tier = determineTier(session.amount_total);
-    const orgLimit = getTierOrgLimit(tier);
-    const tierLimits = TIER_LIMITS[tier as Tier] ?? TIER_LIMITS.basic;
+	// Step 2: Provision organization atomically
+	return await controlPanelDb.transaction(async (tx) => {
+		// 2.1: Create subscription record (in control panel DB)
+		const tier = determineTier(session.amount_total);
+		const orgLimit = getTierOrgLimit(tier);
+		const tierLimits = TIER_LIMITS[tier as Tier] ?? TIER_LIMITS.basic;
 
-    // Try to recover the priceId from expanded line items; fall back to a
-    // tier-tagged sentinel so the notNull column always has a value. The
-    // canonical priceId is later resolved by the subscriptions webhook
-    // (upsertSubscriptionFromStripe) which has access to the full sub object.
-    const lineItem = session.line_items?.data?.[0];
-    const stripePriceId =
-      (typeof lineItem?.price?.id === "string" && lineItem.price.id) ||
-      `price_unknown_${tier}`;
+		// Try to recover the priceId from expanded line items; fall back to a
+		// tier-tagged sentinel so the notNull column always has a value. The
+		// canonical priceId is later resolved by the subscriptions webhook
+		// (upsertSubscriptionFromStripe) which has access to the full sub object.
+		const lineItem = session.line_items?.data?.[0];
+		const stripePriceId =
+			(typeof lineItem?.price?.id === "string" && lineItem.price.id) ||
+			`price_unknown_${tier}`;
 
-    const [subscription] = await tx
-      .insert(subscriptions)
-      .values({
-        stripeSubscriptionId: subscriptionId,
-        stripeCustomerId: customerId,
-        stripePriceId,
-        tier,
-        organizationCountLimit: orgLimit,
-        applicationFeeBps: tierLimits.appFeeBps,
-        status: "active",
-      })
-      .returning();
+		const [subscription] = await tx
+			.insert(subscriptions)
+			.values({
+				stripeSubscriptionId: subscriptionId,
+				stripeCustomerId: customerId,
+				stripePriceId,
+				tier,
+				organizationCountLimit: orgLimit,
+				applicationFeeBps: tierLimits.appFeeBps,
+				status: "active",
+			})
+			.returning();
 
-    if (!subscription) {
-      throw new Error("Failed to create subscription record");
-    }
+		if (!subscription) {
+			throw new Error("Failed to create subscription record");
+		}
 
-    // 2.2: Generate organization name and slug
-    const orgName =
-      session.metadata?.orgName ||
-      `Organization ${subscriptionId.substring(0, 8)}`;
-    const slug = generateSlug(orgName);
+		// 2.2: Generate organization name and slug
+		const orgName =
+			session.metadata?.orgName ||
+			`Organization ${subscriptionId.substring(0, 8)}`;
+		const slug = generateSlug(orgName);
 
-    // 2.3: Provision Neon project
-    const { projectId, connectionString } = await createTenantProject({
-      slug,
-      region: session.metadata?.region || "aws-ap-southeast-1",
-    });
+		// 2.3: Provision Neon project
+		const { projectId, connectionString } = await createTenantProject({
+			slug,
+			region: session.metadata?.region || "aws-ap-southeast-1",
+		});
 
-    // 2.4: Encrypt connection string before storage
-    const encryptedConnectionString = encrypt(connectionString);
+		// 2.4: Encrypt connection string before storage
+		const encryptedConnectionString = encrypt(connectionString);
 
-    // 2.5: Create organization record (in control panel DB)
-    const [organization] = await tx
-      .insert(organizations)
-      .values({
-        name: orgName,
-        slug,
-        neonProjectId: projectId,
-        connectionString: encryptedConnectionString,
-        subscriptionId: subscription.id,
-        paymentStatus: "active",
-        ownerUserId: userId || undefined,
-      })
-      .returning();
+		// 2.5: Create organization record (in control panel DB)
+		const [organization] = await tx
+			.insert(organizations)
+			.values({
+				name: orgName,
+				slug,
+				neonProjectId: projectId,
+				connectionString: encryptedConnectionString,
+				subscriptionId: subscription.id,
+				paymentStatus: "active",
+				ownerUserId: userId || undefined,
+			})
+			.returning();
 
-    if (!organization) {
-      throw new Error("Failed to create organization record");
-    }
+		if (!organization) {
+			throw new Error("Failed to create organization record");
+		}
 
-    // 2.6: Initialize tenant database schema
-    await runTenantMigrations(connectionString);
+		// 2.6: Initialize tenant database schema
+		await runTenantMigrations(connectionString);
 
-    // 2.7: Create tenant database client
-    const tenantDb = createTenantDbClient(connectionString);
+		// 2.7: Create tenant database client
+		const tenantDb = createTenantDbClient(connectionString);
 
-    // 2.7.1: Seed RBAC data (roles, permissions, role-permission mappings)
-    await seedRBACData(tenantDb);
+		// 2.7.1: Seed RBAC data (roles, permissions, role-permission mappings)
+		await seedRBACData(tenantDb);
 
-    // 2.8: Create default hierarchy node (organization level)
-    const [orgNode] = await tenantDb
-      .insert(hierarchyNodes)
-      .values({
-        name: organization.name,
-        slug: organization.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
-        type: "organization",
-        depth: 0,
-        parentId: null,
-      })
-      .returning();
+		// 2.8: Create default hierarchy node (organization level)
+		const [orgNode] = await tenantDb
+			.insert(hierarchyNodes)
+			.values({
+				name: organization.name,
+				slug: organization.name
+					.toLowerCase()
+					.trim()
+					.replace(/[^a-z0-9]+/g, "-")
+					.replace(/^-|-$/g, ""),
+				type: "organization",
+				depth: 0,
+				parentId: null,
+			})
+			.returning();
 
-    if (!orgNode) {
-      throw new Error("Failed to create organization hierarchy node");
-    }
+		if (!orgNode) {
+			throw new Error("Failed to create organization hierarchy node");
+		}
 
-    // 2.9: Add user as organization admin (if userId provided)
-    if (userId) {
-      await tenantDb.insert(members).values({
-        userId,
-        role: "admin",
-        hierarchyScopeId: orgNode.id,
-        status: "active",
-      });
-    }
+		// 2.9: Add user as organization admin (if userId provided)
+		if (userId) {
+			await tenantDb.insert(members).values({
+				userId,
+				role: "admin",
+				hierarchyScopeId: orgNode.id,
+				status: "active",
+			});
+		}
 
-    console.log(
-      `✓ Provisioned organization: ${organization.name} (${organization.id})`
-    );
-    return organization;
-  });
+		console.log(
+			`✓ Provisioned organization: ${organization.name} (${organization.id})`,
+		);
+		return organization;
+	});
 }

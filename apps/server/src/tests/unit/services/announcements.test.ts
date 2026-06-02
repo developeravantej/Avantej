@@ -16,7 +16,17 @@ const BRANCH_NODE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
 
 function selectChainResolving(value: unknown) {
 	const chain: Record<string, unknown> = {};
-	for (const m of ["from", "where", "orderBy", "limit", "offset", "leftJoin", "innerJoin", "groupBy", "having"]) {
+	for (const m of [
+		"from",
+		"where",
+		"orderBy",
+		"limit",
+		"offset",
+		"leftJoin",
+		"innerJoin",
+		"groupBy",
+		"having",
+	]) {
 		chain[m] = mock(() => chain);
 	}
 	chain.then = (resolve: (v: unknown) => unknown) =>
@@ -81,7 +91,9 @@ describe("listActiveAnnouncements", () => {
 		const staffAnnouncement = makeAnnouncement({ targetAudience: "staff" });
 		mockDb.select.mockReturnValueOnce(selectChainResolving([])); // notExists subquery
 		mockDb.select.mockReturnValueOnce(selectChainResolving([])); // exists subquery
-		mockDb.select.mockReturnValueOnce(selectChainResolving([staffAnnouncement])); // main
+		mockDb.select.mockReturnValueOnce(
+			selectChainResolving([staffAnnouncement]),
+		); // main
 		mockDb.select.mockReturnValueOnce(selectChainResolving([])); // enrichWithScopes
 
 		const result = await listActiveAnnouncements(mockDb, {
@@ -99,7 +111,9 @@ describe("listActiveAnnouncements", () => {
 describe("createAnnouncement", () => {
 	test("creates announcement with isActive=true by default", async () => {
 		const announcement = makeAnnouncement({ isActive: true });
-		const insertValues = { returning: mock(() => Promise.resolve([announcement])) };
+		const insertValues = {
+			returning: mock(() => Promise.resolve([announcement])),
+		};
 		mockDb.insert.mockReturnValueOnce({ values: mock(() => insertValues) });
 
 		const result = await createAnnouncement(mockDb, {
@@ -113,8 +127,13 @@ describe("createAnnouncement", () => {
 	});
 
 	test("creates announcement with priority and audience defaults", async () => {
-		const announcement = makeAnnouncement({ priority: "normal", targetAudience: "all" });
-		const insertValues = { returning: mock(() => Promise.resolve([announcement])) };
+		const announcement = makeAnnouncement({
+			priority: "normal",
+			targetAudience: "all",
+		});
+		const insertValues = {
+			returning: mock(() => Promise.resolve([announcement])),
+		};
 		mockDb.insert.mockReturnValueOnce({ values: mock(() => insertValues) });
 
 		const result = await createAnnouncement(mockDb, {
@@ -132,7 +151,11 @@ describe("createAnnouncement", () => {
 		mockDb.insert.mockReturnValueOnce({ values: mock(() => insertValues) });
 
 		await expect(
-			createAnnouncement(mockDb, { title: "fail", message: "fail", createdBy: MEMBER_ID }),
+			createAnnouncement(mockDb, {
+				title: "fail",
+				message: "fail",
+				createdBy: MEMBER_ID,
+			}),
 		).rejects.toThrow("Failed to create announcement");
 	});
 });
@@ -141,17 +164,25 @@ describe("createAnnouncement", () => {
 describe("updateAnnouncement", () => {
 	test("updates isPinned flag", async () => {
 		const updated = makeAnnouncement({ isPinned: true });
-		const setChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([updated])) })) };
+		const setChain = {
+			where: mock(() => ({
+				returning: mock(() => Promise.resolve([updated])),
+			})),
+		};
 		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
 
-		const result = await updateAnnouncement(mockDb, updated.id, { isPinned: true });
+		const result = await updateAnnouncement(mockDb, updated.id, {
+			isPinned: true,
+		});
 
 		expect(result.isPinned).toBe(true);
 		expect(mockDb.update).toHaveBeenCalledTimes(1);
 	});
 
 	test("throws when announcement not found", async () => {
-		const setChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([])) })) };
+		const setChain = {
+			where: mock(() => ({ returning: mock(() => Promise.resolve([])) })),
+		};
 		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
 
 		await expect(
@@ -164,7 +195,11 @@ describe("updateAnnouncement", () => {
 describe("deleteAnnouncement", () => {
 	test("soft-deletes by setting isActive=false", async () => {
 		const deleted = makeAnnouncement({ isActive: false });
-		const setChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([deleted])) })) };
+		const setChain = {
+			where: mock(() => ({
+				returning: mock(() => Promise.resolve([deleted])),
+			})),
+		};
 		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
 
 		const result = await deleteAnnouncement(mockDb, deleted.id);
@@ -174,9 +209,13 @@ describe("deleteAnnouncement", () => {
 	});
 
 	test("throws when announcement not found", async () => {
-		const setChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([])) })) };
+		const setChain = {
+			where: mock(() => ({ returning: mock(() => Promise.resolve([])) })),
+		};
 		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
 
-		await expect(deleteAnnouncement(mockDb, "nonexistent")).rejects.toThrow("Announcement not found");
+		await expect(deleteAnnouncement(mockDb, "nonexistent")).rejects.toThrow(
+			"Announcement not found",
+		);
 	});
 });

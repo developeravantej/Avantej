@@ -156,18 +156,18 @@ describe("approveExpense — state machine", () => {
 		const expense = makeExpense({ status: "approved" });
 		mockDb.select.mockReturnValueOnce(selectChainResolving([expense]));
 
-		await expect(
-			approveExpense(mockDb, expense.id, MEMBER_ID),
-		).rejects.toThrow("Expense must be pending to approve");
+		await expect(approveExpense(mockDb, expense.id, MEMBER_ID)).rejects.toThrow(
+			"Expense must be pending to approve",
+		);
 	});
 
 	test("throws when trying to approve a rejected expense", async () => {
 		const expense = makeExpense({ status: "rejected" });
 		mockDb.select.mockReturnValueOnce(selectChainResolving([expense]));
 
-		await expect(
-			approveExpense(mockDb, expense.id, MEMBER_ID),
-		).rejects.toThrow("Expense must be pending to approve");
+		await expect(approveExpense(mockDb, expense.id, MEMBER_ID)).rejects.toThrow(
+			"Expense must be pending to approve",
+		);
 	});
 
 	test("throws when expense not found", async () => {

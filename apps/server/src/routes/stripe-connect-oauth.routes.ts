@@ -23,9 +23,19 @@ import { verifyOAuthState } from "@/routers/stripe-connect";
 
 // ISO-2 -> ISO-4217 mapping (mirrors the backfill script + webhook handler).
 const COUNTRY_TO_CURRENCY: Record<string, string> = {
-	MY: "MYR", SG: "SGD", TH: "THB", ID: "IDR", PH: "PHP",
-	VN: "VND", HK: "HKD", AU: "AUD", NZ: "NZD", US: "USD",
-	GB: "GBP", JP: "JPY", CN: "CNY",
+	MY: "MYR",
+	SG: "SGD",
+	TH: "THB",
+	ID: "IDR",
+	PH: "PHP",
+	VN: "VND",
+	HK: "HKD",
+	AU: "AUD",
+	NZ: "NZD",
+	US: "USD",
+	GB: "GBP",
+	JP: "JPY",
+	CN: "CNY",
 };
 
 function getEnvVar(key: string): string | undefined {
@@ -38,7 +48,8 @@ function getEnvVar(key: string): string | undefined {
 	} catch {
 		// Not in Cloudflare Workers runtime.
 	}
-	const globalEnv = (globalThis as { env?: Record<string, string | undefined> }).env;
+	const globalEnv = (globalThis as { env?: Record<string, string | undefined> })
+		.env;
 	if (globalEnv?.[key] !== undefined) return globalEnv[key];
 	return process.env[key];
 }
@@ -48,7 +59,9 @@ export const stripeConnectOAuthRoutes = new Hono();
 stripeConnectOAuthRoutes.get("/callback", async (c) => {
 	const webAppUrl = getEnvVar("WEB_APP_URL") ?? "http://localhost:3001";
 	const errorRedirect = (reason: string) =>
-		c.redirect(`${webAppUrl}/billing/connect?oauth_error=${encodeURIComponent(reason)}`);
+		c.redirect(
+			`${webAppUrl}/billing/connect?oauth_error=${encodeURIComponent(reason)}`,
+		);
 
 	const code = c.req.query("code");
 	const state = c.req.query("state");
@@ -56,7 +69,9 @@ stripeConnectOAuthRoutes.get("/callback", async (c) => {
 	const stripeErrorDescription = c.req.query("error_description");
 
 	if (stripeError) {
-		console.warn(`[stripe-oauth] tenant canceled or denied: ${stripeError} — ${stripeErrorDescription}`);
+		console.warn(
+			`[stripe-oauth] tenant canceled or denied: ${stripeError} — ${stripeErrorDescription}`,
+		);
 		return errorRedirect(stripeErrorDescription ?? stripeError);
 	}
 

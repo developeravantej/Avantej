@@ -47,7 +47,7 @@ export function EditAppointmentModal({
 		queryFn: () =>
 			client.packageInstanceStaff
 				? // packageInstanceStaff is for packages; for appointments we use appointment detail
-				  Promise.resolve([])
+					Promise.resolve([])
 				: Promise.resolve([]),
 		enabled: false, // replaced below
 	});
@@ -55,13 +55,16 @@ export function EditAppointmentModal({
 	// Fetch the appointment detail to populate existing trainer
 	const { data: appointmentDetail } = useQuery({
 		queryKey: ["appointmentDetail", appointmentId, organizationId],
-		queryFn: () => client.appointments.getById({ id: appointmentId, organizationId }),
+		queryFn: () =>
+			client.appointments.getById({ id: appointmentId, organizationId }),
 		enabled: isOpen && !!appointmentId && !!organizationId,
 	});
 
 	// Local state: slot 0 (primary) trainer, additional slots
 	const [employeeId, setEmployeeId] = useState("");
-	const [additionalSlotTrainers, setAdditionalSlotTrainers] = useState<string[]>([]);
+	const [additionalSlotTrainers, setAdditionalSlotTrainers] = useState<
+		string[]
+	>([]);
 
 	// Populate from appointment detail when loaded
 	useEffect(() => {
@@ -123,29 +126,47 @@ export function EditAppointmentModal({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>Edit Staff Assignment</DialogTitle>
-				<DialogDescription>Update the trainer assigned to this appointment.</DialogDescription>
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						APPOINTMENTS
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Edit Staff Assignment
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
+						Update the trainer assigned to this appointment.
+					</DialogDescription>
 				</DialogHeader>
 
-				<div className="space-y-4">
-					{isLoadingStaff ? (
-						<div className="text-sm text-muted-foreground">Loading…</div>
-					) : (
-						<StaffPicker
-							trainers={trainers}
-							commissionSlots={[{ slotIndex: 0, label: "Primary Trainer", weightageBasisPoints: 10000 }]}
-							employeeId={employeeId}
-							additionalSlotTrainers={additionalSlotTrainers}
-							onChangeEmployeeId={setEmployeeId}
-							onChangeAdditionalTrainer={handleAdditionalTrainerChange}
-							trainerPlaceholder="Select trainer"
-						/>
-					)}
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					<div className="space-y-4">
+						{isLoadingStaff ? (
+							<div className="text-sm text-[#737373]">Loading…</div>
+						) : (
+							<StaffPicker
+								trainers={trainers}
+								commissionSlots={[
+									{
+										slotIndex: 0,
+										label: "Primary Trainer",
+										weightageBasisPoints: 10000,
+									},
+								]}
+								employeeId={employeeId}
+								additionalSlotTrainers={additionalSlotTrainers}
+								onChangeEmployeeId={setEmployeeId}
+								onChangeAdditionalTrainer={handleAdditionalTrainerChange}
+								trainerPlaceholder="Select trainer"
+							/>
+						)}
+					</div>
 				</div>
 
-				<DialogFooter>
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 					<Button
 						variant="outline"
 						onClick={onClose}
@@ -156,6 +177,7 @@ export function EditAppointmentModal({
 					<Button
 						onClick={handleSave}
 						disabled={updateMutation.isPending}
+						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
 					>
 						{updateMutation.isPending ? "Saving..." : "Save"}
 					</Button>

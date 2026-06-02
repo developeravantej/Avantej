@@ -119,9 +119,7 @@ describe("addToWaitlist", () => {
 				memberId: "m1",
 				userId: "u1",
 			}),
-		).rejects.toThrow(
-			"Member is already on the waitlist for this class slot",
-		);
+		).rejects.toThrow("Member is already on the waitlist for this class slot");
 	});
 });
 
@@ -150,9 +148,9 @@ describe("removeFromWaitlist", () => {
 		};
 		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
 
-		await expect(
-			removeFromWaitlist(mockDb, "nonexistent"),
-		).rejects.toThrow("Waitlist entry not found");
+		await expect(removeFromWaitlist(mockDb, "nonexistent")).rejects.toThrow(
+			"Waitlist entry not found",
+		);
 	});
 });
 

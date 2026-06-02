@@ -37,9 +37,7 @@ function maybeEvictExpired(now: number) {
 
 function getClientIp(c: Context): string {
 	return (
-		c.req.header("CF-Connecting-IP") ??
-		c.req.header("X-Real-IP") ??
-		"local"
+		c.req.header("CF-Connecting-IP") ?? c.req.header("X-Real-IP") ?? "local"
 	);
 }
 

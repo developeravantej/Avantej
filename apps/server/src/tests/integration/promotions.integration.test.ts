@@ -20,7 +20,11 @@ import {
 
 const createdPromoIds: string[] = [];
 let tenantDb: ReturnType<typeof createTenantDb>;
-const TEST_ACTOR = { userId: "test-user", memberId: TEST_MEMBER_ID, role: "admin" };
+const TEST_ACTOR = {
+	userId: "test-user",
+	memberId: TEST_MEMBER_ID,
+	role: "admin",
+};
 
 beforeAll(() => {
 	if (shouldSkipIntegration()) return;
@@ -43,14 +47,18 @@ describe("Promotions Integration", () => {
 	test("create promotion and validate code (case-insensitive)", async () => {
 		if (shouldSkipIntegration()) return;
 
-		const promo = await createPromotion(tenantDb, {
-			code: "ITEST10PCT",
-			name: "Integration Test 10%",
-			type: "percentage",
-			value: 1000, // 10.00% in basis points
-			validFrom: new Date("2025-01-01"),
-			createdBy: TEST_MEMBER_ID,
-		}, TEST_ACTOR);
+		const promo = await createPromotion(
+			tenantDb,
+			{
+				code: "ITEST10PCT",
+				name: "Integration Test 10%",
+				type: "percentage",
+				value: 1000, // 10.00% in basis points
+				validFrom: new Date("2025-01-01"),
+				createdBy: TEST_MEMBER_ID,
+			},
+			TEST_ACTOR,
+		);
 		createdPromoIds.push(promo.id);
 
 		expect(promo.code).toBe("ITEST10PCT");
@@ -77,14 +85,18 @@ describe("Promotions Integration", () => {
 	test("apply promotion increments usageCount", async () => {
 		if (shouldSkipIntegration()) return;
 
-		const promo = await createPromotion(tenantDb, {
-			code: "ITEST-APPLY-" + Date.now(),
-			name: "Apply Test",
-			type: "fixed_amount",
-			value: 500, // RM 5.00 off
-			validFrom: new Date("2025-01-01"),
-			createdBy: TEST_MEMBER_ID,
-		}, TEST_ACTOR);
+		const promo = await createPromotion(
+			tenantDb,
+			{
+				code: "ITEST-APPLY-" + Date.now(),
+				name: "Apply Test",
+				type: "fixed_amount",
+				value: 500, // RM 5.00 off
+				validFrom: new Date("2025-01-01"),
+				createdBy: TEST_MEMBER_ID,
+			},
+			TEST_ACTOR,
+		);
 		createdPromoIds.push(promo.id);
 
 		expect(promo.usageCount).toBe(0);
@@ -110,26 +122,26 @@ describe("Promotions Integration", () => {
 	test("usage limit enforcement", async () => {
 		if (shouldSkipIntegration()) return;
 
-		const promo = await createPromotion(tenantDb, {
-			code: "ITEST-LIMIT-" + Date.now(),
-			name: "Limit Test",
-			type: "fixed_amount",
-			value: 100,
-			usageLimit: 1,
-			validFrom: new Date("2025-01-01"),
-			createdBy: TEST_MEMBER_ID,
-		}, TEST_ACTOR);
+		const promo = await createPromotion(
+			tenantDb,
+			{
+				code: "ITEST-LIMIT-" + Date.now(),
+				name: "Limit Test",
+				type: "fixed_amount",
+				value: 100,
+				usageLimit: 1,
+				validFrom: new Date("2025-01-01"),
+				createdBy: TEST_MEMBER_ID,
+			},
+			TEST_ACTOR,
+		);
 		createdPromoIds.push(promo.id);
 
 		// First validation succeeds
-		const firstResult = await validatePromoCode(
-			tenantDb,
-			promo.code,
-			{
-				customerId: "test-customer-limit-1",
-				orderAmount: 1000,
-			},
-		);
+		const firstResult = await validatePromoCode(tenantDb, promo.code, {
+			customerId: "test-customer-limit-1",
+			orderAmount: 1000,
+		});
 		expect(firstResult.promotion.id).toBe(promo.id);
 
 		// Apply to increment usageCount to 1 (equals the limit)
@@ -151,16 +163,20 @@ describe("Promotions Integration", () => {
 	test("per-customer limit enforcement", async () => {
 		if (shouldSkipIntegration()) return;
 
-		const promo = await createPromotion(tenantDb, {
-			code: "ITEST-PERCUST-" + Date.now(),
-			name: "Per Customer Limit Test",
-			type: "fixed_amount",
-			value: 100,
-			usageLimit: 10, // high global limit
-			perCustomerLimit: 1, // 1 per customer
-			validFrom: new Date("2025-01-01"),
-			createdBy: TEST_MEMBER_ID,
-		}, TEST_ACTOR);
+		const promo = await createPromotion(
+			tenantDb,
+			{
+				code: "ITEST-PERCUST-" + Date.now(),
+				name: "Per Customer Limit Test",
+				type: "fixed_amount",
+				value: 100,
+				usageLimit: 10, // high global limit
+				perCustomerLimit: 1, // 1 per customer
+				validFrom: new Date("2025-01-01"),
+				createdBy: TEST_MEMBER_ID,
+			},
+			TEST_ACTOR,
+		);
 		createdPromoIds.push(promo.id);
 
 		const customerId = "test-customer-percust";
@@ -190,15 +206,19 @@ describe("Promotions Integration", () => {
 	test("minimum order amount enforcement", async () => {
 		if (shouldSkipIntegration()) return;
 
-		const promo = await createPromotion(tenantDb, {
-			code: "ITEST-MINORDER-" + Date.now(),
-			name: "Min Order Test",
-			type: "fixed_amount",
-			value: 500,
-			minimumOrderAmount: 5000, // minimum RM 50.00
-			validFrom: new Date("2025-01-01"),
-			createdBy: TEST_MEMBER_ID,
-		}, TEST_ACTOR);
+		const promo = await createPromotion(
+			tenantDb,
+			{
+				code: "ITEST-MINORDER-" + Date.now(),
+				name: "Min Order Test",
+				type: "fixed_amount",
+				value: 500,
+				minimumOrderAmount: 5000, // minimum RM 50.00
+				validFrom: new Date("2025-01-01"),
+				createdBy: TEST_MEMBER_ID,
+			},
+			TEST_ACTOR,
+		);
 		createdPromoIds.push(promo.id);
 
 		// Order amount too low
@@ -220,14 +240,18 @@ describe("Promotions Integration", () => {
 	test("update - only mutable fields change", async () => {
 		if (shouldSkipIntegration()) return;
 
-		const promo = await createPromotion(tenantDb, {
-			code: "ITEST-UPDATE-" + Date.now(),
-			name: "Original Name",
-			type: "percentage",
-			value: 1000,
-			validFrom: new Date("2025-01-01"),
-			createdBy: TEST_MEMBER_ID,
-		}, TEST_ACTOR);
+		const promo = await createPromotion(
+			tenantDb,
+			{
+				code: "ITEST-UPDATE-" + Date.now(),
+				name: "Original Name",
+				type: "percentage",
+				value: 1000,
+				validFrom: new Date("2025-01-01"),
+				createdBy: TEST_MEMBER_ID,
+			},
+			TEST_ACTOR,
+		);
 		createdPromoIds.push(promo.id);
 
 		const updated = await updatePromotion(tenantDb, promo.id, {
@@ -246,19 +270,27 @@ describe("Promotions Integration", () => {
 	test("deactivate sets isActive to false", async () => {
 		if (shouldSkipIntegration()) return;
 
-		const promo = await createPromotion(tenantDb, {
-			code: "ITEST-DEACT-" + Date.now(),
-			name: "Deactivate Test",
-			type: "fixed_amount",
-			value: 100,
-			validFrom: new Date("2025-01-01"),
-			createdBy: TEST_MEMBER_ID,
-		}, TEST_ACTOR);
+		const promo = await createPromotion(
+			tenantDb,
+			{
+				code: "ITEST-DEACT-" + Date.now(),
+				name: "Deactivate Test",
+				type: "fixed_amount",
+				value: 100,
+				validFrom: new Date("2025-01-01"),
+				createdBy: TEST_MEMBER_ID,
+			},
+			TEST_ACTOR,
+		);
 		createdPromoIds.push(promo.id);
 
 		expect(promo.isActive).toBe(true);
 
-		const deactivated = await deactivatePromotion(tenantDb, promo.id, TEST_ACTOR);
+		const deactivated = await deactivatePromotion(
+			tenantDb,
+			promo.id,
+			TEST_ACTOR,
+		);
 		expect(deactivated.isActive).toBe(false);
 
 		// Validate should fail on inactive promo
@@ -273,14 +305,18 @@ describe("Promotions Integration", () => {
 	test("fixed_amount discount capped at order amount", async () => {
 		if (shouldSkipIntegration()) return;
 
-		const promo = await createPromotion(tenantDb, {
-			code: "ITEST-CAP-" + Date.now(),
-			name: "Cap Test",
-			type: "fixed_amount",
-			value: 5000, // RM 50.00 discount
-			validFrom: new Date("2025-01-01"),
-			createdBy: TEST_MEMBER_ID,
-		}, TEST_ACTOR);
+		const promo = await createPromotion(
+			tenantDb,
+			{
+				code: "ITEST-CAP-" + Date.now(),
+				name: "Cap Test",
+				type: "fixed_amount",
+				value: 5000, // RM 50.00 discount
+				validFrom: new Date("2025-01-01"),
+				createdBy: TEST_MEMBER_ID,
+			},
+			TEST_ACTOR,
+		);
 		createdPromoIds.push(promo.id);
 
 		// Order amount less than discount value

@@ -25,7 +25,14 @@
  * ```
  */
 
-import { describe, test, expect, beforeAll, afterAll, beforeEach } from "bun:test";
+import {
+	describe,
+	test,
+	expect,
+	beforeAll,
+	afterAll,
+	beforeEach,
+} from "bun:test";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { Pool, neonConfig } from "@neondatabase/serverless";
@@ -88,7 +95,7 @@ void __keepCapturedEmail;
 
 function getLatestCapturedToken(
 	to: string,
-	type: "verification" | "password-reset"
+	type: "verification" | "password-reset",
 ): string | undefined {
 	const emails = __getCapturedEmails(type).filter((email) => email.to === to);
 	return emails.length ? emails[emails.length - 1]!.metadata?.token : undefined;
@@ -111,7 +118,9 @@ describe("Auth Email Integration Tests (End-to-End)", () => {
 
 	beforeAll(() => {
 		if (process.env.SKIP_INTEGRATION_TESTS === "true") {
-			console.log("⏭️  Skipping integration tests (SKIP_INTEGRATION_TESTS=true)");
+			console.log(
+				"⏭️  Skipping integration tests (SKIP_INTEGRATION_TESTS=true)",
+			);
 			return;
 		}
 
@@ -120,34 +129,37 @@ describe("Auth Email Integration Tests (End-to-End)", () => {
 		const databaseUrl = vars.DATABASE_URL;
 		if (!databaseUrl) {
 			throw new Error(
-				"DATABASE_URL environment variable is required for integration tests"
+				"DATABASE_URL environment variable is required for integration tests",
 			);
 		}
 
 		if (!vars.BETTER_AUTH_SECRET) {
 			throw new Error(
-				"BETTER_AUTH_SECRET environment variable is required for integration tests"
+				"BETTER_AUTH_SECRET environment variable is required for integration tests",
 			);
 		}
 
 		if (!vars.RESEND_API_KEY) {
 			throw new Error(
-				"RESEND_API_KEY environment variable is required for integration tests"
+				"RESEND_API_KEY environment variable is required for integration tests",
 			);
 		}
 
 		// Use verified email address for actual email sending
 		// Resend test mode only allows sending to verified email addresses
 		testRecipientEmail =
-			vars.TEST_EMAIL_RECIPIENT || vars.RESEND_FROM_EMAIL || "developer.avantej@gmail.com";
-		
+			vars.TEST_EMAIL_RECIPIENT ||
+			vars.RESEND_FROM_EMAIL ||
+			"developer.avantej@gmail.com";
+
 		// Use the verified email for tests that need to send emails
 		testEmail = testRecipientEmail;
 
 		// Set environment variables
 		process.env.DATABASE_URL = databaseUrl;
 		process.env.BETTER_AUTH_SECRET = vars.BETTER_AUTH_SECRET;
-		process.env.BETTER_AUTH_URL = vars.BETTER_AUTH_URL || "http://localhost:3000";
+		process.env.BETTER_AUTH_URL =
+			vars.BETTER_AUTH_URL || "http://localhost:3000";
 		process.env.RESEND_API_KEY = vars.RESEND_API_KEY;
 		process.env.RESEND_FROM_EMAIL = vars.RESEND_FROM_EMAIL!;
 		process.env.RESEND_FROM_NAME = vars.RESEND_FROM_NAME || "Avantej Core";
@@ -157,7 +169,9 @@ describe("Auth Email Integration Tests (End-to-End)", () => {
 		controlPanelDb = drizzle({ client: pool, schema: controlPanelSchema });
 
 		console.log(`📧 Test emails will be sent to: ${testRecipientEmail}`);
-		console.log(`📧 Using verified email for all email operations: ${testEmail}`);
+		console.log(
+			`📧 Using verified email for all email operations: ${testEmail}`,
+		);
 
 		__setEmailCaptureEnabled(true);
 	});
@@ -226,7 +240,9 @@ describe("Auth Email Integration Tests (End-to-End)", () => {
 			console.log(`✅ User registered: ${testEmail} (${testUserId})`);
 			console.log(`📧 Verification email should be sent to: ${testEmail}`);
 		} catch (error) {
-			console.error(`❌ Signup failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+			console.error(
+				`❌ Signup failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+			);
 			throw error; // Fail the test if signup fails
 		}
 
@@ -243,7 +259,9 @@ describe("Auth Email Integration Tests (End-to-End)", () => {
 		await wait(1500); // Allow some time for email delivery/capture
 		const verificationToken = getLatestCapturedToken(testEmail, "verification");
 		if (!verificationToken) {
-			throw new Error("Verification token not captured - email sending may have failed");
+			throw new Error(
+				"Verification token not captured - email sending may have failed",
+			);
 		}
 
 		console.log(`✅ Captured verification token for ${testEmail}`);
@@ -293,10 +311,15 @@ describe("Auth Email Integration Tests (End-to-End)", () => {
 		// Using verified email address so Resend will send successfully
 		await sendVerificationEmail(userId, testEmailResend);
 		console.log(`✅ Verification email sent successfully`);
-		console.log(`📧 Check your inbox at ${testEmailResend} for the verification email!`);
+		console.log(
+			`📧 Check your inbox at ${testEmailResend} for the verification email!`,
+		);
 
 		await wait(1000);
-		const verificationToken = getLatestCapturedToken(testEmailResend, "verification");
+		const verificationToken = getLatestCapturedToken(
+			testEmailResend,
+			"verification",
+		);
 		expect(verificationToken).toBeDefined();
 		console.log(`✅ Verification token captured successfully`);
 
@@ -338,8 +361,10 @@ describe("Auth Email Integration Tests (End-to-End)", () => {
 		// Using verified email address so Resend will send successfully
 		await sendPasswordResetEmail(testEmailReset);
 		console.log(`✅ Password reset email sent successfully`);
-		console.log(`📧 Check your inbox at ${testEmailReset} for the password reset email!`);
-		
+		console.log(
+			`📧 Check your inbox at ${testEmailReset} for the password reset email!`,
+		);
+
 		// Wait a moment for token to be created
 		await wait(1000);
 
@@ -356,7 +381,9 @@ describe("Auth Email Integration Tests (End-to-End)", () => {
 
 		// Step 4: Reset password using token
 		const newPassword = "NewPassword123!";
-		await expect(resetPassword(resetToken!, newPassword)).resolves.toBeUndefined();
+		await expect(
+			resetPassword(resetToken!, newPassword),
+		).resolves.toBeUndefined();
 
 		console.log(`✅ Password reset successful`);
 
@@ -379,7 +406,7 @@ describe("Auth Email Integration Tests (End-to-End)", () => {
 		}
 
 		await expect(verifyEmailToken("invalid-token-123")).rejects.toThrow(
-			/Invalid token|invalid_token/i
+			/Invalid token|invalid_token/i,
 		);
 	});
 
@@ -418,11 +445,10 @@ describe("Auth Email Integration Tests (End-to-End)", () => {
 			.sign(new TextEncoder().encode(secret));
 
 		await expect(verifyEmailToken(expiredToken)).rejects.toThrow(
-			/Token expired|token_expired/i
+			/Token expired|token_expired/i,
 		);
 
 		// Cleanup
 		await controlPanelDb.delete(user).where(eq(user.id, userId));
 	});
 });
-

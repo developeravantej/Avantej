@@ -25,7 +25,7 @@ import { closeAllTestPools, loadDevVars } from "./helpers/integration-setup";
 import { createTestBranch, deleteTestBranch } from "./helpers/neon-branch";
 
 // Default to the known "tenant-test-integration" project; override via env.
-const DEFAULT_TENANT_PROJECT_ID = "tiny-fog-53227130";
+const DEFAULT_TENANT_PROJECT_ID = "silent-wind-47805343";
 
 let provisionedBranch: { projectId: string; branchId: string } | null = null;
 
@@ -42,7 +42,9 @@ if (process.env.ISOLATED_TEST_DB === "true") {
 	// Unique, sortable, sweepable name. preload is a plain script, so Date.now()
 	// is available (unlike Workflow scripts). Prefer CI's run id for traceability.
 	const runId =
-		process.env.TEST_RUN_ID ?? process.env.GITHUB_RUN_ID ?? `local-${process.pid}`;
+		process.env.TEST_RUN_ID ??
+		process.env.GITHUB_RUN_ID ??
+		`local-${process.pid}`;
 	const name = `itest-tenant-${runId}-${Date.now().toString(36)}`;
 
 	const branch = await createTestBranch({ apiKey, projectId, name });
@@ -72,7 +74,9 @@ afterAll(async () => {
 				branchId: provisionedBranch.branchId,
 			});
 			// eslint-disable-next-line no-console
-			console.log(`[preload] deleted isolated branch ${provisionedBranch.branchId}`);
+			console.log(
+				`[preload] deleted isolated branch ${provisionedBranch.branchId}`,
+			);
 		} catch (err) {
 			// Don't fail the run on cleanup error — the orphan sweep will catch it.
 			// eslint-disable-next-line no-console

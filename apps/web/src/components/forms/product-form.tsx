@@ -106,7 +106,8 @@ function buildDefaultValues(
 		sku: initialData?.sku ?? "",
 		barcode: initialData?.barcode ?? "",
 		type:
-			(initialData?.type as "product" | "service_item" | undefined) ?? undefined,
+			(initialData?.type as "product" | "service_item" | undefined) ??
+			undefined,
 		brandId: initialData?.brandId ?? null,
 		categoryId: initialData?.categoryId ?? null,
 		supplierId: initialData?.supplierId ?? null,
@@ -130,7 +131,7 @@ function FieldError({ errors }: { errors: unknown[] }) {
 	return (
 		<>
 			{errors.map((error, i) => (
-				<p key={i} className="text-sm text-destructive">
+				<p key={i} className="text-sm text-rose-600">
 					{typeof error === "string"
 						? error
 						: (error as { message?: string })?.message || "Invalid value"}
@@ -220,12 +221,18 @@ export function ProductFormDialog({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-				<DialogHeader className="mb-4">
-					<DialogTitle className="text-lg font-medium leading-6 text-brand-primary-1">
+			<DialogContent
+				hideCloseButton
+				className="sm:max-w-2xl p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						PRODUCT CATALOG
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
 						{mode === "create" ? "Add New Product" : "Edit Product"}
 					</DialogTitle>
-					<DialogDescription className="text-sm text-brand-secondary-1">
+					<DialogDescription className="text-sm text-[#737373]">
 						{mode === "create"
 							? "Fill in the details to add a new product."
 							: "Update the product details below."}
@@ -239,93 +246,94 @@ export function ProductFormDialog({
 						e.stopPropagation();
 						form.handleSubmit();
 					}}
-					className="space-y-4"
 				>
-					<ProductBasicSection
-						form={form as unknown as ProductFormApi}
-						onGenerateSKU={generateSKU}
-						onGenerateBarcode={generateBarcode}
-					/>
+					<div className="px-6 pt-4 pb-2 overflow-y-auto max-h-[65vh] space-y-4">
+						<ProductBasicSection
+							form={form as unknown as ProductFormApi}
+							onGenerateSKU={generateSKU}
+							onGenerateBarcode={generateBarcode}
+						/>
 
-					{/* Pricing */}
-					<div className="bg-white border border-brand-secondary-3 rounded-md p-4">
-						<h5 className="text-sm font-medium text-brand-primary-1 mb-3">
-							Pricing
-						</h5>
-						<div className="grid grid-cols-2 gap-4">
-							<form.Field name="price">
-								{(field) => (
-									<div className="space-y-1">
-										<Label htmlFor={field.name}>
-											Price (RM) <span className="text-destructive">*</span>
-										</Label>
-										<Input
-											id={field.name}
-											type="number"
-											step="0.01"
-											min="0"
-											placeholder="0.00"
-											value={field.state.value ?? ""}
-											onBlur={field.handleBlur}
-											onChange={(e) => {
-												const parsed = parseFloat(e.target.value);
-												field.handleChange(
-													Number.isNaN(parsed) ? (0 as number) : parsed,
-												);
-											}}
-										/>
-										<FieldError errors={field.state.meta.errors} />
-									</div>
-								)}
-							</form.Field>
+						{/* Pricing */}
+						<div className="bg-white border border-[#e5e5e5] rounded-md p-4">
+							<h5 className="text-sm font-medium text-[#0a0a0a] mb-3">
+								Pricing
+							</h5>
+							<div className="grid grid-cols-2 gap-4">
+								<form.Field name="price">
+									{(field) => (
+										<div className="flex flex-col gap-1.5">
+											<Label htmlFor={field.name}>
+												Price (RM) <span className="text-rose-600">*</span>
+											</Label>
+											<Input
+												id={field.name}
+												type="number"
+												step="0.01"
+												min="0"
+												placeholder="0.00"
+												value={field.state.value ?? ""}
+												onBlur={field.handleBlur}
+												onChange={(e) => {
+													const parsed = parseFloat(e.target.value);
+													field.handleChange(
+														Number.isNaN(parsed) ? (0 as number) : parsed,
+													);
+												}}
+											/>
+											<FieldError errors={field.state.meta.errors} />
+										</div>
+									)}
+								</form.Field>
 
-							<form.Field name="conversionFactor">
-								{(field) => (
-									<div className="space-y-1">
-										<Label htmlFor={field.name}>Conversion Factor</Label>
-										<Input
-											id={field.name}
-											type="number"
-											step="0.01"
-											min="0"
-											placeholder="1.0"
-											value={field.state.value ?? ""}
-											onBlur={field.handleBlur}
-											onChange={(e) => field.handleChange(e.target.value)}
-										/>
-										<p className="text-xs text-brand-secondary-1 mt-1">
-											Factor for unit conversion
-										</p>
-										<FieldError errors={field.state.meta.errors} />
-									</div>
-								)}
-							</form.Field>
+								<form.Field name="conversionFactor">
+									{(field) => (
+										<div className="flex flex-col gap-1.5">
+											<Label htmlFor={field.name}>Conversion Factor</Label>
+											<Input
+												id={field.name}
+												type="number"
+												step="0.01"
+												min="0"
+												placeholder="1.0"
+												value={field.state.value ?? ""}
+												onBlur={field.handleBlur}
+												onChange={(e) => field.handleChange(e.target.value)}
+											/>
+											<p className="text-xs text-[#737373] mt-1">
+												Factor for unit conversion
+											</p>
+											<FieldError errors={field.state.meta.errors} />
+										</div>
+									)}
+								</form.Field>
+							</div>
 						</div>
+
+						<ProductCategoriesSection
+							form={form as unknown as ProductFormApi}
+							mode={mode}
+							brands={brands}
+							categories={categories}
+							suppliers={suppliers}
+							uoms={uoms}
+						/>
 					</div>
 
-					<ProductCategoriesSection
-						form={form as unknown as ProductFormApi}
-						mode={mode}
-						brands={brands}
-						categories={categories}
-						suppliers={suppliers}
-						uoms={uoms}
-					/>
-
-					<DialogFooter className="mt-6">
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button
 							type="button"
 							variant="outline"
 							onClick={onClose}
 							disabled={mutation.isPending}
-							className="border-brand-secondary-3 bg-white text-brand-primary-1 hover:bg-brand-secondary-3/50"
+							className="border-[#e5e5e5] bg-white text-[#0a0a0a] hover:bg-[#f3f3f3]"
 						>
 							Cancel
 						</Button>
 						<Button
 							type="submit"
 							disabled={mutation.isPending}
-							className="bg-zinc-950 text-white hover:bg-black/90 disabled:opacity-50 disabled:cursor-not-allowed"
+							className="bg-[#0a0a0a] text-white hover:bg-[#262626] disabled:opacity-50 disabled:cursor-not-allowed"
 						>
 							{mutation.isPending
 								? mode === "create"

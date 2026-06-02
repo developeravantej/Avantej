@@ -22,7 +22,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { rmToCents } from "@/lib/money";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 // F-COM-01 (best-guess product decision): the `manualAdjustment` procedure
 // (commissionSplits.manualAdjustment) created a pending_review commission split
@@ -59,7 +59,8 @@ const schema = z.object({
 		.string()
 		.min(1, "Amount is required")
 		.refine(
-			(v) => Number.isFinite(Number.parseFloat(v)) && Number.parseFloat(v) !== 0,
+			(v) =>
+				Number.isFinite(Number.parseFloat(v)) && Number.parseFloat(v) !== 0,
 			{ message: "Enter a valid non-zero amount" },
 		),
 	note: z.string().min(1, "Note is required"),
@@ -74,7 +75,7 @@ function FieldError({ errors }: { errors: unknown[] }) {
 	return (
 		<>
 			{errors.map((error, i) => (
-				<p key={i} className="text-sm text-destructive">
+				<p key={i} className="text-sm text-rose-600">
 					{typeof error === "string"
 						? error
 						: (error as { message?: string })?.message || "Invalid value"}
@@ -95,13 +96,17 @@ export function ManualAdjustmentDialog({
 	onOpenChange,
 	organizationId,
 }: ManualAdjustmentDialogProps) {
+	type MemberItem = Awaited<ReturnType<typeof client.members.list>>[number];
+
 	// Staff list for the recipient dropdown. staffId == members.userId.
-	const { data: staff = [] } = useQuery({
-		queryKey: ["members", "list", organizationId, "manual-adjustment"],
-		queryFn: () =>
-			client.members.list({ organizationId }) as Promise<StaffMember[]>,
+	const { data: staffRaw } = useQuery({
+		...orpc.members.list.queryOptions({
+			input: { organizationId },
+		}),
 		enabled: !!organizationId && open,
 	});
+
+	const staff = (staffRaw ?? []) as MemberItem[];
 
 	const createAdjustment = useApiMutation({
 		mutationFn: (value: FormValues) =>
@@ -120,10 +125,9 @@ export function ManualAdjustmentDialog({
 		// Refresh the pending-review list/badge and the liability summary so the new
 		// adjustment shows up immediately in the Review tab.
 		invalidate: [
-			["commissions", "pendingReview"],
-			["commissionSplits", "pendingReviewTotal"],
-			["commissionLiability"],
-			["commissions"],
+			orpc.commissionSplits.listPendingReview.key(),
+			orpc.commissionSplits.liabilitySummary.key(),
+			orpc.commissionSplits.listLedger.key(),
 		],
 		onSuccess: () => {
 			onOpenChange(false);
@@ -152,12 +156,20 @@ export function ManualAdjustmentDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>New Manual Adjustment</DialogTitle>
-					<DialogDescription>
-						Create a manual commission adjustment. It will be added to the Review
-						tab as pending until approved.
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						MANUAL ADJUSTMENT
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						New Manual Adjustment
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
+						Create a manual commission adjustment. It will be added to the
+						Review tab as pending until approved.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -168,92 +180,114 @@ export function ManualAdjustmentDialog({
 						e.stopPropagation();
 						form.handleSubmit();
 					}}
-					className="space-y-4"
 				>
-					<form.Field name="staffId">
-						{(field) => (
-							<div className="space-y-2">
-								<Label htmlFor={field.name}>
-									Staff Member <span className="text-destructive">*</span>
-								</Label>
-								<Select
-									value={field.state.value}
-									onValueChange={(v) => field.handleChange(v)}
-								>
-									<SelectTrigger id={field.name}>
-										<SelectValue placeholder="Select staff…" />
-									</SelectTrigger>
-									<SelectContent>
-										{staff.map((m) => (
-											<SelectItem key={m.userId} value={m.userId}>
-												{m.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-								<FieldError errors={field.state.meta.errors} />
-							</div>
-						)}
-					</form.Field>
-
-					<form.Field name="amountRm">
-						{(field) => (
-							<div className="space-y-2">
-								<Label htmlFor={field.name}>
-									Amount (RM) <span className="text-destructive">*</span>
-								</Label>
-								<Input
-									id={field.name}
-									type="number"
-									step="0.01"
-									placeholder="0.00 (negative for a clawback)"
-									value={field.state.value}
-									onBlur={field.handleBlur}
-									onChange={(e) => field.handleChange(e.target.value)}
-								/>
-								<p className="text-xs text-muted-foreground">
-									Use a negative amount for a clawback / deduction.
-								</p>
-								<FieldError errors={field.state.meta.errors} />
-							</div>
-						)}
-					</form.Field>
-
-					<div className="grid grid-cols-[140px_1fr] gap-2">
-						<form.Field name="targetType">
+					<div className="px-6 pt-4 pb-2 overflow-y-auto space-y-4">
+						<form.Field name="staffId">
 							{(field) => (
 								<div className="space-y-2">
 									<Label htmlFor={field.name}>
-										Target <span className="text-destructive">*</span>
+										Staff Member <span className="text-rose-600">*</span>
 									</Label>
 									<Select
 										value={field.state.value}
-										onValueChange={(v) => field.handleChange(v as TargetType)}
+										onValueChange={(v) => field.handleChange(v)}
 									>
 										<SelectTrigger id={field.name}>
-											<SelectValue />
+											<SelectValue placeholder="Select staff…" />
 										</SelectTrigger>
 										<SelectContent>
-											{(Object.keys(TARGET_LABELS) as TargetType[]).map((t) => (
-												<SelectItem key={t} value={t}>
-													{TARGET_LABELS[t]}
+											{staff.map((m) => (
+												<SelectItem key={m.userId} value={m.userId}>
+													{m.name}
 												</SelectItem>
 											))}
 										</SelectContent>
 									</Select>
+									<FieldError errors={field.state.meta.errors} />
 								</div>
 							)}
 						</form.Field>
 
-						<form.Field name="targetId">
+						<form.Field name="amountRm">
 							{(field) => (
 								<div className="space-y-2">
 									<Label htmlFor={field.name}>
-										Target ID <span className="text-destructive">*</span>
+										Amount (RM) <span className="text-rose-600">*</span>
 									</Label>
 									<Input
 										id={field.name}
-										placeholder="UUID of the linked record"
+										type="number"
+										step="0.01"
+										placeholder="0.00 (negative for a clawback)"
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(e) => field.handleChange(e.target.value)}
+									/>
+									<p className="text-xs text-[#737373]">
+										Use a negative amount for a clawback / deduction.
+									</p>
+									<FieldError errors={field.state.meta.errors} />
+								</div>
+							)}
+						</form.Field>
+
+						<div className="grid grid-cols-[140px_1fr] gap-2">
+							<form.Field name="targetType">
+								{(field) => (
+									<div className="space-y-2">
+										<Label htmlFor={field.name}>
+											Target <span className="text-rose-600">*</span>
+										</Label>
+										<Select
+											value={field.state.value}
+											onValueChange={(v) => field.handleChange(v as TargetType)}
+										>
+											<SelectTrigger id={field.name}>
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												{(Object.keys(TARGET_LABELS) as TargetType[]).map(
+													(t) => (
+														<SelectItem key={t} value={t}>
+															{TARGET_LABELS[t]}
+														</SelectItem>
+													),
+												)}
+											</SelectContent>
+										</Select>
+									</div>
+								)}
+							</form.Field>
+
+							<form.Field name="targetId">
+								{(field) => (
+									<div className="space-y-2">
+										<Label htmlFor={field.name}>
+											Target ID <span className="text-rose-600">*</span>
+										</Label>
+										<Input
+											id={field.name}
+											placeholder="UUID of the linked record"
+											value={field.state.value}
+											onBlur={field.handleBlur}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+										<FieldError errors={field.state.meta.errors} />
+									</div>
+								)}
+							</form.Field>
+						</div>
+
+						<form.Field name="note">
+							{(field) => (
+								<div className="space-y-2">
+									<Label htmlFor={field.name}>
+										Note <span className="text-rose-600">*</span>
+									</Label>
+									<Textarea
+										id={field.name}
+										rows={2}
+										placeholder="Why is this adjustment being made?"
 										value={field.state.value}
 										onBlur={field.handleBlur}
 										onChange={(e) => field.handleChange(e.target.value)}
@@ -264,28 +298,9 @@ export function ManualAdjustmentDialog({
 						</form.Field>
 					</div>
 
-					<form.Field name="note">
-						{(field) => (
-							<div className="space-y-2">
-								<Label htmlFor={field.name}>
-									Note <span className="text-destructive">*</span>
-								</Label>
-								<Textarea
-									id={field.name}
-									rows={2}
-									placeholder="Why is this adjustment being made?"
-									value={field.state.value}
-									onBlur={field.handleBlur}
-									onChange={(e) => field.handleChange(e.target.value)}
-								/>
-								<FieldError errors={field.state.meta.errors} />
-							</div>
-						)}
-					</form.Field>
-
 					<form.Subscribe selector={(state) => state.isSubmitting}>
 						{(isPending) => (
-							<DialogFooter>
+							<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 								<Button
 									type="button"
 									variant="outline"
@@ -294,7 +309,11 @@ export function ManualAdjustmentDialog({
 								>
 									Cancel
 								</Button>
-								<Button type="submit" disabled={isPending}>
+								<Button
+									type="submit"
+									disabled={isPending}
+									className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+								>
 									{isPending ? "Creating…" : "Create Adjustment"}
 								</Button>
 							</DialogFooter>

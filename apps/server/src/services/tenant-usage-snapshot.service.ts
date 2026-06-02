@@ -64,13 +64,16 @@ async function pMap<T, U>(
 ): Promise<U[]> {
 	const results: U[] = new Array(items.length);
 	let cursor = 0;
-	const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
-		while (true) {
-			const i = cursor++;
-			if (i >= items.length) return;
-			results[i] = await fn(items[i] as T);
-		}
-	});
+	const workers = Array.from(
+		{ length: Math.min(concurrency, items.length) },
+		async () => {
+			while (true) {
+				const i = cursor++;
+				if (i >= items.length) return;
+				results[i] = await fn(items[i] as T);
+			}
+		},
+	);
 	await Promise.all(workers);
 	return results;
 }
@@ -242,7 +245,10 @@ async function snapshotOne(
 				dailyActiveMembers30dAvg,
 			})
 			.onConflictDoUpdate({
-				target: [tenantUsageSnapshots.organizationId, tenantUsageSnapshots.snapshotDate],
+				target: [
+					tenantUsageSnapshots.organizationId,
+					tenantUsageSnapshots.snapshotDate,
+				],
 				set: {
 					memberCount,
 					customerCount,

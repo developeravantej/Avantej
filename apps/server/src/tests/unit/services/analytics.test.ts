@@ -10,7 +10,17 @@ let mockDb: any;
 
 function selectChainResolving(value: unknown) {
 	const chain: Record<string, unknown> = {};
-	for (const m of ["from", "where", "orderBy", "limit", "offset", "leftJoin", "innerJoin", "groupBy", "having"]) {
+	for (const m of [
+		"from",
+		"where",
+		"orderBy",
+		"limit",
+		"offset",
+		"leftJoin",
+		"innerJoin",
+		"groupBy",
+		"having",
+	]) {
 		chain[m] = mock(() => chain);
 	}
 	chain.then = (resolve: (v: unknown) => unknown) =>
@@ -130,13 +140,22 @@ describe("getDashboardKpis — return values", () => {
 
 	test("returns correct values with actual data", async () => {
 		mockDb.select
-			.mockReturnValueOnce(selectChainResolving([{ total: "50000", orderCount: 5 }]))
+			.mockReturnValueOnce(
+				selectChainResolving([{ total: "50000", orderCount: 5 }]),
+			)
 			.mockReturnValueOnce(selectChainResolving([{ apptCount: 10 }]))
 			.mockReturnValueOnce(selectChainResolving([{ completedCount: 7 }]))
 			.mockReturnValueOnce(selectChainResolving([{ activeCount: 15 }]))
-			.mockReturnValueOnce(selectChainResolving([
-				{ branchId: "branch-1", branchName: "KL Branch", totalRevenue: "30000", orderCount: 3 },
-			]));
+			.mockReturnValueOnce(
+				selectChainResolving([
+					{
+						branchId: "branch-1",
+						branchName: "KL Branch",
+						totalRevenue: "30000",
+						orderCount: 3,
+					},
+				]),
+			);
 
 		const result = await getDashboardKpis(mockDb, {
 			period: "this_month",

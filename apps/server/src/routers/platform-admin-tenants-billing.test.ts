@@ -109,7 +109,11 @@ const fakeStripe = {
 	},
 	refunds: { create: mockRefundsCreate },
 	customers: {
-		retrieve: mock(async () => ({ id: TEST_CUSTOMER, balance: 0, currency: "usd" })),
+		retrieve: mock(async () => ({
+			id: TEST_CUSTOMER,
+			balance: 0,
+			currency: "usd",
+		})),
 	},
 	subscriptions: {
 		retrieve: mockSubscriptionsRetrieve,
@@ -143,8 +147,12 @@ beforeEach(async () => {
 				eq(adminSessionActions.actionType, "tenant_tier_change"),
 			),
 		);
-	await controlPanelDb.delete(organizations).where(eq(organizations.id, TEST_ORG_ID));
-	await controlPanelDb.delete(subscriptions).where(eq(subscriptions.id, TEST_SUB_ID));
+	await controlPanelDb
+		.delete(organizations)
+		.where(eq(organizations.id, TEST_ORG_ID));
+	await controlPanelDb
+		.delete(subscriptions)
+		.where(eq(subscriptions.id, TEST_SUB_ID));
 
 	// Seed subscription + org linked to it.
 	await controlPanelDb.insert(subscriptions).values({

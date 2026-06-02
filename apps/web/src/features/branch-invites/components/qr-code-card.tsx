@@ -64,9 +64,7 @@ export function QrCodeCard({
 
 	const qrRef = useRef<SVGSVGElement>(null);
 
-	const activeInvite = invites?.find(
-		(i: { isActive: boolean }) => i.isActive,
-	);
+	const activeInvite = invites?.find((i: { isActive: boolean }) => i.isActive);
 
 	const handleGenerate = useCallback(() => {
 		createMutation.mutate(
@@ -90,46 +88,47 @@ export function QrCodeCard({
 		}
 	}, []);
 
-	const handleDownload = useCallback((url: string) => {
-		// Create an offscreen canvas to rasterise the SVG, then download as PNG
-		const svg = document.querySelector<SVGSVGElement>(
-			"[data-qr-download]",
-		);
-		if (!svg) {
-			toast.error("Could not find QR element.");
-			return;
-		}
+	const handleDownload = useCallback(
+		(url: string) => {
+			// Create an offscreen canvas to rasterise the SVG, then download as PNG
+			const svg = document.querySelector<SVGSVGElement>("[data-qr-download]");
+			if (!svg) {
+				toast.error("Could not find QR element.");
+				return;
+			}
 
-		const serialised = new XMLSerializer().serializeToString(svg);
-		const blob = new Blob([serialised], { type: "image/svg+xml" });
-		const objectUrl = URL.createObjectURL(blob);
+			const serialised = new XMLSerializer().serializeToString(svg);
+			const blob = new Blob([serialised], { type: "image/svg+xml" });
+			const objectUrl = URL.createObjectURL(blob);
 
-		// Draw onto canvas
-		const img = new Image();
-		img.onload = () => {
-			const canvas = document.createElement("canvas");
-			const size = 512;
-			canvas.width = size;
-			canvas.height = size;
-			const ctx = canvas.getContext("2d");
-			if (!ctx) return;
-			ctx.fillStyle = "#fff";
-			ctx.fillRect(0, 0, size, size);
-			ctx.drawImage(img, 0, 0, size, size);
-			URL.revokeObjectURL(objectUrl);
+			// Draw onto canvas
+			const img = new Image();
+			img.onload = () => {
+				const canvas = document.createElement("canvas");
+				const size = 512;
+				canvas.width = size;
+				canvas.height = size;
+				const ctx = canvas.getContext("2d");
+				if (!ctx) return;
+				ctx.fillStyle = "#fff";
+				ctx.fillRect(0, 0, size, size);
+				ctx.drawImage(img, 0, 0, size, size);
+				URL.revokeObjectURL(objectUrl);
 
-			canvas.toBlob((pngBlob) => {
-				if (!pngBlob) return;
-				const pngUrl = URL.createObjectURL(pngBlob);
-				const a = document.createElement("a");
-				a.href = pngUrl;
-				a.download = `qr-${branchName.replace(/\s+/g, "-").toLowerCase()}.png`;
-				a.click();
-				URL.revokeObjectURL(pngUrl);
-			}, "image/png");
-		};
-		img.src = objectUrl;
-	}, [branchName]);
+				canvas.toBlob((pngBlob) => {
+					if (!pngBlob) return;
+					const pngUrl = URL.createObjectURL(pngBlob);
+					const a = document.createElement("a");
+					a.href = pngUrl;
+					a.download = `qr-${branchName.replace(/\s+/g, "-").toLowerCase()}.png`;
+					a.click();
+					URL.revokeObjectURL(pngUrl);
+				}, "image/png");
+			};
+			img.src = objectUrl;
+		},
+		[branchName],
+	);
 
 	return (
 		<>
@@ -140,7 +139,9 @@ export function QrCodeCard({
 							<QrCode className="h-4 w-4 text-primary" />
 						</div>
 						<div>
-							<CardTitle className="text-base">Customer Onboarding QR Code</CardTitle>
+							<CardTitle className="text-base">
+								Customer Onboarding QR Code
+							</CardTitle>
 							<CardDescription className="text-xs mt-0.5">
 								Customers scan this code to self-register at this branch.
 							</CardDescription>
@@ -154,7 +155,16 @@ export function QrCodeCard({
 						</div>
 					) : activeInvite ? (
 						<ActiveQrView
-							invite={activeInvite as { id: string; url: string; usesCount: number; maxUses?: number | null; createdAt: string | Date; isActive: boolean }}
+							invite={
+								activeInvite as {
+									id: string;
+									url: string;
+									usesCount: number;
+									maxUses?: number | null;
+									createdAt: string | Date;
+									isActive: boolean;
+								}
+							}
 							branchName={branchName}
 							onCopy={handleCopyUrl}
 							onDownload={handleDownload}
@@ -167,7 +177,8 @@ export function QrCodeCard({
 					) : (
 						<div className="flex flex-col items-start gap-3">
 							<p className="text-sm text-muted-foreground">
-								No active QR code for this branch. Generate one to let customers self-register.
+								No active QR code for this branch. Generate one to let customers
+								self-register.
 							</p>
 							<Button
 								size="sm"
@@ -193,33 +204,45 @@ export function QrCodeCard({
 			{/* New QR dialog (shown immediately after generation) */}
 			<Dialog
 				open={qrDialog.open}
-				onOpenChange={(open) => !open && setQrDialog((s) => ({ ...s, open: false }))}
+				onOpenChange={(open) =>
+					!open && setQrDialog((s) => ({ ...s, open: false }))
+				}
 			>
-				<DialogContent className="sm:max-w-sm">
-					<DialogHeader>
-						<DialogTitle>QR Code Ready</DialogTitle>
-						<DialogDescription>
+				<DialogContent
+					className="sm:max-w-sm p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							ONBOARDING
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							QR Code Ready
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
 							Print or share this code at the {branchName} reception desk.
 						</DialogDescription>
 					</DialogHeader>
-					<div className="flex flex-col items-center gap-4 py-2">
-						{qrDialog.url && (
-							<QRCodeSVG
-								data-qr-download
-								value={qrDialog.url}
-								size={220}
-								level="M"
-								includeMargin
-							/>
-						)}
-						<p
-							className="text-xs text-muted-foreground break-all text-center max-w-xs"
-							data-testid="invite-url-input"
-						>
-							{qrDialog.url}
-						</p>
+					<div className="px-6 pt-4 pb-2">
+						<div className="flex flex-col items-center gap-4 py-2">
+							{qrDialog.url && (
+								<QRCodeSVG
+									data-qr-download
+									value={qrDialog.url}
+									size={220}
+									level="M"
+									includeMargin
+								/>
+							)}
+							<p
+								className="text-xs text-[#737373] break-all text-center max-w-xs"
+								data-testid="invite-url-input"
+							>
+								{qrDialog.url}
+							</p>
+						</div>
 					</div>
-					<DialogFooter className="flex gap-2 sm:gap-2">
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button
 							variant="outline"
 							size="sm"
@@ -304,7 +327,11 @@ export function QrCodeCard({
 							onClick={() => {
 								if (confirmRegenerate) {
 									regenerateMutation.mutate(confirmRegenerate, {
-										onSuccess: (data: { id: string; token: string; url: string }) => {
+										onSuccess: (data: {
+											id: string;
+											token: string;
+											url: string;
+										}) => {
 											setConfirmRegenerate(null);
 											setQrDialog({ open: true, url: data.url, id: data.id });
 										},
@@ -380,7 +407,9 @@ function ActiveQrView({
 			<div className="flex flex-1 flex-col gap-3">
 				<div>
 					<p className="text-sm font-medium">{branchName}</p>
-					<p className="text-xs text-muted-foreground mt-0.5 break-all">{url}</p>
+					<p className="text-xs text-muted-foreground mt-0.5 break-all">
+						{url}
+					</p>
 				</div>
 
 				<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -391,11 +420,7 @@ function ActiveQrView({
 				</div>
 
 				<div className="flex flex-wrap gap-2">
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => onCopy(url)}
-					>
+					<Button variant="outline" size="sm" onClick={() => onCopy(url)}>
 						{copied ? (
 							<Check className="mr-1.5 h-3.5 w-3.5" />
 						) : (
@@ -403,11 +428,7 @@ function ActiveQrView({
 						)}
 						{copied ? "Copied" : "Copy URL"}
 					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => onDownload(url)}
-					>
+					<Button variant="outline" size="sm" onClick={() => onDownload(url)}>
 						<Download className="mr-1.5 h-3.5 w-3.5" />
 						Download
 					</Button>

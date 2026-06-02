@@ -39,7 +39,7 @@ function FieldError({ errors }: { errors: unknown[] }) {
 	return (
 		<>
 			{errors.map((error, i) => (
-				<p key={i} className="text-sm text-destructive">
+				<p key={i} className="text-sm text-rose-600">
 					{typeof error === "string"
 						? error
 						: (error as { message?: string })?.message || "Invalid value"}
@@ -120,7 +120,9 @@ export function RequestRefundDialog({
 				});
 
 				toast.success("Refund request submitted — pending approval.");
-				queryClient.invalidateQueries({ queryKey: ["refunds", organizationId] });
+				queryClient.invalidateQueries({
+					queryKey: ["refunds", organizationId],
+				});
 				onOpenChange(false);
 				form.reset();
 			} catch (err: unknown) {
@@ -140,139 +142,156 @@ export function RequestRefundDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>Request Refund</DialogTitle>
-					<DialogDescription>
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						REFUNDS
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Request Refund
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
 						Submit a refund request for review and approval.
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="space-y-1 rounded-md bg-muted/50 px-3 py-2 text-sm">
-					<div className="flex justify-between">
-						<span className="text-muted-foreground">Target</span>
-						<span className="font-medium font-mono">{targetLabel}</span>
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					<div className="space-y-1 rounded-md bg-[#f3f3f3]/50 px-3 py-2 text-sm mb-4">
+						<div className="flex justify-between">
+							<span className="text-[#737373]">Target</span>
+							<span className="font-medium font-mono">{targetLabel}</span>
+						</div>
+						{customerName && (
+							<div className="flex justify-between">
+								<span className="text-[#737373]">Customer</span>
+								<span className="font-medium">{customerName}</span>
+							</div>
+						)}
+						{suggestedAmountCents != null && suggestedAmountCents > 0 && (
+							<div className="flex justify-between">
+								<span className="text-[#737373]">Suggested amount</span>
+								<span className="font-medium text-emerald-700">
+									{formatPrice(suggestedAmountCents, "MYR")}
+								</span>
+							</div>
+						)}
 					</div>
-					{customerName && (
-						<div className="flex justify-between">
-							<span className="text-muted-foreground">Customer</span>
-							<span className="font-medium">{customerName}</span>
-						</div>
-					)}
-					{suggestedAmountCents != null && suggestedAmountCents > 0 && (
-						<div className="flex justify-between">
-							<span className="text-muted-foreground">Suggested amount</span>
-							<span className="font-medium text-emerald-700">
-								{formatPrice(suggestedAmountCents, "MYR")}
-							</span>
-						</div>
-					)}
+
+					{/* react-doctor-disable-next-line react-doctor/no-prevent-default -- TanStack Router SPA */}
+					<form
+						onSubmit={(e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							form.handleSubmit();
+						}}
+						className="space-y-4"
+						id="request-refund-form"
+					>
+						<form.Field name="amountRm">
+							{(field) => (
+								<div className="space-y-2">
+									<Label htmlFor={field.name}>
+										Refund Amount (RM) <span className="text-rose-600">*</span>
+									</Label>
+									<Input
+										id={field.name}
+										type="number"
+										min="0.01"
+										step="0.01"
+										placeholder="0.00"
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(e) => field.handleChange(e.target.value)}
+									/>
+									<FieldError errors={field.state.meta.errors} />
+								</div>
+							)}
+						</form.Field>
+
+						<form.Field name="taxAmountRm">
+							{(field) => (
+								<div className="space-y-2">
+									<Label htmlFor={field.name}>Tax Amount (RM, optional)</Label>
+									<Input
+										id={field.name}
+										type="number"
+										min="0"
+										step="0.01"
+										placeholder="0.00"
+										value={field.state.value ?? ""}
+										onBlur={field.handleBlur}
+										onChange={(e) => field.handleChange(e.target.value)}
+									/>
+									<FieldError errors={field.state.meta.errors} />
+								</div>
+							)}
+						</form.Field>
+
+						<form.Field name="reason">
+							{(field) => (
+								<div className="space-y-2">
+									<Label htmlFor={field.name}>
+										Reason <span className="text-rose-600">*</span>
+									</Label>
+									<Textarea
+										id={field.name}
+										rows={2}
+										placeholder="Why is this refund being requested?"
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(e) => field.handleChange(e.target.value)}
+									/>
+									<FieldError errors={field.state.meta.errors} />
+								</div>
+							)}
+						</form.Field>
+
+						<form.Field name="notes">
+							{(field) => (
+								<div className="space-y-2">
+									<Label htmlFor={field.name}>
+										Additional Notes (optional)
+									</Label>
+									<Textarea
+										id={field.name}
+										rows={2}
+										placeholder="Any additional context…"
+										value={field.state.value ?? ""}
+										onBlur={field.handleBlur}
+										onChange={(e) => field.handleChange(e.target.value)}
+									/>
+									<FieldError errors={field.state.meta.errors} />
+								</div>
+							)}
+						</form.Field>
+					</form>
 				</div>
 
-				{/* react-doctor-disable-next-line react-doctor/no-prevent-default -- TanStack Router SPA */}
-				<form
-					onSubmit={(e) => {
-						e.preventDefault();
-						e.stopPropagation();
-						form.handleSubmit();
-					}}
-					className="space-y-4"
-				>
-					<form.Field name="amountRm">
-						{(field) => (
-							<div className="space-y-2">
-								<Label htmlFor={field.name}>
-									Refund Amount (RM){" "}
-									<span className="text-destructive">*</span>
-								</Label>
-								<Input
-									id={field.name}
-									type="number"
-									min="0.01"
-									step="0.01"
-									placeholder="0.00"
-									value={field.state.value}
-									onBlur={field.handleBlur}
-									onChange={(e) => field.handleChange(e.target.value)}
-								/>
-								<FieldError errors={field.state.meta.errors} />
-							</div>
-						)}
-					</form.Field>
-
-					<form.Field name="taxAmountRm">
-						{(field) => (
-							<div className="space-y-2">
-								<Label htmlFor={field.name}>Tax Amount (RM, optional)</Label>
-								<Input
-									id={field.name}
-									type="number"
-									min="0"
-									step="0.01"
-									placeholder="0.00"
-									value={field.state.value ?? ""}
-									onBlur={field.handleBlur}
-									onChange={(e) => field.handleChange(e.target.value)}
-								/>
-								<FieldError errors={field.state.meta.errors} />
-							</div>
-						)}
-					</form.Field>
-
-					<form.Field name="reason">
-						{(field) => (
-							<div className="space-y-2">
-								<Label htmlFor={field.name}>
-									Reason <span className="text-destructive">*</span>
-								</Label>
-								<Textarea
-									id={field.name}
-									rows={2}
-									placeholder="Why is this refund being requested?"
-									value={field.state.value}
-									onBlur={field.handleBlur}
-									onChange={(e) => field.handleChange(e.target.value)}
-								/>
-								<FieldError errors={field.state.meta.errors} />
-							</div>
-						)}
-					</form.Field>
-
-					<form.Field name="notes">
-						{(field) => (
-							<div className="space-y-2">
-								<Label htmlFor={field.name}>Additional Notes (optional)</Label>
-								<Textarea
-									id={field.name}
-									rows={2}
-									placeholder="Any additional context…"
-									value={field.state.value ?? ""}
-									onBlur={field.handleBlur}
-									onChange={(e) => field.handleChange(e.target.value)}
-								/>
-								<FieldError errors={field.state.meta.errors} />
-							</div>
-						)}
-					</form.Field>
-
-					<form.Subscribe selector={(state) => state.isSubmitting}>
-						{(isPending) => (
-							<DialogFooter>
-								<Button
-									type="button"
-									variant="outline"
-									onClick={() => handleOpenChange(false)}
-									disabled={isPending}
-								>
-									Cancel
-								</Button>
-								<Button type="submit" disabled={isPending}>
-									{isPending ? "Submitting…" : "Submit Request"}
-								</Button>
-							</DialogFooter>
-						)}
-					</form.Subscribe>
-				</form>
+				<form.Subscribe selector={(state) => state.isSubmitting}>
+					{(isPending) => (
+						<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => handleOpenChange(false)}
+								disabled={isPending}
+							>
+								Cancel
+							</Button>
+							<Button
+								type="submit"
+								form="request-refund-form"
+								disabled={isPending}
+								className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+							>
+								{isPending ? "Submitting…" : "Submit Request"}
+							</Button>
+						</DialogFooter>
+					)}
+				</form.Subscribe>
 			</DialogContent>
 		</Dialog>
 	);

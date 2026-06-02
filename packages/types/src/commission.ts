@@ -18,3 +18,28 @@ export type CommissionEarnReason =
 	| "no_show"
 	| "pos_product"
 	| "manual";
+
+// Commission Tracks — enum unions (Task #10 — Commission Tracks Plan §3.3)
+// Applied via text().$type<…>() in Drizzle schema and z.enum([...]) in routers.
+
+/** Who earns this track (role dimension). */
+export type CommissionRoleType = "trainer" | "sales" | "marketing" | "referrer";
+
+/** When the commission triggers relative to the transaction lifecycle. */
+export type CommissionTrigger = "on_completion" | "on_sale";
+
+/** How the base amount is calculated before applying rate. */
+export type CommissionBasis =
+	| "delivery_total"
+	| "gross_order"
+	| "net_order"
+	| "flat";
+
+/** Which entity dimension the track applies to. */
+export type CommissionTrackScope = "category" | "org" | "product";
+
+/** How multiple earners on the same track share the pool. */
+export type CommissionPoolPolicy = "separate" | "shared";
+
+/** Whether the rate is a fixed amount (cents) or variable (basis points). */
+export type CommissionPaymentType = "fixed" | "variable";

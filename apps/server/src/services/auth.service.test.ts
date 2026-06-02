@@ -189,9 +189,9 @@ describe("Auth Service - sendVerificationEmail", () => {
 	});
 
 	test("throws error when userId is missing", async () => {
-		await expect(
-			sendVerificationEmail("", "test@example.com"),
-		).rejects.toThrow("User ID and email are required");
+		await expect(sendVerificationEmail("", "test@example.com")).rejects.toThrow(
+			"User ID and email are required",
+		);
 	});
 
 	test("throws error when email is missing", async () => {
@@ -218,9 +218,7 @@ describe("Auth Service - verifyEmailToken", () => {
 	) {
 		const secret = process.env.BETTER_AUTH_SECRET;
 		if (!secret) {
-			throw new Error(
-				"BETTER_AUTH_SECRET required for verifyEmailToken tests",
-			);
+			throw new Error("BETTER_AUTH_SECRET required for verifyEmailToken tests");
 		}
 		const now = Math.floor(Date.now() / 1000);
 		return new SignJWT(payload)

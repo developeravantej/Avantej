@@ -1,5 +1,3 @@
-"use client";
-
 import { useQuery } from "@tanstack/react-query";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import {
@@ -161,13 +159,13 @@ function Section({
 					className="flex w-full items-center justify-between py-2 text-left"
 				>
 					<div className="flex items-center gap-2">
-						<Icon className="h-4 w-4 text-muted-foreground" />
-						<span className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">
+						<Icon className="h-4 w-4 text-[#737373]" />
+						<span className="font-semibold text-[#737373] text-sm uppercase tracking-wide">
 							{title}
 						</span>
 					</div>
 					<ChevronDown
-						className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+						className={`h-4 w-4 text-[#737373] transition-transform duration-200 ${open ? "rotate-180" : ""}`}
 					/>
 				</button>
 			</CollapsibleTrigger>
@@ -286,13 +284,19 @@ export function CustomerDetailSheet({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-2xl">
+			<DialogContent
+				className="sm:max-w-2xl p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden flex w-full flex-col"
+				hideCloseButton
+			>
 				{isLoading || !data ? (
 					<PageLoader />
 				) : (
 					<>
 						{/* ── Dialog Header ─────────────────────────────────── */}
-						<DialogHeader className="border-b px-6 pt-6 pb-4">
+						<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+							<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+								CUSTOMER DIRECTORY
+							</p>
 							<div className="flex items-center gap-3">
 								<span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-primary text-sm">
 									{(user?.name ?? "?")
@@ -303,13 +307,13 @@ export function CustomerDetailSheet({
 										.join("")}
 								</span>
 								<div className="min-w-0 flex-1">
-									<DialogTitle className="font-semibold text-lg leading-tight">
+									<DialogTitle className="text-lg font-bold text-[#0a0a0a] leading-tight">
 										{user?.name ?? "Unknown"}
 									</DialogTitle>
-									<DialogDescription asChild>
+									<DialogDescription asChild className="text-sm text-[#737373]">
 										<div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
 											<CopyableCell value={user?.email} />
-											<span className="text-muted-foreground text-xs">
+											<span className="text-[#737373] text-xs">
 												Member since {formatDate(member?.joinedAt)}
 											</span>
 										</div>
@@ -318,7 +322,7 @@ export function CustomerDetailSheet({
 							</div>
 						</DialogHeader>
 
-						<div className="flex-1 space-y-2 overflow-y-auto px-6 py-4">
+						<div className="px-6 pt-4 pb-2 overflow-y-auto flex-1 space-y-2">
 							{/* ── Section 1: Profile (editable) ──────────── */}
 							<Section title="Profile" icon={User}>
 								<div className="space-y-4">
@@ -462,7 +466,7 @@ export function CustomerDetailSheet({
 									<div className="flex flex-col gap-1.5">
 										<Label htmlFor="cd-goals">
 											Fitness Goals
-											<span className="ml-1 text-muted-foreground text-xs">
+											<span className="ml-1 text-[#737373] text-xs">
 												(comma-separated)
 											</span>
 										</Label>
@@ -504,6 +508,7 @@ export function CustomerDetailSheet({
 											type="button"
 											onClick={() => upsertMutation.mutate()}
 											disabled={!formDirty || upsertMutation.isPending}
+											className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
 										>
 											{upsertMutation.isPending ? "Saving..." : "Save Profile"}
 										</Button>
@@ -514,9 +519,7 @@ export function CustomerDetailSheet({
 							{/* ── Section 2: Packages ────────────────────── */}
 							<Section title="Packages" icon={Package} defaultOpen={true}>
 								{packageInstances.length === 0 ? (
-									<p className="text-muted-foreground text-sm">
-										No packages found.
-									</p>
+									<p className="text-[#737373] text-sm">No packages found.</p>
 								) : (
 									<div className="space-y-2">
 										{packageInstances.map((pkg) => (
@@ -547,23 +550,23 @@ export function CustomerDetailSheet({
 								defaultOpen={false}
 							>
 								{recentPayments.length === 0 ? (
-									<p className="text-muted-foreground text-sm">
-										No payments found.
-									</p>
+									<p className="text-[#737373] text-sm">No payments found.</p>
 								) : (
 									<div className="space-y-2">
 										{recentPayments.map((payment) => (
 											<div
 												key={payment.id}
-												className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
+												className="flex items-center justify-between rounded-lg border border-[#e5e5e5] px-3 py-2 text-sm"
 											>
 												<div className="flex flex-col gap-0.5">
 													<span className="font-medium tabular-nums">
 														{formatPrice(payment.totalAmount ?? 0, "MYR")}
 													</span>
-													<span className="text-muted-foreground text-xs">
+													<span className="text-[#737373] text-xs">
 														{formatDate(payment.createdAt)}
-														{(payment as any).method ? ` · ${(payment as any).method}` : ""}
+														{(payment as any).method
+															? ` · ${(payment as any).method}`
+															: ""}
 													</span>
 												</div>
 												<Badge
@@ -580,28 +583,22 @@ export function CustomerDetailSheet({
 							{/* ── Section 4: Stats ───────────────────────── */}
 							<Section title="Stats" icon={BarChart2} defaultOpen={true}>
 								<div className="grid grid-cols-3 gap-4">
-									<div className="flex flex-col gap-1 rounded-lg border px-3 py-3">
-										<span className="text-muted-foreground text-xs">
-											Outstanding
-										</span>
+									<div className="flex flex-col gap-1 rounded-lg border border-[#e5e5e5] px-3 py-3">
+										<span className="text-[#737373] text-xs">Outstanding</span>
 										<span
 											className={`font-semibold text-base tabular-nums ${outstandingBalanceCents > 0 ? "text-red-600" : ""}`}
 										>
 											{formatPrice(outstandingBalanceCents, "MYR")}
 										</span>
 									</div>
-									<div className="flex flex-col gap-1 rounded-lg border px-3 py-3">
-										<span className="text-muted-foreground text-xs">
-											Appointments
-										</span>
+									<div className="flex flex-col gap-1 rounded-lg border border-[#e5e5e5] px-3 py-3">
+										<span className="text-[#737373] text-xs">Appointments</span>
 										<span className="font-semibold text-base">
 											{appointmentCount}
 										</span>
 									</div>
-									<div className="flex flex-col gap-1 rounded-lg border px-3 py-3">
-										<span className="text-muted-foreground text-xs">
-											Last Visit
-										</span>
+									<div className="flex flex-col gap-1 rounded-lg border border-[#e5e5e5] px-3 py-3">
+										<span className="text-[#737373] text-xs">Last Visit</span>
 										<span className="font-semibold text-base">
 											{formatRelativeTime(lastVisitAt)}
 										</span>

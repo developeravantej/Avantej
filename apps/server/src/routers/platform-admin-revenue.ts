@@ -27,47 +27,11 @@ import { getTierPriceUsdCents, type Tier } from "@avantej-core/types";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
+import { adminProcedure } from "@/lib/admin-procedure";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 
-function requirePlatformAdmin() {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Authentication required",
-				});
-			}
-			const cpDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
-			const adminRecord = await cpDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Admin access required",
-				});
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
-
-function cpDbFrom(
-	context: unknown,
-): NeonDatabase<typeof controlPanelSchema> {
+function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
 	const db = (
 		context as { honoContext?: { get: (k: string) => unknown } }
 	).honoContext?.get("controlPanelDb") as
@@ -103,40 +67,37 @@ export const platformAdminRevenueRouter = {
 
 			const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-			const [
-				activeTrialingRows,
-				cancelledLast30dRows,
-				newSubsLast30dRows,
-			] = await Promise.all([
-				// All active/trialing subs — tiers feed MRR estimate + counts.
-				cpDb
-					.select({ tier: subscriptions.tier, status: subscriptions.status })
-					.from(subscriptions)
-					.where(inArray(subscriptions.status, ["active", "trialing"])),
+			const [activeTrialingRows, cancelledLast30dRows, newSubsLast30dRows] =
+				await Promise.all([
+					// All active/trialing subs — tiers feed MRR estimate + counts.
+					cpDb
+						.select({ tier: subscriptions.tier, status: subscriptions.status })
+						.from(subscriptions)
+						.where(inArray(subscriptions.status, ["active", "trialing"])),
 
-				// Subs cancelled in last 30 days — tiers feed churned MRR.
-				cpDb
-					.select({
-						tier: subscriptions.tier,
-						canceledAt: subscriptions.canceledAt,
-					})
-					.from(subscriptions)
-					.where(
-						and(
-							isNotNull(subscriptions.canceledAt),
-							gte(subscriptions.canceledAt, thirtyDaysAgo),
+					// Subs cancelled in last 30 days — tiers feed churned MRR.
+					cpDb
+						.select({
+							tier: subscriptions.tier,
+							canceledAt: subscriptions.canceledAt,
+						})
+						.from(subscriptions)
+						.where(
+							and(
+								isNotNull(subscriptions.canceledAt),
+								gte(subscriptions.canceledAt, thirtyDaysAgo),
+							),
 						),
-					),
 
-				// Subs created in last 30 days — tiers feed new MRR.
-				cpDb
-					.select({
-						tier: subscriptions.tier,
-						createdAt: subscriptions.createdAt,
-					})
-					.from(subscriptions)
-					.where(gte(subscriptions.createdAt, thirtyDaysAgo)),
-			]);
+					// Subs created in last 30 days — tiers feed new MRR.
+					cpDb
+						.select({
+							tier: subscriptions.tier,
+							createdAt: subscriptions.createdAt,
+						})
+						.from(subscriptions)
+						.where(gte(subscriptions.createdAt, thirtyDaysAgo)),
+				]);
 
 			let activeSubsCount = 0;
 			let trialingSubsCount = 0;
@@ -159,9 +120,7 @@ export const platformAdminRevenueRouter = {
 
 			const denom = cancelledLast30d + activeSubsCount;
 			const churnRatePct =
-				denom === 0
-					? 0
-					: Math.round((cancelledLast30d / denom) * 10000) / 100;
+				denom === 0 ? 0 : Math.round((cancelledLast30d / denom) * 10000) / 100;
 
 			return {
 				mrr: { cents: mrrCents, estimateAvailable: true },
@@ -273,10 +232,7 @@ export const platformAdminRevenueRouter = {
 					for (const o of orgsInCohort) {
 						// Active sub (no row, or not cancelled, or cancelled
 						// after the bucket start) → retained at month k.
-						if (
-							o.subCanceledAt === null ||
-							o.subCanceledAt >= bucketStart
-						) {
+						if (o.subCanceledAt === null || o.subCanceledAt >= bucketStart) {
 							count += 1;
 						}
 					}
@@ -300,9 +256,7 @@ export const platformAdminRevenueRouter = {
 		)
 		.handler(async ({ context, input }) => {
 			const cpDb = cpDbFrom(context);
-			const since = new Date(
-				Date.now() - input.days * 24 * 60 * 60 * 1000,
-			);
+			const since = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
 
 			const rows = await cpDb
 				.select({

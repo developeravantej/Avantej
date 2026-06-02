@@ -42,7 +42,7 @@ import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
+import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
@@ -103,55 +103,16 @@ export type StripeClientLike = {
 	};
 };
 
-// ── Auth gates (mirror platform-admin-tenants-billing.ts) ──────────────────
-function requirePlatformAdmin(
-	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">,
-) {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
-			}
-			const cpDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
-			const adminRecord = await cpDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", { message: "Admin access required" });
-			}
-			if (
-				allowRoles &&
-				!allowRoles.includes(
-					adminRecord.role as "super_admin" | "support" | "billing",
-				)
-			) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Your platform admin role does not permit this action",
-				});
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
 const superAdminProcedure = protectedProcedure.use(
 	requirePlatformAdmin(["super_admin"]),
 );
 
 function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
-		"controlPanelDb",
-	) as NeonDatabase<typeof controlPanelSchema> | undefined;
+	const db = (
+		context as { honoContext?: { get: (k: string) => unknown } }
+	).honoContext?.get("controlPanelDb") as
+		| NeonDatabase<typeof controlPanelSchema>
+		| undefined;
 	if (!db)
 		throw new ORPCError("INTERNAL_SERVER_ERROR", {
 			message: "Control panel DB unavailable",
@@ -162,7 +123,10 @@ function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
 function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
 	const id = session?.user?.id;
-	if (!id) throw new ORPCError("UNAUTHORIZED", { message: "No admin user in session" });
+	if (!id)
+		throw new ORPCError("UNAUTHORIZED", {
+			message: "No admin user in session",
+		});
 	return id;
 }
 
@@ -192,10 +156,8 @@ function projectCoupon(c: StripeCoupon) {
 	return {
 		id: c.id,
 		name: c.name ?? null,
-		percentOff:
-			typeof c.percent_off === "number" ? c.percent_off : null,
-		amountOff:
-			typeof c.amount_off === "number" ? c.amount_off : null,
+		percentOff: typeof c.percent_off === "number" ? c.percent_off : null,
+		amountOff: typeof c.amount_off === "number" ? c.amount_off : null,
 		currency: c.currency ? c.currency.toLowerCase() : null,
 		duration: c.duration,
 		durationInMonths:
@@ -318,8 +280,7 @@ export function createPlatformAdminCouponsRouter(
 						discountKind: input.discountKind,
 						percentOff: input.percentOff ?? null,
 						amountOffCents: input.amountOffCents ?? null,
-						currency:
-							input.discountKind === "amount" ? input.currency : null,
+						currency: input.discountKind === "amount" ? input.currency : null,
 						duration: input.duration,
 						durationInMonths: input.durationInMonths ?? null,
 						maxRedemptions: input.maxRedemptions ?? null,
@@ -380,8 +341,7 @@ export function createPlatformAdminCouponsRouter(
 				}
 				if (!customerId) {
 					throw new ORPCError("PRECONDITION_FAILED", {
-						message:
-							"Tenant has no Stripe customer — cannot attach coupon",
+						message: "Tenant has no Stripe customer — cannot attach coupon",
 					});
 				}
 
@@ -432,8 +392,7 @@ export function createPlatformAdminCouponsRouter(
 				}
 				if (!customerId) {
 					throw new ORPCError("PRECONDITION_FAILED", {
-						message:
-							"Tenant has no Stripe customer — nothing to remove",
+						message: "Tenant has no Stripe customer — nothing to remove",
 					});
 				}
 

@@ -14,11 +14,18 @@ import {
 	Loader2,
 	CalendarDays,
 	BadgeCheck,
+	UserRound,
 } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { Skeleton } from "boneyard-js/react";
-import { type TrainerRow, type TrainerTier } from "@/components/trainers/TrainerCard";
-import { TrainerFormDialog, type FormState } from "@/components/trainers/TrainerFormDialog";
+import {
+	type TrainerRow,
+	type TrainerTier,
+} from "@/components/trainers/TrainerCard";
+import {
+	TrainerFormDialog,
+	type FormState,
+} from "@/components/trainers/TrainerFormDialog";
 import {
 	ChangeTierDialog,
 	AssignBranchDialog,
@@ -160,7 +167,9 @@ function TrainerListRow({
 			<div className="text-right shrink-0">
 				{isOnLeave ? (
 					<>
-						<div className="text-xs font-mono font-semibold tabular-nums text-[#737373]">—</div>
+						<div className="text-xs font-mono font-semibold tabular-nums text-[#737373]">
+							—
+						</div>
 						<div className="text-[10px] text-[#737373]">on leave</div>
 					</>
 				) : (
@@ -200,11 +209,11 @@ function KpiTile({
 					<span className="text-2xl font-bold font-mono tabular-nums">…</span>
 				</div>
 			) : (
-				<div className="text-2xl font-bold font-mono tabular-nums text-[#0a0a0a]">{value}</div>
+				<div className="text-2xl font-bold font-mono tabular-nums text-[#0a0a0a]">
+					{value}
+				</div>
 			)}
-			{sub && (
-				<div className="mt-1 text-xs text-[#737373]">{sub}</div>
-			)}
+			{sub && <div className="mt-1 text-xs text-[#737373]">{sub}</div>}
 		</div>
 	);
 }
@@ -222,14 +231,18 @@ function SchedulePreviewCard({
 }) {
 	const { data, isLoading } = useQuery({
 		queryKey: ["trainerWeeklySchedule", organizationId, memberId],
-		queryFn: () =>
-			client.trainers.weeklySchedule({ organizationId, memberId }),
+		queryFn: () => client.trainers.weeklySchedule({ organizationId, memberId }),
 		enabled: !!organizationId && !!memberId,
 		staleTime: 60_000,
 	});
 
 	// Build per-day entry lists (Mon=0 … Sun=6)
-	type DayBucket = { label: string; title: string; time: string; done: boolean };
+	type DayBucket = {
+		label: string;
+		title: string;
+		time: string;
+		done: boolean;
+	};
 	const dayBuckets: DayBucket[][] = Array.from({ length: 7 }, () => []);
 
 	if (data?.entries) {
@@ -245,16 +258,19 @@ function SchedulePreviewCard({
 					const e = new Date(entry.endTime);
 					endStr = ` – ${e.getUTCHours().toString().padStart(2, "0")}:${e.getUTCMinutes().toString().padStart(2, "0")}`;
 				}
-				const attendees = entry.attendeeCount != null
-					? entry.type === "appointment"
-						? "1:1"
-						: `${entry.attendeeCount} attendees`
-					: "";
+				const attendees =
+					entry.attendeeCount != null
+						? entry.type === "appointment"
+							? "1:1"
+							: `${entry.attendeeCount} attendees`
+						: "";
 				dayBuckets[monIndex].push({
 					label: DAY_LABELS[monIndex],
-					title: entry.title ?? (entry.type === "appointment" ? "PT Session" : "Class"),
+					title:
+						entry.title ??
+						(entry.type === "appointment" ? "PT Session" : "Class"),
 					time: `${startH}:${startM}${endStr}${attendees ? ` · ${attendees}` : ""}`,
-					done: (entry.status === "completed" || entry.status === "done"),
+					done: entry.status === "completed" || entry.status === "done",
 				});
 			}
 		}
@@ -291,8 +307,12 @@ function SchedulePreviewCard({
 							key={day}
 							className="flex items-center gap-3 py-2 border-b border-[#e5e5e5] last:border-0"
 						>
-							<div className="w-8 text-xs font-mono tabular-nums text-[#737373]">{day}</div>
-							<div className="flex-1 text-xs text-[#737373] italic">No sessions</div>
+							<div className="w-8 text-xs font-mono tabular-nums text-[#737373]">
+								{day}
+							</div>
+							<div className="flex-1 text-xs text-[#737373] italic">
+								No sessions
+							</div>
 						</div>
 					))}
 				</div>
@@ -307,7 +327,9 @@ function SchedulePreviewCard({
 								{entry.label}
 							</div>
 							<div className="flex-1 min-w-0">
-								<div className="text-xs font-semibold text-[#0a0a0a]">{entry.title}</div>
+								<div className="text-xs font-semibold text-[#0a0a0a]">
+									{entry.title}
+								</div>
 								<div className="text-xs text-[#737373]">{entry.time}</div>
 							</div>
 							{entry.done ? (
@@ -321,6 +343,97 @@ function SchedulePreviewCard({
 							)}
 						</div>
 					))}
+				</div>
+			)}
+		</div>
+	);
+}
+
+// ─── Customers card ───────────────────────────────────────────────────────────
+
+function TrainerCustomersCard({
+	organizationId,
+	memberId,
+}: {
+	organizationId: string;
+	memberId: string;
+}) {
+	const { data, isLoading } = useQuery({
+		queryKey: ["trainerCustomers", organizationId, memberId],
+		queryFn: () => client.trainers.customers({ organizationId, memberId }),
+		enabled: !!organizationId && !!memberId,
+		staleTime: 60_000,
+	});
+
+	const customers = data ?? [];
+
+	return (
+		<div className="rounded-xl border border-[#e5e5e5] bg-white p-4">
+			<div className="mb-3 flex items-center justify-between">
+				<div className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+					Customers
+				</div>
+				{!isLoading && customers.length > 0 && (
+					<span className="text-[10px] font-semibold text-[#737373]">
+						{customers.length} total
+					</span>
+				)}
+			</div>
+
+			{isLoading ? (
+				<div className="flex items-center gap-2 text-xs text-[#737373]">
+					<Loader2 className="h-3 w-3 animate-spin" />
+					Loading customers…
+				</div>
+			) : customers.length === 0 ? (
+				<div className="flex items-center gap-2 text-xs text-[#737373]">
+					<UserRound className="h-3.5 w-3.5" />
+					No customers yet
+				</div>
+			) : (
+				<div className="flex flex-col gap-0">
+					{customers.map((c) => {
+						const initials = c.name
+							.split(" ")
+							.map((p: string) => p[0])
+							.filter(Boolean)
+							.slice(0, 2)
+							.join("")
+							.toUpperCase();
+						const nextStr = c.nextAppointmentAt
+							? new Date(c.nextAppointmentAt).toLocaleDateString("en-MY", {
+									day: "numeric",
+									month: "short",
+								})
+							: null;
+						return (
+							<div
+								key={c.userId}
+								className="flex items-center gap-2.5 py-2 border-b border-[#e5e5e5] last:border-0"
+							>
+								<div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#f3f3f3] text-[9px] font-bold text-[#0a0a0a]">
+									{initials || "?"}
+								</div>
+								<div className="flex-1 min-w-0">
+									<div className="text-xs font-semibold text-[#0a0a0a] truncate">
+										{c.name}
+									</div>
+									<div className="text-[10px] text-[#737373]">
+										{c.completedCount} session
+										{c.completedCount !== 1 ? "s" : ""} completed
+									</div>
+								</div>
+								{nextStr && (
+									<div className="shrink-0 text-right">
+										<div className="text-[9px] text-[#737373]">Next</div>
+										<div className="text-[10px] font-mono tabular-nums font-semibold text-[#0a0a0a]">
+											{nextStr}
+										</div>
+									</div>
+								)}
+							</div>
+						);
+					})}
 				</div>
 			)}
 		</div>
@@ -408,7 +521,9 @@ function TrainerDetailPanel({
 							{joinedStr && (
 								<>
 									<span>·</span>
-									<span className="font-mono tabular-nums">Joined {joinedStr}</span>
+									<span className="font-mono tabular-nums">
+										Joined {joinedStr}
+									</span>
 								</>
 							)}
 						</div>
@@ -499,8 +614,14 @@ function TrainerDetailPanel({
 					memberId={trainer.userId}
 				/>
 
-				{/* Right column: Certifications + Contact */}
+				{/* Right column: Customers + Certifications + Contact */}
 				<div className="flex flex-col gap-4">
+					{/* Customers */}
+					<TrainerCustomersCard
+						organizationId={organizationId}
+						memberId={trainer.userId}
+					/>
+
 					{/* Certifications */}
 					<div className="rounded-xl border border-[#e5e5e5] bg-white p-4">
 						<div className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[#737373]">
@@ -536,7 +657,9 @@ function TrainerDetailPanel({
 							{trainer.phoneNumber && (
 								<div className="flex justify-between">
 									<span className="text-[#737373]">Phone</span>
-									<span className="font-mono tabular-nums">{trainer.phoneNumber}</span>
+									<span className="font-mono tabular-nums">
+										{trainer.phoneNumber}
+									</span>
 								</div>
 							)}
 							<div className="flex justify-between">
@@ -546,7 +669,9 @@ function TrainerDetailPanel({
 							{trainer.specialization && (
 								<div className="flex justify-between">
 									<span className="text-[#737373]">Specialization</span>
-									<span className="text-[#0a0a0a]">{trainer.specialization}</span>
+									<span className="text-[#0a0a0a]">
+										{trainer.specialization}
+									</span>
 								</div>
 							)}
 							{tier && (
@@ -576,19 +701,21 @@ export function TrainersListPage() {
 	const currentOrg = userContext?.organizations.find(
 		(o) => o.id === organizationId,
 	);
-	const hierarchyNodes = (currentOrg?.hierarchy?.nodes ?? []) as {
-		id: string;
-		name: string;
-	}[];
+	const hierarchyNodes = currentOrg?.hierarchy?.nodes ?? [];
 
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebounce(search, 300);
 	const [tierFilter, setTierFilter] = useState<TierFilter>("all");
-	const [selectedTrainer, setSelectedTrainer] = useState<TrainerRow | null>(null);
+	const [selectedTrainer, setSelectedTrainer] = useState<TrainerRow | null>(
+		null,
+	);
 	const [sheetOpen, setSheetOpen] = useState(false);
 	const [editingTrainer, setEditingTrainer] = useState<TrainerRow | null>(null);
-	const [changeTierTarget, setChangeTierTarget] = useState<TrainerRow | null>(null);
-	const [assignBranchTarget, setAssignBranchTarget] = useState<TrainerRow | null>(null);
+	const [changeTierTarget, setChangeTierTarget] = useState<TrainerRow | null>(
+		null,
+	);
+	const [assignBranchTarget, setAssignBranchTarget] =
+		useState<TrainerRow | null>(null);
 
 	const { trainers, trainerTiers, isLoading, isError, refetch } =
 		useTrainerData(organizationId, debouncedSearch);
@@ -611,7 +738,10 @@ export function TrainersListPage() {
 	const { data: batchStats } = useQuery({
 		queryKey: ["trainerWeeklyStatsBatch", organizationId, memberIds],
 		queryFn: () =>
-			client.trainers.weeklyStatsBatch({ organizationId: organizationId!, memberIds }),
+			client.trainers.weeklyStatsBatch({
+				organizationId: organizationId!,
+				memberIds,
+			}),
 		enabled: !!organizationId && memberIds.length > 0,
 		staleTime: 60_000,
 	});
@@ -661,180 +791,192 @@ export function TrainersListPage() {
 
 	return (
 		<div className="h-full">
-		<Skeleton name="trainers-list" loading={isLoading} fallback={<PageLoader />} className="h-full">
-		<div className="absolute inset-0 flex">
-			{/* ── Left list panel (300px) ── */}
-			<div className="flex w-[300px] shrink-0 flex-col border-r border-[#e5e5e5] bg-white">
-				{/* Search */}
-				<div className="border-b border-[#e5e5e5] px-4 py-3">
-					<div className="flex items-center gap-2 rounded-xl border border-[#e5e5e5] bg-white px-3 py-2">
-						<Search className="h-3.5 w-3.5 text-[#737373] flex-shrink-0" />
-						<input
-							type="text"
-							placeholder="Search…"
-							value={search}
-							onChange={(e) => setSearch(e.target.value)}
-							className="flex-1 bg-transparent text-xs outline-none placeholder:text-[#737373] text-[#0a0a0a]"
-						/>
-					</div>
-				</div>
-
-				{/* Tier filter pills */}
-				<div className="flex flex-wrap items-center gap-1.5 border-b border-[#e5e5e5] px-3 py-2">
-					<button
-						type="button"
-						onClick={() => setTierFilter("all")}
-						className={cn(
-							"rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors",
-							tierFilter === "all"
-								? "bg-[#0a0a0a] text-white"
-								: "border border-[#e5e5e5] bg-white text-[#737373] hover:bg-[#f3f3f3]",
-						)}
-					>
-						All
-					</button>
-					{trainerTiers.map((tier) => (
-						<button
-							key={tier.id}
-							type="button"
-							onClick={() => setTierFilter(tier.id)}
-							className={cn(
-								"rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors",
-								tierFilter === tier.id
-									? "bg-[#0a0a0a] text-white"
-									: "border border-[#e5e5e5] bg-white text-[#737373] hover:bg-[#f3f3f3]",
-							)}
-						>
-							{tier.name}
-						</button>
-					))}
-				</div>
-
-				{/* Trainer list */}
-				<div className="flex-1 overflow-y-auto">
-					{filteredTrainers.length === 0 ? (
-						<div className="flex flex-col items-center justify-center gap-2 p-6 text-center">
-							<Users className="h-8 w-8 text-[#737373] opacity-30" />
-							<p className="text-sm font-medium text-[#0a0a0a]">
-								{debouncedSearch || tierFilter !== "all" ? "No trainers match" : "No trainers yet"}
-							</p>
-							<p className="text-xs text-[#737373]">
-								{debouncedSearch || tierFilter !== "all"
-									? "Try clearing filters or searching a different term."
-									: "Invite a trainer to get started."}
-							</p>
-						</div>
-					) : (
-						filteredTrainers.map((trainer) => {
-							const tier = trainerTiers.find(
-								(t) => t.id === trainer.trainerTierId,
-							);
-							const weekSessions = batchStats?.[trainer.userId]?.sessionsThisWeek;
-							return (
-								<TrainerListRow
-									key={trainer.id}
-									trainer={trainer}
-									tier={tier}
-									weekSessions={weekSessions}
-									isSelected={activeTrainer?.id === trainer.id}
-									onClick={() => setSelectedTrainer(trainer)}
+			<Skeleton
+				name="trainers-list"
+				loading={isLoading}
+				fallback={<PageLoader />}
+				className="h-full"
+			>
+				<div className="absolute inset-0 flex">
+					{/* ── Left list panel (300px) ── */}
+					<div className="flex w-[300px] shrink-0 flex-col border-r border-[#e5e5e5] bg-white">
+						{/* Search */}
+						<div className="border-b border-[#e5e5e5] px-4 py-3">
+							<div className="flex items-center gap-2 rounded-xl border border-[#e5e5e5] bg-white px-3 py-2">
+								<Search className="h-3.5 w-3.5 text-[#737373] flex-shrink-0" />
+								<input
+									type="text"
+									placeholder="Search…"
+									value={search}
+									onChange={(e) => setSearch(e.target.value)}
+									className="flex-1 bg-transparent text-xs outline-none placeholder:text-[#737373] text-[#0a0a0a]"
 								/>
-							);
-						})
+							</div>
+						</div>
+
+						{/* Tier filter pills */}
+						<div className="flex flex-wrap items-center gap-1.5 border-b border-[#e5e5e5] px-3 py-2">
+							<button
+								type="button"
+								onClick={() => setTierFilter("all")}
+								className={cn(
+									"rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors",
+									tierFilter === "all"
+										? "bg-[#0a0a0a] text-white"
+										: "border border-[#e5e5e5] bg-white text-[#737373] hover:bg-[#f3f3f3]",
+								)}
+							>
+								All
+							</button>
+							{trainerTiers.map((tier) => (
+								<button
+									key={tier.id}
+									type="button"
+									onClick={() => setTierFilter(tier.id)}
+									className={cn(
+										"rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors",
+										tierFilter === tier.id
+											? "bg-[#0a0a0a] text-white"
+											: "border border-[#e5e5e5] bg-white text-[#737373] hover:bg-[#f3f3f3]",
+									)}
+								>
+									{tier.name}
+								</button>
+							))}
+						</div>
+
+						{/* Trainer list */}
+						<div className="flex-1 overflow-y-auto">
+							{filteredTrainers.length === 0 ? (
+								<div className="flex flex-col items-center justify-center gap-2 p-6 text-center">
+									<Users className="h-8 w-8 text-[#737373] opacity-30" />
+									<p className="text-sm font-medium text-[#0a0a0a]">
+										{debouncedSearch || tierFilter !== "all"
+											? "No trainers match"
+											: "No trainers yet"}
+									</p>
+									<p className="text-xs text-[#737373]">
+										{debouncedSearch || tierFilter !== "all"
+											? "Try clearing filters or searching a different term."
+											: "Invite a trainer to get started."}
+									</p>
+								</div>
+							) : (
+								filteredTrainers.map((trainer) => {
+									const tier = trainerTiers.find(
+										(t) => t.id === trainer.trainerTierId,
+									);
+									const weekSessions =
+										batchStats?.[trainer.userId]?.sessionsThisWeek;
+									return (
+										<TrainerListRow
+											key={trainer.id}
+											trainer={trainer}
+											tier={tier}
+											weekSessions={weekSessions}
+											isSelected={activeTrainer?.id === trainer.id}
+											onClick={() => setSelectedTrainer(trainer)}
+										/>
+									);
+								})
+							)}
+						</div>
+
+						{/* Invite button */}
+						<div className="border-t border-[#e5e5e5] px-4 py-3">
+							<button
+								type="button"
+								onClick={() => {
+									setEditingTrainer(null);
+									setSheetOpen(true);
+								}}
+								disabled={isAnyPending}
+								className="flex w-full items-center justify-center gap-1.5 rounded-[10px] bg-[#0a0a0a] px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#262626] disabled:opacity-50"
+							>
+								<Plus className="h-3.5 w-3.5" />
+								Invite Trainer
+							</button>
+						</div>
+					</div>
+
+					{/* ── Right detail panel ── */}
+					<div className="flex-1 overflow-y-auto bg-[#f3f3f3]">
+						{activeTrainer ? (
+							<TrainerDetailPanel
+								trainer={activeTrainer}
+								tier={activeTierObj}
+								organizationId={organizationId}
+								hierarchyNodes={hierarchyNodes}
+								onEdit={(t) => {
+									setEditingTrainer(t);
+									setSheetOpen(true);
+								}}
+								onChangeTier={(t) => setChangeTierTarget(t)}
+								onAssignBranch={(t) => setAssignBranchTarget(t)}
+								onSuspend={(id) => suspend.mutate(id)}
+								onReactivate={(id) => reactivate.mutate(id)}
+								isMutating={isAnyPending}
+							/>
+						) : (
+							<div className="flex h-full items-center justify-center">
+								<div className="flex flex-col items-center gap-2 text-[#737373]">
+									<Users className="h-10 w-10 opacity-20" />
+									<p className="text-sm font-medium text-[#0a0a0a]">
+										No trainer selected
+									</p>
+									<p className="text-xs text-[#737373]">
+										Select a trainer from the list to view details
+									</p>
+								</div>
+							</div>
+						)}
+					</div>
+
+					{/* Form dialog */}
+					{sheetOpen && (
+						<TrainerFormDialog
+							key={editingTrainer?.id ?? "create"}
+							open={sheetOpen}
+							onClose={() => setSheetOpen(false)}
+							trainer={editingTrainer}
+							organizationId={organizationId}
+							hierarchyNodes={hierarchyNodes}
+							onSubmit={handleFormSubmit}
+							isMutating={isAnyPending}
+						/>
+					)}
+
+					{/* Change Tier dialog */}
+					{organizationId && changeTierTarget && (
+						<ChangeTierDialog
+							open={!!changeTierTarget}
+							onOpenChange={(open) => {
+								if (!open) setChangeTierTarget(null);
+							}}
+							organizationId={organizationId}
+							memberId={changeTierTarget.id}
+							trainerName={changeTierTarget.name}
+							currentTierId={changeTierTarget.trainerTierId}
+							onSuccess={() => refetch()}
+						/>
+					)}
+
+					{/* Assign Branch dialog */}
+					{organizationId && assignBranchTarget && (
+						<AssignBranchDialog
+							open={!!assignBranchTarget}
+							onOpenChange={(open) => {
+								if (!open) setAssignBranchTarget(null);
+							}}
+							organizationId={organizationId}
+							memberId={assignBranchTarget.id}
+							trainerName={assignBranchTarget.name}
+							currentBranchId={assignBranchTarget.hierarchyScopeId}
+							onSuccess={() => refetch()}
+						/>
 					)}
 				</div>
-
-				{/* Invite button */}
-				<div className="border-t border-[#e5e5e5] px-4 py-3">
-					<button
-						type="button"
-						onClick={() => {
-							setEditingTrainer(null);
-							setSheetOpen(true);
-						}}
-						disabled={isAnyPending}
-						className="flex w-full items-center justify-center gap-1.5 rounded-[10px] bg-[#0a0a0a] px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#262626] disabled:opacity-50"
-					>
-						<Plus className="h-3.5 w-3.5" />
-						Invite Trainer
-					</button>
-				</div>
-			</div>
-
-			{/* ── Right detail panel ── */}
-			<div className="flex-1 overflow-y-auto bg-[#f3f3f3]">
-				{activeTrainer ? (
-					<TrainerDetailPanel
-						trainer={activeTrainer}
-						tier={activeTierObj}
-						organizationId={organizationId}
-						hierarchyNodes={hierarchyNodes as any}
-						onEdit={(t) => {
-							setEditingTrainer(t);
-							setSheetOpen(true);
-						}}
-						onChangeTier={(t) => setChangeTierTarget(t)}
-						onAssignBranch={(t) => setAssignBranchTarget(t)}
-						onSuspend={(id) => suspend.mutate(id)}
-						onReactivate={(id) => reactivate.mutate(id)}
-						isMutating={isAnyPending}
-					/>
-				) : (
-					<div className="flex h-full items-center justify-center">
-						<div className="flex flex-col items-center gap-2 text-[#737373]">
-							<Users className="h-10 w-10 opacity-20" />
-							<p className="text-sm font-medium text-[#0a0a0a]">No trainer selected</p>
-							<p className="text-xs text-[#737373]">Select a trainer from the list to view details</p>
-						</div>
-					</div>
-				)}
-			</div>
-
-			{/* Form dialog */}
-			{sheetOpen && (
-				<TrainerFormDialog
-					key={editingTrainer?.id ?? "create"}
-					open={sheetOpen}
-					onClose={() => setSheetOpen(false)}
-					trainer={editingTrainer}
-					organizationId={organizationId}
-					hierarchyNodes={hierarchyNodes as any}
-					onSubmit={handleFormSubmit}
-					isMutating={isAnyPending}
-				/>
-			)}
-
-			{/* Change Tier dialog */}
-			{organizationId && changeTierTarget && (
-				<ChangeTierDialog
-					open={!!changeTierTarget}
-					onOpenChange={(open) => {
-						if (!open) setChangeTierTarget(null);
-					}}
-					organizationId={organizationId}
-					memberId={changeTierTarget.id}
-					trainerName={changeTierTarget.name}
-					currentTierId={changeTierTarget.trainerTierId}
-					onSuccess={() => refetch()}
-				/>
-			)}
-
-			{/* Assign Branch dialog */}
-			{organizationId && assignBranchTarget && (
-				<AssignBranchDialog
-					open={!!assignBranchTarget}
-					onOpenChange={(open) => {
-						if (!open) setAssignBranchTarget(null);
-					}}
-					organizationId={organizationId}
-					memberId={assignBranchTarget.id}
-					trainerName={assignBranchTarget.name}
-					currentBranchId={assignBranchTarget.hierarchyScopeId}
-					onSuccess={() => refetch()}
-				/>
-			)}
-		</div>
-		</Skeleton>
+			</Skeleton>
 		</div>
 	);
 }

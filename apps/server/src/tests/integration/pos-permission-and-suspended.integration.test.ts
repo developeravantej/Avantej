@@ -87,9 +87,7 @@ afterAll(async () => {
 
 	// Clean up all test members inserted
 	if (createdMemberIds.length > 0) {
-		await tenantDb
-			.delete(members)
-			.where(inArray(members.id, createdMemberIds));
+		await tenantDb.delete(members).where(inArray(members.id, createdMemberIds));
 	}
 });
 
@@ -101,7 +99,8 @@ async function getAdminMember() {
 	const member = await tenantDb.query.members.findFirst({
 		where: eq(members.userId, ADMIN_TEST_USER_ID),
 	});
-	if (!member) throw new Error("Admin test member not found — check beforeAll insert");
+	if (!member)
+		throw new Error("Admin test member not found — check beforeAll insert");
 	return member;
 }
 
@@ -178,22 +177,19 @@ describe("POS Permission Guard", () => {
 	 * A full end-to-end test of this path requires a running Hono server with
 	 * orpc-tenant.middleware wired in — that is covered by E2E / smoke tests.
 	 */
-	test.skip(
-		"TC-PG-003: suspended org → HTTP middleware returns 403 (HTTP-layer only — skip at service level)",
-		async () => {
-			// This guard is in orpc-tenant.middleware.ts:
-			//
-			//   if (org?.paymentStatus === "suspended" || org?.paymentStatus === "cancelled") {
-			//     return c.json({ error: `Tenant is ${org.paymentStatus}`, paymentStatus: org.paymentStatus }, 403);
-			//   }
-			//
-			// It runs before the oRPC handler, so requirePermissionOrpc is never reached.
-			// To test this, spin up the full Hono app (apps/server bun dev) and send an
-			// authenticated oRPC request while the org's paymentStatus = "suspended".
-			// The middleware returns { error: "Tenant is suspended", paymentStatus: "suspended" }
-			// with HTTP status 403 — no service-layer assertion is needed here.
-		},
-	);
+	test.skip("TC-PG-003: suspended org → HTTP middleware returns 403 (HTTP-layer only — skip at service level)", async () => {
+		// This guard is in orpc-tenant.middleware.ts:
+		//
+		//   if (org?.paymentStatus === "suspended" || org?.paymentStatus === "cancelled") {
+		//     return c.json({ error: `Tenant is ${org.paymentStatus}`, paymentStatus: org.paymentStatus }, 403);
+		//   }
+		//
+		// It runs before the oRPC handler, so requirePermissionOrpc is never reached.
+		// To test this, spin up the full Hono app (apps/server bun dev) and send an
+		// authenticated oRPC request while the org's paymentStatus = "suspended".
+		// The middleware returns { error: "Tenant is suspended", paymentStatus: "suspended" }
+		// with HTTP status 403 — no service-layer assertion is needed here.
+	});
 
 	/**
 	 * TC-PG-004: past-due org → reads are still allowed; writes are blocked (SAAS_PAST_DUE_READONLY).

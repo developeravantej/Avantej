@@ -51,7 +51,10 @@ describe("resolveMemberIdFromUserId", () => {
 
 		const mockDb = buildMockDb([{ id: MEMBER_TENANT_ID }]);
 
-		const result = await resolveMemberIdFromUserId(mockDb, CONTROL_PANEL_USER_ID);
+		const result = await resolveMemberIdFromUserId(
+			mockDb,
+			CONTROL_PANEL_USER_ID,
+		);
 
 		expect(result).toBe(MEMBER_TENANT_ID);
 	});

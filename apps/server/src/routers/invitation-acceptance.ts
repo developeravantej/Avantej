@@ -31,10 +31,15 @@ export function validateAcceptanceInput(
 	signupEmail: string,
 ): AcceptanceValidationResult {
 	if (!invitation) return { ok: false, error: "invalid-token" };
-	if (invitation.status === "accepted") return { ok: false, error: "already-accepted" };
+	if (invitation.status === "accepted")
+		return { ok: false, error: "already-accepted" };
 	if (invitation.status === "declined") return { ok: false, error: "declined" };
-	if (invitation.expiresAt.getTime() < Date.now()) return { ok: false, error: "expired" };
-	if (invitation.email && invitation.email.toLowerCase() !== signupEmail.toLowerCase()) {
+	if (invitation.expiresAt.getTime() < Date.now())
+		return { ok: false, error: "expired" };
+	if (
+		invitation.email &&
+		invitation.email.toLowerCase() !== signupEmail.toLowerCase()
+	) {
 		return { ok: false, error: "email-mismatch" };
 	}
 	return { ok: true };

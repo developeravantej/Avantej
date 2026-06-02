@@ -1,12 +1,11 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { rmToCents } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import {
 	Select,
 	SelectContent,
@@ -47,7 +46,12 @@ export type RecordInvoiceDialogProps = {
 };
 
 // react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
-export function RecordInvoiceDialog({ poId, organizationId, onClose, onCreated }: RecordInvoiceDialogProps) {
+export function RecordInvoiceDialog({
+	poId,
+	organizationId,
+	onClose,
+	onCreated,
+}: RecordInvoiceDialogProps) {
 	const [invoiceNumber, setInvoiceNumber] = useState("");
 	const [goodsReceiptId, setGoodsReceiptId] = useState("");
 	const [totalRM, setTotalRM] = useState("");
@@ -57,32 +61,33 @@ export function RecordInvoiceDialog({ poId, organizationId, onClose, onCreated }
 	const qc = useQueryClient();
 
 	const { data: detail, isLoading: detailLoading } = useQuery({
-		queryKey: ["purchaseOrders", organizationId, poId],
-		queryFn: async () => {
-			if (!poId || !organizationId) return null;
-			return client.purchaseOrders.getById({ organizationId, id: poId });
-		},
+		...orpc.purchaseOrders.getById.queryOptions({
+			input: { organizationId, id: poId ?? "" },
+		}),
 		enabled: !!poId && !!organizationId,
 	});
 
 	const { data: receipts = [] } = useQuery({
-		queryKey: ["goodsReceiptsForPo", organizationId, poId],
-		queryFn: async () => {
-			if (!poId || !organizationId) return [];
-			return client.goodsReceipts.listForPo({ organizationId, purchaseOrderId: poId });
-		},
+		...orpc.goodsReceipts.listForPo.queryOptions({
+			input: { organizationId, purchaseOrderId: poId ?? "" },
+		}),
 		enabled: !!poId && !!organizationId,
 	});
 
 	const postedReceipts = receipts.filter((r: any) => r.status === "posted");
 
 	const createMutation = useApiMutation({
-		mutationFn: (input: Parameters<typeof client.goodsReceipts.createInvoice>[0]) =>
-			client.goodsReceipts.createInvoice(input),
+		mutationFn: (
+			input: Parameters<typeof client.goodsReceipts.createInvoice>[0],
+		) => client.goodsReceipts.createInvoice(input),
 		successMessage: "Invoice recorded successfully.",
 		errorMessage: (err) => `Failed to record invoice: ${err.message}`,
 		onSuccess: () => {
-			qc.invalidateQueries({ queryKey: ["supplierInvoices", organizationId] });
+			qc.invalidateQueries(
+				orpc.goodsReceipts.listInvoices.queryOptions({
+					input: { organizationId },
+				}),
+			);
 			onCreated();
 			handleClose();
 		},
@@ -100,10 +105,19 @@ export function RecordInvoiceDialog({ poId, organizationId, onClose, onCreated }
 
 	function handleSubmit() {
 		if (!poId || !detail?.order) return;
-		if (!invoiceNumber.trim()) { toast.error("Invoice number is required."); return; }
+		if (!invoiceNumber.trim()) {
+			toast.error("Invoice number is required.");
+			return;
+		}
 		const total = parseFloat(totalRM);
-		if (!totalRM || Number.isNaN(total) || total <= 0) { toast.error("Invoice total must be greater than 0."); return; }
-		if (!invoiceDate) { toast.error("Invoice date is required."); return; }
+		if (!totalRM || Number.isNaN(total) || total <= 0) {
+			toast.error("Invoice total must be greater than 0.");
+			return;
+		}
+		if (!invoiceDate) {
+			toast.error("Invoice date is required.");
+			return;
+		}
 
 		createMutation.mutate({
 			organizationId,
@@ -112,25 +126,41 @@ export function RecordInvoiceDialog({ poId, organizationId, onClose, onCreated }
 			purchaseOrderId: poId,
 			goodsReceiptId: goodsReceiptId || undefined,
 			totalCents: rmToCents(total),
-			taxCents: taxRM && !Number.isNaN(parseFloat(taxRM)) ? rmToCents(parseFloat(taxRM)) : undefined,
+			taxCents:
+				taxRM && !Number.isNaN(parseFloat(taxRM))
+					? rmToCents(parseFloat(taxRM))
+					: undefined,
 			invoiceDate: new Date(invoiceDate).toISOString(),
 			dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
 		});
 	}
 
 	return (
-		<Dialog open={!!poId} onOpenChange={(open) => { if (!open) handleClose(); }}>
-			<DialogContent className="sm:max-w-lg overflow-y-auto">
-				<DialogHeader>
-					<DialogTitle>Record Supplier Invoice</DialogTitle>
-					<DialogDescription>
+		<Dialog
+			open={!!poId}
+			onOpenChange={(open) => {
+				if (!open) handleClose();
+			}}
+		>
+			<DialogContent
+				className="sm:max-w-lg p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						PURCHASE ORDERS
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Record Supplier Invoice
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
 						{detail?.order
 							? `Record an invoice against PO ${detail.order.purchaseOrderNumber}.`
 							: "Loading purchase order…"}
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="mt-4 space-y-4">
+				<div className="px-6 pt-4 pb-2 overflow-y-auto space-y-4">
 					{detailLoading && (
 						<div className="flex items-center justify-center py-8">
 							<LoadingSpinner size="md" />
@@ -152,7 +182,10 @@ export function RecordInvoiceDialog({ poId, organizationId, onClose, onCreated }
 							{postedReceipts.length > 0 && (
 								<div className="space-y-1.5">
 									<Label htmlFor="inv-receipt">Goods Receipt (optional)</Label>
-									<Select value={goodsReceiptId} onValueChange={setGoodsReceiptId}>
+									<Select
+										value={goodsReceiptId}
+										onValueChange={setGoodsReceiptId}
+									>
 										<SelectTrigger id="inv-receipt">
 											<SelectValue placeholder="Select posted receipt…" />
 										</SelectTrigger>
@@ -215,19 +248,25 @@ export function RecordInvoiceDialog({ poId, organizationId, onClose, onCreated }
 									/>
 								</div>
 							</div>
-
-							<Separator />
-
-							<div className="flex gap-2 justify-end">
-								<Button variant="outline" onClick={handleClose} disabled={createMutation.isPending}>
-									Cancel
-								</Button>
-								<Button onClick={handleSubmit} disabled={createMutation.isPending}>
-									{createMutation.isPending ? "Saving…" : "Save Invoice"}
-								</Button>
-							</div>
 						</>
 					)}
+				</div>
+
+				<div className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+					<Button
+						variant="outline"
+						onClick={handleClose}
+						disabled={createMutation.isPending}
+					>
+						Cancel
+					</Button>
+					<Button
+						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+						onClick={handleSubmit}
+						disabled={createMutation.isPending}
+					>
+						{createMutation.isPending ? "Saving…" : "Save Invoice"}
+					</Button>
 				</div>
 			</DialogContent>
 		</Dialog>

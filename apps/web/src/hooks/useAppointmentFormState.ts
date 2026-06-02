@@ -4,12 +4,21 @@
  */
 import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { orpc, client } from "@/utils/orpc";
+import { orpc } from "@/utils/orpc";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useAuth } from "@/hooks/useAuth";
-import { useAppointmentFormData, type ServiceListItem } from "@/hooks/useAppointmentFormData";
-import { validateAppointmentSlot, validateTimeConflicts } from "@/lib/appointment-scheduler";
-import type { TestAppointmentData, TestAppointmentSlot } from "@/components/calendar/appointment-form/test-appointment.types";
+import {
+	useAppointmentFormData,
+	type ServiceListItem,
+} from "@/hooks/useAppointmentFormData";
+import {
+	validateAppointmentSlot,
+	validateTimeConflicts,
+} from "@/lib/appointment-scheduler";
+import type {
+	TestAppointmentData,
+	TestAppointmentSlot,
+} from "@/components/calendar/appointment-form/test-appointment.types";
 import { toast } from "sonner";
 import type {
 	TeamMember,
@@ -50,7 +59,9 @@ function defaultRecurrence() {
 		repeatOn: [] as string[],
 		monthlyType: "day",
 		endsType: "never",
-		endsDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+		endsDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+			.toISOString()
+			.split("T")[0],
 		endsOccurrences: 13,
 	};
 }
@@ -112,12 +123,21 @@ export function useAppointmentFormState({
 	const [isServiceDialogOpen, setIsServiceDialogOpen] = React.useState(false);
 	const [isMultiAppointment, setIsMultiAppointment] = React.useState(false);
 	const [isBlockedTiming, setIsBlockedTiming] = React.useState(false);
-	const [appointmentSlots, setAppointmentSlots] = React.useState<AppointmentSlot[]>([]);
-	const [selectedAppointmentId, setSelectedAppointmentId] = React.useState<string | null>(null);
+	const [appointmentSlots, setAppointmentSlots] = React.useState<
+		AppointmentSlot[]
+	>([]);
+	const [selectedAppointmentId, setSelectedAppointmentId] = React.useState<
+		string | null
+	>(null);
 	const [isTestDialogOpen, setIsTestDialogOpen] = React.useState(false);
-	const [testAppointmentData, setTestAppointmentData] = React.useState<TestAppointmentData | null>(null);
-	const [selectedClassSlotId, setSelectedClassSlotId] = React.useState<string | null>(null);
-	const [additionalSlotTrainers, setAdditionalSlotTrainers] = React.useState<string[]>([]);
+	const [testAppointmentData, setTestAppointmentData] =
+		React.useState<TestAppointmentData | null>(null);
+	const [selectedClassSlotId, setSelectedClassSlotId] = React.useState<
+		string | null
+	>(null);
+	const [additionalSlotTrainers, setAdditionalSlotTrainers] = React.useState<
+		string[]
+	>([]);
 
 	const [newAppointment, setNewAppointment] = React.useState<NewAppointment>({
 		clientId: "",
@@ -150,7 +170,12 @@ export function useAppointmentFormState({
 
 	React.useEffect(() => {
 		if (defaultTrainerId) return;
-		if (user?.id && Array.isArray(teamMembers) && teamMembers.length && newAppointment.assignedTo === "none") {
+		if (
+			user?.id &&
+			Array.isArray(teamMembers) &&
+			teamMembers.length &&
+			newAppointment.assignedTo === "none"
+		) {
 			const selfMember = teamMembers.find((m) => m.id === user.id);
 			if (selfMember) {
 				setNewAppointment((prev) => ({ ...prev, assignedTo: selfMember.id }));
@@ -164,19 +189,31 @@ export function useAppointmentFormState({
 
 	const selectedClientUserId = useMemo(() => {
 		if (!newAppointment.clientId) return null;
-		const member = (clientMembers as MemberListItem[]).find((m) => m.id === newAppointment.clientId);
+		const member = (clientMembers as MemberListItem[]).find(
+			(m) => m.id === newAppointment.clientId,
+		);
 		return member?.userId ?? null;
 	}, [newAppointment.clientId, clientMembers]);
 
-	const { data: clientPackageInstances = [], isLoading: isLoadingPackages } = useQuery({
-		...orpc.packageInstances.listAll.queryOptions({
-			input: { organizationId, clientId: selectedClientUserId ?? "", status: "active" },
-		}),
-		enabled: !!organizationId && !!selectedClientUserId,
-	});
+	const { data: clientPackageInstances = [], isLoading: isLoadingPackages } =
+		useQuery({
+			...orpc.packageInstances.listAll.queryOptions({
+				input: {
+					organizationId,
+					clientId: selectedClientUserId ?? "",
+					status: "active",
+				},
+			}),
+			enabled: !!organizationId && !!selectedClientUserId,
+		});
 
 	const purchasedServiceIds = useMemo(
-		() => new Set((clientPackageInstances as PackageInstanceItem[]).map((p) => p.serviceId)),
+		() =>
+			new Set(
+				(clientPackageInstances as PackageInstanceItem[]).map(
+					(p) => p.serviceId,
+				),
+			),
 		[clientPackageInstances],
 	);
 
@@ -191,7 +228,9 @@ export function useAppointmentFormState({
 	const selectedServiceCategoryId = useMemo(() => {
 		if (!newAppointment.selectedServices.length) return null;
 		const firstServiceId = newAppointment.selectedServices[0];
-		const rawSvc = (servicesData as ServiceListItem[]).find((s) => s.id === firstServiceId);
+		const rawSvc = (servicesData as ServiceListItem[]).find(
+			(s) => s.id === firstServiceId,
+		);
 		return rawSvc?.categoryId ?? null;
 	}, [newAppointment.selectedServices, servicesData]);
 
@@ -207,7 +246,9 @@ export function useAppointmentFormState({
 
 	const qualifiedTrainerIds = useMemo<Set<string>>(() => {
 		if (!serviceTrainers) return new Set();
-		return new Set(serviceTrainers.map((t: { memberId: string }) => t.memberId));
+		return new Set(
+			serviceTrainers.map((t: { memberId: string }) => t.memberId),
+		);
 	}, [serviceTrainers]);
 
 	// Clear employeeId when selected service changes and the current trainer is not qualified
@@ -217,9 +258,15 @@ export function useAppointmentFormState({
 		if (!qualifiedTrainerIds.has(newAppointment.employeeId)) {
 			setNewAppointment((prev) => ({ ...prev, employeeId: "" }));
 		}
-	}, [firstServiceId, serviceTrainers, qualifiedTrainerIds, newAppointment.employeeId]);
+	}, [
+		firstServiceId,
+		serviceTrainers,
+		qualifiedTrainerIds,
+		newAppointment.employeeId,
+	]);
 
-	const hasServiceTrainers = !!firstServiceId && !!serviceTrainers && serviceTrainers.length > 0;
+	const hasServiceTrainers =
+		!!firstServiceId && !!serviceTrainers && serviceTrainers.length > 0;
 
 	const derivedTrainers = useMemo(() => {
 		if (!hasServiceTrainers) return trainers;
@@ -227,16 +274,17 @@ export function useAppointmentFormState({
 		return filtered.length > 0 ? filtered : trainers;
 	}, [trainers, hasServiceTrainers, qualifiedTrainerIds]);
 
-	const trainerFilterActive = hasServiceTrainers && derivedTrainers.length < trainers.length;
-	const trainerFilterFallback = hasServiceTrainers && derivedTrainers.length === trainers.length && trainers.filter((t) => qualifiedTrainerIds.has(t.id)).length === 0;
+	const trainerFilterActive =
+		hasServiceTrainers && derivedTrainers.length < trainers.length;
+	const trainerFilterFallback =
+		hasServiceTrainers &&
+		derivedTrainers.length === trainers.length &&
+		trainers.filter((t) => qualifiedTrainerIds.has(t.id)).length === 0;
 
 	const { data: commissionConfig } = useQuery({
-		queryKey: ["categoryCommission", selectedServiceCategoryId, organizationId],
-		queryFn: () =>
-			client.categoryCommission.getByCategory({
-				organizationId,
-				categoryId: selectedServiceCategoryId!,
-			}),
+		...orpc.categoryCommission.getByCategory.queryOptions({
+			input: { organizationId, categoryId: selectedServiceCategoryId! },
+		}),
 		enabled: !!selectedServiceCategoryId && !!organizationId,
 		staleTime: 60_000,
 	});
@@ -284,7 +332,9 @@ export function useAppointmentFormState({
 
 	const handleClientChange = (clientId: string) => {
 		setNewAppointment((prev) => ({ ...prev, clientId, selectedServices: [] }));
-		setAppointmentSlots((prev) => prev.map((slot) => ({ ...slot, selectedServices: [] })));
+		setAppointmentSlots((prev) =>
+			prev.map((slot) => ({ ...slot, selectedServices: [] })),
+		);
 		setAdditionalSlotTrainers([]);
 	};
 
@@ -300,20 +350,31 @@ export function useAppointmentFormState({
 				const svc = services.find((s) => s.id === id);
 				return total + (svc?.durationMinutes ?? 0);
 			}, 0);
-			return { ...prev, selectedServices: newSelectedServices, duration: totalDuration };
+			return {
+				...prev,
+				selectedServices: newSelectedServices,
+				duration: totalDuration,
+			};
 		});
 	};
 
 	const removeService = (serviceId: string) => {
 		const removedSvc = services.find((s) => s.id === serviceId);
-		if (removedSvc?.schedulingType === "class_slot") setSelectedClassSlotId(null);
+		if (removedSvc?.schedulingType === "class_slot")
+			setSelectedClassSlotId(null);
 		setNewAppointment((prev) => {
-			const newSelectedServices = prev.selectedServices.filter((id) => id !== serviceId);
+			const newSelectedServices = prev.selectedServices.filter(
+				(id) => id !== serviceId,
+			);
 			const totalDuration = newSelectedServices.reduce((total, id) => {
 				const svc = services.find((s) => s.id === id);
 				return total + (svc?.durationMinutes ?? 0);
 			}, 0);
-			return { ...prev, selectedServices: newSelectedServices, duration: totalDuration };
+			return {
+				...prev,
+				selectedServices: newSelectedServices,
+				duration: totalDuration,
+			};
 		});
 	};
 
@@ -384,18 +445,27 @@ export function useAppointmentFormState({
 		setSelectedAppointmentId(slotId);
 	};
 
-	const updateAppointmentSlot = (slotId: string, field: string, value: unknown) => {
+	const updateAppointmentSlot = (
+		slotId: string,
+		field: string,
+		value: unknown,
+	) => {
 		setAppointmentSlots((prev) =>
 			prev.map((slot) => {
 				if (slot.id !== slotId) return slot;
 				const updatedSlot = { ...slot, [field]: value };
 				if (field === "startTime" || field === "duration") {
-					const startTime = field === "startTime" ? (value as string) : slot.startTime;
-					const duration = field === "duration" ? (value as number) : slot.duration;
+					const startTime =
+						field === "startTime" ? (value as string) : slot.startTime;
+					const duration =
+						field === "duration" ? (value as number) : slot.duration;
 					if (startTime && duration > 0) {
 						const [sh, sm] = startTime.split(":").map(Number);
 						const endTotal = sh * 60 + sm + duration;
-						updatedSlot.endTime = `${Math.floor(endTotal / 60) % 24}`.padStart(2, "0") + ":" + `${endTotal % 60}`.padStart(2, "0");
+						updatedSlot.endTime =
+							`${Math.floor(endTotal / 60) % 24}`.padStart(2, "0") +
+							":" +
+							`${endTotal % 60}`.padStart(2, "0");
 					} else {
 						updatedSlot.endTime = undefined;
 					}
@@ -411,11 +481,23 @@ export function useAppointmentFormState({
 				if (slot.id !== slotId) return slot;
 				if (slot.selectedServices.includes(serviceId)) return slot;
 				const newSvcs = [...slot.selectedServices, serviceId];
-				const totalDuration = newSvcs.reduce((t, id) => t + (services.find((s) => s.id === id)?.durationMinutes ?? 0), 0);
+				const totalDuration = newSvcs.reduce(
+					(t, id) =>
+						t + (services.find((s) => s.id === id)?.durationMinutes ?? 0),
+					0,
+				);
 				const [sh, sm] = slot.startTime.split(":").map(Number);
 				const endTotal = sh * 60 + sm + totalDuration;
-				const endTime = `${Math.floor(endTotal / 60) % 24}`.padStart(2, "0") + ":" + `${endTotal % 60}`.padStart(2, "0");
-				return { ...slot, selectedServices: newSvcs, duration: totalDuration, endTime };
+				const endTime =
+					`${Math.floor(endTotal / 60) % 24}`.padStart(2, "0") +
+					":" +
+					`${endTotal % 60}`.padStart(2, "0");
+				return {
+					...slot,
+					selectedServices: newSvcs,
+					duration: totalDuration,
+					endTime,
+				};
 			}),
 		);
 	};
@@ -425,13 +507,25 @@ export function useAppointmentFormState({
 			prev.map((slot) => {
 				if (slot.id !== slotId) return slot;
 				const newSvcs = slot.selectedServices.filter((id) => id !== serviceId);
-				const totalDuration = newSvcs.reduce((t, id) => t + (services.find((s) => s.id === id)?.durationMinutes ?? 0), 0);
+				const totalDuration = newSvcs.reduce(
+					(t, id) =>
+						t + (services.find((s) => s.id === id)?.durationMinutes ?? 0),
+					0,
+				);
 				const [sh, sm] = slot.startTime.split(":").map(Number);
 				const endTotal = sh * 60 + sm + totalDuration;
-				const endTime = totalDuration > 0
-					? `${Math.floor(endTotal / 60) % 24}`.padStart(2, "0") + ":" + `${endTotal % 60}`.padStart(2, "0")
-					: undefined;
-				return { ...slot, selectedServices: newSvcs, duration: totalDuration, endTime };
+				const endTime =
+					totalDuration > 0
+						? `${Math.floor(endTotal / 60) % 24}`.padStart(2, "0") +
+							":" +
+							`${endTotal % 60}`.padStart(2, "0")
+						: undefined;
+				return {
+					...slot,
+					selectedServices: newSvcs,
+					duration: totalDuration,
+					endTime,
+				};
 			}),
 		);
 	};
@@ -456,7 +550,8 @@ export function useAppointmentFormState({
 		};
 		setNewAppointment(baseAppointment);
 		if (next) {
-			const baseDate = selectedDate || new Date(Date.now() + 24 * 60 * 60 * 1000);
+			const baseDate =
+				selectedDate || new Date(Date.now() + 24 * 60 * 60 * 1000);
 			const newSlot: AppointmentSlot = {
 				id: `slot-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
 				selectedServices: [],
@@ -574,47 +669,89 @@ export function useAppointmentFormState({
 
 	const handleSubmit = () => {
 		if (isBlockedTiming) {
-			if (!newAppointment.startDate || !newAppointment.startTime || newAppointment.duration === 0) {
-				toast.error("Please fill in date, time, and duration for blocked timing");
+			if (
+				!newAppointment.startDate ||
+				!newAppointment.startTime ||
+				newAppointment.duration === 0
+			) {
+				toast.error(
+					"Please fill in date, time, and duration for blocked timing",
+				);
 				return;
 			}
 			if (newAppointment.recurrence === "custom") {
-				if (!newAppointment.customRecurrence?.frequency || newAppointment.customRecurrence.frequency < 1) {
+				if (
+					!newAppointment.customRecurrence?.frequency ||
+					newAppointment.customRecurrence.frequency < 1
+				) {
 					toast.error("Please enter a valid frequency for custom recurrence");
 					return;
 				}
-				if (newAppointment.customRecurrence.timeUnit === "week" && newAppointment.customRecurrence.repeatOn.length === 0) {
-					toast.error("Please select at least one day for weekly custom recurrence");
+				if (
+					newAppointment.customRecurrence.timeUnit === "week" &&
+					newAppointment.customRecurrence.repeatOn.length === 0
+				) {
+					toast.error(
+						"Please select at least one day for weekly custom recurrence",
+					);
 					return;
 				}
-				if (newAppointment.customRecurrence.endsType === "on" && !newAppointment.customRecurrence.endsDate) {
+				if (
+					newAppointment.customRecurrence.endsType === "on" &&
+					!newAppointment.customRecurrence.endsDate
+				) {
 					toast.error("Please select an end date for the recurrence");
 					return;
 				}
-				if (newAppointment.customRecurrence.endsType === "after" && (!newAppointment.customRecurrence.endsOccurrences || newAppointment.customRecurrence.endsOccurrences < 1)) {
+				if (
+					newAppointment.customRecurrence.endsType === "after" &&
+					(!newAppointment.customRecurrence.endsOccurrences ||
+						newAppointment.customRecurrence.endsOccurrences < 1)
+				) {
 					toast.error("Please enter a valid number of occurrences");
 					return;
 				}
 			}
-			const startDateTime = new Date(`${newAppointment.startDate}T${newAppointment.startTime}`);
+			const startDateTime = new Date(
+				`${newAppointment.startDate}T${newAppointment.startTime}`,
+			);
 			const endDateTime = new Date(startDateTime);
-			endDateTime.setMinutes(endDateTime.getMinutes() + newAppointment.duration);
+			endDateTime.setMinutes(
+				endDateTime.getMinutes() + newAppointment.duration,
+			);
 			const appointment = {
 				title: "BLOCKED TIME",
-				client: { id: "blocked", name: "Blocked Time", email: "", phone: "", creditPoints: 0 },
+				client: {
+					id: "blocked",
+					name: "Blocked Time",
+					email: "",
+					phone: "",
+					creditPoints: 0,
+				},
 				service: "Blocked Time",
 				location: undefined,
 				remarks: newAppointment.remarks || undefined,
 				start: startDateTime,
 				end: endDateTime,
 				duration: newAppointment.duration,
-				assignedTo: newAppointment.employeeId ? teamMembers.find((m) => m.id === newAppointment.employeeId) : undefined,
+				assignedTo: newAppointment.employeeId
+					? teamMembers.find((m) => m.id === newAppointment.employeeId)
+					: undefined,
 				tags: [],
 				recurrence: newAppointment.recurrence,
-				customRecurrence: newAppointment.recurrence === "custom" ? newAppointment.customRecurrence : undefined,
+				customRecurrence:
+					newAppointment.recurrence === "custom"
+						? newAppointment.customRecurrence
+						: undefined,
 				endsType: newAppointment.customRecurrence?.endsType ?? "never",
-				endsDate: newAppointment.customRecurrence?.endsType === "on" ? newAppointment.customRecurrence?.endsDate : undefined,
-				endsOccurrences: newAppointment.customRecurrence?.endsType === "after" ? newAppointment.customRecurrence?.endsOccurrences : undefined,
+				endsDate:
+					newAppointment.customRecurrence?.endsType === "on"
+						? newAppointment.customRecurrence?.endsDate
+						: undefined,
+				endsOccurrences:
+					newAppointment.customRecurrence?.endsType === "after"
+						? newAppointment.customRecurrence?.endsOccurrences
+						: undefined,
 			};
 			setTestAppointmentData({
 				type: "BLOCKED TIMING",
@@ -647,30 +784,48 @@ export function useAppointmentFormState({
 				toast.error(`Please fix the following issues: ${allErrors.join("; ")}`);
 				return;
 			}
-			const allAppointments = appointmentSlots.map((slot) => {
-				const selectedClient = clients.find((c) => c.id === newAppointment.clientId);
-				if (!selectedClient) return null;
-				const selectedServices = slot.selectedServices
-					.map((serviceId) => services.find((svc) => svc.id === serviceId))
-					.filter(Boolean) as Service[];
-				const startDateTime = new Date(`${slot.startDate}T${slot.startTime}`);
-				const endDateTime = new Date(`${slot.startDate}T${slot.endTime || slot.startTime}`);
-				return {
-					title: `${selectedServices.map((s) => s.name).join(", ")} - ${selectedClient.name} (${slot.title})`,
-					client: selectedClient,
-					service: selectedServices.map((s) => s.name).join(", "),
-					remarks: slot.remarks || undefined,
-					start: startDateTime,
-					end: endDateTime,
-					duration: slot.duration,
-					assignedTo: slot.assignedTo === "none" ? undefined : teamMembers.find((m) => m.id === slot.assignedTo),
-					recurrence: slot.recurrence,
-					customRecurrence: slot.recurrence === "custom" ? slot.customRecurrence : undefined,
-					endsType: slot.customRecurrence?.endsType ?? "never",
-					endsDate: slot.customRecurrence?.endsType === "on" ? slot.customRecurrence?.endsDate : undefined,
-					endsOccurrences: slot.customRecurrence?.endsType === "after" ? slot.customRecurrence?.endsOccurrences : undefined,
-				};
-			}).filter((s): s is NonNullable<typeof s> => s !== null) as unknown as TestAppointmentSlot[];
+			const allAppointments = appointmentSlots
+				.map((slot) => {
+					const selectedClient = clients.find(
+						(c) => c.id === newAppointment.clientId,
+					);
+					if (!selectedClient) return null;
+					const selectedServices = slot.selectedServices
+						.map((serviceId) => services.find((svc) => svc.id === serviceId))
+						.filter(Boolean) as Service[];
+					const startDateTime = new Date(`${slot.startDate}T${slot.startTime}`);
+					const endDateTime = new Date(
+						`${slot.startDate}T${slot.endTime || slot.startTime}`,
+					);
+					return {
+						title: `${selectedServices.map((s) => s.name).join(", ")} - ${selectedClient.name} (${slot.title})`,
+						client: selectedClient,
+						service: selectedServices.map((s) => s.name).join(", "),
+						remarks: slot.remarks || undefined,
+						start: startDateTime,
+						end: endDateTime,
+						duration: slot.duration,
+						assignedTo:
+							slot.assignedTo === "none"
+								? undefined
+								: teamMembers.find((m) => m.id === slot.assignedTo),
+						recurrence: slot.recurrence,
+						customRecurrence:
+							slot.recurrence === "custom" ? slot.customRecurrence : undefined,
+						endsType: slot.customRecurrence?.endsType ?? "never",
+						endsDate:
+							slot.customRecurrence?.endsType === "on"
+								? slot.customRecurrence?.endsDate
+								: undefined,
+						endsOccurrences:
+							slot.customRecurrence?.endsType === "after"
+								? slot.customRecurrence?.endsOccurrences
+								: undefined,
+					};
+				})
+				.filter(
+					(s): s is NonNullable<typeof s> => s !== null,
+				) as unknown as TestAppointmentSlot[];
 			setTestAppointmentData({
 				type: "MULTIPLE APPOINTMENTS",
 				appointments: allAppointments,
@@ -685,7 +840,11 @@ export function useAppointmentFormState({
 			toast.error("Please select a customer");
 			return;
 		}
-		if (!isBlockedTiming && !isMultiAppointment && newAppointment.selectedServices.length === 0) {
+		if (
+			!isBlockedTiming &&
+			!isMultiAppointment &&
+			newAppointment.selectedServices.length === 0
+		) {
 			toast.error("Please select at least one service");
 			return;
 		}
@@ -694,25 +853,41 @@ export function useAppointmentFormState({
 			return;
 		}
 		if (newAppointment.recurrence === "custom") {
-			if (!newAppointment.customRecurrence?.frequency || newAppointment.customRecurrence.frequency < 1) {
+			if (
+				!newAppointment.customRecurrence?.frequency ||
+				newAppointment.customRecurrence.frequency < 1
+			) {
 				toast.error("Please enter a valid frequency for custom recurrence");
 				return;
 			}
-			if (newAppointment.customRecurrence.timeUnit === "week" && newAppointment.customRecurrence.repeatOn.length === 0) {
-				toast.error("Please select at least one day for weekly custom recurrence");
+			if (
+				newAppointment.customRecurrence.timeUnit === "week" &&
+				newAppointment.customRecurrence.repeatOn.length === 0
+			) {
+				toast.error(
+					"Please select at least one day for weekly custom recurrence",
+				);
 				return;
 			}
-			if (newAppointment.customRecurrence.endsType === "on" && !newAppointment.customRecurrence.endsDate) {
+			if (
+				newAppointment.customRecurrence.endsType === "on" &&
+				!newAppointment.customRecurrence.endsDate
+			) {
 				toast.error("Please select an end date for the recurrence");
 				return;
 			}
-			if (newAppointment.customRecurrence.endsType === "after" && (!newAppointment.customRecurrence.endsOccurrences || newAppointment.customRecurrence.endsOccurrences < 1)) {
+			if (
+				newAppointment.customRecurrence.endsType === "after" &&
+				(!newAppointment.customRecurrence.endsOccurrences ||
+					newAppointment.customRecurrence.endsOccurrences < 1)
+			) {
 				toast.error("Please enter a valid number of occurrences");
 				return;
 			}
 		}
 
-		const selectedClient = clients.find((c) => c.id === newAppointment.clientId) ?? null;
+		const selectedClient =
+			clients.find((c) => c.id === newAppointment.clientId) ?? null;
 		if (!isBlockedTiming && !selectedClient) {
 			toast.error("Please select a valid client");
 			return;
@@ -722,8 +897,13 @@ export function useAppointmentFormState({
 			.map((serviceId) => services.find((svc) => svc.id === serviceId))
 			.filter(Boolean) as Service[];
 
-		const startDateTime = new Date(`${newAppointment.startDate}T${newAppointment.startTime}`);
-		const totalDuration = selectedServices.reduce((total, svc) => total + (svc.durationMinutes ?? 0), 0);
+		const startDateTime = new Date(
+			`${newAppointment.startDate}T${newAppointment.startTime}`,
+		);
+		const totalDuration = selectedServices.reduce(
+			(total, svc) => total + (svc.durationMinutes ?? 0),
+			0,
+		);
 		const endDateTime = new Date(startDateTime);
 		endDateTime.setMinutes(endDateTime.getMinutes() + totalDuration);
 
@@ -754,29 +934,55 @@ export function useAppointmentFormState({
 		let appointmentType = "SINGLE APPOINTMENT";
 		if (isBlockedTiming) appointmentType = "BLOCKED TIME";
 		else if (isMultiAppointment) appointmentType = "MULTIPLE APPOINTMENTS";
-		else if (newAppointment.recurrence && newAppointment.recurrence !== "none") appointmentType = "RECURRING APPOINTMENT";
+		else if (newAppointment.recurrence && newAppointment.recurrence !== "none")
+			appointmentType = "RECURRING APPOINTMENT";
 
 		const appointment = {
 			title: `${selectedServices.map((s) => s.name).join(", ")} - ${selectedClient?.name}`,
-			client: selectedClient ?? { id: "blocked", name: "Blocked Time", email: "", phone: "", creditPoints: 0 },
+			client: selectedClient ?? {
+				id: "blocked",
+				name: "Blocked Time",
+				email: "",
+				phone: "",
+				creditPoints: 0,
+			},
 			service: selectedServices.map((s) => s.name).join(", "),
 			remarks: newAppointment.remarks || undefined,
 			start: startDateTime,
 			end: endDateTime,
 			duration: totalDuration,
-			assignedTo: newAppointment.assignedTo === "none" ? undefined : teamMembers.find((m) => m.id === newAppointment.assignedTo),
+			assignedTo:
+				newAppointment.assignedTo === "none"
+					? undefined
+					: teamMembers.find((m) => m.id === newAppointment.assignedTo),
 			recurrence: newAppointment.recurrence,
-			customRecurrence: newAppointment.recurrence === "custom" ? newAppointment.customRecurrence : undefined,
+			customRecurrence:
+				newAppointment.recurrence === "custom"
+					? newAppointment.customRecurrence
+					: undefined,
 			endsType: newAppointment.customRecurrence?.endsType ?? "never",
-			endsDate: newAppointment.customRecurrence?.endsType === "on" ? newAppointment.customRecurrence?.endsDate : undefined,
-			endsOccurrences: newAppointment.customRecurrence?.endsType === "after" ? newAppointment.customRecurrence?.endsOccurrences : undefined,
-			staffAssignments: staffAssignments.length > 0 ? staffAssignments : undefined,
+			endsDate:
+				newAppointment.customRecurrence?.endsType === "on"
+					? newAppointment.customRecurrence?.endsDate
+					: undefined,
+			endsOccurrences:
+				newAppointment.customRecurrence?.endsType === "after"
+					? newAppointment.customRecurrence?.endsOccurrences
+					: undefined,
+			staffAssignments:
+				staffAssignments.length > 0 ? staffAssignments : undefined,
 		};
 
 		setTestAppointmentData({
 			type: appointmentType,
 			appointment,
-			clientDetails: selectedClient ?? { id: "blocked", name: "Blocked Time", email: "", phone: "", creditPoints: 0 },
+			clientDetails: selectedClient ?? {
+				id: "blocked",
+				name: "Blocked Time",
+				email: "",
+				phone: "",
+				creditPoints: 0,
+			},
 			serviceDetails: selectedServices.map((svc) => ({
 				id: svc.id,
 				name: svc.name,

@@ -38,7 +38,8 @@ function getEnvVar(key: string): string | undefined {
 	} catch {
 		// Not in Cloudflare Workers runtime.
 	}
-	const globalEnv = (globalThis as { env?: Record<string, string | undefined> }).env;
+	const globalEnv = (globalThis as { env?: Record<string, string | undefined> })
+		.env;
 	if (globalEnv?.[key] !== undefined) return globalEnv[key];
 	return process.env[key];
 }
@@ -173,7 +174,11 @@ export async function upsertSubscriptionFromStripe(
 			const paymentStatus = stripeStatusToPaymentStatus(sub.status);
 			const updated = await cpDb
 				.update(organizations)
-				.set({ subscriptionId: localSub.id, paymentStatus, updatedAt: new Date() })
+				.set({
+					subscriptionId: localSub.id,
+					paymentStatus,
+					updatedAt: new Date(),
+				})
 				.where(eq(organizations.id, orgIdFromMetadata))
 				.returning({ id: organizations.id });
 			if (updated.length === 0) {

@@ -19,7 +19,10 @@
 const NEON_API = "https://console.neon.tech/api/v2";
 
 function headers(apiKey: string) {
-	return { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
+	return {
+		Authorization: `Bearer ${apiKey}`,
+		"Content-Type": "application/json",
+	};
 }
 
 export interface TestBranch {

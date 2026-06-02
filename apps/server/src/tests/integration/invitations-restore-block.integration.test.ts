@@ -135,7 +135,8 @@ async function seedCustomerProfile(userId: string, isDeleted: boolean) {
 			deletedAt: isDeleted ? new Date() : null,
 		})
 		.returning();
-	if (!row) throw new Error(`Failed to seed customer profile for userId: ${userId}`);
+	if (!row)
+		throw new Error(`Failed to seed customer profile for userId: ${userId}`);
 	createdCustomerProfileIds.push(row.id);
 	return row;
 }
@@ -145,110 +146,90 @@ async function seedCustomerProfile(userId: string, isDeleted: boolean) {
 // --------------------------------------------------------------------------
 
 describe("checkSoftDeletedCustomerBlock", () => {
-	test(
-		"[CASE 1 — CORE RED] blocks when user is a soft-deleted client in this tenant",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("[CASE 1 — CORE RED] blocks when user is a soft-deleted client in this tenant", async () => {
+		if (shouldSkipIntegration()) return;
 
-			// Seed: control-panel user
-			const { id: userId, email } = await seedControlPanelUser("deleted-client");
+		// Seed: control-panel user
+		const { id: userId, email } = await seedControlPanelUser("deleted-client");
 
-			// Seed: tenant client member
-			await seedTenantMember(userId, "client");
+		// Seed: tenant client member
+		await seedTenantMember(userId, "client");
 
-			// Seed: soft-deleted customer_profile
-			const profile = await seedCustomerProfile(userId, true /* isDeleted */);
+		// Seed: soft-deleted customer_profile
+		const profile = await seedCustomerProfile(userId, true /* isDeleted */);
 
-			const result = await checkSoftDeletedCustomerBlock({
-				tenantDb,
-				controlPanelDb,
-				email,
-			});
+		const result = await checkSoftDeletedCustomerBlock({
+			tenantDb,
+			controlPanelDb,
+			email,
+		});
 
-			expect(result.blocked).toBe(true);
-			if (result.blocked) {
-				expect(result.userId).toBe(userId);
-				expect(result.profileId).toBe(profile.id);
-			}
-		},
-		30000,
-	);
+		expect(result.blocked).toBe(true);
+		if (result.blocked) {
+			expect(result.userId).toBe(userId);
+			expect(result.profileId).toBe(profile.id);
+		}
+	}, 30000);
 
-	test(
-		"[CASE 2] does NOT block when no control-panel user exists for email (genuinely new)",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("[CASE 2] does NOT block when no control-panel user exists for email (genuinely new)", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const result = await checkSoftDeletedCustomerBlock({
-				tenantDb,
-				controlPanelDb,
-				email: `totally-new-never-seen-${RUN_ID}@example.com`,
-			});
+		const result = await checkSoftDeletedCustomerBlock({
+			tenantDb,
+			controlPanelDb,
+			email: `totally-new-never-seen-${RUN_ID}@example.com`,
+		});
 
-			expect(result.blocked).toBe(false);
-		},
-		30000,
-	);
+		expect(result.blocked).toBe(false);
+	}, 30000);
 
-	test(
-		"[CASE 3] does NOT block when user exists but has no client member record",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("[CASE 3] does NOT block when user exists but has no client member record", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const { email } = await seedControlPanelUser("no-member");
+		const { email } = await seedControlPanelUser("no-member");
 
-			// NO member row for this user
+		// NO member row for this user
 
-			const result = await checkSoftDeletedCustomerBlock({
-				tenantDb,
-				controlPanelDb,
-				email,
-			});
+		const result = await checkSoftDeletedCustomerBlock({
+			tenantDb,
+			controlPanelDb,
+			email,
+		});
 
-			expect(result.blocked).toBe(false);
-		},
-		30000,
-	);
+		expect(result.blocked).toBe(false);
+	}, 30000);
 
-	test(
-		"[CASE 4] does NOT block when user is a client member but customer_profile is NOT deleted",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("[CASE 4] does NOT block when user is a client member but customer_profile is NOT deleted", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const { id: userId, email } = await seedControlPanelUser("active-client");
+		const { id: userId, email } = await seedControlPanelUser("active-client");
 
-			await seedTenantMember(userId, "client");
-			await seedCustomerProfile(userId, false /* isDeleted = false */);
+		await seedTenantMember(userId, "client");
+		await seedCustomerProfile(userId, false /* isDeleted = false */);
 
-			const result = await checkSoftDeletedCustomerBlock({
-				tenantDb,
-				controlPanelDb,
-				email,
-			});
+		const result = await checkSoftDeletedCustomerBlock({
+			tenantDb,
+			controlPanelDb,
+			email,
+		});
 
-			expect(result.blocked).toBe(false);
-		},
-		30000,
-	);
+		expect(result.blocked).toBe(false);
+	}, 30000);
 
-	test(
-		"[CASE 5] does NOT block when user exists as staff (not client) even if somehow deleted",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("[CASE 5] does NOT block when user exists as staff (not client) even if somehow deleted", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const { id: userId, email } = await seedControlPanelUser("staff-user");
+		const { id: userId, email } = await seedControlPanelUser("staff-user");
 
-			// Staff member, not client — check should not block
-			await seedTenantMember(userId, "staff");
+		// Staff member, not client — check should not block
+		await seedTenantMember(userId, "staff");
 
-			const result = await checkSoftDeletedCustomerBlock({
-				tenantDb,
-				controlPanelDb,
-				email,
-			});
+		const result = await checkSoftDeletedCustomerBlock({
+			tenantDb,
+			controlPanelDb,
+			email,
+		});
 
-			expect(result.blocked).toBe(false);
-		},
-		30000,
-	);
+		expect(result.blocked).toBe(false);
+	}, 30000);
 });

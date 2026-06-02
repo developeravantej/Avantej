@@ -8,7 +8,10 @@
 
 import { describe, it, expect, mock, beforeEach } from "bun:test";
 import { ORPCError } from "@orpc/server";
-import { createAdminContext, createStaffContext } from "../../helpers/context.factory";
+import {
+	createAdminContext,
+	createStaffContext,
+} from "../../helpers/context.factory";
 import { createMockTenantDb } from "../../helpers/db-mock.factory";
 
 // Import the REAL service subpath modules so we can spread their genuine
@@ -136,7 +139,10 @@ describe("salesOrdersRouter.create", () => {
 		expect(mockCreateSalesOrder).toHaveBeenCalledTimes(1);
 
 		// Verify the service received a Date, not a raw string
-		const [, params] = (mockCreateSalesOrder.mock.calls[0] as unknown) as [unknown, { date: unknown }];
+		const [, params] = mockCreateSalesOrder.mock.calls[0] as unknown as [
+			unknown,
+			{ date: unknown },
+		];
 		expect(params.date).toBeInstanceOf(Date);
 	});
 
@@ -158,7 +164,10 @@ describe("salesOrdersRouter.create", () => {
 			{ ...ctx, tenantDb: db },
 		);
 
-		const [, params] = (mockCreateSalesOrder.mock.calls[0] as unknown) as [unknown, { notes?: string }];
+		const [, params] = mockCreateSalesOrder.mock.calls[0] as unknown as [
+			unknown,
+			{ notes?: string },
+		];
 		expect(params.notes).toBe("Promo applied");
 	});
 
@@ -236,7 +245,12 @@ describe("salesOrdersRouter.cancel", () => {
 
 		const result = await call(
 			salesOrdersRouter.cancel,
-			{ organizationId: ORG_ID, id: "so-0001", cancelledBy: "u-1", refundAmount: 0 },
+			{
+				organizationId: ORG_ID,
+				id: "so-0001",
+				cancelledBy: "u-1",
+				refundAmount: 0,
+			},
 			{ ...ctx, tenantDb: db },
 		);
 
@@ -250,12 +264,17 @@ describe("salesOrdersRouter.cancel", () => {
 
 		await call(
 			salesOrdersRouter.cancel,
-			{ organizationId: ORG_ID, id: "so-0001", cancelledBy: "u-1", refundAmount: 0 },
+			{
+				organizationId: ORG_ID,
+				id: "so-0001",
+				cancelledBy: "u-1",
+				refundAmount: 0,
+			},
 			{ ...ctx, tenantDb: db },
 		);
 
 		// cancelSalesOrder(tenantDb, id, params, actor)
-		const [, , , actor] = (mockCancelSalesOrder.mock.calls[0] as unknown) as [
+		const [, , , actor] = mockCancelSalesOrder.mock.calls[0] as unknown as [
 			unknown,
 			unknown,
 			unknown,
@@ -283,7 +302,7 @@ describe("salesOrdersRouter.cancel", () => {
 			{ ...ctx, tenantDb: db },
 		);
 
-		const [, , params] = (mockCancelSalesOrder.mock.calls[0] as unknown) as [
+		const [, , params] = mockCancelSalesOrder.mock.calls[0] as unknown as [
 			unknown,
 			unknown,
 			{ cancellationReasonCategory?: string; refundAmount: number },
@@ -299,7 +318,12 @@ describe("salesOrdersRouter.cancel", () => {
 		await expect(
 			call(
 				salesOrdersRouter.cancel,
-				{ organizationId: ORG_ID, id: "so-0001", cancelledBy: "u-1", refundAmount: 0 },
+				{
+					organizationId: ORG_ID,
+					id: "so-0001",
+					cancelledBy: "u-1",
+					refundAmount: 0,
+				},
 				ctx,
 			),
 		).rejects.toMatchObject({ code: "FORBIDDEN" });
@@ -313,7 +337,12 @@ describe("salesOrdersRouter.cancel", () => {
 		await expect(
 			call(
 				salesOrdersRouter.cancel,
-				{ organizationId: ORG_ID, id: "so-0001", cancelledBy: "u-1", refundAmount: 0 },
+				{
+					organizationId: ORG_ID,
+					id: "so-0001",
+					cancelledBy: "u-1",
+					refundAmount: 0,
+				},
 				{ ...ctx, tenantDb: db },
 			),
 		).rejects.toMatchObject({ code: "FORBIDDEN" });
@@ -325,7 +354,12 @@ describe("salesOrdersRouter.cancel", () => {
 		await expect(
 			call(
 				salesOrdersRouter.cancel,
-				{ organizationId: ORG_ID, id: "so-0001", cancelledBy: "u-1", refundAmount: 0 },
+				{
+					organizationId: ORG_ID,
+					id: "so-0001",
+					cancelledBy: "u-1",
+					refundAmount: 0,
+				},
 				ctx,
 			),
 		).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });

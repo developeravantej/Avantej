@@ -111,7 +111,10 @@ async function seedPayment(customerId: string, suffix: string) {
 
 async function seedPackageInstance(customerId: string) {
 	const someService = await tenantDb.query.services.findFirst();
-	if (!someService) throw new Error("No services row in tenant DB; cannot seed package_instance");
+	if (!someService)
+		throw new Error(
+			"No services row in tenant DB; cannot seed package_instance",
+		);
 
 	const now = new Date();
 	const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -187,9 +190,7 @@ afterAll(async () => {
 
 	// 3. Refunds
 	if (createdRefundIds.length > 0) {
-		await tenantDb
-			.delete(refunds)
-			.where(inArray(refunds.id, createdRefundIds));
+		await tenantDb.delete(refunds).where(inArray(refunds.id, createdRefundIds));
 	}
 
 	// 4. Sales order items
@@ -230,105 +231,91 @@ describe("Refund Target Priority — customer/branch resolution", () => {
 	 * TC-RTP-001: all three targets set → customer resolved from salesOrder (highest priority)
 	 * Uses pkgId if available; falls back to salesOrderId+paymentId only (still verifies SO wins).
 	 */
-	test(
-		"TC-RTP-001: salesOrderId + paymentId + packageInstanceId → customerId from salesOrder",
-		async () => {
-			if (SKIP) return;
+	test("TC-RTP-001: salesOrderId + paymentId + packageInstanceId → customerId from salesOrder", async () => {
+		if (SKIP) return;
 
-			const refund = await requestRefund(tenantDb, {
-				salesOrderId: soId,
-				paymentId: pmtId,
-				...(pkgId ? { packageInstanceId: pkgId } : {}),
-				amountCents: 1_000,
-				reason: "Priority: SO wins",
-				branchId: TEST_BRANCH_NODE_ID,
-				actor: ACTOR,
-			});
-			createdRefundIds.push(refund.id);
+		const refund = await requestRefund(tenantDb, {
+			salesOrderId: soId,
+			paymentId: pmtId,
+			...(pkgId ? { packageInstanceId: pkgId } : {}),
+			amountCents: 1_000,
+			reason: "Priority: SO wins",
+			branchId: TEST_BRANCH_NODE_ID,
+			actor: ACTOR,
+		});
+		createdRefundIds.push(refund.id);
 
-			// customerId must come from the sales order, not payment or package instance
-			expect(refund.customerId).toBe(SO_CUSTOMER_ID);
-			expect(refund.salesOrderId).toBe(soId);
-			expect(refund.status).toBe("pending");
-		},
-		30000,
-	);
+		// customerId must come from the sales order, not payment or package instance
+		expect(refund.customerId).toBe(SO_CUSTOMER_ID);
+		expect(refund.salesOrderId).toBe(soId);
+		expect(refund.status).toBe("pending");
+	}, 30000);
 
 	/**
 	 * TC-RTP-002: paymentId + packageInstanceId (no salesOrderId) → customerId from payment
 	 * Uses pkgId if available; falls back to paymentId-only (still verifies pmt customer).
 	 */
-	test(
-		"TC-RTP-002: paymentId + packageInstanceId (no salesOrderId) → customerId from payment",
-		async () => {
-			if (SKIP) return;
+	test("TC-RTP-002: paymentId + packageInstanceId (no salesOrderId) → customerId from payment", async () => {
+		if (SKIP) return;
 
-			const refund = await requestRefund(tenantDb, {
-				paymentId: pmtId,
-				...(pkgId ? { packageInstanceId: pkgId } : {}),
-				amountCents: 1_000,
-				reason: "Priority: payment wins over package",
-				branchId: TEST_BRANCH_NODE_ID,
-				actor: ACTOR,
-			});
-			createdRefundIds.push(refund.id);
+		const refund = await requestRefund(tenantDb, {
+			paymentId: pmtId,
+			...(pkgId ? { packageInstanceId: pkgId } : {}),
+			amountCents: 1_000,
+			reason: "Priority: payment wins over package",
+			branchId: TEST_BRANCH_NODE_ID,
+			actor: ACTOR,
+		});
+		createdRefundIds.push(refund.id);
 
-			// customerId must come from the payment record
-			expect(refund.customerId).toBe(PMT_CUSTOMER_ID);
-			expect(refund.paymentId).toBe(pmtId);
-			expect(refund.salesOrderId).toBeNull();
-		},
-		30000,
-	);
+		// customerId must come from the payment record
+		expect(refund.customerId).toBe(PMT_CUSTOMER_ID);
+		expect(refund.paymentId).toBe(pmtId);
+		expect(refund.salesOrderId).toBeNull();
+	}, 30000);
 
 	/**
 	 * TC-RTP-003: packageInstanceId only → customerId from package instance (clientId)
 	 * Skipped if no services row exists in tenant DB (packageInstance cannot be seeded).
 	 */
-	test(
-		"TC-RTP-003: packageInstanceId only → customerId from packageInstance.clientId",
-		async () => {
-			if (SKIP) return;
-			if (!pkgId) {
-				console.log("TC-RTP-003: skipped — no services row in tenant DB, cannot seed package instance");
-				return;
-			}
+	test("TC-RTP-003: packageInstanceId only → customerId from packageInstance.clientId", async () => {
+		if (SKIP) return;
+		if (!pkgId) {
+			console.log(
+				"TC-RTP-003: skipped — no services row in tenant DB, cannot seed package instance",
+			);
+			return;
+		}
 
-			const refund = await requestRefund(tenantDb, {
-				packageInstanceId: pkgId,
-				amountCents: 1_000,
-				reason: "Priority: package only",
-				branchId: TEST_BRANCH_NODE_ID,
-				actor: ACTOR,
-			});
-			createdRefundIds.push(refund.id);
+		const refund = await requestRefund(tenantDb, {
+			packageInstanceId: pkgId,
+			amountCents: 1_000,
+			reason: "Priority: package only",
+			branchId: TEST_BRANCH_NODE_ID,
+			actor: ACTOR,
+		});
+		createdRefundIds.push(refund.id);
 
-			// customerId must come from packageInstance.clientId
-			expect(refund.customerId).toBe(PKG_CUSTOMER_ID);
-			expect(refund.packageInstanceId).toBe(pkgId);
-			expect(refund.salesOrderId).toBeNull();
-			expect(refund.paymentId).toBeNull();
-		},
-		30000,
-	);
+		// customerId must come from packageInstance.clientId
+		expect(refund.customerId).toBe(PKG_CUSTOMER_ID);
+		expect(refund.packageInstanceId).toBe(pkgId);
+		expect(refund.salesOrderId).toBeNull();
+		expect(refund.paymentId).toBeNull();
+	}, 30000);
 
 	/**
 	 * TC-RTP-004: no target at all → throws BAD_REQUEST immediately
 	 */
-	test(
-		"TC-RTP-004: no target → throws BAD_REQUEST",
-		async () => {
-			if (SKIP) return;
+	test("TC-RTP-004: no target → throws BAD_REQUEST", async () => {
+		if (SKIP) return;
 
-			await expect(
-				requestRefund(tenantDb, {
-					amountCents: 1_000,
-					reason: "No target should fail",
-					branchId: TEST_BRANCH_NODE_ID,
-					actor: ACTOR,
-				}),
-			).rejects.toMatchObject({ code: "BAD_REQUEST" });
-		},
-		30000,
-	);
+		await expect(
+			requestRefund(tenantDb, {
+				amountCents: 1_000,
+				reason: "No target should fail",
+				branchId: TEST_BRANCH_NODE_ID,
+				actor: ACTOR,
+			}),
+		).rejects.toMatchObject({ code: "BAD_REQUEST" });
+	}, 30000);
 });

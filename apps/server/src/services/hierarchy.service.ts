@@ -41,17 +41,17 @@ import { getDepthForType } from "./hierarchy-validation.service";
  * ```
  */
 export async function getDescendantNodeIds(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  nodeId: string
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	nodeId: string,
 ): Promise<string[]> {
-  if (!nodeId) {
-    throw new Error("Node ID is required");
-  }
+	if (!nodeId) {
+		throw new Error("Node ID is required");
+	}
 
-  try {
-    // PostgreSQL recursive CTE to get all descendants
-    // Starting with the node itself, then recursively finding all children
-    const result = await tenantDb.execute(sql`
+	try {
+		// PostgreSQL recursive CTE to get all descendants
+		// Starting with the node itself, then recursively finding all children
+		const result = await tenantDb.execute(sql`
       WITH RECURSIVE descendants AS (
         -- Base case: start with the specified node
         SELECT id FROM hierarchy_nodes WHERE id = ${nodeId}
@@ -64,29 +64,29 @@ export async function getDescendantNodeIds(
       SELECT id FROM descendants
     `);
 
-    // Extract IDs from result rows
-    // Neon HTTP returns results as array of objects
-    const ids = result.rows.map((row) => {
-      const id = row.id;
-      if (typeof id !== "string") {
-        throw new Error(`Unexpected ID type: ${typeof id}`);
-      }
-      return id;
-    });
+		// Extract IDs from result rows
+		// Neon HTTP returns results as array of objects
+		const ids = result.rows.map((row) => {
+			const id = row.id;
+			if (typeof id !== "string") {
+				throw new Error(`Unexpected ID type: ${typeof id}`);
+			}
+			return id;
+		});
 
-    return ids;
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes("relation") &&
-      error.message.includes("does not exist")
-    ) {
-      throw new Error(`Node not found: ${nodeId}`);
-    }
-    throw new Error(
-      `Failed to get descendant nodes: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-  }
+		return ids;
+	} catch (error) {
+		if (
+			error instanceof Error &&
+			error.message.includes("relation") &&
+			error.message.includes("does not exist")
+		) {
+			throw new Error(`Node not found: ${nodeId}`);
+		}
+		throw new Error(
+			`Failed to get descendant nodes: ${error instanceof Error ? error.message : "Unknown error"}`,
+		);
+	}
 }
 
 /**
@@ -108,17 +108,17 @@ export async function getDescendantNodeIds(
  * ```
  */
 export async function getAncestorNodeIds(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  nodeId: string
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	nodeId: string,
 ): Promise<string[]> {
-  if (!nodeId) {
-    throw new Error("Node ID is required");
-  }
+	if (!nodeId) {
+		throw new Error("Node ID is required");
+	}
 
-  try {
-    // PostgreSQL recursive CTE to get all ancestors
-    // Starting with the node itself, then recursively finding all parents
-    const result = await tenantDb.execute(sql`
+	try {
+		// PostgreSQL recursive CTE to get all ancestors
+		// Starting with the node itself, then recursively finding all parents
+		const result = await tenantDb.execute(sql`
       WITH RECURSIVE ancestors AS (
         -- Base case: start with the specified node
         SELECT id, parent_id FROM hierarchy_nodes WHERE id = ${nodeId}
@@ -131,28 +131,28 @@ export async function getAncestorNodeIds(
       SELECT id FROM ancestors
     `);
 
-    // Extract IDs from result rows
-    const ids = result.rows.map((row) => {
-      const id = row.id;
-      if (typeof id !== "string") {
-        throw new Error(`Unexpected ID type: ${typeof id}`);
-      }
-      return id;
-    });
+		// Extract IDs from result rows
+		const ids = result.rows.map((row) => {
+			const id = row.id;
+			if (typeof id !== "string") {
+				throw new Error(`Unexpected ID type: ${typeof id}`);
+			}
+			return id;
+		});
 
-    return ids;
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes("relation") &&
-      error.message.includes("does not exist")
-    ) {
-      throw new Error(`Node not found: ${nodeId}`);
-    }
-    throw new Error(
-      `Failed to get ancestor nodes: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-  }
+		return ids;
+	} catch (error) {
+		if (
+			error instanceof Error &&
+			error.message.includes("relation") &&
+			error.message.includes("does not exist")
+		) {
+			throw new Error(`Node not found: ${nodeId}`);
+		}
+		throw new Error(
+			`Failed to get ancestor nodes: ${error instanceof Error ? error.message : "Unknown error"}`,
+		);
+	}
 }
 
 /**
@@ -176,35 +176,39 @@ export async function getAncestorNodeIds(
  * ```
  */
 export async function createHierarchyNode(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  params: CreateHierarchyNodeParams
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	params: CreateHierarchyNodeParams,
 ) {
-  const { type, name, parentId } = params;
-  const depth = getDepthForType(type);
+	const { type, name, parentId } = params;
+	const depth = getDepthForType(type);
 
-  try {
-    const slug = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    const [node] = await tenantDb
-      .insert(hierarchyNodes)
-      .values({
-        name,
-        slug,
-        type,
-        parentId: parentId || null,
-        depth,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .returning();
+	try {
+		const slug = name
+			.toLowerCase()
+			.trim()
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/^-|-$/g, "");
+		const [node] = await tenantDb
+			.insert(hierarchyNodes)
+			.values({
+				name,
+				slug,
+				type,
+				parentId: parentId || null,
+				depth,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			})
+			.returning();
 
-    if (!node) {
-      throw new Error("Failed to create hierarchy node");
-    }
+		if (!node) {
+			throw new Error("Failed to create hierarchy node");
+		}
 
-    return node;
-  } catch (error) {
-    throw new Error(
-      `Failed to create hierarchy node: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-  }
+		return node;
+	} catch (error) {
+		throw new Error(
+			`Failed to create hierarchy node: ${error instanceof Error ? error.message : "Unknown error"}`,
+		);
+	}
 }

@@ -23,7 +23,9 @@ const TEST_SUB_ID = "sub_test_webhook_route_v2_001";
 function signEvent(payload: string, secret: string): string {
 	const timestamp = Math.floor(Date.now() / 1000);
 	const signed = `${timestamp}.${payload}`;
-	const hmac = createHmac("sha256", secret).update(signed, "utf8").digest("hex");
+	const hmac = createHmac("sha256", secret)
+		.update(signed, "utf8")
+		.digest("hex");
 	return `t=${timestamp},v1=${hmac}`;
 }
 
@@ -193,7 +195,9 @@ describe("POST /webhooks/stripe/platform", () => {
 			.where(eq(processedWebhookEvents.eventId, "evt_test_seed_sub_route"));
 		await app.request("/webhooks/stripe/platform", {
 			method: "POST",
-			headers: { "stripe-signature": signEvent(subEventPayload, PLATFORM_SECRET) },
+			headers: {
+				"stripe-signature": signEvent(subEventPayload, PLATFORM_SECRET),
+			},
 			body: subEventPayload,
 		});
 
@@ -255,7 +259,9 @@ describe("POST /webhooks/stripe/platform", () => {
 			.where(eq(processedWebhookEvents.eventId, "evt_test_seed_deleted_route"));
 		await app.request("/webhooks/stripe/platform", {
 			method: "POST",
-			headers: { "stripe-signature": signEvent(subEventPayload, PLATFORM_SECRET) },
+			headers: {
+				"stripe-signature": signEvent(subEventPayload, PLATFORM_SECRET),
+			},
 			body: subEventPayload,
 		});
 
@@ -286,7 +292,9 @@ describe("POST /webhooks/stripe/platform", () => {
 		});
 		const res = await app.request("/webhooks/stripe/platform", {
 			method: "POST",
-			headers: { "stripe-signature": signEvent(deletedPayload, PLATFORM_SECRET) },
+			headers: {
+				"stripe-signature": signEvent(deletedPayload, PLATFORM_SECRET),
+			},
 			body: deletedPayload,
 		});
 		expect(res.status).toBe(200);

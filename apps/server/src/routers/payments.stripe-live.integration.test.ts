@@ -90,8 +90,9 @@ describe.skipIf(shouldSkipIntegration())(
 				sql`SELECT id FROM hierarchy_nodes LIMIT 1`,
 			);
 			// Neon HTTP returns { rows: [...] } when a query has results
-			const row = (rows as unknown as { rows?: { id: string }[]; id?: string }[])[0]
-				?? (rows as unknown as { rows: { id: string }[] }).rows?.[0];
+			const row =
+				(rows as unknown as { rows?: { id: string }[]; id?: string }[])[0] ??
+				(rows as unknown as { rows: { id: string }[] }).rows?.[0];
 			if (!row?.id) throw new Error("No hierarchy_nodes in tenant DB");
 			return row.id;
 		}
@@ -138,7 +139,11 @@ describe.skipIf(shouldSkipIntegration())(
 					hierarchyScopeId: null,
 				},
 				session: {
-					user: { id: TEST_USER_ID, email: "franchisee@gmail.com", name: "Test Admin" },
+					user: {
+						id: TEST_USER_ID,
+						email: "franchisee@gmail.com",
+						name: "Test Admin",
+					},
 				},
 				tenantDb,
 				honoContext: {
@@ -148,7 +153,10 @@ describe.skipIf(shouldSkipIntegration())(
 			};
 		}
 
-		async function callProc(procedure: unknown, input: unknown): Promise<unknown> {
+		async function callProc(
+			procedure: unknown,
+			input: unknown,
+		): Promise<unknown> {
 			// biome-ignore lint/suspicious/noExplicitAny: orpc handler shape
 			return await (procedure as any)["~orpc"].handler({
 				input,

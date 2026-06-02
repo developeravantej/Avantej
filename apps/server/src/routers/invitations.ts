@@ -27,13 +27,13 @@ import type { Context } from "@avantej-core/api/context";
 
 // Helper function to get environment variable (Cloudflare Workers or Node.js)
 function getEnvVar(key: string): string | undefined {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const cloudflare = require("cloudflare:workers");
-    return cloudflare.env?.[key];
-  } catch {
-    return process.env[key];
-  }
+	try {
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		const cloudflare = require("cloudflare:workers");
+		return cloudflare.env?.[key];
+	} catch {
+		return process.env[key];
+	}
 }
 
 // Create procedure base with Context type
@@ -41,14 +41,14 @@ const o = os.$context<Context>();
 
 // Protected procedure middleware that checks for authentication
 const authMiddleware = o.middleware(async ({ context, next }) => {
-  if (!context.session?.user) {
-    throw new ORPCError("UNAUTHORIZED");
-  }
-  return next({
-    context: {
-      session: context.session,
-    },
-  });
+	if (!context.session?.user) {
+		throw new ORPCError("UNAUTHORIZED");
+	}
+	return next({
+		context: {
+			session: context.session,
+		},
+	});
 });
 
 /**
@@ -58,41 +58,43 @@ const authMiddleware = o.middleware(async ({ context, next }) => {
  * This endpoint is protected - only authenticated users can send emails.
  */
 export const sendEmail = o
-  .use(authMiddleware)
-  .input(
-    z.object({
-      invitation: z.object({
-        token: z.string(),
-        email: z.string().email(),
-        role: z.string(),
-      }),
-      organizationId: z.string().uuid(),
-      organizationName: z.string().optional(),
-      inviterName: z.string().optional(),
-    })
-  )
-  .handler(async ({ input }) => {
-    const { invitation, organizationId, organizationName, inviterName } = input;
+	.use(authMiddleware)
+	.input(
+		z.object({
+			invitation: z.object({
+				token: z.string(),
+				email: z.string().email(),
+				role: z.string(),
+			}),
+			organizationId: z.string().uuid(),
+			organizationName: z.string().optional(),
+			inviterName: z.string().optional(),
+		}),
+	)
+	.handler(async ({ input }) => {
+		const { invitation, organizationId, organizationName, inviterName } = input;
 
-    // Construct invitation link
-    const frontendURL =
-      getEnvVar("CORS_ORIGIN") || getEnvVar("FRONTEND_URL") || "http://localhost:3001";
-    const invitationLink = `${frontendURL}/accept-invitation?token=${invitation.token}&orgId=${organizationId}`;
+		// Construct invitation link
+		const frontendURL =
+			getEnvVar("CORS_ORIGIN") ||
+			getEnvVar("FRONTEND_URL") ||
+			"http://localhost:3001";
+		const invitationLink = `${frontendURL}/accept-invitation?token=${invitation.token}&orgId=${organizationId}`;
 
-    // Send email via Resend
-    await sendInvitationEmail(
-      invitation.email,
-      invitationLink,
-      organizationName || "the organization",
-      inviterName,
-      invitation.role
-    );
+		// Send email via Resend
+		await sendInvitationEmail(
+			invitation.email,
+			invitationLink,
+			organizationName || "the organization",
+			inviterName,
+			invitation.role,
+		);
 
-    return {
-      success: true,
-      message: "Invitation email sent successfully",
-    };
-  });
+		return {
+			success: true,
+			message: "Invitation email sent successfully",
+		};
+	});
 
 /**
  * accept (server override)
@@ -192,9 +194,11 @@ export const accept = o
 					.values({ userId })
 					.onConflictDoNothing({ target: customerProfiles.userId });
 
-				const profile = await context.tenantDb.query.customerProfiles.findFirst({
-					where: eq(customerProfiles.userId, userId),
-				});
+				const profile = await context.tenantDb.query.customerProfiles.findFirst(
+					{
+						where: eq(customerProfiles.userId, userId),
+					},
+				);
 				if (profile) {
 					await fireCustomerSync({
 						honoContext: context.honoContext,
@@ -268,7 +272,10 @@ export const acceptWithSignup = o
 		}
 
 		// 1. Validate invitation
-		const invitation = await getInvitationByToken(input.token, context.tenantDb);
+		const invitation = await getInvitationByToken(
+			input.token,
+			context.tenantDb,
+		);
 		const validation = validateAcceptanceInput(invitation, input.email);
 		if (!validation.ok) {
 			const map: Record<typeof validation.error, string> = {
@@ -402,9 +409,11 @@ export const acceptWithSignup = o
 					.insert(customerProfiles)
 					.values({ userId: newUser.id })
 					.onConflictDoNothing({ target: customerProfiles.userId });
-				const profile = await context.tenantDb.query.customerProfiles.findFirst({
-					where: eq(customerProfiles.userId, newUser.id),
-				});
+				const profile = await context.tenantDb.query.customerProfiles.findFirst(
+					{
+						where: eq(customerProfiles.userId, newUser.id),
+					},
+				);
 				if (profile) {
 					await fireCustomerSync({
 						honoContext: cph,
@@ -433,7 +442,7 @@ export const acceptWithSignup = o
 	});
 
 export const serverInvitationRouter = {
-  sendEmail,
-  accept,
-  acceptWithSignup,
+	sendEmail,
+	accept,
+	acceptWithSignup,
 };

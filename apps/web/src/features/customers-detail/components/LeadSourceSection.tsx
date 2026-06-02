@@ -20,7 +20,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import type { LeadSourceProfileShape } from "../types";
 
 export function LeadSourceSection(props: {
@@ -28,7 +28,7 @@ export function LeadSourceSection(props: {
 	targetUserId: string;
 	profile: LeadSourceProfileShape;
 	canEdit: boolean;
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
+	// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }) {
 	const { organizationId, targetUserId, profile, canEdit } = props;
 	const queryClient = useQueryClient();
@@ -41,18 +41,22 @@ export function LeadSourceSection(props: {
 	const [referrerMemberId, setReferrerMemberId] = useState<string>(
 		profile?.referrerMemberId ?? "",
 	);
-	const [campaignId, setCampaignId] = useState<string>(profile?.campaignId ?? "");
+	const [campaignId, setCampaignId] = useState<string>(
+		profile?.campaignId ?? "",
+	);
 
 	const { data: leadSources = [] } = useQuery({
-		queryKey: ["leadSources", organizationId],
-		queryFn: () =>
-			client.customerProfiles.listLeadSources({ organizationId }),
+		...orpc.customerProfiles.listLeadSources.queryOptions({
+			input: { organizationId },
+		}),
 		enabled: !!organizationId,
 		staleTime: 5 * 60_000,
 	});
 
 	const sourceName = profile?.leadSourceId
-		? (leadSources.find((s: { id: string; name: string }) => s.id === profile.leadSourceId)?.name ?? "—")
+		? (leadSources.find(
+				(s: { id: string; name: string }) => s.id === profile.leadSourceId,
+			)?.name ?? "—")
 		: null;
 
 	const mutation = useMutation({
@@ -93,7 +97,9 @@ export function LeadSourceSection(props: {
 					<CardTitle className="text-base">Lead Source</CardTitle>
 					{canEdit && (
 						<Button variant="outline" size="sm" onClick={openDialog}>
-							{profile?.leadSourceId || profile?.referrerMemberId || profile?.campaignId
+							{profile?.leadSourceId ||
+							profile?.referrerMemberId ||
+							profile?.campaignId
 								? "Edit"
 								: "Add"}
 						</Button>
@@ -103,17 +109,17 @@ export function LeadSourceSection(props: {
 					{!profile?.leadSourceId &&
 					!profile?.referrerMemberId &&
 					!profile?.campaignId ? (
-						<p className="py-2 text-muted-foreground text-sm">
+						<p className="py-2 text-[#737373] text-sm">
 							No attribution recorded.
 						</p>
 					) : (
 						<div className="grid gap-2 text-sm sm:grid-cols-3">
 							<div>
-								<p className="text-muted-foreground text-xs">Source</p>
+								<p className="text-[#737373] text-xs">Source</p>
 								<p className="font-medium">{sourceName ?? "—"}</p>
 							</div>
 							<div>
-								<p className="text-muted-foreground text-xs">Referrer</p>
+								<p className="text-[#737373] text-xs">Referrer</p>
 								<p className="font-medium">
 									{profile?.referrerMemberId
 										? profile.referrerMemberId.slice(0, 8)
@@ -121,7 +127,7 @@ export function LeadSourceSection(props: {
 								</p>
 							</div>
 							<div>
-								<p className="text-muted-foreground text-xs">Campaign</p>
+								<p className="text-[#737373] text-xs">Campaign</p>
 								<p className="font-medium">{profile?.campaignId ?? "—"}</p>
 							</div>
 						</div>
@@ -130,66 +136,84 @@ export function LeadSourceSection(props: {
 			</Card>
 
 			<Dialog open={open} onOpenChange={setOpen}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>Lead Source</DialogTitle>
-						<DialogDescription>
+				<DialogContent
+					className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							CUSTOMER DIRECTORY
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Lead Source
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
 							Record where this customer came from for attribution reporting.
 						</DialogDescription>
 					</DialogHeader>
 
-					<div className="space-y-4 py-2">
-						<div className="space-y-1.5">
-							<Label htmlFor="ls-source">Source</Label>
-							<Select value={leadSourceId} onValueChange={setLeadSourceId}>
-								<SelectTrigger id="ls-source">
-									<SelectValue placeholder="Select a source" />
-								</SelectTrigger>
-								<SelectContent>
-									{leadSources.length === 0 ? (
-										<SelectItem value="__none__" disabled>
-											No sources configured
-										</SelectItem>
-									) : (
-										leadSources.map((s: { id: string; name: string; category?: string | null }) => (
-											<SelectItem key={s.id} value={s.id}>
-												{s.name}
-												{s.category ? ` · ${s.category}` : ""}
+					<div className="px-6 pt-4 pb-2 overflow-y-auto">
+						<div className="space-y-4">
+							<div className="space-y-1.5">
+								<Label htmlFor="ls-source">Source</Label>
+								<Select value={leadSourceId} onValueChange={setLeadSourceId}>
+									<SelectTrigger id="ls-source">
+										<SelectValue placeholder="Select a source" />
+									</SelectTrigger>
+									<SelectContent>
+										{leadSources.length === 0 ? (
+											<SelectItem value="__none__" disabled>
+												No sources configured
 											</SelectItem>
-										))
-									)}
-								</SelectContent>
-							</Select>
-						</div>
+										) : (
+											leadSources.map(
+												(s: {
+													id: string;
+													name: string;
+													category?: string | null;
+												}) => (
+													<SelectItem key={s.id} value={s.id}>
+														{s.name}
+														{s.category ? ` · ${s.category}` : ""}
+													</SelectItem>
+												),
+											)
+										)}
+									</SelectContent>
+								</Select>
+							</div>
 
-						<div className="space-y-1.5">
-							<Label htmlFor="ls-referrer">Referrer member ID (optional)</Label>
-							<Input
-								id="ls-referrer"
-								value={referrerMemberId}
-								onChange={(e) => setReferrerMemberId(e.target.value)}
-								placeholder="UUID of referring member"
-							/>
-						</div>
+							<div className="space-y-1.5">
+								<Label htmlFor="ls-referrer">
+									Referrer member ID (optional)
+								</Label>
+								<Input
+									id="ls-referrer"
+									value={referrerMemberId}
+									onChange={(e) => setReferrerMemberId(e.target.value)}
+									placeholder="UUID of referring member"
+								/>
+							</div>
 
-						<div className="space-y-1.5">
-							<Label htmlFor="ls-campaign">Campaign tag (optional)</Label>
-							<Input
-								id="ls-campaign"
-								value={campaignId}
-								onChange={(e) => setCampaignId(e.target.value)}
-								placeholder="e.g. spring-2026"
-							/>
-						</div>
+							<div className="space-y-1.5">
+								<Label htmlFor="ls-campaign">Campaign tag (optional)</Label>
+								<Input
+									id="ls-campaign"
+									value={campaignId}
+									onChange={(e) => setCampaignId(e.target.value)}
+									placeholder="e.g. spring-2026"
+								/>
+							</div>
 
-						{submitError && (
-							<Alert variant="destructive">
-								<AlertDescription>{submitError}</AlertDescription>
-							</Alert>
-						)}
+							{submitError && (
+								<Alert variant="destructive">
+									<AlertDescription>{submitError}</AlertDescription>
+								</Alert>
+							)}
+						</div>
 					</div>
 
-					<DialogFooter>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button
 							type="button"
 							variant="ghost"
@@ -202,6 +226,7 @@ export function LeadSourceSection(props: {
 							type="button"
 							onClick={() => mutation.mutate()}
 							disabled={mutation.isPending}
+							className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
 						>
 							{mutation.isPending ? "Saving…" : "Save"}
 						</Button>

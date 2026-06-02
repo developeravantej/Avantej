@@ -17,6 +17,14 @@ import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function assertUuids(ids: string[], label: string): void {
+	for (const id of ids) {
+		if (!UUID_RE.test(id)) throw new Error(`Invalid UUID in ${label}: ${id}`);
+	}
+}
+
 type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 
@@ -82,6 +90,8 @@ export async function listCustomerDirectory(
 	if (accessibleNodeIds.length === 0) {
 		return { rows: [], total: 0 };
 	}
+
+	assertUuids(accessibleNodeIds, "listCustomerDirectory");
 
 	const searchPattern = search ? `%${search}%` : null;
 
@@ -207,7 +217,12 @@ export async function listCustomerDirectory(
 	// ----------------------------------------------------------------
 	const userIds = tenantRows.map((r) => r.user_id);
 	const userRows = await controlPanelDb
-		.select({ id: user.id, name: user.name, email: user.email })
+		.select({
+			id: user.id,
+			name: user.name,
+			email: user.email,
+			emailVerified: user.emailVerified,
+		})
 		.from(user)
 		.where(inArray(user.id, userIds));
 
@@ -245,7 +260,9 @@ export async function listCustomerDirectory(
 			lastVisitAt: r.last_visit_at,
 			createdAt: r.joined_at,
 			isDeleted: r.is_deleted ?? null,
-			isUnclaimed: r.is_unclaimed ?? false,
+			// Derived: stale is_unclaimed flag AND-ed with !emailVerified (claimed
+			// customers have verified email via the magic-link claim). See getCustomerDetail.
+			isUnclaimed: (r.is_unclaimed ?? false) && !userDetail?.emailVerified,
 			lifecycleStatus: r.lifecycle_status,
 		};
 	});
@@ -288,8 +305,16 @@ export async function getCustomerStats(
 	const { accessibleNodeIds, branchId } = params;
 
 	if (accessibleNodeIds.length === 0) {
-		return { totalCount: 0, activeCount: 0, lapsedCount: 0, leadCount: 0, avgLifetimeValueCents: 0 };
+		return {
+			totalCount: 0,
+			activeCount: 0,
+			lapsedCount: 0,
+			leadCount: 0,
+			avgLifetimeValueCents: 0,
+		};
 	}
+
+	assertUuids(accessibleNodeIds, "getCustomerStats");
 
 	const result = await tenantDb.execute(sql`
 		WITH customer_agg AS (
@@ -357,7 +382,9 @@ export interface CustomerDetail {
 	member: typeof members.$inferSelect;
 	user: { name: string; email: string };
 	profile: typeof customerProfiles.$inferSelect | null;
-	packageInstances: (typeof packageInstances.$inferSelect & { serviceName: string | null })[];
+	packageInstances: (typeof packageInstances.$inferSelect & {
+		serviceName: string | null;
+	})[];
 	recentPayments: (typeof payments.$inferSelect)[];
 	appointmentCount: number;
 	outstandingBalanceCents: number;
@@ -402,7 +429,10 @@ export async function getCustomerDetail(
 
 		// All package instances with service name, ordered: active first, then by expiresAt DESC
 		tenantDb
-			.select({ ...getTableColumns(packageInstances), serviceName: services.name })
+			.select({
+				...getTableColumns(packageInstances),
+				serviceName: services.name,
+			})
 			.from(packageInstances)
 			.leftJoin(services, eq(packageInstances.serviceId, services.id))
 			.where(eq(packageInstances.clientId, userId))
@@ -439,7 +469,12 @@ export async function getCustomerDetail(
 
 		// Cross-DB user lookup
 		controlPanelDb
-			.select({ id: user.id, name: user.name, email: user.email })
+			.select({
+				id: user.id,
+				name: user.name,
+				email: user.email,
+				emailVerified: user.emailVerified,
+			})
 			.from(user)
 			.where(eq(user.id, userId)),
 	]);
@@ -456,7 +491,18 @@ export async function getCustomerDetail(
 			name: userDetail?.name ?? "Unknown",
 			email: userDetail?.email ?? "",
 		},
-		profile: profile ?? null,
+		// Derive claim status from the authoritative signal: a customer who has
+		// authenticated via the magic-link claim has emailVerified=true. The
+		// customer_profiles.is_unclaimed flag is set at staff-creation and may be
+		// stale (we no longer clear it at link-dispatch time), so we AND it with
+		// !emailVerified to reflect whether the customer has actually claimed.
+		profile: profile
+			? {
+					...profile,
+					isUnclaimed:
+						(profile.isUnclaimed ?? false) && !userDetail?.emailVerified,
+				}
+			: null,
 		packageInstances: pkgInstances,
 		recentPayments,
 		appointmentCount,

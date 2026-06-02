@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { formatPrice, rmToCents } from "@/lib/money";
 import { Textarea } from "@/components/ui/textarea";
@@ -240,8 +240,7 @@ function ExpensesViewPage() {
 
 	// ---- Create dialog state ----
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
-	const [formCategory, setFormCategory] =
-		useState<ExpenseCategory>("travel");
+	const [formCategory, setFormCategory] = useState<ExpenseCategory>("travel");
 	const [formDescription, setFormDescription] = useState("");
 	const [formAmountRm, setFormAmountRm] = useState("");
 	const [formDate, setFormDate] = useState(getTodayDateString());
@@ -263,14 +262,9 @@ function ExpensesViewPage() {
 		error,
 		refetch,
 	} = useQuery({
-		queryKey: ["expenses", organizationId, statusFilter],
-		queryFn: async () => {
-			if (!organizationId) return [];
-			return client.expenses.list({
-				organizationId,
-				status: statusFilter,
-			});
-		},
+		...orpc.expenses.list.queryOptions({
+			input: { organizationId: organizationId!, status: statusFilter },
+		}),
 		enabled: !!organizationId,
 	});
 
@@ -463,422 +457,447 @@ function ExpensesViewPage() {
 
 	// ---- Render ----
 	return (
-		<Skeleton name="expenses-view" loading={isLoading} fallback={<PageLoader />}>
-		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
-			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
-				<div className="flex items-center gap-3 text-sm">
-					<span className="text-muted-foreground">Finance</span>
-					<span className="text-[#a3a3a3]">/</span>
-					<span className="font-semibold">Expenses</span>
-				</div>
-				<div className="ml-auto flex items-center gap-2">
-					{canCreate && (
-						<button
-							type="button"
-							onClick={() => {
-								resetCreateForm();
-								setIsCreateOpen(true);
-							}}
-							className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626]"
-						>
-							<Plus className="h-3.5 w-3.5" />
-							Submit Expense
-						</button>
-					)}
-				</div>
-			</header>
-			<div className="px-6 py-6">
-
-			{/* ── KPI tiles ── */}
-			<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-				<div className="rounded-2xl border border-[#e5e5e5] bg-white p-4">
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">
-						TOTAL CLAIMS
-					</p>
-					<p className="mt-1 text-2xl font-bold font-mono tabular-nums text-[#0a0a0a]">
-						{data.length}
-					</p>
-				</div>
-				<div className="rounded-2xl border border-[#e5e5e5] bg-white p-4">
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">
-						TOTAL VALUE
-					</p>
-					<p className="mt-1 text-2xl font-bold font-mono tabular-nums text-[#0a0a0a]">
-						{formatPrice(totalCents, "MYR")}
-					</p>
-				</div>
-				<div className="rounded-2xl border border-[#e5e5e5] bg-white p-4">
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">
-						PENDING
-					</p>
-					<p className="mt-1 text-2xl font-bold font-mono tabular-nums text-amber-700">
-						{pendingCount}
-					</p>
-				</div>
-				<div className="rounded-2xl border border-[#e5e5e5] bg-white p-4">
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">
-						PENDING VALUE
-					</p>
-					<p className="mt-1 text-2xl font-bold font-mono tabular-nums text-amber-700">
-						{pendingCents > 0 ? formatPrice(pendingCents, "MYR") : "—"}
-					</p>
-				</div>
-			</div>
-
-			{/* ── Status tabs ── */}
-			<div className="mb-4 flex flex-wrap items-center gap-2">
-				{STATUS_TABS.map((tab) => {
-					const isActive = statusFilter === tab.value;
-					return (
-						<button
-							key={tab.label}
-							type="button"
-							onClick={() => setStatusFilter(tab.value)}
-							className={
-								isActive
-									? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold"
-									: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium"
-							}
-						>
-							{tab.label}
-						</button>
-					);
-				})}
-			</div>
-
-			{/* ── Table ── */}
-			{isError ? (
-				<div className="rounded-2xl border border-[#e5e5e5] bg-white p-5">
-					<StatusCallout variant="error" onRetry={() => refetch()}>
-						Failed to load expenses. Please try again.
-					</StatusCallout>
-				</div>
-			) : (
-				<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
-					<table className="w-full">
-						<thead className="bg-[#f3f3f3]">
-							<tr className="border-b border-[#e5e5e5]">
-								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
-									Date
-								</th>
-								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
-									Category
-								</th>
-								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
-									Description
-								</th>
-								<th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-[#737373]">
-									Amount
-								</th>
-								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
-									Submitted By
-								</th>
-								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
-									Status
-								</th>
-								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
-									Actions
-								</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-[#e5e5e5]">
-							{data.length === 0 ? (
-								<tr>
-									<td colSpan={7}>
-										<div className="flex flex-col items-center justify-center py-16 text-[#737373]">
-											<Receipt className="h-8 w-8 mb-3 opacity-30" />
-											<p className="text-sm font-medium text-[#0a0a0a]">
-												No expenses found
-											</p>
-											<p className="text-xs mt-1">
-												{statusFilter
-													? "Try clearing the status filter."
-													: canCreate
-														? "Submit your first expense claim to get started."
-														: "No expense claims have been submitted yet."}
-											</p>
-											{canCreate && !statusFilter && (
-												<button
-													type="button"
-													onClick={() => {
-														resetCreateForm();
-														setIsCreateOpen(true);
-													}}
-													className="mt-4 inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition"
-												>
-													<Plus className="h-4 w-4" />
-													Submit Expense
-												</button>
-											)}
-										</div>
-									</td>
-								</tr>
-							) : (
-								data.map((row) => (
-									<tr
-										key={row.id}
-										className="group hover:bg-[#fafafa] transition-colors"
-									>
-										<td className="px-4 py-3 font-mono tabular-nums text-sm text-[#737373]">
-											{row.expenseDate}
-										</td>
-										<td className="px-4 py-3">
-											<CategoryChip category={row.category} />
-										</td>
-										<td className="px-4 py-3 text-sm text-[#0a0a0a] max-w-xs">
-											<span
-												title={row.description}
-												className="block truncate"
-											>
-												{row.description}
-											</span>
-											{row.rejectionReason && row.status === "rejected" && (
-												<span className="block text-[10px] text-rose-600 mt-0.5 truncate">
-													{row.rejectionReason}
-												</span>
-											)}
-										</td>
-										<td className="px-4 py-3 text-right font-mono tabular-nums text-sm font-medium text-[#0a0a0a]">
-											{formatPrice(row.amount, "MYR")}
-										</td>
-										<td className="px-4 py-3 font-mono tabular-nums text-xs text-[#737373]">
-											{row.submittedBy.length > 20
-												? `${row.submittedBy.slice(0, 20)}…`
-												: row.submittedBy}
-										</td>
-										<td className="px-4 py-3">
-											<ExpenseStatusBadge status={row.status} />
-										</td>
-										<td className="px-4 py-3">
-											<RowActions
-												row={row}
-												canUpdate={canUpdate}
-												onApprove={(id) => approveMutation.mutate(id)}
-												onReject={(id) => {
-													setRejectTarget(id);
-													setRejectionReason("");
-												}}
-												onMarkPaid={(id) => {
-													setPaidTarget(id);
-													setPaymentReference("");
-												}}
-											/>
-										</td>
-									</tr>
-								))
-							)}
-						</tbody>
-					</table>
-				</div>
-			)}
-
-			{/* ── Create Expense Dialog ── */}
-			<Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-				<DialogContent className="sm:max-w-md overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
-							Submit Expense
-						</DialogTitle>
-						<DialogDescription className="text-sm text-[#737373]">
-							Fill in the details to submit a new expense claim.
-						</DialogDescription>
-					</DialogHeader>
-
-					<div className="flex flex-col gap-5 px-4 py-2">
-						<div className="flex flex-col gap-1.5">
-							<Label>Category</Label>
-							<Select
-								value={formCategory}
-								onValueChange={(val) =>
-									setFormCategory(val as ExpenseCategory)
-								}
+		<Skeleton
+			name="expenses-view"
+			loading={isLoading}
+			fallback={<PageLoader />}
+		>
+			<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+				<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+					<div className="flex items-center gap-3 text-sm">
+						<span className="text-[#737373]">Finance</span>
+						<span className="text-[#a3a3a3]">/</span>
+						<span className="font-semibold">Expenses</span>
+					</div>
+					<div className="ml-auto flex items-center gap-2">
+						{canCreate && (
+							<button
+								type="button"
+								onClick={() => {
+									resetCreateForm();
+									setIsCreateOpen(true);
+								}}
+								className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626]"
 							>
-								<SelectTrigger className="w-full">
-									<SelectValue placeholder="Select category" />
-								</SelectTrigger>
-								<SelectContent>
-									{CATEGORY_OPTIONS.map((opt) => (
-										<SelectItem key={opt.value} value={opt.value}>
-											{opt.label}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+								<Plus className="h-3.5 w-3.5" />
+								Submit Expense
+							</button>
+						)}
+					</div>
+				</header>
+				<div className="px-6 py-6">
+					{/* ── KPI tiles ── */}
+					<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+						<div className="rounded-2xl border border-[#e5e5e5] bg-white p-4">
+							<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">
+								TOTAL CLAIMS
+							</p>
+							<p className="mt-1 text-2xl font-bold font-mono tabular-nums text-[#0a0a0a]">
+								{data.length}
+							</p>
 						</div>
-
-						<div className="flex flex-col gap-1.5">
-							<Label>
-								Description{" "}
-								<span className="text-rose-600">*</span>
-							</Label>
-							<Textarea
-								placeholder="Describe the expense..."
-								value={formDescription}
-								onChange={(e) => setFormDescription(e.target.value)}
-								rows={3}
-							/>
+						<div className="rounded-2xl border border-[#e5e5e5] bg-white p-4">
+							<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">
+								TOTAL VALUE
+							</p>
+							<p className="mt-1 text-2xl font-bold font-mono tabular-nums text-[#0a0a0a]">
+								{formatPrice(totalCents, "MYR")}
+							</p>
 						</div>
-
-						<div className="flex flex-col gap-1.5">
-							<Label>
-								Amount (RM){" "}
-								<span className="text-rose-600">*</span>
-							</Label>
-							<Input
-								type="number"
-								step="0.01"
-								min="0"
-								placeholder="0.00"
-								value={formAmountRm}
-								onChange={(e) => setFormAmountRm(e.target.value)}
-							/>
+						<div className="rounded-2xl border border-[#e5e5e5] bg-white p-4">
+							<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">
+								PENDING
+							</p>
+							<p className="mt-1 text-2xl font-bold font-mono tabular-nums text-amber-700">
+								{pendingCount}
+							</p>
 						</div>
-
-						<div className="flex flex-col gap-1.5">
-							<Label>
-								Expense Date{" "}
-								<span className="text-rose-600">*</span>
-							</Label>
-							<Input
-								type="date"
-								value={formDate}
-								onChange={(e) => setFormDate(e.target.value)}
-							/>
-						</div>
-
-						<div className="flex flex-col gap-1.5">
-							<Label>
-								Receipt URL{" "}
-								<span className="text-[#737373] text-xs font-normal">
-									(optional)
-								</span>
-							</Label>
-							<Input
-								type="url"
-								placeholder="https://..."
-								value={formReceiptUrl}
-								onChange={(e) => setFormReceiptUrl(e.target.value)}
-							/>
+						<div className="rounded-2xl border border-[#e5e5e5] bg-white p-4">
+							<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">
+								PENDING VALUE
+							</p>
+							<p className="mt-1 text-2xl font-bold font-mono tabular-nums text-amber-700">
+								{pendingCents > 0 ? formatPrice(pendingCents, "MYR") : "—"}
+							</p>
 						</div>
 					</div>
 
-					<DialogFooter className="px-4">
-						<Button
-							variant="outline"
-							onClick={() => setIsCreateOpen(false)}
-							disabled={createMutation.isPending}
-						>
-							Cancel
-						</Button>
-						<Button
-							onClick={handleCreateSubmit}
-							disabled={createMutation.isPending}
-						>
-							{createMutation.isPending ? "Submitting…" : "Submit"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-
-			{/* ── Reject Dialog ── */}
-			<Dialog
-				open={rejectTarget !== null}
-				onOpenChange={(open) => {
-					if (!open) setRejectTarget(null);
-				}}
-			>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
-							Reject Expense
-						</DialogTitle>
-						<DialogDescription className="text-sm text-[#737373]">
-							Please provide a reason for rejecting this expense claim.
-						</DialogDescription>
-					</DialogHeader>
-
-					<div className="flex flex-col gap-1.5 py-2">
-						<Label>
-							Rejection Reason{" "}
-							<span className="text-rose-600">*</span>
-						</Label>
-						<Textarea
-							placeholder="Explain why this expense is being rejected..."
-							value={rejectionReason}
-							onChange={(e) => setRejectionReason(e.target.value)}
-							rows={3}
-						/>
+					{/* ── Status tabs ── */}
+					<div className="mb-4 flex flex-wrap items-center gap-2">
+						{STATUS_TABS.map((tab) => {
+							const isActive = statusFilter === tab.value;
+							return (
+								<button
+									key={tab.label}
+									type="button"
+									onClick={() => setStatusFilter(tab.value)}
+									className={
+										isActive
+											? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold"
+											: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium"
+									}
+								>
+									{tab.label}
+								</button>
+							);
+						})}
 					</div>
 
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => setRejectTarget(null)}
-							disabled={rejectMutation.isPending}
-						>
-							Cancel
-						</Button>
-						<Button
-							className="bg-red-600 hover:bg-red-700 text-white"
-							onClick={handleRejectConfirm}
-							disabled={rejectMutation.isPending}
-						>
-							{rejectMutation.isPending ? "Rejecting…" : "Reject"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+					{/* ── Table ── */}
+					{isError ? (
+						<div className="rounded-2xl border border-[#e5e5e5] bg-white p-5">
+							<StatusCallout variant="error" onRetry={() => refetch()}>
+								Failed to load expenses. Please try again.
+							</StatusCallout>
+						</div>
+					) : (
+						<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
+							<table className="w-full">
+								<thead className="bg-[#f3f3f3]">
+									<tr className="border-b border-[#e5e5e5]">
+										<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+											Date
+										</th>
+										<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+											Category
+										</th>
+										<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+											Description
+										</th>
+										<th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+											Amount
+										</th>
+										<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+											Submitted By
+										</th>
+										<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+											Status
+										</th>
+										<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+											Actions
+										</th>
+									</tr>
+								</thead>
+								<tbody className="divide-y divide-[#e5e5e5]">
+									{data.length === 0 ? (
+										<tr>
+											<td colSpan={7}>
+												<div className="flex flex-col items-center justify-center py-16 text-[#737373]">
+													<Receipt className="h-8 w-8 mb-3 opacity-30" />
+													<p className="text-sm font-medium text-[#0a0a0a]">
+														No expenses found
+													</p>
+													<p className="text-xs mt-1">
+														{statusFilter
+															? "Try clearing the status filter."
+															: canCreate
+																? "Submit your first expense claim to get started."
+																: "No expense claims have been submitted yet."}
+													</p>
+													{canCreate && !statusFilter && (
+														<button
+															type="button"
+															onClick={() => {
+																resetCreateForm();
+																setIsCreateOpen(true);
+															}}
+															className="mt-4 inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition"
+														>
+															<Plus className="h-4 w-4" />
+															Submit Expense
+														</button>
+													)}
+												</div>
+											</td>
+										</tr>
+									) : (
+										data.map((row) => (
+											<tr
+												key={row.id}
+												className="group hover:bg-[#fafafa] transition-colors"
+											>
+												<td className="px-4 py-3 font-mono tabular-nums text-sm text-[#737373]">
+													{row.expenseDate}
+												</td>
+												<td className="px-4 py-3">
+													<CategoryChip category={row.category} />
+												</td>
+												<td className="px-4 py-3 text-sm text-[#0a0a0a] max-w-xs">
+													<span
+														title={row.description}
+														className="block truncate"
+													>
+														{row.description}
+													</span>
+													{row.rejectionReason && row.status === "rejected" && (
+														<span className="block text-[10px] text-rose-600 mt-0.5 truncate">
+															{row.rejectionReason}
+														</span>
+													)}
+												</td>
+												<td className="px-4 py-3 text-right font-mono tabular-nums text-sm font-medium text-[#0a0a0a]">
+													{formatPrice(row.amount, "MYR")}
+												</td>
+												<td className="px-4 py-3 font-mono tabular-nums text-xs text-[#737373]">
+													{row.submittedBy.length > 20
+														? `${row.submittedBy.slice(0, 20)}…`
+														: row.submittedBy}
+												</td>
+												<td className="px-4 py-3">
+													<ExpenseStatusBadge status={row.status} />
+												</td>
+												<td className="px-4 py-3">
+													<RowActions
+														row={row}
+														canUpdate={canUpdate}
+														onApprove={(id) => approveMutation.mutate(id)}
+														onReject={(id) => {
+															setRejectTarget(id);
+															setRejectionReason("");
+														}}
+														onMarkPaid={(id) => {
+															setPaidTarget(id);
+															setPaymentReference("");
+														}}
+													/>
+												</td>
+											</tr>
+										))
+									)}
+								</tbody>
+							</table>
+						</div>
+					)}
 
-			{/* ── Mark Paid Dialog ── */}
-			<Dialog
-				open={paidTarget !== null}
-				onOpenChange={(open) => {
-					if (!open) setPaidTarget(null);
-				}}
-			>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
-							Mark as Paid
-						</DialogTitle>
-						<DialogDescription className="text-sm text-[#737373]">
-							Optionally enter a payment reference before confirming.
-						</DialogDescription>
-					</DialogHeader>
-
-					<div className="flex flex-col gap-1.5 py-2">
-						<Label>
-							Payment Reference{" "}
-							<span className="text-[#737373] text-xs font-normal">
-								(optional)
-							</span>
-						</Label>
-						<Input
-							placeholder="e.g. TXN-20240101-001"
-							value={paymentReference}
-							onChange={(e) => setPaymentReference(e.target.value)}
-						/>
-					</div>
-
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => setPaidTarget(null)}
-							disabled={markPaidMutation.isPending}
+					{/* ── Create Expense Dialog ── */}
+					<Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+						<DialogContent
+							className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+							hideCloseButton
 						>
-							Cancel
-						</Button>
-						<Button
-							onClick={handleMarkPaidConfirm}
-							disabled={markPaidMutation.isPending}
+							<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+								<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+									EXPENSE TRACKER
+								</p>
+								<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+									Submit Expense
+								</DialogTitle>
+								<DialogDescription className="text-sm text-[#737373]">
+									Fill in the details to submit a new expense claim.
+								</DialogDescription>
+							</DialogHeader>
+
+							<div className="px-6 pt-4 pb-2 overflow-y-auto">
+								<div className="flex flex-col gap-5">
+									<div className="flex flex-col gap-1.5">
+										<Label>Category</Label>
+										<Select
+											value={formCategory}
+											onValueChange={(val) =>
+												setFormCategory(val as ExpenseCategory)
+											}
+										>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="Select category" />
+											</SelectTrigger>
+											<SelectContent>
+												{CATEGORY_OPTIONS.map((opt) => (
+													<SelectItem key={opt.value} value={opt.value}>
+														{opt.label}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+
+									<div className="flex flex-col gap-1.5">
+										<Label>
+											Description <span className="text-rose-600">*</span>
+										</Label>
+										<Textarea
+											placeholder="Describe the expense..."
+											value={formDescription}
+											onChange={(e) => setFormDescription(e.target.value)}
+											rows={3}
+										/>
+									</div>
+
+									<div className="flex flex-col gap-1.5">
+										<Label>
+											Amount (RM) <span className="text-rose-600">*</span>
+										</Label>
+										<Input
+											type="number"
+											step="0.01"
+											min="0"
+											placeholder="0.00"
+											value={formAmountRm}
+											onChange={(e) => setFormAmountRm(e.target.value)}
+										/>
+									</div>
+
+									<div className="flex flex-col gap-1.5">
+										<Label>
+											Expense Date <span className="text-rose-600">*</span>
+										</Label>
+										<Input
+											type="date"
+											value={formDate}
+											onChange={(e) => setFormDate(e.target.value)}
+										/>
+									</div>
+
+									<div className="flex flex-col gap-1.5">
+										<Label>
+											Receipt URL{" "}
+											<span className="text-[#737373] text-xs font-normal">
+												(optional)
+											</span>
+										</Label>
+										<Input
+											type="url"
+											placeholder="https://..."
+											value={formReceiptUrl}
+											onChange={(e) => setFormReceiptUrl(e.target.value)}
+										/>
+									</div>
+								</div>
+							</div>
+
+							<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+								<Button
+									variant="outline"
+									onClick={() => setIsCreateOpen(false)}
+									disabled={createMutation.isPending}
+								>
+									Cancel
+								</Button>
+								<Button
+									className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+									onClick={handleCreateSubmit}
+									disabled={createMutation.isPending}
+								>
+									{createMutation.isPending ? "Submitting…" : "Submit"}
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
+
+					{/* ── Reject Dialog ── */}
+					<Dialog
+						open={rejectTarget !== null}
+						onOpenChange={(open) => {
+							if (!open) setRejectTarget(null);
+						}}
+					>
+						<DialogContent
+							className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+							hideCloseButton
 						>
-							{markPaidMutation.isPending ? "Processing…" : "Confirm"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-		</div>
-		</div>
+							<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+								<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+									EXPENSE TRACKER
+								</p>
+								<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+									Reject Expense
+								</DialogTitle>
+								<DialogDescription className="text-sm text-[#737373]">
+									Please provide a reason for rejecting this expense claim.
+								</DialogDescription>
+							</DialogHeader>
+
+							<div className="px-6 pt-4 pb-2 overflow-y-auto">
+								<div className="flex flex-col gap-1.5">
+									<Label>
+										Rejection Reason <span className="text-rose-600">*</span>
+									</Label>
+									<Textarea
+										placeholder="Explain why this expense is being rejected..."
+										value={rejectionReason}
+										onChange={(e) => setRejectionReason(e.target.value)}
+										rows={3}
+									/>
+								</div>
+							</div>
+
+							<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+								<Button
+									variant="outline"
+									onClick={() => setRejectTarget(null)}
+									disabled={rejectMutation.isPending}
+								>
+									Cancel
+								</Button>
+								<Button
+									className="bg-red-600 hover:bg-red-700 text-white"
+									onClick={handleRejectConfirm}
+									disabled={rejectMutation.isPending}
+								>
+									{rejectMutation.isPending ? "Rejecting…" : "Reject"}
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
+
+					{/* ── Mark Paid Dialog ── */}
+					<Dialog
+						open={paidTarget !== null}
+						onOpenChange={(open) => {
+							if (!open) setPaidTarget(null);
+						}}
+					>
+						<DialogContent
+							className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+							hideCloseButton
+						>
+							<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+								<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+									EXPENSE TRACKER
+								</p>
+								<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+									Mark as Paid
+								</DialogTitle>
+								<DialogDescription className="text-sm text-[#737373]">
+									Optionally enter a payment reference before confirming.
+								</DialogDescription>
+							</DialogHeader>
+
+							<div className="px-6 pt-4 pb-2 overflow-y-auto">
+								<div className="flex flex-col gap-1.5">
+									<Label>
+										Payment Reference{" "}
+										<span className="text-[#737373] text-xs font-normal">
+											(optional)
+										</span>
+									</Label>
+									<Input
+										placeholder="e.g. TXN-20240101-001"
+										value={paymentReference}
+										onChange={(e) => setPaymentReference(e.target.value)}
+									/>
+								</div>
+							</div>
+
+							<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+								<Button
+									variant="outline"
+									onClick={() => setPaidTarget(null)}
+									disabled={markPaidMutation.isPending}
+								>
+									Cancel
+								</Button>
+								<Button
+									className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+									onClick={handleMarkPaidConfirm}
+									disabled={markPaidMutation.isPending}
+								>
+									{markPaidMutation.isPending ? "Processing…" : "Confirm"}
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
+				</div>
+			</div>
 		</Skeleton>
 	);
 }

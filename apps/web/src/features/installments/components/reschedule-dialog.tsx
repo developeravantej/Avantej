@@ -62,45 +62,55 @@ export function RescheduleDialog({
 				if (!open) handleClose();
 			}}
 		>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>Reschedule Installment</DialogTitle>
-					<DialogDescription>
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						INSTALLMENT PLANS
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Reschedule Installment
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
 						{rescheduleInstallment
 							? `Reschedule Installment ${rescheduleInstallment.installmentNumber} to a new due date.`
 							: "Reschedule this installment to a new due date."}
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="flex flex-col gap-4 py-2">
-					<div className="flex flex-col gap-1.5">
-						<Label htmlFor="reschedule-date">
-							New Due Date <span className="text-destructive">*</span>
-						</Label>
-						<Input
-							id="reschedule-date"
-							ref={dateRef}
-							type="date"
-							min={todayIso}
-							defaultValue=""
-						/>
-					</div>
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					<div className="flex flex-col gap-4 py-2">
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="reschedule-date">
+								New Due Date <span className="text-rose-600">*</span>
+							</Label>
+							<Input
+								id="reschedule-date"
+								ref={dateRef}
+								type="date"
+								min={todayIso}
+								defaultValue=""
+							/>
+						</div>
 
-					<div className="flex flex-col gap-1.5">
-						<Label htmlFor="reschedule-reason">
-							Reason <span className="text-destructive">*</span>
-						</Label>
-						<Textarea
-							id="reschedule-reason"
-							ref={reasonRef}
-							placeholder="Provide a reason for rescheduling…"
-							rows={3}
-							defaultValue=""
-						/>
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="reschedule-reason">
+								Reason <span className="text-rose-600">*</span>
+							</Label>
+							<Textarea
+								id="reschedule-reason"
+								ref={reasonRef}
+								placeholder="Provide a reason for rescheduling…"
+								rows={3}
+								defaultValue=""
+							/>
+						</div>
 					</div>
 				</div>
 
-				<DialogFooter>
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 					<Button
 						variant="outline"
 						onClick={handleClose}
@@ -111,6 +121,7 @@ export function RescheduleDialog({
 					<Button
 						onClick={handleSubmit}
 						disabled={rescheduleMutation.isPending}
+						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
 					>
 						{rescheduleMutation.isPending ? "Rescheduling…" : "Reschedule"}
 					</Button>

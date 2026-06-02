@@ -40,6 +40,7 @@ function makeSlot(overrides: Partial<Record<string, unknown>> = {}) {
 	return {
 		id: SLOT_ID,
 		configId: CONFIG_ID,
+		trackId: null,
 		slotIndex: 0,
 		label: "Primary",
 		weightageBasisPoints: 10000,
@@ -125,7 +126,10 @@ function _insertChainReturning(value: unknown) {
 			Promise.resolve(undefined).then(resolve),
 	}));
 	// some inserts don't call .returning() — expose a chainable values mock
-	const insertMock = mock(() => ({ values: valuesMock, returning: mock(() => Promise.resolve(value)) }));
+	const insertMock = mock(() => ({
+		values: valuesMock,
+		returning: mock(() => Promise.resolve(value)),
+	}));
 	return { insertMock, valuesMock, returningMock, voidResolveMock };
 }
 void _insertChainReturning;
@@ -457,9 +461,7 @@ describe("upsertCategoryCommissionConfig — non-conditional save", () => {
 			txInsertCalls.push(call);
 			return {
 				values: mock(() => ({
-					returning: mock(() =>
-						Promise.resolve(call === 1 ? [config] : []),
-					),
+					returning: mock(() => Promise.resolve(call === 1 ? [config] : [])),
 					then: (resolve: (v: unknown) => unknown) =>
 						Promise.resolve(undefined).then(resolve),
 				})),

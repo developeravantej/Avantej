@@ -11,46 +11,18 @@ import { and, count, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
+import { adminProcedure } from "@/lib/admin-procedure";
 import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { adminSessions } from "@avantej-core/db/schema/control-panel/admin-sessions";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { users } from "@avantej-core/db/schema/control-panel/users";
 
-function requirePlatformAdmin() {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
-			}
-			const cpDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
-			const adminRecord = await cpDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", { message: "Admin access required" });
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
-
 function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
-		"controlPanelDb",
-	) as NeonDatabase<typeof controlPanelSchema> | undefined;
+	const db = (
+		context as { honoContext?: { get: (k: string) => unknown } }
+	).honoContext?.get("controlPanelDb") as
+		| NeonDatabase<typeof controlPanelSchema>
+		| undefined;
 	if (!db)
 		throw new ORPCError("INTERNAL_SERVER_ERROR", {
 			message: "Control panel DB unavailable",
@@ -61,7 +33,9 @@ function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
 // The actor for an action is either the direct admin_user_id (Plan E E.3
 // path) or the admin who owns the impersonation session (legacy path).
 // We left-join both and COALESCE.
-const actorIdExpr = sql<string | null>`COALESCE(${adminSessionActions.adminUserId}, ${adminSessions.adminUserId})`;
+const actorIdExpr = sql<
+	string | null
+>`COALESCE(${adminSessionActions.adminUserId}, ${adminSessions.adminUserId})`;
 
 export const platformAdminAuditRouter = {
 	listAdminActions: adminProcedure
@@ -85,11 +59,16 @@ export const platformAdminAuditRouter = {
 				filters.push(eq(adminSessionActions.actionType, input.actionType));
 			}
 			if (input.adminUserId) {
-				filters.push(sql`COALESCE(${adminSessionActions.adminUserId}, ${adminSessions.adminUserId}) = ${input.adminUserId}`);
+				filters.push(
+					sql`COALESCE(${adminSessionActions.adminUserId}, ${adminSessions.adminUserId}) = ${input.adminUserId}`,
+				);
 			}
 			if (input.targetOrganizationId) {
 				filters.push(
-					eq(adminSessionActions.targetOrganizationId, input.targetOrganizationId),
+					eq(
+						adminSessionActions.targetOrganizationId,
+						input.targetOrganizationId,
+					),
 				);
 			}
 			if (input.since) {
@@ -129,7 +108,10 @@ export const platformAdminAuditRouter = {
 					adminSessions,
 					eq(adminSessions.id, adminSessionActions.adminSessionId),
 				)
-				.leftJoin(users, sql`${users.id} = COALESCE(${adminSessionActions.adminUserId}, ${adminSessions.adminUserId})`)
+				.leftJoin(
+					users,
+					sql`${users.id} = COALESCE(${adminSessionActions.adminUserId}, ${adminSessions.adminUserId})`,
+				)
 				.leftJoin(
 					organizations,
 					eq(organizations.id, adminSessionActions.targetOrganizationId),

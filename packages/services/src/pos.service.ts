@@ -19,7 +19,10 @@ import { packageInstances } from "@avantej-core/db/schema/tenant/package-instanc
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { taxRates } from "@avantej-core/db/schema/tenant/tax-rates";
-import { promotions, promotionUsages } from "@avantej-core/db/schema/tenant/promotions";
+import {
+	promotions,
+	promotionUsages,
+} from "@avantej-core/db/schema/tenant/promotions";
 import { installmentPlans } from "@avantej-core/db/schema/tenant/installment-plans";
 import { walkInCustomers } from "@avantej-core/db/schema/tenant/walk-in-customers";
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
@@ -30,7 +33,12 @@ import { ORPCError } from "@orpc/server";
 import { writeAudit } from "./audit-log.service";
 import { applyCreditPointDeltaTx } from "./customer-profile.service";
 import { validatePromoCode } from "./promotions.service";
-import { createInstallmentSchedule, calculateCreditsUnlocked, calculateInstallmentAmounts, confirmInstallmentPayment } from "./installment.service";
+import {
+	createInstallmentSchedule,
+	calculateCreditsUnlocked,
+	calculateInstallmentAmounts,
+	confirmInstallmentPayment,
+} from "./installment.service";
 // Agent 2.3 — Phase 2 Wave 3b — J2 — fallback tax-rate resolution
 import { resolveTaxRate } from "./tax.service";
 import * as branchStatsCache from "./branch-stats-cache.service";
@@ -79,9 +87,22 @@ export interface RecordPosSaleInput {
 	// Notes
 	notes?: string;
 	/** Per-item trainer assignments. Key = item index (0-based). Optional — POS commission is optional. */
-	itemTrainerAssignments?: Record<number, { staffId: string; slotIndex: number }[]>;
+	itemTrainerAssignments?: Record<
+		number,
+		{ staffId: string; slotIndex: number }[]
+	>;
 	/** Preferred trainer for package instances created by this sale. Written to package_instances.preferred_trainer_id. */
 	preferredTrainerId?: string;
+	/**
+	 * Phase 3 — origination attribution.
+	 * soldBy: cross-DB userId of the closer (salesperson who converted the deal).
+	 *   Persisted to sales_orders.sold_by and used for origination commission.
+	 * leadSourceUserId: cross-DB userId of the lead source (referrer/marketing).
+	 *   Persisted to sales_orders.lead_source_user_id.
+	 * Both are optional — origination commission is optional.
+	 */
+	soldBy?: string;
+	leadSourceUserId?: string;
 	// Actor
 	actor: { userId: string; memberId: string; role: string };
 }
@@ -147,23 +168,38 @@ function addDays(date: Date, days: number): Date {
 // Format: SO-YYYYMMDD-000001 (6-digit global sequence, not daily-reset)
 // ---------------------------------------------------------------------------
 
-async function generateSalesOrderNumber(tx: TenantTx, date: Date): Promise<string> {
+async function generateSalesOrderNumber(
+	tx: TenantTx,
+	date: Date,
+): Promise<string> {
 	const datePart = formatDateYYYYMMDD(date);
-	const result = await tx.execute<{ seq: string }>(sql`SELECT nextval('tenant_sales_order_seq') AS seq`);
+	const result = await tx.execute<{ seq: string }>(
+		sql`SELECT nextval('tenant_sales_order_seq') AS seq`,
+	);
 	const seq = Number((result.rows[0] as { seq: string | number }).seq);
 	return `SO-${datePart}-${String(seq).padStart(6, "0")}`;
 }
 
-async function generatePaymentNumber(tx: TenantTx, date: Date): Promise<string> {
+async function generatePaymentNumber(
+	tx: TenantTx,
+	date: Date,
+): Promise<string> {
 	const datePart = formatDateYYYYMMDD(date);
-	const result = await tx.execute<{ seq: string }>(sql`SELECT nextval('tenant_payment_seq') AS seq`);
+	const result = await tx.execute<{ seq: string }>(
+		sql`SELECT nextval('tenant_payment_seq') AS seq`,
+	);
 	const seq = Number((result.rows[0] as { seq: string | number }).seq);
 	return `PAY-${datePart}-${String(seq).padStart(6, "0")}`;
 }
 
-async function generateInvoiceNumber(tx: TenantTx, date: Date): Promise<string> {
+async function generateInvoiceNumber(
+	tx: TenantTx,
+	date: Date,
+): Promise<string> {
 	const datePart = formatDateYYYYMMDD(date);
-	const result = await tx.execute<{ seq: string }>(sql`SELECT nextval('tenant_invoice_seq') AS seq`);
+	const result = await tx.execute<{ seq: string }>(
+		sql`SELECT nextval('tenant_invoice_seq') AS seq`,
+	);
 	const seq = Number((result.rows[0] as { seq: string | number }).seq);
 	return `INV-${datePart}-${String(seq).padStart(6, "0")}`;
 }
@@ -245,7 +281,8 @@ export async function recordPosSale(
 	if (input.installmentPlanCode) {
 		if (packageItems.length !== 1) {
 			throw new ORPCError("BAD_REQUEST", {
-				message: "An installment plan can only be applied when there is exactly one package item.",
+				message:
+					"An installment plan can only be applied when there is exactly one package item.",
 			});
 		}
 
@@ -338,7 +375,8 @@ export async function recordPosSale(
 		for (const item of input.items) {
 			if (item.unitPriceCents < 0 || item.quantity < 1) {
 				throw new ORPCError("BAD_REQUEST", {
-					message: "Item price must be non-negative and quantity must be at least 1",
+					message:
+						"Item price must be non-negative and quantity must be at least 1",
 				});
 			}
 		}
@@ -373,7 +411,8 @@ export async function recordPosSale(
 				input.promotionCode,
 				{
 					// BE-M2: walk-in sales bypass per-customer limit check (Agent 2 makes customerId optional)
-					customerId: input.customerType === "walk_in" ? undefined : input.customerId,
+					customerId:
+						input.customerType === "walk_in" ? undefined : input.customerId,
 					orderAmount: subtotalCents,
 					serviceIds: serviceIds.length > 0 ? serviceIds : undefined,
 					productIds: productIds.length > 0 ? productIds : undefined,
@@ -463,7 +502,9 @@ export async function recordPosSale(
 			// SP-04: no active default tax rate and none explicitly provided — fail loudly
 			// so the operator knows to configure one rather than silently recording 0% tax.
 			if (!taxRate) {
-				throw new Error("NO_TAX_RATE: No active tax rate configured for this organisation. Set a default tax rate or provide an explicit taxRateId.");
+				throw new Error(
+					"NO_TAX_RATE: No active tax rate configured for this organisation. Set a default tax rate or provide an explicit taxRateId.",
+				);
 			}
 		}
 		const resolvedTaxRateId: string | null = taxRate?.id ?? null;
@@ -475,7 +516,9 @@ export async function recordPosSale(
 			0,
 			subtotalCents - discountCents - creditDiscountCents,
 		);
-		const taxCents = Math.floor((taxBase * (taxRate?.rateInBasisPoints ?? 0)) / 10000);
+		const taxCents = Math.floor(
+			(taxBase * (taxRate?.rateInBasisPoints ?? 0)) / 10000,
+		);
 		const totalCents = taxBase + taxCents;
 
 		// BE-M1: compute the amount actually due at POS counter.
@@ -486,11 +529,17 @@ export async function recordPosSale(
 			? Math.round(totalCents * (1 + installmentPlan.pricePremiumBps / 10000))
 			: totalCents;
 		const dueNowCents = installmentPlan
-			? calculateInstallmentAmounts(totalWithPremiumCents, installmentPlan.numInstallments)[0]!
+			? calculateInstallmentAmounts(
+					totalWithPremiumCents,
+					installmentPlan.numInstallments,
+				)[0]!
 			: totalCents;
 
 		// BE-C1: Reject cash sales where tendered amount is less than due amount
-		if (input.paymentMethod === "cash" && (input.amountTenderedCents ?? 0) < dueNowCents) {
+		if (
+			input.paymentMethod === "cash" &&
+			(input.amountTenderedCents ?? 0) < dueNowCents
+		) {
 			throw new ORPCError("BAD_REQUEST", {
 				message: `Cash tendered (${input.amountTenderedCents ?? 0}) is less than the amount due (${dueNowCents}). Please collect at least the due amount.`,
 			});
@@ -532,6 +581,11 @@ export async function recordPosSale(
 				status: input.paymentMethod === "stripe" ? "pending" : "confirmed",
 				totalAmount: taxBase, // pre-tax, post-discount
 				notes: input.notes ?? null,
+				// Phase 3 — origination attribution
+				...(input.soldBy ? { soldBy: input.soldBy } : {}),
+				...(input.leadSourceUserId
+					? { leadSourceUserId: input.leadSourceUserId }
+					: {}),
 			})
 			.returning();
 
@@ -564,7 +618,8 @@ export async function recordPosSale(
 			// (completed or cancelled). Mark the line so the appointment handler
 			// can read it without a commission_pending_intents table (Open Q-2 Option B).
 			const isServiceItem =
-				(item.type === "service" || item.type === "package") && Boolean(item.refId);
+				(item.type === "service" || item.type === "package") &&
+				Boolean(item.refId);
 			const isProductItem = item.type === "product" && Boolean(item.refId);
 			// commissionDeferred = true  → service item, wait for appointment delivery
 			// commissionDeferred = false → product item or no refId, earn at sale
@@ -731,11 +786,12 @@ export async function recordPosSale(
 				// BE-M1: for installment plans, amountPaid = first installment only (dueNowCents), not full order total.
 				amountPaid: input.paymentMethod === "stripe" ? 0 : dueNowCents,
 				// BE-M2: use "partially_paid" when only the first instalment was collected (dueNowCents < totalCents).
-				status: input.paymentMethod === "stripe"
-					? "pending"
-					: dueNowCents < totalCents
-						? "partially_paid"
-						: "paid",
+				status:
+					input.paymentMethod === "stripe"
+						? "pending"
+						: dueNowCents < totalCents
+							? "partially_paid"
+							: "paid",
 			})
 			.returning();
 
@@ -769,7 +825,10 @@ export async function recordPosSale(
 		if (packageItems.length > 0) {
 			for (const item of packageItems) {
 				const service = packageServiceMap.get(item.refId!);
-				if (!service) throw new Error(`Service not found in pre-validated map: ${item.refId}`);
+				if (!service)
+					throw new Error(
+						`Service not found in pre-validated map: ${item.refId}`,
+					);
 
 				// P0: installment principal must reflect any promo discount, and the package's
 				// tax must be its OWN share — not the whole order's. Allocate the discount
@@ -797,7 +856,11 @@ export async function recordPosSale(
 					.values({
 						serviceId: item.refId!,
 						clientId: input.customerType === "member" ? input.customerId : null,
-						walkInCustomerId: input.customerType === "walk_in" && input.customerId !== "anonymous" ? input.customerId : null,
+						walkInCustomerId:
+							input.customerType === "walk_in" &&
+							input.customerId !== "anonymous"
+								? input.customerId
+								: null,
 						source: "purchased",
 						salesOrderId: salesOrder.id, // 7.3
 						paymentId: payment.id,
@@ -848,7 +911,11 @@ export async function recordPosSale(
 					// F-INS-2: route through confirmInstallmentPayment so audit + completion fire
 					if (scheduleRows.length > 0) {
 						const first = scheduleRows[0]!;
-						const creditsAfterFirst = calculateCreditsUnlocked(service.sessionCount!, 1, installmentsTotal);
+						const creditsAfterFirst = calculateCreditsUnlocked(
+							service.sessionCount!,
+							1,
+							installmentsTotal,
+						);
 						const nextDueDate = scheduleRows[1]?.dueDate ?? null;
 						console.log("[pos] auto-confirming installment #1", {
 							packageInstanceId: pkgInstance.id,
@@ -867,7 +934,10 @@ export async function recordPosSale(
 							},
 							{ inTransaction: true },
 						);
-						console.log("[pos] installment #1 auto-confirmed", { packageInstanceId: pkgInstance.id, creditsAfterFirst });
+						console.log("[pos] installment #1 auto-confirmed", {
+							packageInstanceId: pkgInstance.id,
+							creditsAfterFirst,
+						});
 					}
 				}
 			}
@@ -894,7 +964,9 @@ export async function recordPosSale(
 				customerId: input.customerId,
 				paymentMethod: input.paymentMethod,
 				hasPromo: !!promotionId,
-				hasInstallment: !!(installmentPlan && (installmentPlan.numInstallments ?? 1) > 1),
+				hasInstallment: !!(
+					installmentPlan && (installmentPlan.numInstallments ?? 1) > 1
+				),
 			},
 		});
 
@@ -913,7 +985,8 @@ export async function recordPosSale(
 			invoiceId: invoice.id,
 			invoiceNumber,
 			paymentId: payment.id,
-			packageInstanceIds: packageInstanceIds.length > 0 ? packageInstanceIds : undefined,
+			packageInstanceIds:
+				packageInstanceIds.length > 0 ? packageInstanceIds : undefined,
 			installmentIds: installmentIds.length > 0 ? installmentIds : undefined,
 			subtotalCents,
 			discountCents,
@@ -928,8 +1001,13 @@ export async function recordPosSale(
 	// Service items (type === "service" | "package") are deferred — commission fires
 	// when the linked appointment is delivered (completed or cancelled). The line's
 	// commissionDeferred flag is already set to true in the transaction above.
-	if (input.itemTrainerAssignments && Object.keys(input.itemTrainerAssignments).length > 0) {
-		const { calculateCommissionForPos } = await import("./commission-calculator.service");
+	if (
+		input.itemTrainerAssignments &&
+		Object.keys(input.itemTrainerAssignments).length > 0
+	) {
+		const { calculateCommissionForPos } = await import(
+			"./commission-calculator.service"
+		);
 
 		// Fix #13 (defensive): the calculator's Pre-step B2 only bails when *all*
 		// lines on the order are commission_excluded. It can't tell which specific
@@ -953,7 +1031,9 @@ export async function recordPosSale(
 				.filter((id): id is string => id != null),
 		);
 
-		for (const [indexStr, staffAssignments] of Object.entries(input.itemTrainerAssignments)) {
+		for (const [indexStr, staffAssignments] of Object.entries(
+			input.itemTrainerAssignments,
+		)) {
 			const itemIndex = parseInt(indexStr, 10);
 			const item = input.items[itemIndex];
 			if (!item || !item.refId) continue; // Skip items without a refId
@@ -961,12 +1041,14 @@ export async function recordPosSale(
 			// Only products earn commission at sale time.
 			// Services/packages defer to appointment delivery — skip here.
 			if (item.type !== "product") {
-				console.info(JSON.stringify({
-					event: "commission_deferred_service_item",
-					salesOrderId: result.salesOrderId,
-					itemIndex,
-					itemType: item.type,
-				}));
+				console.info(
+					JSON.stringify({
+						event: "commission_deferred_service_item",
+						salesOrderId: result.salesOrderId,
+						itemIndex,
+						itemType: item.type,
+					}),
+				);
 				try {
 					await writeAudit(tenantDb, {
 						actorUserId: input.actor.userId,
@@ -975,7 +1057,11 @@ export async function recordPosSale(
 						entityType: "sales_order",
 						entityId: result.salesOrderId,
 						summary: `Commission deferred for ${item.type} item (index ${itemIndex}, serviceId ${item.refId ?? "unknown"}) — fires on appointment delivery`,
-						changes: { itemIndex, serviceId: item.refId ?? null, itemType: item.type },
+						changes: {
+							itemIndex,
+							serviceId: item.refId ?? null,
+							itemType: item.type,
+						},
 					});
 				} catch {
 					// best-effort — deferred audit must not block the sale
@@ -985,12 +1071,14 @@ export async function recordPosSale(
 
 			// Fix #13: skip per-line commission_excluded items.
 			if (excludedRefIds.has(item.refId)) {
-				console.info(JSON.stringify({
-					event: "commission_skipped_line_excluded",
-					salesOrderId: result.salesOrderId,
-					itemIndex,
-					refId: item.refId,
-				}));
+				console.info(
+					JSON.stringify({
+						event: "commission_skipped_line_excluded",
+						salesOrderId: result.salesOrderId,
+						itemIndex,
+						refId: item.refId,
+					}),
+				);
 				continue;
 			}
 
@@ -1015,13 +1103,44 @@ export async function recordPosSale(
 			} catch (err) {
 				// Commission failure must not fail the sale — log and continue.
 				// The per-item tx ensures any partial inserts are rolled back.
-				console.error(JSON.stringify({
-					event: "commission_calculation_failed",
-					salesOrderId: result.salesOrderId,
-					itemIndex,
-					error: err instanceof Error ? err.message : String(err),
-				}));
+				console.error(
+					JSON.stringify({
+						event: "commission_calculation_failed",
+						salesOrderId: result.salesOrderId,
+						itemIndex,
+						error: err instanceof Error ? err.message : String(err),
+					}),
+				);
 			}
+		}
+	}
+
+	// Phase 3 — Origination commission: fires ONCE per order for confirmed (non-Stripe) orders.
+	// Stripe orders fire at the payment_intent.succeeded webhook instead.
+	// Must be outside the per-item loop — one split per order, not per item.
+	if (
+		input.paymentMethod !== "stripe" &&
+		(input.soldBy || input.leadSourceUserId)
+	) {
+		const { calculateOriginationCommission } = await import(
+			"./commission-calculator.service"
+		);
+		try {
+			await calculateOriginationCommission(tenantDb, {
+				salesOrderId: result.salesOrderId,
+				soldByUserId: input.soldBy ?? null,
+				leadSourceUserId: input.leadSourceUserId ?? null,
+				actor: input.actor,
+			});
+		} catch (err) {
+			// Commission failure must not fail the sale — log and move on.
+			console.error(
+				JSON.stringify({
+					event: "origination_commission_failed",
+					salesOrderId: result.salesOrderId,
+					error: err instanceof Error ? err.message : String(err),
+				}),
+			);
 		}
 	}
 
@@ -1060,10 +1179,7 @@ export async function searchPosCustomers(
 	// ---- Members (cross-DB) ----
 	// Step 1: Get all client members scoped to accessible nodes
 	const clientMembers = await tenantDb.query.members.findMany({
-		where: and(
-			eq(members.role, "client"),
-			eq(members.status, "active"),
-		),
+		where: and(eq(members.role, "client"), eq(members.status, "active")),
 	});
 
 	const scopedMembers = clientMembers.filter((m) =>
@@ -1078,7 +1194,12 @@ export async function searchPosCustomers(
 		const { inArray } = await import("drizzle-orm");
 
 		const users = await controlPanelDb
-			.select({ id: user.id, name: user.name, email: user.email, phone: user.phone })
+			.select({
+				id: user.id,
+				name: user.name,
+				email: user.email,
+				phone: user.phone,
+			})
 			.from(user)
 			.where(inArray(user.id, userIds));
 

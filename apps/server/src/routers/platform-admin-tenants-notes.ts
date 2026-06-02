@@ -21,8 +21,7 @@ import { and, eq, isNull, desc, sql } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
+import { adminProcedure } from "@/lib/admin-procedure";
 import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { users } from "@avantej-core/db/schema/control-panel/users";
@@ -30,51 +29,12 @@ import { tenantNotes } from "@avantej-core/db/schema/control-panel/tenant-notes"
 
 const EDIT_WINDOW_MS = 60 * 60 * 1000;
 
-function requirePlatformAdmin(
-	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">,
-) {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
-			}
-			const cpDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
-			const adminRecord = await cpDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", { message: "Admin access required" });
-			}
-			if (
-				allowRoles &&
-				!allowRoles.includes(
-					adminRecord.role as "super_admin" | "support" | "billing",
-				)
-			) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Your platform admin role does not permit this action",
-				});
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
-
 function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
-		"controlPanelDb",
-	) as NeonDatabase<typeof controlPanelSchema> | undefined;
+	const db = (
+		context as { honoContext?: { get: (k: string) => unknown } }
+	).honoContext?.get("controlPanelDb") as
+		| NeonDatabase<typeof controlPanelSchema>
+		| undefined;
 	if (!db)
 		throw new ORPCError("INTERNAL_SERVER_ERROR", {
 			message: "Control panel DB unavailable",
@@ -85,13 +45,19 @@ function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
 function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
 	const id = session?.user?.id;
-	if (!id) throw new ORPCError("UNAUTHORIZED", { message: "No admin user in session" });
+	if (!id)
+		throw new ORPCError("UNAUTHORIZED", {
+			message: "No admin user in session",
+		});
 	return id;
 }
 
-function adminRoleFrom(context: unknown): "super_admin" | "support" | "billing" {
+function adminRoleFrom(
+	context: unknown,
+): "super_admin" | "support" | "billing" {
 	const role = (context as { adminRole?: string }).adminRole;
-	if (!role) throw new ORPCError("FORBIDDEN", { message: "No admin role in context" });
+	if (!role)
+		throw new ORPCError("FORBIDDEN", { message: "No admin role in context" });
 	return role as "super_admin" | "support" | "billing";
 }
 
@@ -223,7 +189,10 @@ export const platformAdminTenantsNotesRouter = {
 			if (input.body !== undefined) patch.body = input.body;
 			if (input.isPinned !== undefined) patch.isPinned = input.isPinned;
 
-			await cpDb.update(tenantNotes).set(patch).where(eq(tenantNotes.id, input.id));
+			await cpDb
+				.update(tenantNotes)
+				.set(patch)
+				.where(eq(tenantNotes.id, input.id));
 
 			await cpDb.insert(adminSessionActions).values({
 				adminUserId,

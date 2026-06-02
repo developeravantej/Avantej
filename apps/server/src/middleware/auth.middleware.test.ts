@@ -12,7 +12,10 @@
  */
 
 import { afterEach, describe, expect, it, mock, spyOn } from "bun:test";
-import { makeHonoContext, runMiddleware } from "../tests/helpers/hono-context.factory";
+import {
+	makeHonoContext,
+	runMiddleware,
+} from "../tests/helpers/hono-context.factory";
 
 // ─── Mock setup ───────────────────────────────────────────────────────────────
 
@@ -20,13 +23,13 @@ import { makeHonoContext, runMiddleware } from "../tests/helpers/hono-context.fa
 const mockGetSession = mock(async () => null as unknown);
 
 const mockAuth = {
-  api: {
-    getSession: mockGetSession,
-  },
+	api: {
+		getSession: mockGetSession,
+	},
 };
 
 mock.module("../lib/better-auth", () => ({
-  getBetterAuth: (_c?: unknown) => mockAuth,
+	getBetterAuth: (_c?: unknown) => mockAuth,
 }));
 
 // Import SUT after mocking
@@ -38,80 +41,80 @@ const MOCK_USER = { id: "u1", email: "user@example.com" };
 const MOCK_SESSION_RECORD = { id: "sess_1", token: "tok_abc", userId: "u1" };
 
 afterEach(() => {
-  mockGetSession.mockReset();
+	mockGetSession.mockReset();
 });
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe("authMiddleware", () => {
-  it("injects user + session and calls next on valid session", async () => {
-    mockGetSession.mockImplementationOnce(async () => ({
-      user: MOCK_USER,
-      session: MOCK_SESSION_RECORD,
-    }));
+	it("injects user + session and calls next on valid session", async () => {
+		mockGetSession.mockImplementationOnce(async () => ({
+			user: MOCK_USER,
+			session: MOCK_SESSION_RECORD,
+		}));
 
-    const c = makeHonoContext();
-    const { response, nextCalled } = await runMiddleware(authMiddleware, c);
+		const c = makeHonoContext();
+		const { response, nextCalled } = await runMiddleware(authMiddleware, c);
 
-    expect(nextCalled).toBe(true);
-    expect(response).toBeUndefined();
-    expect(c.get("user")).toEqual(MOCK_USER);
-    expect(c.get("session")).toEqual(MOCK_SESSION_RECORD);
-  });
+		expect(nextCalled).toBe(true);
+		expect(response).toBeUndefined();
+		expect(c.get("user")).toEqual(MOCK_USER);
+		expect(c.get("session")).toEqual(MOCK_SESSION_RECORD);
+	});
 
-  it("returns 401 when getSession resolves to null", async () => {
-    mockGetSession.mockImplementationOnce(async () => null);
+	it("returns 401 when getSession resolves to null", async () => {
+		mockGetSession.mockImplementationOnce(async () => null);
 
-    const c = makeHonoContext();
-    const { response, nextCalled } = await runMiddleware(authMiddleware, c);
+		const c = makeHonoContext();
+		const { response, nextCalled } = await runMiddleware(authMiddleware, c);
 
-    expect(nextCalled).toBe(false);
-    expect(response).toMatchObject({
-      __response: true,
-      status: 401,
-      body: { error: "Unauthorized" },
-    });
-    expect(c.get("user")).toBeUndefined();
-    expect(c.get("session")).toBeUndefined();
-  });
+		expect(nextCalled).toBe(false);
+		expect(response).toMatchObject({
+			__response: true,
+			status: 401,
+			body: { error: "Unauthorized" },
+		});
+		expect(c.get("user")).toBeUndefined();
+		expect(c.get("session")).toBeUndefined();
+	});
 
-  it("returns 401 when session.user is null", async () => {
-    mockGetSession.mockImplementationOnce(async () => ({
-      user: null,
-      session: MOCK_SESSION_RECORD,
-    }));
+	it("returns 401 when session.user is null", async () => {
+		mockGetSession.mockImplementationOnce(async () => ({
+			user: null,
+			session: MOCK_SESSION_RECORD,
+		}));
 
-    const c = makeHonoContext();
-    const { response, nextCalled } = await runMiddleware(authMiddleware, c);
+		const c = makeHonoContext();
+		const { response, nextCalled } = await runMiddleware(authMiddleware, c);
 
-    expect(nextCalled).toBe(false);
-    expect(response).toMatchObject({
-      __response: true,
-      status: 401,
-      body: { error: "Unauthorized" },
-    });
-    expect(c.get("user")).toBeUndefined();
-  });
+		expect(nextCalled).toBe(false);
+		expect(response).toMatchObject({
+			__response: true,
+			status: 401,
+			body: { error: "Unauthorized" },
+		});
+		expect(c.get("user")).toBeUndefined();
+	});
 
-  it("returns 401 and logs error when getSession throws", async () => {
-    const consoleSpy = spyOn(console, "error").mockImplementation(() => {});
-    mockGetSession.mockImplementationOnce(async () => {
-      throw new Error("better-auth boom");
-    });
+	it("returns 401 and logs error when getSession throws", async () => {
+		const consoleSpy = spyOn(console, "error").mockImplementation(() => {});
+		mockGetSession.mockImplementationOnce(async () => {
+			throw new Error("better-auth boom");
+		});
 
-    const c = makeHonoContext();
-    const { response, nextCalled } = await runMiddleware(authMiddleware, c);
+		const c = makeHonoContext();
+		const { response, nextCalled } = await runMiddleware(authMiddleware, c);
 
-    expect(nextCalled).toBe(false);
-    expect(response).toMatchObject({
-      __response: true,
-      status: 401,
-      body: { error: "Unauthorized" },
-    });
-    expect(consoleSpy).toHaveBeenCalled();
-    const firstCallArgs = consoleSpy.mock.calls[0];
-    expect(firstCallArgs?.[0]).toBe("Auth middleware error:");
+		expect(nextCalled).toBe(false);
+		expect(response).toMatchObject({
+			__response: true,
+			status: 401,
+			body: { error: "Unauthorized" },
+		});
+		expect(consoleSpy).toHaveBeenCalled();
+		const firstCallArgs = consoleSpy.mock.calls[0];
+		expect(firstCallArgs?.[0]).toBe("Auth middleware error:");
 
-    consoleSpy.mockRestore();
-  });
+		consoleSpy.mockRestore();
+	});
 });

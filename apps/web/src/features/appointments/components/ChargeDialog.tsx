@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { loadStripe, type Stripe, type StripeElements } from "@stripe/stripe-js";
+import {
+	loadStripe,
+	type Stripe,
+	type StripeElements,
+} from "@stripe/stripe-js";
 import {
 	Elements,
 	PaymentElement,
@@ -15,6 +19,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 	DialogDescription,
+	DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { client as orpcClient } from "@/utils/orpc";
@@ -60,7 +65,9 @@ export function ChargeDialog({
 			})) as IntentResult,
 		onSuccess: (data) => setIntent(data),
 		onError: (err: unknown) => {
-			toast.error(err instanceof Error ? err.message : "Failed to start payment");
+			toast.error(
+				err instanceof Error ? err.message : "Failed to start payment",
+			);
 		},
 	});
 
@@ -76,41 +83,58 @@ export function ChargeDialog({
 
 	const stripePromise = useMemo<Promise<Stripe | null> | null>(() => {
 		if (!intent || !publishableKey) return null;
-		return loadStripe(publishableKey, { stripeAccount: intent.stripeAccountId });
+		return loadStripe(publishableKey, {
+			stripeAccount: intent.stripeAccountId,
+		});
 	}, [intent]);
 
 	return (
-		<Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>Charge appointment</DialogTitle>
-					<DialogDescription>
+		<Dialog
+			open={open}
+			onOpenChange={(o) => {
+				if (!o) onClose();
+			}}
+		>
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						APPOINTMENTS
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Charge appointment
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
 						{intent
 							? `${(intent.amount / 100).toFixed(2)} ${intent.currency}`
 							: `${(sessionTotalCents / 100).toFixed(2)} (loading…)`}
 					</DialogDescription>
 				</DialogHeader>
 
-				{!publishableKey && (
-					<p className="rounded-md bg-red-50 p-3 text-red-900 text-sm">
-						Missing VITE_STRIPE_PUBLISHABLE_KEY — set it in apps/web/.env.
-					</p>
-				)}
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					{!publishableKey && (
+						<p className="rounded-md bg-red-50 p-3 text-red-900 text-sm">
+							Missing VITE_STRIPE_PUBLISHABLE_KEY — set it in apps/web/.env.
+						</p>
+					)}
 
-				{createIntent.isPending && (
-					<div className="flex items-center justify-center py-8">
-						<Loader2 className="size-6 animate-spin" />
-					</div>
-				)}
+					{createIntent.isPending && (
+						<div className="flex items-center justify-center py-8">
+							<Loader2 className="size-6 animate-spin" />
+						</div>
+					)}
 
-				{intent && stripePromise && (
-					<Elements
-						stripe={stripePromise}
-						options={{ clientSecret: intent.clientSecret }}
-					>
-						<ChargeForm intent={intent} onPaid={onPaid} onClose={onClose} />
-					</Elements>
-				)}
+					{intent && stripePromise && (
+						<Elements
+							stripe={stripePromise}
+							options={{ clientSecret: intent.clientSecret }}
+						>
+							<ChargeForm intent={intent} onPaid={onPaid} onClose={onClose} />
+						</Elements>
+					)}
+				</div>
 			</DialogContent>
 		</Dialog>
 	);
@@ -150,18 +174,23 @@ function ChargeForm({
 	return (
 		<div className="space-y-4">
 			<PaymentElement />
-			<div className="flex gap-2">
+			<p className="text-[#737373] text-xs">
+				Application fee {(intent.applicationFeeAmount / 100).toFixed(2)}{" "}
+				{intent.currency} remitted to Avantej.
+			</p>
+			<DialogFooter className="px-0 py-0 border-t-0 bg-transparent flex justify-end gap-2">
 				<Button variant="outline" onClick={onClose} disabled={submitting}>
 					Cancel
 				</Button>
-				<Button onClick={confirm} disabled={submitting} className="flex-1">
+				<Button
+					onClick={confirm}
+					disabled={submitting}
+					className="flex-1 bg-[#0a0a0a] text-white hover:bg-[#262626]"
+				>
 					{submitting && <Loader2 className="mr-2 size-4 animate-spin" />}
 					Pay {(intent.amount / 100).toFixed(2)} {intent.currency}
 				</Button>
-			</div>
-			<p className="text-muted-foreground text-xs">
-				Application fee {(intent.applicationFeeAmount / 100).toFixed(2)} {intent.currency} remitted to Avantej.
-			</p>
+			</DialogFooter>
 		</div>
 	);
 }

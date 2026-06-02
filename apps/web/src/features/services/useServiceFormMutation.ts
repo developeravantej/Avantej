@@ -45,7 +45,7 @@ export function useServiceFormMutation({
 				durationUnitType: "minutes" as const,
 				maxAttendees: values.maxAttendees ?? 1,
 				attendanceThreshold: null,
-				branchId: null,
+				branchId: undefined,
 				isActive: true,
 				price: values.price != null ? values.price : null,
 				taxable: values.taxable,

@@ -123,7 +123,6 @@ async function createAppointment(serviceId: string, status = "scheduled") {
 	return appt;
 }
 
-
 // ---------------------------------------------------------------------------
 // Setup / teardown
 // ---------------------------------------------------------------------------
@@ -209,9 +208,7 @@ afterAll(async () => {
 			.update(members)
 			.set({ trainerTierId: null })
 			.where(inArray(members.id, createdMemberIds));
-		await tenantDb
-			.delete(members)
-			.where(inArray(members.id, createdMemberIds));
+		await tenantDb.delete(members).where(inArray(members.id, createdMemberIds));
 	}
 
 	// 8. Commission tier rates scaffolded by createTrainerTier for other configs
@@ -238,154 +235,146 @@ describe("approveCommissionSplits — batch invariants", () => {
 	 * TC-AI-001: legal batch (single trainer, ≤31 day spread)
 	 * → returns approved splits, all have status='approved' and approvedBy set.
 	 */
-	test(
-		"TC-AI-001: legal batch → all splits approved with approvedBy set",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("TC-AI-001: legal batch → all splits approved with approvedBy set", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const { categoryId, serviceId } = await createCategoryAndService(
-				`TC-AI-001-${TS}`,
-			);
-			await upsertCategoryCommissionConfig(
-				tenantDb,
-				{
-					categoryId,
-					paymentType: "fixed",
-					isConditional: false,
-					maxCoaches: 1,
-					slots: [
-						{
-							slotIndex: 0,
-							label: "Head Trainer",
-							weightageBasisPoints: 10000,
-						},
-					],
-					rates: [{ trainerTierId: tierId, amount: 5000 }],
-				},
-				ACTOR,
-			);
+		const { categoryId, serviceId } = await createCategoryAndService(
+			`TC-AI-001-${TS}`,
+		);
+		await upsertCategoryCommissionConfig(
+			tenantDb,
+			{
+				categoryId,
+				paymentType: "fixed",
+				isConditional: false,
+				maxCoaches: 1,
+				slots: [
+					{
+						slotIndex: 0,
+						label: "Head Trainer",
+						weightageBasisPoints: 10000,
+					},
+				],
+				rates: [{ trainerTierId: tierId, amount: 5000 }],
+			},
+			ACTOR,
+		);
 
-			const appt = await createAppointment(serviceId, "completed");
-			const splits = await calculateCommissionForAppointment(tenantDb, {
-				appointmentId: appt.id,
-				serviceId,
-				sessionTotalCents: 10000,
-				attendeeCount: 1,
-				staffAssignments: [{ staffId: trainerUserId1, slotIndex: 0 }],
-				actor: ACTOR,
-				earnReason: "completion",
-			});
-			expect(splits).toHaveLength(1);
+		const appt = await createAppointment(serviceId, "completed");
+		const splits = await calculateCommissionForAppointment(tenantDb, {
+			appointmentId: appt.id,
+			serviceId,
+			sessionTotalCents: 10000,
+			attendeeCount: 1,
+			staffAssignments: [{ staffId: trainerUserId1, slotIndex: 0 }],
+			actor: ACTOR,
+			earnReason: "completion",
+		});
+		expect(splits).toHaveLength(1);
 
-			const approved = await approveCommissionSplits(
-				tenantDb,
-				splits.map((s) => s.id),
-				ACTOR,
-			);
+		const approved = await approveCommissionSplits(
+			tenantDb,
+			splits.map((s) => s.id),
+			ACTOR,
+		);
 
-			expect(approved).toHaveLength(1);
-			expect(approved[0]!.status).toBe("approved");
-			expect(approved[0]!.approvedBy).toBe(TEST_USER_ID);
-			expect(approved[0]!.approvedAt).toBeInstanceOf(Date);
-		},
-		30000,
-	);
+		expect(approved).toHaveLength(1);
+		expect(approved[0]!.status).toBe("approved");
+		expect(approved[0]!.approvedBy).toBe(TEST_USER_ID);
+		expect(approved[0]!.approvedAt).toBeInstanceOf(Date);
+	}, 30000);
 
 	/**
 	 * TC-AI-002: mixed-staff batch → throws ORPCError with code='MIXED_BATCH_STAFF'
 	 * and data.staffIds containing both trainer IDs.
 	 */
-	test(
-		"TC-AI-002: mixed-staff batch → BAD_REQUEST with code MIXED_BATCH_STAFF and staffIds",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("TC-AI-002: mixed-staff batch → BAD_REQUEST with code MIXED_BATCH_STAFF and staffIds", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const { categoryId: cat1, serviceId: svc1 } =
-				await createCategoryAndService(`TC-AI-002a-${TS}`);
-			await upsertCategoryCommissionConfig(
-				tenantDb,
-				{
-					categoryId: cat1,
-					paymentType: "fixed",
-					isConditional: false,
-					maxCoaches: 1,
-					slots: [
-						{
-							slotIndex: 0,
-							label: "Head Trainer",
-							weightageBasisPoints: 10000,
-						},
-					],
-					rates: [{ trainerTierId: tierId, amount: 5000 }],
-				},
-				ACTOR,
-			);
+		const { categoryId: cat1, serviceId: svc1 } =
+			await createCategoryAndService(`TC-AI-002a-${TS}`);
+		await upsertCategoryCommissionConfig(
+			tenantDb,
+			{
+				categoryId: cat1,
+				paymentType: "fixed",
+				isConditional: false,
+				maxCoaches: 1,
+				slots: [
+					{
+						slotIndex: 0,
+						label: "Head Trainer",
+						weightageBasisPoints: 10000,
+					},
+				],
+				rates: [{ trainerTierId: tierId, amount: 5000 }],
+			},
+			ACTOR,
+		);
 
-			const { categoryId: cat2, serviceId: svc2 } =
-				await createCategoryAndService(`TC-AI-002b-${TS}`);
-			await upsertCategoryCommissionConfig(
-				tenantDb,
-				{
-					categoryId: cat2,
-					paymentType: "fixed",
-					isConditional: false,
-					maxCoaches: 1,
-					slots: [
-						{
-							slotIndex: 0,
-							label: "Head Trainer",
-							weightageBasisPoints: 10000,
-						},
-					],
-					rates: [{ trainerTierId: tierId, amount: 5000 }],
-				},
-				ACTOR,
-			);
+		const { categoryId: cat2, serviceId: svc2 } =
+			await createCategoryAndService(`TC-AI-002b-${TS}`);
+		await upsertCategoryCommissionConfig(
+			tenantDb,
+			{
+				categoryId: cat2,
+				paymentType: "fixed",
+				isConditional: false,
+				maxCoaches: 1,
+				slots: [
+					{
+						slotIndex: 0,
+						label: "Head Trainer",
+						weightageBasisPoints: 10000,
+					},
+				],
+				rates: [{ trainerTierId: tierId, amount: 5000 }],
+			},
+			ACTOR,
+		);
 
-			const appt1 = await createAppointment(svc1, "completed");
-			const splits1 = await calculateCommissionForAppointment(tenantDb, {
-				appointmentId: appt1.id,
-				serviceId: svc1,
-				sessionTotalCents: 10000,
-				attendeeCount: 1,
-				staffAssignments: [{ staffId: trainerUserId1, slotIndex: 0 }],
-				actor: ACTOR,
-				earnReason: "completion",
-			});
+		const appt1 = await createAppointment(svc1, "completed");
+		const splits1 = await calculateCommissionForAppointment(tenantDb, {
+			appointmentId: appt1.id,
+			serviceId: svc1,
+			sessionTotalCents: 10000,
+			attendeeCount: 1,
+			staffAssignments: [{ staffId: trainerUserId1, slotIndex: 0 }],
+			actor: ACTOR,
+			earnReason: "completion",
+		});
 
-			const appt2 = await createAppointment(svc2, "completed");
-			const splits2 = await calculateCommissionForAppointment(tenantDb, {
-				appointmentId: appt2.id,
-				serviceId: svc2,
-				sessionTotalCents: 10000,
-				attendeeCount: 1,
-				staffAssignments: [{ staffId: trainerUserId2, slotIndex: 0 }],
-				actor: ACTOR,
-				earnReason: "completion",
-			});
+		const appt2 = await createAppointment(svc2, "completed");
+		const splits2 = await calculateCommissionForAppointment(tenantDb, {
+			appointmentId: appt2.id,
+			serviceId: svc2,
+			sessionTotalCents: 10000,
+			attendeeCount: 1,
+			staffAssignments: [{ staffId: trainerUserId2, slotIndex: 0 }],
+			actor: ACTOR,
+			earnReason: "completion",
+		});
 
-			const mixedIds = [splits1[0]!.id, splits2[0]!.id];
+		const mixedIds = [splits1[0]!.id, splits2[0]!.id];
 
-			let caughtError: unknown;
-			try {
-				await approveCommissionSplits(tenantDb, mixedIds, ACTOR);
-			} catch (e) {
-				caughtError = e;
-			}
+		let caughtError: unknown;
+		try {
+			await approveCommissionSplits(tenantDb, mixedIds, ACTOR);
+		} catch (e) {
+			caughtError = e;
+		}
 
-			expect(caughtError).toBeDefined();
-			const err = caughtError as {
-				code: string;
-				data?: { code: string; staffIds: string[] };
-			};
-			expect(err.code).toBe("BAD_REQUEST");
-			expect(err.data?.code).toBe("MIXED_BATCH_STAFF");
-			expect(Array.isArray(err.data?.staffIds)).toBe(true);
-			expect(err.data?.staffIds).toContain(trainerUserId1);
-			expect(err.data?.staffIds).toContain(trainerUserId2);
-		},
-		30000,
-	);
+		expect(caughtError).toBeDefined();
+		const err = caughtError as {
+			code: string;
+			data?: { code: string; staffIds: string[] };
+		};
+		expect(err.code).toBe("BAD_REQUEST");
+		expect(err.data?.code).toBe("MIXED_BATCH_STAFF");
+		expect(Array.isArray(err.data?.staffIds)).toBe(true);
+		expect(err.data?.staffIds).toContain(trainerUserId1);
+		expect(err.data?.staffIds).toContain(trainerUserId2);
+	}, 30000);
 
 	/**
 	 * TC-AI-003: single-staff but >31-day spread
@@ -394,164 +383,152 @@ describe("approveCommissionSplits — batch invariants", () => {
 	 * Strategy: create one split normally, then insert a second split directly with
 	 * an earnedAt date 35 days in the past to simulate a cross-period batch.
 	 */
-	test(
-		"TC-AI-003: >31-day spread → BAD_REQUEST with code MIXED_BATCH_PERIOD and spreadDays",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("TC-AI-003: >31-day spread → BAD_REQUEST with code MIXED_BATCH_PERIOD and spreadDays", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const { categoryId, serviceId } = await createCategoryAndService(
-				`TC-AI-003-${TS}`,
-			);
-			await upsertCategoryCommissionConfig(
-				tenantDb,
-				{
-					categoryId,
-					paymentType: "fixed",
-					isConditional: false,
-					maxCoaches: 1,
-					slots: [
-						{
-							slotIndex: 0,
-							label: "Head Trainer",
-							weightageBasisPoints: 10000,
-						},
-					],
-					rates: [{ trainerTierId: tierId, amount: 5000 }],
-				},
-				ACTOR,
-			);
+		const { categoryId, serviceId } = await createCategoryAndService(
+			`TC-AI-003-${TS}`,
+		);
+		await upsertCategoryCommissionConfig(
+			tenantDb,
+			{
+				categoryId,
+				paymentType: "fixed",
+				isConditional: false,
+				maxCoaches: 1,
+				slots: [
+					{
+						slotIndex: 0,
+						label: "Head Trainer",
+						weightageBasisPoints: 10000,
+					},
+				],
+				rates: [{ trainerTierId: tierId, amount: 5000 }],
+			},
+			ACTOR,
+		);
 
-			// Create two appointments each producing a split for trainerUserId1.
-			// Then update the earnedAt of the second split to 35 days in the past
-			// to simulate a cross-period batch.
-			const appt1 = await createAppointment(serviceId, "completed");
-			const splits1 = await calculateCommissionForAppointment(tenantDb, {
-				appointmentId: appt1.id,
-				serviceId,
-				sessionTotalCents: 10000,
-				attendeeCount: 1,
-				staffAssignments: [{ staffId: trainerUserId1, slotIndex: 0 }],
-				actor: ACTOR,
-				earnReason: "completion",
-			});
-			expect(splits1).toHaveLength(1);
-			const split1Id = splits1[0]!.id;
+		// Create two appointments each producing a split for trainerUserId1.
+		// Then update the earnedAt of the second split to 35 days in the past
+		// to simulate a cross-period batch.
+		const appt1 = await createAppointment(serviceId, "completed");
+		const splits1 = await calculateCommissionForAppointment(tenantDb, {
+			appointmentId: appt1.id,
+			serviceId,
+			sessionTotalCents: 10000,
+			attendeeCount: 1,
+			staffAssignments: [{ staffId: trainerUserId1, slotIndex: 0 }],
+			actor: ACTOR,
+			earnReason: "completion",
+		});
+		expect(splits1).toHaveLength(1);
+		const split1Id = splits1[0]!.id;
 
-			const appt2 = await createAppointment(serviceId, "completed");
-			const splits2 = await calculateCommissionForAppointment(tenantDb, {
-				appointmentId: appt2.id,
-				serviceId,
-				sessionTotalCents: 10000,
-				attendeeCount: 1,
-				staffAssignments: [{ staffId: trainerUserId1, slotIndex: 0 }],
-				actor: ACTOR,
-				earnReason: "completion",
-			});
-			expect(splits2).toHaveLength(1);
-			const split2Id = splits2[0]!.id;
+		const appt2 = await createAppointment(serviceId, "completed");
+		const splits2 = await calculateCommissionForAppointment(tenantDb, {
+			appointmentId: appt2.id,
+			serviceId,
+			sessionTotalCents: 10000,
+			attendeeCount: 1,
+			staffAssignments: [{ staffId: trainerUserId1, slotIndex: 0 }],
+			actor: ACTOR,
+			earnReason: "completion",
+		});
+		expect(splits2).toHaveLength(1);
+		const split2Id = splits2[0]!.id;
 
-			// Backdate split2's earnedAt to 35 days ago to create the >31-day spread
-			const earnedAt35DaysAgo = new Date(Date.now() - 35 * 86_400_000);
-			await tenantDb.execute(sql`
+		// Backdate split2's earnedAt to 35 days ago to create the >31-day spread
+		const earnedAt35DaysAgo = new Date(Date.now() - 35 * 86_400_000);
+		await tenantDb.execute(sql`
 				UPDATE commission_splits SET earned_at = ${earnedAt35DaysAgo.toISOString()} WHERE id = ${split2Id}
 			`);
 
-			let caughtError: unknown;
-			try {
-				await approveCommissionSplits(tenantDb, [split1Id, split2Id], ACTOR);
-			} catch (e) {
-				caughtError = e;
-			}
+		let caughtError: unknown;
+		try {
+			await approveCommissionSplits(tenantDb, [split1Id, split2Id], ACTOR);
+		} catch (e) {
+			caughtError = e;
+		}
 
-			expect(caughtError).toBeDefined();
-			const err = caughtError as {
-				code: string;
-				data?: { code: string; spreadDays: number };
-			};
-			expect(err.code).toBe("BAD_REQUEST");
-			expect(err.data?.code).toBe("MIXED_BATCH_PERIOD");
-			expect(typeof err.data?.spreadDays).toBe("number");
-			expect(err.data!.spreadDays).toBeGreaterThan(31);
-		},
-		30000,
-	);
+		expect(caughtError).toBeDefined();
+		const err = caughtError as {
+			code: string;
+			data?: { code: string; spreadDays: number };
+		};
+		expect(err.code).toBe("BAD_REQUEST");
+		expect(err.data?.code).toBe("MIXED_BATCH_PERIOD");
+		expect(typeof err.data?.spreadDays).toBe("number");
+		expect(err.data!.spreadDays).toBeGreaterThan(31);
+	}, 30000);
 
 	/**
 	 * TC-AI-004: non-pending split in batch
 	 * → BAD_REQUEST with message containing "not in 'pending' status".
 	 */
-	test(
-		"TC-AI-004: non-pending split in batch → BAD_REQUEST about pending status",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("TC-AI-004: non-pending split in batch → BAD_REQUEST about pending status", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const { categoryId, serviceId } = await createCategoryAndService(
-				`TC-AI-004-${TS}`,
-			);
-			await upsertCategoryCommissionConfig(
-				tenantDb,
-				{
-					categoryId,
-					paymentType: "fixed",
-					isConditional: false,
-					maxCoaches: 1,
-					slots: [
-						{
-							slotIndex: 0,
-							label: "Head Trainer",
-							weightageBasisPoints: 10000,
-						},
-					],
-					rates: [{ trainerTierId: tierId, amount: 5000 }],
-				},
-				ACTOR,
-			);
+		const { categoryId, serviceId } = await createCategoryAndService(
+			`TC-AI-004-${TS}`,
+		);
+		await upsertCategoryCommissionConfig(
+			tenantDb,
+			{
+				categoryId,
+				paymentType: "fixed",
+				isConditional: false,
+				maxCoaches: 1,
+				slots: [
+					{
+						slotIndex: 0,
+						label: "Head Trainer",
+						weightageBasisPoints: 10000,
+					},
+				],
+				rates: [{ trainerTierId: tierId, amount: 5000 }],
+			},
+			ACTOR,
+		);
 
-			const appt = await createAppointment(serviceId, "completed");
-			const splits = await calculateCommissionForAppointment(tenantDb, {
-				appointmentId: appt.id,
-				serviceId,
-				sessionTotalCents: 10000,
-				attendeeCount: 1,
-				staffAssignments: [{ staffId: trainerUserId1, slotIndex: 0 }],
-				actor: ACTOR,
-				earnReason: "completion",
-			});
-			expect(splits).toHaveLength(1);
-			const splitId = splits[0]!.id;
+		const appt = await createAppointment(serviceId, "completed");
+		const splits = await calculateCommissionForAppointment(tenantDb, {
+			appointmentId: appt.id,
+			serviceId,
+			sessionTotalCents: 10000,
+			attendeeCount: 1,
+			staffAssignments: [{ staffId: trainerUserId1, slotIndex: 0 }],
+			actor: ACTOR,
+			earnReason: "completion",
+		});
+		expect(splits).toHaveLength(1);
+		const splitId = splits[0]!.id;
 
-			// Manually set the split to 'void' so it's non-pending
-			await tenantDb
-				.update(commissionSplits)
-				.set({ status: "void", updatedAt: new Date() })
-				.where(eq(commissionSplits.id, splitId));
+		// Manually set the split to 'void' so it's non-pending
+		await tenantDb
+			.update(commissionSplits)
+			.set({ status: "void", updatedAt: new Date() })
+			.where(eq(commissionSplits.id, splitId));
 
-			let caughtError: unknown;
-			try {
-				await approveCommissionSplits(tenantDb, [splitId], ACTOR);
-			} catch (e) {
-				caughtError = e;
-			}
+		let caughtError: unknown;
+		try {
+			await approveCommissionSplits(tenantDb, [splitId], ACTOR);
+		} catch (e) {
+			caughtError = e;
+		}
 
-			expect(caughtError).toBeDefined();
-			const err = caughtError as { code: string; message?: string };
-			expect(err.code).toBe("BAD_REQUEST");
-			expect(err.message).toMatch(/not in 'pending' status/i);
-		},
-		30000,
-	);
+		expect(caughtError).toBeDefined();
+		const err = caughtError as { code: string; message?: string };
+		expect(err.code).toBe("BAD_REQUEST");
+		expect(err.message).toMatch(/not in 'pending' status/i);
+	}, 30000);
 
 	/**
 	 * TC-AI-005: empty ids array → returns [].
 	 */
-	test(
-		"TC-AI-005: empty ids array → returns empty array without error",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("TC-AI-005: empty ids array → returns empty array without error", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const result = await approveCommissionSplits(tenantDb, [], ACTOR);
-			expect(result).toEqual([]);
-		},
-		30000,
-	);
+		const result = await approveCommissionSplits(tenantDb, [], ACTOR);
+		expect(result).toEqual([]);
+	}, 30000);
 });

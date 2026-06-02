@@ -9,6 +9,7 @@
  *     customers who lost or missed their original sign-in email.
  */
 
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -31,9 +32,15 @@ export function MagicLinkActions(props: {
 	customerEmail: string | null | undefined;
 	isUnclaimed?: boolean;
 }) {
-	const { organizationId, customerProfileId, customerEmail, isUnclaimed } = props;
+	const { organizationId, customerProfileId, customerEmail, isUnclaimed } =
+		props;
 	const placeholder = isPlaceholder(customerEmail);
-	const [newEmail, setNewEmail] = useState("");
+	const queryClient = useQueryClient();
+	// Pre-fill with the existing real email so staff can see (and confirm) where
+	// the claim link will go. Stays empty for placeholder emails — staff must supply one.
+	const [newEmail, setNewEmail] = useState(() =>
+		isUnclaimed && !placeholder && customerEmail ? customerEmail : "",
+	);
 
 	const sendClaim = useApiMutation({
 		mutationFn: (input: { email: string }) =>
@@ -45,7 +52,12 @@ export function MagicLinkActions(props: {
 		successMessage: (result) =>
 			`Claim link sent to ${(result as { email: string }).email}`,
 		errorMessage: (err) => err.message || "Failed to send claim link",
-		onSuccess: () => setNewEmail(""),
+		onSuccess: () => {
+			setNewEmail("");
+			queryClient.invalidateQueries({
+				queryKey: ["customerDirectory", organizationId],
+			});
+		},
 	});
 
 	const addEmail = useApiMutation({
@@ -59,7 +71,12 @@ export function MagicLinkActions(props: {
 			`Sign-in link sent to ${(result as { email: string }).email}`,
 		errorMessage: (err) =>
 			err.message || "Failed to add email and dispatch link",
-		onSuccess: () => setNewEmail(""),
+		onSuccess: () => {
+			setNewEmail("");
+			queryClient.invalidateQueries({
+				queryKey: ["customerDirectory", organizationId],
+			});
+		},
 	});
 
 	const resend = useApiMutation({
@@ -81,7 +98,8 @@ export function MagicLinkActions(props: {
 						Unclaimed
 					</Badge>
 					<span className="text-blue-700 text-xs">
-						This profile was created by staff. Send a claim link so the customer can log in and take ownership.
+						This profile was created by staff. Send a claim link so the customer
+						can log in and take ownership.
 					</span>
 				</div>
 				<form

@@ -81,7 +81,8 @@ export const tenantMiddleware = createMiddleware(async (c, next) => {
 		// Plan E E.3 / ADR-0024 — suspended and cancelled tenants are
 		// blocked at the app boundary. Platform-admin paths bypass so ops
 		// can resume / restore / inspect.
-		const isPlatformAdminPath = c.req.path.includes("/platformAdmin") || c.req.path.includes("/admin");
+		const isPlatformAdminPath =
+			c.req.path.includes("/platformAdmin") || c.req.path.includes("/admin");
 		if (
 			(organization.paymentStatus === "suspended" ||
 				organization.paymentStatus === "cancelled") &&
@@ -114,8 +115,7 @@ export const tenantMiddleware = createMiddleware(async (c, next) => {
 						? error.message
 						: "Failed to initialize tenant context",
 			},
-			500
+			500,
 		);
 	}
 });
-

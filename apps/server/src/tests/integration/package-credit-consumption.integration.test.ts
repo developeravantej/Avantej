@@ -237,7 +237,15 @@ async function insertAppointmentRaw(opts: {
 		RETURNING id, credits_used, package_instance_id
 	`);
 
-	const row = (result as unknown as { rows: Array<{ id: string; credits_used: number; package_instance_id: string }> }).rows[0];
+	const row = (
+		result as unknown as {
+			rows: Array<{
+				id: string;
+				credits_used: number;
+				package_instance_id: string;
+			}>;
+		}
+	).rows[0];
 	if (!row) throw new Error("Failed to insert appointment via raw SQL");
 	createdAppointmentIds.push(row.id);
 
@@ -280,7 +288,11 @@ describe("Package Credit Consumption — PATH A: createAppointment", () => {
 		const { serviceId } = await seedServiceAndCategory(`TC-PCC-001-${TS}`);
 		const pkg = await seedPackageInstance({ creditsTotal: 10, serviceId });
 
-		await insertAppointmentRaw({ serviceId, packageInstanceId: pkg.id, creditsToConsume: 1 });
+		await insertAppointmentRaw({
+			serviceId,
+			packageInstanceId: pkg.id,
+			creditsToConsume: 1,
+		});
 
 		const updated = await fetchPkg(pkg.id);
 		expect(updated.creditsUsed).toBe(1);
@@ -305,10 +317,18 @@ describe("Package Credit Consumption — PATH A: createAppointment", () => {
 		if (shouldSkipIntegration()) return;
 
 		const { serviceId } = await seedServiceAndCategory(`TC-PCC-002-${TS}`);
-		const pkg = await seedPackageInstance({ creditsTotal: 2, creditsUsed: 1, serviceId });
+		const pkg = await seedPackageInstance({
+			creditsTotal: 2,
+			creditsUsed: 1,
+			serviceId,
+		});
 
 		// Consume the last credit
-		await insertAppointmentRaw({ serviceId, packageInstanceId: pkg.id, creditsToConsume: 1 });
+		await insertAppointmentRaw({
+			serviceId,
+			packageInstanceId: pkg.id,
+			creditsToConsume: 1,
+		});
 
 		const afterFirst = await fetchPkg(pkg.id);
 		expect(afterFirst.creditsUsed).toBe(2);

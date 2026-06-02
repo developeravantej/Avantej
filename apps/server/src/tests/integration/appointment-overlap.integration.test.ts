@@ -178,9 +178,7 @@ afterAll(async () => {
 		await tenantDb.delete(rooms).where(inArray(rooms.id, createdRoomIds));
 	}
 	if (createdMemberIds.length > 0) {
-		await tenantDb
-			.delete(members)
-			.where(inArray(members.id, createdMemberIds));
+		await tenantDb.delete(members).where(inArray(members.id, createdMemberIds));
 	}
 });
 

@@ -122,10 +122,18 @@ describe("Invitations — org-wide scope (Ticket B fix)", () => {
 
 		// Verify the service supports optional filtering, confirming the bug was
 		// purely in the router applying invitedBy unconditionally — not the service.
-		const invA = await insertInvitation(tenantDb, INVITER_A_USER_ID, "filter-a");
+		const invA = await insertInvitation(
+			tenantDb,
+			INVITER_A_USER_ID,
+			"filter-a",
+		);
 		createdIds.push(invA.id);
 
-		const invB = await insertInvitation(tenantDb, INVITER_B_USER_ID, "filter-b");
+		const invB = await insertInvitation(
+			tenantDb,
+			INVITER_B_USER_ID,
+			"filter-b",
+		);
 		createdIds.push(invB.id);
 
 		const filteredResult = await listInvitations({

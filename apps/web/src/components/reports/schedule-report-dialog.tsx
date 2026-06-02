@@ -49,7 +49,7 @@ function FieldError({ errors }: { errors: unknown[] }) {
 	return (
 		<>
 			{errors.map((error, i) => (
-				<p key={i} className="text-sm text-destructive">
+				<p key={i} className="text-sm text-rose-600">
 					{typeof error === "string"
 						? error
 						: (error as { message?: string })?.message || "Invalid value"}
@@ -88,7 +88,9 @@ export function ScheduleReportDialog({
 				...values,
 			}),
 		onSuccess: () => {
-			toast.success("Schedule created. First email goes out on the next hourly tick.");
+			toast.success(
+				"Schedule created. First email goes out on the next hourly tick.",
+			);
 			qc.invalidateQueries({ queryKey: ["scheduledReports", organizationId] });
 			form.reset();
 		},
@@ -135,199 +137,222 @@ export function ScheduleReportDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-				<DialogHeader>
-					<DialogTitle>Schedule Email Report</DialogTitle>
-					<DialogDescription>
+			<DialogContent
+				className="sm:max-w-lg p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						PERFORMANCE REPORT
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Schedule Email Report
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
 						Email a KPI summary to specified recipients on a recurring schedule.
 						Emails fire on the next hourly cron tick after the due time.
 					</DialogDescription>
 				</DialogHeader>
 
-				{/* Existing schedules */}
-				<div className="border-b pb-4">
-					<h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
-						Existing Schedules
-					</h3>
-					{isLoading ? (
-						<div className="flex items-center gap-2 text-sm text-muted-foreground">
-							<Loader2 className="h-4 w-4 animate-spin" />
-							Loading…
-						</div>
-					) : existing.length === 0 ? (
-						<p className="text-sm text-muted-foreground">No schedules yet.</p>
-					) : (
-						<div className="space-y-2">
-							{existing.map((row) => (
-								<div
-									key={row.id}
-									className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
-								>
-									<div className="min-w-0 flex-1">
-										<div className="flex items-center gap-2">
-											<span className="font-medium truncate">{row.reportName}</span>
-											{!row.isActive && (
-												<span className="text-[10px] uppercase tracking-wider text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-													Paused
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					{/* Existing schedules */}
+					<div className="border-b border-[#e5e5e5] pb-4">
+						<h3 className="text-xs font-semibold uppercase tracking-widest text-[#737373] mb-2">
+							Existing Schedules
+						</h3>
+						{isLoading ? (
+							<div className="flex items-center gap-2 text-sm text-[#737373]">
+								<Loader2 className="h-4 w-4 animate-spin" />
+								Loading…
+							</div>
+						) : existing.length === 0 ? (
+							<p className="text-sm text-[#737373]">No schedules yet.</p>
+						) : (
+							<div className="space-y-2">
+								{existing.map((row) => (
+									<div
+										key={row.id}
+										className="flex items-center justify-between gap-3 rounded-lg border border-[#e5e5e5] px-3 py-2 text-sm"
+									>
+										<div className="min-w-0 flex-1">
+											<div className="flex items-center gap-2">
+												<span className="font-medium truncate">
+													{row.reportName}
 												</span>
+												{!row.isActive && (
+													<span className="text-[10px] uppercase tracking-wider text-[#737373] bg-[#f3f3f3] px-1.5 py-0.5 rounded">
+														Paused
+													</span>
+												)}
+											</div>
+											<p className="text-xs text-[#737373] truncate">
+												{row.recipients} · {row.frequency} · {row.windowKey}
+											</p>
+											{row.lastError && (
+												<p
+													className="mt-1 text-xs text-rose-600 truncate"
+													title={row.lastError}
+												>
+													Last error: {row.lastError}
+												</p>
 											)}
 										</div>
-										<p className="text-xs text-muted-foreground truncate">
-											{row.recipients} · {row.frequency} · {row.windowKey}
-										</p>
-										{row.lastError && (
-											<p className="mt-1 text-xs text-destructive truncate" title={row.lastError}>
-												Last error: {row.lastError}
-											</p>
-										)}
+										<button
+											type="button"
+											onClick={() =>
+												toggleMutation.mutate({
+													id: row.id,
+													isActive: !row.isActive,
+												})
+											}
+											className="text-xs text-[#737373] hover:text-[#0a0a0a]"
+										>
+											{row.isActive ? "Pause" : "Resume"}
+										</button>
+										<button
+											type="button"
+											onClick={() => deleteMutation.mutate(row.id)}
+											className="text-rose-600 hover:opacity-80"
+											aria-label="Remove schedule"
+										>
+											<Trash2 className="h-4 w-4" />
+										</button>
 									</div>
-									<button
-										type="button"
-										onClick={() =>
-											toggleMutation.mutate({ id: row.id, isActive: !row.isActive })
-										}
-										className="text-xs text-muted-foreground hover:text-foreground"
-									>
-										{row.isActive ? "Pause" : "Resume"}
-									</button>
-									<button
-										type="button"
-										onClick={() => deleteMutation.mutate(row.id)}
-										className="text-destructive hover:opacity-80"
-										aria-label="Remove schedule"
-									>
-										<Trash2 className="h-4 w-4" />
-									</button>
-								</div>
-							))}
-						</div>
-					)}
-				</div>
-
-				{/* Create new schedule */}
-				{/* react-doctor-disable-next-line react-doctor/no-prevent-default -- TanStack Router SPA */}
-				<form
-					onSubmit={(e) => {
-						e.preventDefault();
-						e.stopPropagation();
-						form.handleSubmit();
-					}}
-					className="space-y-4 pt-2"
-				>
-					<h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-						New Schedule
-					</h3>
-
-					<form.Field name="reportName">
-						{(field) => (
-							<div className="space-y-2">
-								<Label htmlFor={field.name}>Report Name</Label>
-								<Input
-									id={field.name}
-									placeholder="e.g., Weekly Performance Summary"
-									value={field.state.value}
-									onBlur={field.handleBlur}
-									onChange={(e) => field.handleChange(e.target.value)}
-								/>
-								<FieldError errors={field.state.meta.errors} />
+								))}
 							</div>
 						)}
-					</form.Field>
-
-					<form.Field name="recipients">
-						{(field) => (
-							<div className="space-y-2">
-								<Label htmlFor={field.name}>
-									Recipients{" "}
-									<span className="text-xs font-normal text-muted-foreground">
-										(comma-separated emails)
-									</span>
-								</Label>
-								<Input
-									id={field.name}
-									placeholder="ops@example.com, gm@example.com"
-									value={field.state.value}
-									onBlur={field.handleBlur}
-									onChange={(e) => field.handleChange(e.target.value)}
-								/>
-								<FieldError errors={field.state.meta.errors} />
-							</div>
-						)}
-					</form.Field>
-
-					<div className="grid grid-cols-2 gap-4">
-						<form.Field name="windowKey">
-							{(field) => (
-								<div className="space-y-2">
-									<Label htmlFor={field.name}>Window</Label>
-									<Select
-										value={field.state.value}
-										onValueChange={(v) =>
-											field.handleChange(v as ScheduleFormValues["windowKey"])
-										}
-									>
-										<SelectTrigger id={field.name}>
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="7D">7 days</SelectItem>
-											<SelectItem value="30D">30 days</SelectItem>
-											<SelectItem value="90D">90 days</SelectItem>
-											<SelectItem value="YTD">Year-to-date</SelectItem>
-										</SelectContent>
-									</Select>
-								</div>
-							)}
-						</form.Field>
-
-						<form.Field name="frequency">
-							{(field) => (
-								<div className="space-y-2">
-									<Label htmlFor={field.name}>Frequency</Label>
-									<Select
-										value={field.state.value}
-										onValueChange={(v) =>
-											field.handleChange(v as ScheduleFormValues["frequency"])
-										}
-									>
-										<SelectTrigger id={field.name}>
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="daily">Daily</SelectItem>
-											<SelectItem value="weekly">Weekly</SelectItem>
-											<SelectItem value="monthly">Monthly</SelectItem>
-										</SelectContent>
-									</Select>
-								</div>
-							)}
-						</form.Field>
 					</div>
 
-					<DialogFooter>
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => onOpenChange(false)}
-							disabled={createMutation.isPending}
-						>
-							Close
-						</Button>
-						<Button type="submit" disabled={createMutation.isPending}>
-							{createMutation.isPending ? (
-								<>
-									<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-									Creating…
-								</>
-							) : (
-								<>
-									<Mail className="h-4 w-4 mr-2" />
-									Create Schedule
-								</>
+					{/* Create new schedule */}
+					{/* react-doctor-disable-next-line react-doctor/no-prevent-default -- TanStack Router SPA */}
+					<form
+						onSubmit={(e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							form.handleSubmit();
+						}}
+						className="space-y-4 pt-4"
+					>
+						<h3 className="text-xs font-semibold uppercase tracking-widest text-[#737373]">
+							New Schedule
+						</h3>
+
+						<form.Field name="reportName">
+							{(field) => (
+								<div className="space-y-2">
+									<Label htmlFor={field.name}>Report Name</Label>
+									<Input
+										id={field.name}
+										placeholder="e.g., Weekly Performance Summary"
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(e) => field.handleChange(e.target.value)}
+									/>
+									<FieldError errors={field.state.meta.errors} />
+								</div>
 							)}
-						</Button>
-					</DialogFooter>
-				</form>
+						</form.Field>
+
+						<form.Field name="recipients">
+							{(field) => (
+								<div className="space-y-2">
+									<Label htmlFor={field.name}>
+										Recipients{" "}
+										<span className="text-xs font-normal text-[#737373]">
+											(comma-separated emails)
+										</span>
+									</Label>
+									<Input
+										id={field.name}
+										placeholder="ops@example.com, gm@example.com"
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(e) => field.handleChange(e.target.value)}
+									/>
+									<FieldError errors={field.state.meta.errors} />
+								</div>
+							)}
+						</form.Field>
+
+						<div className="grid grid-cols-2 gap-4">
+							<form.Field name="windowKey">
+								{(field) => (
+									<div className="space-y-2">
+										<Label htmlFor={field.name}>Window</Label>
+										<Select
+											value={field.state.value}
+											onValueChange={(v) =>
+												field.handleChange(v as ScheduleFormValues["windowKey"])
+											}
+										>
+											<SelectTrigger id={field.name}>
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="7D">7 days</SelectItem>
+												<SelectItem value="30D">30 days</SelectItem>
+												<SelectItem value="90D">90 days</SelectItem>
+												<SelectItem value="YTD">Year-to-date</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+								)}
+							</form.Field>
+
+							<form.Field name="frequency">
+								{(field) => (
+									<div className="space-y-2">
+										<Label htmlFor={field.name}>Frequency</Label>
+										<Select
+											value={field.state.value}
+											onValueChange={(v) =>
+												field.handleChange(v as ScheduleFormValues["frequency"])
+											}
+										>
+											<SelectTrigger id={field.name}>
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="daily">Daily</SelectItem>
+												<SelectItem value="weekly">Weekly</SelectItem>
+												<SelectItem value="monthly">Monthly</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+								)}
+							</form.Field>
+						</div>
+					</form>
+				</div>
+
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						onClick={() => onOpenChange(false)}
+						disabled={createMutation.isPending}
+					>
+						Close
+					</Button>
+					<Button
+						type="button"
+						onClick={() => form.handleSubmit()}
+						disabled={createMutation.isPending}
+						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+					>
+						{createMutation.isPending ? (
+							<>
+								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+								Creating…
+							</>
+						) : (
+							<>
+								<Mail className="h-4 w-4 mr-2" />
+								Create Schedule
+							</>
+						)}
+					</Button>
+				</DialogFooter>
 			</DialogContent>
 		</Dialog>
 	);

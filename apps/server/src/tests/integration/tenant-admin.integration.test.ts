@@ -29,9 +29,9 @@ let tenantDb: ReturnType<typeof createTenantDb>;
 let controlPanelDb: ReturnType<typeof createControlPanelDb>;
 
 /** A tenant admin member found in the live dev tenant DB */
-let adminMember: (typeof members.$inferSelect) | undefined;
+let adminMember: typeof members.$inferSelect | undefined;
 /** A staff member found in the live dev tenant DB */
-let staffMember: (typeof members.$inferSelect) | undefined;
+let staffMember: typeof members.$inferSelect | undefined;
 
 beforeAll(async () => {
 	if (shouldSkipIntegration()) return;
@@ -50,10 +50,14 @@ beforeAll(async () => {
 	});
 
 	if (!adminMember) {
-		console.warn("[tenant-admin.test] No admin member found in tenant DB — some tests will skip");
+		console.warn(
+			"[tenant-admin.test] No admin member found in tenant DB — some tests will skip",
+		);
 	}
 	if (!staffMember) {
-		console.warn("[tenant-admin.test] No staff member found in tenant DB — some tests will skip");
+		console.warn(
+			"[tenant-admin.test] No staff member found in tenant DB — some tests will skip",
+		);
 	}
 });
 
@@ -62,25 +66,28 @@ beforeAll(async () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("assertTenantAdminCanImpersonate — happy path", () => {
-	test.skipIf(shouldSkipIntegration())("resolves when admin impersonates staff", async () => {
-		if (!adminMember || !staffMember) {
-			console.warn("Skipping: admin or staff member not found");
-			return;
-		}
+	test.skipIf(shouldSkipIntegration())(
+		"resolves when admin impersonates staff",
+		async () => {
+			if (!adminMember || !staffMember) {
+				console.warn("Skipping: admin or staff member not found");
+				return;
+			}
 
-		const result = await assertTenantAdminCanImpersonate(
-			tenantDb,
-			controlPanelDb,
-			adminMember.id,
-			staffMember.id,
-			null, // not currently impersonating
-		);
+			const result = await assertTenantAdminCanImpersonate(
+				tenantDb,
+				controlPanelDb,
+				adminMember.id,
+				staffMember.id,
+				null, // not currently impersonating
+			);
 
-		expect(result.caller.id).toBe(adminMember.id);
-		expect(result.caller.role).toBe("admin");
-		expect(result.target.id).toBe(staffMember.id);
-		expect(result.target.role).toBe("staff");
-	});
+			expect(result.caller.id).toBe(adminMember.id);
+			expect(result.caller.role).toBe("admin");
+			expect(result.target.id).toBe(staffMember.id);
+			expect(result.target.role).toBe("staff");
+		},
+	);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -88,22 +95,25 @@ describe("assertTenantAdminCanImpersonate — happy path", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("assertTenantAdminCanImpersonate — nested impersonation blocked", () => {
-	test.skipIf(shouldSkipIntegration())("throws FORBIDDEN when caller is already impersonating", async () => {
-		if (!adminMember || !staffMember) {
-			console.warn("Skipping: admin or staff member not found");
-			return;
-		}
+	test.skipIf(shouldSkipIntegration())(
+		"throws FORBIDDEN when caller is already impersonating",
+		async () => {
+			if (!adminMember || !staffMember) {
+				console.warn("Skipping: admin or staff member not found");
+				return;
+			}
 
-		await expect(
-			assertTenantAdminCanImpersonate(
-				tenantDb,
-				controlPanelDb,
-				adminMember.id,
-				staffMember.id,
-				"some-existing-admin-user-id", // non-null = already impersonating
-			),
-		).rejects.toMatchObject({ code: "FORBIDDEN" });
-	});
+			await expect(
+				assertTenantAdminCanImpersonate(
+					tenantDb,
+					controlPanelDb,
+					adminMember.id,
+					staffMember.id,
+					"some-existing-admin-user-id", // non-null = already impersonating
+				),
+			).rejects.toMatchObject({ code: "FORBIDDEN" });
+		},
+	);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -111,23 +121,26 @@ describe("assertTenantAdminCanImpersonate — nested impersonation blocked", () 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("assertTenantAdminCanImpersonate — caller must be admin role", () => {
-	test.skipIf(shouldSkipIntegration())("throws FORBIDDEN when caller is staff role", async () => {
-		if (!staffMember || !adminMember) {
-			console.warn("Skipping: staff or admin member not found");
-			return;
-		}
+	test.skipIf(shouldSkipIntegration())(
+		"throws FORBIDDEN when caller is staff role",
+		async () => {
+			if (!staffMember || !adminMember) {
+				console.warn("Skipping: staff or admin member not found");
+				return;
+			}
 
-		// Staff trying to impersonate admin
-		await expect(
-			assertTenantAdminCanImpersonate(
-				tenantDb,
-				controlPanelDb,
-				staffMember.id, // caller is staff — must be rejected
-				adminMember.id,
-				null,
-			),
-		).rejects.toMatchObject({ code: "FORBIDDEN" });
-	});
+			// Staff trying to impersonate admin
+			await expect(
+				assertTenantAdminCanImpersonate(
+					tenantDb,
+					controlPanelDb,
+					staffMember.id, // caller is staff — must be rejected
+					adminMember.id,
+					null,
+				),
+			).rejects.toMatchObject({ code: "FORBIDDEN" });
+		},
+	);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -135,32 +148,35 @@ describe("assertTenantAdminCanImpersonate — caller must be admin role", () => 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("assertTenantAdminCanImpersonate — target must be staff", () => {
-	test.skipIf(shouldSkipIntegration())("throws FORBIDDEN when admin tries to impersonate another admin", async () => {
-		if (!adminMember) {
-			console.warn("Skipping: admin member not found");
-			return;
-		}
+	test.skipIf(shouldSkipIntegration())(
+		"throws FORBIDDEN when admin tries to impersonate another admin",
+		async () => {
+			if (!adminMember) {
+				console.warn("Skipping: admin member not found");
+				return;
+			}
 
-		// Find a second admin if available, otherwise use the same admin (self)
-		const secondAdmin = await tenantDb.query.members.findFirst({
-			where: eq(members.role, "admin"),
-		});
+			// Find a second admin if available, otherwise use the same admin (self)
+			const secondAdmin = await tenantDb.query.members.findFirst({
+				where: eq(members.role, "admin"),
+			});
 
-		if (!secondAdmin) {
-			console.warn("Skipping: no second admin found");
-			return;
-		}
+			if (!secondAdmin) {
+				console.warn("Skipping: no second admin found");
+				return;
+			}
 
-		await expect(
-			assertTenantAdminCanImpersonate(
-				tenantDb,
-				controlPanelDb,
-				adminMember.id,
-				secondAdmin.id, // target is also admin — must be rejected
-				null,
-			),
-		).rejects.toMatchObject({ code: "FORBIDDEN" });
-	});
+			await expect(
+				assertTenantAdminCanImpersonate(
+					tenantDb,
+					controlPanelDb,
+					adminMember.id,
+					secondAdmin.id, // target is also admin — must be rejected
+					null,
+				),
+			).rejects.toMatchObject({ code: "FORBIDDEN" });
+		},
+	);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -168,24 +184,27 @@ describe("assertTenantAdminCanImpersonate — target must be staff", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("assertTenantAdminCanImpersonate — target must exist", () => {
-	test.skipIf(shouldSkipIntegration())("throws NOT_FOUND when target member ID does not exist", async () => {
-		if (!adminMember) {
-			console.warn("Skipping: admin member not found");
-			return;
-		}
+	test.skipIf(shouldSkipIntegration())(
+		"throws NOT_FOUND when target member ID does not exist",
+		async () => {
+			if (!adminMember) {
+				console.warn("Skipping: admin member not found");
+				return;
+			}
 
-		const nonExistentId = "00000000-0000-0000-0000-000000000001";
+			const nonExistentId = "00000000-0000-0000-0000-000000000001";
 
-		await expect(
-			assertTenantAdminCanImpersonate(
-				tenantDb,
-				controlPanelDb,
-				adminMember.id,
-				nonExistentId,
-				null,
-			),
-		).rejects.toMatchObject({ code: "NOT_FOUND" });
-	});
+			await expect(
+				assertTenantAdminCanImpersonate(
+					tenantDb,
+					controlPanelDb,
+					adminMember.id,
+					nonExistentId,
+					null,
+				),
+			).rejects.toMatchObject({ code: "NOT_FOUND" });
+		},
+	);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

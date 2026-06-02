@@ -47,6 +47,7 @@ export type Resource =
 	| "commission_management"
 	| "trainer_tier_management"
 	| "category_commission_management"
+	| "commission_track_management"
 	| "commission_payout"
 	| "commission_review"
 	// Communication
@@ -105,8 +106,8 @@ export async function hasPermission(
 	// legacy text-role path if roleId is null OR the referenced role no longer exists.
 	let role = member.roleId
 		? await tenantDb.query.roles.findFirst({
-			where: (roles, { eq }) => eq(roles.id, member.roleId as string),
-		})
+				where: (roles, { eq }) => eq(roles.id, member.roleId as string),
+			})
 		: undefined;
 
 	if (!role) {

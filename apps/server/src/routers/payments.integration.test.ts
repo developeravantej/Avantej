@@ -57,7 +57,11 @@ function createContextCpDb() {
 	neonConfig.webSocketConstructor = ws;
 	const url = process.env.DATABASE_URL;
 	if (!url) throw new Error("DATABASE_URL is not set in .dev.vars");
-	const pool = new Pool({ connectionString: url, max: 3, idleTimeoutMillis: 500 });
+	const pool = new Pool({
+		connectionString: url,
+		max: 3,
+		idleTimeoutMillis: 500,
+	});
 	return drizzle({ client: pool, schema: controlPanelSchema });
 }
 
@@ -69,7 +73,11 @@ function createContextTenantDb() {
 	neonConfig.webSocketConstructor = ws;
 	const url = process.env.TENANT_DATABASE_URL;
 	if (!url) throw new Error("TENANT_DATABASE_URL is not set in .dev.vars");
-	const pool = new Pool({ connectionString: url, max: 3, idleTimeoutMillis: 500 });
+	const pool = new Pool({
+		connectionString: url,
+		max: 3,
+		idleTimeoutMillis: 500,
+	});
 	return drizzle({ client: pool, schema: tenantSchema });
 }
 
@@ -81,7 +89,11 @@ const TEST_SENTINEL_NOTES = "PAYMENTS_INTEGRATION_TEST";
 
 // ─── callProcedure helper ─────────────────────────────────────────────────────
 
-function callProcedure(procedure: unknown, input: unknown, context: Record<string, unknown>) {
+function callProcedure(
+	procedure: unknown,
+	input: unknown,
+	context: Record<string, unknown>,
+) {
 	// biome-ignore lint/suspicious/noExplicitAny: test helper — accesses internal oRPC shape
 	return (procedure as any)["~orpc"].handler({ input, context });
 }
@@ -148,11 +160,21 @@ function makeStripeMock(overrides: Record<string, unknown> = {}) {
 				data: [
 					{
 						id: "pm_test_integ_001",
-						card: { brand: "visa", last4: "4242", exp_month: 12, exp_year: 2028 },
+						card: {
+							brand: "visa",
+							last4: "4242",
+							exp_month: 12,
+							exp_year: 2028,
+						},
 					},
 					{
 						id: "pm_test_integ_002",
-						card: { brand: "mastercard", last4: "5555", exp_month: 6, exp_year: 2027 },
+						card: {
+							brand: "mastercard",
+							last4: "5555",
+							exp_month: 6,
+							exp_year: 2027,
+						},
 					},
 				],
 			})),
@@ -172,8 +194,12 @@ beforeAll(() => {
 
 afterEach(async () => {
 	if (shouldSkipIntegration()) return;
-	await sharedTenantDb.delete(appointments).where(eq(appointments.id, APPT_UUID));
-	await sharedTenantDb.delete(customerProfiles).where(eq(customerProfiles.id, CUSTOMER_PROFILE_UUID));
+	await sharedTenantDb
+		.delete(appointments)
+		.where(eq(appointments.id, APPT_UUID));
+	await sharedTenantDb
+		.delete(customerProfiles)
+		.where(eq(customerProfiles.id, CUSTOMER_PROFILE_UUID));
 });
 
 // ─── Seed helpers ─────────────────────────────────────────────────────────────
@@ -236,7 +262,9 @@ async function seedAppointment(
 	`);
 }
 
-function makeCustomerProfileSeed(overrides: Partial<typeof customerProfiles.$inferInsert> = {}) {
+function makeCustomerProfileSeed(
+	overrides: Partial<typeof customerProfiles.$inferInsert> = {},
+) {
 	return {
 		id: CUSTOMER_PROFILE_UUID,
 		notes: TEST_SENTINEL_NOTES,
@@ -307,7 +335,9 @@ describe("paymentsRouter.createPaymentIntent [integration]", () => {
 		expect(persisted).toBeDefined();
 		expect(persisted!.stripePaymentIntentId).toBe("pi_test_integ_001");
 		expect(typeof persisted!.stripeConnectAccountIdSnapshot).toBe("string");
-		expect(persisted!.stripeConnectAccountIdSnapshot!.length).toBeGreaterThan(0);
+		expect(persisted!.stripeConnectAccountIdSnapshot!.length).toBeGreaterThan(
+			0,
+		);
 		expect(typeof persisted!.applicationFeeAmount).toBe("number");
 		expect(persisted!.currency).toBe("MYR");
 	});
@@ -322,7 +352,10 @@ describe("paymentsRouter.createPaymentIntent [integration]", () => {
 		await expect(
 			callProcedure(
 				router.createPaymentIntent,
-				{ organizationId: TEST_ORG_ID, appointmentId: "00000000-dead-4000-8000-000000000000" },
+				{
+					organizationId: TEST_ORG_ID,
+					appointmentId: "00000000-dead-4000-8000-000000000000",
+				},
 				ctx,
 			),
 		).rejects.toMatchObject({ code: "NOT_FOUND" });
@@ -399,7 +432,9 @@ describe("paymentsRouter.sendPaymentLink [integration]", () => {
 		expect(persisted!.stripePaymentLinkId).toBe("plink_test_integ_001");
 		expect(persisted!.paymentLinkUrl).toBe("https://buy.stripe.com/integ_test");
 		expect(typeof persisted!.stripeConnectAccountIdSnapshot).toBe("string");
-		expect(persisted!.stripeConnectAccountIdSnapshot!.length).toBeGreaterThan(0);
+		expect(persisted!.stripeConnectAccountIdSnapshot!.length).toBeGreaterThan(
+			0,
+		);
 		expect(typeof persisted!.applicationFeeAmount).toBe("number");
 	});
 
@@ -414,7 +449,9 @@ describe("paymentsRouter.sendPaymentLink [integration]", () => {
 		});
 
 		const { createPaymentsRouter } = await import("./payments");
-		const pricesCreate = mock(async () => ({ id: "price_should_not_be_called" }));
+		const pricesCreate = mock(async () => ({
+			id: "price_should_not_be_called",
+		}));
 		const paymentLinksCreate = mock(async () => ({
 			id: "plink_should_not_be_called",
 			url: "https://buy.stripe.com/should_not_be_called",
@@ -448,7 +485,10 @@ describe("paymentsRouter.sendPaymentLink [integration]", () => {
 		await expect(
 			callProcedure(
 				router.sendPaymentLink,
-				{ organizationId: TEST_ORG_ID, appointmentId: "00000000-dead-4000-8000-000000000000" },
+				{
+					organizationId: TEST_ORG_ID,
+					appointmentId: "00000000-dead-4000-8000-000000000000",
+				},
 				ctx,
 			),
 		).rejects.toMatchObject({ code: "NOT_FOUND" });
@@ -514,7 +554,10 @@ describe("paymentsRouter.getPaymentStatus [integration]", () => {
 		await expect(
 			callProcedure(
 				router.getPaymentStatus,
-				{ organizationId: TEST_ORG_ID, appointmentId: "00000000-dead-4000-8000-000000000000" },
+				{
+					organizationId: TEST_ORG_ID,
+					appointmentId: "00000000-dead-4000-8000-000000000000",
+				},
 				ctx,
 			),
 		).rejects.toMatchObject({ code: "NOT_FOUND" });
@@ -566,7 +609,7 @@ describe("paymentsRouter.refund [integration]", () => {
 		expect(result.currency).toBe("MYR");
 
 		expect(refundsCreate).toHaveBeenCalledTimes(1);
-		const [params, options] = (refundsCreate.mock.calls[0] as unknown) as [
+		const [params, options] = refundsCreate.mock.calls[0] as unknown as [
 			{ payment_intent: string; reason: string },
 			{ stripeAccount: string; idempotencyKey: string },
 		];
@@ -626,7 +669,10 @@ describe("paymentsRouter.refund [integration]", () => {
 		await expect(
 			callProcedure(
 				router.refund,
-				{ organizationId: TEST_ORG_ID, appointmentId: "00000000-dead-4000-8000-000000000000" },
+				{
+					organizationId: TEST_ORG_ID,
+					appointmentId: "00000000-dead-4000-8000-000000000000",
+				},
 				ctx,
 			),
 		).rejects.toMatchObject({ code: "NOT_FOUND" });
@@ -641,7 +687,9 @@ describe("paymentsRouter.createSetupIntent [integration]", () => {
 	it("returns clientSecret + setupIntentId and persists stripeCustomerId to DB", async () => {
 		if (shouldSkipIntegration()) return;
 
-		await sharedTenantDb.insert(customerProfiles).values(makeCustomerProfileSeed());
+		await sharedTenantDb
+			.insert(customerProfiles)
+			.values(makeCustomerProfileSeed());
 
 		const setupIntentsCreate = mock(async () => ({
 			id: "seti_integ_001",
@@ -696,7 +744,9 @@ describe("paymentsRouter.createSetupIntent [integration]", () => {
 			}),
 		);
 
-		const customersCreate = mock(async () => ({ id: "cus_should_not_be_created" }));
+		const customersCreate = mock(async () => ({
+			id: "cus_should_not_be_created",
+		}));
 		const setupIntentsCreate = mock(async () => ({
 			id: "seti_integ_reuse",
 			client_secret: "seti_secret_reuse",
@@ -734,7 +784,10 @@ describe("paymentsRouter.createSetupIntent [integration]", () => {
 		await expect(
 			callProcedure(
 				router.createSetupIntent,
-				{ organizationId: TEST_ORG_ID, customerProfileId: "00000000-dead-4000-8000-000000000000" },
+				{
+					organizationId: TEST_ORG_ID,
+					customerProfileId: "00000000-dead-4000-8000-000000000000",
+				},
 				ctx,
 			),
 		).rejects.toMatchObject({ code: "NOT_FOUND" });
@@ -749,7 +802,9 @@ describe("paymentsRouter.listSavedCards [integration]", () => {
 	it("returns empty cards array when customer has no stripeCustomerId in DB", async () => {
 		if (shouldSkipIntegration()) return;
 
-		await sharedTenantDb.insert(customerProfiles).values(makeCustomerProfileSeed());
+		await sharedTenantDb
+			.insert(customerProfiles)
+			.values(makeCustomerProfileSeed());
 
 		const { createPaymentsRouter } = await import("./payments");
 		const router = createPaymentsRouter(makeStripeMock() as never);
@@ -783,11 +838,18 @@ describe("paymentsRouter.listSavedCards [integration]", () => {
 				},
 				{
 					id: "pm_test_integ_002",
-					card: { brand: "mastercard", last4: "5555", exp_month: 6, exp_year: 2027 },
+					card: {
+						brand: "mastercard",
+						last4: "5555",
+						exp_month: 6,
+						exp_year: 2027,
+					},
 				},
 			],
 		}));
-		const stripe = makeStripeMock({ paymentMethods: { list: paymentMethodsList } });
+		const stripe = makeStripeMock({
+			paymentMethods: { list: paymentMethodsList },
+		});
 
 		const { createPaymentsRouter } = await import("./payments");
 		const router = createPaymentsRouter(stripe as never);
@@ -816,7 +878,8 @@ describe("paymentsRouter.listSavedCards [integration]", () => {
 		});
 
 		expect(paymentMethodsList).toHaveBeenCalledTimes(1);
-		const [listParams, listOpts] = (paymentMethodsList.mock.calls[0] as unknown) as [
+		const [listParams, listOpts] = paymentMethodsList.mock
+			.calls[0] as unknown as [
 			{ customer: string; type: string },
 			{ stripeAccount: string },
 		];
@@ -876,7 +939,7 @@ describe("paymentsRouter.chargeSavedCard [integration]", () => {
 		expect(typeof result.applicationFeeAmount).toBe("number");
 
 		expect(piCreate).toHaveBeenCalledTimes(1);
-		const [params, opts] = (piCreate.mock.calls[0] as unknown) as [
+		const [params, opts] = piCreate.mock.calls[0] as unknown as [
 			{
 				amount: number;
 				currency: string;
@@ -901,7 +964,9 @@ describe("paymentsRouter.chargeSavedCard [integration]", () => {
 	it("throws PRECONDITION_FAILED when customer has no stripeCustomerId", async () => {
 		if (shouldSkipIntegration()) return;
 
-		await sharedTenantDb.insert(customerProfiles).values(makeCustomerProfileSeed());
+		await sharedTenantDb
+			.insert(customerProfiles)
+			.values(makeCustomerProfileSeed());
 
 		const { createPaymentsRouter } = await import("./payments");
 		const router = createPaymentsRouter(makeStripeMock() as never);
@@ -966,7 +1031,10 @@ describe("paymentsRouter.createSalesOrderPaymentLink [integration — NOT_FOUND 
 		await expect(
 			callProcedure(
 				router.createSalesOrderPaymentLink,
-				{ organizationId: TEST_ORG_ID, salesOrderId: "00000000-dead-4000-8000-000000000000" },
+				{
+					organizationId: TEST_ORG_ID,
+					salesOrderId: "00000000-dead-4000-8000-000000000000",
+				},
 				ctx,
 			),
 		).rejects.toMatchObject({ code: "NOT_FOUND" });

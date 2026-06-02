@@ -3,10 +3,12 @@ import { appointmentsListProcedures } from "./list.procedures";
 import { appointmentsCrudProcedures } from "./crud.procedures";
 import { appointmentsRecurrenceProcedures } from "./recurrence.procedures";
 import { appointmentsSeriesCancelProcedures } from "./series-cancel.procedures";
+import { appointmentsScheduleProcedures } from "./schedule.procedures";
 
 export const appointmentsRouter = {
 	...appointmentsListProcedures,
 	...appointmentsCrudProcedures,
 	...appointmentsRecurrenceProcedures,
 	...appointmentsSeriesCancelProcedures,
+	...appointmentsScheduleProcedures,
 };

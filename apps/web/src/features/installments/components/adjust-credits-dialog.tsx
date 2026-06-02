@@ -64,103 +64,132 @@ export function AdjustCreditsDialog({
 				if (!o) onClose();
 			}}
 		>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>Adjust Credits</DialogTitle>
-					<DialogDescription>
-						Override the credits for this package. Future installment payments will only increase
-						unlocked credits, never decrease them past this value. If a credits override is active,
-						use "Reset to formula" to restore automatic calculation.
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						INSTALLMENT PLANS
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Adjust Credits
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
+						Override the credits for this package. Future installment payments
+						will only increase unlocked credits, never decrease them past this
+						value. If a credits override is active, use "Reset to formula" to
+						restore automatic calculation.
 					</DialogDescription>
 				</DialogHeader>
 
-				{selectedInstance && (() => {
-					const total = selectedInstance.creditsTotal ?? 0;
-					const unlocked = adjustUnlocked === "" ? (selectedInstance.creditsUnlocked ?? total) : (Number.parseInt(adjustUnlocked, 10) || 0);
-					const used = adjustUsed === "" ? (selectedInstance.creditsUsed ?? 0) : (Number.parseInt(adjustUsed, 10) || 0);
-					const available = unlocked - used;
-					const isValid = unlocked <= total && used <= unlocked && available >= 0;
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					{selectedInstance &&
+						(() => {
+							const total = selectedInstance.creditsTotal ?? 0;
+							const unlocked =
+								adjustUnlocked === ""
+									? (selectedInstance.creditsUnlocked ?? total)
+									: Number.parseInt(adjustUnlocked, 10) || 0;
+							const used =
+								adjustUsed === ""
+									? (selectedInstance.creditsUsed ?? 0)
+									: Number.parseInt(adjustUsed, 10) || 0;
+							const available = unlocked - used;
+							const isValid =
+								unlocked <= total && used <= unlocked && available >= 0;
 
-					return (
-						<div className="flex flex-col gap-4 py-2">
-							<div className="rounded-md bg-muted/50 px-3 py-2 text-sm">
-								<span className="text-muted-foreground">Total credits: </span>
-								<span className="font-semibold">{total}</span>
-								{selectedInstance.creditsAdminOverride && (
-									<span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-										Admin override active
-									</span>
-								)}
-							</div>
+							return (
+								<div className="flex flex-col gap-4 py-2">
+									<div className="rounded-md bg-[#f3f3f3]/50 px-3 py-2 text-sm">
+										<span className="text-[#737373]">Total credits: </span>
+										<span className="font-semibold">{total}</span>
+										{selectedInstance.creditsAdminOverride && (
+											<span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+												Admin override active
+											</span>
+										)}
+									</div>
 
-							<div className="flex flex-col gap-1.5">
-								<Label htmlFor="adjust-unlocked">Credits Unlocked</Label>
-								<Input
-									id="adjust-unlocked"
-									type="number"
-									min="0"
-									max={total}
-									step="1"
-									value={adjustUnlocked}
-									onChange={(e) => setAdjustUnlocked(e.target.value)}
-									placeholder={String(selectedInstance.creditsUnlocked ?? total)}
-								/>
-								<p className="text-xs text-muted-foreground">Max: {total}</p>
-							</div>
+									<div className="flex flex-col gap-1.5">
+										<Label htmlFor="adjust-unlocked">Credits Unlocked</Label>
+										<Input
+											id="adjust-unlocked"
+											type="number"
+											min="0"
+											max={total}
+											step="1"
+											value={adjustUnlocked}
+											onChange={(e) => setAdjustUnlocked(e.target.value)}
+											placeholder={String(
+												selectedInstance.creditsUnlocked ?? total,
+											)}
+										/>
+										<p className="text-xs text-[#737373]">Max: {total}</p>
+									</div>
 
-							<div className="flex flex-col gap-1.5">
-								<Label htmlFor="adjust-used">Credits Used</Label>
-								<Input
-									id="adjust-used"
-									type="number"
-									min="0"
-									max={unlocked}
-									step="1"
-									value={adjustUsed}
-									onChange={(e) => setAdjustUsed(e.target.value)}
-									placeholder={String(selectedInstance.creditsUsed ?? 0)}
-								/>
-								<p className="text-xs text-muted-foreground">Max: {unlocked} (cannot exceed unlocked)</p>
-							</div>
+									<div className="flex flex-col gap-1.5">
+										<Label htmlFor="adjust-used">Credits Used</Label>
+										<Input
+											id="adjust-used"
+											type="number"
+											min="0"
+											max={unlocked}
+											step="1"
+											value={adjustUsed}
+											onChange={(e) => setAdjustUsed(e.target.value)}
+											placeholder={String(selectedInstance.creditsUsed ?? 0)}
+										/>
+										<p className="text-xs text-[#737373]">
+											Max: {unlocked} (cannot exceed unlocked)
+										</p>
+									</div>
 
-							<div className="rounded-md border px-3 py-2 text-sm">
-								<span className="text-muted-foreground">Credits available (preview): </span>
-								<span className={`font-semibold ${available < 0 ? "text-destructive" : ""}`}>
-									{available}
-								</span>
-							</div>
+									<div className="rounded-md border border-[#e5e5e5] px-3 py-2 text-sm">
+										<span className="text-[#737373]">
+											Credits available (preview):{" "}
+										</span>
+										<span
+											className={`font-semibold ${available < 0 ? "text-rose-600" : ""}`}
+										>
+											{available}
+										</span>
+									</div>
 
-							{!isValid && (
-								<p className="text-xs text-destructive">
-									{unlocked > total
-										? `Unlocked (${unlocked}) cannot exceed total (${total}).`
-										: used > unlocked
-										? `Used (${used}) cannot exceed unlocked (${unlocked}).`
-										: "Invalid values."}
-								</p>
-							)}
+									{!isValid && (
+										<p className="text-xs text-rose-600">
+											{unlocked > total
+												? `Unlocked (${unlocked}) cannot exceed total (${total}).`
+												: used > unlocked
+													? `Used (${used}) cannot exceed unlocked (${unlocked}).`
+													: "Invalid values."}
+										</p>
+									)}
 
-							<div className="flex flex-col gap-1.5">
-								<Label htmlFor="adjust-reason">
-									Reason <span className="text-destructive">*</span>
-								</Label>
-								<Textarea
-									id="adjust-reason"
-									placeholder="Provide a reason for this adjustment…"
-									rows={2}
-									value={adjustReason}
-									onChange={(e) => setAdjustReason(e.target.value)}
-								/>
-							</div>
-						</div>
-					);
-				})()}
+									<div className="flex flex-col gap-1.5">
+										<Label htmlFor="adjust-reason">
+											Reason <span className="text-rose-600">*</span>
+										</Label>
+										<Textarea
+											id="adjust-reason"
+											placeholder="Provide a reason for this adjustment…"
+											rows={2}
+											value={adjustReason}
+											onChange={(e) => setAdjustReason(e.target.value)}
+										/>
+									</div>
+								</div>
+							);
+						})()}
+				</div>
 
-				<DialogFooter>
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 					<Button
 						variant="outline"
 						onClick={onClose}
-						disabled={adjustCreditsMutation.isPending || resetOverrideMutation.isPending}
+						disabled={
+							adjustCreditsMutation.isPending || resetOverrideMutation.isPending
+						}
 					>
 						Cancel
 					</Button>
@@ -182,26 +211,36 @@ export function AdjustCreditsDialog({
 							}}
 							disabled={resetOverrideMutation.isPending}
 						>
-							{resetOverrideMutation.isPending ? "Resetting…" : "Reset to formula"}
+							{resetOverrideMutation.isPending
+								? "Resetting…"
+								: "Reset to formula"}
 						</Button>
 					)}
 					<Button
+						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
 						onClick={() => {
 							if (!selectedInstance || !adjustReason.trim()) {
 								toast.error("A reason is required.");
 								return;
 							}
 							const total = selectedInstance.creditsTotal ?? 0;
-							const newUnlocked = adjustUnlocked !== "" ? Number.parseInt(adjustUnlocked, 10) : undefined;
-							const newUsed = adjustUsed !== "" ? Number.parseInt(adjustUsed, 10) : undefined;
-							const resolvedUnlocked = newUnlocked ?? (selectedInstance.creditsUnlocked ?? total);
-							const resolvedUsed = newUsed ?? (selectedInstance.creditsUsed ?? 0);
+							const newUnlocked =
+								adjustUnlocked !== ""
+									? Number.parseInt(adjustUnlocked, 10)
+									: undefined;
+							const newUsed =
+								adjustUsed !== "" ? Number.parseInt(adjustUsed, 10) : undefined;
+							const resolvedUnlocked =
+								newUnlocked ?? selectedInstance.creditsUnlocked ?? total;
+							const resolvedUsed = newUsed ?? selectedInstance.creditsUsed ?? 0;
 							if (resolvedUnlocked > total) {
 								toast.error(`Unlocked credits cannot exceed total (${total}).`);
 								return;
 							}
 							if (resolvedUsed > resolvedUnlocked) {
-								toast.error(`Used credits cannot exceed unlocked (${resolvedUnlocked}).`);
+								toast.error(
+									`Used credits cannot exceed unlocked (${resolvedUnlocked}).`,
+								);
 								return;
 							}
 							adjustCreditsMutation.mutate({

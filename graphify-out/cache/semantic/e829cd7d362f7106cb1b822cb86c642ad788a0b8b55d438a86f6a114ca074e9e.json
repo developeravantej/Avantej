@@ -1,0 +1,1 @@
+{"nodes": [{"id": "commission-cycle-configs-migration", "label": "Migration 0077: commission_cycle_configs table", "file_type": "code", "source_file": "packages/db/src/migrations/tenant/0077_commission_cycle_configs.sql", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

@@ -30,26 +30,26 @@ import { Hono } from "hono";
 const mockOrgFindFirst = mock(async () => null as unknown);
 const mockGetSession = mock(async () => null as unknown);
 const mockGetTenantDb = mock(async () => ({
-  query: {
-    members: { findFirst: mock(async () => null) },
-  },
+	query: {
+		members: { findFirst: mock(async () => null) },
+	},
 }));
 
 const mockControlPanelDb = {
-  query: {
-    organizations: { findFirst: mockOrgFindFirst },
-  },
+	query: {
+		organizations: { findFirst: mockOrgFindFirst },
+	},
 };
 
 mock.module("../lib/db", () => ({
-  getControlPanelDb: (_c?: unknown) => mockControlPanelDb,
-  getTenantDb: mockGetTenantDb,
+	getControlPanelDb: (_c?: unknown) => mockControlPanelDb,
+	getTenantDb: mockGetTenantDb,
 }));
 
 mock.module("../lib/better-auth", () => ({
-  getBetterAuth: (_c?: unknown) => ({
-    api: { getSession: mockGetSession },
-  }),
+	getBetterAuth: (_c?: unknown) => ({
+		api: { getSession: mockGetSession },
+	}),
 }));
 
 // NOTE: bun:test's `mock.module` is process-global — the FIRST factory
@@ -59,38 +59,38 @@ mock.module("../lib/better-auth", () => ({
 // any sprint test file consumes from this module. See
 // customer-profiles.test.ts for the canonical superset list.
 class _SharedPermissionDeniedError extends Error {
-  resource: string;
-  action: string;
-  role: string;
-  constructor(resource: string, action: string, role: string) {
-    super(`Permission denied: ${resource}:${action} for role ${role}`);
-    this.name = "PermissionDeniedError";
-    this.resource = resource;
-    this.action = action;
-    this.role = role;
-  }
+	resource: string;
+	action: string;
+	role: string;
+	constructor(resource: string, action: string, role: string) {
+		super(`Permission denied: ${resource}:${action} for role ${role}`);
+		this.name = "PermissionDeniedError";
+		this.resource = resource;
+		this.action = action;
+		this.role = role;
+	}
 }
 
 mock.module("@avantej-core/services", () => ({
-  getDescendantNodeIds: mock(async () => [] as string[]),
-  // From customer-profiles.test.ts
-  requirePermission: mock(async () => undefined),
-  upsertCustomerProfile: mock(async () => undefined),
-  createMember: mock(async () => undefined),
-  // From payments.test.ts (consumed by packages/api/src/guards.ts)
-  createPackageInstance: mock(async () => ({
-    id: "pkg_inst_abc",
-    serviceId: "svc-1",
-    status: "pending",
-  })),
-  assertBranchAccessible: (branchId: string, accessibleNodeIds: string[]) => {
-    if (!accessibleNodeIds.includes(branchId)) {
-      throw new _SharedPermissionDeniedError("branch", "access", "staff");
-    }
-  },
-  isBranchAccessDeniedError: (err: unknown) =>
-    err instanceof _SharedPermissionDeniedError,
-  PermissionDeniedError: _SharedPermissionDeniedError,
+	getDescendantNodeIds: mock(async () => [] as string[]),
+	// From customer-profiles.test.ts
+	requirePermission: mock(async () => undefined),
+	upsertCustomerProfile: mock(async () => undefined),
+	createMember: mock(async () => undefined),
+	// From payments.test.ts (consumed by packages/api/src/guards.ts)
+	createPackageInstance: mock(async () => ({
+		id: "pkg_inst_abc",
+		serviceId: "svc-1",
+		status: "pending",
+	})),
+	assertBranchAccessible: (branchId: string, accessibleNodeIds: string[]) => {
+		if (!accessibleNodeIds.includes(branchId)) {
+			throw new _SharedPermissionDeniedError("branch", "access", "staff");
+		}
+	},
+	isBranchAccessDeniedError: (err: unknown) =>
+		err instanceof _SharedPermissionDeniedError,
+	PermissionDeniedError: _SharedPermissionDeniedError,
 }));
 
 // Import SUT after mocks
@@ -102,108 +102,111 @@ const ORG_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const USER_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
 const VALID_SESSION = {
-  user: { id: USER_ID, email: "u@example.com" },
-  session: { id: "sess_1", token: "tok_abc", userId: USER_ID },
+	user: { id: USER_ID, email: "u@example.com" },
+	session: { id: "sess_1", token: "tok_abc", userId: USER_ID },
 };
 
 // Build a minimal Hono app that mounts only the SUT and a terminal handler
 // that returns the resolved organizationId + whether tenantDb was set.
 function makeApp() {
-  const app = new Hono();
-  app.use("*", orpcTenantMiddleware);
-  app.post("/rpc/payments/getPaymentStatus", (c) =>
-    c.json({
-      reachedHandler: true,
-      organizationId: c.get("organizationId"),
-      hasTenantDb: !!c.get("tenantDb"),
-    }),
-  );
-  return app;
+	const app = new Hono();
+	app.use("*", orpcTenantMiddleware);
+	app.post("/rpc/payments/getPaymentStatus", (c) =>
+		c.json({
+			reachedHandler: true,
+			organizationId: c.get("organizationId"),
+			hasTenantDb: !!c.get("tenantDb"),
+		}),
+	);
+	return app;
 }
 
 function makeJsonRequest(orgId: string): RequestInit {
-  return {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ json: { organizationId: orgId } }),
-  };
+	return {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ json: { organizationId: orgId } }),
+	};
 }
 
 beforeEach(() => {
-  mockOrgFindFirst.mockReset();
-  mockGetSession.mockReset();
-  mockGetTenantDb.mockReset();
-  mockGetTenantDb.mockImplementation(async () => ({
-    query: { members: { findFirst: mock(async () => null) } },
-  }));
+	mockOrgFindFirst.mockReset();
+	mockGetSession.mockReset();
+	mockGetTenantDb.mockReset();
+	mockGetTenantDb.mockImplementation(async () => ({
+		query: { members: { findFirst: mock(async () => null) } },
+	}));
 });
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe("orpcTenantMiddleware — cross-tenant safety", () => {
-  it("returns 403 when organizationId does not resolve to any org; getTenantDb is never called", async () => {
-    mockOrgFindFirst.mockImplementationOnce(async () => undefined);
-    mockGetSession.mockImplementationOnce(async () => VALID_SESSION);
+	it("returns 403 when organizationId does not resolve to any org; getTenantDb is never called", async () => {
+		mockOrgFindFirst.mockImplementationOnce(async () => undefined);
+		mockGetSession.mockImplementationOnce(async () => VALID_SESSION);
 
-    const app = makeApp();
-    const res = await app.request(
-      "/rpc/payments/getPaymentStatus",
-      makeJsonRequest(ORG_ID),
-    );
+		const app = makeApp();
+		const res = await app.request(
+			"/rpc/payments/getPaymentStatus",
+			makeJsonRequest(ORG_ID),
+		);
 
-    expect(res.status).toBe(403);
-    const body = (await res.json()) as { error?: string; reachedHandler?: boolean };
-    expect(body.error).toBe("Forbidden: organization not accessible");
-    // Critical security assertion: no neon-branch lookup on the wrong tenant
-    expect(mockGetTenantDb.mock.calls.length).toBe(0);
-    // Terminal handler must not be reached
-    expect(body.reachedHandler).toBeUndefined();
-  });
+		expect(res.status).toBe(403);
+		const body = (await res.json()) as {
+			error?: string;
+			reachedHandler?: boolean;
+		};
+		expect(body.error).toBe("Forbidden: organization not accessible");
+		// Critical security assertion: no neon-branch lookup on the wrong tenant
+		expect(mockGetTenantDb.mock.calls.length).toBe(0);
+		// Terminal handler must not be reached
+		expect(body.reachedHandler).toBeUndefined();
+	});
 
-  it("does NOT short-circuit when org exists and is active; getTenantDb is called", async () => {
-    mockOrgFindFirst.mockImplementationOnce(async () => ({
-      id: ORG_ID,
-      paymentStatus: "active",
-    }));
-    mockGetSession.mockImplementationOnce(async () => VALID_SESSION);
+	it("does NOT short-circuit when org exists and is active; getTenantDb is called", async () => {
+		mockOrgFindFirst.mockImplementationOnce(async () => ({
+			id: ORG_ID,
+			paymentStatus: "active",
+		}));
+		mockGetSession.mockImplementationOnce(async () => VALID_SESSION);
 
-    const app = makeApp();
-    const res = await app.request(
-      "/rpc/payments/getPaymentStatus",
-      makeJsonRequest(ORG_ID),
-    );
+		const app = makeApp();
+		const res = await app.request(
+			"/rpc/payments/getPaymentStatus",
+			makeJsonRequest(ORG_ID),
+		);
 
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      reachedHandler?: boolean;
-      organizationId?: string;
-      hasTenantDb?: boolean;
-    };
-    expect(body.reachedHandler).toBe(true);
-    expect(body.organizationId).toBe(ORG_ID);
-    expect(body.hasTenantDb).toBe(true);
-    expect(mockGetTenantDb.mock.calls.length).toBe(1);
-  });
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			reachedHandler?: boolean;
+			organizationId?: string;
+			hasTenantDb?: boolean;
+		};
+		expect(body.reachedHandler).toBe(true);
+		expect(body.organizationId).toBe(ORG_ID);
+		expect(body.hasTenantDb).toBe(true);
+		expect(mockGetTenantDb.mock.calls.length).toBe(1);
+	});
 
-  it("returns 403 when org is suspended (preserves Plan E E.3 / ADR-0024)", async () => {
-    mockOrgFindFirst.mockImplementationOnce(async () => ({
-      id: ORG_ID,
-      paymentStatus: "suspended",
-    }));
+	it("returns 403 when org is suspended (preserves Plan E E.3 / ADR-0024)", async () => {
+		mockOrgFindFirst.mockImplementationOnce(async () => ({
+			id: ORG_ID,
+			paymentStatus: "suspended",
+		}));
 
-    const app = makeApp();
-    const res = await app.request(
-      "/rpc/payments/getPaymentStatus",
-      makeJsonRequest(ORG_ID),
-    );
+		const app = makeApp();
+		const res = await app.request(
+			"/rpc/payments/getPaymentStatus",
+			makeJsonRequest(ORG_ID),
+		);
 
-    expect(res.status).toBe(403);
-    const body = (await res.json()) as {
-      error?: string;
-      paymentStatus?: string;
-    };
-    expect(body.error).toBe("Tenant is suspended");
-    expect(body.paymentStatus).toBe("suspended");
-    expect(mockGetTenantDb.mock.calls.length).toBe(0);
-  });
+		expect(res.status).toBe(403);
+		const body = (await res.json()) as {
+			error?: string;
+			paymentStatus?: string;
+		};
+		expect(body.error).toBe("Tenant is suspended");
+		expect(body.paymentStatus).toBe("suspended");
+		expect(mockGetTenantDb.mock.calls.length).toBe(0);
+	});
 });

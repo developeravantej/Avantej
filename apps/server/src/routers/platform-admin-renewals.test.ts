@@ -41,8 +41,7 @@ function fakeContext() {
 	return {
 		session: { user: { id: TEST_USER_ID, email: "admin@test.local" } },
 		honoContext: {
-			get: (k: string) =>
-				k === "controlPanelDb" ? controlPanelDb : undefined,
+			get: (k: string) => (k === "controlPanelDb" ? controlPanelDb : undefined),
 		},
 	};
 }
@@ -94,11 +93,41 @@ beforeEach(async () => {
 		cancel: boolean;
 		tier: string;
 	}> = [
-		{ id: SUB(1), periodEnd: daysFromNow(3), status: "active", cancel: false, tier: "basic" },
-		{ id: SUB(2), periodEnd: daysFromNow(10), status: "active", cancel: true, tier: "professional" },
-		{ id: SUB(3), periodEnd: daysFromNow(25), status: "trialing", cancel: false, tier: "enterprise" },
-		{ id: SUB(4), periodEnd: daysFromNow(-5), status: "past_due", cancel: false, tier: "basic" },
-		{ id: SUB(5), periodEnd: daysFromNow(-2), status: "unpaid", cancel: false, tier: "professional" },
+		{
+			id: SUB(1),
+			periodEnd: daysFromNow(3),
+			status: "active",
+			cancel: false,
+			tier: "basic",
+		},
+		{
+			id: SUB(2),
+			periodEnd: daysFromNow(10),
+			status: "active",
+			cancel: true,
+			tier: "professional",
+		},
+		{
+			id: SUB(3),
+			periodEnd: daysFromNow(25),
+			status: "trialing",
+			cancel: false,
+			tier: "enterprise",
+		},
+		{
+			id: SUB(4),
+			periodEnd: daysFromNow(-5),
+			status: "past_due",
+			cancel: false,
+			tier: "basic",
+		},
+		{
+			id: SUB(5),
+			periodEnd: daysFromNow(-2),
+			status: "unpaid",
+			cancel: false,
+			tier: "professional",
+		},
 	];
 
 	for (let i = 0; i < seeds.length; i++) {
@@ -139,9 +168,7 @@ describe("getISOWeekStart", () => {
 
 		// 2026-05-13 is a Wednesday.
 		const wed = new Date(Date.UTC(2026, 4, 13, 8, 0, 0));
-		expect(getISOWeekStart(wed).toISOString()).toBe(
-			"2026-05-11T00:00:00.000Z",
-		);
+		expect(getISOWeekStart(wed).toISOString()).toBe("2026-05-11T00:00:00.000Z");
 
 		// Monday → itself (at 00:00).
 		const monIn = new Date(Date.UTC(2026, 4, 11, 23, 59, 59));
@@ -208,9 +235,7 @@ describe("platformAdminRenewals.getCalendar", () => {
 
 		// MRR at-risk includes professional tier (sub 2).
 		const proPrice = getTierPriceUsdCents("professional" as never);
-		expect(result.summary.totalMrrAtRiskCents).toBeGreaterThanOrEqual(
-			proPrice,
-		);
+		expect(result.summary.totalMrrAtRiskCents).toBeGreaterThanOrEqual(proPrice);
 		// MRR passing includes basic (sub 1) + enterprise (sub 3).
 		const basicPrice = getTierPriceUsdCents("basic" as never);
 		const entPrice = getTierPriceUsdCents("enterprise" as never);

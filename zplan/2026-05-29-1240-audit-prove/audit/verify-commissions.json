@@ -1,0 +1,65 @@
+[
+  {
+    "id": "F-COM-01",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "medium",
+    "evidence": "packages/api/src/routers/commission-splits/lifecycle.procedures.ts:118-168 exports manualAdjustment procedure; createManualAdjustment requires commission_payout:create but no frontend caller found in apps/web/src (grep found 0 results for createManualAdjustment, only test file mentions). Review tab (review.procedures.ts) lists pending_review splits but no automatic pathway populates them from manual adjustments."
+  },
+  {
+    "id": "F-COM-02",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "small",
+    "evidence": "apps/server/src/routers/partner-stripe.ts:328-340 confirmViaStripe calls confirmPayoutViaStripe without upstream validation. Actual validation happens inside confirmPayoutViaStripe.service.ts:117-128 where it checks status='pending' and payoutMethod='stripe_connect'. Bug claim about missing transfer.created webhook receiver is overstated—the webhook handling exists (integration tests reference it) but the code review correctly identifies no pre-transfer validation in the router procedure itself."
+  },
+  {
+    "id": "F-COM-03",
+    "verdict": "false",
+    "isBug": false,
+    "fixComplexity": "trivial",
+    "evidence": "packages/services/src/payouts.service.ts contains processCommissionReversals (lines 40-138) which processes unlinked reversals and creates negative payout adjustments. There is no cron/sweep job defined in this file because reversals are processed on-demand via a procedure call (evident from lifecycle.procedures.ts exports). Audit log shows these are triggered by explicit operator actions, not background jobs. The absence of a cron is by-design."
+  },
+  {
+    "id": "F-COM-04",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "medium",
+    "evidence": "packages/services/src/commission-calculator.service.ts:190-289 calculateCommissionForPos does NOT apply applyCommissionCaps (line 274 builds splits without calling caps). Line 173-188 calculateCommissionForAppointment DOES call _buildSplits which invokes applyCommissionCaps at line 630. POS path bypasses caps entirely—appointment and POS have different cap enforcement."
+  },
+  {
+    "id": "F-COM-05",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "small",
+    "evidence": "packages/api/src/routers/commission-splits/lifecycle.procedures.ts:134 manualAdjustment requires 'commission_payout:create'. packages/api/src/routers/commission-splits/review.procedures.ts:69 resolveReview requires 'commission_review:resolve'. A single user cannot hold both permissions to self-approve (create manual adjustment then resolve it themselves), blocking the self-serve flow."
+  },
+  {
+    "id": "F-COM-06",
+    "verdict": "overstated",
+    "isBug": false,
+    "fixComplexity": "trivial",
+    "evidence": "packages/api/src/routers/commission-splits/read.procedures.ts:85 myCommissions correctly passes context.member.userId to getMyCommissions (line 85), fixing F-COM-A from the same audit session. Code is correct; the absence of a dedicated regression test is a test-coverage gap, not a code defect. Finding correctly identifies this as NOT a bug."
+  },
+  {
+    "id": "F-COM-07",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "small",
+    "evidence": "packages/services/src/commission-splits.service.ts:1626, 1653 liabilityByStaff has LIMIT 500 with no totalCount or hasMore indicator. When > 500 staff members exist, results silently truncate with no UI signal. liabilityByStaffProcedure at analytics.procedures.ts:105 calls it directly and returns rows without pagination metadata."
+  },
+  {
+    "id": "F-COM-08",
+    "verdict": "real",
+    "isBug": false,
+    "fixComplexity": "trivial",
+    "evidence": "packages/services/src/payouts.service.ts:688-719 markPayoutPaid requires paymentReference (string) but does NOT validate the amount. However, this is by-design: markPayoutPaid is called AFTER settlement occurs externally (wire, cheque cleared). The paymentReference is the audit trail anchor; amount is already locked on the pending payout row. No amount confirmation needed."
+  },
+  {
+    "id": "F-COM-09",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "small",
+    "evidence": "apps/server/src/routers/partner-stripe.ts:61-133 createOnboardingUrl has NO guardBranchAccessible check (contrast with read.procedures.ts:121 which calls guardBranchAccessible for branchId). The procedure accepts organizationId but does NOT verify the caller has hierarchy access to that organization's branches. Partner onboarding should be scoped to accessible branches."
+  }
+]

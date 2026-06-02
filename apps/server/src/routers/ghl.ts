@@ -75,7 +75,10 @@ export const ghlRouter = {
 			}
 
 			// 1. Validate the API key works for the locationId
-			const valid = await validateGhlApiKey(input.ghlApiKey, input.ghlLocationId);
+			const valid = await validateGhlApiKey(
+				input.ghlApiKey,
+				input.ghlLocationId,
+			);
 			if (!valid) {
 				throw new ORPCError("BAD_REQUEST", {
 					message:
@@ -202,7 +205,10 @@ export const ghlRouter = {
 					.where(eq(ghlContactLinks.syncStatus, "error"))
 					.groupBy(ghlContactLinks.branchNodeId);
 				errorCounts = new Map(
-					errorRows.map((r: { branchNodeId: string; n: number }) => [r.branchNodeId, Number(r.n)]),
+					errorRows.map((r: { branchNodeId: string; n: number }) => [
+						r.branchNodeId,
+						Number(r.n),
+					]),
 				);
 			}
 
@@ -374,7 +380,10 @@ export const ghlRouter = {
 				});
 			}
 
-			const valid = await validateGhlApiKey(input.ghlApiKey, input.ghlLocationId);
+			const valid = await validateGhlApiKey(
+				input.ghlApiKey,
+				input.ghlLocationId,
+			);
 			if (!valid) {
 				throw new ORPCError("BAD_REQUEST", {
 					message:

@@ -47,9 +47,9 @@ interface ServiceFormDialogProps {
 const labelCls =
 	"block text-[11px] font-semibold uppercase tracking-widest text-[#737373] mb-1";
 const inputCls =
-	"w-full border border-input rounded-md px-3 py-2 text-sm bg-transparent shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
+	"w-full border border-[#e5e5e5] rounded-md px-3 py-2 text-sm bg-transparent shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
 const selectCls =
-	"w-full border border-input rounded-md px-3 py-2 text-sm bg-transparent shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring";
+	"w-full border border-[#e5e5e5] rounded-md px-3 py-2 text-sm bg-transparent shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring";
 const errorCls = "mt-1 text-[11px] text-red-500";
 
 function SectionDivider({ label }: { label: string }) {
@@ -199,12 +199,15 @@ export function ServiceFormDialogA({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className="!w-[70vw] !max-w-[70vw] max-h-[90vh] flex flex-col p-0 bg-white">
+			<DialogContent
+				hideCloseButton
+				className="!w-[70vw] !max-w-[70vw] max-h-[90vh] flex flex-col p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+			>
 				<DialogHeader className="sr-only">
-					<DialogTitle>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
 						{mode === "create" ? "Add New Service" : "Edit Service"}
 					</DialogTitle>
-					<DialogDescription>
+					<DialogDescription className="text-sm text-[#737373]">
 						{mode === "create"
 							? "Fill in the details to create a new service."
 							: "Update the details for this service."}
@@ -212,6 +215,9 @@ export function ServiceFormDialogA({
 				</DialogHeader>
 				{/* ── Header ── */}
 				<div className="shrink-0 px-5 pt-5 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						SERVICE CATALOG
+					</p>
 					<h2 className="text-[22px] font-extrabold tracking-tight text-[#0a0a0a]">
 						{mode === "create" ? "Add New Service" : "Edit Service"}
 					</h2>

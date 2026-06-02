@@ -22,23 +22,17 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export type ExceptionKind = "timeoff" | "blocked";
 
 export interface AddExceptionDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	organizationId: string;
-	/** Pre-select a trainer. If omitted a dropdown is shown. */
 	preselectedTrainerId?: string;
 	preselectedTrainerName?: string;
-	/** Pre-select the kind. Defaults to "timeoff". */
 	defaultKind?: ExceptionKind;
 	onSuccess?: () => void;
 }
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export function AddExceptionDialog({
 	open,
@@ -56,17 +50,13 @@ export function AddExceptionDialog({
 
 	const qc = useQueryClient();
 
-	// Fetch trainer list for the selector when no trainer is pre-selected
 	const { data: trainerRows } = useQuery({
 		queryKey: ["trainerAvailabilityByBranch", organizationId],
-		queryFn: () =>
-			client.trainerAvailability.listByBranch({ organizationId }),
+		queryFn: () => client.trainerAvailability.listByBranch({ organizationId }),
 		enabled: !!organizationId && !preselectedTrainerId,
 		staleTime: 60_000,
 	});
 
-	// Sync kind with defaultKind every time the dialog is opened (programmatic opens don't
-	// trigger Radix's onOpenChange, so handleOpenChange's else-branch never fires for them).
 	useEffect(() => {
 		if (open) setKind(defaultKind);
 	}, [open, defaultKind]);
@@ -107,7 +97,6 @@ export function AddExceptionDialog({
 			setReason("");
 			if (!preselectedTrainerId) setTrainerId("");
 		} else {
-			// Sync kind with defaultKind every time the dialog opens
 			setKind(defaultKind);
 		}
 		onOpenChange(next);
@@ -115,22 +104,34 @@ export function AddExceptionDialog({
 
 	const canSubmit = !!effectiveTrainerId && !!date;
 
+	const title = kind === "blocked" ? "Block Time" : "Add Exception Day";
+	const description =
+		kind === "blocked"
+			? "Mark a specific date as blocked for a trainer (e.g. venue closure, reserved time)."
+			: "Mark a specific date as time-off for a trainer. Their normal schedule will be suspended on this date.";
+
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>
-						{kind === "blocked" ? "Block Time" : "Add Exception Day"}
+			<DialogContent
+				hideCloseButton
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+			>
+				{/* Header */}
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						TRAINER AVAILABILITY
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						{title}
 					</DialogTitle>
-					<DialogDescription>
-						{kind === "blocked"
-							? "Mark a specific date as blocked for a trainer (e.g. venue closure, reserved time)."
-							: "Mark a specific date as time-off for a trainer. The trainer's normal schedule will be suspended on this date."}
+					<DialogDescription className="text-sm text-[#737373]">
+						{description}
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="flex flex-col gap-4 py-1">
-					{/* Trainer selector — only shown when no trainer is pre-selected */}
+				{/* Body */}
+				<div className="flex flex-col gap-4 px-6 pt-4 pb-2">
+					{/* Trainer selector — only when not pre-selected */}
 					{!preselectedTrainerId && (
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="exception-trainer">Trainer</Label>
@@ -153,41 +154,45 @@ export function AddExceptionDialog({
 						</div>
 					)}
 
-					{/* Pre-selected trainer display */}
+					{/* Pre-selected trainer chip */}
 					{preselectedTrainerId && preselectedTrainerName && (
-						<div className="rounded-lg border border-border/40 bg-muted/30 px-3 py-2 text-sm">
-							<span className="text-muted-foreground">Trainer: </span>
-							<span className="font-medium">{preselectedTrainerName}</span>
+						<div className="flex items-center gap-2 rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] px-3 py-2">
+							<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">
+								Trainer
+							</p>
+							<span className="text-sm font-medium text-[#0a0a0a]">
+								{preselectedTrainerName}
+							</span>
 						</div>
 					)}
 
-					{/* Kind selector */}
+					{/* Kind — pill toggle */}
 					<div className="flex flex-col gap-1.5">
 						<Label>Kind</Label>
-						<div className="flex gap-3">
+						<div className="flex gap-2">
 							{(["timeoff", "blocked"] as const).map((k) => (
-								<label
+								<button
 									key={k}
-									className="flex cursor-pointer items-center gap-2 text-sm"
+									type="button"
+									disabled={mutation.isPending}
+									onClick={() => setKind(k)}
+									className={
+										kind === k
+											? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold transition"
+											: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium transition"
+									}
 								>
-									<input
-										type="radio"
-										name="exception-kind"
-										value={k}
-										checked={kind === k}
-										onChange={() => setKind(k)}
-										disabled={mutation.isPending}
-										className="accent-black"
-									/>
 									{k === "timeoff" ? "Time Off" : "Blocked"}
-								</label>
+								</button>
 							))}
 						</div>
 					</div>
 
-					{/* Date picker */}
+					{/* Date */}
 					<div className="flex flex-col gap-1.5">
-						<Label htmlFor="exception-date">Exception Date</Label>
+						<Label htmlFor="exception-date">
+							Exception Date <span className="text-rose-600">*</span>
+						</Label>
 						<Input
 							id="exception-date"
 							type="date"
@@ -201,7 +206,7 @@ export function AddExceptionDialog({
 					<div className="flex flex-col gap-1.5">
 						<Label htmlFor="exception-reason">
 							Reason{" "}
-							<span className="text-xs font-normal text-muted-foreground">
+							<span className="text-xs font-normal text-[#737373]">
 								(optional)
 							</span>
 						</Label>
@@ -214,9 +219,12 @@ export function AddExceptionDialog({
 							disabled={mutation.isPending}
 						/>
 					</div>
+
+					<div className="pb-2" />
 				</div>
 
-				<DialogFooter>
+				{/* Footer */}
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 					<Button
 						type="button"
 						variant="outline"
@@ -229,6 +237,7 @@ export function AddExceptionDialog({
 						type="button"
 						onClick={() => mutation.mutate()}
 						disabled={!canSubmit || mutation.isPending}
+						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
 					>
 						{mutation.isPending
 							? "Saving…"

@@ -35,7 +35,10 @@ export function loadDevVars(): void {
 				const eqIdx = trimmed.indexOf("=");
 				if (eqIdx === -1) continue;
 				const key = trimmed.slice(0, eqIdx).trim();
-				const value = trimmed.slice(eqIdx + 1).trim().replace(/^"(.*)"$/, "$1");
+				const value = trimmed
+					.slice(eqIdx + 1)
+					.trim()
+					.replace(/^"(.*)"$/, "$1");
 				if (!process.env[key]) {
 					process.env[key] = value;
 				}
@@ -45,7 +48,9 @@ export function loadDevVars(): void {
 			// try next candidate
 		}
 	}
-	console.warn("[integration-setup] .dev.vars not found in any candidate path; using process.env as-is");
+	console.warn(
+		"[integration-setup] .dev.vars not found in any candidate path; using process.env as-is",
+	);
 }
 
 /**
@@ -130,16 +135,17 @@ export async function closeAllTestPools(): Promise<void> {
  * pool then release the server-side locks. Healthy transactions (sub-second) are
  * unaffected — the race only fires on a genuine wedge.
  */
-function withTxTimeout<T extends { transaction: (...args: any[]) => Promise<any> }>(
-	db: T,
-): T {
+function withTxTimeout<
+	T extends { transaction: (...args: any[]) => Promise<any> },
+>(db: T): T {
 	const original = db.transaction.bind(db);
 	(db as { transaction: unknown }).transaction = (...args: unknown[]) =>
 		Promise.race([
 			original(...args),
 			new Promise((_resolve, reject) =>
 				setTimeout(
-					() => reject(new Error("integration test transaction timed out (15s)")),
+					() =>
+						reject(new Error("integration test transaction timed out (15s)")),
 					15_000,
 				),
 			),
@@ -153,7 +159,9 @@ function withTxTimeout<T extends { transaction: (...args: any[]) => Promise<any>
 export function createTenantDb() {
 	const url = process.env.TENANT_DATABASE_URL;
 	if (!url) throw new Error("TENANT_DATABASE_URL is not set in .dev.vars");
-	return withTxTimeout(drizzle({ client: getSharedPool(url), schema: tenantSchema }));
+	return withTxTimeout(
+		drizzle({ client: getSharedPool(url), schema: tenantSchema }),
+	);
 }
 
 /**

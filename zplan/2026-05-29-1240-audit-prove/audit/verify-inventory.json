@@ -1,0 +1,58 @@
+[
+  {
+    "id": "F-INV-01",
+    "verdict": "overstated",
+    "isBug": false,
+    "fixComplexity": "trivial",
+    "evidence": "packages/api/src/routers/purchase-orders.ts:136 calls approvePurchaseOrder which writes audit (packages/services/src/purchase-orders.service.ts:226-239). Finding claims 'no supplier_notifications write' but no supplier_notifications table exists in schema — this appears to be a missing feature requirement (by-design for v1), not an actual bug. The audit write IS present."
+  },
+  {
+    "id": "F-INV-02",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "small",
+    "evidence": "packages/services/src/goods-receipt.service.ts:172-245 cancelReceipt reverses stock (lines 189-205) and PO receivedQty (lines 207-215) but does NOT call writeAudit. By contrast, createReceipt does NOT call writeAudit either (lines 76-166), so this is inconsistent design. However, cancelReceipt is a destructive operation that should be audited per Phase 8.4 pattern observed in approvePurchaseOrder and cancelPurchaseOrder. No writeAudit call present in cancelReceipt."
+  },
+  {
+    "id": "F-INV-03",
+    "verdict": "false",
+    "isBug": false,
+    "fixComplexity": "trivial",
+    "evidence": "packages/api/src/routers/purchase-orders.ts:152-178 receiveItems calls the legacy receiveItems function (packages/services/src/purchase-orders.service.ts:245-348) which only increments purchaseOrderItems.receivedQty (line 310) and rolls PO status. goods-receipt.service.ts createReceipt ALSO increments purchaseOrderItems.receivedQty (lines 134-141) BUT these are TWO DIFFERENT CODE PATHS — they are not both active at the same time. The PO has either been received via legacy receiveItems OR via goods-receipt createReceipt, not both. No dual-write risk if used as designed."
+  },
+  {
+    "id": "F-INV-04",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "small",
+    "evidence": "packages/api/src/routers/goods-receipts.ts lines 126-155 exposes createInvoice endpoint for supplierInvoices but does not expose an update endpoint. goods-receipt.service.ts has no updateSupplierInvoice function. Once an invoice is created (status='pending'), it cannot be modified — only disputed (line 437) or marked matched/paid. This is by-design immutability of pending invoices, not a bug, but limits flexibility."
+  },
+  {
+    "id": "F-INV-05",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "medium",
+    "evidence": "packages/services/src/transfer-orders.service.ts:158-206 completeTransfer jumps directly from 'in_transit' status to 'completed' (line 197) with NO intermediate receive/acceptance state. There is no validation that receiving branch accepted the transfer — the stock is immediately moved (lines 180-191). Missing workflow: in_transit → received_pending_acceptance → completed."
+  },
+  {
+    "id": "F-INV-06",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "medium",
+    "evidence": "packages/services/src/products.service.ts:180-232 adjustStock (called by transfer-orders.service.ts:180-191 and potentially other places) mutates stock via SQL directly (line 191: quantity + delta) WITHOUT calling writeAudit. No audit trail links the stock movement to its source document (transfer order, goods receipt, etc). Contrast with goods-receipt.service.ts which also does not audit but is single-purpose; adjustStock is polymorphic and loses traceability."
+  },
+  {
+    "id": "F-INV-07",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "small",
+    "evidence": "packages/services/src/suppliers.service.ts:109-123 deactivateSupplier (lines 109-123) simply sets isActive=false with NO check for active purchase orders. A supplier with pending/approved/partially_received POs can be deactivated, breaking referential expectations. Should query purchaseOrders for status IN ('approved','ordered','partially_received') and reject if found."
+  },
+  {
+    "id": "F-INV-08",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "trivial",
+    "evidence": "packages/services/src/tax-rates.service.ts:57-88 createTaxRate accepts effectiveFrom and effectiveUntil but does NOT validate that effectiveUntil > effectiveFrom. Line 79 inserts effectiveUntil as-is. A tax rate with effectiveUntil before effectiveFrom would be logically invalid and cause query anomalies."
+  }
+]

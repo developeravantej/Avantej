@@ -86,23 +86,15 @@ function formatPaymentLabel(method: PaymentMethod | null): string {
 
 // ─── Timeline step dot ────────────────────────────────────────────────────────
 
-function TlDot({
-	state,
-	n,
-}: {
-	state: "done" | "active" | "idle";
-	n: number;
-}) {
+function TlDot({ state, n }: { state: "done" | "active" | "idle"; n: number }) {
 	return (
 		<div
 			className={cn(
 				"flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold",
-				state === "done" &&
-					"bg-[#0a0a0a] text-white",
+				state === "done" && "bg-[#0a0a0a] text-white",
 				state === "active" &&
 					"border-2 border-[#0a0a0a] bg-white text-[#0a0a0a]",
-				state === "idle" &&
-					"border-2 border-[#e5e5e5] bg-white text-[#a3a3a3]",
+				state === "idle" && "border-2 border-[#e5e5e5] bg-white text-[#a3a3a3]",
 			)}
 		>
 			{state === "done" ? (
@@ -162,7 +154,8 @@ function StepCard({
 				"rounded-2xl border bg-white p-5 transition-opacity duration-200",
 				state === "active" && "border-[#0a0a0a] shadow-sm",
 				state === "done" && "border-[#e5e5e5]",
-				state === "idle" && "border-[#e5e5e5] opacity-50 pointer-events-none select-none",
+				state === "idle" &&
+					"border-[#e5e5e5] opacity-50 pointer-events-none select-none",
 			)}
 			style={state === "active" ? { borderWidth: "1.5px" } : {}}
 		>
@@ -173,10 +166,12 @@ function StepCard({
 					<p className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
 						{stepLabel}
 					</p>
-					<p className={cn(
-						"text-sm font-bold",
-						state === "idle" ? "text-[#737373]" : "text-[#0a0a0a]",
-					)}>
+					<p
+						className={cn(
+							"text-sm font-bold",
+							state === "idle" ? "text-[#737373]" : "text-[#0a0a0a]",
+						)}
+					>
 						{label}
 					</p>
 				</div>
@@ -193,9 +188,7 @@ function StepCard({
 			</div>
 
 			{/* Expanded content */}
-			{state !== "idle" && children && (
-				<div className="mt-4">{children}</div>
-			)}
+			{state !== "idle" && children && <div className="mt-4">{children}</div>}
 		</div>
 	);
 }
@@ -355,7 +348,9 @@ export function PosWorkflow({
 	const [selectedInstallmentPlanId, setSelectedInstallmentPlanId] = useState<
 		string | null
 	>(null);
-	const [preferredTrainerId, setPreferredTrainerId] = useState<string | null>(null);
+	const [preferredTrainerId, setPreferredTrainerId] = useState<string | null>(
+		null,
+	);
 
 	// ── Trainer assignments ───────────────────────────────────────────────────
 	const [trainerAssignments, setTrainerAssignments] =
@@ -363,6 +358,32 @@ export function PosWorkflow({
 
 	// ── Notes ─────────────────────────────────────────────────────────────────
 	const [notes, setNotes] = useState("");
+
+	// ── Origination attribution (Task #24) ────────────────────────────────────
+	// soldBy: the closer (defaults to logged-in user's id; clearable)
+	// leadSourceUserId: optional referrer (cross-DB user id)
+	const currentUserId = userContext?.user?.id ?? null;
+	const [soldBy, setSoldBy] = useState<string | null>(null);
+	const [leadSourceUserId, setLeadSourceUserId] = useState<string | null>(null);
+
+	// Fetch all active staff/members for the attribution selects
+	const { data: staffMembers = [] } = useQuery({
+		queryKey: ["members-staff-all", organizationId],
+		queryFn: () =>
+			client.members.list({
+				organizationId: organizationId!,
+				status: "active",
+			}),
+		enabled: !!organizationId,
+		staleTime: 5 * 60 * 1000,
+	});
+
+	// Default soldBy to current user id when it loads (only once)
+	useEffect(() => {
+		if (soldBy !== null) return;
+		if (!currentUserId) return;
+		setSoldBy(currentUserId);
+	}, [currentUserId, soldBy]);
 
 	// ── Last receipt (populated after a successful sale in this session) ───────
 	const [lastReceipt, setLastReceipt] = useState<{
@@ -414,15 +435,17 @@ export function PosWorkflow({
 
 		setLastReceipt({
 			orgName:
-				userContext?.organizations.find((o) => o.id === organizationId)?.name ?? "—",
+				userContext?.organizations.find((o) => o.id === organizationId)?.name ??
+				"—",
 			customerName: order.customerName,
 			items: cartItems,
 			subtotalCents,
 			// Discount and tax are not stored on the order row — show 0 for historical seed
 			discountCents: 0,
-			taxCents: order.totalAmount - subtotalCents > 0
-				? order.totalAmount - subtotalCents
-				: 0,
+			taxCents:
+				order.totalAmount - subtotalCents > 0
+					? order.totalAmount - subtotalCents
+					: 0,
 			totalCents: order.totalAmount,
 			paymentMethod: (apiPaymentMethod as PaymentMethod | null) ?? null,
 			timestamp: order.createdAt,
@@ -593,7 +616,12 @@ export function PosWorkflow({
 							.map((a) => ({ staffId: a.staffId, slotIndex: a.slotIndex }));
 						return filtered.length > 0 ? [String(arrayIndex), filtered] : null;
 					})
-					.filter((entry): entry is [string, { staffId: string; slotIndex: number }[]] => entry !== null),
+					.filter(
+						(
+							entry,
+						): entry is [string, { staffId: string; slotIndex: number }[]] =>
+							entry !== null,
+					),
 			);
 
 			return client.pos.recordSale({
@@ -622,11 +650,17 @@ export function PosWorkflow({
 					Object.keys(filteredAssignments).length > 0
 						? filteredAssignments
 						: undefined,
+				// Origination attribution (Task #24) — both optional
+				soldBy: soldBy ?? undefined,
+				leadSourceUserId: leadSourceUserId ?? undefined,
 			});
 		},
 		successMessage: "Sale recorded successfully!",
 		errorMessage: (err) => {
-			if ((err as unknown as { data?: { cause?: string } }).data?.cause === "non_client_member") {
+			if (
+				(err as unknown as { data?: { cause?: string } }).data?.cause ===
+				"non_client_member"
+			) {
 				return "This customer is staff/admin and cannot be a sale target. Use a client account or walk-in mode.";
 			}
 			return err.message || "Failed to record sale. Please try again.";
@@ -658,6 +692,9 @@ export function PosWorkflow({
 			setPreferredTrainerId(null);
 			setTrainerAssignments({});
 			setNotes("");
+			// Reset attribution — soldBy re-defaults to current member via the useEffect above
+			setSoldBy(null);
+			setLeadSourceUserId(null);
 			setCurrentStep(hideCustomerStep || prefillCustomerId ? 1 : 0);
 			// Keep selectedCustomer if customer is prefilled/locked
 			if (!hideCustomerStep && !prefillCustomerId) setSelectedCustomer(null);
@@ -733,12 +770,10 @@ export function PosWorkflow({
 	const customerLabel =
 		customerTypeMode === "walk_in"
 			? "Walk-in"
-			: selectedCustomer?.name ?? null;
+			: (selectedCustomer?.name ?? null);
 
 	const customerInitials =
-		customerTypeMode === "walk_in"
-			? "WI"
-			: getInitials(customerLabel ?? "");
+		customerTypeMode === "walk_in" ? "WI" : getInitials(customerLabel ?? "");
 
 	const today = now.toLocaleString("en-MY", {
 		weekday: "short",
@@ -756,7 +791,6 @@ export function PosWorkflow({
 
 	return (
 		<div className="flex flex-1 flex-col bg-[#f3f3f3] overflow-hidden">
-
 			{/* ── Page header ─────────────────────────────────────────────────── */}
 			{showHeader && (
 				<div className="flex items-end justify-between border-b border-[#e5e5e5] bg-[#f3f3f3] px-6 pb-4 pt-5">
@@ -791,10 +825,11 @@ export function PosWorkflow({
 			{/* ── Two-column layout ─────────────────────────────────────────── */}
 			<div className="flex flex-1 overflow-hidden">
 				<div className="flex w-full flex-1 gap-6 overflow-hidden px-6 py-6">
-
 					{/* ── LEFT: Step cards ──────────────────────────────────────────── */}
-					<div className="flex flex-1 flex-col gap-4 overflow-y-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
-
+					<div
+						className="flex flex-1 flex-col gap-4 overflow-y-auto [&::-webkit-scrollbar]:hidden"
+						style={{ scrollbarWidth: "none" }}
+					>
 						{/* ── STEP 0: Customer ─────────────────────────────────────── */}
 						{!hideCustomerStep && (
 							<StepCard
@@ -883,7 +918,9 @@ export function PosWorkflow({
 											{customerInitials}
 										</div>
 										<div className="flex-1 min-w-0">
-											<p className="text-sm font-semibold text-[#0a0a0a]">{customerLabel}</p>
+											<p className="text-sm font-semibold text-[#0a0a0a]">
+												{customerLabel}
+											</p>
 											<p className="text-[11px] text-[#737373]">
 												{customerTypeMode === "member" ? "Member" : "Walk-in"}
 											</p>
@@ -914,7 +951,9 @@ export function PosWorkflow({
 												{customerInitials}
 											</div>
 											<div className="flex-1 min-w-0">
-												<p className="truncate text-sm font-semibold text-[#0a0a0a]">{customerLabel}</p>
+												<p className="truncate text-sm font-semibold text-[#0a0a0a]">
+													{customerLabel}
+												</p>
 												<p className="text-[11px] text-[#737373]">
 													{customerTypeMode === "member" ? "Member" : "Walk-in"}
 												</p>
@@ -950,7 +989,9 @@ export function PosWorkflow({
 										<div className="rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-4">
 											<p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[#737373]">
 												Trainer Assignment{" "}
-												<span className="normal-case font-normal">(optional)</span>
+												<span className="normal-case font-normal">
+													(optional)
+												</span>
 											</p>
 											<TrainerPickerStep
 												items={items}
@@ -977,7 +1018,10 @@ export function PosWorkflow({
 														setSelectedTaxRateId(v === "none" ? null : v)
 													}
 												>
-													<SelectTrigger id="tax-rate" className="w-full max-w-xs border-[#e5e5e5]">
+													<SelectTrigger
+														id="tax-rate"
+														className="w-full max-w-xs border-[#e5e5e5]"
+													>
 														<SelectValue placeholder="No tax" />
 													</SelectTrigger>
 													<SelectContent>
@@ -996,9 +1040,14 @@ export function PosWorkflow({
 
 									{/* Notes */}
 									<div className="space-y-1.5">
-										<Label htmlFor="sale-notes" className="text-xs font-medium text-[#0a0a0a]">
+										<Label
+											htmlFor="sale-notes"
+											className="text-xs font-medium text-[#0a0a0a]"
+										>
 											Notes{" "}
-											<span className="font-normal text-[#737373]">(optional)</span>
+											<span className="font-normal text-[#737373]">
+												(optional)
+											</span>
 										</Label>
 										<Textarea
 											id="sale-notes"
@@ -1028,15 +1077,23 @@ export function PosWorkflow({
 							{stepState(1) === "done" && items.length > 0 && (
 								<div className="mt-3 space-y-2">
 									{items.map((item) => (
-										<div key={item.id} className="flex items-center justify-between text-sm">
+										<div
+											key={item.id}
+											className="flex items-center justify-between text-sm"
+										>
 											<div className="flex items-center gap-2">
 												<span className="flex h-5 w-5 items-center justify-center rounded border border-[#e5e5e5] bg-[#f3f3f3] text-[10px] font-bold text-[#0a0a0a]">
 													×{item.quantity}
 												</span>
-												<span className="font-medium text-[#0a0a0a]">{item.description}</span>
+												<span className="font-medium text-[#0a0a0a]">
+													{item.description}
+												</span>
 											</div>
 											<span className="font-mono tabular-nums font-bold text-[#0a0a0a]">
-												{formatPrice(item.unitPriceCents * item.quantity, "MYR")}
+												{formatPrice(
+													item.unitPriceCents * item.quantity,
+													"MYR",
+												)}
 											</span>
 										</div>
 									))}
@@ -1101,7 +1158,9 @@ export function PosWorkflow({
 											</span>
 										</div>
 									) : (
-										<p className="text-sm text-[#737373]">No promotion applied</p>
+										<p className="text-sm text-[#737373]">
+											No promotion applied
+										</p>
 									)}
 								</div>
 							)}
@@ -1205,7 +1264,9 @@ export function PosWorkflow({
 										</div>
 										{discountCents > 0 && (
 											<div className="flex items-center justify-between border-b border-[#e5e5e5] px-4 py-3">
-												<span className="text-sm text-green-700">Discount ({appliedPromo?.code})</span>
+												<span className="text-sm text-green-700">
+													Discount ({appliedPromo?.code})
+												</span>
 												<span className="font-mono tabular-nums text-sm text-green-700">
 													−{formatPrice(discountCents, "MYR")}
 												</span>
@@ -1214,7 +1275,8 @@ export function PosWorkflow({
 										{taxCents > 0 && (
 											<div className="flex items-center justify-between border-b border-[#e5e5e5] px-4 py-3">
 												<span className="text-sm text-[#737373]">
-													{selectedTaxRate?.name ?? "Tax"} ({(taxRateBps / 100).toFixed(0)}%)
+													{selectedTaxRate?.name ?? "Tax"} (
+													{(taxRateBps / 100).toFixed(0)}%)
 												</span>
 												<span className="font-mono tabular-nums text-sm text-[#737373]">
 													{formatPrice(taxCents, "MYR")}
@@ -1223,7 +1285,9 @@ export function PosWorkflow({
 										)}
 										<div className="flex items-center justify-between bg-[#f3f3f3] px-4 py-3">
 											<span className="text-base font-bold text-[#0a0a0a]">
-												{selectedPlan ? `Due Today (1/${selectedPlan.numInstallments})` : "Total"}
+												{selectedPlan
+													? `Due Today (1/${selectedPlan.numInstallments})`
+													: "Total"}
 											</span>
 											<span className="font-mono tabular-nums text-xl font-bold text-[#0a0a0a]">
 												{formatPrice(dueNowCents, "MYR")}
@@ -1250,8 +1314,94 @@ export function PosWorkflow({
 										</div>
 									)}
 
+									{/* ── Origination attribution (Task #24) ─────────────────── */}
+									<div className="rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] px-4 py-3">
+										<p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+											Attribution{" "}
+											<span className="normal-case font-normal">
+												(optional)
+											</span>
+										</p>
+										<div className="flex flex-col gap-3">
+											{/* Sold by */}
+											<div className="flex flex-col gap-1.5">
+												<Label className="text-xs font-medium text-[#0a0a0a]">
+													Sold by
+												</Label>
+												<Select
+													value={soldBy ?? "none"}
+													onValueChange={(v) =>
+														setSoldBy(v === "none" ? null : v)
+													}
+												>
+													<SelectTrigger className="w-full max-w-xs border-[#e5e5e5] bg-white text-sm">
+														<SelectValue placeholder="No attribution" />
+													</SelectTrigger>
+													<SelectContent>
+														<SelectItem value="none">No attribution</SelectItem>
+														{(
+															staffMembers as Array<{
+																id: string;
+																userId?: string;
+																name?: string;
+																role?: string;
+															}>
+														).map((m) => (
+															<SelectItem
+																key={m.userId ?? m.id}
+																value={m.userId ?? m.id}
+															>
+																{m.name ?? m.id}
+																{m.role ? ` (${m.role})` : ""}
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+											</div>
+
+											{/* Lead source */}
+											<div className="flex flex-col gap-1.5">
+												<Label className="text-xs font-medium text-[#0a0a0a]">
+													Lead source{" "}
+													<span className="font-normal text-[#737373]">
+														(referrer)
+													</span>
+												</Label>
+												<Select
+													value={leadSourceUserId ?? "none"}
+													onValueChange={(v) =>
+														setLeadSourceUserId(v === "none" ? null : v)
+													}
+												>
+													<SelectTrigger className="w-full max-w-xs border-[#e5e5e5] bg-white text-sm">
+														<SelectValue placeholder="None" />
+													</SelectTrigger>
+													<SelectContent>
+														<SelectItem value="none">None</SelectItem>
+														{(
+															staffMembers as Array<{
+																id: string;
+																userId?: string;
+																name?: string;
+																role?: string;
+															}>
+														).map((m) => (
+															<SelectItem
+																key={m.userId ?? m.id}
+																value={m.userId ?? m.id}
+															>
+																{m.name ?? m.id}
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+											</div>
+										</div>
+									</div>
+
 									<div className="rounded-xl bg-[#f3f3f3] border border-[#e5e5e5] px-4 py-3 text-xs text-[#737373]">
-										Review the order above before confirming. This action cannot be undone.
+										Review the order above before confirming. This action cannot
+										be undone.
 									</div>
 
 									<div className="flex justify-between pt-1">
@@ -1291,12 +1441,13 @@ export function PosWorkflow({
 								</div>
 							)}
 						</StepCard>
-
 					</div>
 
 					{/* ── RIGHT: Live order panel ───────────────────────────────────── */}
-					<div className="flex w-[340px] shrink-0 flex-col gap-4 overflow-y-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}>
-
+					<div
+						className="flex w-[340px] shrink-0 flex-col gap-4 overflow-y-auto [&::-webkit-scrollbar]:hidden"
+						style={{ scrollbarWidth: "none" }}
+					>
 						{/* Live order summary */}
 						<div className="flex flex-col overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
 							{/* Header */}
@@ -1313,7 +1464,6 @@ export function PosWorkflow({
 
 							{/* Step timeline */}
 							<div className="flex-1 space-y-4 px-4 py-4">
-
 								{/* Step 0: Customer */}
 								{!hideCustomerStep && (
 									<>
@@ -1323,9 +1473,13 @@ export function PosWorkflow({
 												<p className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
 													Customer
 												</p>
-												{stepState(0) === "done" || stepState(0) === "active" ? (
+												{stepState(0) === "done" ||
+												stepState(0) === "active" ? (
 													<p className="text-xs font-semibold text-[#0a0a0a]">
-														{customerLabel ?? (customerTypeMode === "walk_in" ? "Walk-in" : "—")}
+														{customerLabel ??
+															(customerTypeMode === "walk_in"
+																? "Walk-in"
+																: "—")}
 													</p>
 												) : (
 													<p className="text-xs text-[#a3a3a3]">Not selected</p>
@@ -1358,15 +1512,20 @@ export function PosWorkflow({
 								<div className="flex items-start gap-3">
 									<LiveDot state={stepState(2)} />
 									<div className="flex-1">
-										<p className={cn(
-											"text-[10px] font-bold uppercase tracking-widest",
-											stepState(2) === "active" ? "text-[#0a0a0a]" : "text-[#737373]",
-										)}>
+										<p
+											className={cn(
+												"text-[10px] font-bold uppercase tracking-widest",
+												stepState(2) === "active"
+													? "text-[#0a0a0a]"
+													: "text-[#737373]",
+											)}
+										>
 											Promotions
 										</p>
 										{appliedPromo ? (
 											<p className="text-xs font-semibold text-amber-600">
-												{appliedPromo.code} — saves {formatPrice(discountCents, "MYR")}
+												{appliedPromo.code} — saves{" "}
+												{formatPrice(discountCents, "MYR")}
 											</p>
 										) : stepState(2) === "done" ? (
 											<p className="text-xs text-[#737373]">None applied</p>
@@ -1376,10 +1535,12 @@ export function PosWorkflow({
 								<div className="ml-[9px] h-4 w-px bg-[#e5e5e5]" />
 
 								{/* Step 3: Payment */}
-								<div className={cn(
-									"flex items-start gap-3",
-									stepState(3) === "idle" && "opacity-40",
-								)}>
+								<div
+									className={cn(
+										"flex items-start gap-3",
+										stepState(3) === "idle" && "opacity-40",
+									)}
+								>
 									<LiveDot state={stepState(3)} />
 									<div className="flex-1">
 										<p className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
@@ -1395,10 +1556,12 @@ export function PosWorkflow({
 								<div className="ml-[9px] h-4 w-px bg-[#e5e5e5]" />
 
 								{/* Step 4: Confirm */}
-								<div className={cn(
-									"flex items-start gap-3",
-									stepState(4) === "idle" && "opacity-40",
-								)}>
+								<div
+									className={cn(
+										"flex items-start gap-3",
+										stepState(4) === "idle" && "opacity-40",
+									)}
+								>
 									<LiveDot state={stepState(4)} />
 									<div>
 										<p className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
@@ -1412,30 +1575,49 @@ export function PosWorkflow({
 							<div className="border-t border-[#e5e5e5] px-4 py-4 space-y-1.5">
 								<div className="flex justify-between text-xs text-[#737373]">
 									<span>Items ({items.length})</span>
-									<span className="font-mono tabular-nums">{formatPrice(subtotalCents, "MYR")}</span>
+									<span className="font-mono tabular-nums">
+										{formatPrice(subtotalCents, "MYR")}
+									</span>
 								</div>
 								{discountCents > 0 && (
 									<div className="flex justify-between text-xs text-amber-600">
 										<span>Promo {appliedPromo?.code}</span>
-										<span className="font-mono tabular-nums">−{formatPrice(discountCents, "MYR")}</span>
+										<span className="font-mono tabular-nums">
+											−{formatPrice(discountCents, "MYR")}
+										</span>
 									</div>
 								)}
 								{taxCents > 0 && (
 									<div className="flex justify-between text-xs text-[#737373]">
-										<span>{selectedTaxRate?.name ?? "Tax"} ({(taxRateBps / 100).toFixed(0)}%)</span>
-										<span className="font-mono tabular-nums">{formatPrice(taxCents, "MYR")}</span>
+										<span>
+											{selectedTaxRate?.name ?? "Tax"} (
+											{(taxRateBps / 100).toFixed(0)}%)
+										</span>
+										<span className="font-mono tabular-nums">
+											{formatPrice(taxCents, "MYR")}
+										</span>
 									</div>
 								)}
 								<hr className="border-t border-[#e5e5e5]" />
 								<div className="flex justify-between text-base font-extrabold text-[#0a0a0a]">
 									<span>{selectedPlan ? "Due Today" : "Est. Total"}</span>
-									<span className="font-mono tabular-nums">{formatPrice(dueNowCents, "MYR")}</span>
+									<span className="font-mono tabular-nums">
+										{formatPrice(dueNowCents, "MYR")}
+									</span>
 								</div>
 								{selectedPlan && totalCents !== dueNowCents && (
 									<div className="flex justify-between text-xs text-[#737373]">
-										<span>Full total ({selectedPlan.numInstallments} instalments)</span>
+										<span>
+											Full total ({selectedPlan.numInstallments} instalments)
+										</span>
 										<span className="font-mono tabular-nums">
-											{formatPrice(Math.round(totalCents * (1 + (selectedPlan.pricePremiumBps ?? 0) / 10000)), "MYR")}
+											{formatPrice(
+												Math.round(
+													totalCents *
+														(1 + (selectedPlan.pricePremiumBps ?? 0) / 10000),
+												),
+												"MYR",
+											)}
 										</span>
 									</div>
 								)}
@@ -1484,7 +1666,10 @@ export function PosWorkflow({
 													{item.description} ×{item.quantity}
 												</span>
 												<span className="tabular-nums">
-													{formatPrice(item.unitPriceCents * item.quantity, "MYR")}
+													{formatPrice(
+														item.unitPriceCents * item.quantity,
+														"MYR",
+													)}
 												</span>
 											</div>
 										))}
@@ -1520,9 +1705,9 @@ export function PosWorkflow({
 								) : (
 									<>
 										<p className="text-center font-bold text-[11px] text-[#0a0a0a]">
-											{userContext?.organizations.find(
-												(o) => o.id === organizationId,
-											)?.name?.toUpperCase() ?? "—"}
+											{userContext?.organizations
+												.find((o) => o.id === organizationId)
+												?.name?.toUpperCase() ?? "—"}
 										</p>
 										<p className="text-center">{today}</p>
 										<hr className="border-dashed border-[#e5e5e5]" />
@@ -1560,19 +1745,29 @@ export function PosWorkflow({
 								</button>
 							</div>
 						</div>
-
 					</div>
 				</div>
 			</div>
 
 			{/* ── Clear cart dialog ──────────────────────────────────────────── */}
 			<Dialog open={clearCartDialogOpen} onOpenChange={setClearCartDialogOpen}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>Clear cart?</DialogTitle>
-						<DialogDescription>Changing the customer will clear all items from the cart. This cannot be undone.</DialogDescription>
+				<DialogContent
+					className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							POINT OF SALE
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Clear cart?
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
+							Changing the customer will clear all items from the cart. This
+							cannot be undone.
+						</DialogDescription>
 					</DialogHeader>
-					<DialogFooter>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button
 							variant="outline"
 							onClick={() => {
@@ -1582,7 +1777,10 @@ export function PosWorkflow({
 						>
 							Cancel
 						</Button>
-						<Button variant="destructive" onClick={confirmClearCart}>
+						<Button
+							className="bg-red-600 hover:bg-red-700 text-white"
+							onClick={confirmClearCart}
+						>
 							Clear Cart & Continue
 						</Button>
 					</DialogFooter>

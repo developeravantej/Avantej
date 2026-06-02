@@ -14,7 +14,10 @@
 
 import { describe, it, expect, mock, beforeEach } from "bun:test";
 import { ORPCError } from "@orpc/server";
-import { createAdminContext, createStaffContext } from "../../helpers/context.factory";
+import {
+	createAdminContext,
+	createStaffContext,
+} from "../../helpers/context.factory";
 import { createMockTenantDb } from "../../helpers/db-mock.factory";
 import { makeMember } from "../../helpers/fixtures";
 
@@ -50,18 +53,22 @@ const mockRequirePermission = mock(
 		}
 	},
 );
-const mockDeactivateMember = mock(async (_db: unknown, memberId: string, _actor: unknown) => ({
-	id: memberId,
-	userId: "u-1",
-	role: "staff" as const,
-	hierarchyScopeId: "aaaaaaaa-0000-4000-8000-000000000001",
-	status: "inactive" as const,
-	joinedAt: new Date(),
-}));
+const mockDeactivateMember = mock(
+	async (_db: unknown, memberId: string, _actor: unknown) => ({
+		id: memberId,
+		userId: "u-1",
+		role: "staff" as const,
+		hierarchyScopeId: "aaaaaaaa-0000-4000-8000-000000000001",
+		status: "inactive" as const,
+		joinedAt: new Date(),
+	}),
+);
 const mockWriteAudit = mock(() => Promise.resolve());
 const mockGetDescendantNodeIds = mock(() => Promise.resolve([]));
 const mockValidateParentAccess = mock(() => {});
-const mockGetMembersNewToday = mock(() => Promise.resolve({ count: 0, members: [] }));
+const mockGetMembersNewToday = mock(() =>
+	Promise.resolve({ count: 0, members: [] }),
+);
 
 const mockUpdateMemberRole = mock(() => Promise.resolve());
 const mockReactivateMember = mock(() => Promise.resolve());
@@ -147,15 +154,18 @@ describe("memberRouter.deactivate", () => {
 			joinedAt: new Date(),
 		});
 
-		const result = await call(
-			memberRouter.deactivate,
-			input,
-			{ ...ctx, honoContext: makeHonoContextStub() },
-		);
+		const result = await call(memberRouter.deactivate, input, {
+			...ctx,
+			honoContext: makeHonoContextStub(),
+		});
 
 		expect(result.status).toBe("inactive");
 		expect(mockDeactivateMember).toHaveBeenCalledTimes(1);
-		const [, calledMemberId] = mockDeactivateMember.mock.calls[0] as [unknown, string, unknown];
+		const [, calledMemberId] = mockDeactivateMember.mock.calls[0] as [
+			unknown,
+			string,
+			unknown,
+		];
 		expect(calledMemberId).toBe(MEMBER_ID);
 	});
 
@@ -163,12 +173,18 @@ describe("memberRouter.deactivate", () => {
 		const ctx = { ...createAdminContext(), member: null };
 
 		await expect(
-			call(memberRouter.deactivate, { organizationId: ORG_ID, memberId: MEMBER_ID }, ctx),
+			call(
+				memberRouter.deactivate,
+				{ organizationId: ORG_ID, memberId: MEMBER_ID },
+				ctx,
+			),
 		).rejects.toMatchObject({ code: "FORBIDDEN" });
 	});
 
 	it("FORBIDDEN when requirePermission throws (staff without permission)", async () => {
-		mockRequirePermission.mockRejectedValueOnce(new Error("Permission denied: staff role"));
+		mockRequirePermission.mockRejectedValueOnce(
+			new Error("Permission denied: staff role"),
+		);
 		const ctx = createStaffContext();
 
 		await expect(
@@ -182,7 +198,9 @@ describe("memberRouter.deactivate", () => {
 
 	it("NOT_FOUND when deactivateMember service throws 'not found'", async () => {
 		const ctx = createAdminContext();
-		mockDeactivateMember.mockRejectedValueOnce(new Error("Member not found: " + MEMBER_ID));
+		mockDeactivateMember.mockRejectedValueOnce(
+			new Error("Member not found: " + MEMBER_ID),
+		);
 
 		await expect(
 			call(
@@ -197,7 +215,11 @@ describe("memberRouter.deactivate", () => {
 		const ctx = { ...createAdminContext(), tenantDb: null };
 
 		await expect(
-			call(memberRouter.deactivate, { organizationId: ORG_ID, memberId: MEMBER_ID }, ctx),
+			call(
+				memberRouter.deactivate,
+				{ organizationId: ORG_ID, memberId: MEMBER_ID },
+				ctx,
+			),
 		).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
 	});
 });
@@ -214,7 +236,11 @@ describe("memberRouter.reactivate", () => {
 	it("happy path — calls MembershipService.reactivateMember and returns success", async () => {
 		const ctx = createAdminContext();
 		const db = createMockTenantDb();
-		const targetMember = makeMember({ id: MEMBER_ID, status: "suspended", hierarchyScopeId: BRANCH_ID });
+		const targetMember = makeMember({
+			id: MEMBER_ID,
+			status: "suspended",
+			hierarchyScopeId: BRANCH_ID,
+		});
 		const updatedMember = { ...targetMember, status: "active" };
 
 		db.query.members.findFirst
@@ -236,7 +262,11 @@ describe("memberRouter.reactivate", () => {
 		const ctx = { ...createAdminContext(), member: null };
 
 		await expect(
-			call(memberRouter.reactivate, { organizationId: ORG_ID, memberId: MEMBER_ID }, ctx),
+			call(
+				memberRouter.reactivate,
+				{ organizationId: ORG_ID, memberId: MEMBER_ID },
+				ctx,
+			),
 		).rejects.toMatchObject({ code: "FORBIDDEN" });
 	});
 
@@ -278,7 +308,11 @@ describe("memberRouter.softDelete", () => {
 	it("happy path — stamps deletedAt and returns ok:true", async () => {
 		const ctx = createAdminContext();
 		const db = createMockTenantDb();
-		const targetMember = makeMember({ id: MEMBER_ID, hierarchyScopeId: BRANCH_ID, deletedAt: null });
+		const targetMember = makeMember({
+			id: MEMBER_ID,
+			hierarchyScopeId: BRANCH_ID,
+			deletedAt: null,
+		});
 		const deletedMember = { ...targetMember, deletedAt: new Date() };
 
 		db.query.members.findFirst.mockResolvedValueOnce(targetMember);
@@ -301,7 +335,11 @@ describe("memberRouter.softDelete", () => {
 		const ctx = { ...createAdminContext(), member: null };
 
 		await expect(
-			call(memberRouter.softDelete, { organizationId: ORG_ID, memberId: MEMBER_ID }, ctx),
+			call(
+				memberRouter.softDelete,
+				{ organizationId: ORG_ID, memberId: MEMBER_ID },
+				ctx,
+			),
 		).rejects.toMatchObject({ code: "FORBIDDEN" });
 	});
 
@@ -365,7 +403,11 @@ describe("memberRouter.updateRole", () => {
 	it("happy path — calls MembershipService.updateMemberRole and returns success", async () => {
 		const ctx = createAdminContext();
 		const db = createMockTenantDb();
-		const targetMember = makeMember({ id: MEMBER_ID, role: "staff", hierarchyScopeId: BRANCH_ID });
+		const targetMember = makeMember({
+			id: MEMBER_ID,
+			role: "staff",
+			hierarchyScopeId: BRANCH_ID,
+		});
 		const updatedMember = { ...targetMember, role: "trainer" };
 
 		db.query.members.findFirst
@@ -386,7 +428,11 @@ describe("memberRouter.updateRole", () => {
 	it("writes audit log entry on successful role change", async () => {
 		const ctx = createAdminContext();
 		const db = createMockTenantDb();
-		const targetMember = makeMember({ id: MEMBER_ID, role: "staff", hierarchyScopeId: BRANCH_ID });
+		const targetMember = makeMember({
+			id: MEMBER_ID,
+			role: "staff",
+			hierarchyScopeId: BRANCH_ID,
+		});
 		const updatedMember = { ...targetMember, role: "admin" };
 
 		db.query.members.findFirst
@@ -445,7 +491,10 @@ describe("memberRouter.updateRole", () => {
 	it("INTERNAL_SERVER_ERROR when controlPanelDb is missing from context", async () => {
 		const ctx = createAdminContext();
 		const db = createMockTenantDb();
-		const targetMember = makeMember({ id: MEMBER_ID, hierarchyScopeId: BRANCH_ID });
+		const targetMember = makeMember({
+			id: MEMBER_ID,
+			hierarchyScopeId: BRANCH_ID,
+		});
 		db.query.members.findFirst.mockResolvedValueOnce(targetMember);
 
 		const emptyHonoContext = { get: () => undefined };

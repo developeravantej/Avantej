@@ -23,120 +23,130 @@ type TenantTx = Parameters<Parameters<TenantDb["transaction"]>[0]>[0];
 
 /** Parameters for {@link redeemCreditPoints} / {@link adjustCreditPoints}. */
 export type CreditPointMutationParams = {
-  customerUserId: string;
-  /** Always a positive magnitude; redeem subtracts, adjust adds. */
-  points: number;
-  reason: string;
-  sourceType?: string | null;
-  sourceId?: string | null;
-  actorUserId?: string | null;
+	customerUserId: string;
+	/** Always a positive magnitude; redeem subtracts, adjust adds. */
+	points: number;
+	reason: string;
+	sourceType?: string | null;
+	sourceId?: string | null;
+	actorUserId?: string | null;
 };
 
 export type CreditPointMutationResult = {
-  balanceBefore: number;
-  balanceAfter: number;
-  delta: number;
-  ledgerId: string;
+	balanceBefore: number;
+	balanceAfter: number;
+	delta: number;
+	ledgerId: string;
 };
 
 export type UpsertCustomerProfileParams = {
-  userId: string;
-  phone?: string | null;
-  dateOfBirth?: Date | null;
-  gender?: string | null;
-  address?: string | null;
-  emergencyContactName?: string | null;
-  emergencyContactPhone?: string | null;
-  medicalNotes?: string | null;
-  fitnessGoals?: string[] | null;
-  creditPoints?: number;
-  notes?: string | null;
-  // === 3.2 lead source / attribution ===
-  leadSourceId?: string | null;
-  referrerMemberId?: string | null;
-  campaignId?: string | null;
-  // === /3.2 ===
+	userId: string;
+	phone?: string | null;
+	dateOfBirth?: Date | null;
+	gender?: string | null;
+	address?: string | null;
+	emergencyContactName?: string | null;
+	emergencyContactPhone?: string | null;
+	medicalNotes?: string | null;
+	fitnessGoals?: string[] | null;
+	creditPoints?: number;
+	notes?: string | null;
+	// === 3.2 lead source / attribution ===
+	leadSourceId?: string | null;
+	referrerMemberId?: string | null;
+	campaignId?: string | null;
+	// === /3.2 ===
 };
 
 /**
  * Get customer profile by user_id.
  */
 export async function getCustomerProfile(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  userId: string
-): Promise<(typeof customerProfiles.$inferSelect) | null> {
-  const row = await tenantDb.query.customerProfiles.findFirst({
-    where: eq(customerProfiles.userId, userId),
-  });
-  return row ?? null;
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	userId: string,
+): Promise<typeof customerProfiles.$inferSelect | null> {
+	const row = await tenantDb.query.customerProfiles.findFirst({
+		where: eq(customerProfiles.userId, userId),
+	});
+	return row ?? null;
 }
 
 /**
  * Upsert customer profile for a user.
  */
 export async function upsertCustomerProfile(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  params: UpsertCustomerProfileParams
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	params: UpsertCustomerProfileParams,
 ): Promise<typeof customerProfiles.$inferSelect> {
-  // F-CRM-07: single atomic upsert keyed on the unique user_id index, so a
-  // concurrent caller can't race the old get-then-insert/update into a
-  // duplicate-key error or a lost update. `undefined` fields are skipped from
-  // the ON CONFLICT update set; explicit `null` clears the column.
-  const setObj = {
-    ...(params.phone !== undefined && { phone: params.phone }),
-    ...(params.dateOfBirth !== undefined && { dateOfBirth: params.dateOfBirth }),
-    ...(params.gender !== undefined && { gender: params.gender }),
-    ...(params.address !== undefined && { address: params.address }),
-    ...(params.emergencyContactName !== undefined && {
-      emergencyContactName: params.emergencyContactName,
-    }),
-    ...(params.emergencyContactPhone !== undefined && {
-      emergencyContactPhone: params.emergencyContactPhone,
-    }),
-    ...(params.medicalNotes !== undefined && { medicalNotes: params.medicalNotes }),
-    ...(params.fitnessGoals !== undefined && { fitnessGoals: params.fitnessGoals }),
-    ...(params.creditPoints !== undefined && { creditPoints: params.creditPoints }),
-    ...(params.notes !== undefined && { notes: params.notes }),
-    // === 3.2 lead source / attribution ===
-    ...(params.leadSourceId !== undefined && { leadSourceId: params.leadSourceId }),
-    ...(params.referrerMemberId !== undefined && {
-      referrerMemberId: params.referrerMemberId,
-    }),
-    ...(params.campaignId !== undefined && { campaignId: params.campaignId }),
-    // === /3.2 ===
-    updatedAt: new Date(),
-  };
+	// F-CRM-07: single atomic upsert keyed on the unique user_id index, so a
+	// concurrent caller can't race the old get-then-insert/update into a
+	// duplicate-key error or a lost update. `undefined` fields are skipped from
+	// the ON CONFLICT update set; explicit `null` clears the column.
+	const setObj = {
+		...(params.phone !== undefined && { phone: params.phone }),
+		...(params.dateOfBirth !== undefined && {
+			dateOfBirth: params.dateOfBirth,
+		}),
+		...(params.gender !== undefined && { gender: params.gender }),
+		...(params.address !== undefined && { address: params.address }),
+		...(params.emergencyContactName !== undefined && {
+			emergencyContactName: params.emergencyContactName,
+		}),
+		...(params.emergencyContactPhone !== undefined && {
+			emergencyContactPhone: params.emergencyContactPhone,
+		}),
+		...(params.medicalNotes !== undefined && {
+			medicalNotes: params.medicalNotes,
+		}),
+		...(params.fitnessGoals !== undefined && {
+			fitnessGoals: params.fitnessGoals,
+		}),
+		...(params.creditPoints !== undefined && {
+			creditPoints: params.creditPoints,
+		}),
+		...(params.notes !== undefined && { notes: params.notes }),
+		// === 3.2 lead source / attribution ===
+		...(params.leadSourceId !== undefined && {
+			leadSourceId: params.leadSourceId,
+		}),
+		...(params.referrerMemberId !== undefined && {
+			referrerMemberId: params.referrerMemberId,
+		}),
+		...(params.campaignId !== undefined && { campaignId: params.campaignId }),
+		// === /3.2 ===
+		updatedAt: new Date(),
+	};
 
-  const [row] = await tenantDb
-    .insert(customerProfiles)
-    .values({
-      userId: params.userId,
-      phone: params.phone ?? null,
-      dateOfBirth: params.dateOfBirth ?? null,
-      gender: params.gender ?? null,
-      address: params.address ?? null,
-      emergencyContactName: params.emergencyContactName ?? null,
-      emergencyContactPhone: params.emergencyContactPhone ?? null,
-      medicalNotes: params.medicalNotes ?? null,
-      fitnessGoals: params.fitnessGoals ?? null,
-      creditPoints: params.creditPoints ?? 0,
-      notes: params.notes ?? null,
-      // === 3.2 lead source / attribution ===
-      leadSourceId: params.leadSourceId ?? null,
-      referrerMemberId: params.referrerMemberId ?? null,
-      campaignId: params.campaignId ?? null,
-      // === /3.2 ===
-    })
-    // Target the partial unique index on user_id (WHERE user_id IS NOT NULL).
-    // `userId` is always non-null here, so the index always applies.
-    .onConflictDoUpdate({
-      target: customerProfiles.userId,
-      targetWhere: isNotNull(customerProfiles.userId),
-      set: setObj,
-    })
-    .returning();
-  if (!row) throw new Error("Failed to upsert customer profile");
-  return row;
+	const [row] = await tenantDb
+		.insert(customerProfiles)
+		.values({
+			userId: params.userId,
+			phone: params.phone ?? null,
+			dateOfBirth: params.dateOfBirth ?? null,
+			gender: params.gender ?? null,
+			address: params.address ?? null,
+			emergencyContactName: params.emergencyContactName ?? null,
+			emergencyContactPhone: params.emergencyContactPhone ?? null,
+			medicalNotes: params.medicalNotes ?? null,
+			fitnessGoals: params.fitnessGoals ?? null,
+			creditPoints: params.creditPoints ?? 0,
+			notes: params.notes ?? null,
+			// === 3.2 lead source / attribution ===
+			leadSourceId: params.leadSourceId ?? null,
+			referrerMemberId: params.referrerMemberId ?? null,
+			campaignId: params.campaignId ?? null,
+			// === /3.2 ===
+		})
+		// Target the partial unique index on user_id (WHERE user_id IS NOT NULL).
+		// `userId` is always non-null here, so the index always applies.
+		.onConflictDoUpdate({
+			target: customerProfiles.userId,
+			targetWhere: isNotNull(customerProfiles.userId),
+			set: setObj,
+		})
+		.returning();
+	if (!row) throw new Error("Failed to upsert customer profile");
+	return row;
 }
 
 // ---------------------------------------------------------------------------
@@ -161,72 +171,72 @@ export async function upsertCustomerProfile(
  * {@link redeemCreditPoints} / {@link adjustCreditPoints}.
  */
 export async function applyCreditPointDeltaTx(
-  tx: TenantTx,
-  params: {
-    customerUserId: string;
-    signedDelta: number;
-    reason: string;
-    sourceType?: string | null;
-    sourceId?: string | null;
-    actorUserId?: string | null;
-  },
+	tx: TenantTx,
+	params: {
+		customerUserId: string;
+		signedDelta: number;
+		reason: string;
+		sourceType?: string | null;
+		sourceId?: string | null;
+		actorUserId?: string | null;
+	},
 ): Promise<CreditPointMutationResult> {
-  if (!Number.isInteger(params.signedDelta) || params.signedDelta === 0) {
-    throw new Error("Credit-point delta must be a non-zero integer");
-  }
+	if (!Number.isInteger(params.signedDelta) || params.signedDelta === 0) {
+		throw new Error("Credit-point delta must be a non-zero integer");
+	}
 
-  // Lock the profile row so concurrent mutations serialize on it.
-  const [profile] = await tx
-    .select({ creditPoints: customerProfiles.creditPoints })
-    .from(customerProfiles)
-    .where(eq(customerProfiles.userId, params.customerUserId))
-    .for("update")
-    .limit(1);
+	// Lock the profile row so concurrent mutations serialize on it.
+	const [profile] = await tx
+		.select({ creditPoints: customerProfiles.creditPoints })
+		.from(customerProfiles)
+		.where(eq(customerProfiles.userId, params.customerUserId))
+		.for("update")
+		.limit(1);
 
-  if (!profile) {
-    throw new Error(
-      `Customer profile not found for userId: ${params.customerUserId}`,
-    );
-  }
+	if (!profile) {
+		throw new Error(
+			`Customer profile not found for userId: ${params.customerUserId}`,
+		);
+	}
 
-  const balanceBefore = profile.creditPoints ?? 0;
-  const balanceAfter = balanceBefore + params.signedDelta;
+	const balanceBefore = profile.creditPoints ?? 0;
+	const balanceAfter = balanceBefore + params.signedDelta;
 
-  if (balanceAfter < 0) {
-    throw new Error(
-      `Insufficient credit points: balance ${balanceBefore}, attempted change ${params.signedDelta}`,
-    );
-  }
+	if (balanceAfter < 0) {
+		throw new Error(
+			`Insufficient credit points: balance ${balanceBefore}, attempted change ${params.signedDelta}`,
+		);
+	}
 
-  await tx
-    .update(customerProfiles)
-    .set({
-      creditPoints: sql`${customerProfiles.creditPoints} + ${params.signedDelta}`,
-      updatedAt: new Date(),
-    })
-    .where(eq(customerProfiles.userId, params.customerUserId));
+	await tx
+		.update(customerProfiles)
+		.set({
+			creditPoints: sql`${customerProfiles.creditPoints} + ${params.signedDelta}`,
+			updatedAt: new Date(),
+		})
+		.where(eq(customerProfiles.userId, params.customerUserId));
 
-  const [ledgerRow] = await tx
-    .insert(creditPointLedger)
-    .values({
-      customerUserId: params.customerUserId,
-      delta: params.signedDelta,
-      balanceAfter,
-      reason: params.reason,
-      sourceType: params.sourceType ?? null,
-      sourceId: params.sourceId ?? null,
-      actorUserId: params.actorUserId ?? null,
-    })
-    .returning({ id: creditPointLedger.id });
+	const [ledgerRow] = await tx
+		.insert(creditPointLedger)
+		.values({
+			customerUserId: params.customerUserId,
+			delta: params.signedDelta,
+			balanceAfter,
+			reason: params.reason,
+			sourceType: params.sourceType ?? null,
+			sourceId: params.sourceId ?? null,
+			actorUserId: params.actorUserId ?? null,
+		})
+		.returning({ id: creditPointLedger.id });
 
-  if (!ledgerRow) throw new Error("Failed to insert credit_point_ledger row");
+	if (!ledgerRow) throw new Error("Failed to insert credit_point_ledger row");
 
-  return {
-    balanceBefore,
-    balanceAfter,
-    delta: params.signedDelta,
-    ledgerId: ledgerRow.id,
-  };
+	return {
+		balanceBefore,
+		balanceAfter,
+		delta: params.signedDelta,
+		ledgerId: ledgerRow.id,
+	};
 }
 
 /**
@@ -238,22 +248,22 @@ export async function applyCreditPointDeltaTx(
  * locked FOR UPDATE.
  */
 export async function redeemCreditPoints(
-  tenantDb: TenantDb,
-  params: CreditPointMutationParams,
+	tenantDb: TenantDb,
+	params: CreditPointMutationParams,
 ): Promise<CreditPointMutationResult> {
-  if (!Number.isInteger(params.points) || params.points <= 0) {
-    throw new Error("points to redeem must be a positive integer");
-  }
-  return tenantDb.transaction((tx) =>
-    applyCreditPointDeltaTx(tx, {
-      customerUserId: params.customerUserId,
-      signedDelta: -params.points,
-      reason: params.reason,
-      sourceType: params.sourceType,
-      sourceId: params.sourceId,
-      actorUserId: params.actorUserId,
-    }),
-  );
+	if (!Number.isInteger(params.points) || params.points <= 0) {
+		throw new Error("points to redeem must be a positive integer");
+	}
+	return tenantDb.transaction((tx) =>
+		applyCreditPointDeltaTx(tx, {
+			customerUserId: params.customerUserId,
+			signedDelta: -params.points,
+			reason: params.reason,
+			sourceType: params.sourceType,
+			sourceId: params.sourceId,
+			actorUserId: params.actorUserId,
+		}),
+	);
 }
 
 /**
@@ -263,20 +273,49 @@ export async function redeemCreditPoints(
  * Same atomic + locked pattern as {@link redeemCreditPoints}.
  */
 export async function adjustCreditPoints(
-  tenantDb: TenantDb,
-  params: CreditPointMutationParams,
+	tenantDb: TenantDb,
+	params: CreditPointMutationParams,
 ): Promise<CreditPointMutationResult> {
-  if (!Number.isInteger(params.points) || params.points <= 0) {
-    throw new Error("points to adjust must be a positive integer");
-  }
-  return tenantDb.transaction((tx) =>
-    applyCreditPointDeltaTx(tx, {
-      customerUserId: params.customerUserId,
-      signedDelta: params.points,
-      reason: params.reason,
-      sourceType: params.sourceType,
-      sourceId: params.sourceId,
-      actorUserId: params.actorUserId,
-    }),
-  );
+	if (!Number.isInteger(params.points) || params.points <= 0) {
+		throw new Error("points to adjust must be a positive integer");
+	}
+	return tenantDb.transaction((tx) =>
+		applyCreditPointDeltaTx(tx, {
+			customerUserId: params.customerUserId,
+			signedDelta: params.points,
+			reason: params.reason,
+			sourceType: params.sourceType,
+			sourceId: params.sourceId,
+			actorUserId: params.actorUserId,
+		}),
+	);
+}
+
+/**
+ * Soft-delete a customer profile by userId.
+ * Sets isDeleted=true and deletedAt to now. The row stays in the DB and is
+ * excluded from list queries unless includeDeleted=true is passed.
+ */
+export async function softDeleteCustomerProfile(
+	tenantDb: TenantDb,
+	userId: string,
+): Promise<void> {
+	await tenantDb
+		.update(customerProfiles)
+		.set({ isDeleted: true, deletedAt: new Date(), updatedAt: new Date() })
+		.where(eq(customerProfiles.userId, userId));
+}
+
+/**
+ * Restore a soft-deleted customer profile by userId.
+ * Clears isDeleted and deletedAt so the profile reappears in normal list queries.
+ */
+export async function restoreCustomerProfile(
+	tenantDb: TenantDb,
+	userId: string,
+): Promise<void> {
+	await tenantDb
+		.update(customerProfiles)
+		.set({ isDeleted: false, deletedAt: null, updatedAt: new Date() })
+		.where(eq(customerProfiles.userId, userId));
 }

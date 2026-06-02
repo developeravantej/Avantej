@@ -319,7 +319,11 @@ async function buildReportAttachment(args: {
 }): Promise<{ filename: string; content: string }[] | undefined> {
 	const { format, windowKey, orgName, kpis } = args;
 	const date = new Date().toISOString().slice(0, 10);
-	const slug = orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "report";
+	const slug =
+		orgName
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/^-|-$/g, "") || "report";
 	const filenameBase = `${slug}-${windowKey}-${date}`;
 
 	if (format === "csv") {
@@ -332,7 +336,11 @@ async function buildReportAttachment(args: {
 	try {
 		const { jsPDF } = await import("jspdf");
 		const autoTable = (await import("jspdf-autotable")).default;
-		const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+		const doc = new jsPDF({
+			orientation: "portrait",
+			unit: "pt",
+			format: "a4",
+		});
 		const fmtMYR = (cents: number) =>
 			new Intl.NumberFormat("en-MY", {
 				style: "currency",

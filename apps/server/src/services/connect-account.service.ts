@@ -55,11 +55,18 @@ async function resolveTier(
 			.from(subscriptions)
 			.where(eq(subscriptions.id, org.subscriptionId))
 			.limit(1);
-		if (sub?.tier && (sub.tier === "basic" || sub.tier === "professional" || sub.tier === "enterprise")) {
+		if (
+			sub?.tier &&
+			(sub.tier === "basic" ||
+				sub.tier === "professional" ||
+				sub.tier === "enterprise")
+		) {
 			tier = sub.tier;
 		}
 	}
-	const appFeeBps = tier ? TIER_LIMITS[tier].appFeeBps : TIER_LIMITS.basic.appFeeBps;
+	const appFeeBps = tier
+		? TIER_LIMITS[tier].appFeeBps
+		: TIER_LIMITS.basic.appFeeBps;
 	return { tier, appFeeBps };
 }
 

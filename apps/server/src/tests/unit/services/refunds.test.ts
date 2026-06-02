@@ -104,7 +104,9 @@ function selectChainResolving(value: unknown) {
 }
 
 let mockDb: ReturnType<typeof createMockTenantDb>;
-let mockControlPanelDb: { query: { user: { findMany: ReturnType<typeof mock> } } };
+let mockControlPanelDb: {
+	query: { user: { findMany: ReturnType<typeof mock> } };
+};
 
 beforeEach(() => {
 	mockDb = createMockTenantDb();
@@ -201,56 +203,61 @@ describe("approveRefund — partial + full approval (task 1.5)", () => {
 		approvedRefund: Record<string, unknown>,
 	) {
 		// transaction() calls the callback with a nested mock tx
-		mockDb.transaction.mockImplementationOnce(async (cb: (tx: any) => Promise<unknown>) => {
-			// reverseForRefund calls tdb.query.refunds.findFirst — mock it to return the
-			// refund row so it doesn't throw NOT_FOUND. It also calls commissionSplits.findMany.
-			const innerTx: any = {
-				select: mock(),
-				update: mock(),
-				insert: mock(),
-				query: {
-					refunds: {
-						// reverseForRefund uses query.refunds.findFirst to load the refund+items
-						findFirst: mock(() => Promise.resolve({ ...pendingRefund, items: [] })),
+		mockDb.transaction.mockImplementationOnce(
+			async (cb: (tx: any) => Promise<unknown>) => {
+				// reverseForRefund calls tdb.query.refunds.findFirst — mock it to return the
+				// refund row so it doesn't throw NOT_FOUND. It also calls commissionSplits.findMany.
+				const innerTx: any = {
+					select: mock(),
+					update: mock(),
+					insert: mock(),
+					query: {
+						refunds: {
+							// reverseForRefund uses query.refunds.findFirst to load the refund+items
+							findFirst: mock(() =>
+								Promise.resolve({ ...pendingRefund, items: [] }),
+							),
+						},
+						refundItems: {
+							findMany: mock(() => Promise.resolve([])),
+						},
+						commissionSplits: {
+							findMany: mock(() => Promise.resolve([])),
+						},
+						salesOrders: {
+							findFirst: mock(() => Promise.resolve(undefined)),
+						},
 					},
-					refundItems: {
-						findMany: mock(() => Promise.resolve([])),
-					},
-					commissionSplits: {
-						findMany: mock(() => Promise.resolve([])),
-					},
-					salesOrders: {
-						findFirst: mock(() => Promise.resolve(undefined)),
-					},
-				},
-			};
+				};
 
-			// SELECT FOR UPDATE on refund row → returns pendingRefund (lock step)
-			// subsequent selects (remaining-refundable, sum queries) → safe empty defaults
-			let selectCallCount = 0;
-			innerTx.select.mockImplementation(() => {
-				selectCallCount++;
-				if (selectCallCount === 1) return selectChainResolving([pendingRefund]);
-				// sum(refunds.amountCents) for remaining check → 0
-				return selectChainResolving([{ total: 0, remainingCents: 999999 }]);
-			});
+				// SELECT FOR UPDATE on refund row → returns pendingRefund (lock step)
+				// subsequent selects (remaining-refundable, sum queries) → safe empty defaults
+				let selectCallCount = 0;
+				innerTx.select.mockImplementation(() => {
+					selectCallCount++;
+					if (selectCallCount === 1)
+						return selectChainResolving([pendingRefund]);
+					// sum(refunds.amountCents) for remaining check → 0
+					return selectChainResolving([{ total: 0, remainingCents: 999999 }]);
+				});
 
-			// UPDATE refund row
-			const setChain: any = {
-				where: mock(() => ({
-					returning: mock(() => Promise.resolve([approvedRefund])),
-				})),
-			};
-			innerTx.update.mockReturnValue({ set: mock(() => setChain) });
+				// UPDATE refund row
+				const setChain: any = {
+					where: mock(() => ({
+						returning: mock(() => Promise.resolve([approvedRefund])),
+					})),
+				};
+				innerTx.update.mockReturnValue({ set: mock(() => setChain) });
 
-			// INSERT for audit row
-			const insertValues = {
-				returning: mock(() => Promise.resolve([{ id: "audit-1" }])),
-			};
-			innerTx.insert.mockReturnValue({ values: mock(() => insertValues) });
+				// INSERT for audit row
+				const insertValues = {
+					returning: mock(() => Promise.resolve([{ id: "audit-1" }])),
+				};
+				innerTx.insert.mockReturnValue({ values: mock(() => insertValues) });
 
-			return cb(innerTx);
-		});
+				return cb(innerTx);
+			},
+		);
 	}
 
 	test("approves at full requested amount when approveAmountCents is omitted", async () => {
@@ -258,14 +265,21 @@ describe("approveRefund — partial + full approval (task 1.5)", () => {
 		const approved = { ...refund, status: "approved", amountCents: 5000 };
 		mockApproveTransaction(refund, approved);
 
-		const result = await approveRefund(mockDb as any, REFUND_ID, { actor: ACTOR });
+		const result = await approveRefund(mockDb as any, REFUND_ID, {
+			actor: ACTOR,
+		});
 
 		expect(result.status).toBe("approved");
 		expect(result.amountCents).toBe(5000);
 	});
 
 	test("partially approves when approveAmountCents < requested", async () => {
-		const refund = makeRefund({ amountCents: 5000, salesOrderId: null, paymentId: null, packageInstanceId: null });
+		const refund = makeRefund({
+			amountCents: 5000,
+			salesOrderId: null,
+			paymentId: null,
+			packageInstanceId: null,
+		});
 		const approved = { ...refund, status: "approved", amountCents: 2000 };
 		mockApproveTransaction(refund, approved);
 
@@ -278,7 +292,12 @@ describe("approveRefund — partial + full approval (task 1.5)", () => {
 	});
 
 	test("throws BAD_REQUEST when approveAmountCents exceeds requested amount", async () => {
-		const refund = makeRefund({ amountCents: 5000, salesOrderId: null, paymentId: null, packageInstanceId: null });
+		const refund = makeRefund({
+			amountCents: 5000,
+			salesOrderId: null,
+			paymentId: null,
+			packageInstanceId: null,
+		});
 		mockApproveTransaction(refund, refund);
 
 		await expect(
@@ -286,27 +305,39 @@ describe("approveRefund — partial + full approval (task 1.5)", () => {
 				approveAmountCents: 9999,
 				actor: ACTOR,
 			}),
-		).rejects.toMatchObject({ code: "BAD_REQUEST", message: expect.stringContaining("exceeds requested amount") });
+		).rejects.toMatchObject({
+			code: "BAD_REQUEST",
+			message: expect.stringContaining("exceeds requested amount"),
+		});
 	});
 
 	test("throws BAD_REQUEST when approveAmountCents is 0", async () => {
 		// The service validates approveAmountCents > 0 after locking the row
-		const refund = makeRefund({ amountCents: 5000, salesOrderId: null, paymentId: null, packageInstanceId: null });
-
-		mockDb.transaction.mockImplementationOnce(async (cb: (tx: any) => Promise<unknown>) => {
-			const innerTx: any = {
-				select: mock()
-					.mockReturnValueOnce(selectChainResolving([refund]))
-					.mockReturnValue(selectChainResolving([])),
-				update: mock(),
-				insert: mock(),
-				query: {
-					refunds: { findFirst: mock(() => Promise.resolve({ ...refund, items: [] })) },
-					commissionSplits: { findMany: mock(() => Promise.resolve([])) },
-				},
-			};
-			return cb(innerTx);
+		const refund = makeRefund({
+			amountCents: 5000,
+			salesOrderId: null,
+			paymentId: null,
+			packageInstanceId: null,
 		});
+
+		mockDb.transaction.mockImplementationOnce(
+			async (cb: (tx: any) => Promise<unknown>) => {
+				const innerTx: any = {
+					select: mock()
+						.mockReturnValueOnce(selectChainResolving([refund]))
+						.mockReturnValue(selectChainResolving([])),
+					update: mock(),
+					insert: mock(),
+					query: {
+						refunds: {
+							findFirst: mock(() => Promise.resolve({ ...refund, items: [] })),
+						},
+						commissionSplits: { findMany: mock(() => Promise.resolve([])) },
+					},
+				};
+				return cb(innerTx);
+			},
+		);
 
 		await expect(
 			approveRefund(mockDb as any, REFUND_ID, {
@@ -317,14 +348,16 @@ describe("approveRefund — partial + full approval (task 1.5)", () => {
 	});
 
 	test("throws NOT_FOUND when refund does not exist", async () => {
-		mockDb.transaction.mockImplementationOnce(async (cb: (tx: any) => Promise<unknown>) => {
-			const innerTx: any = {
-				select: mock(() => selectChainResolving([])),
-				update: mock(),
-				insert: mock(),
-			};
-			return cb(innerTx);
-		});
+		mockDb.transaction.mockImplementationOnce(
+			async (cb: (tx: any) => Promise<unknown>) => {
+				const innerTx: any = {
+					select: mock(() => selectChainResolving([])),
+					update: mock(),
+					insert: mock(),
+				};
+				return cb(innerTx);
+			},
+		);
 
 		await expect(
 			approveRefund(mockDb as any, "nonexistent-id", { actor: ACTOR }),
@@ -334,14 +367,16 @@ describe("approveRefund — partial + full approval (task 1.5)", () => {
 	test("throws BAD_REQUEST when refund status is not pending", async () => {
 		const approvedRefund = makeRefund({ status: "approved" });
 
-		mockDb.transaction.mockImplementationOnce(async (cb: (tx: any) => Promise<unknown>) => {
-			const innerTx: any = {
-				select: mock(() => selectChainResolving([approvedRefund])),
-				update: mock(),
-				insert: mock(),
-			};
-			return cb(innerTx);
-		});
+		mockDb.transaction.mockImplementationOnce(
+			async (cb: (tx: any) => Promise<unknown>) => {
+				const innerTx: any = {
+					select: mock(() => selectChainResolving([approvedRefund])),
+					update: mock(),
+					insert: mock(),
+				};
+				return cb(innerTx);
+			},
+		);
 
 		await expect(
 			approveRefund(mockDb as any, REFUND_ID, { actor: ACTOR }),
@@ -374,27 +409,35 @@ describe("bulkApproveRefunds — batch approval (task 1.6)", () => {
 		const approved = { ...refund, status: "approved", amountCents: 3000 };
 
 		// Each call to bulkApproveRefunds calls approveRefund which calls transaction()
-		mockDb.transaction.mockImplementationOnce(async (cb: (tx: any) => Promise<unknown>) => {
-			const insertValues = { returning: mock(() => Promise.resolve([{ id: "audit-1" }])) };
-			const setChain = {
-				where: mock(() => ({ returning: mock(() => Promise.resolve([approved])) })),
-			};
-			let selectCount = 0;
-			const innerTx: any = {
-				select: mock().mockImplementation(() => {
-					selectCount++;
-					if (selectCount === 1) return selectChainResolving([refund]);
-					return selectChainResolving([{ total: 0 }]);
-				}),
-				update: mock(() => ({ set: mock(() => setChain) })),
-				insert: mock(() => ({ values: mock(() => insertValues) })),
-				query: {
-					refunds: { findFirst: mock(() => Promise.resolve({ ...refund, items: [] })) },
-					commissionSplits: { findMany: mock(() => Promise.resolve([])) },
-				},
-			};
-			return cb(innerTx);
-		});
+		mockDb.transaction.mockImplementationOnce(
+			async (cb: (tx: any) => Promise<unknown>) => {
+				const insertValues = {
+					returning: mock(() => Promise.resolve([{ id: "audit-1" }])),
+				};
+				const setChain = {
+					where: mock(() => ({
+						returning: mock(() => Promise.resolve([approved])),
+					})),
+				};
+				let selectCount = 0;
+				const innerTx: any = {
+					select: mock().mockImplementation(() => {
+						selectCount++;
+						if (selectCount === 1) return selectChainResolving([refund]);
+						return selectChainResolving([{ total: 0 }]);
+					}),
+					update: mock(() => ({ set: mock(() => setChain) })),
+					insert: mock(() => ({ values: mock(() => insertValues) })),
+					query: {
+						refunds: {
+							findFirst: mock(() => Promise.resolve({ ...refund, items: [] })),
+						},
+						commissionSplits: { findMany: mock(() => Promise.resolve([])) },
+					},
+				};
+				return cb(innerTx);
+			},
+		);
 
 		const results = await bulkApproveRefunds(
 			mockDb as any,
@@ -430,9 +473,13 @@ describe("bulkApproveRefunds — batch approval (task 1.6)", () => {
 			})
 			// Second transaction: success
 			.mockImplementationOnce(async (cb: (tx: any) => Promise<unknown>) => {
-				const insertValues = { returning: mock(() => Promise.resolve([{ id: "audit-2" }])) };
+				const insertValues = {
+					returning: mock(() => Promise.resolve([{ id: "audit-2" }])),
+				};
 				const setChain = {
-					where: mock(() => ({ returning: mock(() => Promise.resolve([approved2])) })),
+					where: mock(() => ({
+						returning: mock(() => Promise.resolve([approved2])),
+					})),
 				};
 				let selectCount = 0;
 				const innerTx: any = {
@@ -444,7 +491,9 @@ describe("bulkApproveRefunds — batch approval (task 1.6)", () => {
 					update: mock(() => ({ set: mock(() => setChain) })),
 					insert: mock(() => ({ values: mock(() => insertValues) })),
 					query: {
-						refunds: { findFirst: mock(() => Promise.resolve({ ...refund2, items: [] })) },
+						refunds: {
+							findFirst: mock(() => Promise.resolve({ ...refund2, items: [] })),
+						},
 						commissionSplits: { findMany: mock(() => Promise.resolve([])) },
 					},
 				};
@@ -470,22 +519,31 @@ describe("bulkApproveRefunds — batch approval (task 1.6)", () => {
 	test("validates approveAmountCents must be positive integer per item", async () => {
 		// approveAmountCents = 0 should fail validation inside approveRefund.
 		// The service checks this after SELECT FOR UPDATE, so the lock step must succeed.
-		const refund = makeRefund({ amountCents: 5000, salesOrderId: null, paymentId: null, packageInstanceId: null });
-
-		mockDb.transaction.mockImplementationOnce(async (cb: (tx: any) => Promise<unknown>) => {
-			const innerTx: any = {
-				select: mock()
-					.mockReturnValueOnce(selectChainResolving([refund]))
-					.mockReturnValue(selectChainResolving([])),
-				update: mock(),
-				insert: mock(),
-				query: {
-					refunds: { findFirst: mock(() => Promise.resolve({ ...refund, items: [] })) },
-					commissionSplits: { findMany: mock(() => Promise.resolve([])) },
-				},
-			};
-			return cb(innerTx);
+		const refund = makeRefund({
+			amountCents: 5000,
+			salesOrderId: null,
+			paymentId: null,
+			packageInstanceId: null,
 		});
+
+		mockDb.transaction.mockImplementationOnce(
+			async (cb: (tx: any) => Promise<unknown>) => {
+				const innerTx: any = {
+					select: mock()
+						.mockReturnValueOnce(selectChainResolving([refund]))
+						.mockReturnValue(selectChainResolving([])),
+					update: mock(),
+					insert: mock(),
+					query: {
+						refunds: {
+							findFirst: mock(() => Promise.resolve({ ...refund, items: [] })),
+						},
+						commissionSplits: { findMany: mock(() => Promise.resolve([])) },
+					},
+				};
+				return cb(innerTx);
+			},
+		);
 
 		const results = await bulkApproveRefunds(
 			mockDb as any,

@@ -26,7 +26,11 @@ type TenantDb = NeonDatabase<typeof tenantSchema>;
 type StripeCustomersLike = {
 	customers: {
 		create: (
-			params: { email?: string; name?: string; metadata?: Record<string, string> },
+			params: {
+				email?: string;
+				name?: string;
+				metadata?: Record<string, string>;
+			},
 			options?: { stripeAccount?: string },
 		) => Promise<{ id: string }>;
 		retrieve: (

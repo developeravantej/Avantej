@@ -101,12 +101,15 @@ function TodayBookings({
 				).length;
 
 				return (
-					<div key={bucketLabel} className="rounded-lg border bg-card shadow-sm">
+					<div
+						key={bucketLabel}
+						className="rounded-lg border bg-white shadow-sm"
+					>
 						{/* Time bucket header */}
-						<div className="flex items-center justify-between border-b bg-muted/40 px-4 py-2">
+						<div className="flex items-center justify-between border-b bg-[#f3f3f3]/50 px-4 py-2">
 							<div>
 								<p className="font-medium text-sm">{bucketLabel}</p>
-								<p className="text-muted-foreground text-xs">
+								<p className="text-[#737373] text-xs">
 									{checkedInCount} of {capacity ?? rows.length} checked in
 								</p>
 							</div>
@@ -138,12 +141,14 @@ function TodayBookings({
 											<p className="truncate font-medium text-sm">
 												{booking.clientName || "Unknown client"}
 											</p>
-											<p className="text-muted-foreground text-xs capitalize">
-												{booking.clientType === "walk_in" ? "Walk-in" : "Member"}
+											<p className="text-[#737373] text-xs capitalize">
+												{booking.clientType === "walk_in"
+													? "Walk-in"
+													: "Member"}
 											</p>
 											{booking.clientType === "member" &&
 												booking.creditsRemaining != null && (
-													<p className="text-muted-foreground text-xs">
+													<p className="text-[#737373] text-xs">
 														· {booking.creditsRemaining} credits remaining
 													</p>
 												)}
@@ -274,7 +279,8 @@ export function TodayBookingsSection({
 			if (totalError > 0) message += ` · ${totalError} failed`;
 			return message;
 		},
-		errorMessage: (err) => `Bulk check-in failed: ${err.message || "Unknown error"}`,
+		errorMessage: (err) =>
+			`Bulk check-in failed: ${err.message || "Unknown error"}`,
 		invalidate: [["attendance"]],
 		onSuccess: () => {
 			setBulkDialogForBucket(null);
@@ -349,16 +355,24 @@ export function TodayBookingsSection({
 					if (!open) setBulkDialogForBucket(null);
 				}}
 			>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Check in all remaining?</DialogTitle>
-						<DialogDescription>
+				<DialogContent
+					className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							ATTENDANCE
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Check in all remaining?
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
 							This will check in {dialogRemainingCount} attendee
 							{dialogRemainingCount !== 1 ? "s" : ""} in{" "}
 							<span className="font-medium">{bulkDialogForBucket}</span>.
 						</DialogDescription>
 					</DialogHeader>
-					<DialogFooter>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button
 							variant="outline"
 							onClick={() => setBulkDialogForBucket(null)}
@@ -367,6 +381,7 @@ export function TodayBookingsSection({
 							Cancel
 						</Button>
 						<Button
+							className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
 							onClick={handleConfirmBulkCheckIn}
 							disabled={bulkCheckInMutation.isPending}
 						>

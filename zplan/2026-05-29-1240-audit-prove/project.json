@@ -1,0 +1,61 @@
+{
+  "$generatedBy": "audit-prove/scripts/detect-project.mjs",
+  "$note": "Reviewed and patched 2026-05-29.",
+  "stack": "TypeScript, Vite, TanStack Router (file-based), oRPC, Drizzle ORM, Better-Auth, TanStack Query, TanStack Form, Tailwind CSS, shadcn/ui, Cloudflare Workers (Hono), Neon PostgreSQL (database-per-tenant), Bun runtime, Turborepo monorepo",
+  "conventions": "Multi-tenant SaaS: controlPanelDb (shared) + tenantDb (per-org Neon branch). RBAC via member.role (admin/staff) + accessibleNodeIds. All client-server calls via oRPC through @/utils/orpc. Drizzle schemas in packages/db, business logic in packages/services, API procedures in packages/api/src/routers (and server-only in apps/server/src/routers). Route files in apps/web/src/routes are thin shells; page UI in apps/web/src/components/pages. Guards from packages/api/src/guards.ts: assertOrgContextMatch, assertTenantContext, guardBranchAccessible, requirePermissionOrpc. useApiMutation hook for write ops. useUserContext for permission checks (not usePermissions).",
+  "packageManager": "bun",
+  "monorepo": true,
+  "buildGate": {
+    "command": "bun run check-types",
+    "supportsFilter": false,
+    "extraChecks": []
+  },
+  "apiSurface": {
+    "routerGlobs": [
+      "packages/api/src/routers/**/*.ts",
+      "apps/server/src/routers/**/*.ts"
+    ],
+    "serviceGlobs": [
+      "packages/services/src/**/*.ts"
+    ]
+  },
+  "routes": {
+    "routeGlobs": [
+      "apps/web/src/routes/**/*.tsx"
+    ],
+    "clientPattern": "import { client, orpc } from \"@/utils/orpc\""
+  },
+  "hub": {},
+  "e2e": {
+    "testDir": "./e2e",
+    "baseURL": "http://localhost:3021",
+    "authStorageState": "e2e/.auth/tenant-admin.json",
+    "setupTestMatch": "auth.setup.ts",
+    "devServerCommand": "bun run dev",
+    "specName": "gap-prove"
+  },
+  "domainStrategy": "auto",
+  "remediation": {
+    "enabled": true,
+    "scope": "full",
+    "maxIterations": 6,
+    "maxFixesPerTarget": 3,
+    "stopOnNoProgress": true,
+    "branch": "audit-prove/remediation",
+    "parallelFixAgents": 3,
+    "fixPolicy": {
+      "latitude": "touched-path",
+      "flagLargeRefactorsAs": "deferred-finding"
+    }
+  },
+  "db": {
+    "enabled": true,
+    "verifyMode": "auto",
+    "runner": "bun",
+    "connectionEnv": "DATABASE_URL",
+    "devVarsFile": "apps/server/.dev.vars",
+    "verifyHelper": "apps/server/src/tests/helpers/integration-setup.ts",
+    "multiTenant": true,
+    "testOrgId": "996febce-aaad-4ded-8f47-02d2b566c8ee"
+  }
+}

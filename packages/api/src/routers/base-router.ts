@@ -13,6 +13,7 @@ import { commissionCycleRouter } from "./commission-cycle";
 import { classSlotsRouter } from "./class-slots";
 import { coachIntakeRouter } from "./coach-intake";
 import { commissionSplitsRouter } from "./commission-splits";
+import { commissionTracksRouter } from "./commission-tracks";
 import { customerDirectoryRouter } from "./customer-directory";
 import { customerProfilesRouter } from "./customer-profiles";
 import { expensesRouter } from "./expenses";
@@ -108,6 +109,7 @@ export const baseRouter = {
 	memberProfiles: memberProfilesRouter,
 	waitlist: waitlistRouter,
 	commissionSplits: commissionSplitsRouter,
+	commissionTracks: commissionTracksRouter,
 	categoryCommission: categoryCommissionRouter,
 	commissionCycle: commissionCycleRouter,
 	purchaseOrders: purchaseOrdersRouter,

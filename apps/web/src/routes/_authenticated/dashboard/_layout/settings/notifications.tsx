@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Lock } from "lucide-react";
@@ -183,11 +183,9 @@ function NotificationPreferencesPage() {
 	// ─── Query ───────────────────────────────────────────────────────────────
 
 	const { data: apiPrefs, isLoading } = useQuery({
-		queryKey: ["notificationPreferences", organizationId],
-		queryFn: () => {
-			if (!organizationId) return null;
-			return client.notificationPreferences.get({ organizationId });
-		},
+		...orpc.notificationPreferences.get.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 		staleTime: 60_000,
 	});
@@ -246,8 +244,12 @@ function NotificationPreferencesPage() {
 				<div className="flex flex-1 items-center justify-center">
 					<div className="flex flex-col items-center justify-center text-[#737373]">
 						<Lock className="h-8 w-8 mb-3 opacity-30" />
-						<p className="text-sm font-medium text-[#0a0a0a]">No organization selected</p>
-						<p className="text-xs mt-1">Select an organization to manage notification preferences.</p>
+						<p className="text-sm font-medium text-[#0a0a0a]">
+							No organization selected
+						</p>
+						<p className="text-xs mt-1">
+							Select an organization to manage notification preferences.
+						</p>
 					</div>
 				</div>
 			</div>
@@ -329,7 +331,6 @@ function NotificationPreferencesPage() {
 					))}
 				</FormSection>
 			</div>
-
 		</div>
 	);
 }

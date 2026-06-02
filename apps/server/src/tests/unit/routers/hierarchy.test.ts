@@ -8,7 +8,10 @@
  */
 
 import { describe, it, expect, mock, beforeEach } from "bun:test";
-import { createAdminContext, createStaffContext } from "../../helpers/context.factory";
+import {
+	createAdminContext,
+	createStaffContext,
+} from "../../helpers/context.factory";
 import { createMockTenantDb } from "../../helpers/db-mock.factory";
 
 // Import the REAL service subpath modules so we can spread their genuine
@@ -51,7 +54,9 @@ const mockListNodesWithStats = mock(() => Promise.resolve([]));
 const mockGetMembersByHierarchyScope = mock(() => Promise.resolve([]));
 const mockUpdateMemberHierarchyScope = mock(() => Promise.resolve({}));
 const mockBulkUpdateMemberHierarchyScope = mock(() => Promise.resolve([]));
-const mockGetAllOrganizationMembersWithUserDetails = mock(() => Promise.resolve([]));
+const mockGetAllOrganizationMembersWithUserDetails = mock(() =>
+	Promise.resolve([]),
+);
 
 mock.module("@avantej-core/services/permission.service", () => ({
 	...realPermissionService,
@@ -79,7 +84,8 @@ mock.module("@avantej-core/services/member.service", () => ({
 	getMembersByHierarchyScope: mockGetMembersByHierarchyScope,
 	updateMemberHierarchyScope: mockUpdateMemberHierarchyScope,
 	bulkUpdateMemberHierarchyScope: mockBulkUpdateMemberHierarchyScope,
-	getAllOrganizationMembersWithUserDetails: mockGetAllOrganizationMembersWithUserDetails,
+	getAllOrganizationMembersWithUserDetails:
+		mockGetAllOrganizationMembersWithUserDetails,
 }));
 
 import { hierarchyRouter } from "@avantej-core/api/routers/hierarchy";
@@ -125,8 +131,18 @@ describe("hierarchyRouter.createNode", () => {
 
 		const result = await call(
 			hierarchyRouter.createNode,
-			{ organizationId: ORG_ID, type: "branch", name: "KL Branch", parentId: PARENT_NODE_ID },
-			{ ...ctx, tenantDb: db, organizationId: ORG_ID, honoContext: makeHonoContext() },
+			{
+				organizationId: ORG_ID,
+				type: "branch",
+				name: "KL Branch",
+				parentId: PARENT_NODE_ID,
+			},
+			{
+				...ctx,
+				tenantDb: db,
+				organizationId: ORG_ID,
+				honoContext: makeHonoContext(),
+			},
 		);
 
 		expect(result.id).toBe("node-0001");
@@ -139,13 +155,22 @@ describe("hierarchyRouter.createNode", () => {
 	it("happy path — admin creates a root country node (no parentId)", async () => {
 		const ctx = createAdminContext();
 		const db = createMockTenantDb();
-		const countryNode = { ...CREATED_NODE, type: "country" as const, parentId: null } as any;
+		const countryNode = {
+			...CREATED_NODE,
+			type: "country" as const,
+			parentId: null,
+		} as any;
 		mockCreateHierarchyNode.mockResolvedValueOnce(countryNode);
 
 		const result = await call(
 			hierarchyRouter.createNode,
 			{ organizationId: ORG_ID, type: "country", name: "Malaysia" },
-			{ ...ctx, tenantDb: db, organizationId: ORG_ID, honoContext: makeHonoContext() },
+			{
+				...ctx,
+				tenantDb: db,
+				organizationId: ORG_ID,
+				honoContext: makeHonoContext(),
+			},
 		);
 
 		expect(result.type).toBe("country");
@@ -174,7 +199,12 @@ describe("hierarchyRouter.createNode", () => {
 			call(
 				hierarchyRouter.createNode,
 				{ organizationId: ORG_ID, type: "branch", name: "KL Branch" },
-				{ ...ctx, tenantDb: db, organizationId: ORG_ID, honoContext: makeHonoContext() },
+				{
+					...ctx,
+					tenantDb: db,
+					organizationId: ORG_ID,
+					honoContext: makeHonoContext(),
+				},
 			),
 		).rejects.toMatchObject({ code: "FORBIDDEN" });
 	});
@@ -187,8 +217,18 @@ describe("hierarchyRouter.createNode", () => {
 		await expect(
 			call(
 				hierarchyRouter.createNode,
-				{ organizationId: ORG_ID, type: "branch", name: "Ghost Branch", parentId: "nonexistent-parent" },
-				{ ...ctx, tenantDb: db, organizationId: ORG_ID, honoContext: makeHonoContext() },
+				{
+					organizationId: ORG_ID,
+					type: "branch",
+					name: "Ghost Branch",
+					parentId: "nonexistent-parent",
+				},
+				{
+					...ctx,
+					tenantDb: db,
+					organizationId: ORG_ID,
+					honoContext: makeHonoContext(),
+				},
 			),
 		).rejects.toMatchObject({ code: "NOT_FOUND" });
 	});
@@ -210,8 +250,18 @@ describe("hierarchyRouter.createNode", () => {
 		await expect(
 			call(
 				hierarchyRouter.createNode,
-				{ organizationId: ORG_ID, type: "state", name: "Sub-State", parentId: PARENT_NODE_ID },
-				{ ...ctx, tenantDb: db, organizationId: ORG_ID, honoContext: makeHonoContext() },
+				{
+					organizationId: ORG_ID,
+					type: "state",
+					name: "Sub-State",
+					parentId: PARENT_NODE_ID,
+				},
+				{
+					...ctx,
+					tenantDb: db,
+					organizationId: ORG_ID,
+					honoContext: makeHonoContext(),
+				},
 			),
 		).rejects.toMatchObject({ code: "BAD_REQUEST" });
 	});
@@ -415,7 +465,11 @@ describe("hierarchyRouter.deleteNode", () => {
 		await expect(
 			call(
 				hierarchyRouter.deleteNode,
-				{ organizationId: ORG_ID, nodeId: BRANCH_ID, options: { autoDeleteChildren: false } },
+				{
+					organizationId: ORG_ID,
+					nodeId: BRANCH_ID,
+					options: { autoDeleteChildren: false },
+				},
 				{
 					...ctx,
 					accessibleNodeIds: [BRANCH_ID],

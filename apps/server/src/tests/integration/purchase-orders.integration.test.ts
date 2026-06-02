@@ -154,11 +154,7 @@ describe("Purchase Orders Integration", () => {
 		expect(created.totalAmount).toBe(20000); // 10*1000 + 5*2000
 
 		// Step 2: Approve
-		const approved = await approvePurchaseOrder(
-			tenantDb,
-			created.id,
-			actor(),
-		);
+		const approved = await approvePurchaseOrder(tenantDb, created.id, actor());
 		expect(approved!.status).toBe("approved");
 		expect(approved!.approvedBy).toBe(actor().userId);
 

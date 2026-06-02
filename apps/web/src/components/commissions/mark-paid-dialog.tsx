@@ -27,7 +27,7 @@ function FieldError({ errors }: { errors: unknown[] }) {
 	return (
 		<>
 			{errors.map((error, i) => (
-				<p key={i} className="text-sm text-destructive">
+				<p key={i} className="text-sm text-rose-600">
 					{typeof error === "string"
 						? error
 						: (error as { message?: string })?.message || "Invalid value"}
@@ -91,10 +91,18 @@ export function MarkPaidDialog({
 				if (!o) handleClose();
 			}}
 		>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>Mark as Paid</DialogTitle>
-					<DialogDescription>
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						COMMISSION SUMMARY
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Mark as Paid
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
 						Record payment details for {count} commission split
 						{count !== 1 ? "s" : ""}. This will move them to Paid status.
 					</DialogDescription>
@@ -107,41 +115,48 @@ export function MarkPaidDialog({
 						e.stopPropagation();
 						form.handleSubmit();
 					}}
-					className="space-y-5 py-2"
 				>
-					<form.Field name="paymentReference">
-						{(field) => (
-							<div className="space-y-2">
-								<Label htmlFor={field.name}>
-									Payment Reference{" "}
-									<span className="text-destructive">*</span>
-								</Label>
-								<Input
-									id={field.name}
-									placeholder="Transaction ID, receipt no., bank transfer ref…"
-									value={field.state.value}
-									onBlur={field.handleBlur}
-									onChange={(e) => field.handleChange(e.target.value)}
-								/>
-								<FieldError errors={field.state.meta.errors} />
-							</div>
-						)}
-					</form.Field>
-
-					<DialogFooter>
-						<Button
-							type="button"
-							variant="outline"
-							onClick={handleClose}
-							disabled={mutation.isPending}
-						>
-							Cancel
-						</Button>
-						<Button type="submit" disabled={mutation.isPending}>
-							{mutation.isPending ? "Saving…" : "Mark as Paid"}
-						</Button>
-					</DialogFooter>
+					<div className="px-6 pt-4 pb-2 overflow-y-auto">
+						<div className="space-y-5 py-2">
+							<form.Field name="paymentReference">
+								{(field) => (
+									<div className="space-y-2">
+										<Label htmlFor={field.name}>
+											Payment Reference <span className="text-rose-600">*</span>
+										</Label>
+										<Input
+											id={field.name}
+											placeholder="Transaction ID, receipt no., bank transfer ref…"
+											value={field.state.value}
+											onBlur={field.handleBlur}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+										<FieldError errors={field.state.meta.errors} />
+									</div>
+								)}
+							</form.Field>
+						</div>
+					</div>
 				</form>
+
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						onClick={handleClose}
+						disabled={mutation.isPending}
+					>
+						Cancel
+					</Button>
+					<Button
+						type="submit"
+						disabled={mutation.isPending}
+						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+						onClick={() => form.handleSubmit()}
+					>
+						{mutation.isPending ? "Saving…" : "Mark as Paid"}
+					</Button>
+				</DialogFooter>
 			</DialogContent>
 		</Dialog>
 	);

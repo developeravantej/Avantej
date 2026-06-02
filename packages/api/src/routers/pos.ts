@@ -15,8 +15,16 @@ import { and, eq, inArray } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { assertOrgContextMatch, guardBranchAccessible, guardInputBranchForContext, requirePermissionOrpc } from "../guards";
-import { recordPosSale, searchPosCustomers } from "@avantej-core/services/pos.service";
+import {
+	assertOrgContextMatch,
+	guardBranchAccessible,
+	guardInputBranchForContext,
+	requirePermissionOrpc,
+} from "../guards";
+import {
+	recordPosSale,
+	searchPosCustomers,
+} from "@avantej-core/services/pos.service";
 import { getControlPanelDb } from "../lib/context-helpers";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
 import { salesOrderItems } from "@avantej-core/db/schema/tenant/sales-order-items";
@@ -63,9 +71,27 @@ export const posRouter = {
 				taxRateId: z.string().uuid().optional(),
 				// Payment
 				paymentMethod: z
-					.enum(["cash", "card", "manual_transfer", "bank_transfer", "fpx", "stripe", "online"])
-					.transform((v): "manual_transfer" | "cash" | "card" | "fpx" | "stripe" =>
-						v === "bank_transfer" ? "manual_transfer" : v === "online" ? "stripe" : (v as "manual_transfer" | "cash" | "card" | "fpx" | "stripe"),
+					.enum([
+						"cash",
+						"card",
+						"manual_transfer",
+						"bank_transfer",
+						"fpx",
+						"stripe",
+						"online",
+					])
+					.transform(
+						(v): "manual_transfer" | "cash" | "card" | "fpx" | "stripe" =>
+							v === "bank_transfer"
+								? "manual_transfer"
+								: v === "online"
+									? "stripe"
+									: (v as
+											| "manual_transfer"
+											| "cash"
+											| "card"
+											| "fpx"
+											| "stripe"),
 					),
 				paymentReference: z.string().optional(),
 				amountTenderedCents: z.number().int().min(0).optional(),
@@ -76,19 +102,37 @@ export const posRouter = {
 				// Package: preferred trainer (optional, written to package_instances.preferred_trainer_id)
 				preferredTrainerId: z.string().uuid().optional(),
 				// Commission: per-item trainer assignments
-				itemTrainerAssignments: z.record(z.string(), z.array(z.object({
-					staffId: z.string().uuid(),
-					slotIndex: z.number().int().min(0),
-				}))).optional(),
+				itemTrainerAssignments: z
+					.record(
+						z.string(),
+						z.array(
+							z.object({
+								staffId: z.string().uuid(),
+								slotIndex: z.number().int().min(0),
+							}),
+						),
+					)
+					.optional(),
+				// Phase 3 — origination attribution (optional).
+				// soldBy: cross-DB userId of the closer who converted the deal.
+				// leadSourceUserId: cross-DB userId of the referrer / lead source.
+				// These are Better-Auth user IDs (text, NOT uuid — see auth.user.id and
+				// sales_orders.sold_by/lead_source_user_id text columns). The form
+				// auto-defaults soldBy to the logged-in user, so a .uuid() constraint
+				// here rejects every attributed sale with "Input validation failed".
+				soldBy: z.string().min(1).optional(),
+				leadSourceUserId: z.string().min(1).optional(),
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			// Permission check: pos:create
-			await requirePermissionOrpc(context.tenantDb, context.member, "pos", "create");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"pos",
+				"create",
+			);
 
 			// Branch scope check (router-layer per plan §4.1 point 3)
 			await guardInputBranchForContext(context, input.branchId);
@@ -108,7 +152,8 @@ export const posRouter = {
 					.limit(1);
 				if (!stripeAccount) {
 					throw new ORPCError("BAD_REQUEST", {
-						message: "Stripe is not configured for this organisation. Use a different payment method.",
+						message:
+							"Stripe is not configured for this organisation. Use a different payment method.",
 					});
 				}
 			}
@@ -131,9 +176,15 @@ export const posRouter = {
 					preferredTrainerId: input.preferredTrainerId,
 					itemTrainerAssignments: input.itemTrainerAssignments
 						? Object.fromEntries(
-								Object.entries(input.itemTrainerAssignments).map(([k, v]) => [parseInt(k, 10), v]),
+								Object.entries(input.itemTrainerAssignments).map(([k, v]) => [
+									parseInt(k, 10),
+									v,
+								]),
 							)
 						: undefined,
+					// Phase 3 — origination attribution
+					soldBy: input.soldBy,
+					leadSourceUserId: input.leadSourceUserId,
 					actor: {
 						userId: context.session.user.id,
 						memberId: context.member.id,
@@ -165,7 +216,12 @@ export const posRouter = {
 		)
 		.handler(async ({ context, input }) => {
 			assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "pos", "create");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"pos",
+				"create",
+			);
 
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 
@@ -193,11 +249,13 @@ export const posRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "pos", "create");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"pos",
+				"create",
+			);
 
 			const controlPanelDb = getControlPanelDb(context);
 			const accessibleNodeIds = context.accessibleNodeIds ?? [];
@@ -242,7 +300,7 @@ export const posRouter = {
 
 			// Fetch package instances (by paymentId if payment exists)
 			let packageInstance: typeof packageInstances.$inferSelect | null = null;
-			let installmentList: typeof installments.$inferSelect[] = [];
+			let installmentList: (typeof installments.$inferSelect)[] = [];
 
 			if (payment) {
 				packageInstance =
@@ -300,7 +358,9 @@ export const posRouter = {
 				items: items.map((item) => ({
 					id: item.id,
 					serviceId: item.serviceId,
-					serviceName: item.serviceId ? (serviceMap.get(item.serviceId) ?? null) : null,
+					serviceName: item.serviceId
+						? (serviceMap.get(item.serviceId) ?? null)
+						: null,
 					description: item.description,
 					quantity: item.quantity,
 					unitPrice: item.unitPrice,

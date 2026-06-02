@@ -17,6 +17,7 @@ import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
+import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
 import { adminSessions } from "@avantej-core/db/schema/control-panel/admin-sessions";
@@ -29,80 +30,6 @@ import {
 } from "@/services/admin.service";
 import { getBetterAuth } from "@/lib/better-auth";
 
-/**
- * Factory that returns a platform-admin middleware, optionally restricted
- * to specific platform_admins.role values.
- *
- * @param allowRoles - When provided, only admins with one of these roles
- *   may proceed; others receive a 403. When omitted, any platform admin role passes.
- *
- * @example
- * // All platform admins
- * const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
- *
- * // Super admin / support only (used for impersonation procedures in Phase 2)
- * const impersonateProcedure = protectedProcedure.use(
- *   requirePlatformAdmin(["super_admin", "support"])
- * );
- */
-function requirePlatformAdmin(
-	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">
-) {
-	return (protectedProcedure as any).middleware(async ({ context, next }: { context: any; next: any }) => {
-		if (!context.session?.user) {
-			throw new ORPCError("UNAUTHORIZED", {
-				message: "Authentication required",
-			});
-		}
-
-		const controlPanelDb = context.honoContext?.get(
-			"controlPanelDb"
-		) as NeonDatabase<typeof controlPanelSchema> | undefined;
-
-		if (!controlPanelDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Control panel database not available in context",
-			});
-		}
-
-		// Check if user has platform admin record
-		const adminRecord = await controlPanelDb.query.platformAdmins.findFirst({
-			where: eq(platformAdmins.userId, context.session.user.id),
-		});
-
-		if (!adminRecord) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "Admin access required",
-			});
-		}
-
-		// If caller specified allowRoles, enforce the role restriction
-		if (
-			allowRoles &&
-			!allowRoles.includes(
-				adminRecord.role as "super_admin" | "support" | "billing"
-			)
-		) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "Your platform admin role does not permit this action",
-			});
-		}
-
-		return next({
-			context: {
-				...context,
-				adminRecord,
-				adminRole: adminRecord.role,
-			},
-		});
-	});
-}
-
-// Backwards-compatible export — all existing procedure handlers continue to work unchanged.
-const requireAdmin = requirePlatformAdmin();
-
-const adminProcedure = protectedProcedure.use(requireAdmin);
-
 export const adminRouter = {
 	/**
 	 * Return platform admin status for the current caller.
@@ -110,12 +37,14 @@ export const adminRouter = {
 	 */
 	me: protectedProcedure.handler(async ({ context }) => {
 		if (!context.session?.user) {
-			throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+			throw new ORPCError("UNAUTHORIZED", {
+				message: "Authentication required",
+			});
 		}
 
-		const controlPanelDb = context.honoContext?.get(
-			"controlPanelDb"
-		) as NeonDatabase<typeof controlPanelSchema> | undefined;
+		const controlPanelDb = context.honoContext?.get("controlPanelDb") as
+			| NeonDatabase<typeof controlPanelSchema>
+			| undefined;
 
 		if (!controlPanelDb) {
 			throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -125,7 +54,7 @@ export const adminRouter = {
 
 		const adminRecord = await getPlatformAdmin(
 			controlPanelDb,
-			context.session.user.id
+			context.session.user.id,
 		);
 
 		if (!adminRecord) {
@@ -147,12 +76,12 @@ export const adminRouter = {
 				search: z.string().optional(),
 				page: z.number().int().min(1).default(1),
 				limit: z.number().int().min(1).max(100).default(50),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			const controlPanelDb = context.honoContext?.get(
-				"controlPanelDb"
-			) as NeonDatabase<typeof controlPanelSchema> | undefined;
+			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
+				| NeonDatabase<typeof controlPanelSchema>
+				| undefined;
 
 			if (!controlPanelDb) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -167,12 +96,13 @@ export const adminRouter = {
 						like(user.email, `%${input.search}%`),
 						like(user.firstName, `%${input.search}%`),
 						like(user.lastName, `%${input.search}%`),
-						like(user.name, `%${input.search}%`)
-					)
+						like(user.name, `%${input.search}%`),
+					),
 				);
 			}
 
-			const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+			const whereClause =
+				conditions.length > 0 ? and(...conditions) : undefined;
 
 			const totalResult = await controlPanelDb
 				.select({ count: count() })
@@ -228,12 +158,12 @@ export const adminRouter = {
 	/**
 	 * List all platform_admins rows — super_admin only.
 	 */
-	listAdmins: adminProcedure
+	listAdmins: protectedProcedure
 		.use(requirePlatformAdmin(["super_admin"]))
 		.handler(async ({ context }) => {
-			const controlPanelDb = context.honoContext?.get(
-				"controlPanelDb"
-			) as NeonDatabase<typeof controlPanelSchema> | undefined;
+			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
+				| NeonDatabase<typeof controlPanelSchema>
+				| undefined;
 
 			if (!controlPanelDb) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -266,7 +196,7 @@ export const adminRouter = {
 						grantedAt: admin.grantedAt,
 						grantedByEmail,
 					};
-				})
+				}),
 			);
 
 			return enriched;
@@ -282,7 +212,9 @@ export const adminRouter = {
 		.input(z.object({ userId: z.string().min(1).max(64) }))
 		.handler(async ({ input, context }) => {
 			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Authentication required",
+				});
 			}
 
 			// Prevent self-impersonation
@@ -298,14 +230,15 @@ export const adminRouter = {
 			};
 			if (rawSession.session?.impersonatedBy) {
 				throw new ORPCError("FORBIDDEN", {
-					message: "Already impersonating another user. Stop the current impersonation first.",
+					message:
+						"Already impersonating another user. Stop the current impersonation first.",
 				});
 			}
 
 			const cph = context.honoContext;
-			const controlPanelDb = cph?.get(
-				"controlPanelDb"
-			) as NeonDatabase<typeof controlPanelSchema> | undefined;
+			const controlPanelDb = cph?.get("controlPanelDb") as
+				| NeonDatabase<typeof controlPanelSchema>
+				| undefined;
 
 			if (!controlPanelDb) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -314,7 +247,10 @@ export const adminRouter = {
 			}
 
 			// Check target is not a platform admin
-			const targetAdminRecord = await getPlatformAdmin(controlPanelDb, input.userId);
+			const targetAdminRecord = await getPlatformAdmin(
+				controlPanelDb,
+				input.userId,
+			);
 			if (targetAdminRecord) {
 				throw new ORPCError("FORBIDDEN", {
 					message: "Cannot impersonate platform admins",
@@ -371,7 +307,7 @@ export const adminRouter = {
 			// Determine the target's primary organization (deterministic: earliest active)
 			const organizationId = await getFirstActiveOrgForUser(
 				controlPanelDb,
-				input.userId
+				input.userId,
 			);
 
 			// Insert audit row — wrap in try/catch; rollback by stopping impersonation on failure
@@ -383,7 +319,10 @@ export const adminRouter = {
 					sessionToken: newSessionToken,
 				});
 			} catch (auditError) {
-				console.error("Audit insert failed, rolling back impersonation:", auditError);
+				console.error(
+					"Audit insert failed, rolling back impersonation:",
+					auditError,
+				);
 
 				// Rollback: use the NEW impersonation cookie to call stopImpersonating
 				try {
@@ -428,7 +367,9 @@ export const adminRouter = {
 	 */
 	stopImpersonating: protectedProcedure.handler(async ({ context }) => {
 		if (!context.session?.user) {
-			throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+			throw new ORPCError("UNAUTHORIZED", {
+				message: "Authentication required",
+			});
 		}
 
 		// Verify we are actually impersonating
@@ -446,9 +387,9 @@ export const adminRouter = {
 		const currentSessionToken = rawSession.session.token;
 
 		const cph = context.honoContext;
-		const controlPanelDb = cph?.get(
-			"controlPanelDb"
-		) as NeonDatabase<typeof controlPanelSchema> | undefined;
+		const controlPanelDb = cph?.get("controlPanelDb") as
+			| NeonDatabase<typeof controlPanelSchema>
+			| undefined;
 
 		if (!controlPanelDb) {
 			throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -491,8 +432,8 @@ export const adminRouter = {
 				.where(
 					and(
 						eq(adminSessions.sessionToken, currentSessionToken),
-						isNull(adminSessions.endedAt)
-					)
+						isNull(adminSessions.endedAt),
+					),
 				);
 		}
 
@@ -507,7 +448,9 @@ export const adminRouter = {
 	 */
 	getImpersonationStatus: protectedProcedure.handler(async ({ context }) => {
 		if (!context.session?.user) {
-			throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+			throw new ORPCError("UNAUTHORIZED", {
+				message: "Authentication required",
+			});
 		}
 
 		const rawSession = context.session as {
@@ -520,9 +463,9 @@ export const adminRouter = {
 
 		const originalAdminId = rawSession.session.impersonatedBy;
 
-		const controlPanelDb = context.honoContext?.get(
-			"controlPanelDb"
-		) as NeonDatabase<typeof controlPanelSchema> | undefined;
+		const controlPanelDb = context.honoContext?.get("controlPanelDb") as
+			| NeonDatabase<typeof controlPanelSchema>
+			| undefined;
 
 		if (!controlPanelDb) {
 			throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -538,7 +481,7 @@ export const adminRouter = {
 		// Determine type: platform if originalAdmin is in platform_admins
 		const adminPlatformRecord = await getPlatformAdmin(
 			controlPanelDb,
-			originalAdminId
+			originalAdminId,
 		);
 		const impersonationType = adminPlatformRecord ? "platform" : "tenant";
 
@@ -565,18 +508,18 @@ export const adminRouter = {
 	 * Grant platform admin role to a user — super_admin only.
 	 * Upserts into platform_admins and mirrors user.role via syncUserRole.
 	 */
-	grantPlatformAdmin: adminProcedure
+	grantPlatformAdmin: protectedProcedure
 		.use(requirePlatformAdmin(["super_admin"]))
 		.input(
 			z.object({
 				userId: z.string().min(1).max(64),
 				role: z.enum(["super_admin", "support", "billing"]),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			const controlPanelDb = context.honoContext?.get(
-				"controlPanelDb"
-			) as NeonDatabase<typeof controlPanelSchema> | undefined;
+			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
+				| NeonDatabase<typeof controlPanelSchema>
+				| undefined;
 
 			if (!controlPanelDb) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -619,7 +562,7 @@ export const adminRouter = {
 	 * Revoke platform admin role — super_admin only.
 	 * Cannot revoke your own role (prevents lockout).
 	 */
-	revokePlatformAdmin: adminProcedure
+	revokePlatformAdmin: protectedProcedure
 		.use(requirePlatformAdmin(["super_admin"]))
 		.input(z.object({ userId: z.string().min(1).max(64) }))
 		.handler(async ({ input, context }) => {
@@ -629,9 +572,9 @@ export const adminRouter = {
 				});
 			}
 
-			const controlPanelDb = context.honoContext?.get(
-				"controlPanelDb"
-			) as NeonDatabase<typeof controlPanelSchema> | undefined;
+			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
+				| NeonDatabase<typeof controlPanelSchema>
+				| undefined;
 
 			if (!controlPanelDb) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -659,12 +602,12 @@ export const adminRouter = {
 				search: z.string().optional(),
 				page: z.number().int().min(1).default(1),
 				limit: z.number().int().min(1).max(100).default(50),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			const controlPanelDb = context.honoContext?.get(
-				"controlPanelDb"
-			) as NeonDatabase<typeof controlPanelSchema> | undefined;
+			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
+				| NeonDatabase<typeof controlPanelSchema>
+				| undefined;
 
 			if (!controlPanelDb) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -681,12 +624,13 @@ export const adminRouter = {
 				conditions.push(
 					or(
 						like(organizations.name, `%${input.search}%`),
-						like(organizations.slug, `%${input.search}%`)
-					)
+						like(organizations.slug, `%${input.search}%`),
+					),
 				);
 			}
 
-			const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+			const whereClause =
+				conditions.length > 0 ? and(...conditions) : undefined;
 
 			// Get total count
 			const totalResult = await controlPanelDb
@@ -734,7 +678,7 @@ export const adminRouter = {
 						memberCount,
 						createdAt: org.createdAt,
 					};
-				})
+				}),
 			);
 
 			return {
@@ -755,12 +699,12 @@ export const adminRouter = {
 		.input(
 			z.object({
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			const controlPanelDb = context.honoContext?.get(
-				"controlPanelDb"
-			) as NeonDatabase<typeof controlPanelSchema> | undefined;
+			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
+				| NeonDatabase<typeof controlPanelSchema>
+				| undefined;
 
 			if (!controlPanelDb) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -840,12 +784,12 @@ export const adminRouter = {
 			z.object({
 				id: z.string().uuid(),
 				reason: z.string(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			const controlPanelDb = context.honoContext?.get(
-				"controlPanelDb"
-			) as NeonDatabase<typeof controlPanelSchema> | undefined;
+			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
+				| NeonDatabase<typeof controlPanelSchema>
+				| undefined;
 
 			if (!controlPanelDb) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -913,12 +857,12 @@ export const adminRouter = {
 		.input(
 			z.object({
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			const controlPanelDb = context.honoContext?.get(
-				"controlPanelDb"
-			) as NeonDatabase<typeof controlPanelSchema> | undefined;
+			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
+				| NeonDatabase<typeof controlPanelSchema>
+				| undefined;
 
 			if (!controlPanelDb) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -988,9 +932,9 @@ export const adminRouter = {
 	 * Get platform statistics
 	 */
 	getStats: adminProcedure.handler(async ({ context }) => {
-		const controlPanelDb = context.honoContext?.get(
-			"controlPanelDb"
-		) as NeonDatabase<typeof controlPanelSchema> | undefined;
+		const controlPanelDb = context.honoContext?.get("controlPanelDb") as
+			| NeonDatabase<typeof controlPanelSchema>
+			| undefined;
 
 		if (!controlPanelDb) {
 			throw new ORPCError("INTERNAL_SERVER_ERROR", {
@@ -1013,7 +957,7 @@ export const adminRouter = {
 			orgCounts.find((c) => c.status === "suspended")?.count || 0;
 		const totalOrganizations = orgCounts.reduce(
 			(sum, c) => sum + Number(c.count),
-			0
+			0,
 		);
 
 		// Get user count

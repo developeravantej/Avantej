@@ -184,7 +184,7 @@ describe("Middleware pipeline integration", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const body = await res.json() as Record<string, unknown>;
+		const body = (await res.json()) as Record<string, unknown>;
 		expect(body.userId).toBe(USER_ID);
 		expect(body.organizationId).toBe(ORG_ID);
 		expect(body.hasTenantDb).toBe(true);
@@ -254,7 +254,7 @@ describe("Middleware pipeline integration", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const body = await res.json() as Record<string, unknown>;
+		const body = (await res.json()) as Record<string, unknown>;
 		expect(body.organizationId).toBe(ORG_ID);
 		expect(body.hasTenantDb).toBe(true);
 	});
@@ -285,7 +285,7 @@ describe("Middleware pipeline integration", () => {
 		});
 
 		expect(res.status).toBe(200);
-		const body = await res.json() as Record<string, unknown>;
+		const body = (await res.json()) as Record<string, unknown>;
 		expect(body.role).toBe("super_admin");
 		expect(body.hasAdminRecord).toBe(true);
 	});

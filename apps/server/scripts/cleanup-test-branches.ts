@@ -16,7 +16,7 @@ import {
 	listTestBranches,
 } from "../src/tests/helpers/neon-branch";
 
-const DEFAULT_TENANT_PROJECT_ID = "tiny-fog-53227130";
+const DEFAULT_TENANT_PROJECT_ID = "silent-wind-47805343";
 
 function loadEnv(): void {
 	for (const p of [
@@ -32,7 +32,10 @@ function loadEnv(): void {
 				if (i < 0) continue;
 				const k = t.slice(0, i).trim();
 				if (!process.env[k]) {
-					process.env[k] = t.slice(i + 1).trim().replace(/^"(.*)"$/, "$1");
+					process.env[k] = t
+						.slice(i + 1)
+						.trim()
+						.replace(/^"(.*)"$/, "$1");
 				}
 			}
 			return;

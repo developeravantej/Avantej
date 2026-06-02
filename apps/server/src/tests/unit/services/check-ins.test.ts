@@ -103,16 +103,14 @@ function buildMockDb(options: {
 	};
 
 	// transaction() immediately invokes its callback with txObj
-	const mockTransaction = mock(
-		(cb: (tx: typeof txObj) => Promise<unknown>) => cb(txObj),
+	const mockTransaction = mock((cb: (tx: typeof txObj) => Promise<unknown>) =>
+		cb(txObj),
 	);
 
 	const mockCheckInsFindFirst = mock(() =>
 		Promise.resolve(options.existingCheckIn),
 	);
-	const mockMembersFindFirst = mock(() =>
-		Promise.resolve(options.memberRow),
-	);
+	const mockMembersFindFirst = mock(() => Promise.resolve(options.memberRow));
 
 	const db = {
 		transaction: mockTransaction,
@@ -151,7 +149,8 @@ describe("recordCheckIn — anonymous walk-in", () => {
 		// The values passed to insert should have a synthesized UUID clientId
 		// mockValues is called twice: once for checkIns insert, once for audit_logs insert
 		expect(mockValues.mock.calls.length).toBeGreaterThanOrEqual(1);
-		const insertedValues = ((mockValues as any).mock.calls[0] ?? [])[0]! as Record<string, unknown>;
+		const insertedValues = ((mockValues as any).mock.calls[0] ??
+			[])[0]! as Record<string, unknown>;
 		expect(typeof insertedValues.clientId).toBe("string");
 		expect(isValidUUID(insertedValues.clientId as string)).toBe(true);
 		expect((insertedValues.clientId as string).length).toBeGreaterThan(0);
@@ -212,7 +211,8 @@ describe("recordCheckIn — anonymous walk-in", () => {
 		});
 
 		// First call is always the checkIns insert
-		const insertedValues = ((mockValues as any).mock.calls[0] ?? [])[0]! as Record<string, unknown>;
+		const insertedValues = ((mockValues as any).mock.calls[0] ??
+			[])[0]! as Record<string, unknown>;
 		expect(insertedValues.clientDisplayName).toBe("Jane Walk-In");
 	});
 
@@ -232,7 +232,8 @@ describe("recordCheckIn — anonymous walk-in", () => {
 		});
 
 		// First call is always the checkIns insert
-		const insertedValues = ((mockValues as any).mock.calls[0] ?? [])[0]! as Record<string, unknown>;
+		const insertedValues = ((mockValues as any).mock.calls[0] ??
+			[])[0]! as Record<string, unknown>;
 		expect(insertedValues.clientDisplayName).toBeNull();
 	});
 });
@@ -249,7 +250,7 @@ describe("recordCheckIn — member duplicate blocked within 30 min", () => {
 		});
 		const { db } = buildMockDb({
 			memberRow: { id: MEMBER_DB_ID }, // member found
-			existingCheckIn: undefined,       // no dup
+			existingCheckIn: undefined, // no dup
 			insertedRow: fakeRow,
 		});
 
@@ -271,8 +272,8 @@ describe("recordCheckIn — member duplicate blocked within 30 min", () => {
 		};
 
 		const { db } = buildMockDb({
-			memberRow: { id: MEMBER_DB_ID },    // member found (needed for step 1)
-			existingCheckIn: recentCheckIn,      // dup found (step 2)
+			memberRow: { id: MEMBER_DB_ID }, // member found (needed for step 1)
+			existingCheckIn: recentCheckIn, // dup found (step 2)
 		});
 
 		await expect(
@@ -324,7 +325,7 @@ function buildBulkMockDb(options: {
 		appointmentId: string;
 		branchId: string;
 	}>;
-	existingCheckInIds: string[];  // appointmentClientIds that already have check-ins
+	existingCheckInIds: string[]; // appointmentClientIds that already have check-ins
 	memberRow?: { id: string };
 }) {
 	// We need two distinct "select chain" resolutions for the two bulk queries,
@@ -364,8 +365,8 @@ function buildBulkMockDb(options: {
 			})),
 		})),
 	};
-	const mockTransaction = mock(
-		(cb: (tx: typeof txObj) => Promise<unknown>) => cb(txObj),
+	const mockTransaction = mock((cb: (tx: typeof txObj) => Promise<unknown>) =>
+		cb(txObj),
 	);
 
 	const existingCheckInRows = options.existingCheckInIds.map((id) => ({
@@ -432,8 +433,9 @@ describe("recordBulkCheckIn", () => {
 
 	test("throws when bookingIds length exceeds 100", async () => {
 		const db = {} as any;
-		const bookingIds = Array.from({ length: 101 }, (_, i) =>
-			`aaaaaaaa-0000-4000-8000-${String(i).padStart(12, "0")}`,
+		const bookingIds = Array.from(
+			{ length: 101 },
+			(_, i) => `aaaaaaaa-0000-4000-8000-${String(i).padStart(12, "0")}`,
 		);
 		await expect(
 			recordBulkCheckIn(db, { bookingIds, branchId: BRANCH_ID, actor: ACTOR }),

@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Input } from "@/components/ui/input";
@@ -106,7 +106,9 @@ function TaxRatesPage() {
 	const canCreate = hasPermission("tax_configuration:create");
 	const canUpdate = hasPermission("tax_configuration:update");
 
-	const taxRatesKey = ["taxRates", organizationId];
+	const taxRatesKey = orpc.taxRates.list.queryOptions({
+		input: { organizationId: organizationId! },
+	}).queryKey;
 
 	// ─── Sheet / form state ───────────────────────────────────────────────────
 	const [sheetOpen, setSheetOpen] = useState(false);
@@ -114,7 +116,9 @@ function TaxRatesPage() {
 	const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
 	// ─── Deactivate dialog ────────────────────────────────────────────────────
-	const [deactivateTarget, setDeactivateTarget] = useState<TaxRateRow | null>(null);
+	const [deactivateTarget, setDeactivateTarget] = useState<TaxRateRow | null>(
+		null,
+	);
 	const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
 
 	// ─── Queries & Mutations ──────────────────────────────────────────────────
@@ -124,11 +128,9 @@ function TaxRatesPage() {
 		isError,
 		refetch,
 	} = useQuery({
-		queryKey: taxRatesKey,
-		queryFn: async () => {
-			if (!organizationId) return [];
-			return client.taxRates.list({ organizationId });
-		},
+		...orpc.taxRates.list.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 	});
 
@@ -143,7 +145,9 @@ function TaxRatesPage() {
 				category: values.category.trim() || undefined,
 				description: values.description.trim() || undefined,
 				isDefault: values.isDefault,
-				effectiveFrom: new Date(`${values.effectiveFrom}T00:00:00Z`).toISOString(),
+				effectiveFrom: new Date(
+					`${values.effectiveFrom}T00:00:00Z`,
+				).toISOString(),
 				effectiveUntil: values.effectiveUntil
 					? new Date(`${values.effectiveUntil}T23:59:59Z`).toISOString()
 					: undefined,
@@ -243,11 +247,23 @@ function TaxRatesPage() {
 
 	function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
-		if (!form.name.trim()) { toast.error("Name is required."); return; }
-		if (!editingId && !form.code.trim()) { toast.error("Code is required."); return; }
-		if (!form.effectiveFrom) { toast.error("Effective from date is required."); return; }
+		if (!form.name.trim()) {
+			toast.error("Name is required.");
+			return;
+		}
+		if (!editingId && !form.code.trim()) {
+			toast.error("Code is required.");
+			return;
+		}
+		if (!form.effectiveFrom) {
+			toast.error("Effective from date is required.");
+			return;
+		}
 		const p = parseFloat(form.ratePct || "0");
-		if (Number.isNaN(p) || p < 0 || p > 100) { toast.error("Rate must be 0–100%."); return; }
+		if (Number.isNaN(p) || p < 0 || p > 100) {
+			toast.error("Rate must be 0–100%.");
+			return;
+		}
 		if (editingId) {
 			updateMutation.mutate({ id: editingId, values: form });
 		} else {
@@ -285,13 +301,15 @@ function TaxRatesPage() {
 			<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
 				<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
 					<div className="flex items-center gap-3 text-sm">
-						<span className="text-muted-foreground">Settings</span>
+						<span className="text-[#737373]">Settings</span>
 						<span className="text-[#a3a3a3]">/</span>
 						<span className="font-semibold">Tax Rates</span>
 					</div>
 				</header>
 				<div className="flex flex-1 items-center justify-center">
-					<p className="text-sm text-[#737373]">Select an organization to manage tax rates.</p>
+					<p className="text-sm text-[#737373]">
+						Select an organization to manage tax rates.
+					</p>
 				</div>
 			</div>
 		);
@@ -304,7 +322,7 @@ function TaxRatesPage() {
 		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
 			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
 				<div className="flex items-center gap-3 text-sm">
-					<span className="text-muted-foreground">Settings</span>
+					<span className="text-[#737373]">Settings</span>
 					<span className="text-[#a3a3a3]">/</span>
 					<span className="font-semibold">Tax Rates</span>
 				</div>
@@ -320,7 +338,7 @@ function TaxRatesPage() {
 							key={key}
 							type="button"
 							onClick={() => navigate({ search: { filter: key } })}
-							className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${filter === key ? "bg-[#0a0a0a] text-white" : "text-muted-foreground hover:text-foreground"}`}
+							className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${filter === key ? "bg-[#0a0a0a] text-white" : "text-[#737373] hover:text-foreground"}`}
 						>
 							{label}
 						</button>
@@ -342,174 +360,211 @@ function TaxRatesPage() {
 			</header>
 
 			<div className="flex flex-col gap-5 px-6 py-6">
+				{/* Error state */}
+				{isError && (
+					<StatusCallout
+						variant="error"
+						title="Failed to load tax rates"
+						onRetry={() => refetch()}
+					>
+						<p className="text-sm">Please try again.</p>
+					</StatusCallout>
+				)}
 
-			{/* Error state */}
-			{isError && (
-				<StatusCallout variant="error" title="Failed to load tax rates" onRetry={() => refetch()}>
-					<p className="text-sm">Please try again.</p>
-				</StatusCallout>
-			)}
-
-			{/* Empty state */}
-			{!isError && rows.length === 0 && (
-				<div className="rounded-2xl border border-[#e5e5e5] bg-white">
-					<div className="flex flex-col items-center justify-center py-16 text-[#737373]">
-						<Percent className="h-8 w-8 mb-3 opacity-30" />
-						<p className="text-sm font-medium text-[#0a0a0a]">
-							{filter === "inactive" ? "No inactive tax rates" : "No tax rates yet"}
-						</p>
-						<p className="text-xs mt-1">
-							{filter !== "inactive" && canCreate
-								? "Create your first tax rate to start applying to transactions."
-								: "Try changing filters."}
-						</p>
-						{filter !== "inactive" && canCreate && (
-							<button
-								type="button"
-								onClick={openCreate}
-								className="mt-4 inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition"
-							>
-								<Plus className="h-4 w-4" />
-								New Rate
-							</button>
-						)}
-					</div>
-				</div>
-			)}
-
-			{/* Table */}
-			{!isError && rows.length > 0 && (
-				<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
-					<table className="w-full">
-						<thead className="bg-[#f3f3f3]">
-							<tr className="border-b border-[#e5e5e5]">
-								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">Name</th>
-								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">Code</th>
-								<th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-[#737373]">Rate</th>
-								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">Category</th>
-								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">Effective From</th>
-								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">Status</th>
-								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]" />
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-[#e5e5e5]">
-							{rows.map((row) => (
-								<tr
-									key={row.id}
-									className={cn(
-										"hover:bg-[#fafafa] transition-colors group",
-										!row.isActive && "opacity-60",
-									)}
+				{/* Empty state */}
+				{!isError && rows.length === 0 && (
+					<div className="rounded-2xl border border-[#e5e5e5] bg-white">
+						<div className="flex flex-col items-center justify-center py-16 text-[#737373]">
+							<Percent className="h-8 w-8 mb-3 opacity-30" />
+							<p className="text-sm font-medium text-[#0a0a0a]">
+								{filter === "inactive"
+									? "No inactive tax rates"
+									: "No tax rates yet"}
+							</p>
+							<p className="text-xs mt-1">
+								{filter !== "inactive" && canCreate
+									? "Create your first tax rate to start applying to transactions."
+									: "Try changing filters."}
+							</p>
+							{filter !== "inactive" && canCreate && (
+								<button
+									type="button"
+									onClick={openCreate}
+									className="mt-4 inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition"
 								>
-									<td className="px-4 py-3">
-										<div className="flex items-center gap-1.5">
-											<span className="text-sm font-medium text-[#0a0a0a]">{row.name}</span>
-											{row.isDefault && (
-												<span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-													<Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-													Default
+									<Plus className="h-4 w-4" />
+									New Rate
+								</button>
+							)}
+						</div>
+					</div>
+				)}
+
+				{/* Table */}
+				{!isError && rows.length > 0 && (
+					<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
+						<table className="w-full">
+							<thead className="bg-[#f3f3f3]">
+								<tr className="border-b border-[#e5e5e5]">
+									<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+										Name
+									</th>
+									<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+										Code
+									</th>
+									<th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+										Rate
+									</th>
+									<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+										Category
+									</th>
+									<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+										Effective From
+									</th>
+									<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+										Status
+									</th>
+									<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]" />
+								</tr>
+							</thead>
+							<tbody className="divide-y divide-[#e5e5e5]">
+								{rows.map((row) => (
+									<tr
+										key={row.id}
+										className={cn(
+											"hover:bg-[#fafafa] transition-colors group",
+											!row.isActive && "opacity-60",
+										)}
+									>
+										<td className="px-4 py-3">
+											<div className="flex items-center gap-1.5">
+												<span className="text-sm font-medium text-[#0a0a0a]">
+													{row.name}
+												</span>
+												{row.isDefault && (
+													<span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+														<Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+														Default
+													</span>
+												)}
+											</div>
+											{row.description && (
+												<p className="mt-0.5 text-xs text-[#737373] line-clamp-1">
+													{row.description}
+												</p>
+											)}
+										</td>
+										<td className="px-4 py-3">
+											<span className="font-mono tabular-nums text-xs text-[#737373]">
+												{row.code}
+											</span>
+										</td>
+										<td className="px-4 py-3 text-right font-mono tabular-nums text-sm font-semibold text-[#0a0a0a]">
+											{fmtRate(row.rateInBasisPoints)}
+										</td>
+										<td className="px-4 py-3">
+											{row.category ? (
+												<span className="inline-flex items-center rounded-full border border-[#e5e5e5] bg-[#f3f3f3] px-2 py-0.5 text-[11px] font-semibold text-[#737373]">
+													{row.category}
+												</span>
+											) : (
+												<span className="text-[#737373] font-mono tabular-nums text-sm">
+													—
 												</span>
 											)}
-										</div>
-										{row.description && (
-											<p className="mt-0.5 text-xs text-[#737373] line-clamp-1">{row.description}</p>
-										)}
-									</td>
-									<td className="px-4 py-3">
-										<span className="font-mono tabular-nums text-xs text-[#737373]">{row.code}</span>
-									</td>
-									<td className="px-4 py-3 text-right font-mono tabular-nums text-sm font-semibold text-[#0a0a0a]">
-										{fmtRate(row.rateInBasisPoints)}
-									</td>
-									<td className="px-4 py-3">
-										{row.category ? (
-											<span className="inline-flex items-center rounded-full border border-[#e5e5e5] bg-[#f3f3f3] px-2 py-0.5 text-[11px] font-semibold text-[#737373]">
-												{row.category}
-											</span>
-										) : (
-											<span className="text-[#737373] font-mono tabular-nums text-sm">—</span>
-										)}
-									</td>
-									<td className="px-4 py-3 font-mono tabular-nums text-sm text-[#737373]">
-										{fmtDate(row.effectiveFrom)}
-									</td>
-									<td className="px-4 py-3">
-										<span
-											className={cn(
-												"inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
-												row.isActive
-													? "bg-emerald-50 text-emerald-700"
-													: "bg-slate-100 text-slate-500",
-											)}
-										>
+										</td>
+										<td className="px-4 py-3 font-mono tabular-nums text-sm text-[#737373]">
+											{fmtDate(row.effectiveFrom)}
+										</td>
+										<td className="px-4 py-3">
 											<span
 												className={cn(
-													"h-1.5 w-1.5 rounded-full",
-													row.isActive ? "bg-emerald-500" : "bg-slate-400",
+													"inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+													row.isActive
+														? "bg-emerald-50 text-emerald-700"
+														: "bg-slate-100 text-slate-500",
 												)}
-											/>
-											{row.isActive ? "Active" : "Inactive"}
-										</span>
-									</td>
-									<td className="px-4 py-3">
-										<div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
-											{canUpdate && row.isActive && !row.isDefault && (
-												<button
-													type="button"
-													onClick={() => setDefaultMutation.mutate(row.id)}
-													disabled={isMutating}
-													className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-[#737373] hover:bg-[#f3f3f3] disabled:opacity-50"
-												>
-													<Star className="h-3 w-3" />
-													Set default
-												</button>
-											)}
-											{canUpdate && (
-												<button
-													type="button"
-													onClick={() => openEdit(row)}
-													disabled={isMutating}
-													className="rounded-lg px-2 py-1 text-xs font-medium text-[#0a0a0a] hover:bg-[#f3f3f3] disabled:opacity-50"
-												>
-													Edit
-												</button>
-											)}
-											{canUpdate && row.isActive && (
-												<button
-													type="button"
-													onClick={() => { setDeactivateTarget(row); setDeactivateDialogOpen(true); }}
-													disabled={isMutating}
-													className="rounded-lg px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50"
-												>
-													Disable
-												</button>
-											)}
-										</div>
-									</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
-					{/* Footer */}
-					<div className="flex items-center border-t border-[#e5e5e5] bg-[#f3f3f3]/50 px-4 py-2.5">
-						<span className="text-[13px] text-[#737373]">
-							{allRows.length} rate{allRows.length !== 1 ? "s" : ""} · {activeCount} active
-							{inactiveCount > 0 ? ` · ${inactiveCount} inactive` : ""}
-						</span>
+											>
+												<span
+													className={cn(
+														"h-1.5 w-1.5 rounded-full",
+														row.isActive ? "bg-emerald-500" : "bg-slate-400",
+													)}
+												/>
+												{row.isActive ? "Active" : "Inactive"}
+											</span>
+										</td>
+										<td className="px-4 py-3">
+											<div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+												{canUpdate && row.isActive && !row.isDefault && (
+													<button
+														type="button"
+														onClick={() => setDefaultMutation.mutate(row.id)}
+														disabled={isMutating}
+														className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-[#737373] hover:bg-[#f3f3f3] disabled:opacity-50"
+													>
+														<Star className="h-3 w-3" />
+														Set default
+													</button>
+												)}
+												{canUpdate && (
+													<button
+														type="button"
+														onClick={() => openEdit(row)}
+														disabled={isMutating}
+														className="rounded-lg px-2 py-1 text-xs font-medium text-[#0a0a0a] hover:bg-[#f3f3f3] disabled:opacity-50"
+													>
+														Edit
+													</button>
+												)}
+												{canUpdate && row.isActive && (
+													<button
+														type="button"
+														onClick={() => {
+															setDeactivateTarget(row);
+															setDeactivateDialogOpen(true);
+														}}
+														disabled={isMutating}
+														className="rounded-lg px-2 py-1 text-xs font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+													>
+														Disable
+													</button>
+												)}
+											</div>
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+						{/* Footer */}
+						<div className="flex items-center border-t border-[#e5e5e5] bg-[#f3f3f3]/50 px-4 py-2.5">
+							<span className="text-[13px] text-[#737373]">
+								{allRows.length} rate{allRows.length !== 1 ? "s" : ""} ·{" "}
+								{activeCount} active
+								{inactiveCount > 0 ? ` · ${inactiveCount} inactive` : ""}
+							</span>
+						</div>
 					</div>
-				</div>
-			)}
-
+				)}
 			</div>
 
 			{/* ── Create / Edit Dialog ──────────────────────────────────────────── */}
 			<Dialog
 				open={sheetOpen}
-				onOpenChange={(open) => { if (!open) closeSheet(); else setSheetOpen(true); }}
+				onOpenChange={(open) => {
+					if (!open) closeSheet();
+					else setSheetOpen(true);
+				}}
 			>
-				<DialogContent className="sm:max-w-lg overflow-y-auto bg-white">
-					<DialogHeader>
-						<DialogTitle className="text-base font-semibold text-[#0a0a0a]">
+				<DialogContent
+					className="sm:max-w-lg p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							TAX CONFIGURATION
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
 							{editingId ? "Edit Tax Rate" : "Add Tax Rate"}
 						</DialogTitle>
 						<DialogDescription className="text-sm text-[#737373]">
@@ -519,129 +574,177 @@ function TaxRatesPage() {
 						</DialogDescription>
 					</DialogHeader>
 
-					<form onSubmit={handleSubmit} className="space-y-4 p-6 pt-0">
-						{/* Name */}
-						<div>
-							<label htmlFor="tr-name" className="block text-xs font-medium text-[#0a0a0a] mb-1">
-								Name *
-							</label>
-							<Input
-								id="tr-name"
-								placeholder="e.g. GST 8%"
-								value={form.name}
-								onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-								required
-							/>
-						</div>
-
-						{/* Code */}
-						<div>
-							<label htmlFor="tr-code" className="block text-xs font-medium text-[#0a0a0a] mb-1">
-								Code {!editingId && "*"}
-							</label>
-							<Input
-								id="tr-code"
-								placeholder="e.g. GST_08"
-								value={form.code}
-								onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
-								className="font-mono"
-								required={!editingId}
-								disabled={!!editingId}
-							/>
-							<p className="mt-1 text-[11px] text-[#737373]">
-								{editingId ? "Cannot be changed after creation." : "Short identifier used internally. Cannot be changed later."}
-							</p>
-						</div>
-
-						{/* Rate */}
-						<div>
-							<label htmlFor="tr-rate" className="block text-xs font-medium text-[#0a0a0a] mb-1">
-								Rate (%) *
-							</label>
-							<Input
-								id="tr-rate"
-								type="number"
-								min="0"
-								max="100"
-								step="0.01"
-								placeholder="e.g. 8"
-								value={form.ratePct}
-								onChange={(e) => setForm((f) => ({ ...f, ratePct: e.target.value }))}
-								required
-							/>
-							<p className="mt-1 text-[11px] text-[#737373]">Enter as a percentage, e.g. 8 for 8%.</p>
-						</div>
-
-						{/* Category */}
-						<div>
-							<label htmlFor="tr-cat" className="block text-xs font-medium text-[#0a0a0a] mb-1">
-								Category
-							</label>
-							<Input
-								id="tr-cat"
-								placeholder="e.g. standard, reduced, zero"
-								value={form.category}
-								onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-							/>
-						</div>
-
-						{/* Effective dates */}
-						<div className="grid grid-cols-2 gap-4">
+					<form onSubmit={handleSubmit}>
+						<div className="px-6 pt-4 pb-2 overflow-y-auto space-y-4">
+							{/* Name */}
 							<div>
-								<label htmlFor="tr-from" className="block text-xs font-medium text-[#0a0a0a] mb-1">
-									Effective From *
+								<label
+									htmlFor="tr-name"
+									className="block text-xs font-medium text-[#0a0a0a] mb-1"
+								>
+									Name *
 								</label>
 								<Input
-									id="tr-from"
-									type="date"
-									value={form.effectiveFrom}
-									onChange={(e) => setForm((f) => ({ ...f, effectiveFrom: e.target.value }))}
+									id="tr-name"
+									placeholder="e.g. GST 8%"
+									value={form.name}
+									onChange={(e) =>
+										setForm((f) => ({ ...f, name: e.target.value }))
+									}
 									required
 								/>
 							</div>
+
+							{/* Code */}
 							<div>
-								<label htmlFor="tr-until" className="block text-xs font-medium text-[#0a0a0a] mb-1">
-									Effective Until
+								<label
+									htmlFor="tr-code"
+									className="block text-xs font-medium text-[#0a0a0a] mb-1"
+								>
+									Code {!editingId && "*"}
 								</label>
 								<Input
-									id="tr-until"
-									type="date"
-									value={form.effectiveUntil}
-									onChange={(e) => setForm((f) => ({ ...f, effectiveUntil: e.target.value }))}
+									id="tr-code"
+									placeholder="e.g. GST_08"
+									value={form.code}
+									onChange={(e) =>
+										setForm((f) => ({ ...f, code: e.target.value }))
+									}
+									className="font-mono"
+									required={!editingId}
+									disabled={!!editingId}
 								/>
-								<p className="mt-1 text-[11px] text-[#737373]">Leave blank for no expiry.</p>
+								<p className="mt-1 text-[11px] text-[#737373]">
+									{editingId
+										? "Cannot be changed after creation."
+										: "Short identifier used internally. Cannot be changed later."}
+								</p>
 							</div>
-						</div>
 
-						{/* Description */}
-						<div>
-							<label htmlFor="tr-desc" className="block text-xs font-medium text-[#0a0a0a] mb-1">
-								Description
-							</label>
-							<Textarea
-								id="tr-desc"
-								placeholder="Optional notes"
-								rows={2}
-								value={form.description}
-								onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-							/>
-						</div>
-
-						{/* Default — create only */}
-						{!editingId && (
-							<div className="flex items-center gap-2">
-								<Checkbox
-									id="tr-default"
-									checked={form.isDefault}
-									onCheckedChange={(c) => setForm((f) => ({ ...f, isDefault: c === true }))}
-								/>
-								<label htmlFor="tr-default" className="cursor-pointer text-sm text-[#0a0a0a]">
-									Set as default tax rate
+							{/* Rate */}
+							<div>
+								<label
+									htmlFor="tr-rate"
+									className="block text-xs font-medium text-[#0a0a0a] mb-1"
+								>
+									Rate (%) *
 								</label>
+								<Input
+									id="tr-rate"
+									type="number"
+									min="0"
+									max="100"
+									step="0.01"
+									placeholder="e.g. 8"
+									value={form.ratePct}
+									onChange={(e) =>
+										setForm((f) => ({ ...f, ratePct: e.target.value }))
+									}
+									required
+								/>
+								<p className="mt-1 text-[11px] text-[#737373]">
+									Enter as a percentage, e.g. 8 for 8%.
+								</p>
 							</div>
-						)}
 
-						<div className="flex justify-end gap-3 pt-2">
+							{/* Category */}
+							<div>
+								<label
+									htmlFor="tr-cat"
+									className="block text-xs font-medium text-[#0a0a0a] mb-1"
+								>
+									Category
+								</label>
+								<Input
+									id="tr-cat"
+									placeholder="e.g. standard, reduced, zero"
+									value={form.category}
+									onChange={(e) =>
+										setForm((f) => ({ ...f, category: e.target.value }))
+									}
+								/>
+							</div>
+
+							{/* Effective dates */}
+							<div className="grid grid-cols-2 gap-4">
+								<div>
+									<label
+										htmlFor="tr-from"
+										className="block text-xs font-medium text-[#0a0a0a] mb-1"
+									>
+										Effective From *
+									</label>
+									<Input
+										id="tr-from"
+										type="date"
+										value={form.effectiveFrom}
+										onChange={(e) =>
+											setForm((f) => ({ ...f, effectiveFrom: e.target.value }))
+										}
+										required
+									/>
+								</div>
+								<div>
+									<label
+										htmlFor="tr-until"
+										className="block text-xs font-medium text-[#0a0a0a] mb-1"
+									>
+										Effective Until
+									</label>
+									<Input
+										id="tr-until"
+										type="date"
+										value={form.effectiveUntil}
+										onChange={(e) =>
+											setForm((f) => ({ ...f, effectiveUntil: e.target.value }))
+										}
+									/>
+									<p className="mt-1 text-[11px] text-[#737373]">
+										Leave blank for no expiry.
+									</p>
+								</div>
+							</div>
+
+							{/* Description */}
+							<div>
+								<label
+									htmlFor="tr-desc"
+									className="block text-xs font-medium text-[#0a0a0a] mb-1"
+								>
+									Description
+								</label>
+								<Textarea
+									id="tr-desc"
+									placeholder="Optional notes"
+									rows={2}
+									value={form.description}
+									onChange={(e) =>
+										setForm((f) => ({ ...f, description: e.target.value }))
+									}
+								/>
+							</div>
+
+							{/* Default — create only */}
+							{!editingId && (
+								<div className="flex items-center gap-2">
+									<Checkbox
+										id="tr-default"
+										checked={form.isDefault}
+										onCheckedChange={(c) =>
+											setForm((f) => ({ ...f, isDefault: c === true }))
+										}
+									/>
+									<label
+										htmlFor="tr-default"
+										className="cursor-pointer text-sm text-[#0a0a0a]"
+									>
+										Set as default tax rate
+									</label>
+								</div>
+							)}
+						</div>
+
+						<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 							<button
 								type="button"
 								onClick={closeSheet}
@@ -661,7 +764,7 @@ function TaxRatesPage() {
 										? "Save Changes"
 										: "Add Rate"}
 							</button>
-						</div>
+						</DialogFooter>
 					</form>
 				</DialogContent>
 			</Dialog>
@@ -670,39 +773,55 @@ function TaxRatesPage() {
 			<Dialog
 				open={deactivateDialogOpen}
 				onOpenChange={(open) => {
-					if (!open) { setDeactivateDialogOpen(false); setDeactivateTarget(null); }
+					if (!open) {
+						setDeactivateDialogOpen(false);
+						setDeactivateTarget(null);
+					}
 				}}
 			>
-				<DialogContent className="sm:max-w-md rounded-2xl bg-white p-6">
-					<DialogHeader>
-						<DialogTitle className="text-base font-semibold text-[#0a0a0a]">
+				<DialogContent
+					className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							TAX CONFIGURATION
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
 							Disable Tax Rate
 						</DialogTitle>
 						<DialogDescription className="text-sm text-[#737373]">
 							Are you sure you want to disable{" "}
-							<strong className="text-[#0a0a0a]">{deactivateTarget?.name}</strong>?
-							Inactive rates will no longer be selectable for new transactions.
+							<strong className="text-[#0a0a0a]">
+								{deactivateTarget?.name}
+							</strong>
+							? Inactive rates will no longer be selectable for new
+							transactions.
 						</DialogDescription>
 					</DialogHeader>
-					<DialogFooter>
-						<div className="mt-2 flex justify-end gap-3">
-							<button
-								type="button"
-								onClick={() => { setDeactivateDialogOpen(false); setDeactivateTarget(null); }}
-								disabled={deactivateMutation.isPending}
-								className="inline-flex items-center gap-1.5 bg-white border border-[#e5e5e5] text-[#0a0a0a] px-3.5 py-2 rounded-[10px] text-[13px] font-medium hover:bg-[#f3f3f3] transition disabled:opacity-50"
-							>
-								Cancel
-							</button>
-							<button
-								type="button"
-								onClick={() => { if (deactivateTarget) deactivateMutation.mutate(deactivateTarget.id); }}
-								disabled={deactivateMutation.isPending}
-								className="inline-flex items-center gap-1.5 bg-rose-600 text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-rose-700 transition disabled:opacity-50"
-							>
-								{deactivateMutation.isPending ? "Disabling…" : "Disable"}
-							</button>
-						</div>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+						<button
+							type="button"
+							onClick={() => {
+								setDeactivateDialogOpen(false);
+								setDeactivateTarget(null);
+							}}
+							disabled={deactivateMutation.isPending}
+							className="inline-flex items-center gap-1.5 bg-white border border-[#e5e5e5] text-[#0a0a0a] px-3.5 py-2 rounded-[10px] text-[13px] font-medium hover:bg-[#f3f3f3] transition disabled:opacity-50"
+						>
+							Cancel
+						</button>
+						<button
+							type="button"
+							onClick={() => {
+								if (deactivateTarget)
+									deactivateMutation.mutate(deactivateTarget.id);
+							}}
+							disabled={deactivateMutation.isPending}
+							className="inline-flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold transition disabled:opacity-50"
+						>
+							{deactivateMutation.isPending ? "Disabling…" : "Disable"}
+						</button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>

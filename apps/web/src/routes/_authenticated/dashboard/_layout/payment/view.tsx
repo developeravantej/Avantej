@@ -8,7 +8,7 @@ import {
 } from "@/components/tables/payment/view/columns";
 import DataTable from "@/components/tables/payment/view/data-table";
 import { useUserContext } from "@/hooks/useUserContext";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { useMemo } from "react";
 
@@ -32,8 +32,9 @@ function RouteComponent() {
 		error,
 		refetch,
 	} = useQuery({
-		queryKey: ["invoices", organizationId],
-		queryFn: () => client.invoices.list({ organizationId: organizationId! }),
+		...orpc.invoices.list.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 	});
 
@@ -46,7 +47,10 @@ function RouteComponent() {
 		total_paid: item.totalAmount,
 		customer_name: item.customerName,
 		// DU-002: prefer resolved name over raw UUID; fall back through UUID then em-dash
-		created_by: (item as typeof item & { createdByName?: string | null }).createdByName ?? item.createdBy ?? "—",
+		created_by:
+			(item as typeof item & { createdByName?: string | null }).createdByName ??
+			item.createdBy ??
+			"—",
 		e_invoice_status: item.eInvoiceStatus ?? null,
 	}));
 
@@ -62,36 +66,39 @@ function RouteComponent() {
 				</div>
 			</header>
 			<div className="flex flex-col gap-5 px-6 py-6">
-
-			{/* ── Table card ── */}
-			<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
-				{isLoading ? (
-					<PageLoader />
-				) : isError ? (
-					<div className="flex flex-col items-center justify-center py-16 text-[#737373]">
-						<History className="h-8 w-8 mb-3 opacity-30" />
-						<p className="text-sm font-medium text-[#0a0a0a]">Failed to load payments</p>
-						<p className="text-xs mt-1">
-							{error instanceof Error ? error.message : "An unexpected error occurred."}
-						</p>
-						<button
-							type="button"
-							onClick={() => refetch()}
-							className="mt-4 inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition"
-						>
-							Try Again
-						</button>
-					</div>
-				) : (
-					<DataTable<PaymentRow, unknown>
-						columns={columns}
-						data={paymentsData}
-						emptyTitle="No payments found"
-						emptyDescription="Invoice payments will appear here once sales are recorded."
-					/>
-				)}
+				{/* ── Table card ── */}
+				<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
+					{isLoading ? (
+						<PageLoader />
+					) : isError ? (
+						<div className="flex flex-col items-center justify-center py-16 text-[#737373]">
+							<History className="h-8 w-8 mb-3 opacity-30" />
+							<p className="text-sm font-medium text-[#0a0a0a]">
+								Failed to load payments
+							</p>
+							<p className="text-xs mt-1">
+								{error instanceof Error
+									? error.message
+									: "An unexpected error occurred."}
+							</p>
+							<button
+								type="button"
+								onClick={() => refetch()}
+								className="mt-4 inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition"
+							>
+								Try Again
+							</button>
+						</div>
+					) : (
+						<DataTable<PaymentRow, unknown>
+							columns={columns}
+							data={paymentsData}
+							emptyTitle="No payments found"
+							emptyDescription="Invoice payments will appear here once sales are recorded."
+						/>
+					)}
+				</div>
 			</div>
-		</div>
 		</div>
 	);
 }

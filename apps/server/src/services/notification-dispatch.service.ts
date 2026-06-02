@@ -56,11 +56,11 @@ const LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 const STALE_WARN_MS = 24 * 60 * 60 * 1000;
 
 /** SI-010: strip CRLF characters from email subjects to prevent header injection. */
-function sanitizeEmailSubject(s: string): string {
+export function sanitizeEmailSubject(s: string): string {
 	return s.replace(/[\r\n]+/g, " ").slice(0, 200);
 }
 
-function escapeHtml(s: string): string {
+export function escapeHtml(s: string): string {
 	return s
 		.replace(/&/g, "&amp;")
 		.replace(/</g, "&lt;")
@@ -69,17 +69,59 @@ function escapeHtml(s: string): string {
 		.replace(/'/g, "&#39;");
 }
 
+/** Default batch cap when NOTIFICATION_BATCH_SIZE is unset/invalid (SI-001). */
+const DEFAULT_BATCH_SIZE = 200;
+
+/**
+ * SI-001: resolve the per-org dispatch batch cap.
+ *
+ * Precedence: explicit `override` (test/caller) > NOTIFICATION_BATCH_SIZE env >
+ * DEFAULT_BATCH_SIZE. An env value that is not a finite positive number (e.g.
+ * "abc", "0", "-5") falls back to the default rather than producing a NaN /
+ * non-positive LIMIT that would throw at the DB layer.
+ */
+export function resolveBatchSize(opts: {
+	override?: number;
+	envValue?: string | undefined;
+}): number {
+	if (opts.override !== undefined) return opts.override;
+	if (opts.envValue) {
+		const n = Number(opts.envValue);
+		if (Number.isFinite(n) && n > 0) return n;
+	}
+	return DEFAULT_BATCH_SIZE;
+}
+
+/**
+ * NAP-02: a notification is emailed unless the recipient has explicitly opted
+ * out. An absent preference row (undefined/null) defaults to enabled.
+ */
+export function isEmailEnabled(pref: boolean | undefined | null): boolean {
+	return pref ?? true;
+}
+
+/**
+ * NAP-08: a claimed notification is "stale" when it has been waiting longer
+ * than `thresholdMs` (default 24 h) at dispatch time — surfaced via a warning.
+ */
+export function isStaleNotification(
+	createdAt: Date,
+	now: Date,
+	thresholdMs: number = STALE_WARN_MS,
+): boolean {
+	return createdAt.getTime() < now.getTime() - thresholdMs;
+}
+
 export async function runNotificationEmailDispatch(
 	args: RunNotificationEmailDispatchArgs,
 ): Promise<NotificationDispatchReport> {
 	const { controlPanelDb, getTenantDb } = args;
 
 	// SI-001: configurable batch cap to prevent OOM on large tenants.
-	const batchSize =
-		args.batchSize ??
-		(process.env["NOTIFICATION_BATCH_SIZE"]
-			? Number(process.env["NOTIFICATION_BATCH_SIZE"])
-			: 200);
+	const batchSize = resolveBatchSize({
+		override: args.batchSize,
+		envValue: process.env["NOTIFICATION_BATCH_SIZE"],
+	});
 
 	const report: NotificationDispatchReport = {
 		orgsScanned: 0,
@@ -124,9 +166,9 @@ export async function runNotificationEmailDispatch(
 				if (pending.length === 0) return;
 
 				// NAP-08: warn on stale rows that have been waiting > 24 h.
-				const staleRows = pending.filter(
-					(n) => n.createdAt < staleThreshold,
-				);
+				// (isStaleNotification(n.createdAt, now) is the unit-tested equivalent;
+				// staleThreshold is precomputed = now - STALE_WARN_MS for the batch.)
+				const staleRows = pending.filter((n) => n.createdAt < staleThreshold);
 				if (staleRows.length > 0) {
 					console.warn(
 						`[notification-dispatch] org=${org.id} — ${staleRows.length} stale notification(s) (>24 h old) in dispatch batch`,
@@ -168,14 +210,14 @@ export async function runNotificationEmailDispatch(
 					.select({ id: user.id, email: user.email, name: user.name })
 					.from(user)
 					.where(inArray(user.id, userIds));
-				const emailByUserId = new Map(
-					userRows.map((u) => [u.id, u.email]),
-				);
+				const emailByUserId = new Map(userRows.map((u) => [u.id, u.email]));
 
 				// Dispatch each claimed notification.
 				for (const notification of pending) {
 					// NAP-02: honour per-user email preference (default true when no row).
-					const emailEnabled = prefByUserId.get(notification.userId) ?? true;
+					const emailEnabled = isEmailEnabled(
+						prefByUserId.get(notification.userId),
+					);
 					if (!emailEnabled) {
 						// Row is already claimed (email_sent_at set above). No send.
 						report.suppressed++;

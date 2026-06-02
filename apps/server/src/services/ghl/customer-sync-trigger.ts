@@ -31,8 +31,19 @@ export interface FireCustomerSyncArgs {
 
 export async function fireCustomerSync(
 	args: FireCustomerSyncArgs,
-): Promise<SyncCustomerResult | { status: "skipped"; reason: "no-member" | "no-user" } | { status: "error"; error: string }> {
-	const { honoContext, tenantDb, organizationId, userId, customerProfile, operation } = args;
+): Promise<
+	| SyncCustomerResult
+	| { status: "skipped"; reason: "no-member" | "no-user" }
+	| { status: "error"; error: string }
+> {
+	const {
+		honoContext,
+		tenantDb,
+		organizationId,
+		userId,
+		customerProfile,
+		operation,
+	} = args;
 
 	const controlPanelDb = getControlPanelDb(honoContext);
 
@@ -73,6 +84,9 @@ export async function fireCustomerSync(
 		// syncCustomerToGhl already swallows GHL failures via failure mode B.
 		// This catch only triggers on programmer error — log + skip.
 		console.error("[ghl] fireCustomerSync unexpected throw", error);
-		return { status: "error", error: error instanceof Error ? error.message : String(error) };
+		return {
+			status: "error",
+			error: error instanceof Error ? error.message : String(error),
+		};
 	}
 }

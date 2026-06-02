@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { Skeleton } from "boneyard-js/react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -51,7 +51,11 @@ interface MemberRow {
 	email: string | null;
 }
 
-const ROLE_GROUPS: Array<{ role: MemberRole; label: string; pluralLabel: string }> = [
+const ROLE_GROUPS: Array<{
+	role: MemberRole;
+	label: string;
+	pluralLabel: string;
+}> = [
 	{ role: "admin", label: "Admin", pluralLabel: "Admins" },
 	{ role: "trainer", label: "Trainer", pluralLabel: "Trainers" },
 	{ role: "staff", label: "Staff", pluralLabel: "Staff" },
@@ -60,14 +64,10 @@ const ROLE_GROUPS: Array<{ role: MemberRole; label: string; pluralLabel: string 
 
 // Role badge styles matching V2 design tokens
 const ROLE_BADGE_STYLES: Record<MemberRole, string> = {
-	admin:
-		"bg-[#0a0a0a] text-white border-transparent",
-	trainer:
-		"bg-[#f3f3f3] text-[#0a0a0a] border-[#edede4]",
-	staff:
-		"bg-white text-[#0a0a0a] border-[#0a0a0a]",
-	client:
-		"bg-[#f3f3f3] text-[#0a0a0a] border-[#edede4]",
+	admin: "bg-[#0a0a0a] text-white border-transparent",
+	trainer: "bg-[#f3f3f3] text-[#0a0a0a] border-[#edede4]",
+	staff: "bg-white text-[#0a0a0a] border-[#0a0a0a]",
+	client: "bg-[#f3f3f3] text-[#0a0a0a] border-[#edede4]",
 };
 
 const STATUS_BADGE_STYLES: Record<string, string> = {
@@ -116,7 +116,8 @@ function ImpersonateDialog({
 				targetMemberId: member.id,
 				organizationId,
 			}),
-		errorMessage: (err) => err.message || "Failed to start impersonation session",
+		errorMessage: (err) =>
+			err.message || "Failed to start impersonation session",
 		onSuccess: (result) => {
 			window.location.href = result.redirectTo;
 		},
@@ -130,15 +131,22 @@ function ImpersonateDialog({
 					<DialogTitle>Log in as {displayName}?</DialogTitle>
 					<DialogDescription>
 						You will be impersonating this staff member. This session is audited
-						and expires in 1 hour. You can return to your own account at any time
-						using the banner that appears at the top of the page.
+						and expires in 1 hour. You can return to your own account at any
+						time using the banner that appears at the top of the page.
 					</DialogDescription>
 				</DialogHeader>
 				<DialogFooter>
-					<Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>
+					<Button
+						variant="ghost"
+						onClick={onClose}
+						disabled={mutation.isPending}
+					>
 						Cancel
 					</Button>
-					<Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+					<Button
+						onClick={() => mutation.mutate()}
+						disabled={mutation.isPending}
+					>
 						{mutation.isPending ? "Starting…" : "Confirm"}
 					</Button>
 				</DialogFooter>
@@ -166,7 +174,9 @@ function DeactivateDialog({
 			client.members.deactivate({ memberId: member.id, organizationId }),
 		onSuccess: () => {
 			toast.success(`${displayName} deactivated.`);
-			qc.invalidateQueries({ queryKey: ["members", organizationId] });
+			qc.invalidateQueries(
+				orpc.members.list.queryOptions({ input: { organizationId } }),
+			);
 			onClose();
 		},
 		onError: (err: Error) => {
@@ -186,7 +196,11 @@ function DeactivateDialog({
 					</DialogDescription>
 				</DialogHeader>
 				<DialogFooter>
-					<Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>
+					<Button
+						variant="ghost"
+						onClick={onClose}
+						disabled={mutation.isPending}
+					>
 						Cancel
 					</Button>
 					<Button
@@ -221,7 +235,9 @@ function ReactivateDialog({
 			client.members.reactivate({ memberId: member.id, organizationId }),
 		onSuccess: () => {
 			toast.success(`${displayName} reactivated.`);
-			qc.invalidateQueries({ queryKey: ["members", organizationId] });
+			qc.invalidateQueries(
+				orpc.members.list.queryOptions({ input: { organizationId } }),
+			);
 			onClose();
 		},
 		onError: (err: Error) => {
@@ -236,15 +252,22 @@ function ReactivateDialog({
 				<DialogHeader>
 					<DialogTitle>Reactivate {displayName}?</DialogTitle>
 					<DialogDescription>
-						This will restore their access to the organization. They will be able
-						to log in and use the platform again.
+						This will restore their access to the organization. They will be
+						able to log in and use the platform again.
 					</DialogDescription>
 				</DialogHeader>
 				<DialogFooter>
-					<Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>
+					<Button
+						variant="ghost"
+						onClick={onClose}
+						disabled={mutation.isPending}
+					>
 						Cancel
 					</Button>
-					<Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+					<Button
+						onClick={() => mutation.mutate()}
+						disabled={mutation.isPending}
+					>
 						{mutation.isPending ? "Reactivating…" : "Reactivate"}
 					</Button>
 				</DialogFooter>
@@ -272,7 +295,9 @@ function RemoveDialog({
 			client.members.softDelete({ memberId: member.id, organizationId }),
 		onSuccess: () => {
 			toast.success(`${displayName} removed from organization.`);
-			qc.invalidateQueries({ queryKey: ["members", organizationId] });
+			qc.invalidateQueries(
+				orpc.members.list.queryOptions({ input: { organizationId } }),
+			);
 			onClose();
 		},
 		onError: (err: Error) => {
@@ -292,7 +317,11 @@ function RemoveDialog({
 					</DialogDescription>
 				</DialogHeader>
 				<DialogFooter>
-					<Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>
+					<Button
+						variant="ghost"
+						onClick={onClose}
+						disabled={mutation.isPending}
+					>
 						Cancel
 					</Button>
 					<Button
@@ -352,8 +381,12 @@ function MemberCard({
 				</div>
 
 				{/* Status pill */}
-				<span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${member.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-600"}`}>
-					<span className={`h-1.5 w-1.5 rounded-full ${member.status === "active" ? "bg-emerald-500" : "bg-rose-500"}`} />
+				<span
+					className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${member.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-600"}`}
+				>
+					<span
+						className={`h-1.5 w-1.5 rounded-full ${member.status === "active" ? "bg-emerald-500" : "bg-rose-500"}`}
+					/>
 					{member.status === "active" ? "Active" : "Suspended"}
 				</span>
 
@@ -481,7 +514,9 @@ function RoleGroup({
 				>
 					{label}
 				</Badge>
-				<span className="text-sm font-semibold text-[#0a0a0a]">{pluralLabel}</span>
+				<span className="text-sm font-semibold text-[#0a0a0a]">
+					{pluralLabel}
+				</span>
 				<span className="text-xs text-[#6b7170]">
 					{members.length} {members.length === 1 ? "member" : "members"}
 				</span>
@@ -520,8 +555,9 @@ function UserViewPage() {
 	const [inviteOpen, setInviteOpen] = useState(false);
 
 	const { data: members = [], isLoading } = useQuery({
-		queryKey: ["members", organizationId],
-		queryFn: () => client.members.list({ organizationId: organizationId! }),
+		...orpc.members.list.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 	});
 
@@ -552,80 +588,83 @@ function UserViewPage() {
 
 	return (
 		<Skeleton name="user-view" loading={isLoading} fallback={<PageLoader />}>
-		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
-			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
-				<div className="flex items-center gap-3 text-sm">
-					<span className="text-muted-foreground">Users</span>
-					<span className="text-[#a3a3a3]">/</span>
-					<span className="font-semibold">Members</span>
-				</div>
-				<div className="ml-auto flex items-center gap-2">
-					<div className="flex items-center gap-2 rounded-xl border border-[#e5e5e5] bg-white px-3 py-2.5">
-						<Search className="h-4 w-4 text-[#737373] flex-shrink-0" />
-						<input
-							type="text"
-							value={search}
-							onChange={(e) => setSearch(e.target.value)}
-							placeholder="Search…"
-							className="flex-1 bg-transparent text-sm outline-none placeholder:text-[#737373] text-[#0a0a0a] w-40"
-						/>
+			<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+				<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+					<div className="flex items-center gap-3 text-sm">
+						<span className="text-muted-foreground">Users</span>
+						<span className="text-[#a3a3a3]">/</span>
+						<span className="font-semibold">Members</span>
 					</div>
-					<button
-						type="button"
-						onClick={() => setInviteOpen(true)}
-						className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626]"
-					>
-						<Plus className="h-3.5 w-3.5" />
-						Invite
-					</button>
-				</div>
-			</header>
-			<div className="px-6 py-6">
+					<div className="ml-auto flex items-center gap-2">
+						<div className="flex items-center gap-2 rounded-xl border border-[#e5e5e5] bg-white px-3 py-2.5">
+							<Search className="h-4 w-4 text-[#737373] flex-shrink-0" />
+							<input
+								type="text"
+								value={search}
+								onChange={(e) => setSearch(e.target.value)}
+								placeholder="Search…"
+								className="flex-1 bg-transparent text-sm outline-none placeholder:text-[#737373] text-[#0a0a0a] w-40"
+							/>
+						</div>
+						<button
+							type="button"
+							onClick={() => setInviteOpen(true)}
+							className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626]"
+						>
+							<Plus className="h-3.5 w-3.5" />
+							Invite
+						</button>
+					</div>
+				</header>
+				<div className="px-6 py-6">
+					{/* Role groups card */}
+					<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
+						{grouped.length === 0 ? (
+							<div className="flex flex-col items-center justify-center py-16 text-[#737373]">
+								<Search className="h-8 w-8 mb-3 opacity-30" />
+								<p className="text-sm font-medium text-[#0a0a0a]">
+									{search ? "No employees match your search" : "No members yet"}
+								</p>
+								<p className="text-xs mt-1">
+									{search
+										? "Try clearing the search or using a different term."
+										: "Invite your first team member to get started."}
+								</p>
+							</div>
+						) : (
+							grouped.map(({ roleConfig, members: groupMembers }, idx) => (
+								<RoleGroup
+									// When a search is active, force-remount each group so collapsed
+									// groups become visible on filtered results. Without the search
+									// suffix, defaultOpen={idx === 0} from initial mount sticks even
+									// after the visible groups change (e.g., searching "trainer"
+									// while the Trainers group was collapsed = no results visible).
+									key={`${roleConfig.role}-${search ? "search" : "browse"}`}
+									roleConfig={roleConfig}
+									members={groupMembers}
+									callerIsAdmin={callerIsAdmin}
+									organizationId={organizationId}
+									defaultOpen={!!search || idx === 0}
+								/>
+							))
+						)}
+					</div>
 
-			{/* Role groups card */}
-			<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
-				{grouped.length === 0 ? (
-					<div className="flex flex-col items-center justify-center py-16 text-[#737373]">
-						<Search className="h-8 w-8 mb-3 opacity-30" />
-						<p className="text-sm font-medium text-[#0a0a0a]">
-							{search ? "No employees match your search" : "No members yet"}
-						</p>
-						<p className="text-xs mt-1">
-							{search ? "Try clearing the search or using a different term." : "Invite your first team member to get started."}
-						</p>
-					</div>
-				) : (
-					grouped.map(({ roleConfig, members: groupMembers }, idx) => (
-						<RoleGroup
-							// When a search is active, force-remount each group so collapsed
-							// groups become visible on filtered results. Without the search
-							// suffix, defaultOpen={idx === 0} from initial mount sticks even
-							// after the visible groups change (e.g., searching "trainer"
-							// while the Trainers group was collapsed = no results visible).
-							key={`${roleConfig.role}-${search ? "search" : "browse"}`}
-							roleConfig={roleConfig}
-							members={groupMembers}
-							callerIsAdmin={callerIsAdmin}
+					{/* Invite dialog */}
+					{organizationId && (
+						<CreateInvitationDialog
+							open={inviteOpen}
+							onOpenChange={setInviteOpen}
 							organizationId={organizationId}
-							defaultOpen={!!search || idx === 0}
+							onSuccess={() => {
+								qc.invalidateQueries(
+									orpc.members.list.queryOptions({ input: { organizationId } }),
+								);
+							}}
 						/>
-					))
-				)}
+					)}
+				</div>
 			</div>
-
-			{/* Invite dialog */}
-			{organizationId && (
-				<CreateInvitationDialog
-					open={inviteOpen}
-					onOpenChange={setInviteOpen}
-					organizationId={organizationId}
-					onSuccess={() => {
-						qc.invalidateQueries({ queryKey: ["members", organizationId] });
-					}}
-				/>
-			)}
-		</div>
-		</div>
 		</Skeleton>
 	);
 }

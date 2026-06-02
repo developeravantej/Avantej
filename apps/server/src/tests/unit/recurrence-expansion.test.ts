@@ -8,20 +8,22 @@ import {
 } from "@avantej-core/services";
 
 // Helper to build a minimal RecurrenceRule-shaped object for testing
-function makeRule(overrides: Partial<{
-	id: string;
-	appointmentId: string;
-	frequencyValue: number;
-	timeUnit: string;
-	repeatOn: number[] | null;
-	monthlyType: string | null;
-	monthlyDayOfWeek: number | null;
-	monthlyWeekOfMonth: number | null;
-	endsType: string;
-	endsAfterOccurrences: number | null;
-	createdAt: Date;
-	updatedAt: Date;
-}> = {}) {
+function makeRule(
+	overrides: Partial<{
+		id: string;
+		appointmentId: string;
+		frequencyValue: number;
+		timeUnit: string;
+		repeatOn: number[] | null;
+		monthlyType: string | null;
+		monthlyDayOfWeek: number | null;
+		monthlyWeekOfMonth: number | null;
+		endsType: string;
+		endsAfterOccurrences: number | null;
+		createdAt: Date;
+		updatedAt: Date;
+	}> = {},
+) {
 	return {
 		id: "rule-1",
 		appointmentId: "appt-1",
@@ -46,8 +48,18 @@ const WINDOW_END = new Date("2025-01-31T23:59:59.999Z");
 
 describe("expandRecurrenceRule", () => {
 	it("daily recurrence — returns correct dates in window", () => {
-		const rule = makeRule({ frequencyValue: 1, timeUnit: "day", endsType: "never" });
-		const results = expandRecurrenceRule(rule, BASE_START, null, WINDOW_START, WINDOW_END);
+		const rule = makeRule({
+			frequencyValue: 1,
+			timeUnit: "day",
+			endsType: "never",
+		});
+		const results = expandRecurrenceRule(
+			rule,
+			BASE_START,
+			null,
+			WINDOW_START,
+			WINDOW_END,
+		);
 
 		// Jan has 31 days; parent is Jan 1, so we get 31 occurrences
 		expect(results).toHaveLength(31);
@@ -57,8 +69,18 @@ describe("expandRecurrenceRule", () => {
 	});
 
 	it("every-2-days recurrence — skips every other day", () => {
-		const rule = makeRule({ frequencyValue: 2, timeUnit: "day", endsType: "never" });
-		const results = expandRecurrenceRule(rule, BASE_START, null, WINDOW_START, WINDOW_END);
+		const rule = makeRule({
+			frequencyValue: 2,
+			timeUnit: "day",
+			endsType: "never",
+		});
+		const results = expandRecurrenceRule(
+			rule,
+			BASE_START,
+			null,
+			WINDOW_START,
+			WINDOW_END,
+		);
 
 		// Jan 1, 3, 5, ... 31 → 16 occurrences
 		expect(results).toHaveLength(16);
@@ -68,8 +90,19 @@ describe("expandRecurrenceRule", () => {
 
 	it("weekly recurrence without repeatOn — repeats same weekday every week", () => {
 		// Jan 1 is Wednesday (UTC)
-		const rule = makeRule({ frequencyValue: 1, timeUnit: "week", repeatOn: null, endsType: "never" });
-		const results = expandRecurrenceRule(rule, BASE_START, null, WINDOW_START, WINDOW_END);
+		const rule = makeRule({
+			frequencyValue: 1,
+			timeUnit: "week",
+			repeatOn: null,
+			endsType: "never",
+		});
+		const results = expandRecurrenceRule(
+			rule,
+			BASE_START,
+			null,
+			WINDOW_START,
+			WINDOW_END,
+		);
 
 		// Wednesdays in Jan 2025: Jan 1, 8, 15, 22, 29 → 5 occurrences
 		expect(results).toHaveLength(5);
@@ -80,9 +113,20 @@ describe("expandRecurrenceRule", () => {
 
 	it("weekly recurrence with repeatOn — emits only matching weekdays", () => {
 		// repeatOn: [1, 3] = Monday and Wednesday
-		const rule = makeRule({ frequencyValue: 1, timeUnit: "week", repeatOn: [1, 3], endsType: "never" });
+		const rule = makeRule({
+			frequencyValue: 1,
+			timeUnit: "week",
+			repeatOn: [1, 3],
+			endsType: "never",
+		});
 		// Parent starts Jan 1 (Wednesday). Window starts Jan 1.
-		const results = expandRecurrenceRule(rule, BASE_START, null, WINDOW_START, WINDOW_END);
+		const results = expandRecurrenceRule(
+			rule,
+			BASE_START,
+			null,
+			WINDOW_START,
+			WINDOW_END,
+		);
 
 		// Week of Dec 29: Mon=Dec 30 (before parent, skip), Wed=Jan 1 ✓
 		// Week of Jan 5: Mon=Jan 6, Wed=Jan 8
@@ -104,11 +148,22 @@ describe("expandRecurrenceRule", () => {
 
 	it("monthly day_of_month — same day each month", () => {
 		const parentStart = new Date("2025-01-15T10:00:00.000Z"); // 15th
-		const rule = makeRule({ frequencyValue: 1, timeUnit: "month", monthlyType: "day_of_month", endsType: "never" });
+		const rule = makeRule({
+			frequencyValue: 1,
+			timeUnit: "month",
+			monthlyType: "day_of_month",
+			endsType: "never",
+		});
 		const windowStart = new Date("2025-01-01T00:00:00.000Z");
 		const windowEnd = new Date("2025-06-30T23:59:59.999Z");
 
-		const results = expandRecurrenceRule(rule, parentStart, null, windowStart, windowEnd);
+		const results = expandRecurrenceRule(
+			rule,
+			parentStart,
+			null,
+			windowStart,
+			windowEnd,
+		);
 
 		// Jan 15, Feb 15, Mar 15, Apr 15, May 15, Jun 15 → 6
 		expect(results).toHaveLength(6);
@@ -131,7 +186,13 @@ describe("expandRecurrenceRule", () => {
 		const windowStart = new Date("2025-01-01T00:00:00.000Z");
 		const windowEnd = new Date("2025-04-30T23:59:59.999Z");
 
-		const results = expandRecurrenceRule(rule, parentStart, null, windowStart, windowEnd);
+		const results = expandRecurrenceRule(
+			rule,
+			parentStart,
+			null,
+			windowStart,
+			windowEnd,
+		);
 
 		// 2nd Wed of Jan=8, Feb=12, Mar=12, Apr=9
 		expect(results.length).toBeGreaterThanOrEqual(4);
@@ -142,16 +203,37 @@ describe("expandRecurrenceRule", () => {
 	});
 
 	it("endsAfterOccurrences — stops at count", () => {
-		const rule = makeRule({ frequencyValue: 1, timeUnit: "day", endsType: "after_occurrences", endsAfterOccurrences: 5 });
-		const results = expandRecurrenceRule(rule, BASE_START, null, WINDOW_START, WINDOW_END);
+		const rule = makeRule({
+			frequencyValue: 1,
+			timeUnit: "day",
+			endsType: "after_occurrences",
+			endsAfterOccurrences: 5,
+		});
+		const results = expandRecurrenceRule(
+			rule,
+			BASE_START,
+			null,
+			WINDOW_START,
+			WINDOW_END,
+		);
 
 		expect(results).toHaveLength(5);
 	});
 
 	it("endsOn date — stops before end date", () => {
 		const endsOn = new Date("2025-01-10T23:59:59.999Z");
-		const rule = makeRule({ frequencyValue: 1, timeUnit: "day", endsType: "on_date" });
-		const results = expandRecurrenceRule(rule, BASE_START, endsOn, WINDOW_START, WINDOW_END);
+		const rule = makeRule({
+			frequencyValue: 1,
+			timeUnit: "day",
+			endsType: "on_date",
+		});
+		const results = expandRecurrenceRule(
+			rule,
+			BASE_START,
+			endsOn,
+			WINDOW_START,
+			WINDOW_END,
+		);
 
 		// Jan 1–10 = 10 occurrences
 		expect(results).toHaveLength(10);
@@ -160,9 +242,19 @@ describe("expandRecurrenceRule", () => {
 
 	it("cap at MAX_VIRTUAL_OCCURRENCES", () => {
 		// Daily for a very long window — should cap
-		const rule = makeRule({ frequencyValue: 1, timeUnit: "day", endsType: "never" });
+		const rule = makeRule({
+			frequencyValue: 1,
+			timeUnit: "day",
+			endsType: "never",
+		});
 		const bigWindowEnd = new Date("2030-12-31T23:59:59.999Z");
-		const results = expandRecurrenceRule(rule, BASE_START, null, WINDOW_START, bigWindowEnd);
+		const results = expandRecurrenceRule(
+			rule,
+			BASE_START,
+			null,
+			WINDOW_START,
+			bigWindowEnd,
+		);
 
 		expect(results).toHaveLength(MAX_VIRTUAL_OCCURRENCES);
 	});
@@ -170,11 +262,21 @@ describe("expandRecurrenceRule", () => {
 	it("window start is respected — dates before windowStart are excluded", () => {
 		// Parent starts before window; occurrences before windowStart must not appear
 		const parentStart = new Date("2024-12-01T09:00:00.000Z");
-		const rule = makeRule({ frequencyValue: 1, timeUnit: "week", endsType: "never" });
+		const rule = makeRule({
+			frequencyValue: 1,
+			timeUnit: "week",
+			endsType: "never",
+		});
 		const windowStart = new Date("2025-01-01T00:00:00.000Z");
 		const windowEnd = new Date("2025-01-31T23:59:59.999Z");
 
-		const results = expandRecurrenceRule(rule, parentStart, null, windowStart, windowEnd);
+		const results = expandRecurrenceRule(
+			rule,
+			parentStart,
+			null,
+			windowStart,
+			windowEnd,
+		);
 
 		for (const d of results) {
 			expect(d.getTime()).toBeGreaterThanOrEqual(windowStart.getTime());

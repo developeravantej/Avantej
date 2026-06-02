@@ -10,6 +10,8 @@ import { leadSources } from "@avantej-core/db/schema/tenant/lead-sources";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import {
 	getCustomerProfile,
+	restoreCustomerProfile,
+	softDeleteCustomerProfile,
 	upsertCustomerProfile,
 	writeAudit,
 } from "@avantej-core/services";
@@ -225,4 +227,102 @@ export const customerProfilesRouter = {
 			return rows;
 		}),
 	// === /3.2 ===
+
+	softDelete: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				targetUserId: z.string(),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"customer_management",
+				"delete",
+			);
+
+			const target = await context.tenantDb.query.members.findFirst({
+				where: and(
+					eq(members.userId, input.targetUserId),
+					eq(members.role, "client"),
+				),
+			});
+			if (!target) {
+				throw new ORPCError("NOT_FOUND", { message: "Customer not found" });
+			}
+
+			const accessibleNodeIds = context.accessibleNodeIds ?? [];
+			if (!accessibleNodeIds.includes(target.hierarchyScopeId)) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Customer is outside your accessible scope",
+				});
+			}
+
+			await softDeleteCustomerProfile(context.tenantDb, input.targetUserId);
+
+			await writeAudit(context.tenantDb, {
+				actorUserId: context.member.userId,
+				actorMemberId: context.member.id,
+				actorRole: context.member.role ?? undefined,
+				action: "customer.profile_deleted",
+				entityType: "member",
+				entityId: target.id,
+				branchId: target.hierarchyScopeId ?? undefined,
+				summary: "Soft-deleted customer profile",
+			}).catch(() => {});
+
+			return { success: true };
+		}),
+
+	restore: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				targetUserId: z.string(),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"customer_management",
+				"update",
+			);
+
+			const target = await context.tenantDb.query.members.findFirst({
+				where: and(
+					eq(members.userId, input.targetUserId),
+					eq(members.role, "client"),
+				),
+			});
+			if (!target) {
+				throw new ORPCError("NOT_FOUND", { message: "Customer not found" });
+			}
+
+			const accessibleNodeIds = context.accessibleNodeIds ?? [];
+			if (!accessibleNodeIds.includes(target.hierarchyScopeId)) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Customer is outside your accessible scope",
+				});
+			}
+
+			await restoreCustomerProfile(context.tenantDb, input.targetUserId);
+
+			await writeAudit(context.tenantDb, {
+				actorUserId: context.member.userId,
+				actorMemberId: context.member.id,
+				actorRole: context.member.role ?? undefined,
+				action: "customer.profile_restored",
+				entityType: "member",
+				entityId: target.id,
+				branchId: target.hierarchyScopeId ?? undefined,
+				summary: "Restored soft-deleted customer profile",
+			}).catch(() => {});
+
+			return { success: true };
+		}),
 };

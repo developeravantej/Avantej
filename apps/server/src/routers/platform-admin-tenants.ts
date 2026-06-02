@@ -13,12 +13,22 @@
  */
 
 import { z } from "zod";
-import { and, asc, count, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	ilike,
+	inArray,
+	or,
+	sql,
+} from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
+import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { users } from "@avantej-core/db/schema/control-panel/users";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
@@ -28,46 +38,6 @@ import { tenantUsageSnapshots } from "@avantej-core/db/schema/control-panel/tena
 import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { getStripeClient } from "@/lib/stripe";
 
-function requirePlatformAdmin(
-	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">,
-) {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
-			}
-			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!controlPanelDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
-			const adminRecord = await controlPanelDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", { message: "Admin access required" });
-			}
-			if (
-				allowRoles &&
-				!allowRoles.includes(
-					adminRecord.role as "super_admin" | "support" | "billing",
-				)
-			) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Your platform admin role does not permit this action",
-				});
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
 const superAdminProcedure = protectedProcedure.use(
 	requirePlatformAdmin(["super_admin"]),
 );
@@ -76,15 +46,21 @@ function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
 	const id = session?.user?.id;
 	if (!id) {
-		throw new ORPCError("UNAUTHORIZED", { message: "No admin user in session" });
+		throw new ORPCError("UNAUTHORIZED", {
+			message: "No admin user in session",
+		});
 	}
 	return id;
 }
 
-function cpDbFromContext(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
-		"controlPanelDb",
-	) as NeonDatabase<typeof controlPanelSchema> | undefined;
+function cpDbFromContext(
+	context: unknown,
+): NeonDatabase<typeof controlPanelSchema> {
+	const db = (
+		context as { honoContext?: { get: (k: string) => unknown } }
+	).honoContext?.get("controlPanelDb") as
+		| NeonDatabase<typeof controlPanelSchema>
+		| undefined;
 	if (!db)
 		throw new ORPCError("INTERNAL_SERVER_ERROR", {
 			message: "Control panel DB unavailable",
@@ -122,7 +98,9 @@ export const platformAdminTenantsRouter = {
 				filters.push(eq(organizations.paymentStatus, input.paymentStatus));
 			}
 			if (input.countryCode) {
-				filters.push(eq(organizations.countryCode, input.countryCode.toUpperCase()));
+				filters.push(
+					eq(organizations.countryCode, input.countryCode.toUpperCase()),
+				);
 			}
 			const where = filters.length ? and(...filters) : undefined;
 
@@ -148,7 +126,10 @@ export const platformAdminTenantsRouter = {
 				})
 				.from(organizations)
 				.leftJoin(users, eq(users.id, organizations.ownerUserId))
-				.leftJoin(subscriptions, eq(subscriptions.id, organizations.subscriptionId))
+				.leftJoin(
+					subscriptions,
+					eq(subscriptions.id, organizations.subscriptionId),
+				)
 				.where(where)
 				.orderBy(desc(organizations.createdAt))
 				.limit(input.limit)
@@ -186,7 +167,10 @@ export const platformAdminTenantsRouter = {
 				limit: input.limit,
 				tenants: rows.map((r) => ({
 					...r,
-					connectAccounts: rollupByOrg.get(r.id) ?? { total: 0, chargesEnabled: 0 },
+					connectAccounts: rollupByOrg.get(r.id) ?? {
+						total: 0,
+						chargesEnabled: 0,
+					},
 				})),
 			};
 		}),
@@ -387,7 +371,9 @@ export const platformAdminTenantsRouter = {
 					.where(eq(subscriptions.id, org.subscriptionId));
 				if (sub?.stripeSubscriptionId) {
 					try {
-						await getStripeClient().subscriptions.cancel(sub.stripeSubscriptionId);
+						await getStripeClient().subscriptions.cancel(
+							sub.stripeSubscriptionId,
+						);
 						stripeSubCanceled = sub.stripeSubscriptionId;
 					} catch (e) {
 						const msg = e instanceof Error ? e.message : String(e);

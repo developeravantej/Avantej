@@ -117,7 +117,6 @@ async function createAppointment(serviceId: string, status = "scheduled") {
 	return appt;
 }
 
-
 // ---------------------------------------------------------------------------
 // Setup / teardown
 // ---------------------------------------------------------------------------
@@ -186,9 +185,7 @@ afterAll(async () => {
 			.update(members)
 			.set({ trainerTierId: null })
 			.where(inArray(members.id, createdMemberIds));
-		await tenantDb
-			.delete(members)
-			.where(inArray(members.id, createdMemberIds));
+		await tenantDb.delete(members).where(inArray(members.id, createdMemberIds));
 	}
 
 	// 8. Commission tier rates scaffolded by createTrainerTier for other configs
@@ -219,61 +216,57 @@ describe("No-Show Commission Policy", () => {
 	 * earnReason='no_show' → split has earnReason='no_show', status='pending',
 	 * calculatedAmount matches config.
 	 */
-	test(
-		"TC-NS-001: no-show appointment → commission split with earnReason='no_show', correct amount, pending",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("TC-NS-001: no-show appointment → commission split with earnReason='no_show', correct amount, pending", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const { categoryId, serviceId } = await createCategoryAndService(
-				`TC-NS-001-${TS}`,
-			);
+		const { categoryId, serviceId } = await createCategoryAndService(
+			`TC-NS-001-${TS}`,
+		);
 
-			await upsertCategoryCommissionConfig(
-				tenantDb,
-				{
-					categoryId,
-					paymentType: "fixed",
-					isConditional: false,
-					maxCoaches: 1,
-					slots: [
-						{
-							slotIndex: 0,
-							label: "Head Trainer",
-							weightageBasisPoints: 10000,
-						},
-					],
-					rates: [{ trainerTierId: tierId, amount: 6000 }],
-				},
-				ACTOR,
-			);
+		await upsertCategoryCommissionConfig(
+			tenantDb,
+			{
+				categoryId,
+				paymentType: "fixed",
+				isConditional: false,
+				maxCoaches: 1,
+				slots: [
+					{
+						slotIndex: 0,
+						label: "Head Trainer",
+						weightageBasisPoints: 10000,
+					},
+				],
+				rates: [{ trainerTierId: tierId, amount: 6000 }],
+			},
+			ACTOR,
+		);
 
-			// Create appointment already in 'no-show' status to simulate the transition
-			const appt = await createAppointment(serviceId, "no-show");
+		// Create appointment already in 'no-show' status to simulate the transition
+		const appt = await createAppointment(serviceId, "no-show");
 
-			const splits = await calculateCommissionForAppointment(tenantDb, {
-				appointmentId: appt.id,
-				serviceId,
-				sessionTotalCents: appt.pricePerClient,
-				// no-show: 0 client attendees (client did not show up)
-				attendeeCount: 0,
-				staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
-				actor: ACTOR,
-				earnReason: "no_show",
-			});
+		const splits = await calculateCommissionForAppointment(tenantDb, {
+			appointmentId: appt.id,
+			serviceId,
+			sessionTotalCents: appt.pricePerClient,
+			// no-show: 0 client attendees (client did not show up)
+			attendeeCount: 0,
+			staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
+			actor: ACTOR,
+			earnReason: "no_show",
+		});
 
-			expect(splits).toHaveLength(1);
-			const split = splits[0]!;
-			// The trainer still earns commission — policy: trainer attended
-			expect(split.earnReason).toBe("no_show");
-			expect(split.status).toBe("pending");
-			expect(split.staffId).toBe(trainerUserId);
-			expect(split.trainerTierId).toBe(tierId);
-			// Fixed rate of 6000 cents configured above
-			expect(split.calculatedAmount).toBe(6000);
-			expect(split.earnedAt).toBeInstanceOf(Date);
-			// appointmentId must be linked so void guards work correctly
-			expect(split.appointmentId).toBe(appt.id);
-		},
-		30000,
-	);
+		expect(splits).toHaveLength(1);
+		const split = splits[0]!;
+		// The trainer still earns commission — policy: trainer attended
+		expect(split.earnReason).toBe("no_show");
+		expect(split.status).toBe("pending");
+		expect(split.staffId).toBe(trainerUserId);
+		expect(split.trainerTierId).toBe(tierId);
+		// Fixed rate of 6000 cents configured above
+		expect(split.calculatedAmount).toBe(6000);
+		expect(split.earnedAt).toBeInstanceOf(Date);
+		// appointmentId must be linked so void guards work correctly
+		expect(split.appointmentId).toBe(appt.id);
+	}, 30000);
 });

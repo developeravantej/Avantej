@@ -37,7 +37,9 @@ const COUNTRY_NAME_TO_ISO: Record<string, string> = {
 	china: "CN",
 };
 
-export function nameToCountryCode(name: string | null | undefined): string | null {
+export function nameToCountryCode(
+	name: string | null | undefined,
+): string | null {
 	if (!name) return null;
 	const k = name.trim().toLowerCase();
 	// Accept either full name or already-ISO code.

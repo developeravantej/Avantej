@@ -39,8 +39,7 @@ function fakeContext() {
 	return {
 		session: { user: { id: TEST_USER_ID, email: "admin@test.local" } },
 		honoContext: {
-			get: (k: string) =>
-				k === "controlPanelDb" ? controlPanelDb : undefined,
+			get: (k: string) => (k === "controlPanelDb" ? controlPanelDb : undefined),
 		},
 	};
 }
@@ -337,9 +336,9 @@ describe("platformAdminWebhooks.listEvents", () => {
 
 		// Order DESC.
 		for (let i = 1; i < result.rows.length; i++) {
-			expect(
-				result.rows[i]!.receivedAt <= result.rows[i - 1]!.receivedAt,
-			).toBe(true);
+			expect(result.rows[i]!.receivedAt <= result.rows[i - 1]!.receivedAt).toBe(
+				true,
+			);
 		}
 	});
 

@@ -64,7 +64,9 @@ export interface BackfillReport {
  * (hourly cron) or manually from the platform-admin admin UI
  * "Run backfill now" button (Phase C.4).
  */
-export async function runWebhookBackfill(args: RunWebhookBackfillArgs): Promise<BackfillReport> {
+export async function runWebhookBackfill(
+	args: RunWebhookBackfillArgs,
+): Promise<BackfillReport> {
 	const { controlPanelDb, stripe } = args;
 	const report: BackfillReport = {
 		acctsScanned: 0,
@@ -74,7 +76,9 @@ export async function runWebhookBackfill(args: RunWebhookBackfillArgs): Promise<
 		errors: 0,
 	};
 
-	const cutoff = Math.floor((Date.now() - LOOKBACK_HOURS * 60 * 60 * 1000) / 1000);
+	const cutoff = Math.floor(
+		(Date.now() - LOOKBACK_HOURS * 60 * 60 * 1000) / 1000,
+	);
 
 	// 1. Connected accounts — events scoped to each acct.
 	const acctRows = await controlPanelDb
@@ -110,7 +114,10 @@ export async function runWebhookBackfill(args: RunWebhookBackfillArgs): Promise<
 		await scanAndReplayForPlatform(stripe, controlPanelDb, cutoff, report);
 	} catch (e) {
 		report.errors++;
-		console.error(`[backfill] platform scan threw:`, e instanceof Error ? e.message : e);
+		console.error(
+			`[backfill] platform scan threw:`,
+			e instanceof Error ? e.message : e,
+		);
 	}
 
 	console.log(`[backfill] complete: ${JSON.stringify(report)}`);
@@ -209,7 +216,10 @@ async function replayLedger(
 	stripeAccount: string,
 	controlPanelDb: CpDb,
 ) {
-	const obj = evt.data.object as Stripe.PaymentIntent | Stripe.Charge | Stripe.ApplicationFee;
+	const obj = evt.data.object as
+		| Stripe.PaymentIntent
+		| Stripe.Charge
+		| Stripe.ApplicationFee;
 	const isRefund = evt.type === "charge.refunded";
 	const isAppFee = evt.type === "application_fee.created";
 
@@ -228,7 +238,9 @@ async function replayLedger(
 	} else {
 		kind = "pi_succeeded";
 		amount =
-			(obj as Stripe.PaymentIntent).amount_received ?? (obj as Stripe.PaymentIntent).amount ?? 0;
+			(obj as Stripe.PaymentIntent).amount_received ??
+			(obj as Stripe.PaymentIntent).amount ??
+			0;
 		appFee = 0;
 	}
 

@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { client, queryClient } from "@/utils/orpc";
+import { client, orpc, queryClient } from "@/utils/orpc";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
@@ -108,9 +108,7 @@ function OpeningHoursTable({ hours }: { hours: unknown }) {
 
 	if (!hasAnyHours) {
 		return (
-			<p className="text-xs text-[#737373] italic">
-				Opening hours not set
-			</p>
+			<p className="text-xs text-[#737373] italic">Opening hours not set</p>
 		);
 	}
 
@@ -184,7 +182,9 @@ function TreeRow({
 				}}
 				className={cn(
 					"flex items-center gap-3 px-3 py-2.5 rounded-xl mb-2 cursor-pointer transition-colors",
-					isSelected ? "bg-[#d6cdb1]/20 border border-[#d6cdb1]" : "bg-[#f3f3f3] hover:bg-[#e5e5e5]",
+					isSelected
+						? "bg-[#d6cdb1]/20 border border-[#d6cdb1]"
+						: "bg-[#f3f3f3] hover:bg-[#e5e5e5]",
 				)}
 			>
 				<div className="w-2 h-2 rounded-sm bg-[#737373]/60 shrink-0" />
@@ -248,7 +248,9 @@ function TreeRow({
 						)}
 					/>
 					<div className="flex-1 min-w-0">
-						<p className="text-xs font-semibold truncate text-[#0a0a0a]">{node.name}</p>
+						<p className="text-xs font-semibold truncate text-[#0a0a0a]">
+							{node.name}
+						</p>
 						{(revenue || members || node.stale) && (
 							<p className="text-xs font-mono tabular-nums text-[#737373] truncate">
 								{node.stale ? (
@@ -333,7 +335,9 @@ function KpiTile({
 			</div>
 			<div
 				className="text-2xl font-bold tabular-nums font-mono text-[#0a0a0a]"
-				title={stale ? "Cache warming — data may be up to 5 min old" : undefined}
+				title={
+					stale ? "Cache warming — data may be up to 5 min old" : undefined
+				}
 			>
 				{stale && value === "—" ? (
 					<span className="text-[#737373] text-xl">—</span>
@@ -341,9 +345,7 @@ function KpiTile({
 					value
 				)}
 			</div>
-			{sub && (
-				<div className="text-xs mt-1 text-[#737373]">{sub}</div>
-			)}
+			{sub && <div className="text-xs mt-1 text-[#737373]">{sub}</div>}
 		</div>
 	);
 }
@@ -422,7 +424,9 @@ function NodeDetailPanel({
 				<div className="rounded-2xl border border-[#e5e5e5] bg-white p-4">
 					<div className="flex items-center gap-2 mb-3">
 						<Clock className="h-3.5 w-3.5 text-[#737373]" />
-						<p className="text-sm font-semibold text-[#0a0a0a]">Opening Hours</p>
+						<p className="text-sm font-semibold text-[#0a0a0a]">
+							Opening Hours
+						</p>
 					</div>
 					<OpeningHoursTable hours={node.openingHours} />
 				</div>
@@ -471,7 +475,9 @@ function NodeDetailPanel({
 
 // ─── Tree builder ──────────────────────────────────────────────────────────────
 
-function buildTree(nodes: NodeWithStats[]): Map<string | null, NodeWithStats[]> {
+function buildTree(
+	nodes: NodeWithStats[],
+): Map<string | null, NodeWithStats[]> {
 	const map = new Map<string | null, NodeWithStats[]>();
 	for (const node of nodes) {
 		const key = node.parentId ?? null;
@@ -520,9 +526,9 @@ function RouteComponent() {
 		isLoading: isLoadingNodes,
 		error: nodesError,
 	} = useQuery({
-		queryKey: ["nodesWithStats", organizationId],
-		queryFn: () =>
-			client.hierarchy.listNodesWithStats({ organizationId: organizationId! }),
+		...orpc.hierarchy.listNodesWithStats.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId && isAuthenticated,
 		staleTime: 30_000,
 		refetchOnWindowFocus: true,
@@ -539,10 +545,7 @@ function RouteComponent() {
 	const treeMap = useMemo(() => buildTree(nodes), [nodes]);
 
 	// ── Node lookup ──────────────────────────────────────────────────────────
-	const nodeById = useMemo(
-		() => new Map(nodes.map((n) => [n.id, n])),
-		[nodes],
-	);
+	const nodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
 
 	// ── Selected node ─────────────────────────────────────────────────────────
 	const selectedNode = selectedNodeId
@@ -579,12 +582,9 @@ function RouteComponent() {
 
 	// ── Cascading dropdown data for edit dialog ───────────────────────────────
 	const { data: hierarchyNodesData } = useQuery({
-		queryKey: ["hierarchy-nodes", organizationId],
-		queryFn: async () => {
-			if (!organizationId) return { nodes: [] as HierarchyNode[] };
-			const result = await client.hierarchy.listNodes({ organizationId });
-			return result as { nodes: HierarchyNode[] };
-		},
+		...orpc.hierarchy.listNodes.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId && isAuthenticated,
 		staleTime: 30_000,
 	});
@@ -603,9 +603,7 @@ function RouteComponent() {
 		() =>
 			allNodes.filter(
 				(n) =>
-					n.type === "region" &&
-					n.depth === 2 &&
-					n.parentId === editCountryId,
+					n.type === "region" && n.depth === 2 && n.parentId === editCountryId,
 			),
 		[allNodes, editCountryId],
 	);
@@ -654,10 +652,7 @@ function RouteComponent() {
 		if (nodesError) {
 			const msg =
 				nodesError instanceof Error ? nodesError.message : "Unknown error";
-			if (
-				msg.includes("UNAUTHORIZED") ||
-				msg.includes("Not authenticated")
-			) {
+			if (msg.includes("UNAUTHORIZED") || msg.includes("Not authenticated")) {
 				toast.error("Please log in");
 				navigate({ to: "/login", search: {} });
 			} else {
@@ -787,9 +782,11 @@ function RouteComponent() {
 			setIsEditDialogOpen(false);
 			setEditingNode(null);
 			toast.success("Branch updated successfully");
-			queryClient.invalidateQueries({
-				queryKey: ["nodesWithStats", organizationId],
-			});
+			queryClient.invalidateQueries(
+				orpc.hierarchy.listNodesWithStats.queryOptions({
+					input: { organizationId: organizationId! },
+				}),
+			);
 		} catch {
 			// errors handled by mutation onError
 		}
@@ -872,7 +869,7 @@ function RouteComponent() {
 		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
 			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
 				<div className="flex items-center gap-3 text-sm">
-					<span className="text-muted-foreground">Branch</span>
+					<span className="text-[#737373]">Branch</span>
 					<span className="text-[#a3a3a3]">/</span>
 					<span className="font-semibold">Overview</span>
 				</div>
@@ -905,7 +902,9 @@ function RouteComponent() {
 						{nodes.length === 0 ? (
 							<div className="flex flex-col items-center justify-center py-16 text-[#737373]">
 								<Store className="h-8 w-8 mb-3 opacity-30" />
-								<p className="text-sm font-medium text-[#0a0a0a]">No branches found</p>
+								<p className="text-sm font-medium text-[#0a0a0a]">
+									No branches found
+								</p>
 								<p className="text-xs mt-1">
 									{organizationId
 										? "Create your first branch to get started."
@@ -948,143 +947,157 @@ function RouteComponent() {
 				open={isEditDialogOpen}
 				onOpenChange={(open) => !open && setIsEditDialogOpen(false)}
 			>
-				<DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle>Edit {editingNode?.name}</DialogTitle>
-						<DialogDescription>Update the details for this hierarchy node.</DialogDescription>
+				<DialogContent
+					className="sm:max-w-lg p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							BRANCH MANAGEMENT
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Edit {editingNode?.name}
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
+							Update the details for this hierarchy node.
+						</DialogDescription>
 					</DialogHeader>
-					<div className="space-y-4">
-						<div className="space-y-2">
-							<Label htmlFor="edit-name">Name *</Label>
-							<Input
-								id="edit-name"
-								value={editName}
-								onChange={(e) => setEditName(e.target.value)}
-								placeholder="Branch name"
-								autoFocus
-							/>
-						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="edit-country">Country</Label>
-							<Select
-								value={editCountryId}
-								onValueChange={(v) => {
-									setEditCountryId(v);
-									setEditRegionId("");
-									setEditAreaId("");
-								}}
-							>
-								<SelectTrigger id="edit-country">
-									<SelectValue placeholder="Select country" />
-								</SelectTrigger>
-								<SelectContent>
-									{countries.map((c) => (
-										<SelectItem key={c.id} value={c.id}>
-											{c.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="edit-region">Region</Label>
-							<Select
-								value={editRegionId}
-								onValueChange={(v) => {
-									setEditRegionId(v);
-									setEditAreaId("");
-								}}
-								disabled={!editCountryId}
-							>
-								<SelectTrigger id="edit-region">
-									<SelectValue
-										placeholder={
-											editCountryId ? "Select region" : "Select country first"
-										}
-									/>
-								</SelectTrigger>
-								<SelectContent>
-									{regions.map((r) => (
-										<SelectItem key={r.id} value={r.id}>
-											{r.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="edit-area">Area</Label>
-							<Select
-								value={editAreaId}
-								onValueChange={setEditAreaId}
-								disabled={!editRegionId}
-							>
-								<SelectTrigger id="edit-area">
-									<SelectValue
-										placeholder={
-											editRegionId ? "Select area" : "Select region first"
-										}
-									/>
-								</SelectTrigger>
-								<SelectContent>
-									{areas.map((a) => (
-										<SelectItem key={a.id} value={a.id}>
-											{a.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="edit-address">Address</Label>
-							<Input
-								id="edit-address"
-								value={editAddress}
-								onChange={(e) => setEditAddress(e.target.value)}
-								placeholder="Branch address"
-							/>
-						</div>
-
-						{organizationId && (
+					<div className="px-6 pt-4 pb-2 overflow-y-auto max-h-[60vh]">
+						<div className="space-y-4">
 							<div className="space-y-2">
-								<Label>Person In Charge</Label>
-								<MemberSelector
-									organizationId={organizationId}
-									value={editPicUserId}
-									onChange={setEditPicUserId}
-									placeholder="Select Person In Charge"
-									allowClear
-									disabled={
-										updateMutation.isPending || moveMutation.isPending
-									}
+								<Label htmlFor="edit-name">Name *</Label>
+								<Input
+									id="edit-name"
+									value={editName}
+									onChange={(e) => setEditName(e.target.value)}
+									placeholder="Branch name"
+									autoFocus
 								/>
 							</div>
-						)}
 
-						{editingNode?.id && organizationId && (
-							<div className="pt-4 border-t">
-								<MemberReassignment
-									branchId={editingNode.id}
-									organizationId={organizationId}
-									allBranches={allNodes.filter((n) => n.type === "branch")}
-									picUserId={editPicUserId || null}
-									onReassigned={() => {
-										queryClient.invalidateQueries({
-											queryKey: ["nodesWithStats", organizationId],
-										});
-										queryClient.invalidateQueries({
-											queryKey: ["user-context"],
-										});
+							<div className="space-y-2">
+								<Label htmlFor="edit-country">Country</Label>
+								<Select
+									value={editCountryId}
+									onValueChange={(v) => {
+										setEditCountryId(v);
+										setEditRegionId("");
+										setEditAreaId("");
 									}}
+								>
+									<SelectTrigger id="edit-country">
+										<SelectValue placeholder="Select country" />
+									</SelectTrigger>
+									<SelectContent>
+										{countries.map((c) => (
+											<SelectItem key={c.id} value={c.id}>
+												{c.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+
+							<div className="space-y-2">
+								<Label htmlFor="edit-region">Region</Label>
+								<Select
+									value={editRegionId}
+									onValueChange={(v) => {
+										setEditRegionId(v);
+										setEditAreaId("");
+									}}
+									disabled={!editCountryId}
+								>
+									<SelectTrigger id="edit-region">
+										<SelectValue
+											placeholder={
+												editCountryId ? "Select region" : "Select country first"
+											}
+										/>
+									</SelectTrigger>
+									<SelectContent>
+										{regions.map((r) => (
+											<SelectItem key={r.id} value={r.id}>
+												{r.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+
+							<div className="space-y-2">
+								<Label htmlFor="edit-area">Area</Label>
+								<Select
+									value={editAreaId}
+									onValueChange={setEditAreaId}
+									disabled={!editRegionId}
+								>
+									<SelectTrigger id="edit-area">
+										<SelectValue
+											placeholder={
+												editRegionId ? "Select area" : "Select region first"
+											}
+										/>
+									</SelectTrigger>
+									<SelectContent>
+										{areas.map((a) => (
+											<SelectItem key={a.id} value={a.id}>
+												{a.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+
+							<div className="space-y-2">
+								<Label htmlFor="edit-address">Address</Label>
+								<Input
+									id="edit-address"
+									value={editAddress}
+									onChange={(e) => setEditAddress(e.target.value)}
+									placeholder="Branch address"
 								/>
 							</div>
-						)}
+
+							{organizationId && (
+								<div className="space-y-2">
+									<Label>Person In Charge</Label>
+									<MemberSelector
+										organizationId={organizationId}
+										value={editPicUserId}
+										onChange={setEditPicUserId}
+										placeholder="Select Person In Charge"
+										allowClear
+										disabled={
+											updateMutation.isPending || moveMutation.isPending
+										}
+									/>
+								</div>
+							)}
+
+							{editingNode?.id && organizationId && (
+								<div className="pt-4 border-t border-[#e5e5e5]">
+									<MemberReassignment
+										branchId={editingNode.id}
+										organizationId={organizationId}
+										allBranches={allNodes.filter((n) => n.type === "branch")}
+										picUserId={editPicUserId || null}
+										onReassigned={() => {
+											queryClient.invalidateQueries(
+												orpc.hierarchy.listNodesWithStats.queryOptions({
+													input: { organizationId: organizationId! },
+												}),
+											);
+											queryClient.invalidateQueries({
+												queryKey: ["user-context"],
+											});
+										}}
+									/>
+								</div>
+							)}
+						</div>
 					</div>
-					<DialogFooter>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button
 							variant="outline"
 							onClick={() => {
@@ -1102,6 +1115,7 @@ function RouteComponent() {
 								updateMutation.isPending ||
 								moveMutation.isPending
 							}
+							className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
 						>
 							{updateMutation.isPending || moveMutation.isPending
 								? "Saving…"

@@ -1,9 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { Hono } from "hono";
-import {
-	__resetRateLimitBuckets,
-	rateLimit,
-} from "./rate-limit.middleware";
+import { __resetRateLimitBuckets, rateLimit } from "./rate-limit.middleware";
 
 function buildApp(opts: { limit: number; windowSec: number }) {
 	const app = new Hono();

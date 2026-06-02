@@ -29,7 +29,8 @@ function getEnvVar(key: string): string | undefined {
 	} catch {
 		// Not in Cloudflare Workers runtime (bun test / Node).
 	}
-	const globalEnv = (globalThis as { env?: Record<string, string | undefined> }).env;
+	const globalEnv = (globalThis as { env?: Record<string, string | undefined> })
+		.env;
 	if (globalEnv?.[key] !== undefined) return globalEnv[key];
 	return process.env[key];
 }

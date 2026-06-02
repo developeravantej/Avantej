@@ -1,11 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
-import { CalendarRange, ChevronDown, ChevronUp, Download, SearchX } from "lucide-react";
+import {
+	CalendarRange,
+	ChevronDown,
+	ChevronUp,
+	Download,
+	SearchX,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/money";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";
-import { REASON_CATEGORIES, formatCancellationTime } from "@/features/sales/sales-view.constants";
+import {
+	REASON_CATEGORIES,
+	formatCancellationTime,
+} from "@/features/sales/sales-view.constants";
 import type { CancelledSaleRow } from "@/features/sales/sales-view.types";
 import { ErrorCard } from "@/features/sales/components/ErrorCard";
 import { CancelledExpandedRow } from "@/features/sales/components/CancelledExpandedRow";
@@ -25,7 +34,14 @@ export interface CancelledSalesTabProps {
 	onClearDates: () => void;
 }
 
-export function CancelledSalesTab({ organizationId, from, to, onFromChange, onToChange, onClearDates }: CancelledSalesTabProps) {
+export function CancelledSalesTab({
+	organizationId,
+	from,
+	to,
+	onFromChange,
+	onToChange,
+	onClearDates,
+}: CancelledSalesTabProps) {
 	const [textSearch, setTextSearch] = useState("");
 	const [reasonFilter, setReasonFilter] = useState("");
 	const [showDateRange, setShowDateRange] = useState(!!(from || to));
@@ -33,26 +49,31 @@ export function CancelledSalesTab({ organizationId, from, to, onFromChange, onTo
 	const [exporting, setExporting] = useState(false);
 
 	const { data, isLoading, isError, error, refetch } = useQuery({
-		queryKey: ["cancelledSales", organizationId, from, to],
-		queryFn: () =>
-			client.cancelledSales.list({
+		...orpc.cancelledSales.list.queryOptions({
+			input: {
 				organizationId,
 				from: from ? `${from}T00:00:00.000Z` : undefined,
 				to: to ? `${to}T23:59:59.999Z` : undefined,
-			}),
+			},
+		}),
 		enabled: !!organizationId,
 	});
 
-	const allRows = (Array.isArray(data) ? data : (data?.rows ?? [])) as CancelledSaleRow[];
+	const allRows = (
+		Array.isArray(data) ? data : (data?.rows ?? [])
+	) as CancelledSaleRow[];
 
 	const rows = allRows.filter((r) => {
 		const matchesText =
 			!textSearch ||
 			(r.salesOrderId ?? "").toLowerCase().includes(textSearch.toLowerCase()) ||
-			(r.cancellationNumber ?? "").toLowerCase().includes(textSearch.toLowerCase()) ||
+			(r.cancellationNumber ?? "")
+				.toLowerCase()
+				.includes(textSearch.toLowerCase()) ||
 			(r.customerName ?? "").toLowerCase().includes(textSearch.toLowerCase()) ||
 			(r.cancelledBy ?? "").toLowerCase().includes(textSearch.toLowerCase());
-		const matchesReason = !reasonFilter || r.cancellationReasonCategory === reasonFilter;
+		const matchesReason =
+			!reasonFilter || r.cancellationReasonCategory === reasonFilter;
 		return matchesText && matchesReason;
 	});
 
@@ -81,7 +102,9 @@ export function CancelledSalesTab({ organizationId, from, to, onFromChange, onTo
 				toast.success("CSV exported successfully.");
 			}
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Export failed. Please try again.");
+			toast.error(
+				err instanceof Error ? err.message : "Export failed. Please try again.",
+			);
 		} finally {
 			setExporting(false);
 		}
@@ -96,7 +119,15 @@ export function CancelledSalesTab({ organizationId, from, to, onFromChange, onTo
 				<div className="flex flex-wrap items-center gap-2">
 					{/* Text search */}
 					<div className="flex items-center gap-2 rounded-xl border border-[#e5e5e5] bg-white px-3 py-2">
-						<svg className="text-[#737373] flex-shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+						<svg
+							className="text-[#737373] flex-shrink-0"
+							width="13"
+							height="13"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+						>
 							<circle cx="11" cy="11" r="8" />
 							<path d="m21 21-4.35-4.35" />
 						</svg>
@@ -116,7 +147,9 @@ export function CancelledSalesTab({ organizationId, from, to, onFromChange, onTo
 						className="h-9 w-44 rounded-xl border border-[#e5e5e5] bg-white px-3 text-sm text-[#0a0a0a] focus:outline-none"
 					>
 						{REASON_CATEGORIES.map((r) => (
-							<option key={r.value} value={r.value}>{r.label}</option>
+							<option key={r.value} value={r.value}>
+								{r.label}
+							</option>
 						))}
 					</select>
 
@@ -151,7 +184,11 @@ export function CancelledSalesTab({ organizationId, from, to, onFromChange, onTo
 								className="h-9 rounded-xl border border-[#e5e5e5] bg-white px-3 text-sm text-[#0a0a0a] focus:outline-none"
 							/>
 							{(from || to) && (
-								<button type="button" className="text-xs text-[#737373] hover:text-[#0a0a0a]" onClick={onClearDates}>
+								<button
+									type="button"
+									className="text-xs text-[#737373] hover:text-[#0a0a0a]"
+									onClick={onClearDates}
+								>
 									Clear
 								</button>
 							)}
@@ -176,7 +213,9 @@ export function CancelledSalesTab({ organizationId, from, to, onFromChange, onTo
 			) : rows.length === 0 ? (
 				<div className="flex flex-col items-center justify-center py-16 text-[#737373]">
 					<SearchX className="h-8 w-8 mb-3 opacity-30" />
-					<p className="text-sm font-medium text-[#0a0a0a]">No cancelled sales</p>
+					<p className="text-sm font-medium text-[#0a0a0a]">
+						No cancelled sales
+					</p>
 					<p className="text-xs mt-1">
 						{isFiltered
 							? "No cancelled sales match your filters. Try clearing filters."
@@ -189,32 +228,55 @@ export function CancelledSalesTab({ organizationId, from, to, onFromChange, onTo
 						<thead className="bg-[#f3f3f3]">
 							<tr className="border-b border-[#e5e5e5]">
 								<th className="w-10 px-4 py-3" />
-								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">Sale ID</th>
-								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">Customer</th>
-								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">Cancelled At</th>
-								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">Cancelled By</th>
-								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">Reason</th>
-								<th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-[#737373]">Orig. Amount</th>
-								<th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-[#737373]">Refunded</th>
-								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">Refund Status</th>
+								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+									Sale ID
+								</th>
+								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+									Customer
+								</th>
+								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+									Cancelled At
+								</th>
+								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+									Cancelled By
+								</th>
+								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+									Reason
+								</th>
+								<th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+									Orig. Amount
+								</th>
+								<th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+									Refunded
+								</th>
+								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+									Refund Status
+								</th>
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-[#e5e5e5]">
 							{rows.map((row) => {
 								const isExpanded = expandedRowId === row.id;
 								const isRepeatOffender = row.repeatOffenderCount >= 3;
-								const isFraud = row.cancellationReasonCategory === "fraud_suspected";
+								const isFraud =
+									row.cancellationReasonCategory === "fraud_suspected";
 								const ts = formatCancellationTime(row.cancellationDate);
 
 								return (
 									<>
 										<tr
 											key={row.id}
-											onClick={() => setExpandedRowId(isExpanded ? null : row.id)}
+											onClick={() =>
+												setExpandedRowId(isExpanded ? null : row.id)
+											}
 											className={[
 												"cursor-pointer transition-colors hover:bg-[#fafafa]",
-												isFraud ? "border-l-[3px] border-l-rose-500 bg-rose-50/30" : "",
-											].filter(Boolean).join(" ")}
+												isFraud
+													? "border-l-[3px] border-l-rose-500 bg-rose-50/30"
+													: "",
+											]
+												.filter(Boolean)
+												.join(" ")}
 										>
 											<td className="w-10 px-4 py-3 text-center text-[#737373]">
 												{isExpanded ? (
@@ -239,7 +301,8 @@ export function CancelledSalesTab({ organizationId, from, to, onFromChange, onTo
 															<CustomerTypeBadge type={row.customerType} />
 															{isRepeatOffender && (
 																<span className="text-rose-600 text-xs font-semibold">
-																	· {row.repeatOffenderCount}rd cancel this month
+																	· {row.repeatOffenderCount}rd cancel this
+																	month
 																</span>
 															)}
 														</div>
@@ -249,25 +312,37 @@ export function CancelledSalesTab({ organizationId, from, to, onFromChange, onTo
 											<td className="px-4 py-3">
 												{ts ? (
 													<div>
-														<div className="text-sm text-[#0a0a0a]">{ts.date}</div>
-														<div className="font-mono tabular-nums text-[10px] text-[#737373]">{ts.time}</div>
+														<div className="text-sm text-[#0a0a0a]">
+															{ts.date}
+														</div>
+														<div className="font-mono tabular-nums text-[10px] text-[#737373]">
+															{ts.time}
+														</div>
 													</div>
 												) : (
-													<span className="font-mono tabular-nums text-[#737373]">—</span>
+													<span className="font-mono tabular-nums text-[#737373]">
+														—
+													</span>
 												)}
 											</td>
 											<td className="px-4 py-3">
 												{row.cancelledBy ? (
 													<div className="flex items-center gap-1.5">
 														<CancelledAvatar name={row.cancelledBy} size="sm" />
-														<span className="text-sm text-[#0a0a0a]">{row.cancelledBy}</span>
+														<span className="text-sm text-[#0a0a0a]">
+															{row.cancelledBy}
+														</span>
 													</div>
 												) : (
-													<span className="font-mono tabular-nums text-[#737373]">—</span>
+													<span className="font-mono tabular-nums text-[#737373]">
+														—
+													</span>
 												)}
 											</td>
 											<td className="px-4 py-3">
-												<ReasonBadge category={row.cancellationReasonCategory} />
+												<ReasonBadge
+													category={row.cancellationReasonCategory}
+												/>
 											</td>
 											<td className="px-4 py-3 text-right">
 												<span className="font-mono tabular-nums text-sm text-[#0a0a0a]">
@@ -276,7 +351,9 @@ export function CancelledSalesTab({ organizationId, from, to, onFromChange, onTo
 											</td>
 											<td className="px-4 py-3 text-right">
 												{isFraud ? (
-													<span className="font-mono tabular-nums text-sm text-[#737373]">—</span>
+													<span className="font-mono tabular-nums text-sm text-[#737373]">
+														—
+													</span>
 												) : (
 													<span className="font-mono tabular-nums text-sm text-[#0a0a0a]">
 														{formatPrice(row.cancelledAmount ?? 0, "MYR")}
@@ -287,7 +364,12 @@ export function CancelledSalesTab({ organizationId, from, to, onFromChange, onTo
 												<RefundStatusBadge row={row} />
 											</td>
 										</tr>
-										{isExpanded && <CancelledExpandedRow key={`${row.id}-expanded`} row={row} />}
+										{isExpanded && (
+											<CancelledExpandedRow
+												key={`${row.id}-expanded`}
+												row={row}
+											/>
+										)}
 									</>
 								);
 							})}

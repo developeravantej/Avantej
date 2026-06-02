@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "sessionPath": "zplan/05-30_15-23_commission-tracks",
+  "planPath": "zplan/05-30_15-23_commission-tracks/plan/plan.md",
+  "updatedAt": "2026-05-30T04:00:00Z",
+  "status": "complete",
+  "gitHeadAtStart": "96c1f11649d8552cff97ed0dc3640bd876f2efa3",
+  "lastCompletedPhase": 4,
+  "currentPhase": null,
+  "totalPhases": 4,
+  "pendingPhases": [],
+  "phaseAgents": {
+    "1": [
+      { "role": "Agent A (backend)", "logWritten": true },
+      { "role": "Agent B (test)", "logWritten": true }
+    ],
+    "2": [
+      { "role": "Agent C (db)", "logWritten": true },
+      { "role": "Agent D (services)", "logWritten": true }
+    ],
+    "3": [
+      { "role": "Agent E1 (backend/origination)", "logWritten": true },
+      { "role": "Agent E2 (backend/router)", "logWritten": true },
+      { "role": "Agent F (frontend)", "logWritten": true }
+    ],
+    "4": [
+      { "role": "Agent G (backend/reporting)", "logWritten": true },
+      { "role": "Agent H (frontend/e2e)", "logWritten": true }
+    ]
+  },
+  "taskCoverage": {
+    "1": { "total": 9, "done": 9, "missed": 0 },
+    "2": { "total": 9, "done": 9, "missed": 0 },
+    "3": { "total": 5, "done": 5, "missed": 0 },
+    "4": { "total": 5, "done": 5, "missed": 0 }
+  },
+  "missedTasks": [],
+  "resolvedDecisions": [
+    { "id": "OQ6", "title": "Sales base on credit redemption", "decision": "use totalAmount as-is", "reason": "stored figure, no auto-earn points yet, no new column. PROVISIONAL — confirm finance." },
+    { "id": "OQ7", "title": "Sales approval rights", "decision": "admin/franchisee approves at payouts tab", "reason": "reuse current review permission, no SoD block. PROVISIONAL — confirm finance." },
+    { "id": "P2-MIG", "title": "Tracks migration number", "decision": "0083", "reason": "0082 taken" },
+    { "id": "P3-MIG", "title": "Origination migration number", "decision": "0086", "reason": "0084/0085 are user WIP" },
+    { "id": "P2-CHECK", "title": "commission_splits source CHECK", "decision": "no change", "reason": "0052 rule already permits sales_order_id" },
+    { "id": "P2-LOCK", "title": "cap race fix", "decision": "pg_advisory_xact_lock per (staff,track,cycle)", "reason": "no rows to lock on first earn" }
+  ],
+  "openQuestions": [],
+  "preExistingIssues": [
+    "schedulingType WIP type errors in seed scripts / service-detail (not ours; confirmed on pristine HEAD)",
+    "trainer-tier.test.ts getConfigsMissingRateForTier fails on pristine HEAD (not ours)"
+  ],
+  "knownFollowUps": [
+    "Tighten SkipReason union to include no_closer/no_lead_source (origination-plan casts via as unknown)",
+    "Run authored e2e specs (need dev server + seeded tenant)",
+    "Apply migrations 0083+0086 to live tenants via migrate-all-tenants.ts (deliberate separate step)",
+    "Confirm OQ6/OQ7 with finance before production"
+  ],
+  "nextActions": ["Browser-verify the 3 user journeys at http://avantej.localhost:3021/, then /done"],
+  "subagentRetryLog": []
+}

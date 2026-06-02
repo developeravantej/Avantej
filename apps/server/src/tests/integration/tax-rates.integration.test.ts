@@ -8,7 +8,11 @@ import {
 	TEST_USER_ID,
 } from "../helpers/integration-setup";
 
-const TEST_ACTOR = { userId: TEST_USER_ID, memberId: TEST_MEMBER_ID, role: "admin" };
+const TEST_ACTOR = {
+	userId: TEST_USER_ID,
+	memberId: TEST_MEMBER_ID,
+	role: "admin",
+};
 import {
 	createTaxRate,
 	listTaxRates,

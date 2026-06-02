@@ -9,7 +9,7 @@ import { RefundsTab } from "@/components/refunds/refunds-tab";
 import { useUserContext } from "@/hooks/useUserContext";
 import { getPeriodDates, type Period } from "@/lib/period";
 import { cn } from "@/lib/utils";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import type { KpiSummary } from "@/features/sales/sales-view.types";
 import { KpiStrip } from "@/features/sales/components/KpiStrip";
@@ -26,7 +26,9 @@ const salesSearchSchema = z.object({
 	branchId: z.string().default(""),
 	period: z.string().optional(),
 	kpiPeriod: z.enum(["today", "week", "month"]).default("month"),
-	refundStatus: z.enum(["all", "none", "pending", "partial", "processed"]).default("all"),
+	refundStatus: z
+		.enum(["all", "none", "pending", "partial", "processed"])
+		.default("all"),
 	tab: z.enum(["sales", "payments", "cancelled", "refunds"]).default("sales"),
 	search: z.string().default(""),
 });
@@ -54,19 +56,28 @@ function RouteComponent() {
 	const branchNodes = allNodes.filter((n) => n.type === "branch");
 	const nodeOptions = branchNodes.length > 0 ? branchNodes : allNodes;
 
-	const { from, to, status, branchId, period, kpiPeriod, refundStatus, tab, search } =
-		Route.useSearch();
+	const {
+		from,
+		to,
+		status,
+		branchId,
+		period,
+		kpiPeriod,
+		refundStatus,
+		tab,
+		search,
+	} = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
 
 	// Derive date filters from legacy `period` param (from Dashboard KPI card)
 	const derivedFilters =
-		period && !from && !to
-			? getPeriodDates(period as Period)
-			: { from, to };
+		period && !from && !to ? getPeriodDates(period as Period) : { from, to };
 
 	// ── Handlers ────────────────────────────────────────────────────────────
 
-	function handleFilterChange(updates: Partial<z.infer<typeof salesSearchSchema>>) {
+	function handleFilterChange(
+		updates: Partial<z.infer<typeof salesSearchSchema>>,
+	) {
 		navigate({ search: (prev) => ({ ...prev, ...updates }) });
 	}
 
@@ -91,10 +102,17 @@ function RouteComponent() {
 	}
 
 	function handleTabChange(v: string) {
-		navigate({ search: (prev) => ({ ...prev, tab: v as "sales" | "payments" | "cancelled" | "refunds" }) });
+		navigate({
+			search: (prev) => ({
+				...prev,
+				tab: v as "sales" | "payments" | "cancelled" | "refunds",
+			}),
+		});
 	}
 
-	function handleRefundStatusChange(v: "all" | "none" | "pending" | "partial" | "processed") {
+	function handleRefundStatusChange(
+		v: "all" | "none" | "pending" | "partial" | "processed",
+	) {
 		navigate({ search: (prev) => ({ ...prev, refundStatus: v }) });
 	}
 
@@ -123,11 +141,22 @@ function RouteComponent() {
 		queryFn: ({ pageParam }) =>
 			client.salesOrders.list({
 				organizationId: organizationId!,
-				from: derivedFilters.from ? `${derivedFilters.from}T00:00:00.000Z` : undefined,
-				to: derivedFilters.to ? `${derivedFilters.to}T23:59:59.999Z` : undefined,
-				status: (["draft", "confirmed", "completed", "cancelled"].includes(status)
+				from: derivedFilters.from
+					? `${derivedFilters.from}T00:00:00.000Z`
+					: undefined,
+				to: derivedFilters.to
+					? `${derivedFilters.to}T23:59:59.999Z`
+					: undefined,
+				status: (["draft", "confirmed", "completed", "cancelled"].includes(
+					status,
+				)
 					? status
-					: undefined) as "draft" | "confirmed" | "completed" | "cancelled" | undefined,
+					: undefined) as
+					| "draft"
+					| "confirmed"
+					| "completed"
+					| "cancelled"
+					| undefined,
 				refundStatus:
 					refundStatus !== "all"
 						? (refundStatus as "none" | "pending" | "partial" | "processed")
@@ -151,8 +180,9 @@ function RouteComponent() {
 		error: invoicesErrorObj,
 		refetch: invoicesRefetch,
 	} = useQuery({
-		queryKey: ["invoices", organizationId],
-		queryFn: () => client.invoices.list({ organizationId: organizationId! }),
+		...orpc.invoices.list.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 	});
 
@@ -160,14 +190,10 @@ function RouteComponent() {
 		data: kpiData,
 		isLoading: kpiLoading,
 		isError: kpiIsError,
-	} = useQuery<KpiSummary>({
-		queryKey: ["salesOrders", "kpiSummary", organizationId, kpiPeriod],
-		queryFn: async () => {
-			return client.salesOrders.kpiSummary({
-				organizationId: organizationId!,
-				period: kpiPeriod,
-			}) as unknown as Promise<KpiSummary>;
-		},
+	} = useQuery({
+		...orpc.salesOrders.kpiSummary.queryOptions({
+			input: { organizationId: organizationId!, period: kpiPeriod },
+		}),
 		enabled: !!organizationId,
 		retry: false,
 	});
@@ -186,7 +212,10 @@ function RouteComponent() {
 	const nodeNameMap = new Map(allNodes.map((n) => [n.id, n.name]));
 
 	const salesData: SalesRow[] = salesApiRows.map((item) => {
-		const row = item as typeof item & { createdByName?: string | null; firstItemDescription?: string | null };
+		const row = item as typeof item & {
+			createdByName?: string | null;
+			firstItemDescription?: string | null;
+		};
 		return {
 			id: item.id,
 			date: item.date ? item.date.toISOString() : null,
@@ -249,113 +278,122 @@ function RouteComponent() {
 				</div>
 			</header>
 			<div className="flex flex-col gap-5 px-6 py-6">
+				{/* ── Main card ───────────────────────────────────────────────────── */}
+				<div className="border border-[#e5e5e5] bg-white flex flex-col">
+					{/* ── KPI strip — always visible ──────────────────────────────────── */}
+					<KpiStrip
+						kpiSummary={kpiIsError ? undefined : kpiData}
+						kpiLoading={kpiLoading}
+						kpiPeriod={kpiPeriod}
+						onPeriodChange={handleKpiPeriodChange}
+					/>
 
-			{/* ── Main card ───────────────────────────────────────────────────── */}
-			<div className="border border-[#e5e5e5] bg-white flex flex-col">
+					{/* ── Pill tabs ────────────────────────────────────────────────────── */}
+					{organizationId ? (
+						<>
+							<div className="flex shrink-0 items-center gap-2 border-b border-[#e5e5e5] px-6 py-3">
+								{[
+									{ value: "sales", label: "Sales Orders", count: salesCount },
+									{
+										value: "payments",
+										label: "Payments",
+										count: paymentsCount,
+									},
+									{ value: "cancelled", label: "Cancelled", count: null },
+									...(hasPermission("refund_management:read")
+										? [{ value: "refunds", label: "Refunds", count: null }]
+										: []),
+								].map((t) => (
+									<button
+										key={t.value}
+										type="button"
+										data-testid={`sales-tab-${t.value}`}
+										onClick={() => handleTabChange(t.value)}
+										className={cn(
+											"rounded-full px-3.5 py-1.5 text-[13px] transition-colors",
+											tab === t.value
+												? "bg-[#0a0a0a] text-white font-semibold"
+												: "border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] font-medium",
+										)}
+									>
+										{t.label}
+										{t.count !== null && (
+											<span
+												className={cn(
+													"ml-1.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold",
+													tab === t.value
+														? "bg-white/20"
+														: "bg-[#f3f3f3] text-[#737373]",
+												)}
+											>
+												{t.count}
+											</span>
+										)}
+									</button>
+								))}
+							</div>
 
-			{/* ── KPI strip — always visible ──────────────────────────────────── */}
-			<KpiStrip
-				kpiSummary={kpiIsError ? undefined : kpiData}
-				kpiLoading={kpiLoading}
-				kpiPeriod={kpiPeriod}
-				onPeriodChange={handleKpiPeriodChange}
-			/>
-
-			{/* ── Pill tabs ────────────────────────────────────────────────────── */}
-			{organizationId ? (
-				<>
-					<div className="flex shrink-0 items-center gap-2 border-b border-[#e5e5e5] px-6 py-3">
-						{[
-							{ value: "sales", label: "Sales Orders", count: salesCount },
-							{ value: "payments", label: "Payments", count: paymentsCount },
-							{ value: "cancelled", label: "Cancelled", count: null },
-							...(hasPermission("refund_management:read")
-								? [{ value: "refunds", label: "Refunds", count: null }]
-								: []),
-						].map((t) => (
-							<button
-								key={t.value}
-								type="button"
-								data-testid={`sales-tab-${t.value}`}
-								onClick={() => handleTabChange(t.value)}
-								className={cn(
-									"rounded-full px-3.5 py-1.5 text-[13px] transition-colors",
-									tab === t.value
-										? "bg-[#0a0a0a] text-white font-semibold"
-										: "border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] font-medium",
+							{tab === "sales" && (
+								<SalesTab
+									data={salesData}
+									total={total}
+									hasNextPage={salesHasNextPage ?? false}
+									isFetchingNextPage={salesIsFetchingNextPage}
+									onLoadMore={salesFetchNextPage}
+									isLoading={salesLoading}
+									isError={salesError}
+									error={salesErrorObj}
+									refetch={salesRefetch}
+									search={search}
+									from={derivedFilters.from}
+									to={derivedFilters.to}
+									status={status}
+									branchId={branchId}
+									refundStatus={refundStatus}
+									onSearchChange={(v) => handleFilterChange({ search: v })}
+									onFromChange={(v) => handleFilterChange({ from: v })}
+									onToChange={(v) => handleFilterChange({ to: v })}
+									onStatusChange={(v) => handleFilterChange({ status: v })}
+									onBranchChange={(v) => handleFilterChange({ branchId: v })}
+									onRefundStatusChange={handleRefundStatusChange}
+									onClear={handleClear}
+									nodeOptions={nodeOptions}
+								/>
+							)}
+							{tab === "payments" && (
+								<PaymentsTab
+									data={paymentsData}
+									isLoading={invoicesLoading}
+									isError={invoicesError}
+									error={invoicesErrorObj}
+									refetch={invoicesRefetch}
+									onSelectPayment={(id) => {
+										// No-op: history dialog lives in payment/view.tsx; sales page is list-only
+										console.info("[sales/payments] payment selected:", id);
+									}}
+								/>
+							)}
+							{tab === "cancelled" && organizationId && (
+								<CancelledSalesTab
+									organizationId={organizationId}
+									from={derivedFilters.from}
+									to={derivedFilters.to}
+									onFromChange={(v) => handleFilterChange({ from: v })}
+									onToChange={(v) => handleFilterChange({ to: v })}
+									onClearDates={() => handleFilterChange({ from: "", to: "" })}
+								/>
+							)}
+							{tab === "refunds" &&
+								organizationId &&
+								hasPermission("refund_management:read") && (
+									<RefundsTab organizationId={organizationId} />
 								)}
-							>
-								{t.label}
-								{t.count !== null && (
-									<span className={cn("ml-1.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold",
-										tab === t.value ? "bg-white/20" : "bg-[#f3f3f3] text-[#737373]"
-									)}>
-										{t.count}
-									</span>
-								)}
-							</button>
-						))}
-					</div>
-
-					{tab === "sales" && (
-						<SalesTab
-							data={salesData}
-							total={total}
-							hasNextPage={salesHasNextPage ?? false}
-							isFetchingNextPage={salesIsFetchingNextPage}
-							onLoadMore={salesFetchNextPage}
-							isLoading={salesLoading}
-							isError={salesError}
-							error={salesErrorObj}
-							refetch={salesRefetch}
-							search={search}
-							from={derivedFilters.from}
-							to={derivedFilters.to}
-							status={status}
-							branchId={branchId}
-							refundStatus={refundStatus}
-							onSearchChange={(v) => handleFilterChange({ search: v })}
-							onFromChange={(v) => handleFilterChange({ from: v })}
-							onToChange={(v) => handleFilterChange({ to: v })}
-							onStatusChange={(v) => handleFilterChange({ status: v })}
-							onBranchChange={(v) => handleFilterChange({ branchId: v })}
-							onRefundStatusChange={handleRefundStatusChange}
-							onClear={handleClear}
-							nodeOptions={nodeOptions}
-						/>
+						</>
+					) : (
+						<PageLoader />
 					)}
-					{tab === "payments" && (
-						<PaymentsTab
-							data={paymentsData}
-							isLoading={invoicesLoading}
-							isError={invoicesError}
-							error={invoicesErrorObj}
-							refetch={invoicesRefetch}
-							onSelectPayment={(id) => {
-								// No-op: history dialog lives in payment/view.tsx; sales page is list-only
-								console.info("[sales/payments] payment selected:", id);
-							}}
-						/>
-					)}
-					{tab === "cancelled" && organizationId && (
-						<CancelledSalesTab
-							organizationId={organizationId}
-							from={derivedFilters.from}
-							to={derivedFilters.to}
-							onFromChange={(v) => handleFilterChange({ from: v })}
-							onToChange={(v) => handleFilterChange({ to: v })}
-							onClearDates={() => handleFilterChange({ from: "", to: "" })}
-						/>
-					)}
-					{tab === "refunds" && organizationId && hasPermission("refund_management:read") && (
-						<RefundsTab organizationId={organizationId} />
-					)}
-				</>
-			) : (
-				<PageLoader />
-			)}
+				</div>
 			</div>
-		</div>
 		</div>
 	);
 }

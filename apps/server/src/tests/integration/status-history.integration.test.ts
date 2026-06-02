@@ -31,7 +31,10 @@ import { packageInstanceStatusHistory } from "@avantej-core/db/schema/tenant/pac
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { appointmentStatusHistory } from "@avantej-core/db/schema/tenant/appointment-status-history";
 
-import { updateSalesOrder, updatePackageInstance } from "@avantej-core/services";
+import {
+	updateSalesOrder,
+	updatePackageInstance,
+} from "@avantej-core/services";
 import {
 	appendPaymentStatusHistory,
 	appendAppointmentStatusHistory,
@@ -62,13 +65,22 @@ afterAll(async () => {
 	if (createdAppointmentIds.length > 0) {
 		await tenantDb
 			.delete(appointmentStatusHistory)
-			.where(inArray(appointmentStatusHistory.appointmentId, createdAppointmentIds));
-		await tenantDb.delete(appointments).where(inArray(appointments.id, createdAppointmentIds));
+			.where(
+				inArray(appointmentStatusHistory.appointmentId, createdAppointmentIds),
+			);
+		await tenantDb
+			.delete(appointments)
+			.where(inArray(appointments.id, createdAppointmentIds));
 	}
 	if (createdPackageInstanceIds.length > 0) {
 		await tenantDb
 			.delete(packageInstanceStatusHistory)
-			.where(inArray(packageInstanceStatusHistory.packageInstanceId, createdPackageInstanceIds));
+			.where(
+				inArray(
+					packageInstanceStatusHistory.packageInstanceId,
+					createdPackageInstanceIds,
+				),
+			);
 		await tenantDb
 			.delete(packageInstances)
 			.where(inArray(packageInstances.id, createdPackageInstanceIds));
@@ -77,13 +89,19 @@ afterAll(async () => {
 		await tenantDb
 			.delete(paymentStatusHistory)
 			.where(inArray(paymentStatusHistory.paymentId, createdPaymentIds));
-		await tenantDb.delete(payments).where(inArray(payments.id, createdPaymentIds));
+		await tenantDb
+			.delete(payments)
+			.where(inArray(payments.id, createdPaymentIds));
 	}
 	if (createdSalesOrderIds.length > 0) {
 		await tenantDb
 			.delete(salesOrderStatusHistory)
-			.where(inArray(salesOrderStatusHistory.salesOrderId, createdSalesOrderIds));
-		await tenantDb.delete(salesOrders).where(inArray(salesOrders.id, createdSalesOrderIds));
+			.where(
+				inArray(salesOrderStatusHistory.salesOrderId, createdSalesOrderIds),
+			);
+		await tenantDb
+			.delete(salesOrders)
+			.where(inArray(salesOrders.id, createdSalesOrderIds));
 	}
 });
 
@@ -179,7 +197,9 @@ describe("Status History — Agent 2.7", () => {
 		// skip this assertion (the tenant fixture must have one).
 		const someService = await tenantDb.query.services.findFirst();
 		if (!someService) {
-			console.warn("[status-history.test] no services row; skipping package test");
+			console.warn(
+				"[status-history.test] no services row; skipping package test",
+			);
 			return;
 		}
 

@@ -189,6 +189,12 @@ export const appointments = pgTable(
 		),
 		userIdIdx: index("appointments_user_idx").on(table.userId),
 		trainerIdIdx: index("appointments_trainer_idx").on(table.trainerId),
+		// Composite index for trainer-scoped conflict/availability lookups within a
+		// date range (proposeSchedule, computeAvailableSlots). See migration 0084.
+		trainerStartTimeIdx: index("appointments_trainer_starttime_idx").on(
+			table.trainerId,
+			table.startTime,
+		),
 		packageInstanceIdIdx: index("appointments_package_instance_idx").on(
 			table.packageInstanceId,
 		),

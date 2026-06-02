@@ -152,7 +152,11 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 	{
 		label: "Finance",
 		items: [
-			{ title: "Sales & Payments", url: "/dashboard/sales/view", icon: BadgeDollarSign },
+			{
+				title: "Sales & Payments",
+				url: "/dashboard/sales/view",
+				icon: BadgeDollarSign,
+			},
 			{
 				title: "Commissions",
 				url: "/dashboard/commissions/view",
@@ -161,7 +165,12 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 			{ title: "Tax Rates", url: "/dashboard/settings/tax-rates", icon: Tag },
 			{ title: "Expenses", url: "/dashboard/expenses/view", icon: Receipt },
 			// DU-005: guard Packages with its own permission (not service_management:read)
-			{ title: "Packages", url: "/dashboard/packages/view", icon: Package, permission: "package_management:read" },
+			{
+				title: "Packages",
+				url: "/dashboard/packages/view",
+				icon: Package,
+				permission: "package_management:read",
+			},
 			// CP-004: dedicated Payouts nav item — active check relies on query-string-aware isActive logic in NavGroup
 			{
 				title: "Payouts",
@@ -179,7 +188,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 			{ title: "Employees", url: "/dashboard/user/view", icon: Users },
 			{
 				title: "Attendance",
-				url: "/dashboard/attendance/view",
+				url: "/dashboard/appointment/view",
 				icon: ClipboardCheck,
 				permission: "attendance_management:read",
 			},
@@ -195,8 +204,18 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				icon: UserPlus,
 				permission: "user_management:read",
 			},
-			{ title: "Branches", url: "/dashboard/branch/view", icon: Store, permission: "hierarchy_management:read" },
-			{ title: "Onboarding QR", url: "/dashboard/onboarding/view", icon: QrCode, permission: "hierarchy_management:read" },
+			{
+				title: "Branches",
+				url: "/dashboard/branch/view",
+				icon: Store,
+				permission: "hierarchy_management:read",
+			},
+			{
+				title: "Onboarding QR",
+				url: "/dashboard/onboarding/view",
+				icon: QrCode,
+				permission: "hierarchy_management:read",
+			},
 		],
 	},
 
@@ -258,7 +277,10 @@ function SidebarUserFooter() {
 	const [loggingOut, setLoggingOut] = useState(false);
 
 	// Better-Auth inferAdditionalFields adds firstName/lastName at runtime; the client type doesn't reflect it.
-	const sessionUser = session?.user as (typeof session & Record<string, unknown> extends null | undefined ? undefined : { firstName?: string; lastName?: string; name?: string; email?: string });
+	const sessionUser = session?.user as typeof session &
+		Record<string, unknown> extends null | undefined
+		? undefined
+		: { firstName?: string; lastName?: string; name?: string; email?: string };
 	const displayName =
 		`${sessionUser?.firstName || ""} ${sessionUser?.lastName || ""}`.trim() ||
 		sessionUser?.name ||
@@ -306,7 +328,9 @@ function SidebarUserFooter() {
 				<DropdownMenuLabel className="font-normal">
 					<div className="flex flex-col space-y-1">
 						<p className="text-sm font-medium leading-none">{displayName}</p>
-						<p className="text-xs leading-none text-brand-secondary-1">{email}</p>
+						<p className="text-xs leading-none text-brand-secondary-1">
+							{email}
+						</p>
 					</div>
 				</DropdownMenuLabel>
 				<DropdownMenuSeparator />
@@ -317,7 +341,10 @@ function SidebarUserFooter() {
 					</Link>
 				</DropdownMenuItem>
 				<DropdownMenuItem asChild>
-					<Link to="/dashboard/settings/organization" className="flex items-center gap-2">
+					<Link
+						to="/dashboard/settings/organization"
+						className="flex items-center gap-2"
+					>
 						<Settings className="size-4" />
 						<span>Settings</span>
 					</Link>
@@ -371,9 +398,9 @@ function NavGroup({
 						? pathname === "/dashboard"
 						: itemQs
 							? pathname.startsWith(itemPath) &&
-							  // TanStack Router's location.search is a typed object;
-							  // use window.location.search for the raw query string.
-							  new URLSearchParams(window.location.search).get("tab") ===
+								// TanStack Router's location.search is a typed object;
+								// use window.location.search for the raw query string.
+								new URLSearchParams(window.location.search).get("tab") ===
 									new URLSearchParams(itemQs).get("tab")
 							: pathname.startsWith(itemPath);
 				const badge = badges?.[item.url];
@@ -467,7 +494,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
 	// Live pending-approvals count → chip on the Approvals nav item
 	const pendingApprovalsQuery = useQuery({
-		queryKey: ["packageInstances", "listPending", organizationId, "sidebarBadge"],
+		queryKey: [
+			"packageInstances",
+			"listPending",
+			organizationId,
+			"sidebarBadge",
+		],
 		queryFn: () =>
 			client.packageInstances.listPending({
 				organizationId: organizationId!,
@@ -589,7 +621,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 								<SidebarMenuItem>
 									<SidebarMenuButton
 										asChild
-										isActive={pathname === "/dashboard/platform-admin/" || pathname === "/dashboard/platform-admin"}
+										isActive={
+											pathname === "/dashboard/platform-admin/" ||
+											pathname === "/dashboard/platform-admin"
+										}
 										tooltip="Mission Control"
 									>
 										<Link to={"/dashboard/platform-admin/" as string}>
@@ -601,7 +636,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 								<SidebarMenuItem>
 									<SidebarMenuButton
 										asChild
-										isActive={pathname.startsWith("/dashboard/platform-admin/tenants")}
+										isActive={pathname.startsWith(
+											"/dashboard/platform-admin/tenants",
+										)}
 										tooltip="Tenants"
 									>
 										<Link to={"/dashboard/platform-admin/tenants" as string}>
@@ -613,7 +650,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 								<SidebarMenuItem>
 									<SidebarMenuButton
 										asChild
-										isActive={pathname.startsWith("/dashboard/platform-admin/revenue")}
+										isActive={pathname.startsWith(
+											"/dashboard/platform-admin/revenue",
+										)}
 										tooltip="Revenue"
 									>
 										<Link to={"/dashboard/platform-admin/revenue" as string}>
@@ -625,7 +664,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 								<SidebarMenuItem>
 									<SidebarMenuButton
 										asChild
-										isActive={pathname.startsWith("/dashboard/platform-admin/billing")}
+										isActive={pathname.startsWith(
+											"/dashboard/platform-admin/billing",
+										)}
 										tooltip="Billing"
 									>
 										<Link to={"/dashboard/platform-admin/billing" as string}>
@@ -637,7 +678,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 								<SidebarMenuItem>
 									<SidebarMenuButton
 										asChild
-										isActive={pathname.startsWith("/dashboard/platform-admin/renewals")}
+										isActive={pathname.startsWith(
+											"/dashboard/platform-admin/renewals",
+										)}
 										tooltip="Renewals"
 									>
 										<Link to={"/dashboard/platform-admin/renewals" as string}>
@@ -649,7 +692,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 								<SidebarMenuItem>
 									<SidebarMenuButton
 										asChild
-										isActive={pathname.startsWith("/dashboard/platform-admin/health")}
+										isActive={pathname.startsWith(
+											"/dashboard/platform-admin/health",
+										)}
 										tooltip="Health"
 									>
 										<Link to={"/dashboard/platform-admin/health" as string}>
@@ -661,7 +706,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 								<SidebarMenuItem>
 									<SidebarMenuButton
 										asChild
-										isActive={pathname.startsWith("/dashboard/platform-admin/comms")}
+										isActive={pathname.startsWith(
+											"/dashboard/platform-admin/comms",
+										)}
 										tooltip="Comms"
 									>
 										<Link to={"/dashboard/platform-admin/comms" as string}>
@@ -673,7 +720,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 								<SidebarMenuItem>
 									<SidebarMenuButton
 										asChild
-										isActive={pathname.startsWith("/dashboard/platform-admin/payments")}
+										isActive={pathname.startsWith(
+											"/dashboard/platform-admin/payments",
+										)}
 										tooltip="Payments"
 									>
 										<Link to={"/dashboard/platform-admin/payments" as string}>
@@ -685,7 +734,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 								<SidebarMenuItem>
 									<SidebarMenuButton
 										asChild
-										isActive={pathname.startsWith("/dashboard/platform-admin/webhooks")}
+										isActive={pathname.startsWith(
+											"/dashboard/platform-admin/webhooks",
+										)}
 										tooltip="Webhooks"
 									>
 										<Link to={"/dashboard/platform-admin/webhooks" as string}>
@@ -697,7 +748,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 								<SidebarMenuItem>
 									<SidebarMenuButton
 										asChild
-										isActive={pathname.startsWith("/dashboard/platform-admin/audit")}
+										isActive={pathname.startsWith(
+											"/dashboard/platform-admin/audit",
+										)}
 										tooltip="Audit log"
 									>
 										<Link to={"/dashboard/platform-admin/audit" as string}>
@@ -709,7 +762,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 								<SidebarMenuItem>
 									<SidebarMenuButton
 										asChild
-										isActive={pathname.startsWith("/dashboard/platform-admin/users")}
+										isActive={pathname.startsWith(
+											"/dashboard/platform-admin/users",
+										)}
 										tooltip="Users"
 									>
 										<Link to={"/dashboard/platform-admin/users" as string}>
@@ -723,10 +778,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 										<SidebarMenuItem>
 											<SidebarMenuButton
 												asChild
-												isActive={pathname.startsWith("/dashboard/platform-admin/migrations")}
+												isActive={pathname.startsWith(
+													"/dashboard/platform-admin/migrations",
+												)}
 												tooltip="Migrations"
 											>
-												<Link to={"/dashboard/platform-admin/migrations" as string}>
+												<Link
+													to={"/dashboard/platform-admin/migrations" as string}
+												>
 													<Database className="size-4" />
 													<span>Migrations</span>
 												</Link>
@@ -735,7 +794,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 										<SidebarMenuItem>
 											<SidebarMenuButton
 												asChild
-												isActive={pathname.startsWith("/dashboard/platform-admin/admins")}
+												isActive={pathname.startsWith(
+													"/dashboard/platform-admin/admins",
+												)}
 												tooltip="Admins"
 											>
 												<Link to={"/dashboard/platform-admin/admins" as string}>

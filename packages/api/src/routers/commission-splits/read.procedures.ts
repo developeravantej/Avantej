@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../../guards";
 import {
 	listCommissionSplits,
 	getCommissionsByAppointment,
@@ -25,12 +29,13 @@ const list = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"commission_management",
+			"read",
+		);
 
 		return listCommissionSplits(context.tenantDb, {
 			memberId: input.memberId,
@@ -50,12 +55,13 @@ const getByAppointment = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"commission_management",
+			"read",
+		);
 
 		return getCommissionsByAppointment(context.tenantDb, input.appointmentId, {
 			accessibleNodeIds: context.accessibleNodeIds,
@@ -71,12 +77,13 @@ const myCommissions = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"commission_management",
+			"read",
+		);
 
 		// F-COM-A fix (2026-05-27 audit-prove-a session): commission_splits.staffId
 		// is members.userId (matches staff_assignments convention), not members.id.
@@ -110,17 +117,25 @@ const listLedger = tenantProcedure
 			to: z.string().optional(),
 			limit: z.number().min(1).max(200).default(100),
 			offset: z.number().min(0).default(0),
+			/** Phase 4: SQL-side filter by commission track ID. */
+			trackId: z.string().uuid().optional(),
+			/** Phase 4: SQL-side filter by roleType (use "delivery_legacy" for NULL rows). */
+			roleType: z
+				.enum(["trainer", "sales", "marketing", "referrer", "delivery_legacy"])
+				.optional(),
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-		
-
 		assertOrgContextMatch(context, input);
 		if (input.branchId) {
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 		}
-		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"commission_management",
+			"read",
+		);
 
 		const controlPanelDb = getControlPanelDb(context);
 
@@ -133,6 +148,8 @@ const listLedger = tenantProcedure
 			limit: input.limit,
 			offset: input.offset,
 			accessibleNodeIds: context.accessibleNodeIds ?? [],
+			trackId: input.trackId,
+			roleType: input.roleType,
 		});
 	});
 

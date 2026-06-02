@@ -11,20 +11,15 @@
  * registry is populated before the module resolves.
  */
 
-import {
-	describe,
-	expect,
-	it,
-	mock,
-	beforeEach,
-	afterEach,
-} from "bun:test";
+import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
 
 // biome-ignore lint/suspicious/noExplicitAny: test stubs
 type AnyDb = any;
 
 // ── Mock Resend so sendEmail never hits the real API ──────────────────────
-const mockResendSend = mock(() => Promise.resolve({ data: { id: "email-mock-id" }, error: null }));
+const mockResendSend = mock(() =>
+	Promise.resolve({ data: { id: "email-mock-id" }, error: null }),
+);
 
 mock.module("resend", () => {
 	class MockResend {
@@ -37,10 +32,7 @@ mock.module("resend", () => {
 import { __resetResendClient } from "@/lib/email";
 __resetResendClient();
 
-import {
-	__setEmailCaptureEnabled,
-	__clearEmailCaptures,
-} from "@/lib/email";
+import { __setEmailCaptureEnabled, __clearEmailCaptures } from "@/lib/email";
 
 // ── Service function mocks ─────────────────────────────────────────────────
 
@@ -104,8 +96,7 @@ function makeTenantDb(): AnyDb {
 	// listDueScheduledReports → select().from().where() → resolves via mock above
 	// hierarchyNodes → select().from()
 	const nodeSelectChain: AnyDb = {
-		from: () =>
-			Promise.resolve([{ id: "node-1" }]),
+		from: () => Promise.resolve([{ id: "node-1" }]),
 	};
 	return {
 		select: () => nodeSelectChain,

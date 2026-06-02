@@ -105,9 +105,7 @@ afterAll(async () => {
 
 	// 3. Refunds
 	if (createdRefundIds.length > 0) {
-		await tenantDb
-			.delete(refunds)
-			.where(inArray(refunds.id, createdRefundIds));
+		await tenantDb.delete(refunds).where(inArray(refunds.id, createdRefundIds));
 	}
 
 	// 4. Sales order items (FK → sales_orders)
@@ -139,109 +137,101 @@ describe("Refund State Machine — lifecycle integration", () => {
 	 *   after process: status='processed', processedBy set, processedAt set
 	 *   audit rows written for each step
 	 */
-	test(
-		"TC-RSM-001: request → approve → process happy path",
-		async () => {
-			if (SKIP) return;
+	test("TC-RSM-001: request → approve → process happy path", async () => {
+		if (SKIP) return;
 
-			const so = await seedSalesOrder("001");
+		const so = await seedSalesOrder("001");
 
-			// Step 1 — Request
-			const requested = await requestRefund(tenantDb, {
-				salesOrderId: so.id,
-				amountCents: 10_000,
-				reason: "Customer requested refund",
-				actor: ACTOR,
-			});
-			createdRefundIds.push(requested.id);
+		// Step 1 — Request
+		const requested = await requestRefund(tenantDb, {
+			salesOrderId: so.id,
+			amountCents: 10_000,
+			reason: "Customer requested refund",
+			actor: ACTOR,
+		});
+		createdRefundIds.push(requested.id);
 
-			expect(requested.status).toBe("pending");
-			expect(requested.requestedBy).toBe(TEST_USER_ID);
-			expect(requested.requestedAt).toBeInstanceOf(Date);
-			expect(requested.salesOrderId).toBe(so.id);
-			expect(requested.amountCents).toBe(10_000);
-			expect(requested.refundNumber).toMatch(/^RF-\d{8}-\d{4}$/);
+		expect(requested.status).toBe("pending");
+		expect(requested.requestedBy).toBe(TEST_USER_ID);
+		expect(requested.requestedAt).toBeInstanceOf(Date);
+		expect(requested.salesOrderId).toBe(so.id);
+		expect(requested.amountCents).toBe(10_000);
+		expect(requested.refundNumber).toMatch(/^RF-\d{8}-\d{4}$/);
 
-			// Step 2 — Approve
-			const approved = await approveRefund(tenantDb, requested.id, {
-				reviewNotes: "Approved — verified purchase",
-				actor: ACTOR,
-			});
+		// Step 2 — Approve
+		const approved = await approveRefund(tenantDb, requested.id, {
+			reviewNotes: "Approved — verified purchase",
+			actor: ACTOR,
+		});
 
-			expect(approved.status).toBe("approved");
-			expect(approved.reviewedBy).toBe(TEST_USER_ID);
-			expect(approved.reviewedAt).toBeInstanceOf(Date);
-			expect(approved.reviewNotes).toBe("Approved — verified purchase");
+		expect(approved.status).toBe("approved");
+		expect(approved.reviewedBy).toBe(TEST_USER_ID);
+		expect(approved.reviewedAt).toBeInstanceOf(Date);
+		expect(approved.reviewNotes).toBe("Approved — verified purchase");
 
-			// Step 3 — Process
-			const processed = await processRefund(tenantDb, requested.id, {
-				refundMethod: "cash",
-				refundReference: "CASH-RSM-001",
-				actor: ACTOR,
-			});
+		// Step 3 — Process
+		const processed = await processRefund(tenantDb, requested.id, {
+			refundMethod: "cash",
+			refundReference: "CASH-RSM-001",
+			actor: ACTOR,
+		});
 
-			expect(processed.status).toBe("processed");
-			expect(processed.processedBy).toBe(TEST_USER_ID);
-			expect(processed.processedAt).toBeInstanceOf(Date);
-			expect(processed.refundMethod).toBe("cash");
-			expect(processed.refundReference).toBe("CASH-RSM-001");
+		expect(processed.status).toBe("processed");
+		expect(processed.processedBy).toBe(TEST_USER_ID);
+		expect(processed.processedAt).toBeInstanceOf(Date);
+		expect(processed.refundMethod).toBe("cash");
+		expect(processed.refundReference).toBe("CASH-RSM-001");
 
-			// Assert audit rows were written (at least 2: request + approve + process)
-			const auditRows = await tenantDb
-				.select()
-				.from(auditLogs)
-				.where(eq(auditLogs.entityId, requested.id));
-			// request writes 1, approve writes 1, process writes 1 → ≥ 3
-			expect(auditRows.length).toBeGreaterThanOrEqual(3);
+		// Assert audit rows were written (at least 2: request + approve + process)
+		const auditRows = await tenantDb
+			.select()
+			.from(auditLogs)
+			.where(eq(auditLogs.entityId, requested.id));
+		// request writes 1, approve writes 1, process writes 1 → ≥ 3
+		expect(auditRows.length).toBeGreaterThanOrEqual(3);
 
-			// Assert sales_order cancelledAmount updated
-			const [updatedOrder] = await tenantDb
-				.select()
-				.from(salesOrders)
-				.where(eq(salesOrders.id, so.id));
-			expect(updatedOrder!.cancelledAmount).toBe(10_000);
-		},
-		30000,
-	);
+		// Assert sales_order cancelledAmount updated
+		const [updatedOrder] = await tenantDb
+			.select()
+			.from(salesOrders)
+			.where(eq(salesOrders.id, so.id));
+		expect(updatedOrder!.cancelledAmount).toBe(10_000);
+	}, 30000);
 
 	/**
 	 * TC-RSM-002: request → reject → terminal state, no commission reversal, no installment event
 	 */
-	test(
-		"TC-RSM-002: request → reject → status='rejected', no money moves",
-		async () => {
-			if (SKIP) return;
+	test("TC-RSM-002: request → reject → status='rejected', no money moves", async () => {
+		if (SKIP) return;
 
-			const so = await seedSalesOrder("002");
+		const so = await seedSalesOrder("002");
 
-			const requested = await requestRefund(tenantDb, {
-				salesOrderId: so.id,
-				amountCents: 20_000,
-				reason: "Customer changed mind",
-				actor: ACTOR,
-			});
-			createdRefundIds.push(requested.id);
+		const requested = await requestRefund(tenantDb, {
+			salesOrderId: so.id,
+			amountCents: 20_000,
+			reason: "Customer changed mind",
+			actor: ACTOR,
+		});
+		createdRefundIds.push(requested.id);
 
-			const rejected = await rejectRefund(tenantDb, requested.id, {
-				reviewNotes: "Rejected — outside refund window",
-				actor: ACTOR,
-			});
+		const rejected = await rejectRefund(tenantDb, requested.id, {
+			reviewNotes: "Rejected — outside refund window",
+			actor: ACTOR,
+		});
 
-			expect(rejected.status).toBe("rejected");
-			expect(rejected.reviewedBy).toBe(TEST_USER_ID);
-			expect(rejected.reviewedAt).toBeInstanceOf(Date);
-			expect(rejected.reviewNotes).toBe("Rejected — outside refund window");
+		expect(rejected.status).toBe("rejected");
+		expect(rejected.reviewedBy).toBe(TEST_USER_ID);
+		expect(rejected.reviewedAt).toBeInstanceOf(Date);
+		expect(rejected.reviewNotes).toBe("Rejected — outside refund window");
 
-			// Sales order must be untouched (cancelledAmount stays null / 0)
-			const [order] = await tenantDb
-				.select()
-				.from(salesOrders)
-				.where(eq(salesOrders.id, so.id));
-			expect(order!.cancelledAmount ?? 0).toBe(0);
-			expect(order!.status).toBe("confirmed"); // not cancelled
-		},
-		30000,
-	);
+		// Sales order must be untouched (cancelledAmount stays null / 0)
+		const [order] = await tenantDb
+			.select()
+			.from(salesOrders)
+			.where(eq(salesOrders.id, so.id));
+		expect(order!.cancelledAmount ?? 0).toBe(0);
+		expect(order!.status).toBe("confirmed"); // not cancelled
+	}, 30000);
 
 	/**
 	 * TC-RSM-003: processRefund on a pending (un-approved) refund → throws BAD_REQUEST
@@ -249,44 +239,40 @@ describe("Refund State Machine — lifecycle integration", () => {
 	 * Use try/catch (rather than .rejects) so Bun doesn't hang waiting for a rejection
 	 * that surfaces as a thrown plain-object inside a Neon FOR-UPDATE transaction.
 	 */
-	test(
-		"TC-RSM-003: processing un-approved (pending) refund throws BAD_REQUEST",
-		async () => {
-			if (SKIP) return;
+	test("TC-RSM-003: processing un-approved (pending) refund throws BAD_REQUEST", async () => {
+		if (SKIP) return;
 
-			const so = await seedSalesOrder("003");
+		const so = await seedSalesOrder("003");
 
-			const requested = await requestRefund(tenantDb, {
-				salesOrderId: so.id,
-				amountCents: 5_000,
-				reason: "State guard test",
+		const requested = await requestRefund(tenantDb, {
+			salesOrderId: so.id,
+			amountCents: 5_000,
+			reason: "State guard test",
+			actor: ACTOR,
+		});
+		createdRefundIds.push(requested.id);
+
+		// Attempt to process without approving first — must throw BAD_REQUEST
+		let thrown: unknown = null;
+		try {
+			await processRefund(tenantDb, requested.id, {
+				refundMethod: "cash",
 				actor: ACTOR,
 			});
-			createdRefundIds.push(requested.id);
+		} catch (err) {
+			thrown = err;
+		}
 
-			// Attempt to process without approving first — must throw BAD_REQUEST
-			let thrown: unknown = null;
-			try {
-				await processRefund(tenantDb, requested.id, {
-					refundMethod: "cash",
-					actor: ACTOR,
-				});
-			} catch (err) {
-				thrown = err;
-			}
+		expect(thrown).not.toBeNull();
+		expect((thrown as { code?: string }).code).toBe("BAD_REQUEST");
 
-			expect(thrown).not.toBeNull();
-			expect((thrown as { code?: string }).code).toBe("BAD_REQUEST");
-
-			// Status must still be 'pending' (no mutation occurred)
-			const [row] = await tenantDb
-				.select()
-				.from(refunds)
-				.where(eq(refunds.id, requested.id));
-			expect(row!.status).toBe("pending");
-		},
-		30000,
-	);
+		// Status must still be 'pending' (no mutation occurred)
+		const [row] = await tenantDb
+			.select()
+			.from(refunds)
+			.where(eq(refunds.id, requested.id));
+		expect(row!.status).toBe("pending");
+	}, 30000);
 
 	/**
 	 * TC-RSM-004: approveRefund on an already-approved refund → throws BAD_REQUEST
@@ -294,48 +280,44 @@ describe("Refund State Machine — lifecycle integration", () => {
 	 * Use try/catch (rather than .rejects) so Bun doesn't hang waiting for a rejection
 	 * that surfaces as a thrown plain-object inside a Neon FOR-UPDATE transaction.
 	 */
-	test(
-		"TC-RSM-004: double-approve throws BAD_REQUEST",
-		async () => {
-			if (SKIP) return;
+	test("TC-RSM-004: double-approve throws BAD_REQUEST", async () => {
+		if (SKIP) return;
 
-			const so = await seedSalesOrder("004");
+		const so = await seedSalesOrder("004");
 
-			const requested = await requestRefund(tenantDb, {
-				salesOrderId: so.id,
-				amountCents: 7_500,
-				reason: "Idempotency guard test",
-				actor: ACTOR,
-			});
-			createdRefundIds.push(requested.id);
+		const requested = await requestRefund(tenantDb, {
+			salesOrderId: so.id,
+			amountCents: 7_500,
+			reason: "Idempotency guard test",
+			actor: ACTOR,
+		});
+		createdRefundIds.push(requested.id);
 
-			// First approval — must succeed
+		// First approval — must succeed
+		await approveRefund(tenantDb, requested.id, {
+			reviewNotes: "First approval",
+			actor: ACTOR,
+		});
+
+		// Second approval — must throw BAD_REQUEST
+		let thrown: unknown = null;
+		try {
 			await approveRefund(tenantDb, requested.id, {
-				reviewNotes: "First approval",
+				reviewNotes: "Duplicate approval",
 				actor: ACTOR,
 			});
+		} catch (err) {
+			thrown = err;
+		}
 
-			// Second approval — must throw BAD_REQUEST
-			let thrown: unknown = null;
-			try {
-				await approveRefund(tenantDb, requested.id, {
-					reviewNotes: "Duplicate approval",
-					actor: ACTOR,
-				});
-			} catch (err) {
-				thrown = err;
-			}
+		expect(thrown).not.toBeNull();
+		expect((thrown as { code?: string }).code).toBe("BAD_REQUEST");
 
-			expect(thrown).not.toBeNull();
-			expect((thrown as { code?: string }).code).toBe("BAD_REQUEST");
-
-			// Status still 'approved' (not corrupted)
-			const [row] = await tenantDb
-				.select()
-				.from(refunds)
-				.where(eq(refunds.id, requested.id));
-			expect(row!.status).toBe("approved");
-		},
-		30000,
-	);
+		// Status still 'approved' (not corrupted)
+		const [row] = await tenantDb
+			.select()
+			.from(refunds)
+			.where(eq(refunds.id, requested.id));
+		expect(row!.status).toBe("approved");
+	}, 30000);
 });

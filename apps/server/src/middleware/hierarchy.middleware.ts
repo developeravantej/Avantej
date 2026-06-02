@@ -49,14 +49,14 @@ export const hierarchyMiddleware = createMiddleware(async (c, next) => {
 		if (!member) {
 			return c.json(
 				{ error: "User is not a member of this organization" },
-				403
+				403,
 			);
 		}
 
 		// Calculate accessible hierarchy node IDs (current node + all descendants)
 		const accessibleNodeIds = await getDescendantNodeIds(
 			tenantDb,
-			member.hierarchyScopeId
+			member.hierarchyScopeId,
 		);
 
 		// Set member and hierarchy context in Hono context
@@ -75,8 +75,7 @@ export const hierarchyMiddleware = createMiddleware(async (c, next) => {
 						? error.message
 						: "Failed to initialize hierarchy context",
 			},
-			500
+			500,
 		);
 	}
 });
-

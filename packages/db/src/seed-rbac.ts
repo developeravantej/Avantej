@@ -116,6 +116,11 @@ export async function seedRBACData(
 		{ resource: "category_commission_management", action: "create" },
 		{ resource: "category_commission_management", action: "update" },
 		{ resource: "category_commission_management", action: "delete" },
+		// Commission track management — Phase 3 config API
+		{ resource: "commission_track_management", action: "read" },
+		{ resource: "commission_track_management", action: "create" },
+		{ resource: "commission_track_management", action: "update" },
+		{ resource: "commission_track_management", action: "delete" },
 		// Commission payout (finance-gated — granted to admin; restrict to owner-level in prod)
 		{ resource: "commission_payout", action: "read" },
 		{ resource: "commission_payout", action: "create" },

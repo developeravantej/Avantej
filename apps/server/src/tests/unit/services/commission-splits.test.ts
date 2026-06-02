@@ -18,7 +18,17 @@ const TO = "2026-04-30T23:59:59.999Z";
 
 function selectChainResolving(value: unknown) {
 	const chain: Record<string, unknown> = {};
-	for (const m of ["from", "where", "orderBy", "limit", "offset", "leftJoin", "innerJoin", "groupBy", "having"]) {
+	for (const m of [
+		"from",
+		"where",
+		"orderBy",
+		"limit",
+		"offset",
+		"leftJoin",
+		"innerJoin",
+		"groupBy",
+		"having",
+	]) {
 		chain[m] = mock(() => chain);
 	}
 	chain.then = (resolve: (v: unknown) => unknown) =>
@@ -162,7 +172,10 @@ describe("liabilitySummary", () => {
 			]),
 		);
 
-		const result = await liabilitySummary(db as any, cpDb, { from: FROM, to: TO });
+		const result = await liabilitySummary(db as any, cpDb, {
+			from: FROM,
+			to: TO,
+		});
 
 		expect(result.trainers).toHaveLength(1);
 		const trainer = result.trainers[0]!;
@@ -180,12 +193,25 @@ describe("liabilitySummary", () => {
 
 		db.select.mockReturnValueOnce(
 			selectChainResolving([
-				{ staffId: MEMBER_ID, approvedUnpaid: 8000, paid: 2000, manualAdj: 500 },
-				{ staffId: MEMBER_ID_2, approvedUnpaid: 4000, paid: 1000, manualAdj: -300 },
+				{
+					staffId: MEMBER_ID,
+					approvedUnpaid: 8000,
+					paid: 2000,
+					manualAdj: 500,
+				},
+				{
+					staffId: MEMBER_ID_2,
+					approvedUnpaid: 4000,
+					paid: 1000,
+					manualAdj: -300,
+				},
 			]),
 		);
 
-		const result = await liabilitySummary(db as any, cpDb, { from: FROM, to: TO });
+		const result = await liabilitySummary(db as any, cpDb, {
+			from: FROM,
+			to: TO,
+		});
 
 		expect(result.totals.approvedUnpaidCents).toBe(12000);
 		expect(result.totals.paidCents).toBe(3000);
@@ -199,7 +225,10 @@ describe("liabilitySummary", () => {
 
 		db.select.mockReturnValueOnce(selectChainResolving([]));
 
-		const result = await liabilitySummary(db as any, cpDb, { from: FROM, to: TO });
+		const result = await liabilitySummary(db as any, cpDb, {
+			from: FROM,
+			to: TO,
+		});
 
 		expect(result.trainers).toHaveLength(0);
 		expect(result.totals.approvedUnpaidCents).toBe(0);
@@ -233,7 +262,10 @@ describe("liabilitySummary", () => {
 		// Simulate DB returning nothing (void rows filtered out at DB level)
 		db.select.mockReturnValueOnce(selectChainResolving([]));
 
-		const result = await liabilitySummary(db as any, cpDb, { from: FROM, to: TO });
+		const result = await liabilitySummary(db as any, cpDb, {
+			from: FROM,
+			to: TO,
+		});
 
 		expect(result.trainers).toHaveLength(0);
 		expect(result.totals.approvedUnpaidCents).toBe(0);
@@ -250,7 +282,10 @@ describe("liabilitySummary", () => {
 			]),
 		);
 
-		const result = await liabilitySummary(db as any, cpDb, { from: FROM, to: TO });
+		const result = await liabilitySummary(db as any, cpDb, {
+			from: FROM,
+			to: TO,
+		});
 
 		expect(result.trainers[0]!.name).toBe(MEMBER_ID);
 	});
@@ -333,9 +368,15 @@ describe("markPaidBatch", () => {
 		const setMock = mock(() => ({ where: whereMock }));
 		innerDb.update = mock(() => ({ set: setMock })) as any;
 		// audit write inside transaction uses insert
-		innerDb.insert = mock(() => ({ values: mock(() => ({ returning: mock(() => Promise.resolve([{ id: "audit-1" }])) })) })) as any;
+		innerDb.insert = mock(() => ({
+			values: mock(() => ({
+				returning: mock(() => Promise.resolve([{ id: "audit-1" }])),
+			})),
+		})) as any;
 
-		db.transaction = mock((cb: (tx: unknown) => Promise<unknown>) => cb(innerDb)) as any;
+		db.transaction = mock((cb: (tx: unknown) => Promise<unknown>) =>
+			cb(innerDb),
+		) as any;
 
 		const result = await markPaidBatch(db as any, {
 			memberIds: [MEMBER_ID, MEMBER_ID_2],
@@ -361,9 +402,15 @@ describe("markPaidBatch", () => {
 		const whereMock = mock(() => ({ returning: returningMock }));
 		const setMock = mock(() => ({ where: whereMock }));
 		innerDb.update = mock(() => ({ set: setMock })) as any;
-		innerDb.insert = mock(() => ({ values: mock(() => ({ returning: mock(() => Promise.resolve([{ id: "audit-1" }])) })) })) as any;
+		innerDb.insert = mock(() => ({
+			values: mock(() => ({
+				returning: mock(() => Promise.resolve([{ id: "audit-1" }])),
+			})),
+		})) as any;
 
-		db.transaction = mock((cb: (tx: unknown) => Promise<unknown>) => cb(innerDb)) as any;
+		db.transaction = mock((cb: (tx: unknown) => Promise<unknown>) =>
+			cb(innerDb),
+		) as any;
 
 		const result = await markPaidBatch(db as any, {
 			memberIds: [MEMBER_ID],
@@ -386,13 +433,21 @@ describe("markPaidBatch", () => {
 			execute: mock(() => Promise.resolve({ rows: [] })),
 		};
 		// Only 1 approved split returned (2 pending/paid/void were excluded by DB)
-		const returningMock = mock(() => Promise.resolve([{ staffId: MEMBER_ID, id: "split-approved" }]));
+		const returningMock = mock(() =>
+			Promise.resolve([{ staffId: MEMBER_ID, id: "split-approved" }]),
+		);
 		const whereMock = mock(() => ({ returning: returningMock }));
 		const setMock = mock(() => ({ where: whereMock }));
 		innerDb.update = mock(() => ({ set: setMock })) as any;
-		innerDb.insert = mock(() => ({ values: mock(() => ({ returning: mock(() => Promise.resolve([{ id: "audit-1" }])) })) })) as any;
+		innerDb.insert = mock(() => ({
+			values: mock(() => ({
+				returning: mock(() => Promise.resolve([{ id: "audit-1" }])),
+			})),
+		})) as any;
 
-		db.transaction = mock((cb: (tx: unknown) => Promise<unknown>) => cb(innerDb)) as any;
+		db.transaction = mock((cb: (tx: unknown) => Promise<unknown>) =>
+			cb(innerDb),
+		) as any;
 
 		const result = await markPaidBatch(db as any, {
 			memberIds: [MEMBER_ID],
@@ -418,7 +473,11 @@ describe("markPaidBatch", () => {
 				where: mock(() => ({ returning: mock(() => Promise.resolve([])) })),
 			})),
 		})) as any;
-		innerDb.insert = mock(() => ({ values: mock(() => ({ returning: mock(() => Promise.resolve([{ id: "audit-1" }])) })) })) as any;
+		innerDb.insert = mock(() => ({
+			values: mock(() => ({
+				returning: mock(() => Promise.resolve([{ id: "audit-1" }])),
+			})),
+		})) as any;
 
 		const txMock = mock((cb: (tx: unknown) => Promise<unknown>) => cb(innerDb));
 		db.transaction = txMock as any;
@@ -452,7 +511,9 @@ describe("markPaidBatch", () => {
 		};
 		innerDb.update = mock(() => ({
 			set: mock(() => ({
-				where: mock(() => ({ returning: mock(() => Promise.resolve(updatedRows)) })),
+				where: mock(() => ({
+					returning: mock(() => Promise.resolve(updatedRows)),
+				})),
 			})),
 		})) as any;
 
@@ -461,7 +522,9 @@ describe("markPaidBatch", () => {
 		const auditInsert = mock(() => ({ values: auditValues }));
 		innerDb.insert = auditInsert as any;
 
-		db.transaction = mock((cb: (tx: unknown) => Promise<unknown>) => cb(innerDb)) as any;
+		db.transaction = mock((cb: (tx: unknown) => Promise<unknown>) =>
+			cb(innerDb),
+		) as any;
 
 		await markPaidBatch(db as any, {
 			memberIds: [MEMBER_ID, MEMBER_ID_2],

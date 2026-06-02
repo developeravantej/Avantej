@@ -43,7 +43,7 @@ function FieldError({ errors }: { errors: unknown[] }) {
 	return (
 		<>
 			{errors.map((error, i) => (
-				<p key={i} className="text-sm text-destructive">
+				<p key={i} className="text-sm text-rose-600">
 					{typeof error === "string"
 						? error
 						: (error as { message?: string })?.message || "Invalid value"}
@@ -103,10 +103,18 @@ export function PartialRefundDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent>
-				<DialogHeader>
-					<DialogTitle>Partial Package Refund</DialogTitle>
-					<DialogDescription>
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						REFUNDS
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Partial Package Refund
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
 						Refund a specific number of unused session credits on a package
 						instance. The per-credit amount is derived from the package's total
 						price.
@@ -120,62 +128,63 @@ export function PartialRefundDialog({
 						e.stopPropagation();
 						form.handleSubmit();
 					}}
-					className="space-y-4"
 				>
-					<form.Field name="packageInstanceId">
-						{(field) => (
-							<div className="space-y-2">
-								<Label htmlFor={field.name}>Package Instance ID</Label>
-								<Input
-									id={field.name}
-									placeholder="00000000-0000-0000-0000-000000000000"
-									value={field.state.value}
-									onBlur={field.handleBlur}
-									onChange={(e) => field.handleChange(e.target.value)}
-								/>
-								<FieldError errors={field.state.meta.errors} />
-							</div>
-						)}
-					</form.Field>
+					<div className="px-6 pt-4 pb-2 overflow-y-auto space-y-4">
+						<form.Field name="packageInstanceId">
+							{(field) => (
+								<div className="space-y-2">
+									<Label htmlFor={field.name}>Package Instance ID</Label>
+									<Input
+										id={field.name}
+										placeholder="00000000-0000-0000-0000-000000000000"
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(e) => field.handleChange(e.target.value)}
+									/>
+									<FieldError errors={field.state.meta.errors} />
+								</div>
+							)}
+						</form.Field>
 
-					<form.Field name="creditsRefunded">
-						{(field) => (
-							<div className="space-y-2">
-								<Label htmlFor={field.name}>Credits to refund</Label>
-								<Input
-									id={field.name}
-									type="number"
-									min={1}
-									step={1}
-									placeholder="3"
-									value={field.state.value}
-									onBlur={field.handleBlur}
-									onChange={(e) => field.handleChange(e.target.value)}
-								/>
-								<FieldError errors={field.state.meta.errors} />
-							</div>
-						)}
-					</form.Field>
+						<form.Field name="creditsRefunded">
+							{(field) => (
+								<div className="space-y-2">
+									<Label htmlFor={field.name}>Credits to refund</Label>
+									<Input
+										id={field.name}
+										type="number"
+										min={1}
+										step={1}
+										placeholder="3"
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(e) => field.handleChange(e.target.value)}
+									/>
+									<FieldError errors={field.state.meta.errors} />
+								</div>
+							)}
+						</form.Field>
 
-					<form.Field name="reason">
-						{(field) => (
-							<div className="space-y-2">
-								<Label htmlFor={field.name}>Reason</Label>
-								<Textarea
-									id={field.name}
-									placeholder="Customer cancelled remaining sessions"
-									value={field.state.value}
-									onBlur={field.handleBlur}
-									onChange={(e) => field.handleChange(e.target.value)}
-								/>
-								<FieldError errors={field.state.meta.errors} />
-							</div>
-						)}
-					</form.Field>
+						<form.Field name="reason">
+							{(field) => (
+								<div className="space-y-2">
+									<Label htmlFor={field.name}>Reason</Label>
+									<Textarea
+										id={field.name}
+										placeholder="Customer cancelled remaining sessions"
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(e) => field.handleChange(e.target.value)}
+									/>
+									<FieldError errors={field.state.meta.errors} />
+								</div>
+							)}
+						</form.Field>
+					</div>
 
 					<form.Subscribe selector={(state) => state.isSubmitting}>
 						{(isSubmitting) => (
-							<DialogFooter>
+							<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 								<Button
 									type="button"
 									variant="outline"
@@ -183,7 +192,11 @@ export function PartialRefundDialog({
 								>
 									Cancel
 								</Button>
-								<Button type="submit" disabled={isSubmitting}>
+								<Button
+									type="submit"
+									disabled={isSubmitting}
+									className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+								>
 									{isSubmitting ? "Creating..." : "Create Refund"}
 								</Button>
 							</DialogFooter>

@@ -1,10 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { client } from "@/utils/orpc";
+import { orpc } from "@/utils/orpc";
 
 export function usePlatformAdminRole() {
 	const { data, isLoading } = useQuery({
-		queryKey: ["admin", "me"],
-		queryFn: () => client.admin.me({}),
+		...orpc.admin.me.queryOptions({ input: {} }),
 		staleTime: 5 * 60_000,
 	});
 	return {

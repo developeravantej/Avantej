@@ -35,7 +35,9 @@ const mockOrderBy = mock(() => ({ limit: mockLimit }));
 // where() is used both as terminal (count queries resolve immediately) and as
 // the start of orderBy chain. We give it a dual-return: the Promise also has
 // .orderBy on it so the chain works. We handle this via mockImplementation per test.
-const mockSelectWhere = mock((..._args: any[]): any => Promise.resolve([{ total: 0 }]));
+const mockSelectWhere = mock((..._args: any[]): any =>
+	Promise.resolve([{ total: 0 }]),
+);
 const mockSelectFrom = mock(() => ({ where: mockSelectWhere }));
 const mockSelect = mock(() => ({ from: mockSelectFrom }));
 
@@ -129,7 +131,9 @@ describe("listSalesOrders", () => {
 	test("applies customerId filter", async () => {
 		setupListMock(0, []);
 
-		const result = await listSalesOrders(mockTenantDb, { customerId: "cust-1" });
+		const result = await listSalesOrders(mockTenantDb, {
+			customerId: "cust-1",
+		});
 
 		expect(result.rows).toEqual([]);
 		expect(mockSelectWhere).toHaveBeenCalledTimes(2);
@@ -147,7 +151,9 @@ describe("listSalesOrders", () => {
 	});
 
 	test("returns empty result immediately when accessibleNodeIds is empty (no DB call)", async () => {
-		const result = await listSalesOrders(mockTenantDb, { accessibleNodeIds: [] });
+		const result = await listSalesOrders(mockTenantDb, {
+			accessibleNodeIds: [],
+		});
 
 		expect(result).toEqual({ rows: [], total: 0 });
 		// No DB queries should have been made
@@ -159,7 +165,7 @@ describe("listSalesOrders", () => {
 			listSalesOrders(mockTenantDb, {
 				accessibleNodeIds: ["br1"],
 				branchId: "br2",
-			})
+			}),
 		).rejects.toThrow("FORBIDDEN: branch not in accessible scope");
 
 		expect(mockSelect).not.toHaveBeenCalled();
@@ -172,7 +178,9 @@ describe("listSalesOrders", () => {
 		];
 		setupListMock(2, fakeOrders);
 
-		const result = await listSalesOrders(mockTenantDb, { accessibleNodeIds: ["br1", "br3"] });
+		const result = await listSalesOrders(mockTenantDb, {
+			accessibleNodeIds: ["br1", "br3"],
+		});
 
 		expect(result.rows).toHaveLength(2);
 		expect(result.total).toBe(2);
@@ -187,7 +195,9 @@ describe("listSalesOrders", () => {
 		const mockLimitCapture = mock(() => ({ offset: mockOffsetCapture }));
 		const mockOrderByCapture = mock(() => ({ limit: mockLimitCapture }));
 
-		mockSelectWhere.mockImplementationOnce(() => Promise.resolve([{ total: 10 }]));
+		mockSelectWhere.mockImplementationOnce(() =>
+			Promise.resolve([{ total: 10 }]),
+		);
 		mockSelectWhere.mockImplementationOnce(() => ({
 			orderBy: mockOrderByCapture,
 		}));
@@ -205,7 +215,9 @@ describe("listSalesOrders", () => {
 		const mockLimitCapture = mock(() => ({ offset: mockOffsetCapture }));
 		const mockOrderByCapture = mock(() => ({ limit: mockLimitCapture }));
 
-		mockSelectWhere.mockImplementationOnce(() => Promise.resolve([{ total: 0 }]));
+		mockSelectWhere.mockImplementationOnce(() =>
+			Promise.resolve([{ total: 0 }]),
+		);
 		mockSelectWhere.mockImplementationOnce(() => ({
 			orderBy: mockOrderByCapture,
 		}));
@@ -297,20 +309,27 @@ describe("createSalesOrder", () => {
 				createdBy: "user-1",
 				branchId: "br1",
 				totalAmount: 50,
-			})
+			}),
 		).rejects.toThrow("Failed to create sales order");
 	});
 });
 
 describe("updateSalesOrder", () => {
 	test("updates and returns the order", async () => {
-		const updatedOrder = { id: "so1", customerName: "Alice Updated", status: "confirmed" };
+		const updatedOrder = {
+			id: "so1",
+			customerName: "Alice Updated",
+			status: "confirmed",
+		};
 		const mockReturningUpd = mock(() => Promise.resolve([updatedOrder]));
 		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		const result = await updateSalesOrder(mockTenantDb, "so1", { customerName: "Alice Updated", status: "confirmed" });
+		const result = await updateSalesOrder(mockTenantDb, "so1", {
+			customerName: "Alice Updated",
+			status: "confirmed",
+		});
 
 		expect(result).toEqual(updatedOrder as any);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
@@ -322,9 +341,9 @@ describe("updateSalesOrder", () => {
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		await expect(updateSalesOrder(mockTenantDb, "nonexistent", { customerName: "X" })).rejects.toThrow(
-			"Sales order not found"
-		);
+		await expect(
+			updateSalesOrder(mockTenantDb, "nonexistent", { customerName: "X" }),
+		).rejects.toThrow("Sales order not found");
 	});
 });
 
@@ -333,7 +352,12 @@ describe("cancelSalesOrder", () => {
 		mockFindFirst.mockResolvedValueOnce(undefined);
 
 		await expect(
-			cancelSalesOrder(mockTenantDb, "nonexistent", { cancelledBy: "user-1", refundAmount: 100 }, MOCK_ACTOR)
+			cancelSalesOrder(
+				mockTenantDb,
+				"nonexistent",
+				{ cancelledBy: "user-1", refundAmount: 100 },
+				MOCK_ACTOR,
+			),
 		).rejects.toThrow("Sales order not found");
 	});
 
@@ -360,10 +384,15 @@ describe("cancelSalesOrder", () => {
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		const result = await cancelSalesOrder(mockTenantDb, "so1", {
-			cancelledBy: "user-1",
-			refundAmount: 100,
-		}, MOCK_ACTOR);
+		const result = await cancelSalesOrder(
+			mockTenantDb,
+			"so1",
+			{
+				cancelledBy: "user-1",
+				refundAmount: 100,
+			},
+			MOCK_ACTOR,
+		);
 
 		expect(result).toBeDefined();
 		expect(result.status).toBe("cancelled");
@@ -398,11 +427,16 @@ describe("cancelSalesOrder", () => {
 		});
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		const result = await cancelSalesOrder(mockTenantDb, "so2", {
-			cancelledBy: "user-2",
-			reason: "Customer request",
-			refundAmount: 200,
-		}, MOCK_ACTOR);
+		const result = await cancelSalesOrder(
+			mockTenantDb,
+			"so2",
+			{
+				cancelledBy: "user-2",
+				reason: "Customer request",
+				refundAmount: 200,
+			},
+			MOCK_ACTOR,
+		);
 
 		expect(result.cancellationReason).toBe("Customer request");
 		expect(result.cancelledBy).toBe("user-2");
@@ -443,10 +477,15 @@ describe("cancelSalesOrder", () => {
 		});
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		const result = await cancelSalesOrder(mockTenantDb, "so3", {
-			cancelledBy: "user-3",
-			refundAmount: 5000, // partial refund — half of totalAmount
-		}, MOCK_ACTOR);
+		const result = await cancelSalesOrder(
+			mockTenantDb,
+			"so3",
+			{
+				cancelledBy: "user-3",
+				refundAmount: 5000, // partial refund — half of totalAmount
+			},
+			MOCK_ACTOR,
+		);
 
 		// The set() call must write cancelled_amount with the partial refund value
 		const setArg = capturedSet[0];
@@ -466,10 +505,15 @@ describe("cancelSalesOrder", () => {
 		mockFindFirst.mockResolvedValueOnce(mockOrder);
 
 		await expect(
-			cancelSalesOrder(mockTenantDb, "so4", {
-				cancelledBy: "user-4",
-				refundAmount: 20000, // > totalAmount
-			}, MOCK_ACTOR)
+			cancelSalesOrder(
+				mockTenantDb,
+				"so4",
+				{
+					cancelledBy: "user-4",
+					refundAmount: 20000, // > totalAmount
+				},
+				MOCK_ACTOR,
+			),
 		).rejects.toThrow(/out of range/);
 
 		// update() must not have been called — validation happens before the DB write
@@ -486,10 +530,15 @@ describe("cancelSalesOrder", () => {
 		mockFindFirst.mockResolvedValueOnce(mockOrder);
 
 		await expect(
-			cancelSalesOrder(mockTenantDb, "so5", {
-				cancelledBy: "user-5",
-				refundAmount: -100,
-			}, MOCK_ACTOR)
+			cancelSalesOrder(
+				mockTenantDb,
+				"so5",
+				{
+					cancelledBy: "user-5",
+					refundAmount: -100,
+				},
+				MOCK_ACTOR,
+			),
 		).rejects.toThrow(/out of range/);
 
 		expect(mockUpdate).not.toHaveBeenCalled();

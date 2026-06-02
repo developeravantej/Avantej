@@ -25,15 +25,19 @@ export interface GhlFetchArgs {
 	timeoutMs?: number;
 }
 
-export async function ghlFetch<T = unknown>(
-	args: GhlFetchArgs,
-): Promise<T> {
+export async function ghlFetch<T = unknown>(args: GhlFetchArgs): Promise<T> {
 	if (process.env.MOCK_GHL === "1" && process.env.NODE_ENV !== "production") {
 		return mockGhlResponse(args) as T;
 	}
 
-	const { method, path, apiKey, body, query, timeoutMs = DEFAULT_TIMEOUT_MS } =
-		args;
+	const {
+		method,
+		path,
+		apiKey,
+		body,
+		query,
+		timeoutMs = DEFAULT_TIMEOUT_MS,
+	} = args;
 
 	let url = `${GHL_BASE_URL}${path}`;
 	if (query) {
@@ -148,13 +152,20 @@ function mockGhlResponse(args: GhlFetchArgs): unknown {
 	// POST /locations/:id/customFields  → ensureCustomFieldsExist create
 	if (method === "POST" && /^\/locations\/[^/]+\/customFields$/.test(path)) {
 		const body = args.body as { name?: string; fieldKey?: string } | undefined;
-		const idSeed = body?.fieldKey ?? body?.name ?? Math.random().toString(36).slice(2);
-		return { id: `mock_cf_${idSeed}`, name: body?.name, fieldKey: body?.fieldKey };
+		const idSeed =
+			body?.fieldKey ?? body?.name ?? Math.random().toString(36).slice(2);
+		return {
+			id: `mock_cf_${idSeed}`,
+			name: body?.name,
+			fieldKey: body?.fieldKey,
+		};
 	}
 
 	// POST /contacts/  → syncCustomerToGhl create
 	if (method === "POST" && path === "/contacts/") {
-		const body = args.body as { locationId?: string; email?: string } | undefined;
+		const body = args.body as
+			| { locationId?: string; email?: string }
+			| undefined;
 		return {
 			id: `mock_contact_${Math.random().toString(36).slice(2, 10)}`,
 			locationId: body?.locationId ?? "mock_location",
@@ -165,7 +176,9 @@ function mockGhlResponse(args: GhlFetchArgs): unknown {
 	// PUT /contacts/:id  → syncCustomerToGhl update
 	if (method === "PUT" && /^\/contacts\/[^/]+$/.test(path)) {
 		const id = path.split("/")[2];
-		const body = args.body as { locationId?: string; email?: string } | undefined;
+		const body = args.body as
+			| { locationId?: string; email?: string }
+			| undefined;
 		return { id, locationId: body?.locationId, email: body?.email };
 	}
 
@@ -176,7 +189,9 @@ function mockGhlResponse(args: GhlFetchArgs): unknown {
 
 	// POST /users/  → syncStaffToGhl create
 	if (method === "POST" && path === "/users/") {
-		const body = args.body as { email?: string; firstName?: string; lastName?: string } | undefined;
+		const body = args.body as
+			| { email?: string; firstName?: string; lastName?: string }
+			| undefined;
 		return {
 			id: `mock_user_${Math.random().toString(36).slice(2, 10)}`,
 			email: body?.email,

@@ -52,9 +52,9 @@ describe("Plan F.6 — snapshot factor wiring (formula-side contract)", () => {
 		// Exactly one no_data flag (the activity factor).
 		expect(result.flags.filter((f) => f.code === "no_data").length).toBe(1);
 		// No critical flags.
-		expect(
-			result.flags.filter((f) => f.severity === "critical").length,
-		).toBe(0);
+		expect(result.flags.filter((f) => f.severity === "critical").length).toBe(
+			0,
+		);
 	});
 
 	test("formula emits inactive_admin + webhook_failures when cron supplies bad values", () => {

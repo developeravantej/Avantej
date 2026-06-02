@@ -28,6 +28,9 @@ export function TrainerTiersPage() {
 		MissingRateCategory[] | null
 	>(null);
 	const [createForm, setCreateForm] = useState(EMPTY_FORM);
+	const [statusFilter, setStatusFilter] = useState<
+		"all" | "active" | "inactive"
+	>("all");
 
 	const {
 		data: tiers = [],
@@ -38,7 +41,10 @@ export function TrainerTiersPage() {
 	} = useQuery({
 		queryKey: ["trainerTiers", orgId, "list"],
 		queryFn: () =>
-			client.trainerTiers.list({ organizationId: orgId, includeInactive: true }),
+			client.trainerTiers.list({
+				organizationId: orgId,
+				includeInactive: true,
+			}),
 		enabled: !!orgId,
 	});
 
@@ -51,9 +57,13 @@ export function TrainerTiersPage() {
 			setCreateOpen(false);
 			setCreateForm(EMPTY_FORM);
 			refetch();
-			const missing = result && typeof result === "object" && "missingRateCategories" in result
-				? (result as { missingRateCategories: MissingRateCategory[] }).missingRateCategories
-				: [];
+			const missing =
+				result &&
+				typeof result === "object" &&
+				"missingRateCategories" in result
+					? (result as { missingRateCategories: MissingRateCategory[] })
+							.missingRateCategories
+					: [];
 			if (missing.length > 0) {
 				setMissingRateBanner(missing);
 			}
@@ -89,14 +99,28 @@ export function TrainerTiersPage() {
 		errorMessage: (err) => err.message || "Failed to reactivate tier",
 		onSuccess: (result) => {
 			refetch();
-			const missing = result && typeof result === "object" && "missingRateCategories" in result
-				? (result as { missingRateCategories: MissingRateCategory[] }).missingRateCategories
-				: [];
+			const missing =
+				result &&
+				typeof result === "object" &&
+				"missingRateCategories" in result
+					? (result as { missingRateCategories: MissingRateCategory[] })
+							.missingRateCategories
+					: [];
 			if (missing.length > 0) {
 				setMissingRateBanner(missing);
 			}
 		},
 	});
+
+	const filteredTiers = tiers.filter((tier) => {
+		const isActive = tier.isActive !== false;
+		if (statusFilter === "active") return isActive;
+		if (statusFilter === "inactive") return !isActive;
+		return true;
+	});
+
+	const activeCnt = tiers.filter((t) => t.isActive !== false).length;
+	const inactiveCnt = tiers.filter((t) => t.isActive === false).length;
 
 	function handleCreate(e: React.FormEvent) {
 		e.preventDefault();
@@ -170,77 +194,127 @@ export function TrainerTiersPage() {
 					No tiers yet. Create your first tier.
 				</div>
 			) : (
-				<div className="rounded-md border">
-					<table className="w-full text-sm">
-						<thead>
-							<tr className="border-b bg-muted/50">
-								<th className="px-4 py-3 text-left font-medium text-muted-foreground">
-									Name
-								</th>
-								<th className="px-4 py-3 text-left font-medium text-muted-foreground">
-									Rank
-								</th>
-								<th className="px-4 py-3 text-left font-medium text-muted-foreground">
-									Status
-								</th>
-								<th className="px-4 py-3 text-right font-medium text-muted-foreground">
-									Actions
-								</th>
-							</tr>
-						</thead>
-						<tbody>
-							{tiers.map((tier) => {
-								const isActive = tier.isActive !== false;
-								return (
-									<tr key={tier.id} className="border-b last:border-0">
-										<td className="px-4 py-3 font-medium">{tier.name}</td>
-										<td className="px-4 py-3 text-muted-foreground">
-											{tier.rank ?? 0}
-										</td>
-										<td className="px-4 py-3">
-											{isActive ? (
-												<Badge variant="default">Active</Badge>
-											) : (
-												<Badge variant="secondary">Inactive</Badge>
-											)}
-										</td>
-										<td className="px-4 py-3 text-right">
-											{isActive ? (
-												<Button
-													variant="outline"
-													size="sm"
-													onClick={() => setDeactivateTarget(tier.id)}
-													disabled={deactivateMutation.isPending}
-												>
-													Deactivate
-												</Button>
-											) : (
-												<div className="flex items-center gap-2 justify-end">
-													<Button
-														variant="outline"
-														size="sm"
-														onClick={() => reactivateMutation.mutate(tier.id)}
-														disabled={reactivateMutation.isPending || deleteMutation.isPending}
-													>
-														Reactivate
-													</Button>
-													<Button
-														variant="destructive"
-														size="sm"
-														onClick={() => setDeleteTarget(tier.id)}
-														disabled={deleteMutation.isPending || reactivateMutation.isPending}
-													>
-														Delete
-													</Button>
-												</div>
-											)}
-										</td>
+				<>
+					<div className="flex items-center gap-1 mb-3 border-b pb-0">
+						{(
+							[
+								{ key: "all", label: "All", count: tiers.length },
+								{ key: "active", label: "Active", count: activeCnt },
+								{ key: "inactive", label: "Inactive", count: inactiveCnt },
+							] as const
+						).map(({ key, label, count }) => (
+							<button
+								key={key}
+								type="button"
+								onClick={() => setStatusFilter(key)}
+								className={[
+									"relative px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none",
+									statusFilter === key
+										? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-foreground"
+										: "text-muted-foreground hover:text-foreground",
+								].join(" ")}
+							>
+								{label}
+								<span
+									className={[
+										"ml-1.5 rounded-full px-1.5 py-0.5 text-xs font-medium",
+										statusFilter === key
+											? "bg-foreground text-background"
+											: "bg-muted text-muted-foreground",
+									].join(" ")}
+								>
+									{count}
+								</span>
+							</button>
+						))}
+					</div>
+
+					{filteredTiers.length === 0 ? (
+						<div className="text-center py-12 text-muted-foreground">
+							No {statusFilter} tiers.
+						</div>
+					) : (
+						<div className="rounded-md border">
+							<table className="w-full text-sm">
+								<thead>
+									<tr className="border-b bg-muted/50">
+										<th className="px-4 py-3 text-left font-medium text-muted-foreground">
+											Name
+										</th>
+										<th className="px-4 py-3 text-left font-medium text-muted-foreground">
+											Rank
+										</th>
+										<th className="px-4 py-3 text-left font-medium text-muted-foreground">
+											Status
+										</th>
+										<th className="px-4 py-3 text-right font-medium text-muted-foreground">
+											Actions
+										</th>
 									</tr>
-								);
-							})}
-						</tbody>
-					</table>
-				</div>
+								</thead>
+								<tbody>
+									{filteredTiers.map((tier) => {
+										const isActive = tier.isActive !== false;
+										return (
+											<tr key={tier.id} className="border-b last:border-0">
+												<td className="px-4 py-3 font-medium">{tier.name}</td>
+												<td className="px-4 py-3 text-muted-foreground">
+													{tier.rank ?? 0}
+												</td>
+												<td className="px-4 py-3">
+													{isActive ? (
+														<Badge variant="default">Active</Badge>
+													) : (
+														<Badge variant="secondary">Inactive</Badge>
+													)}
+												</td>
+												<td className="px-4 py-3 text-right">
+													{isActive ? (
+														<Button
+															variant="outline"
+															size="sm"
+															onClick={() => setDeactivateTarget(tier.id)}
+															disabled={deactivateMutation.isPending}
+														>
+															Deactivate
+														</Button>
+													) : (
+														<div className="flex items-center gap-2 justify-end">
+															<Button
+																variant="outline"
+																size="sm"
+																onClick={() =>
+																	reactivateMutation.mutate(tier.id)
+																}
+																disabled={
+																	reactivateMutation.isPending ||
+																	deleteMutation.isPending
+																}
+															>
+																Reactivate
+															</Button>
+															<Button
+																variant="destructive"
+																size="sm"
+																onClick={() => setDeleteTarget(tier.id)}
+																disabled={
+																	deleteMutation.isPending ||
+																	reactivateMutation.isPending
+																}
+															>
+																Delete
+															</Button>
+														</div>
+													)}
+												</td>
+											</tr>
+										);
+									})}
+								</tbody>
+							</table>
+						</div>
+					)}
+				</>
 			)}
 
 			<CreateTierDialog

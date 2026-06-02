@@ -90,10 +90,18 @@ export function TransferOrdersTabPage() {
 		},
 		enabled: !!organizationId,
 	});
-	const branches = ((nodesData?.nodes ?? []) as Array<{ id: string; type: string; name: string }>).filter((n) => n.type === "branch");
+	const branches = (
+		(nodesData?.nodes ?? []) as Array<{
+			id: string;
+			type: string;
+			name: string;
+		}>
+	).filter((n) => n.type === "branch");
 
 	// ---- Filter state ----
-	const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+	const [statusFilter, setStatusFilter] = useState<string | undefined>(
+		undefined,
+	);
 
 	// ---- Create sheet state ----
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -105,15 +113,24 @@ export function TransferOrdersTabPage() {
 	const [formItemNotes, setFormItemNotes] = useState("");
 
 	// ---- Complete dialog state ----
-	const [completeTarget, setCompleteTarget] = useState<TransferOrderRow | null>(null);
-	const [receiveQuantities, setReceiveQuantities] = useState<Record<string, string>>({});
+	const [completeTarget, setCompleteTarget] = useState<TransferOrderRow | null>(
+		null,
+	);
+	const [receiveQuantities, setReceiveQuantities] = useState<
+		Record<string, string>
+	>({});
 	const [isFetchingCompleteItems, setIsFetchingCompleteItems] = useState(false);
 
 	// ---- Cancel dialog state ----
 	const [cancelTarget, setCancelTarget] = useState<string | null>(null);
 
 	// ---- Query ----
-	const { data: apiData = [], isLoading, isError, refetch } = useQuery({
+	const {
+		data: apiData = [],
+		isLoading,
+		isError,
+		refetch,
+	} = useQuery({
 		queryKey: ["transferOrders", organizationId, statusFilter],
 		queryFn: async () => {
 			if (!organizationId) return [];
@@ -162,7 +179,10 @@ export function TransferOrdersTabPage() {
 
 	const markInTransitMutation = useApiMutation({
 		mutationFn: (id: string) =>
-			client.transferOrders.markInTransit({ organizationId: organizationId!, id }),
+			client.transferOrders.markInTransit({
+				organizationId: organizationId!,
+				id,
+			}),
 		successMessage: "Transfer order marked in transit",
 		errorMessage: (err) =>
 			`Failed to mark transfer in transit: ${err.message || "An unexpected error occurred"}`,
@@ -170,7 +190,10 @@ export function TransferOrdersTabPage() {
 	});
 
 	const completeMutation = useApiMutation({
-		mutationFn: (vars: { id: string; items: { itemId: string; quantityReceived: number }[] }) =>
+		mutationFn: (vars: {
+			id: string;
+			items: { itemId: string; quantityReceived: number }[];
+		}) =>
 			client.transferOrders.complete({
 				organizationId: organizationId!,
 				id: vars.id,
@@ -271,7 +294,9 @@ export function TransferOrdersTabPage() {
 			}
 			setReceiveQuantities(initial);
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Failed to load transfer items");
+			toast.error(
+				err instanceof Error ? err.message : "Failed to load transfer items",
+			);
 		} finally {
 			setIsFetchingCompleteItems(false);
 		}
@@ -281,7 +306,9 @@ export function TransferOrdersTabPage() {
 	const data: TransferOrderRow[] = apiData.map((item: any) => ({
 		id: item.id,
 		transferNumber: item.transferNumber,
-		dateIssued: item.dateIssued ? new Date(item.dateIssued).toLocaleDateString() : "",
+		dateIssued: item.dateIssued
+			? new Date(item.dateIssued).toLocaleDateString()
+			: "",
 		fromBranchId: item.fromBranchId,
 		toBranchId: item.toBranchId,
 		issuedByMemberId: item.issuedByMemberId,
@@ -310,26 +337,36 @@ export function TransferOrdersTabPage() {
 		{
 			accessorKey: "dateIssued",
 			header: "Date Issued",
-			cell: ({ getValue }) => <span className="text-sm">{getValue<string>()}</span>,
+			cell: ({ getValue }) => (
+				<span className="text-sm">{getValue<string>()}</span>
+			),
 		},
 		{
 			accessorKey: "fromBranchId",
 			header: "From Branch",
 			cell: ({ getValue }) => (
-				<span className="text-sm text-muted-foreground">{getValue<string>()}</span>
+				<span className="text-sm text-muted-foreground">
+					{getValue<string>()}
+				</span>
 			),
 		},
 		{
 			accessorKey: "toBranchId",
 			header: "To Branch",
 			cell: ({ getValue }) => (
-				<span className="text-sm text-muted-foreground">{getValue<string>()}</span>
+				<span className="text-sm text-muted-foreground">
+					{getValue<string>()}
+				</span>
 			),
 		},
 		{
 			accessorKey: "status",
 			header: "Status",
-			cell: ({ getValue }) => <StatusBadge status={getValue<TransferOrderStatus>() as CanonicalStatus} />,
+			cell: ({ getValue }) => (
+				<StatusBadge
+					status={getValue<TransferOrderStatus>() as CanonicalStatus}
+				/>
+			),
 		},
 		{
 			id: "actions",
@@ -483,285 +520,329 @@ export function TransferOrdersTabPage() {
 	if (isError) {
 		return (
 			<div className="p-6">
-				<StatusCallout variant="error" title="Couldn't load transfer orders" onRetry={() => refetch()} />
+				<StatusCallout
+					variant="error"
+					title="Couldn't load transfer orders"
+					onRetry={() => refetch()}
+				/>
 			</div>
 		);
 	}
 
 	// ---- Render ----
 	return (
-		<Skeleton name="stock-transfers-tab" loading={isLoading} fallback={<PageLoader />}>
-		<div className="p-6 space-y-6">
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div>
-					<h1 className="text-2xl font-semibold font-heading">Transfer Orders</h1>
-					<p className="text-sm text-brand-secondary-1">
-						Manage inventory transfers between branches
-					</p>
-				</div>
-				{canCreate && (
-					<Button
-						onClick={() => {
-							resetCreateForm();
-							setIsCreateOpen(true);
-						}}
-						className="gap-2"
-					>
-						<Plus className="size-4" />
-						New Transfer
-					</Button>
-				)}
-			</div>
-
-			{/* Status filter tabs */}
-			<div className="flex items-center gap-1 border-b">
-				{STATUS_TABS.map((tab) => {
-					const isActive = statusFilter === tab.value;
-					return (
-						<button
-							key={tab.label}
-							type="button"
-							onClick={() => setStatusFilter(tab.value)}
-							className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-								isActive
-									? "border-primary text-primary"
-									: "border-transparent text-muted-foreground hover:text-foreground hover:border-muted"
-							}`}
-						>
-							{tab.label}
-						</button>
-					);
-				})}
-			</div>
-
-			{/* Table */}
-			<DataTable<TransferOrderRow, unknown>
-				columns={columns}
-				data={data}
-				emptyTitle="No transfer orders"
-				emptyDescription="Create a new transfer to move inventory between branches."
-			/>
-
-			{/* ------------------------------------------------------------------ */}
-			{/* Create Transfer Order Sheet                                         */}
-			{/* ------------------------------------------------------------------ */}
-			<Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-				<DialogContent className="sm:max-w-md overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle>New Transfer Order</DialogTitle>
-						<DialogDescription>
-							Create a new inventory transfer between branches.
-						</DialogDescription>
-					</DialogHeader>
-
-					<div className="flex flex-col gap-4 px-4 py-2">
-						<div className="flex flex-col gap-1.5">
-							<label htmlFor="transfer-from-branch" className="text-sm font-medium">
-								From Branch <span className="text-destructive">*</span>
-							</label>
-							<BranchCombobox
-								id="transfer-from-branch"
-								value={formFromBranchId}
-								onChange={setFormFromBranchId}
-								placeholder="Search source branch..."
-								required
-							/>
-						</div>
-
-						<div className="flex flex-col gap-1.5">
-							<label htmlFor="transfer-to-branch" className="text-sm font-medium">
-								To Branch <span className="text-destructive">*</span>
-							</label>
-							<BranchCombobox
-								id="transfer-to-branch"
-								value={formToBranchId}
-								onChange={setFormToBranchId}
-								placeholder="Search destination branch..."
-								required
-							/>
-						</div>
-
-						<div className="flex flex-col gap-1.5">
-							<label className="text-sm font-medium">
-								Notes{" "}
-								<span className="text-muted-foreground text-xs">(optional)</span>
-							</label>
-							<Textarea
-								placeholder="Additional notes..."
-								value={formNotes}
-								onChange={(e) => setFormNotes(e.target.value)}
-								rows={2}
-							/>
-						</div>
-
-						<div className="border-t pt-4">
-							<p className="text-sm font-semibold mb-3">Item</p>
-
-							<div className="flex flex-col gap-3">
-								<div className="flex flex-col gap-1.5">
-									<label htmlFor="transfer-product-id" className="text-sm font-medium">
-										Product ID <span className="text-destructive">*</span>
-									</label>
-									<Input
-										id="transfer-product-id"
-										placeholder="UUID of product"
-										value={formProductId}
-										onChange={(e) => setFormProductId(e.target.value)}
-									/>
-								</div>
-
-								<div className="flex flex-col gap-1.5">
-									<label htmlFor="transfer-qty" className="text-sm font-medium">
-										Quantity <span className="text-destructive">*</span>
-									</label>
-									<Input
-										id="transfer-qty"
-										type="number"
-										min="1"
-										placeholder="1"
-										value={formQuantity}
-										onChange={(e) => setFormQuantity(e.target.value)}
-									/>
-								</div>
-
-								<div className="flex flex-col gap-1.5">
-									<label className="text-sm font-medium">
-										Item Notes{" "}
-										<span className="text-muted-foreground text-xs">(optional)</span>
-									</label>
-									<Input
-										placeholder="Notes for this item"
-										value={formItemNotes}
-										onChange={(e) => setFormItemNotes(e.target.value)}
-									/>
-								</div>
-							</div>
-						</div>
+		<Skeleton
+			name="stock-transfers-tab"
+			loading={isLoading}
+			fallback={<PageLoader />}
+		>
+			<div className="p-6 space-y-6">
+				{/* Header */}
+				<div className="flex items-center justify-between">
+					<div>
+						<h1 className="text-2xl font-semibold font-heading">
+							Transfer Orders
+						</h1>
+						<p className="text-sm text-brand-secondary-1">
+							Manage inventory transfers between branches
+						</p>
 					</div>
-
-					<DialogFooter className="px-4">
+					{canCreate && (
 						<Button
-							variant="outline"
-							onClick={() => setIsCreateOpen(false)}
-							disabled={createMutation.isPending}
+							onClick={() => {
+								resetCreateForm();
+								setIsCreateOpen(true);
+							}}
+							className="gap-2"
 						>
-							Cancel
+							<Plus className="size-4" />
+							New Transfer
 						</Button>
-						<Button
-							onClick={handleCreateSubmit}
-							disabled={createMutation.isPending}
-						>
-							{createMutation.isPending ? "Creating…" : "Create"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+					)}
+				</div>
 
-			{/* ------------------------------------------------------------------ */}
-			{/* Complete Transfer Dialog                                            */}
-			{/* ------------------------------------------------------------------ */}
-			<Dialog
-				open={completeTarget !== null}
-				onOpenChange={(open) => {
-					if (!open) {
-						setCompleteTarget(null);
-						setReceiveQuantities({});
-					}
-				}}
-			>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>Complete Transfer Order</DialogTitle>
-						<DialogDescription>
-							Enter the quantity received for each item.
-						</DialogDescription>
-					</DialogHeader>
+				{/* Status filter tabs */}
+				<div className="flex items-center gap-1 border-b">
+					{STATUS_TABS.map((tab) => {
+						const isActive = statusFilter === tab.value;
+						return (
+							<button
+								key={tab.label}
+								type="button"
+								onClick={() => setStatusFilter(tab.value)}
+								className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+									isActive
+										? "border-primary text-primary"
+										: "border-transparent text-muted-foreground hover:text-foreground hover:border-muted"
+								}`}
+							>
+								{tab.label}
+							</button>
+						);
+					})}
+				</div>
 
-					<div className="flex flex-col gap-3 py-2">
-						{(completeTarget?.items ?? []).map((item) => (
-							<div key={item.id} className="flex items-center gap-3">
-								<div className="flex-1 text-sm text-muted-foreground truncate">
-									<span className="font-medium text-foreground">Product:</span>{" "}
-									{item.productId}
-									<br />
-									<span className="text-xs">Transferred: {item.quantityTransferred}</span>
-								</div>
-								<Input
-									type="number"
-									min="0"
-									className="w-24"
-									value={receiveQuantities[item.id] ?? String(item.quantityTransferred)}
-									onChange={(e) =>
-										setReceiveQuantities((prev) => ({
-											...prev,
-											[item.id]: e.target.value,
-										}))
-									}
+				{/* Table */}
+				<DataTable<TransferOrderRow, unknown>
+					columns={columns}
+					data={data}
+					emptyTitle="No transfer orders"
+					emptyDescription="Create a new transfer to move inventory between branches."
+				/>
+
+				{/* ------------------------------------------------------------------ */}
+				{/* Create Transfer Order Sheet                                         */}
+				{/* ------------------------------------------------------------------ */}
+				<Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+					<DialogContent
+						hideCloseButton
+						className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					>
+						<DialogHeader>
+							<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+								STOCK TRANSFERS
+							</p>
+							<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+								New Transfer Order
+							</DialogTitle>
+							<DialogDescription>
+								Create a new inventory transfer between branches.
+							</DialogDescription>
+						</DialogHeader>
+
+						<div className="flex flex-col gap-4 px-4 py-2">
+							<div className="flex flex-col gap-1.5">
+								<label
+									htmlFor="transfer-from-branch"
+									className="text-sm font-medium"
+								>
+									From Branch <span className="text-destructive">*</span>
+								</label>
+								<BranchCombobox
+									id="transfer-from-branch"
+									value={formFromBranchId}
+									onChange={setFormFromBranchId}
+									placeholder="Search source branch..."
+									required
 								/>
 							</div>
-						))}
-					</div>
 
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => {
-								setCompleteTarget(null);
-								setReceiveQuantities({});
-							}}
-							disabled={completeMutation.isPending}
-						>
-							Cancel
-						</Button>
-						<Button
-							onClick={handleCompleteConfirm}
-							disabled={completeMutation.isPending}
-						>
-							{completeMutation.isPending ? "Completing…" : "Confirm Complete"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+							<div className="flex flex-col gap-1.5">
+								<label
+									htmlFor="transfer-to-branch"
+									className="text-sm font-medium"
+								>
+									To Branch <span className="text-destructive">*</span>
+								</label>
+								<BranchCombobox
+									id="transfer-to-branch"
+									value={formToBranchId}
+									onChange={setFormToBranchId}
+									placeholder="Search destination branch..."
+									required
+								/>
+							</div>
 
-			{/* ------------------------------------------------------------------ */}
-			{/* Cancel Confirmation Dialog                                          */}
-			{/* ------------------------------------------------------------------ */}
-			<Dialog
-				open={cancelTarget !== null}
-				onOpenChange={(open) => {
-					if (!open) setCancelTarget(null);
-				}}
-			>
-				<DialogContent className="sm:max-w-sm">
-					<DialogHeader>
-						<DialogTitle>Cancel Transfer Order</DialogTitle>
-						<DialogDescription>
-							Are you sure you want to cancel this transfer order? This action cannot be undone.
-						</DialogDescription>
-					</DialogHeader>
+							<div className="flex flex-col gap-1.5">
+								<label className="text-sm font-medium">
+									Notes{" "}
+									<span className="text-muted-foreground text-xs">
+										(optional)
+									</span>
+								</label>
+								<Textarea
+									placeholder="Additional notes..."
+									value={formNotes}
+									onChange={(e) => setFormNotes(e.target.value)}
+									rows={2}
+								/>
+							</div>
 
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => setCancelTarget(null)}
-							disabled={cancelMutation.isPending}
-						>
-							Keep
-						</Button>
-						<Button
-							variant="destructive"
-							onClick={() => {
-								if (cancelTarget) cancelMutation.mutate(cancelTarget);
-							}}
-							disabled={cancelMutation.isPending}
-						>
-							{cancelMutation.isPending ? "Cancelling…" : "Cancel Order"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-		</div>
+							<div className="border-t pt-4">
+								<p className="text-sm font-semibold mb-3">Item</p>
+
+								<div className="flex flex-col gap-3">
+									<div className="flex flex-col gap-1.5">
+										<label
+											htmlFor="transfer-product-id"
+											className="text-sm font-medium"
+										>
+											Product ID <span className="text-destructive">*</span>
+										</label>
+										<Input
+											id="transfer-product-id"
+											placeholder="UUID of product"
+											value={formProductId}
+											onChange={(e) => setFormProductId(e.target.value)}
+										/>
+									</div>
+
+									<div className="flex flex-col gap-1.5">
+										<label
+											htmlFor="transfer-qty"
+											className="text-sm font-medium"
+										>
+											Quantity <span className="text-destructive">*</span>
+										</label>
+										<Input
+											id="transfer-qty"
+											type="number"
+											min="1"
+											placeholder="1"
+											value={formQuantity}
+											onChange={(e) => setFormQuantity(e.target.value)}
+										/>
+									</div>
+
+									<div className="flex flex-col gap-1.5">
+										<label className="text-sm font-medium">
+											Item Notes{" "}
+											<span className="text-muted-foreground text-xs">
+												(optional)
+											</span>
+										</label>
+										<Input
+											placeholder="Notes for this item"
+											value={formItemNotes}
+											onChange={(e) => setFormItemNotes(e.target.value)}
+										/>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<DialogFooter className="px-4">
+							<Button
+								variant="outline"
+								onClick={() => setIsCreateOpen(false)}
+								disabled={createMutation.isPending}
+							>
+								Cancel
+							</Button>
+							<Button
+								onClick={handleCreateSubmit}
+								disabled={createMutation.isPending}
+							>
+								{createMutation.isPending ? "Creating…" : "Create"}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+
+				{/* ------------------------------------------------------------------ */}
+				{/* Complete Transfer Dialog                                            */}
+				{/* ------------------------------------------------------------------ */}
+				<Dialog
+					open={completeTarget !== null}
+					onOpenChange={(open) => {
+						if (!open) {
+							setCompleteTarget(null);
+							setReceiveQuantities({});
+						}
+					}}
+				>
+					<DialogContent className="sm:max-w-md">
+						<DialogHeader>
+							<DialogTitle>Complete Transfer Order</DialogTitle>
+							<DialogDescription>
+								Enter the quantity received for each item.
+							</DialogDescription>
+						</DialogHeader>
+
+						<div className="flex flex-col gap-3 py-2">
+							{(completeTarget?.items ?? []).map((item) => (
+								<div key={item.id} className="flex items-center gap-3">
+									<div className="flex-1 text-sm text-muted-foreground truncate">
+										<span className="font-medium text-foreground">
+											Product:
+										</span>{" "}
+										{item.productId}
+										<br />
+										<span className="text-xs">
+											Transferred: {item.quantityTransferred}
+										</span>
+									</div>
+									<Input
+										type="number"
+										min="0"
+										className="w-24"
+										value={
+											receiveQuantities[item.id] ??
+											String(item.quantityTransferred)
+										}
+										onChange={(e) =>
+											setReceiveQuantities((prev) => ({
+												...prev,
+												[item.id]: e.target.value,
+											}))
+										}
+									/>
+								</div>
+							))}
+						</div>
+
+						<DialogFooter>
+							<Button
+								variant="outline"
+								onClick={() => {
+									setCompleteTarget(null);
+									setReceiveQuantities({});
+								}}
+								disabled={completeMutation.isPending}
+							>
+								Cancel
+							</Button>
+							<Button
+								onClick={handleCompleteConfirm}
+								disabled={completeMutation.isPending}
+							>
+								{completeMutation.isPending
+									? "Completing…"
+									: "Confirm Complete"}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+
+				{/* ------------------------------------------------------------------ */}
+				{/* Cancel Confirmation Dialog                                          */}
+				{/* ------------------------------------------------------------------ */}
+				<Dialog
+					open={cancelTarget !== null}
+					onOpenChange={(open) => {
+						if (!open) setCancelTarget(null);
+					}}
+				>
+					<DialogContent className="sm:max-w-sm">
+						<DialogHeader>
+							<DialogTitle>Cancel Transfer Order</DialogTitle>
+							<DialogDescription>
+								Are you sure you want to cancel this transfer order? This action
+								cannot be undone.
+							</DialogDescription>
+						</DialogHeader>
+
+						<DialogFooter>
+							<Button
+								variant="outline"
+								onClick={() => setCancelTarget(null)}
+								disabled={cancelMutation.isPending}
+							>
+								Keep
+							</Button>
+							<Button
+								variant="destructive"
+								onClick={() => {
+									if (cancelTarget) cancelMutation.mutate(cancelTarget);
+								}}
+								disabled={cancelMutation.isPending}
+							>
+								{cancelMutation.isPending ? "Cancelling…" : "Cancel Order"}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+			</div>
 		</Skeleton>
 	);
 }

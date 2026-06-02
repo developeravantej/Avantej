@@ -405,7 +405,10 @@ export const appointmentsCrudProcedures = {
 				});
 			});
 
-			return { reinstated: creditsToRestore };
+			return {
+				reinstated: creditsToRestore,
+				packageInstanceId: appt.packageInstanceId,
+			};
 		}),
 
 	/**

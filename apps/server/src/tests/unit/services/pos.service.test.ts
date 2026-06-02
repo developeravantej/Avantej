@@ -10,7 +10,10 @@
  */
 
 import { describe, test, expect, mock } from "bun:test";
-import { recordPosSale, searchPosCustomers } from "@avantej-core/services/pos.service";
+import {
+	recordPosSale,
+	searchPosCustomers,
+} from "@avantej-core/services/pos.service";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -107,7 +110,9 @@ function buildPosDb(options: {
 		}
 		if (insertCallCount === 3) {
 			// invoices insert
-			return Promise.resolve([{ id: "inv-id", invoiceNumber: "INV-20260421-000001" }]);
+			return Promise.resolve([
+				{ id: "inv-id", invoiceNumber: "INV-20260421-000001" },
+			]);
 		}
 		return Promise.resolve([]);
 	});
@@ -138,8 +143,8 @@ function buildPosDb(options: {
 		},
 	};
 
-	const mockTransaction = mock(
-		(cb: (tx: typeof txObj) => Promise<unknown>) => cb(txObj),
+	const mockTransaction = mock((cb: (tx: typeof txObj) => Promise<unknown>) =>
+		cb(txObj),
 	);
 
 	return {
@@ -190,7 +195,9 @@ describe("recordPosSale — walk-in package guard", () => {
 			}),
 		).rejects.toMatchObject({
 			code: "BAD_REQUEST",
-			message: expect.stringContaining("Walk-in customers cannot purchase packages"),
+			message: expect.stringContaining(
+				"Walk-in customers cannot purchase packages",
+			),
 		});
 	});
 
@@ -227,7 +234,9 @@ describe("recordPosSale — walk-in package guard", () => {
 			}),
 		).rejects.toMatchObject({
 			code: "BAD_REQUEST",
-			message: expect.stringContaining("Walk-in customers cannot purchase packages"),
+			message: expect.stringContaining(
+				"Walk-in customers cannot purchase packages",
+			),
 		});
 	});
 });

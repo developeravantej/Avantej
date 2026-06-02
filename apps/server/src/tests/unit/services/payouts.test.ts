@@ -29,8 +29,15 @@ let mockDb: ReturnType<typeof createMockTenantDb>;
 function selectChainResolving(value: unknown) {
 	const chain: Record<string, unknown> = {};
 	for (const m of [
-		"from", "where", "orderBy", "limit", "offset",
-		"leftJoin", "innerJoin", "groupBy", "having",
+		"from",
+		"where",
+		"orderBy",
+		"limit",
+		"offset",
+		"leftJoin",
+		"innerJoin",
+		"groupBy",
+		"having",
 	]) {
 		chain[m] = mock(() => chain);
 	}
@@ -43,7 +50,9 @@ function selectChainResolving(value: unknown) {
 	return chain;
 }
 
-function txMockWith(behavior: (tx: ReturnType<typeof createMockTenantDb>) => void) {
+function txMockWith(
+	behavior: (tx: ReturnType<typeof createMockTenantDb>) => void,
+) {
 	return mock((cb: (tx: unknown) => Promise<unknown>) => {
 		const tx = createMockTenantDb();
 		behavior(tx);
@@ -72,14 +81,19 @@ describe("recipientSummary", () => {
 	test("returns zeroes when no paid payouts exist", async () => {
 		mockDb.select
 			.mockReturnValueOnce(selectChainResolving([])) // subquery (value unused)
-			.mockReturnValueOnce(selectChainResolving([{ avgCents: null }]))  // avg
-			.mockReturnValueOnce(selectChainResolving([{ lifetimePaidCents: 0, lastPayoutAt: null }])); // totals
+			.mockReturnValueOnce(selectChainResolving([{ avgCents: null }])) // avg
+			.mockReturnValueOnce(
+				selectChainResolving([{ lifetimePaidCents: 0, lastPayoutAt: null }]),
+			); // totals
 
-		const result = await recipientSummary(mockDb as any, {
-			recipientId: RECIPIENT_ID,
-			accessibleNodeIds: [],
-			callerIsAdmin: true,
-		} as any);
+		const result = await recipientSummary(
+			mockDb as any,
+			{
+				recipientId: RECIPIENT_ID,
+				accessibleNodeIds: [],
+				callerIsAdmin: true,
+			} as any,
+		);
 
 		expect(result.lifetimePaidCents).toBe(0);
 		expect(result.avgPerCycleCents).toBe(0);
@@ -92,13 +106,20 @@ describe("recipientSummary", () => {
 		mockDb.select
 			.mockReturnValueOnce(selectChainResolving([])) // subquery
 			.mockReturnValueOnce(selectChainResolving([{ avgCents: "4500" }])) // avg
-			.mockReturnValueOnce(selectChainResolving([{ lifetimePaidCents: 90000, lastPayoutAt: lastPaid }])); // totals
+			.mockReturnValueOnce(
+				selectChainResolving([
+					{ lifetimePaidCents: 90000, lastPayoutAt: lastPaid },
+				]),
+			); // totals
 
-		const result = await recipientSummary(mockDb as any, {
-			recipientId: RECIPIENT_ID,
-			accessibleNodeIds: [],
-			callerIsAdmin: true,
-		} as any);
+		const result = await recipientSummary(
+			mockDb as any,
+			{
+				recipientId: RECIPIENT_ID,
+				accessibleNodeIds: [],
+				callerIsAdmin: true,
+			} as any,
+		);
 
 		expect(result.lifetimePaidCents).toBe(90000);
 		expect(result.avgPerCycleCents).toBe(4500);
@@ -109,13 +130,20 @@ describe("recipientSummary", () => {
 		mockDb.select
 			.mockReturnValueOnce(selectChainResolving([])) // subquery
 			.mockReturnValueOnce(selectChainResolving([{ avgCents: "3333.33" }])) // avg
-			.mockReturnValueOnce(selectChainResolving([{ lifetimePaidCents: 10000, lastPayoutAt: null }])); // totals
+			.mockReturnValueOnce(
+				selectChainResolving([
+					{ lifetimePaidCents: 10000, lastPayoutAt: null },
+				]),
+			); // totals
 
-		const result = await recipientSummary(mockDb as any, {
-			recipientId: RECIPIENT_ID,
-			accessibleNodeIds: [],
-			callerIsAdmin: true,
-		} as any);
+		const result = await recipientSummary(
+			mockDb as any,
+			{
+				recipientId: RECIPIENT_ID,
+				accessibleNodeIds: [],
+				callerIsAdmin: true,
+			} as any,
+		);
 
 		expect(result.avgPerCycleCents).toBe(3333);
 	});
@@ -126,11 +154,14 @@ describe("recipientSummary", () => {
 			.mockReturnValueOnce(selectChainResolving([])) // avg — no row
 			.mockReturnValueOnce(selectChainResolving([])); // totals — no row
 
-		const result = await recipientSummary(mockDb as any, {
-			recipientId: RECIPIENT_ID,
-			accessibleNodeIds: [],
-			callerIsAdmin: true,
-		} as any);
+		const result = await recipientSummary(
+			mockDb as any,
+			{
+				recipientId: RECIPIENT_ID,
+				accessibleNodeIds: [],
+				callerIsAdmin: true,
+			} as any,
+		);
 
 		expect(result.lifetimePaidCents).toBe(0);
 		expect(result.avgPerCycleCents).toBe(0);
@@ -178,7 +209,9 @@ describe("processForRecipient", () => {
 			tx.insert = mock(() => ({
 				values: mock((vals: Record<string, unknown>) => {
 					insertedValues = vals;
-					return { returning: mock(() => Promise.resolve([{ id: "payout-1" }])) };
+					return {
+						returning: mock(() => Promise.resolve([{ id: "payout-1" }])),
+					};
 				}),
 			}));
 
@@ -202,7 +235,9 @@ describe("processForRecipient", () => {
 	});
 
 	test("passes reference through to payout description", async () => {
-		const splits = [{ id: "split-3", staffId: RECIPIENT_ID, calculatedAmount: 2000 }];
+		const splits = [
+			{ id: "split-3", staffId: RECIPIENT_ID, calculatedAmount: 2000 },
+		];
 		let insertedValues: Record<string, unknown> | null = null;
 
 		mockDb.transaction = txMockWith((tx) => {
@@ -210,7 +245,9 @@ describe("processForRecipient", () => {
 			tx.insert = mock(() => ({
 				values: mock((vals: Record<string, unknown>) => {
 					insertedValues = vals;
-					return { returning: mock(() => Promise.resolve([{ id: "payout-ref" }])) };
+					return {
+						returning: mock(() => Promise.resolve([{ id: "payout-ref" }])),
+					};
 				}),
 			}));
 			tx.update = mock(() => ({
@@ -224,7 +261,9 @@ describe("processForRecipient", () => {
 		});
 
 		expect(insertedValues!.description).toBe("REF-2026-001");
-		expect((insertedValues!.notes as string).includes("REF-2026-001")).toBe(true);
+		expect((insertedValues!.notes as string).includes("REF-2026-001")).toBe(
+			true,
+		);
 	});
 });
 
@@ -284,7 +323,12 @@ describe("runBatch — grossAmountCents population", () => {
 describe("processCommissionReversals — grossAmountCents population", () => {
 	test("inserts negative payout with grossAmountCents = negative amount and deductionsCents = 0", async () => {
 		const pendingReversals = [
-			{ reversalId: "rev-1", reversedSplitId: "split-1", amountCents: 3000, staffId: RECIPIENT_ID },
+			{
+				reversalId: "rev-1",
+				reversedSplitId: "split-1",
+				amountCents: 3000,
+				staffId: RECIPIENT_ID,
+			},
 		];
 
 		let insertedValues: Record<string, unknown> | null = null;
@@ -295,7 +339,9 @@ describe("processCommissionReversals — grossAmountCents population", () => {
 			tx.insert = mock(() => ({
 				values: mock((vals: Record<string, unknown>) => {
 					insertedValues = vals;
-					return { returning: mock(() => Promise.resolve([{ id: "adj-payout-1" }])) };
+					return {
+						returning: mock(() => Promise.resolve([{ id: "adj-payout-1" }])),
+					};
 				}),
 			}));
 			tx.update = mock(() => ({

@@ -20,8 +20,7 @@ import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
+import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { users } from "@avantej-core/db/schema/control-panel/users";
 import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
@@ -30,54 +29,16 @@ import { announcements } from "@avantej-core/db/schema/tenant/announcements";
 import { sendEmail } from "@/lib/email";
 import { getTenantDb } from "@/lib/db";
 
-function requirePlatformAdmin(
-	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">,
-) {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
-			}
-			const cpDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
-			const adminRecord = await cpDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", { message: "Admin access required" });
-			}
-			if (
-				allowRoles &&
-				!allowRoles.includes(
-					adminRecord.role as "super_admin" | "support" | "billing",
-				)
-			) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Your platform admin role does not permit this action",
-				});
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
-const superAdminProcedure = protectedProcedure.use(
+const superAdminProcedure = adminProcedure.use(
 	requirePlatformAdmin(["super_admin"]),
 );
 
 function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
-		"controlPanelDb",
-	) as NeonDatabase<typeof controlPanelSchema> | undefined;
+	const db = (
+		context as { honoContext?: { get: (k: string) => unknown } }
+	).honoContext?.get("controlPanelDb") as
+		| NeonDatabase<typeof controlPanelSchema>
+		| undefined;
 	if (!db)
 		throw new ORPCError("INTERNAL_SERVER_ERROR", {
 			message: "Control panel DB unavailable",
@@ -88,7 +49,10 @@ function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
 function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
 	const id = session?.user?.id;
-	if (!id) throw new ORPCError("UNAUTHORIZED", { message: "No admin user in session" });
+	if (!id)
+		throw new ORPCError("UNAUTHORIZED", {
+			message: "No admin user in session",
+		});
 	return id;
 }
 
@@ -329,7 +293,9 @@ export const platformAdminTenantsCommsRouter = {
 			const chunkSize = 10;
 			for (let i = 0; i < input.organizationIds.length; i += chunkSize) {
 				const chunk = input.organizationIds.slice(i, i + chunkSize);
-				const results = await Promise.allSettled(chunk.map((id) => sendOne(id)));
+				const results = await Promise.allSettled(
+					chunk.map((id) => sendOne(id)),
+				);
 				results.forEach((r, idx) => {
 					const orgId = chunk[idx]!;
 					if (r.status === "fulfilled") {
@@ -337,7 +303,8 @@ export const platformAdminTenantsCommsRouter = {
 					} else {
 						failed.push({
 							orgId,
-							error: r.reason instanceof Error ? r.reason.message : String(r.reason),
+							error:
+								r.reason instanceof Error ? r.reason.message : String(r.reason),
 						});
 					}
 				});
@@ -353,12 +320,8 @@ export const platformAdminTenantsCommsRouter = {
 				organizationIds: z.array(z.string().uuid()).min(1).max(100),
 				title: z.string().trim().min(1).max(200),
 				bodyMarkdown: z.string().trim().min(1).max(20000),
-				priority: z
-					.enum(["low", "normal", "high", "urgent"])
-					.default("normal"),
-				targetAudience: z
-					.enum(["all", "staff", "clients"])
-					.default("all"),
+				priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
+				targetAudience: z.enum(["all", "staff", "clients"]).default("all"),
 				templateId: z.string().uuid().optional(),
 			}),
 		)
@@ -403,7 +366,9 @@ export const platformAdminTenantsCommsRouter = {
 			const chunkSize = 10;
 			for (let i = 0; i < input.organizationIds.length; i += chunkSize) {
 				const chunk = input.organizationIds.slice(i, i + chunkSize);
-				const results = await Promise.allSettled(chunk.map((id) => createOne(id)));
+				const results = await Promise.allSettled(
+					chunk.map((id) => createOne(id)),
+				);
 				results.forEach((r, idx) => {
 					const orgId = chunk[idx]!;
 					if (r.status === "fulfilled") {
@@ -411,7 +376,8 @@ export const platformAdminTenantsCommsRouter = {
 					} else {
 						failed.push({
 							orgId,
-							error: r.reason instanceof Error ? r.reason.message : String(r.reason),
+							error:
+								r.reason instanceof Error ? r.reason.message : String(r.reason),
 						});
 					}
 				});

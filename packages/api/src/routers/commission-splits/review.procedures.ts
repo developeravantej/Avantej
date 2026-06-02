@@ -26,21 +26,31 @@ const listPendingReviewProcedure = tenantProcedure
 					id: z.string().uuid(),
 				})
 				.optional(),
+			/** SQL-side filter: only splits for this track. */
+			trackId: z.string().uuid().nullable().optional(),
+			/** SQL-side filter: only splits with this roleType. */
+			roleType: z.string().nullable().optional(),
 		}),
 	)
 	.handler(async ({ context, input }) => {
-		
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"commission_management",
+			"read",
+		);
 
 		const controlPanelDb = getControlPanelDb(context);
+		// Cast to any: stale services dist doesn't yet include trackId/roleType on
+		// ListPendingReviewParams — they ARE present in the live source and runtime.
 		return listPendingReview(context.tenantDb, controlPanelDb, {
 			accessibleNodeIds: context.accessibleNodeIds,
 			limit: input.limit,
 			cursor: input.cursor,
-		});
+			trackId: input.trackId,
+			roleType: input.roleType,
+		} as any);
 	});
 
 // resolveReview: promote pending_review → pending (approve) or void (reject).
@@ -72,9 +82,6 @@ const resolveReviewProcedure = tenantProcedure
 		]),
 	)
 	.handler(async ({ context, input }) => {
-		
-		
-
 		assertOrgContextMatch(context, input);
 
 		// F-COM-05: accept EITHER commission_review:resolve OR commission_payout:create.
@@ -110,7 +117,8 @@ const resolveReviewProcedure = tenantProcedure
 		} catch (err) {
 			if (err instanceof ORPCError) throw err;
 			throw new ORPCError("BAD_REQUEST", {
-				message: err instanceof Error ? err.message : "Failed to resolve review",
+				message:
+					err instanceof Error ? err.message : "Failed to resolve review",
 			});
 		}
 	});

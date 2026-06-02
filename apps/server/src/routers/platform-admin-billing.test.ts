@@ -33,8 +33,7 @@ function fakeContext() {
 	return {
 		session: { user: { id: TEST_USER_ID, email: "admin@test.local" } },
 		honoContext: {
-			get: (k: string) =>
-				k === "controlPanelDb" ? controlPanelDb : undefined,
+			get: (k: string) => (k === "controlPanelDb" ? controlPanelDb : undefined),
 		},
 	};
 }
@@ -167,7 +166,7 @@ beforeEach(async () => {
 			},
 			createdAt: new Date(now - 5 * 60 * 1000),
 		},
-	] as typeof adminSessionActions.$inferInsert[]);
+	] as (typeof adminSessionActions.$inferInsert)[]);
 });
 
 describe("platformAdminBilling.getOverview", () => {

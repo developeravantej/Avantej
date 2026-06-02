@@ -126,7 +126,6 @@ async function createAppointment(serviceId: string, status = "scheduled") {
 	return appt;
 }
 
-
 // ---------------------------------------------------------------------------
 // Setup / teardown
 // ---------------------------------------------------------------------------
@@ -195,9 +194,7 @@ afterAll(async () => {
 			.update(members)
 			.set({ trainerTierId: null })
 			.where(inArray(members.id, createdMemberIds));
-		await tenantDb
-			.delete(members)
-			.where(inArray(members.id, createdMemberIds));
+		await tenantDb.delete(members).where(inArray(members.id, createdMemberIds));
 	}
 
 	// 8. Commission tier rates (FK to trainer_tiers — must delete before tier)
@@ -231,43 +228,88 @@ describe("Cancel → reopen → cancel: double-commission guard", () => {
 	 * splits keyed on appointmentId before calling runAppointmentCommission. The second
 	 * calculateCommissionForAppointment call is a no-op — no error, no second split.
 	 */
-	test(
-		"TC-CR-001: cancel → reopen → cancel → exactly 1 cancellation split (not 2)",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("TC-CR-001: cancel → reopen → cancel → exactly 1 cancellation split (not 2)", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const { categoryId, serviceId } = await createCategoryAndService(
-				`TC-CR-001-${TS}`,
-			);
-			await upsertCategoryCommissionConfig(
-				tenantDb,
-				{
-					categoryId,
-					paymentType: "fixed",
-					isConditional: false,
-					maxCoaches: 1,
-					slots: [
-						{
-							slotIndex: 0,
-							label: "Head Trainer",
-							weightageBasisPoints: 10000,
-						},
-					],
-					rates: [{ trainerTierId: tierId, amount: 5000 }],
-				},
-				ACTOR,
-			);
+		const { categoryId, serviceId } = await createCategoryAndService(
+			`TC-CR-001-${TS}`,
+		);
+		await upsertCategoryCommissionConfig(
+			tenantDb,
+			{
+				categoryId,
+				paymentType: "fixed",
+				isConditional: false,
+				maxCoaches: 1,
+				slots: [
+					{
+						slotIndex: 0,
+						label: "Head Trainer",
+						weightageBasisPoints: 10000,
+					},
+				],
+				rates: [{ trainerTierId: tierId, amount: 5000 }],
+			},
+			ACTOR,
+		);
 
-			// Step 1: Create appointment in 'scheduled' status
-			const appt = await createAppointment(serviceId, "scheduled");
+		// Step 1: Create appointment in 'scheduled' status
+		const appt = await createAppointment(serviceId, "scheduled");
 
-			// Step 2: First cancellation — replicate what updateAppointment does when
-			// transitioning scheduled → cancelled.
-			await tenantDb
-				.update(appointments)
-				.set({ status: "cancelled", updatedAt: new Date() })
-				.where(eq(appointments.id, appt.id));
+		// Step 2: First cancellation — replicate what updateAppointment does when
+		// transitioning scheduled → cancelled.
+		await tenantDb
+			.update(appointments)
+			.set({ status: "cancelled", updatedAt: new Date() })
+			.where(eq(appointments.id, appt.id));
 
+		await calculateCommissionForAppointment(tenantDb, {
+			appointmentId: appt.id,
+			serviceId,
+			sessionTotalCents: 10000,
+			attendeeCount: 0,
+			staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
+			actor: ACTOR,
+			earnReason: "cancellation",
+		});
+
+		const splitsAfterFirstCancel = await tenantDb
+			.select()
+			.from(commissionSplits)
+			.where(eq(commissionSplits.appointmentId, appt.id));
+		// Sanity: first cancel creates exactly 1 split
+		expect(splitsAfterFirstCancel).toHaveLength(1);
+		expect(splitsAfterFirstCancel[0]!.earnReason).toBe("cancellation");
+
+		// Step 3: Reopen — set status back to 'scheduled'
+		await tenantDb
+			.update(appointments)
+			.set({ status: "scheduled", updatedAt: new Date() })
+			.where(eq(appointments.id, appt.id));
+
+		// Step 4: Second cancellation — replicate the app-level dedup guard from
+		// updateAppointment before calling calculateCommissionForAppointment.
+		// The guard checks for existing non-void splits on this appointmentId.
+		await tenantDb
+			.update(appointments)
+			.set({ status: "cancelled", updatedAt: new Date() })
+			.where(eq(appointments.id, appt.id));
+
+		const existingApptSplits = await tenantDb
+			.select({ id: commissionSplits.id })
+			.from(commissionSplits)
+			.where(
+				and(
+					eq(commissionSplits.appointmentId, appt.id),
+					ne(commissionSplits.status, "void"),
+				),
+			)
+			.limit(1);
+
+		// Guard fires — second commission call is skipped (no-op).
+		expect(existingApptSplits).toHaveLength(1);
+
+		if (existingApptSplits.length === 0) {
 			await calculateCommissionForAppointment(tenantDb, {
 				appointmentId: appt.id,
 				serviceId,
@@ -277,61 +319,14 @@ describe("Cancel → reopen → cancel: double-commission guard", () => {
 				actor: ACTOR,
 				earnReason: "cancellation",
 			});
+		}
 
-			const splitsAfterFirstCancel = await tenantDb
-				.select()
-				.from(commissionSplits)
-				.where(eq(commissionSplits.appointmentId, appt.id));
-			// Sanity: first cancel creates exactly 1 split
-			expect(splitsAfterFirstCancel).toHaveLength(1);
-			expect(splitsAfterFirstCancel[0]!.earnReason).toBe("cancellation");
-
-			// Step 3: Reopen — set status back to 'scheduled'
-			await tenantDb
-				.update(appointments)
-				.set({ status: "scheduled", updatedAt: new Date() })
-				.where(eq(appointments.id, appt.id));
-
-			// Step 4: Second cancellation — replicate the app-level dedup guard from
-			// updateAppointment before calling calculateCommissionForAppointment.
-			// The guard checks for existing non-void splits on this appointmentId.
-			await tenantDb
-				.update(appointments)
-				.set({ status: "cancelled", updatedAt: new Date() })
-				.where(eq(appointments.id, appt.id));
-
-			const existingApptSplits = await tenantDb
-				.select({ id: commissionSplits.id })
-				.from(commissionSplits)
-				.where(and(
-					eq(commissionSplits.appointmentId, appt.id),
-					ne(commissionSplits.status, "void"),
-				))
-				.limit(1);
-
-			// Guard fires — second commission call is skipped (no-op).
-			expect(existingApptSplits).toHaveLength(1);
-
-			if (existingApptSplits.length === 0) {
-				await calculateCommissionForAppointment(tenantDb, {
-					appointmentId: appt.id,
-					serviceId,
-					sessionTotalCents: 10000,
-					attendeeCount: 0,
-					staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
-					actor: ACTOR,
-					earnReason: "cancellation",
-				});
-			}
-
-			// Assert: guard prevented a second split — still exactly 1.
-			const countRows = await tenantDb
-				.select({ value: count() })
-				.from(commissionSplits)
-				.where(eq(commissionSplits.appointmentId, appt.id));
-			const totalSplits = countRows[0]?.value ?? 0;
-			expect(totalSplits).toBe(1);
-		},
-		30000,
-	);
+		// Assert: guard prevented a second split — still exactly 1.
+		const countRows = await tenantDb
+			.select({ value: count() })
+			.from(commissionSplits)
+			.where(eq(commissionSplits.appointmentId, appt.id));
+		const totalSplits = countRows[0]?.value ?? 0;
+		expect(totalSplits).toBe(1);
+	}, 30000);
 });

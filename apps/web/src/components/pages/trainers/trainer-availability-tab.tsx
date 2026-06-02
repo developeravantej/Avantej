@@ -23,20 +23,6 @@ const DAY_COLUMNS: Array<{ key: string; label: string }> = [
 	{ key: "sunday", label: "Sun" },
 ];
 
-const AVATAR_PALETTE = [
-	{ bg: "bg-[#f5f0e6]", text: "text-[#78614e]" },
-	{ bg: "bg-blue-100",    text: "text-blue-800"    },
-	{ bg: "bg-emerald-100", text: "text-emerald-800" },
-	{ bg: "bg-purple-100",  text: "text-purple-800"  },
-	{ bg: "bg-rose-100",    text: "text-rose-800"    },
-	{ bg: "bg-amber-100",   text: "text-amber-800"   },
-	{ bg: "bg-cyan-100",    text: "text-cyan-800"    },
-];
-
-function avatarColors(index: number) {
-	return AVATAR_PALETTE[index % AVATAR_PALETTE.length];
-}
-
 function trainerInitials(name: string) {
 	return name
 		.split(" ")
@@ -91,16 +77,13 @@ function slotPillClasses(kind: string): string {
 
 function WeeklyGridRow({
 	row,
-	index,
 	utilisation,
 	onOpenSheet,
 }: {
 	row: TrainerAvailabilityRow;
-	index: number;
 	utilisation: UtilisationMap;
 	onOpenSheet: (row: TrainerAvailabilityRow) => void;
 }) {
-	const colors = avatarColors(index);
 	const util = utilisation[row.trainerId];
 	const availH = util?.availableHours ?? totalAvailHours(row.slots);
 	const bookedH = util?.bookedHours ?? null;
@@ -134,13 +117,7 @@ function WeeklyGridRow({
 				className="border-r border-[#e5e5e5] px-4 py-4 text-left focus:outline-none focus-visible:ring-1 focus-visible:ring-[#0a0a0a]"
 			>
 				<div className="flex items-start gap-3">
-					<div
-						className={cn(
-							"flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-							colors.bg,
-							colors.text,
-						)}
-					>
+					<div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#0a0a0a] text-xs font-bold text-white">
 						{trainerInitials(row.trainerName)}
 					</div>
 
@@ -284,11 +261,10 @@ function WeeklyGrid({
 				))}
 			</div>
 
-			{rows.map((row, index) => (
+			{rows.map((row) => (
 				<WeeklyGridRow
 					key={row.trainerId}
 					row={row}
-					index={index}
 					utilisation={utilisation}
 					onOpenSheet={onOpenSheet}
 				/>
@@ -319,9 +295,7 @@ export function TrainerAvailabilityTab() {
 	const currentOrg = userContext?.organizations.find(
 		(o) => o.id === organizationId,
 	);
-	const memberRole = (
-		currentOrg?.hierarchy?.member?.role ?? ""
-	).toLowerCase();
+	const memberRole = (currentOrg?.hierarchy?.member?.role ?? "").toLowerCase();
 	type MemberWithId = NonNullable<typeof currentOrg>["hierarchy"]["member"] & {
 		id?: string;
 	};
@@ -389,16 +363,20 @@ export function TrainerAvailabilityTab() {
 	return (
 		<>
 			{/* ── Sub-tab bar: Recurring / Intake ─────────────────────── */}
-			<div role="tablist" aria-label="Availability views" className="mb-5 flex items-center gap-1 self-start rounded-lg border border-[#e5e5e5] bg-[#f3f3f3] p-1">
+			<div
+				role="tablist"
+				aria-label="Availability views"
+				className="mb-5 flex items-center gap-1 self-start rounded-lg border border-[#e5e5e5] bg-[#f3f3f3] p-1"
+			>
 				<button
 					role="tab"
 					type="button"
 					aria-selected={subTab === "recurring"}
 					onClick={() => setSubTab("recurring")}
 					className={cn(
-						"rounded-md px-3 py-1.5 text-[13px] font-medium transition",
+						"rounded-lg px-3 py-1 text-xs font-semibold transition",
 						subTab === "recurring"
-							? "bg-white text-[#0a0a0a] shadow-sm"
+							? "bg-[#0a0a0a] text-white"
 							: "text-[#737373] hover:text-[#0a0a0a]",
 					)}
 				>
@@ -410,9 +388,9 @@ export function TrainerAvailabilityTab() {
 					aria-selected={subTab === "intake"}
 					onClick={() => setSubTab("intake")}
 					className={cn(
-						"rounded-md px-3 py-1.5 text-[13px] font-medium transition",
+						"rounded-lg px-3 py-1 text-xs font-semibold transition",
 						subTab === "intake"
-							? "bg-white text-[#0a0a0a] shadow-sm"
+							? "bg-[#0a0a0a] text-white"
 							: "text-[#737373] hover:text-[#0a0a0a]",
 					)}
 				>
@@ -432,21 +410,14 @@ export function TrainerAvailabilityTab() {
 							message="No active trainers found in this branch."
 						/>
 					) : (
-						allRows.map((row, idx) => {
-							const colors = avatarColors(idx);
+						allRows.map((row) => {
 							return (
 								<div
 									key={row.trainerId}
 									className="flex items-center justify-between rounded-xl border border-[#e5e5e5] bg-white px-5 py-4"
 								>
 									<div className="flex items-center gap-3">
-										<div
-											className={cn(
-												"flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-												colors.bg,
-												colors.text,
-											)}
-										>
+										<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0a0a0a] text-xs font-bold text-white">
 											{trainerInitials(row.trainerName)}
 										</div>
 										<div>
@@ -510,8 +481,8 @@ export function TrainerAvailabilityTab() {
 				</div>
 			)}
 
-			{subTab === "recurring" && (
-				isLoading ? (
+			{subTab === "recurring" &&
+				(isLoading ? (
 					<PageLoader />
 				) : isError ? (
 					<StatusCallout
@@ -542,8 +513,7 @@ export function TrainerAvailabilityTab() {
 							/>
 						</div>
 					</div>
-				)
-			)}
+				))}
 
 			<TrainerAvailabilitySheet
 				trainer={selectedTrainer}

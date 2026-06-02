@@ -49,7 +49,10 @@ describe("OAuth state sign/verify", () => {
 
 	test("rejects state signed with a different secret", async () => {
 		const state = await signOAuthState(ORG_ID, SECRET, "MY");
-		const verified = await verifyOAuthState(state, "different-secret-different-secret-different");
+		const verified = await verifyOAuthState(
+			state,
+			"different-secret-different-secret-different",
+		);
 		expect(verified).toBeNull();
 	});
 
@@ -79,7 +82,11 @@ describe("OAuth state sign/verify", () => {
 			false,
 			["sign"],
 		);
-		const sigBuf = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
+		const sigBuf = await crypto.subtle.sign(
+			"HMAC",
+			key,
+			encoder.encode(payload),
+		);
 		const bytes = new Uint8Array(sigBuf);
 		let sigHex = "";
 		for (let i = 0; i < bytes.length; i++) {
@@ -97,7 +104,19 @@ describe("OAuth state sign/verify", () => {
 	});
 
 	test("country round-trips for all Phase 4.3 supported countries", async () => {
-		const countries = ["MY", "SG", "TH", "ID", "PH", "HK", "AU", "NZ", "US", "GB", "JP"];
+		const countries = [
+			"MY",
+			"SG",
+			"TH",
+			"ID",
+			"PH",
+			"HK",
+			"AU",
+			"NZ",
+			"US",
+			"GB",
+			"JP",
+		];
 		for (const c of countries) {
 			const state = await signOAuthState(ORG_ID, SECRET, c);
 			const verified = await verifyOAuthState(state, SECRET);

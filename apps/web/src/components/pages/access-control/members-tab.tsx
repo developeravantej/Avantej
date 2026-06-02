@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 type MemberApiItem = Awaited<ReturnType<typeof client.members.list>>[number];
 type RoleApiItem = Awaited<ReturnType<typeof client.roles.list>>[number];
@@ -115,7 +115,7 @@ function UserCard({
 	const getPriorityColor = (priority: number) => {
 		switch (priority) {
 			case 1:
-				return "bg-destructive/10 text-destructive border-destructive/30";
+				return "bg-rose-50 text-rose-600 border-rose-200";
 			case 2:
 				return "bg-amber-100 text-amber-800 border-amber-300";
 			case 3:
@@ -165,12 +165,12 @@ function UserCard({
 									)
 								)}
 							</div>
-							<div className="flex items-center gap-1 text-sm text-muted-foreground">
+							<div className="flex items-center gap-1 text-sm text-[#737373]">
 								<Mail className="size-3" />
 								<span>{user.email}</span>
 							</div>
 							{user.department && (
-								<div className="text-xs text-muted-foreground">
+								<div className="text-xs text-[#737373]">
 									{user.department} Department
 								</div>
 							)}
@@ -211,7 +211,7 @@ function UserCard({
 							<DropdownMenuSeparator />
 							<DropdownMenuItem
 								onClick={onDeactivate}
-								className="cursor-pointer text-destructive focus:text-destructive"
+								className="cursor-pointer text-rose-600 focus:text-rose-600"
 							>
 								<Trash2 className="size-4 mr-2" />
 								{user.isActive ? "Deactivate" : "Activate"} User
@@ -228,7 +228,7 @@ function UserCard({
 							) : (
 								<DropdownMenuItem
 									onClick={onSoftDelete}
-									className="cursor-pointer text-destructive focus:text-destructive"
+									className="cursor-pointer text-rose-600 focus:text-rose-600"
 									data-testid="member-delete-action"
 								>
 									<Trash2 className="size-4 mr-2" />
@@ -259,15 +259,15 @@ function UserCard({
 			<CardContent className="pt-0">
 				<div className="space-y-3">
 					<div className="flex items-center justify-between text-sm">
-						<span className="text-muted-foreground">Last Login</span>
+						<span className="text-[#737373]">Last Login</span>
 						<div className="flex items-center gap-1">
-							<Calendar className="size-3 text-muted-foreground" />
+							<Calendar className="size-3 text-[#737373]" />
 							<span>{formatLastLogin(user.lastLogin)}</span>
 						</div>
 					</div>
 
 					<div className="space-y-1">
-						<span className="text-sm font-medium text-muted-foreground">
+						<span className="text-sm font-medium text-[#737373]">
 							Assigned Roles
 						</span>
 						<div className="flex flex-wrap gap-1">
@@ -277,7 +277,7 @@ function UserCard({
 								</Badge>
 							))}
 							{userRoles.length === 0 && (
-								<span className="text-xs text-muted-foreground">
+								<span className="text-xs text-[#737373]">
 									No roles assigned
 								</span>
 							)}
@@ -285,7 +285,7 @@ function UserCard({
 					</div>
 
 					<div className="flex items-center justify-between text-sm pt-1">
-						<span className="text-muted-foreground">GHL Sync</span>
+						<span className="text-[#737373]">GHL Sync</span>
 						<GhlSyncBadge
 							ghlSync={user.ghlSync}
 							onRetry={onRetryGhlSync}
@@ -300,7 +300,11 @@ function UserCard({
 
 type SystemRole = "admin" | "trainer" | "staff" | "client";
 
-const SYSTEM_ROLES: { value: SystemRole; label: string; description: string }[] = [
+const SYSTEM_ROLES: {
+	value: SystemRole;
+	label: string;
+	description: string;
+}[] = [
 	{
 		value: "admin",
 		label: "Admin",
@@ -352,76 +356,98 @@ function RoleAssignmentSheet({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onClose}>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>Assign Role to {user?.name}</DialogTitle>
-				<DialogDescription>Select a role and branch for this member.</DialogDescription>
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						ACCESS CONTROL
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Assign Role to {user?.name}
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
+						Select a role and branch for this member.
+					</DialogDescription>
 				</DialogHeader>
 
-				<div className="p-4 mt-6 space-y-4">
-					<div className="space-y-2">
-						<label htmlFor="member-system-role" className="text-sm font-medium">System Role</label>
-						<Select
-							value={selectedRole}
-							onValueChange={(value) => setSelectedRole(value as SystemRole)}
-						>
-							<SelectTrigger id="member-system-role">
-								<SelectValue placeholder="Select a role" />
-							</SelectTrigger>
-							<SelectContent>
-								{SYSTEM_ROLES.map((role) => (
-									<SelectItem key={role.value} value={role.value}>
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					<div className="mt-2 space-y-4">
+						<div className="space-y-2">
+							<label
+								htmlFor="member-system-role"
+								className="text-sm font-medium"
+							>
+								System Role
+							</label>
+							<Select
+								value={selectedRole}
+								onValueChange={(value) => setSelectedRole(value as SystemRole)}
+							>
+								<SelectTrigger id="member-system-role">
+									<SelectValue placeholder="Select a role" />
+								</SelectTrigger>
+								<SelectContent>
+									{SYSTEM_ROLES.map((role) => (
+										<SelectItem key={role.value} value={role.value}>
+											<div>
+												<div className="font-medium">{role.label}</div>
+												<div className="text-xs text-[#737373]">
+													{role.description}
+												</div>
+											</div>
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+
+						<div className="space-y-2">
+							{SYSTEM_ROLES.map((role) => (
+								<Card
+									key={role.value}
+									className={cn(
+										"p-3 cursor-pointer transition-colors",
+										selectedRole === role.value &&
+											"border-primary bg-primary/5",
+									)}
+									onClick={() => setSelectedRole(role.value)}
+								>
+									<div className="flex items-center gap-3">
+										<div
+											className={cn(
+												"size-4 rounded-full border-2 flex-shrink-0",
+												selectedRole === role.value
+													? "border-primary bg-primary"
+													: "border-[#737373]",
+											)}
+										/>
 										<div>
-											<div className="font-medium">{role.label}</div>
-											<div className="text-xs text-muted-foreground">
+											<div className="font-medium text-sm">{role.label}</div>
+											<div className="text-xs text-[#737373]">
 												{role.description}
 											</div>
 										</div>
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
-
-					<div className="space-y-2">
-						{SYSTEM_ROLES.map((role) => (
-							<Card
-								key={role.value}
-								className={cn(
-									"p-3 cursor-pointer transition-colors",
-									selectedRole === role.value && "border-primary bg-primary/5",
-								)}
-								onClick={() => setSelectedRole(role.value)}
-							>
-								<div className="flex items-center gap-3">
-									<div
-										className={cn(
-											"size-4 rounded-full border-2 flex-shrink-0",
-											selectedRole === role.value
-												? "border-primary bg-primary"
-												: "border-muted-foreground",
-										)}
-									/>
-									<div>
-										<div className="font-medium text-sm">{role.label}</div>
-										<div className="text-xs text-muted-foreground">
-											{role.description}
-										</div>
 									</div>
-								</div>
-							</Card>
-						))}
-					</div>
-
-					<div className="flex justify-end gap-2 pt-4">
-						<Button variant="outline" onClick={onClose}>
-							Cancel
-						</Button>
-						<Button onClick={handleSave} disabled={isLoading}>
-							{isLoading ? "Saving..." : "Save Changes"}
-						</Button>
+								</Card>
+							))}
+						</div>
 					</div>
 				</div>
+
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+					<Button variant="outline" onClick={onClose}>
+						Cancel
+					</Button>
+					<Button
+						onClick={handleSave}
+						disabled={isLoading}
+						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+					>
+						{isLoading ? "Saving..." : "Save Changes"}
+					</Button>
+				</DialogFooter>
 			</DialogContent>
 		</Dialog>
 	);
@@ -464,57 +490,80 @@ function InviteUserDialog({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={handleClose}>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>Invite User</DialogTitle>
-					<DialogDescription>Send an invitation email to a new user.</DialogDescription>
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						ACCESS CONTROL
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Invite User
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
+						Send an invitation email to a new user.
+					</DialogDescription>
 				</DialogHeader>
 
-				<div className="p-4 mt-6 space-y-4">
-					<div className="space-y-2">
-						<label htmlFor="invite-user-email" className="text-sm font-medium">Email</label>
-						<Input
-							id="invite-user-email"
-							type="email"
-							placeholder="Enter user email"
-							value={email}
-							onChange={(e) => setEmail(e.target.value)}
-						/>
-					</div>
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					<div className="mt-2 space-y-4">
+						<div className="space-y-2">
+							<label
+								htmlFor="invite-user-email"
+								className="text-sm font-medium"
+							>
+								Email
+							</label>
+							<Input
+								id="invite-user-email"
+								type="email"
+								placeholder="Enter user email"
+								value={email}
+								onChange={(e) => setEmail(e.target.value)}
+							/>
+						</div>
 
-					<div className="space-y-2">
-						<label htmlFor="invite-user-role" className="text-sm font-medium">Role</label>
-						<Select
-							value={role}
-							onValueChange={(value) => setRole(value as SystemRole)}
-						>
-							<SelectTrigger id="invite-user-role">
-								<SelectValue placeholder="Select a role" />
-							</SelectTrigger>
-							<SelectContent>
-								{SYSTEM_ROLES.map((r) => (
-									<SelectItem key={r.value} value={r.value}>
-										<div>
-											<div className="font-medium">{r.label}</div>
-											<div className="text-xs text-muted-foreground">
-												{r.description}
+						<div className="space-y-2">
+							<label htmlFor="invite-user-role" className="text-sm font-medium">
+								Role
+							</label>
+							<Select
+								value={role}
+								onValueChange={(value) => setRole(value as SystemRole)}
+							>
+								<SelectTrigger id="invite-user-role">
+									<SelectValue placeholder="Select a role" />
+								</SelectTrigger>
+								<SelectContent>
+									{SYSTEM_ROLES.map((r) => (
+										<SelectItem key={r.value} value={r.value}>
+											<div>
+												<div className="font-medium">{r.label}</div>
+												<div className="text-xs text-[#737373]">
+													{r.description}
+												</div>
 											</div>
-										</div>
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
-
-					<div className="flex justify-end gap-2 pt-4">
-						<Button variant="outline" onClick={handleClose}>
-							Cancel
-						</Button>
-						<Button onClick={handleSubmit} disabled={isLoading}>
-							{isLoading ? "Sending..." : "Send Invitation"}
-						</Button>
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
 					</div>
 				</div>
+
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+					<Button variant="outline" onClick={handleClose}>
+						Cancel
+					</Button>
+					<Button
+						onClick={handleSubmit}
+						disabled={isLoading}
+						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+					>
+						{isLoading ? "Sending..." : "Send Invitation"}
+					</Button>
+				</DialogFooter>
 			</DialogContent>
 		</Dialog>
 	);
@@ -536,37 +585,41 @@ export function MembersTabPage() {
 
 	const [showDeleted, setShowDeleted] = useState(false);
 
-	const { data: membersApiData = EMPTY_MEMBERS, isLoading: membersLoading } = useQuery({
-		queryKey: ["members", organizationId, { includeDeleted: showDeleted }],
-		queryFn: (): Promise<Awaited<ReturnType<typeof client.members.list>>> => {
-			if (!organizationId) return Promise.resolve([]);
-			return client.members.list({
-				organizationId,
-				includeDeleted: showDeleted,
-			});
-		},
-		enabled: !!organizationId,
-	});
+	const { data: membersApiData = EMPTY_MEMBERS, isLoading: membersLoading } =
+		useQuery({
+			...orpc.members.list.queryOptions({
+				input: { organizationId: organizationId!, includeDeleted: showDeleted },
+			}),
+			enabled: !!organizationId,
+		});
 
-	const { data: rolesApiData = EMPTY_ROLES, isLoading: rolesLoading } = useQuery({
-		queryKey: ["roles", organizationId],
-		queryFn: (): Promise<Awaited<ReturnType<typeof client.roles.list>>> => {
-			if (!organizationId) return Promise.resolve([]);
-			return client.roles.list({ organizationId });
-		},
-		enabled: !!organizationId,
-	});
+	const { data: rolesApiData = EMPTY_ROLES, isLoading: rolesLoading } =
+		useQuery({
+			...orpc.roles.list.queryOptions({
+				input: { organizationId: organizationId! },
+			}),
+			enabled: !!organizationId,
+		});
 
 	const { data: hierarchyData } = useQuery({
-		queryKey: ["hierarchy", "nodes", organizationId],
-		queryFn: (): Promise<Awaited<ReturnType<typeof client.hierarchy.listNodes>>> => {
-			if (!organizationId) return Promise.resolve({ nodes: [] });
-			return client.hierarchy.listNodes({ organizationId });
-		},
+		...orpc.hierarchy.listNodes.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 	});
-	type HierarchyNode = { id: string; name: string; type: string; depth: number; parentId: string | null; address: string | null; picUserId: string | null; createdAt: Date; updatedAt: Date };
-	const hierarchyNodes: HierarchyNode[] = (hierarchyData?.nodes ?? []) as HierarchyNode[];
+	type HierarchyNode = {
+		id: string;
+		name: string;
+		type: string;
+		depth: number;
+		parentId: string | null;
+		address: string | null;
+		picUserId: string | null;
+		createdAt: Date;
+		updatedAt: Date;
+	};
+	const hierarchyNodes: HierarchyNode[] = (hierarchyData?.nodes ??
+		[]) as HierarchyNode[];
 
 	const isLoading = membersLoading || rolesLoading;
 
@@ -615,7 +668,9 @@ export function MembersTabPage() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [roleFilter, setRoleFilter] = useState<string>("all");
 	const [statusFilter, setStatusFilter] = useState<string>("all");
-	const [editingUser, setEditingUser] = useState<UserForAssignment | null>(null);
+	const [editingUser, setEditingUser] = useState<UserForAssignment | null>(
+		null,
+	);
 	const [showInviteDialog, setShowInviteDialog] = useState(false);
 	const [editingUserDetails, setEditingUserDetails] =
 		useState<UserForAssignment | null>(null);
@@ -680,9 +735,11 @@ export function MembersTabPage() {
 				memberId: editingUser.id,
 				newRole,
 			});
-			await queryClient.invalidateQueries({
-				queryKey: ["members", organizationId],
-			});
+			await queryClient.invalidateQueries(
+				orpc.members.list.queryOptions({
+					input: { organizationId: organizationId! },
+				}),
+			);
 			toast.success(`Successfully updated role for ${editingUser.name}`);
 			setEditingUser(null);
 		} catch (error) {
@@ -707,14 +764,14 @@ export function MembersTabPage() {
 				await client.members.reactivate({ organizationId, memberId: userId });
 				toast.success(`Successfully reactivated ${user.name}`);
 			}
-			await queryClient.invalidateQueries({
-				queryKey: ["members", organizationId],
-			});
+			await queryClient.invalidateQueries(
+				orpc.members.list.queryOptions({
+					input: { organizationId: organizationId! },
+				}),
+			);
 		} catch (error) {
 			toast.error(
-				error instanceof Error
-					? error.message
-					: "Failed to update user status",
+				error instanceof Error ? error.message : "Failed to update user status",
 			);
 		} finally {
 			setIsSaving(false);
@@ -729,9 +786,11 @@ export function MembersTabPage() {
 		try {
 			await client.members.softDelete({ organizationId, memberId: userId });
 			toast.success(`${user.name} deleted`);
-			await queryClient.invalidateQueries({
-				queryKey: ["members", organizationId],
-			});
+			await queryClient.invalidateQueries(
+				orpc.members.list.queryOptions({
+					input: { organizationId: organizationId! },
+				}),
+			);
 		} catch (error) {
 			toast.error(
 				error instanceof Error ? error.message : "Failed to delete user",
@@ -749,9 +808,11 @@ export function MembersTabPage() {
 		try {
 			await client.members.restore({ organizationId, memberId: userId });
 			toast.success(`${user.name} restored`);
-			await queryClient.invalidateQueries({
-				queryKey: ["members", organizationId],
-			});
+			await queryClient.invalidateQueries(
+				orpc.members.list.queryOptions({
+					input: { organizationId: organizationId! },
+				}),
+			);
 		} catch (error) {
 			toast.error(
 				error instanceof Error ? error.message : "Failed to restore user",
@@ -799,9 +860,11 @@ export function MembersTabPage() {
 			}
 
 			setShowInviteDialog(false);
-			await queryClient.invalidateQueries({
-				queryKey: ["members", organizationId],
-			});
+			await queryClient.invalidateQueries(
+				orpc.members.list.queryOptions({
+					input: { organizationId: organizationId! },
+				}),
+			);
 		} catch (createError) {
 			toast.error(
 				createError instanceof Error
@@ -837,9 +900,11 @@ export function MembersTabPage() {
 					}`,
 				);
 			}
-			await queryClient.invalidateQueries({
-				queryKey: ["members", organizationId],
-			});
+			await queryClient.invalidateQueries(
+				orpc.members.list.queryOptions({
+					input: { organizationId: organizationId! },
+				}),
+			);
 		} catch (error) {
 			toast.error(
 				error instanceof Error ? error.message : "Failed to retry GHL sync",
@@ -906,9 +971,11 @@ export function MembersTabPage() {
 				);
 			}
 
-			await queryClient.invalidateQueries({
-				queryKey: ["members", organizationId],
-			});
+			await queryClient.invalidateQueries(
+				orpc.members.list.queryOptions({
+					input: { organizationId: organizationId! },
+				}),
+			);
 			setMovingUser(null);
 			setMoveBranchId("");
 			setMoveCurrentBranchId("");
@@ -955,9 +1022,11 @@ export function MembersTabPage() {
 				});
 			}
 
-			await queryClient.invalidateQueries({
-				queryKey: ["members", organizationId],
-			});
+			await queryClient.invalidateQueries(
+				orpc.members.list.queryOptions({
+					input: { organizationId: organizationId! },
+				}),
+			);
 			toast.success(`Updated details for ${editingUserDetails.name}`);
 			setEditingUserDetails(null);
 		} catch (error) {
@@ -977,8 +1046,7 @@ export function MembersTabPage() {
 	const someSelected =
 		selectedCount > 0 && selectedCount < filteredUsers.length;
 
-	const getActiveUserCount = () =>
-		users.filter((user) => user.isActive).length;
+	const getActiveUserCount = () => users.filter((user) => user.isActive).length;
 	const getUsersWithoutRoles = () =>
 		users.filter((user) => user.roles.length === 0).length;
 
@@ -1007,7 +1075,7 @@ export function MembersTabPage() {
 					<CardContent className="p-4">
 						<div className="text-center">
 							<div className="text-2xl font-bold">{users.length}</div>
-							<div className="text-sm text-muted-foreground">Total Users</div>
+							<div className="text-sm text-[#737373]">Total Users</div>
 						</div>
 					</CardContent>
 				</Card>
@@ -1015,7 +1083,7 @@ export function MembersTabPage() {
 					<CardContent className="p-4">
 						<div className="text-center">
 							<div className="text-2xl font-bold">{getActiveUserCount()}</div>
-							<div className="text-sm text-muted-foreground">Active Users</div>
+							<div className="text-sm text-[#737373]">Active Users</div>
 						</div>
 					</CardContent>
 				</Card>
@@ -1023,7 +1091,7 @@ export function MembersTabPage() {
 					<CardContent className="p-4">
 						<div className="text-center">
 							<div className="text-2xl font-bold">{getUsersWithoutRoles()}</div>
-							<div className="text-sm text-muted-foreground">No Roles</div>
+							<div className="text-sm text-[#737373]">No Roles</div>
 						</div>
 					</CardContent>
 				</Card>
@@ -1031,9 +1099,7 @@ export function MembersTabPage() {
 					<CardContent className="p-4">
 						<div className="text-center">
 							<div className="text-2xl font-bold">{roles.length}</div>
-							<div className="text-sm text-muted-foreground">
-								Available Roles
-							</div>
+							<div className="text-sm text-[#737373]">Available Roles</div>
 						</div>
 					</CardContent>
 				</Card>
@@ -1044,7 +1110,7 @@ export function MembersTabPage() {
 				<CardContent className="py-4">
 					<div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-6">
 						<div className="relative flex-1 max-w-md">
-							<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground size-4" />
+							<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#737373] size-4" />
 							<Input
 								placeholder="Search users..."
 								value={searchQuery}
@@ -1080,7 +1146,10 @@ export function MembersTabPage() {
 								</SelectContent>
 							</Select>
 
-							<label htmlFor="members-show-deleted" className="flex items-center gap-2 text-sm">
+							<label
+								htmlFor="members-show-deleted"
+								className="flex items-center gap-2 text-sm"
+							>
 								<Checkbox
 									id="members-show-deleted"
 									checked={showDeleted}
@@ -1101,23 +1170,17 @@ export function MembersTabPage() {
 										</Button>
 									</DropdownMenuTrigger>
 									<DropdownMenuContent>
-										<DropdownMenuItem
-											disabled
-											title="Bulk actions coming soon"
-										>
+										<DropdownMenuItem disabled title="Bulk actions coming soon">
 											Bulk Assign Role
 										</DropdownMenuItem>
-										<DropdownMenuItem
-											disabled
-											title="Bulk actions coming soon"
-										>
+										<DropdownMenuItem disabled title="Bulk actions coming soon">
 											Bulk Remove Role
 										</DropdownMenuItem>
 										<DropdownMenuSeparator />
 										<DropdownMenuItem
 											disabled
 											title="Bulk actions coming soon"
-											className="text-destructive"
+											className="text-rose-600"
 										>
 											Deactivate Selected
 										</DropdownMenuItem>
@@ -1136,7 +1199,7 @@ export function MembersTabPage() {
 								}
 								onCheckedChange={handleSelectAll}
 							/>
-							<span className="text-sm text-muted-foreground">
+							<span className="text-sm text-[#737373]">
 								{allSelected
 									? "Deselect all"
 									: someSelected
@@ -1189,10 +1252,17 @@ export function MembersTabPage() {
 					}
 					action={
 						!searchQuery && roleFilter === "all" && statusFilter === "all"
-							? { label: "Invite User", onClick: () => setShowInviteDialog(true) }
+							? {
+									label: "Invite User",
+									onClick: () => setShowInviteDialog(true),
+								}
 							: undefined
 					}
-					context={searchQuery || roleFilter !== "all" || statusFilter !== "all" ? "search" : undefined}
+					context={
+						searchQuery || roleFilter !== "all" || statusFilter !== "all"
+							? "search"
+							: undefined
+					}
 				/>
 			)}
 
@@ -1221,113 +1291,126 @@ export function MembersTabPage() {
 					if (!open) setEditingUserDetails(null);
 				}}
 			>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>Edit User: {editingUserDetails?.name}</DialogTitle>
-					<DialogDescription>Update this user's profile details.</DialogDescription>
+				<DialogContent
+					className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							ACCESS CONTROL
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Edit User: {editingUserDetails?.name}
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
+							Update this user's profile details.
+						</DialogDescription>
 					</DialogHeader>
 
-					<div className="space-y-4 py-2">
-						<div className="space-y-2">
-							<Label htmlFor="edit-role">Role</Label>
-							<Select
-								value={editRole}
-								onValueChange={(value) => setEditRole(value as SystemRole)}
-							>
-								<SelectTrigger id="edit-role">
-									<SelectValue placeholder="Select a role" />
-								</SelectTrigger>
-								<SelectContent>
-									{SYSTEM_ROLES.map((r) => (
-										<SelectItem key={r.value} value={r.value}>
-											<div>
-												<div className="font-medium">{r.label}</div>
-												<div className="text-xs text-muted-foreground">
-													{r.description}
-												</div>
-											</div>
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-
-						{/* Wave 3a Agent 2.1 (Journey J1): custom-role assignment.
-							 The legacy "Role" select above sets the text fast-path; this select
-							 binds the member to a row in the `roles` table so custom roles
-							 (e.g. "Yoga Lead") created on the roles page are actually
-							 assignable end-to-end. "None" clears the FK. */}
-						<div className="space-y-2">
-							<Label htmlFor="edit-custom-role">Custom Role (optional)</Label>
-							<Select
-								value={editRoleId || "__none__"}
-								onValueChange={(value) =>
-									setEditRoleId(value === "__none__" ? "" : value)
-								}
-							>
-								<SelectTrigger id="edit-custom-role">
-									<SelectValue placeholder="None — use system role only" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="__none__">
-										<div>
-											<div className="font-medium">None</div>
-											<div className="text-xs text-muted-foreground">
-												Use legacy system role only
-											</div>
-										</div>
-									</SelectItem>
-									{roles.map((r) => (
-										<SelectItem key={r.id} value={r.id}>
-											<div>
-												<div className="font-medium">{r.name}</div>
-												{r.description && (
-													<div className="text-xs text-muted-foreground">
+					<div className="px-6 pt-4 pb-2 overflow-y-auto">
+						<div className="space-y-4 py-2">
+							<div className="space-y-2">
+								<Label htmlFor="edit-role">Role</Label>
+								<Select
+									value={editRole}
+									onValueChange={(value) => setEditRole(value as SystemRole)}
+								>
+									<SelectTrigger id="edit-role">
+										<SelectValue placeholder="Select a role" />
+									</SelectTrigger>
+									<SelectContent>
+										{SYSTEM_ROLES.map((r) => (
+											<SelectItem key={r.value} value={r.value}>
+												<div>
+													<div className="font-medium">{r.label}</div>
+													<div className="text-xs text-[#737373]">
 														{r.description}
 													</div>
-												)}
-											</div>
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-							<p className="text-xs text-muted-foreground">
-								Custom roles are managed on the Roles tab. Assigning one here
-								grants its specific permissions (in addition to the system role
-								above).
-							</p>
-						</div>
+												</div>
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
 
-						<div className="space-y-2">
-							<Label htmlFor="edit-hierarchy">Hierarchy Scope</Label>
-							<Select
-								value={editHierarchyScopeId}
-								onValueChange={setEditHierarchyScopeId}
-							>
-								<SelectTrigger id="edit-hierarchy">
-									<SelectValue placeholder="Select a location" />
-								</SelectTrigger>
-								<SelectContent>
-									{hierarchyNodes.map((node) => (
-										<SelectItem key={node.id} value={node.id}>
+							{/* Wave 3a Agent 2.1 (Journey J1): custom-role assignment.
+								 The legacy "Role" select above sets the text fast-path; this select
+								 binds the member to a row in the `roles` table so custom roles
+								 (e.g. "Yoga Lead") created on the roles page are actually
+								 assignable end-to-end. "None" clears the FK. */}
+							<div className="space-y-2">
+								<Label htmlFor="edit-custom-role">Custom Role (optional)</Label>
+								<Select
+									value={editRoleId || "__none__"}
+									onValueChange={(value) =>
+										setEditRoleId(value === "__none__" ? "" : value)
+									}
+								>
+									<SelectTrigger id="edit-custom-role">
+										<SelectValue placeholder="None — use system role only" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="__none__">
 											<div>
-												<div className="font-medium">{node.name}</div>
-												<div className="text-xs text-muted-foreground capitalize">
-													{node.type}{" "}
-													{node.depth > 0 ? `(depth ${node.depth})` : ""}
+												<div className="font-medium">None</div>
+												<div className="text-xs text-[#737373]">
+													Use legacy system role only
 												</div>
 											</div>
 										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-							<p className="text-xs text-muted-foreground">
-								Determines which parts of the hierarchy this member can access.
-							</p>
+										{roles.map((r) => (
+											<SelectItem key={r.id} value={r.id}>
+												<div>
+													<div className="font-medium">{r.name}</div>
+													{r.description && (
+														<div className="text-xs text-[#737373]">
+															{r.description}
+														</div>
+													)}
+												</div>
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								<p className="text-xs text-[#737373]">
+									Custom roles are managed on the Roles tab. Assigning one here
+									grants its specific permissions (in addition to the system
+									role above).
+								</p>
+							</div>
+
+							<div className="space-y-2">
+								<Label htmlFor="edit-hierarchy">Hierarchy Scope</Label>
+								<Select
+									value={editHierarchyScopeId}
+									onValueChange={setEditHierarchyScopeId}
+								>
+									<SelectTrigger id="edit-hierarchy">
+										<SelectValue placeholder="Select a location" />
+									</SelectTrigger>
+									<SelectContent>
+										{hierarchyNodes.map((node) => (
+											<SelectItem key={node.id} value={node.id}>
+												<div>
+													<div className="font-medium">{node.name}</div>
+													<div className="text-xs text-[#737373] capitalize">
+														{node.type}{" "}
+														{node.depth > 0 ? `(depth ${node.depth})` : ""}
+													</div>
+												</div>
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								<p className="text-xs text-[#737373]">
+									Determines which parts of the hierarchy this member can
+									access.
+								</p>
+							</div>
 						</div>
 					</div>
 
-					<DialogFooter>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button
 							variant="outline"
 							onClick={() => setEditingUserDetails(null)}
@@ -1335,7 +1418,11 @@ export function MembersTabPage() {
 						>
 							Cancel
 						</Button>
-						<Button onClick={handleSaveUserDetails} disabled={isSaving}>
+						<Button
+							onClick={handleSaveUserDetails}
+							disabled={isSaving}
+							className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+						>
 							{isSaving ? "Saving..." : "Save Changes"}
 						</Button>
 					</DialogFooter>
@@ -1349,32 +1436,42 @@ export function MembersTabPage() {
 					if (!open) handleCloseMoveBranch();
 				}}
 			>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>
+				<DialogContent
+					className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							BRANCH MANAGEMENT
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
 							Move {movingUser?.name ?? "member"} to a different branch
 						</DialogTitle>
-						<DialogDescription>Select the destination branch for this member.</DialogDescription>
+						<DialogDescription className="text-sm text-[#737373]">
+							Select the destination branch for this member.
+						</DialogDescription>
 					</DialogHeader>
 
-					<div className="space-y-3 py-2">
-						<Label htmlFor="move-branch-picker">Destination branch</Label>
-						{organizationId && (
-							<BranchCombobox
-								organizationId={organizationId}
-								value={moveBranchId}
-								onChange={setMoveBranchId}
-								placeholder="Select branch..."
-								disabled={isMovingBranch}
-							/>
-						)}
-						<p className="text-xs text-muted-foreground">
-							The member will be reassigned to the selected branch. GHL sync
-							runs automatically.
-						</p>
+					<div className="px-6 pt-4 pb-2 overflow-y-auto">
+						<div className="space-y-3 py-2">
+							<Label htmlFor="move-branch-picker">Destination branch</Label>
+							{organizationId && (
+								<BranchCombobox
+									organizationId={organizationId}
+									value={moveBranchId}
+									onChange={setMoveBranchId}
+									placeholder="Select branch..."
+									disabled={isMovingBranch}
+								/>
+							)}
+							<p className="text-xs text-[#737373]">
+								The member will be reassigned to the selected branch. GHL sync
+								runs automatically.
+							</p>
+						</div>
 					</div>
 
-					<DialogFooter>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button
 							variant="outline"
 							onClick={handleCloseMoveBranch}
@@ -1390,6 +1487,7 @@ export function MembersTabPage() {
 								moveBranchId === moveCurrentBranchId
 							}
 							aria-label="Confirm move to branch"
+							className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
 						>
 							{isMovingBranch ? "Moving..." : "Move member"}
 						</Button>
@@ -1398,10 +1496,10 @@ export function MembersTabPage() {
 			</Dialog>
 
 			{isLoading && (
-				<div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+				<div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
 					<div className="text-center">
 						<div className="animate-spin rounded-full size-8 border-b-2 border-primary mx-auto mb-2" />
-						<p className="text-sm text-muted-foreground">Loading…</p>
+						<p className="text-sm text-[#737373]">Loading…</p>
 					</div>
 				</div>
 			)}

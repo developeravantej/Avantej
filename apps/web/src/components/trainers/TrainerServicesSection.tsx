@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronDown, Edit } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,7 +15,10 @@ import {
 	CollapsibleContent,
 	CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { CategoryBufferRow, type CategoryBufferRowData } from "./category-buffer-row";
+import {
+	CategoryBufferRow,
+	type CategoryBufferRowData,
+} from "./category-buffer-row";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -45,24 +48,23 @@ export function TrainerServicesSection({
 	// ── Queries ──────────────────────────────────────────────────────────────
 
 	const { data: trainerServices = [] } = useQuery({
-		queryKey: ["trainerServices", organizationId, memberId],
-		queryFn: () =>
-			client.serviceMembers.listForMember({
-				organizationId,
-				memberId,
-			}),
+		...orpc.serviceMembers.listForMember.queryOptions({
+			input: { organizationId, memberId },
+		}),
 		enabled: isOpen,
 	});
 
 	const { data: allServices = [] } = useQuery({
-		queryKey: ["allServices", organizationId],
-		queryFn: () => client.services.list({ organizationId, isActive: true }),
+		...orpc.services.list.queryOptions({
+			input: { organizationId, isActive: true },
+		}),
 		enabled: isOpen,
 	});
 
 	const { data: allCategories = [] } = useQuery({
-		queryKey: ["allCategories", organizationId],
-		queryFn: () => client.serviceCategories.list({ organizationId }),
+		...orpc.serviceCategories.list.queryOptions({
+			input: { organizationId },
+		}),
 		enabled: isOpen,
 	});
 
@@ -76,12 +78,16 @@ export function TrainerServicesSection({
 				serviceId,
 			}),
 		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["trainerServices", organizationId, memberId],
-			});
+			queryClient.invalidateQueries(
+				orpc.serviceMembers.listForMember.queryOptions({
+					input: { organizationId, memberId },
+				}),
+			);
 		},
 		onError: (err) =>
-			toast.error(err instanceof Error ? err.message : "Failed to assign service."),
+			toast.error(
+				err instanceof Error ? err.message : "Failed to assign service.",
+			),
 	});
 
 	const removeMutation = useMutation({
@@ -92,12 +98,16 @@ export function TrainerServicesSection({
 				serviceId,
 			}),
 		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["trainerServices", organizationId, memberId],
-			});
+			queryClient.invalidateQueries(
+				orpc.serviceMembers.listForMember.queryOptions({
+					input: { organizationId, memberId },
+				}),
+			);
 		},
 		onError: (err) =>
-			toast.error(err instanceof Error ? err.message : "Failed to remove service."),
+			toast.error(
+				err instanceof Error ? err.message : "Failed to remove service.",
+			),
 	});
 
 	const updateBufferMutation = useMutation({
@@ -115,28 +125,32 @@ export function TrainerServicesSection({
 				bufferTimeMinutes,
 			}),
 		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["trainerServices", organizationId, memberId],
-			});
+			queryClient.invalidateQueries(
+				orpc.serviceMembers.listForMember.queryOptions({
+					input: { organizationId, memberId },
+				}),
+			);
 			setEditingBufferServiceId(null);
 			toast.success("Buffer time updated.");
 		},
 		onError: (err) =>
-			toast.error(err instanceof Error ? err.message : "Failed to update buffer."),
+			toast.error(
+				err instanceof Error ? err.message : "Failed to update buffer.",
+			),
 	});
 
 	const { data: categoryBuffers = [] } = useQuery({
-		queryKey: ["categoryBufferOverrides", organizationId, memberId],
-		queryFn: () =>
-			client.categoryBufferOverrides.listForMember({
-				organizationId,
-				memberId,
-			}),
+		...orpc.categoryBufferOverrides.listForMember.queryOptions({
+			input: { organizationId, memberId },
+		}),
 		enabled: isOpen && !!organizationId && !!memberId,
 	});
 
 	const updateCategoryBufferMutation = useMutation({
-		mutationFn: (args: { categoryId: string; bufferTimeMinutes: number | null }) =>
+		mutationFn: (args: {
+			categoryId: string;
+			bufferTimeMinutes: number | null;
+		}) =>
 			client.categoryBufferOverrides.upsert({
 				organizationId,
 				memberId,
@@ -144,9 +158,11 @@ export function TrainerServicesSection({
 			}),
 		onSuccess: () => {
 			toast.success("Category buffer updated");
-			queryClient.invalidateQueries({
-				queryKey: ["categoryBufferOverrides", organizationId, memberId],
-			});
+			queryClient.invalidateQueries(
+				orpc.categoryBufferOverrides.listForMember.queryOptions({
+					input: { organizationId, memberId },
+				}),
+			);
 		},
 		onError: () => toast.error("Failed to update category buffer"),
 	});
@@ -184,7 +200,10 @@ export function TrainerServicesSection({
 	return (
 		<Collapsible open={isOpen} onOpenChange={onOpenChange}>
 			<CollapsibleTrigger asChild>
-				<button type="button" className="flex w-full items-center justify-between pt-1">
+				<button
+					type="button"
+					className="flex w-full items-center justify-between pt-1"
+				>
 					<div className="space-y-0.5 text-left">
 						<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
 							Services
@@ -218,30 +237,46 @@ export function TrainerServicesSection({
 									{/* Category row */}
 									<div className="flex items-center gap-2 py-1">
 										<Checkbox
-											checked={allAssigned ? true : someAssigned ? "indeterminate" : false}
+											checked={
+												allAssigned
+													? true
+													: someAssigned
+														? "indeterminate"
+														: false
+											}
 											onCheckedChange={async (checked) => {
 												if (checked) {
 													const toAssign = group.services.filter(
 														(s: any) => !assignedServiceIds.has(s.id),
 													);
 													await Promise.allSettled(
-														toAssign.map((s: any) => assignMutation.mutateAsync(s.id)),
+														toAssign.map((s: any) =>
+															assignMutation.mutateAsync(s.id),
+														),
 													);
 												} else {
-													const toRemove = group.services.filter(
-														(s: any) => assignedServiceIds.has(s.id),
+													const toRemove = group.services.filter((s: any) =>
+														assignedServiceIds.has(s.id),
 													);
 													await Promise.allSettled(
-														toRemove.map((s: any) => removeMutation.mutateAsync(s.id)),
+														toRemove.map((s: any) =>
+															removeMutation.mutateAsync(s.id),
+														),
 													);
 												}
-												queryClient.invalidateQueries({
-													queryKey: ["trainerServices", organizationId, memberId],
-												});
+												queryClient.invalidateQueries(
+													orpc.serviceMembers.listForMember.queryOptions({
+														input: { organizationId, memberId },
+													}),
+												);
 											}}
-											disabled={assignMutation.isPending || removeMutation.isPending}
+											disabled={
+												assignMutation.isPending || removeMutation.isPending
+											}
 										/>
-										<span className="text-sm font-medium">{group.categoryName}</span>
+										<span className="text-sm font-medium">
+											{group.categoryName}
+										</span>
 										<span className="text-xs text-muted-foreground">
 											({assignedCount}/{group.services.length})
 										</span>
@@ -251,9 +286,9 @@ export function TrainerServicesSection({
 									<div className="ml-6 space-y-0.5">
 										{group.services.map((svc: any) => {
 											const isAssigned = assignedServiceIds.has(svc.id);
-											const assignedDetails = (trainerServices as TrainerService[]).find(
-												(ts) => ts.serviceId === svc.id,
-											);
+											const assignedDetails = (
+												trainerServices as TrainerService[]
+											).find((ts) => ts.serviceId === svc.id);
 											return (
 												<div key={svc.id}>
 													<div className="flex items-center gap-2 py-1">
@@ -270,7 +305,8 @@ export function TrainerServicesSection({
 																}
 															}}
 															disabled={
-																assignMutation.isPending || removeMutation.isPending
+																assignMutation.isPending ||
+																removeMutation.isPending
 															}
 														/>
 														<span className="text-sm">{svc.name}</span>
@@ -287,7 +323,9 @@ export function TrainerServicesSection({
 																		className="w-20 h-7 text-sm"
 																		placeholder="min"
 																		value={bufferInputValue}
-																		onChange={(e) => setBufferInputValue(e.target.value)}
+																		onChange={(e) =>
+																			setBufferInputValue(e.target.value)
+																		}
 																	/>
 																	<Button
 																		type="button"
@@ -295,7 +333,10 @@ export function TrainerServicesSection({
 																		variant="default"
 																		className="h-7 px-2 text-xs"
 																		onClick={() => {
-																			const parsed = parseInt(bufferInputValue, 10);
+																			const parsed = parseInt(
+																				bufferInputValue,
+																				10,
+																			);
 																			const val: number | null =
 																				bufferInputValue === "" || isNaN(parsed)
 																					? null
@@ -314,7 +355,9 @@ export function TrainerServicesSection({
 																		size="sm"
 																		variant="ghost"
 																		className="h-7 px-2 text-xs"
-																		onClick={() => setEditingBufferServiceId(null)}
+																		onClick={() =>
+																			setEditingBufferServiceId(null)
+																		}
 																	>
 																		Cancel
 																	</Button>
@@ -335,7 +378,8 @@ export function TrainerServicesSection({
 																		onClick={() => {
 																			setEditingBufferServiceId(svc.id);
 																			setBufferInputValue(
-																				assignedDetails?.bufferTimeMinutes?.toString() ?? "",
+																				assignedDetails?.bufferTimeMinutes?.toString() ??
+																					"",
 																			);
 																		}}
 																	>
@@ -355,33 +399,37 @@ export function TrainerServicesSection({
 					</div>
 				)}
 
-			{/* Category Buffer Defaults */}
-			<div className="mt-4 space-y-2">
-				<p className="text-sm font-medium text-muted-foreground">
-					Category Buffer Defaults
-				</p>
-				<p className="text-xs text-muted-foreground">
-					Set a default buffer for this trainer per service category. Leave blank to
-					use the org-wide default. Service-level overrides take priority.
-				</p>
-				{categoryBuffers.length === 0 ? (
-					<p className="text-xs text-muted-foreground">
-						No service categories assigned.
+				{/* Category Buffer Defaults */}
+				<div className="mt-4 space-y-2">
+					<p className="text-sm font-medium text-muted-foreground">
+						Category Buffer Defaults
 					</p>
-				) : (
-					<div className="flex flex-col gap-2">
-						{categoryBuffers.map((cat: any) => (
-							<CategoryBufferRow
-								key={cat.categoryId}
-								cat={cat as CategoryBufferRowData}
-								onSave={(categoryId, bufferTimeMinutes) =>
-									updateCategoryBufferMutation.mutate({ categoryId, bufferTimeMinutes })
-								}
-							/>
-						))}
-					</div>
-				)}
-			</div>
+					<p className="text-xs text-muted-foreground">
+						Set a default buffer for this trainer per service category. Leave
+						blank to use the org-wide default. Service-level overrides take
+						priority.
+					</p>
+					{categoryBuffers.length === 0 ? (
+						<p className="text-xs text-muted-foreground">
+							No service categories assigned.
+						</p>
+					) : (
+						<div className="flex flex-col gap-2">
+							{categoryBuffers.map((cat: any) => (
+								<CategoryBufferRow
+									key={cat.categoryId}
+									cat={cat as CategoryBufferRowData}
+									onSave={(categoryId, bufferTimeMinutes) =>
+										updateCategoryBufferMutation.mutate({
+											categoryId,
+											bufferTimeMinutes,
+										})
+									}
+								/>
+							))}
+						</div>
+					)}
+				</div>
 			</CollapsibleContent>
 		</Collapsible>
 	);

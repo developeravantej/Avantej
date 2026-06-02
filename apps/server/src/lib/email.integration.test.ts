@@ -65,7 +65,9 @@ describe("Email Service Integration Tests", () => {
 
 	beforeAll(() => {
 		if (process.env.SKIP_INTEGRATION_TESTS === "true") {
-			console.log("⏭️  Skipping integration tests (SKIP_INTEGRATION_TESTS=true)");
+			console.log(
+				"⏭️  Skipping integration tests (SKIP_INTEGRATION_TESTS=true)",
+			);
 			return;
 		}
 
@@ -73,33 +75,38 @@ describe("Email Service Integration Tests", () => {
 
 		if (!vars.RESEND_API_KEY) {
 			throw new Error(
-				"RESEND_API_KEY environment variable is required for integration tests"
+				"RESEND_API_KEY environment variable is required for integration tests",
 			);
 		}
 
 		if (!vars.RESEND_FROM_EMAIL) {
 			throw new Error(
-				"RESEND_FROM_EMAIL environment variable is required for integration tests"
+				"RESEND_FROM_EMAIL environment variable is required for integration tests",
 			);
 		}
 
 		// Resend test mode only allows sending to the account's verified email
 		// The verified email for this Resend account is: developer.avantej@gmail.com
 		// If TEST_EMAIL_RECIPIENT is set but doesn't match, we'll use the verified email
-		testRecipientEmail = vars.TEST_EMAIL_RECIPIENT || vars.RESEND_FROM_EMAIL || "developer.avantej@gmail.com";
-		
+		testRecipientEmail =
+			vars.TEST_EMAIL_RECIPIENT ||
+			vars.RESEND_FROM_EMAIL ||
+			"developer.avantej@gmail.com";
+
 		// Override with verified email if TEST_EMAIL_RECIPIENT doesn't match Resend's requirement
 		// Resend will reject emails sent to unverified addresses in test mode
 		const verifiedEmail = "developer.avantej@gmail.com";
 		if (testRecipientEmail !== verifiedEmail) {
-			console.log(`⚠️  Warning: TEST_EMAIL_RECIPIENT (${testRecipientEmail}) doesn't match Resend verified email`);
+			console.log(
+				`⚠️  Warning: TEST_EMAIL_RECIPIENT (${testRecipientEmail}) doesn't match Resend verified email`,
+			);
 			console.log(`   Using verified email instead: ${verifiedEmail}`);
 			testRecipientEmail = verifiedEmail;
 		}
 
 		if (!testRecipientEmail) {
 			throw new Error(
-				"TEST_EMAIL_RECIPIENT or RESEND_FROM_EMAIL environment variable is required for integration tests"
+				"TEST_EMAIL_RECIPIENT or RESEND_FROM_EMAIL environment variable is required for integration tests",
 			);
 		}
 
@@ -114,8 +121,12 @@ describe("Email Service Integration Tests", () => {
 		invitationLink = `http://localhost:3000/accept-invitation?id=test-invite-${Date.now()}`;
 
 		console.log(`📧 Test emails will be sent to: ${testRecipientEmail}`);
-		console.log(`   ⚠️  Note: Resend test mode only allows sending to verified email addresses`);
-		console.log(`   If you see errors, ensure TEST_EMAIL_RECIPIENT matches your Resend account's verified email`);
+		console.log(
+			`   ⚠️  Note: Resend test mode only allows sending to verified email addresses`,
+		);
+		console.log(
+			`   If you see errors, ensure TEST_EMAIL_RECIPIENT matches your Resend account's verified email`,
+		);
 	});
 
 	test("sends verification email via Resend", async () => {
@@ -127,7 +138,7 @@ describe("Email Service Integration Tests", () => {
 		await sendVerificationEmail(
 			testRecipientEmail,
 			verificationLink,
-			"Test User"
+			"Test User",
 		);
 
 		console.log(`✅ Verification email sent to ${testRecipientEmail}`);
@@ -163,7 +174,7 @@ describe("Email Service Integration Tests", () => {
 			invitationLink,
 			"Test Organization",
 			"John Manager",
-			"admin"
+			"admin",
 		);
 
 		console.log(`✅ Invitation email sent to ${testRecipientEmail}`);
@@ -202,4 +213,3 @@ describe("Email Service Integration Tests", () => {
 		process.env.RESEND_FROM_EMAIL = originalFrom;
 	});
 });
-

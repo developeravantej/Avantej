@@ -3,7 +3,7 @@ import { requirePermission } from "@/lib/route-guards";
 import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
@@ -172,9 +172,7 @@ function AudienceChip({ audience }: { audience: TargetAudience }) {
 		"inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold";
 	switch (audience) {
 		case "all":
-			return (
-				<span className={cn(base, "bg-blue-50 text-blue-700")}>All</span>
-			);
+			return <span className={cn(base, "bg-blue-50 text-blue-700")}>All</span>;
 		case "staff":
 			return (
 				<span className={cn(base, "bg-emerald-50 text-emerald-700")}>
@@ -192,7 +190,13 @@ function AudienceChip({ audience }: { audience: TargetAudience }) {
 
 // ─── Status pill ─────────────────────────────────────────────────────────────
 
-function StatusPill({ isActive, isPinned }: { isActive: boolean; isPinned: boolean }) {
+function StatusPill({
+	isActive,
+	isPinned,
+}: {
+	isActive: boolean;
+	isPinned: boolean;
+}) {
 	if (isPinned) {
 		return (
 			<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-600">
@@ -254,29 +258,24 @@ function AnnouncementsViewPage() {
 		isError,
 		refetch,
 	} = useQuery({
-		queryKey: ["announcements", organizationId, isActiveFilter],
-		queryFn: async () => {
-			if (!organizationId) return [];
-			return client.announcements.list({
-				organizationId,
-				isActive: isActiveFilter,
-			});
-		},
+		...orpc.announcements.list.queryOptions({
+			input: { organizationId: organizationId!, isActive: isActiveFilter },
+		}),
 		enabled: !!organizationId,
 	});
 
 	type HierarchyNode = { id: string; name: string; depth: number };
 
-	const { data: hierarchyNodes } = useQuery<HierarchyNode[]>({
-		queryKey: ["hierarchy", "listNodes", organizationId],
-		queryFn: async () => {
-			if (!organizationId) return [];
-			const result = await client.hierarchy.listNodes({ organizationId });
-			return result.nodes as HierarchyNode[];
-		},
+	const { data: hierarchyNodesResult } = useQuery({
+		...orpc.hierarchy.listNodes.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 		staleTime: 5 * 60 * 1000,
 	});
+	const hierarchyNodes = hierarchyNodesResult?.nodes as
+		| HierarchyNode[]
+		| undefined;
 
 	const nodeNameMap: Record<string, string> = {};
 	for (const node of hierarchyNodes ?? []) {
@@ -520,645 +519,693 @@ function AnnouncementsViewPage() {
 	// ─── Render ───────────────────────────────────────────────────────────────
 
 	return (
-		<Skeleton name="announcements-view" loading={isLoading} fallback={<PageLoader />}>
-		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
-			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
-				<div className="flex items-center gap-3 text-sm">
-					<span className="text-muted-foreground">Communications</span>
-					<span className="text-[#a3a3a3]">/</span>
-					<span className="font-semibold">Announcements</span>
-				</div>
-				<div className="ml-auto flex items-center gap-2">
-					<button
-						type="button"
-						onClick={openCreate}
-						disabled={isMutating}
-						className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626] disabled:opacity-50"
-					>
-						<Plus className="h-4 w-4" />
-						New
-					</button>
-				</div>
-			</header>
-			<div className="px-6 py-6">
-			{/* Two-column layout */}
-			<div className="grid grid-cols-[220px_1fr] gap-5">
-
-				{/* ── Left rail: audience + status filters ── */}
-				<div className="space-y-1 rounded-2xl border border-[#e5e5e5] bg-white p-3 self-start">
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] px-2 mb-2">
-						Filter by audience
-					</p>
-
-					{AUDIENCE_FILTERS.map(({ key, label, dot }) => {
-						const count = audienceCounts[key] ?? 0;
-						const isActive = audienceFilter === key;
-						return (
-							<button
-								key={key}
-								type="button"
-								onClick={() => setAudienceFilter(key)}
-								className={cn(
-									"w-full flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition",
-									isActive
-										? "bg-[#0a0a0a] text-white font-semibold"
-										: "text-[#737373] hover:bg-[#f3f3f3] hover:text-[#0a0a0a]",
-								)}
-							>
-								<span className="flex items-center gap-2">
-									{dot && (
-										<span
-											className={cn("w-2 h-2 rounded-full flex-shrink-0", dot)}
-										/>
-									)}
-									{label}
-								</span>
-								<span
-									className={cn(
-										"font-mono text-xs tabular-nums",
-										isActive ? "opacity-70" : "",
-									)}
-								>
-									{count}
-								</span>
-							</button>
-						);
-					})}
-
-					<div className="border-t border-[#e5e5e5] my-2" />
-
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] px-2 mb-2">
-						Filter by status
-					</p>
-
-					{STATUS_FILTERS.map(({ key, label }) => {
-						const isActive = statusFilter === key;
-						return (
-							<button
-								key={key}
-								type="button"
-								onClick={() => setStatusFilter(key)}
-								className={cn(
-									"w-full flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium transition",
-									isActive
-										? "bg-[#0a0a0a] text-white font-semibold"
-										: "text-[#737373] hover:bg-[#f3f3f3] hover:text-[#0a0a0a]",
-								)}
-							>
-								<span>{label}</span>
-							</button>
-						);
-					})}
-				</div>
-
-				{/* ── Right: inbox list ── */}
-				<div>
-					{/* Search + sort bar */}
-					<div className="mb-3 flex gap-2">
-						<div className="flex flex-1 items-center gap-2 rounded-xl border border-[#e5e5e5] bg-white px-3 py-2.5">
-							<Search className="h-4 w-4 text-[#737373] flex-shrink-0" />
-							<input
-								className="flex-1 bg-transparent text-sm outline-none placeholder:text-[#737373] text-[#0a0a0a]"
-								placeholder="Search announcements…"
-								value={search}
-								onChange={(e) => setSearch(e.target.value)}
-							/>
-						</div>
+		<Skeleton
+			name="announcements-view"
+			loading={isLoading}
+			fallback={<PageLoader />}
+		>
+			<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+				<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+					<div className="flex items-center gap-3 text-sm">
+						<span className="text-[#737373]">Communications</span>
+						<span className="text-[#a3a3a3]">/</span>
+						<span className="font-semibold">Announcements</span>
+					</div>
+					<div className="ml-auto flex items-center gap-2">
 						<button
 							type="button"
-							onClick={() => setSortNewest((v) => !v)}
-							className="inline-flex items-center gap-2 bg-white border border-[#e5e5e5] px-3.5 py-2 rounded-[10px] text-[13px] font-medium text-[#0a0a0a] hover:bg-[#f3f3f3] transition"
+							onClick={openCreate}
+							disabled={isMutating}
+							className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626] disabled:opacity-50"
 						>
-							Sort: {sortNewest ? "Newest" : "Oldest"}
-							<ChevronDown className="h-3 w-3" />
+							<Plus className="h-4 w-4" />
+							New
 						</button>
 					</div>
-
-					{/* Inbox list */}
-					{filteredRows.length === 0 ? (
-						<div className="rounded-2xl border border-[#e5e5e5] bg-white flex flex-col items-center justify-center py-16 text-[#737373]">
-							<Megaphone className="h-8 w-8 mb-3 opacity-30" />
-							<p className="text-sm font-medium">No announcements</p>
-							<p className="text-xs mt-1">
-								{search
-									? "No results for your search."
-									: "No announcements match the current filters."}
+				</header>
+				<div className="px-6 py-6">
+					{/* Two-column layout */}
+					<div className="grid grid-cols-[220px_1fr] gap-5">
+						{/* ── Left rail: audience + status filters ── */}
+						<div className="space-y-1 rounded-2xl border border-[#e5e5e5] bg-white p-3 self-start">
+							<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] px-2 mb-2">
+								Filter by audience
 							</p>
-						</div>
-					) : (
-						<div className="divide-y divide-[#e5e5e5] rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
-							{filteredRows.map((row) => {
-								const isExpanded = expandedId === row.id;
-								const scopeNames = (row.scopedBranchIds ?? []).map(
-									(id) => nodeNameMap[id] ?? id,
-								);
 
+							{AUDIENCE_FILTERS.map(({ key, label, dot }) => {
+								const count = audienceCounts[key] ?? 0;
+								const isActive = audienceFilter === key;
 								return (
-									<div
-										key={row.id}
+									<button
+										key={key}
+										type="button"
+										onClick={() => setAudienceFilter(key)}
 										className={cn(
-											"transition",
-											isExpanded
-												? "bg-[#f3f3f3] border-l-2 border-l-[#0a0a0a]"
-												: "border-l-2 border-l-transparent",
+											"w-full flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition",
+											isActive
+												? "bg-[#0a0a0a] text-white font-semibold"
+												: "text-[#737373] hover:bg-[#f3f3f3] hover:text-[#0a0a0a]",
 										)}
 									>
-										{/* ─ Row header (always visible) ─ */}
-										<div
-											className={cn(
-												"flex items-start gap-4 px-5 cursor-pointer",
-												isExpanded ? "pt-4 pb-2" : "py-3.5 hover:bg-[#fafafa]",
+										<span className="flex items-center gap-2">
+											{dot && (
+												<span
+													className={cn(
+														"w-2 h-2 rounded-full flex-shrink-0",
+														dot,
+													)}
+												/>
 											)}
-											onClick={() =>
-												setExpandedId(isExpanded ? null : row.id)
-											}
+											{label}
+										</span>
+										<span
+											className={cn(
+												"font-mono text-xs tabular-nums",
+												isActive ? "opacity-70" : "",
+											)}
 										>
-											{/* Priority dot */}
-											<span
-												className={cn(
-													"mt-1.5 w-2 h-2 rounded-full flex-shrink-0",
-													priorityDot(row.priority),
-												)}
-												title={`${priorityLabel(row.priority)} priority`}
-											/>
+											{count}
+										</span>
+									</button>
+								);
+							})}
 
-											{/* Content */}
-											<div className="flex-1 min-w-0">
-												<div className="flex items-baseline gap-2 flex-wrap">
-													<span className="font-semibold text-sm text-[#0a0a0a]">
-														{row.title}
-													</span>
-													<AudienceChip audience={row.targetAudience} />
-													{scopeNames.length > 0 && (
-														<span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700">
-															{scopeNames.length === 1
-																? scopeNames[0]
-																: `${scopeNames[0]} +${scopeNames.length - 1}`}
-														</span>
-													)}
-													{row.requiresAcknowledgement && (
-														<span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700">
-															Requires ack
-														</span>
-													)}
-													<StatusPill
-														isActive={row.isActive}
-														isPinned={row.isPinned}
-													/>
-												</div>
-												{!isExpanded && (
-													<p className="mt-0.5 text-xs text-[#737373] truncate">
-														{row.message}
-													</p>
-												)}
-											</div>
+							<div className="border-t border-[#e5e5e5] my-2" />
 
-											{/* Right meta */}
-											<div className="text-right flex-shrink-0 space-y-0.5 flex flex-col items-end">
-												{/* STUB: views/ack counts not available from API */}
-												<div className="text-[10px] text-[#737373] font-mono tabular-nums">
-													{formatShortDate(row.createdAt)}
-												</div>
-												{isExpanded ? (
-													<ChevronUp className="h-3.5 w-3.5 text-[#737373] mt-0.5" />
-												) : (
-													<ChevronDown className="h-3.5 w-3.5 text-[#737373] mt-0.5" />
-												)}
-											</div>
-										</div>
+							<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] px-2 mb-2">
+								Filter by status
+							</p>
 
-										{/* ─ Expanded body ─ */}
-										{isExpanded && (
-											<div className="px-5 pb-4">
-												{/* Message body */}
-												<p className="text-sm text-[#404040] leading-relaxed mb-4 pl-6">
-													{row.message}
-												</p>
-
-												{/* Meta row */}
-												<div className="pl-6 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-[#737373] mb-4">
-													{/* STUB: views count — not returned by API */}
-													<span className="flex items-center gap-1">
-														<span className="font-mono tabular-nums font-semibold text-[#737373]">
-															—
-														</span>{" "}
-														views
-													</span>
-
-													{/* STUB: ack count — not returned by API */}
-													<span className="flex items-center gap-1">
-														<span className="font-mono tabular-nums font-semibold text-[#737373]">
-															—
-														</span>{" "}
-														acknowledged
-													</span>
-
-													{row.startDate && (
-														<span>
-															From{" "}
-															<span className="font-medium text-[#0a0a0a]">
-																{formatDate(row.startDate)}
-															</span>
-														</span>
-													)}
-													{row.endDate ? (
-														<span>
-															Expires{" "}
-															<span className="font-medium text-[#0a0a0a]">
-																{formatDate(row.endDate)}
-															</span>
-														</span>
-													) : (
-														<span>No expiry</span>
-													)}
-													<span>
-														Priority:{" "}
-														<span className="font-medium text-[#0a0a0a]">
-															{priorityLabel(row.priority)}
-														</span>
-													</span>
-												</div>
-
-												{/* Action buttons */}
-												<div className="pl-6 flex flex-wrap gap-1.5">
-													{/* Pin / Unpin */}
-													<button
-														type="button"
-														onClick={(e) => {
-															e.stopPropagation();
-															pinMutation.mutate({
-																id: row.id,
-																isPinned: !row.isPinned,
-															});
-														}}
-														disabled={isMutating}
-														className="inline-flex items-center gap-1.5 bg-white border border-[#e5e5e5] px-3 py-1 rounded-[10px] text-[13px] font-medium text-[#0a0a0a] hover:bg-[#f3f3f3] transition disabled:opacity-50"
-													>
-														{row.isPinned ? (
-															<>
-																<PinOff className="h-3.5 w-3.5" /> Unpin
-															</>
-														) : (
-															<>
-																<Pin className="h-3.5 w-3.5" /> Pin
-															</>
-														)}
-													</button>
-
-													{/* Edit */}
-													<button
-														type="button"
-														onClick={(e) => {
-															e.stopPropagation();
-															openEdit(row);
-														}}
-														disabled={isMutating}
-														className="inline-flex items-center gap-1.5 bg-white border border-[#e5e5e5] px-3 py-1 rounded-[10px] text-[13px] font-medium text-[#0a0a0a] hover:bg-[#f3f3f3] transition disabled:opacity-50"
-													>
-														<Pencil className="h-3.5 w-3.5" /> Edit
-													</button>
-
-													{/* Deactivate (archive) — only when active */}
-													{row.isActive && (
-														<button
-															type="button"
-															onClick={(e) => {
-																e.stopPropagation();
-																setDeactivateTarget(row.id);
-															}}
-															disabled={isMutating}
-															className="inline-flex items-center gap-1.5 bg-white border border-rose-200 px-3 py-1 rounded-[10px] text-[13px] font-medium text-rose-600 hover:bg-rose-50 transition disabled:opacity-50"
-														>
-															<Archive className="h-3.5 w-3.5" /> Archive
-														</button>
-													)}
-
-													{/* Delete */}
-													<button
-														type="button"
-														onClick={(e) => {
-															e.stopPropagation();
-															setDeleteTarget(row.id);
-														}}
-														disabled={isMutating}
-														className="inline-flex items-center gap-1.5 bg-white border border-[#e5e5e5] px-3 py-1 rounded-[10px] text-[13px] font-medium text-[#737373] hover:bg-[#f3f3f3] hover:text-[#0a0a0a] transition disabled:opacity-50"
-													>
-														Delete
-													</button>
-												</div>
-											</div>
+							{STATUS_FILTERS.map(({ key, label }) => {
+								const isActive = statusFilter === key;
+								return (
+									<button
+										key={key}
+										type="button"
+										onClick={() => setStatusFilter(key)}
+										className={cn(
+											"w-full flex items-center justify-between rounded-xl px-3 py-2 text-sm font-medium transition",
+											isActive
+												? "bg-[#0a0a0a] text-white font-semibold"
+												: "text-[#737373] hover:bg-[#f3f3f3] hover:text-[#0a0a0a]",
 										)}
-									</div>
+									>
+										<span>{label}</span>
+									</button>
 								);
 							})}
 						</div>
-					)}
-				</div>
-			</div>
 
-			{/* ── Confirmation: Delete ── */}
-			<Dialog
-				open={!!deleteTarget}
-				onOpenChange={(open) => !open && setDeleteTarget(null)}
-			>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Confirm Delete</DialogTitle>
-						<DialogDescription>
-							Are you sure you want to delete this announcement? This action
-							cannot be undone.
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter>
-						<Button variant="outline" onClick={() => setDeleteTarget(null)}>
-							Cancel
-						</Button>
-						<Button
-							variant="destructive"
-							onClick={() => {
-								if (deleteTarget) {
-									deleteMutation.mutate(deleteTarget);
-									setDeleteTarget(null);
-								}
-							}}
-							disabled={deleteMutation.isPending}
+						{/* ── Right: inbox list ── */}
+						<div>
+							{/* Search + sort bar */}
+							<div className="mb-3 flex gap-2">
+								<div className="flex flex-1 items-center gap-2 rounded-xl border border-[#e5e5e5] bg-white px-3 py-2.5">
+									<Search className="h-4 w-4 text-[#737373] flex-shrink-0" />
+									<input
+										className="flex-1 bg-transparent text-sm outline-none placeholder:text-[#737373] text-[#0a0a0a]"
+										placeholder="Search announcements…"
+										value={search}
+										onChange={(e) => setSearch(e.target.value)}
+									/>
+								</div>
+								<button
+									type="button"
+									onClick={() => setSortNewest((v) => !v)}
+									className="inline-flex items-center gap-2 bg-white border border-[#e5e5e5] px-3.5 py-2 rounded-[10px] text-[13px] font-medium text-[#0a0a0a] hover:bg-[#f3f3f3] transition"
+								>
+									Sort: {sortNewest ? "Newest" : "Oldest"}
+									<ChevronDown className="h-3 w-3" />
+								</button>
+							</div>
+
+							{/* Inbox list */}
+							{filteredRows.length === 0 ? (
+								<div className="rounded-2xl border border-[#e5e5e5] bg-white flex flex-col items-center justify-center py-16 text-[#737373]">
+									<Megaphone className="h-8 w-8 mb-3 opacity-30" />
+									<p className="text-sm font-medium">No announcements</p>
+									<p className="text-xs mt-1">
+										{search
+											? "No results for your search."
+											: "No announcements match the current filters."}
+									</p>
+								</div>
+							) : (
+								<div className="divide-y divide-[#e5e5e5] rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
+									{filteredRows.map((row) => {
+										const isExpanded = expandedId === row.id;
+										const scopeNames = (row.scopedBranchIds ?? []).map(
+											(id) => nodeNameMap[id] ?? id,
+										);
+
+										return (
+											<div
+												key={row.id}
+												className={cn(
+													"transition",
+													isExpanded
+														? "bg-[#f3f3f3] border-l-2 border-l-[#0a0a0a]"
+														: "border-l-2 border-l-transparent",
+												)}
+											>
+												{/* ─ Row header (always visible) ─ */}
+												<div
+													className={cn(
+														"flex items-start gap-4 px-5 cursor-pointer",
+														isExpanded
+															? "pt-4 pb-2"
+															: "py-3.5 hover:bg-[#fafafa]",
+													)}
+													onClick={() =>
+														setExpandedId(isExpanded ? null : row.id)
+													}
+												>
+													{/* Priority dot */}
+													<span
+														className={cn(
+															"mt-1.5 w-2 h-2 rounded-full flex-shrink-0",
+															priorityDot(row.priority),
+														)}
+														title={`${priorityLabel(row.priority)} priority`}
+													/>
+
+													{/* Content */}
+													<div className="flex-1 min-w-0">
+														<div className="flex items-baseline gap-2 flex-wrap">
+															<span className="font-semibold text-sm text-[#0a0a0a]">
+																{row.title}
+															</span>
+															<AudienceChip audience={row.targetAudience} />
+															{scopeNames.length > 0 && (
+																<span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700">
+																	{scopeNames.length === 1
+																		? scopeNames[0]
+																		: `${scopeNames[0]} +${scopeNames.length - 1}`}
+																</span>
+															)}
+															{row.requiresAcknowledgement && (
+																<span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700">
+																	Requires ack
+																</span>
+															)}
+															<StatusPill
+																isActive={row.isActive}
+																isPinned={row.isPinned}
+															/>
+														</div>
+														{!isExpanded && (
+															<p className="mt-0.5 text-xs text-[#737373] truncate">
+																{row.message}
+															</p>
+														)}
+													</div>
+
+													{/* Right meta */}
+													<div className="text-right flex-shrink-0 space-y-0.5 flex flex-col items-end">
+														{/* STUB: views/ack counts not available from API */}
+														<div className="text-[10px] text-[#737373] font-mono tabular-nums">
+															{formatShortDate(row.createdAt)}
+														</div>
+														{isExpanded ? (
+															<ChevronUp className="h-3.5 w-3.5 text-[#737373] mt-0.5" />
+														) : (
+															<ChevronDown className="h-3.5 w-3.5 text-[#737373] mt-0.5" />
+														)}
+													</div>
+												</div>
+
+												{/* ─ Expanded body ─ */}
+												{isExpanded && (
+													<div className="px-5 pb-4">
+														{/* Message body */}
+														<p className="text-sm text-[#404040] leading-relaxed mb-4 pl-6">
+															{row.message}
+														</p>
+
+														{/* Meta row */}
+														<div className="pl-6 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-[#737373] mb-4">
+															{/* STUB: views count — not returned by API */}
+															<span className="flex items-center gap-1">
+																<span className="font-mono tabular-nums font-semibold text-[#737373]">
+																	—
+																</span>{" "}
+																views
+															</span>
+
+															{/* STUB: ack count — not returned by API */}
+															<span className="flex items-center gap-1">
+																<span className="font-mono tabular-nums font-semibold text-[#737373]">
+																	—
+																</span>{" "}
+																acknowledged
+															</span>
+
+															{row.startDate && (
+																<span>
+																	From{" "}
+																	<span className="font-medium text-[#0a0a0a]">
+																		{formatDate(row.startDate)}
+																	</span>
+																</span>
+															)}
+															{row.endDate ? (
+																<span>
+																	Expires{" "}
+																	<span className="font-medium text-[#0a0a0a]">
+																		{formatDate(row.endDate)}
+																	</span>
+																</span>
+															) : (
+																<span>No expiry</span>
+															)}
+															<span>
+																Priority:{" "}
+																<span className="font-medium text-[#0a0a0a]">
+																	{priorityLabel(row.priority)}
+																</span>
+															</span>
+														</div>
+
+														{/* Action buttons */}
+														<div className="pl-6 flex flex-wrap gap-1.5">
+															{/* Pin / Unpin */}
+															<button
+																type="button"
+																onClick={(e) => {
+																	e.stopPropagation();
+																	pinMutation.mutate({
+																		id: row.id,
+																		isPinned: !row.isPinned,
+																	});
+																}}
+																disabled={isMutating}
+																className="inline-flex items-center gap-1.5 bg-white border border-[#e5e5e5] px-3 py-1 rounded-[10px] text-[13px] font-medium text-[#0a0a0a] hover:bg-[#f3f3f3] transition disabled:opacity-50"
+															>
+																{row.isPinned ? (
+																	<>
+																		<PinOff className="h-3.5 w-3.5" /> Unpin
+																	</>
+																) : (
+																	<>
+																		<Pin className="h-3.5 w-3.5" /> Pin
+																	</>
+																)}
+															</button>
+
+															{/* Edit */}
+															<button
+																type="button"
+																onClick={(e) => {
+																	e.stopPropagation();
+																	openEdit(row);
+																}}
+																disabled={isMutating}
+																className="inline-flex items-center gap-1.5 bg-white border border-[#e5e5e5] px-3 py-1 rounded-[10px] text-[13px] font-medium text-[#0a0a0a] hover:bg-[#f3f3f3] transition disabled:opacity-50"
+															>
+																<Pencil className="h-3.5 w-3.5" /> Edit
+															</button>
+
+															{/* Deactivate (archive) — only when active */}
+															{row.isActive && (
+																<button
+																	type="button"
+																	onClick={(e) => {
+																		e.stopPropagation();
+																		setDeactivateTarget(row.id);
+																	}}
+																	disabled={isMutating}
+																	className="inline-flex items-center gap-1.5 bg-white border border-rose-200 px-3 py-1 rounded-[10px] text-[13px] font-medium text-rose-600 hover:bg-rose-50 transition disabled:opacity-50"
+																>
+																	<Archive className="h-3.5 w-3.5" /> Archive
+																</button>
+															)}
+
+															{/* Delete */}
+															<button
+																type="button"
+																onClick={(e) => {
+																	e.stopPropagation();
+																	setDeleteTarget(row.id);
+																}}
+																disabled={isMutating}
+																className="inline-flex items-center gap-1.5 bg-white border border-[#e5e5e5] px-3 py-1 rounded-[10px] text-[13px] font-medium text-[#737373] hover:bg-[#f3f3f3] hover:text-[#0a0a0a] transition disabled:opacity-50"
+															>
+																Delete
+															</button>
+														</div>
+													</div>
+												)}
+											</div>
+										);
+									})}
+								</div>
+							)}
+						</div>
+					</div>
+
+					{/* ── Confirmation: Delete ── */}
+					<Dialog
+						open={!!deleteTarget}
+						onOpenChange={(open) => !open && setDeleteTarget(null)}
+					>
+						<DialogContent
+							className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+							hideCloseButton
 						>
-							{deleteMutation.isPending ? "Deleting…" : "Delete"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+							<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+								<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+									INTERNAL COMMUNICATIONS
+								</p>
+								<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+									Confirm Delete
+								</DialogTitle>
+								<DialogDescription className="text-sm text-[#737373]">
+									Are you sure you want to delete this announcement? This action
+									cannot be undone.
+								</DialogDescription>
+							</DialogHeader>
+							<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+								<Button variant="outline" onClick={() => setDeleteTarget(null)}>
+									Cancel
+								</Button>
+								<Button
+									className="bg-red-600 hover:bg-red-700 text-white"
+									onClick={() => {
+										if (deleteTarget) {
+											deleteMutation.mutate(deleteTarget);
+											setDeleteTarget(null);
+										}
+									}}
+									disabled={deleteMutation.isPending}
+								>
+									{deleteMutation.isPending ? "Deleting…" : "Delete"}
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
 
-			{/* ── Confirmation: Deactivate ── */}
-			<Dialog
-				open={!!deactivateTarget}
-				onOpenChange={(open) => !open && setDeactivateTarget(null)}
-			>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Archive Announcement</DialogTitle>
-						<DialogDescription>
-							This will deactivate the announcement. It will no longer be
-							visible to recipients.
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => setDeactivateTarget(null)}
+					{/* ── Confirmation: Deactivate ── */}
+					<Dialog
+						open={!!deactivateTarget}
+						onOpenChange={(open) => !open && setDeactivateTarget(null)}
+					>
+						<DialogContent
+							className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+							hideCloseButton
 						>
-							Cancel
-						</Button>
-						<Button
-							onClick={() => {
-								if (deactivateTarget) {
-									deactivateMutation.mutate(deactivateTarget);
-									setDeactivateTarget(null);
-								}
-							}}
-							disabled={deactivateMutation.isPending}
+							<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+								<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+									INTERNAL COMMUNICATIONS
+								</p>
+								<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+									Archive Announcement
+								</DialogTitle>
+								<DialogDescription className="text-sm text-[#737373]">
+									This will deactivate the announcement. It will no longer be
+									visible to recipients.
+								</DialogDescription>
+							</DialogHeader>
+							<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+								<Button
+									variant="outline"
+									onClick={() => setDeactivateTarget(null)}
+								>
+									Cancel
+								</Button>
+								<Button
+									className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+									onClick={() => {
+										if (deactivateTarget) {
+											deactivateMutation.mutate(deactivateTarget);
+											setDeactivateTarget(null);
+										}
+									}}
+									disabled={deactivateMutation.isPending}
+								>
+									{deactivateMutation.isPending ? "Archiving…" : "Archive"}
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
+
+					{/* ── Create / Edit dialog ── */}
+					<Dialog
+						open={sheetOpen}
+						onOpenChange={(open) => {
+							setSheetOpen(open);
+							if (!open) {
+								setEditingId(null);
+								setForm(EMPTY_FORM);
+							}
+						}}
+					>
+						<DialogContent
+							className="sm:max-w-lg p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+							hideCloseButton
 						>
-							{deactivateMutation.isPending ? "Archiving…" : "Archive"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+							<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+								<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+									INTERNAL COMMUNICATIONS
+								</p>
+								<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+									{editingId ? "Edit Announcement" : "New Announcement"}
+								</DialogTitle>
+								<DialogDescription className="text-sm text-[#737373]">
+									{editingId
+										? "Update the details of this announcement."
+										: "Fill in the details to publish a new announcement."}
+								</DialogDescription>
+							</DialogHeader>
 
-			{/* ── Create / Edit dialog ── */}
-			<Dialog
-				open={sheetOpen}
-				onOpenChange={(open) => {
-					setSheetOpen(open);
-					if (!open) {
-						setEditingId(null);
-						setForm(EMPTY_FORM);
-					}
-				}}
-			>
-				<DialogContent className="sm:max-w-lg overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle>
-							{editingId ? "Edit Announcement" : "New Announcement"}
-						</DialogTitle>
-						<DialogDescription>
-							{editingId
-								? "Update the details of this announcement."
-								: "Fill in the details to publish a new announcement."}
-						</DialogDescription>
-					</DialogHeader>
+							<form onSubmit={handleSubmit}>
+								<div className="px-6 pt-4 pb-2 overflow-y-auto max-h-[65vh] flex flex-col gap-5">
+									{/* Title */}
+									<div className="flex flex-col gap-1.5">
+										<Label htmlFor="ann-title">
+											Title <span className="text-rose-600">*</span>
+										</Label>
+										<Input
+											id="ann-title"
+											placeholder="Announcement title"
+											value={form.title}
+											onChange={(e) =>
+												setForm((f) => ({ ...f, title: e.target.value }))
+											}
+											required
+										/>
+									</div>
 
-					<form onSubmit={handleSubmit} className="flex flex-col gap-5 px-4 py-2">
-						{/* Title */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="ann-title">
-								Title <span className="text-destructive">*</span>
-							</Label>
-							<Input
-								id="ann-title"
-								placeholder="Announcement title"
-								value={form.title}
-								onChange={(e) =>
-									setForm((f) => ({ ...f, title: e.target.value }))
-								}
-								required
-							/>
-						</div>
+									{/* Message */}
+									<div className="flex flex-col gap-1.5">
+										<Label htmlFor="ann-message">
+											Message <span className="text-rose-600">*</span>
+										</Label>
+										<Textarea
+											id="ann-message"
+											placeholder="Announcement body text"
+											rows={4}
+											value={form.message}
+											onChange={(e) =>
+												setForm((f) => ({ ...f, message: e.target.value }))
+											}
+											required
+										/>
+									</div>
 
-						{/* Message */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="ann-message">
-								Message <span className="text-destructive">*</span>
-							</Label>
-							<Textarea
-								id="ann-message"
-								placeholder="Announcement body text"
-								rows={4}
-								value={form.message}
-								onChange={(e) =>
-									setForm((f) => ({ ...f, message: e.target.value }))
-								}
-								required
-							/>
-						</div>
+									{/* Priority */}
+									<div className="flex flex-col gap-1.5">
+										<Label htmlFor="ann-priority">Priority</Label>
+										<Select
+											value={form.priority}
+											onValueChange={(v) =>
+												setForm((f) => ({ ...f, priority: v as Priority }))
+											}
+										>
+											<SelectTrigger id="ann-priority">
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="low">Low</SelectItem>
+												<SelectItem value="normal">Normal</SelectItem>
+												<SelectItem value="high">High</SelectItem>
+												<SelectItem value="urgent">Urgent</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
 
-						{/* Priority */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="ann-priority">Priority</Label>
-							<Select
-								value={form.priority}
-								onValueChange={(v) =>
-									setForm((f) => ({ ...f, priority: v as Priority }))
-								}
-							>
-								<SelectTrigger id="ann-priority">
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="low">Low</SelectItem>
-									<SelectItem value="normal">Normal</SelectItem>
-									<SelectItem value="high">High</SelectItem>
-									<SelectItem value="urgent">Urgent</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-
-						{/* Target Audience */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="ann-audience">Target Audience</Label>
-							<Select
-								value={form.targetAudience}
-								onValueChange={(v) =>
-									setForm((f) => ({
-										...f,
-										targetAudience: v as TargetAudience,
-									}))
-								}
-							>
-								<SelectTrigger id="ann-audience">
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">All</SelectItem>
-									<SelectItem value="staff">Staff</SelectItem>
-									<SelectItem value="clients">Members</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-
-						{/* Branch Scope */}
-						<div className="flex flex-col gap-1.5">
-							<Label>Branch Scope</Label>
-							<p className="text-xs text-muted-foreground">
-								Leave empty to show org-wide to all branches.
-							</p>
-							<div className="border rounded-md p-2 max-h-40 overflow-y-auto space-y-1">
-								{(hierarchyNodes ?? []).map((node) => (
-									<div key={node.id} className="flex items-center gap-2">
-										<Checkbox
-											id={`scope-${node.id}`}
-											checked={form.scopedBranchIds.includes(node.id)}
-											onCheckedChange={(checked) =>
+									{/* Target Audience */}
+									<div className="flex flex-col gap-1.5">
+										<Label htmlFor="ann-audience">Target Audience</Label>
+										<Select
+											value={form.targetAudience}
+											onValueChange={(v) =>
 												setForm((f) => ({
 													...f,
-													scopedBranchIds: checked
-														? [...f.scopedBranchIds, node.id]
-														: f.scopedBranchIds.filter(
-																(id) => id !== node.id,
-															),
+													targetAudience: v as TargetAudience,
 												}))
+											}
+										>
+											<SelectTrigger id="ann-audience">
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="all">All</SelectItem>
+												<SelectItem value="staff">Staff</SelectItem>
+												<SelectItem value="clients">Members</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+
+									{/* Branch Scope */}
+									<div className="flex flex-col gap-1.5">
+										<Label>Branch Scope</Label>
+										<p className="text-xs text-[#737373]">
+											Leave empty to show org-wide to all branches.
+										</p>
+										<div className="border border-[#e5e5e5] rounded-md p-2 max-h-40 overflow-y-auto space-y-1">
+											{(hierarchyNodes ?? []).map((node) => (
+												<div key={node.id} className="flex items-center gap-2">
+													<Checkbox
+														id={`scope-${node.id}`}
+														checked={form.scopedBranchIds.includes(node.id)}
+														onCheckedChange={(checked) =>
+															setForm((f) => ({
+																...f,
+																scopedBranchIds: checked
+																	? [...f.scopedBranchIds, node.id]
+																	: f.scopedBranchIds.filter(
+																			(id) => id !== node.id,
+																		),
+															}))
+														}
+													/>
+													<Label
+														htmlFor={`scope-${node.id}`}
+														className="cursor-pointer font-normal text-sm"
+														style={{ paddingLeft: `${node.depth * 12}px` }}
+													>
+														{node.name}
+													</Label>
+												</div>
+											))}
+											{(hierarchyNodes ?? []).length === 0 && (
+												<p className="text-xs text-[#737373] py-2 text-center">
+													No branches available.
+												</p>
+											)}
+										</div>
+									</div>
+
+									{/* Date range */}
+									<div className="grid grid-cols-2 gap-3">
+										<div className="flex flex-col gap-1.5">
+											<Label htmlFor="ann-start">Start Date</Label>
+											<Input
+												id="ann-start"
+												type="datetime-local"
+												value={form.startDate}
+												onChange={(e) =>
+													setForm((f) => ({
+														...f,
+														startDate: e.target.value,
+													}))
+												}
+											/>
+										</div>
+										<div className="flex flex-col gap-1.5">
+											<Label htmlFor="ann-end">End Date</Label>
+											<Input
+												id="ann-end"
+												type="datetime-local"
+												value={form.endDate}
+												onChange={(e) =>
+													setForm((f) => ({
+														...f,
+														endDate: e.target.value,
+													}))
+												}
+											/>
+										</div>
+									</div>
+
+									{/* Pin to top */}
+									<div className="flex items-center gap-2">
+										<Checkbox
+											id="ann-pinned"
+											checked={form.isPinned}
+											onCheckedChange={(checked) =>
+												setForm((f) => ({ ...f, isPinned: checked === true }))
 											}
 										/>
 										<Label
-											htmlFor={`scope-${node.id}`}
-											className="cursor-pointer font-normal text-sm"
-											style={{ paddingLeft: `${node.depth * 12}px` }}
+											htmlFor="ann-pinned"
+											className="cursor-pointer font-normal"
 										>
-											{node.name}
+											Pin to top
 										</Label>
 									</div>
-								))}
-								{(hierarchyNodes ?? []).length === 0 && (
-									<p className="text-xs text-muted-foreground py-2 text-center">
-										No branches available.
-									</p>
-								)}
-							</div>
-						</div>
 
-						{/* Date range */}
-						<div className="grid grid-cols-2 gap-3">
-							<div className="flex flex-col gap-1.5">
-								<Label htmlFor="ann-start">Start Date</Label>
-								<Input
-									id="ann-start"
-									type="datetime-local"
-									value={form.startDate}
-									onChange={(e) =>
-										setForm((f) => ({
-											...f,
-											startDate: e.target.value,
-										}))
-									}
-								/>
-							</div>
-							<div className="flex flex-col gap-1.5">
-								<Label htmlFor="ann-end">End Date</Label>
-								<Input
-									id="ann-end"
-									type="datetime-local"
-									value={form.endDate}
-									onChange={(e) =>
-										setForm((f) => ({
-											...f,
-											endDate: e.target.value,
-										}))
-									}
-								/>
-							</div>
-						</div>
+									{/* Requires acknowledgement */}
+									<div className="flex flex-col gap-1">
+										<div className="flex items-center gap-2">
+											<Checkbox
+												id="ann-requires-ack"
+												checked={form.requiresAcknowledgement}
+												onCheckedChange={(checked) =>
+													setForm((f) => ({
+														...f,
+														requiresAcknowledgement: checked === true,
+													}))
+												}
+											/>
+											<Label
+												htmlFor="ann-requires-ack"
+												className="cursor-pointer font-normal"
+											>
+												Requires acknowledgement
+											</Label>
+										</div>
+										<p className="text-xs text-[#737373] pl-6">
+											Members will see an Acknowledge button. Tracking arrives
+											in a future release.
+										</p>
+									</div>
+								</div>
 
-						{/* Pin to top */}
-						<div className="flex items-center gap-2">
-							<Checkbox
-								id="ann-pinned"
-								checked={form.isPinned}
-								onCheckedChange={(checked) =>
-									setForm((f) => ({ ...f, isPinned: checked === true }))
-								}
-							/>
-							<Label htmlFor="ann-pinned" className="cursor-pointer font-normal">
-								Pin to top
-							</Label>
-						</div>
-
-						{/* Requires acknowledgement */}
-						<div className="flex flex-col gap-1">
-							<div className="flex items-center gap-2">
-								<Checkbox
-									id="ann-requires-ack"
-									checked={form.requiresAcknowledgement}
-									onCheckedChange={(checked) =>
-										setForm((f) => ({ ...f, requiresAcknowledgement: checked === true }))
-									}
-								/>
-								<Label htmlFor="ann-requires-ack" className="cursor-pointer font-normal">
-									Requires acknowledgement
-								</Label>
-							</div>
-							<p className="text-xs text-muted-foreground pl-6">
-								Members will see an Acknowledge button. Tracking arrives in a future release.
-							</p>
-						</div>
-
-						<DialogFooter className="px-0 pt-2">
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => {
-									setSheetOpen(false);
-									setEditingId(null);
-									setForm(EMPTY_FORM);
-								}}
-								disabled={createMutation.isPending || updateMutation.isPending}
-							>
-								Cancel
-							</Button>
-							<Button
-								type="submit"
-								disabled={createMutation.isPending || updateMutation.isPending}
-							>
-								{createMutation.isPending || updateMutation.isPending
-									? "Saving…"
-									: editingId
-										? "Save Changes"
-										: "Create"}
-							</Button>
-						</DialogFooter>
-					</form>
-				</DialogContent>
-			</Dialog>
-		</div>
-		</div>
+								<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => {
+											setSheetOpen(false);
+											setEditingId(null);
+											setForm(EMPTY_FORM);
+										}}
+										disabled={
+											createMutation.isPending || updateMutation.isPending
+										}
+									>
+										Cancel
+									</Button>
+									<Button
+										type="submit"
+										className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+										disabled={
+											createMutation.isPending || updateMutation.isPending
+										}
+									>
+										{createMutation.isPending || updateMutation.isPending
+											? "Saving…"
+											: editingId
+												? "Save Changes"
+												: "Create"}
+									</Button>
+								</DialogFooter>
+							</form>
+						</DialogContent>
+					</Dialog>
+				</div>
+			</div>
 		</Skeleton>
 	);
 }

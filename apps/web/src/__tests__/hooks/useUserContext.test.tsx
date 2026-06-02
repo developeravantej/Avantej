@@ -42,7 +42,9 @@ import type { UserContextResponse } from "@/hooks/useUserContext";
 
 const TEST_ORG_UUID = "996febce-aaad-4ded-8f47-02d2b566c8ee";
 
-function makeResponse(overrides?: Partial<UserContextResponse>): UserContextResponse {
+function makeResponse(
+	overrides?: Partial<UserContextResponse>,
+): UserContextResponse {
 	return {
 		user: {
 			id: "user-1",
@@ -63,6 +65,7 @@ function makeResponse(overrides?: Partial<UserContextResponse>): UserContextResp
 				hierarchy: {
 					nodes: [],
 					member: {
+						id: "member-1",
 						role: "admin",
 						hierarchyScopeId: "node-1",
 						hierarchyScopeName: "Branch A",
@@ -155,7 +158,15 @@ describe("useUserContext — localStorage cache", () => {
 		// Seed with a non-UUID org ID (e.g. the old 'org-1' format)
 		localStorage.setItem(
 			"user_organizations",
-			JSON.stringify([{ id: "org-1", name: "Old Org", slug: "old", role: "staff", permissions: [] }]),
+			JSON.stringify([
+				{
+					id: "org-1",
+					name: "Old Org",
+					slug: "old",
+					role: "staff",
+					permissions: [],
+				},
+			]),
 		);
 		localStorage.setItem("current_organization_id", "org-1");
 
@@ -198,7 +209,9 @@ describe("useUserContext — successful query", () => {
 		const storedOrgId = localStorage.getItem("current_organization_id");
 		expect(storedOrgId).toBe(TEST_ORG_UUID);
 
-		const storedOrgs = JSON.parse(localStorage.getItem("user_organizations") ?? "null");
+		const storedOrgs = JSON.parse(
+			localStorage.getItem("user_organizations") ?? "null",
+		);
 		expect(Array.isArray(storedOrgs)).toBe(true);
 		expect(storedOrgs[0].id).toBe(TEST_ORG_UUID);
 	});
@@ -280,9 +293,7 @@ describe("useUserContext — hasPermission", () => {
 	});
 
 	it("returns true for any permission when user is system admin", async () => {
-		mockUserContext.mockResolvedValue(
-			makeResponse({ isSystemAdmin: true }),
-		);
+		mockUserContext.mockResolvedValue(makeResponse({ isSystemAdmin: true }));
 
 		const { result } = renderHook(() => useUserContext(), {
 			wrapper: makeWrapper(),
@@ -339,9 +350,7 @@ describe("useUserContext — hasRole", () => {
 	});
 
 	it("returns true for any role when user is system admin", async () => {
-		mockUserContext.mockResolvedValue(
-			makeResponse({ isSystemAdmin: true }),
-		);
+		mockUserContext.mockResolvedValue(makeResponse({ isSystemAdmin: true }));
 
 		const { result } = renderHook(() => useUserContext(), {
 			wrapper: makeWrapper(),

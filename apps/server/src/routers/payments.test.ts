@@ -89,7 +89,7 @@ mock.module("@avantej-core/services", () => ({
 
 // ─── SUT (dynamic import so mocks are already registered) ────────────────────
 
-let createPaymentsRouter: (typeof import("./payments"))["createPaymentsRouter"];
+let createPaymentsRouter: typeof import("./payments")["createPaymentsRouter"];
 
 beforeAll(async () => {
 	const mod = await import("./payments");
@@ -169,8 +169,14 @@ function makeTenantDbWithWrites(opts: {
 	const updateWhere = opts.updateWhereSpy ?? mock(() => Promise.resolve());
 	// Capture is returned here so callers can inspect payloads without post-hoc
 	// mutation of the tenantDb object.
-	const makeUpdateChain = (): { set: ReturnType<typeof mock>; where: ReturnType<typeof mock> } => {
-		const chain: { set: ReturnType<typeof mock>; where: ReturnType<typeof mock> } = {
+	const makeUpdateChain = (): {
+		set: ReturnType<typeof mock>;
+		where: ReturnType<typeof mock>;
+	} => {
+		const chain: {
+			set: ReturnType<typeof mock>;
+			where: ReturnType<typeof mock>;
+		} = {
 			set: mock((payload: unknown) => {
 				opts.setCapture?.push(payload);
 				return chain;
@@ -201,7 +207,9 @@ function makeTenantDbWithWrites(opts: {
 
 /** Build a context with a honoContext wrapping a controlPanelDb stub. */
 function makeContext(opts: {
-	tenantDb: ReturnType<typeof makeTenantDb> | ReturnType<typeof makeTenantDbWithWrites>;
+	tenantDb:
+		| ReturnType<typeof makeTenantDb>
+		| ReturnType<typeof makeTenantDbWithWrites>;
 	cpDb?: Record<string, unknown>;
 }) {
 	const cpDb = opts.cpDb ?? {};
@@ -225,7 +233,7 @@ function getFirstCallArgs<T extends unknown[]>(
 	// biome-ignore lint/suspicious/noExplicitAny: mock type inference
 	mockFn: { mock: { calls: any[] } },
 ): T {
-	return (mockFn.mock.calls[0] as unknown) as T;
+	return mockFn.mock.calls[0] as unknown as T;
 }
 
 function callProcedure(
@@ -308,9 +316,7 @@ describe("paymentsRouter.refund", () => {
 				router.refund,
 				{ organizationId: ORG_ID, appointmentId: APPT_ID },
 				{
-					tenantDb: makeTenantDb([
-						{ ...paidAppt, paymentStatus: "pending" },
-					]),
+					tenantDb: makeTenantDb([{ ...paidAppt, paymentStatus: "pending" }]),
 					member: MOCK_MEMBER,
 				},
 			),
@@ -494,12 +500,21 @@ describe("paymentsRouter.createPaymentIntent", () => {
 
 	it("returns clientSecret + paymentIntentId and calls stripe.paymentIntents.create with correct args", async () => {
 		const piCreate = mock(() =>
-			Promise.resolve({ id: "pi_new_abc", client_secret: "cs_test_xyz", status: "requires_payment_method" }),
+			Promise.resolve({
+				id: "pi_new_abc",
+				client_secret: "cs_test_xyz",
+				status: "requires_payment_method",
+			}),
 		);
-		const router = createPaymentsRouter({ paymentIntents: { create: piCreate } } as never);
+		const router = createPaymentsRouter({
+			paymentIntents: { create: piCreate },
+		} as never);
 
 		const updateWhere = mock(() => Promise.resolve());
-		const tenantDb = makeTenantDbWithWrites({ selectRows: [apptRow], updateWhereSpy: updateWhere });
+		const tenantDb = makeTenantDbWithWrites({
+			selectRows: [apptRow],
+			updateWhereSpy: updateWhere,
+		});
 
 		const result = await callProcedure(
 			router.createPaymentIntent,
@@ -516,10 +531,18 @@ describe("paymentsRouter.createPaymentIntent", () => {
 		expect(result.applicationFeeAmount).toBe(100);
 
 		expect(piCreate).toHaveBeenCalledTimes(1);
-		const [params, opts] = getFirstCallArgs<[
-			{ amount: number; currency: string; application_fee_amount: number; metadata: Record<string, string> },
-			{ stripeAccount: string; idempotencyKey: string },
-		]>(piCreate);
+		const [params, opts] =
+			getFirstCallArgs<
+				[
+					{
+						amount: number;
+						currency: string;
+						application_fee_amount: number;
+						metadata: Record<string, string>;
+					},
+					{ stripeAccount: string; idempotencyKey: string },
+				]
+			>(piCreate);
 		expect(params.amount).toBe(10000);
 		expect(params.currency).toBe("myr");
 		expect(params.application_fee_amount).toBe(100);
@@ -531,12 +554,21 @@ describe("paymentsRouter.createPaymentIntent", () => {
 
 	it("writes stripePaymentIntentId + stripeConnectAccountIdSnapshot + applicationFeeAmount to DB", async () => {
 		const piCreate = mock(() =>
-			Promise.resolve({ id: "pi_new_abc", client_secret: "cs_test_xyz", status: "requires_payment_method" }),
+			Promise.resolve({
+				id: "pi_new_abc",
+				client_secret: "cs_test_xyz",
+				status: "requires_payment_method",
+			}),
 		);
-		const router = createPaymentsRouter({ paymentIntents: { create: piCreate } } as never);
+		const router = createPaymentsRouter({
+			paymentIntents: { create: piCreate },
+		} as never);
 
 		const setCapture: unknown[] = [];
-		const tenantDb = makeTenantDbWithWrites({ selectRows: [apptRow], setCapture });
+		const tenantDb = makeTenantDbWithWrites({
+			selectRows: [apptRow],
+			setCapture,
+		});
 
 		await callProcedure(
 			router.createPaymentIntent,
@@ -573,7 +605,10 @@ describe("paymentsRouter.sendPaymentLink", () => {
 	it("returns paymentLinkId + paymentLinkUrl and calls stripe.prices.create + stripe.paymentLinks.create", async () => {
 		const pricesCreate = mock(() => Promise.resolve({ id: "price_abc" }));
 		const paymentLinksCreate = mock(() =>
-			Promise.resolve({ id: "plink_abc", url: "https://buy.stripe.com/test_link" }),
+			Promise.resolve({
+				id: "plink_abc",
+				url: "https://buy.stripe.com/test_link",
+			}),
 		);
 		const router = createPaymentsRouter({
 			prices: { create: pricesCreate },
@@ -599,20 +634,30 @@ describe("paymentsRouter.sendPaymentLink", () => {
 		expect(result.applicationFeeAmount).toBe(80); // floor(8000*100/10000)
 
 		expect(pricesCreate).toHaveBeenCalledTimes(1);
-		const [priceParams, priceOpts] = getFirstCallArgs<[
-			{ unit_amount: number; currency: string; product_data: { name: string } },
-			{ stripeAccount: string },
-		]>(pricesCreate);
+		const [priceParams, priceOpts] =
+			getFirstCallArgs<
+				[
+					{
+						unit_amount: number;
+						currency: string;
+						product_data: { name: string };
+					},
+					{ stripeAccount: string },
+				]
+			>(pricesCreate);
 		expect(priceParams.unit_amount).toBe(8000);
 		expect(priceParams.currency).toBe("myr");
 		expect(priceParams.product_data.name).toBe("Yoga Class");
 		expect(priceOpts.stripeAccount).toBe("acct_test_123");
 
 		expect(paymentLinksCreate).toHaveBeenCalledTimes(1);
-		const [linkParams, linkOpts] = getFirstCallArgs<[
-			{ application_fee_amount: number; metadata: Record<string, string> },
-			{ stripeAccount: string },
-		]>(paymentLinksCreate);
+		const [linkParams, linkOpts] =
+			getFirstCallArgs<
+				[
+					{ application_fee_amount: number; metadata: Record<string, string> },
+					{ stripeAccount: string },
+				]
+			>(paymentLinksCreate);
 		expect(linkParams.application_fee_amount).toBe(80);
 		expect(linkParams.metadata.appointmentId).toBe(APPT_ID);
 		expect(linkOpts.stripeAccount).toBe("acct_test_123");
@@ -621,7 +666,10 @@ describe("paymentsRouter.sendPaymentLink", () => {
 	it("writes stripePaymentLinkId + paymentLinkUrl + stripeConnectAccountIdSnapshot + applicationFeeAmount to DB", async () => {
 		const pricesCreate = mock(() => Promise.resolve({ id: "price_abc" }));
 		const paymentLinksCreate = mock(() =>
-			Promise.resolve({ id: "plink_abc", url: "https://buy.stripe.com/test_link" }),
+			Promise.resolve({
+				id: "plink_abc",
+				url: "https://buy.stripe.com/test_link",
+			}),
 		);
 		const router = createPaymentsRouter({
 			prices: { create: pricesCreate },
@@ -661,9 +709,15 @@ describe("paymentsRouter.createSetupIntent", () => {
 
 	it("returns clientSecret + setupIntentId and calls stripe.setupIntents.create with correct stripeAccount", async () => {
 		const setupIntentsCreate = mock(() =>
-			Promise.resolve({ id: "seti_abc", client_secret: "seti_secret_xyz", status: "requires_payment_method" }),
+			Promise.resolve({
+				id: "seti_abc",
+				client_secret: "seti_secret_xyz",
+				status: "requires_payment_method",
+			}),
 		);
-		const router = createPaymentsRouter({ setupIntents: { create: setupIntentsCreate } } as never);
+		const router = createPaymentsRouter({
+			setupIntents: { create: setupIntentsCreate },
+		} as never);
 
 		const tenantDb = makeTenantDbWithWrites({ selectRows: [profileRow] });
 
@@ -679,10 +733,13 @@ describe("paymentsRouter.createSetupIntent", () => {
 		expect(result.stripeCustomerId).toBe("cus_test_123");
 
 		expect(setupIntentsCreate).toHaveBeenCalledTimes(1);
-		const [params, opts] = getFirstCallArgs<[
-			{ customer: string; usage: string; metadata: Record<string, string> },
-			{ stripeAccount: string },
-		]>(setupIntentsCreate);
+		const [params, opts] =
+			getFirstCallArgs<
+				[
+					{ customer: string; usage: string; metadata: Record<string, string> },
+					{ stripeAccount: string },
+				]
+			>(setupIntentsCreate);
 		expect(params.customer).toBe("cus_test_123");
 		expect(params.usage).toBe("off_session");
 		expect(params.metadata.customerProfileId).toBe(CUSTOMER_PROFILE_ID);
@@ -725,16 +782,28 @@ describe("paymentsRouter.listSavedCards", () => {
 				data: [
 					{
 						id: "pm_default_1",
-						card: { brand: "visa", last4: "4242", exp_month: 12, exp_year: 2026 },
+						card: {
+							brand: "visa",
+							last4: "4242",
+							exp_month: 12,
+							exp_year: 2026,
+						},
 					},
 					{
 						id: "pm_other_2",
-						card: { brand: "mastercard", last4: "5555", exp_month: 6, exp_year: 2025 },
+						card: {
+							brand: "mastercard",
+							last4: "5555",
+							exp_month: 6,
+							exp_year: 2025,
+						},
 					},
 				],
 			}),
 		);
-		const router = createPaymentsRouter({ paymentMethods: { list: paymentMethodsList } } as never);
+		const router = createPaymentsRouter({
+			paymentMethods: { list: paymentMethodsList },
+		} as never);
 		const tenantDb = makeTenantDbWithWrites({ selectRows: [profileRow] });
 
 		const result = await callProcedure(
@@ -758,10 +827,10 @@ describe("paymentsRouter.listSavedCards", () => {
 		});
 
 		expect(paymentMethodsList).toHaveBeenCalledTimes(1);
-		const [listParams, listOpts] = getFirstCallArgs<[
-			{ customer: string; type: string },
-			{ stripeAccount: string },
-		]>(paymentMethodsList);
+		const [listParams, listOpts] =
+			getFirstCallArgs<
+				[{ customer: string; type: string }, { stripeAccount: string }]
+			>(paymentMethodsList);
 		expect(listParams.customer).toBe("cus_abc");
 		expect(listParams.type).toBe("card");
 		expect(listOpts.stripeAccount).toBe("acct_test_123");
@@ -780,9 +849,15 @@ describe("paymentsRouter.chargeSavedCard", () => {
 
 	it("returns paymentIntentId + status and calls stripe.paymentIntents.create off_session", async () => {
 		const piCreate = mock(() =>
-			Promise.resolve({ id: "pi_charge_abc", client_secret: "cs_abc", status: "succeeded" }),
+			Promise.resolve({
+				id: "pi_charge_abc",
+				client_secret: "cs_abc",
+				status: "succeeded",
+			}),
 		);
-		const router = createPaymentsRouter({ paymentIntents: { create: piCreate } } as never);
+		const router = createPaymentsRouter({
+			paymentIntents: { create: piCreate },
+		} as never);
 		const tenantDb = makeTenantDbWithWrites({ selectRows: [profileRow] });
 
 		const result = await callProcedure(
@@ -803,18 +878,21 @@ describe("paymentsRouter.chargeSavedCard", () => {
 		expect(result.applicationFeeAmount).toBe(60); // floor(6000*100/10000)
 
 		expect(piCreate).toHaveBeenCalledTimes(1);
-		const [params, opts] = getFirstCallArgs<[
-			{
-				amount: number;
-				currency: string;
-				customer: string;
-				payment_method: string;
-				confirm: boolean;
-				off_session: boolean;
-				application_fee_amount: number;
-			},
-			{ stripeAccount: string; idempotencyKey?: string },
-		]>(piCreate);
+		const [params, opts] =
+			getFirstCallArgs<
+				[
+					{
+						amount: number;
+						currency: string;
+						customer: string;
+						payment_method: string;
+						confirm: boolean;
+						off_session: boolean;
+						application_fee_amount: number;
+					},
+					{ stripeAccount: string; idempotencyKey?: string },
+				]
+			>(piCreate);
 		expect(params.amount).toBe(6000);
 		expect(params.currency).toBe("myr");
 		expect(params.customer).toBe("cus_abc");
@@ -854,7 +932,10 @@ describe("paymentsRouter.createSalesOrderPaymentLink", () => {
 	it("returns paymentLinkId + paymentLinkUrl and calls stripe with correct stripeAccount", async () => {
 		const pricesCreate = mock(() => Promise.resolve({ id: "price_sale_abc" }));
 		const paymentLinksCreate = mock(() =>
-			Promise.resolve({ id: "plink_sale_abc", url: "https://buy.stripe.com/sale_link" }),
+			Promise.resolve({
+				id: "plink_sale_abc",
+				url: "https://buy.stripe.com/sale_link",
+			}),
 		);
 		const router = createPaymentsRouter({
 			prices: { create: pricesCreate },
@@ -880,18 +961,24 @@ describe("paymentsRouter.createSalesOrderPaymentLink", () => {
 		expect(result.currency).toBe("MYR");
 		expect(result.applicationFeeAmount).toBe(150); // floor(15000*100/10000)
 
-		const [priceParams, priceOpts] = getFirstCallArgs<[
-			{ unit_amount: number; product_data: { name: string } },
-			{ stripeAccount: string },
-		]>(pricesCreate);
+		const [priceParams, priceOpts] =
+			getFirstCallArgs<
+				[
+					{ unit_amount: number; product_data: { name: string } },
+					{ stripeAccount: string },
+				]
+			>(pricesCreate);
 		expect(priceParams.unit_amount).toBe(15000);
 		expect(priceParams.product_data.name).toBe("Sale SO-001");
 		expect(priceOpts.stripeAccount).toBe("acct_test_123");
 
-		const [linkParams, linkOpts] = getFirstCallArgs<[
-			{ application_fee_amount: number; metadata: Record<string, string> },
-			{ stripeAccount: string },
-		]>(paymentLinksCreate);
+		const [linkParams, linkOpts] =
+			getFirstCallArgs<
+				[
+					{ application_fee_amount: number; metadata: Record<string, string> },
+					{ stripeAccount: string },
+				]
+			>(paymentLinksCreate);
 		expect(linkParams.application_fee_amount).toBe(150);
 		expect(linkParams.metadata.type).toBe("sales_order");
 		expect(linkParams.metadata.salesOrderId).toBe(SALES_ORDER_ID);
@@ -901,7 +988,10 @@ describe("paymentsRouter.createSalesOrderPaymentLink", () => {
 	it("writes stripePaymentLinkId + paymentLinkUrl + stripeConnectAccountIdSnapshot to payment row", async () => {
 		const pricesCreate = mock(() => Promise.resolve({ id: "price_sale_abc" }));
 		const paymentLinksCreate = mock(() =>
-			Promise.resolve({ id: "plink_sale_abc", url: "https://buy.stripe.com/sale_link" }),
+			Promise.resolve({
+				id: "plink_sale_abc",
+				url: "https://buy.stripe.com/sale_link",
+			}),
 		);
 		const router = createPaymentsRouter({
 			prices: { create: pricesCreate },
@@ -939,7 +1029,10 @@ describe("paymentsRouter.purchasePackage", () => {
 	it("returns packageInstanceId + paymentLinkId and calls stripe with correct amount and metadata", async () => {
 		const pricesCreate = mock(() => Promise.resolve({ id: "price_pkg_abc" }));
 		const paymentLinksCreate = mock(() =>
-			Promise.resolve({ id: "plink_pkg_abc", url: "https://buy.stripe.com/pkg_link" }),
+			Promise.resolve({
+				id: "plink_pkg_abc",
+				url: "https://buy.stripe.com/pkg_link",
+			}),
 		);
 		const router = createPaymentsRouter({
 			prices: { create: pricesCreate },
@@ -970,29 +1063,41 @@ describe("paymentsRouter.purchasePackage", () => {
 		expect(result.applicationFeeAmount).toBe(500); // floor(50000*100/10000)
 
 		expect(pricesCreate).toHaveBeenCalledTimes(1);
-		const [priceParams, priceOpts] = getFirstCallArgs<[
-			{ unit_amount: number; currency: string; product_data: { name: string } },
-			{ stripeAccount: string },
-		]>(pricesCreate);
+		const [priceParams, priceOpts] =
+			getFirstCallArgs<
+				[
+					{
+						unit_amount: number;
+						currency: string;
+						product_data: { name: string };
+					},
+					{ stripeAccount: string },
+				]
+			>(pricesCreate);
 		expect(priceParams.unit_amount).toBe(50000);
 		expect(priceParams.currency).toBe("myr");
 		expect(priceParams.product_data.name).toBe("Package (10 sessions)");
 		expect(priceOpts.stripeAccount).toBe("acct_test_123");
 
 		expect(paymentLinksCreate).toHaveBeenCalledTimes(1);
-		const [linkParams, linkOpts] = getFirstCallArgs<[
-			{
-				application_fee_amount: number;
-				metadata: Record<string, string>;
-				payment_intent_data: { metadata: Record<string, string> };
-			},
-			{ stripeAccount: string },
-		]>(paymentLinksCreate);
+		const [linkParams, linkOpts] =
+			getFirstCallArgs<
+				[
+					{
+						application_fee_amount: number;
+						metadata: Record<string, string>;
+						payment_intent_data: { metadata: Record<string, string> };
+					},
+					{ stripeAccount: string },
+				]
+			>(paymentLinksCreate);
 		expect(linkParams.application_fee_amount).toBe(500);
 		expect(linkParams.metadata.type).toBe("package");
 		expect(linkParams.metadata.packageInstanceId).toBe("pkg_inst_abc");
 		expect(linkParams.metadata.organizationId).toBe(ORG_ID);
-		expect(linkParams.payment_intent_data.metadata.packageInstanceId).toBe("pkg_inst_abc");
+		expect(linkParams.payment_intent_data.metadata.packageInstanceId).toBe(
+			"pkg_inst_abc",
+		);
 		expect(linkOpts.stripeAccount).toBe("acct_test_123");
 	});
 });

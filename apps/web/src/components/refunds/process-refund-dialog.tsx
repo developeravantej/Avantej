@@ -41,7 +41,7 @@ function FieldError({ errors }: { errors: unknown[] }) {
 	return (
 		<>
 			{errors.map((error, i) => (
-				<p key={i} className="text-sm text-destructive">
+				<p key={i} className="text-sm text-rose-600">
 					{typeof error === "string"
 						? error
 						: (error as { message?: string })?.message || "Invalid value"}
@@ -82,7 +82,9 @@ export function ProcessRefundDialog({
 				});
 
 				toast.success("Refund marked as processed.");
-				queryClient.invalidateQueries({ queryKey: ["refunds", organizationId] });
+				queryClient.invalidateQueries({
+					queryKey: ["refunds", organizationId],
+				});
 				onOpenChange(false);
 				form.reset();
 			} catch (err: unknown) {
@@ -100,10 +102,18 @@ export function ProcessRefundDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-sm">
-				<DialogHeader>
-					<DialogTitle>Mark as Processed</DialogTitle>
-					<DialogDescription>
+			<DialogContent
+				className="sm:max-w-sm p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						REFUNDS
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Mark as Processed
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
 						Record how this refund was issued to the customer.
 					</DialogDescription>
 				</DialogHeader>
@@ -117,87 +127,89 @@ export function ProcessRefundDialog({
 					}}
 					className="space-y-4"
 				>
-					<form.Field name="refundMethod">
-						{(field) => (
-							<div className="space-y-2">
-								<Label>
-									Refund Method <span className="text-destructive">*</span>
-								</Label>
-								<div className="grid grid-cols-2 gap-2">
-									{REFUND_METHODS.map((m) => (
-										<button
-											key={m.value}
-											type="button"
-											onClick={() => field.handleChange(m.value)}
-											className={`rounded-md border px-3 py-2 font-medium text-sm transition-colors ${
-												field.state.value === m.value
-													? "border-primary bg-primary/10 text-primary"
-													: "border-input bg-background text-foreground hover:bg-muted"
-											}`}
-										>
-											{m.label}
-										</button>
-									))}
+					<div className="px-6 pt-4 pb-2 overflow-y-auto space-y-4">
+						<form.Field name="refundMethod">
+							{(field) => (
+								<div className="space-y-2">
+									<Label>
+										Refund Method <span className="text-rose-600">*</span>
+									</Label>
+									<div className="grid grid-cols-2 gap-2">
+										{REFUND_METHODS.map((m) => (
+											<button
+												key={m.value}
+												type="button"
+												onClick={() => field.handleChange(m.value)}
+												className={`rounded-md border px-3 py-2 font-medium text-sm transition-colors ${
+													field.state.value === m.value
+														? "border-primary bg-primary/10 text-primary"
+														: "border-[#e5e5e5] bg-white text-[#0a0a0a] hover:bg-[#f3f3f3]"
+												}`}
+											>
+												{m.label}
+											</button>
+										))}
+									</div>
+									<FieldError errors={field.state.meta.errors} />
 								</div>
-								<FieldError errors={field.state.meta.errors} />
-							</div>
-						)}
-					</form.Field>
+							)}
+						</form.Field>
 
-					<form.Subscribe selector={(state) => state.values.refundMethod}>
-						{(selectedMethod) => (
-							<>
-								<form.Field name="refundReference">
-									{(field) => (
-										<div className="space-y-2">
-											<Label htmlFor={field.name}>
-												Reference{" "}
-												{selectedMethod !== "cash" ? (
-													<span className="text-muted-foreground text-xs">
-														(bank ref / auth code)
-													</span>
-												) : (
-													<span className="text-muted-foreground text-xs">
-														(optional for cash)
-													</span>
-												)}
-											</Label>
-											<Input
-												id={field.name}
-												placeholder={
-													selectedMethod === "bank_transfer"
-														? "e.g. TXN-20240419-001"
-														: selectedMethod === "card_reversal"
-															? "e.g. AUTH-123456"
-															: "optional"
-												}
-												value={field.state.value ?? ""}
-												onBlur={field.handleBlur}
-												onChange={(e) => field.handleChange(e.target.value)}
-											/>
-											<FieldError errors={field.state.meta.errors} />
-										</div>
-									)}
-								</form.Field>
+						<form.Subscribe selector={(state) => state.values.refundMethod}>
+							{(selectedMethod) => (
+								<>
+									<form.Field name="refundReference">
+										{(field) => (
+											<div className="space-y-2">
+												<Label htmlFor={field.name}>
+													Reference{" "}
+													{selectedMethod !== "cash" ? (
+														<span className="text-[#737373] text-xs">
+															(bank ref / auth code)
+														</span>
+													) : (
+														<span className="text-[#737373] text-xs">
+															(optional for cash)
+														</span>
+													)}
+												</Label>
+												<Input
+													id={field.name}
+													placeholder={
+														selectedMethod === "bank_transfer"
+															? "e.g. TXN-20240419-001"
+															: selectedMethod === "card_reversal"
+																? "e.g. AUTH-123456"
+																: "optional"
+													}
+													value={field.state.value ?? ""}
+													onBlur={field.handleBlur}
+													onChange={(e) => field.handleChange(e.target.value)}
+												/>
+												<FieldError errors={field.state.meta.errors} />
+											</div>
+										)}
+									</form.Field>
 
-								{selectedMethod !== "cash" &&
-									selectedMethod !== "store_credit" && (
-										<p className="rounded-md bg-muted/50 px-3 py-2 text-muted-foreground text-xs">
-											Note: This records the refund in the system. The actual{" "}
-											{selectedMethod === "card_reversal"
-												? "Stripe reversal"
-												: "bank transfer"}{" "}
-											must be issued manually. Enter the reference code after it
-											is processed.
-										</p>
-									)}
-							</>
-						)}
-					</form.Subscribe>
+									{selectedMethod !== "cash" &&
+										selectedMethod !== "store_credit" && (
+											<p className="rounded-md bg-[#f3f3f3]/50 px-3 py-2 text-[#737373] text-xs">
+												Note: This records the refund in the system. The actual{" "}
+												{selectedMethod === "card_reversal"
+													? "Stripe reversal"
+													: "bank transfer"}{" "}
+												must be issued manually. Enter the reference code after
+												it is processed.
+											</p>
+										)}
+								</>
+							)}
+						</form.Subscribe>
+					</div>
 
 					<form.Subscribe selector={(state) => state.isSubmitting}>
 						{(isPending) => (
-							<DialogFooter>
+							<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 								<Button
 									type="button"
 									variant="outline"
@@ -206,7 +218,11 @@ export function ProcessRefundDialog({
 								>
 									Cancel
 								</Button>
-								<Button type="submit" disabled={isPending}>
+								<Button
+									type="submit"
+									disabled={isPending}
+									className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+								>
 									{isPending ? "Processing…" : "Mark Processed"}
 								</Button>
 							</DialogFooter>

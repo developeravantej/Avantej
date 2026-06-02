@@ -12,16 +12,23 @@ END $$;
 --> statement-breakpoint
 
 -- Pre-flight: any rows with a value outside the enum would block the cast.
--- Should be impossible post-H1, but verify.
+-- Should be impossible post-H1, but verify. Runs only while the column is still
+-- TEXT — once it is the hierarchy_node_type enum, string_agg(enum, ...) does not
+-- exist (and every value is necessarily valid), so a re-run skips this check.
 DO $$
-DECLARE bad_count int; bad_types text;
+DECLARE bad_count int; bad_types text; col_type text;
 BEGIN
-  SELECT count(DISTINCT type), string_agg(DISTINCT type, ', ')
-    INTO bad_count, bad_types
-  FROM hierarchy_nodes
-  WHERE type NOT IN ('organization', 'country', 'state', 'branch');
-  IF bad_count > 0 THEN
-    RAISE EXCEPTION 'Migration blocked: % unexpected type value(s) in hierarchy_nodes: %', bad_count, bad_types;
+  SELECT data_type INTO col_type FROM information_schema.columns
+   WHERE table_name = 'hierarchy_nodes' AND column_name = 'type';
+
+  IF col_type = 'text' THEN
+    SELECT count(DISTINCT type), string_agg(DISTINCT type, ', ')
+      INTO bad_count, bad_types
+    FROM hierarchy_nodes
+    WHERE type NOT IN ('organization', 'country', 'state', 'branch');
+    IF bad_count > 0 THEN
+      RAISE EXCEPTION 'Migration blocked: % unexpected type value(s) in hierarchy_nodes: %', bad_count, bad_types;
+    END IF;
   END IF;
 END $$;
 --> statement-breakpoint

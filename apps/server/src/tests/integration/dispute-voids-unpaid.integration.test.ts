@@ -106,7 +106,10 @@ async function createSplit(
 			createdByUserId: TEST_USER_ID,
 			notes: null,
 			...(overrides.approvedBy
-				? { approvedBy: overrides.approvedBy, approvedAt: overrides.approvedAt ?? new Date() }
+				? {
+						approvedBy: overrides.approvedBy,
+						approvedAt: overrides.approvedAt ?? new Date(),
+					}
 				: {}),
 			...(overrides.paidBy
 				? { paidBy: overrides.paidBy, paidAt: overrides.paidAt ?? new Date() }
@@ -132,7 +135,11 @@ async function disputeAppointment(appointmentId: string): Promise<void> {
 
 	await tenantDb
 		.update(commissionSplits)
-		.set({ status: "void", notes: "Appointment disputed", updatedAt: new Date() })
+		.set({
+			status: "void",
+			notes: "Appointment disputed",
+			updatedAt: new Date(),
+		})
 		.where(
 			and(
 				eq(commissionSplits.appointmentId, appointmentId),
@@ -236,9 +243,7 @@ afterAll(async () => {
 			.update(members)
 			.set({ trainerTierId: null })
 			.where(inArray(members.id, createdMemberIds));
-		await tenantDb
-			.delete(members)
-			.where(inArray(members.id, createdMemberIds));
+		await tenantDb.delete(members).where(inArray(members.id, createdMemberIds));
 	}
 
 	// 6. Commission tier rates (FK to trainer_tiers)
@@ -264,55 +269,47 @@ describe("Dispute → commission void", () => {
 	/**
 	 * TC-DV-001: pending split → dispute → split becomes void with correct notes.
 	 */
-	test(
-		"TC-DV-001: pending split → dispute → status='void', notes contains 'Appointment disputed'",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("TC-DV-001: pending split → dispute → status='void', notes contains 'Appointment disputed'", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const appt = await createAppointment(sharedServiceId, "completed");
-			const split = await createSplit(appt.id, "pending");
+		const appt = await createAppointment(sharedServiceId, "completed");
+		const split = await createSplit(appt.id, "pending");
 
-			await disputeAppointment(appt.id);
+		await disputeAppointment(appt.id);
 
-			const [updated] = await tenantDb
-				.select()
-				.from(commissionSplits)
-				.where(eq(commissionSplits.id, split.id));
+		const [updated] = await tenantDb
+			.select()
+			.from(commissionSplits)
+			.where(eq(commissionSplits.id, split.id));
 
-			expect(updated).toBeDefined();
-			expect(updated!.status).toBe("void");
-			expect(updated!.notes).toContain("Appointment disputed");
-		},
-		30000,
-	);
+		expect(updated).toBeDefined();
+		expect(updated!.status).toBe("void");
+		expect(updated!.notes).toContain("Appointment disputed");
+	}, 30000);
 
 	/**
 	 * TC-DV-002: approved split → dispute → approved is NOT protected, becomes void.
 	 */
-	test(
-		"TC-DV-002: approved split → dispute → status='void' (approved is not protected)",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("TC-DV-002: approved split → dispute → status='void' (approved is not protected)", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const appt = await createAppointment(sharedServiceId, "completed");
-			const split = await createSplit(appt.id, "approved", {
-				approvedBy: TEST_USER_ID,
-				approvedAt: new Date(),
-			});
+		const appt = await createAppointment(sharedServiceId, "completed");
+		const split = await createSplit(appt.id, "approved", {
+			approvedBy: TEST_USER_ID,
+			approvedAt: new Date(),
+		});
 
-			await disputeAppointment(appt.id);
+		await disputeAppointment(appt.id);
 
-			const [updated] = await tenantDb
-				.select()
-				.from(commissionSplits)
-				.where(eq(commissionSplits.id, split.id));
+		const [updated] = await tenantDb
+			.select()
+			.from(commissionSplits)
+			.where(eq(commissionSplits.id, split.id));
 
-			expect(updated).toBeDefined();
-			expect(updated!.status).toBe("void");
-			expect(updated!.notes).toContain("Appointment disputed");
-		},
-		30000,
-	);
+		expect(updated).toBeDefined();
+		expect(updated!.status).toBe("void");
+		expect(updated!.notes).toContain("Appointment disputed");
+	}, 30000);
 
 	/**
 	 * TC-DV-003: paid split + pending split → dispute → paid split PRESERVED, pending → void.
@@ -321,124 +318,112 @@ describe("Dispute → commission void", () => {
 	 * NOTE: if the paid split becomes void here, that is a real bug in the service layer.
 	 * FIXME: if this assertion fails (paidSplit.status !== 'paid'), the protection rule is NOT enforced.
 	 */
-	test(
-		"TC-DV-003: paid split + pending split → dispute → paid PRESERVED, pending → void",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("TC-DV-003: paid split + pending split → dispute → paid PRESERVED, pending → void", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const appt = await createAppointment(sharedServiceId, "completed");
+		const appt = await createAppointment(sharedServiceId, "completed");
 
-			// Create paid split with a different staffId to avoid unique (appt, staff) index collision
-			const paidStaffId = `dv-paid-staff-${TS}`;
-			const [paidSplit] = await tenantDb
-				.insert(commissionSplits)
-				.values({
-					appointmentId: appt.id,
-					staffId: paidStaffId,
-					splitPercentage: 30,
-					calculatedAmount: 3000,
-					status: "paid",
-					earnReason: "completion",
-					earnedAt: new Date(),
-					createdByUserId: TEST_USER_ID,
-					paidBy: TEST_USER_ID,
-					paidAt: new Date(),
-				})
-				.returning();
-			if (!paidSplit) throw new Error("Failed to create paid split");
+		// Create paid split with a different staffId to avoid unique (appt, staff) index collision
+		const paidStaffId = `dv-paid-staff-${TS}`;
+		const [paidSplit] = await tenantDb
+			.insert(commissionSplits)
+			.values({
+				appointmentId: appt.id,
+				staffId: paidStaffId,
+				splitPercentage: 30,
+				calculatedAmount: 3000,
+				status: "paid",
+				earnReason: "completion",
+				earnedAt: new Date(),
+				createdByUserId: TEST_USER_ID,
+				paidBy: TEST_USER_ID,
+				paidAt: new Date(),
+			})
+			.returning();
+		if (!paidSplit) throw new Error("Failed to create paid split");
 
-			const pendingSplit = await createSplit(appt.id, "pending");
+		const pendingSplit = await createSplit(appt.id, "pending");
 
-			await disputeAppointment(appt.id);
+		await disputeAppointment(appt.id);
 
-			const [updatedPaid] = await tenantDb
-				.select()
-				.from(commissionSplits)
-				.where(eq(commissionSplits.id, paidSplit.id));
+		const [updatedPaid] = await tenantDb
+			.select()
+			.from(commissionSplits)
+			.where(eq(commissionSplits.id, paidSplit.id));
 
-			const [updatedPending] = await tenantDb
-				.select()
-				.from(commissionSplits)
-				.where(eq(commissionSplits.id, pendingSplit.id));
+		const [updatedPending] = await tenantDb
+			.select()
+			.from(commissionSplits)
+			.where(eq(commissionSplits.id, pendingSplit.id));
 
-			// Paid split must be untouched
-			expect(updatedPaid).toBeDefined();
-			expect(updatedPaid!.status).toBe("paid"); // FIXME: if 'void', the paid-protection rule is broken
+		// Paid split must be untouched
+		expect(updatedPaid).toBeDefined();
+		expect(updatedPaid!.status).toBe("paid"); // FIXME: if 'void', the paid-protection rule is broken
 
-			// Pending split must be voided
-			expect(updatedPending).toBeDefined();
-			expect(updatedPending!.status).toBe("void");
-			expect(updatedPending!.notes).toContain("Appointment disputed");
-		},
-		30000,
-	);
+		// Pending split must be voided
+		expect(updatedPending).toBeDefined();
+		expect(updatedPending!.status).toBe("void");
+		expect(updatedPending!.notes).toContain("Appointment disputed");
+	}, 30000);
 
 	/**
 	 * TC-DV-004: already-void split → dispute again → no change (idempotent).
 	 */
-	test(
-		"TC-DV-004: already-void split → dispute again → split unchanged (idempotent)",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("TC-DV-004: already-void split → dispute again → split unchanged (idempotent)", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const appt = await createAppointment(sharedServiceId, "completed");
-			const split = await createSplit(appt.id, "void");
+		const appt = await createAppointment(sharedServiceId, "completed");
+		const split = await createSplit(appt.id, "void");
 
-			// Record notes before so we can verify they weren't altered
-			const notesBefore = split.notes;
+		// Record notes before so we can verify they weren't altered
+		const notesBefore = split.notes;
 
-			// First dispute sets status to disputed
-			await disputeAppointment(appt.id);
+		// First dispute sets status to disputed
+		await disputeAppointment(appt.id);
 
-			// Call dispute logic a second time (simulates idempotent re-trigger)
-			await disputeAppointment(appt.id);
+		// Call dispute logic a second time (simulates idempotent re-trigger)
+		await disputeAppointment(appt.id);
 
-			const [after] = await tenantDb
-				.select()
-				.from(commissionSplits)
-				.where(eq(commissionSplits.id, split.id));
+		const [after] = await tenantDb
+			.select()
+			.from(commissionSplits)
+			.where(eq(commissionSplits.id, split.id));
 
-			expect(after).toBeDefined();
-			// Split was already void, so the WHERE clause skips it — notes must stay as before
-			expect(after!.status).toBe("void");
-			expect(after!.notes).toBe(notesBefore); // not overwritten by second pass
-		},
-		30000,
-	);
+		expect(after).toBeDefined();
+		// Split was already void, so the WHERE clause skips it — notes must stay as before
+		expect(after!.status).toBe("void");
+		expect(after!.notes).toBe(notesBefore); // not overwritten by second pass
+	}, 30000);
 
 	/**
 	 * TC-DV-005: appointment with NO splits → dispute → no error, no rows created.
 	 */
-	test(
-		"TC-DV-005: appointment with no splits → dispute → no error, zero rows affected",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("TC-DV-005: appointment with no splits → dispute → no error, zero rows affected", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const appt = await createAppointment(sharedServiceId, "completed");
+		const appt = await createAppointment(sharedServiceId, "completed");
 
-			// Verify no pre-existing splits
-			const before = await tenantDb
-				.select()
-				.from(commissionSplits)
-				.where(eq(commissionSplits.appointmentId, appt.id));
-			expect(before).toHaveLength(0);
+		// Verify no pre-existing splits
+		const before = await tenantDb
+			.select()
+			.from(commissionSplits)
+			.where(eq(commissionSplits.appointmentId, appt.id));
+		expect(before).toHaveLength(0);
 
-			// Dispute with no splits should not throw
-			let threw = false;
-			try {
-				await disputeAppointment(appt.id);
-			} catch {
-				threw = true;
-			}
-			expect(threw).toBe(false);
+		// Dispute with no splits should not throw
+		let threw = false;
+		try {
+			await disputeAppointment(appt.id);
+		} catch {
+			threw = true;
+		}
+		expect(threw).toBe(false);
 
-			// Still zero splits after
-			const after = await tenantDb
-				.select()
-				.from(commissionSplits)
-				.where(eq(commissionSplits.appointmentId, appt.id));
-			expect(after).toHaveLength(0);
-		},
-		30000,
-	);
+		// Still zero splits after
+		const after = await tenantDb
+			.select()
+			.from(commissionSplits)
+			.where(eq(commissionSplits.appointmentId, appt.id));
+		expect(after).toHaveLength(0);
+	}, 30000);
 });

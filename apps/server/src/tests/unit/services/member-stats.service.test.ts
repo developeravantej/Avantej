@@ -10,7 +10,17 @@ const NODE_ID_2 = "node-uuid-0002";
 
 function selectChain(value: unknown) {
 	const chain: Record<string, unknown> = {};
-	for (const m of ["from", "where", "orderBy", "limit", "offset", "leftJoin", "innerJoin", "groupBy", "having"]) {
+	for (const m of [
+		"from",
+		"where",
+		"orderBy",
+		"limit",
+		"offset",
+		"leftJoin",
+		"innerJoin",
+		"groupBy",
+		"having",
+	]) {
 		chain[m] = mock(() => chain);
 	}
 	chain.then = (resolve: (v: unknown) => unknown) =>
@@ -33,8 +43,8 @@ describe("getMembersNewToday", () => {
 		];
 
 		mockDb.select
-			.mockReturnValueOnce(selectChain([{ cnt: 5 }]))        // count query
-			.mockReturnValueOnce(selectChain(recentMembers));       // top-3 query
+			.mockReturnValueOnce(selectChain([{ cnt: 5 }])) // count query
+			.mockReturnValueOnce(selectChain(recentMembers)); // top-3 query
 
 		const result = await getMembersNewToday(mockDb, {
 			accessibleNodeIds: [NODE_ID_1, NODE_ID_2],
@@ -61,10 +71,12 @@ describe("getMembersNewToday", () => {
 	test("applies branchId filter when provided — overrides accessibleNodeIds", async () => {
 		mockDb.select
 			.mockReturnValueOnce(selectChain([{ cnt: 2 }]))
-			.mockReturnValueOnce(selectChain([
-				{ id: "m-4", userId: "u-4", joinedAt: new Date() },
-				{ id: "m-5", userId: "u-5", joinedAt: new Date() },
-			]));
+			.mockReturnValueOnce(
+				selectChain([
+					{ id: "m-4", userId: "u-4", joinedAt: new Date() },
+					{ id: "m-5", userId: "u-5", joinedAt: new Date() },
+				]),
+			);
 
 		const result = await getMembersNewToday(mockDb, {
 			accessibleNodeIds: [NODE_ID_1, NODE_ID_2],
@@ -81,11 +93,13 @@ describe("getMembersNewToday", () => {
 		// Admin path: empty accessibleNodeIds means no scope restriction
 		mockDb.select
 			.mockReturnValueOnce(selectChain([{ cnt: 12 }]))
-			.mockReturnValueOnce(selectChain([
-				{ id: "m-1", userId: "u-1", joinedAt: new Date() },
-				{ id: "m-2", userId: "u-2", joinedAt: new Date() },
-				{ id: "m-3", userId: "u-3", joinedAt: new Date() },
-			]));
+			.mockReturnValueOnce(
+				selectChain([
+					{ id: "m-1", userId: "u-1", joinedAt: new Date() },
+					{ id: "m-2", userId: "u-2", joinedAt: new Date() },
+					{ id: "m-3", userId: "u-3", joinedAt: new Date() },
+				]),
+			);
 
 		const result = await getMembersNewToday(mockDb, {
 			accessibleNodeIds: [],

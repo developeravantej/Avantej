@@ -3,7 +3,7 @@ import { requirePermission } from "@/lib/route-guards";
 import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { useState } from "react";
 import { z } from "zod";
@@ -243,9 +243,7 @@ function PlanCard({
 										i === 0 ? "text-[#8a8f91]" : "text-[#6b7170]",
 									)}
 								>
-									{i === 0
-										? "Today"
-										: `Day ${plan.defaultIntervalDays * i}`}
+									{i === 0 ? "Today" : `Day ${plan.defaultIntervalDays * i}`}
 								</div>
 							</div>
 						))}
@@ -283,10 +281,8 @@ function PlanCard({
 					>
 						Disable
 					</button>
-				) : (
-					// Inactive: show no enable button (handled via Edit)
-					null
-				)}
+				) : // Inactive: show no enable button (handled via Edit)
+				null}
 
 				{!plan.isDefault && plan.isActive && (
 					<button
@@ -309,7 +305,9 @@ function PlanCard({
 function InstallmentPlansPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const installmentPlansKey = ["installmentPlans", organizationId];
+	const installmentPlansKey = orpc.installmentPlans.list.queryOptions({
+		input: { organizationId: organizationId! },
+	}).queryKey;
 	const { filter } = Route.useSearch();
 	const navigate = Route.useNavigate();
 
@@ -325,7 +323,9 @@ function InstallmentPlansPage() {
 	// Deactivate dialog
 	const [deactivateTarget, setDeactivateTarget] =
 		useState<InstallmentPlanRow | null>(null);
-	const [deactivateWarning, setDeactivateWarning] = useState<string | null>(null);
+	const [deactivateWarning, setDeactivateWarning] = useState<string | null>(
+		null,
+	);
 	const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
 
 	// ─── Queries & Mutations ─────────────────────────────────────────────────
@@ -336,11 +336,9 @@ function InstallmentPlansPage() {
 		isError,
 		refetch,
 	} = useQuery({
-		queryKey: installmentPlansKey,
-		queryFn: async () => {
-			if (!organizationId) return [];
-			return client.installmentPlans.list({ organizationId });
-		},
+		...orpc.installmentPlans.list.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 	});
 
@@ -448,14 +446,29 @@ function InstallmentPlansPage() {
 
 	function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
-		if (!form.name.trim()) { toast.error("Name is required."); return; }
-		if (!editingId && !form.code.trim()) { toast.error("Code is required."); return; }
+		if (!form.name.trim()) {
+			toast.error("Name is required.");
+			return;
+		}
+		if (!editingId && !form.code.trim()) {
+			toast.error("Code is required.");
+			return;
+		}
 		const n = parseInt(form.numInstallments, 10);
-		if (Number.isNaN(n) || n < 1) { toast.error("Installments must be ≥ 1."); return; }
+		if (Number.isNaN(n) || n < 1) {
+			toast.error("Installments must be ≥ 1.");
+			return;
+		}
 		const d = parseInt(form.defaultIntervalDays, 10);
-		if (Number.isNaN(d) || d < 1) { toast.error("Interval days must be ≥ 1."); return; }
+		if (Number.isNaN(d) || d < 1) {
+			toast.error("Interval days must be ≥ 1.");
+			return;
+		}
 		const p = parseFloat(form.pricePremiumPct || "0");
-		if (Number.isNaN(p) || p < 0 || p > 100) { toast.error("Premium must be 0–100%."); return; }
+		if (Number.isNaN(p) || p < 0 || p > 100) {
+			toast.error("Premium must be 0–100%.");
+			return;
+		}
 		if (editingId) {
 			updateMutation.mutate({ id: editingId, values: form });
 		} else {
@@ -468,7 +481,10 @@ function InstallmentPlansPage() {
 		setDeactivateWarning(null);
 		if (organizationId) {
 			try {
-				const allServices = await client.services.list({ organizationId, isActive: true });
+				const allServices = await client.services.list({
+					organizationId,
+					isActive: true,
+				});
 				const count = allServices.filter((s) =>
 					(s.availablePaymentPlans ?? []).includes(row.code),
 				).length;
@@ -516,7 +532,7 @@ function InstallmentPlansPage() {
 			<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
 				<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
 					<div className="flex items-center gap-3 text-sm">
-						<span className="text-muted-foreground">Settings</span>
+						<span className="text-[#737373]">Settings</span>
 						<span className="text-[#a3a3a3]">/</span>
 						<span className="font-semibold">Installment Plans</span>
 					</div>
@@ -531,313 +547,393 @@ function InstallmentPlansPage() {
 	// ─── Render ───────────────────────────────────────────────────────────────
 
 	return (
-		<Skeleton name="settings-installment-plans" loading={isLoading} fallback={<PageLoader />}>
-		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
-			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
-				<div className="flex items-center gap-3 text-sm">
-					<span className="text-muted-foreground">Settings</span>
-					<span className="text-[#a3a3a3]">/</span>
-					<span className="font-semibold">Installment Plans</span>
-				</div>
-				<div className="ml-8 flex items-center gap-1 rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-1">
-					{(
-						[
-							{ key: "all", label: `All (${allRows.length})` },
-							{ key: "active", label: `Active (${activeCount})` },
-							{ key: "inactive", label: `Inactive (${inactiveCount})` },
-						] as const
-					).map(({ key, label }) => (
-						<button
-							key={key}
-							type="button"
-							onClick={() => navigate({ search: { filter: key } })}
-							className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${filter === key ? "bg-[#0a0a0a] text-white" : "text-muted-foreground hover:text-foreground"}`}
-						>
-							{label}
-						</button>
-					))}
-				</div>
-				<div className="ml-auto flex items-center gap-2">
-					{/* Sample amount input */}
-					<div className="flex items-center gap-1.5 text-xs text-[#737373]">
-						<span>Sample amount</span>
-						<div className="flex items-center gap-1 rounded-lg border border-[#e5e5e5] bg-white px-2.5 py-1">
-							<span className="font-medium text-[#737373]">RM</span>
-							<input
-								type="text"
-								value={sampleInput}
-								onChange={(e) => {
-									const raw = e.target.value.replace(/,/g, "");
-									const n = parseFloat(raw);
-									setSampleInput(e.target.value);
-									if (!Number.isNaN(n) && n > 0) setSampleAmount(n);
-								}}
-								onBlur={() => {
-									setSampleInput(sampleAmount.toLocaleString());
-								}}
-								className="w-16 bg-transparent font-mono text-xs font-medium text-[#0a0a0a] tabular-nums outline-none"
-							/>
-						</div>
+		<Skeleton
+			name="settings-installment-plans"
+			loading={isLoading}
+			fallback={<PageLoader />}
+		>
+			<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+				<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+					<div className="flex items-center gap-3 text-sm">
+						<span className="text-[#737373]">Settings</span>
+						<span className="text-[#a3a3a3]">/</span>
+						<span className="font-semibold">Installment Plans</span>
 					</div>
-					<button
-						type="button"
-						onClick={openCreate}
-						disabled={isMutating}
-						className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626] disabled:opacity-50 disabled:cursor-not-allowed"
-					>
-						<Plus className="h-3.5 w-3.5" />
-						New Plan
-					</button>
-				</div>
-			</header>
-
-			<div className="flex flex-col gap-5 px-6 py-6">
-
-			{/* Error */}
-			{isError && (
-				<StatusCallout
-					variant="error"
-					title="Failed to load installment plans"
-					onRetry={() => refetch()}
-				>
-					<p className="text-sm">Please try again.</p>
-				</StatusCallout>
-			)}
-
-			{/* Empty */}
-			{!isError && rows.length === 0 && (
-				<div className="rounded-2xl border border-[#e5e5e5] bg-white">
-					<EmptyState
-						icon={CreditCard}
-						title="No installment plans"
-						description={
-							filter === "inactive"
-								? "No inactive plans."
-								: "No installment plans configured yet. Add one to get started."
-						}
-						action={
-							filter !== "inactive"
-								? { label: "New Plan", onClick: openCreate }
-								: undefined
-						}
-					/>
-				</div>
-			)}
-
-			{/* Plan grid */}
-			{!isError && rows.length > 0 && (
-				<div className="grid grid-cols-3 gap-4">
-					{rows.map((plan) => (
-						<PlanCard
-							key={plan.id}
-							plan={plan}
-							sampleAmount={sampleAmount}
-							isMutating={isMutating}
-							onEdit={() => openEdit(plan)}
-							onSetDefault={() => setDefaultMutation.mutate(plan.id)}
-							onDeactivate={() => handleDeactivateClick(plan)}
-						/>
-					))}
-				</div>
-			)}
-
-			</div>
-
-			{/* ── Create / Edit Dialog ─────────────────────────────────────────── */}
-			<Dialog
-				open={sheetOpen}
-				onOpenChange={(open) => { if (!open) closeSheet(); else setSheetOpen(true); }}
-			>
-				<DialogContent className="sm:max-w-lg overflow-y-auto bg-white">
-					<DialogHeader>
-						<DialogTitle className="text-base font-semibold text-[#0a0a0a]">
-							{editingId ? "Edit Installment Plan" : "Add Installment Plan"}
-						</DialogTitle>
-						<DialogDescription className="text-sm text-[#6b7170]">
-							{editingId
-								? "Update plan details. The plan code cannot be changed."
-								: "Define a new installment plan to offer on package services."}
-						</DialogDescription>
-					</DialogHeader>
-
-					<form onSubmit={handleSubmit} className="space-y-4 p-6 pt-0">
-						{/* Code */}
-						<div>
-							<label htmlFor="ip-code" className="block text-xs font-medium text-[#0a0a0a] mb-1">
-								Code {!editingId && "*"}
-							</label>
-							<Input
-								id="ip-code"
-								placeholder="e.g. monthly_6"
-								value={form.code}
-								onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
-								className="font-mono"
-								required={!editingId}
-								disabled={!!editingId}
-							/>
-							<p className="mt-1 text-[11px] text-[#8a8f91]">
-								{editingId ? "Cannot be changed after creation." : "Short identifier used internally. Cannot be changed later."}
-							</p>
-						</div>
-
-						{/* Name */}
-						<div>
-							<label htmlFor="ip-name" className="block text-xs font-medium text-[#0a0a0a] mb-1">
-								Name *
-							</label>
-							<Input
-								id="ip-name"
-								placeholder="e.g. Monthly (6 payments)"
-								value={form.name}
-								onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-								required
-							/>
-						</div>
-
-						{/* Installments + Interval days */}
-						<div className="grid grid-cols-2 gap-4">
-							<div>
-								<label htmlFor="ip-num" className="block text-xs font-medium text-[#0a0a0a] mb-1">
-									Installments *
-								</label>
-								<Input
-									id="ip-num"
-									type="number"
-									min="1"
-									step="1"
-									placeholder="e.g. 6"
-									value={form.numInstallments}
-									onChange={(e) => setForm((f) => ({ ...f, numInstallments: e.target.value }))}
-									required
-								/>
-								<p className="mt-1 text-[11px] text-[#8a8f91]">Use 1 for full single payment.</p>
-							</div>
-							<div>
-								<label htmlFor="ip-days" className="block text-xs font-medium text-[#0a0a0a] mb-1">
-									Interval (days) *
-								</label>
-								<Input
-									id="ip-days"
-									type="number"
-									min="1"
-									step="1"
-									placeholder="e.g. 30"
-									value={form.defaultIntervalDays}
-									onChange={(e) => setForm((f) => ({ ...f, defaultIntervalDays: e.target.value }))}
-									required
-								/>
-								<p className="mt-1 text-[11px] text-[#8a8f91]">Services can override this.</p>
-							</div>
-						</div>
-
-						{/* Premium */}
-						<div>
-							<label htmlFor="ip-premium" className="block text-xs font-medium text-[#0a0a0a] mb-1">
-								Price Premium (%)
-							</label>
-							<Input
-								id="ip-premium"
-								type="number"
-								min="0"
-								max="100"
-								step="0.01"
-								placeholder="0"
-								value={form.pricePremiumPct}
-								onChange={(e) => setForm((f) => ({ ...f, pricePremiumPct: e.target.value }))}
-							/>
-							<p className="mt-1 text-[11px] text-[#8a8f91]">
-								Markup on base price when this plan is selected. 0 = no premium.
-							</p>
-						</div>
-
-						{/* Description */}
-						<div>
-							<label htmlFor="ip-desc" className="block text-xs font-medium text-[#0a0a0a] mb-1">
-								Description
-							</label>
-							<Textarea
-								id="ip-desc"
-								placeholder="Optional notes about this plan"
-								rows={3}
-								value={form.description}
-								onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-							/>
-						</div>
-
-						{/* Is default — only on create */}
-						{!editingId && (
-							<div className="flex items-center gap-2">
-								<Checkbox
-									id="ip-default"
-									checked={form.isDefault}
-									onCheckedChange={(c) => setForm((f) => ({ ...f, isDefault: c === true }))}
-								/>
-								<label htmlFor="ip-default" className="cursor-pointer text-sm text-[#0a0a0a]">
-									Set as default plan
-								</label>
-							</div>
-						)}
-
-						<div className="flex justify-end gap-3 pt-2">
+					<div className="ml-8 flex items-center gap-1 rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-1">
+						{(
+							[
+								{ key: "all", label: `All (${allRows.length})` },
+								{ key: "active", label: `Active (${activeCount})` },
+								{ key: "inactive", label: `Inactive (${inactiveCount})` },
+							] as const
+						).map(({ key, label }) => (
 							<button
+								key={key}
 								type="button"
-								onClick={closeSheet}
-								disabled={createMutation.isPending || updateMutation.isPending}
-								className="rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-sm font-medium text-[#0a0a0a] transition-colors hover:bg-[#f7f5ee] disabled:opacity-50"
+								onClick={() => navigate({ search: { filter: key } })}
+								className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${filter === key ? "bg-[#0a0a0a] text-white" : "text-[#737373] hover:text-[#0a0a0a]"}`}
 							>
-								Cancel
+								{label}
 							</button>
-							<button
-								type="submit"
-								disabled={createMutation.isPending || updateMutation.isPending}
-								className="rounded-lg bg-[#000] px-4 py-2 text-sm font-medium text-white transition-opacity hover:bg-[#262626] disabled:cursor-not-allowed disabled:opacity-50"
-							>
-								{createMutation.isPending || updateMutation.isPending
-									? "Saving…"
-									: editingId
-										? "Save Changes"
-										: "Add Plan"}
-							</button>
+						))}
+					</div>
+					<div className="ml-auto flex items-center gap-2">
+						{/* Sample amount input */}
+						<div className="flex items-center gap-1.5 text-xs text-[#737373]">
+							<span>Sample amount</span>
+							<div className="flex items-center gap-1 rounded-lg border border-[#e5e5e5] bg-white px-2.5 py-1">
+								<span className="font-medium text-[#737373]">RM</span>
+								<input
+									type="text"
+									value={sampleInput}
+									onChange={(e) => {
+										const raw = e.target.value.replace(/,/g, "");
+										const n = parseFloat(raw);
+										setSampleInput(e.target.value);
+										if (!Number.isNaN(n) && n > 0) setSampleAmount(n);
+									}}
+									onBlur={() => {
+										setSampleInput(sampleAmount.toLocaleString());
+									}}
+									className="w-16 bg-transparent font-mono text-xs font-medium text-[#0a0a0a] tabular-nums outline-none"
+								/>
+							</div>
 						</div>
-					</form>
-				</DialogContent>
-			</Dialog>
+						<button
+							type="button"
+							onClick={openCreate}
+							disabled={isMutating}
+							className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626] disabled:opacity-50 disabled:cursor-not-allowed"
+						>
+							<Plus className="h-3.5 w-3.5" />
+							New Plan
+						</button>
+					</div>
+				</header>
 
-			{/* ── Deactivate Dialog ────────────────────────────────────────────── */}
-			<Dialog
-				open={deactivateDialogOpen}
-				onOpenChange={(open) => {
-					if (!open) {
-						setDeactivateDialogOpen(false);
-						setDeactivateTarget(null);
-						setDeactivateWarning(null);
-					}
-				}}
-			>
-				<DialogContent className="sm:max-w-md rounded-2xl bg-white p-6">
-					<DialogHeader>
-						<DialogTitle className="text-base font-semibold text-[#0a0a0a]">
-							Disable Installment Plan
-						</DialogTitle>
-						<DialogDescription className="text-sm text-[#6b7170]">
-							Are you sure you want to disable{" "}
-							<strong className="text-[#0a0a0a]">{deactivateTarget?.name}</strong>?
-						</DialogDescription>
-					</DialogHeader>
+				<div className="flex flex-col gap-5 px-6 py-6">
+					{/* Error */}
+					{isError && (
+						<StatusCallout
+							variant="error"
+							title="Failed to load installment plans"
+							onRetry={() => refetch()}
+						>
+							<p className="text-sm">Please try again.</p>
+						</StatusCallout>
+					)}
 
-					{deactivateWarning && (
-						<div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
-							{deactivateWarning}
+					{/* Empty */}
+					{!isError && rows.length === 0 && (
+						<div className="rounded-2xl border border-[#e5e5e5] bg-white">
+							<EmptyState
+								icon={CreditCard}
+								title="No installment plans"
+								description={
+									filter === "inactive"
+										? "No inactive plans."
+										: "No installment plans configured yet. Add one to get started."
+								}
+								action={
+									filter !== "inactive"
+										? { label: "New Plan", onClick: openCreate }
+										: undefined
+								}
+							/>
 						</div>
 					)}
 
-					<p className="text-xs text-[#6b7170]">
-						Inactive plans are hidden from the service form. Existing installment
-						schedules are not affected.
-					</p>
+					{/* Plan grid */}
+					{!isError && rows.length > 0 && (
+						<div className="grid grid-cols-3 gap-4">
+							{rows.map((plan) => (
+								<PlanCard
+									key={plan.id}
+									plan={plan}
+									sampleAmount={sampleAmount}
+									isMutating={isMutating}
+									onEdit={() => openEdit(plan)}
+									onSetDefault={() => setDefaultMutation.mutate(plan.id)}
+									onDeactivate={() => handleDeactivateClick(plan)}
+								/>
+							))}
+						</div>
+					)}
+				</div>
 
-					<DialogFooter>
-						<div className="mt-2 flex justify-end gap-3">
+				{/* ── Create / Edit Dialog ─────────────────────────────────────────── */}
+				<Dialog
+					open={sheetOpen}
+					onOpenChange={(open) => {
+						if (!open) closeSheet();
+						else setSheetOpen(true);
+					}}
+				>
+					<DialogContent
+						className="sm:max-w-lg p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+						hideCloseButton
+					>
+						<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+							<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+								INSTALLMENT PLANS
+							</p>
+							<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+								{editingId ? "Edit Installment Plan" : "Add Installment Plan"}
+							</DialogTitle>
+							<DialogDescription className="text-sm text-[#737373]">
+								{editingId
+									? "Update plan details. The plan code cannot be changed."
+									: "Define a new installment plan to offer on package services."}
+							</DialogDescription>
+						</DialogHeader>
+
+						<form onSubmit={handleSubmit}>
+							<div className="px-6 pt-4 pb-2 overflow-y-auto">
+								<div className="space-y-4">
+									{/* Code */}
+									<div>
+										<label
+											htmlFor="ip-code"
+											className="block text-xs font-medium text-[#0a0a0a] mb-1"
+										>
+											Code {!editingId && "*"}
+										</label>
+										<Input
+											id="ip-code"
+											placeholder="e.g. monthly_6"
+											value={form.code}
+											onChange={(e) =>
+												setForm((f) => ({ ...f, code: e.target.value }))
+											}
+											className="font-mono"
+											required={!editingId}
+											disabled={!!editingId}
+										/>
+										<p className="mt-1 text-[11px] text-[#8a8f91]">
+											{editingId
+												? "Cannot be changed after creation."
+												: "Short identifier used internally. Cannot be changed later."}
+										</p>
+									</div>
+
+									{/* Name */}
+									<div>
+										<label
+											htmlFor="ip-name"
+											className="block text-xs font-medium text-[#0a0a0a] mb-1"
+										>
+											Name *
+										</label>
+										<Input
+											id="ip-name"
+											placeholder="e.g. Monthly (6 payments)"
+											value={form.name}
+											onChange={(e) =>
+												setForm((f) => ({ ...f, name: e.target.value }))
+											}
+											required
+										/>
+									</div>
+
+									{/* Installments + Interval days */}
+									<div className="grid grid-cols-2 gap-4">
+										<div>
+											<label
+												htmlFor="ip-num"
+												className="block text-xs font-medium text-[#0a0a0a] mb-1"
+											>
+												Installments *
+											</label>
+											<Input
+												id="ip-num"
+												type="number"
+												min="1"
+												step="1"
+												placeholder="e.g. 6"
+												value={form.numInstallments}
+												onChange={(e) =>
+													setForm((f) => ({
+														...f,
+														numInstallments: e.target.value,
+													}))
+												}
+												required
+											/>
+											<p className="mt-1 text-[11px] text-[#8a8f91]">
+												Use 1 for full single payment.
+											</p>
+										</div>
+										<div>
+											<label
+												htmlFor="ip-days"
+												className="block text-xs font-medium text-[#0a0a0a] mb-1"
+											>
+												Interval (days) *
+											</label>
+											<Input
+												id="ip-days"
+												type="number"
+												min="1"
+												step="1"
+												placeholder="e.g. 30"
+												value={form.defaultIntervalDays}
+												onChange={(e) =>
+													setForm((f) => ({
+														...f,
+														defaultIntervalDays: e.target.value,
+													}))
+												}
+												required
+											/>
+											<p className="mt-1 text-[11px] text-[#8a8f91]">
+												Services can override this.
+											</p>
+										</div>
+									</div>
+
+									{/* Premium */}
+									<div>
+										<label
+											htmlFor="ip-premium"
+											className="block text-xs font-medium text-[#0a0a0a] mb-1"
+										>
+											Price Premium (%)
+										</label>
+										<Input
+											id="ip-premium"
+											type="number"
+											min="0"
+											max="100"
+											step="0.01"
+											placeholder="0"
+											value={form.pricePremiumPct}
+											onChange={(e) =>
+												setForm((f) => ({
+													...f,
+													pricePremiumPct: e.target.value,
+												}))
+											}
+										/>
+										<p className="mt-1 text-[11px] text-[#8a8f91]">
+											Markup on base price when this plan is selected. 0 = no
+											premium.
+										</p>
+									</div>
+
+									{/* Description */}
+									<div>
+										<label
+											htmlFor="ip-desc"
+											className="block text-xs font-medium text-[#0a0a0a] mb-1"
+										>
+											Description
+										</label>
+										<Textarea
+											id="ip-desc"
+											placeholder="Optional notes about this plan"
+											rows={3}
+											value={form.description}
+											onChange={(e) =>
+												setForm((f) => ({ ...f, description: e.target.value }))
+											}
+										/>
+									</div>
+
+									{/* Is default — only on create */}
+									{!editingId && (
+										<div className="flex items-center gap-2">
+											<Checkbox
+												id="ip-default"
+												checked={form.isDefault}
+												onCheckedChange={(c) =>
+													setForm((f) => ({ ...f, isDefault: c === true }))
+												}
+											/>
+											<label
+												htmlFor="ip-default"
+												className="cursor-pointer text-sm text-[#0a0a0a]"
+											>
+												Set as default plan
+											</label>
+										</div>
+									)}
+								</div>
+							</div>
+
+							<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+								<button
+									type="button"
+									onClick={closeSheet}
+									disabled={
+										createMutation.isPending || updateMutation.isPending
+									}
+									className="rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-sm font-medium text-[#0a0a0a] transition-colors hover:bg-[#f7f5ee] disabled:opacity-50"
+								>
+									Cancel
+								</button>
+								<button
+									type="submit"
+									disabled={
+										createMutation.isPending || updateMutation.isPending
+									}
+									className="rounded-lg bg-[#0a0a0a] text-white hover:bg-[#262626] px-4 py-2 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+								>
+									{createMutation.isPending || updateMutation.isPending
+										? "Saving…"
+										: editingId
+											? "Save Changes"
+											: "Add Plan"}
+								</button>
+							</DialogFooter>
+						</form>
+					</DialogContent>
+				</Dialog>
+
+				{/* ── Deactivate Dialog ────────────────────────────────────────────── */}
+				<Dialog
+					open={deactivateDialogOpen}
+					onOpenChange={(open) => {
+						if (!open) {
+							setDeactivateDialogOpen(false);
+							setDeactivateTarget(null);
+							setDeactivateWarning(null);
+						}
+					}}
+				>
+					<DialogContent
+						className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+						hideCloseButton
+					>
+						<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+							<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+								INSTALLMENT PLANS
+							</p>
+							<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+								Disable Installment Plan
+							</DialogTitle>
+							<DialogDescription className="text-sm text-[#737373]">
+								Are you sure you want to disable{" "}
+								<strong className="text-[#0a0a0a]">
+									{deactivateTarget?.name}
+								</strong>
+								?
+							</DialogDescription>
+						</DialogHeader>
+
+						<div className="px-6 pt-4 pb-2 overflow-y-auto">
+							{deactivateWarning && (
+								<div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 mb-3">
+									{deactivateWarning}
+								</div>
+							)}
+
+							<p className="text-xs text-[#737373]">
+								Inactive plans are hidden from the service form. Existing
+								installment schedules are not affected.
+							</p>
+						</div>
+
+						<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 							<button
 								type="button"
 								onClick={() => {
@@ -852,17 +948,19 @@ function InstallmentPlansPage() {
 							</button>
 							<button
 								type="button"
-								onClick={() => { if (deactivateTarget) deactivateMutation.mutate(deactivateTarget.id); }}
+								onClick={() => {
+									if (deactivateTarget)
+										deactivateMutation.mutate(deactivateTarget.id);
+								}}
 								disabled={deactivateMutation.isPending}
-								className="rounded-lg bg-[#000] px-4 py-2 text-sm font-medium text-white transition-opacity hover:bg-[#262626] disabled:cursor-not-allowed disabled:opacity-50"
+								className="rounded-lg bg-[#0a0a0a] text-white hover:bg-[#262626] px-4 py-2 text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								{deactivateMutation.isPending ? "Disabling…" : "Disable"}
 							</button>
-						</div>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-		</div>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+			</div>
 		</Skeleton>
 	);
 }

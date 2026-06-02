@@ -64,7 +64,12 @@ beforeEach(() => {
 describe("listTransferOrders", () => {
 	test("returns all orders with no filters", async () => {
 		const fakeOrders = [
-			{ id: "to1", transferNumber: "TO-20260227-0001", fromBranchId: "br1", toBranchId: "br2" },
+			{
+				id: "to1",
+				transferNumber: "TO-20260227-0001",
+				fromBranchId: "br1",
+				toBranchId: "br2",
+			},
 		];
 		mockFindMany.mockResolvedValueOnce(fakeOrders);
 
@@ -112,7 +117,9 @@ describe("listTransferOrders", () => {
 		mockFindMany.mockResolvedValueOnce(allOrders);
 
 		// br2 matches toBranchId of to1; br3 matches fromBranchId of to2
-		const result = await listTransferOrders(mockTenantDb, { accessibleNodeIds: ["br2", "br3"] });
+		const result = await listTransferOrders(mockTenantDb, {
+			accessibleNodeIds: ["br2", "br3"],
+		});
 
 		expect(result).toHaveLength(2);
 		expect(result.map((o) => o.id)).toEqual(["to1", "to2"]);
@@ -137,7 +144,13 @@ describe("getTransferOrderById", () => {
 			toBranchId: "br2",
 		};
 		const fakeItems = [
-			{ id: "toi1", transferOrderId: "to1", productId: "p1", quantityTransferred: 5, quantityReceived: 0 },
+			{
+				id: "toi1",
+				transferOrderId: "to1",
+				productId: "p1",
+				quantityTransferred: 5,
+				quantityReceived: 0,
+			},
 		];
 
 		// findFirst for header, then findMany for items
@@ -166,7 +179,13 @@ describe("createTransferOrder", () => {
 			status: "pending",
 		};
 		const fakeItems = [
-			{ id: "toi1", transferOrderId: "to1", productId: "p1", quantityTransferred: 5, quantityReceived: 0 },
+			{
+				id: "toi1",
+				transferOrderId: "to1",
+				productId: "p1",
+				quantityTransferred: 5,
+				quantityReceived: 0,
+			},
 		];
 
 		const txReturningHeader = mock(() => Promise.resolve([fakeHeader]));
@@ -177,10 +196,14 @@ describe("createTransferOrder", () => {
 		let insertCallCount = 0;
 		const txInsert = mock(() => {
 			insertCallCount++;
-			return insertCallCount === 1 ? { values: txValuesHeader } : { values: txValuesItems };
+			return insertCallCount === 1
+				? { values: txValuesHeader }
+				: { values: txValuesItems };
 		});
 
-		mockTransaction.mockImplementationOnce(async (fn: any) => fn({ insert: txInsert }));
+		mockTransaction.mockImplementationOnce(async (fn: any) =>
+			fn({ insert: txInsert }),
+		);
 
 		const result = await createTransferOrder(mockTenantDb, {
 			dateIssued: new Date("2026-02-27"),
@@ -200,20 +223,34 @@ describe("createTransferOrder", () => {
 	test("items default quantityReceived to 0", async () => {
 		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
 
-		const fakeHeader = { id: "to2", transferNumber: "TO-20260227-0001", fromBranchId: "br1", toBranchId: "br2", status: "pending" };
+		const fakeHeader = {
+			id: "to2",
+			transferNumber: "TO-20260227-0001",
+			fromBranchId: "br1",
+			toBranchId: "br2",
+			status: "pending",
+		};
 
 		const txReturningHeader = mock(() => Promise.resolve([fakeHeader]));
-		const txValuesHeader = mock((..._args: any[]) => ({ returning: txReturningHeader }));
+		const txValuesHeader = mock((..._args: any[]) => ({
+			returning: txReturningHeader,
+		}));
 		const txReturningItems = mock(() => Promise.resolve([] as any[]));
-		const txValuesItems = mock((..._args: any[]) => ({ returning: txReturningItems }));
+		const txValuesItems = mock((..._args: any[]) => ({
+			returning: txReturningItems,
+		}));
 
 		let insertCallCount = 0;
 		const txInsert = mock(() => {
 			insertCallCount++;
-			return insertCallCount === 1 ? { values: txValuesHeader } : { values: txValuesItems };
+			return insertCallCount === 1
+				? { values: txValuesHeader }
+				: { values: txValuesItems };
 		});
 
-		mockTransaction.mockImplementationOnce(async (fn: any) => fn({ insert: txInsert }));
+		mockTransaction.mockImplementationOnce(async (fn: any) =>
+			fn({ insert: txInsert }),
+		);
 
 		await createTransferOrder(mockTenantDb, {
 			dateIssued: new Date("2026-02-27"),
@@ -250,7 +287,9 @@ describe("markInTransit", () => {
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		await expect(markInTransit(mockTenantDb, "nonexistent")).rejects.toThrow("Transfer order not found");
+		await expect(markInTransit(mockTenantDb, "nonexistent")).rejects.toThrow(
+			"Transfer order not found",
+		);
 	});
 });
 
@@ -263,16 +302,22 @@ describe("completeTransfer", () => {
 		status: "in_transit",
 	};
 	const fakeItems = [
-		{ id: "toi1", transferOrderId: "to1", productId: "p1", quantityTransferred: 5, quantityReceived: 0 },
+		{
+			id: "toi1",
+			transferOrderId: "to1",
+			productId: "p1",
+			quantityTransferred: 5,
+			quantityReceived: 0,
+		},
 	];
 	const receiveItems = [{ itemId: "toi1", quantityReceived: 5 }];
 
 	test("throws 'Transfer order not found' when transfer does not exist", async () => {
 		mockFindFirst.mockResolvedValueOnce(undefined);
 
-		await expect(completeTransfer(mockTenantDb, "nonexistent", receiveItems)).rejects.toThrow(
-			"Transfer order not found"
-		);
+		await expect(
+			completeTransfer(mockTenantDb, "nonexistent", receiveItems),
+		).rejects.toThrow("Transfer order not found");
 	});
 
 	test("executes transaction: updates items, adjusts stock (deduct from, add to), sets status=completed", async () => {
@@ -291,7 +336,9 @@ describe("completeTransfer", () => {
 		const itemUpdateWhere = mock(() => Promise.resolve());
 		const itemUpdateSet = mock(() => ({ where: itemUpdateWhere }));
 
-		const adjFromRet = mock(() => Promise.resolve([{ id: "ps1", quantity: 95 }]));
+		const adjFromRet = mock(() =>
+			Promise.resolve([{ id: "ps1", quantity: 95 }]),
+		);
 		const adjFromWhere = mock(() => ({ returning: adjFromRet }));
 		const adjFromSet = mock(() => ({ where: adjFromWhere }));
 
@@ -312,7 +359,9 @@ describe("completeTransfer", () => {
 			return { set: statusSet };
 		});
 
-		mockTransaction.mockImplementationOnce(async (fn: any) => fn({ update: txUpdate, insert: mockInsert }));
+		mockTransaction.mockImplementationOnce(async (fn: any) =>
+			fn({ update: txUpdate, insert: mockInsert }),
+		);
 
 		const result = await completeTransfer(mockTenantDb, "to1", receiveItems);
 
@@ -338,7 +387,9 @@ describe("completeTransfer", () => {
 
 		// Capture the sql expression args for adjustStock calls
 		// adjustStock calls update().set({quantity: sql`...+delta`...}).where().returning()
-		const adjFromRet = mock(() => Promise.resolve([{ id: "ps1", quantity: 95 }]));
+		const adjFromRet = mock(() =>
+			Promise.resolve([{ id: "ps1", quantity: 95 }]),
+		);
 		const adjFromWhere = mock(() => ({ returning: adjFromRet }));
 		const adjFromSet = mock((_setArg: any) => {
 			// The quantity field is a sql expression; we note the update happened
@@ -362,10 +413,14 @@ describe("completeTransfer", () => {
 			return { set: statusSet };
 		});
 
-		mockTransaction.mockImplementationOnce(async (fn: any) => fn({ update: txUpdate, insert: mockInsert }));
+		mockTransaction.mockImplementationOnce(async (fn: any) =>
+			fn({ update: txUpdate, insert: mockInsert }),
+		);
 
 		// Receive only 3 out of 5 transferred
-		await completeTransfer(mockTenantDb, "to1", [{ itemId: "toi1", quantityReceived: 3 }]);
+		await completeTransfer(mockTenantDb, "to1", [
+			{ itemId: "toi1", quantityReceived: 3 },
+		]);
 
 		// 4 update calls: item, fromBranch adj, toBranch adj, status
 		expect(txUpdate).toHaveBeenCalledTimes(4);
@@ -393,6 +448,8 @@ describe("cancelTransfer", () => {
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		await expect(cancelTransfer(mockTenantDb, "nonexistent")).rejects.toThrow("Transfer order not found");
+		await expect(cancelTransfer(mockTenantDb, "nonexistent")).rejects.toThrow(
+			"Transfer order not found",
+		);
 	});
 });

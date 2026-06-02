@@ -41,7 +41,11 @@ export function createAdminContext(
 			hierarchyScopeId: null,
 		},
 		session: {
-			user: { id: DEFAULT_USER_ID, email: "admin@test.com", name: "Test Admin" },
+			user: {
+				id: DEFAULT_USER_ID,
+				email: "admin@test.com",
+				name: "Test Admin",
+			},
 		},
 		...overrides,
 	};

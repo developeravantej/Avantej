@@ -215,7 +215,9 @@ describeOrSkip("commission versioning trigger", () => {
 				paymentType: "fixed",
 				isConditional: false,
 				maxCoaches: 1,
-				slots: [{ slotIndex: 0, label: "Primary", weightageBasisPoints: 10000 }],
+				slots: [
+					{ slotIndex: 0, label: "Primary", weightageBasisPoints: 10000 },
+				],
 				rates: [],
 			},
 			{ userId: ACTOR.userId, id: ACTOR.memberId, role: ACTOR.role },
@@ -245,7 +247,9 @@ describeOrSkip("commission versioning trigger", () => {
 				paymentType: "variable",
 				isConditional: false,
 				maxCoaches: 1,
-				slots: [{ slotIndex: 0, label: "Primary", weightageBasisPoints: 10000 }],
+				slots: [
+					{ slotIndex: 0, label: "Primary", weightageBasisPoints: 10000 },
+				],
 				rates: [],
 			},
 			{ userId: ACTOR.userId, id: ACTOR.memberId, role: ACTOR.role },
@@ -313,8 +317,12 @@ describeOrSkip("commission versioning trigger", () => {
 
 describeOrSkip("payout batches", () => {
 	test("(d) getOrCreatePayoutBatch is idempotent for same period", async () => {
-		const periodStart = new Date(`${new Date().getUTCFullYear()}-01-01T00:00:00Z`);
-		const periodEnd = new Date(`${new Date().getUTCFullYear()}-01-31T23:59:59Z`);
+		const periodStart = new Date(
+			`${new Date().getUTCFullYear()}-01-01T00:00:00Z`,
+		);
+		const periodEnd = new Date(
+			`${new Date().getUTCFullYear()}-01-31T23:59:59Z`,
+		);
 
 		const b1 = await getOrCreatePayoutBatch(tenantDb, {
 			branchId: TEST_BRANCH_NODE_ID,
@@ -351,8 +359,12 @@ describeOrSkip("payout batches", () => {
 		const { serviceId } = await createCategoryAndService(`batch-${TS}`);
 		const appt = await createAppointment(serviceId);
 
-		const periodStart = new Date(`${new Date().getUTCFullYear() - 1}-06-01T00:00:00Z`);
-		const periodEnd = new Date(`${new Date().getUTCFullYear() - 1}-06-30T23:59:59Z`);
+		const periodStart = new Date(
+			`${new Date().getUTCFullYear() - 1}-06-01T00:00:00Z`,
+		);
+		const periodEnd = new Date(
+			`${new Date().getUTCFullYear() - 1}-06-30T23:59:59Z`,
+		);
 		const batch = await getOrCreatePayoutBatch(tenantDb, {
 			branchId: TEST_BRANCH_NODE_ID,
 			periodStart,

@@ -12,7 +12,7 @@ import { ReviewTab } from "@/components/pages/commissions/review-tab";
 import { PayoutsTab } from "@/components/pages/commissions/payouts-tab";
 import { Button } from "@/components/ui/button";
 import { useUserContext } from "@/hooks/useUserContext";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/commissions/view",
@@ -35,12 +35,9 @@ function CommissionsPage() {
 
 	// Always-mounted badge query for pending review count
 	const { data: reviewMeta } = useQuery({
-		queryKey: ["commissionSplits", "pendingReviewTotal"],
-		queryFn: () =>
-			client.commissionSplits.listPendingReview({
-				organizationId: organizationId!,
-				limit: 1,
-			}),
+		...orpc.commissionSplits.listPendingReview.queryOptions({
+			input: { organizationId: organizationId!, limit: 1 },
+		}),
 		enabled: !!organizationId && hasPermission("commission_management:read"),
 		staleTime: 30_000,
 	});
@@ -108,7 +105,8 @@ function CommissionsPage() {
 									search: (prev) => ({
 										...prev,
 										tab: pill.id,
-										recipientId: pill.id !== "payouts" ? undefined : prev.recipientId,
+										recipientId:
+											pill.id !== "payouts" ? undefined : prev.recipientId,
 									}),
 								})
 							}

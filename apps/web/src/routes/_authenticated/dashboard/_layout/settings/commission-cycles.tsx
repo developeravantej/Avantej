@@ -40,7 +40,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { PageLoader } from "@/components/ui/loading-spinner";
 
-type CycleType = "calendar_month" | "monthly_anchored" | "semi_monthly" | "weekly";
+type CycleType =
+	| "calendar_month"
+	| "monthly_anchored"
+	| "semi_monthly"
+	| "weekly";
 
 interface Policy {
 	id: string;
@@ -125,11 +129,9 @@ function CommissionCyclesPage() {
 		hasPermission("category_commission_management:update");
 
 	const policiesQuery = useQuery({
-		queryKey: ["commissionCycle", orgId, "list"],
-		queryFn: () =>
-			client.commissionCycle.list({ organizationId: orgId }) as Promise<{
-				policies: Policy[];
-			}>,
+		...orpc.commissionCycle.list.queryOptions({
+			input: { organizationId: orgId },
+		}),
 		enabled: !!orgId,
 	});
 
@@ -143,21 +145,28 @@ function CommissionCyclesPage() {
 		return nodes.filter((n) => n.type === "branch" || n.type === "location");
 	}, [branchesQuery.data]);
 
-	const [editingPolicy, setEditingPolicy] = useState<Policy | "new" | null>(null);
+	const [editingPolicy, setEditingPolicy] = useState<Policy | "new" | null>(
+		null,
+	);
 
 	const deleteMutation = useMutation({
 		mutationFn: (branchId: string | null) =>
 			client.commissionCycle.delete({ organizationId: orgId, branchId }),
 		onSuccess: () => {
 			toast.success("Cycle policy deleted.");
-			queryClient.invalidateQueries({ queryKey: ["commissionCycle", orgId] });
+			queryClient.invalidateQueries(
+				orpc.commissionCycle.list.queryOptions({
+					input: { organizationId: orgId },
+				}),
+			);
 		},
-		onError: (err: Error) => toast.error(err.message ?? "Failed to delete cycle policy."),
+		onError: (err: Error) =>
+			toast.error(err.message ?? "Failed to delete cycle policy."),
 	});
 
-	const policies = policiesQuery.data?.policies ?? [];
-	const tenantWide = policies.find((p) => p.branchId === null);
-	const branchPolicies = policies.filter((p) => p.branchId !== null);
+	const policies: Policy[] = (policiesQuery.data?.policies ?? []) as Policy[];
+	const tenantWide = policies.find((p: Policy) => p.branchId === null);
+	const branchPolicies = policies.filter((p: Policy) => p.branchId !== null);
 
 	if (!orgId) return null;
 
@@ -165,7 +174,7 @@ function CommissionCyclesPage() {
 		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
 			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
 				<div className="flex items-center gap-3 text-sm">
-					<span className="text-muted-foreground">Settings</span>
+					<span className="text-[#737373]">Settings</span>
 					<span className="text-[#a3a3a3]">/</span>
 					<span className="font-semibold">Commission cycles</span>
 				</div>
@@ -181,10 +190,10 @@ function CommissionCyclesPage() {
 								<code className="font-mono text-[10px] bg-[#f3f3f3] px-1 py-0.5 rounded">
 									maxPerCycleCents
 								</code>{" "}
-								on category commission configs. Without a policy, cycles default to
-								the UTC calendar month. Set a tenant-wide default, then add per-branch
-								overrides for franchises that run on a non-standard payroll period
-								(e.g. 22nd→22nd semi-monthly).
+								on category commission configs. Without a policy, cycles default
+								to the UTC calendar month. Set a tenant-wide default, then add
+								per-branch overrides for franchises that run on a non-standard
+								payroll period (e.g. 22nd→22nd semi-monthly).
 							</p>
 						</div>
 						{canEdit ? (
@@ -222,8 +231,12 @@ function CommissionCyclesPage() {
 												Not set
 											</Badge>
 										</td>
-										<td className="px-4 py-3 text-sm text-muted-foreground" colSpan={3}>
-											No tenant-wide policy. Cycles fall back to the UTC calendar month.
+										<td
+											className="px-4 py-3 text-sm text-[#737373]"
+											colSpan={3}
+										>
+											No tenant-wide policy. Cycles fall back to the UTC
+											calendar month.
 										</td>
 										<td className="px-4 py-3 text-right">
 											{canEdit ? (
@@ -243,13 +256,17 @@ function CommissionCyclesPage() {
 										canEdit={canEdit}
 										onEdit={() => setEditingPolicy(tenantWide)}
 										onDelete={() => {
-											if (window.confirm("Delete the tenant-wide cycle policy? Falls back to UTC calendar month.")) {
+											if (
+												window.confirm(
+													"Delete the tenant-wide cycle policy? Falls back to UTC calendar month.",
+												)
+											) {
 												deleteMutation.mutate(null);
 											}
 										}}
 									/>
 								)}
-								{branchPolicies.map((p) => (
+								{branchPolicies.map((p: Policy) => (
 									<PolicyRow
 										key={p.id}
 										policy={p}
@@ -270,9 +287,10 @@ function CommissionCyclesPage() {
 									<tr>
 										<td
 											colSpan={5}
-											className="px-4 py-6 text-center text-xs text-muted-foreground"
+											className="px-4 py-6 text-center text-xs text-[#737373]"
 										>
-											No branch overrides. Every branch uses the tenant-wide default.
+											No branch overrides. Every branch uses the tenant-wide
+											default.
 										</td>
 									</tr>
 								) : null}
@@ -287,9 +305,13 @@ function CommissionCyclesPage() {
 					organizationId={orgId}
 					initial={editingPolicy === "new" ? null : editingPolicy}
 					branches={branches}
-					existingBranchIds={new Set(
-						branchPolicies.map((p) => p.branchId!).filter(Boolean),
-					)}
+					existingBranchIds={
+						new Set(
+							branchPolicies
+								.map((p: { branchId: string | null }) => p.branchId!)
+								.filter(Boolean),
+						)
+					}
 					tenantWideExists={!!tenantWide}
 					onClose={() => setEditingPolicy(null)}
 				/>
@@ -316,7 +338,9 @@ function PolicyRow({
 		<tr className="border-b border-[#f7f5ee] last:border-0 hover:bg-[#fcfaf6]">
 			<td className="px-4 py-3 text-sm">
 				<span className="font-medium">
-					{isTenantWide ? "Tenant default" : policy.branchName ?? policy.branchId}
+					{isTenantWide
+						? "Tenant default"
+						: (policy.branchName ?? policy.branchId)}
 				</span>
 				{isTenantWide ? (
 					<Badge variant="outline" className="ml-2 text-[10px]">
@@ -329,8 +353,10 @@ function PolicyRow({
 					{policy.cycleType}
 				</code>
 			</td>
-			<td className="px-4 py-3 text-sm text-muted-foreground">{describePolicy(policy)}</td>
-			<td className="px-4 py-3 text-xs text-muted-foreground tabular-nums">
+			<td className="px-4 py-3 text-sm text-[#737373]">
+				{describePolicy(policy)}
+			</td>
+			<td className="px-4 py-3 text-xs text-[#737373] tabular-nums">
 				{new Date(policy.updatedAt).toLocaleDateString("en-MY", {
 					day: "numeric",
 					month: "short",
@@ -340,7 +366,12 @@ function PolicyRow({
 			<td className="px-4 py-3 text-right">
 				{canEdit ? (
 					<div className="inline-flex items-center gap-1">
-						<Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit}>
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-7 w-7"
+							onClick={onEdit}
+						>
 							<Pencil className="h-3.5 w-3.5" />
 							<span className="sr-only">Edit</span>
 						</Button>
@@ -378,7 +409,9 @@ function PolicyEditorDialog({
 	onClose: () => void;
 }) {
 	const isNew = initial === null;
-	const [branchId, setBranchId] = useState<string | null>(initial?.branchId ?? null);
+	const [branchId, setBranchId] = useState<string | null>(
+		initial?.branchId ?? null,
+	);
 	const [cycleType, setCycleType] = useState<CycleType>(
 		initial?.cycleType ?? "calendar_month",
 	);
@@ -398,13 +431,15 @@ function PolicyEditorDialog({
 				branchId,
 				cycleType,
 				anchorDay:
-					cycleType === "calendar_month" ? null : Number.parseInt(anchorDayRaw, 10),
+					cycleType === "calendar_month"
+						? null
+						: Number.parseInt(anchorDayRaw, 10),
 			}),
 		onSuccess: () => {
 			toast.success(isNew ? "Cycle policy created." : "Cycle policy updated.");
-			queryClient.invalidateQueries({
-				queryKey: ["commissionCycle", organizationId],
-			});
+			queryClient.invalidateQueries(
+				orpc.commissionCycle.list.queryOptions({ input: { organizationId } }),
+			);
 			onClose();
 		},
 		onError: (err: Error) =>
@@ -423,100 +458,128 @@ function PolicyEditorDialog({
 
 	return (
 		<Dialog open onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>{isNew ? "Add cycle policy" : "Edit cycle policy"}</DialogTitle>
-					<DialogDescription>
-						Choose the scope (tenant-wide or a specific branch), then pick a cycle
-						type. Cap-window math is run server-side per the DB CHECK constraint.
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						COMMISSION CYCLES
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						{isNew ? "Add cycle policy" : "Edit cycle policy"}
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
+						Choose the scope (tenant-wide or a specific branch), then pick a
+						cycle type. Cap-window math is run server-side per the DB CHECK
+						constraint.
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="space-y-3 py-2">
-					<div className="space-y-1.5">
-						<Label htmlFor="scope-select">Scope</Label>
-						<Select
-							value={branchId === null ? "__tenant__" : branchId}
-							onValueChange={(v) => setBranchId(v === "__tenant__" ? null : v)}
-							disabled={branchPickerLocked || mutation.isPending}
-						>
-							<SelectTrigger id="scope-select" className="w-full">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem
-									value="__tenant__"
-									disabled={tenantWideExists && initial?.branchId !== null}
-								>
-									Tenant default (all branches)
-								</SelectItem>
-								{availableBranches.map((b) => (
-									<SelectItem key={b.id} value={b.id}>
-										{b.name}
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					<div className="space-y-3 py-2">
+						<div className="space-y-1.5">
+							<Label htmlFor="scope-select">Scope</Label>
+							<Select
+								value={branchId === null ? "__tenant__" : branchId}
+								onValueChange={(v) =>
+									setBranchId(v === "__tenant__" ? null : v)
+								}
+								disabled={branchPickerLocked || mutation.isPending}
+							>
+								<SelectTrigger id="scope-select" className="w-full">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem
+										value="__tenant__"
+										disabled={tenantWideExists && initial?.branchId !== null}
+									>
+										Tenant default (all branches)
 									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-						{branchPickerLocked ? (
-							<p className="text-[11px] text-muted-foreground">
-								Scope can't be changed for an existing policy. Delete and re-create
-								to move to a different branch.
+									{availableBranches.map((b) => (
+										<SelectItem key={b.id} value={b.id}>
+											{b.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+							{branchPickerLocked ? (
+								<p className="text-[11px] text-[#737373]">
+									Scope can't be changed for an existing policy. Delete and
+									re-create to move to a different branch.
+								</p>
+							) : null}
+						</div>
+
+						<div className="space-y-1.5">
+							<Label htmlFor="cycle-type">Cycle type</Label>
+							<Select
+								value={cycleType}
+								onValueChange={(v) => {
+									setCycleType(v as CycleType);
+									// Reset anchor on type change — different ranges per type.
+									setAnchorDayRaw(v === "calendar_month" ? "" : "");
+								}}
+								disabled={mutation.isPending}
+							>
+								<SelectTrigger id="cycle-type" className="w-full">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="calendar_month">
+										Calendar month (UTC 1st → 1st)
+									</SelectItem>
+									<SelectItem value="monthly_anchored">
+										Monthly anchored (e.g. 22nd → 22nd)
+									</SelectItem>
+									<SelectItem value="semi_monthly">
+										Semi-monthly (two halves per month)
+									</SelectItem>
+									<SelectItem value="weekly">
+										Weekly (anchored to a weekday)
+									</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+
+						<div className="space-y-1.5">
+							<Label htmlFor="anchor-day">Anchor day</Label>
+							<Input
+								id="anchor-day"
+								type="number"
+								value={anchorDayRaw}
+								onChange={(e) => setAnchorDayRaw(e.target.value)}
+								placeholder={
+									cycleType === "calendar_month" ? "(leave empty)" : "1"
+								}
+								disabled={cycleType === "calendar_month" || mutation.isPending}
+							/>
+							<p className="text-[11px] text-[#737373]">
+								{anchorDayHint(cycleType)}
 							</p>
-						) : null}
-					</div>
-
-					<div className="space-y-1.5">
-						<Label htmlFor="cycle-type">Cycle type</Label>
-						<Select
-							value={cycleType}
-							onValueChange={(v) => {
-								setCycleType(v as CycleType);
-								// Reset anchor on type change — different ranges per type.
-								setAnchorDayRaw(v === "calendar_month" ? "" : "");
-							}}
-							disabled={mutation.isPending}
-						>
-							<SelectTrigger id="cycle-type" className="w-full">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="calendar_month">
-									Calendar month (UTC 1st → 1st)
-								</SelectItem>
-								<SelectItem value="monthly_anchored">
-									Monthly anchored (e.g. 22nd → 22nd)
-								</SelectItem>
-								<SelectItem value="semi_monthly">
-									Semi-monthly (two halves per month)
-								</SelectItem>
-								<SelectItem value="weekly">Weekly (anchored to a weekday)</SelectItem>
-							</SelectContent>
-						</Select>
-					</div>
-
-					<div className="space-y-1.5">
-						<Label htmlFor="anchor-day">Anchor day</Label>
-						<Input
-							id="anchor-day"
-							type="number"
-							value={anchorDayRaw}
-							onChange={(e) => setAnchorDayRaw(e.target.value)}
-							placeholder={cycleType === "calendar_month" ? "(leave empty)" : "1"}
-							disabled={cycleType === "calendar_month" || mutation.isPending}
-						/>
-						<p className="text-[11px] text-muted-foreground">{anchorDayHint(cycleType)}</p>
+						</div>
 					</div>
 				</div>
 
-				<DialogFooter>
-					<Button variant="outline" onClick={onClose} disabled={mutation.isPending}>
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+					<Button
+						variant="outline"
+						onClick={onClose}
+						disabled={mutation.isPending}
+					>
 						Cancel
 					</Button>
 					<Button
+						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
 						onClick={() => mutation.mutate()}
 						disabled={!anchorValid || mutation.isPending}
 					>
-						{mutation.isPending ? "Saving…" : isNew ? "Create policy" : "Save changes"}
+						{mutation.isPending
+							? "Saving…"
+							: isNew
+								? "Create policy"
+								: "Save changes"}
 					</Button>
 				</DialogFooter>
 			</DialogContent>

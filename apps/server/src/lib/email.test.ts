@@ -31,10 +31,12 @@ process.env.RESEND_API_KEY =
 // Don't set RESEND_FROM_EMAIL and RESEND_FROM_NAME to test defaults
 
 // Mock Resend before importing email module
-const mockResendSend = mock((..._args: any[]): any => Promise.resolve({
-	error: null,
-	id: "mock-email-id-123",
-}));
+const mockResendSend = mock((..._args: any[]): any =>
+	Promise.resolve({
+		error: null,
+		id: "mock-email-id-123",
+	}),
+);
 
 const mockResendInstance = {
 	emails: {
@@ -116,14 +118,14 @@ describe.skipIf(!shouldRun)("Email Service - sendEmail", () => {
 				to: "test@example.com",
 				subject: "Test",
 				html: "<p>Test</p>",
-			})
+			}),
 		).rejects.toThrow("Failed to send email");
 	});
 
 	test("validates required fields", async () => {
 		await expect(
 			// @ts-expect-error - Testing invalid input
-			sendEmail({})
+			sendEmail({}),
 		).rejects.toThrow("To, subject, and html are required");
 	});
 
@@ -180,7 +182,8 @@ describe.skipIf(!shouldRun)("Email Service - sendVerificationEmail", () => {
 	test("sends email with correct subject and content", async () => {
 		const verificationLink = "https://example.com/verify?token=abc123";
 		// The implementation rewrites the link to point to the frontend UI
-		const expectedLink = "http://localhost:3001/verify-email?token=abc123&callbackURL=%2Flogin";
+		const expectedLink =
+			"http://localhost:3001/verify-email?token=abc123&callbackURL=%2Flogin";
 
 		await sendVerificationEmail("test@example.com", verificationLink);
 
@@ -196,7 +199,8 @@ describe.skipIf(!shouldRun)("Email Service - sendVerificationEmail", () => {
 	test("includes verification link in email", async () => {
 		const verificationLink = "https://example.com/verify?token=xyz789";
 		// The implementation rewrites the link to point to the frontend UI
-		const expectedLink = "http://localhost:3001/verify-email?token=xyz789&callbackURL=%2Flogin";
+		const expectedLink =
+			"http://localhost:3001/verify-email?token=xyz789&callbackURL=%2Flogin";
 
 		await sendVerificationEmail("test@example.com", verificationLink);
 
@@ -208,7 +212,11 @@ describe.skipIf(!shouldRun)("Email Service - sendVerificationEmail", () => {
 	test("includes user name when provided", async () => {
 		const verificationLink = "https://example.com/verify?token=abc123";
 
-		await sendVerificationEmail("test@example.com", verificationLink, "John Doe");
+		await sendVerificationEmail(
+			"test@example.com",
+			verificationLink,
+			"John Doe",
+		);
 
 		const callArgs = mockResendSend.mock.calls[0]![0]!;
 		expect(callArgs.html).toContain("Hi John Doe");
@@ -270,13 +278,15 @@ describe.skipIf(!shouldRun)("Email Service - sendInvitationEmail", () => {
 		await sendInvitationEmail(
 			"invitee@example.com",
 			invitationLink,
-			organizationName
+			organizationName,
 		);
 
 		expect(mockResendSend).toHaveBeenCalledTimes(1);
 		const callArgs = mockResendSend.mock.calls[0]![0]!;
 		expect(callArgs.to).toEqual(["invitee@example.com"]);
-		expect(callArgs.subject).toBe("You've been invited to join Test Organization");
+		expect(callArgs.subject).toBe(
+			"You've been invited to join Test Organization",
+		);
 		expect(callArgs.html).toContain(invitationLink);
 		expect(callArgs.html).toContain(organizationName);
 		expect(callArgs.text).toContain(invitationLink);
@@ -288,7 +298,7 @@ describe.skipIf(!shouldRun)("Email Service - sendInvitationEmail", () => {
 		await sendInvitationEmail(
 			"invitee@example.com",
 			invitationLink,
-			"Test Org"
+			"Test Org",
 		);
 
 		const callArgs = mockResendSend.mock.calls[0]![0]!;
@@ -304,7 +314,7 @@ describe.skipIf(!shouldRun)("Email Service - sendInvitationEmail", () => {
 			invitationLink,
 			"Acme Corp",
 			"John Manager",
-			"admin"
+			"admin",
 		);
 
 		const callArgs = mockResendSend.mock.calls[0]![0]!;
@@ -322,7 +332,7 @@ describe.skipIf(!shouldRun)("Email Service - sendInvitationEmail", () => {
 		await sendInvitationEmail(
 			"invitee@example.com",
 			invitationLink,
-			"Test Org"
+			"Test Org",
 		);
 
 		const callArgs = mockResendSend.mock.calls[0]![0]!;
@@ -331,4 +341,3 @@ describe.skipIf(!shouldRun)("Email Service - sendInvitationEmail", () => {
 		expect(callArgs.text).toContain("Test Org");
 	});
 });
-

@@ -51,17 +51,27 @@ function ApproveConfirmDialog({
 }) {
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-sm">
-				<DialogHeader>
-					<DialogTitle>Approve Commission Splits</DialogTitle>
-					<DialogDescription>
+			<DialogContent
+				className="sm:max-w-sm p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						COMMISSION SUMMARY
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Approve Commission Splits
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
 						You are about to approve {count} commission split
 						{count !== 1 ? "s" : ""} totalling{" "}
-						<span className="font-semibold">{formatPrice(totalAmountCents ?? 0, "MYR")}</span>.
-						{" "}This will move them from Pending to Approved. Continue?
+						<span className="font-semibold">
+							{formatPrice(totalAmountCents ?? 0, "MYR")}
+						</span>
+						. This will move them from Pending to Approved. Continue?
 					</DialogDescription>
 				</DialogHeader>
-				<DialogFooter>
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 					<Button
 						variant="outline"
 						onClick={() => onOpenChange(false)}
@@ -69,7 +79,11 @@ function ApproveConfirmDialog({
 					>
 						Cancel
 					</Button>
-					<Button onClick={onConfirm} disabled={isPending}>
+					<Button
+						onClick={onConfirm}
+						disabled={isPending}
+						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+					>
 						{isPending ? "Approving…" : "Approve"}
 					</Button>
 				</DialogFooter>
@@ -112,29 +126,40 @@ function VoidConfirmDialog({
 				if (!o) handleClose();
 			}}
 		>
-			<DialogContent className="sm:max-w-sm">
-				<DialogHeader>
-					<DialogTitle>Void Commission Splits</DialogTitle>
-					<DialogDescription>
-						You are about to void {count} commission split{count !== 1 ? "s" : ""}
-						. Provide a required reason — this is recorded in the audit trail.
+			<DialogContent
+				className="sm:max-w-sm p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						COMMISSION SUMMARY
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Void Commission Splits
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
+						You are about to void {count} commission split
+						{count !== 1 ? "s" : ""}. Provide a required reason — this is
+						recorded in the audit trail.
 					</DialogDescription>
 				</DialogHeader>
-				<div className="space-y-3 py-2">
-					<div className="flex flex-col gap-1.5">
-						<Label htmlFor="void-reason">
-							Reason <span className="text-destructive">*</span>
-						</Label>
-						<Textarea
-							id="void-reason"
-							rows={3}
-							placeholder="Explain why these splits are being voided…"
-							value={reason}
-							onChange={(e) => setReason(e.target.value)}
-						/>
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					<div className="space-y-3 py-2">
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="void-reason">
+								Reason <span className="text-rose-600">*</span>
+							</Label>
+							<Textarea
+								id="void-reason"
+								rows={3}
+								placeholder="Explain why these splits are being voided…"
+								value={reason}
+								onChange={(e) => setReason(e.target.value)}
+							/>
+						</div>
 					</div>
 				</div>
-				<DialogFooter>
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 					<Button variant="outline" onClick={handleClose} disabled={isPending}>
 						Cancel
 					</Button>
@@ -142,6 +167,7 @@ function VoidConfirmDialog({
 						variant="destructive"
 						onClick={handleConfirm}
 						disabled={isPending || !reason.trim()}
+						className="bg-red-600 hover:bg-red-700 text-white"
 					>
 						{isPending ? "Voiding…" : "Void Selected"}
 					</Button>
@@ -179,7 +205,8 @@ export function BulkActionBar({
 				ids: selectedIds,
 			}),
 		successMessage: `Approved ${count} commission split${count !== 1 ? "s" : ""}.`,
-		errorMessage: (err) => err.message || "Failed to approve commission splits.",
+		errorMessage: (err) =>
+			err.message || "Failed to approve commission splits.",
 		invalidate: [["commissions"]],
 		onSuccess: () => {
 			setApproveDialogOpen(false);
@@ -218,7 +245,7 @@ export function BulkActionBar({
 
 	return (
 		<>
-			<div className="flex items-center gap-3 rounded-lg border bg-muted/60 px-4 py-3">
+			<div className="flex items-center gap-3 rounded-lg border bg-[#f3f3f3]/60 px-4 py-3">
 				<span className="font-medium text-sm">
 					{count} row{count !== 1 ? "s" : ""} selected
 				</span>
@@ -231,7 +258,9 @@ export function BulkActionBar({
 							className="border-green-300 text-green-700 hover:bg-green-50"
 							onClick={() => {
 								if (selectedRows) {
-									const distinctStaff = new Set(selectedRows.map((r) => r.staffId));
+									const distinctStaff = new Set(
+										selectedRows.map((r) => r.staffId),
+									);
 									if (distinctStaff.size > 1) {
 										toast.error(
 											`Cannot approve splits for ${distinctStaff.size} different staff members at once. Filter by a single staff member first.`,
@@ -261,7 +290,7 @@ export function BulkActionBar({
 						<Button
 							size="sm"
 							variant="outline"
-							className="border-destructive/40 text-destructive hover:bg-destructive/5"
+							className="border-[#e5e5e5] text-rose-600 hover:bg-rose-50/5"
 							onClick={() => setVoidDialogOpen(true)}
 						>
 							Void Selected

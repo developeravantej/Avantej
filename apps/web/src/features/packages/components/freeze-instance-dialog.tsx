@@ -66,53 +66,68 @@ export function FreezeInstanceDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-md" data-testid="freeze-instance-dialog">
-				<DialogHeader>
-					<DialogTitle>Freeze Package?</DialogTitle>
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+				data-testid="freeze-instance-dialog"
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						PACKAGE CATALOG
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Freeze Package?
+					</DialogTitle>
 					{instanceLabel && (
-						<DialogDescription>Freezing "{instanceLabel}".</DialogDescription>
+						<DialogDescription className="text-sm text-[#737373]">
+							Freezing "{instanceLabel}".
+						</DialogDescription>
 					)}
 				</DialogHeader>
 
-				<div className="space-y-4 py-2">
-					{/* Note */}
-					<div className="flex gap-3 rounded-lg border border-muted bg-muted/40 p-3">
-						<Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-						<p className="text-sm text-muted-foreground">
-							Customer cannot book sessions while frozen.
-						</p>
-					</div>
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					<div className="space-y-4 py-2">
+						{/* Note */}
+						<div className="flex gap-3 rounded-lg border border-[#e5e5e5] bg-[#f3f3f3]/50 p-3">
+							<Info className="mt-0.5 h-4 w-4 shrink-0 text-[#737373]" />
+							<p className="text-sm text-[#737373]">
+								Customer cannot book sessions while frozen.
+							</p>
+						</div>
 
-					{/* Frozen until */}
-					<div className="space-y-1.5">
-						<Label htmlFor="freeze-until">
-							Frozen until{" "}
-							<span className="text-muted-foreground text-xs">(leave blank for indefinite)</span>
-						</Label>
-						<Input
-							id="freeze-until"
-							type="date"
-							min={minDate}
-							value={until}
-							onChange={(e) => setUntil(e.target.value)}
-							data-testid="freeze-until-input"
-						/>
-					</div>
+						{/* Frozen until */}
+						<div className="space-y-1.5">
+							<Label htmlFor="freeze-until">
+								Frozen until{" "}
+								<span className="text-[#737373] text-xs">
+									(leave blank for indefinite)
+								</span>
+							</Label>
+							<Input
+								id="freeze-until"
+								type="date"
+								min={minDate}
+								value={until}
+								onChange={(e) => setUntil(e.target.value)}
+								data-testid="freeze-until-input"
+							/>
+						</div>
 
-					{/* Reason */}
-					<div className="space-y-1.5">
-						<Label htmlFor="freeze-reason">Reason</Label>
-						<Textarea
-							id="freeze-reason"
-							placeholder="Optional — describe why this package is being frozen…"
-							rows={2}
-							value={reason}
-							onChange={(e) => setReason(e.target.value)}
-						/>
+						{/* Reason */}
+						<div className="space-y-1.5">
+							<Label htmlFor="freeze-reason">Reason</Label>
+							<Textarea
+								id="freeze-reason"
+								placeholder="Optional — describe why this package is being frozen…"
+								rows={2}
+								value={reason}
+								onChange={(e) => setReason(e.target.value)}
+							/>
+						</div>
 					</div>
 				</div>
 
-				<DialogFooter>
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 					<Button
 						type="button"
 						variant="outline"
@@ -125,6 +140,7 @@ export function FreezeInstanceDialog({
 						type="button"
 						onClick={handleConfirm}
 						disabled={freezeMutation.isPending}
+						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
 						data-testid="freeze-instance-confirm-button"
 					>
 						{freezeMutation.isPending ? "Freezing…" : "Freeze Package"}

@@ -114,7 +114,8 @@ const EMAIL_CAPTURE_LIMIT = 50;
 const capturedEmails: CapturedEmail[] = [];
 
 let emailCaptureEnabled =
-	getEnvVar("EMAIL_CAPTURE_ENABLED") === "true" || (process.env.NODE_ENV as string) === "test";
+	getEnvVar("EMAIL_CAPTURE_ENABLED") === "true" ||
+	(process.env.NODE_ENV as string) === "test";
 
 export function __setEmailCaptureEnabled(enabled: boolean): void {
 	emailCaptureEnabled = enabled;
@@ -144,7 +145,7 @@ function recordEmailCapture(capture: Omit<CapturedEmail, "sentAt">): void {
 	}
 	if (capture.metadata?.token) {
 		console.log(
-			`📬 Captured ${capture.type} token for ${capture.to}: ${capture.metadata.token}`
+			`📬 Captured ${capture.type} token for ${capture.to}: ${capture.metadata.token}`,
 		);
 	}
 }
@@ -210,21 +211,28 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
 			html,
 			text: text || html.replace(/<[^>]*>/g, ""), // Strip HTML tags for text version
 			...(attachments && attachments.length > 0
-				? { attachments: attachments.map((a) => ({ filename: a.filename, content: a.content })) }
+				? {
+						attachments: attachments.map((a) => ({
+							filename: a.filename,
+							content: a.content,
+						})),
+					}
 				: {}),
 		});
 
 		if (result.error) {
 			throw new Error(
-				`Resend API error: ${result.error.message || "Unknown error"}`
+				`Resend API error: ${result.error.message || "Unknown error"}`,
 			);
 		}
 
-		console.log(`Email sent successfully to ${Array.isArray(to) ? to.join(", ") : to}`);
+		console.log(
+			`Email sent successfully to ${Array.isArray(to) ? to.join(", ") : to}`,
+		);
 	} catch (error) {
 		console.error("Failed to send email:", error);
 		throw new Error(
-			`Failed to send email: ${error instanceof Error ? error.message : "Unknown error"}`
+			`Failed to send email: ${error instanceof Error ? error.message : "Unknown error"}`,
 		);
 	}
 }
@@ -239,12 +247,14 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
 export async function sendVerificationEmail(
 	to: string,
 	verificationLink: string,
-	userName?: string
+	userName?: string,
 ): Promise<void> {
 	// Send users to the frontend UI instead of the backend `/api/auth/verify-email` URL.
 	// The frontend page will call our API (`POST /auth/verify-email`) and then redirect.
 	const frontendURL =
-		getEnvVar("CORS_ORIGIN") || getEnvVar("FRONTEND_URL") || "http://localhost:3001";
+		getEnvVar("CORS_ORIGIN") ||
+		getEnvVar("FRONTEND_URL") ||
+		"http://localhost:3001";
 	const tokenFromLink = extractTokenFromLink(verificationLink);
 	const callbackURLFromLink = (() => {
 		try {
@@ -254,10 +264,9 @@ export async function sendVerificationEmail(
 			return "/login";
 		}
 	})();
-	const verificationLinkForUser =
-		tokenFromLink
-			? `${frontendURL}/verify-email?token=${encodeURIComponent(tokenFromLink)}&callbackURL=${encodeURIComponent(callbackURLFromLink)}`
-			: verificationLink;
+	const verificationLinkForUser = tokenFromLink
+		? `${frontendURL}/verify-email?token=${encodeURIComponent(tokenFromLink)}&callbackURL=${encodeURIComponent(callbackURLFromLink)}`
+		: verificationLink;
 
 	const subject = "Verify Your Email Address - Avantej Core";
 	const html = `
@@ -334,7 +343,7 @@ If you didn't create an account, you can safely ignore this email.
 export async function sendPasswordResetEmail(
 	to: string,
 	resetLink: string,
-	userName?: string
+	userName?: string,
 ): Promise<void> {
 	const subject = "Reset Your Password - Avantej Core";
 	const html = `
@@ -415,7 +424,7 @@ export async function sendInvitationEmail(
 	invitationLink: string,
 	organizationName: string,
 	inviterName?: string,
-	role?: string
+	role?: string,
 ): Promise<void> {
 	const subject = `You've been invited to join ${organizationName}`;
 	const html = `
@@ -560,4 +569,3 @@ If you did not request this email, you can safely ignore it.
 		},
 	});
 }
-

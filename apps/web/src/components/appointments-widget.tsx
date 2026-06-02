@@ -5,9 +5,12 @@ import { cn } from "@/lib/utils";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { client } from "@/utils/orpc";
+import { orpc } from "@/utils/orpc";
 import { useUserContext } from "@/hooks/useUserContext";
-import { mapApiAppointmentToCalendar, getTodayRange } from "@/lib/appointment-mapper";
+import {
+	mapApiAppointmentToCalendar,
+	getTodayRange,
+} from "@/lib/appointment-mapper";
 
 export function AppointmentsWidget() {
 	const navigate = useNavigate();
@@ -17,23 +20,21 @@ export function AppointmentsWidget() {
 	const { startFrom, startTo } = getTodayRange();
 
 	const { data: apiAppointments = [], isLoading } = useQuery({
-		queryKey: ["appointments-today", organizationId, startFrom, startTo],
-		queryFn: async () => {
-			if (!organizationId) return [];
-			return client.appointments.list({
-				organizationId,
+		...orpc.appointments.list.queryOptions({
+			input: {
+				organizationId: organizationId!,
 				startFrom,
 				startTo,
 				limit: 10,
-			});
-		},
+			},
+		}),
 		enabled: !!organizationId,
 		staleTime: 2 * 60 * 1000,
 	});
 
 	const appointments = useMemo(
 		() => apiAppointments.map(mapApiAppointmentToCalendar),
-		[apiAppointments]
+		[apiAppointments],
 	);
 
 	const handleWidgetClick = () => {
@@ -83,7 +84,9 @@ export function AppointmentsWidget() {
 			<CardContent>
 				<div className="flex flex-col max-h-[280px] overflow-y-auto pr-4 -mr-4 scrollbar-warm">
 					<div className="flex justify-between items-center p-2 mb-2">
-						<h1 className="font-heading font-semibold text-2xl">Appointments Today</h1>
+						<h1 className="font-heading font-semibold text-2xl">
+							Appointments Today
+						</h1>
 						<ChevronsUpDown className="mr-3 size-4" />
 					</div>
 
@@ -108,7 +111,7 @@ export function AppointmentsWidget() {
 									key={appointment.id}
 									className={cn(
 										"flex items-start space-x-3 p-3 rounded-lg border cursor-pointer transition-colors hover:bg-brand-secondary-3/50 relative",
-										getStatusColor(appointment.status)
+										getStatusColor(appointment.status),
 									)}
 								>
 									<div className="flex-shrink-0 w-16 text-center">
@@ -140,7 +143,8 @@ export function AppointmentsWidget() {
 												<div className="flex items-center gap-1 mt-1">
 													<Clock className="size-3 text-brand-secondary-1" />
 													<p className="text-xs text-brand-secondary-1 truncate">
-														{appointment.service} • {formatDuration(appointment.start, appointment.end)}
+														{appointment.service} •{" "}
+														{formatDuration(appointment.start, appointment.end)}
 													</p>
 												</div>
 											</div>
@@ -148,9 +152,12 @@ export function AppointmentsWidget() {
 												variant="secondary"
 												className={cn(
 													"ml-2 text-xs",
-													appointment.status === "confirmed" && "bg-green-100 text-green-800",
-													appointment.status === "pending" && "bg-yellow-100 text-yellow-800",
-													appointment.status === "cancelled" && "bg-red-100 text-red-800"
+													appointment.status === "confirmed" &&
+														"bg-green-100 text-green-800",
+													appointment.status === "pending" &&
+														"bg-yellow-100 text-yellow-800",
+													appointment.status === "cancelled" &&
+														"bg-red-100 text-red-800",
 												)}
 											>
 												{appointment.status}

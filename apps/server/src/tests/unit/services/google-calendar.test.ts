@@ -71,7 +71,9 @@ describe("listGoogleCalendars", () => {
 				accessRole: "owner",
 			},
 		];
-		globalThis.fetch = mockFetchOk({ items: rawItems }) as unknown as typeof fetch;
+		globalThis.fetch = mockFetchOk({
+			items: rawItems,
+		}) as unknown as typeof fetch;
 
 		const result = await listGoogleCalendars("test-access-token");
 
@@ -103,7 +105,10 @@ describe("listGoogleCalendars", () => {
 	});
 
 	test("throws on non-ok Google response", async () => {
-		globalThis.fetch = mockFetchError(401, "Unauthorized") as unknown as typeof fetch;
+		globalThis.fetch = mockFetchError(
+			401,
+			"Unauthorized",
+		) as unknown as typeof fetch;
 		await expect(listGoogleCalendars("bad-token")).rejects.toThrow(
 			"Calendar list fetch failed: Unauthorized",
 		);
@@ -127,9 +132,9 @@ describe("listGoogleCalendars", () => {
 		await listGoogleCalendars("my-access-token-123");
 
 		expect(String(capturedRequest)).toContain("calendarList");
-		expect((capturedInit?.headers as Record<string, string>)?.["Authorization"]).toBe(
-			"Bearer my-access-token-123",
-		);
+		expect(
+			(capturedInit?.headers as Record<string, string>)?.["Authorization"],
+		).toBe("Bearer my-access-token-123");
 	});
 });
 

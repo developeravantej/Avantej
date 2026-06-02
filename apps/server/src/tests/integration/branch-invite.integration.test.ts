@@ -51,7 +51,9 @@ const createdInviteIds: string[] = [];
 
 beforeAll(() => {
 	if (shouldSkipIntegration()) {
-		console.log("[branch-invite.integration] Skipping — TENANT_DATABASE_URL not available");
+		console.log(
+			"[branch-invite.integration] Skipping — TENANT_DATABASE_URL not available",
+		);
 		return;
 	}
 	loadDevVars();
@@ -68,9 +70,7 @@ afterAll(async () => {
 
 // ─── helper ───────────────────────────────────────────────────────────────────
 
-async function createTestInvite(overrides: {
-	maxUses?: number | null;
-} = {}) {
+async function createTestInvite(overrides: { maxUses?: number | null } = {}) {
 	const invite = await createBranchInvite(tenantDb, {
 		branchId: TEST_BRANCH_NODE_ID,
 		invitedBy: TEST_USER_ID,
@@ -89,7 +89,7 @@ describe("createBranchInvite", () => {
 		const invite = await createTestInvite();
 
 		expect(invite.id).toMatch(
-			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+			/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
 		);
 		expect(invite.token.length).toBeGreaterThanOrEqual(43);
 		expect(invite.token).not.toMatch(/[+/=]/); // base64url, no padding
@@ -105,7 +105,9 @@ describe("createBranchInvite", () => {
 		const invite = await createTestInvite();
 		const nineYearsMs = 9 * 365 * 24 * 60 * 60 * 1000;
 
-		expect(invite.expiresAt.getTime()).toBeGreaterThan(Date.now() + nineYearsMs);
+		expect(invite.expiresAt.getTime()).toBeGreaterThan(
+			Date.now() + nineYearsMs,
+		);
 	}, 30_000);
 
 	test("consecutive creates produce unique tokens", async () => {
@@ -162,7 +164,10 @@ describe("validateBranchInvite", () => {
 	test("returns NOT_FOUND for an unknown token", async () => {
 		if (shouldSkipIntegration()) return;
 
-		const result = await validateBranchInvite(tenantDb, "definitely-not-a-real-token-xyz");
+		const result = await validateBranchInvite(
+			tenantDb,
+			"definitely-not-a-real-token-xyz",
+		);
 
 		expect(result.isValid).toBe(false);
 		expect(result.error).toBe("NOT_FOUND");
@@ -246,7 +251,7 @@ describe("revokeBranchInvite", () => {
 		if (shouldSkipIntegration()) return;
 
 		await expect(
-			revokeBranchInvite(tenantDb, "00000000-0000-4000-8000-000000000000")
+			revokeBranchInvite(tenantDb, "00000000-0000-4000-8000-000000000000"),
 		).rejects.toThrow();
 	}, 30_000);
 
@@ -361,7 +366,7 @@ describe("getInviteContext", () => {
 				tenantDb,
 				controlPanelDb,
 				organizationId: TEST_ORG_ID,
-			})
+			}),
 		).rejects.toMatchObject({ code: "NOT_FOUND" });
 	}, 30_000);
 
@@ -377,7 +382,7 @@ describe("getInviteContext", () => {
 				tenantDb,
 				controlPanelDb,
 				organizationId: TEST_ORG_ID,
-			})
+			}),
 		).rejects.toMatchObject({ code: "GONE" });
 	}, 30_000);
 });

@@ -112,7 +112,7 @@ function DataTable<TData extends UomConversionRow, TValue>({
 	emptyTitle,
 	emptyDescription,
 	emptyAction,
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
+	// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }: DataTableProps<TData, TValue>) {
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [globalFilter, setGlobalFilter] = useState("");
@@ -250,7 +250,9 @@ function DataTable<TData extends UomConversionRow, TValue>({
 					<StatusCallout
 						variant="error"
 						title="Couldn't load data"
-						message={error instanceof Error ? error.message : "An error occurred"}
+						message={
+							error instanceof Error ? error.message : "An error occurred"
+						}
 						onRetry={onRetry}
 					/>
 				</div>
@@ -344,15 +346,25 @@ function DataTable<TData extends UomConversionRow, TValue>({
 
 			{/* Create Dialog */}
 			<Dialog open={isAddDialogOpen} onOpenChange={onAddDialogOpenChange}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>Add UoM Conversion</DialogTitle>
-						<DialogDescription>Create a new unit of measure conversion.</DialogDescription>
+				<DialogContent
+					hideCloseButton
+					className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							UNITS OF MEASURE
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Add UoM Conversion
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
+							Create a new unit of measure conversion.
+						</DialogDescription>
 					</DialogHeader>
-					<div className="flex flex-col gap-4 py-2">
+					<div className="px-6 pt-4 pb-2 flex flex-col gap-4">
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="c-name">
-								Name <span className="text-destructive">*</span>
+								Name <span className="text-rose-600">*</span>
 							</Label>
 							<Input
 								id="c-name"
@@ -363,13 +375,13 @@ function DataTable<TData extends UomConversionRow, TValue>({
 						</div>
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="c-base">
-								Base UoM <span className="text-destructive">*</span>
+								Base UoM <span className="text-rose-600">*</span>
 							</Label>
 							<select
 								id="c-base"
 								value={createBaseUomId}
 								onChange={(e) => setCreateBaseUomId(e.target.value)}
-								className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+								className="flex h-9 w-full rounded-md border border-[#e5e5e5] bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
 							>
 								<option value="">Select base UoM…</option>
 								{baseUoms.map((u) => (
@@ -381,7 +393,7 @@ function DataTable<TData extends UomConversionRow, TValue>({
 						</div>
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="c-factor">
-								Conversion Factor <span className="text-destructive">*</span>
+								Conversion Factor <span className="text-rose-600">*</span>
 							</Label>
 							<Input
 								id="c-factor"
@@ -404,7 +416,7 @@ function DataTable<TData extends UomConversionRow, TValue>({
 							/>
 						</div>
 					</div>
-					<DialogFooter>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button
 							variant="outline"
 							onClick={() => onAddDialogOpenChange(false)}
@@ -412,7 +424,11 @@ function DataTable<TData extends UomConversionRow, TValue>({
 						>
 							Cancel
 						</Button>
-						<Button onClick={handleCreate} disabled={isCreating}>
+						<Button
+							onClick={handleCreate}
+							disabled={isCreating}
+							className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+						>
 							{isCreating ? "Adding..." : "Add Conversion"}
 						</Button>
 					</DialogFooter>
@@ -429,7 +445,9 @@ function DataTable<TData extends UomConversionRow, TValue>({
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
 						<DialogTitle>Edit UoM Conversion</DialogTitle>
-						<DialogDescription>Update the details of this unit of measure conversion.</DialogDescription>
+						<DialogDescription>
+							Update the details of this unit of measure conversion.
+						</DialogDescription>
 					</DialogHeader>
 					<div className="flex flex-col gap-4 py-2">
 						<div className="flex flex-col gap-1.5">

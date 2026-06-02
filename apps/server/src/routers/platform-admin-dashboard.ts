@@ -24,8 +24,7 @@ import { getTierPriceUsdCents, type Tier } from "@avantej-core/types";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
+import { adminProcedure } from "@/lib/admin-procedure";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
@@ -36,42 +35,7 @@ import {
 	type RiskFlag,
 } from "@avantej-core/db/schema/control-panel/tenant-usage-snapshots";
 
-function requirePlatformAdmin() {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Authentication required",
-				});
-			}
-			const cpDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
-			const adminRecord = await cpDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Admin access required",
-				});
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
-
-function cpDbFrom(
-	context: unknown,
-): NeonDatabase<typeof controlPanelSchema> {
+function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
 	const db = (
 		context as { honoContext?: { get: (k: string) => unknown } }
 	).honoContext?.get("controlPanelDb") as
@@ -123,7 +87,9 @@ export const platformAdminDashboardRouter = {
 
 				cpDb
 					.select({
-						actorUserId: sql<string | null>`COALESCE(${adminSessionActions.adminUserId}, ${adminSessions.adminUserId})`,
+						actorUserId: sql<
+							string | null
+						>`COALESCE(${adminSessionActions.adminUserId}, ${adminSessions.adminUserId})`,
 						actorEmail: users.email,
 						action: adminSessionActions.actionType,
 						targetOrgId: adminSessionActions.targetOrganizationId,
@@ -151,9 +117,10 @@ export const platformAdminDashboardRouter = {
 					const latest = cpDb
 						.select({
 							organizationId: tenantUsageSnapshots.organizationId,
-							maxDate: sql<string>`MAX(${tenantUsageSnapshots.snapshotDate})`.as(
-								"max_date",
-							),
+							maxDate:
+								sql<string>`MAX(${tenantUsageSnapshots.snapshotDate})`.as(
+									"max_date",
+								),
 						})
 						.from(tenantUsageSnapshots)
 						.where(isNotNull(tenantUsageSnapshots.healthScore))
@@ -171,10 +138,7 @@ export const platformAdminDashboardRouter = {
 						.innerJoin(
 							latest,
 							and(
-								eq(
-									tenantUsageSnapshots.organizationId,
-									latest.organizationId,
-								),
+								eq(tenantUsageSnapshots.organizationId, latest.organizationId),
 								eq(tenantUsageSnapshots.snapshotDate, latest.maxDate),
 							),
 						)

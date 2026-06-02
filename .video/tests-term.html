@@ -1,0 +1,49 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>money-math tests</title>
+<style>
+@keyframes reveal{to{opacity:1;transform:translateY(0)}}
+*{margin:0;box-sizing:border-box}
+body{background:#0b0e14;font-family:ui-monospace,"SF Mono",Menlo,monospace;padding:28px 34px;color:#cdd6f4}
+.hd{color:#7f849c;font-size:13px;margin-bottom:14px}
+.hd b{color:#a6e3a1}
+.line{font-size:13.5px;line-height:1.85;opacity:0;transform:translateY(6px);animation:reveal .25s forwards}
+.file{color:#89b4fa;font-weight:700;margin-top:10px}
+.grp{color:#f9e2af}
+.ok{color:#a6e3a1}
+.sum{margin-top:18px;font-size:15px}
+.sum .p{color:#a6e3a1;font-weight:700}
+.sum .f{color:#6c7086}
+.t{color:#9399b2}
+.cur{display:inline-block;width:9px;height:16px;background:#a6e3a1;vertical-align:middle;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+</style></head>
+<body>
+<div class="hd">$ bun test  <b>money-math</b> · <b>installment.service</b> · <b>commission-splits.void</b></div>
+<div id="o"></div>
+<script>
+const L=[
+ ["file","bun test v1.3.10"],
+ ["file","src/money-math.test.ts"],
+ ["grp","  calculatePromoDiscount — percentage"],
+ ["ok","    ✓ 20% of RM100 = RM20","    ✓ 8.5% (850bp) = 850c","    ✓ floors sub-cent (never over-discounts)","    ✓ caps at maximumDiscount","    ✓ no cap below the cap","    ✓ null cap = uncapped","    ✓ 0% = 0","    ✓ zero-amount order = 0"],
+ ["grp","  applyTaxBasisPoints"],
+ ["ok","    ✓ SST 8% of RM100 = RM8","    ✓ 6% of 5000c = 300c","    ✓ floors 8% of 3c → 0","    ✓ floors 8% of 13c → 1","    ✓ null / undefined / 0bp → 0","    ✓ zero base → 0"],
+ ["grp","  applyInstallmentPremium"],
+ ["ok","    ✓ +5% on RM300 → RM315","    ✓ 0bp / null → unchanged","    ✓ rounds to nearest cent"],
+ ["file","src/installment.service.test.ts"],
+ ["grp","  calculateInstallmentAmounts"],
+ ["ok","    ✓ splits evenly","    ✓ remainder lands on the LAST installment","    ✓ always sums back to the exact total"],
+ ["grp","  calculateSuggestedRefund"],
+ ["ok","    ✓ values unused credits at floor(price/credits)","    ✓ caps refund at amount actually paid","    ✓ apportions paid tax proportionally","    ✓ zero tax when nothing paid (no ÷0)","    ✓ clamps unusedCredits at 0"],
+ ["grp","  calculateCreditsUnlocked"],
+ ["ok","    ✓ all paid → all unlocked","    ✓ none paid → 0","    ✓ proportional floor mid-schedule"],
+ ["file","src/commission-splits.void.test.ts"],
+ ["grp","  voidCommissionSplit — guards"],
+ ["ok","    ✓ NOT_FOUND when missing","    ✓ refuses to void a PAID split (money disbursed)","    ✓ idempotent on already-void","    ✓ transitions PENDING → void + writes audit","    ✓ transitions APPROVED → void + audit"],
+];
+const o=document.getElementById("o");let d=0;
+function add(cls,txt){const e=document.createElement("div");e.className="line "+cls;e.textContent=txt;e.style.animationDelay=d+"s";o.appendChild(e);d+=0.16;}
+for(const [cls,...rows] of L){for(const r of rows)add(cls,r);}
+const s=document.createElement("div");s.className="line sum";s.style.animationDelay=(d+0.3)+"s";
+s.innerHTML='<span class="p"> 50 pass</span> &nbsp; <span class="f">0 fail</span> &nbsp; <span class="t">· 78 expect() calls · 261ms</span> <span class="cur"></span>';
+o.appendChild(s);
+</script></body></html>

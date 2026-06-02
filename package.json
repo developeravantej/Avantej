@@ -99,7 +99,10 @@
     "turbo": "^2.5.4"
   },
   "lint-staged": {
-    "**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue,astro,svelte}": "bun run check:oxlint --"
+    "**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue,astro,svelte}": [
+      "bun run check:oxlint --",
+      "biome format --write"
+    ]
   },
   "packageManager": "bun@1.2.22"
 }

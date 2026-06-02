@@ -267,9 +267,7 @@ afterAll(async () => {
 			.update(members)
 			.set({ trainerTierId: null })
 			.where(inArray(members.id, createdMemberIds));
-		await tenantDb
-			.delete(members)
-			.where(inArray(members.id, createdMemberIds));
+		await tenantDb.delete(members).where(inArray(members.id, createdMemberIds));
 	}
 
 	// 8. Commission tier rates scaffolded by createTrainerTier for other configs
@@ -309,89 +307,85 @@ describe("Commission dedup guard: POS vs appointment", () => {
 	 * salesOrderId before calling the calculator. If existing splits are found, we
 	 * skip the calculator call. Final assertion: exactly 1 split for salesOrderId=X.
 	 */
-	test(
-		"TC-DD-001: POS split exists → appointment completion dedup guard keeps exactly 1 split for salesOrderId",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("TC-DD-001: POS split exists → appointment completion dedup guard keeps exactly 1 split for salesOrderId", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const { categoryId, serviceId } = await createCategoryAndService(
-				`TC-DD-001-${TS}`,
-			);
-			await upsertCategoryCommissionConfig(
-				tenantDb,
-				{
-					categoryId,
-					paymentType: "fixed",
-					isConditional: false,
-					maxCoaches: 1,
-					slots: [
-						{
-							slotIndex: 0,
-							label: "Head Trainer",
-							weightageBasisPoints: 10000,
-						},
-					],
-					rates: [{ trainerTierId: tierId, amount: 5000 }],
-				},
-				ACTOR,
-			);
+		const { categoryId, serviceId } = await createCategoryAndService(
+			`TC-DD-001-${TS}`,
+		);
+		await upsertCategoryCommissionConfig(
+			tenantDb,
+			{
+				categoryId,
+				paymentType: "fixed",
+				isConditional: false,
+				maxCoaches: 1,
+				slots: [
+					{
+						slotIndex: 0,
+						label: "Head Trainer",
+						weightageBasisPoints: 10000,
+					},
+				],
+				rates: [{ trainerTierId: tierId, amount: 5000 }],
+			},
+			ACTOR,
+		);
 
-			// Step 1: POS service sale creates a split with earnReason='pos_product'
-			const salesOrder = await createSalesOrder("DD-001");
-			await createSalesOrderItem(salesOrder.id, {
+		// Step 1: POS service sale creates a split with earnReason='pos_product'
+		const salesOrder = await createSalesOrder("DD-001");
+		await createSalesOrderItem(salesOrder.id, {
+			serviceId,
+			commissionDeferred: false,
+			description: "POS product item",
+		});
+
+		const posSplits = await calculateCommissionForPos(tenantDb, {
+			salesOrderId: salesOrder.id,
+			serviceId,
+			unitPriceCents: 10000,
+			quantity: 1,
+			staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
+			actor: ACTOR,
+			earnReason: "pos_product",
+		});
+		expect(posSplits).toHaveLength(1);
+		expect(posSplits[0]!.salesOrderId).toBe(salesOrder.id);
+
+		// Step 2: Appointment is also linked to the same salesOrderId.
+		// Replicate the dedup guard: check for existing splits before calling calculator.
+		const appt = await createAppointment(serviceId, "completed");
+
+		const existingPosSplits = await tenantDb
+			.select({ id: commissionSplits.id })
+			.from(commissionSplits)
+			.where(eq(commissionSplits.salesOrderId, salesOrder.id))
+			.limit(1);
+
+		// Guard fires: existing POS splits found → skip commission creation
+		if (existingPosSplits.length === 0) {
+			// This branch would create the duplicate — in production updateAppointment
+			// skips this call. We replicate that skip here.
+			await calculateCommissionForAppointment(tenantDb, {
+				appointmentId: appt.id,
 				serviceId,
-				commissionDeferred: false,
-				description: "POS product item",
-			});
-
-			const posSplits = await calculateCommissionForPos(tenantDb, {
-				salesOrderId: salesOrder.id,
-				serviceId,
-				unitPriceCents: 10000,
-				quantity: 1,
+				sessionTotalCents: 10000,
+				attendeeCount: 1,
 				staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
 				actor: ACTOR,
-				earnReason: "pos_product",
+				earnReason: "completion",
 			});
-			expect(posSplits).toHaveLength(1);
-			expect(posSplits[0]!.salesOrderId).toBe(salesOrder.id);
+		}
 
-			// Step 2: Appointment is also linked to the same salesOrderId.
-			// Replicate the dedup guard: check for existing splits before calling calculator.
-			const appt = await createAppointment(serviceId, "completed");
+		// Assert: exactly 1 split linked to this salesOrderId
+		const countRows = await tenantDb
+			.select({ value: count() })
+			.from(commissionSplits)
+			.where(eq(commissionSplits.salesOrderId, salesOrder.id));
+		const totalCount = countRows[0]?.value ?? 0;
 
-			const existingPosSplits = await tenantDb
-				.select({ id: commissionSplits.id })
-				.from(commissionSplits)
-				.where(eq(commissionSplits.salesOrderId, salesOrder.id))
-				.limit(1);
-
-			// Guard fires: existing POS splits found → skip commission creation
-			if (existingPosSplits.length === 0) {
-				// This branch would create the duplicate — in production updateAppointment
-				// skips this call. We replicate that skip here.
-				await calculateCommissionForAppointment(tenantDb, {
-					appointmentId: appt.id,
-					serviceId,
-					sessionTotalCents: 10000,
-					attendeeCount: 1,
-					staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
-					actor: ACTOR,
-					earnReason: "completion",
-				});
-			}
-
-			// Assert: exactly 1 split linked to this salesOrderId
-			const countRows = await tenantDb
-				.select({ value: count() })
-				.from(commissionSplits)
-				.where(eq(commissionSplits.salesOrderId, salesOrder.id));
-			const totalCount = countRows[0]?.value ?? 0;
-
-			expect(totalCount).toBe(1);
-		},
-		30000,
-	);
+		expect(totalCount).toBe(1);
+	}, 30000);
 
 	/**
 	 * TC-DD-002: control case — appointment has NO salesOrderId link.
@@ -402,81 +396,77 @@ describe("Commission dedup guard: POS vs appointment", () => {
 	 * This confirms the guard in TC-DD-001 is causal — without the salesOrderId link,
 	 * the guard does not fire and both splits exist.
 	 */
-	test(
-		"TC-DD-002: appointment has no salesOrderId link → both POS split and appointment split exist independently",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("TC-DD-002: appointment has no salesOrderId link → both POS split and appointment split exist independently", async () => {
+		if (shouldSkipIntegration()) return;
 
-			const { categoryId, serviceId } = await createCategoryAndService(
-				`TC-DD-002-${TS}`,
-			);
-			await upsertCategoryCommissionConfig(
-				tenantDb,
-				{
-					categoryId,
-					paymentType: "fixed",
-					isConditional: false,
-					maxCoaches: 1,
-					slots: [
-						{
-							slotIndex: 0,
-							label: "Head Trainer",
-							weightageBasisPoints: 10000,
-						},
-					],
-					rates: [{ trainerTierId: tierId, amount: 5000 }],
-				},
-				ACTOR,
-			);
+		const { categoryId, serviceId } = await createCategoryAndService(
+			`TC-DD-002-${TS}`,
+		);
+		await upsertCategoryCommissionConfig(
+			tenantDb,
+			{
+				categoryId,
+				paymentType: "fixed",
+				isConditional: false,
+				maxCoaches: 1,
+				slots: [
+					{
+						slotIndex: 0,
+						label: "Head Trainer",
+						weightageBasisPoints: 10000,
+					},
+				],
+				rates: [{ trainerTierId: tierId, amount: 5000 }],
+			},
+			ACTOR,
+		);
 
-			// POS split for sales order A
-			const salesOrderA = await createSalesOrder("DD-002A");
-			await createSalesOrderItem(salesOrderA.id, {
-				serviceId,
-				commissionDeferred: false,
-				description: "POS product item A",
-			});
-			const posSplits = await calculateCommissionForPos(tenantDb, {
-				salesOrderId: salesOrderA.id,
-				serviceId,
-				unitPriceCents: 10000,
-				quantity: 1,
-				staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
-				actor: ACTOR,
-				earnReason: "pos_product",
-			});
-			expect(posSplits).toHaveLength(1);
+		// POS split for sales order A
+		const salesOrderA = await createSalesOrder("DD-002A");
+		await createSalesOrderItem(salesOrderA.id, {
+			serviceId,
+			commissionDeferred: false,
+			description: "POS product item A",
+		});
+		const posSplits = await calculateCommissionForPos(tenantDb, {
+			salesOrderId: salesOrderA.id,
+			serviceId,
+			unitPriceCents: 10000,
+			quantity: 1,
+			staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
+			actor: ACTOR,
+			earnReason: "pos_product",
+		});
+		expect(posSplits).toHaveLength(1);
 
-			// Appointment with NO salesOrderId link — guard does not fire
-			const appt = await createAppointment(serviceId, "completed");
-			const apptSplits = await calculateCommissionForAppointment(tenantDb, {
-				appointmentId: appt.id,
-				serviceId,
-				sessionTotalCents: 10000,
-				attendeeCount: 1,
-				staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
-				actor: ACTOR,
-				earnReason: "completion",
-			});
-			expect(apptSplits).toHaveLength(1);
+		// Appointment with NO salesOrderId link — guard does not fire
+		const appt = await createAppointment(serviceId, "completed");
+		const apptSplits = await calculateCommissionForAppointment(tenantDb, {
+			appointmentId: appt.id,
+			serviceId,
+			sessionTotalCents: 10000,
+			attendeeCount: 1,
+			staffAssignments: [{ staffId: trainerUserId, slotIndex: 0 }],
+			actor: ACTOR,
+			earnReason: "completion",
+		});
+		expect(apptSplits).toHaveLength(1);
 
-			// Both splits are independent — total count for appointment = 1, for order = 1
-			const apptCountRows = await tenantDb
-				.select({ value: count() })
-				.from(commissionSplits)
-				.where(eq(commissionSplits.appointmentId, appt.id));
-			const apptSplitCount = apptCountRows[0]?.value ?? 0;
+		// Both splits are independent — total count for appointment = 1, for order = 1
+		const apptCountRows = await tenantDb
+			.select({ value: count() })
+			.from(commissionSplits)
+			.where(eq(commissionSplits.appointmentId, appt.id));
+		const apptSplitCount = apptCountRows[0]?.value ?? 0;
 
-			const posCountRows = await tenantDb
-				.select({ value: count() })
-				.from(commissionSplits)
-				.where(eq(commissionSplits.salesOrderId, salesOrderA.id));
-			const posSplitCount = posCountRows[0]?.value ?? 0;
+		const posCountRows = await tenantDb
+			.select({ value: count() })
+			.from(commissionSplits)
+			.where(eq(commissionSplits.salesOrderId, salesOrderA.id));
+		const posSplitCount = posCountRows[0]?.value ?? 0;
 
-			// Each path created exactly 1 split — no dedup, no collision
-			expect(apptSplitCount).toBe(1);
-			expect(posSplitCount).toBe(1);
-		},
-		30000,
-	);
+		// Each path created exactly 1 split — no dedup, no collision
+		expect(apptSplitCount).toBe(1);
+		expect(posSplitCount).toBe(1);
+	}, 30000);
 });

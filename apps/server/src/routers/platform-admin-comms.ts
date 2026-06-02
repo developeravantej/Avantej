@@ -28,7 +28,7 @@ import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
+import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
 import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { adminSessions } from "@avantej-core/db/schema/control-panel/admin-sessions";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
@@ -37,54 +37,16 @@ import { commsTemplates } from "@avantej-core/db/schema/control-panel/comms-temp
 
 const COMMS_ACTION_TYPES = ["tenant_dm", "tenant_announcement_create"] as const;
 
-function requirePlatformAdmin(
-	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">,
-) {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
-			}
-			const cpDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
-			const adminRecord = await cpDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", { message: "Admin access required" });
-			}
-			if (
-				allowRoles &&
-				!allowRoles.includes(
-					adminRecord.role as "super_admin" | "support" | "billing",
-				)
-			) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Your platform admin role does not permit this action",
-				});
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
 const superAdminProcedure = protectedProcedure.use(
 	requirePlatformAdmin(["super_admin"]),
 );
 
 function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
-		"controlPanelDb",
-	) as NeonDatabase<typeof controlPanelSchema> | undefined;
+	const db = (
+		context as { honoContext?: { get: (k: string) => unknown } }
+	).honoContext?.get("controlPanelDb") as
+		| NeonDatabase<typeof controlPanelSchema>
+		| undefined;
 	if (!db)
 		throw new ORPCError("INTERNAL_SERVER_ERROR", {
 			message: "Control panel DB unavailable",
@@ -95,11 +57,16 @@ function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
 function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
 	const id = session?.user?.id;
-	if (!id) throw new ORPCError("UNAUTHORIZED", { message: "No admin user in session" });
+	if (!id)
+		throw new ORPCError("UNAUTHORIZED", {
+			message: "No admin user in session",
+		});
 	return id;
 }
 
-const actorIdExpr = sql<string | null>`COALESCE(${adminSessionActions.adminUserId}, ${adminSessions.adminUserId})`;
+const actorIdExpr = sql<
+	string | null
+>`COALESCE(${adminSessionActions.adminUserId}, ${adminSessions.adminUserId})`;
 
 const kindEnum = z.enum(["direct_message", "announcement"]);
 const priorityEnum = z.enum(["info", "warning", "critical"]);
@@ -139,7 +106,9 @@ export const platformAdminCommsRouter = {
 					eq(adminSessionActions.actionType, "tenant_announcement_create"),
 				);
 			} else {
-				filters.push(inArray(adminSessionActions.actionType, [...COMMS_ACTION_TYPES]));
+				filters.push(
+					inArray(adminSessionActions.actionType, [...COMMS_ACTION_TYPES]),
+				);
 			}
 			if (input.actorUserId) {
 				filters.push(
@@ -147,7 +116,9 @@ export const platformAdminCommsRouter = {
 				);
 			}
 			if (input.targetOrgId) {
-				filters.push(eq(adminSessionActions.targetOrganizationId, input.targetOrgId));
+				filters.push(
+					eq(adminSessionActions.targetOrganizationId, input.targetOrgId),
+				);
 			}
 			const sinceDate = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
 			filters.push(gte(adminSessionActions.createdAt, sinceDate));
@@ -243,7 +214,8 @@ export const platformAdminCommsRouter = {
 			const cpDb = cpDbFrom(context);
 			const filters: any[] = [];
 			if (input.kind) filters.push(eq(commsTemplates.kind, input.kind));
-			if (!input.includeArchived) filters.push(isNull(commsTemplates.archivedAt));
+			if (!input.includeArchived)
+				filters.push(isNull(commsTemplates.archivedAt));
 			const where = filters.length ? and(...filters) : undefined;
 
 			const rows = await cpDb
@@ -324,9 +296,11 @@ export const platformAdminCommsRouter = {
 			const patch: Record<string, unknown> = { updatedAt: new Date() };
 			if (input.name !== undefined) patch.name = input.name;
 			if (input.subject !== undefined) patch.subject = input.subject;
-			if (input.bodyMarkdown !== undefined) patch.bodyMarkdown = input.bodyMarkdown;
+			if (input.bodyMarkdown !== undefined)
+				patch.bodyMarkdown = input.bodyMarkdown;
 			if (input.priority !== undefined) patch.priority = input.priority;
-			if (input.targetAudience !== undefined) patch.targetAudience = input.targetAudience;
+			if (input.targetAudience !== undefined)
+				patch.targetAudience = input.targetAudience;
 
 			const [updated] = await cpDb
 				.update(commsTemplates)

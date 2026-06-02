@@ -3530,19 +3530,27 @@ CREATE INDEX IF NOT EXISTS "commission_split_reversals_reversed_by_idx"
 -- Drop unique index that includes the text column first
 DROP INDEX IF EXISTS "promo_usages_unique_customer_order";
 --> statement-breakpoint
--- Add new uuid column
-ALTER TABLE "promotion_usages" ADD COLUMN IF NOT EXISTS "sales_order_id_new" uuid;
---> statement-breakpoint
--- Backfill: cast only well-formed UUIDs (no-op on dev; safe for prod rows)
-UPDATE "promotion_usages"
-	SET "sales_order_id_new" = "sales_order_id"::uuid
-	WHERE "sales_order_id" ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
---> statement-breakpoint
--- Drop old text column
-ALTER TABLE "promotion_usages" DROP COLUMN IF EXISTS "sales_order_id";
---> statement-breakpoint
--- Rename new column into place
-ALTER TABLE "promotion_usages" RENAME COLUMN "sales_order_id_new" TO "sales_order_id";
+-- Convert sales_order_id text → uuid. Guarded so a re-run on an already-converted
+-- (drifted) tenant is a SAFE no-op. Without the guard a re-run would re-add the temp
+-- column, throw on the \`uuid ~ text\` backfill, and — worse — DROP the real, already-uuid
+-- sales_order_id column (data loss). The whole conversion runs only while the column
+-- is still text.
+DO $$
+BEGIN
+	IF EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_name = 'promotion_usages'
+		  AND column_name = 'sales_order_id'
+		  AND data_type = 'text'
+	) THEN
+		ALTER TABLE "promotion_usages" ADD COLUMN IF NOT EXISTS "sales_order_id_new" uuid;
+		UPDATE "promotion_usages"
+			SET "sales_order_id_new" = "sales_order_id"::uuid
+			WHERE "sales_order_id" ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+		ALTER TABLE "promotion_usages" DROP COLUMN IF EXISTS "sales_order_id";
+		ALTER TABLE "promotion_usages" RENAME COLUMN "sales_order_id_new" TO "sales_order_id";
+	END IF;
+END $$;
 --> statement-breakpoint
 DO $$ BEGIN
 	ALTER TABLE "promotion_usages"
@@ -3828,21 +3836,28 @@ CREATE CONSTRAINT TRIGGER commission_coach_slots_weightage_check
 -- Prerequisite: zero rows with type='area' (run flatten-areas.ts first per tenant).
 -- Idempotent: WHERE clauses make repeat runs no-op.
 
--- Safety: hard-fail if area rows still exist
+-- All of this runs only while hierarchy_nodes.type is still TEXT. After 0057
+-- converts the column to the hierarchy_node_type enum (which has no 'area' or
+-- 'region' member), comparing the enum to those literals throws
+-- \`invalid input value for enum\`. Guarding on the column type makes a re-run on a
+-- drifted/already-migrated tenant a safe no-op (the rename + depth shift are done).
 DO $$
-DECLARE area_count int;
+DECLARE area_count int; col_type text;
 BEGIN
-  SELECT count(*) INTO area_count FROM hierarchy_nodes WHERE type = 'area';
-  IF area_count > 0 THEN
-    RAISE EXCEPTION 'Migration blocked: % area row(s) exist. Run flatten-areas.ts first.', area_count;
+  SELECT data_type INTO col_type FROM information_schema.columns
+   WHERE table_name = 'hierarchy_nodes' AND column_name = 'type';
+
+  IF col_type = 'text' THEN
+    -- Safety: hard-fail if area rows still exist
+    SELECT count(*) INTO area_count FROM hierarchy_nodes WHERE type = 'area';
+    IF area_count > 0 THEN
+      RAISE EXCEPTION 'Migration blocked: % area row(s) exist. Run flatten-areas.ts first.', area_count;
+    END IF;
+
+    UPDATE hierarchy_nodes SET type = 'state', updated_at = now() WHERE type = 'region';
+    UPDATE hierarchy_nodes SET depth = 3, updated_at = now() WHERE type = 'branch' AND depth = 4;
   END IF;
 END $$;
---> statement-breakpoint
-
-UPDATE hierarchy_nodes SET type = 'state', updated_at = now() WHERE type = 'region';
---> statement-breakpoint
-
-UPDATE hierarchy_nodes SET depth = 3, updated_at = now() WHERE type = 'branch' AND depth = 4;
 `,
 	},
 	{
@@ -4157,16 +4172,23 @@ END $$;
 --> statement-breakpoint
 
 -- Pre-flight: any rows with a value outside the enum would block the cast.
--- Should be impossible post-H1, but verify.
+-- Should be impossible post-H1, but verify. Runs only while the column is still
+-- TEXT — once it is the hierarchy_node_type enum, string_agg(enum, ...) does not
+-- exist (and every value is necessarily valid), so a re-run skips this check.
 DO $$
-DECLARE bad_count int; bad_types text;
+DECLARE bad_count int; bad_types text; col_type text;
 BEGIN
-  SELECT count(DISTINCT type), string_agg(DISTINCT type, ', ')
-    INTO bad_count, bad_types
-  FROM hierarchy_nodes
-  WHERE type NOT IN ('organization', 'country', 'state', 'branch');
-  IF bad_count > 0 THEN
-    RAISE EXCEPTION 'Migration blocked: % unexpected type value(s) in hierarchy_nodes: %', bad_count, bad_types;
+  SELECT data_type INTO col_type FROM information_schema.columns
+   WHERE table_name = 'hierarchy_nodes' AND column_name = 'type';
+
+  IF col_type = 'text' THEN
+    SELECT count(DISTINCT type), string_agg(DISTINCT type, ', ')
+      INTO bad_count, bad_types
+    FROM hierarchy_nodes
+    WHERE type NOT IN ('organization', 'country', 'state', 'branch');
+    IF bad_count > 0 THEN
+      RAISE EXCEPTION 'Migration blocked: % unexpected type value(s) in hierarchy_nodes: %', bad_count, bad_types;
+    END IF;
   END IF;
 END $$;
 --> statement-breakpoint
@@ -5197,19 +5219,32 @@ ON "appointments" ("trainer_id", "start_time");
 ALTER TABLE service_categories
   ADD COLUMN IF NOT EXISTS scheduling_type text NOT NULL DEFAULT 'appointment';
 
--- 2. Migrate existing data: set each category's scheduling_type from the majority of its services
-UPDATE service_categories sc
-SET scheduling_type = COALESCE(
-  (
-    SELECT s.scheduling_type
-    FROM services s
-    WHERE s.category_id = sc.id
-    GROUP BY s.scheduling_type
-    ORDER BY COUNT(*) DESC
-    LIMIT 1
-  ),
-  'appointment'
-);
+-- 2. Migrate existing data: set each category's scheduling_type from the majority of its services.
+--    Guarded so re-runs on an already-migrated tenant (where services.scheduling_type was
+--    dropped by step 3 of a prior run) are safe. Dynamic EXECUTE keeps the missing column
+--    from being parsed when it no longer exists.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'services' AND column_name = 'scheduling_type'
+  ) THEN
+    EXECUTE $mig$
+      UPDATE service_categories sc
+      SET scheduling_type = COALESCE(
+        (
+          SELECT s.scheduling_type
+          FROM services s
+          WHERE s.category_id = sc.id
+          GROUP BY s.scheduling_type
+          ORDER BY COUNT(*) DESC
+          LIMIT 1
+        ),
+        'appointment'
+      );
+    $mig$;
+  END IF;
+END $$;
 
 -- 3. Drop scheduling_type from services
 ALTER TABLE services DROP COLUMN IF EXISTS scheduling_type;

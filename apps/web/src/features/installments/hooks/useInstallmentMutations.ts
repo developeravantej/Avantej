@@ -1,12 +1,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import type { Installment, InstallmentOverviewItem } from "../types";
 
 interface UseInstallmentMutationsOptions {
 	organizationId: string | null;
 	selectedInstance: InstallmentOverviewItem | null;
-	setSelectedInstance: React.Dispatch<React.SetStateAction<InstallmentOverviewItem | null>>;
+	setSelectedInstance: React.Dispatch<
+		React.SetStateAction<InstallmentOverviewItem | null>
+	>;
 	setConfirmInstallment: (v: null) => void;
 	resetConfirmForm: () => void;
 	setShowUnlockDialog: (v: boolean) => void;
@@ -50,20 +52,37 @@ export function useInstallmentMutations({
 			client.installments.confirmPayment({
 				organizationId: organizationId ?? "",
 				installmentId: vars.installmentId,
-				paymentMethod: vars.paymentMethod as "manual_transfer" | "cash" | "card" | "fpx" | "stripe",
+				paymentMethod: vars.paymentMethod as
+					| "manual_transfer"
+					| "cash"
+					| "card"
+					| "fpx"
+					| "stripe",
 				notes: vars.notes || undefined,
 				nextIntervalDays: vars.nextIntervalDays,
 			}),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["installments-overview", organizationId] });
-			queryClient.invalidateQueries({
-				queryKey: ["installments-by-instance", organizationId, selectedInstance?.id],
-			});
+			queryClient.invalidateQueries(
+				orpc.installments.adminOverview.queryOptions({
+					input: { organizationId: organizationId ?? "" },
+				}),
+			);
+			if (selectedInstance?.id) {
+				queryClient.invalidateQueries(
+					orpc.installments.listByPackageInstance.queryOptions({
+						input: {
+							organizationId: organizationId ?? "",
+							packageInstanceId: selectedInstance.id,
+						},
+					}),
+				);
+			}
 			toast.success("Payment confirmed successfully.");
 			setConfirmInstallment(null);
 			resetConfirmForm();
 		},
-		onError: (err: Error) => toast.error(err.message ?? "Failed to confirm payment."),
+		onError: (err: Error) =>
+			toast.error(err.message ?? "Failed to confirm payment."),
 	});
 
 	const manualUnlockMutation = useMutation({
@@ -74,15 +93,27 @@ export function useInstallmentMutations({
 				reason: vars.reason,
 			}),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["installments-overview", organizationId] });
-			queryClient.invalidateQueries({
-				queryKey: ["installments-by-instance", organizationId, selectedInstance?.id],
-			});
+			queryClient.invalidateQueries(
+				orpc.installments.adminOverview.queryOptions({
+					input: { organizationId: organizationId ?? "" },
+				}),
+			);
+			if (selectedInstance?.id) {
+				queryClient.invalidateQueries(
+					orpc.installments.listByPackageInstance.queryOptions({
+						input: {
+							organizationId: organizationId ?? "",
+							packageInstanceId: selectedInstance.id,
+						},
+					}),
+				);
+			}
 			toast.success("Package unlocked successfully.");
 			setShowUnlockDialog(false);
 			setUnlockReason("");
 		},
-		onError: (err: Error) => toast.error(err.message ?? "Failed to unlock package."),
+		onError: (err: Error) =>
+			toast.error(err.message ?? "Failed to unlock package."),
 	});
 
 	const adjustCreditsMutation = useMutation({
@@ -100,15 +131,22 @@ export function useInstallmentMutations({
 				reason: vars.reason,
 			}),
 		onSuccess: (updated) => {
-			queryClient.invalidateQueries({ queryKey: ["installments-overview", organizationId] });
-			setSelectedInstance((prev: any) => (prev?.id === updated.id ? { ...prev, ...updated } : prev));
+			queryClient.invalidateQueries(
+				orpc.installments.adminOverview.queryOptions({
+					input: { organizationId: organizationId ?? "" },
+				}),
+			);
+			setSelectedInstance((prev: any) =>
+				prev?.id === updated.id ? { ...prev, ...updated } : prev,
+			);
 			toast.success("Credits adjusted successfully.");
 			setShowAdjustCreditsDialog(false);
 			setAdjustUnlocked("");
 			setAdjustUsed("");
 			setAdjustReason("");
 		},
-		onError: (err: Error) => toast.error(err.message ?? "Failed to adjust credits."),
+		onError: (err: Error) =>
+			toast.error(err.message ?? "Failed to adjust credits."),
 	});
 
 	const setOverdraftMutation = useMutation({
@@ -119,7 +157,11 @@ export function useInstallmentMutations({
 			reason: string;
 		}) => client.installments.setOverdraft(input),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["installments-overview", organizationId] });
+			queryClient.invalidateQueries(
+				orpc.installments.adminOverview.queryOptions({
+					input: { organizationId: organizationId ?? "" },
+				}),
+			);
 			toast.success("Overdraft updated");
 			setShowOverdraftDialog(false);
 			setOverdraftReason("");
@@ -128,7 +170,11 @@ export function useInstallmentMutations({
 	});
 
 	const rescheduleMutation = useMutation({
-		mutationFn: (vars: { installmentId: string; newDueDate: string; reason: string }) =>
+		mutationFn: (vars: {
+			installmentId: string;
+			newDueDate: string;
+			reason: string;
+		}) =>
 			client.installments.reschedule({
 				organizationId: organizationId ?? "",
 				installmentId: vars.installmentId,
@@ -136,12 +182,26 @@ export function useInstallmentMutations({
 				reason: vars.reason,
 			}),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["installments-overview", organizationId] });
-			queryClient.invalidateQueries({ queryKey: ["installments-by-instance", organizationId, selectedInstance?.id] });
+			queryClient.invalidateQueries(
+				orpc.installments.adminOverview.queryOptions({
+					input: { organizationId: organizationId ?? "" },
+				}),
+			);
+			if (selectedInstance?.id) {
+				queryClient.invalidateQueries(
+					orpc.installments.listByPackageInstance.queryOptions({
+						input: {
+							organizationId: organizationId ?? "",
+							packageInstanceId: selectedInstance.id,
+						},
+					}),
+				);
+			}
 			toast.success("Installment rescheduled.");
 			setRescheduleInstallment(null);
 		},
-		onError: (err: Error) => toast.error(err.message ?? "Failed to reschedule."),
+		onError: (err: Error) =>
+			toast.error(err.message ?? "Failed to reschedule."),
 	});
 
 	const waiveMutation = useMutation({
@@ -152,8 +212,21 @@ export function useInstallmentMutations({
 				reason: vars.reason,
 			}),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["installments-overview", organizationId] });
-			queryClient.invalidateQueries({ queryKey: ["installments-by-instance", organizationId, selectedInstance?.id] });
+			queryClient.invalidateQueries(
+				orpc.installments.adminOverview.queryOptions({
+					input: { organizationId: organizationId ?? "" },
+				}),
+			);
+			if (selectedInstance?.id) {
+				queryClient.invalidateQueries(
+					orpc.installments.listByPackageInstance.queryOptions({
+						input: {
+							organizationId: organizationId ?? "",
+							packageInstanceId: selectedInstance.id,
+						},
+					}),
+				);
+			}
 			toast.success("Installment waived.");
 			setWaiveInstallment(null);
 		},
@@ -168,14 +241,30 @@ export function useInstallmentMutations({
 				reason: vars.reason,
 			}),
 		onSuccess: (updated) => {
-			queryClient.invalidateQueries({ queryKey: ["installments-overview", organizationId] });
-			setSelectedInstance(((prev: any) =>
-				prev?.id === (updated as { id?: string })?.id ? { ...prev, ...(updated as object) } : prev) as any,
+			queryClient.invalidateQueries(
+				orpc.installments.adminOverview.queryOptions({
+					input: { organizationId: organizationId ?? "" },
+				}),
 			);
-			toast.success("Credits override reset. Credits will now follow installment formula.");
+			setSelectedInstance(((prev: any) =>
+				prev?.id === (updated as { id?: string })?.id
+					? { ...prev, ...(updated as object) }
+					: prev) as any);
+			toast.success(
+				"Credits override reset. Credits will now follow installment formula.",
+			);
 		},
-		onError: (err: Error) => toast.error(err.message ?? "Failed to reset credits override."),
+		onError: (err: Error) =>
+			toast.error(err.message ?? "Failed to reset credits override."),
 	});
 
-	return { confirmPaymentMutation, manualUnlockMutation, adjustCreditsMutation, setOverdraftMutation, rescheduleMutation, waiveMutation, resetOverrideMutation };
+	return {
+		confirmPaymentMutation,
+		manualUnlockMutation,
+		adjustCreditsMutation,
+		setOverdraftMutation,
+		rescheduleMutation,
+		waiveMutation,
+		resetOverrideMutation,
+	};
 }

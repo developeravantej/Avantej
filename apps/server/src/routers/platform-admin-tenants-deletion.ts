@@ -26,58 +26,22 @@ import { and, desc, eq, isNull, count } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
+import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
 import { tenantDeletions } from "@avantej-core/db/schema/control-panel/tenant-deletions";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 
-function requirePlatformAdmin(
-	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">,
-) {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
-			}
-			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!controlPanelDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
-			const adminRecord = await controlPanelDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", { message: "Admin access required" });
-			}
-			if (
-				allowRoles &&
-				!allowRoles.includes(
-					adminRecord.role as "super_admin" | "support" | "billing",
-				)
-			) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Your platform admin role does not permit this action",
-				});
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const superAdminProcedure = protectedProcedure.use(
+const superAdminProcedure = adminProcedure.use(
 	requirePlatformAdmin(["super_admin"]),
 );
 
-function cpDbFromContext(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
-		"controlPanelDb",
-	) as NeonDatabase<typeof controlPanelSchema> | undefined;
+function cpDbFromContext(
+	context: unknown,
+): NeonDatabase<typeof controlPanelSchema> {
+	const db = (
+		context as { honoContext?: { get: (k: string) => unknown } }
+	).honoContext?.get("controlPanelDb") as
+		| NeonDatabase<typeof controlPanelSchema>
+		| undefined;
 	if (!db)
 		throw new ORPCError("INTERNAL_SERVER_ERROR", {
 			message: "Control panel DB unavailable",
@@ -89,13 +53,17 @@ function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
 	const id = session?.user?.id;
 	if (!id) {
-		throw new ORPCError("UNAUTHORIZED", { message: "No admin user in session" });
+		throw new ORPCError("UNAUTHORIZED", {
+			message: "No admin user in session",
+		});
 	}
 	return id;
 }
 
 function envFromContext(context: unknown): Record<string, unknown> {
-	const honoCtx = (context as { honoContext?: { env?: Record<string, unknown> } }).honoContext;
+	const honoCtx = (
+		context as { honoContext?: { env?: Record<string, unknown> } }
+	).honoContext;
 	return honoCtx?.env ?? {};
 }
 

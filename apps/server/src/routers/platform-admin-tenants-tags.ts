@@ -17,62 +17,23 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
+import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
 import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { tenantTags } from "@avantej-core/db/schema/control-panel/tenant-tags";
 
 const BULK_CAP = 100;
 
-function requirePlatformAdmin(
-	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">,
-) {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
-			}
-			const cpDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
-			const adminRecord = await cpDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", { message: "Admin access required" });
-			}
-			if (
-				allowRoles &&
-				!allowRoles.includes(
-					adminRecord.role as "super_admin" | "support" | "billing",
-				)
-			) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Your platform admin role does not permit this action",
-				});
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
-const superAdminProcedure = protectedProcedure.use(
+const superAdminProcedure = adminProcedure.use(
 	requirePlatformAdmin(["super_admin"]),
 );
 
 function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
-		"controlPanelDb",
-	) as NeonDatabase<typeof controlPanelSchema> | undefined;
+	const db = (
+		context as { honoContext?: { get: (k: string) => unknown } }
+	).honoContext?.get("controlPanelDb") as
+		| NeonDatabase<typeof controlPanelSchema>
+		| undefined;
 	if (!db)
 		throw new ORPCError("INTERNAL_SERVER_ERROR", {
 			message: "Control panel DB unavailable",
@@ -83,7 +44,10 @@ function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
 function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
 	const id = session?.user?.id;
-	if (!id) throw new ORPCError("UNAUTHORIZED", { message: "No admin user in session" });
+	if (!id)
+		throw new ORPCError("UNAUTHORIZED", {
+			message: "No admin user in session",
+		});
 	return id;
 }
 
@@ -100,10 +64,14 @@ async function assertOrgExists(
 
 function assertBulkSize(ids: string[]) {
 	if (ids.length === 0) {
-		throw new ORPCError("BAD_REQUEST", { message: "At least one tenant required" });
+		throw new ORPCError("BAD_REQUEST", {
+			message: "At least one tenant required",
+		});
 	}
 	if (ids.length > BULK_CAP) {
-		throw new ORPCError("BAD_REQUEST", { message: "Max 100 tenants per bulk op" });
+		throw new ORPCError("BAD_REQUEST", {
+			message: "Max 100 tenants per bulk op",
+		});
 	}
 }
 
@@ -130,9 +98,17 @@ export const platformAdminTenantsTagsRouter = {
 			`);
 			const items = (rows as any).rows ?? rows;
 			return {
-				tags: (items as Array<{ label: string; color: string | null; org_count: number }>).map(
-					(r) => ({ label: r.label, color: r.color, orgCount: Number(r.org_count) }),
-				),
+				tags: (
+					items as Array<{
+						label: string;
+						color: string | null;
+						org_count: number;
+					}>
+				).map((r) => ({
+					label: r.label,
+					color: r.color,
+					orgCount: Number(r.org_count),
+				})),
 			};
 		}),
 
@@ -402,4 +378,3 @@ export const platformAdminTenantsTagsRouter = {
 			};
 		}),
 };
-

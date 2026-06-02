@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import {
 	Sheet,
 	SheetContent,
@@ -134,9 +134,11 @@ export function TrainerAvailabilitySheet({
 		errorMessage: (err) =>
 			err instanceof Error ? err.message : "Failed to save schedule.",
 		onSuccess: () => {
-			qc.invalidateQueries({
-				queryKey: ["trainerAvailabilityByBranch", organizationId],
-			});
+			qc.invalidateQueries(
+				orpc.trainerAvailability.listByBranch.queryOptions({
+					input: { organizationId: organizationId! },
+				}),
+			);
 			setEditMode(false);
 			onSaved?.();
 		},
@@ -265,9 +267,7 @@ export function TrainerAvailabilitySheet({
 						) : editMode ? (
 							// ── Edit mode ─────────────────────────────────────
 							DAY_ORDER.map(({ key, label }) => {
-								const dayDrafts = draftSlots.filter(
-									(s) => s.dayOfWeek === key,
-								);
+								const dayDrafts = draftSlots.filter((s) => s.dayOfWeek === key);
 								return (
 									<div
 										key={key}
@@ -322,17 +322,13 @@ export function TrainerAvailabilitySheet({
 														}
 														className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
 													>
-														{(
-															[
-																"available",
-																"blocked",
-																"timeoff",
-															] as const
-														).map((k) => (
-															<option key={k} value={k}>
-																{KIND_LABEL[k]}
-															</option>
-														))}
+														{(["available", "blocked", "timeoff"] as const).map(
+															(k) => (
+																<option key={k} value={k}>
+																	{KIND_LABEL[k]}
+																</option>
+															),
+														)}
 													</select>
 													{/* Delete */}
 													<button
@@ -384,10 +380,7 @@ export function TrainerAvailabilitySheet({
 										{daySlots.length > 0 && (
 											<ul className="flex flex-col gap-1">
 												{daySlots.map((slot) => (
-													<li
-														key={slot.id}
-														className="flex items-center gap-2"
-													>
+													<li key={slot.id} className="flex items-center gap-2">
 														<span
 															className={cn(
 																"rounded-md px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums",

@@ -1,6 +1,7 @@
 import {
 	addTrainerAvailabilityException,
 	computeAvailableSlots,
+	coverageForPreferredTimes,
 	createTrainerAvailability,
 	deleteTrainerAvailabilityException,
 	deleteTrainerAvailabilitySlot,
@@ -9,14 +10,17 @@ import {
 	listTrainerAvailability,
 	listTrainerAvailabilityByBranch,
 	listTrainerAvailabilityExceptions,
-
 	updateTrainerAvailability,
 	upsertTrainerAvailability,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 const dayOfWeekSchema = z.enum([
@@ -29,19 +33,43 @@ const dayOfWeekSchema = z.enum([
 	"sunday",
 ]);
 
-const kindSchema = z.enum(["available", "blocked", "timeoff"]).default("available");
+const kindSchema = z
+	.enum(["available", "blocked", "timeoff"])
+	.default("available");
 
 export const trainerAvailabilityRouter = {
+	/**
+	 * How many of a package instance's preferred times the given trainer can cover
+	 * (weekly-template match against the trainer's recurring `available` windows).
+	 * Read-only; tiny result (≤ 4 preferred times). Used by the approvals assign
+	 * popover to show a coverage chip per trainer.
+	 */
+	coverageForPreferredTimes: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				trainerId: z.string().uuid(),
+				packageInstanceId: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			return coverageForPreferredTimes(
+				context.tenantDb,
+				input.trainerId,
+				input.packageInstanceId,
+			);
+		}),
+
 	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				trainerId: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			return listTrainerAvailability(context.tenantDb, input.trainerId);
 		}),
 
@@ -50,20 +78,17 @@ export const trainerAvailabilityRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				branchId: z.string().uuid().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
 			const controlPanelDb = getControlPanelDb(context);
-			return listTrainerAvailabilityByBranch(
-				controlPanelDb,
-				context.tenantDb,
-				{ branchId: input.branchId },
-			);
+			return listTrainerAvailabilityByBranch(controlPanelDb, context.tenantDb, {
+				branchId: input.branchId,
+			});
 		}),
 
 	getComputedSlots: tenantProcedure
@@ -71,13 +96,14 @@ export const trainerAvailabilityRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				trainerId: z.string().uuid(),
-				startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
+				startDate: z
+					.string()
+					.regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
 				endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			const startDate = new Date(`${input.startDate}T00:00:00`);
 			const endDate = new Date(`${input.endDate}T23:59:59`);
 			return computeAvailableSlots(
@@ -99,27 +125,30 @@ export const trainerAvailabilityRouter = {
 						startTime: z
 							.string()
 							.regex(/^\d{2}:\d{2}$/, "Must be HH:MM format"),
-						endTime: z
-							.string()
-							.regex(/^\d{2}:\d{2}$/, "Must be HH:MM format"),
+						endTime: z.string().regex(/^\d{2}:\d{2}$/, "Must be HH:MM format"),
 						kind: kindSchema,
-					})
+					}),
 				),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
 				});
 			}
-			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"appointment_management",
+				"update",
+			);
 			try {
 				return await upsertTrainerAvailability(
 					context.tenantDb,
 					input.trainerId,
-					input.slots
+					input.slots,
 				);
 			} catch (error) {
 				throw new ORPCError("BAD_REQUEST", {
@@ -136,16 +165,21 @@ export const trainerAvailabilityRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
 				});
 			}
-			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"appointment_management",
+				"update",
+			);
 			await deleteTrainerAvailabilitySlot(context.tenantDb, input.id);
 			return { success: true };
 		}),
@@ -155,15 +189,16 @@ export const trainerAvailabilityRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				branchId: z.string().uuid().optional(),
-				weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
-			})
+				weekStart: z
+					.string()
+					.regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
 			return getTrainerUtilisation(context.tenantDb, {
 				branchId: input.branchId,
 				weekStart: input.weekStart,
@@ -179,16 +214,21 @@ export const trainerAvailabilityRouter = {
 				startTime: z.string().regex(/^\d{2}:\d{2}$/, "Must be HH:MM format"),
 				endTime: z.string().regex(/^\d{2}:\d{2}$/, "Must be HH:MM format"),
 				kind: kindSchema,
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
 				});
 			}
-			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"appointment_management",
+				"update",
+			);
 			try {
 				return await createTrainerAvailability(context.tenantDb, {
 					trainerId: input.trainerId,
@@ -213,19 +253,30 @@ export const trainerAvailabilityRouter = {
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
 				dayOfWeek: dayOfWeekSchema.optional(),
-				startTime: z.string().regex(/^\d{2}:\d{2}$/, "Must be HH:MM format").optional(),
-				endTime: z.string().regex(/^\d{2}:\d{2}$/, "Must be HH:MM format").optional(),
+				startTime: z
+					.string()
+					.regex(/^\d{2}:\d{2}$/, "Must be HH:MM format")
+					.optional(),
+				endTime: z
+					.string()
+					.regex(/^\d{2}:\d{2}$/, "Must be HH:MM format")
+					.optional(),
 				kind: z.enum(["available", "blocked", "timeoff"]).optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
 				});
 			}
-			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"appointment_management",
+				"update",
+			);
 			try {
 				return await updateTrainerAvailability(context.tenantDb, input.id, {
 					dayOfWeek: input.dayOfWeek,
@@ -248,15 +299,16 @@ export const trainerAvailabilityRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				branchId: z.string().uuid().optional(),
-				weekStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
-			})
+				weekStart: z
+					.string()
+					.regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
 			return getTrainerConflicts(context.tenantDb, {
 				branchId: input.branchId,
 				weekStart: input.weekStart,
@@ -271,16 +323,21 @@ export const trainerAvailabilityRouter = {
 				date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
 				kind: z.enum(["blocked", "timeoff"]).default("timeoff"),
 				reason: z.string().trim().max(500).optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
 				});
 			}
-			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"appointment_management",
+				"update",
+			);
 			try {
 				return await addTrainerAvailabilityException(context.tenantDb, {
 					trainerId: input.trainerId,
@@ -308,13 +365,18 @@ export const trainerAvailabilityRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				trainerId: z.string().uuid(),
-				from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD").optional(),
-				to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD").optional(),
-			})
+				from: z
+					.string()
+					.regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD")
+					.optional(),
+				to: z
+					.string()
+					.regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD")
+					.optional(),
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			return listTrainerAvailabilityExceptions(
 				context.tenantDb,
 				input.trainerId,
@@ -327,16 +389,21 @@ export const trainerAvailabilityRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
 				});
 			}
-			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"appointment_management",
+				"update",
+			);
 			await deleteTrainerAvailabilityException(context.tenantDb, input.id);
 			return { success: true };
 		}),

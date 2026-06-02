@@ -8,7 +8,10 @@
  */
 
 import { describe, it, expect, mock, beforeEach } from "bun:test";
-import { createAdminContext, createStaffContext } from "../../helpers/context.factory";
+import {
+	createAdminContext,
+	createStaffContext,
+} from "../../helpers/context.factory";
 import { createMockTenantDb } from "../../helpers/db-mock.factory";
 import { makeMember } from "../../helpers/fixtures";
 
@@ -48,9 +51,15 @@ const CREATED_INVITATION = {
 
 const mockCreateInvitation = mock(() => Promise.resolve(CREATED_INVITATION));
 const mockRevokeInvitation = mock(() =>
-	Promise.resolve({ id: "inv-0001", email: "new@example.com", status: "declined" }),
+	Promise.resolve({
+		id: "inv-0001",
+		email: "new@example.com",
+		status: "declined",
+	}),
 );
-const mockGetInvitationByToken = mock(() => Promise.resolve(CREATED_INVITATION));
+const mockGetInvitationByToken = mock(() =>
+	Promise.resolve(CREATED_INVITATION),
+);
 const mockValidateInvitation = mock(() => ({ isValid: true, error: null }));
 const mockListInvitations = mock(() => Promise.resolve([]));
 const mockResendInvitation = mock(() => Promise.resolve(CREATED_INVITATION));
@@ -107,9 +116,13 @@ function makeControlPanelDbStub() {
 		query: {
 			user: { findFirst: mock(() => Promise.resolve(undefined)) },
 			users: { findFirst: mock(() => Promise.resolve(undefined)) },
-			organizationMembers: { findFirst: mock(() => Promise.resolve(undefined)) },
+			organizationMembers: {
+				findFirst: mock(() => Promise.resolve(undefined)),
+			},
 		},
-		update: mock(() => ({ set: mock(() => ({ where: mock(() => Promise.resolve()) })) })),
+		update: mock(() => ({
+			set: mock(() => ({ where: mock(() => Promise.resolve()) })),
+		})),
 	};
 }
 
@@ -136,7 +149,12 @@ describe("invitationRouter.create", () => {
 
 		const result = await call(
 			invitationRouter.create,
-			{ organizationId: ORG_ID, email: "new@example.com", role: "staff", hierarchyScopeId: BRANCH_ID },
+			{
+				organizationId: ORG_ID,
+				email: "new@example.com",
+				role: "staff",
+				hierarchyScopeId: BRANCH_ID,
+			},
 			{ ...ctx, tenantDb: db, honoContext: makeHonoContext() },
 		);
 
@@ -152,7 +170,12 @@ describe("invitationRouter.create", () => {
 		await expect(
 			call(
 				invitationRouter.create,
-				{ organizationId: ORG_ID, email: "new@example.com", role: "staff", hierarchyScopeId: BRANCH_ID },
+				{
+					organizationId: ORG_ID,
+					email: "new@example.com",
+					role: "staff",
+					hierarchyScopeId: BRANCH_ID,
+				},
 				ctx,
 			),
 		).rejects.toMatchObject({ code: "FORBIDDEN" });
@@ -166,7 +189,12 @@ describe("invitationRouter.create", () => {
 		await expect(
 			call(
 				invitationRouter.create,
-				{ organizationId: ORG_ID, email: "new@example.com", role: "staff", hierarchyScopeId: BRANCH_ID },
+				{
+					organizationId: ORG_ID,
+					email: "new@example.com",
+					role: "staff",
+					hierarchyScopeId: BRANCH_ID,
+				},
 				{ ...ctx, tenantDb: db, honoContext: makeHonoContext() },
 			),
 		).rejects.toMatchObject({ code: "FORBIDDEN" });
@@ -177,14 +205,23 @@ describe("invitationRouter.create", () => {
 		const db = createMockTenantDb();
 		db.query.invitations = {
 			findFirst: mock(() =>
-				Promise.resolve({ id: "existing-inv", email: "new@example.com", status: "pending" }),
+				Promise.resolve({
+					id: "existing-inv",
+					email: "new@example.com",
+					status: "pending",
+				}),
 			),
 		} as any;
 
 		await expect(
 			call(
 				invitationRouter.create,
-				{ organizationId: ORG_ID, email: "new@example.com", role: "staff", hierarchyScopeId: BRANCH_ID },
+				{
+					organizationId: ORG_ID,
+					email: "new@example.com",
+					role: "staff",
+					hierarchyScopeId: BRANCH_ID,
+				},
 				{ ...ctx, tenantDb: db, honoContext: makeHonoContext() },
 			),
 		).rejects.toMatchObject({ code: "CONFLICT" });
@@ -205,7 +242,12 @@ describe("invitationRouter.create", () => {
 		await expect(
 			call(
 				invitationRouter.create,
-				{ organizationId: ORG_ID, email: "deleted@example.com", role: "staff", hierarchyScopeId: BRANCH_ID },
+				{
+					organizationId: ORG_ID,
+					email: "deleted@example.com",
+					role: "staff",
+					hierarchyScopeId: BRANCH_ID,
+				},
 				{ ...ctx, tenantDb: db, honoContext: makeHonoContext() },
 			),
 		).rejects.toMatchObject({ code: "BAD_REQUEST" });
@@ -217,7 +259,12 @@ describe("invitationRouter.create", () => {
 		await expect(
 			call(
 				invitationRouter.create,
-				{ organizationId: ORG_ID, email: "new@example.com", role: "staff", hierarchyScopeId: BRANCH_ID },
+				{
+					organizationId: ORG_ID,
+					email: "new@example.com",
+					role: "staff",
+					hierarchyScopeId: BRANCH_ID,
+				},
 				ctx,
 			),
 		).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
@@ -251,7 +298,11 @@ describe("invitationRouter.revoke", () => {
 		const ctx = { ...createAdminContext(), member: null };
 
 		await expect(
-			call(invitationRouter.revoke, { organizationId: ORG_ID, invitationId: "inv-0001" }, ctx),
+			call(
+				invitationRouter.revoke,
+				{ organizationId: ORG_ID, invitationId: "inv-0001" },
+				ctx,
+			),
 		).rejects.toMatchObject({ code: "FORBIDDEN" });
 	});
 

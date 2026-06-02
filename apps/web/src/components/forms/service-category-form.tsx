@@ -90,7 +90,7 @@ function FieldError({ errors }: { errors: unknown[] }) {
 	return (
 		<>
 			{errors.map((error, i) => (
-				<p key={i} className="text-sm text-destructive">
+				<p key={i} className="text-sm text-rose-600">
 					{typeof error === "string"
 						? error
 						: (error as { message?: string })?.message || "Invalid value"}
@@ -172,14 +172,20 @@ export function ServiceFormDialog({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-				<DialogHeader>
-					<DialogTitle className="font-heading text-2xl">
+			<DialogContent
+				className="sm:max-w-2xl p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						SERVICE CATALOG
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
 						{mode === "create"
 							? "Add New Service Category"
 							: "Edit Service Category"}
 					</DialogTitle>
-					<DialogDescription>
+					<DialogDescription className="text-sm text-[#737373]">
 						{mode === "create"
 							? "Create a new service category with booking and cancellation rules."
 							: "Update the service category details and rules."}
@@ -195,103 +201,105 @@ export function ServiceFormDialog({
 					}}
 					className="space-y-6"
 				>
-					{/* Name */}
-					<form.Field name="name">
-						{(field) => (
-							<div className="space-y-2">
-								<Label htmlFor={field.name}>
-									Service Category Name{" "}
-									<span className="text-destructive">*</span>
-								</Label>
-								<Input
-									id={field.name}
-									className="bg-white"
-									placeholder="e.g., Personal Training (1-on-1)"
-									value={field.state.value}
-									onBlur={field.handleBlur}
-									onChange={(e) => field.handleChange(e.target.value)}
-								/>
-								<FieldError errors={field.state.meta.errors} />
-							</div>
-						)}
-					</form.Field>
-
-					{/* Duration + Max Attendees */}
-					<div className="grid grid-cols-2 gap-4">
-						<form.Field name="duration">
+					<div className="px-6 pt-4 pb-2 overflow-y-auto space-y-6">
+						{/* Name */}
+						<form.Field name="name">
 							{(field) => (
 								<div className="space-y-2">
 									<Label htmlFor={field.name}>
-										Duration (minutes){" "}
-										<span className="text-destructive">*</span>
+										Service Category Name{" "}
+										<span className="text-rose-600">*</span>
 									</Label>
 									<Input
 										id={field.name}
-										className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-										type="number"
-										min={1}
-										placeholder="60"
+										className="bg-white"
+										placeholder="e.g., Personal Training (1-on-1)"
 										value={field.state.value}
 										onBlur={field.handleBlur}
-										onChange={(e) =>
-											field.handleChange(e.target.valueAsNumber || 1)
-										}
+										onChange={(e) => field.handleChange(e.target.value)}
 									/>
-									<p className="text-xs invisible" aria-hidden="true">
-										spacer
-									</p>
 									<FieldError errors={field.state.meta.errors} />
 								</div>
 							)}
 						</form.Field>
 
-						<form.Field name="maxAttendees">
-							{(field) => (
-								<div className="space-y-2">
-									<Label htmlFor={field.name}>
-										Maximum Attendees/Customers
-									</Label>
-									<Input
-										id={field.name}
-										className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-										type="number"
-										min={1}
-										placeholder="No limit"
-										value={field.state.value ?? ""}
-										onBlur={field.handleBlur}
-										onChange={(e) =>
-											field.handleChange(
-												e.target.value === ""
-													? undefined
-													: Number(e.target.value),
-											)
-										}
-									/>
-									<p className="text-xs text-muted-foreground">
-										Leave empty for unlimited attendees
-									</p>
-									<FieldError errors={field.state.meta.errors} />
-								</div>
+						{/* Duration + Max Attendees */}
+						<div className="grid grid-cols-2 gap-4">
+							<form.Field name="duration">
+								{(field) => (
+									<div className="space-y-2">
+										<Label htmlFor={field.name}>
+											Duration (minutes){" "}
+											<span className="text-rose-600">*</span>
+										</Label>
+										<Input
+											id={field.name}
+											className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+											type="number"
+											min={1}
+											placeholder="60"
+											value={field.state.value}
+											onBlur={field.handleBlur}
+											onChange={(e) =>
+												field.handleChange(e.target.valueAsNumber || 1)
+											}
+										/>
+										<p className="text-xs invisible" aria-hidden="true">
+											spacer
+										</p>
+										<FieldError errors={field.state.meta.errors} />
+									</div>
+								)}
+							</form.Field>
+
+							<form.Field name="maxAttendees">
+								{(field) => (
+									<div className="space-y-2">
+										<Label htmlFor={field.name}>
+											Maximum Attendees/Customers
+										</Label>
+										<Input
+											id={field.name}
+											className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+											type="number"
+											min={1}
+											placeholder="No limit"
+											value={field.state.value ?? ""}
+											onBlur={field.handleBlur}
+											onChange={(e) =>
+												field.handleChange(
+													e.target.value === ""
+														? undefined
+														: Number(e.target.value),
+												)
+											}
+										/>
+										<p className="text-xs text-[#737373]">
+											Leave empty for unlimited attendees
+										</p>
+										<FieldError errors={field.state.meta.errors} />
+									</div>
+								)}
+							</form.Field>
+						</div>
+
+						<form.Subscribe
+							selector={(state) => ({
+								require: state.values.requireAdvanceBooking,
+								cancel: state.values.enableCancellationWindow,
+							})}
+						>
+							{({ require, cancel }) => (
+								<ServiceCategoryRulesSection
+									form={form as unknown as ServiceCategoryRulesFormApi}
+									requireAdvanceBooking={require}
+									enableCancellationWindow={cancel}
+								/>
 							)}
-						</form.Field>
+						</form.Subscribe>
 					</div>
 
-					<form.Subscribe
-						selector={(state) => ({
-							require: state.values.requireAdvanceBooking,
-							cancel: state.values.enableCancellationWindow,
-						})}
-					>
-						{({ require, cancel }) => (
-							<ServiceCategoryRulesSection
-								form={form as unknown as ServiceCategoryRulesFormApi}
-								requireAdvanceBooking={require}
-								enableCancellationWindow={cancel}
-							/>
-						)}
-					</form.Subscribe>
-
-					<DialogFooter>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button
 							type="button"
 							variant="outline"
@@ -300,7 +308,11 @@ export function ServiceFormDialog({
 						>
 							Cancel
 						</Button>
-						<Button type="submit" disabled={mutation.isPending}>
+						<Button
+							type="submit"
+							disabled={mutation.isPending}
+							className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+						>
 							{mutation.isPending
 								? mode === "create"
 									? "Creating..."

@@ -191,8 +191,10 @@ export function ServiceDetailDialogA({
 	return (
 		<>
 			<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-				{/* §22: no bg-background — use explicit !bg-white */}
-				<DialogContent className="!w-[70vw] !max-w-[70vw] max-h-[90vh] flex flex-col p-0 !bg-white">
+				<DialogContent
+					hideCloseButton
+					className="!w-[70vw] !max-w-[70vw] max-h-[90vh] flex flex-col p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				>
 					<DialogHeader className="sr-only">
 						<DialogTitle>Service Details</DialogTitle>
 						<DialogDescription>
@@ -201,6 +203,9 @@ export function ServiceDetailDialogA({
 					</DialogHeader>
 					{/* ── Header — §10: dialog H2 = text-lg font-bold ── */}
 					<div className="shrink-0 px-5 pt-5 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							SERVICE CATALOG
+						</p>
 						<div className="flex items-start justify-between gap-4 pr-8">
 							<div>
 								{/* matches edit form: text-[22px] font-extrabold tracking-tight */}
@@ -409,7 +414,7 @@ export function ServiceDetailDialogA({
 					</div>
 
 					{/* ── Footer ── */}
-					<div className="shrink-0 px-5 py-3 border-t border-[#e5e5e5] flex items-center justify-end">
+					<div className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<button
 							type="button"
 							onClick={onClose}
@@ -421,27 +426,27 @@ export function ServiceDetailDialogA({
 				</DialogContent>
 			</Dialog>
 
-			{/* ── Deactivate confirmation — §22: explicit !bg-white ── */}
+			{/* ── Deactivate confirmation ── */}
 			<Dialog
 				open={showDeleteConfirm}
 				onOpenChange={(open) => !open && setShowDeleteConfirm(false)}
 			>
-				<DialogContent className="sm:max-w-sm p-0 !bg-white">
-					<DialogHeader className="sr-only">
-						<DialogTitle>Deactivate service</DialogTitle>
-						<DialogDescription>
+				<DialogContent
+					hideCloseButton
+					className="sm:max-w-sm p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							SERVICE CATALOG
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Deactivate service?
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
 							Deactivate this service to hide it from active lists.
 						</DialogDescription>
 					</DialogHeader>
-					<div className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
-						<div className="flex items-center gap-3">
-							<span className="text-[20px]">⚠</span>
-							<h3 className="text-[18px] font-extrabold text-[#0a0a0a]">
-								Deactivate service?
-							</h3>
-						</div>
-					</div>
-					<div className="px-6 py-4">
+					<div className="px-6 pt-4 pb-2 overflow-y-auto">
 						{/* §10: description = text-sm text-[#737373] */}
 						<p className="text-sm text-[#737373]">
 							Deactivate{" "}
@@ -452,7 +457,7 @@ export function ServiceDetailDialogA({
 							by editing.
 						</p>
 					</div>
-					<div className="px-6 pb-6 flex items-center justify-end gap-3">
+					<div className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						{/* §10: secondary outline on the left */}
 						<button
 							type="button"

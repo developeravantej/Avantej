@@ -9,16 +9,28 @@ import {
 	adjustStock,
 } from "@avantej-core/services";
 
-const mockFindMany = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve([]));
-const mockFindFirst = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve(null));
-const mockReturning = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve([]));
-const mockValues = mock<(...args: any[]) => any>(() => ({ returning: mockReturning }));
-const mockOnConflictDoUpdate = mock<(...args: any[]) => any>(() => ({ returning: mockReturning }));
+const mockFindMany = mock<(...args: any[]) => Promise<any>>(() =>
+	Promise.resolve([]),
+);
+const mockFindFirst = mock<(...args: any[]) => Promise<any>>(() =>
+	Promise.resolve(null),
+);
+const mockReturning = mock<(...args: any[]) => Promise<any>>(() =>
+	Promise.resolve([]),
+);
+const mockValues = mock<(...args: any[]) => any>(() => ({
+	returning: mockReturning,
+}));
+const mockOnConflictDoUpdate = mock<(...args: any[]) => any>(() => ({
+	returning: mockReturning,
+}));
 const mockInsertValues = mock<(...args: any[]) => any>(() => ({
 	returning: mockReturning,
 	onConflictDoUpdate: mockOnConflictDoUpdate,
 }));
-const mockInsert = mock<(...args: any[]) => any>(() => ({ values: mockInsertValues }));
+const mockInsert = mock<(...args: any[]) => any>(() => ({
+	values: mockInsertValues,
+}));
 const mockUpdate = mock<(...args: any[]) => any>(() => ({
 	set: mock(() => ({
 		where: mock(() => ({ returning: mockReturning })),
@@ -68,7 +80,9 @@ describe("listProducts", () => {
 	});
 
 	test("applies brandId filter", async () => {
-		mockFindMany.mockResolvedValueOnce([{ id: "p1", name: "Protein Shake", brandId: "b1" }]);
+		mockFindMany.mockResolvedValueOnce([
+			{ id: "p1", name: "Protein Shake", brandId: "b1" },
+		]);
 
 		await listProducts(mockTenantDb, { brandId: "b1" });
 
@@ -115,7 +129,11 @@ describe("listProducts", () => {
 	test("combines multiple filters", async () => {
 		mockFindMany.mockResolvedValueOnce([]);
 
-		await listProducts(mockTenantDb, { brandId: "b1", status: "active", search: "Shake" });
+		await listProducts(mockTenantDb, {
+			brandId: "b1",
+			status: "active",
+			search: "Shake",
+		});
 
 		const callArg = mockFindMany.mock.calls[0]![0];
 		expect(callArg.where).toBeDefined();
@@ -204,20 +222,31 @@ describe("createProduct", () => {
 		mockReturning.mockResolvedValueOnce([]);
 
 		await expect(
-			createProduct(mockTenantDb, { sku: "PS-001", name: "Protein Shake", price: 50, uomId: "u1" })
+			createProduct(mockTenantDb, {
+				sku: "PS-001",
+				name: "Protein Shake",
+				price: 50,
+				uomId: "u1",
+			}),
 		).rejects.toThrow("Failed to create product");
 	});
 });
 
 describe("updateProduct", () => {
 	test("updates and returns the product", async () => {
-		const updatedProduct = { id: "p1", name: "Updated Protein Shake", sku: "PS-001" };
+		const updatedProduct = {
+			id: "p1",
+			name: "Updated Protein Shake",
+			sku: "PS-001",
+		};
 		const mockReturningUpd = mock(() => Promise.resolve([updatedProduct]));
 		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		const result = await updateProduct(mockTenantDb, "p1", { name: "Updated Protein Shake" });
+		const result = await updateProduct(mockTenantDb, "p1", {
+			name: "Updated Protein Shake",
+		});
 
 		expect(result as any).toEqual(updatedProduct);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
@@ -229,13 +258,20 @@ describe("updateProduct", () => {
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		await expect(updateProduct(mockTenantDb, "nonexistent", { name: "X" })).rejects.toThrow("Product not found");
+		await expect(
+			updateProduct(mockTenantDb, "nonexistent", { name: "X" }),
+		).rejects.toThrow("Product not found");
 	});
 });
 
 describe("getProductStock", () => {
 	test("returns stock record when found", async () => {
-		const fakeStock = { id: "ps1", productId: "p1", branchId: "br1", quantity: 10 };
+		const fakeStock = {
+			id: "ps1",
+			productId: "p1",
+			branchId: "br1",
+			quantity: 10,
+		};
 		mockFindFirst.mockResolvedValueOnce(fakeStock);
 
 		const result = await getProductStock(mockTenantDb, "p1", "br1");
@@ -255,7 +291,12 @@ describe("getProductStock", () => {
 
 describe("upsertProductStock", () => {
 	test("calls insert with onConflictDoUpdate and returns the row", async () => {
-		const fakeStock = { id: "ps1", productId: "p1", branchId: "br1", quantity: 20 };
+		const fakeStock = {
+			id: "ps1",
+			productId: "p1",
+			branchId: "br1",
+			quantity: 20,
+		};
 		mockReturning.mockResolvedValueOnce([fakeStock]);
 
 		const result = await upsertProductStock(mockTenantDb, "p1", "br1", 20);
@@ -268,15 +309,20 @@ describe("upsertProductStock", () => {
 	test("throws 'Failed to upsert product stock' when returning is empty", async () => {
 		mockReturning.mockResolvedValueOnce([]);
 
-		await expect(upsertProductStock(mockTenantDb, "p1", "br1", 20)).rejects.toThrow(
-			"Failed to upsert product stock"
-		);
+		await expect(
+			upsertProductStock(mockTenantDb, "p1", "br1", 20),
+		).rejects.toThrow("Failed to upsert product stock");
 	});
 });
 
 describe("adjustStock", () => {
 	test("returns updated row when existing stock record is found (positive delta)", async () => {
-		const updatedStock = { id: "ps1", productId: "p1", branchId: "br1", quantity: 110 };
+		const updatedStock = {
+			id: "ps1",
+			productId: "p1",
+			branchId: "br1",
+			quantity: 110,
+		};
 		// adjustStock calls update().set().where().returning()
 		const mockReturningUpd = mock(() => Promise.resolve([updatedStock]));
 		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
@@ -299,7 +345,12 @@ describe("adjustStock", () => {
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
 		// insert().values().returning() returns the new row
-		const newStockRow = { id: "ps-new", productId: "p1", branchId: "br1", quantity: -5 };
+		const newStockRow = {
+			id: "ps-new",
+			productId: "p1",
+			branchId: "br1",
+			quantity: -5,
+		};
 		mockReturning.mockResolvedValueOnce([newStockRow]);
 
 		const result = await adjustStock(mockTenantDb, "p1", "br1", -5);
@@ -319,6 +370,8 @@ describe("adjustStock", () => {
 		// insert also fails
 		mockReturning.mockResolvedValueOnce([]);
 
-		await expect(adjustStock(mockTenantDb, "p1", "br1", 10)).rejects.toThrow("Failed to adjust stock");
+		await expect(adjustStock(mockTenantDb, "p1", "br1", 10)).rejects.toThrow(
+			"Failed to adjust stock",
+		);
 	});
 });

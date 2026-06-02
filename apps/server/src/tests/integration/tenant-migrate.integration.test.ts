@@ -76,7 +76,9 @@ describeOrSkip("tenant-migrate file-based loader", () => {
 		loadDevVarsLocal();
 		const url = process.env.TENANT_DATABASE_URL ?? process.env.DATABASE_URL;
 		if (!url) {
-			throw new Error("Neither TENANT_DATABASE_URL nor DATABASE_URL is set in .dev.vars");
+			throw new Error(
+				"Neither TENANT_DATABASE_URL nor DATABASE_URL is set in .dev.vars",
+			);
 		}
 		// Re-export under TENANT_DATABASE_URL so the per-test sub-pools pick it up.
 		process.env.TENANT_DATABASE_URL = url;
@@ -112,8 +114,9 @@ describeOrSkip("tenant-migrate file-based loader", () => {
 			expect(f.sql.length).toBeGreaterThan(0);
 		}
 		// 0021 metadata migration is present
-		expect(files.some((f) => f.name === "0021_add_tenant_migrations_metadata"))
-			.toBe(true);
+		expect(
+			files.some((f) => f.name === "0021_add_tenant_migrations_metadata"),
+		).toBe(true);
 	});
 
 	test("apply-pending on fresh tenant: applies all synthetic migrations", async () => {
@@ -121,11 +124,16 @@ describeOrSkip("tenant-migrate file-based loader", () => {
 		const sub = `${schemaName}_fresh`;
 		await pool.query(`CREATE SCHEMA "${sub}"`);
 		try {
-			const subPool = new Pool({ connectionString: process.env.TENANT_DATABASE_URL! });
-			// pin every connection in this pool to the sub-schema
-			subPool.on("connect", (client: { query: (sql: string) => Promise<unknown> }) => {
-				client.query(`SET search_path TO "${sub}"`).catch(() => {});
+			const subPool = new Pool({
+				connectionString: process.env.TENANT_DATABASE_URL!,
 			});
+			// pin every connection in this pool to the sub-schema
+			subPool.on(
+				"connect",
+				(client: { query: (sql: string) => Promise<unknown> }) => {
+					client.query(`SET search_path TO "${sub}"`).catch(() => {});
+				},
+			);
 			try {
 				const sql1 = `CREATE TABLE "t_one" ("id" int);`;
 				const sql2 = `CREATE TABLE "t_two" ("id" int);`;
@@ -162,10 +170,15 @@ describeOrSkip("tenant-migrate file-based loader", () => {
 		const sub = `${schemaName}_backfill`;
 		await pool.query(`CREATE SCHEMA "${sub}"`);
 		try {
-			const subPool = new Pool({ connectionString: process.env.TENANT_DATABASE_URL! });
-			subPool.on("connect", (client: { query: (sql: string) => Promise<unknown> }) => {
-				client.query(`SET search_path TO "${sub}"`).catch(() => {});
+			const subPool = new Pool({
+				connectionString: process.env.TENANT_DATABASE_URL!,
 			});
+			subPool.on(
+				"connect",
+				(client: { query: (sql: string) => Promise<unknown> }) => {
+					client.query(`SET search_path TO "${sub}"`).catch(() => {});
+				},
+			);
 			try {
 				await ensureMigrationTable(subPool);
 
@@ -206,10 +219,15 @@ describeOrSkip("tenant-migrate file-based loader", () => {
 		const sub = `${schemaName}_idem`;
 		await pool.query(`CREATE SCHEMA "${sub}"`);
 		try {
-			const subPool = new Pool({ connectionString: process.env.TENANT_DATABASE_URL! });
-			subPool.on("connect", (client: { query: (sql: string) => Promise<unknown> }) => {
-				client.query(`SET search_path TO "${sub}"`).catch(() => {});
+			const subPool = new Pool({
+				connectionString: process.env.TENANT_DATABASE_URL!,
 			});
+			subPool.on(
+				"connect",
+				(client: { query: (sql: string) => Promise<unknown> }) => {
+					client.query(`SET search_path TO "${sub}"`).catch(() => {});
+				},
+			);
 			try {
 				const sql1 = `CREATE TABLE "t_idem" ("id" int);`;
 				const synthetic: MigrationFile[] = [
@@ -266,21 +284,36 @@ describeOrSkip("tenant-migrate file-based loader", () => {
 		const sub = `${schemaName}_existing_tenant`;
 		await pool.query(`CREATE SCHEMA "${sub}"`);
 		try {
-			const subPool = new Pool({ connectionString: process.env.TENANT_DATABASE_URL! });
-			subPool.on("connect", (client: { query: (sql: string) => Promise<unknown> }) => {
-				client.query(`SET search_path TO "${sub}"`).catch(() => {});
+			const subPool = new Pool({
+				connectionString: process.env.TENANT_DATABASE_URL!,
 			});
+			subPool.on(
+				"connect",
+				(client: { query: (sql: string) => Promise<unknown> }) => {
+					client.query(`SET search_path TO "${sub}"`).catch(() => {});
+				},
+			);
 			try {
 				// 1. Stub dep tables. These stand in for the rich live schema; they
 				//    only need the columns our newcomers reference.
-				await subPool.query(`CREATE TABLE "members" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid())`);
-				await subPool.query(`CREATE TABLE "package_instances" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid())`);
-				await subPool.query(`CREATE TABLE "expenses" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid(), "currency" text DEFAULT 'usd' NOT NULL)`);
+				await subPool.query(
+					`CREATE TABLE "members" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid())`,
+				);
+				await subPool.query(
+					`CREATE TABLE "package_instances" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid())`,
+				);
+				await subPool.query(
+					`CREATE TABLE "expenses" ("id" uuid PRIMARY KEY DEFAULT gen_random_uuid(), "currency" text DEFAULT 'usd' NOT NULL)`,
+				);
 
 				// 2. Pre-create the state the NOVEL newcomers would produce, so we
 				//    actually exercise their idempotent guards.
-				await subPool.query(`ALTER TABLE "package_instances" ADD COLUMN "preferred_trainer_id" uuid`);
-				await subPool.query(`ALTER TABLE "package_instances" ADD CONSTRAINT "package_instances_preferred_trainer_id_members_id_fk" FOREIGN KEY ("preferred_trainer_id") REFERENCES "${sub}"."members"("id")`);
+				await subPool.query(
+					`ALTER TABLE "package_instances" ADD COLUMN "preferred_trainer_id" uuid`,
+				);
+				await subPool.query(
+					`ALTER TABLE "package_instances" ADD CONSTRAINT "package_instances_preferred_trainer_id_members_id_fk" FOREIGN KEY ("preferred_trainer_id") REFERENCES "${sub}"."members"("id")`,
+				);
 				await subPool.query(`CREATE TABLE "coach_intake_availability" (
 					"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
 					"trainer_id" uuid NOT NULL REFERENCES "${sub}"."members"("id") ON DELETE CASCADE,
@@ -291,8 +324,12 @@ describeOrSkip("tenant-migrate file-based loader", () => {
 					"created_at" timestamptz DEFAULT now() NOT NULL,
 					"updated_at" timestamptz DEFAULT now() NOT NULL
 				)`);
-				await subPool.query(`CREATE INDEX "coach_intake_trainer_idx" ON "coach_intake_availability" ("trainer_id")`);
-				await subPool.query(`CREATE INDEX "coach_intake_trainer_day_idx" ON "coach_intake_availability" ("trainer_id","day_of_week")`);
+				await subPool.query(
+					`CREATE INDEX "coach_intake_trainer_idx" ON "coach_intake_availability" ("trainer_id")`,
+				);
+				await subPool.query(
+					`CREATE INDEX "coach_intake_trainer_day_idx" ON "coach_intake_availability" ("trainer_id","day_of_week")`,
+				);
 				await subPool.query(`CREATE TABLE "coach_intake_exceptions" (
 					"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
 					"trainer_id" uuid NOT NULL REFERENCES "${sub}"."members"("id") ON DELETE CASCADE,
@@ -303,7 +340,9 @@ describeOrSkip("tenant-migrate file-based loader", () => {
 					"created_at" timestamptz DEFAULT now() NOT NULL,
 					CONSTRAINT "coach_intake_exc_unique" UNIQUE("trainer_id","date","start_time","end_time")
 				)`);
-				await subPool.query(`CREATE INDEX "coach_intake_exc_trainer_date_idx" ON "coach_intake_exceptions" ("trainer_id","date")`);
+				await subPool.query(
+					`CREATE INDEX "coach_intake_exc_trainer_date_idx" ON "coach_intake_exceptions" ("trainer_id","date")`,
+				);
 
 				// 3. Pre-stamp drizzle_migrations with every HISTORICAL_ORDER hash
 				//    to simulate an existing tenant past the historical baseline.

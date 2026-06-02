@@ -14,12 +14,23 @@ import {
 
 function makeChain(resolveValue: unknown = []) {
 	const chain: Record<string, any> = {};
-	const methods = ["from", "where", "orderBy", "limit", "offset", "innerJoin", "leftJoin", "groupBy"];
+	const methods = [
+		"from",
+		"where",
+		"orderBy",
+		"limit",
+		"offset",
+		"innerJoin",
+		"leftJoin",
+		"groupBy",
+	];
 	for (const m of methods) {
 		chain[m] = mock(() => chain);
 	}
-	chain.then = (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
-		Promise.resolve(resolveValue).then(resolve, reject);
+	chain.then = (
+		resolve: (v: unknown) => unknown,
+		reject?: (e: unknown) => unknown,
+	) => Promise.resolve(resolveValue).then(resolve, reject);
 	return chain;
 }
 
@@ -96,14 +107,20 @@ describe("listCancelledSales", () => {
 	});
 
 	test("returns rows with line items and zero repeatOffenderCount for walk-in (null customerId)", async () => {
-		const walkInRow = makeSaleRow({ customerId: null, customerType: "walk_in" });
+		const walkInRow = makeSaleRow({
+			customerId: null,
+			customerType: "walk_in",
+		});
 
 		// Queue: [count, orderRows, itemRows]  — no repeat-offender query because customerId is null
-		selectQueue.push(makeChain([{ total: 1 }]));      // count query
-		selectQueue.push(makeChain([walkInRow]));          // order rows
-		selectQueue.push(makeChain([makeItemRow()]));      // item rows
+		selectQueue.push(makeChain([{ total: 1 }])); // count query
+		selectQueue.push(makeChain([walkInRow])); // order rows
+		selectQueue.push(makeChain([makeItemRow()])); // item rows
 
-		const result = await listCancelledSales(mockTenantDb, { limit: 50, offset: 0 });
+		const result = await listCancelledSales(mockTenantDb, {
+			limit: 50,
+			offset: 0,
+		});
 
 		expect(result.total).toBe(1);
 		expect(result.rows).toHaveLength(1);
@@ -115,15 +132,21 @@ describe("listCancelledSales", () => {
 	});
 
 	test("returns repeatOffenderCount for member (non-null customerId)", async () => {
-		const saleRow = makeSaleRow({ customerId: "user-2", customerType: "member" });
+		const saleRow = makeSaleRow({
+			customerId: "user-2",
+			customerType: "member",
+		});
 
 		// Queue: [count, orderRows, itemRows, repeatCount]
-		selectQueue.push(makeChain([{ total: 1 }]));      // count query
-		selectQueue.push(makeChain([saleRow]));            // order rows
-		selectQueue.push(makeChain([]));                   // item rows (empty)
+		selectQueue.push(makeChain([{ total: 1 }])); // count query
+		selectQueue.push(makeChain([saleRow])); // order rows
+		selectQueue.push(makeChain([])); // item rows (empty)
 		selectQueue.push(makeChain([{ customerId: "user-2", cnt: 3 }])); // repeat count
 
-		const result = await listCancelledSales(mockTenantDb, { limit: 50, offset: 0 });
+		const result = await listCancelledSales(mockTenantDb, {
+			limit: 50,
+			offset: 0,
+		});
 
 		expect(result.rows[0]?.repeatOffenderCount).toBe(3);
 	});
@@ -152,7 +175,11 @@ describe("getCancelledSaleById", () => {
 
 	test("returns null when sale not found", async () => {
 		selectQueue.push(makeChain([])); // no rows
-		const result = await getCancelledSaleById(mockTenantDb, "so-missing", undefined);
+		const result = await getCancelledSaleById(
+			mockTenantDb,
+			"so-missing",
+			undefined,
+		);
 		expect(result).toBeNull();
 	});
 
@@ -174,7 +201,10 @@ describe("getCancelledSaleById", () => {
 	});
 
 	test("zero repeatOffenderCount for walk-in (null customerId)", async () => {
-		const walkInRow = makeSaleRow({ customerId: null, customerType: "walk_in" });
+		const walkInRow = makeSaleRow({
+			customerId: null,
+			customerType: "walk_in",
+		});
 
 		// Queue: [saleRow, itemRows] — no repeat-offender query
 		selectQueue.push(makeChain([walkInRow]));
@@ -216,7 +246,9 @@ describe("exportCancelledSalesCsv", () => {
 	});
 
 	test("escapes commas in fields", async () => {
-		const saleRow = makeSaleRow({ cancellationReason: "Customer, changed mind" });
+		const saleRow = makeSaleRow({
+			cancellationReason: "Customer, changed mind",
+		});
 
 		selectQueue.push(makeChain([saleRow]));
 		selectQueue.push(makeChain([]));
@@ -233,8 +265,8 @@ describe("getSalesKpiSummary (via listSalesOrders refundStatus)", () => {
 	test("listSalesOrders passes refundStatus filter to query", async () => {
 		const { listSalesOrders } = await import("@avantej-core/services");
 
-		selectQueue.push(makeChain([{ total: 0 }]));  // count
-		selectQueue.push(makeChain([]));               // rows
+		selectQueue.push(makeChain([{ total: 0 }])); // count
+		selectQueue.push(makeChain([])); // rows
 
 		const result = await listSalesOrders(mockTenantDb, {
 			refundStatus: "pending",

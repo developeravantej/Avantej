@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as SubscribeRouteImport } from './routes/subscribe'
+import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as FeaturesRouteImport } from './routes/features'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as ContactRouteImport } from './routes/contact'
@@ -115,6 +116,11 @@ const VerifyEmailRoute = VerifyEmailRouteImport.update({
 const SubscribeRoute = SubscribeRouteImport.update({
   id: '/subscribe',
   path: '/subscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SetPasswordRoute = SetPasswordRouteImport.update({
+  id: '/set-password',
+  path: '/set-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FeaturesRoute = FeaturesRouteImport.update({
@@ -691,6 +697,7 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/demo': typeof DemoRoute
   '/features': typeof FeaturesRoute
+  '/set-password': typeof SetPasswordRoute
   '/subscribe': typeof SubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/login': typeof authLoginRoute
@@ -789,6 +796,7 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/demo': typeof DemoRoute
   '/features': typeof FeaturesRoute
+  '/set-password': typeof SetPasswordRoute
   '/subscribe': typeof SubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/login': typeof authLoginRoute
@@ -887,6 +895,7 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/demo': typeof DemoRoute
   '/features': typeof FeaturesRoute
+  '/set-password': typeof SetPasswordRoute
   '/subscribe': typeof SubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/(auth)/login': typeof authLoginRoute
@@ -987,6 +996,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/demo'
     | '/features'
+    | '/set-password'
     | '/subscribe'
     | '/verify-email'
     | '/login'
@@ -1085,6 +1095,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/demo'
     | '/features'
+    | '/set-password'
     | '/subscribe'
     | '/verify-email'
     | '/login'
@@ -1182,6 +1193,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/demo'
     | '/features'
+    | '/set-password'
     | '/subscribe'
     | '/verify-email'
     | '/(auth)/login'
@@ -1282,6 +1294,7 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   DemoRoute: typeof DemoRoute
   FeaturesRoute: typeof FeaturesRoute
+  SetPasswordRoute: typeof SetPasswordRoute
   SubscribeRoute: typeof SubscribeRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
   authLoginRoute: typeof authLoginRoute
@@ -1305,6 +1318,13 @@ declare module '@tanstack/react-router' {
       path: '/subscribe'
       fullPath: '/subscribe'
       preLoaderRoute: typeof SubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/set-password': {
+      id: '/set-password'
+      path: '/set-password'
+      fullPath: '/set-password'
+      preLoaderRoute: typeof SetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/features': {
@@ -2260,6 +2280,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   DemoRoute: DemoRoute,
   FeaturesRoute: FeaturesRoute,
+  SetPasswordRoute: SetPasswordRoute,
   SubscribeRoute: SubscribeRoute,
   VerifyEmailRoute: VerifyEmailRoute,
   authLoginRoute: authLoginRoute,

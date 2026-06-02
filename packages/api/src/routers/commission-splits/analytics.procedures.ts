@@ -1,10 +1,15 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import { requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../../guards";
 import {
 	liabilitySummary,
 	liabilityByStaff,
+	exportLiabilityCsv,
 } from "@avantej-core/services/commission-splits.service";
 import { getControlPanelDb } from "../../lib/context-helpers";
 
@@ -25,24 +30,40 @@ const liabilitySummaryProcedure = tenantProcedure
 			to: z.string().datetime(),
 			hierarchyNodeId: z.string().uuid().optional(),
 			categoryId: z.string().uuid().optional(),
+			/** Phase 4: SQL-side filter by commission track ID. */
+			trackId: z.string().uuid().optional(),
+			/**
+			 * Phase 4: SQL-side filter by roleType.
+			 * Use "delivery_legacy" to match legacy rows where roleType IS NULL (GAPS #22).
+			 */
+			roleType: z
+				.enum(["trainer", "sales", "marketing", "referrer", "delivery_legacy"])
+				.optional(),
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-		
-
 		assertOrgContextMatch(context, input);
 		// OR permission check: commission_management:read OR commission_payout:read
 		let hasPermission = false;
 		try {
-			await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"commission_management",
+				"read",
+			);
 			hasPermission = true;
 		} catch {
 			// Try the alternative permission
 		}
 		if (!hasPermission) {
 			try {
-				await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "read");
+				await requirePermissionOrpc(
+					context.tenantDb,
+					context.member,
+					"commission_payout",
+					"read",
+				);
 				hasPermission = true;
 			} catch {
 				// Both failed
@@ -50,7 +71,8 @@ const liabilitySummaryProcedure = tenantProcedure
 		}
 		if (!hasPermission) {
 			throw new ORPCError("FORBIDDEN", {
-				message: "commission_management:read or commission_payout:read required",
+				message:
+					"commission_management:read or commission_payout:read required",
 			});
 		}
 
@@ -62,11 +84,16 @@ const liabilitySummaryProcedure = tenantProcedure
 				to: input.to,
 				hierarchyNodeId: input.hierarchyNodeId,
 				categoryId: input.categoryId,
+				trackId: input.trackId,
+				roleType: input.roleType,
 			});
 		} catch (err) {
 			if (err instanceof ORPCError) throw err;
 			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: err instanceof Error ? err.message : "Failed to compute liability summary",
+				message:
+					err instanceof Error
+						? err.message
+						: "Failed to compute liability summary",
 			});
 		}
 	});
@@ -92,17 +119,25 @@ const liabilityByStaffProcedure = tenantProcedure
 			branchId: z.string().uuid().optional(),
 			from: z.string().datetime().optional(),
 			to: z.string().datetime().optional(),
+			/** Phase 4: SQL-side filter by commission track ID. */
+			trackId: z.string().uuid().optional(),
+			/** Phase 4: SQL-side filter by roleType (use "delivery_legacy" for NULL rows). */
+			roleType: z
+				.enum(["trainer", "sales", "marketing", "referrer", "delivery_legacy"])
+				.optional(),
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-		
-
 		assertOrgContextMatch(context, input);
 		if (input.branchId) {
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 		}
-		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "read");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"commission_management",
+			"read",
+		);
 
 		const controlPanelDb = getControlPanelDb(context);
 
@@ -112,11 +147,96 @@ const liabilityByStaffProcedure = tenantProcedure
 				from: input.from ? new Date(input.from) : undefined,
 				to: input.to ? new Date(input.to) : undefined,
 				accessibleNodeIds: context.accessibleNodeIds ?? [],
+				trackId: input.trackId,
+				roleType: input.roleType,
 			});
 		} catch (err) {
 			if (err instanceof ORPCError) throw err;
 			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: err instanceof Error ? err.message : "Failed to compute liability by staff",
+				message:
+					err instanceof Error
+						? err.message
+						: "Failed to compute liability by staff",
+			});
+		}
+	});
+
+/**
+ * exportLiabilityCsv: generate a commission-liability CSV from liabilitySummary data.
+ *
+ * Phase 4 addition: columns include Role and Track ID alongside the existing
+ * amount buckets. NULL roleType renders as "Delivery (legacy)".
+ *
+ * Returns { csv: string, rowCount: number }. The caller is responsible for
+ * wrapping the CSV string in a Response with Content-Type: text/csv.
+ *
+ * Requires commission_management:read OR commission_payout:read.
+ */
+const exportLiabilityCsvProcedure = tenantProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			from: z.string().datetime(),
+			to: z.string().datetime(),
+			hierarchyNodeId: z.string().uuid().optional(),
+			categoryId: z.string().uuid().optional(),
+			trackId: z.string().uuid().optional(),
+			roleType: z
+				.enum(["trainer", "sales", "marketing", "referrer", "delivery_legacy"])
+				.optional(),
+		}),
+	)
+	.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
+		// OR permission check: commission_management:read OR commission_payout:read
+		let hasPermission = false;
+		try {
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"commission_management",
+				"read",
+			);
+			hasPermission = true;
+		} catch {
+			// Try the alternative
+		}
+		if (!hasPermission) {
+			try {
+				await requirePermissionOrpc(
+					context.tenantDb,
+					context.member,
+					"commission_payout",
+					"read",
+				);
+				hasPermission = true;
+			} catch {
+				// Both failed
+			}
+		}
+		if (!hasPermission) {
+			throw new ORPCError("FORBIDDEN", {
+				message:
+					"commission_management:read or commission_payout:read required",
+			});
+		}
+
+		const controlPanelDb = getControlPanelDb(context);
+
+		try {
+			return await exportLiabilityCsv(context.tenantDb, controlPanelDb, {
+				from: input.from,
+				to: input.to,
+				hierarchyNodeId: input.hierarchyNodeId,
+				categoryId: input.categoryId,
+				trackId: input.trackId,
+				roleType: input.roleType,
+			});
+		} catch (err) {
+			if (err instanceof ORPCError) throw err;
+			throw new ORPCError("INTERNAL_SERVER_ERROR", {
+				message:
+					err instanceof Error ? err.message : "Failed to export liability CSV",
 			});
 		}
 	});
@@ -124,4 +244,5 @@ const liabilityByStaffProcedure = tenantProcedure
 export const commissionSplitsAnalyticsProcedures = {
 	liabilitySummary: liabilitySummaryProcedure,
 	liabilityByStaff: liabilityByStaffProcedure,
+	exportLiabilityCsv: exportLiabilityCsvProcedure,
 };

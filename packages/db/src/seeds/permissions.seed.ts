@@ -128,6 +128,11 @@ const SEED_PERMISSIONS = [
 	{ resource: "category_commission_management", action: "create" },
 	{ resource: "category_commission_management", action: "update" },
 	{ resource: "category_commission_management", action: "delete" },
+	// commission_track_management — commission tracks config (Phase 3)
+	{ resource: "commission_track_management", action: "read" },
+	{ resource: "commission_track_management", action: "create" },
+	{ resource: "commission_track_management", action: "update" },
+	{ resource: "commission_track_management", action: "delete" },
 	// commission_payout — finance-gated; only owner-level should hold create/update/process
 	{ resource: "commission_payout", action: "read" },
 	{ resource: "commission_payout", action: "create" },

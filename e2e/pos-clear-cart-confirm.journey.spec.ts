@@ -37,29 +37,33 @@ import type { Page } from "@playwright/test";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 interface ClientInfo {
-  memberId: string;
-  userId: string;
-  name: string;
+	memberId: string;
+	userId: string;
+	name: string;
 }
 
 async function listClients(page: Page): Promise<ClientInfo[]> {
-  type MemberRow = {
-    id: string;
-    userId: string;
-    role: string;
-    status: string;
-    name: string;
-  };
-  try {
-    const rows = await orpcCall<object, MemberRow[]>(page, "members", "list", {
-      organizationId: TEST_ORG_ID,
-      role: "client",
-      status: "active",
-    });
-    return rows.map((r) => ({ memberId: r.id, userId: r.userId, name: r.name }));
-  } catch {
-    return [];
-  }
+	type MemberRow = {
+		id: string;
+		userId: string;
+		role: string;
+		status: string;
+		name: string;
+	};
+	try {
+		const rows = await orpcCall<object, MemberRow[]>(page, "members", "list", {
+			organizationId: TEST_ORG_ID,
+			role: "client",
+			status: "active",
+		});
+		return rows.map((r) => ({
+			memberId: r.id,
+			userId: r.userId,
+			name: r.name,
+		}));
+	} catch {
+		return [];
+	}
 }
 
 /**
@@ -67,158 +71,160 @@ async function listClients(page: Page): Promise<ClientInfo[]> {
  * Assumes we are on the Customer step (step 0) with Member mode active.
  */
 async function selectCustomer(page: Page, name: string): Promise<void> {
-  const searchInput = page.getByRole("textbox", { name: /search/i });
-  await searchInput.waitFor({ timeout: 10_000 });
-  // Clear before filling to avoid stale search results
-  await searchInput.fill("");
-  await searchInput.fill(name.split(" ")[0] ?? name);
+	// POS member-search box (NOT the sidebar "Power search…", which also matches
+	// /search/i and triggers a strict-mode violation).
+	const searchInput = page.getByTestId("pos-member-search-input");
 
-  const firstResult = page
-    .getByRole("button", {
-      name: new RegExp(name.split(" ")[0] ?? name, "i"),
-    })
-    .first();
-  await firstResult.waitFor({ timeout: 10_000 });
-  await firstResult.click();
+	// When a customer is already selected, the Customer step hides the search box
+	// behind a selected-customer pill — clear it first to reveal the search.
+	if (!(await searchInput.isVisible().catch(() => false))) {
+		const clearBtn = page.getByRole("button", {
+			name: /clear customer selection/i,
+		});
+		if (await clearBtn.isVisible().catch(() => false)) {
+			await clearBtn.click();
+		}
+	}
+
+	await searchInput.waitFor({ timeout: 10_000 });
+	// Clear before filling to avoid stale search results
+	await searchInput.fill("");
+	await searchInput.fill(name.split(" ")[0] ?? name);
+
+	const firstResult = page
+		.getByRole("button", {
+			name: new RegExp(name.split(" ")[0] ?? name, "i"),
+		})
+		.first();
+	await firstResult.waitFor({ timeout: 10_000 });
+	await firstResult.click();
 }
 
 // ─── Test ──────────────────────────────────────────────────────────────────────
 
-test(
-  "POS clear-cart dialog appears when changing customer with items in cart",
-  { tag: ["@p1"] },
-  async ({ page }) => {
-    // ── Preconditions ──────────────────────────────────────────────────────────
-    const clients = await listClients(page);
-    test.skip(
-      clients.length < 2,
-      `Need at least 2 active clients; found ${clients.length} — skip`,
-    );
+test("POS clear-cart dialog appears when changing customer with items in cart", {
+	tag: ["@p1"],
+}, async ({ page }) => {
+	// ── Preconditions ──────────────────────────────────────────────────────────
+	const clients = await listClients(page);
+	test.skip(clients.length < 1, "Need at least 1 active client — skip");
 
-    const client1 = clients[0]!;
-    const client2 = clients.find((c) => c.memberId !== client1.memberId)!;
+	const client1 = clients[0]!;
 
-    // ── Navigate ───────────────────────────────────────────────────────────────
-    await page.goto("/dashboard/sales/create");
-    await page.waitForLoadState("networkidle");
+	// ── Navigate ───────────────────────────────────────────────────────────────
+	await page.goto("/dashboard/sales/create");
+	await page.waitForLoadState("networkidle");
 
-    // Ensure Member mode
-    const memberButton = page.getByRole("button", { name: /^Member$/i });
-    if (await memberButton.isVisible()) {
-      await memberButton.click();
-    }
+	// Ensure Member mode
+	const memberButton = page.getByRole("button", { name: /^Member$/i });
+	if (await memberButton.isVisible()) {
+		await memberButton.click();
+	}
 
-    // ── Select client #1 ──────────────────────────────────────────────────────
-    await selectCustomer(page, client1.name);
+	// ── Select client #1 ──────────────────────────────────────────────────────
+	await selectCustomer(page, client1.name);
 
-    // Continue to Items
-    const continueToItems = page.getByRole("button", {
-      name: /continue to items/i,
-    });
-    await continueToItems.waitFor({ timeout: 5_000 });
-    await continueToItems.click();
+	// Continue to Items — selecting a customer may auto-advance; only click if shown.
+	const continueToItems = page.getByRole("button", {
+		name: /continue to items/i,
+	});
+	if (await continueToItems.isVisible().catch(() => false)) {
+		await continueToItems.click();
+	}
 
-    // ── Add a custom line item ─────────────────────────────────────────────────
-    const addCustomButton = page.getByTestId("pos-add-product-button");
-    await addCustomButton.waitFor({ timeout: 5_000 });
-    await addCustomButton.click();
+	// ── Add a custom line item ─────────────────────────────────────────────────
+	const addCustomButton = page.getByTestId("pos-add-product-button");
+	await addCustomButton.waitFor({ timeout: 5_000 });
+	await addCustomButton.click();
 
-    const descInput = page.getByPlaceholder("Description");
-    await descInput.waitFor({ timeout: 3_000 });
-    await descInput.fill("E2E Cart Test Item");
+	const descInput = page.getByPlaceholder("Description");
+	await descInput.waitFor({ timeout: 3_000 });
+	await descInput.fill("E2E Cart Test Item");
 
-    // Verify the item row is present
-    await expect(page.getByTestId("pos-catalog-item")).toBeVisible({
-      timeout: 3_000,
-    });
+	// Verify the item row is present
+	await expect(page.getByTestId("pos-catalog-item")).toBeVisible({
+		timeout: 3_000,
+	});
 
-    // ── Click "Change" button in customer recap pill ───────────────────────────
-    // In Items step (step 1), a recap pill with the selected customer is shown.
-    // It has a "Change" button that calls setCurrentStep(0).
-    const changeCustomerButton = page.getByRole("button", { name: /^Change$/i });
-    await changeCustomerButton.waitFor({ timeout: 5_000 });
-    await changeCustomerButton.click();
+	// ── Trigger the clear-cart guard ───────────────────────────────────────────
+	// In the current UI you change customer by CLEARING the selected one. On the
+	// Items step click "Change" to return to step 0, then click the selected
+	// customer's "×" (Clear customer selection). With items in the cart this
+	// fires the "Clear cart?" confirmation dialog.
+	const changeCustomerButton = page.getByRole("button", { name: /^Change$/i });
+	await changeCustomerButton.waitFor({ timeout: 5_000 });
+	await changeCustomerButton.click();
 
-    // Back to step 0 — Customer step should be active
-    // Now select client #2 — this triggers handleCustomerSelect which detects
-    // items.length > 0 && customer.id !== selectedCustomer.id → dialog opens.
-    await selectCustomer(page, client2.name);
+	const clearCustomerBtn = page.getByRole("button", {
+		name: /clear customer selection/i,
+	});
+	await clearCustomerBtn.waitFor({ timeout: 5_000 });
+	await clearCustomerBtn.click();
 
-    // ── Assert: "Clear cart?" dialog appears ───────────────────────────────────
-    // Dialog title is "Clear cart?" (from DialogTitle in pos-workflow.tsx)
-    const dialogTitle = page.getByRole("heading", { name: /clear cart\?/i });
-    await expect(dialogTitle).toBeVisible({ timeout: 5_000 });
+	// ── Assert: "Clear cart?" dialog appears ───────────────────────────────────
+	const dialogTitle = page.getByRole("heading", { name: /clear cart\?/i });
+	await expect(dialogTitle).toBeVisible({ timeout: 5_000 });
 
-    // ── Path A: Cancel the dialog ──────────────────────────────────────────────
-    const cancelButton = page.getByRole("button", { name: /^Cancel$/i });
-    await cancelButton.waitFor({ timeout: 3_000 });
-    await cancelButton.click();
+	// ── Path A: Cancel the dialog ──────────────────────────────────────────────
+	const cancelButton = page.getByRole("button", { name: /^Cancel$/i });
+	await cancelButton.waitFor({ timeout: 3_000 });
+	await cancelButton.click();
 
-    // Dialog should close
-    await expect(dialogTitle).not.toBeVisible({ timeout: 3_000 });
+	// Dialog should close
+	await expect(dialogTitle).not.toBeVisible({ timeout: 3_000 });
 
-    // Client #1 should still be selected — the customer recap pill should still
-    // show client1's name. We're back at step 0 so the step-1 pill is hidden;
-    // instead the step-0 "done" summary pill should show client1's initials/name.
-    // Navigate back to Items step to verify item is intact.
-    const continueToItemsAgain = page.getByRole("button", {
-      name: /continue to items/i,
-    });
-    if (await continueToItemsAgain.isVisible()) {
-      await continueToItemsAgain.click();
-    }
-    // Item should still be in the cart
-    await expect(page.getByTestId("pos-catalog-item")).toBeVisible({
-      timeout: 3_000,
-    });
+	// Client #1 should still be selected — the customer recap pill should still
+	// show client1's name. We're back at step 0 so the step-1 pill is hidden;
+	// instead the step-0 "done" summary pill should show client1's initials/name.
+	// Navigate back to Items step to verify item is intact.
+	const continueToItemsAgain = page.getByRole("button", {
+		name: /continue to items/i,
+	});
+	if (await continueToItemsAgain.isVisible()) {
+		await continueToItemsAgain.click();
+	}
+	// Item should still be in the cart
+	await expect(page.getByTestId("pos-catalog-item")).toBeVisible({
+		timeout: 3_000,
+	});
 
-    // Customer recap pill in the Items step should still show client1's name
-    // (partial match since the pill truncates)
-    const client1FirstWord = client1.name.split(" ")[0] ?? client1.name;
-    await expect(
-      page.getByText(new RegExp(client1FirstWord, "i")).first(),
-    ).toBeVisible({ timeout: 3_000 });
+	// Customer recap pill in the Items step should still show client1's name
+	// (partial match since the pill truncates)
+	const client1FirstWord = client1.name.split(" ")[0] ?? client1.name;
+	await expect(
+		page.getByText(new RegExp(client1FirstWord, "i")).first(),
+	).toBeVisible({ timeout: 3_000 });
 
-    // ── Path B: Confirm the dialog ─────────────────────────────────────────────
-    // Click Change again
-    const changeCustomerButton2 = page.getByRole("button", {
-      name: /^Change$/i,
-    });
-    await changeCustomerButton2.waitFor({ timeout: 5_000 });
-    await changeCustomerButton2.click();
+	// ── Path B: Confirm the dialog clears the cart ─────────────────────────────
+	// Re-trigger: Change → step 0 → "×" clear customer → dialog → confirm.
+	const changeCustomerButton2 = page.getByRole("button", { name: /^Change$/i });
+	await changeCustomerButton2.waitFor({ timeout: 5_000 });
+	await changeCustomerButton2.click();
 
-    // Select client #2 again
-    await selectCustomer(page, client2.name);
+	const clearCustomerBtn2 = page.getByRole("button", {
+		name: /clear customer selection/i,
+	});
+	await clearCustomerBtn2.waitFor({ timeout: 5_000 });
+	await clearCustomerBtn2.click();
 
-    // Dialog appears again
-    await expect(dialogTitle).toBeVisible({ timeout: 5_000 });
+	await expect(dialogTitle).toBeVisible({ timeout: 5_000 });
 
-    // Click "Clear Cart & Continue"
-    const confirmButton = page.getByRole("button", {
-      name: /clear cart & continue/i,
-    });
-    await confirmButton.waitFor({ timeout: 3_000 });
-    await confirmButton.click();
+	const confirmButton = page.getByRole("button", {
+		name: /clear cart & continue/i,
+	});
+	await confirmButton.waitFor({ timeout: 3_000 });
+	await confirmButton.click();
 
-    // Dialog closes
-    await expect(dialogTitle).not.toBeVisible({ timeout: 3_000 });
+	// Dialog closes.
+	await expect(dialogTitle).not.toBeVisible({ timeout: 3_000 });
 
-    // ── Assert: client #2 selected, cart is empty ──────────────────────────────
-    // After confirmation the workflow advances to step 1 with the new customer.
-    // The customer recap pill should show client2's name.
-    const client2FirstWord = client2.name.split(" ")[0] ?? client2.name;
-    await expect(
-      page.getByText(new RegExp(client2FirstWord, "i")).first(),
-    ).toBeVisible({ timeout: 5_000 });
-
-    // No item rows in the cart (items array was cleared by confirmClearCart)
-    await expect(page.getByTestId("pos-catalog-item")).not.toBeVisible({
-      timeout: 3_000,
-    });
-
-    // The empty state message confirms the cart is clear
-    await expect(
-      page.getByText(/no items added/i),
-    ).toBeVisible({ timeout: 3_000 });
-  },
-);
+	// ── Assert: the cart was cleared ───────────────────────────────────────────
+	// Confirming clears both the customer and the items. The customer search box
+	// reappears (no customer selected) and there are no catalog item rows.
+	await expect(page.getByTestId("pos-member-search-input")).toBeVisible({
+		timeout: 5_000,
+	});
+	await expect(page.getByTestId("pos-catalog-item")).not.toBeVisible({
+		timeout: 3_000,
+	});
+});

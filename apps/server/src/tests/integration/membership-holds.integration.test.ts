@@ -46,7 +46,12 @@ afterAll(async () => {
 	// (e.g. from a thrown test) doesn't strand history rows.
 	await tenantDb
 		.delete(packageInstanceStatusHistory)
-		.where(inArray(packageInstanceStatusHistory.packageInstanceId, createdPackageIds));
+		.where(
+			inArray(
+				packageInstanceStatusHistory.packageInstanceId,
+				createdPackageIds,
+			),
+		);
 	await tenantDb
 		.delete(membershipHolds)
 		.where(inArray(membershipHolds.packageInstanceId, createdPackageIds));
@@ -159,7 +164,9 @@ describe("Membership Holds Integration (J4)", () => {
 			.where(eq(packageInstanceStatusHistory.packageInstanceId, pkgId));
 		// 1 freeze + 1 resume
 		expect(history.length).toBe(2);
-		expect(history.some((h) => h.toStatus === "active" && h.reason === "resume")).toBe(true);
+		expect(
+			history.some((h) => h.toStatus === "active" && h.reason === "resume"),
+		).toBe(true);
 
 		// Resuming again throws (hold not active)
 		await expect(

@@ -1,5 +1,44 @@
 # CLAUDE.md
 
+## Owner Context
+
+**Avantej** is Wilfred's flagship multi-tenant SaaS for gym and fitness centre management. Clients are gym owners (tenants) who manage members, trainers, packages, appointments, POS sales, installment plans, and branch-level commissions.
+
+**End users:** Gym front-desk staff (cashiers), gym managers, and trainers — Malaysian SME operators, not tech-savvy.
+
+**Active work patterns:** Heavy use of parallel agents for audits and fixes. After any change, verify in the browser at `http://avantej.localhost:3021/`. Wilfred prefers Chrome MCP verification over test suites for feature correctness. He uses `/audit-prove` to validate the POS is working end-to-end.
+
+**Key domain rules to never break:** Installment plan amounts must show (not full price) in POS. Commission reaches trainers in all cases — rotation queue vs requested. Multi-tenant isolation is critical: never let tenant A see tenant B's data.
+
+**Stack note:** This project uses **Vite + TanStack Router + Better-Auth + oRPC + Drizzle** — NOT Next.js/Convex/Clerk. See Stack Constraints section below.
+
+## Stub Data (for /page-probe)
+
+| Field | Value |
+|---|---|
+| Member name | Ahmad Firdaus |
+| Phone | +60123456789 |
+| Email | member@test.my |
+| Package amount | RM 300 (30000 sen) |
+| Installment months | 3 |
+| Branch | Main Branch |
+| Service | Body Massage 60min |
+| Staff | (use rotation — leave blank) |
+| Date | today |
+
+## Current Phase
+
+POS system hardening — installment plan display fixes, commission distribution verification, TypeScript error cleanup. Use `/audit-prove` to validate the POS end-to-end after changes. Parallel agents are standard for audits.
+
+## Settled Decisions
+
+- **Vite + TanStack Router, not Next.js** — architecture is locked, don't suggest migrating
+- **Better-Auth, not Clerk** — same, don't introduce Clerk patterns
+- **oRPC for all client→server calls, not REST** — go through `@/utils/orpc` always
+- **Drizzle, not Convex** — no Convex in this project
+- **Database-per-tenant isolation via Neon branches** — tenants are never on a shared DB
+- **Router files capped at 400 LOC** — CI-enforced; split into folder modules when approaching limit
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Quick Reference
@@ -221,6 +260,29 @@ The `/hub` + `/hub-update` skills and their `zhub/` page docs have been **retire
 - `/graphify query "how does auth connect to tenant middleware?"` — BFS relationship query
 - `/graphify path "orpcTenantMiddleware" "createContext"` — shortest path between two concepts
 - `/graphify . --update` — incremental re-extraction after changes
+
+### When to use graphify
+
+**Before touching unfamiliar code** — query first instead of grepping cold:
+```
+/graphify query "how does the commission calculation reach the payout batch?"
+/graphify path "pos.service" "payouts.service"
+```
+
+**When a bug report references a feature area** — the graph connects audit findings to source files. Existing findings for commissions, refunds, and installments are already in `graphify-out/graph.json`.
+
+**After a major plan completes** — run `--update` so the graph reflects the new code. Only touch changed files; takes ~30s:
+```
+/graphify . --update
+```
+
+**During /execute planning** — query the graph to find which god nodes (`useApiMutation`, `useUserContext`, `Button`, etc.) a change will ripple through before assigning file ownership to parallel agents.
+
+### When NOT to use graphify
+
+- Routine single-file edits — just read the file
+- After every commit — too noisy, update only after multi-file plans
+- For type errors — use `bun check-types` directly
 
 > **Note on `zhub/`:** the folder still exists but now holds **only schema/drift CI artifacts** (`zhub/shared/schema-*.md`) written by `scripts/gen-erd.ts`, `dump-fks.ts`, `dump-tenant-fks.ts`, and read by `scripts/check-drift.ts`. Do not delete it — the `drift-check` CI gate depends on it. The old per-page docs (`index.md`, `pages/`, `api-overview.md`, `auth-flow.md`) are gone.
 

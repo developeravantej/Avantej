@@ -63,10 +63,7 @@ export async function runPackageExpirySweep(
 			report.expired += expired;
 		} catch (orgErr) {
 			report.errors++;
-			console.error(
-				`[package-expiry] org=${org.id} top-level error:`,
-				orgErr,
-			);
+			console.error(`[package-expiry] org=${org.id} top-level error:`, orgErr);
 		}
 	}
 

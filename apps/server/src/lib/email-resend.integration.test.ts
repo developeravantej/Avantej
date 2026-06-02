@@ -56,7 +56,7 @@ describe("Email Service Integration Tests — Resend Sandbox", () => {
 	beforeAll(() => {
 		if (shouldSkipEmailIntegration()) {
 			console.log(
-				"[email-resend.integration] Skipping — SKIP_INTEGRATION_TESTS=true or RESEND_API_KEY missing"
+				"[email-resend.integration] Skipping — SKIP_INTEGRATION_TESTS=true or RESEND_API_KEY missing",
 			);
 			return;
 		}
@@ -69,7 +69,7 @@ describe("Email Service Integration Tests — Resend Sandbox", () => {
 		process.env.RESEND_FROM_EMAIL = SANDBOX_FROM;
 
 		console.log(
-			`[email-resend.integration] Using sandbox sender: ${SANDBOX_FROM}`
+			`[email-resend.integration] Using sandbox sender: ${SANDBOX_FROM}`,
 		);
 	});
 
@@ -94,7 +94,7 @@ describe("Email Service Integration Tests — Resend Sandbox", () => {
 		expect(result.data?.id.length).toBeGreaterThan(0);
 
 		console.log(
-			`[email-resend.integration] delivered@resend.dev message id: ${result.data?.id}`
+			`[email-resend.integration] delivered@resend.dev message id: ${result.data?.id}`,
 		);
 	});
 
@@ -122,7 +122,7 @@ describe("Email Service Integration Tests — Resend Sandbox", () => {
 		expect(result.data?.id.length).toBeGreaterThan(0);
 
 		console.log(
-			`[email-resend.integration] bounced@resend.dev message id: ${result.data?.id} (bounce webhook will follow)`
+			`[email-resend.integration] bounced@resend.dev message id: ${result.data?.id} (bounce webhook will follow)`,
 		);
 	});
 
@@ -137,11 +137,11 @@ describe("Email Service Integration Tests — Resend Sandbox", () => {
 		const verificationLink = `http://localhost:3021/verify-email?token=sandbox-test-${Date.now()}&callbackURL=/dashboard`;
 
 		await expect(
-			sendVerificationEmail(DELIVERED, verificationLink, "Sandbox User")
+			sendVerificationEmail(DELIVERED, verificationLink, "Sandbox User"),
 		).resolves.toBeUndefined();
 
 		console.log(
-			`[email-resend.integration] sendVerificationEmail completed for ${DELIVERED}`
+			`[email-resend.integration] sendVerificationEmail completed for ${DELIVERED}`,
 		);
 	});
 
@@ -157,11 +157,11 @@ describe("Email Service Integration Tests — Resend Sandbox", () => {
 		const resetLink = `http://localhost:3021/reset-password?token=sandbox-reset-${Date.now()}`;
 
 		await expect(
-			sendPasswordResetEmail(DELIVERED, resetLink, "Sandbox User")
+			sendPasswordResetEmail(DELIVERED, resetLink, "Sandbox User"),
 		).resolves.toBeUndefined();
 
 		console.log(
-			`[email-resend.integration] sendPasswordResetEmail completed for ${DELIVERED}`
+			`[email-resend.integration] sendPasswordResetEmail completed for ${DELIVERED}`,
 		);
 	});
 
@@ -188,7 +188,7 @@ describe("Email Service Integration Tests — Resend Sandbox", () => {
 		// for example.com — report it but don't mask it.
 		expect(result.error).not.toBeNull();
 		console.log(
-			`[email-resend.integration] unverified recipient correctly rejected: ${JSON.stringify(result.error)}`
+			`[email-resend.integration] unverified recipient correctly rejected: ${JSON.stringify(result.error)}`,
 		);
 	});
 });

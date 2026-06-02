@@ -13,7 +13,7 @@ import { LoadingSpinner, PageLoader } from "@/components/ui/loading-spinner";
 import { useApiMutation } from "@/hooks/useApiMutation";
 
 import { useUserContext } from "@/hooks/useUserContext";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BranchSelector } from "@/components/branch/branch-selector";
 import { Button } from "@/components/ui/button";
@@ -52,9 +52,7 @@ export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/appointment/class-slots/view",
 )({
 	validateSearch: (search: Record<string, unknown>) => ({
-		view: (search.view === "flat" ? "flat" : "grouped") as
-			| "grouped"
-			| "flat",
+		view: (search.view === "flat" ? "flat" : "grouped") as "grouped" | "flat",
 	}),
 	beforeLoad: async () => {
 		await requirePermission("class_slot_management:read");
@@ -166,7 +164,13 @@ interface KpiTileProps {
 	accent?: "default" | "amber" | "red";
 }
 
-function KpiTile({ label, value, sub, fillPct, accent = "default" }: KpiTileProps) {
+function KpiTile({
+	label,
+	value,
+	sub,
+	fillPct,
+	accent = "default",
+}: KpiTileProps) {
 	const valueColor =
 		accent === "amber"
 			? "text-amber-600"
@@ -179,20 +183,26 @@ function KpiTile({ label, value, sub, fillPct, accent = "default" }: KpiTileProp
 			<p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#737373] mb-2">
 				{label}
 			</p>
-			<p className={cn("font-mono tabular-nums text-3xl font-extrabold", valueColor)}>
+			<p
+				className={cn(
+					"font-mono tabular-nums text-3xl font-extrabold",
+					valueColor,
+				)}
+			>
 				{value}
 			</p>
 			{fillPct !== undefined && (
 				<div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#e5e5e5]">
 					<div
-						className={cn("h-full rounded-full transition-[width] duration-300", fillBarColor(fillPct))}
+						className={cn(
+							"h-full rounded-full transition-[width] duration-300",
+							fillBarColor(fillPct),
+						)}
 						style={{ width: `${Math.min(fillPct, 100)}%` }}
 					/>
 				</div>
 			)}
-			{sub && (
-				<p className="mt-1.5 text-xs text-[#737373]">{sub}</p>
-			)}
+			{sub && <p className="mt-1.5 text-xs text-[#737373]">{sub}</p>}
 		</div>
 	);
 }
@@ -214,7 +224,10 @@ function FillBar({ booked, capacity }: FillBarProps) {
 		<div className="flex items-center gap-2">
 			<div className="h-1.5 w-20 flex-shrink-0 overflow-hidden rounded-full bg-[#e5e5e5]">
 				<div
-					className={cn("h-full rounded-full transition-[width] duration-300", fillBarColor(pct))}
+					className={cn(
+						"h-full rounded-full transition-[width] duration-300",
+						fillBarColor(pct),
+					)}
 					style={{ width: `${pct}%` }}
 				/>
 			</div>
@@ -233,14 +246,31 @@ type SlotStatus = "open" | "full" | "waitlist" | "cancelled";
 
 function SlotStatusBadge({ status }: { status: SlotStatus }) {
 	const map: Record<SlotStatus, { cls: string; label: string }> = {
-		open: { cls: "bg-emerald-50 text-emerald-700 border border-emerald-200", label: "Open" },
-		full: { cls: "bg-red-50 text-red-700 border border-red-200", label: "Full" },
-		waitlist: { cls: "bg-amber-50 text-amber-700 border border-amber-200", label: "Waitlist" },
-		cancelled: { cls: "bg-[#f3f3f3] text-[#737373] border border-[#e5e5e5]", label: "Cancelled" },
+		open: {
+			cls: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+			label: "Open",
+		},
+		full: {
+			cls: "bg-red-50 text-red-700 border border-red-200",
+			label: "Full",
+		},
+		waitlist: {
+			cls: "bg-amber-50 text-amber-700 border border-amber-200",
+			label: "Waitlist",
+		},
+		cancelled: {
+			cls: "bg-[#f3f3f3] text-[#737373] border border-[#e5e5e5]",
+			label: "Cancelled",
+		},
 	};
 	const { cls, label } = map[status];
 	return (
-		<span className={cn("inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold", cls)}>
+		<span
+			className={cn(
+				"inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold",
+				cls,
+			)}
+		>
 			{label}
 		</span>
 	);
@@ -264,20 +294,26 @@ function ClassSlotsPage() {
 
 	// --- Filter state ---
 	const [search, setSearch] = useState<string>("");
-	const [statusFilter, setStatusFilter] = useState<"all" | "open" | "full" | "waitlist">("all");
+	const [statusFilter, setStatusFilter] = useState<
+		"all" | "open" | "full" | "waitlist"
+	>("all");
 
 	// --- Dialog state ---
 	const [createSheetOpen, setCreateSheetOpen] = useState(false);
 	const [editSheetOpen, setEditSheetOpen] = useState(false);
 	const [editingSlot, setEditingSlot] = useState<ClassSlotRow | null>(null);
 	const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-	const [cancellingSlot, setCancellingSlot] = useState<ClassSlotRow | null>(null);
+	const [cancellingSlot, setCancellingSlot] = useState<ClassSlotRow | null>(
+		null,
+	);
 	const [cancellationReason, setCancellationReason] = useState("");
 	const [signupsSheetOpen, setSignupsSheetOpen] = useState(false);
-	const [viewingSignupsSlot, setViewingSignupsSlot] = useState<ClassSlotRow | null>(null);
+	const [viewingSignupsSlot, setViewingSignupsSlot] =
+		useState<ClassSlotRow | null>(null);
 
 	// --- Form state ---
-	const [createForm, setCreateForm] = useState<CreateFormState>(EMPTY_CREATE_FORM);
+	const [createForm, setCreateForm] =
+		useState<CreateFormState>(EMPTY_CREATE_FORM);
 	const [editForm, setEditForm] = useState<EditFormState>(EMPTY_EDIT_FORM);
 
 	// ---------------------------------------------------------------------------
@@ -290,41 +326,33 @@ function ClassSlotsPage() {
 		isError,
 		refetch,
 	} = useQuery({
-		queryKey: ["classSlots", organizationId],
-		queryFn: async () => {
-			if (!organizationId) return [];
-			return client.classSlots.list({ organizationId });
-		},
+		...orpc.classSlots.list.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 	});
 
 	const { data: services = [] } = useQuery({
-		queryKey: ["services", organizationId],
-		queryFn: async () => {
-			if (!organizationId) return [];
-			return client.services.list({ organizationId });
-		},
+		...orpc.services.list.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 	});
 
 	const { data: membersData = [] } = useQuery({
-		queryKey: ["members", organizationId],
-		queryFn: async () => {
-			if (!organizationId) return [];
-			return client.members.list({ organizationId });
-		},
+		...orpc.members.list.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 	});
 
 	const { data: signups = [], isLoading: signupsLoading } = useQuery({
-		queryKey: ["classSlotSignups", viewingSignupsSlot?.id],
-		queryFn: async () => {
-			if (!organizationId || !viewingSignupsSlot) return [];
-			return client.classSlots.getSignups({
-				organizationId,
-				id: viewingSignupsSlot.id,
-			});
-		},
+		...orpc.classSlots.getSignups.queryOptions({
+			input: {
+				organizationId: organizationId!,
+				id: viewingSignupsSlot?.id ?? "",
+			},
+		}),
 		enabled: !!organizationId && !!viewingSignupsSlot,
 	});
 
@@ -332,7 +360,9 @@ function ClassSlotsPage() {
 	// Mutations
 	// ---------------------------------------------------------------------------
 
-	const classSlotsKey = ["classSlots", organizationId];
+	const classSlotsKey = orpc.classSlots.list.queryOptions({
+		input: { organizationId: organizationId! },
+	}).queryKey;
 
 	const createMutation = useApiMutation({
 		mutationFn: (form: CreateFormState) => {
@@ -404,11 +434,13 @@ function ClassSlotsPage() {
 	const [enrollClientUserId, setEnrollClientUserId] = useState("");
 
 	const { data: customerMembers = [] } = useQuery({
-		queryKey: ["members", organizationId, "client"],
-		queryFn: async () => {
-			if (!organizationId) return [];
-			return client.members.list({ organizationId, role: "client", status: "active" });
-		},
+		...orpc.members.list.queryOptions({
+			input: {
+				organizationId: organizationId!,
+				role: "client",
+				status: "active",
+			},
+		}),
 		enabled: !!organizationId && signupsSheetOpen,
 	});
 
@@ -434,7 +466,10 @@ function ClassSlotsPage() {
 	const removeEnrollmentMutation = useApiMutation({
 		mutationFn: (appointmentId: string) => {
 			if (!organizationId) throw new Error("No organization selected");
-			return client.classSlots.cancelEnrollment({ organizationId, appointmentId });
+			return client.classSlots.cancelEnrollment({
+				organizationId,
+				appointmentId,
+			});
 		},
 		successMessage: "Enrollment cancelled.",
 		errorMessage: (err) => `Failed to cancel enrollment: ${err.message}`,
@@ -499,8 +534,7 @@ function ClassSlotsPage() {
 		activeSlots.length > 0
 			? Math.round(
 					(activeSlots.reduce(
-						(sum, s) =>
-							sum + (s.capacity > 0 ? s.spotsBooked / s.capacity : 0),
+						(sum, s) => sum + (s.capacity > 0 ? s.spotsBooked / s.capacity : 0),
 						0,
 					) /
 						activeSlots.length) *
@@ -508,9 +542,14 @@ function ClassSlotsPage() {
 				)
 			: 0;
 
-	const fullSlotsCount = activeSlots.filter((s) => s.spotsAvailable === 0).length;
+	const fullSlotsCount = activeSlots.filter(
+		(s) => s.spotsAvailable === 0,
+	).length;
 
-	const totalWaitlisted = activeSlots.reduce((sum, s) => sum + (s.waitlistCount ?? 0), 0);
+	const totalWaitlisted = activeSlots.reduce(
+		(sum, s) => sum + (s.waitlistCount ?? 0),
+		0,
+	);
 
 	const projectedRevenueCents = activeSlots.reduce(
 		(sum, s) => sum + (s.pricePerSpotCents ?? 0) * s.capacity,
@@ -564,7 +603,6 @@ function ClassSlotsPage() {
 	return (
 		<div className="-m-6 flex h-screen flex-col bg-[#f3f3f3]">
 			<div className="flex flex-1 flex-col overflow-hidden m-6 gap-5">
-
 				{/* ── Page header ── */}
 				<div className="flex shrink-0 items-center justify-between">
 					<div>
@@ -615,7 +653,9 @@ function ClassSlotsPage() {
 					/>
 					<KpiTile
 						label="Waitlisted"
-						value={<span className="font-mono tabular-nums">{totalWaitlisted}</span>}
+						value={
+							<span className="font-mono tabular-nums">{totalWaitlisted}</span>
+						}
 						sub="across active slots"
 						accent={totalWaitlisted > 0 ? "amber" : "default"}
 					/>
@@ -788,7 +828,9 @@ function ClassSlotsPage() {
 												<td
 													className={cn(
 														"px-4 py-3 font-mono tabular-nums font-semibold",
-														isFull && !isCancelled ? "text-red-600" : "text-[#0a0a0a]",
+														isFull && !isCancelled
+															? "text-red-600"
+															: "text-[#0a0a0a]",
 													)}
 												>
 													{slot.spotsBooked} / {slot.capacity}
@@ -812,7 +854,9 @@ function ClassSlotsPage() {
 													{isCancelled ? (
 														<span className="text-[#a3a3a3]">—</span>
 													) : (
-														formatPrice(slot.pricePerSpotCents * slot.spotsBooked)
+														formatPrice(
+															slot.pricePerSpotCents * slot.spotsBooked,
+														)
 													)}
 												</td>
 
@@ -835,11 +879,15 @@ function ClassSlotsPage() {
 																</button>
 															</DropdownMenuTrigger>
 															<DropdownMenuContent align="end">
-																<DropdownMenuItem onClick={() => handleViewSignups(slot)}>
+																<DropdownMenuItem
+																	onClick={() => handleViewSignups(slot)}
+																>
 																	<Users className="mr-2 h-3.5 w-3.5" />
 																	View Signups
 																</DropdownMenuItem>
-																<DropdownMenuItem onClick={() => handleOpenEdit(slot)}>
+																<DropdownMenuItem
+																	onClick={() => handleOpenEdit(slot)}
+																>
 																	Edit
 																</DropdownMenuItem>
 																<DropdownMenuSeparator />
@@ -864,7 +912,9 @@ function ClassSlotsPage() {
 																</Button>
 															</DropdownMenuTrigger>
 															<DropdownMenuContent align="end">
-																<DropdownMenuItem onClick={() => handleViewSignups(slot)}>
+																<DropdownMenuItem
+																	onClick={() => handleViewSignups(slot)}
+																>
 																	<Users className="mr-2 h-3.5 w-3.5" />
 																	View Signups
 																</DropdownMenuItem>
@@ -900,21 +950,29 @@ function ClassSlotsPage() {
 			    Create Dialog
 			    ----------------------------------------------------------------- */}
 			<Dialog open={createSheetOpen} onOpenChange={setCreateSheetOpen}>
-				<DialogContent className="sm:max-w-md overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle>Create Class Slot</DialogTitle>
-						<DialogDescription>
+				<DialogContent
+					hideCloseButton
+					className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				>
+					{/* Header */}
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							CLASS SCHEDULE
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Create Class Slot
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
 							Schedule a new group class slot.
 						</DialogDescription>
 					</DialogHeader>
 
-					<Separator className="my-4" />
-
-					<div className="space-y-4 px-1">
+					{/* Form body */}
+					<div className="px-6 pt-4 pb-2 space-y-4 overflow-y-auto max-h-[65vh]">
 						{/* Service */}
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="create-service">
-								Service <span className="text-destructive">*</span>
+								Service <span className="text-rose-600">*</span>
 							</Label>
 							<Select
 								value={createForm.serviceId}
@@ -938,7 +996,7 @@ function ClassSlotsPage() {
 						{/* Branch */}
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="create-branch">
-								Branch <span className="text-destructive">*</span>
+								Branch <span className="text-rose-600">*</span>
 							</Label>
 							<BranchSelector
 								value={createForm.branchId}
@@ -953,7 +1011,7 @@ function ClassSlotsPage() {
 						{/* Date */}
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="create-date">
-								Date <span className="text-destructive">*</span>
+								Date <span className="text-rose-600">*</span>
 							</Label>
 							<Input
 								id="create-date"
@@ -965,46 +1023,46 @@ function ClassSlotsPage() {
 							/>
 						</div>
 
-						{/* Start Time */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="create-start">
-								Start Time <span className="text-destructive">*</span>
-							</Label>
-							<Input
-								id="create-start"
-								type="time"
-								value={createForm.startTime}
-								onChange={(e) =>
-									setCreateForm((prev) => ({
-										...prev,
-										startTime: e.target.value,
-									}))
-								}
-							/>
-						</div>
-
-						{/* End Time */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="create-end">
-								End Time <span className="text-destructive">*</span>
-							</Label>
-							<Input
-								id="create-end"
-								type="time"
-								value={createForm.endTime}
-								onChange={(e) =>
-									setCreateForm((prev) => ({
-										...prev,
-										endTime: e.target.value,
-									}))
-								}
-							/>
+						{/* Start + End Time side by side */}
+						<div className="grid grid-cols-2 gap-3">
+							<div className="flex flex-col gap-1.5">
+								<Label htmlFor="create-start">
+									Start Time <span className="text-rose-600">*</span>
+								</Label>
+								<Input
+									id="create-start"
+									type="time"
+									value={createForm.startTime}
+									onChange={(e) =>
+										setCreateForm((prev) => ({
+											...prev,
+											startTime: e.target.value,
+										}))
+									}
+								/>
+							</div>
+							<div className="flex flex-col gap-1.5">
+								<Label htmlFor="create-end">
+									End Time <span className="text-rose-600">*</span>
+								</Label>
+								<Input
+									id="create-end"
+									type="time"
+									value={createForm.endTime}
+									onChange={(e) =>
+										setCreateForm((prev) => ({
+											...prev,
+											endTime: e.target.value,
+										}))
+									}
+								/>
+							</div>
 						</div>
 
 						{/* Capacity */}
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="create-capacity">
-								Capacity <span className="text-destructive">*</span>
+								Capacity <span className="text-rose-600">*</span>
 							</Label>
 							<Input
 								id="create-capacity"
@@ -1022,7 +1080,12 @@ function ClassSlotsPage() {
 
 						{/* Instructor */}
 						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="create-instructor">Instructor (optional)</Label>
+							<Label htmlFor="create-instructor">
+								Instructor{" "}
+								<span className="text-[#737373] font-normal text-xs">
+									(optional)
+								</span>
+							</Label>
 							<Select
 								value={createForm.instructorId}
 								onValueChange={(v) =>
@@ -1044,7 +1107,12 @@ function ClassSlotsPage() {
 
 						{/* Location */}
 						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="create-location">Location (optional)</Label>
+							<Label htmlFor="create-location">
+								Location{" "}
+								<span className="text-[#737373] font-normal text-xs">
+									(optional)
+								</span>
+							</Label>
 							<Input
 								id="create-location"
 								type="text"
@@ -1060,11 +1128,9 @@ function ClassSlotsPage() {
 						</div>
 					</div>
 
-					<DialogFooter className="mt-6">
-						<Button
-							variant="outline"
-							onClick={() => setCreateSheetOpen(false)}
-						>
+					{/* Footer */}
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] flex justify-end gap-2">
+						<Button variant="outline" onClick={() => setCreateSheetOpen(false)}>
 							Cancel
 						</Button>
 						<Button
@@ -1077,8 +1143,9 @@ function ClassSlotsPage() {
 								!createForm.startTime ||
 								!createForm.endTime
 							}
+							className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
 						>
-							{createMutation.isPending ? "Creating..." : "Create"}
+							{createMutation.isPending ? "Creating…" : "Create Slot"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
@@ -1250,11 +1317,7 @@ function ClassSlotsPage() {
 												</div>
 											) : (
 												customerMembers.map(
-													(m: {
-														id: string;
-														userId: string;
-														name: string;
-													}) => (
+													(m: { id: string; userId: string; name: string }) => (
 														<SelectItem key={m.id} value={m.userId}>
 															{m.name}
 														</SelectItem>
@@ -1320,7 +1383,9 @@ function ClassSlotsPage() {
 												{signup.clientType === "walk_in" ? "Walk-in" : "Member"}
 											</span>
 											<span>·</span>
-											<span className="capitalize">{signup.appointmentStatus}</span>
+											<span className="capitalize">
+												{signup.appointmentStatus}
+											</span>
 										</div>
 										{signup.appointmentStatus !== "cancelled" && (
 											<Button
