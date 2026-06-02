@@ -1062,6 +1062,38 @@ export async function updateAppointment(
 // Private helper: run commission calculation for a completed appointment
 // ---------------------------------------------------------------------------
 
+/**
+ * Resolve the staff assignments that commission should be calculated against.
+ *
+ * Encodes the "commission reaches trainers in all cases" invariant
+ * (CLAUDE.md): whether the trainer was *requested* (explicit `appointment_staff`
+ * slot rows) or *rotation/auto-assigned* (no slot rows, only `appointment.trainerId`
+ * resolved), the trainer must still receive a split.
+ *
+ * - Explicit slot rows win, deduped of null slots and ordered by slotIndex.
+ * - Otherwise fall back to the appointment's resolved trainer at slot 0.
+ * - Only when there is neither do we return [] (caller skips + audits).
+ *
+ * Pure: no DB access. Unit-tested in appointment-assignments.test.ts.
+ */
+export function resolveEffectiveAssignments(
+	staffRows: { staffId: string; slotIndex: number | null }[],
+	trainerId: string | null | undefined,
+): { staffId: string; slotIndex: number }[] {
+	const explicit = staffRows
+		.filter((r) => r.slotIndex !== null)
+		.sort((a, b) => (a.slotIndex ?? 0) - (b.slotIndex ?? 0))
+		.map((r) => ({ staffId: r.staffId, slotIndex: r.slotIndex as number }));
+
+	if (explicit.length > 0) return explicit;
+
+	// Rotation / auto-assigned path: no explicit slot assignments, but the
+	// appointment has a resolved trainer — ensure commission still reaches them.
+	if (trainerId) return [{ staffId: trainerId, slotIndex: 0 }];
+
+	return [];
+}
+
 async function runAppointmentCommission(
 	tx: TenantTx,
 	appointmentId: string,
@@ -1172,15 +1204,10 @@ async function runAppointmentCommission(
 		.from(appointmentStaff)
 		.where(eq(appointmentStaff.appointmentId, appointmentId));
 
-	const staffAssignments = staffRows
-		.filter((r) => r.slotIndex !== null)
-		.sort((a, b) => (a.slotIndex ?? 0) - (b.slotIndex ?? 0))
-		.map((r) => ({ staffId: r.staffId, slotIndex: r.slotIndex! }));
-
-	let effectiveAssignments = staffAssignments;
-	if (effectiveAssignments.length === 0 && appointment.trainerId) {
-		effectiveAssignments = [{ staffId: appointment.trainerId, slotIndex: 0 }];
-	}
+	const effectiveAssignments = resolveEffectiveAssignments(
+		staffRows,
+		appointment.trainerId,
+	);
 	if (effectiveAssignments.length === 0) {
 		await writeAudit(tx, {
 			actorUserId: actor.userId,

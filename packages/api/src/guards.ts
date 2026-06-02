@@ -87,11 +87,15 @@ export async function guardInputBranchForContext(
 	context: Context & { tenantDb: TenantDb; member: Member },
 	branchId: string | undefined | null,
 ): Promise<void> {
-	// null means the caller explicitly sent null — an attempt to bypass branch
-	// scoping for org-wide writes. Always forbidden at the tenant member level.
-	if (branchId === null) {
+	// An explicit null or empty-string branchId is a provided-but-invalid value —
+	// an attempt to bypass branch scoping for org-wide writes. Always forbidden at
+	// the tenant member level. (Today every caller validates branchId with
+	// z.string().uuid(), so "" is rejected upstream; this guards against a future
+	// caller using a plain z.string() that would silently reopen the bypass.)
+	if (branchId === null || branchId === "") {
 		throw new ORPCError("FORBIDDEN", {
-			message: "Explicit null branchId is not permitted. Provide a valid branch.",
+			message:
+				"Explicit null/empty branchId is not permitted. Provide a valid branch.",
 		});
 	}
 	if (!branchId) return; // undefined — no branch check needed
@@ -104,10 +108,7 @@ export function mapToOrpcForbidden(error: unknown): never {
 	if (error instanceof PermissionDeniedError) {
 		throw new ORPCError("FORBIDDEN", { message: error.message });
 	}
-	if (
-		error instanceof Error &&
-		error.message.startsWith("Permission denied")
-	) {
+	if (error instanceof Error && error.message.startsWith("Permission denied")) {
 		throw new ORPCError("FORBIDDEN", { message: error.message });
 	}
 	throw error;
