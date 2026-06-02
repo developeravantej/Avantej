@@ -31,6 +31,7 @@ import { announcements } from "@avantej-core/db/schema/tenant/announcements";
 import { sendEmail } from "@/lib/email";
 import { getTenantDb } from "@/lib/db";
 import { recordAdminAction } from "@/services/admin-audit.service";
+import { escapeHtml } from "@/lib/html";
 
 function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
 	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
@@ -48,15 +49,6 @@ function adminUserIdFrom(context: unknown): string {
 	const id = session?.user?.id;
 	if (!id) throw new ORPCError("UNAUTHORIZED", { message: "No admin user in session" });
 	return id;
-}
-
-function escapeHtml(s: string): string {
-	return s
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#039;");
 }
 
 function renderDmHtml(subject: string, message: string, orgName: string) {
