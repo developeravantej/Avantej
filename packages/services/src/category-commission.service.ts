@@ -70,7 +70,11 @@ export interface UpsertCategoryCommissionConfigInput {
 	paymentType: "fixed" | "variable";
 	isConditional: boolean;
 	maxCoaches: number;
-	slots: Array<{ slotIndex: number; label: string; weightageBasisPoints: number }>;
+	slots: Array<{
+		slotIndex: number;
+		label: string;
+		weightageBasisPoints: number;
+	}>;
 	rates?: Array<{ trainerTierId: string; amount: number }>;
 	conditions?: Array<{
 		conditionIndex: number;
@@ -82,7 +86,13 @@ export interface UpsertCategoryCommissionConfigInput {
 	}>;
 }
 
-function toHalfOpen(
+/**
+ * Map a condition operator + threshold(s) to a half-open attendee-count
+ * interval [start, end) so overlaps can be detected by simple comparison.
+ * Exported for unit testing — the boundary math here decides whether two
+ * conditions silently cover the same attendee count. Pure.
+ */
+export function toHalfOpen(
 	operator: string,
 	threshold: number,
 	thresholdMax?: number,
@@ -105,7 +115,8 @@ function toHalfOpen(
 	}
 }
 
-function intervalsOverlap(
+/** True when two half-open intervals [a,b) and [c,d) share any point. Pure. */
+export function intervalsOverlap(
 	[a, b]: [number, number],
 	[c, d]: [number, number],
 ): boolean {
@@ -117,7 +128,10 @@ export async function upsertCategoryCommissionConfig(
 	input: UpsertCategoryCommissionConfigInput,
 	_actor: { userId?: string; id?: string; role?: string },
 ): Promise<getCategoryCommissionConfigResult> {
-	const slotSum = input.slots.reduce((sum, s) => sum + s.weightageBasisPoints, 0);
+	const slotSum = input.slots.reduce(
+		(sum, s) => sum + s.weightageBasisPoints,
+		0,
+	);
 	if (slotSum !== 10000) {
 		throw new Error(
 			`Slot weightages must sum to 10000 (100%). Current sum: ${slotSum}`,
@@ -166,7 +180,8 @@ export async function upsertCategoryCommissionConfig(
 			})
 			.returning();
 
-		if (!config) throw new Error("upsertCategoryCommissionConfig: insert returned no row");
+		if (!config)
+			throw new Error("upsertCategoryCommissionConfig: insert returned no row");
 
 		if (input.slots.length > 0) {
 			await tx.insert(commissionCoachSlots).values(
@@ -189,7 +204,11 @@ export async function upsertCategoryCommissionConfig(
 			);
 		}
 
-		if (input.isConditional && input.conditions && input.conditions.length > 0) {
+		if (
+			input.isConditional &&
+			input.conditions &&
+			input.conditions.length > 0
+		) {
 			for (const cond of input.conditions) {
 				const [condRow] = await tx
 					.insert(commissionConditions)
@@ -203,7 +222,10 @@ export async function upsertCategoryCommissionConfig(
 					})
 					.returning();
 
-				if (!condRow) throw new Error("upsertCategoryCommissionConfig: condition insert returned no row");
+				if (!condRow)
+					throw new Error(
+						"upsertCategoryCommissionConfig: condition insert returned no row",
+					);
 
 				if (cond.rates.length > 0) {
 					await tx.insert(commissionConditionRates).values(
@@ -217,7 +239,10 @@ export async function upsertCategoryCommissionConfig(
 			}
 		}
 
-		const result = await getCategoryCommissionConfig(tx as unknown as TenantDb, input.categoryId);
+		const result = await getCategoryCommissionConfig(
+			tx as unknown as TenantDb,
+			input.categoryId,
+		);
 
 		// F-COM-D: write audit log for commission config changes
 		await writeAudit(tx, {
