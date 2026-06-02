@@ -41,7 +41,10 @@ const DISPUTE_EVENT_TYPES = new Set<string>([
 	"charge.dispute.funds_withdrawn",
 ]);
 
-const NOTIFY_BY_EVENT: Record<string, { kind: string; title: string; informational: boolean }> = {
+const NOTIFY_BY_EVENT: Record<
+	string,
+	{ kind: string; title: string; informational: boolean }
+> = {
 	"charge.dispute.created": {
 		kind: "dispute_opened",
 		title: "Customer disputed a charge",
@@ -69,6 +72,43 @@ const NOTIFY_BY_EVENT: Record<string, { kind: string; title: string; information
 	},
 };
 
+// ---------------------------------------------------------------------------
+// Pure helpers (unit-tested in dispute.service.test.ts)
+// ---------------------------------------------------------------------------
+
+/** True when the Stripe event type is one of the 5 handled dispute events. */
+export function isDisputeEvent(eventType: string): boolean {
+	return DISPUTE_EVENT_TYPES.has(eventType);
+}
+
+/** Notification metadata for a dispute event, or null for unhandled types. */
+export function getDisputeNotifyMeta(
+	eventType: string,
+): { kind: string; title: string; informational: boolean } | null {
+	return NOTIFY_BY_EVENT[eventType] ?? null;
+}
+
+/**
+ * Convert a dispute's `evidence_details.due_by` (Unix seconds) into a Date.
+ * Returns null when absent or non-numeric. A wrong value here makes the tenant
+ * miss the evidence deadline and lose the dispute — money out — so it is the
+ * single most important constant in this file.
+ */
+export function parseDisputeDeadline(dispute: {
+	evidence_details?: { due_by?: number | null } | null;
+}): Date | null {
+	const due = dispute.evidence_details?.due_by ?? null;
+	return typeof due === "number" ? new Date(due * 1000) : null;
+}
+
+/** Format a Stripe minor-unit amount for display: 1234, "usd" → "12.34 USD". */
+export function formatDisputeAmount(
+	amountMinorUnits: number,
+	currency: string,
+): string {
+	return `${(amountMinorUnits / 100).toFixed(2)} ${currency.toUpperCase()}`;
+}
+
 export interface OnDisputeEventArgs {
 	controlPanelDb: CpDb;
 	tenantDb: TenantDb | null; // null if org can't be resolved → skip tenant-side notifications
@@ -77,7 +117,7 @@ export interface OnDisputeEventArgs {
 
 export async function onDisputeEvent(args: OnDisputeEventArgs): Promise<void> {
 	const { controlPanelDb, tenantDb, event } = args;
-	if (!DISPUTE_EVENT_TYPES.has(event.type)) {
+	if (!isDisputeEvent(event.type)) {
 		return;
 	}
 
@@ -102,11 +142,11 @@ export async function onDisputeEvent(args: OnDisputeEventArgs): Promise<void> {
 		return;
 	}
 
-	const deadlineSec =
-		(dispute as { evidence_details?: { due_by?: number | null } }).evidence_details?.due_by ?? null;
-	const deadlineAt = typeof deadlineSec === "number" ? new Date(deadlineSec * 1000) : null;
+	const deadlineAt = parseDisputeDeadline(
+		dispute as { evidence_details?: { due_by?: number | null } | null },
+	);
 
-	const notifyMeta = NOTIFY_BY_EVENT[event.type] ?? null;
+	const notifyMeta = getDisputeNotifyMeta(event.type);
 
 	// Side effect 1: upsert platform_dispute_queue (authoritative platform audit).
 	try {
@@ -154,7 +194,7 @@ export async function onDisputeEvent(args: OnDisputeEventArgs): Promise<void> {
 					userId: recipientUserId,
 					type: "payment",
 					title: notifyMeta.title,
-					message: `Dispute ${dispute.id} — ${dispute.status}. Amount: ${(dispute.amount / 100).toFixed(2)} ${dispute.currency.toUpperCase()}.${deadlineAt ? ` Respond by ${deadlineAt.toUTCString()}.` : ""}`,
+					message: `Dispute ${dispute.id} — ${dispute.status}. Amount: ${formatDisputeAmount(dispute.amount, dispute.currency)}.${deadlineAt ? ` Respond by ${deadlineAt.toUTCString()}.` : ""}`,
 					relatedId: null,
 					relatedType: "stripe_dispute",
 				});
@@ -175,12 +215,17 @@ export async function onDisputeEvent(args: OnDisputeEventArgs): Promise<void> {
 	if (notifyMeta && !notifyMeta.informational) {
 		try {
 			const [orgRow] = await controlPanelDb
-				.select({ ownerUserId: organizations.ownerUserId, name: organizations.name })
+				.select({
+					ownerUserId: organizations.ownerUserId,
+					name: organizations.name,
+				})
 				.from(organizations)
 				.where(eq(organizations.id, organizationId))
 				.limit(1);
 			if (!orgRow?.ownerUserId) {
-				console.warn(`[dispute] org=${organizationId} owner_user_id missing — skipping email`);
+				console.warn(
+					`[dispute] org=${organizationId} owner_user_id missing — skipping email`,
+				);
 				return;
 			}
 			const [u] = await controlPanelDb
@@ -189,10 +234,12 @@ export async function onDisputeEvent(args: OnDisputeEventArgs): Promise<void> {
 				.where(eq(authUser.id, orgRow.ownerUserId))
 				.limit(1);
 			if (!u?.email) {
-				console.warn(`[dispute] owner user=${orgRow.ownerUserId} has no email — skipping`);
+				console.warn(
+					`[dispute] owner user=${orgRow.ownerUserId} has no email — skipping`,
+				);
 				return;
 			}
-			const amountStr = `${(dispute.amount / 100).toFixed(2)} ${dispute.currency.toUpperCase()}`;
+			const amountStr = formatDisputeAmount(dispute.amount, dispute.currency);
 			const subject = `Dispute ${notifyMeta.title.toLowerCase()} — ${amountStr}${deadlineAt ? ` — respond by ${deadlineAt.toUTCString()}` : ""}`;
 			const dashboardUrl = stripeAccount
 				? `https://dashboard.stripe.com/${stripeAccount}/disputes/${dispute.id}`
@@ -216,7 +263,9 @@ export async function onDisputeEvent(args: OnDisputeEventArgs): Promise<void> {
 				subject,
 				html,
 			});
-			console.log(`[dispute] email sent to ${u.email} for dispute=${dispute.id}`);
+			console.log(
+				`[dispute] email sent to ${u.email} for dispute=${dispute.id}`,
+			);
 		} catch (e) {
 			console.error(`[dispute] email send failed:`, e);
 		}
