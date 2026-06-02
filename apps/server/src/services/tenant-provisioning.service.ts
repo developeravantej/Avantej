@@ -72,7 +72,7 @@ export type ProvisionTenantResult = {
 	invitationLink: string;
 };
 
-function slugify(raw: string): string {
+export function slugify(raw: string): string {
 	return raw
 		.toLowerCase()
 		.trim()
@@ -82,7 +82,7 @@ function slugify(raw: string): string {
 		.replace(/^-|-$/g, "");
 }
 
-function validateSlug(slug: string): boolean {
+export function validateSlug(slug: string): boolean {
 	return /^[a-z0-9-]+$/.test(slug) && slug.length >= 3 && slug.length <= 64;
 }
 
