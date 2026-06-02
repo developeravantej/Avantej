@@ -27,46 +27,12 @@ import { and, asc, eq, gte, isNotNull, sql } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
+import { platformAdminProcedure as adminProcedure } from "@avantej-core/api";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import {
 	tenantUsageSnapshots,
 	type RiskFlag,
 } from "@avantej-core/db/schema/control-panel/tenant-usage-snapshots";
-
-function requirePlatformAdmin() {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Authentication required",
-				});
-			}
-			const cpDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
-			const adminRecord = await cpDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Admin access required",
-				});
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
 
 function cpDbFrom(
 	context: unknown,

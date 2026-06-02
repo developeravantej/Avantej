@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/select";
 import { EmptyState } from "@/components/ui/empty-state";
 import { client } from "@/utils/orpc";
+import { MoneyHubTabs } from "@/components/platform-admin/money-hub-tabs";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/platform-admin/payments",
@@ -108,6 +109,7 @@ function PlatformAdminPaymentsPage() {
 
 	return (
 		<div className="p-6 space-y-6">
+			<MoneyHubTabs />
 			<header className="flex items-start justify-between">
 				<div>
 					<div className="text-sm text-muted-foreground">Platform admin</div>

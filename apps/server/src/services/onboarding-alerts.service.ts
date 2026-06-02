@@ -21,6 +21,7 @@ import { organizations } from "@avantej-core/db/schema/control-panel/organizatio
 import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
 import { user as authUser } from "@avantej-core/db/schema/auth";
 import { sendEmail } from "@/lib/email";
+import { escapeHtml } from "@/lib/html";
 
 type CpDb = NeonDatabase<typeof controlPanelSchema>;
 
@@ -171,13 +172,4 @@ function buildHtmlBody(
 		<p>Open these accounts on Stripe Dashboard to check requirements:</p>
 		<p>Drill into individual tenants from the platform admin payments page (<code>/dashboard/platform-admin/payments</code>, Phase C.4).</p>
 	`;
-}
-
-function escapeHtml(s: string): string {
-	return s
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#039;");
 }

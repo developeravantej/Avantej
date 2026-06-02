@@ -35,6 +35,7 @@ import { user } from "@avantej-core/db/schema/auth";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { sendEmail } from "@/lib/email";
+import { escapeHtml } from "@/lib/html";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
@@ -269,11 +270,3 @@ async function sendPaymentReceiptEmail(args: ReceiptEmailArgs): Promise<void> {
 /**
  * Minimal HTML escaping for values interpolated into the receipt template.
  */
-function escapeHtml(value: string): string {
-	return value
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#39;");
-}

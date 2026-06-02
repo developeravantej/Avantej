@@ -17,57 +17,20 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
-import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
+import {
+	platformAdminProcedure as adminProcedure,
+	superAdminProcedure,
+} from "@avantej-core/api";
+import {
+	recordAdminAction,
+	recordAdminActions,
+	type AdminActionInput,
+} from "@/services/admin-audit.service";
+import { writeTenantPaymentStatus } from "@/services/tenant-lifecycle.service";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { tenantTags } from "@avantej-core/db/schema/control-panel/tenant-tags";
 
 const BULK_CAP = 100;
-
-function requirePlatformAdmin(
-	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">,
-) {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
-			}
-			const cpDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
-			const adminRecord = await cpDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", { message: "Admin access required" });
-			}
-			if (
-				allowRoles &&
-				!allowRoles.includes(
-					adminRecord.role as "super_admin" | "support" | "billing",
-				)
-			) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Your platform admin role does not permit this action",
-				});
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
-const superAdminProcedure = protectedProcedure.use(
-	requirePlatformAdmin(["super_admin"]),
-);
 
 function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
 	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
@@ -195,7 +158,7 @@ export const platformAdminTenantsTagsRouter = {
 					),
 				);
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_tag_add",
 				targetOrganizationId: input.organizationId,
@@ -227,7 +190,7 @@ export const platformAdminTenantsTagsRouter = {
 				)
 				.returning({ id: tenantTags.id });
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_tag_remove",
 				targetOrganizationId: input.organizationId,
@@ -258,7 +221,7 @@ export const platformAdminTenantsTagsRouter = {
 			const existingIds = new Set(existing.map((r) => r.id));
 
 			let inserted = 0;
-			const auditRows: Array<typeof adminSessionActions.$inferInsert> = [];
+			const auditRows: AdminActionInput[] = [];
 			for (const orgId of input.organizationIds) {
 				if (!existingIds.has(orgId)) continue;
 				const res = await cpDb
@@ -284,7 +247,7 @@ export const platformAdminTenantsTagsRouter = {
 				});
 			}
 			if (auditRows.length > 0) {
-				await cpDb.insert(adminSessionActions).values(auditRows);
+				await recordAdminActions(cpDb, auditRows);
 			}
 
 			return {
@@ -308,7 +271,7 @@ export const platformAdminTenantsTagsRouter = {
 			assertBulkSize(input.organizationIds);
 
 			let removed = 0;
-			const auditRows: Array<typeof adminSessionActions.$inferInsert> = [];
+			const auditRows: AdminActionInput[] = [];
 			for (const orgId of input.organizationIds) {
 				const res = await cpDb
 					.delete(tenantTags)
@@ -327,7 +290,7 @@ export const platformAdminTenantsTagsRouter = {
 					metadata: { label: input.label, removed: res.length > 0 },
 				});
 			}
-			await cpDb.insert(adminSessionActions).values(auditRows);
+			await recordAdminActions(cpDb, auditRows);
 
 			return {
 				ok: true as const,
@@ -350,15 +313,18 @@ export const platformAdminTenantsTagsRouter = {
 
 			let suspended = 0;
 			const failures: Array<{ organizationId: string; error: string }> = [];
-			const auditRows: Array<typeof adminSessionActions.$inferInsert> = [];
+			const auditRows: AdminActionInput[] = [];
 
 			for (const orgId of input.organizationIds) {
 				try {
-					const [updated] = await cpDb
-						.update(organizations)
-						.set({ paymentStatus: "suspended", updatedAt: new Date() })
-						.where(eq(organizations.id, orgId))
-						.returning({ id: organizations.id });
+					// ADR-0024: any non-deleted → suspended is always legal,
+					// so the bare lifecycle write (no per-row audit) is used;
+					// the batched audit below records one row per target.
+					const updated = await writeTenantPaymentStatus(
+						cpDb,
+						orgId,
+						"suspended",
+					);
 					if (!updated) {
 						failures.push({ organizationId: orgId, error: "not_found" });
 					} else {
@@ -391,7 +357,7 @@ export const platformAdminTenantsTagsRouter = {
 				}
 			}
 			if (auditRows.length > 0) {
-				await cpDb.insert(adminSessionActions).values(auditRows);
+				await recordAdminActions(cpDb, auditRows);
 			}
 
 			return {

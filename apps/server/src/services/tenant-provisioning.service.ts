@@ -40,13 +40,13 @@ import {
 import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
-import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { createInvitation } from "@avantej-core/services";
 import {
 	createTenantProject,
 	deleteTenantProject,
 } from "@/services/neon.service";
+import { recordAdminAction } from "@/services/admin-audit.service";
 import { sendInvitationEmail } from "@/lib/email";
 
 export type ProvisionTenantInput = {
@@ -215,7 +215,7 @@ export async function provisionTenant(
 		}
 
 		// 8. Audit row
-		await controlPanelDb.insert(adminSessionActions).values({
+		await recordAdminAction(controlPanelDb, {
 			adminUserId,
 			actionType: "tenant_provision",
 			targetOrganizationId: organization.id,
@@ -227,7 +227,7 @@ export async function provisionTenant(
 				neonProjectId: projectId,
 				invitationToken,
 			},
-		} as unknown as typeof adminSessionActions.$inferInsert);
+		});
 
 		return {
 			organizationId: organization.id,

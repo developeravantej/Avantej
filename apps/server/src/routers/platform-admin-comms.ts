@@ -27,59 +27,18 @@ import { and, count, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
+import {
+	platformAdminProcedure as adminProcedure,
+	superAdminProcedure,
+} from "@avantej-core/api";
 import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { adminSessions } from "@avantej-core/db/schema/control-panel/admin-sessions";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { users } from "@avantej-core/db/schema/control-panel/users";
 import { commsTemplates } from "@avantej-core/db/schema/control-panel/comms-templates";
+import { recordAdminAction } from "@/services/admin-audit.service";
 
 const COMMS_ACTION_TYPES = ["tenant_dm", "tenant_announcement_create"] as const;
-
-function requirePlatformAdmin(
-	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">,
-) {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
-			}
-			const cpDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
-			const adminRecord = await cpDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", { message: "Admin access required" });
-			}
-			if (
-				allowRoles &&
-				!allowRoles.includes(
-					adminRecord.role as "super_admin" | "support" | "billing",
-				)
-			) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Your platform admin role does not permit this action",
-				});
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
-const superAdminProcedure = protectedProcedure.use(
-	requirePlatformAdmin(["super_admin"]),
-);
 
 function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
 	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
@@ -293,7 +252,7 @@ export const platformAdminCommsRouter = {
 				})
 				.returning();
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "comms_template_create",
 				metadata: {
@@ -338,7 +297,7 @@ export const platformAdminCommsRouter = {
 				throw new ORPCError("NOT_FOUND", { message: "Template not found" });
 			}
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "comms_template_update",
 				metadata: { templateId: input.id, fields: Object.keys(patch) },
@@ -360,7 +319,7 @@ export const platformAdminCommsRouter = {
 			if (!updated) {
 				throw new ORPCError("NOT_FOUND", { message: "Template not found" });
 			}
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "comms_template_archive",
 				metadata: { templateId: input.id },
@@ -381,7 +340,7 @@ export const platformAdminCommsRouter = {
 			if (!updated) {
 				throw new ORPCError("NOT_FOUND", { message: "Template not found" });
 			}
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "comms_template_unarchive",
 				metadata: { templateId: input.id },

@@ -20,59 +20,18 @@ import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
+import {
+	platformAdminProcedure as adminProcedure,
+	superAdminProcedure,
+} from "@avantej-core/api";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { users } from "@avantej-core/db/schema/control-panel/users";
-import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { notifications } from "@avantej-core/db/schema/tenant/notifications";
 import { announcements } from "@avantej-core/db/schema/tenant/announcements";
 import { sendEmail } from "@/lib/email";
 import { getTenantDb } from "@/lib/db";
-
-function requirePlatformAdmin(
-	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">,
-) {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
-			}
-			const cpDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
-			const adminRecord = await cpDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", { message: "Admin access required" });
-			}
-			if (
-				allowRoles &&
-				!allowRoles.includes(
-					adminRecord.role as "super_admin" | "support" | "billing",
-				)
-			) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Your platform admin role does not permit this action",
-				});
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
-const superAdminProcedure = protectedProcedure.use(
-	requirePlatformAdmin(["super_admin"]),
-);
+import { recordAdminAction } from "@/services/admin-audit.service";
+import { escapeHtml } from "@/lib/html";
 
 function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
 	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
@@ -90,15 +49,6 @@ function adminUserIdFrom(context: unknown): string {
 	const id = session?.user?.id;
 	if (!id) throw new ORPCError("UNAUTHORIZED", { message: "No admin user in session" });
 	return id;
-}
-
-function escapeHtml(s: string): string {
-	return s
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#039;");
 }
 
 function renderDmHtml(subject: string, message: string, orgName: string) {
@@ -187,7 +137,7 @@ export const platformAdminTenantsCommsRouter = {
 			}
 
 			try {
-				await cpDb.insert(adminSessionActions).values({
+				await recordAdminAction(cpDb, {
 					adminUserId,
 					actionType: "tenant_dm",
 					targetOrganizationId: org.id,
@@ -241,7 +191,7 @@ export const platformAdminTenantsCommsRouter = {
 				})
 				.returning({ id: announcements.id });
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_announcement_create",
 				targetOrganizationId: org.id,
@@ -310,7 +260,7 @@ export const platformAdminTenantsCommsRouter = {
 				} catch (e) {
 					console.error("[bulk-dm] in-app failed for", orgId, e);
 				}
-				await cpDb.insert(adminSessionActions).values({
+				await recordAdminAction(cpDb, {
 					adminUserId,
 					actionType: "tenant_dm",
 					targetOrganizationId: org.id,
@@ -383,7 +333,7 @@ export const platformAdminTenantsCommsRouter = {
 						createdBy: adminUserId,
 					})
 					.returning({ id: announcements.id });
-				await cpDb.insert(adminSessionActions).values({
+				await recordAdminAction(cpDb, {
 					adminUserId,
 					actionType: "tenant_announcement_create",
 					targetOrganizationId: org.id,

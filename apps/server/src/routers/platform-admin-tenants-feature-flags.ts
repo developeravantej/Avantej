@@ -36,58 +36,16 @@ import { eq, and, desc } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
+import {
+	platformAdminProcedure as adminProcedure,
+	superAdminProcedure,
+} from "@avantej-core/api";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 import { tenantFeatureOverrides } from "@avantej-core/db/schema/control-panel/tenant-feature-overrides";
-import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { user as userTable } from "@avantej-core/db/schema/auth";
-import { getTierLimits, type Tier } from "@avantej-core/types";
-
-function requirePlatformAdmin(
-	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">,
-) {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
-			}
-			const cpDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
-			const adminRecord = await cpDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", { message: "Admin access required" });
-			}
-			if (
-				allowRoles &&
-				!allowRoles.includes(
-					adminRecord.role as "super_admin" | "support" | "billing",
-				)
-			) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Your platform admin role does not permit this action",
-				});
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
-const superAdminProcedure = protectedProcedure.use(
-	requirePlatformAdmin(["super_admin"]),
-);
+import { getTierLimits, resolveEffectiveTier, type Tier } from "@avantej-core/types";
+import { recordAdminAction } from "@/services/admin-audit.service";
 
 function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
 	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
@@ -107,9 +65,6 @@ function adminUserIdFrom(context: unknown): string {
 	return id;
 }
 
-const VALID_TIERS: ReadonlyArray<Tier> = ["basic", "professional", "enterprise"];
-const LIVE_STATUSES = new Set(["active", "trialing", "past_due"]);
-
 const FEATURE_KEYS = [
 	"ghl",
 	"googleCalendar",
@@ -119,13 +74,6 @@ const FEATURE_KEYS = [
 ] as const;
 type FeatureKey = (typeof FEATURE_KEYS)[number];
 const featureKeyEnum = z.enum(FEATURE_KEYS);
-
-function coerceTier(value: string | null | undefined): Tier {
-	if (value && (VALID_TIERS as ReadonlyArray<string>).includes(value)) {
-		return value as Tier;
-	}
-	return "basic";
-}
 
 export type OverrideMetadata = {
 	enabled: boolean;
@@ -163,8 +111,7 @@ async function resolveTier(
 		where: eq(subscriptions.id, orgSubscriptionId),
 		columns: { id: true, tier: true, status: true },
 	});
-	if (sub && LIVE_STATUSES.has(sub.status)) return coerceTier(sub.tier);
-	return "basic";
+	return resolveEffectiveTier(sub ?? null).tier ?? "basic";
 }
 
 async function fetchOverrides(
@@ -330,7 +277,7 @@ export const platformAdminTenantsFeatureFlagsRouter = {
 				});
 			}
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_feature_override_set",
 				targetOrganizationId: input.organizationId,
@@ -369,7 +316,7 @@ export const platformAdminTenantsFeatureFlagsRouter = {
 					),
 				);
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_feature_override_clear",
 				targetOrganizationId: input.organizationId,

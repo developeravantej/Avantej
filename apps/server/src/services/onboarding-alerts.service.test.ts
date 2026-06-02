@@ -9,6 +9,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { escapeHtml } from "@/lib/html";
 
 const STUCK_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -98,16 +99,6 @@ describe("onboarding-alert stuck threshold (ADR-pending §C.6)", () => {
 	});
 });
 
-// HTML escape — pulled from the same helper used in the service.
-function escapeHtml(s: string): string {
-	return s
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#039;");
-}
-
 describe("escapeHtml — email body safety", () => {
 	test("plain text passes through", () => {
 		expect(escapeHtml("Acme Fitness Sdn Bhd")).toBe("Acme Fitness Sdn Bhd");
@@ -127,7 +118,7 @@ describe("escapeHtml — email body safety", () => {
 
 	test("quotes escaped (HTML attr safety)", () => {
 		expect(escapeHtml(`O'Brien "the gym"`)).toBe(
-			"O&#039;Brien &quot;the gym&quot;",
+			"O&#39;Brien &quot;the gym&quot;",
 		);
 	});
 });

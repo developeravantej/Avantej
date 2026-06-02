@@ -17,60 +17,19 @@ import { and, asc, count, desc, eq, ilike, inArray, or, sql } from "drizzle-orm"
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
+import {
+	platformAdminProcedure as adminProcedure,
+	superAdminProcedure,
+} from "@avantej-core/api";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { users } from "@avantej-core/db/schema/control-panel/users";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 import { orgCountryStripeAccounts } from "@avantej-core/db/schema/control-panel/org-country-stripe-accounts";
 import { platformPaymentLedger } from "@avantej-core/db/schema/control-panel/platform-payment-ledger";
 import { tenantUsageSnapshots } from "@avantej-core/db/schema/control-panel/tenant-usage-snapshots";
-import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { getStripeClient } from "@/lib/stripe";
-
-function requirePlatformAdmin(
-	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">,
-) {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
-			}
-			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!controlPanelDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
-			const adminRecord = await controlPanelDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", { message: "Admin access required" });
-			}
-			if (
-				allowRoles &&
-				!allowRoles.includes(
-					adminRecord.role as "super_admin" | "support" | "billing",
-				)
-			) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Your platform admin role does not permit this action",
-				});
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
-const superAdminProcedure = protectedProcedure.use(
-	requirePlatformAdmin(["super_admin"]),
-);
+import { transitionTenant } from "@/services/tenant-lifecycle.service";
+import { recordAdminAction } from "@/services/admin-audit.service";
 
 function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
@@ -298,27 +257,18 @@ export const platformAdminTenantsRouter = {
 			const cpDb = cpDbFromContext(context);
 			const adminUserId = adminUserIdFrom(context);
 
-			const [updated] = await cpDb
-				.update(organizations)
-				.set({ paymentStatus: "suspended", updatedAt: new Date() })
-				.where(eq(organizations.id, input.organizationId))
-				.returning({
-					id: organizations.id,
-					paymentStatus: organizations.paymentStatus,
-				});
-
-			if (!updated) {
-				throw new ORPCError("NOT_FOUND", { message: "Tenant not found" });
-			}
-
-			await cpDb.insert(adminSessionActions).values({
+			// ADR-0024: any non-deleted -> suspended. Write + audit routed
+			// through the lifecycle module (assertTransition + status write
+			// + audit row); actionType preserved.
+			const { paymentStatus } = await transitionTenant(cpDb, {
+				organizationId: input.organizationId,
+				to: "suspended",
 				adminUserId,
+				reason: input.reason,
 				actionType: "tenant_suspend",
-				targetOrganizationId: input.organizationId,
-				metadata: { reason: input.reason },
 			});
 
-			return { ok: true, paymentStatus: updated.paymentStatus };
+			return { ok: true, paymentStatus };
 		}),
 
 	resumeTenant: superAdminProcedure
@@ -332,27 +282,17 @@ export const platformAdminTenantsRouter = {
 			const cpDb = cpDbFromContext(context);
 			const adminUserId = adminUserIdFrom(context);
 
-			const [updated] = await cpDb
-				.update(organizations)
-				.set({ paymentStatus: "active", updatedAt: new Date() })
-				.where(eq(organizations.id, input.organizationId))
-				.returning({
-					id: organizations.id,
-					paymentStatus: organizations.paymentStatus,
-				});
-
-			if (!updated) {
-				throw new ORPCError("NOT_FOUND", { message: "Tenant not found" });
-			}
-
-			await cpDb.insert(adminSessionActions).values({
+			// ADR-0024: suspended -> active (resume). assertTransition will
+			// reject a resume from any other state (PRECONDITION_FAILED).
+			const { paymentStatus } = await transitionTenant(cpDb, {
+				organizationId: input.organizationId,
+				to: "active",
 				adminUserId,
+				reason: input.reason,
 				actionType: "tenant_resume",
-				targetOrganizationId: input.organizationId,
-				metadata: { reason: input.reason },
 			});
 
-			return { ok: true, paymentStatus: updated.paymentStatus };
+			return { ok: true, paymentStatus };
 		}),
 
 	forceCancelTenant: superAdminProcedure
@@ -367,45 +307,16 @@ export const platformAdminTenantsRouter = {
 			const cpDb = cpDbFromContext(context);
 			const adminUserId = adminUserIdFrom(context);
 
-			const [org] = await cpDb
-				.select({
-					id: organizations.id,
-					subscriptionId: organizations.subscriptionId,
-				})
-				.from(organizations)
-				.where(eq(organizations.id, input.organizationId));
-
-			if (!org) {
-				throw new ORPCError("NOT_FOUND", { message: "Tenant not found" });
-			}
-
-			let stripeSubCanceled: string | null = null;
-			if (input.cancelStripeSubscription && org.subscriptionId) {
-				const [sub] = await cpDb
-					.select({ stripeSubscriptionId: subscriptions.stripeSubscriptionId })
-					.from(subscriptions)
-					.where(eq(subscriptions.id, org.subscriptionId));
-				if (sub?.stripeSubscriptionId) {
-					try {
-						await getStripeClient().subscriptions.cancel(sub.stripeSubscriptionId);
-						stripeSubCanceled = sub.stripeSubscriptionId;
-					} catch (e) {
-						const msg = e instanceof Error ? e.message : String(e);
-						console.error(`[forceCancelTenant] stripe cancel failed:`, msg);
-					}
-				}
-			}
-
-			await cpDb
-				.update(organizations)
-				.set({ paymentStatus: "cancelled", updatedAt: new Date() })
-				.where(eq(organizations.id, input.organizationId));
-
-			await cpDb.insert(adminSessionActions).values({
+			// ADR-0024 force-cancel: any non-deleted -> cancelled. The single
+			// stripe.subscriptions.cancel side-effect lives inside the lifecycle
+			// module's force-cancel path (gated on cancelStripeSubscription).
+			const { stripeSubCanceled } = await transitionTenant(cpDb, {
+				organizationId: input.organizationId,
+				to: "cancelled",
 				adminUserId,
+				reason: input.reason,
 				actionType: "tenant_force_cancel",
-				targetOrganizationId: input.organizationId,
-				metadata: { reason: input.reason, stripeSubCanceled },
+				cancelStripeSubscription: input.cancelStripeSubscription,
 			});
 
 			return { ok: true, stripeSubCanceled };
@@ -459,7 +370,7 @@ export const platformAdminTenantsRouter = {
 				},
 			);
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_issue_credit",
 				targetOrganizationId: input.organizationId,
@@ -491,31 +402,21 @@ export const platformAdminTenantsRouter = {
 				now.getTime() + input.extendDays * 24 * 60 * 60 * 1000,
 			);
 
-			const [updated] = await cpDb
-				.update(organizations)
-				.set({
-					trialEndsAt: newTrialEnd,
-					paymentStatus: "active",
-					updatedAt: now,
-				})
-				.where(eq(organizations.id, input.organizationId))
-				.returning({
-					id: organizations.id,
-					trialEndsAt: organizations.trialEndsAt,
-				});
-
-			if (!updated) {
-				throw new ORPCError("NOT_FOUND", { message: "Tenant not found" });
-			}
-
-			await cpDb.insert(adminSessionActions).values({
+			// ADR-0024 re-trial: trial | suspended -> active, extending the trial
+			// window. assertTransition rejects re-trial from active/past_due/
+			// cancelled (PRECONDITION_FAILED). trialEndsAt update stays here.
+			const { trialEndsAt } = await transitionTenant(cpDb, {
+				organizationId: input.organizationId,
+				to: "active",
 				adminUserId,
+				reason: input.reason,
 				actionType: "tenant_re_trial",
-				targetOrganizationId: input.organizationId,
-				metadata: { reason: input.reason, extendDays: input.extendDays },
+				metadata: { extendDays: input.extendDays },
+				trialEndsAt: newTrialEnd,
+				now,
 			});
 
-			return { ok: true, trialEndsAt: updated.trialEndsAt };
+			return { ok: true, trialEndsAt };
 		}),
 
 	// E.4 — Activation funnel for one tenant.

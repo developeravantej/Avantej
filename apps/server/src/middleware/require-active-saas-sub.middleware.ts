@@ -97,7 +97,7 @@ const WRITE_VERB_PREFIXES = [
 	"sync",
 ] as const;
 
-function isWriteProcedure(procedurePath: string | undefined): boolean {
+export function isWriteProcedure(procedurePath: string | undefined): boolean {
 	if (!procedurePath) return false;
 	const last = procedurePath.split(".").pop()?.toLowerCase() ?? "";
 	return WRITE_VERB_PREFIXES.some((prefix) => last.startsWith(prefix));
