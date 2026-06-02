@@ -12,7 +12,12 @@
 import { eq, and, or, like, count, desc, isNull } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "@avantej-core/api";
+import {
+	protectedProcedure,
+	platformAdminProcedure as adminProcedure,
+	superAdminProcedure,
+	platformAdminProcedureWithRoles,
+} from "@avantej-core/api";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
@@ -29,79 +34,12 @@ import {
 } from "@/services/admin.service";
 import { getBetterAuth } from "@/lib/better-auth";
 
-/**
- * Factory that returns a platform-admin middleware, optionally restricted
- * to specific platform_admins.role values.
- *
- * @param allowRoles - When provided, only admins with one of these roles
- *   may proceed; others receive a 403. When omitted, any platform admin role passes.
- *
- * @example
- * // All platform admins
- * const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
- *
- * // Super admin / support only (used for impersonation procedures in Phase 2)
- * const impersonateProcedure = protectedProcedure.use(
- *   requirePlatformAdmin(["super_admin", "support"])
- * );
- */
-function requirePlatformAdmin(
-	allowRoles?: ReadonlyArray<"super_admin" | "support" | "billing">
-) {
-	return (protectedProcedure as any).middleware(async ({ context, next }: { context: any; next: any }) => {
-		if (!context.session?.user) {
-			throw new ORPCError("UNAUTHORIZED", {
-				message: "Authentication required",
-			});
-		}
-
-		const controlPanelDb = context.honoContext?.get(
-			"controlPanelDb"
-		) as NeonDatabase<typeof controlPanelSchema> | undefined;
-
-		if (!controlPanelDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Control panel database not available in context",
-			});
-		}
-
-		// Check if user has platform admin record
-		const adminRecord = await controlPanelDb.query.platformAdmins.findFirst({
-			where: eq(platformAdmins.userId, context.session.user.id),
-		});
-
-		if (!adminRecord) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "Admin access required",
-			});
-		}
-
-		// If caller specified allowRoles, enforce the role restriction
-		if (
-			allowRoles &&
-			!allowRoles.includes(
-				adminRecord.role as "super_admin" | "support" | "billing"
-			)
-		) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "Your platform admin role does not permit this action",
-			});
-		}
-
-		return next({
-			context: {
-				...context,
-				adminRecord,
-				adminRole: adminRecord.role,
-			},
-		});
-	});
-}
-
-// Backwards-compatible export — all existing procedure handlers continue to work unchanged.
-const requireAdmin = requirePlatformAdmin();
-
-const adminProcedure = protectedProcedure.use(requireAdmin);
+// Impersonation procedures restrict to super_admin / support roles, built from the
+// shared platform-admin factory.
+const impersonateProcedure = platformAdminProcedureWithRoles([
+	"super_admin",
+	"support",
+]);
 
 export const adminRouter = {
 	/**
@@ -228,9 +166,7 @@ export const adminRouter = {
 	/**
 	 * List all platform_admins rows — super_admin only.
 	 */
-	listAdmins: adminProcedure
-		.use(requirePlatformAdmin(["super_admin"]))
-		.handler(async ({ context }) => {
+	listAdmins: superAdminProcedure.handler(async ({ context }) => {
 			const controlPanelDb = context.honoContext?.get(
 				"controlPanelDb"
 			) as NeonDatabase<typeof controlPanelSchema> | undefined;
@@ -277,8 +213,7 @@ export const adminRouter = {
 	 * Only super_admin and support roles may impersonate.
 	 * Writes an audit row to admin_sessions.
 	 */
-	impersonateUser: protectedProcedure
-		.use(requirePlatformAdmin(["super_admin", "support"]))
+	impersonateUser: impersonateProcedure
 		.input(z.object({ userId: z.string().min(1).max(64) }))
 		.handler(async ({ input, context }) => {
 			if (!context.session?.user) {
@@ -565,8 +500,7 @@ export const adminRouter = {
 	 * Grant platform admin role to a user — super_admin only.
 	 * Upserts into platform_admins and mirrors user.role via syncUserRole.
 	 */
-	grantPlatformAdmin: adminProcedure
-		.use(requirePlatformAdmin(["super_admin"]))
+	grantPlatformAdmin: superAdminProcedure
 		.input(
 			z.object({
 				userId: z.string().min(1).max(64),
@@ -619,8 +553,7 @@ export const adminRouter = {
 	 * Revoke platform admin role — super_admin only.
 	 * Cannot revoke your own role (prevents lockout).
 	 */
-	revokePlatformAdmin: adminProcedure
-		.use(requirePlatformAdmin(["super_admin"]))
+	revokePlatformAdmin: superAdminProcedure
 		.input(z.object({ userId: z.string().min(1).max(64) }))
 		.handler(async ({ input, context }) => {
 			if (input.userId === context.session!.user.id) {
@@ -835,7 +768,7 @@ export const adminRouter = {
 	/**
 	 * Suspend organization
 	 */
-	suspendTenant: adminProcedure
+	suspendTenant: superAdminProcedure
 		.input(
 			z.object({
 				id: z.string().uuid(),
@@ -909,7 +842,7 @@ export const adminRouter = {
 	/**
 	 * Restore suspended organization
 	 */
-	unsuspendTenant: adminProcedure
+	unsuspendTenant: superAdminProcedure
 		.input(
 			z.object({
 				id: z.string().uuid(),
