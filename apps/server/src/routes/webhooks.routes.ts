@@ -11,7 +11,10 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { verifyWebhookSignature } from "@/lib/stripe";
 import { onAppointmentPaid } from "@/services/payment-side-effects.service";
-import { recordLedgerEvent } from "@/services/platform-ledger.service";
+import {
+	projectStripeEventToLedger,
+	recordLedgerEvent,
+} from "@/services/platform-ledger.service";
 import { onDisputeEvent } from "@/services/dispute.service";
 import type Stripe from "stripe";
 import {
@@ -171,19 +174,18 @@ webhookRoutes.post("/stripe/platform", async (c) => {
 					await markActive(subId, cpDb);
 				}
 				// Plan C C.7: platform-level ledger row for SaaS revenue audit.
+				// Independent try/catch — a failed ledger write must not block the
+				// webhook ack (drift is fixable via reconciliation / backfill).
 				try {
-					await recordLedgerEvent({
-						controlPanelDb: cpDb,
-						organizationId: null,
-						eventKind: "saas_invoice_paid",
-						stripeEventId: event.id,
-						stripeObjectId: inv.id ?? "",
-						stripeAccount: null,
-						amount: inv.amount_paid ?? 0,
-						applicationFee: 0,
-						currency: (inv.currency ?? "usd").toLowerCase(),
-						occurredAt: new Date(event.created * 1000),
-					});
+					const projected = projectStripeEventToLedger(event);
+					if (projected) {
+						await recordLedgerEvent({
+							...projected,
+							controlPanelDb: cpDb,
+							organizationId: null,
+							stripeAccount: null,
+						});
+					}
 				} catch (e) {
 					console.error("[platform webhook] ledger write failed:", e);
 				}
@@ -269,25 +271,15 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 				const obj = event.data.object as Stripe.PaymentIntent | Stripe.Charge;
 				const metadata = (obj as { metadata?: Record<string, string> }).metadata ?? {};
 				const orgIdFromMeta = metadata.organizationId ?? null;
-				const isRefund = event.type === "charge.refunded";
-				const amount = isRefund
-					? (obj as Stripe.Charge).amount_refunded ?? 0
-					: (obj as Stripe.PaymentIntent).amount_received ?? (obj as Stripe.PaymentIntent).amount ?? 0;
-				const appFee = isRefund
-					? (obj as Stripe.Charge).application_fee_amount ?? 0
-					: 0; // PI events don't carry app_fee directly; reconciler picks this up.
-				await recordLedgerEvent({
-					controlPanelDb,
-					organizationId: orgIdFromMeta,
-					eventKind: isRefund ? "pi_refunded" : "pi_succeeded",
-					stripeEventId: event.id,
-					stripeObjectId: obj.id,
-					stripeAccount: event.account ?? null,
-					amount,
-					applicationFee: appFee,
-					currency: (obj.currency ?? "usd").toLowerCase(),
-					occurredAt: new Date(event.created * 1000),
-				});
+				const projected = projectStripeEventToLedger(event);
+				if (projected) {
+					await recordLedgerEvent({
+						...projected,
+						controlPanelDb,
+						organizationId: orgIdFromMeta,
+						stripeAccount: event.account ?? null,
+					});
+				}
 			} catch (e) {
 				console.error(`[connect webhook] ledger write failed for ${event.id}:`, e);
 			}
@@ -296,7 +288,6 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 		// Plan C C.7: ledger row for raw application_fee.created (paid out to platform).
 		if (event.type === "application_fee.created") {
 			try {
-				const fee = event.data.object as Stripe.ApplicationFee;
 				const orgFromAcct = event.account
 					? (
 							await controlPanelDb
@@ -306,18 +297,15 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 								.limit(1)
 						)[0]?.organizationId ?? null
 					: null;
-				await recordLedgerEvent({
-					controlPanelDb,
-					organizationId: orgFromAcct,
-					eventKind: "application_fee_collected",
-					stripeEventId: event.id,
-					stripeObjectId: fee.id,
-					stripeAccount: event.account ?? null,
-					amount: fee.amount,
-					applicationFee: fee.amount,
-					currency: (fee.currency ?? "usd").toLowerCase(),
-					occurredAt: new Date(event.created * 1000),
-				});
+				const projected = projectStripeEventToLedger(event);
+				if (projected) {
+					await recordLedgerEvent({
+						...projected,
+						controlPanelDb,
+						organizationId: orgFromAcct,
+						stripeAccount: event.account ?? null,
+					});
+				}
 			} catch (e) {
 				console.error(`[connect webhook] application_fee ledger write failed:`, e);
 			}
