@@ -11,7 +11,7 @@ import { test, expect } from "@playwright/test";
 
 const PLATFORM_ADMIN = {
 	email: "developer.avantej@gmail.com",
-	password: "password1234",
+	password: "password123",
 };
 
 test("Platform Admin surface — sidebar lean + Billing tabs (post-simplification)", async ({
@@ -19,11 +19,14 @@ test("Platform Admin surface — sidebar lean + Billing tabs (post-simplificatio
 }) => {
 	await test.step("Log in as a platform admin", async () => {
 		await page.goto("/login");
-		const form = page.locator("form").first();
-		await form.getByRole("textbox", { name: /email/i }).fill(PLATFORM_ADMIN.email);
-		await form.locator('input[type="password"]').fill(PLATFORM_ADMIN.password);
-		await form.getByRole("button", { name: "Login", exact: true }).click();
-		await page.waitForURL("**/dashboard**", { timeout: 30_000 });
+		// Inputs render `disabled` until the initial session-check settles
+		// (slow on a cold dev/wrangler start) — wait for enabled before filling.
+		const email = page.locator("input#email");
+		await expect(email).toBeEnabled({ timeout: 45_000 });
+		await email.fill(PLATFORM_ADMIN.email);
+		await page.locator('input[type="password"]').fill(PLATFORM_ADMIN.password);
+		await page.getByRole("button", { name: "Login", exact: true }).click();
+		await page.waitForURL("**/dashboard**", { timeout: 45_000 });
 		await expect(page.locator("body")).toBeVisible();
 	});
 
