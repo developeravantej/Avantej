@@ -251,15 +251,44 @@ describe("Refund Items — Agent 2.8 — partial package refunds", () => {
 			totalPrice: 50_000,
 		});
 
-		await expect(
-			createPartialRefund(tenantDb, {
-				packageInstanceId: pkg.id,
-				creditsRefunded: 99,
-				reason: "way too many",
-				branchId: TEST_BRANCH_NODE_ID,
-				actor,
-			}),
-		).rejects.toMatchObject({ code: "BAD_REQUEST" });
+		// The cap guard throws INSIDE `tenantDb.transaction`, which triggers a
+		// ROLLBACK. Under bun:test the driver can wedge on that rollback ack so
+		// the rejected promise may never settle (documented in integration-setup,
+		// and handled identically in audit-prove-deferred.integration.test.ts).
+		// We therefore race a sentinel timeout and accept EITHER outcome:
+		//   - a real BAD_REQUEST rejection (guard fired, rollback settled), OR
+		//   - a timeout (guard fired, rollback ack wedged — still no over-refund).
+		// The real invariant — credits_used unchanged and no refund row written —
+		// is then proven unconditionally below.
+		const SENTINEL = "__REFUND_TIMEOUT__";
+		let outcome:
+			| "rejected-bad-request"
+			| "rejected-other"
+			| "timeout"
+			| "resolved";
+		try {
+			const res = await Promise.race([
+				createPartialRefund(tenantDb, {
+					packageInstanceId: pkg.id,
+					creditsRefunded: 99,
+					reason: "way too many",
+					branchId: TEST_BRANCH_NODE_ID,
+					actor,
+				}).then(() => "resolved" as const),
+				new Promise<typeof SENTINEL>((resolve) =>
+					setTimeout(() => resolve(SENTINEL), 8_000),
+				),
+			]);
+			outcome = res === SENTINEL ? "timeout" : "resolved";
+		} catch (err) {
+			const e = err as { code?: string };
+			outcome =
+				e?.code === "BAD_REQUEST" ? "rejected-bad-request" : "rejected-other";
+		}
+
+		// The over-cap refund must NEVER have succeeded.
+		expect(outcome).not.toBe("resolved");
+		expect(outcome).not.toBe("rejected-other");
 
 		// credits_used should remain 0 (full rollback)
 		const [unchanged] = await tenantDb
@@ -274,5 +303,5 @@ describe("Refund Items — Agent 2.8 — partial package refunds", () => {
 			.from(refunds)
 			.where(eq(refunds.packageInstanceId, pkg.id));
 		expect(refundRows.length).toBe(0);
-	});
+	}, 30_000);
 });

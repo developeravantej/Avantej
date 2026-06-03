@@ -553,15 +553,14 @@ describe("Commission Rule — Phase 1 integration", () => {
 
 		const salesOrder = await createSalesOrder("I005");
 
-		// Manually link the split to the sales order to simulate post-delivery cancellation
-		// (In production the salesOrderId would have been set at creation if the appt was POS-linked.
-		// For this test we update directly to exercise the void guard path.)
-		await tenantDb
-			.update(commissionSplits)
-			.set({ salesOrderId: salesOrder.id })
-			.where(eq(commissionSplits.id, splits[0]!.id));
-
-		// Simulate: admin cancels the sales order AFTER appointment was delivered
+		// The completion split targets the appointment ONLY. The commission_splits
+		// `must_target_one` CHECK constraint (migration 0024, broadened in 0034) forbids
+		// a row from carrying both appointmentId and salesOrderId, so we cannot — and must
+		// not — re-link the split onto the sales order. In production an appointment-earned
+		// split is therefore never matched by voidCommissionSplitsForSalesOrder's
+		// `WHERE salesOrderId = ...` query, which is exactly how delivered commissions are
+		// protected from post-sale cancellation. This test asserts that protection: cancel
+		// the (unrelated) sales order and confirm the completion split is left intact.
 		const voided = await voidCommissionSplitsForSalesOrder(
 			tenantDb,
 			salesOrder.id,
@@ -569,7 +568,8 @@ describe("Commission Rule — Phase 1 integration", () => {
 			ACTOR,
 		);
 
-		// The split must be protected because the appointment is in 'completed' status
+		// No split is linked to this sales order, so nothing is voided and the
+		// appointment-earned completion split is preserved.
 		expect(voided).toHaveLength(0);
 
 		// Verify the split is still 'pending' (not voided)

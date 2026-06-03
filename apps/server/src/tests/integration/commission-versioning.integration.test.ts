@@ -29,6 +29,7 @@ import {
 
 import { categoryCommissionConfigVersions } from "@avantej-core/db/schema/tenant/category-commission-config-versions";
 import { commissionSplits } from "@avantej-core/db/schema/tenant/commission-splits";
+import { trainerTiers } from "@avantej-core/db/schema/tenant/trainer-tiers";
 import { serviceCategories } from "@avantej-core/db/schema/tenant/service-categories";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
@@ -46,11 +47,17 @@ loadDevVars();
 const SKIP = shouldSkipIntegration() || !process.env.TENANT_DATABASE_URL;
 
 let tenantDb: ReturnType<typeof createTenantDb>;
+// Seeded once: a real trainer tier so upsertCategoryCommissionConfig can be
+// called with a non-empty `rates` array. The service rejects empty rates with a
+// pre-transaction guard ("Non-conditional config requires rates"), which would
+// short-circuit before the parent INSERT and never fire the version trigger.
+let seededTierId: string;
 
 const TS = Date.now();
 const ACTOR = { userId: TEST_USER_ID, memberId: TEST_MEMBER_ID, role: "admin" };
 
 const createdCategoryIds: string[] = [];
+const createdTierIds: string[] = [];
 const createdServiceIds: string[] = [];
 const createdAppointmentIds: string[] = [];
 const createdSplitIds: string[] = [];
@@ -108,9 +115,16 @@ async function createAppointment(serviceId: string) {
 	return appt;
 }
 
-beforeAll(() => {
+beforeAll(async () => {
 	if (SKIP) return;
 	tenantDb = createTenantDb();
+	const [tier] = await tenantDb
+		.insert(trainerTiers)
+		.values({ name: `CV tier ${TS}`, rank: 0 })
+		.returning();
+	if (!tier) throw new Error("Failed to seed trainer tier");
+	seededTierId = tier.id;
+	createdTierIds.push(tier.id);
 });
 
 afterAll(async () => {
@@ -145,6 +159,13 @@ afterAll(async () => {
 			.delete(serviceCategories)
 			.where(inArray(serviceCategories.id, createdCategoryIds));
 	}
+	if (createdTierIds.length) {
+		// Tier rates (FK restrict → trainer_tiers) are gone via the config cascade
+		// above, so the tier can now be removed.
+		await tenantDb
+			.delete(trainerTiers)
+			.where(inArray(trainerTiers.id, createdTierIds));
+	}
 });
 
 const describeOrSkip = SKIP ? describe.skip : describe;
@@ -166,13 +187,14 @@ describeOrSkip("commission versioning trigger", () => {
 				slots: [
 					{ slotIndex: 0, label: "Primary", weightageBasisPoints: 10000 },
 				],
-				rates: [],
+				// Non-empty rates: the service guards empty rates BEFORE the
+				// transaction, so an empty array would short-circuit before the
+				// parent INSERT and the AFTER INSERT version trigger would never
+				// fire. A real seeded tier lets the upsert commit.
+				rates: [{ trainerTierId: seededTierId, amount: 5000 }],
 			},
 			{ userId: ACTOR.userId, id: ACTOR.memberId, role: ACTOR.role },
-		).catch(() => {
-			// upsert may fail trying to insert empty rates; we don't care — we
-			// only need the parent INSERT to fire the version trigger.
-		});
+		);
 
 		const versions = await tenantDb
 			.select()
@@ -218,10 +240,10 @@ describeOrSkip("commission versioning trigger", () => {
 				slots: [
 					{ slotIndex: 0, label: "Primary", weightageBasisPoints: 10000 },
 				],
-				rates: [],
+				rates: [{ trainerTierId: seededTierId, amount: 4000 }],
 			},
 			{ userId: ACTOR.userId, id: ACTOR.memberId, role: ACTOR.role },
-		).catch(() => {});
+		);
 
 		const v1Id = await getLatestConfigVersionForCategory(tenantDb, categoryId);
 		expect(v1Id).not.toBeNull();
@@ -250,10 +272,10 @@ describeOrSkip("commission versioning trigger", () => {
 				slots: [
 					{ slotIndex: 0, label: "Primary", weightageBasisPoints: 10000 },
 				],
-				rates: [],
+				rates: [{ trainerTierId: seededTierId, amount: 1000 }],
 			},
 			{ userId: ACTOR.userId, id: ACTOR.memberId, role: ACTOR.role },
-		).catch(() => {});
+		);
 
 		const versions = await tenantDb
 			.select()

@@ -232,6 +232,21 @@ describe("Commission Calculator — POS path", () => {
 		);
 
 		const salesOrder = await createSalesOrder(`TC001`);
+
+		// persistSplits requires at least one non-excluded sales_order_item on the
+		// order (commissionExcluded=false) before it will emit any splits. Seed a
+		// matching product line so the POS commission path is not short-circuited.
+		await tenantDb.insert(salesOrderItems).values({
+			salesOrderId: salesOrder.id,
+			serviceId,
+			productId: null,
+			description: "POS Test Line TC001",
+			quantity: 2,
+			unitPrice: 50000,
+			totalPrice: 100000,
+			commissionExcluded: false,
+		});
+
 		// unitPrice: RM500 = 50000 cents; quantity: 2
 		// base = 20% of 50000 = 10000; weightage 100%; quantity 2 → final 20000 cents
 		const splits = await calculateCommissionForPos(tenantDb, {
