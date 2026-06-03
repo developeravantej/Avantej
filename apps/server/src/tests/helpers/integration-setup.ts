@@ -176,6 +176,35 @@ export function createControlPanelDb() {
 }
 
 /**
+ * Seed the canonical baseline fixtures that fixture-dependent integration tests
+ * REFERENCE but do not insert themselves. Currently just the branch hierarchy
+ * node `TEST_BRANCH_NODE_ID` that members/appointments/etc. attach to via
+ * `hierarchyScopeId` — on a freshly-migrated isolated branch this row doesn't
+ * exist, so those inserts hit `members_hierarchy_scope_id_hierarchy_nodes_id_fk`.
+ *
+ * Idempotent (`onConflictDoNothing`) so it's safe on every branch and re-runs.
+ *
+ * IMPORTANT: only seed entities tests REFERENCE, never ones they INSERT with the
+ * same canonical id (e.g. members/roles/users) — otherwise the test's own insert
+ * would duplicate-key against the seed. Files that self-seed their own nodes use
+ * generated ids, so this baseline never collides with them.
+ */
+export async function seedTenantBaseline(
+	tenantDb: ReturnType<typeof createTenantDb>,
+): Promise<void> {
+	await tenantDb
+		.insert(tenantSchema.hierarchyNodes)
+		.values({
+			id: TEST_BRANCH_NODE_ID,
+			name: "Test Baseline Branch",
+			slug: "test-baseline-branch",
+			type: "branch",
+			depth: 3,
+		})
+		.onConflictDoNothing();
+}
+
+/**
  * Standard integration test member context for admin role.
  */
 export function makeIntegrationAdminContext(

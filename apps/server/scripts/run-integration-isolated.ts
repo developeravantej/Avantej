@@ -69,6 +69,15 @@ async function main() {
 	// Bring the branch schema current (parent project lags migrations).
 	const { runTenantMigrations } = await import("@avantej-core/db");
 	await runTenantMigrations(branch.connectionUri);
+	// Seed canonical baseline fixtures on the shared branch. The child `bun test`
+	// processes run with ISOLATED_TEST_DB unset, so preload's seed step doesn't
+	// fire for them — seed here instead so fixture-dependent files find e.g. the
+	// TEST_BRANCH_NODE_ID hierarchy node.
+	process.env.TENANT_DATABASE_URL = branch.connectionUri;
+	const { seedTenantBaseline, createTenantDb, closeAllTestPools } =
+		await import("../src/tests/helpers/integration-setup");
+	await seedTenantBaseline(createTenantDb());
+	await closeAllTestPools();
 	console.log(
 		`Branch ${branch.branchId} ready. Running ${files.length} files (per-file timeout ${perFileTimeout}s)\n`,
 	);

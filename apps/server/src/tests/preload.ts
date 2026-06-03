@@ -21,7 +21,12 @@ import { afterAll } from "bun:test";
 import { neonConfig } from "@neondatabase/serverless";
 import ws from "ws";
 import { runTenantMigrations } from "@avantej-core/db";
-import { closeAllTestPools, loadDevVars } from "./helpers/integration-setup";
+import {
+	closeAllTestPools,
+	createTenantDb,
+	loadDevVars,
+	seedTenantBaseline,
+} from "./helpers/integration-setup";
 import { createTestBranch, deleteTestBranch } from "./helpers/neon-branch";
 
 // Default to the known "tenant-test-integration" project; override via env.
@@ -58,6 +63,9 @@ if (process.env.ISOLATED_TEST_DB === "true") {
 	// set it here since getSharedPool hasn't run yet at preload time.
 	neonConfig.webSocketConstructor = ws;
 	const applied = await runTenantMigrations(branch.connectionUri);
+	// Seed canonical baseline fixtures (e.g. the TEST_BRANCH_NODE_ID hierarchy
+	// node) that fixture-dependent tests reference but don't insert themselves.
+	await seedTenantBaseline(createTenantDb());
 	// eslint-disable-next-line no-console
 	console.log(
 		`[preload] isolated tenant DB ready — branch ${branch.branchId} (${name}); migrations: ${applied}`,
