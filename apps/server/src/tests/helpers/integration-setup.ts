@@ -12,6 +12,7 @@ export const TEST_ORG_ID = "996febce-aaad-4ded-8f47-02d2b566c8ee";
 export const TEST_BRANCH_NODE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
 export const TEST_MEMBER_ID = "bbbbbbbb-0000-4000-8000-000000000001";
 export const TEST_USER_ID = "cccccccc-0000-4000-8000-000000000001";
+export const TEST_SERVICE_ID = "dddddddd-0000-4000-8000-000000000001";
 
 /**
  * Load environment variables from .dev.vars.
@@ -200,6 +201,18 @@ export async function seedTenantBaseline(
 			slug: "test-baseline-branch",
 			type: "branch",
 			depth: 3,
+		})
+		.onConflictDoNothing();
+
+	// A baseline service. Several files do `query.services.findFirst()` — they
+	// need *any* service to exist (not a specific id) for package/refund setup.
+	await tenantDb
+		.insert(tenantSchema.services)
+		.values({
+			id: TEST_SERVICE_ID,
+			name: "Test Baseline Service",
+			duration: 3600,
+			maxAttendees: 1,
 		})
 		.onConflictDoNothing();
 }
