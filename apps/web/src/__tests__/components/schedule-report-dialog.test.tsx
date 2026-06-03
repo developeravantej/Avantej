@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({ client: mockClient, orpc: mockOrpc }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { ScheduleReportDialog } from "@/components/reports/schedule-report-dialog";
@@ -62,8 +62,12 @@ describe("ScheduleReportDialog", () => {
 		renderWithProviders(<ScheduleReportDialog {...baseProps} />);
 		await waitFor(() => {
 			expect(screen.getByText("Weekly Report")).toBeInTheDocument();
-			expect(screen.getByRole("button", { name: /pause/i })).toBeInTheDocument();
-			expect(screen.getByRole("button", { name: /remove schedule/i })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /pause/i }),
+			).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /remove schedule/i }),
+			).toBeInTheDocument();
 		});
 	});
 
@@ -74,7 +78,9 @@ describe("ScheduleReportDialog", () => {
 		renderWithProviders(<ScheduleReportDialog {...baseProps} />);
 		await waitFor(() => {
 			expect(screen.getByText("Paused")).toBeInTheDocument();
-			expect(screen.getByRole("button", { name: /resume/i })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /resume/i }),
+			).toBeInTheDocument();
 		});
 	});
 
@@ -89,7 +95,9 @@ describe("ScheduleReportDialog", () => {
 	it("submitting empty form shows validation errors", async () => {
 		const user = userEvent.setup();
 		renderWithProviders(<ScheduleReportDialog {...baseProps} />);
-		await waitFor(() => expect(screen.getByLabelText(/recipients/i)).toBeInTheDocument());
+		await waitFor(() =>
+			expect(screen.getByLabelText(/recipients/i)).toBeInTheDocument(),
+		);
 
 		// Clear both fields and submit to trigger validation
 		await user.clear(screen.getByLabelText(/report name/i));
@@ -103,7 +111,9 @@ describe("ScheduleReportDialog", () => {
 	it("valid form calls scheduledReports.create with correct data", async () => {
 		const user = userEvent.setup();
 		renderWithProviders(<ScheduleReportDialog {...baseProps} />);
-		await waitFor(() => expect(screen.getByLabelText(/recipients/i)).toBeInTheDocument());
+		await waitFor(() =>
+			expect(screen.getByLabelText(/recipients/i)).toBeInTheDocument(),
+		);
 
 		// Fill recipients (report name has default "Performance Report")
 		await user.clear(screen.getByLabelText(/recipients/i));
@@ -126,7 +136,9 @@ describe("ScheduleReportDialog", () => {
 		const user = userEvent.setup();
 		mockClient.scheduledReports.list.mockResolvedValue([existingSchedule]);
 		renderWithProviders(<ScheduleReportDialog {...baseProps} />);
-		await waitFor(() => expect(screen.getByText("Weekly Report")).toBeInTheDocument());
+		await waitFor(() =>
+			expect(screen.getByText("Weekly Report")).toBeInTheDocument(),
+		);
 
 		await user.click(screen.getByRole("button", { name: /remove schedule/i }));
 
@@ -143,11 +155,19 @@ describe("ScheduleReportDialog", () => {
 		renderWithProviders(
 			<ScheduleReportDialog {...baseProps} onOpenChange={onOpenChange} />,
 		);
-		await waitFor(() => expect(screen.getByLabelText(/recipients/i)).toBeInTheDocument());
-		// The footer Close button has variant="outline" — find it specifically in the form footer
-		const closeBtn = screen.getAllByRole("button", { name: /close/i }).find(
-			(btn) => !btn.getAttribute("aria-label")?.toLowerCase().includes("close dialog"),
+		await waitFor(() =>
+			expect(screen.getByLabelText(/recipients/i)).toBeInTheDocument(),
 		);
+		// The footer Close button has variant="outline" — find it specifically in the form footer
+		const closeBtn = screen
+			.getAllByRole("button", { name: /close/i })
+			.find(
+				(btn) =>
+					!btn
+						.getAttribute("aria-label")
+						?.toLowerCase()
+						.includes("close dialog"),
+			);
 		expect(closeBtn).toBeDefined();
 		await user.click(closeBtn!);
 		expect(onOpenChange).toHaveBeenCalledWith(false);

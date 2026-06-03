@@ -225,7 +225,15 @@ describe("approveRefund — partial + full approval (task 1.5)", () => {
 							findMany: mock(() => Promise.resolve([])),
 						},
 						salesOrders: {
-							findFirst: mock(() => Promise.resolve(undefined)),
+							// computeRemainingBySalesOrder reads totalAmount/cancelledAmount
+							// to derive the refund cap — must return a real order, not undefined.
+							findFirst: mock(() =>
+								Promise.resolve({
+									id: SO_ID,
+									totalAmount: 999999,
+									cancelledAmount: 0,
+								}),
+							),
 						},
 					},
 				};
@@ -333,6 +341,15 @@ describe("approveRefund — partial + full approval (task 1.5)", () => {
 							findFirst: mock(() => Promise.resolve({ ...refund, items: [] })),
 						},
 						commissionSplits: { findMany: mock(() => Promise.resolve([])) },
+						salesOrders: {
+							findFirst: mock(() =>
+								Promise.resolve({
+									id: SO_ID,
+									totalAmount: 999999,
+									cancelledAmount: 0,
+								}),
+							),
+						},
 					},
 				};
 				return cb(innerTx);
@@ -433,6 +450,15 @@ describe("bulkApproveRefunds — batch approval (task 1.6)", () => {
 							findFirst: mock(() => Promise.resolve({ ...refund, items: [] })),
 						},
 						commissionSplits: { findMany: mock(() => Promise.resolve([])) },
+						salesOrders: {
+							findFirst: mock(() =>
+								Promise.resolve({
+									id: SO_ID,
+									totalAmount: 999999,
+									cancelledAmount: 0,
+								}),
+							),
+						},
 					},
 				};
 				return cb(innerTx);
@@ -467,6 +493,15 @@ describe("bulkApproveRefunds — batch approval (task 1.6)", () => {
 					query: {
 						refunds: { findFirst: mock(() => Promise.resolve(undefined)) },
 						commissionSplits: { findMany: mock(() => Promise.resolve([])) },
+						salesOrders: {
+							findFirst: mock(() =>
+								Promise.resolve({
+									id: SO_ID,
+									totalAmount: 999999,
+									cancelledAmount: 0,
+								}),
+							),
+						},
 					},
 				};
 				return cb(innerTx);
@@ -495,6 +530,15 @@ describe("bulkApproveRefunds — batch approval (task 1.6)", () => {
 							findFirst: mock(() => Promise.resolve({ ...refund2, items: [] })),
 						},
 						commissionSplits: { findMany: mock(() => Promise.resolve([])) },
+						salesOrders: {
+							findFirst: mock(() =>
+								Promise.resolve({
+									id: SO_ID,
+									totalAmount: 999999,
+									cancelledAmount: 0,
+								}),
+							),
+						},
 					},
 				};
 				return cb(innerTx);
@@ -539,6 +583,15 @@ describe("bulkApproveRefunds — batch approval (task 1.6)", () => {
 							findFirst: mock(() => Promise.resolve({ ...refund, items: [] })),
 						},
 						commissionSplits: { findMany: mock(() => Promise.resolve([])) },
+						salesOrders: {
+							findFirst: mock(() =>
+								Promise.resolve({
+									id: SO_ID,
+									totalAmount: 999999,
+									cancelledAmount: 0,
+								}),
+							),
+						},
 					},
 				};
 				return cb(innerTx);

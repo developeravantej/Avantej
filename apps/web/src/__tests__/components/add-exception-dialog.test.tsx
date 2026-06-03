@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({ client: mockClient, orpc: mockOrpc }));
 vi.mock("@/hooks/useApiMutation", () => ({
 	useApiMutation: (opts: {
 		mutationFn: () => unknown;
@@ -37,12 +37,18 @@ describe("AddExceptionDialog", () => {
 
 	it("renders dialog title for timeoff kind by default", () => {
 		renderWithProviders(<AddExceptionDialog {...baseProps} />);
-		expect(screen.getByRole("heading", { name: "Add Exception Day" })).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: "Add Exception Day" }),
+		).toBeInTheDocument();
 	});
 
 	it("renders dialog title for blocked kind when defaultKind=blocked", () => {
-		renderWithProviders(<AddExceptionDialog {...baseProps} defaultKind="blocked" />);
-		expect(screen.getByRole("heading", { name: "Block Time" })).toBeInTheDocument();
+		renderWithProviders(
+			<AddExceptionDialog {...baseProps} defaultKind="blocked" />,
+		);
+		expect(
+			screen.getByRole("heading", { name: "Block Time" }),
+		).toBeInTheDocument();
 	});
 
 	it("shows trainer name when preselected", () => {
@@ -93,20 +99,26 @@ describe("AddExceptionDialog", () => {
 		await user.type(dateInput, "2025-07-10");
 		// The button should now be enabled
 		await waitFor(() => {
-			expect(screen.getByRole("button", { name: /add exception/i })).not.toBeDisabled();
+			expect(
+				screen.getByRole("button", { name: /add exception/i }),
+			).not.toBeDisabled();
 		});
 	});
 
 	it("kind radio buttons toggle title", async () => {
 		const user = userEvent.setup();
 		renderWithProviders(<AddExceptionDialog {...baseProps} />);
-		expect(screen.getByRole("heading", { name: "Add Exception Day" })).toBeInTheDocument();
+		expect(
+			screen.getByRole("heading", { name: "Add Exception Day" }),
+		).toBeInTheDocument();
 
-		const blockedRadio = screen.getByRole("radio", { name: /blocked/i });
+		const blockedRadio = screen.getByRole("button", { name: /^blocked$/i });
 		await user.click(blockedRadio);
 
 		await waitFor(() => {
-			expect(screen.getByRole("heading", { name: "Block Time" })).toBeInTheDocument();
+			expect(
+				screen.getByRole("heading", { name: "Block Time" }),
+			).toBeInTheDocument();
 		});
 	});
 
@@ -142,7 +154,9 @@ describe("AddExceptionDialog", () => {
 	it("Cancel button closes the dialog", async () => {
 		const user = userEvent.setup();
 		const onOpenChange = vi.fn();
-		renderWithProviders(<AddExceptionDialog {...baseProps} onOpenChange={onOpenChange} />);
+		renderWithProviders(
+			<AddExceptionDialog {...baseProps} onOpenChange={onOpenChange} />,
+		);
 		await user.click(screen.getByRole("button", { name: /cancel/i }));
 		expect(onOpenChange).toHaveBeenCalledWith(false);
 	});

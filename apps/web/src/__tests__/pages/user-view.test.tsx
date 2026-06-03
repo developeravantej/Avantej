@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
 let UserViewPage: React.ComponentType;
 
@@ -16,8 +16,13 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("@/utils/orpc", () => ({
 	client: mockClient,
-	orpc: {},
-	queryClient: { invalidateQueries: () => Promise.resolve(), setQueryData: () => {}, getQueryData: () => undefined, clear: () => {} },
+	orpc: mockOrpc,
+	queryClient: {
+		invalidateQueries: () => Promise.resolve(),
+		setQueryData: () => {},
+		getQueryData: () => undefined,
+		clear: () => {},
+	},
 }));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
@@ -129,20 +134,28 @@ describe("UserViewPage", () => {
 		const user = userEvent.setup();
 		mockClient.members.list.mockResolvedValue(makeMembers());
 		renderWithProviders(<UserViewPage />);
-		await waitFor(() => expect(screen.getByText("Alice Admin")).toBeInTheDocument());
+		await waitFor(() =>
+			expect(screen.getByText("Alice Admin")).toBeInTheDocument(),
+		);
 
 		await user.type(screen.getByPlaceholderText("Search…"), "zzznomatch");
 
 		await waitFor(() => {
-			expect(screen.getByText("No employees match your search")).toBeInTheDocument();
+			expect(
+				screen.getByText("No employees match your search"),
+			).toBeInTheDocument();
 		});
 	});
 
 	it("admin sees Deactivate action on active member", async () => {
 		mockClient.members.list.mockResolvedValue(makeMembers());
 		renderWithProviders(<UserViewPage />);
-		await waitFor(() => expect(screen.getByText("Alice Admin")).toBeInTheDocument());
+		await waitFor(() =>
+			expect(screen.getByText("Alice Admin")).toBeInTheDocument(),
+		);
 		// Admin role group is defaultOpen=true and callerIsAdmin=true
-		expect(screen.getAllByRole("button", { name: /deactivate/i }).length).toBeGreaterThan(0);
+		expect(
+			screen.getAllByRole("button", { name: /deactivate/i }).length,
+		).toBeGreaterThan(0);
 	});
 });

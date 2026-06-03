@@ -115,6 +115,10 @@ describe("createAnnouncement", () => {
 			returning: mock(() => Promise.resolve([announcement])),
 		};
 		mockDb.insert.mockReturnValueOnce({ values: mock(() => insertValues) });
+		// createAnnouncement now fans out notifications: expandDescendantNodeIds
+		// runs a recursive-CTE via tx.execute() expecting { rows: [...] }. Return
+		// no descendants so dispatch short-circuits before any notification insert.
+		mockDb.execute.mockResolvedValueOnce({ rows: [] });
 
 		const result = await createAnnouncement(mockDb, {
 			title: "Test",
@@ -135,6 +139,8 @@ describe("createAnnouncement", () => {
 			returning: mock(() => Promise.resolve([announcement])),
 		};
 		mockDb.insert.mockReturnValueOnce({ values: mock(() => insertValues) });
+		// Short-circuit notification fan-out (see note above).
+		mockDb.execute.mockResolvedValueOnce({ rows: [] });
 
 		const result = await createAnnouncement(mockDb, {
 			title: "Test",

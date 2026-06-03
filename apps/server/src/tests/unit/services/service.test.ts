@@ -22,9 +22,28 @@ const mockUpdate = mock((..._args: any[]) => ({
 	})),
 }));
 
+// listServices/getServiceById now run secondary `tenantDb.select(...)` queries to
+// resolve category names + schedulingType (moved to the category) and the rolling
+// avg-per-month aggregate. Provide a thenable chainable builder that resolves to []
+// by default, so those side queries contribute no category/avg data.
+const mockSelect = mock((..._args: any[]) => {
+	const chain: any = {
+		from: () => chain,
+		innerJoin: () => chain,
+		leftJoin: () => chain,
+		where: () => chain,
+		groupBy: () => chain,
+		orderBy: () => chain,
+		limit: () => chain,
+		then: (resolve: (v: any[]) => any) => resolve([]),
+	};
+	return chain;
+});
+
 const mockTenantDb = {
 	insert: mockInsert,
 	update: mockUpdate,
+	select: mockSelect,
 	query: {
 		services: {
 			findMany: mockFindMany,
@@ -40,6 +59,7 @@ beforeEach(() => {
 	mockValues.mockClear();
 	mockInsert.mockClear();
 	mockUpdate.mockClear();
+	mockSelect.mockClear();
 });
 
 describe("listServices", () => {
@@ -52,8 +72,15 @@ describe("listServices", () => {
 
 		const result = await listServices(mockTenantDb);
 
+		// schedulingType moved to the service category; services with no categoryId
+		// default to "appointment". avgPerMonth defaults to 0 with no sales data.
 		expect(result as any).toEqual(
-			fakeServices.map((s) => ({ ...s, service_category_name: null })),
+			fakeServices.map((s) => ({
+				...s,
+				service_category_name: null,
+				schedulingType: "appointment",
+				avgPerMonth: 0,
+			})),
 		);
 		expect(mockFindMany).toHaveBeenCalledTimes(1);
 		const callArg = mockFindMany.mock.calls[0]![0];
@@ -145,7 +172,15 @@ describe("getServiceById", () => {
 
 		const result = await getServiceById(mockTenantDb, "s1");
 
-		expect(result as any).toEqual(fakeService);
+		// getServiceById now enriches with service_category_name (null), the
+		// category-derived schedulingType (defaults to "appointment" with no
+		// categoryId), and avgPerMonth (0 without sales data).
+		expect(result as any).toEqual({
+			...fakeService,
+			service_category_name: null,
+			schedulingType: "appointment",
+			avgPerMonth: 0,
+		});
 		expect(mockFindFirst).toHaveBeenCalledTimes(1);
 	});
 

@@ -1,10 +1,10 @@
 import { describe, test, expect, beforeEach, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 import { ClaimsWidget } from "@/components/claims-widget";
 
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({ client: mockClient, orpc: mockOrpc }));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: {
@@ -38,6 +38,7 @@ describe("ClaimsWidget", () => {
 		await waitFor(() => {
 			expect(mockClient.expenses.list).toHaveBeenCalledWith(
 				expect.objectContaining({ status: "pending" }),
+				expect.anything(),
 			);
 		});
 	});

@@ -13,6 +13,11 @@ const mockFindMany = mock<(...args: any[]) => Promise<any>>(() =>
 const mockFindFirst = mock<(...args: any[]) => Promise<any>>(() =>
 	Promise.resolve(null),
 );
+// deactivateSupplier guards against open purchase orders before soft-deleting.
+// Default: no open POs (returns null) so deactivation proceeds.
+const mockPurchaseOrdersFindFirst = mock<(...args: any[]) => Promise<any>>(() =>
+	Promise.resolve(null),
+);
 const mockReturning = mock<(...args: any[]) => Promise<any>>(() =>
 	Promise.resolve([]),
 );
@@ -36,6 +41,9 @@ const mockTenantDb = {
 			findMany: mockFindMany,
 			findFirst: mockFindFirst,
 		},
+		purchaseOrders: {
+			findFirst: mockPurchaseOrdersFindFirst,
+		},
 	},
 } as any;
 
@@ -46,6 +54,7 @@ beforeEach(() => {
 	mockValues.mockClear();
 	mockInsert.mockClear();
 	mockUpdate.mockClear();
+	mockPurchaseOrdersFindFirst.mockClear();
 });
 
 describe("listSuppliers", () => {

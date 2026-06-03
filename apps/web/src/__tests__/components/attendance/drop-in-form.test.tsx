@@ -2,11 +2,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../helpers/render-with-providers";
-import { mockClient } from "../../helpers/mock-client";
+import { mockClient, mockOrpc } from "../../helpers/mock-client";
 import { DropInForm } from "@/components/attendance/drop-in-form";
 
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
+vi.mock("@/utils/orpc", () => ({ client: mockClient, orpc: mockOrpc }));
+vi.mock("sonner", () => ({
+	toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
+}));
 
 const DEFAULT_PROPS = {
 	organizationId: "org-1",

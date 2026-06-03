@@ -2,10 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 import { CategoryCommissionForm } from "@/components/forms/category-commission-form";
 
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({ client: mockClient, orpc: mockOrpc }));
 vi.mock("sonner", () => ({
 	toast: { success: vi.fn(), error: vi.fn() },
 }));
@@ -24,12 +24,8 @@ const EXISTING_CONFIG = {
 		isConditional: false,
 		maxCoaches: 1,
 	},
-	slots: [
-		{ slotIndex: 0, label: "Head Coach", weightageBasisPoints: 10000 },
-	],
-	rates: [
-		{ trainerTierId: "tier-a", amount: 5000 },
-	],
+	slots: [{ slotIndex: 0, label: "Head Coach", weightageBasisPoints: 10000 }],
+	rates: [{ trainerTierId: "tier-a", amount: 5000 }],
 	conditions: [],
 };
 
@@ -43,7 +39,9 @@ describe("CategoryCommissionForm", () => {
 	});
 
 	it("does not show commission config content when closed", () => {
-		renderWithProviders(<CategoryCommissionForm {...DEFAULT_PROPS} open={false} />);
+		renderWithProviders(
+			<CategoryCommissionForm {...DEFAULT_PROPS} open={false} />,
+		);
 
 		// Sheet is closed — content is not rendered
 		expect(screen.queryByText("Commission Config")).not.toBeInTheDocument();
@@ -52,7 +50,9 @@ describe("CategoryCommissionForm", () => {
 	});
 
 	it("shows payment type options (Fixed RM / Variable %) when open", async () => {
-		renderWithProviders(<CategoryCommissionForm {...DEFAULT_PROPS} open={true} />);
+		renderWithProviders(
+			<CategoryCommissionForm {...DEFAULT_PROPS} open={true} />,
+		);
 
 		await waitFor(() => {
 			expect(screen.getByText("Fixed RM")).toBeInTheDocument();
@@ -63,7 +63,9 @@ describe("CategoryCommissionForm", () => {
 	it("shows 'No config yet' badge when getByCategory returns null/undefined", async () => {
 		mockClient.categoryCommission.getByCategory.mockResolvedValue(null);
 
-		renderWithProviders(<CategoryCommissionForm {...DEFAULT_PROPS} open={true} />);
+		renderWithProviders(
+			<CategoryCommissionForm {...DEFAULT_PROPS} open={true} />,
+		);
 
 		await waitFor(() => {
 			expect(screen.getByText("No config yet")).toBeInTheDocument();
@@ -71,9 +73,13 @@ describe("CategoryCommissionForm", () => {
 	});
 
 	it("shows 'Configured' badge when getByCategory returns an existing config", async () => {
-		mockClient.categoryCommission.getByCategory.mockResolvedValue(EXISTING_CONFIG);
+		mockClient.categoryCommission.getByCategory.mockResolvedValue(
+			EXISTING_CONFIG,
+		);
 
-		renderWithProviders(<CategoryCommissionForm {...DEFAULT_PROPS} open={true} />);
+		renderWithProviders(
+			<CategoryCommissionForm {...DEFAULT_PROPS} open={true} />,
+		);
 
 		await waitFor(() => {
 			expect(screen.getByText("Configured")).toBeInTheDocument();
@@ -88,7 +94,9 @@ describe("CategoryCommissionForm", () => {
 		]);
 		mockClient.categoryCommission.getByCategory.mockResolvedValue(null);
 
-		renderWithProviders(<CategoryCommissionForm {...DEFAULT_PROPS} open={true} />);
+		renderWithProviders(
+			<CategoryCommissionForm {...DEFAULT_PROPS} open={true} />,
+		);
 
 		// Wait for tiers section to load
 		await waitFor(() => {
@@ -122,7 +130,9 @@ describe("CategoryCommissionForm", () => {
 		mockClient.categoryCommission.getByCategory.mockResolvedValue(null);
 		mockClient.categoryCommission.upsert.mockResolvedValue({});
 
-		renderWithProviders(<CategoryCommissionForm {...DEFAULT_PROPS} open={true} />);
+		renderWithProviders(
+			<CategoryCommissionForm {...DEFAULT_PROPS} open={true} />,
+		);
 
 		// Wait for form to fully render (tiers loaded)
 		await waitFor(() => {
@@ -152,7 +162,9 @@ describe("CategoryCommissionForm", () => {
 		mockClient.categoryCommission.getByCategory.mockResolvedValue(null);
 		mockClient.trainerTiers.list.mockResolvedValue([]);
 
-		renderWithProviders(<CategoryCommissionForm {...DEFAULT_PROPS} open={true} />);
+		renderWithProviders(
+			<CategoryCommissionForm {...DEFAULT_PROPS} open={true} />,
+		);
 
 		await waitFor(() => {
 			expect(screen.getByText("Coach Slots")).toBeInTheDocument();

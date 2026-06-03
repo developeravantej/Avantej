@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
 let ReportsPage: React.ComponentType;
 
@@ -14,7 +14,7 @@ vi.mock("@tanstack/react-router", () => ({
 	Link: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 	useNavigate: vi.fn().mockReturnValue(vi.fn()),
 }));
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({ client: mockClient, orpc: mockOrpc }));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: { currentOrganizationId: "org-1" },
@@ -31,7 +31,15 @@ vi.mock("@/components/reports/schedule-report-dialog", () => ({
 		open ? <div data-testid="schedule-dialog">Schedule Dialog</div> : null,
 }));
 // jsPDF dynamic import — not needed for unit tests
-vi.mock("jspdf", () => ({ jsPDF: class { save = vi.fn(); setFontSize = vi.fn(); setFont = vi.fn(); setTextColor = vi.fn(); text = vi.fn() } }));
+vi.mock("jspdf", () => ({
+	jsPDF: class {
+		save = vi.fn();
+		setFontSize = vi.fn();
+		setFont = vi.fn();
+		setTextColor = vi.fn();
+		text = vi.fn();
+	},
+}));
 vi.mock("jspdf-autotable", () => ({ default: vi.fn() }));
 
 const kpiData = {

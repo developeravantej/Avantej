@@ -58,7 +58,7 @@ describe("useServiceFormMutation", () => {
 		invalidateSpy.mockReset();
 	});
 
-	it("calls services.create with wire schedulingType 'appointment' for appointment-based", async () => {
+	it("calls services.create with mapped common fields for appointment-based", async () => {
 		const onClose = vi.fn();
 		const { result } = renderHook(
 			() =>
@@ -76,12 +76,13 @@ describe("useServiceFormMutation", () => {
 		});
 
 		expect(updateSpy).not.toHaveBeenCalled();
+		// Note: schedulingType is a property of the service *category*, not the
+		// service, so it is intentionally NOT forwarded by this mutation.
 		expect(createSpy).toHaveBeenCalledWith(
 			expect.objectContaining({
 				organizationId: ORG,
 				name: "PT",
 				price: 10000,
-				schedulingType: "appointment",
 				durationUnitType: "minutes",
 				sessionCount: 5,
 				expiryDays: null,
@@ -92,7 +93,7 @@ describe("useServiceFormMutation", () => {
 		expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: listKey });
 	});
 
-	it("maps time-preset to wire 'class_slot' and forwards timePresetConfig", async () => {
+	it("forwards timePresetConfig to the create payload", async () => {
 		const { result } = renderHook(
 			() =>
 				useServiceFormMutation({
@@ -116,7 +117,6 @@ describe("useServiceFormMutation", () => {
 
 		expect(createSpy).toHaveBeenCalledWith(
 			expect.objectContaining({
-				schedulingType: "class_slot",
 				timePresetConfig: cfg,
 			}),
 		);
@@ -141,7 +141,7 @@ describe("useServiceFormMutation", () => {
 
 		expect(createSpy).not.toHaveBeenCalled();
 		expect(updateSpy).toHaveBeenCalledWith(
-			expect.objectContaining({ id: "svc-1", schedulingType: "appointment" }),
+			expect.objectContaining({ id: "svc-1" }),
 		);
 	});
 

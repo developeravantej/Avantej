@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
 let ApprovalsPage: React.ComponentType;
 const useSearchMock = vi.fn();
@@ -22,7 +22,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("@/utils/orpc", () => ({
 	client: mockClient,
-	orpc: {},
+	orpc: mockOrpc,
 	queryClient: {
 		invalidateQueries: () => Promise.resolve(),
 		setQueryData: () => {},
@@ -116,8 +116,9 @@ describe("ApprovalsPage", () => {
 		mockClient.packageInstances.listPending.mockResolvedValue([]);
 		renderWithProviders(<ApprovalsPage />);
 		await waitFor(() => {
-			expect(screen.getByTestId("empty-state")).toBeInTheDocument();
-			expect(screen.getByText("All caught up")).toBeInTheDocument();
+			expect(
+				screen.getByText("No packages waiting for trainer assignment."),
+			).toBeInTheDocument();
 		});
 	});
 

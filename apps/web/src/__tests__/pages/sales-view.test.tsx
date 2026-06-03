@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
 let RouteComponent: React.ComponentType;
 const useSearchMock = vi.fn();
@@ -24,8 +24,13 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("@/utils/orpc", () => ({
 	client: mockClient,
-	orpc: {},
-	queryClient: { invalidateQueries: () => Promise.resolve(), setQueryData: () => {}, getQueryData: () => undefined, clear: () => {} },
+	orpc: mockOrpc,
+	queryClient: {
+		invalidateQueries: () => Promise.resolve(),
+		setQueryData: () => {},
+		getQueryData: () => undefined,
+		clear: () => {},
+	},
 }));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
@@ -119,8 +124,12 @@ describe("Sales view (RouteComponent)", () => {
 	it("renders tab bar with Sales Orders and Payments tabs", async () => {
 		renderWithProviders(<RouteComponent />);
 		await waitFor(() => {
-			expect(screen.getByRole("button", { name: /sales orders/i })).toBeInTheDocument();
-			expect(screen.getByRole("button", { name: /payments/i })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /sales orders/i }),
+			).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /payments/i }),
+			).toBeInTheDocument();
 		});
 	});
 
@@ -136,8 +145,12 @@ describe("Sales view (RouteComponent)", () => {
 	it("renders Export CSV and New Sale action buttons", async () => {
 		renderWithProviders(<RouteComponent />);
 		await waitFor(() => {
-			expect(screen.getByRole("button", { name: /export csv/i })).toBeInTheDocument();
-			expect(screen.getByRole("link", { name: /new sale/i })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /export csv/i }),
+			).toBeInTheDocument();
+			expect(
+				screen.getByRole("link", { name: /new sale/i }),
+			).toBeInTheDocument();
 		});
 	});
 

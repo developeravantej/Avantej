@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
 let CustomersV2Page: React.ComponentType;
 const useSearchMock = vi.fn();
@@ -21,8 +21,13 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("@/utils/orpc", () => ({
 	client: mockClient,
-	orpc: {},
-	queryClient: { invalidateQueries: () => Promise.resolve(), setQueryData: () => {}, getQueryData: () => undefined, clear: () => {} },
+	orpc: mockOrpc,
+	queryClient: {
+		invalidateQueries: () => Promise.resolve(),
+		setQueryData: () => {},
+		getQueryData: () => undefined,
+		clear: () => {},
+	},
 }));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
@@ -75,7 +80,11 @@ vi.mock("@/components/pos/pos-workflow", () => ({
 	PosWorkflow: () => <div data-testid="pos-workflow">POS</div>,
 }));
 
-const defaultSearch = { tab: "customers", customer: undefined, showDeleted: undefined };
+const defaultSearch = {
+	tab: "customers",
+	customer: undefined,
+	showDeleted: undefined,
+};
 
 beforeAll(async () => {
 	await import("@/routes/_authenticated/dashboard/_layout/customers/v2/view");
@@ -101,7 +110,9 @@ describe("CustomersV2Page", () => {
 		renderWithProviders(<CustomersV2Page />);
 		await waitFor(() => {
 			// Tab pills replaced by Add Customer action button
-			expect(screen.getByRole("button", { name: /add customer/i })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /add customer/i }),
+			).toBeInTheDocument();
 		});
 	});
 
@@ -115,7 +126,9 @@ describe("CustomersV2Page", () => {
 	it("renders Add Customer button when has permission", async () => {
 		renderWithProviders(<CustomersV2Page />);
 		await waitFor(() => {
-			expect(screen.getByRole("button", { name: /add customer/i })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /add customer/i }),
+			).toBeInTheDocument();
 		});
 	});
 

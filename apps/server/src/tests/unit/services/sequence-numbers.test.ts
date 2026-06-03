@@ -103,49 +103,53 @@ describe("SO — Sales Order number generation", () => {
 		totalAmount: 100,
 	};
 
-	test("total=0 → sequence ends in 0001", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
-		setupInsertReturning("salesOrderNumber", "SO-20260227-0001");
+	// SO numbers come from nextval('tenant_sales_order_seq') and are formatted
+	// as SO-NNNNNN (6-digit zero-padded sequence, no date segment). The seq value
+	// is read via tenantDb.execute(sql`SELECT nextval(...) AS seq`) → { rows: [{ seq }] }.
+
+	test("seq=1 → SO number ends in 000001", async () => {
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: "1" }] });
+		setupInsertReturning("salesOrderNumber", "SO-000001");
 
 		await createSalesOrder(mockTenantDb, baseParams);
 
 		const valuesArg = mockValues.mock.calls[0]![0];
-		expect(valuesArg.salesOrderNumber).toMatch(/SO-\d{8}-0001$/);
+		expect(valuesArg.salesOrderNumber).toMatch(/^SO-000001$/);
 	});
 
-	test("total=8 → sequence ends in 0009", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 8 }]);
-		setupInsertReturning("salesOrderNumber", "SO-20260227-0009");
+	test("seq=9 → SO number ends in 000009", async () => {
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: "9" }] });
+		setupInsertReturning("salesOrderNumber", "SO-000009");
 
 		await createSalesOrder(mockTenantDb, baseParams);
 
 		const valuesArg = mockValues.mock.calls[0]![0];
-		expect(valuesArg.salesOrderNumber).toMatch(/SO-\d{8}-0009$/);
+		expect(valuesArg.salesOrderNumber).toMatch(/^SO-000009$/);
 	});
 
-	test("total=9 → sequence ends in 0010", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 9 }]);
-		setupInsertReturning("salesOrderNumber", "SO-20260227-0010");
+	test("seq=10 → SO number ends in 000010", async () => {
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: "10" }] });
+		setupInsertReturning("salesOrderNumber", "SO-000010");
 
 		await createSalesOrder(mockTenantDb, baseParams);
 
 		const valuesArg = mockValues.mock.calls[0]![0];
-		expect(valuesArg.salesOrderNumber).toMatch(/SO-\d{8}-0010$/);
+		expect(valuesArg.salesOrderNumber).toMatch(/^SO-000010$/);
 	});
 
-	test("total=98 → sequence ends in 0099", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 98 }]);
-		setupInsertReturning("salesOrderNumber", "SO-20260227-0099");
+	test("seq=99 → SO number ends in 000099", async () => {
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: "99" }] });
+		setupInsertReturning("salesOrderNumber", "SO-000099");
 
 		await createSalesOrder(mockTenantDb, baseParams);
 
 		const valuesArg = mockValues.mock.calls[0]![0];
-		expect(valuesArg.salesOrderNumber).toMatch(/SO-\d{8}-0099$/);
+		expect(valuesArg.salesOrderNumber).toMatch(/^SO-000099$/);
 	});
 
-	test("date portion is embedded correctly (YYYYMMDD)", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
-		setupInsertReturning("salesOrderNumber", "SO-20260227-0001");
+	test("number is prefixed SO- with 6-digit zero-padded sequence", async () => {
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: "1" }] });
+		setupInsertReturning("salesOrderNumber", "SO-000001");
 
 		await createSalesOrder(mockTenantDb, {
 			...baseParams,
@@ -153,19 +157,22 @@ describe("SO — Sales Order number generation", () => {
 		});
 
 		const valuesArg = mockValues.mock.calls[0]![0];
-		expect(valuesArg.salesOrderNumber).toMatch(/^SO-20260227-/);
+		expect(valuesArg.salesOrderNumber).toMatch(/^SO-\d{6}$/);
 	});
 });
 
 describe("CAN — Cancellation number generation (via cancelSalesOrder)", () => {
-	function buildCanMocks(total: number, mockOrder: any) {
+	function buildCanMocks(seq: number, mockOrder: any) {
 		const capturedSetArgs: any[] = [];
 		const cancelledOrder = { ...mockOrder, status: "cancelled" };
 
 		const canFindFirst = mock((..._args: any[]) => Promise.resolve(mockOrder));
-		const canSelectWhere = mock((..._args: any[]) =>
-			Promise.resolve([{ total }]),
+		// CAN numbers are CAN-YYYYMMDD-NNNN where NNNN comes from
+		// nextval('tenant_cancellation_seq') via tenantDb.execute(...) → { rows: [{ seq }] }.
+		const canExecute = mock((..._args: any[]) =>
+			Promise.resolve({ rows: [{ seq: String(seq) }] }),
 		);
+		const canSelectWhere = mock((..._args: any[]) => Promise.resolve([]));
 		const canSelectFrom = mock((..._args: any[]) => ({
 			where: canSelectWhere,
 		}));
@@ -189,17 +196,21 @@ describe("CAN — Cancellation number generation (via cancelSalesOrder)", () => 
 
 		// tx passed into transaction callback — needs update/insert/select
 		// for: update salesOrders, writeAudit insert, voidCommissionSplitsForSalesOrder select
-		const tx = {
+		const tx: any = {
 			update: canUpdate,
 			insert: canInsert,
 			select: canSelect,
 		};
+		// voidCommissionSplitsForSalesOrder opens its own nested transaction on the
+		// tx handed to it; the inner select returns [] so no splits are voided.
+		tx.transaction = mock(async (fn: any) => fn(tx));
 		const canTransaction = mock(async (fn: any) => fn(tx));
 
 		const db = {
 			insert: canInsert,
 			update: canUpdate,
 			select: canSelect,
+			execute: canExecute,
 			query: {
 				salesOrders: {
 					findMany: mock((..._args: any[]) => Promise.resolve([])),
@@ -214,7 +225,7 @@ describe("CAN — Cancellation number generation (via cancelSalesOrder)", () => 
 
 	const actor = { userId: "u1", memberId: "m1", role: "admin" };
 
-	test("total=0 → CAN number ends in 0001", async () => {
+	test("seq=1 → CAN number ends in 0001", async () => {
 		const mockOrder = {
 			id: "so1",
 			salesOrderNumber: "SO-20260227-0001",
@@ -223,7 +234,7 @@ describe("CAN — Cancellation number generation (via cancelSalesOrder)", () => 
 			customerId: null,
 			totalAmount: 500,
 		};
-		const { db, capturedSetArgs } = buildCanMocks(0, mockOrder);
+		const { db, capturedSetArgs } = buildCanMocks(1, mockOrder);
 
 		await cancelSalesOrder(
 			db,
@@ -235,7 +246,7 @@ describe("CAN — Cancellation number generation (via cancelSalesOrder)", () => 
 		expect(capturedSetArgs[0].cancellationNumber).toMatch(/^CAN-\d{8}-0001$/);
 	});
 
-	test("total=9 → CAN number ends in 0010", async () => {
+	test("seq=10 → CAN number ends in 0010", async () => {
 		const mockOrder = {
 			id: "so1",
 			salesOrderNumber: "SO-20260227-0001",
@@ -244,7 +255,7 @@ describe("CAN — Cancellation number generation (via cancelSalesOrder)", () => 
 			customerId: null,
 			totalAmount: 500,
 		};
-		const { db, capturedSetArgs } = buildCanMocks(9, mockOrder);
+		const { db, capturedSetArgs } = buildCanMocks(10, mockOrder);
 
 		await cancelSalesOrder(
 			db,

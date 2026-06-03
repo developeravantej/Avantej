@@ -5,12 +5,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
 vi.mock("@/utils/orpc", () => ({
 	client: mockClient,
-	orpc: {},
-	queryClient: { invalidateQueries: () => Promise.resolve(), setQueryData: () => {}, getQueryData: () => undefined, clear: () => {} },
+	orpc: mockOrpc,
+	queryClient: {
+		invalidateQueries: () => Promise.resolve(),
+		setQueryData: () => {},
+		getQueryData: () => undefined,
+		clear: () => {},
+	},
 }));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({

@@ -68,32 +68,25 @@ beforeEach(() => {
 // 1.27 — recipientSummary
 // ---------------------------------------------------------------------------
 
-// recipientSummary makes 3 sequential select() calls:
-//   1. Inner subquery: select({amount}).from(payouts).where(...).orderBy(...).limit(100)  → .as("recent_paid")
-//   2. Outer avg:      select({avgCents:avg(...)}).from(recentSubquery)
-//   3. Totals:         select({lifetimePaidCents, lastPayoutAt}).from(payouts).where(...)
+// recipientSummary(tenantDb, recipientId: string) makes 2 sequential select() calls:
+//   Q1 — aggregate: select({ totalPaid: sum(amount), lastPayoutAt: max(paidAt) })
+//        → resolves to [{ totalPaid, lastPayoutAt }]
+//   Q2 — recent: select({ amount, paidAt, batchId }).orderBy(...).limit(100)
+//        → resolves to an array of paid payout rows
 //
-// Call 1 resolves but its value is ignored (it becomes the subquery object passed to call 2's .from()).
-// Call 2 resolves to [{avgCents}].
-// Call 3 resolves to [{lifetimePaidCents, lastPayoutAt}].
+// avgPerCycleCents is computed in-service from Q2: positive-amount rows are grouped
+// into cycles (by batchId, else paidAt::date), summed, then divided by cycle count
+// and rounded. Negative (reversal) rows are skipped.
 
 describe("recipientSummary", () => {
 	test("returns zeroes when no paid payouts exist", async () => {
 		mockDb.select
-			.mockReturnValueOnce(selectChainResolving([])) // subquery (value unused)
-			.mockReturnValueOnce(selectChainResolving([{ avgCents: null }])) // avg
 			.mockReturnValueOnce(
-				selectChainResolving([{ lifetimePaidCents: 0, lastPayoutAt: null }]),
-			); // totals
+				selectChainResolving([{ totalPaid: null, lastPayoutAt: null }]),
+			) // Q1 aggregate
+			.mockReturnValueOnce(selectChainResolving([])); // Q2 recent — no rows
 
-		const result = await recipientSummary(
-			mockDb as any,
-			{
-				recipientId: RECIPIENT_ID,
-				accessibleNodeIds: [],
-				callerIsAdmin: true,
-			} as any,
-		);
+		const result = await recipientSummary(mockDb as any, RECIPIENT_ID);
 
 		expect(result.lifetimePaidCents).toBe(0);
 		expect(result.avgPerCycleCents).toBe(0);
@@ -104,22 +97,17 @@ describe("recipientSummary", () => {
 		const lastPaid = new Date("2026-04-01T10:00:00Z");
 
 		mockDb.select
-			.mockReturnValueOnce(selectChainResolving([])) // subquery
-			.mockReturnValueOnce(selectChainResolving([{ avgCents: "4500" }])) // avg
+			.mockReturnValueOnce(
+				selectChainResolving([{ totalPaid: 90000, lastPayoutAt: lastPaid }]),
+			) // Q1 aggregate
 			.mockReturnValueOnce(
 				selectChainResolving([
-					{ lifetimePaidCents: 90000, lastPayoutAt: lastPaid },
+					// single cycle (one batch) → avg = 4500 / 1 cycle
+					{ amount: 4500, paidAt: lastPaid, batchId: "batch-1" },
 				]),
-			); // totals
+			); // Q2 recent
 
-		const result = await recipientSummary(
-			mockDb as any,
-			{
-				recipientId: RECIPIENT_ID,
-				accessibleNodeIds: [],
-				callerIsAdmin: true,
-			} as any,
-		);
+		const result = await recipientSummary(mockDb as any, RECIPIENT_ID);
 
 		expect(result.lifetimePaidCents).toBe(90000);
 		expect(result.avgPerCycleCents).toBe(4500);
@@ -128,40 +116,29 @@ describe("recipientSummary", () => {
 
 	test("rounds fractional avgCents", async () => {
 		mockDb.select
-			.mockReturnValueOnce(selectChainResolving([])) // subquery
-			.mockReturnValueOnce(selectChainResolving([{ avgCents: "3333.33" }])) // avg
+			.mockReturnValueOnce(
+				selectChainResolving([{ totalPaid: 10000, lastPayoutAt: null }]),
+			) // Q1 aggregate
 			.mockReturnValueOnce(
 				selectChainResolving([
-					{ lifetimePaidCents: 10000, lastPayoutAt: null },
+					// three distinct cycles summing 10000 → 10000/3 = 3333.33 → round → 3333
+					{ amount: 3333, paidAt: null, batchId: "batch-a" },
+					{ amount: 3333, paidAt: null, batchId: "batch-b" },
+					{ amount: 3334, paidAt: null, batchId: "batch-c" },
 				]),
-			); // totals
+			); // Q2 recent
 
-		const result = await recipientSummary(
-			mockDb as any,
-			{
-				recipientId: RECIPIENT_ID,
-				accessibleNodeIds: [],
-				callerIsAdmin: true,
-			} as any,
-		);
+		const result = await recipientSummary(mockDb as any, RECIPIENT_ID);
 
 		expect(result.avgPerCycleCents).toBe(3333);
 	});
 
 	test("handles empty rows gracefully", async () => {
 		mockDb.select
-			.mockReturnValueOnce(selectChainResolving([])) // subquery
-			.mockReturnValueOnce(selectChainResolving([])) // avg — no row
-			.mockReturnValueOnce(selectChainResolving([])); // totals — no row
+			.mockReturnValueOnce(selectChainResolving([])) // Q1 — no aggregate row
+			.mockReturnValueOnce(selectChainResolving([])); // Q2 — no recent rows
 
-		const result = await recipientSummary(
-			mockDb as any,
-			{
-				recipientId: RECIPIENT_ID,
-				accessibleNodeIds: [],
-				callerIsAdmin: true,
-			} as any,
-		);
+		const result = await recipientSummary(mockDb as any, RECIPIENT_ID);
 
 		expect(result.lifetimePaidCents).toBe(0);
 		expect(result.avgPerCycleCents).toBe(0);
@@ -202,20 +179,26 @@ describe("processForRecipient", () => {
 		let insertedValues: Record<string, unknown> | null = null;
 
 		mockDb.transaction = txMockWith((tx) => {
-			// SELECT FOR UPDATE: .for() resolves to the splits array
+			// SELECT FOR UPDATE: .for() resolves to the splits array.
+			// Subsequent tx.select calls (getOrCreatePayoutBatch lookup, batch-total
+			// recompute) fall through to the default mock resolving [].
 			tx.select.mockReturnValueOnce(selectChainResolving(splits));
 
-			// INSERT capturing the values
+			// INSERT capturing values. runBatch issues several inserts in order:
+			// payout_batches (getOrCreatePayoutBatch), payouts, then audit_log rows
+			// (via writeAudit). Capture only the payouts row (identified by recipientId).
 			tx.insert = mock(() => ({
 				values: mock((vals: Record<string, unknown>) => {
-					insertedValues = vals;
+					if ("recipientId" in vals && "grossAmountCents" in vals) {
+						insertedValues = vals;
+					}
 					return {
 						returning: mock(() => Promise.resolve([{ id: "payout-1" }])),
 					};
 				}),
 			}));
 
-			// UPDATE for splits
+			// UPDATE for splits / batch total
 			tx.update = mock(() => ({
 				set: mock(() => ({
 					where: mock(() => Promise.resolve([])),
@@ -242,9 +225,12 @@ describe("processForRecipient", () => {
 
 		mockDb.transaction = txMockWith((tx) => {
 			tx.select.mockReturnValueOnce(selectChainResolving(splits));
+			// Capture only the payouts insert (batch + audit inserts also fire).
 			tx.insert = mock(() => ({
 				values: mock((vals: Record<string, unknown>) => {
-					insertedValues = vals;
+					if ("recipientId" in vals && "grossAmountCents" in vals) {
+						insertedValues = vals;
+					}
 					return {
 						returning: mock(() => Promise.resolve([{ id: "payout-ref" }])),
 					};
@@ -292,8 +278,12 @@ describe("runBatch — grossAmountCents population", () => {
 			tx.select.mockReturnValueOnce(selectChainResolving(splits));
 			tx.insert = mock(() => ({
 				values: mock((vals: Record<string, unknown>) => {
-					insertedRows.push(vals);
-					const payoutId = `payout-${insertedRows.length}`;
+					// Capture only the per-staff payouts rows; batch + audit_log
+					// inserts also flow through here but lack these fields.
+					if ("recipientId" in vals && "grossAmountCents" in vals) {
+						insertedRows.push(vals);
+					}
+					const payoutId = `payout-${insertedRows.length || 1}`;
 					return {
 						returning: mock(() => Promise.resolve([{ id: payoutId }])),
 					};
@@ -336,9 +326,13 @@ describe("processCommissionReversals — grossAmountCents population", () => {
 		mockDb.select.mockReturnValueOnce(selectChainResolving(pendingReversals));
 
 		mockDb.transaction = txMockWith((tx) => {
+			// Capture only the negative payouts row; the audit_log inserts
+			// (one adjustment + one per reversed split) also flow through.
 			tx.insert = mock(() => ({
 				values: mock((vals: Record<string, unknown>) => {
-					insertedValues = vals;
+					if ("recipientId" in vals && "grossAmountCents" in vals) {
+						insertedValues = vals;
+					}
 					return {
 						returning: mock(() => Promise.resolve([{ id: "adj-payout-1" }])),
 					};

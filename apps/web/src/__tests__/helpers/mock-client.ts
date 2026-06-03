@@ -1,3 +1,4 @@
+import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 import { vi, type Mock } from "vitest";
 import type { AppRouterClient } from "@/utils/orpc";
 
@@ -17,19 +18,20 @@ function makeMockNamespace(path: string[] = []): unknown {
 	const fn = vi.fn().mockResolvedValue(undefined);
 	return new Proxy(fn, {
 		get(target, prop) {
-			if (prop in target) return (target as unknown as Record<string | symbol, unknown>)[prop];
+			if (prop in target)
+				return (target as unknown as Record<string | symbol, unknown>)[prop];
 			if (prop === "key") return () => [...path, String(prop)];
 			if (prop === "queryOptions") {
 				return (opts?: unknown) => ({
 					queryKey: [...path, "queryOptions"],
 					queryFn: vi.fn().mockResolvedValue(undefined),
-					...((opts && typeof opts === "object") ? opts : {}),
+					...(opts && typeof opts === "object" ? opts : {}),
 				});
 			}
 			if (prop === "mutationOptions") {
 				return (opts?: unknown) => ({
 					mutationFn: vi.fn().mockResolvedValue(undefined),
-					...((opts && typeof opts === "object") ? opts : {}),
+					...(opts && typeof opts === "object" ? opts : {}),
 				});
 			}
 			if (!cache.has(prop)) {
@@ -40,5 +42,12 @@ function makeMockNamespace(path: string[] = []): unknown {
 	});
 }
 
-export const mockClient = makeMockNamespace() as unknown as DeepMock<AppRouterClient>;
-export const mockOrpc = makeMockNamespace();
+export const mockClient =
+	makeMockNamespace() as unknown as DeepMock<AppRouterClient>;
+
+// Build the tanstack-query utils from the SAME mockClient so that a component's
+// `orpc.x.y.queryOptions()` path resolves its queryFn back to `mockClient.x.y`.
+// This keeps `client.*` stubs (mockResolvedValue) and `orpc.*.queryOptions()`
+// consumers in sync — otherwise queries would resolve to undefined and TanStack
+// Query would throw "Query data cannot be undefined".
+export const mockOrpc = createTanstackQueryUtils(mockClient as never);

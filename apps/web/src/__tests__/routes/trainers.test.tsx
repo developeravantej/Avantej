@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, beforeAll, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
 let TrainersViewPage: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
@@ -16,7 +16,7 @@ vi.mock("@tanstack/react-router", () => ({
 	Link: ({ children }: { children: React.ReactNode }) => children,
 	useNavigate: vi.fn().mockReturnValue(vi.fn()),
 }));
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({ client: mockClient, orpc: mockOrpc }));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: {
@@ -50,7 +50,9 @@ describe("Trainers page", () => {
 	test("renders Invite Trainer button in header", async () => {
 		renderWithProviders(<TrainersViewPage />);
 		await waitFor(() => {
-			const buttons = screen.getAllByRole("button", { name: /invite trainer/i });
+			const buttons = screen.getAllByRole("button", {
+				name: /invite trainer/i,
+			});
 			expect(buttons.length).toBeGreaterThan(0);
 		});
 	});

@@ -333,41 +333,68 @@ describe("adjustStock", () => {
 
 		expect(result as any).toEqual(updatedStock);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
-		// insert should NOT be called since update succeeded
-		expect(mockInsert).not.toHaveBeenCalled();
+		// The product_stock row was updated (no fallback insert into product_stock),
+		// but adjustStock now also appends a stock_movements audit row via
+		// insert(stockMovements) — so insert IS called exactly once for the audit.
+		expect(mockInsert).toHaveBeenCalledTimes(1);
+		const movementArg = mockInsertValues.mock.calls[0]![0];
+		expect(movementArg.delta).toBe(10);
+		expect(movementArg.quantityAfter).toBe(110);
+		expect(movementArg.reason).toBe("adjustment");
 	});
 
-	test("falls back to insert when no existing stock record (negative delta still inserts)", async () => {
-		// update().set().where().returning() returns [] (no existing record)
+	test("throws 'Insufficient stock' for a negative delta when no row is updated", async () => {
+		// Negative delta: the gated update() returns [] (no row at/above zero).
+		// Current behavior deducts only against existing stock and refuses to
+		// create a negative-quantity row, throwing a BAD_REQUEST instead.
 		const mockReturningUpd = mock(() => Promise.resolve([]));
 		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		// insert().values().returning() returns the new row
+		await expect(adjustStock(mockTenantDb, "p1", "br1", -5)).rejects.toThrow(
+			"Insufficient stock",
+		);
+		// No product_stock insert and no audit insert when the deduction is refused.
+		expect(mockInsert).not.toHaveBeenCalled();
+	});
+
+	test("inserts a new product_stock row for a positive delta when none exists", async () => {
+		// Positive delta, update() returns [] (no existing record) → fall back to
+		// insert(productStock), then append a stock_movements audit row.
+		const mockReturningUpd = mock(() => Promise.resolve([]));
+		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
+		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
+		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
+
+		// First insert (productStock).returning() → the new row.
 		const newStockRow = {
 			id: "ps-new",
 			productId: "p1",
 			branchId: "br1",
-			quantity: -5,
+			quantity: 5,
 		};
 		mockReturning.mockResolvedValueOnce([newStockRow]);
 
-		const result = await adjustStock(mockTenantDb, "p1", "br1", -5);
+		const result = await adjustStock(mockTenantDb, "p1", "br1", 5);
 
 		expect(result as any).toEqual(newStockRow);
-		expect(mockInsert).toHaveBeenCalledTimes(1);
-		const valuesArg = mockInsertValues.mock.calls[0]![0];
-		expect(valuesArg.quantity).toBe(-5);
+		// Two inserts: productStock row + stock_movements audit row.
+		expect(mockInsert).toHaveBeenCalledTimes(2);
+		const stockValuesArg = mockInsertValues.mock.calls[0]![0];
+		expect(stockValuesArg.quantity).toBe(5);
+		const movementArg = mockInsertValues.mock.calls[1]![0];
+		expect(movementArg.delta).toBe(5);
+		expect(movementArg.quantityAfter).toBe(5);
 	});
 
-	test("throws 'Failed to adjust stock' when both update and insert return empty", async () => {
+	test("throws 'Failed to adjust stock' when positive-delta insert returns empty", async () => {
 		const mockReturningUpd = mock(() => Promise.resolve([]));
 		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		// insert also fails
+		// productStock insert returns [] → row is undefined → throw before audit.
 		mockReturning.mockResolvedValueOnce([]);
 
 		await expect(adjustStock(mockTenantDb, "p1", "br1", 10)).rejects.toThrow(

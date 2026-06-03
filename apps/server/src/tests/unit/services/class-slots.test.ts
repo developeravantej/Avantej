@@ -2,6 +2,30 @@ import { describe, test, expect, beforeEach, mock } from "bun:test";
 import { createMockTenantDb } from "../../helpers/db-mock.factory";
 import { makeClassSlot } from "../../helpers/fixtures";
 
+// listClassSlots now reads via a select() chain (joins waitlist + service price,
+// groups, orders, paginates) rather than query.classSlots.findMany. This helper
+// builds a chainable select mock that resolves to `value` when awaited and lets
+// tests inspect the `.where(...)` argument.
+function selectChainResolving(value: unknown) {
+	const chain: Record<string, unknown> = {};
+	for (const m of [
+		"from",
+		"where",
+		"orderBy",
+		"limit",
+		"offset",
+		"leftJoin",
+		"innerJoin",
+		"groupBy",
+		"having",
+	]) {
+		chain[m] = mock(() => chain);
+	}
+	chain.then = (resolve: (v: unknown) => unknown) =>
+		Promise.resolve(value).then(resolve);
+	return chain;
+}
+
 import {
 	listClassSlots,
 	getClassSlotById,
@@ -22,18 +46,18 @@ beforeEach(() => {
 
 // ─── listClassSlots ──────────────────────────────────────────────────────────
 describe("listClassSlots", () => {
-	test("returns class slots via query.classSlots.findMany", async () => {
+	test("returns class slots via select chain", async () => {
 		const slots = [makeClassSlot(), makeClassSlot()];
-		mockDb.query.classSlots.findMany.mockResolvedValueOnce(slots);
+		mockDb.select.mockReturnValueOnce(selectChainResolving(slots));
 
 		const result = await listClassSlots(mockDb, {});
 
 		expect(result).toEqual(slots as any);
-		expect(mockDb.query.classSlots.findMany).toHaveBeenCalledTimes(1);
+		expect(mockDb.select).toHaveBeenCalledTimes(1);
 	});
 
 	test("returns empty array when no slots exist", async () => {
-		mockDb.query.classSlots.findMany.mockResolvedValueOnce([]);
+		mockDb.select.mockReturnValueOnce(selectChainResolving([]));
 
 		const result = await listClassSlots(mockDb, {});
 
@@ -42,12 +66,13 @@ describe("listClassSlots", () => {
 
 	test("passes serviceId filter", async () => {
 		const serviceId = "service-uuid";
-		mockDb.query.classSlots.findMany.mockResolvedValueOnce([]);
+		const chain = selectChainResolving([]);
+		mockDb.select.mockReturnValueOnce(chain);
 
 		await listClassSlots(mockDb, { serviceId });
 
-		const callArgs = mockDb.query.classSlots.findMany.mock.calls[0][0];
-		expect(callArgs.where).toBeDefined();
+		// The serviceId condition is forwarded into the chain's .where(...) call.
+		expect((chain.where as any).mock.calls[0][0]).toBeDefined();
 	});
 });
 

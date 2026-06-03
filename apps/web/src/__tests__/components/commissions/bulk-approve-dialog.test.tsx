@@ -2,10 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../helpers/render-with-providers";
-import { mockClient } from "../../helpers/mock-client";
+import { mockClient, mockOrpc } from "../../helpers/mock-client";
 import { BulkActionBar } from "@/components/commissions/bulk-action-bar";
 
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({ client: mockClient, orpc: mockOrpc }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const DEFAULT_PROPS = {

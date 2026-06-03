@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, beforeAll, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
 let DashboardComponent: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
@@ -18,7 +18,7 @@ vi.mock("@tanstack/react-router", () => ({
 	useNavigate: vi.fn().mockReturnValue(vi.fn()),
 	useSearch: vi.fn().mockReturnValue({ period: "this_month" }),
 }));
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({ client: mockClient, orpc: mockOrpc }));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: {
@@ -52,7 +52,9 @@ vi.mock("@/components/claims-widget", () => ({
 }));
 vi.mock("@/components/dashboard/expiring-memberships-widget", () => ({
 	ExpiringMembershipsWidget: () => (
-		<div data-testid="expiring-memberships-widget">Expiring Memberships Widget</div>
+		<div data-testid="expiring-memberships-widget">
+			Expiring Memberships Widget
+		</div>
 	),
 }));
 vi.mock("@/components/dashboard/greeting-banner", () => ({
@@ -103,10 +105,9 @@ describe("Dashboard page", () => {
 		renderWithProviders(<DashboardComponent />);
 
 		await waitFor(() => {
-			expect(
-				mockClient.analytics.getDashboardKpis,
-			).toHaveBeenCalledWith(
+			expect(mockClient.analytics.getDashboardKpis).toHaveBeenCalledWith(
 				expect.objectContaining({ period: "this_month" }),
+				expect.anything(),
 			);
 		});
 	});

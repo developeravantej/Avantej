@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, beforeAll, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
 let TaxRatesPage: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
@@ -15,8 +15,13 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("@/utils/orpc", () => ({
 	client: mockClient,
-	orpc: {},
-	queryClient: { invalidateQueries: () => Promise.resolve(), setQueryData: () => {}, getQueryData: () => undefined, clear: () => {} },
+	orpc: mockOrpc,
+	queryClient: {
+		invalidateQueries: () => Promise.resolve(),
+		setQueryData: () => {},
+		getQueryData: () => undefined,
+		clear: () => {},
+	},
 }));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({

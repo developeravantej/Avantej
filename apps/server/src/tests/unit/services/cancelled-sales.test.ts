@@ -234,9 +234,10 @@ describe("exportCancelledSalesCsv", () => {
 	test("returns csv with data rows and truncated=false when under limit", async () => {
 		const saleRow = makeSaleRow();
 
-		// First chunk returns 1 row; second chunk (if called) returns empty
-		selectQueue.push(makeChain([saleRow]));
-		selectQueue.push(makeChain([]));
+		// Queue: [count, chunk1, chunk2(empty if called)]
+		selectQueue.push(makeChain([{ total: 1 }])); // count query
+		selectQueue.push(makeChain([saleRow])); // first chunk
+		selectQueue.push(makeChain([])); // second chunk (not reached — first chunk < chunkSize)
 
 		const { csv, truncated } = await exportCancelledSalesCsv(mockTenantDb, {});
 
@@ -250,8 +251,9 @@ describe("exportCancelledSalesCsv", () => {
 			cancellationReason: "Customer, changed mind",
 		});
 
-		selectQueue.push(makeChain([saleRow]));
-		selectQueue.push(makeChain([]));
+		selectQueue.push(makeChain([{ total: 1 }])); // count query
+		selectQueue.push(makeChain([saleRow])); // first chunk
+		selectQueue.push(makeChain([])); // second chunk (not reached)
 
 		const { csv } = await exportCancelledSalesCsv(mockTenantDb, {});
 

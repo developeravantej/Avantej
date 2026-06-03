@@ -159,7 +159,7 @@ describe("createTrainerTier", () => {
 		);
 	});
 
-	test("returns missingRateCategories for non-conditional config without a rate for the new tier", async () => {
+	test("scaffolds zero-amount stub rates so a non-conditional config is NOT reported missing for the new tier", async () => {
 		const tier = makeTier();
 		const config = {
 			id: CONFIG_ID,
@@ -169,21 +169,21 @@ describe("createTrainerTier", () => {
 
 		// 1st select: duplicate-name check → empty
 		mockDb.select.mockReturnValueOnce(selectChainResolving([]));
-		// insert returns the new tier
+		// insert returns the new tier (also reused for the scaffolded stub-rate insert)
 		mockDb.insert = insertChainReturning([tier]) as any;
+		// 2nd select: active non-conditional configs → one config (triggers stub-rate scaffolding)
+		mockDb.select.mockReturnValueOnce(
+			selectChainResolving([{ id: CONFIG_ID }]),
+		);
 		// getConfigsMissingRateForTier:
-		// 2nd select: configs (one non-conditional config)
+		// 3rd select: configs (one non-conditional config)
 		mockDb.select.mockReturnValueOnce(selectChainResolving([config]));
-		// 3rd select: rate check for this config → no rate found
-		mockDb.select.mockReturnValueOnce(selectChainResolving([]));
+		// 4th select: rate check for this config → rate now EXISTS (scaffolded above)
+		mockDb.select.mockReturnValueOnce(selectChainResolving([{ id: "rate-1" }]));
 
 		const result = await createTrainerTier(mockDb, { name: "Gold" });
 
-		expect(result.missingRateCategories).toHaveLength(1);
-		expect(result.missingRateCategories[0]).toEqual({
-			categoryId: CATEGORY_ID,
-			configId: CONFIG_ID,
-		});
+		expect(result.missingRateCategories).toEqual([]);
 	});
 
 	test("returns empty missingRateCategories when no commission configs exist", async () => {

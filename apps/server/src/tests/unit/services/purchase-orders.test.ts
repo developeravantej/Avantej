@@ -37,6 +37,9 @@ function selectChainResolving(value: unknown) {
 		"innerJoin",
 		"groupBy",
 		"having",
+		// `.for("update")` row-lock — approve/cancel/receiveItems now select FOR UPDATE
+		// inside their transactions; without this the chain throws ".for is not a function".
+		"for",
 	]) {
 		chain[m] = mock(() => chain);
 	}
@@ -206,21 +209,24 @@ describe("approvePurchaseOrder", () => {
 describe("receiveItems", () => {
 	test("sets status to partially_received when not all items received", async () => {
 		const po = makePurchaseOrder({ status: "approved" });
+		// 0/10 received; receiving 5 leaves it partial, so PO → "partially_received".
 		const item = makePurchaseOrderItem({
 			purchaseOrderId: po.id,
 			orderedQty: 10,
-			receivedQty: 5,
+			receivedQty: 0,
 		});
 		const updatedPO = { ...po, status: "partially_received" };
 
 		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
 			const tx = createMockTenantDb();
-			// update item receivedQty
+			// 1. row-lock select PO (.for("update"))
+			tx.select.mockReturnValueOnce(selectChainResolving([po]));
+			// 2. select all PO items
+			tx.select.mockReturnValueOnce(selectChainResolving([item]));
+			// 3. update item receivedQty (awaited, no returning)
 			const itemSetChain = { where: mock(() => Promise.resolve()) };
 			tx.update.mockReturnValueOnce({ set: mock(() => itemSetChain) });
-			// select all items after update
-			tx.select.mockReturnValueOnce(selectChainResolving([item]));
-			// update PO status
+			// 4. update PO status
 			const poSetChain = {
 				where: mock(() => ({
 					returning: mock(() => Promise.resolve([updatedPO])),
@@ -239,18 +245,24 @@ describe("receiveItems", () => {
 
 	test("sets status to received when all items fully received", async () => {
 		const po = makePurchaseOrder({ status: "approved" });
+		// Item is at 0/5 received; receiving 5 fills it and flips PO to "received".
 		const item = makePurchaseOrderItem({
 			purchaseOrderId: po.id,
 			orderedQty: 5,
-			receivedQty: 5,
+			receivedQty: 0,
 		});
 		const updatedPO = { ...po, status: "received" };
 
 		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
 			const tx = createMockTenantDb();
+			// 1. row-lock select PO
+			tx.select.mockReturnValueOnce(selectChainResolving([po]));
+			// 2. select all PO items
+			tx.select.mockReturnValueOnce(selectChainResolving([item]));
+			// 3. update item receivedQty
 			const itemSetChain = { where: mock(() => Promise.resolve()) };
 			tx.update.mockReturnValueOnce({ set: mock(() => itemSetChain) });
-			tx.select.mockReturnValueOnce(selectChainResolving([item]));
+			// 4. update PO status
 			const poSetChain = {
 				where: mock(() => ({
 					returning: mock(() => Promise.resolve([updatedPO])),
@@ -269,18 +281,25 @@ describe("receiveItems", () => {
 
 	test("handles incremental receiving (partially received then received)", async () => {
 		const po = makePurchaseOrder({ status: "partially_received" });
+		// Already 3/5 received; receiving the remaining 2 completes the line item,
+		// so the PO rolls up to "received".
 		const item = makePurchaseOrderItem({
 			purchaseOrderId: po.id,
 			orderedQty: 5,
-			receivedQty: 5,
+			receivedQty: 3,
 		});
 		const updatedPO = { ...po, status: "received" };
 
 		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
 			const tx = createMockTenantDb();
+			// 1. row-lock select PO
+			tx.select.mockReturnValueOnce(selectChainResolving([po]));
+			// 2. select all PO items
+			tx.select.mockReturnValueOnce(selectChainResolving([item]));
+			// 3. update item receivedQty (+2 → fully received)
 			const itemSetChain = { where: mock(() => Promise.resolve()) };
 			tx.update.mockReturnValueOnce({ set: mock(() => itemSetChain) });
-			tx.select.mockReturnValueOnce(selectChainResolving([item]));
+			// 4. update PO status
 			const poSetChain = {
 				where: mock(() => ({
 					returning: mock(() => Promise.resolve([updatedPO])),
