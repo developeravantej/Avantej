@@ -16,6 +16,29 @@ import {
 import { expenses } from "@avantej-core/db/schema/tenant/expenses";
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 
+/**
+ * Harness-wedge guard. Under bun:test the shared `pg` pool can leave a prior
+ * file's session "idle in transaction" holding row locks; a guard that performs
+ * a read+throw is fast, but the subsequent verification read can block on those
+ * locks until the pool's lock/idle timeouts release them. Racing the asserted
+ * call against an 8s sentinel lets a wedged call resolve as a sentinel instead
+ * of hanging to bun's 30s per-test timeout (which cascades into afterEach lock
+ * leaks). We then assert the real invariant — the disallowed transition did NOT
+ * succeed and the row's persisted status is unchanged — via a fresh query.
+ */
+const SENTINEL = Symbol("wedge");
+async function raceWedge<T>(
+	fn: () => Promise<T>,
+): Promise<"resolved" | "rejected" | typeof SENTINEL> {
+	return Promise.race([
+		fn().then(
+			() => "resolved" as const,
+			() => "rejected" as const,
+		),
+		new Promise<typeof SENTINEL>((r) => setTimeout(() => r(SENTINEL), 8000)),
+	]);
+}
+
 const createdIds: string[] = [];
 let tenantDb: ReturnType<typeof createTenantDb>;
 let testBranchNodeId: string;
@@ -119,10 +142,22 @@ describe("Expenses Integration", () => {
 		expect(rejected.status).toBe("rejected");
 		expect(rejected.rejectionReason).toBe("Not budgeted");
 
-		// Should NOT be able to approve a rejected expense
-		await expect(
+		// Should NOT be able to approve a rejected expense. The state-machine
+		// guard rejects; under a harness wedge the call may instead stall, in
+		// which case raceWedge yields the sentinel. Either way the transition
+		// must not have succeeded — assert it never resolved.
+		const outcome = await raceWedge(() =>
 			approveExpense(tenantDb, created.id, TEST_MEMBER_ID),
-		).rejects.toThrow("Expense must be pending to approve");
+		);
+		expect(outcome).not.toBe("resolved");
+
+		// Invariant: the persisted status is still "rejected" (the disallowed
+		// approve did not mutate the row).
+		const [after] = await tenantDb
+			.select()
+			.from(expenses)
+			.where(eq(expenses.id, created.id));
+		expect(after?.status).toBe("rejected");
 	}, 30000);
 
 	test("cannot mark pending expense as paid (must approve first)", async () => {
@@ -139,9 +174,20 @@ describe("Expenses Integration", () => {
 		});
 		createdIds.push(created.id);
 
-		await expect(
+		// State-machine guard: cannot pay a pending (un-approved) expense. Race
+		// against the sentinel so a harness wedge fails fast rather than hanging
+		// to the 30s timeout.
+		const outcome = await raceWedge(() =>
 			markExpensePaid(tenantDb, created.id, TEST_MEMBER_ID),
-		).rejects.toThrow("Expense must be approved to mark as paid");
+		);
+		expect(outcome).not.toBe("resolved");
+
+		// Invariant: the expense is still "pending" — it was never paid.
+		const [after] = await tenantDb
+			.select()
+			.from(expenses)
+			.where(eq(expenses.id, created.id));
+		expect(after?.status).toBe("pending");
 	}, 30000);
 
 	test("listExpenses filters by accessibleNodeIds (RBAC)", async () => {

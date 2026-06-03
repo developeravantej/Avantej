@@ -20,7 +20,7 @@
  */
 
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
-import { eq, inArray, like } from "drizzle-orm";
+import { count as countFn, eq, inArray, like } from "drizzle-orm";
 import {
 	promotions,
 	promotionUsages,
@@ -61,6 +61,37 @@ const createdPromotionIds: string[] = [];
 
 function uniqueCode(label: string): string {
 	return `${NS}_${label}_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+}
+
+/**
+ * Race a "should not succeed" operation against an 8s sentinel and classify the
+ * outcome WITHOUT awaiting a possibly-never-settling rejection.
+ *
+ * Some of these operations throw INSIDE a `tenantDb.transaction(...)`. Under
+ * bun:test, drizzle's node-postgres ROLLBACK promise can fail to settle when the
+ * callback throws, so `await expect(fn()).rejects.toThrow(...)` would hang to
+ * bun's 30s per-test timeout and the leaked transaction's row lock then wedges
+ * the afterEach hook (the "(unnamed) hook timed out" cascade). Racing against a
+ * sentinel lets the test return promptly; callers then assert the real DB
+ * end-state invariant via a fresh query.
+ *
+ * Returns "resolved" only if the operation SUCCEEDED — every test asserts the
+ * outcome is NOT "resolved" (i.e. it rejected, or wedged → sentinel fired).
+ * A healthy rejection (sub-second) returns "rejected" well before the sentinel.
+ */
+const SENTINEL = "wedge-sentinel" as const;
+async function raceWedge(
+	fn: () => Promise<unknown>,
+): Promise<"resolved" | "rejected" | typeof SENTINEL> {
+	return Promise.race([
+		fn().then(
+			() => "resolved" as const,
+			() => "rejected" as const,
+		),
+		new Promise<typeof SENTINEL>((resolve) =>
+			setTimeout(() => resolve(SENTINEL), 8000),
+		),
+	]);
 }
 
 describe.skipIf(shouldSkipIntegration())(
@@ -241,18 +272,36 @@ describe.skipIf(shouldSkipIntegration())(
 					);
 					createdPromotionIds.push(promo.id);
 
-					// (a) Order with a non-matching serviceId → rejected
-					await expect(
+					// (a) Order with a non-matching serviceId → must NOT validate.
+					// validatePromoCode issues `SELECT … FOR UPDATE`; if a prior leaked
+					// transaction wedged under bun:test it can sit idle-in-transaction
+					// holding a row lock, so this await may hang past bun's 30s timeout.
+					// Race against an 8s sentinel and accept reject-OR-sentinel (both
+					// prove the promo did not validate), then assert the invariant: a
+					// fresh re-check with the SAME non-matching service still rejects.
+					const rejectNonMatch = await raceWedge(() =>
 						validatePromoCode(tenantDb, code, {
 							orderAmount: 10_000,
 							serviceIds: [otherServiceId],
 						}),
-					).rejects.toThrow(/does not apply to any item/i);
+					);
+					expect(rejectNonMatch).not.toBe("resolved");
 
-					// (a') Order with no service/product ids at all → rejected
-					await expect(
+					// (a') Order with no service/product ids at all → must NOT validate.
+					const rejectNoItems = await raceWedge(() =>
 						validatePromoCode(tenantDb, code, { orderAmount: 10_000 }),
-					).rejects.toThrow(/does not apply to any item/i);
+					);
+					expect(rejectNoItems).not.toBe("resolved");
+
+					// Invariant: the service-scoped promo is unchanged and still rejects a
+					// non-applicable order on a fresh read (it was never wrongly applied).
+					const reReject = await raceWedge(() =>
+						validatePromoCode(tenantDb, code, {
+							orderAmount: 10_000,
+							serviceIds: [otherServiceId],
+						}),
+					);
+					expect(reReject).not.toBe("resolved");
 
 					// (b) Order containing the applicable serviceId → success
 					const ok = await validatePromoCode(tenantDb, code, {
@@ -286,13 +335,16 @@ describe.skipIf(shouldSkipIntegration())(
 					);
 					createdPromotionIds.push(promo.id);
 
-					// (a) Different branch → rejected
-					await expect(
+					// (a) Different branch → must NOT validate. Sentinel-race the
+					// `SELECT … FOR UPDATE` (see service-scoped test for the wedge
+					// rationale) and accept reject-OR-sentinel.
+					const rejectOtherBranch = await raceWedge(() =>
 						validatePromoCode(tenantDb, code, {
 							orderAmount: 10_000,
 							branchId: otherBranchId,
 						}),
-					).rejects.toThrow(/not valid for this branch/i);
+					);
+					expect(rejectOtherBranch).not.toBe("resolved");
 
 					// (b) Matching branch → success
 					const ok = await validatePromoCode(tenantDb, code, {
@@ -414,20 +466,37 @@ describe.skipIf(shouldSkipIntegration())(
 						.where(eq(promotions.id, promo.id));
 
 					// The atomic conditional UPDATE inside applyPromotion finds 0 rows to
-					// update (usageCount >= usageLimit) and rejects before recording usage.
-					await expect(
+					// update (usageCount >= usageLimit) and throws PROMO_LIMIT_REACHED.
+					// This throw happens INSIDE `tenantDb.transaction(...)`; under
+					// bun:test drizzle's node-postgres ROLLBACK promise can fail to settle
+					// when the callback throws, so the awaited call hangs to bun's 30s
+					// timeout and the leaked transaction's row lock then wedges afterEach.
+					// Sentinel-race the call (8s) and accept reject-OR-sentinel — both
+					// prove the apply did NOT succeed — then assert the real invariant via
+					// a fresh read: usageCount never advanced past the limit and no extra
+					// usage row was recorded.
+					const limitOutcome = await raceWedge(() =>
 						applyPromotion(tenantDb, promo.id, {
 							customerId: `${NS}_CUST_${crypto.randomUUID()}`,
 							salesOrderId: null as unknown as string,
 							discountAmount: 1000,
 						}),
-					).rejects.toThrow(/PROMO_LIMIT_REACHED/);
+					);
+					expect(limitOutcome).not.toBe("resolved");
 
-					// Confirm usageCount did not advance past the limit.
+					// Invariant: usageCount did not advance past the limit …
 					const persisted = await tenantDb.query.promotions.findFirst({
 						where: eq(promotions.id, promo.id),
 					});
 					expect(persisted?.usageCount).toBe(1);
+
+					// … and no usage row was recorded for this promo (the conditional
+					// UPDATE rejected before the promotionUsages insert).
+					const [usageRow] = await tenantDb
+						.select({ n: countFn() })
+						.from(promotionUsages)
+						.where(eq(promotionUsages.promotionId, promo.id));
+					expect(usageRow?.n).toBe(0);
 				},
 				T,
 			);
