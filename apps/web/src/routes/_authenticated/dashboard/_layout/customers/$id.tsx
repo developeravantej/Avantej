@@ -189,7 +189,17 @@ function Customer360Page() {
 
 	// ── Derived values ─────────────────────────────────────────────────────
 
-	const { member, user, profile, packageInstances, recentPayments, appointmentCount, outstandingBalanceCents } = detail;
+	const {
+		member,
+		user,
+		profile,
+		primaryStaffMember,
+		referrerMember,
+		packageInstances,
+		recentPayments,
+		appointmentCount,
+		outstandingBalanceCents,
+	} = detail;
 	const activePackageCount = packageInstances.filter((p) => p.status === "active").length;
 	const initials = getInitials(user.name ?? "?");
 
@@ -264,6 +274,8 @@ function Customer360Page() {
 				organizationId={organizationId}
 				targetUserId={member.userId}
 				profile={profile ?? null}
+				primaryStaffMember={primaryStaffMember ?? null}
+				referrerMember={referrerMember ?? null}
 				canEdit={canFreeze}
 			/>
 			{/* === /3.2 === */}

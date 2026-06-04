@@ -27,6 +27,12 @@ import { assertValidTransition } from "./utils/appointment-status-machine";
 import { writeAudit } from "./audit-log.service";
 import { calculateCommissionForAppointment } from "./commission-calculator.service";
 import { getLatestConfigVersionForCategory } from "./commission-splits.service";
+import {
+	getLeadAttributionForCustomer,
+	mergeLeadAttributionIntoStaffAssignments,
+	resolveMemberUserId,
+} from "./lead-attribution.service";
+import { packageInstanceStaff } from "@avantej-core/db/schema/tenant/package-instance-staff";
 import { appendAppointmentStatusHistory } from "./status-history.helper";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
@@ -416,12 +422,47 @@ export async function createAppointment(
         },
       });
 
-      // A.1.7 — Insert appointment_staff rows
-      const staffAssignmentsToInsert = params.staffAssignments?.length
-        ? params.staffAssignments
-        : params.trainerId
-          ? [{ staffId: params.trainerId, slotIndex: 0 }]
-          : [];
+      // A.1.7 — Insert appointment_staff rows (slot 0 = lead coach when attributed)
+      let baseStaffAssignments = params.staffAssignments?.length
+        ? [...params.staffAssignments]
+        : [];
+
+      if (baseStaffAssignments.length === 0 && params.packageInstanceId) {
+        const pkgStaffRows = await tx
+          .select({
+            staffId: packageInstanceStaff.staffId,
+            slotIndex: packageInstanceStaff.slotIndex,
+          })
+          .from(packageInstanceStaff)
+          .where(eq(packageInstanceStaff.packageInstanceId, params.packageInstanceId))
+          .orderBy(packageInstanceStaff.slotIndex);
+        if (pkgStaffRows.length > 0) {
+          baseStaffAssignments = pkgStaffRows.map((r) => ({
+            staffId: r.staffId,
+            slotIndex: r.slotIndex,
+          }));
+        }
+      }
+
+      if (baseStaffAssignments.length === 0 && params.trainerId) {
+        const trainerUserId = await resolveMemberUserId(
+          tx as unknown as TenantDb,
+          params.trainerId,
+        );
+        if (trainerUserId) {
+          baseStaffAssignments = [{ staffId: trainerUserId, slotIndex: 0 }];
+        }
+      }
+
+      const leadAttribution = await getLeadAttributionForCustomer(
+        tx as unknown as TenantDb,
+        params.userId ?? null,
+      );
+      const staffAssignmentsToInsert = mergeLeadAttributionIntoStaffAssignments(
+        baseStaffAssignments,
+        leadAttribution.primaryStaffUserId,
+      );
+
       if (staffAssignmentsToInsert.length > 0) {
         await tx.insert(appointmentStaff).values(
           staffAssignmentsToInsert.map((a) => ({

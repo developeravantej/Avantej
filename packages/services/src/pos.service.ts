@@ -28,6 +28,11 @@ import { ORPCError } from "@orpc/server";
 import { writeAudit } from "./audit-log.service";
 import { validatePromoCode } from "./promotions.service";
 import { createInstallmentSchedule, calculateCreditsUnlocked } from "./installment.service";
+import {
+	enrichPosItemTrainerAssignments,
+	getLeadAttributionForCustomer,
+	writePackageInstanceLeadStaff,
+} from "./lead-attribution.service";
 import { installments } from "@avantej-core/db/schema/tenant/installments";
 import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
 // Agent 2.3 — Phase 2 Wave 3b — J2 — fallback tax-rate resolution
@@ -257,6 +262,17 @@ export async function recordPosSale(
 			});
 		}
 	}
+
+	const leadAttribution =
+		input.customerType === "member"
+			? await getLeadAttributionForCustomer(tenantDb, input.customerId)
+			: { primaryStaffMemberId: null, primaryStaffUserId: null };
+
+	const effectiveItemTrainerAssignments = enrichPosItemTrainerAssignments(
+		input.items,
+		input.itemTrainerAssignments,
+		leadAttribution.primaryStaffUserId,
+	);
 
 	// ------------------------------------------------------------------
 	// Transaction
@@ -635,6 +651,15 @@ export async function recordPosSale(
 				if (!pkgInstance) throw new Error("Failed to insert package_instance");
 				packageInstanceId = pkgInstance.id;
 
+				if (input.customerType === "member") {
+					await writePackageInstanceLeadStaff(tx as unknown as typeof tenantDb, {
+						packageInstanceId: pkgInstance.id,
+						customerUserId: input.customerId,
+						preferredTrainerMemberId: input.preferredTrainerId ?? null,
+						assignedBy: input.actor.userId,
+					});
+				}
+
 				// Step 13c: Installment schedule — 7.2: use shared helper
 				if (isInstallmentPlan && installmentPlan) {
 					const intervalDays = installmentPlan.defaultIntervalDays ?? 30;
@@ -741,7 +766,7 @@ export async function recordPosSale(
 	// Service items (type === "service" | "package") are deferred — commission fires
 	// when the linked appointment is delivered (completed or cancelled). The line's
 	// commissionDeferred flag is already set to true in the transaction above.
-	if (input.itemTrainerAssignments && Object.keys(input.itemTrainerAssignments).length > 0) {
+	if (effectiveItemTrainerAssignments && Object.keys(effectiveItemTrainerAssignments).length > 0) {
 		const { calculateCommissionForPos } = await import("./commission-calculator.service");
 
 		// Fix #13 (defensive): the calculator's Pre-step B2 only bails when *all*
@@ -766,7 +791,7 @@ export async function recordPosSale(
 				.filter((id): id is string => id != null),
 		);
 
-		for (const [indexStr, staffAssignments] of Object.entries(input.itemTrainerAssignments)) {
+		for (const [indexStr, staffAssignments] of Object.entries(effectiveItemTrainerAssignments)) {
 			const itemIndex = parseInt(indexStr, 10);
 			const item = input.items[itemIndex];
 			if (!item || !item.refId) continue; // Skip items without a refId

@@ -21,16 +21,28 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { client } from "@/utils/orpc";
-import type { LeadSourceProfileShape } from "../types";
+import type {
+	AttributedMemberShape,
+	LeadSourceProfileShape,
+} from "../types";
 
 export function LeadSourceSection(props: {
 	organizationId: string;
 	targetUserId: string;
 	profile: LeadSourceProfileShape;
+	primaryStaffMember?: AttributedMemberShape;
+	referrerMember?: AttributedMemberShape;
 	canEdit: boolean;
 // react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }) {
-	const { organizationId, targetUserId, profile, canEdit } = props;
+	const {
+		organizationId,
+		targetUserId,
+		profile,
+		primaryStaffMember,
+		referrerMember,
+		canEdit,
+	} = props;
 	const queryClient = useQueryClient();
 	const [open, setOpen] = useState(false);
 	const [submitError, setSubmitError] = useState<string | null>(null);
@@ -54,6 +66,13 @@ export function LeadSourceSection(props: {
 	const sourceName = profile?.leadSourceId
 		? (leadSources.find((s: { id: string; name: string }) => s.id === profile.leadSourceId)?.name ?? "—")
 		: null;
+
+	const hasAttribution =
+		!!profile?.leadSourceId ||
+		!!profile?.referrerMemberId ||
+		!!profile?.campaignId ||
+		!!primaryStaffMember ||
+		!!profile?.leadAcquisitionType;
 
 	const mutation = useMutation({
 		mutationFn: () =>
@@ -93,32 +112,35 @@ export function LeadSourceSection(props: {
 					<CardTitle className="text-base">Lead Source</CardTitle>
 					{canEdit && (
 						<Button variant="outline" size="sm" onClick={openDialog}>
-							{profile?.leadSourceId || profile?.referrerMemberId || profile?.campaignId
-								? "Edit"
-								: "Add"}
+							{hasAttribution ? "Edit" : "Add"}
 						</Button>
 					)}
 				</CardHeader>
 				<CardContent>
-					{!profile?.leadSourceId &&
-					!profile?.referrerMemberId &&
-					!profile?.campaignId ? (
+					{!hasAttribution ? (
 						<p className="py-2 text-muted-foreground text-sm">
 							No attribution recorded.
 						</p>
 					) : (
-						<div className="grid gap-2 text-sm sm:grid-cols-3">
+						<div className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+							<div>
+								<p className="text-muted-foreground text-xs">Primary staff</p>
+								<p className="font-medium">{primaryStaffMember?.name ?? "—"}</p>
+								{primaryStaffMember && (
+									<p className="text-muted-foreground text-xs">
+										Lead commission slot 0
+									</p>
+								)}
+							</div>
 							<div>
 								<p className="text-muted-foreground text-xs">Source</p>
-								<p className="font-medium">{sourceName ?? "—"}</p>
+								<p className="font-medium">
+									{sourceName ?? profile?.leadAcquisitionType ?? "—"}
+								</p>
 							</div>
 							<div>
 								<p className="text-muted-foreground text-xs">Referrer</p>
-								<p className="font-medium">
-									{profile?.referrerMemberId
-										? profile.referrerMemberId.slice(0, 8)
-										: "—"}
-								</p>
+								<p className="font-medium">{referrerMember?.name ?? "—"}</p>
 							</div>
 							<div>
 								<p className="text-muted-foreground text-xs">Campaign</p>
@@ -135,6 +157,7 @@ export function LeadSourceSection(props: {
 						<DialogTitle>Lead Source</DialogTitle>
 						<DialogDescription>
 							Record where this customer came from for attribution reporting.
+							Primary staff is synced from GHL and drives commission slot 0.
 						</DialogDescription>
 					</DialogHeader>
 

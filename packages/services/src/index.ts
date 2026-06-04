@@ -133,6 +133,16 @@ export {
 	getCustomerStats,
 	listCustomerDirectory,
 } from "./customer-directory.service";
+// Lead attribution (GHL primary staff → commission slot 0)
+export {
+	enrichPosItemTrainerAssignments,
+	getLeadAttributionForCustomer,
+	mergeLeadAttributionIntoStaffAssignments,
+	resolveMemberUserId,
+	writePackageInstanceLeadStaff,
+	type LeadAttribution,
+	type StaffAssignment,
+} from "./lead-attribution.service";
 // Customer profile services
 export {
 	getCustomerProfile,
