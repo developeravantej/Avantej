@@ -81,7 +81,7 @@ export function RefundQueuePanel({
 	}
 	return (
 		<div
-			className="overflow-hidden rounded-xl border border-brand-secondary-3"
+			className="overflow-hidden rounded-xl border border-border bg-card"
 			data-testid="refund-queue-panel"
 		>
 			<Table>

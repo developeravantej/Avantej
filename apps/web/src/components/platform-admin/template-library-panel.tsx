@@ -88,7 +88,7 @@ export function TemplateLibraryPanel(props: TemplateLibraryPanelProps) {
 			{props.isLoading ? (
 				<div className="text-sm text-muted-foreground">Loading…</div>
 			) : props.templates.length === 0 ? (
-				<div className="rounded-xl border border-brand-secondary-3 bg-card">
+				<div className="rounded-xl border border-border bg-card">
 					<EmptyState
 						icon={FileText}
 						title="No templates yet"

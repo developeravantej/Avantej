@@ -106,7 +106,7 @@ export function CommsOutboxList(props: CommsOutboxListProps) {
 					: `${props.total} message${props.total === 1 ? "" : "s"}`}
 			</div>
 
-			<div className="overflow-hidden rounded-xl border border-brand-secondary-3">
+			<div className="overflow-hidden rounded-xl border border-border bg-card">
 				<Table>
 					<TableHeader className="sticky top-0 z-10 bg-white">
 						<TableRow className="hover:bg-transparent">

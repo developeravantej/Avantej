@@ -247,37 +247,56 @@ export async function seedConfirmedAppointment(
     offsetMinutes?: number; // shift startTime to avoid slot collisions across tests
   },
 ): Promise<string> {
-  // Use a random future timeslot per test run to avoid the trainer's
-  // existing-appointment buffer (15 min) and parallel-test collisions.
-  // Bands: 7+ days out, between 06:00 and 21:00, on a 30-minute grid.
+  // Seed FAR into the future on a wide random span.
+  //
+  // The `appointments_trainer_no_overlap` EXCLUDE constraint is per-TRAINER
+  // (branch-agnostic) and counts every non-cancelled appointment. Shared
+  // fixture trainers have their near-term calendar (the next ~4 months) packed
+  // by the base tenant seed plus accumulation across repeated e2e runs, so a
+  // near-future slot collides almost every time — no amount of retrying within
+  // that window converges. The +1y..+6y region is empty, so collisions there are
+  // effectively impossible. None of the callers assert on the appointment date
+  // (they use the returned id; check-ins/commission run date-agnostically).
   const offset = params.offsetMinutes ?? 0;
-  const target = new Date();
-  const daysAhead = 7 + Math.floor(Math.random() * 60); // 7-66 days
-  target.setDate(target.getDate() + daysAhead);
-  const hour = 6 + Math.floor(Math.random() * 15); // 6-20
-  const halfHour = Math.random() < 0.5 ? 0 : 30;
-  target.setHours(hour, halfHour, 0, 0);
-  const startTime = new Date(target.getTime() + offset * 60 * 1000);
-
   type Created = { id: string };
-  const result = await orpcCall<object, Created>(page, "appointments", "create", {
-    organizationId: TEST_ORG_ID,
-    type: "private",
-    startTime: startTime.toISOString(),
-    duration: 60,
-    branchId: params.branchId,
-    serviceId: params.serviceId ?? null,
-    status: "confirmed",
-    sessionTotal: 1,
-    pricePerClient: 0,
-    userId: params.clientUserId,
-    trainerId: params.trainerMemberId, // appointments.trainer_id FK → members.id
-    // staffAssignments.staffId is members.userId so the commission engine can
-    // resolve role+tier. Without this, only trainerId is written and the
-    // engine logs "commission_skipped_member_not_found".
-    staffAssignments: [{ staffId: params.trainerUserId, slotIndex: 0 }],
-  });
-  return result.id;
+
+  // Retry on trainer-slot conflict is kept as a cheap safety net; with the
+  // far-future window it should succeed on the first attempt.
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const target = new Date();
+    const daysAhead = 400 + Math.floor(Math.random() * 1400); // +400..+1800 days
+    target.setDate(target.getDate() + daysAhead);
+    const hour = 6 + Math.floor(Math.random() * 15); // 6-20
+    const halfHour = Math.random() < 0.5 ? 0 : 30;
+    target.setHours(hour, halfHour, 0, 0);
+    const startTime = new Date(target.getTime() + (offset + attempt * 17) * 60 * 1000);
+    try {
+      const result = await orpcCall<object, Created>(page, "appointments", "create", {
+        organizationId: TEST_ORG_ID,
+        type: "private",
+        startTime: startTime.toISOString(),
+        duration: 60,
+        branchId: params.branchId,
+        serviceId: params.serviceId ?? null,
+        status: "confirmed",
+        sessionTotal: 1,
+        pricePerClient: 0,
+        userId: params.clientUserId,
+        trainerId: params.trainerMemberId, // appointments.trainer_id FK → members.id
+        // staffAssignments.staffId is members.userId so the commission engine can
+        // resolve role+tier. Without this, only trainerId is written and the
+        // engine logs "commission_skipped_member_not_found".
+        staffAssignments: [{ staffId: params.trainerUserId, slotIndex: 0 }],
+      });
+      return result.id;
+    } catch (err) {
+      lastErr = err;
+      if (err instanceof OrpcClientError && err.code === "CONFLICT") continue;
+      throw err;
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("seedConfirmedAppointment: exhausted slot retries");
 }
 
 /**

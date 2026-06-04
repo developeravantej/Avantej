@@ -119,13 +119,18 @@ export async function listCustomerDirectory(
 				ORDER BY pi2.starts_at DESC
 				LIMIT 1
 			)                                                          AS active_package_name,
-			COALESCE(
-				SUM(p.total_amount) FILTER (WHERE p.status = 'succeeded'), 0
-			)::INTEGER                                                 AS lifetime_value_cents,
-			COALESCE(
-				SUM(i.amount + COALESCE(i.tax_amount, 0))
-				FILTER (WHERE i.status IN ('pending', 'overdue')), 0
-			)::INTEGER                                                 AS outstanding_balance_cents,
+			-- Scalar subqueries (not joined SUMs) so the package/appointment join
+			-- fan-out cannot multiply these totals; ::BIGINT so cents sums can exceed int4.
+			COALESCE((
+				SELECT SUM(pay.total_amount) FROM payments pay
+				WHERE pay.customer_id = m.user_id AND pay.status = 'succeeded'
+			), 0)::BIGINT                                              AS lifetime_value_cents,
+			COALESCE((
+				SELECT SUM(inst.amount + COALESCE(inst.tax_amount, 0))
+				FROM installments inst
+				JOIN package_instances pinst ON pinst.id = inst.package_instance_id
+				WHERE pinst.client_id = m.user_id AND inst.status IN ('pending', 'overdue')
+			), 0)::BIGINT                                              AS outstanding_balance_cents,
 			CAST(
 				COUNT(DISTINCT ac.appointment_id)
 			AS INTEGER)                                                AS appointment_count,
@@ -148,8 +153,6 @@ export async function listCustomerDirectory(
 		FROM members m
 		LEFT JOIN customer_profiles cp ON cp.user_id = m.user_id
 		LEFT JOIN package_instances pi ON pi.client_id = m.user_id
-		LEFT JOIN installments i ON i.package_instance_id = pi.id
-		LEFT JOIN payments p ON p.customer_id = m.user_id
 		LEFT JOIN appointment_clients ac ON ac.client_id = m.user_id
 		WHERE m.role = 'client'
 			AND m.hierarchy_scope_id = ANY(${sql.raw(`ARRAY[${accessibleNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`)})
@@ -186,8 +189,8 @@ export async function listCustomerDirectory(
 		is_deleted: boolean | null;
 		active_package_count: number;
 		active_package_name: string | null;
-		lifetime_value_cents: number;
-		outstanding_balance_cents: number;
+		lifetime_value_cents: number | string; // ::BIGINT comes back as string
+		outstanding_balance_cents: number | string;
 		appointment_count: number;
 		last_visit_at: Date | null;
 		lifecycle_status: "lead" | "active" | "lapsed" | "churned";
@@ -236,8 +239,8 @@ export async function listCustomerDirectory(
 			branchName: nodeMap.get(r.hierarchy_scope_id) ?? null,
 			activePackageCount: r.active_package_count,
 			activePackageName: r.active_package_name,
-			lifetimeValueCents: r.lifetime_value_cents,
-			outstandingBalanceCents: r.outstanding_balance_cents,
+			lifetimeValueCents: Number(r.lifetime_value_cents),
+			outstandingBalanceCents: Number(r.outstanding_balance_cents),
 			appointmentCount: r.appointment_count,
 			lastVisitAt: r.last_visit_at,
 			createdAt: r.joined_at,

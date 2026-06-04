@@ -83,7 +83,7 @@ export function RecentInvoicesPanel({
 	}
 	return (
 		<div
-			className="overflow-hidden rounded-xl border border-brand-secondary-3"
+			className="overflow-hidden rounded-xl border border-border bg-card"
 			data-testid="recent-invoices-panel"
 		>
 			<Table>

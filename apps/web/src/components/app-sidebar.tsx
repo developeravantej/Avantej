@@ -525,7 +525,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const { data: userContext, hasRole } = useUserContext(!!session?.user);
 	const isStaffOrTrainer = hasRole(["trainer", "staff"]);
 	const { isPlatformAdmin, role } = usePlatformAdminRole();
-	const [systemOpen, setSystemOpen] = useState(false);
+	const [systemOpen, setSystemOpen] = useState(true);
 	const location = useLocation();
 	const pathname = location.pathname;
 

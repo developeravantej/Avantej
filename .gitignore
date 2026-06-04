@@ -50,10 +50,15 @@ coverage
 test-results/
 playwright-report/
 e2e/.auth/
+# Journey-suite run artifacts (transient traces/videos) + login storageState (cookies).
+# The curated review bundle under e2e/journeys/review/ IS committed; these are not.
+e2e/journeys/.results/
+e2e/journeys/.auth/
 
 # Local Claude settings
 .claude/worktrees/
 .claude/settings.local.json
+.claude/scheduled_tasks.lock
 
 # Misc
 *.tgz
