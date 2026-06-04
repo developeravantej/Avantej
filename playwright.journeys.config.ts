@@ -22,7 +22,9 @@ const STAFF_AUTH = "e2e/journeys/.auth/scoped-staff.json";
 const SERVER_BOOT =
 	"(cd apps/server && ../../node_modules/.bin/wrangler dev --port=3000 --local-protocol=http --ip=127.0.0.1 --var CORS_ORIGIN:http://localhost:3001 --var BETTER_AUTH_URL:http://localhost:3000 --var WEB_APP_URL:http://localhost:3001 --var MOCK_GHL:1)";
 const WEB_BOOT =
-	"(cd apps/web && SERVER_PORT=3000 ../../node_modules/.bin/vite --port=3001 --strictPort)";
+	// `--mode journeys` loads apps/web/.env.journeys (VITE_SERVER_URL=:3000) WITHOUT touching
+	// normal `bun dev` (development mode), which stays on :3020. SERVER_PORT is the proxy fallback.
+	"(cd apps/web && SERVER_PORT=3000 ../../node_modules/.bin/vite --port=3001 --strictPort --mode journeys)";
 
 export default defineConfig({
 	testDir: "./e2e/journeys",
