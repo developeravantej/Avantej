@@ -14,7 +14,6 @@ const MONEY_TABS = [
 	{ label: "Overview", to: "/dashboard/platform-admin/billing" },
 	{ label: "Revenue", to: "/dashboard/platform-admin/revenue" },
 	{ label: "Renewals", to: "/dashboard/platform-admin/renewals" },
-	{ label: "Payments", to: "/dashboard/platform-admin/payments" },
 ] as const;
 
 export function MoneyHubTabs() {
