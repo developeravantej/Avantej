@@ -6,7 +6,7 @@ import {
 	Download,
 	SearchX,
 } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/money";
 import { client, orpc } from "@/utils/orpc";
@@ -263,9 +263,8 @@ export function CancelledSalesTab({
 								const ts = formatCancellationTime(row.cancellationDate);
 
 								return (
-									<>
+									<Fragment key={row.id}>
 										<tr
-											key={row.id}
 											onClick={() =>
 												setExpandedRowId(isExpanded ? null : row.id)
 											}
@@ -364,13 +363,8 @@ export function CancelledSalesTab({
 												<RefundStatusBadge row={row} />
 											</td>
 										</tr>
-										{isExpanded && (
-											<CancelledExpandedRow
-												key={`${row.id}-expanded`}
-												row={row}
-											/>
-										)}
-									</>
+										{isExpanded && <CancelledExpandedRow row={row} />}
+									</Fragment>
 								);
 							})}
 						</tbody>

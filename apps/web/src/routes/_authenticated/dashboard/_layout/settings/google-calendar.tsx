@@ -124,9 +124,12 @@ function StatPill({ label, value, valueClass, nullTooltip }: StatPillProps) {
 	);
 }
 
-function OrgStatusStrip() {
+function OrgStatusStrip({ organizationId }: { organizationId: string }) {
 	const { data: orgStatusRaw, isLoading } = useQuery({
-		...(orpc.googleCalendar.orgStatus as any).queryOptions({}),
+		...orpc.googleCalendar.orgStatus.queryOptions({
+			input: { organizationId },
+		}),
+		enabled: !!organizationId,
 	});
 	const orgStatus = orgStatusRaw as any;
 
@@ -354,7 +357,7 @@ const CONFLICT_POLICY_OPTIONS = [
 type SyncDirection = (typeof SYNC_DIRECTION_OPTIONS)[number]["value"];
 type ConflictPolicy = (typeof CONFLICT_POLICY_OPTIONS)[number]["value"];
 
-function SettingsSidebar() {
+function SettingsSidebar({ organizationId }: { organizationId: string }) {
 	const [syncDirection, setSyncDirection] = useState<SyncDirection>("two_way");
 	const [conflictPolicy, setConflictPolicy] =
 		useState<ConflictPolicy>("avantej_wins");
@@ -364,13 +367,13 @@ function SettingsSidebar() {
 		mutationFn: (input: {
 			syncDirection?: SyncDirection;
 			conflictPolicy?: ConflictPolicy;
-		}) => client.googleCalendar.updateSettings(input),
+		}) => client.googleCalendar.updateSettings({ ...input, organizationId }),
 		successMessage: "Settings saved",
 		errorMessage: "Failed to save settings",
 	});
 
 	const syncNowMutation = useApiMutation({
-		mutationFn: () => client.googleCalendar.syncNow({}),
+		mutationFn: () => client.googleCalendar.syncNow({ organizationId }),
 		successMessage: false,
 		errorMessage: false,
 		onSuccess: () => {
@@ -393,7 +396,10 @@ function SettingsSidebar() {
 
 	// Calendar list
 	const { data: calendarDataRaw, isLoading: calsLoading } = useQuery({
-		...(orpc.googleCalendar.listConnectedCalendars as any).queryOptions({}),
+		...orpc.googleCalendar.listConnectedCalendars.queryOptions({
+			input: { organizationId },
+		}),
+		enabled: !!organizationId,
 	});
 	const calendarData = calendarDataRaw as any;
 	const calendars: any[] = calendarData?.calendars ?? [];
@@ -622,7 +628,9 @@ function GoogleCalendarPage() {
 					{/* Main scroll area */}
 					<div className="flex flex-col gap-5 overflow-auto p-5 border-r border-[#e5e5e5]">
 						{/* Org stat pills */}
-						{organizationId && <OrgStatusStrip />}
+						{organizationId && (
+							<OrgStatusStrip organizationId={organizationId} />
+						)}
 
 						{/* My connection banner */}
 						<MyConnectionCard
@@ -633,7 +641,7 @@ function GoogleCalendarPage() {
 
 					{/* Settings sidebar */}
 					<div className="overflow-auto">
-						<SettingsSidebar />
+						<SettingsSidebar organizationId={organizationId} />
 					</div>
 				</div>
 			</div>
