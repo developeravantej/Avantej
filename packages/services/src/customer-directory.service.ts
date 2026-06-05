@@ -131,13 +131,23 @@ export async function listCustomerDirectory(
 				ORDER BY pi2.starts_at DESC
 				LIMIT 1
 			)                                                          AS active_package_name,
-			COALESCE(
-				SUM(p.total_amount) FILTER (WHERE p.status = 'succeeded'), 0
-			)::INTEGER                                                 AS lifetime_value_cents,
-			COALESCE(
-				SUM(i.amount + COALESCE(i.tax_amount, 0))
-				FILTER (WHERE i.status IN ('pending', 'overdue')), 0
-			)::INTEGER                                                 AS outstanding_balance_cents,
+			-- Decorrelated to avoid JOIN fan-out: summing over the
+			-- members×package_instances×appointment_clients(×installments) cartesian
+			-- product inflated these sums (and overflowed ::INTEGER → "integer out of
+			-- range"). Each money sum is computed from its own table per member.
+			-- BIGINT guards against per-member whale totals exceeding 2.1B cents.
+			COALESCE((
+				SELECT SUM(pay.total_amount)
+				FROM payments pay
+				WHERE pay.customer_id = m.user_id AND pay.status = 'succeeded'
+			), 0)::BIGINT                                              AS lifetime_value_cents,
+			COALESCE((
+				SELECT SUM(inst.amount + COALESCE(inst.tax_amount, 0))
+				FROM installments inst
+				JOIN package_instances pkg ON pkg.id = inst.package_instance_id
+				WHERE pkg.client_id = m.user_id
+				  AND inst.status IN ('pending', 'overdue')
+			), 0)::BIGINT                                             AS outstanding_balance_cents,
 			CAST(
 				COUNT(DISTINCT ac.appointment_id)
 			AS INTEGER)                                                AS appointment_count,
@@ -160,8 +170,6 @@ export async function listCustomerDirectory(
 		FROM members m
 		LEFT JOIN customer_profiles cp ON cp.user_id = m.user_id
 		LEFT JOIN package_instances pi ON pi.client_id = m.user_id
-		LEFT JOIN installments i ON i.package_instance_id = pi.id
-		LEFT JOIN payments p ON p.customer_id = m.user_id
 		LEFT JOIN appointment_clients ac ON ac.client_id = m.user_id
 		WHERE m.role = 'client'
 			AND m.hierarchy_scope_id = ANY(${sql.raw(`ARRAY[${accessibleNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`)})
@@ -199,8 +207,9 @@ export async function listCustomerDirectory(
 		is_unclaimed: boolean;
 		active_package_count: number;
 		active_package_name: string | null;
-		lifetime_value_cents: number;
-		outstanding_balance_cents: number;
+		// BIGINT casts are returned as strings by the pg driver.
+		lifetime_value_cents: string | number;
+		outstanding_balance_cents: string | number;
 		appointment_count: number;
 		last_visit_at: Date | null;
 		lifecycle_status: "lead" | "active" | "lapsed" | "churned";
@@ -254,8 +263,8 @@ export async function listCustomerDirectory(
 			branchName: nodeMap.get(r.hierarchy_scope_id) ?? null,
 			activePackageCount: r.active_package_count,
 			activePackageName: r.active_package_name,
-			lifetimeValueCents: r.lifetime_value_cents,
-			outstandingBalanceCents: r.outstanding_balance_cents,
+			lifetimeValueCents: Number(r.lifetime_value_cents),
+			outstandingBalanceCents: Number(r.outstanding_balance_cents),
 			appointmentCount: r.appointment_count,
 			lastVisitAt: r.last_visit_at,
 			createdAt: r.joined_at,
@@ -330,17 +339,21 @@ export async function getCustomerStats(
 					COUNT(DISTINCT ac.appointment_id)
 				AS INTEGER)                                                     AS visit_count,
 				MAX(ac.created_at)                                              AS last_visit_at,
-				COALESCE(
-					SUM(p.total_amount) FILTER (WHERE p.status = 'succeeded'), 0
-				)::INTEGER                                                      AS lifetime_value_cents
+				-- Decorrelated (see listCustomerDirectory): summing payments inside the
+				-- members×package_instances×appointment_clients join inflated this and
+				-- overflowed ::INTEGER. Per-member scalar subquery + BIGINT instead.
+				COALESCE((
+					SELECT SUM(pay.total_amount)
+					FROM payments pay
+					WHERE pay.customer_id = m.user_id AND pay.status = 'succeeded'
+				), 0)::BIGINT                                                   AS lifetime_value_cents
 			FROM members m
 			LEFT JOIN package_instances pi ON pi.client_id = m.user_id
-			LEFT JOIN payments p ON p.customer_id = m.user_id
 			LEFT JOIN appointment_clients ac ON ac.client_id = m.user_id
 			WHERE m.role = 'client'
 				AND m.hierarchy_scope_id = ANY(${sql.raw(`ARRAY[${accessibleNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`)})
 				${branchId ? sql`AND m.hierarchy_scope_id = ${branchId}::uuid` : sql``}
-			GROUP BY m.id
+			GROUP BY m.id, m.user_id
 		)
 		SELECT
 			CAST(COUNT(*) AS INTEGER)                                          AS total_count,
@@ -353,7 +366,7 @@ export async function getCustomerStats(
 				WHERE visit_count = 0
 				  AND total_pkg_count = 0
 			) AS INTEGER)                                                      AS lead_count,
-			CAST(COALESCE(AVG(lifetime_value_cents), 0) AS INTEGER)            AS avg_lifetime_value_cents
+			CAST(COALESCE(AVG(lifetime_value_cents), 0) AS BIGINT)             AS avg_lifetime_value_cents
 		FROM customer_agg
 	`);
 
@@ -362,7 +375,8 @@ export async function getCustomerStats(
 		active_count: number;
 		lapsed_count: number;
 		lead_count: number;
-		avg_lifetime_value_cents: number;
+		// BIGINT cast → string from the pg driver.
+		avg_lifetime_value_cents: string | number;
 	};
 
 	return {
@@ -370,7 +384,7 @@ export async function getCustomerStats(
 		activeCount: row?.active_count ?? 0,
 		lapsedCount: row?.lapsed_count ?? 0,
 		leadCount: row?.lead_count ?? 0,
-		avgLifetimeValueCents: row?.avg_lifetime_value_cents ?? 0,
+		avgLifetimeValueCents: Number(row?.avg_lifetime_value_cents ?? 0),
 	};
 }
 
