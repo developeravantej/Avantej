@@ -19,6 +19,7 @@ import {
 	assertTenantContext,
 	guardBranchAccessible,
 	guardInputBranchForContext,
+	guardStoredBranchForContext,
 	mapToOrpcForbidden,
 	requirePermissionOrpc,
 	resolveAccessibleNodeIds,
@@ -197,6 +198,48 @@ describe("guardInputBranchForContext", () => {
 			() => guardInputBranchForContext(ctx, BRANCH_OUT_OF_SCOPE),
 			"FORBIDDEN",
 		);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// guardStoredBranchForContext — stored-record branchId (null = org-wide)
+// ---------------------------------------------------------------------------
+
+describe("guardStoredBranchForContext", () => {
+	const ctx = createMockContext({
+		tenantDb: {} as never,
+		accessibleNodeIds: [BRANCH_IN_SCOPE],
+	}) as Parameters<typeof guardStoredBranchForContext>[0];
+
+	it("allows a null stored branchId (org-wide record, NOT a bypass)", async () => {
+		// This is the opposite of guardInputBranchForContext: a stored null means
+		// the record (e.g. a service/category) is org-wide, which is legitimate.
+		await expect(
+			guardStoredBranchForContext(ctx, null),
+		).resolves.toBeUndefined();
+	});
+
+	it("allows an empty-string stored branchId (treated as org-wide)", async () => {
+		await expect(guardStoredBranchForContext(ctx, "")).resolves.toBeUndefined();
+	});
+
+	it("allows undefined stored branchId", async () => {
+		await expect(
+			guardStoredBranchForContext(ctx, undefined),
+		).resolves.toBeUndefined();
+	});
+
+	it("still enforces RBAC for a branch-pinned record outside scope", async () => {
+		await expectOrpcErrorAsync(
+			() => guardStoredBranchForContext(ctx, BRANCH_OUT_OF_SCOPE),
+			"FORBIDDEN",
+		);
+	});
+
+	it("allows a branch-pinned record within scope", async () => {
+		await expect(
+			guardStoredBranchForContext(ctx, BRANCH_IN_SCOPE),
+		).resolves.toBeUndefined();
 	});
 });
 

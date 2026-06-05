@@ -11,6 +11,7 @@ import { tenantProcedure } from "../../index";
 import {
 	assertOrgContextMatch,
 	guardInputBranchForContext,
+	guardStoredBranchForContext,
 	requirePermissionOrpc,
 	resolveAccessibleNodeIds,
 } from "../../guards";
@@ -80,15 +81,9 @@ export const serviceCrudProcedures = {
 				});
 			}
 
-			// guardInputBranchForContext forbids a null branchId because, on a
-			// write, null is an attempt to bypass branch scoping. Here branchId is
-			// the stored value of an existing record — null simply means an
-			// org-wide service, which is viewable by any member holding
-			// service_management:read (already enforced above). Only enforce branch
-			// accessibility when the service is pinned to a specific branch.
-			if (service.branchId) {
-				await guardInputBranchForContext(context, service.branchId);
-			}
+			// Stored value: null = org-wide service (viewable by any member with
+			// service_management:read, enforced above); branch-pinned = RBAC check.
+			await guardStoredBranchForContext(context, service.branchId);
 
 			return service;
 		}),
@@ -246,7 +241,7 @@ export const serviceCrudProcedures = {
 				});
 			}
 
-			await guardInputBranchForContext(context, existing.branchId);
+			await guardStoredBranchForContext(context, existing.branchId);
 			await guardInputBranchForContext(context, input.branchId);
 
 			if (input.availablePaymentPlans?.length) {

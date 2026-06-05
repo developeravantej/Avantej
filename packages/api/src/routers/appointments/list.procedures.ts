@@ -10,7 +10,7 @@ import { tenantProcedure } from "../../index";
 import {
 	requirePermissionOrpc,
 	assertOrgContextMatch,
-	guardInputBranchForContext,
+	guardStoredBranchForContext,
 	resolveAccessibleNodeIds,
 } from "../../guards";
 import { inArray, or } from "drizzle-orm";
@@ -369,7 +369,7 @@ export const appointmentsListProcedures = {
 					"appointment_management",
 					"read",
 				);
-				await guardInputBranchForContext(context, appointment.branchId);
+				await guardStoredBranchForContext(context, appointment.branchId);
 				return appointment;
 			}
 

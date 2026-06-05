@@ -103,6 +103,28 @@ export async function guardInputBranchForContext(
 	guardBranchAccessible(branchId, accessibleNodeIds);
 }
 
+/**
+ * Guard the branchId of an EXISTING stored record (read/update of a row we
+ * already loaded), as opposed to incoming write input.
+ *
+ * The null semantics are deliberately the OPPOSITE of
+ * `guardInputBranchForContext`: a stored `null`/`""` branchId is a legitimate
+ * org-wide record (e.g. a service or category not pinned to a branch), NOT a
+ * scope-bypass attempt. So null is allowed; we only enforce branch
+ * accessibility when the record is pinned to a specific branch.
+ *
+ * Use this for any `record.branchId` value. Use `guardInputBranchForContext`
+ * for `input.branchId`. The CI tenant-perimeter gate enforces this split.
+ */
+export async function guardStoredBranchForContext(
+	context: Context & { tenantDb: TenantDb; member: Member },
+	branchId: string | undefined | null,
+): Promise<void> {
+	if (!branchId) return; // null/""/undefined — org-wide record, no branch check
+	const accessibleNodeIds = await resolveAccessibleNodeIds(context);
+	guardBranchAccessible(branchId, accessibleNodeIds);
+}
+
 /** Map PermissionDeniedError (and legacy messages) to ORPCError FORBIDDEN (Plan C C.3). */
 export function mapToOrpcForbidden(error: unknown): never {
 	if (error instanceof PermissionDeniedError) {

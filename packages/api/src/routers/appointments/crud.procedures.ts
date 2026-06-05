@@ -12,6 +12,7 @@ import {
 	requirePermissionOrpc,
 	assertOrgContextMatch,
 	guardInputBranchForContext,
+	guardStoredBranchForContext,
 } from "../../guards";
 import { eq, sql } from "drizzle-orm";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
@@ -246,7 +247,7 @@ export const appointmentsCrudProcedures = {
 					"appointment_management",
 					"update",
 				);
-				await guardInputBranchForContext(context, existing.branchId);
+				await guardStoredBranchForContext(context, existing.branchId);
 			} else if (isClient) {
 				if (input.status && input.status !== "cancelled") {
 					throw new ORPCError("FORBIDDEN", {
@@ -446,7 +447,7 @@ export const appointmentsCrudProcedures = {
 			if (!existing) {
 				throw new ORPCError("NOT_FOUND", { message: "Appointment not found" });
 			}
-			await guardInputBranchForContext(context, existing.branchId);
+			await guardStoredBranchForContext(context, existing.branchId);
 
 			const reschedulable = ["pending", "confirmed", "rescheduled"];
 			if (!reschedulable.includes(existing.status)) {

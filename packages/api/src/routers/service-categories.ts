@@ -18,6 +18,7 @@ import {
 	requirePermissionOrpc,
 	assertOrgContextMatch,
 	guardInputBranchForContext,
+	guardStoredBranchForContext,
 	resolveAccessibleNodeIds,
 } from "../guards";
 
@@ -89,7 +90,9 @@ export const serviceCategoriesRouter = {
 				});
 			}
 
-			await guardInputBranchForContext(context, category.branchId);
+			// Stored value: null = org-wide category (viewable by any member with
+			// service_management:read, enforced above); branch-pinned = RBAC check.
+			await guardStoredBranchForContext(context, category.branchId);
 
 			return {
 				id: category.id,
@@ -187,7 +190,7 @@ export const serviceCategoriesRouter = {
 				});
 			}
 
-			await guardInputBranchForContext(context, existing.branchId);
+			await guardStoredBranchForContext(context, existing.branchId);
 			await guardInputBranchForContext(context, input.branchId);
 
 			try {
