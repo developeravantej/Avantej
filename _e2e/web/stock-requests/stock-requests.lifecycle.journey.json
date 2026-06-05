@@ -1,0 +1,9 @@
+{
+	"stock-requests/stock-requests.lifecycle.spec.ts::Stock request lifecycle — create(pending) -> approve (API-verified)": [
+		"Resolves the caller's own member id (issuedByMemberId) and a destination branch id",
+		"Creates a throwaway uom and product for the line item",
+		"Creates a stock request and asserts status is 'pending'",
+		"Approves it and re-queries getById to assert status is 'approved'",
+		"Tears down stock request (reject — no stock moved), product (discontinue), uom (delete)"
+	]
+}

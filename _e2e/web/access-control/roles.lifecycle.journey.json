@@ -1,0 +1,10 @@
+{
+  "access-control/roles.lifecycle.spec.ts::Role lifecycle — create, list, update, delete (API-verified)": [
+    "Create a custom role (priority 50) via roles/create",
+    "Register teardown to delete the role",
+    "List roles and assert the new role name is present",
+    "Update the role's name and priority via roles/update",
+    "Re-list and assert the updated name and priority persisted",
+    "Delete the role and assert it is gone from the list"
+  ]
+}

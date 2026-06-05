@@ -1,0 +1,9 @@
+{
+  "customers/customers.detail.spec.ts::Customer profile opens from the directory and shows profile content": [
+    "Start logged-in as the tenant admin.",
+    "Load the Customers directory and wait for it to render.",
+    "Click the first customer row (skip the test if the directory is empty).",
+    "Assert no ErrorBoundary crash after opening the profile.",
+    "Assert the profile panel shows real content (profile / contact / New Sale / email / phone)."
+  ]
+}

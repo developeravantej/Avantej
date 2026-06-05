@@ -1,0 +1,9 @@
+{
+  "commissions/commission-cycle-anchor-day.rule.spec.ts::rule: monthly_anchored anchorDay out of 1..28 is rejected; valid upsert succeeds": [
+    "Resolve a branch id and register teardown to delete that branch's cycle policy",
+    "Upsert monthly_anchored with anchorDay 0 and assert 400",
+    "Upsert monthly_anchored with anchorDay 29 and assert 400",
+    "Upsert monthly_anchored with anchorDay 15 and assert success",
+    "List policies and assert the branch policy has cycleType monthly_anchored and anchorDay 15"
+  ]
+}

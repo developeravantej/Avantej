@@ -1,0 +1,6 @@
+{
+  "service-category/config-buffer-exceeds-duration.rule.spec.ts::bufferTimeMinutes greater than defaultDuration is rejected (BAD_REQUEST)": [
+    "Create a service category to attach a config to",
+    "Upsert serviceCategoryConfig with bufferTimeMinutes (60) exceeding defaultDuration (30) and assert it is rejected with 400"
+  ]
+}

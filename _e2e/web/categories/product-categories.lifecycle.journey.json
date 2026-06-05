@@ -1,0 +1,8 @@
+{
+  "categories/product-categories.lifecycle.spec.ts::Product category lifecycle — create, update, delete (API-verified)": [
+    "Create a product category via productCategories/create and assert an id is returned",
+    "Fetch productCategories/getById and assert the stored name matches",
+    "Update the category name and assert getById reflects the edit",
+    "Delete the category and assert it is absent from productCategories/list"
+  ]
+}

@@ -1,0 +1,397 @@
+{
+  "startedAt": "2026-06-03T17:52:05.965Z",
+  "items": [
+    {
+      "id": "dashboard",
+      "path": "/dashboard",
+      "template": "/dashboard",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_operations_approvals",
+      "path": "/dashboard/operations/approvals",
+      "template": "/dashboard/operations/approvals",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_customers_v2_view",
+      "path": "/dashboard/customers/v2/view",
+      "template": "/dashboard/customers/v2/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_customers_walk_in_view",
+      "path": "/dashboard/customers/walk-in/view",
+      "template": "/dashboard/customers/walk-in/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_appointment_view",
+      "path": "/dashboard/appointment/view",
+      "template": "/dashboard/appointment/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_appointment_class_slots_view",
+      "path": "/dashboard/appointment/class-slots/view",
+      "template": "/dashboard/appointment/class-slots/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_trainers_view",
+      "path": "/dashboard/trainers/view",
+      "template": "/dashboard/trainers/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_trainers_availability",
+      "path": "/dashboard/trainers/availability",
+      "template": "/dashboard/trainers/availability",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_trainers_tiers",
+      "path": "/dashboard/trainers/tiers",
+      "template": "/dashboard/trainers/tiers",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_service_view",
+      "path": "/dashboard/service/view",
+      "template": "/dashboard/service/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_service_category_view",
+      "path": "/dashboard/service-category/view",
+      "template": "/dashboard/service-category/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_my_services_view",
+      "path": "/dashboard/my-services/view",
+      "template": "/dashboard/my-services/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_sales_create",
+      "path": "/dashboard/sales/create",
+      "template": "/dashboard/sales/create",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_sales_view",
+      "path": "/dashboard/sales/view",
+      "template": "/dashboard/sales/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_cancelled_sales_view",
+      "path": "/dashboard/cancelled-sales/view",
+      "template": "/dashboard/cancelled-sales/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_reports_view",
+      "path": "/dashboard/reports/view",
+      "template": "/dashboard/reports/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_announcements_view",
+      "path": "/dashboard/announcements/view",
+      "template": "/dashboard/announcements/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_commissions_view",
+      "path": "/dashboard/commissions/view",
+      "template": "/dashboard/commissions/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_commissions_my",
+      "path": "/dashboard/commissions/my",
+      "template": "/dashboard/commissions/my",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_settings_tax_rates",
+      "path": "/dashboard/settings/tax-rates",
+      "template": "/dashboard/settings/tax-rates",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_expenses_view",
+      "path": "/dashboard/expenses/view",
+      "template": "/dashboard/expenses/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_packages_view",
+      "path": "/dashboard/packages/view",
+      "template": "/dashboard/packages/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_packages_instances_view",
+      "path": "/dashboard/packages/instances/view",
+      "template": "/dashboard/packages/instances/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_packages_installments_view",
+      "path": "/dashboard/packages/installments/view",
+      "template": "/dashboard/packages/installments/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_refunds_view",
+      "path": "/dashboard/refunds/view",
+      "template": "/dashboard/refunds/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_payment_view",
+      "path": "/dashboard/payment/view",
+      "template": "/dashboard/payment/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_user_view",
+      "path": "/dashboard/user/view",
+      "template": "/dashboard/user/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_access_control_roles",
+      "path": "/dashboard/access-control/roles",
+      "template": "/dashboard/access-control/roles",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_access_control_user_assignment",
+      "path": "/dashboard/access-control/user-assignment",
+      "template": "/dashboard/access-control/user-assignment",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_access_control_permissions",
+      "path": "/dashboard/access-control/permissions",
+      "template": "/dashboard/access-control/permissions",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_access_control_invitations",
+      "path": "/dashboard/access-control/invitations",
+      "template": "/dashboard/access-control/invitations",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_role_view",
+      "path": "/dashboard/role/view",
+      "template": "/dashboard/role/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_branch_view",
+      "path": "/dashboard/branch/view",
+      "template": "/dashboard/branch/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_branch_create",
+      "path": "/dashboard/branch/create",
+      "template": "/dashboard/branch/create",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_onboarding_view",
+      "path": "/dashboard/onboarding/view",
+      "template": "/dashboard/onboarding/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_settings_organization",
+      "path": "/dashboard/settings/organization",
+      "template": "/dashboard/settings/organization",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_settings_google_calendar",
+      "path": "/dashboard/settings/google-calendar",
+      "template": "/dashboard/settings/google-calendar",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_settings_notifications",
+      "path": "/dashboard/settings/notifications",
+      "template": "/dashboard/settings/notifications",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_settings_commission_cycles",
+      "path": "/dashboard/settings/commission-cycles",
+      "template": "/dashboard/settings/commission-cycles",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_settings_installment_plans",
+      "path": "/dashboard/settings/installment-plans",
+      "template": "/dashboard/settings/installment-plans",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_audit_view",
+      "path": "/dashboard/audit/view",
+      "template": "/dashboard/audit/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_attendance_view",
+      "path": "/dashboard/attendance/view",
+      "template": "/dashboard/attendance/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_memberships_view",
+      "path": "/dashboard/memberships/view",
+      "template": "/dashboard/memberships/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_rooms_view",
+      "path": "/dashboard/rooms/view",
+      "template": "/dashboard/rooms/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_brands_view",
+      "path": "/dashboard/brands/view",
+      "template": "/dashboard/brands/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_categories_view",
+      "path": "/dashboard/categories/view",
+      "template": "/dashboard/categories/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_products_view",
+      "path": "/dashboard/products/view",
+      "template": "/dashboard/products/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_promotions_view",
+      "path": "/dashboard/promotions/view",
+      "template": "/dashboard/promotions/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_purchase_orders_view",
+      "path": "/dashboard/purchase-orders/view",
+      "template": "/dashboard/purchase-orders/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_suppliers_view",
+      "path": "/dashboard/suppliers/view",
+      "template": "/dashboard/suppliers/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_stock_requests_view",
+      "path": "/dashboard/stock-requests/view",
+      "template": "/dashboard/stock-requests/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_transfer_orders_view",
+      "path": "/dashboard/transfer-orders/view",
+      "template": "/dashboard/transfer-orders/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_inventory_options",
+      "path": "/dashboard/inventory-options",
+      "template": "/dashboard/inventory-options",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_uom_view",
+      "path": "/dashboard/uom/view",
+      "template": "/dashboard/uom/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_uom_conversions_view",
+      "path": "/dashboard/uom-conversions/view",
+      "template": "/dashboard/uom-conversions/view",
+      "depth": 0,
+      "status": "done"
+    },
+    {
+      "id": "dashboard_notifications_view",
+      "path": "/dashboard/notifications/view",
+      "template": "/dashboard/notifications/view",
+      "depth": 0,
+      "status": "done"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "customers/upsert-for-customer-unknown-target.rule.spec.ts::upsertForCustomer rejects an unknown target customer": [
+    "Call customerProfiles/upsertForCustomer with a targetUserId that is not a client member in this tenant",
+    "Assert the server rejects with 403 (no permission) or 404 (target not found)",
+    "Confirm no profile row is created for the bogus target"
+  ]
+}

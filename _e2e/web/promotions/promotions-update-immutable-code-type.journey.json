@@ -1,0 +1,8 @@
+{
+  "promotions/promotions-update-immutable-code-type.rule.spec.ts::rule: update cannot change code or type (ignored)": [
+    "Create a percentage promotion and assert its code and type",
+    "Register teardown to deactivate the promotion",
+    "Call promotions/update with a new name plus code and type fields",
+    "Re-list and assert code and type are unchanged but name was applied"
+  ]
+}

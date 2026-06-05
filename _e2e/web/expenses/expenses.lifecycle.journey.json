@@ -1,0 +1,8 @@
+{
+  "expenses/expenses.lifecycle.spec.ts::Expense lifecycle — create and verify (API-verified)": [
+    "Create an expense (supplies, amount 4200) via expenses/create",
+    "Register teardown to reject the expense (no delete API)",
+    "Fetch by id and assert description and amount",
+    "List expenses and assert the description is present"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "sigs": {
+    "inventory-settings-load::infinite-spinner::loading spinner remains visible after networkidle + #s; main content (list/table) never appears; no failing network request — a stuck client-side load.": {
+      "firstSeen": "2026-06-03T20:03:51.139Z",
+      "lastSeen": "2026-06-03T20:03:51.139Z",
+      "status": "open",
+      "title": "Route shows a persistent spinner and never renders its content (direct navigation)",
+      "severity": "high"
+    },
+    "react-key::console-error::[error] each child in a list should have a unique \"key\" prop.%s%s see https://react.dev/link/warning-keys for more information. check the render method of `cancelledsalestab`.": {
+      "firstSeen": "2026-06-03T20:03:51.139Z",
+      "lastSeen": "2026-06-03T20:03:51.139Z",
+      "status": "open",
+      "title": "React duplicate/missing key warning in CancelledSalesTab",
+      "severity": "low"
+    },
+    "inventory-settings-load::unhandled-exception::[pageerror] undefined": {
+      "firstSeen": "2026-06-03T20:03:51.139Z",
+      "lastSeen": "2026-06-03T20:03:51.139Z",
+      "status": "open",
+      "title": "inventory-options throws an undefined page error and content never renders",
+      "severity": "high"
+    },
+    "dialog-a11y::console-error::`dialogcontent` requires a `dialogtitle` for the component to be accessible for screen reader users.": {
+      "firstSeen": "2026-06-03T20:03:51.139Z",
+      "lastSeen": "2026-06-03T20:03:51.139Z",
+      "status": "open",
+      "title": "Radix DialogContent missing a DialogTitle (screen-reader a11y)",
+      "severity": "low"
+    },
+    "google-calendar::network-5xx::# post http://localhost:#/rpc/googlecalendar/orgstatus || # post http://localhost:#/rpc/googlecalendar/listconnectedcalendars || # post http://localhost:#/rpc/googlecalendar/orgstatus || # post http:/": {
+      "firstSeen": "2026-06-03T20:03:51.139Z",
+      "lastSeen": "2026-06-03T20:03:51.139Z",
+      "status": "open",
+      "title": "Google Calendar settings page fails with 500 (orgStatus + listConnectedCalendars)",
+      "severity": "blocker"
+    }
+  }
+}

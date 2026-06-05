@@ -1,0 +1,6 @@
+{
+  "route": "/dashboard/appointment/view",
+  "module": "appointment",
+  "timedOut": true,
+  "findings": []
+}

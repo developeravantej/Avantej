@@ -1,0 +1,8 @@
+{
+  "uom/uom.lifecycle.spec.ts::Unit of measure lifecycle — create, update, delete (API-verified)": [
+    "Create a unit of measure via unitsOfMeasure/create and assert an id is returned",
+    "Fetch unitsOfMeasure/getById and assert the stored name matches",
+    "Update the UOM name and assert getById reflects the edit",
+    "Delete the UOM and assert it is absent from unitsOfMeasure/list"
+  ]
+}

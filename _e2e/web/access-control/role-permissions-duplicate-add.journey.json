@@ -1,0 +1,9 @@
+{
+  "access-control/role-permissions-duplicate-add.rule.spec.ts::rule: adding a duplicate permission to a role is rejected (409)": [
+    "Create a custom role (cascade-deletes its permissions on delete)",
+    "Register teardown to delete the role",
+    "Pick an existing permission via permissions/list",
+    "Add the permission to the role via rolePermissions/add (succeeds)",
+    "Attempt to add the same permission again and assert 409"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "route": "/dashboard/onboarding/view",
+  "module": "onboarding",
+  "timedOut": true,
+  "findings": []
+}

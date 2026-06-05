@@ -1,0 +1,6 @@
+{
+  "route": "/dashboard/customers/walk-in/view",
+  "module": "customers",
+  "timedOut": true,
+  "findings": []
+}

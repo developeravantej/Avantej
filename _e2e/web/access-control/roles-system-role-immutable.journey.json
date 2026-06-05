@@ -1,0 +1,8 @@
+{
+  "access-control/roles-system-role-immutable.rule.spec.ts::rule: updating or deleting a system role is rejected (400)": [
+    "List roles and find a system role (isSystem=true)",
+    "Attempt roles/update on the system role and assert 400",
+    "Attempt roles/delete on the system role and assert 400",
+    "Re-list and assert the system role is unchanged"
+  ]
+}

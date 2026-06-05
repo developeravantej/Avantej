@@ -1,0 +1,34 @@
+{
+  "route": "/dashboard/inventory-options",
+  "module": "inventory-options",
+  "interactablesFound": {
+    "buttons": 0,
+    "links": 0,
+    "textboxes": 0,
+    "comboboxes": 0,
+    "checkboxes": 0,
+    "tabs": 0
+  },
+  "actionsTaken": 0,
+  "findings": [
+    {
+      "id": "dashboard_inventory_options__unhandled-exception",
+      "route": "/dashboard/inventory-options",
+      "module": "inventory-settings-load",
+      "category": "unhandled-exception",
+      "severity": "high",
+      "title": "inventory-options throws an undefined page error and content never renders",
+      "observed": "[pageerror] undefined",
+      "evidence": {
+        "screenshot": "_e2e/loop/evidence/dashboard_inventory_options/shot.png",
+        "console": "_e2e/loop/evidence/dashboard_inventory_options/console.txt",
+        "network": "_e2e/loop/evidence/dashboard_inventory_options/network.txt",
+        "trace": "_e2e/loop/evidence/dashboard_inventory_options/trace.zip"
+      },
+      "recommendation": "Trace the undefined throw (likely an unguarded access in the route loader/component); page is unusable. NOT APPLIED."
+    }
+  ],
+  "newLinks": [],
+  "authExpired": false,
+  "serverDown": false
+}

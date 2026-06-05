@@ -99,3 +99,20 @@ Plan/
 .trae/
 .windsurf/
 .zencoder/
+# /e2e skill review-suite artifacts (commit the suite: specs/journeys/strategy/
+# review.html/config/scripts; ignore all recorded run output regardless of nesting)
+_e2e/**/.auth/
+_e2e/**/results/
+_e2e/**/videos/
+_e2e/**/evidence/
+_e2e/**/test-artifacts/
+_e2e/run-logs/
+_e2e/loop/server.json
+_e2e/*-parts/
+# Artifact file types anywhere under _e2e (videos, traces, screenshots, run logs)
+_e2e/**/*.webm
+_e2e/**/*.zip
+_e2e/**/*.png
+_e2e/**/*.log
+_e2e/**/*.txt
+_e2e/results/report-*.json

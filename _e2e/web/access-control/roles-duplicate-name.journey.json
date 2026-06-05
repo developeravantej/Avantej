@@ -1,0 +1,7 @@
+{
+  "access-control/roles-duplicate-name.rule.spec.ts::rule: duplicate role name is rejected (409)": [
+    "Create a custom role with a unique name",
+    "Register teardown to delete the role",
+    "Attempt roles/create with the same name and assert 409"
+  ]
+}

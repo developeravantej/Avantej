@@ -1,0 +1,6 @@
+{
+  "commissions/commission-splits-manual-adjustment-xor.rule.spec.ts::rule: manual adjustment targeting more than one entity is rejected (400)": [
+    "Call commissionSplits/createManualAdjustment with both salesOrderId and appointmentId set",
+    "Assert the request is rejected with 400 (XOR: exactly one target required)"
+  ]
+}

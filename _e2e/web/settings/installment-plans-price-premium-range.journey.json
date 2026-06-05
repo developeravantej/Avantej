@@ -1,0 +1,6 @@
+{
+  "settings/installment-plans-price-premium-range.rule.spec.ts::rule: pricePremiumBps outside [0,10000] is rejected (400)": [
+    "Attempt installmentPlans/create with pricePremiumBps -1 and assert 400",
+    "Attempt installmentPlans/create with pricePremiumBps 10001 and assert 400"
+  ]
+}

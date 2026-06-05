@@ -1,0 +1,8 @@
+{
+  "products/products.lifecycle.spec.ts::Product lifecycle — create, update, discontinue (API-verified)": [
+    "Create a UOM dependency and a product (sku, name, uomId, price) and assert an id is returned",
+    "Fetch products/getById and assert the stored name matches",
+    "Update the product name and assert getById reflects the edit",
+    "Set status to discontinued and assert the product is absent from the status:active list"
+  ]
+}

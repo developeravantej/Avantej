@@ -1,0 +1,10 @@
+{
+  "trainers/member-profiles.lifecycle.spec.ts::Member profile upsert — set bio then restore (read-modify-restore)": [
+    "List existing members via members/list and pick a non-client member (trainer/staff/admin)",
+    "Read that member's current profile bio via memberProfiles/get (captures original)",
+    "Upsert a unique E2E marker bio via memberProfiles/upsert",
+    "Assert the upsert response returns the marker bio",
+    "Re-query memberProfiles/get and assert the marker persisted",
+    "Restore the member's original bio (withRestored)"
+  ]
+}

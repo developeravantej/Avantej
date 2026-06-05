@@ -1,0 +1,55 @@
+{
+  "route": "/dashboard/cancelled-sales/view",
+  "module": "cancelled-sales",
+  "interactablesFound": {
+    "buttons": 18,
+    "links": 28,
+    "textboxes": 2,
+    "comboboxes": 1,
+    "checkboxes": 0,
+    "tabs": 0
+  },
+  "actionsTaken": 15,
+  "findings": [
+    {
+      "id": "dashboard_cancelled_sales_view__console-error",
+      "route": "/dashboard/cancelled-sales/view",
+      "module": "react-key",
+      "category": "console-error",
+      "severity": "low",
+      "title": "React duplicate/missing key warning in CancelledSalesTab",
+      "observed": "[error] Each child in a list should have a unique \"key\" prop.%s%s See https://react.dev/link/warning-keys for more information. \n\nCheck the render method of `CancelledSalesTab`. ",
+      "evidence": {
+        "screenshot": "_e2e/loop/evidence/dashboard_cancelled_sales_view/shot.png",
+        "console": "_e2e/loop/evidence/dashboard_cancelled_sales_view/console.txt",
+        "network": "_e2e/loop/evidence/dashboard_cancelled_sales_view/network.txt",
+        "trace": "_e2e/loop/evidence/dashboard_cancelled_sales_view/trace.zip"
+      },
+      "recommendation": "Add a stable unique key to the list render in CancelledSalesTab. NOT APPLIED."
+    }
+  ],
+  "newLinks": [
+    "/dashboard",
+    "/dashboard/operations/approvals",
+    "/dashboard/customers/v2/view",
+    "/dashboard/appointment/view",
+    "/dashboard/appointment/class-slots/view",
+    "/dashboard/trainers/view",
+    "/dashboard/service/view",
+    "/dashboard/sales/create",
+    "/dashboard/reports/view",
+    "/dashboard/announcements/view",
+    "/dashboard/sales/view",
+    "/dashboard/commissions/view",
+    "/dashboard/settings/tax-rates",
+    "/dashboard/expenses/view",
+    "/dashboard/packages/view",
+    "/dashboard/commissions/view?tab=payouts",
+    "/dashboard/user/view",
+    "/dashboard/access-control/roles",
+    "/dashboard/access-control/user-assignment",
+    "/dashboard/branch/view"
+  ],
+  "authExpired": false,
+  "serverDown": false
+}

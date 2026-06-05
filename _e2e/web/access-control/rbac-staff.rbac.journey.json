@@ -1,0 +1,18 @@
+{
+  "access-control/rbac-staff.rbac.spec.ts::Staff is FORBIDDEN from creating a role (role_management:create)": [
+    "Authenticate as the seeded non-admin staff user (staff.deterministic@test.com, role \"staff\").",
+    "Call roles/create via the staff API session.",
+    "Assert the server rejects it with 403 FORBIDDEN — the staff role lacks role_management:create.",
+    "(403, not 401, confirms an authenticated-but-unprivileged member.)"
+  ],
+  "access-control/rbac-staff.rbac.spec.ts::Staff is FORBIDDEN from inviting a user (user_management:create)": [
+    "As the staff session, call invitations/create.",
+    "Assert the server rejects it with 403 FORBIDDEN — staff lacks user_management:create.",
+    "Verifies the permission guard at the server boundary, not just the UI."
+  ],
+  "access-control/rbac-staff.rbac.spec.ts::Staff does not see a create-role control on the roles page": [
+    "Load /dashboard/access-control/roles in the staff browser session.",
+    "Assert the page renders without crashing.",
+    "Assert there is NO New/Create/Add role button — the UI hides what the server also blocks (defence-in-depth)."
+  ]
+}
