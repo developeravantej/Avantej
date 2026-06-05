@@ -9,7 +9,10 @@
  */
 
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import { createMockTenantDb } from "../../helpers/db-mock.factory";
+import {
+	createMockTenantDb,
+	selectChainResolving,
+} from "../../helpers/db-mock.factory";
 import {
 	approveRefund,
 	bulkApproveRefunds,
@@ -79,29 +82,6 @@ function _makeSalesOrder(overrides: Record<string, unknown> = {}) {
 	};
 }
 void _makeSalesOrder;
-
-// Chainable select mock that resolves to given rows and supports .for()
-function selectChainResolving(value: unknown) {
-	const chain: Record<string, unknown> = {};
-	const methods = [
-		"from",
-		"where",
-		"orderBy",
-		"limit",
-		"offset",
-		"leftJoin",
-		"innerJoin",
-		"groupBy",
-		"having",
-		"for",
-	];
-	for (const m of methods) {
-		chain[m] = mock(() => chain);
-	}
-	chain.then = (resolve: (v: unknown) => unknown) =>
-		Promise.resolve(value).then(resolve);
-	return chain;
-}
 
 let mockDb: ReturnType<typeof createMockTenantDb>;
 let mockControlPanelDb: {

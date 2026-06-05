@@ -25,7 +25,10 @@ import { describe, test, expect } from "bun:test";
 import { mock } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { createMockTenantDb } from "../helpers/db-mock.factory";
+import {
+	createMockTenantDb,
+	selectChainResolving as sel,
+} from "../helpers/db-mock.factory";
 
 // ---------------------------------------------------------------------------
 // Shared fixture IDs
@@ -58,28 +61,6 @@ const IDS = {
 // ---------------------------------------------------------------------------
 // Mock DB builders
 // ---------------------------------------------------------------------------
-
-/** Chainable select chain resolving to a given value */
-function sel(value: unknown) {
-	const chain: Record<string, unknown> = {};
-	for (const m of [
-		"from",
-		"where",
-		"orderBy",
-		"limit",
-		"offset",
-		"leftJoin",
-		"innerJoin",
-		"groupBy",
-		"having",
-		"for",
-	]) {
-		chain[m] = mock(() => chain);
-	}
-	chain.then = (resolve: (v: unknown) => unknown) =>
-		Promise.resolve(value).then(resolve);
-	return chain;
-}
 
 /** Silent insert chain (returns provided value, second call returns audit row) */
 function makeInsertMock(firstResult: unknown[]) {

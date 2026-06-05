@@ -31,6 +31,14 @@ describe("listInstallmentPlans", () => {
 
 		expect(result as any).toEqual(plans);
 		expect(mockDb.query.installmentPlans.findMany).toHaveBeenCalledTimes(1);
+		// Verify the query was actually BUILT with ordering (not just that the
+		// mock's return value flowed through). Service orders by [sortOrder, code].
+		const callArg = (mockDb.query.installmentPlans.findMany as any).mock
+			.calls[0]?.[0];
+		expect(Array.isArray(callArg?.orderBy)).toBe(true);
+		expect(callArg?.orderBy).toHaveLength(2);
+		// No activeOnly → no filter predicate.
+		expect(callArg?.where).toBeUndefined();
 	});
 
 	test("returns empty array when no plans exist", async () => {
@@ -49,6 +57,11 @@ describe("listInstallmentPlans", () => {
 
 		expect(result).toHaveLength(1);
 		expect(result[0]?.isActive).toBe(true);
+		// Verify activeOnly actually built a WHERE predicate — without this the
+		// test would pass even if the service ignored the activeOnly flag.
+		const callArg = (mockDb.query.installmentPlans.findMany as any).mock
+			.calls[0]?.[0];
+		expect(callArg?.where).toBeDefined();
 	});
 });
 

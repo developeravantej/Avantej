@@ -1,5 +1,8 @@
-import { describe, test, expect, beforeEach, mock } from "bun:test";
-import { createMockTenantDb } from "../../helpers/db-mock.factory";
+import { describe, test, expect, beforeEach } from "bun:test";
+import {
+	createMockTenantDb,
+	selectChainResolving,
+} from "../../helpers/db-mock.factory";
 
 import {
 	getDashboardKpis,
@@ -7,26 +10,6 @@ import {
 } from "@avantej-core/services/analytics.service";
 
 let mockDb: any;
-
-function selectChainResolving(value: unknown) {
-	const chain: Record<string, unknown> = {};
-	for (const m of [
-		"from",
-		"where",
-		"orderBy",
-		"limit",
-		"offset",
-		"leftJoin",
-		"innerJoin",
-		"groupBy",
-		"having",
-	]) {
-		chain[m] = mock(() => chain);
-	}
-	chain.then = (resolve: (v: unknown) => unknown) =>
-		Promise.resolve(value).then(resolve);
-	return chain;
-}
 
 function setupEmptyKpiMocks(db: ReturnType<typeof createMockTenantDb>) {
 	// getDashboardKpis makes 7 select() calls (in order):

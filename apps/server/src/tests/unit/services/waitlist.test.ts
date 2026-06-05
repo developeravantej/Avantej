@@ -1,5 +1,8 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
-import { createMockTenantDb } from "../../helpers/db-mock.factory";
+import {
+	createMockTenantDb,
+	selectChainResolving,
+} from "../../helpers/db-mock.factory";
 import { makeWaitlistEntry, makeClassSlot } from "../../helpers/fixtures";
 
 import {
@@ -14,19 +17,6 @@ let mockDb: any;
 beforeEach(() => {
 	mockDb = createMockTenantDb();
 });
-
-// Builds a chainable select() mock whose terminal await resolves to `rows`.
-// Mirrors the drizzle query builder surface the service chains through
-// (.from/.where/.for/.orderBy) and is awaitable directly via `.then`.
-function selectChainResolving(rows: unknown[]) {
-	const chain: Record<string, unknown> = {};
-	for (const m of ["from", "where", "orderBy", "for", "limit"]) {
-		chain[m] = mock(() => chain);
-	}
-	chain.then = (resolve: (v: unknown) => unknown) =>
-		Promise.resolve(rows).then(resolve);
-	return chain;
-}
 
 // ─── listWaitlistEntries ─────────────────────────────────────────────────────
 describe("listWaitlistEntries", () => {

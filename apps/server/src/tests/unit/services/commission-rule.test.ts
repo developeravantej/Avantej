@@ -18,7 +18,10 @@
  */
 
 import { describe, test, expect, mock } from "bun:test";
-import { createMockTenantDb } from "../../helpers/db-mock.factory";
+import {
+	createMockTenantDb,
+	selectChainResolving,
+} from "../../helpers/db-mock.factory";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -79,28 +82,6 @@ function _makeTestAppointment(overrides: Record<string, unknown> = {}) {
 		branchId: "branch-id-001",
 		...overrides,
 	};
-}
-
-// Chainable select mock that resolves to the given value
-function selectChainResolving(value: unknown) {
-	const chain: Record<string, unknown> = {};
-	for (const m of [
-		"from",
-		"where",
-		"orderBy",
-		"limit",
-		"offset",
-		"leftJoin",
-		"innerJoin",
-		"groupBy",
-		"having",
-		"for",
-	]) {
-		chain[m] = mock(() => chain);
-	}
-	chain.then = (resolve: (v: unknown) => unknown) =>
-		Promise.resolve(value).then(resolve);
-	return chain;
 }
 
 // Insert chain that either resolves or throws

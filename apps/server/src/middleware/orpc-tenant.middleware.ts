@@ -15,6 +15,7 @@ import { members } from "@avantej-core/db/schema/tenant/members";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { getDescendantNodeIds } from "@avantej-core/services";
 import { getBetterAuth } from "@/lib/better-auth";
+import { matchesPublicTenantEndpoint } from "./public-endpoints";
 
 export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
 	// Only process oRPC routes
@@ -23,13 +24,21 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
 		return;
 	}
 
-	// Check if this is a public-like endpoint by path (needs tenantDb but not necessarily an existing member)
-	// oRPC routes are at /rpc/invitations/getByToken or /rpc/invitations/accept or /rpc/registration/complete
-	const isInvitationPublicEndpointByPath =
-		c.req.path.includes("/invitations/getByToken") ||
-		c.req.path.includes("/invitations/accept") ||
-		c.req.path.includes("/invitations/verifyEmailByToken") ||
-		c.req.path.includes("/registration/complete");
+	// Happy-path debug logging is gated behind DEBUG_TENANT_MW so it does not
+	// fire on every production /rpc request. Fault-path console.error/warn stay
+	// unconditional. Mirrors the (c.env as Record<...>) access used for the
+	// installment lock flag below.
+	const tenantMwDebugEnabled =
+		(c.env as Record<string, unknown>)?.DEBUG_TENANT_MW === "true";
+	const debugLog = (...args: unknown[]) => {
+		if (tenantMwDebugEnabled) console.log(...args);
+	};
+
+	// Public-like endpoint by path (needs tenantDb but not necessarily an
+	// existing member). See PUBLIC_TENANT_ENDPOINT_SUFFIXES above.
+	const isInvitationPublicEndpointByPath = matchesPublicTenantEndpoint(
+		c.req.path,
+	);
 
 	try {
 		// Parse request body to extract organizationId
@@ -84,29 +93,19 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
 			const organizationId =
 				rpcPayload?.params?.input?.organizationId || rpcPayload?.organizationId;
 
-			// Check if this is a public invitation endpoint that doesn't require a user session
-			// Check both path (more reliable) and method name (handles different formats)
+			// Check if this is a public invitation endpoint that doesn't require a
+			// user session. Both path and method are checked against the same
+			// PUBLIC_TENANT_ENDPOINT_SUFFIXES source of truth (substring match
+			// covers acceptWithSignup — see note on the constant).
 			const isInvitationPublicEndpointByMethod =
-				method &&
-				(method.includes("invitations.getByToken") ||
-					method.includes("invitations.accept") ||
-					method.includes("invitations.verifyEmailByToken") ||
-					method.includes("invitations/getByToken") ||
-					method.includes("invitations/accept") ||
-					method.includes("invitations/verifyEmailByToken") ||
-					method === "invitations.getByToken" ||
-					method === "invitations.accept" ||
-					method === "invitations.verifyEmailByToken" ||
-					method.includes("registration.complete") ||
-					method.includes("registration/complete") ||
-					method === "registration.complete");
+				matchesPublicTenantEndpoint(method);
 
 			const isInvitationPublicEndpoint =
 				isInvitationPublicEndpointByPath || isInvitationPublicEndpointByMethod;
 
-			// Debug logging for invitation endpoints
+			// Debug logging for invitation endpoints (gated)
 			if (isInvitationPublicEndpoint) {
-				console.log("🔓 Public invitation endpoint detected:", {
+				debugLog("🔓 Public invitation endpoint detected:", {
 					path: c.req.path,
 					method,
 					organizationId,
@@ -197,7 +196,7 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
 				let tenantDb;
 				try {
 					tenantDb = await getTenantDb(organizationId, c);
-					console.log(
+					debugLog(
 						"✅ Tenant DB set up successfully for organization:",
 						organizationId,
 					);
@@ -246,13 +245,13 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
 					} else {
 						// Member not found - this is OK for invitation endpoints (user might be new)
 						// For other endpoints, handler will return proper error
-						console.log(
+						debugLog(
 							`Member not found for user ${user.id} in organization ${organizationId} - this is OK for invitation endpoints`,
 						);
 					}
 				} else {
 					// No user session - this is OK for public invitation endpoints
-					console.log(
+					debugLog(
 						`No user session for invitation endpoint - tenantDb set up for organization ${organizationId}`,
 					);
 				}

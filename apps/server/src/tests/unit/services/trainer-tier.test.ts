@@ -1,5 +1,8 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
-import { createMockTenantDb } from "../../helpers/db-mock.factory";
+import {
+	createMockTenantDb,
+	selectChainResolving,
+} from "../../helpers/db-mock.factory";
 
 import {
 	listTrainerTiers,
@@ -45,30 +48,6 @@ function makeMember(overrides: Partial<Record<string, unknown>> = {}) {
 		updatedAt: new Date(),
 		...overrides,
 	};
-}
-
-/**
- * A chainable select mock that resolves to `value` when awaited.
- * All Drizzle builder methods are mock'd to return the same chain.
- */
-function selectChainResolving(value: unknown) {
-	const chain: Record<string, unknown> = {};
-	for (const m of [
-		"from",
-		"where",
-		"orderBy",
-		"limit",
-		"offset",
-		"leftJoin",
-		"innerJoin",
-		"groupBy",
-		"having",
-	]) {
-		chain[m] = mock(() => chain);
-	}
-	chain.then = (resolve: (v: unknown) => unknown) =>
-		Promise.resolve(value).then(resolve);
-	return chain;
 }
 
 /**

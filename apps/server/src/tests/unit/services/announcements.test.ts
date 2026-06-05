@@ -1,5 +1,8 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
-import { createMockTenantDb } from "../../helpers/db-mock.factory";
+import {
+	createMockTenantDb,
+	selectChainResolving,
+} from "../../helpers/db-mock.factory";
 import { makeAnnouncement } from "../../helpers/fixtures";
 
 import {
@@ -13,26 +16,6 @@ import {
 let mockDb: ReturnType<typeof createMockTenantDb>;
 const MEMBER_ID = "bbbbbbbb-0000-4000-8000-000000000001";
 const BRANCH_NODE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
-
-function selectChainResolving(value: unknown) {
-	const chain: Record<string, unknown> = {};
-	for (const m of [
-		"from",
-		"where",
-		"orderBy",
-		"limit",
-		"offset",
-		"leftJoin",
-		"innerJoin",
-		"groupBy",
-		"having",
-	]) {
-		chain[m] = mock(() => chain);
-	}
-	chain.then = (resolve: (v: unknown) => unknown) =>
-		Promise.resolve(value).then(resolve);
-	return chain;
-}
 
 beforeEach(() => {
 	mockDb = createMockTenantDb();

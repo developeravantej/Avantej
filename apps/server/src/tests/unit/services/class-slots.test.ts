@@ -1,30 +1,9 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
-import { createMockTenantDb } from "../../helpers/db-mock.factory";
+import {
+	createMockTenantDb,
+	selectChainResolving,
+} from "../../helpers/db-mock.factory";
 import { makeClassSlot } from "../../helpers/fixtures";
-
-// listClassSlots now reads via a select() chain (joins waitlist + service price,
-// groups, orders, paginates) rather than query.classSlots.findMany. This helper
-// builds a chainable select mock that resolves to `value` when awaited and lets
-// tests inspect the `.where(...)` argument.
-function selectChainResolving(value: unknown) {
-	const chain: Record<string, unknown> = {};
-	for (const m of [
-		"from",
-		"where",
-		"orderBy",
-		"limit",
-		"offset",
-		"leftJoin",
-		"innerJoin",
-		"groupBy",
-		"having",
-	]) {
-		chain[m] = mock(() => chain);
-	}
-	chain.then = (resolve: (v: unknown) => unknown) =>
-		Promise.resolve(value).then(resolve);
-	return chain;
-}
 
 import {
 	listClassSlots,

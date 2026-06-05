@@ -32,7 +32,10 @@ import { describe, test, expect } from "bun:test";
 import { mock } from "bun:test";
 import * as path from "node:path";
 import * as fs from "node:fs";
-import { createMockTenantDb } from "../../helpers/db-mock.factory";
+import {
+	createMockTenantDb,
+	selectChainResolving as sel,
+} from "../../helpers/db-mock.factory";
 
 // ---------------------------------------------------------------------------
 // Shared fixture IDs — must match commission-golden.capture.test.ts exactly
@@ -65,28 +68,24 @@ const IDS = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// Mock DB helpers (identical to capture test)
+// Mock DB helpers — `sel` is the canonical selectChainResolving from the
+// factory (identical chain shape the capture test uses).
+//
+// Each builder maps select calls positionally via switch(n). The `default`
+// branch THROWS (rather than silently returning sel([])) so that adding or
+// reordering a query in the pipeline surfaces as a loud, indexed failure
+// instead of a misaligned empty result that corrupts the golden diff.
 // ---------------------------------------------------------------------------
 
-function sel(value: unknown) {
-	const chain: Record<string, unknown> = {};
-	for (const m of [
-		"from",
-		"where",
-		"orderBy",
-		"limit",
-		"offset",
-		"leftJoin",
-		"innerJoin",
-		"groupBy",
-		"having",
-		"for",
-	]) {
-		chain[m] = mock(() => chain);
-	}
-	chain.then = (resolve: (v: unknown) => unknown) =>
-		Promise.resolve(value).then(resolve);
-	return chain;
+// Throws on an unmapped positional select call so misalignment fails loudly.
+// The failing test()'s name identifies which corpus case (A1/A2/…/P3) drove it.
+function unmappedSelect(n: number): never {
+	throw new Error(
+		`[commission-diff-harness] unmapped select call #${n}. ` +
+			`The pipeline made more select() calls than this builder maps. ` +
+			`Add an explicit case for #${n} (return sel([...]) with the expected ` +
+			`rows) — do NOT widen a default, or the golden diff will silently drift.`,
+	);
 }
 
 function makeInsertMock(firstResult: unknown[]) {
@@ -154,7 +153,7 @@ function buildA1Db(splitResult: unknown[]) {
 					{ maxPerCycleCents: null, excludeIfDiscountAbovePct: null },
 				]); // commissionTracks cap config
 			default:
-				return sel([]);
+				return unmappedSelect(n);
 		}
 	});
 	db.insert.mockImplementation(makeInsertMock(splitResult));
@@ -219,7 +218,7 @@ function buildA2Db(splitResult: unknown[]) {
 					{ maxPerCycleCents: null, excludeIfDiscountAbovePct: null },
 				]); // commissionTracks cap config
 			default:
-				return sel([]);
+				return unmappedSelect(n);
 		}
 	});
 	db.insert.mockImplementation(makeInsertMock(splitResult));
@@ -299,7 +298,7 @@ function buildA5Db(splitResult: unknown[]) {
 					{ maxPerCycleCents: null, excludeIfDiscountAbovePct: null },
 				]); // commissionTracks cap config
 			default:
-				return sel([]);
+				return unmappedSelect(n);
 		}
 	});
 	db.insert.mockImplementation(makeInsertMock(splitResult));
@@ -355,7 +354,7 @@ function buildA6Db() {
 				return sel([{ id: IDS.CONFIG_VERSION_ID }]); // categoryCommissionConfigVersions (legacy)
 			// plan.ts skips this staff (no_tier_rate) — persistSplits returns [] — no cap check
 			default:
-				return sel([]);
+				return unmappedSelect(n);
 		}
 	});
 	db.insert.mockImplementation(makeInsertMock([]));
@@ -416,7 +415,7 @@ function buildP1Db(splitResult: unknown[]) {
 					{ maxPerCycleCents: null, excludeIfDiscountAbovePct: null },
 				]); // commissionTracks cap config
 			default:
-				return sel([]);
+				return unmappedSelect(n);
 		}
 	});
 	db.insert.mockImplementation(makeInsertMock(splitResult));
@@ -495,7 +494,7 @@ function buildP2Db(splitResult: unknown[]) {
 					{ maxPerCycleCents: null, excludeIfDiscountAbovePct: null },
 				]); // commissionTracks cap config
 			default:
-				return sel([]);
+				return unmappedSelect(n);
 		}
 	});
 	db.insert.mockImplementation(makeInsertMock(splitResult));
@@ -546,7 +545,7 @@ function buildP3Db() {
 					},
 				]); // commissionConditions (no match for qty=2 → context returns null → [])
 			default:
-				return sel([]);
+				return unmappedSelect(n);
 		}
 	});
 	db.insert.mockImplementation(makeInsertMock([]));

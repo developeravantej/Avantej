@@ -3,7 +3,10 @@ import {
 	getCustomerStats,
 	listCustomerDirectory,
 } from "@avantej-core/services/customer-directory.service";
-import { createMockTenantDb } from "../../helpers/db-mock.factory";
+import {
+	createMockTenantDb,
+	selectChainResolving,
+} from "../../helpers/db-mock.factory";
 
 /**
  * Regression coverage for db076f3e
@@ -35,26 +38,6 @@ const INT4_MAX = 2_147_483_647;
 const NODE_ID = "11111111-1111-4111-8111-111111111111";
 const USER_ID = "22222222-2222-4222-8222-222222222222";
 const MEMBER_ID = "33333333-3333-4333-8333-333333333333";
-
-function selectChainResolving(value: unknown) {
-	const chain: Record<string, unknown> = {};
-	for (const m of [
-		"from",
-		"where",
-		"orderBy",
-		"limit",
-		"offset",
-		"leftJoin",
-		"innerJoin",
-		"groupBy",
-		"having",
-	]) {
-		chain[m] = mock(() => chain);
-	}
-	chain.then = (resolve: (v: unknown) => unknown) =>
-		Promise.resolve(value).then(resolve);
-	return chain;
-}
 
 /** Minimal control-panel DB whose only use here is the user name/email lookup. */
 function controlPanelDbResolving(userRows: unknown[]) {

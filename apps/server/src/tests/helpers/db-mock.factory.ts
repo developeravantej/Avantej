@@ -1,7 +1,24 @@
 import { mock } from "bun:test";
 
-// Chainable select mock factory
-function createSelectChain(returnValue: unknown = []) {
+/**
+ * Canonical chainable `select()` mock.
+ *
+ * Returns a thenable chain whose terminal value (what `await`ing the chain, or
+ * `.then(...)`, resolves to) is `returnValue`. Every chain method returns the
+ * same chain object so any call order works:
+ *   `select().from().where().orderBy().limit()` → resolves to `returnValue`.
+ *
+ * This is the ONE definition for the whole server test suite — import it instead
+ * of re-declaring a local `selectChainResolving`/`sel` per file. The method list
+ * is the SUPERSET observed across every unit test, so any caller's chain is
+ * covered.
+ *
+ * ⚠️ Two services need a DIFFERENT terminal shape and must NOT use this helper:
+ *   - a `.for("update")` that resolves to a Promise directly (payouts test)
+ *   - a `.as(...)` that returns `sql` aggregate objects (commission-splits test)
+ * Those keep their bespoke local mocks.
+ */
+export function selectChainResolving(returnValue: unknown = []) {
 	const chain: Record<string, unknown> = {};
 	const methods = [
 		"from",
@@ -78,7 +95,7 @@ export function createMockTenantDb() {
 	const { insertMock } = createInsertChain();
 	const { updateMock } = createUpdateChain();
 	const { deleteMock } = createDeleteChain();
-	const selectMock = mock(() => createSelectChain());
+	const selectMock = mock(() => selectChainResolving());
 
 	// query.{table}.findMany / findFirst patterns
 	const createQueryTable = (

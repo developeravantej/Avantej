@@ -1,5 +1,8 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
-import { createMockTenantDb } from "../../helpers/db-mock.factory";
+import {
+	createMockTenantDb,
+	selectChainResolving,
+} from "../../helpers/db-mock.factory";
 import {
 	makePurchaseOrder,
 	makePurchaseOrderItem,
@@ -24,29 +27,6 @@ const ACTOR = {
 	role: "admin" as const,
 	branchId: BRANCH_NODE_ID,
 };
-
-function selectChainResolving(value: unknown) {
-	const chain: Record<string, unknown> = {};
-	for (const m of [
-		"from",
-		"where",
-		"orderBy",
-		"limit",
-		"offset",
-		"leftJoin",
-		"innerJoin",
-		"groupBy",
-		"having",
-		// `.for("update")` row-lock — approve/cancel/receiveItems now select FOR UPDATE
-		// inside their transactions; without this the chain throws ".for is not a function".
-		"for",
-	]) {
-		chain[m] = mock(() => chain);
-	}
-	chain.then = (resolve: (v: unknown) => unknown) =>
-		Promise.resolve(value).then(resolve);
-	return chain;
-}
 
 beforeEach(() => {
 	mockDb = createMockTenantDb();
