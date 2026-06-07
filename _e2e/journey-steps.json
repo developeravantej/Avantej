@@ -924,5 +924,10 @@
     "Create a disposable unpaid appointment",
     "Call payments/refund on it",
     "Assert PRECONDITION_FAILED (refund requires a paid appointment with a PaymentIntent)"
+  ],
+  "payment/stripe-payment.rule.spec.ts::createPaymentIntent rejects when the branch country has no Connect account (PRECONDITION_FAILED)": [
+    "Iterate branches, creating a disposable appointment on each",
+    "Call createPaymentIntent for each",
+    "Assert at least one branch (whose country has no onboarded Connect account) is rejected with PRECONDITION_FAILED (412)"
   ]
 }

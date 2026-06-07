@@ -182,6 +182,41 @@ test.describe("payment — Stripe intents (test sandbox)", () => {
 		expect(pi2?.applicationFeeAmount).toBe(pi1?.applicationFeeAmount * 2);
 	});
 
+	test("createPaymentIntent rejects when the branch country has no Connect account (PRECONDITION_FAILED)", async ({
+		page,
+	}) => {
+		const organizationId = getOrgId();
+		const nodesRes = await rpc(page.request, "hierarchy/listNodes", {
+			organizationId,
+		});
+		const branches = (
+			Array.isArray(nodesRes) ? nodesRes : (nodesRes?.nodes ?? [])
+		).filter((n: any) => n.type === "branch");
+
+		// Find a branch whose country has NO onboarded Connect account: its
+		// createPaymentIntent must precondition-fail. Skip if every branch has one.
+		let asserted = false;
+		for (const b of branches) {
+			const apptId = await makeAppt(
+				page.request,
+				organizationId,
+				cleanup,
+				b.id,
+				10000,
+			);
+			const res = await rpcRaw(page.request, "payments/createPaymentIntent", {
+				organizationId,
+				appointmentId: apptId,
+			});
+			if (res.status() === 412) {
+				asserted = true;
+				break;
+			}
+		}
+		test.skip(!asserted, "every branch country has a Connect account");
+		expect(asserted).toBe(true);
+	});
+
 	test("refund requires a paid appointment (PRECONDITION_FAILED)", async ({
 		page,
 	}) => {

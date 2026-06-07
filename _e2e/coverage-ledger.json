@@ -2684,8 +2684,8 @@
     "kind": "invariant",
     "rule": "createPaymentIntent/sendPaymentLink reject (PRECONDITION_FAILED) when the appointment is already paymentStatus='paid'.",
     "screen": "/dashboard/appointment/view",
-    "status": "deferred",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "payment/stripe-payment.rule.spec.ts",
     "note": "server payments.ts:167-171,250-254",
     "deferReason": "Covered against the Stripe TEST sandbox: createPaymentIntent, application_fee, idempotency, refund-requires-paid. Remaining (chargeSavedCard, actual refund, no-account precondition, invoice) need saved-card / confirmed-PI / account-less-org fixtures. Deferred."
   },

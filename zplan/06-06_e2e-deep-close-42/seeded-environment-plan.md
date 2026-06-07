@@ -9,7 +9,7 @@ or destructive shared-state changes. This document scopes exactly what each need
 
 | Module | Rows | What's blocked |
 |---|---|---|
-| payment | 4 | actual refund (confirmed/paid PI), chargeSavedCard (saved card), no-Connect-account precondition (account-less org), invoice create/update |
+| payment | 3 | actual refund (confirmed/paid PI), chargeSavedCard (saved card), invoice create/update — all need the Stripe **webhook listener** (`stripe listen`) to flip DB state (defaultPaymentMethodId, paymentStatus=paid) |
 | multi-tenant | 3 | cross-tenant mismatch guard, per-tenant DB resolution, no-member-row FORBIDDEN |
 | saas | 2 | suspended/cancelled 403; past-due → read-only write block |
 

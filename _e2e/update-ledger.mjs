@@ -120,7 +120,7 @@ const DEFER = [
 		match: (r) =>
 			r.module === "payment" &&
 			(r.entity === "invoice" ||
-				/chargeSavedCard|saved card|off_session|action:refund|sendPaymentLink reject|PRECONDITION_FAILED when the a|not connected/i.test(
+				/chargeSavedCard|saved card|off_session|action:refund/i.test(
 					`${r.op || ""} ${r.rule || ""}`,
 				)),
 		reason:
