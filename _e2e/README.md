@@ -71,3 +71,21 @@ data is cleared. If review marks need to be durable/shared, move them to a
 committed `review-state.json` keyed by a stable `// @e2e-id <ulid>` per spec
 (decouples identity from title/path). Deferred — only worth it if humans review
 regularly. See `findings.md`.
+
+## Stripe webhook-driven payment specs
+
+`web/payment/stripe-webhook.rule.spec.ts` (actual refund + chargeSavedCard) needs the
+Stripe CLI listener forwarding connect events to the dev server, and a flag:
+
+```bash
+# 1. listener (uses the sk_test_ key already in apps/server/.dev.vars; its signing
+#    secret matches STRIPE_*_WEBHOOK_SECRET, so no restart needed)
+stripe listen --api-key sk_test_... \
+  --forward-to localhost:3020/webhooks/stripe/platform \
+  --forward-connect-to localhost:3020/webhooks/stripe/connect
+
+# 2. run with the flag (without it, these two specs self-skip)
+E2E_STRIPE_WEBHOOKS=1 bunx playwright test --config _e2e/playwright.config.ts
+```
+
+All test-mode (`pm_card_visa`); no real money moves; appointments are disposable.

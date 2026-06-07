@@ -110,21 +110,17 @@ const DEFER = [
 			"Needs an appointment-completion → commission chain; covered by appointment-assignments unit tests. E2E deferred.",
 	},
 	{
-		// createPaymentIntent + application_fee + idempotency + refund-requires-paid
-		// ARE covered against the dev-shared Stripe TEST sandbox. The deeper money
-		// flows still need fixtures: chargeSavedCard (a saved card via SetupIntent),
-		// an actual refund (a confirmed/paid PI), the no-Connect-account precondition
-		// (an account-less org), and invoice create/update. priority so these stay
-		// deferred despite the payment folder having passing specs.
+		// Almost all payment rows are covered against the dev-shared Stripe TEST
+		// sandbox: createPaymentIntent, application_fee, idempotency, both
+		// precondition gates, AND (with `stripe listen` + E2E_STRIPE_WEBHOOKS=1) the
+		// confirmed-payment refund + chargeSavedCard webhook flows. Only standalone
+		// invoice create/update remains — it is a side-effect of the payment-link
+		// flow with no discrete procedure. priority so it stays deferred despite the
+		// payment folder having passing specs.
 		priority: true,
-		match: (r) =>
-			r.module === "payment" &&
-			(r.entity === "invoice" ||
-				/chargeSavedCard|saved card|off_session|action:refund/i.test(
-					`${r.op || ""} ${r.rule || ""}`,
-				)),
+		match: (r) => r.module === "payment" && r.entity === "invoice",
 		reason:
-			"Covered against the Stripe TEST sandbox: createPaymentIntent, application_fee, idempotency, refund-requires-paid. Remaining (chargeSavedCard, actual refund, no-account precondition, invoice) need saved-card / confirmed-PI / account-less-org fixtures. Deferred.",
+			"Invoice create/update has no standalone procedure — it is a side-effect of the Stripe payment-link flow. Deferred (all other payment rows are covered, incl. webhook-driven refund + chargeSavedCard).",
 	},
 	{
 		match: (r) =>

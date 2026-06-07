@@ -2433,7 +2433,7 @@
     "specFile": "payment/stripe-payment.rule.spec.ts",
     "danger": "none",
     "note": "invoices.ts:95,139",
-    "deferReason": "Covered against the Stripe TEST sandbox: createPaymentIntent, application_fee, idempotency, refund-requires-paid. Remaining (chargeSavedCard, actual refund, no-account precondition, invoice) need saved-card / confirmed-PI / account-less-org fixtures. Deferred."
+    "deferReason": "Invoice create/update has no standalone procedure — it is a side-effect of the Stripe payment-link flow. Deferred (all other payment rows are covered, incl. webhook-driven refund + chargeSavedCard)."
   },
   {
     "module": "payment",
@@ -2455,8 +2455,8 @@
     "op": "action:refund (Stripe)",
     "screen": "/dashboard/appointment/view",
     "permission": "protected (session+org)",
-    "status": "deferred",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "payment/stripe-payment.rule.spec.ts",
     "danger": "irreversible",
     "note": "server payments.ts:382 — Stripe refund + refund_application_fee",
     "deferReason": "Covered against the Stripe TEST sandbox: createPaymentIntent, application_fee, idempotency, refund-requires-paid. Remaining (chargeSavedCard, actual refund, no-account precondition, invoice) need saved-card / confirmed-PI / account-less-org fixtures. Deferred."
@@ -2468,8 +2468,8 @@
     "op": "action:chargeSavedCard (Stripe off_session)",
     "screen": "/dashboard/customers (card-on-file)",
     "permission": "protected (session+org)",
-    "status": "deferred",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "payment/stripe-payment.rule.spec.ts",
     "danger": "irreversible",
     "note": "server payments.ts:560 — money moves immediately",
     "deferReason": "Covered against the Stripe TEST sandbox: createPaymentIntent, application_fee, idempotency, refund-requires-paid. Remaining (chargeSavedCard, actual refund, no-account precondition, invoice) need saved-card / confirmed-PI / account-less-org fixtures. Deferred."

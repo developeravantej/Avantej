@@ -929,5 +929,18 @@
     "Iterate branches, creating a disposable appointment on each",
     "Call createPaymentIntent for each",
     "Assert at least one branch (whose country has no onboarded Connect account) is rejected with PRECONDITION_FAILED (412)"
+  ],
+  "payment/stripe-webhook.rule.spec.ts::an appointment payment can be confirmed (→paid) and refunded (→refunded)": [
+    "Create a disposable appointment on a Connect-enabled branch + createPaymentIntent",
+    "Confirm the PaymentIntent with a test card (pm_card_visa) via the Stripe API",
+    "Poll until the payment_intent.succeeded webhook flips the appointment to paid",
+    "Call payments/refund; assert the refund succeeds",
+    "Poll until the charge.refunded webhook flips the appointment to refunded"
+  ],
+  "payment/stripe-webhook.rule.spec.ts::chargeSavedCard charges a card saved via SetupIntent (off_session)": [
+    "Ensure a customer profile, then createSetupIntent",
+    "Confirm the SetupIntent with a test card via the Stripe API",
+    "Poll listSavedCards until the setup_intent.succeeded webhook stores the card",
+    "Call payments/chargeSavedCard off-session; assert the charge succeeds for the amount"
   ]
 }
