@@ -75,3 +75,23 @@ minor inconsistency worth tidying but not a security issue.)
 - **Money settlement** (refund process, payout runBatch/markPaid, Stripe charges)
   — irreversible; needs seeded approved splits / refundable orders and a test
   Stripe Connect account.
+
+## FINDING (2026-06-07) — cancellation-number "reuse" invariant not implemented
+
+**Severity:** low–medium (data-model expectation vs. behavior)
+**Where:** `packages/services/src/sales-order.service.ts` `cancelSalesOrder` (~:236-275)
+**Expected (documented invariant):** "A cancellation reuses an order's existing
+cancellationNumber if set, else mints a new one (an order never gets two cancellation numbers)."
+**Actual:** `cancelSalesOrder` calls `generateCancellationNumber` (nextval) unconditionally on
+every invocation — there is no `if (existing.cancellationNumber) reuse` short-circuit. An order
+cancelled twice (if reachable) would mint a second number. The UNIQUE constraint + the
+`refundAmount`-range guard mask this in practice, but the reuse guarantee is absent.
+**Impact:** today the cancel path is effectively single-shot per order (status guards), so no
+live double-number is observed; the gap is latent. If a re-cancel path is ever added, numbers
+would not be reused.
+**Recommendation (NOT applied):** in `cancelSalesOrder`, short-circuit when
+`order.cancellationNumber` is already set and reuse it; only call `generateCancellationNumber`
+when null. Add a unit test for the re-cancel case.
+**E2E status:** the monotonic/unique invariant IS covered
+(`_e2e/web/cancelled-sales/cancellation-number.rule.spec.ts`). The reuse row is
+deferred-with-reason in `update-ledger.mjs` (priority DEFER) pending a product decision.

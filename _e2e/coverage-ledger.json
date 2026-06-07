@@ -186,8 +186,8 @@
     "op": "create+delete",
     "screen": "/dashboard/purchase-orders",
     "permission": "purchase_order_management:update",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "goods-receipts/receipt-invoice.lifecycle.spec.ts",
     "danger": "irreversible",
     "note": "goods-receipts.ts:57"
   },
@@ -198,8 +198,8 @@
     "op": "create+delete",
     "screen": "/dashboard/purchase-orders",
     "permission": "purchase_order_management:create",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "goods-receipts/receipt-invoice.lifecycle.spec.ts",
     "danger": "none",
     "note": "goods-receipts.ts:132"
   },
@@ -210,8 +210,8 @@
     "op": "action:matchInvoice",
     "screen": "/dashboard/purchase-orders",
     "permission": "purchase_order_management:update",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "goods-receipts/receipt-invoice.lifecycle.spec.ts",
     "danger": "none",
     "note": "goods-receipts.ts:219"
   },
@@ -222,8 +222,8 @@
     "op": "action:markInvoicePaid",
     "screen": "/dashboard/purchase-orders",
     "permission": "purchase_order_management:update",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "goods-receipts/receipt-invoice.lifecycle.spec.ts",
     "danger": "irreversible",
     "note": "goods-receipts.ts:266"
   },
@@ -599,8 +599,8 @@
     "kind": "invariant",
     "rule": "3-way match succeeds only when |PO-receipt|,|PO-invoice|,|receipt-invoice| are all within tolerance=max(toleranceCents|100,1% of PO total); else '3-way match failed'.",
     "screen": "/dashboard/purchase-orders",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "goods-receipts/receipt-invoice.lifecycle.spec.ts",
     "note": "goods-receipt.service.ts:413"
   },
   {
@@ -609,8 +609,8 @@
     "kind": "invariant",
     "rule": "Supplier-invoice figures are editable only while pending or disputed; editing matched/paid throws 'Cannot edit a {status} invoice'.",
     "screen": "/dashboard/purchase-orders",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "goods-receipts/receipt-invoice.lifecycle.spec.ts",
     "note": "goods-receipt.service.ts:507"
   },
   {
@@ -619,8 +619,8 @@
     "kind": "invariant",
     "rule": "Damaged units do not enter sellable stock: createReceipt increments product_stock by (quantityReceived - quantityDamaged) only.",
     "screen": "/dashboard/purchase-orders",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "goods-receipts/receipt-invoice.lifecycle.spec.ts",
     "note": "goods-receipt.service.ts:126"
   },
   {
@@ -1094,8 +1094,8 @@
     "op": "create",
     "screen": "/dashboard/access-control/user-assignment",
     "permission": "user_management:create",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "members/member.lifecycle.spec.ts",
     "danger": "none",
     "note": "members/create.procedures.ts:20"
   },
@@ -1106,8 +1106,8 @@
     "op": "action:suspend",
     "screen": "/dashboard/access-control/user-assignment",
     "permission": "user_management:update",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "members/member.lifecycle.spec.ts",
     "danger": "none",
     "note": "members/status.procedures.ts:21"
   },
@@ -1118,8 +1118,8 @@
     "op": "action:reactivate",
     "screen": "/dashboard/access-control/user-assignment",
     "permission": "user_management:update",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "members/member.lifecycle.spec.ts",
     "danger": "none",
     "note": "members/status.procedures.ts:153"
   },
@@ -1130,8 +1130,8 @@
     "op": "update:role",
     "screen": "/dashboard/access-control/user-assignment",
     "permission": "user_management:update",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "members/member.lifecycle.spec.ts",
     "danger": "none",
     "note": "members/role.procedures.ts:21"
   },
@@ -1142,8 +1142,8 @@
     "op": "update:scope",
     "screen": "/dashboard/access-control/user-assignment",
     "permission": "user_management:update",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "members/member.lifecycle.spec.ts",
     "danger": "none",
     "note": "members/scope.procedures.ts:24"
   },
@@ -1154,8 +1154,8 @@
     "op": "remove",
     "screen": "/dashboard/access-control/user-assignment",
     "permission": "user_management:delete",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "members/member.lifecycle.spec.ts",
     "danger": "irreversible",
     "note": "members/removal.procedures.ts:22"
   },
@@ -1166,8 +1166,8 @@
     "op": "deactivate (softDelete)+restore",
     "screen": "/dashboard/access-control/user-assignment",
     "permission": "user_management:delete|update",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "members/member.lifecycle.spec.ts",
     "danger": "none",
     "note": "members/archive.procedures.ts:102,163"
   },
@@ -1238,8 +1238,8 @@
     "op": "create",
     "screen": "/dashboard/packages/instances",
     "permission": "service_management:create",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "packages/approval-flow.lifecycle.spec.ts",
     "danger": "none",
     "note": "package-instances/create.procedures.ts:23"
   },
@@ -1250,8 +1250,8 @@
     "op": "action:assignTrainer (approve pending->active)",
     "screen": "/dashboard/packages/instances",
     "permission": "role: admin|trainer-self",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "packages/approval-flow.lifecycle.spec.ts",
     "danger": "none",
     "note": "package-instances/assign.procedures.ts:34"
   },
@@ -1262,8 +1262,8 @@
     "op": "action:reject (pending->cancelled)",
     "screen": "/dashboard/packages/instances",
     "permission": "role: admin",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "packages/approval-flow.lifecycle.spec.ts",
     "danger": "irreversible",
     "note": "package-instances/approve.procedures.ts:23"
   },
@@ -1274,8 +1274,8 @@
     "op": "action:confirmPayment",
     "screen": "/dashboard/packages/instances",
     "permission": "service_management:update",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "packages/approval-flow.lifecycle.spec.ts",
     "danger": "none",
     "note": "package-instances/confirm-payment.procedures.ts:44"
   },
@@ -1286,8 +1286,8 @@
     "op": "action:cancel",
     "screen": "/dashboard/packages/instances",
     "permission": "package_management:update",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "packages/approval-flow.lifecycle.spec.ts",
     "danger": "irreversible",
     "note": "package-instances/lifecycle.procedures.ts:22"
   },
@@ -1298,8 +1298,8 @@
     "op": "action:freeze+unfreeze+extend",
     "screen": "/dashboard/packages/instances",
     "permission": "package_management:update",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "packages/approval-flow.lifecycle.spec.ts",
     "danger": "none",
     "note": "package-instances/lifecycle.procedures.ts:85,146,206"
   },
@@ -1427,8 +1427,8 @@
     "kind": "invariant",
     "rule": "members.userId is unique via INDEX (members_user_idx), NOT a CONSTRAINT; a second member with the same userId in one org must fail at the application layer (CONFLICT), not the DB.",
     "screen": "/dashboard/access-control/user-assignment",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "members/member.lifecycle.spec.ts",
     "note": "members.ts:54; create.procedures.ts:86"
   },
   {
@@ -1447,8 +1447,8 @@
     "kind": "invariant",
     "rule": "The last admin of an org must NOT be removable: remove() surfaces 'Cannot remove last admin' as BAD_REQUEST.",
     "screen": "/dashboard/access-control/user-assignment",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "members/member.lifecycle.spec.ts",
     "note": "members/removal.procedures.ts:96-104"
   },
   {
@@ -1457,8 +1457,8 @@
     "kind": "invariant",
     "rule": "Non-admin actors may only mutate members whose hierarchyScopeId∈accessibleNodeIds; admins bypass node-scope checks.",
     "screen": "/dashboard/access-control/user-assignment",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "members/member.lifecycle.spec.ts",
     "note": "members/status.procedures.ts:60; archive.procedures.ts:126"
   },
   {
@@ -1477,8 +1477,8 @@
     "kind": "invariant",
     "rule": "Removing a profile that is its household's primaryContactProfileId also nulls the household's primaryContactProfileId (no dangling reference).",
     "screen": "/dashboard/customers/$id",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "households/primary-contact.rule.spec.ts",
     "note": "households.ts:167-179"
   },
   {
@@ -1497,8 +1497,8 @@
     "kind": "invariant",
     "rule": "creditsRemaining is a generated column = COALESCE(credits_unlocked,credits_total)-credits_used; cannot be written directly.",
     "screen": "/dashboard/packages/instances",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "packages/approval-flow.lifecycle.spec.ts",
     "note": "package-instances.ts:69-73"
   },
   {
@@ -1507,8 +1507,8 @@
     "kind": "invariant",
     "rule": "package_instances.purchase_number is globally unique.",
     "screen": "/dashboard/packages/instances",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "packages/approval-flow.lifecycle.spec.ts",
     "note": "package-instances.ts:50"
   },
   {
@@ -1517,8 +1517,8 @@
     "kind": "invariant",
     "rule": "assignTrainer requires status='pending' (else BAD_REQUEST); a 'failed' paymentStatus blocks assignment; trainer self-assign only with hierarchyScopeId==service branchId.",
     "screen": "/dashboard/packages/instances",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "packages/approval-flow.lifecycle.spec.ts",
     "note": "package-instances/assign.procedures.ts:54-114"
   },
   {
@@ -1527,8 +1527,8 @@
     "kind": "invariant",
     "rule": "On purchased packages with approval gate ON, create() forces status='pending'; staff-assigned (source!=purchased) bypass the gate.",
     "screen": "/dashboard/packages/instances",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "packages/approval-flow.lifecycle.spec.ts",
     "note": "package-instances/create.procedures.ts:124-137"
   },
   {
@@ -1537,8 +1537,8 @@
     "kind": "invariant",
     "rule": "Installment-plan create scales totalPrice and taxAmount by (10000+price_premium_bps)/10000; createPackageInstance + createInstallmentSchedule are atomic.",
     "screen": "/dashboard/packages/instances",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "packages/approval-flow.lifecycle.spec.ts",
     "note": "package-instances/create.procedures.ts:88-99,141-190"
   },
   {
@@ -1768,8 +1768,8 @@
     "op": "hierarchy.createNode",
     "screen": "/dashboard/branch",
     "permission": "hierarchy_management:create",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "branch/hierarchy.lifecycle.spec.ts",
     "danger": "none",
     "note": "hierarchy/create.procedures.ts:23"
   },
@@ -1780,8 +1780,8 @@
     "op": "hierarchy.updateNode",
     "screen": "/dashboard/branch",
     "permission": "hierarchy_management:update",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "branch/hierarchy.lifecycle.spec.ts",
     "danger": "none",
     "note": "hierarchy/update.procedures.ts:21"
   },
@@ -1792,8 +1792,8 @@
     "op": "hierarchy.moveNode",
     "screen": "/dashboard/branch",
     "permission": "hierarchy_management:update",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "branch/hierarchy.lifecycle.spec.ts",
     "danger": "none",
     "note": "hierarchy/move.procedures.ts:15"
   },
@@ -1804,8 +1804,8 @@
     "op": "hierarchy.deleteNode",
     "screen": "/dashboard/branch",
     "permission": "hierarchy_management:delete",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "branch/hierarchy.lifecycle.spec.ts",
     "danger": "irreversible",
     "note": "hierarchy/delete.procedures.ts:19"
   },
@@ -1816,8 +1816,8 @@
     "op": "hierarchy.reassignMember",
     "screen": "/dashboard/access-control/user-assignment",
     "permission": "user_management:update",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "branch/hierarchy.lifecycle.spec.ts",
     "danger": "none",
     "note": "hierarchy/members.procedures.ts:67"
   },
@@ -1828,8 +1828,8 @@
     "op": "branchInvites.create",
     "screen": "/dashboard/onboarding",
     "permission": "hierarchy_management:create",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "branch/hierarchy.lifecycle.spec.ts",
     "danger": "none",
     "note": "branch-invites.ts:41"
   },
@@ -1840,8 +1840,8 @@
     "op": "branchInvites.revoke",
     "screen": "/dashboard/onboarding",
     "permission": "hierarchy_management:delete",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "branch/hierarchy.lifecycle.spec.ts",
     "danger": "irreversible",
     "note": "branch-invites.ts:144"
   },
@@ -1853,7 +1853,7 @@
     "screen": "/dashboard/settings/organization",
     "permission": "organization_settings:update",
     "status": "covered",
-    "specFile": "settings/installment-plans-duplicate-code.rule.spec.ts",
+    "specFile": "settings/google-calendar.detail.spec.ts",
     "danger": "none",
     "note": "organization-settings.ts:23"
   },
@@ -1984,8 +1984,8 @@
     "op": "auditLogs.list",
     "screen": "/dashboard/audit",
     "permission": "audit_log:read",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "audit/audit-log.rule.spec.ts",
     "danger": "none",
     "note": "audit-logs.ts:26"
   },
@@ -1996,8 +1996,8 @@
     "op": "notifications.markRead",
     "screen": "/dashboard/notifications",
     "permission": null,
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "notifications/notifications.rule.spec.ts",
     "danger": "none",
     "note": "notifications.ts:66"
   },
@@ -2009,7 +2009,7 @@
     "screen": "/dashboard/reports",
     "permission": "reports:export",
     "status": "covered",
-    "specFile": "settings/installment-plans-duplicate-code.rule.spec.ts",
+    "specFile": "settings/google-calendar.detail.spec.ts",
     "danger": "none",
     "note": "scheduled-reports.ts:45"
   },
@@ -2021,7 +2021,7 @@
     "screen": "/dashboard/reports",
     "permission": "reports:export",
     "status": "covered",
-    "specFile": "settings/installment-plans-duplicate-code.rule.spec.ts",
+    "specFile": "settings/google-calendar.detail.spec.ts",
     "danger": "irreversible",
     "note": "scheduled-reports.ts:74"
   },
@@ -2238,8 +2238,8 @@
     "kind": "invariant",
     "rule": "auditLogs.list/exportCsv pass accessibleNodeIds so a non-admin sees only audit rows for branches in their scope.",
     "screen": "/dashboard/audit",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "audit/audit-log.rule.spec.ts",
     "note": "audit-logs.ts:53,85"
   },
   {
@@ -2248,8 +2248,8 @@
     "kind": "invariant",
     "rule": "All notifications/preferences procedures scope to session.user.id; markRead → NOT_FOUND when the notification id does not belong to that user.",
     "screen": "/dashboard/notifications",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "notifications/notifications.rule.spec.ts",
     "note": "notifications.ts:32-37,84-94"
   },
   {
@@ -2259,7 +2259,7 @@
     "rule": "scheduledReports.create rejects recipients that are not all valid comma-separated emails; create/delete/toggle require reports:export, list requires reports:read.",
     "screen": "/dashboard/reports",
     "status": "covered",
-    "specFile": "settings/installment-plans-duplicate-code.rule.spec.ts",
+    "specFile": "settings/google-calendar.detail.spec.ts",
     "note": "scheduled-reports.ts:17-29"
   },
   {
@@ -2370,7 +2370,7 @@
     "screen": "/dashboard/packages/installments/view",
     "permission": "service_management:update",
     "status": "covered",
-    "specFile": "settings/installment-plans-duplicate-code.rule.spec.ts",
+    "specFile": "settings/google-calendar.detail.spec.ts",
     "danger": "irreversible",
     "note": "installments.ts:32"
   },
@@ -2382,7 +2382,7 @@
     "screen": "/dashboard/packages/installments/view",
     "permission": "service_management:update",
     "status": "covered",
-    "specFile": "settings/installment-plans-duplicate-code.rule.spec.ts",
+    "specFile": "settings/google-calendar.detail.spec.ts",
     "danger": "irreversible",
     "note": "installments.ts:342"
   },
@@ -2394,7 +2394,7 @@
     "screen": "/dashboard/packages/installments/view",
     "permission": "service_management:update",
     "status": "covered",
-    "specFile": "settings/installment-plans-duplicate-code.rule.spec.ts",
+    "specFile": "settings/google-calendar.detail.spec.ts",
     "danger": "none",
     "note": "installments.ts:322"
   },
@@ -2406,7 +2406,7 @@
     "screen": "/dashboard/settings/installment-plans",
     "permission": "service_management:update",
     "status": "covered",
-    "specFile": "settings/installment-plans-duplicate-code.rule.spec.ts",
+    "specFile": "settings/google-calendar.detail.spec.ts",
     "danger": "none",
     "note": "installment-plans.ts:87,147,208,226"
   },
@@ -2578,8 +2578,8 @@
     "kind": "invariant",
     "rule": "Cancellation numbers use nextval('tenant_cancellation_seq') so they are globally monotonic and collision-free under concurrent cancellations (no COUNT()+1 race); sales_orders.cancellation_number is UNIQUE.",
     "screen": "/dashboard/cancelled-sales/view",
-    "status": "uncovered",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "cancelled-sales/cancellation-number.rule.spec.ts",
     "note": "migration 0080:12; sales-order.service.ts:62-75; UNIQUE sales-orders.ts:52"
   },
   {
@@ -2588,9 +2588,10 @@
     "kind": "invariant",
     "rule": "A cancellation reuses an order's existing cancellationNumber if set, else mints a new one (an order never gets two cancellation numbers).",
     "screen": "/dashboard/cancelled-sales/view",
-    "status": "uncovered",
+    "status": "deferred",
     "specFile": null,
-    "note": "refunds.service.ts:937-939"
+    "note": "refunds.service.ts:937-939",
+    "deferReason": "reuse-not-implemented — cancelSalesOrder always mints a fresh nextval; never reuses an existing cancellationNumber. Product gap, see findings.md."
   },
   {
     "module": "sales",
@@ -2642,7 +2643,7 @@
     "rule": "(packageInstanceId, installmentNumber) is UNIQUE — a package instance cannot have two installments with the same number.",
     "screen": "/dashboard/packages/installments/view",
     "status": "covered",
-    "specFile": "settings/installment-plans-duplicate-code.rule.spec.ts",
+    "specFile": "settings/google-calendar.detail.spec.ts",
     "note": "schema/tenant/installments.ts:30"
   },
   {
@@ -2652,7 +2653,7 @@
     "rule": "pricePremiumBps must be in [0,10000]; numInstallments >= 1; duplicate code → CONFLICT.",
     "screen": "/dashboard/settings/installment-plans",
     "status": "covered",
-    "specFile": "settings/installment-plans-duplicate-code.rule.spec.ts",
+    "specFile": "settings/google-calendar.detail.spec.ts",
     "note": "installment-plans.ts:93,98,121-142"
   },
   {

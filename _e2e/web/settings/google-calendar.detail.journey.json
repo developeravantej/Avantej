@@ -1,0 +1,8 @@
+{
+  "settings/google-calendar.detail.spec.ts::Google Calendar settings renders typed content (no crash)": [
+    "Start logged-in as the tenant admin.",
+    "Load /dashboard/settings/google-calendar (the refactored page whose orgStatus + listConnectedCalendars queries had their `as any` casts removed).",
+    "Assert no ErrorBoundary crash.",
+    "Assert the page renders its 'Google Calendar' content — proving the now-typed query data still drives the UI correctly."
+  ]
+}

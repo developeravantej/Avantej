@@ -723,5 +723,154 @@
     "Load /dashboard/access-control/roles in the staff browser session.",
     "Assert the page renders without crashing.",
     "Assert there is NO New/Create/Add role button — the UI hides what the server also blocks (defence-in-depth)."
+  ],
+  "sales/sales-detail-direct.detail.spec.ts::Sale detail ($id) renders order content + Cancel dialog opens (no submit)": [
+    "Start logged-in as the tenant admin.",
+    "Fetch a real sales-order id from the API (salesOrders.list) so the test isn't dependent on the list view showing rows.",
+    "Navigate directly to /dashboard/sales/<id> (the refactored $id detail page).",
+    "Assert no ErrorBoundary / 'order not found' crash.",
+    "Assert real order content renders: the order number, the 'Total Amount' label, and 'Created By' (which reads order.createdByName — the field whose `as any` cast was removed).",
+    "Open the Cancel Sale dialog (extracted CancelSaleDialog), assert it shows, then Escape-close it — never submit, because cancelling a sale is irreversible."
+  ],
+  "settings/google-calendar.detail.spec.ts::Google Calendar settings renders typed content (no crash)": [
+    "Start logged-in as the tenant admin.",
+    "Load /dashboard/settings/google-calendar (the refactored page whose orgStatus + listConnectedCalendars queries had their `as any` casts removed).",
+    "Assert no ErrorBoundary crash.",
+    "Assert the page renders its 'Google Calendar' content — proving the now-typed query data still drives the UI correctly."
+  ],
+  "branch/hierarchy.lifecycle.spec.ts::createNode → updateNode → moveNode → deleteNode (API-verified)": [
+    "Locate the org-root hierarchy node",
+    "createNode two countries under the root + a state under the first country",
+    "List nodes and assert the new state is present",
+    "updateNode to rename the state; assert the new name",
+    "moveNode the state under the second country; assert its parentId changed",
+    "deleteNode the state and both countries; assert all are gone from the tree"
+  ],
+  "branch/reassign-and-invites.lifecycle.spec.ts::reassignMember moves a member to a new node and back": [
+    "Create a disposable destination node",
+    "Pick a non-admin active member and snapshot its current scope",
+    "reassignMember to the temp node; re-read and assert the new scope",
+    "Restore the member to its original scope (finally)",
+    "Assert the restore landed and delete the temp node"
+  ],
+  "branch/reassign-and-invites.lifecycle.spec.ts::branchInvites — create returns a token, list strips it, revoke removes it": [
+    "branchInvites/create for the deepest branch; assert an id + raw token are returned",
+    "List invites and assert the invite is present with the token stripped",
+    "branchInvites/revoke the invite",
+    "Re-list and assert the invite is no longer active"
+  ],
+  "members/member.lifecycle.spec.ts::create → suspend/reactivate → role → scope → deactivate → softDelete/restore → remove": [
+    "Create a disposable member from a spare registered account; assert present",
+    "suspend then reactivate; assert status toggles suspended→active",
+    "updateRole to trainer; assert role changed",
+    "updateScope to an alternate node; assert scope changed",
+    "deactivate; assert status inactive",
+    "softDelete; assert it drops out of the default list",
+    "restore; assert it reappears",
+    "remove; assert the member is gone"
+  ],
+  "members/member.rule.spec.ts::a userId can be a member only once (duplicate → CONFLICT)": [
+    "Add a disposable member from a spare account (register teardown remove)",
+    "Attempt to add the same userId/email again",
+    "Assert the second create is rejected (CONFLICT)"
+  ],
+  "members/member.rule.spec.ts::the last admin cannot be removed (BAD_REQUEST)": [
+    "List members and count active admins",
+    "Only when exactly one admin exists (removal guaranteed to be rejected, never executed)",
+    "Attempt members/remove on the sole admin and assert BAD_REQUEST"
+  ],
+  "members/member.rule.spec.ts::a non-admin is forbidden from mutating an out-of-scope member": [
+    "As admin, find a member outside the staff user's scope (org-root admin)",
+    "As the seeded staff (non-admin) session, attempt members/updateRole on that member",
+    "Assert the server returns FORBIDDEN"
+  ],
+  "packages/approval-flow.lifecycle.spec.ts::approval gate forces purchased packages to pending, then confirmPayment + assignTrainer activates": [
+    "Create a purchased package instance",
+    "Assert the approval gate forced status to pending",
+    "confirmPayment for the instance",
+    "assignTrainer with an active trainer; assert status becomes active"
+  ],
+  "packages/approval-flow.lifecycle.spec.ts::reject transitions a pending purchased package to cancelled": [
+    "Create a purchased package instance (forced pending)",
+    "reject the pending package with a reason",
+    "Assert status becomes cancelled"
+  ],
+  "packages/package-instance.lifecycle.spec.ts::create → freeze → unfreeze → extend → cancel (API-verified)": [
+    "Create an assigned, paid package instance; assert it lands active",
+    "freeze; assert status frozen",
+    "unfreeze; assert status active",
+    "extend by 30 days; assert expiresAt moved forward",
+    "cancel; assert status cancelled"
+  ],
+  "packages/package-instance.rule.spec.ts::creditsRemaining is generated = creditsTotal - creditsUsed": [
+    "Create an instance with creditsTotal 10 and creditsUsed 3",
+    "Assert the generated creditsRemaining equals 7 (cannot be written directly)"
+  ],
+  "packages/package-instance.rule.spec.ts::purchase_number is globally unique": [
+    "Create an instance with an explicit purchaseNumber",
+    "Attempt a second create reusing the same purchaseNumber",
+    "Assert the duplicate is rejected"
+  ],
+  "packages/package-instance.rule.spec.ts::assignTrainer requires status=pending (rejected on an active package)": [
+    "Create an assigned, paid instance (status active)",
+    "Attempt assignTrainer on the active instance",
+    "Assert BAD_REQUEST (package is not pending)"
+  ],
+  "packages/package-instance.rule.spec.ts::installment plan price premium scales totalPrice and taxAmount": [
+    "Create a premium installment plan (pricePremiumBps 1000)",
+    "Create a purchased instance on that plan with base price 5000 / tax 100",
+    "Assert the server scaled totalPrice to 5500 and tax to 110"
+  ],
+  "goods-receipts/receipt-invoice.lifecycle.spec.ts::create receipt → invoice → matchInvoice → markInvoicePaid (API-verified)": [
+    "Build supplier → product → purchase order → goods receipt (deps)",
+    "Create a supplier invoice matching the PO total",
+    "Preview the invoice and assert the three totals are within tolerance",
+    "matchInvoice; assert status becomes matched",
+    "markInvoicePaid; assert status becomes paid"
+  ],
+  "goods-receipts/three-way-match.rule.spec.ts::damaged units do not enter sellable stock (stock += received - damaged)": [
+    "Build supplier → product → PO (no receipt yet); read pre-receipt stock",
+    "Create a receipt for 10 received with 2 damaged",
+    "Re-read stock and assert it increased by exactly 8 (received - damaged)"
+  ],
+  "goods-receipts/three-way-match.rule.spec.ts::3-way match fails when invoice total is outside tolerance": [
+    "Build supplier → product → PO → receipt",
+    "Create an invoice whose total is far outside tolerance",
+    "matchInvoice and assert it is rejected (3-way match failed)"
+  ],
+  "goods-receipts/three-way-match.rule.spec.ts::a paid invoice is not editable (only pending/disputed are)": [
+    "Build the chain and create a matching invoice",
+    "matchInvoice then markInvoicePaid",
+    "Attempt updateInvoice and assert it is rejected (cannot edit a paid invoice)"
+  ],
+  "audit/audit-log.rule.spec.ts::admin can list audit logs": [
+    "As admin, call auditLogs/list",
+    "Assert rows are returned (the tenant has activity)"
+  ],
+  "audit/audit-log.rule.spec.ts::a non-admin (staff) is forbidden from reading audit logs": [
+    "Open a staff (non-admin) request context",
+    "Call auditLogs/list as staff",
+    "Assert the server returns FORBIDDEN"
+  ],
+  "notifications/notifications.rule.spec.ts::markRead on a notification id the user does not own → NOT_FOUND": [
+    "Call notifications/markRead with a well-formed but non-owned id",
+    "Assert the server returns NOT_FOUND (per-user scoping)"
+  ],
+  "notifications/notifications.rule.spec.ts::markRead marks an owned unread notification as read (if any exist)": [
+    "List the user's unread notifications",
+    "markRead the first unread notification",
+    "Re-list unread and assert it is no longer present"
+  ],
+  "households/primary-contact.rule.spec.ts::removing the primary-contact profile nulls household.primaryContactProfileId": [
+    "Pick a customer and ensure a customer profile exists (upsertForCustomer)",
+    "Create a household with that profile as primaryContactProfileId",
+    "Assert households/get shows the primary contact set",
+    "removeMember for that profile",
+    "Assert households/get now shows primaryContactProfileId null"
+  ],
+  "cancelled-sales/cancellation-number.rule.spec.ts::two cancellations get distinct, monotonic CAN- numbers from the sequence": [
+    "Create a disposable sales order and cancel it; capture the cancellation number",
+    "Create and cancel a second disposable order; capture its number",
+    "Assert both match CAN-YYYYMMDD-NNNN, are distinct, and the sequence is monotonic"
   ]
 }

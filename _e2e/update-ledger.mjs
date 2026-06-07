@@ -43,7 +43,7 @@ const ALIAS = {
 	rbac: [],
 	"multi-tenant": [],
 	saas: [],
-	households: [],
+	households: ["households"],
 	cancelled_sales: ["cancelled-sales"],
 };
 const foldersFor = (m) => ALIAS[m] ?? [m];
@@ -61,6 +61,20 @@ const rbacCovered = specs.some((s) => /rbac-staff/.test(s.file) && s.ok);
 
 // Explicit deferrals (rows that need infra we don't have this loop).
 const DEFER = [
+	{
+		// FINDING: cancelSalesOrder (sales-order.service.ts) mints a fresh
+		// nextval('tenant_cancellation_seq') on EVERY call — it never reuses an
+		// order's existing cancellationNumber. The documented "reuse if set"
+		// invariant is NOT implemented. Deferred-with-finding; priority so it stays
+		// deferred even though the cancelled-sales module has a passing deep spec.
+		// See _e2e/findings.md.
+		priority: true,
+		match: (r) =>
+			r.module === "cancelled-sales" &&
+			/reuse|existing cancellationNumber|never gets two/i.test(r.rule || ""),
+		reason:
+			"reuse-not-implemented — cancelSalesOrder always mints a fresh nextval; never reuses an existing cancellationNumber. Product gap, see findings.md.",
+	},
 	{
 		match: (r) =>
 			r.module === "multi-tenant" ||
@@ -119,6 +133,14 @@ let covered = 0,
 for (const r of ledger) {
 	// deferrals first
 	const d = DEFER.find((x) => x.match(r));
+	// A PRIORITY deferral wins even over a passing module-level deep spec — used
+	// for a documented gap/finding inside a module that is otherwise covered.
+	if (d && d.priority && !d.cover) {
+		r.status = "deferred";
+		r.deferReason = d.reason;
+		deferred++;
+		continue;
+	}
 	const folders = foldersFor(r.module);
 	const deepHere = folders.flatMap((f) => deepByModule[f] ?? []);
 	if (deepHere.length) {
