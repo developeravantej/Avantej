@@ -2066,7 +2066,7 @@
     "rule": "An organizationId that resolves to no organization row returns HTTP 403 BEFORE getTenantDb — a forged org id never reaches a handler.",
     "screen": "all /dashboard screens",
     "status": "covered",
-    "specFile": "multi-tenant/unknown-org.isolation.spec.ts",
+    "specFile": "multi-tenant/second-tenant.isolation.spec.ts",
     "note": "orpc-tenant.middleware.ts:149-154",
     "deferReason": "No second tenant available this loop — isolation specs deferred."
   },

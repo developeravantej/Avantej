@@ -942,5 +942,25 @@
     "Confirm the SetupIntent with a test card via the Stripe API",
     "Poll listSavedCards until the setup_intent.succeeded webhook stores the card",
     "Call payments/chargeSavedCard off-session; assert the charge succeeds for the amount"
+  ],
+  "multi-tenant/second-tenant.isolation.spec.ts::the admin (member of org A only) is denied on org B": [
+    "Read org B id from _e2e/.auth/orgB.json (provisioned by seed-second-tenant.ts)",
+    "As the franchisee admin (member of org A only), call tenant procedures for org B",
+    "Assert each is rejected (403/404) — no member row in org B"
+  ],
+  "saas/saas-state.rule.spec.ts::suspended/cancelled tenant returns 403 on tenant procedures": [
+    "Set org B paymentStatus to suspended/cancelled via seed-second-tenant.ts --set-status",
+    "As an org B member, call a tenant procedure",
+    "Assert 403 with the state name in the body"
+  ],
+  "saas/saas-state.rule.spec.ts::past-due tenant is read-only: a write procedure is blocked, a read succeeds": [
+    "Set org B to past_due (past grace)",
+    "As an org B member, call a read procedure → assert 200",
+    "Call a write procedure (createNode) → assert 403 (read-only)"
+  ],
+  "multi-tenant/second-tenant.isolation.spec.ts::a member of org B sees org B data but is denied on org A": [
+    "As an org B member session, list org B hierarchy nodes (proves per-org tenantDb routing)",
+    "Call the same procedure for org A",
+    "Assert org A is rejected (not a member there)"
   ]
 }
