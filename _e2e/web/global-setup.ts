@@ -33,6 +33,19 @@ const ROLES: Array<{
 		password: process.env.E2E_STAFF_PASSWORD ?? "password123",
 		required: false,
 	},
+	// Second-tenant (org B) owner — only when E2E_SECOND_TENANT=1 (a provisioned
+	// org B exists). Captures _e2e/.auth/orgB-session.json for the isolation/saas
+	// specs. Best-effort: skips if the login can't resolve org B.
+	...(process.env.E2E_SECOND_TENANT === "1"
+		? [
+				{
+					name: "orgB-session",
+					email: process.env.E2E_ORGB_EMAIL ?? "developer.avantej@gmail.com",
+					password: process.env.E2E_ORGB_PASSWORD ?? "password123",
+					required: false,
+				},
+			]
+		: []),
 ];
 
 async function loginRole(

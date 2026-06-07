@@ -57,9 +57,15 @@ test.describe("saas — subscription-state gating (org B)", () => {
 	test("past-due tenant is read-only: a write procedure is blocked, a read succeeds", async ({
 		playwright,
 	}) => {
+		// Past-due read-only is decided by require-active-saas-sub.middleware from the
+		// SUBSCRIPTION record + grace deadline (saas_subscriptions), NOT the org's
+		// paymentStatus column. It needs a past_due subscription whose grace has
+		// expired — gate on an explicit fixture flag so it skips until that's seeded.
 		test.skip(
-			!ENABLED || !existsSync(ORGB_SESSION) || SAAS_STATE !== "past_due",
-			"needs org B session + E2E_SAAS_STATE=past_due (past grace)",
+			!ENABLED ||
+				!existsSync(ORGB_SESSION) ||
+				process.env.E2E_SAAS_PASTDUE_SUBSCRIPTION !== "1",
+			"needs a past_due subscription past grace (saas_subscriptions fixture)",
 		);
 		const orgB = orgBId();
 		const b = await bCtx(playwright);

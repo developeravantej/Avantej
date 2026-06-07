@@ -77,7 +77,7 @@ const DEFER = [
 				r.module !== "multi-tenant" &&
 				/tenant (A|B)|isolation/i.test(r.rule || "")),
 		reason:
-			"Needs a second provisioned tenant + cross-tenant user. Deferred to a seeded loop.",
+			"VERIFIED GREEN 2026-06-07 against a provisioned org B (both cross-tenant directions) via seed-second-tenant.ts; deferred again only because org B was torn down. Re-provision to re-cover.",
 	},
 	{
 		match: (r) =>
@@ -91,7 +91,7 @@ const DEFER = [
 	{
 		match: (r) => r.module === "rbac" || r.module === "saas",
 		reason:
-			"Remaining RBAC node-scope + SaaS-state rows need a branch-scoped staff fixture / org paymentStatus flip. Deferred (staff-RBAC permission-denied IS covered).",
+			"SaaS suspended/cancelled VERIFIED GREEN 2026-06-07 against a provisioned org B (deferred again on teardown). past_due read-only needs a saas_subscriptions row past grace (subscription-based, not paymentStatus) — set E2E_SAAS_PASTDUE_SUBSCRIPTION=1 once seeded.",
 	},
 	{
 		match: (r) =>

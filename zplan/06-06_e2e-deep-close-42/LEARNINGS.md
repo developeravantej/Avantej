@@ -61,3 +61,41 @@
 Remaining 6 = multi-tenant 3 + saas 2 (need `seed-second-tenant.ts` provisioned — billable
 Neon branch, operator decision) + payment 1 (invoice has no standalone procedure — backend
 design question, not a test gap).
+
+## Second-tenant provisioning — DONE + verified (2026-06-07)
+
+**Provisioning bug found + fixed:** `getWorkersEnv()` in `apps/server/src/services/neon.service.ts`
+cached `undefined` when first called before the Workers env binding existed (import time),
+poisoning `getNeonApiKey` permanently → tenant provisioning 500'd with "NEON_API_KEY not set"
+even though the env WAS present at request time. Fix: only cache a resolved env; add a
+process.env fallback. After the fix, provisioning via the super-admin API succeeded.
+
+**How to provision (the script can't do it standalone — Workers-env-bound):**
+1. Provisioning code reads the Neon key from the Cloudflare Workers runtime, so run it through
+   the live dev server's super-admin API, not a bare `bun run`:
+   - login `developer.avantej@gmail.com` / **password123** (super_admin in `platform_admins`)
+     via `POST /api/auth/sign-in/email` (needs an `Origin` header).
+   - `POST /rpc/platformAdminTenants/provisionTenant {name,slug,country:"MY",ownerEmail}`.
+2. Accept the returned invite as the owner: `POST /rpc/invitations/accept {token,organizationId}`
+   → owner becomes an active admin + org hierarchy is bootstrapped.
+3. Capture the owner session: global-setup gains an `orgB-session` role when `E2E_SECOND_TENANT=1`.
+4. `seed-second-tenant.ts --teardown` deletes the Neon project + org row (needs NEON_API_KEY
+   exported from .dev.vars for the standalone delete).
+
+**Verified GREEN against a real provisioned org B (then torn down):**
+- multi-tenant: admin(A) denied on B ✓; B-member sees B + denied on A ✓ (both directions).
+- saas: suspended/cancelled → 403 with state name ✓ (toggle via `--set-status=suspended`).
+- NOT done: saas past_due read-only — it's decided by `require-active-saas-sub.middleware` from a
+  `saas_subscriptions` row + grace deadline (subscription-based, NOT org.paymentStatus), so it
+  needs a past_due subscription past grace. Gate: `E2E_SAAS_PASTDUE_SUBSCRIPTION=1`.
+- payment invoice — still no standalone procedure.
+
+So of the 6 deferred, **4 are verified-green and 1-command from re-covering** (re-provision org B);
+2 (past_due, invoice) need a subscription fixture / backend proc respectively.
+
+## Dev-server instability (operational)
+The wrangler dev server + vite repeatedly died mid-run under the full serial suite (~150 specs),
+aborting runs and (via partial report.json) corrupting the ledger sync. Mitigations used:
+guard the ledger sync on `specs >= 140`; restore `coverage-ledger.json`/`review.html` from git
+when a run aborts. For reliable full runs at this scale, use `shard-run.sh` (restarts the worker
+between shards).

@@ -58,11 +58,17 @@ function getWorkersEnv(): Env | undefined {
 
 	try {
 		const { env } = require("cloudflare:workers");
-		workersEnvCache = env;
-		return env;
+		// Only cache a successfully-resolved env. Caching `undefined` here poisons
+		// the lookup permanently: if this runs once at import time (before the
+		// Workers env binding is available) it would return undefined for the rest
+		// of the process even though request-time calls can resolve it.
+		if (env) {
+			workersEnvCache = env;
+			return env;
+		}
+		return undefined;
 	} catch {
-		// Not in Cloudflare Workers environment (e.g., in tests)
-		workersEnvCache = undefined;
+		// Not in the Cloudflare Workers runtime (e.g. tests / standalone scripts).
 		return undefined;
 	}
 }
@@ -76,7 +82,13 @@ function getNeonApiKey(providedEnv?: Env): string | undefined {
 		return providedEnv.NEON_API_KEY;
 	}
 
-	return getWorkersEnv()?.NEON_API_KEY;
+	// process.env fallback so standalone scripts (which load .env / export the key)
+	// and non-Workers contexts can resolve it too.
+	return (
+		getWorkersEnv()?.NEON_API_KEY ??
+		(globalThis as { process?: { env?: Record<string, string | undefined> } })
+			.process?.env?.NEON_API_KEY
+	);
 }
 
 /**
