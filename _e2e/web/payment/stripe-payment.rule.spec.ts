@@ -12,11 +12,12 @@ import {
 // All PaymentIntents are test-mode and never captured — no money moves. Appointments
 // are disposable (created here, cancelled in teardown), so no real row is mutated.
 //
-// Covered: createPaymentIntent (op), application_fee = computeApplicationFee,
-// the pi:appt:<id> idempotency key, and refund-requires-paid (PRECONDITION_FAILED).
-// Deferred (need deeper fixtures): chargeSavedCard (saved card), an actual refund
-// (a confirmed/paid PI), the no-Connect-account precondition (an account-less org),
-// and invoice create/update — see update-ledger.mjs.
+// Covered: createPaymentIntent (op), application_fee = computeApplicationFee, the
+// pi:appt:<id> idempotency key, refund-requires-paid (PRECONDITION_FAILED), and the
+// no-Connect-account precondition (a branch whose country has no onboarded account).
+// Deferred (need the Stripe webhook listener to flip DB state): chargeSavedCard
+// (saved card via SetupIntent), an actual refund (a confirmed/paid PI), and invoice
+// create/update — see update-ledger.mjs.
 
 let payableBranch: string | null | undefined;
 
