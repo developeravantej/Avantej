@@ -2430,10 +2430,10 @@
     "screen": "/dashboard/payment/view",
     "permission": "payments:create|update",
     "status": "deferred",
-    "specFile": null,
+    "specFile": "payment/stripe-payment.rule.spec.ts",
     "danger": "none",
     "note": "invoices.ts:95,139",
-    "deferReason": "Stripe money-movement ops not exercised (no live Connect account; avoids real charges). Deferred."
+    "deferReason": "Covered against the Stripe TEST sandbox: createPaymentIntent, application_fee, idempotency, refund-requires-paid. Remaining (chargeSavedCard, actual refund, no-account precondition, invoice) need saved-card / confirmed-PI / account-less-org fixtures. Deferred."
   },
   {
     "module": "payment",
@@ -2442,8 +2442,8 @@
     "op": "action:createPaymentIntent (Stripe)",
     "screen": "/dashboard/appointment/view",
     "permission": "protected (session+org)",
-    "status": "deferred",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "payment/stripe-payment.rule.spec.ts",
     "danger": "irreversible",
     "note": "server payments.ts:145 — Stripe Direct Charge; idempotencyKey pi:appt:<id>",
     "deferReason": "Stripe money-movement ops not exercised (no live Connect account; avoids real charges). Deferred."
@@ -2459,7 +2459,7 @@
     "specFile": null,
     "danger": "irreversible",
     "note": "server payments.ts:382 — Stripe refund + refund_application_fee",
-    "deferReason": "Stripe money-movement ops not exercised (no live Connect account; avoids real charges). Deferred."
+    "deferReason": "Covered against the Stripe TEST sandbox: createPaymentIntent, application_fee, idempotency, refund-requires-paid. Remaining (chargeSavedCard, actual refund, no-account precondition, invoice) need saved-card / confirmed-PI / account-less-org fixtures. Deferred."
   },
   {
     "module": "payment",
@@ -2472,7 +2472,7 @@
     "specFile": null,
     "danger": "irreversible",
     "note": "server payments.ts:560 — money moves immediately",
-    "deferReason": "Stripe money-movement ops not exercised (no live Connect account; avoids real charges). Deferred."
+    "deferReason": "Covered against the Stripe TEST sandbox: createPaymentIntent, application_fee, idempotency, refund-requires-paid. Remaining (chargeSavedCard, actual refund, no-account precondition, invoice) need saved-card / confirmed-PI / account-less-org fixtures. Deferred."
   },
   {
     "module": "sales",
@@ -2687,7 +2687,7 @@
     "status": "deferred",
     "specFile": null,
     "note": "server payments.ts:167-171,250-254",
-    "deferReason": "Stripe money-movement ops not exercised (no live Connect account; avoids real charges). Deferred."
+    "deferReason": "Covered against the Stripe TEST sandbox: createPaymentIntent, application_fee, idempotency, refund-requires-paid. Remaining (chargeSavedCard, actual refund, no-account precondition, invoice) need saved-card / confirmed-PI / account-less-org fixtures. Deferred."
   },
   {
     "module": "payment",
@@ -2695,8 +2695,8 @@
     "kind": "invariant",
     "rule": "Money-moving Stripe calls use deterministic idempotency keys (pi:appt:<id>, refund:appt:<id>, pi:appt:offsession:<id>) so retries cannot double-charge or double-refund.",
     "screen": "/dashboard/appointment/view",
-    "status": "deferred",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "payment/stripe-payment.rule.spec.ts",
     "note": "server payments.ts:198,436,657-659",
     "deferReason": "Stripe money-movement ops not exercised (no live Connect account; avoids real charges). Deferred."
   },
@@ -2706,8 +2706,8 @@
     "kind": "invariant",
     "rule": "Every charge/link computes application_fee_amount=computeApplicationFee(amount, acct.appFeeBps) from the tenant's SaaS tier — the platform fee is never omitted on a Direct Charge.",
     "screen": "/dashboard/appointment/view",
-    "status": "deferred",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "payment/stripe-payment.rule.spec.ts",
     "note": "server payments.ts:181,291,636,763,874",
     "deferReason": "Stripe money-movement ops not exercised (no live Connect account; avoids real charges). Deferred."
   },
@@ -2717,8 +2717,8 @@
     "kind": "invariant",
     "rule": "Stripe appointment refund requires paid + stripePaymentIntentId + stripeConnectAccountIdSnapshot; refunds always route to the snapshot Connect account, never a re-resolved one.",
     "screen": "/dashboard/appointment/view",
-    "status": "deferred",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "payment/stripe-payment.rule.spec.ts",
     "note": "server payments.ts:404-424",
     "deferReason": "Stripe money-movement ops not exercised (no live Connect account; avoids real charges). Deferred."
   }

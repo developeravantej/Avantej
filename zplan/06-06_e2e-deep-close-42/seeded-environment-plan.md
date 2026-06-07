@@ -9,9 +9,16 @@ or destructive shared-state changes. This document scopes exactly what each need
 
 | Module | Rows | What's blocked |
 |---|---|---|
-| payment | 8 | Stripe Connect money-movement (createPaymentIntent, chargeSavedCard, Stripe refund, application_fee, idempotency keys, precondition gates, invoice create/update) |
+| payment | 4 | actual refund (confirmed/paid PI), chargeSavedCard (saved card), no-Connect-account precondition (account-less org), invoice create/update |
 | multi-tenant | 3 | cross-tenant mismatch guard, per-tenant DB resolution, no-member-row FORBIDDEN |
 | saas | 2 | suspended/cancelled 403; past-due → read-only write block |
+
+> **UPDATE (2026-06-07):** The dev-shared Stripe **test** sandbox is already wired
+> (`sk_test_` + a charges-enabled Connect account `acct_…`), so 4 of the original 8
+> payment rows are now COVERED against the live test sandbox (createPaymentIntent,
+> application_fee = computeApplicationFee, the `pi:appt:<id>` idempotency key, and
+> refund-requires-paid). The 4 below remain — they need additional *test-mode*
+> fixtures, not new credentials.
 
 (The 4th multi-tenant row — unknown-org → 403 — and the rbac node-scope row were
 closed this session without infra.)

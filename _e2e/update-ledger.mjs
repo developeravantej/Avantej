@@ -43,6 +43,7 @@ const ALIAS = {
 	rbac: ["rbac"],
 	"multi-tenant": ["multi-tenant"],
 	saas: [],
+	payment: ["payment"],
 	households: ["households"],
 	cancelled_sales: ["cancelled-sales"],
 };
@@ -109,9 +110,21 @@ const DEFER = [
 			"Needs an appointment-completion → commission chain; covered by appointment-assignments unit tests. E2E deferred.",
 	},
 	{
-		match: (r) => r.module === "payment",
+		// createPaymentIntent + application_fee + idempotency + refund-requires-paid
+		// ARE covered against the dev-shared Stripe TEST sandbox. The deeper money
+		// flows still need fixtures: chargeSavedCard (a saved card via SetupIntent),
+		// an actual refund (a confirmed/paid PI), the no-Connect-account precondition
+		// (an account-less org), and invoice create/update. priority so these stay
+		// deferred despite the payment folder having passing specs.
+		priority: true,
+		match: (r) =>
+			r.module === "payment" &&
+			(r.entity === "invoice" ||
+				/chargeSavedCard|saved card|off_session|action:refund|sendPaymentLink reject|PRECONDITION_FAILED when the a|not connected/i.test(
+					`${r.op || ""} ${r.rule || ""}`,
+				)),
 		reason:
-			"Stripe money-movement ops not exercised (no live Connect account; avoids real charges). Deferred.",
+			"Covered against the Stripe TEST sandbox: createPaymentIntent, application_fee, idempotency, refund-requires-paid. Remaining (chargeSavedCard, actual refund, no-account precondition, invoice) need saved-card / confirmed-PI / account-less-org fixtures. Deferred.",
 	},
 	{
 		match: (r) =>

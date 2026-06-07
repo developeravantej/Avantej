@@ -904,5 +904,25 @@
   "multi-tenant/unknown-org.isolation.spec.ts::a request for a non-existent organizationId is rejected (403)": [
     "As admin, call a tenant procedure with a well-formed UUID that maps to no organization",
     "Assert the tenant middleware rejects it with 403 before the handler runs"
+  ],
+  "payment/stripe-payment.rule.spec.ts::createPaymentIntent returns a PI on the org Connect account with an application fee": [
+    "Find a Connect-enabled branch and create a disposable confirmed appointment (amount 10000)",
+    "Call payments/createPaymentIntent against the Stripe test sandbox",
+    "Assert it returns a clientSecret, an acct_ Connect account, amount 10000, and a positive application fee below the amount"
+  ],
+  "payment/stripe-payment.rule.spec.ts::createPaymentIntent is idempotent per appointment (pi:appt:<id>)": [
+    "Create a disposable appointment on a Connect-enabled branch",
+    "Call createPaymentIntent twice for the same appointment",
+    "Assert both return the same paymentIntentId (pi:appt:<id> idempotency key)"
+  ],
+  "payment/stripe-payment.rule.spec.ts::application_fee_amount = computeApplicationFee(amount, bps) — scales linearly": [
+    "Create two disposable appointments with amounts A and 2A",
+    "createPaymentIntent for each",
+    "Assert the fee for 2A is exactly double the fee for A (proves floor(amount*bps/10000))"
+  ],
+  "payment/stripe-payment.rule.spec.ts::refund requires a paid appointment (PRECONDITION_FAILED)": [
+    "Create a disposable unpaid appointment",
+    "Call payments/refund on it",
+    "Assert PRECONDITION_FAILED (refund requires a paid appointment with a PaymentIntent)"
   ]
 }
