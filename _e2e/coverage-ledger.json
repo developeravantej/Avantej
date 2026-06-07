@@ -2046,7 +2046,7 @@
     "status": "deferred",
     "specFile": null,
     "note": "guards.ts:20-32 assertOrgContextMatch",
-    "deferReason": "No second tenant available this loop — isolation specs deferred."
+    "deferReason": "Needs a second provisioned tenant + cross-tenant user. Deferred to a seeded loop."
   },
   {
     "module": "multi-tenant",
@@ -2057,7 +2057,7 @@
     "status": "deferred",
     "specFile": null,
     "note": "orpc-tenant.middleware.ts:199-222; context.ts:27-31",
-    "deferReason": "No second tenant available this loop — isolation specs deferred."
+    "deferReason": "Needs a second provisioned tenant + cross-tenant user. Deferred to a seeded loop."
   },
   {
     "module": "multi-tenant",
@@ -2065,8 +2065,8 @@
     "kind": "invariant",
     "rule": "An organizationId that resolves to no organization row returns HTTP 403 BEFORE getTenantDb — a forged org id never reaches a handler.",
     "screen": "all /dashboard screens",
-    "status": "deferred",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "multi-tenant/unknown-org.isolation.spec.ts",
     "note": "orpc-tenant.middleware.ts:149-154",
     "deferReason": "No second tenant available this loop — isolation specs deferred."
   },
@@ -2079,7 +2079,7 @@
     "status": "deferred",
     "specFile": null,
     "note": "orpc-tenant.middleware.ts:233-245; guards.ts:47-51",
-    "deferReason": "No second tenant available this loop — isolation specs deferred."
+    "deferReason": "Needs a second provisioned tenant + cross-tenant user. Deferred to a seeded loop."
   },
   {
     "module": "rbac",

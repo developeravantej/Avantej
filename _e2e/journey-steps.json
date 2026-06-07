@@ -900,5 +900,9 @@
     "As the seeded staff (non-admin) session, call hierarchy/listNodes",
     "If staff lacks the permission entirely, accept the FORBIDDEN boundary",
     "Otherwise assert the staff node set is non-empty and a strict subset of the admin tree"
+  ],
+  "multi-tenant/unknown-org.isolation.spec.ts::a request for a non-existent organizationId is rejected (403)": [
+    "As admin, call a tenant procedure with a well-formed UUID that maps to no organization",
+    "Assert the tenant middleware rejects it with 403 before the handler runs"
   ]
 }

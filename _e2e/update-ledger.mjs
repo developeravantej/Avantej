@@ -41,7 +41,7 @@ const ALIAS = {
 	trainers: ["trainers"],
 	"my-services": ["my-services"],
 	rbac: ["rbac"],
-	"multi-tenant": [],
+	"multi-tenant": ["multi-tenant"],
 	saas: [],
 	households: ["households"],
 	cancelled_sales: ["cancelled-sales"],
@@ -62,10 +62,21 @@ const rbacCovered = specs.some((s) => /rbac-staff/.test(s.file) && s.ok);
 // Explicit deferrals (rows that need infra we don't have this loop).
 const DEFER = [
 	{
+		// The unknown-org → 403 row IS covered (no second tenant needed). The
+		// cross-tenant mismatch / tenantDb-resolution / no-member rows genuinely
+		// need a second provisioned tenant + cross-tenant user. priority so they
+		// stay deferred even though the multi-tenant folder now has a passing spec.
+		priority: true,
 		match: (r) =>
-			r.module === "multi-tenant" ||
-			(r.kind === "invariant" && /tenant (A|B)|isolation/i.test(r.rule || "")),
-		reason: "No second tenant available this loop — isolation specs deferred.",
+			(r.module === "multi-tenant" &&
+				!/resolves to no organization|no organization row|403 BEFORE/i.test(
+					r.rule || "",
+				)) ||
+			(r.kind === "invariant" &&
+				r.module !== "multi-tenant" &&
+				/tenant (A|B)|isolation/i.test(r.rule || "")),
+		reason:
+			"Needs a second provisioned tenant + cross-tenant user. Deferred to a seeded loop.",
 	},
 	{
 		match: (r) =>

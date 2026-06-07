@@ -47,12 +47,12 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 </style></head><body>
 <header class="top">
 	<h1>E2E review</h1>
-	<div class="sub">142 tests · 142/142 pass · 137 recorded · 142 with journey</div>
+	<div class="sub">143 tests · 143/143 pass · 138 recorded · 143 with journey</div>
 	<div class="stats">
-		<div class="stat"><b>142</b><span>Tests</span></div>
-		<div class="stat" style="border-color:#bbf7d0"><b style="color:var(--ok)">142</b><span>Pass</span></div>
+		<div class="stat"><b>143</b><span>Tests</span></div>
+		<div class="stat" style="border-color:#bbf7d0"><b style="color:var(--ok)">143</b><span>Pass</span></div>
 		<div class="stat" style="border-color:#fecaca"><b style="color:var(--bad)">0</b><span>Fail</span></div>
-		<div class="stat"><b>137</b><span>Videos</span></div>
+		<div class="stat"><b>138</b><span>Videos</span></div>
 		<div class="stat" style="border-color:#bbf7d0"><b id="rev-count" style="color:var(--ok)">0</b><span>Reviewed</span></div>
 	</div>
 	<div class="controls">
@@ -71,7 +71,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Dashboard home loads with KPIs/widgets</h3>
-			<span class="dur">1.9s</span>
+			<span class="dur">2.4s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="home/smoke.spec.ts::Dashboard home loads with KPIs/widgets"><span>Reviewed</span>
 			</label>
@@ -79,14 +79,14 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<div class="meta"><code>home/smoke.spec.ts</code></div>
 		<div class="cols">
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Start logged-in as the tenant admin (franchisee@gmail.com).</li><li>Navigate to /dashboard.</li><li>Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.</li><li>Assert the route did not bounce to /login and did not crash into the &quot;Something went wrong&quot; ErrorBoundary.</li><li>Confirm page content (a heading) painted — Dashboard home with KPIs/widgets.</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/home-smoke-home-Dashboard-home-loads-with-KPIs-widgets/video.webm"></video><div class="vpath">results/test-artifacts/home-smoke-home-Dashboard-home-loads-with-KPIs-widgets/video.webm · 0.0 MB</div></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/home-smoke-home-Dashboard-home-loads-with-KPIs-widgets/video.webm"></video><div class="vpath">results/test-artifacts/home-smoke-home-Dashboard-home-loads-with-KPIs-widgets/video.webm · 0.1 MB</div></div>
 		</div>
 	</article></section><section class="cat"><h2>access-control <span style="font-weight:400">(13)</span></h2>
 	<article class="card pass" data-status="pass" data-video="1" data-id="access-control/rbac-staff.rbac.spec.ts::Staff does not see a create-role control on the roles page">
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Staff does not see a create-role control on the roles page</h3>
-			<span class="dur">3.0s</span>
+			<span class="dur">3.4s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="access-control/rbac-staff.rbac.spec.ts::Staff does not see a create-role control on the roles page"><span>Reviewed</span>
 			</label>
@@ -101,7 +101,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Staff is FORBIDDEN from creating a role (role_management:create)</h3>
-			<span class="dur">622ms</span>
+			<span class="dur">584ms</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="access-control/rbac-staff.rbac.spec.ts::Staff is FORBIDDEN from creating a role (role_management:create)"><span>Reviewed</span>
 			</label>
@@ -146,7 +146,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>rule: removing a permission from a system role is rejected (400)</h3>
-			<span class="dur">2.0s</span>
+			<span class="dur">2.1s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="access-control/role-permissions-system-role-immutable.rule.spec.ts::rule: removing a permission from a system role is rejected (400)"><span>Reviewed</span>
 			</label>
@@ -161,7 +161,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>rule: duplicate role name is rejected (409)</h3>
-			<span class="dur">2.0s</span>
+			<span class="dur">1.9s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="access-control/roles-duplicate-name.rule.spec.ts::rule: duplicate role name is rejected (409)"><span>Reviewed</span>
 			</label>
@@ -191,7 +191,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>rule: updating or deleting a system role is rejected (400)</h3>
-			<span class="dur">2.6s</span>
+			<span class="dur">2.4s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="access-control/roles-system-role-immutable.rule.spec.ts::rule: updating or deleting a system role is rejected (400)"><span>Reviewed</span>
 			</label>
@@ -206,7 +206,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Role lifecycle — create, list, update, delete (API-verified)</h3>
-			<span class="dur">4.4s</span>
+			<span class="dur">4.2s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="access-control/roles.lifecycle.spec.ts::Role lifecycle — create, list, update, delete (API-verified)"><span>Reviewed</span>
 			</label>
@@ -236,7 +236,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Permissions tab loads</h3>
-			<span class="dur">2.6s</span>
+			<span class="dur">3.6s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="access-control/smoke.spec.ts::Permissions tab loads"><span>Reviewed</span>
 			</label>
@@ -251,7 +251,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Roles tab loads</h3>
-			<span class="dur">2.7s</span>
+			<span class="dur">2.9s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="access-control/smoke.spec.ts::Roles tab loads"><span>Reviewed</span>
 			</label>
@@ -266,7 +266,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>User assignment (Staff Access) loads</h3>
-			<span class="dur">2.4s</span>
+			<span class="dur">2.7s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="access-control/smoke.spec.ts::User assignment (Staff Access) loads"><span>Reviewed</span>
 			</label>
@@ -281,7 +281,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>POS journey — open New Sale and search a member (no submit)</h3>
-			<span class="dur">5.6s</span>
+			<span class="dur">5.1s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="sales/pos-journey.spec.ts::POS journey — open New Sale and search a member (no submit)"><span>Reviewed</span>
 			</label>
@@ -296,7 +296,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Sale detail ($id) renders order content + Cancel dialog opens (no submit)</h3>
-			<span class="dur">4.3s</span>
+			<span class="dur">4.6s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="sales/sales-detail-direct.detail.spec.ts::Sale detail ($id) renders order content + Cancel dialog opens (no submit)"><span>Reviewed</span>
 			</label>
@@ -311,7 +311,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Sale detail opens from the list and shows order content</h3>
-			<span class="dur">3.1s</span>
+			<span class="dur">2.6s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="sales/sales.detail.spec.ts::Sale detail opens from the list and shows order content"><span>Reviewed</span>
 			</label>
@@ -326,7 +326,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>POS create page loads</h3>
-			<span class="dur">3.1s</span>
+			<span class="dur">2.3s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="sales/smoke.spec.ts::POS create page loads"><span>Reviewed</span>
 			</label>
@@ -334,14 +334,14 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<div class="meta"><code>sales/smoke.spec.ts</code></div>
 		<div class="cols">
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Start logged-in as the tenant admin (franchisee@gmail.com).</li><li>Navigate to /dashboard/sales/create.</li><li>Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.</li><li>Assert the route did not bounce to /login and did not crash into the &quot;Something went wrong&quot; ErrorBoundary.</li><li>Confirm page content (a heading) painted — POS create page.</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/sales-smoke-sales-POS-create-page-loads/video.webm"></video><div class="vpath">results/test-artifacts/sales-smoke-sales-POS-create-page-loads/video.webm · 0.1 MB</div></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/sales-smoke-sales-POS-create-page-loads/video.webm"></video><div class="vpath">results/test-artifacts/sales-smoke-sales-POS-create-page-loads/video.webm · 0.0 MB</div></div>
 		</div>
 	</article>
 	<article class="card pass" data-status="pass" data-video="1" data-id="sales/smoke.spec.ts::Sales list loads">
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Sales list loads</h3>
-			<span class="dur">3.1s</span>
+			<span class="dur">2.9s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="sales/smoke.spec.ts::Sales list loads"><span>Reviewed</span>
 			</label>
@@ -356,7 +356,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>rule: slot weightages must sum to 10000 (reject otherwise; exact sum succeeds)</h3>
-			<span class="dur">2.4s</span>
+			<span class="dur">2.5s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="commissions/category-commission-weightage-sum.rule.spec.ts::rule: slot weightages must sum to 10000 (reject otherwise; exact sum succeeds)"><span>Reviewed</span>
 			</label>
@@ -371,7 +371,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>rule: monthly_anchored anchorDay out of 1..28 is rejected; valid upsert succeeds</h3>
-			<span class="dur">3.1s</span>
+			<span class="dur">3.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="commissions/commission-cycle-anchor-day.rule.spec.ts::rule: monthly_anchored anchorDay out of 1..28 is rejected; valid upsert succeeds"><span>Reviewed</span>
 			</label>
@@ -386,7 +386,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>rule: manual adjustment targeting more than one entity is rejected (400)</h3>
-			<span class="dur">759ms</span>
+			<span class="dur">773ms</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="commissions/commission-splits-manual-adjustment-xor.rule.spec.ts::rule: manual adjustment targeting more than one entity is rejected (400)"><span>Reviewed</span>
 			</label>
@@ -401,7 +401,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Commissions journey — switch from My to All Commissions tab</h3>
-			<span class="dur">5.2s</span>
+			<span class="dur">5.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="commissions/commissions-journey.spec.ts::Commissions journey — switch from My to All Commissions tab"><span>Reviewed</span>
 			</label>
@@ -431,7 +431,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>My commissions loads</h3>
-			<span class="dur">3.0s</span>
+			<span class="dur">2.9s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="commissions/smoke.spec.ts::My commissions loads"><span>Reviewed</span>
 			</label>
@@ -476,7 +476,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Customer profile opens from the directory and shows profile content</h3>
-			<span class="dur">2.3s</span>
+			<span class="dur">2.2s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="customers/customers.detail.spec.ts::Customer profile opens from the directory and shows profile content"><span>Reviewed</span>
 			</label>
@@ -506,7 +506,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Walk-in customers loads</h3>
-			<span class="dur">2.8s</span>
+			<span class="dur">2.9s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="customers/smoke.spec.ts::Walk-in customers loads"><span>Reviewed</span>
 			</label>
@@ -521,7 +521,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>upsertForCustomer rejects an unknown target customer</h3>
-			<span class="dur">937ms</span>
+			<span class="dur">859ms</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="customers/upsert-for-customer-unknown-target.rule.spec.ts::upsertForCustomer rejects an unknown target customer"><span>Reviewed</span>
 			</label>
@@ -536,7 +536,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>adjustStock below zero is rejected (BAD_REQUEST)</h3>
-			<span class="dur">2.8s</span>
+			<span class="dur">2.4s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="products/adjust-stock-below-zero.rule.spec.ts::adjustStock below zero is rejected (BAD_REQUEST)"><span>Reviewed</span>
 			</label>
@@ -566,7 +566,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Product lifecycle — create, update, discontinue (API-verified)</h3>
-			<span class="dur">4.0s</span>
+			<span class="dur">4.2s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="products/products.lifecycle.spec.ts::Product lifecycle — create, update, discontinue (API-verified)"><span>Reviewed</span>
 			</label>
@@ -611,7 +611,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>creating a second default clears the prior default</h3>
-			<span class="dur">4.8s</span>
+			<span class="dur">4.6s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="tax-rates/default-uniqueness.rule.spec.ts::creating a second default clears the prior default"><span>Reviewed</span>
 			</label>
@@ -626,7 +626,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Tax rate lifecycle — create, update, deactivate (API-verified)</h3>
-			<span class="dur">4.1s</span>
+			<span class="dur">4.2s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="tax-rates/tax-rates.lifecycle.spec.ts::Tax rate lifecycle — create, update, deactivate (API-verified)"><span>Reviewed</span>
 			</label>
@@ -671,7 +671,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Promotions loads</h3>
-			<span class="dur">3.1s</span>
+			<span class="dur">2.6s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="promotions/smoke.spec.ts::Promotions loads"><span>Reviewed</span>
 			</label>
@@ -679,14 +679,14 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<div class="meta"><code>promotions/smoke.spec.ts</code></div>
 		<div class="cols">
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Start logged-in as the tenant admin (franchisee@gmail.com).</li><li>Navigate to /dashboard/promotions/view.</li><li>Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.</li><li>Assert the route did not bounce to /login and did not crash into the &quot;Something went wrong&quot; ErrorBoundary.</li><li>Confirm page content (a heading) painted — Promotions.</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/promotions-smoke-promotions-Promotions-loads/video.webm"></video><div class="vpath">results/test-artifacts/promotions-smoke-promotions-Promotions-loads/video.webm · 0.1 MB</div></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/promotions-smoke-promotions-Promotions-loads/video.webm"></video><div class="vpath">results/test-artifacts/promotions-smoke-promotions-Promotions-loads/video.webm · 0.0 MB</div></div>
 		</div>
 	</article></section><section class="cat"><h2>suppliers <span style="font-weight:400">(2)</span></h2>
 	<article class="card pass" data-status="pass" data-video="1" data-id="suppliers/smoke.spec.ts::Suppliers loads">
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Suppliers loads</h3>
-			<span class="dur">3.0s</span>
+			<span class="dur">2.9s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="suppliers/smoke.spec.ts::Suppliers loads"><span>Reviewed</span>
 			</label>
@@ -694,14 +694,14 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<div class="meta"><code>suppliers/smoke.spec.ts</code></div>
 		<div class="cols">
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Start logged-in as the tenant admin (franchisee@gmail.com).</li><li>Navigate to /dashboard/suppliers/view.</li><li>Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.</li><li>Assert the route did not bounce to /login and did not crash into the &quot;Something went wrong&quot; ErrorBoundary.</li><li>Confirm page content (a heading) painted — Suppliers.</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/suppliers-smoke-suppliers-Suppliers-loads/video.webm"></video><div class="vpath">results/test-artifacts/suppliers-smoke-suppliers-Suppliers-loads/video.webm · 0.1 MB</div></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/suppliers-smoke-suppliers-Suppliers-loads/video.webm"></video><div class="vpath">results/test-artifacts/suppliers-smoke-suppliers-Suppliers-loads/video.webm · 0.0 MB</div></div>
 		</div>
 	</article>
 	<article class="card pass" data-status="pass" data-video="1" data-id="suppliers/suppliers.lifecycle.spec.ts::Supplier lifecycle — create, update, deactivate (API-verified)">
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Supplier lifecycle — create, update, deactivate (API-verified)</h3>
-			<span class="dur">4.3s</span>
+			<span class="dur">4.2s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="suppliers/suppliers.lifecycle.spec.ts::Supplier lifecycle — create, update, deactivate (API-verified)"><span>Reviewed</span>
 			</label>
@@ -761,7 +761,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Installment plan lifecycle — create, update, deactivate (API-verified)</h3>
-			<span class="dur">4.3s</span>
+			<span class="dur">4.5s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="settings/installment-plans.lifecycle.spec.ts::Installment plan lifecycle — create, update, deactivate (API-verified)"><span>Reviewed</span>
 			</label>
@@ -791,7 +791,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Commission cycles settings loads</h3>
-			<span class="dur">1.9s</span>
+			<span class="dur">1.7s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="settings/smoke.spec.ts::Commission cycles settings loads"><span>Reviewed</span>
 			</label>
@@ -799,14 +799,14 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<div class="meta"><code>settings/smoke.spec.ts</code></div>
 		<div class="cols">
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Start logged-in as the tenant admin (franchisee@gmail.com).</li><li>Navigate to /dashboard/settings/commission-cycles.</li><li>Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.</li><li>Assert the route did not bounce to /login and did not crash into the &quot;Something went wrong&quot; ErrorBoundary.</li><li>Confirm page content (a heading) painted — Commission cycles settings.</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/settings-smoke-settings-Commission-cycles-settings-loads/video.webm"></video><div class="vpath">results/test-artifacts/settings-smoke-settings-Commission-cycles-settings-loads/video.webm · 0.1 MB</div></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/settings-smoke-settings-Commission-cycles-settings-loads/video.webm"></video><div class="vpath">results/test-artifacts/settings-smoke-settings-Commission-cycles-settings-loads/video.webm · 0.0 MB</div></div>
 		</div>
 	</article>
 	<article class="card pass" data-status="pass" data-video="1" data-id="settings/smoke.spec.ts::Google Calendar settings loads">
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Google Calendar settings loads</h3>
-			<span class="dur">1.7s</span>
+			<span class="dur">1.6s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="settings/smoke.spec.ts::Google Calendar settings loads"><span>Reviewed</span>
 			</label>
@@ -821,7 +821,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Installment plans settings loads</h3>
-			<span class="dur">3.0s</span>
+			<span class="dur">2.6s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="settings/smoke.spec.ts::Installment plans settings loads"><span>Reviewed</span>
 			</label>
@@ -829,14 +829,14 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<div class="meta"><code>settings/smoke.spec.ts</code></div>
 		<div class="cols">
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Start logged-in as the tenant admin (franchisee@gmail.com).</li><li>Navigate to /dashboard/settings/installment-plans.</li><li>Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.</li><li>Assert the route did not bounce to /login and did not crash into the &quot;Something went wrong&quot; ErrorBoundary.</li><li>Confirm page content (a heading) painted — Installment plans settings.</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/settings-smoke-settings-Installment-plans-settings-loads/video.webm"></video><div class="vpath">results/test-artifacts/settings-smoke-settings-Installment-plans-settings-loads/video.webm · 0.1 MB</div></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/settings-smoke-settings-Installment-plans-settings-loads/video.webm"></video><div class="vpath">results/test-artifacts/settings-smoke-settings-Installment-plans-settings-loads/video.webm · 0.0 MB</div></div>
 		</div>
 	</article>
 	<article class="card pass" data-status="pass" data-video="1" data-id="settings/smoke.spec.ts::Notification settings loads">
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Notification settings loads</h3>
-			<span class="dur">1.6s</span>
+			<span class="dur">1.5s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="settings/smoke.spec.ts::Notification settings loads"><span>Reviewed</span>
 			</label>
@@ -851,7 +851,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Organization settings loads</h3>
-			<span class="dur">3.1s</span>
+			<span class="dur">2.3s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="settings/smoke.spec.ts::Organization settings loads"><span>Reviewed</span>
 			</label>
@@ -859,14 +859,14 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<div class="meta"><code>settings/smoke.spec.ts</code></div>
 		<div class="cols">
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Start logged-in as the tenant admin (franchisee@gmail.com).</li><li>Navigate to /dashboard/settings/organization.</li><li>Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.</li><li>Assert the route did not bounce to /login and did not crash into the &quot;Something went wrong&quot; ErrorBoundary.</li><li>Confirm page content (a heading) painted — Organization settings.</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/settings-smoke-settings-Organization-settings-loads/video.webm"></video><div class="vpath">results/test-artifacts/settings-smoke-settings-Organization-settings-loads/video.webm · 0.1 MB</div></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/settings-smoke-settings-Organization-settings-loads/video.webm"></video><div class="vpath">results/test-artifacts/settings-smoke-settings-Organization-settings-loads/video.webm · 0.0 MB</div></div>
 		</div>
 	</article>
 	<article class="card pass" data-status="pass" data-video="1" data-id="settings/smoke.spec.ts::Tax rates settings loads">
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Tax rates settings loads</h3>
-			<span class="dur">2.8s</span>
+			<span class="dur">2.6s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="settings/smoke.spec.ts::Tax rates settings loads"><span>Reviewed</span>
 			</label>
@@ -881,7 +881,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>approval gate forces purchased packages to pending, then confirmPayment + assignTrainer activates</h3>
-			<span class="dur">5.1s</span>
+			<span class="dur">5.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="packages/approval-flow.lifecycle.spec.ts::approval gate forces purchased packages to pending, then confirmPayment + assignTrainer activates"><span>Reviewed</span>
 			</label>
@@ -896,7 +896,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>reject transitions a pending purchased package to cancelled</h3>
-			<span class="dur">2.3s</span>
+			<span class="dur">2.4s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="packages/approval-flow.lifecycle.spec.ts::reject transitions a pending purchased package to cancelled"><span>Reviewed</span>
 			</label>
@@ -911,7 +911,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>create → freeze → unfreeze → extend → cancel (API-verified)</h3>
-			<span class="dur">4.6s</span>
+			<span class="dur">4.8s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="packages/package-instance.lifecycle.spec.ts::create → freeze → unfreeze → extend → cancel (API-verified)"><span>Reviewed</span>
 			</label>
@@ -926,7 +926,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>assignTrainer requires status=pending (rejected on an active package)</h3>
-			<span class="dur">2.1s</span>
+			<span class="dur">2.3s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="packages/package-instance.rule.spec.ts::assignTrainer requires status=pending (rejected on an active package)"><span>Reviewed</span>
 			</label>
@@ -956,7 +956,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>installment plan price premium scales totalPrice and taxAmount</h3>
-			<span class="dur">3.2s</span>
+			<span class="dur">3.1s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="packages/package-instance.rule.spec.ts::installment plan price premium scales totalPrice and taxAmount"><span>Reviewed</span>
 			</label>
@@ -1016,7 +1016,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Packages list loads</h3>
-			<span class="dur">2.4s</span>
+			<span class="dur">3.2s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="packages/smoke.spec.ts::Packages list loads"><span>Reviewed</span>
 			</label>
@@ -1024,14 +1024,14 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<div class="meta"><code>packages/smoke.spec.ts</code></div>
 		<div class="cols">
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Start logged-in as the tenant admin (franchisee@gmail.com).</li><li>Navigate to /dashboard/packages/view.</li><li>Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.</li><li>Assert the route did not bounce to /login and did not crash into the &quot;Something went wrong&quot; ErrorBoundary.</li><li>Confirm page content (a heading) painted — Packages list.</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/packages-smoke-packages-Packages-list-loads/video.webm"></video><div class="vpath">results/test-artifacts/packages-smoke-packages-Packages-list-loads/video.webm · 0.0 MB</div></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/packages-smoke-packages-Packages-list-loads/video.webm"></video><div class="vpath">results/test-artifacts/packages-smoke-packages-Packages-list-loads/video.webm · 0.1 MB</div></div>
 		</div>
 	</article></section><section class="cat"><h2>announcements <span style="font-weight:400">(2)</span></h2>
 	<article class="card pass" data-status="pass" data-video="1" data-id="announcements/announcements.lifecycle.spec.ts::Announcement lifecycle — create, update, delete (API-verified)">
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Announcement lifecycle — create, update, delete (API-verified)</h3>
-			<span class="dur">4.5s</span>
+			<span class="dur">4.6s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="announcements/announcements.lifecycle.spec.ts::Announcement lifecycle — create, update, delete (API-verified)"><span>Reviewed</span>
 			</label>
@@ -1046,7 +1046,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Announcements list loads</h3>
-			<span class="dur">3.1s</span>
+			<span class="dur">2.3s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="announcements/smoke.spec.ts::Announcements list loads"><span>Reviewed</span>
 			</label>
@@ -1061,7 +1061,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Class slot rule — enrolling the same client twice is rejected (409)</h3>
-			<span class="dur">4.2s</span>
+			<span class="dur">4.3s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="appointment/class-slots.lifecycle.spec.ts::Class slot rule — enrolling the same client twice is rejected (409)"><span>Reviewed</span>
 			</label>
@@ -1076,7 +1076,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Class slot rule — reducing capacity below booked spots is rejected (400)</h3>
-			<span class="dur">4.0s</span>
+			<span class="dur">4.2s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="appointment/class-slots.lifecycle.spec.ts::Class slot rule — reducing capacity below booked spots is rejected (400)"><span>Reviewed</span>
 			</label>
@@ -1091,7 +1091,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Appointments calendar/list loads</h3>
-			<span class="dur">2.6s</span>
+			<span class="dur">2.5s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="appointment/smoke.spec.ts::Appointments calendar/list loads"><span>Reviewed</span>
 			</label>
@@ -1106,7 +1106,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Class slots loads</h3>
-			<span class="dur">3.2s</span>
+			<span class="dur">3.1s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="appointment/smoke.spec.ts::Class slots loads"><span>Reviewed</span>
 			</label>
@@ -1136,7 +1136,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Check-in rule — member check-in without clientId is rejected (400)</h3>
-			<span class="dur">708ms</span>
+			<span class="dur">747ms</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="attendance/check-ins.lifecycle.spec.ts::Check-in rule — member check-in without clientId is rejected (400)"><span>Reviewed</span>
 			</label>
@@ -1166,7 +1166,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>a non-admin (staff) is forbidden from reading audit logs</h3>
-			<span class="dur">574ms</span>
+			<span class="dur">567ms</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="audit/audit-log.rule.spec.ts::a non-admin (staff) is forbidden from reading audit logs"><span>Reviewed</span>
 			</label>
@@ -1181,7 +1181,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>admin can list audit logs</h3>
-			<span class="dur">905ms</span>
+			<span class="dur">983ms</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="audit/audit-log.rule.spec.ts::admin can list audit logs"><span>Reviewed</span>
 			</label>
@@ -1196,7 +1196,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Audit log loads</h3>
-			<span class="dur">3.0s</span>
+			<span class="dur">2.9s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="audit/smoke.spec.ts::Audit log loads"><span>Reviewed</span>
 			</label>
@@ -1211,7 +1211,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>createNode → updateNode → moveNode → deleteNode (API-verified)</h3>
-			<span class="dur">9.2s</span>
+			<span class="dur">9.1s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="branch/hierarchy.lifecycle.spec.ts::createNode → updateNode → moveNode → deleteNode (API-verified)"><span>Reviewed</span>
 			</label>
@@ -1226,7 +1226,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>branchInvites — create returns a token, list strips it, revoke removes it</h3>
-			<span class="dur">3.0s</span>
+			<span class="dur">3.3s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="branch/reassign-and-invites.lifecycle.spec.ts::branchInvites — create returns a token, list strips it, revoke removes it"><span>Reviewed</span>
 			</label>
@@ -1241,7 +1241,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>reassignMember moves a member to a new node and back</h3>
-			<span class="dur">5.3s</span>
+			<span class="dur">5.8s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="branch/reassign-and-invites.lifecycle.spec.ts::reassignMember moves a member to a new node and back"><span>Reviewed</span>
 			</label>
@@ -1271,7 +1271,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Create-branch form loads</h3>
-			<span class="dur">2.6s</span>
+			<span class="dur">2.5s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="branch/smoke.spec.ts::Create-branch form loads"><span>Reviewed</span>
 			</label>
@@ -1286,7 +1286,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Brand lifecycle — create, list, update, delete (API-verified)</h3>
-			<span class="dur">4.0s</span>
+			<span class="dur">3.9s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="brands/brands.lifecycle.spec.ts::Brand lifecycle — create, list, update, delete (API-verified)"><span>Reviewed</span>
 			</label>
@@ -1301,7 +1301,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Brands list loads</h3>
-			<span class="dur">3.0s</span>
+			<span class="dur">3.2s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="brands/smoke.spec.ts::Brands list loads"><span>Reviewed</span>
 			</label>
@@ -1331,7 +1331,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>two cancellations get distinct, monotonic CAN- numbers from the sequence</h3>
-			<span class="dur">3.7s</span>
+			<span class="dur">3.8s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="cancelled-sales/cancellation-number.rule.spec.ts::two cancellations get distinct, monotonic CAN- numbers from the sequence"><span>Reviewed</span>
 			</label>
@@ -1346,7 +1346,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Cancelled sales loads</h3>
-			<span class="dur">2.6s</span>
+			<span class="dur">2.5s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="cancelled-sales/smoke.spec.ts::Cancelled sales loads"><span>Reviewed</span>
 			</label>
@@ -1361,7 +1361,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Product category lifecycle — create, update, delete (API-verified)</h3>
-			<span class="dur">4.0s</span>
+			<span class="dur">3.9s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="categories/product-categories.lifecycle.spec.ts::Product category lifecycle — create, update, delete (API-verified)"><span>Reviewed</span>
 			</label>
@@ -1406,7 +1406,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Expense lifecycle — create and verify (API-verified)</h3>
-			<span class="dur">1.9s</span>
+			<span class="dur">2.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="expenses/expenses.lifecycle.spec.ts::Expense lifecycle — create and verify (API-verified)"><span>Reviewed</span>
 			</label>
@@ -1421,7 +1421,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Expenses loads</h3>
-			<span class="dur">2.8s</span>
+			<span class="dur">2.7s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="expenses/smoke.spec.ts::Expenses loads"><span>Reviewed</span>
 			</label>
@@ -1429,14 +1429,14 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<div class="meta"><code>expenses/smoke.spec.ts</code></div>
 		<div class="cols">
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Start logged-in as the tenant admin (franchisee@gmail.com).</li><li>Navigate to /dashboard/expenses/view.</li><li>Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.</li><li>Assert the route did not bounce to /login and did not crash into the &quot;Something went wrong&quot; ErrorBoundary.</li><li>Confirm page content (a heading) painted — Expenses.</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/expenses-smoke-expenses-Expenses-loads/video.webm"></video><div class="vpath">results/test-artifacts/expenses-smoke-expenses-Expenses-loads/video.webm · 0.1 MB</div></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/expenses-smoke-expenses-Expenses-loads/video.webm"></video><div class="vpath">results/test-artifacts/expenses-smoke-expenses-Expenses-loads/video.webm · 0.0 MB</div></div>
 		</div>
 	</article></section><section class="cat"><h2>goods-receipts <span style="font-weight:400">(4)</span></h2>
 	<article class="card pass" data-status="pass" data-video="1" data-id="goods-receipts/receipt-invoice.lifecycle.spec.ts::create receipt → invoice → matchInvoice → markInvoicePaid (API-verified)">
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>create receipt → invoice → matchInvoice → markInvoicePaid (API-verified)</h3>
-			<span class="dur">9.0s</span>
+			<span class="dur">9.4s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="goods-receipts/receipt-invoice.lifecycle.spec.ts::create receipt → invoice → matchInvoice → markInvoicePaid (API-verified)"><span>Reviewed</span>
 			</label>
@@ -1451,7 +1451,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>3-way match fails when invoice total is outside tolerance</h3>
-			<span class="dur">7.8s</span>
+			<span class="dur">8.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="goods-receipts/three-way-match.rule.spec.ts::3-way match fails when invoice total is outside tolerance"><span>Reviewed</span>
 			</label>
@@ -1466,7 +1466,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>a paid invoice is not editable (only pending/disputed are)</h3>
-			<span class="dur">9.0s</span>
+			<span class="dur">9.3s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="goods-receipts/three-way-match.rule.spec.ts::a paid invoice is not editable (only pending/disputed are)"><span>Reviewed</span>
 			</label>
@@ -1481,7 +1481,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>damaged units do not enter sellable stock (stock += received - damaged)</h3>
-			<span class="dur">7.7s</span>
+			<span class="dur">7.9s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="goods-receipts/three-way-match.rule.spec.ts::damaged units do not enter sellable stock (stock += received - damaged)"><span>Reviewed</span>
 			</label>
@@ -1496,7 +1496,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>removing the primary-contact profile nulls household.primaryContactProfileId</h3>
-			<span class="dur">4.8s</span>
+			<span class="dur">4.9s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="households/primary-contact.rule.spec.ts::removing the primary-contact profile nulls household.primaryContactProfileId"><span>Reviewed</span>
 			</label>
@@ -1526,7 +1526,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>create → suspend/reactivate → role → scope → deactivate → softDelete/restore → remove</h3>
-			<span class="dur">14.2s</span>
+			<span class="dur">13.8s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="members/member.lifecycle.spec.ts::create → suspend/reactivate → role → scope → deactivate → softDelete/restore → remove"><span>Reviewed</span>
 			</label>
@@ -1541,7 +1541,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>a non-admin is forbidden from mutating an out-of-scope member</h3>
-			<span class="dur">1.4s</span>
+			<span class="dur">1.3s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="members/member.rule.spec.ts::a non-admin is forbidden from mutating an out-of-scope member"><span>Reviewed</span>
 			</label>
@@ -1571,7 +1571,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>the last admin cannot be removed (BAD_REQUEST)</h3>
-			<span class="dur">1.5s</span>
+			<span class="dur">1.7s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="members/member.rule.spec.ts::the last admin cannot be removed (BAD_REQUEST)"><span>Reviewed</span>
 			</label>
@@ -1586,7 +1586,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>freeze rejects endDate &lt;= startDate (400)</h3>
-			<span class="dur">746ms</span>
+			<span class="dur">830ms</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="memberships/freeze-end-before-start.rule.spec.ts::freeze rejects endDate &lt;= startDate (400)"><span>Reviewed</span>
 			</label>
@@ -1601,7 +1601,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Memberships loads</h3>
-			<span class="dur">2.9s</span>
+			<span class="dur">2.7s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="memberships/smoke.spec.ts::Memberships loads"><span>Reviewed</span>
 			</label>
@@ -1611,12 +1611,27 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Start logged-in as the tenant admin (franchisee@gmail.com).</li><li>Navigate to /dashboard/memberships/view.</li><li>Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.</li><li>Assert the route did not bounce to /login and did not crash into the &quot;Something went wrong&quot; ErrorBoundary.</li><li>Confirm page content (a heading) painted — Memberships.</li></ol></div>
 			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/memberships-smoke-memberships-Memberships-loads/video.webm"></video><div class="vpath">results/test-artifacts/memberships-smoke-memberships-Memberships-loads/video.webm · 0.0 MB</div></div>
 		</div>
+	</article></section><section class="cat"><h2>multi-tenant <span style="font-weight:400">(1)</span></h2>
+	<article class="card pass" data-status="pass" data-video="1" data-id="multi-tenant/unknown-org.isolation.spec.ts::a request for a non-existent organizationId is rejected (403)">
+		<header>
+			<span class="badge pass">PASS</span>
+			<h3>a request for a non-existent organizationId is rejected (403)</h3>
+			<span class="dur">369ms</span>
+			<label class="review" title="Mark this test as reviewed (saved in your browser)">
+				<input type="checkbox" class="review-chk" data-id="multi-tenant/unknown-org.isolation.spec.ts::a request for a non-existent organizationId is rejected (403)"><span>Reviewed</span>
+			</label>
+		</header>
+		<div class="meta"><code>multi-tenant/unknown-org.isolation.spec.ts</code></div>
+		<div class="cols">
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>As admin, call a tenant procedure with a well-formed UUID that maps to no organization</li><li>Assert the tenant middleware rejects it with 403 before the handler runs</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/multi-tenant-unknown-org.i-d49d9-nizationId-is-rejected-403-/video.webm"></video><div class="vpath">results/test-artifacts/multi-tenant-unknown-org.i-d49d9-nizationId-is-rejected-403-/video.webm · 0.0 MB</div></div>
+		</div>
 	</article></section><section class="cat"><h2>my-services <span style="font-weight:400">(3)</span></h2>
 	<article class="card pass" data-status="pass" data-video="1" data-id="my-services/service-buffer.lifecycle.spec.ts::updateMyBuffer — set then restore my override for an assigned service">
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>updateMyBuffer — set then restore my override for an assigned service</h3>
-			<span class="dur">726ms</span>
+			<span class="dur">742ms</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="my-services/service-buffer.lifecycle.spec.ts::updateMyBuffer — set then restore my override for an assigned service"><span>Reviewed</span>
 			</label>
@@ -1631,7 +1646,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>My services loads</h3>
-			<span class="dur">2.0s</span>
+			<span class="dur">1.6s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="my-services/smoke.spec.ts::My services loads"><span>Reviewed</span>
 			</label>
@@ -1639,14 +1654,14 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<div class="meta"><code>my-services/smoke.spec.ts</code></div>
 		<div class="cols">
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Start logged-in as the tenant admin (franchisee@gmail.com).</li><li>Navigate to /dashboard/my-services/view.</li><li>Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.</li><li>Assert the route did not bounce to /login and did not crash into the &quot;Something went wrong&quot; ErrorBoundary.</li><li>Confirm page content (a heading) painted — My services.</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/my-services-smoke-my-services-My-services-loads/video.webm"></video><div class="vpath">results/test-artifacts/my-services-smoke-my-services-My-services-loads/video.webm · 0.1 MB</div></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/my-services-smoke-my-services-My-services-loads/video.webm"></video><div class="vpath">results/test-artifacts/my-services-smoke-my-services-My-services-loads/video.webm · 0.0 MB</div></div>
 		</div>
 	</article>
 	<article class="card pass" data-status="pass" data-video="1" data-id="my-services/update-my-buffer-unassigned.rule.spec.ts::updateMyBuffer rejects a service the caller is not assigned to (404)">
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>updateMyBuffer rejects a service the caller is not assigned to (404)</h3>
-			<span class="dur">710ms</span>
+			<span class="dur">754ms</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="my-services/update-my-buffer-unassigned.rule.spec.ts::updateMyBuffer rejects a service the caller is not assigned to (404)"><span>Reviewed</span>
 			</label>
@@ -1676,7 +1691,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>markRead on a notification id the user does not own → NOT_FOUND</h3>
-			<span class="dur">764ms</span>
+			<span class="dur">896ms</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="notifications/notifications.rule.spec.ts::markRead on a notification id the user does not own → NOT_FOUND"><span>Reviewed</span>
 			</label>
@@ -1691,7 +1706,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Notifications loads</h3>
-			<span class="dur">1.8s</span>
+			<span class="dur">1.7s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="notifications/smoke.spec.ts::Notifications loads"><span>Reviewed</span>
 			</label>
@@ -1706,7 +1721,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Onboarding loads</h3>
-			<span class="dur">2.2s</span>
+			<span class="dur">2.7s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="onboarding/smoke.spec.ts::Onboarding loads"><span>Reviewed</span>
 			</label>
@@ -1721,7 +1736,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Operations approvals loads</h3>
-			<span class="dur">3.1s</span>
+			<span class="dur">2.6s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="operations/smoke.spec.ts::Operations approvals loads"><span>Reviewed</span>
 			</label>
@@ -1736,7 +1751,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Payments loads</h3>
-			<span class="dur">3.2s</span>
+			<span class="dur">2.8s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="payment/smoke.spec.ts::Payments loads"><span>Reviewed</span>
 			</label>
@@ -1751,7 +1766,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>PO lifecycle — create(draft) -&gt; approve -&gt; cancel (API-verified)</h3>
-			<span class="dur">7.5s</span>
+			<span class="dur">7.2s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="purchase-orders/purchase-orders.lifecycle.spec.ts::PO lifecycle — create(draft) -&gt; approve -&gt; cancel (API-verified)"><span>Reviewed</span>
 			</label>
@@ -1766,7 +1781,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>PO rule — approving a non-draft PO is rejected (400)</h3>
-			<span class="dur">6.3s</span>
+			<span class="dur">6.1s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="purchase-orders/purchase-orders.lifecycle.spec.ts::PO rule — approving a non-draft PO is rejected (400)"><span>Reviewed</span>
 			</label>
@@ -1781,7 +1796,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Purchase orders loads</h3>
-			<span class="dur">3.1s</span>
+			<span class="dur">3.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="purchase-orders/smoke.spec.ts::Purchase orders loads"><span>Reviewed</span>
 			</label>
@@ -1789,7 +1804,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<div class="meta"><code>purchase-orders/smoke.spec.ts</code></div>
 		<div class="cols">
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Start logged-in as the tenant admin (franchisee@gmail.com).</li><li>Navigate to /dashboard/purchase-orders/view.</li><li>Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.</li><li>Assert the route did not bounce to /login and did not crash into the &quot;Something went wrong&quot; ErrorBoundary.</li><li>Confirm page content (a heading) painted — Purchase orders.</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/purchase-orders-smoke-purchase-orders-Purchase-orders-loads/video.webm"></video><div class="vpath">results/test-artifacts/purchase-orders-smoke-purchase-orders-Purchase-orders-loads/video.webm · 0.0 MB</div></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/purchase-orders-smoke-purchase-orders-Purchase-orders-loads/video.webm"></video><div class="vpath">results/test-artifacts/purchase-orders-smoke-purchase-orders-Purchase-orders-loads/video.webm · 0.1 MB</div></div>
 		</div>
 	</article></section><section class="cat"><h2>rbac <span style="font-weight:400">(1)</span></h2>
 	<article class="card pass" data-status="pass" data-video="1" data-id="rbac/listnodes-scope.rbac.spec.ts::a branch-scoped staff sees a strict subset of the admin node tree">
@@ -1811,7 +1826,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>a refund cannot exceed the remaining-refundable amount</h3>
-			<span class="dur">3.0s</span>
+			<span class="dur">2.9s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="refunds/refund-lifecycle.rule.spec.ts::a refund cannot exceed the remaining-refundable amount"><span>Reviewed</span>
 			</label>
@@ -1826,7 +1841,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>request → approve → process walks pending → approved → processed</h3>
-			<span class="dur">4.5s</span>
+			<span class="dur">4.6s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="refunds/refund-lifecycle.rule.spec.ts::request → approve → process walks pending → approved → processed"><span>Reviewed</span>
 			</label>
@@ -1841,7 +1856,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>request → reject moves a pending refund to rejected</h3>
-			<span class="dur">4.3s</span>
+			<span class="dur">4.4s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="refunds/refund-lifecycle.rule.spec.ts::request → reject moves a pending refund to rejected"><span>Reviewed</span>
 			</label>
@@ -1856,7 +1871,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Refunds loads</h3>
-			<span class="dur">2.5s</span>
+			<span class="dur">2.6s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="refunds/smoke.spec.ts::Refunds loads"><span>Reviewed</span>
 			</label>
@@ -1871,7 +1886,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Reports loads</h3>
-			<span class="dur">2.6s</span>
+			<span class="dur">3.1s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="reports/smoke.spec.ts::Reports loads"><span>Reviewed</span>
 			</label>
@@ -1916,7 +1931,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Legacy rooms route redirects + loads</h3>
-			<span class="dur">3.0s</span>
+			<span class="dur">2.6s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="rooms/smoke.spec.ts::Legacy rooms route redirects + loads"><span>Reviewed</span>
 			</label>
@@ -1924,14 +1939,14 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<div class="meta"><code>rooms/smoke.spec.ts</code></div>
 		<div class="cols">
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Start logged-in as the tenant admin (franchisee@gmail.com).</li><li>Navigate to /dashboard/rooms/view.</li><li>Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.</li><li>Assert the route did not bounce to /login and did not crash into the &quot;Something went wrong&quot; ErrorBoundary.</li><li>Confirm page content (a heading) painted — Legacy rooms route redirects +.</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/rooms-smoke-rooms-Legacy-rooms-route-redirects-loads/video.webm"></video><div class="vpath">results/test-artifacts/rooms-smoke-rooms-Legacy-rooms-route-redirects-loads/video.webm · 0.1 MB</div></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/rooms-smoke-rooms-Legacy-rooms-route-redirects-loads/video.webm"></video><div class="vpath">results/test-artifacts/rooms-smoke-rooms-Legacy-rooms-route-redirects-loads/video.webm · 0.0 MB</div></div>
 		</div>
 	</article></section><section class="cat"><h2>service <span style="font-weight:400">(2)</span></h2>
 	<article class="card pass" data-status="pass" data-video="1" data-id="service/service.lifecycle.spec.ts::Service lifecycle — create, update, deactivate (API-verified)">
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Service lifecycle — create, update, deactivate (API-verified)</h3>
-			<span class="dur">4.3s</span>
+			<span class="dur">4.5s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="service/service.lifecycle.spec.ts::Service lifecycle — create, update, deactivate (API-verified)"><span>Reviewed</span>
 			</label>
@@ -1946,7 +1961,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Services loads</h3>
-			<span class="dur">2.5s</span>
+			<span class="dur">2.9s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="service/smoke.spec.ts::Services loads"><span>Reviewed</span>
 			</label>
@@ -1954,14 +1969,14 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<div class="meta"><code>service/smoke.spec.ts</code></div>
 		<div class="cols">
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Start logged-in as the tenant admin (franchisee@gmail.com).</li><li>Navigate to /dashboard/service/view.</li><li>Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.</li><li>Assert the route did not bounce to /login and did not crash into the &quot;Something went wrong&quot; ErrorBoundary.</li><li>Confirm page content (a heading) painted — Services.</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/service-smoke-service-Services-loads/video.webm"></video><div class="vpath">results/test-artifacts/service-smoke-service-Services-loads/video.webm · 0.0 MB</div></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/service-smoke-service-Services-loads/video.webm"></video><div class="vpath">results/test-artifacts/service-smoke-service-Services-loads/video.webm · 0.1 MB</div></div>
 		</div>
 	</article></section><section class="cat"><h2>service-category <span style="font-weight:400">(3)</span></h2>
 	<article class="card pass" data-status="pass" data-video="1" data-id="service-category/config-buffer-exceeds-duration.rule.spec.ts::bufferTimeMinutes greater than defaultDuration is rejected (BAD_REQUEST)">
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>bufferTimeMinutes greater than defaultDuration is rejected (BAD_REQUEST)</h3>
-			<span class="dur">1.8s</span>
+			<span class="dur">1.9s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="service-category/config-buffer-exceeds-duration.rule.spec.ts::bufferTimeMinutes greater than defaultDuration is rejected (BAD_REQUEST)"><span>Reviewed</span>
 			</label>
@@ -1976,7 +1991,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Service category lifecycle — create, update, deactivate (API-verified)</h3>
-			<span class="dur">4.1s</span>
+			<span class="dur">4.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="service-category/service-category.lifecycle.spec.ts::Service category lifecycle — create, update, deactivate (API-verified)"><span>Reviewed</span>
 			</label>
@@ -2006,7 +2021,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Stock requests loads</h3>
-			<span class="dur">3.0s</span>
+			<span class="dur">2.3s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="stock-requests/smoke.spec.ts::Stock requests loads"><span>Reviewed</span>
 			</label>
@@ -2014,14 +2029,14 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<div class="meta"><code>stock-requests/smoke.spec.ts</code></div>
 		<div class="cols">
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Start logged-in as the tenant admin (franchisee@gmail.com).</li><li>Navigate to /dashboard/stock-requests/view.</li><li>Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.</li><li>Assert the route did not bounce to /login and did not crash into the &quot;Something went wrong&quot; ErrorBoundary.</li><li>Confirm page content (a heading) painted — Stock requests.</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/stock-requests-smoke-stock-requests-Stock-requests-loads/video.webm"></video><div class="vpath">results/test-artifacts/stock-requests-smoke-stock-requests-Stock-requests-loads/video.webm · 0.1 MB</div></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/stock-requests-smoke-stock-requests-Stock-requests-loads/video.webm"></video><div class="vpath">results/test-artifacts/stock-requests-smoke-stock-requests-Stock-requests-loads/video.webm · 0.0 MB</div></div>
 		</div>
 	</article>
 	<article class="card pass" data-status="pass" data-video="1" data-id="stock-requests/stock-requests.lifecycle.spec.ts::Stock request lifecycle — create(pending) -&gt; approve (API-verified)">
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Stock request lifecycle — create(pending) -&gt; approve (API-verified)</h3>
-			<span class="dur">4.4s</span>
+			<span class="dur">4.6s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="stock-requests/stock-requests.lifecycle.spec.ts::Stock request lifecycle — create(pending) -&gt; approve (API-verified)"><span>Reviewed</span>
 			</label>
@@ -2051,7 +2066,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Trainer availability loads</h3>
-			<span class="dur">3.0s</span>
+			<span class="dur">2.6s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="trainers/smoke.spec.ts::Trainer availability loads"><span>Reviewed</span>
 			</label>
@@ -2066,7 +2081,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Trainer tiers loads</h3>
-			<span class="dur">2.8s</span>
+			<span class="dur">3.2s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="trainers/smoke.spec.ts::Trainer tiers loads"><span>Reviewed</span>
 			</label>
@@ -2074,7 +2089,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<div class="meta"><code>trainers/smoke.spec.ts</code></div>
 		<div class="cols">
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Start logged-in as the tenant admin (franchisee@gmail.com).</li><li>Navigate to /dashboard/trainers/tiers.</li><li>Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.</li><li>Assert the route did not bounce to /login and did not crash into the &quot;Something went wrong&quot; ErrorBoundary.</li><li>Confirm page content (a heading) painted — Trainer tiers.</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/trainers-smoke-trainers-Trainer-tiers-loads/video.webm"></video><div class="vpath">results/test-artifacts/trainers-smoke-trainers-Trainer-tiers-loads/video.webm · 0.1 MB</div></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/trainers-smoke-trainers-Trainer-tiers-loads/video.webm"></video><div class="vpath">results/test-artifacts/trainers-smoke-trainers-Trainer-tiers-loads/video.webm · 0.0 MB</div></div>
 		</div>
 	</article>
 	<article class="card pass" data-status="pass" data-video="1" data-id="trainers/smoke.spec.ts::Trainers list loads">
@@ -2089,7 +2104,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<div class="meta"><code>trainers/smoke.spec.ts</code></div>
 		<div class="cols">
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Start logged-in as the tenant admin (franchisee@gmail.com).</li><li>Navigate to /dashboard/trainers/view.</li><li>Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.</li><li>Assert the route did not bounce to /login and did not crash into the &quot;Something went wrong&quot; ErrorBoundary.</li><li>Confirm page content (a heading) painted — Trainers list.</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/trainers-smoke-trainers-Trainers-list-loads/video.webm"></video><div class="vpath">results/test-artifacts/trainers-smoke-trainers-Trainers-list-loads/video.webm · 0.0 MB</div></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/trainers-smoke-trainers-Trainers-list-loads/video.webm"></video><div class="vpath">results/test-artifacts/trainers-smoke-trainers-Trainers-list-loads/video.webm · 0.1 MB</div></div>
 		</div>
 	</article></section><section class="cat"><h2>transfer-orders <span style="font-weight:400">(3)</span></h2>
 	<article class="card pass" data-status="pass" data-video="1" data-id="transfer-orders/smoke.spec.ts::Transfer orders loads">
@@ -2111,7 +2126,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Transfer lifecycle — create(pending) -&gt; markInTransit (API-verified)</h3>
-			<span class="dur">5.1s</span>
+			<span class="dur">4.7s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="transfer-orders/transfer-orders.lifecycle.spec.ts::Transfer lifecycle — create(pending) -&gt; markInTransit (API-verified)"><span>Reviewed</span>
 			</label>
@@ -2126,7 +2141,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Transfer rule — source branch equals destination branch is rejected (400)</h3>
-			<span class="dur">1.2s</span>
+			<span class="dur">1.3s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="transfer-orders/transfer-orders.lifecycle.spec.ts::Transfer rule — source branch equals destination branch is rejected (400)"><span>Reviewed</span>
 			</label>
@@ -2141,7 +2156,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Units of measure loads</h3>
-			<span class="dur">2.8s</span>
+			<span class="dur">2.9s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="uom/smoke.spec.ts::Units of measure loads"><span>Reviewed</span>
 			</label>
@@ -2156,7 +2171,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>Unit of measure lifecycle — create, update, delete (API-verified)</h3>
-			<span class="dur">4.1s</span>
+			<span class="dur">4.2s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="uom/uom.lifecycle.spec.ts::Unit of measure lifecycle — create, update, delete (API-verified)"><span>Reviewed</span>
 			</label>
@@ -2171,7 +2186,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>UOM conversions loads</h3>
-			<span class="dur">3.1s</span>
+			<span class="dur">3.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="uom-conversions/smoke.spec.ts::UOM conversions loads"><span>Reviewed</span>
 			</label>
@@ -2179,14 +2194,14 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<div class="meta"><code>uom-conversions/smoke.spec.ts</code></div>
 		<div class="cols">
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Start logged-in as the tenant admin (franchisee@gmail.com).</li><li>Navigate to /dashboard/uom-conversions/view.</li><li>Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.</li><li>Assert the route did not bounce to /login and did not crash into the &quot;Something went wrong&quot; ErrorBoundary.</li><li>Confirm page content (a heading) painted — UOM conversions.</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/uom-conversions-smoke-uom-conversions-UOM-conversions-loads/video.webm"></video><div class="vpath">results/test-artifacts/uom-conversions-smoke-uom-conversions-UOM-conversions-loads/video.webm · 0.0 MB</div></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="results/test-artifacts/uom-conversions-smoke-uom-conversions-UOM-conversions-loads/video.webm"></video><div class="vpath">results/test-artifacts/uom-conversions-smoke-uom-conversions-UOM-conversions-loads/video.webm · 0.1 MB</div></div>
 		</div>
 	</article></section><section class="cat"><h2>user <span style="font-weight:400">(1)</span></h2>
 	<article class="card pass" data-status="pass" data-video="1" data-id="user/smoke.spec.ts::User profile loads">
 		<header>
 			<span class="badge pass">PASS</span>
 			<h3>User profile loads</h3>
-			<span class="dur">2.2s</span>
+			<span class="dur">2.8s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
 				<input type="checkbox" class="review-chk" data-id="user/smoke.spec.ts::User profile loads"><span>Reviewed</span>
 			</label>
