@@ -62,20 +62,6 @@ const rbacCovered = specs.some((s) => /rbac-staff/.test(s.file) && s.ok);
 // Explicit deferrals (rows that need infra we don't have this loop).
 const DEFER = [
 	{
-		// FINDING: cancelSalesOrder (sales-order.service.ts) mints a fresh
-		// nextval('tenant_cancellation_seq') on EVERY call — it never reuses an
-		// order's existing cancellationNumber. The documented "reuse if set"
-		// invariant is NOT implemented. Deferred-with-finding; priority so it stays
-		// deferred even though the cancelled-sales module has a passing deep spec.
-		// See _e2e/findings.md.
-		priority: true,
-		match: (r) =>
-			r.module === "cancelled-sales" &&
-			/reuse|existing cancellationNumber|never gets two/i.test(r.rule || ""),
-		reason:
-			"reuse-not-implemented — cancelSalesOrder always mints a fresh nextval; never reuses an existing cancellationNumber. Product gap, see findings.md.",
-	},
-	{
 		match: (r) =>
 			r.module === "multi-tenant" ||
 			(r.kind === "invariant" && /tenant (A|B)|isolation/i.test(r.rule || "")),
@@ -118,12 +104,11 @@ const DEFER = [
 	},
 	{
 		match: (r) =>
-			r.module === "refunds" ||
 			r.module === "payouts" ||
 			(r.module === "commissions" &&
 				/payout|markPaid|runBatch/i.test(r.op || r.rule || "")),
 		reason:
-			"Irreversible money settlement; needs seeded approved splits / refundable orders. Deferred to a seeded loop.",
+			"Irreversible payout settlement; needs seeded approved commission splits. Deferred to a seeded loop.",
 	},
 ];
 

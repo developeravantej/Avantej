@@ -872,5 +872,27 @@
     "Create a disposable sales order and cancel it; capture the cancellation number",
     "Create and cancel a second disposable order; capture its number",
     "Assert both match CAN-YYYYMMDD-NNNN, are distinct, and the sequence is monotonic"
+  ],
+  "cancelled-sales/cancellation-number.rule.spec.ts::re-cancelling an order reuses its existing cancellation number (never two)": [
+    "Create a disposable sales order",
+    "Cancel it and capture the cancellation number",
+    "Cancel the same order again",
+    "Assert the second cancellation reuses the same CAN- number (an order never gets two)"
+  ],
+  "refunds/refund-lifecycle.rule.spec.ts::request → approve → process walks pending → approved → processed": [
+    "Create a disposable sales order for a real customer (total 10000)",
+    "refunds/request for 3000; assert status pending",
+    "refunds/approve; assert status approved",
+    "refunds/process (cash); assert status processed"
+  ],
+  "refunds/refund-lifecycle.rule.spec.ts::request → reject moves a pending refund to rejected": [
+    "Create a disposable order and request a refund (pending)",
+    "refunds/reject with review notes; assert status rejected",
+    "Attempt to approve the rejected refund; assert BAD_REQUEST (only pending can be approved)"
+  ],
+  "refunds/refund-lifecycle.rule.spec.ts::a refund cannot exceed the remaining-refundable amount": [
+    "Create a disposable order with a known total",
+    "Request a refund far exceeding the total",
+    "Assert BAD_REQUEST (exceeds remaining-refundable)"
   ]
 }

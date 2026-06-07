@@ -1,4 +1,16 @@
-import { eq, and, desc, count, gte, lte, sql, inArray, or, lt, ne } from "drizzle-orm";
+import {
+	eq,
+	and,
+	desc,
+	count,
+	gte,
+	lte,
+	sql,
+	inArray,
+	or,
+	lt,
+	ne,
+} from "drizzle-orm";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
 import { salesOrderItems } from "@avantej-core/db/schema/tenant/sales-order-items";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
@@ -19,10 +31,17 @@ export const CANCELLATION_REASON_CATEGORIES = [
 	"system_error",
 	"other",
 ] as const;
-export type CancellationReasonCategory = typeof CANCELLATION_REASON_CATEGORIES[number];
+export type CancellationReasonCategory =
+	(typeof CANCELLATION_REASON_CATEGORIES)[number];
 
-export const SALES_ORDER_REFUND_STATUSES = ["none", "pending", "partial", "processed"] as const;
-export type SalesOrderRefundStatus = typeof SALES_ORDER_REFUND_STATUSES[number];
+export const SALES_ORDER_REFUND_STATUSES = [
+	"none",
+	"pending",
+	"partial",
+	"processed",
+] as const;
+export type SalesOrderRefundStatus =
+	(typeof SALES_ORDER_REFUND_STATUSES)[number];
 
 export type CreateSalesOrderParams = {
 	date: Date;
@@ -48,7 +67,7 @@ function formatDateYYYYMMDD(date: Date): string {
 
 async function generateSalesOrderNumber(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	_date: Date
+	_date: Date,
 ): Promise<string> {
 	// BE-M8: Use the dedicated sequence (created in migration 0026_pipeline_audit.sql)
 	// instead of COUNT()+1 to prevent duplicate order numbers under concurrent inserts.
@@ -61,7 +80,7 @@ async function generateSalesOrderNumber(
 
 async function generateCancellationNumber(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	date: Date
+	date: Date,
 ): Promise<string> {
 	// BE-M8: Use the dedicated sequence (created in migration 0080) instead of
 	// COUNT()+1 to prevent duplicate cancellation numbers under concurrent
@@ -93,9 +112,19 @@ export async function listSalesOrders(
 		accessibleNodeIds?: string[];
 		limit?: number;
 		offset?: number;
-	} = {}
+	} = {},
 ): Promise<ListSalesOrdersResult> {
-	const { branchId, status, refundStatus, customerId, from, to, accessibleNodeIds, limit = 50, offset = 0 } = params;
+	const {
+		branchId,
+		status,
+		refundStatus,
+		customerId,
+		from,
+		to,
+		accessibleNodeIds,
+		limit = 50,
+		offset = 0,
+	} = params;
 
 	// Early exit if RBAC scope is empty — user has no accessible nodes
 	if (accessibleNodeIds !== undefined && accessibleNodeIds.length === 0) {
@@ -151,8 +180,8 @@ export async function listSalesOrders(
 
 export async function getSalesOrderById(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
-): Promise<(typeof salesOrders.$inferSelect) | null> {
+	id: string,
+): Promise<typeof salesOrders.$inferSelect | null> {
 	const row = await tenantDb.query.salesOrders.findFirst({
 		where: eq(salesOrders.id, id),
 	});
@@ -161,9 +190,12 @@ export async function getSalesOrderById(
 
 export async function createSalesOrder(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: CreateSalesOrderParams
+	params: CreateSalesOrderParams,
 ): Promise<typeof salesOrders.$inferSelect> {
-	const salesOrderNumber = await generateSalesOrderNumber(tenantDb, params.date);
+	const salesOrderNumber = await generateSalesOrderNumber(
+		tenantDb,
+		params.date,
+	);
 
 	const [row] = await tenantDb
 		.insert(salesOrders)
@@ -207,9 +239,13 @@ export async function updateSalesOrder(
 		.set({
 			...(params.date !== undefined && { date: params.date }),
 			...(params.customerId !== undefined && { customerId: params.customerId }),
-			...(params.customerName !== undefined && { customerName: params.customerName }),
+			...(params.customerName !== undefined && {
+				customerName: params.customerName,
+			}),
 			...(params.status !== undefined && { status: params.status }),
-			...(params.totalAmount !== undefined && { totalAmount: params.totalAmount }),
+			...(params.totalAmount !== undefined && {
+				totalAmount: params.totalAmount,
+			}),
 			...(params.notes !== undefined && { notes: params.notes }),
 			updatedAt: new Date(),
 		})
@@ -251,98 +287,109 @@ export async function cancelSalesOrder(
 
 	if (params.refundAmount < 0 || params.refundAmount > existing.totalAmount) {
 		throw new Error(
-			`refundAmount ${params.refundAmount} is out of range (order total: ${existing.totalAmount})`
+			`refundAmount ${params.refundAmount} is out of range (order total: ${existing.totalAmount})`,
 		);
 	}
 
 	const now = new Date();
-	const cancellationNumber = await generateCancellationNumber(tenantDb, now);
+	// An order never gets two cancellation numbers: reuse the existing one if this
+	// order already has it set, and only mint a fresh sequence value when null.
+	const cancellationNumber =
+		existing.cancellationNumber ??
+		(await generateCancellationNumber(tenantDb, now));
 
-	return tenantDb.transaction(async (tx) => {
-		const [updatedOrder] = await tx
-			.update(salesOrders)
-			.set({
-				status: "cancelled",
-				cancellationNumber,
-				cancellationDate: now,
-				cancellationReason: params.reason ?? null,
-				cancellationReasonCategory: params.cancellationReasonCategory ?? null,
-				cancelledBy: params.cancelledBy,
-				cancelledAmount: params.refundAmount,
-				updatedAt: now,
-			})
-			.where(eq(salesOrders.id, id))
-			.returning();
+	return tenantDb
+		.transaction(async (tx) => {
+			const [updatedOrder] = await tx
+				.update(salesOrders)
+				.set({
+					status: "cancelled",
+					cancellationNumber,
+					cancellationDate: now,
+					cancellationReason: params.reason ?? null,
+					cancellationReasonCategory: params.cancellationReasonCategory ?? null,
+					cancelledBy: params.cancelledBy,
+					cancelledAmount: params.refundAmount,
+					updatedAt: now,
+				})
+				.where(eq(salesOrders.id, id))
+				.returning();
 
-		if (!updatedOrder) {
-			throw new Error("Failed to cancel sales order");
-		}
+			if (!updatedOrder) {
+				throw new Error("Failed to cancel sales order");
+			}
 
-		await writeAudit(tx, {
-			actorUserId: actor.userId,
-			actorMemberId: actor.memberId,
-			actorRole: actor.role,
-			action: "sale.cancel",
-			entityType: "sales_order",
-			entityId: id,
-			branchId: existing.branchId,
-			summary: `Cancelled sales order ${existing.salesOrderNumber ?? id}`,
-			changes: { refundAmount: params.refundAmount, reason: params.reason ?? null },
-		});
+			await writeAudit(tx, {
+				actorUserId: actor.userId,
+				actorMemberId: actor.memberId,
+				actorRole: actor.role,
+				action: "sale.cancel",
+				entityType: "sales_order",
+				entityId: id,
+				branchId: existing.branchId,
+				summary: `Cancelled sales order ${existing.salesOrderNumber ?? id}`,
+				changes: {
+					refundAmount: params.refundAmount,
+					reason: params.reason ?? null,
+				},
+			});
 
-		await voidCommissionSplitsForSalesOrder(
-			tx as unknown as NeonDatabase<typeof tenantSchema>,
-			id,
-			"Sale cancelled: " + (params.reason ?? "no reason given"),
-			actor,
-		);
-
-		// Status history: same tx as the status mutation
-		await appendSalesOrderStatusHistory(tx, id, {
-			fromStatus: existing.status,
-			toStatus: "cancelled",
-			changedBy: params.cancelledBy,
-			reason: params.reason ?? null,
-		});
-
-		// Cancel any package instances created from this sales order (F-POS-03)
-		await tx
-			.update(packageInstances)
-			.set({
-				status: "cancelled",
-				cancellationReason: "Sale cancelled",
-				updatedAt: now,
-			})
-			.where(
-				and(
-					eq(packageInstances.salesOrderId, id),
-					ne(packageInstances.status, "cancelled"),
-				),
+			await voidCommissionSplitsForSalesOrder(
+				tx as unknown as NeonDatabase<typeof tenantSchema>,
+				id,
+				"Sale cancelled: " + (params.reason ?? "no reason given"),
+				actor,
 			);
 
-		return updatedOrder;
-	}).then(async (result) => {
-		// Branch stats cache: revenue retracts on cancellation. Fire-and-forget
-		// (debounced; coalesces with other writes in the same 2s window).
-		try {
-			const branchStatsCache = await import("./branch-stats-cache.service");
-			branchStatsCache.refresh(tenantDb, existing.branchId, "revenue");
-		} catch (err) {
-			console.warn(JSON.stringify({ event: "branch_stats_refresh_failed", branchId: existing.branchId, error: err instanceof Error ? err.message : String(err) }));
-		}
-		return result;
-	});
+			// Status history: same tx as the status mutation
+			await appendSalesOrderStatusHistory(tx, id, {
+				fromStatus: existing.status,
+				toStatus: "cancelled",
+				changedBy: params.cancelledBy,
+				reason: params.reason ?? null,
+			});
+
+			// Cancel any package instances created from this sales order (F-POS-03)
+			await tx
+				.update(packageInstances)
+				.set({
+					status: "cancelled",
+					cancellationReason: "Sale cancelled",
+					updatedAt: now,
+				})
+				.where(
+					and(
+						eq(packageInstances.salesOrderId, id),
+						ne(packageInstances.status, "cancelled"),
+					),
+				);
+
+			return updatedOrder;
+		})
+		.then(async (result) => {
+			// Branch stats cache: revenue retracts on cancellation. Fire-and-forget
+			// (debounced; coalesces with other writes in the same 2s window).
+			try {
+				const branchStatsCache = await import("./branch-stats-cache.service");
+				branchStatsCache.refresh(tenantDb, existing.branchId, "revenue");
+			} catch (err) {
+				console.warn(
+					JSON.stringify({
+						event: "branch_stats_refresh_failed",
+						branchId: existing.branchId,
+						error: err instanceof Error ? err.message : String(err),
+					}),
+				);
+			}
+			return result;
+		});
 }
 
 // ---------------------------------------------------------------------------
 // KPI Summary
 // ---------------------------------------------------------------------------
 
-export type KpiPeriod =
-	| "today"
-	| "week"
-	| "month"
-	| { from: Date; to: Date };
+export type KpiPeriod = "today" | "week" | "month" | { from: Date; to: Date };
 
 export type SalesOrderKpiSummary = {
 	// New fields
@@ -363,21 +410,33 @@ export type SalesOrderKpiSummary = {
 function resolvePeriodDates(period: KpiPeriod): { from: Date; to: Date } {
 	const now = new Date();
 	if (period === "today") {
-		const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-		const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+		const from = new Date(
+			Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+		);
+		const to = new Date(
+			Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1),
+		);
 		return { from, to };
 	}
 	if (period === "week") {
 		// ISO week: Monday-based; fall back to rolling 7 days
 		const day = now.getUTCDay(); // 0=Sun
 		const mondayOffset = day === 0 ? -6 : 1 - day;
-		const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + mondayOffset));
+		const from = new Date(
+			Date.UTC(
+				now.getUTCFullYear(),
+				now.getUTCMonth(),
+				now.getUTCDate() + mondayOffset,
+			),
+		);
 		const to = new Date(from.getTime() + 7 * 24 * 60 * 60 * 1000);
 		return { from, to };
 	}
 	if (period === "month") {
 		const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-		const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+		const to = new Date(
+			Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
+		);
 		return { from, to };
 	}
 	return { from: period.from, to: period.to };
@@ -397,7 +456,8 @@ export async function getSalesOrderKpiSummary(
 	const effectiveBranchIds: string[] | null = (() => {
 		if (!params.branchId) return null;
 		if (!params.accessibleNodeIds?.length) return [params.branchId];
-		if (params.accessibleNodeIds.includes(params.branchId)) return [params.branchId];
+		if (params.accessibleNodeIds.includes(params.branchId))
+			return [params.branchId];
 		return [];
 	})();
 
@@ -415,8 +475,13 @@ export async function getSalesOrderKpiSummary(
 		totalNetCents: 0,
 	};
 
-	if (effectiveBranchIds !== null && effectiveBranchIds.length === 0) return zero;
-	if (params.accessibleNodeIds !== undefined && params.accessibleNodeIds.length === 0) return zero;
+	if (effectiveBranchIds !== null && effectiveBranchIds.length === 0)
+		return zero;
+	if (
+		params.accessibleNodeIds !== undefined &&
+		params.accessibleNodeIds.length === 0
+	)
+		return zero;
 
 	const orderConditions = [
 		gte(salesOrders.date, periodStart),
@@ -425,30 +490,50 @@ export async function getSalesOrderKpiSummary(
 	if (effectiveBranchIds !== null) {
 		orderConditions.push(inArray(salesOrders.branchId, effectiveBranchIds));
 	} else if (params.accessibleNodeIds?.length) {
-		orderConditions.push(inArray(salesOrders.branchId, params.accessibleNodeIds));
+		orderConditions.push(
+			inArray(salesOrders.branchId, params.accessibleNodeIds),
+		);
 	}
 
-	const { salesOrderItems: soiTable } = await import("@avantej-core/db/schema/tenant/sales-order-items");
+	const { salesOrderItems: soiTable } = await import(
+		"@avantej-core/db/schema/tenant/sales-order-items"
+	);
 
 	const [kpi] = await tenantDb
 		.select({
 			confirmedCount:
-				sql<number>`COUNT(DISTINCT ${salesOrders.id}) FILTER (WHERE ${salesOrders.status} = 'confirmed')`.mapWith(Number),
+				sql<number>`COUNT(DISTINCT ${salesOrders.id}) FILTER (WHERE ${salesOrders.status} = 'confirmed')`.mapWith(
+					Number,
+				),
 			cancelledCount:
-				sql<number>`COUNT(DISTINCT ${salesOrders.id}) FILTER (WHERE ${salesOrders.status} = 'cancelled')`.mapWith(Number),
+				sql<number>`COUNT(DISTINCT ${salesOrders.id}) FILTER (WHERE ${salesOrders.status} = 'cancelled')`.mapWith(
+					Number,
+				),
 			completedCount:
-				sql<number>`COUNT(DISTINCT ${salesOrders.id}) FILTER (WHERE ${salesOrders.status} = 'completed')`.mapWith(Number),
+				sql<number>`COUNT(DISTINCT ${salesOrders.id}) FILTER (WHERE ${salesOrders.status} = 'completed')`.mapWith(
+					Number,
+				),
 			totalRevenueCents:
-				sql<number>`COALESCE(SUM(${salesOrders.totalAmount}) FILTER (WHERE ${salesOrders.status} = 'confirmed'), 0)`.mapWith(Number),
+				sql<number>`COALESCE(SUM(${salesOrders.totalAmount}) FILTER (WHERE ${salesOrders.status} = 'confirmed'), 0)`.mapWith(
+					Number,
+				),
 			totalTaxCents:
-				sql<number>`COALESCE(SUM(FLOOR(${soiTable.totalPrice}::numeric * COALESCE(${soiTable.taxRateBps}, 0) / 10000.0)) FILTER (WHERE ${salesOrders.status} = 'confirmed'), 0)`.mapWith(Number),
+				sql<number>`COALESCE(SUM(FLOOR(${soiTable.totalPrice}::numeric * COALESCE(${soiTable.taxRateBps}, 0) / 10000.0)) FILTER (WHERE ${salesOrders.status} = 'confirmed'), 0)`.mapWith(
+					Number,
+				),
 			// New KPI fields
 			totalSalesCents:
-				sql<number>`COALESCE(SUM(${salesOrders.totalAmount}) FILTER (WHERE ${salesOrders.status} != 'cancelled' AND ${salesOrders.status} != 'draft'), 0)`.mapWith(Number),
+				sql<number>`COALESCE(SUM(${salesOrders.totalAmount}) FILTER (WHERE ${salesOrders.status} != 'cancelled' AND ${salesOrders.status} != 'draft'), 0)`.mapWith(
+					Number,
+				),
 			salesCount:
-				sql<number>`COUNT(DISTINCT ${salesOrders.id}) FILTER (WHERE ${salesOrders.status} != 'cancelled' AND ${salesOrders.status} != 'draft')`.mapWith(Number),
+				sql<number>`COUNT(DISTINCT ${salesOrders.id}) FILTER (WHERE ${salesOrders.status} != 'cancelled' AND ${salesOrders.status} != 'draft')`.mapWith(
+					Number,
+				),
 			totalRefundedCents:
-				sql<number>`COALESCE(SUM(${salesOrders.refundedAmountCents}), 0)`.mapWith(Number),
+				sql<number>`COALESCE(SUM(${salesOrders.refundedAmountCents}), 0)`.mapWith(
+					Number,
+				),
 		})
 		.from(salesOrders)
 		.leftJoin(soiTable, eq(soiTable.salesOrderId, salesOrders.id))
@@ -492,13 +577,18 @@ export async function getLargestSaleToday(
 		branchId?: string;
 		accessibleNodeIds?: string[];
 	},
-): Promise<(typeof salesOrders.$inferSelect) | null> {
-	if (params.accessibleNodeIds !== undefined && params.accessibleNodeIds.length === 0) {
+): Promise<typeof salesOrders.$inferSelect | null> {
+	if (
+		params.accessibleNodeIds !== undefined &&
+		params.accessibleNodeIds.length === 0
+	) {
 		return null;
 	}
 
 	const now = new Date();
-	const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+	const todayStart = new Date(
+		Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+	);
 	const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
 	const conditions = [
@@ -509,7 +599,10 @@ export async function getLargestSaleToday(
 
 	if (params.branchId) {
 		// Validate scope
-		if (params.accessibleNodeIds && !params.accessibleNodeIds.includes(params.branchId)) {
+		if (
+			params.accessibleNodeIds &&
+			!params.accessibleNodeIds.includes(params.branchId)
+		) {
 			return null;
 		}
 		conditions.push(eq(salesOrders.branchId, params.branchId));
@@ -570,9 +663,7 @@ export async function getLatestCompletedSalesOrder(
 		return null;
 	}
 
-	const conditions = [
-		eq(salesOrders.status, "completed"),
-	];
+	const conditions = [eq(salesOrders.status, "completed")];
 
 	if (branchId) {
 		conditions.push(eq(salesOrders.branchId, branchId));
@@ -643,6 +734,9 @@ export async function getSalesOrderStatusHistory(
 					: undefined,
 			),
 		)
-		.orderBy(desc(salesOrderStatusHistory.changedAt), desc(salesOrderStatusHistory.id))
+		.orderBy(
+			desc(salesOrderStatusHistory.changedAt),
+			desc(salesOrderStatusHistory.id),
+		)
 		.limit(limit + 1);
 }

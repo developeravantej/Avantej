@@ -95,3 +95,13 @@ when null. Add a unit test for the re-cancel case.
 **E2E status:** the monotonic/unique invariant IS covered
 (`_e2e/web/cancelled-sales/cancellation-number.rule.spec.ts`). The reuse row is
 deferred-with-reason in `update-ledger.mjs` (priority DEFER) pending a product decision.
+
+### RESOLVED (2026-06-07) — cancellation-number reuse implemented
+
+Fixed in `packages/services/src/sales-order.service.ts` `cancelSalesOrder`: now reuses
+`existing.cancellationNumber` when set, only minting `nextval` when null.
+- Unit test: `apps/server/src/tests/unit/services/sales-order.test.ts` — "reuses an existing
+  cancellationNumber instead of minting a new one" (23/23 pass).
+- E2E: `_e2e/web/cancelled-sales/cancellation-number.rule.spec.ts` — "re-cancelling an order
+  reuses its existing cancellation number (never two)" (re-cancel IS reachable; verified green).
+- Ledger: the reuse row is no longer deferred — covered like the rest of cancelled-sales.

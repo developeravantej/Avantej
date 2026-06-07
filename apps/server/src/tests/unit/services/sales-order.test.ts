@@ -476,6 +476,44 @@ describe("cancelSalesOrder", () => {
 		expect(setArg.cancellationNumber).toMatch(/CAN-\d{8}-0001/);
 	});
 
+	test("reuses an existing cancellationNumber instead of minting a new one (an order never gets two)", async () => {
+		// Order already carries a cancellation number from a prior cancel.
+		const EXISTING = "CAN-19990101-0099";
+		const mockOrder = {
+			id: "so-reuse",
+			customerName: "Eve",
+			customerId: "cust-9",
+			totalAmount: 10000,
+			cancellationNumber: EXISTING,
+		};
+		const cancelledOrder = { ...mockOrder, status: "cancelled" };
+
+		mockFindFirst.mockResolvedValueOnce(mockOrder);
+		// If the (fixed) code wrongly minted a fresh number, this seq=7 would
+		// produce CAN-<today>-0007 — different from EXISTING. Reuse must win.
+		mockExecute.mockClear();
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: 7 }] });
+
+		const mockReturningUpd = mock(() => Promise.resolve([cancelledOrder]));
+		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
+		const capturedSet: any[] = [];
+		const mockSetUpd = mock((setArg: any) => {
+			capturedSet.push(setArg);
+			return { where: mockWhereUpd };
+		});
+		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
+
+		await cancelSalesOrder(
+			mockTenantDb,
+			"so-reuse",
+			{ cancelledBy: "user-9", refundAmount: 0 },
+			MOCK_ACTOR,
+		);
+
+		// The number written must be the order's existing one, not a fresh mint.
+		expect(capturedSet[0].cancellationNumber).toBe(EXISTING);
+	});
+
 	test("persists refundAmount to cancelled_amount column", async () => {
 		const mockOrder = {
 			id: "so3",

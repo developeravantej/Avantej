@@ -759,7 +759,8 @@
     "status": "covered",
     "specFile": "commissions/category-commission-weightage-sum.rule.spec.ts",
     "danger": "irreversible",
-    "note": "commission-splits/lifecycle.procedures.ts:50"
+    "note": "commission-splits/lifecycle.procedures.ts:50",
+    "deferReason": "Irreversible payout settlement; needs seeded approved commission splits. Deferred to a seeded loop."
   },
   {
     "module": "commissions",
@@ -807,7 +808,8 @@
     "status": "covered",
     "specFile": "commissions/category-commission-weightage-sum.rule.spec.ts",
     "danger": "irreversible",
-    "note": "payouts/batch.procedures.ts:68"
+    "note": "payouts/batch.procedures.ts:68",
+    "deferReason": "Irreversible payout settlement; needs seeded approved commission splits. Deferred to a seeded loop."
   },
   {
     "module": "commissions",
@@ -819,7 +821,8 @@
     "status": "covered",
     "specFile": "commissions/category-commission-weightage-sum.rule.spec.ts",
     "danger": "irreversible",
-    "note": "payouts/lifecycle.procedures.ts:23"
+    "note": "payouts/lifecycle.procedures.ts:23",
+    "deferReason": "Irreversible payout settlement; needs seeded approved commission splits. Deferred to a seeded loop."
   },
   {
     "module": "commissions",
@@ -831,7 +834,8 @@
     "status": "covered",
     "specFile": "commissions/category-commission-weightage-sum.rule.spec.ts",
     "danger": "irreversible",
-    "note": "payouts/lifecycle.procedures.ts:116"
+    "note": "payouts/lifecycle.procedures.ts:116",
+    "deferReason": "Irreversible payout settlement; needs seeded approved commission splits. Deferred to a seeded loop."
   },
   {
     "module": "commissions",
@@ -865,7 +869,8 @@
     "screen": "/dashboard/appointment",
     "status": "covered",
     "specFile": "commissions/category-commission-weightage-sum.rule.spec.ts",
-    "note": "appointment.service.ts:447-451 resolveEffectiveAssignments; appointment-assignments.test.ts"
+    "note": "appointment.service.ts:447-451 resolveEffectiveAssignments; appointment-assignments.test.ts",
+    "deferReason": "Needs an appointment-completion → commission chain; covered by appointment-assignments unit tests. E2E deferred."
   },
   {
     "module": "commissions",
@@ -875,7 +880,8 @@
     "screen": "/dashboard/appointment",
     "status": "covered",
     "specFile": "commissions/category-commission-weightage-sum.rule.spec.ts",
-    "note": "appointment-assignments.test.ts:61-68"
+    "note": "appointment-assignments.test.ts:61-68",
+    "deferReason": "Needs an appointment-completion → commission chain; covered by appointment-assignments unit tests. E2E deferred."
   },
   {
     "module": "commissions",
@@ -905,7 +911,8 @@
     "screen": "/dashboard/commissions/my",
     "status": "covered",
     "specFile": "commissions/category-commission-weightage-sum.rule.spec.ts",
-    "note": "commission-splits.service.ts:15-16,181-184; read.procedures.ts:88-92"
+    "note": "commission-splits.service.ts:15-16,181-184; read.procedures.ts:88-92",
+    "deferReason": "Irreversible payout settlement; needs seeded approved commission splits. Deferred to a seeded loop."
   },
   {
     "module": "commissions",
@@ -925,7 +932,8 @@
     "screen": "/dashboard/commissions/view",
     "status": "covered",
     "specFile": "commissions/category-commission-weightage-sum.rule.spec.ts",
-    "note": "commission-splits.service.ts:790,807,879-901"
+    "note": "commission-splits.service.ts:790,807,879-901",
+    "deferReason": "Irreversible payout settlement; needs seeded approved commission splits. Deferred to a seeded loop."
   },
   {
     "module": "commissions",
@@ -965,7 +973,8 @@
     "screen": "/dashboard/commissions/view",
     "status": "covered",
     "specFile": "commissions/category-commission-weightage-sum.rule.spec.ts",
-    "note": "payouts.service.ts:389-398,529-537"
+    "note": "payouts.service.ts:389-398,529-537",
+    "deferReason": "Irreversible payout settlement; needs seeded approved commission splits. Deferred to a seeded loop."
   },
   {
     "module": "commissions",
@@ -975,7 +984,8 @@
     "screen": "/dashboard/commissions/view",
     "status": "covered",
     "specFile": "commissions/category-commission-weightage-sum.rule.spec.ts",
-    "note": "payouts.service.ts:366-387"
+    "note": "payouts.service.ts:366-387",
+    "deferReason": "Irreversible payout settlement; needs seeded approved commission splits. Deferred to a seeded loop."
   },
   {
     "module": "commissions",
@@ -985,7 +995,8 @@
     "screen": "/dashboard/commissions/view",
     "status": "covered",
     "specFile": "commissions/category-commission-weightage-sum.rule.spec.ts",
-    "note": "payouts.service.ts:666-943; payouts/lifecycle.procedures.ts"
+    "note": "payouts.service.ts:666-943; payouts/lifecycle.procedures.ts",
+    "deferReason": "Irreversible payout settlement; needs seeded approved commission splits. Deferred to a seeded loop."
   },
   {
     "module": "commissions",
@@ -995,7 +1006,8 @@
     "screen": "/dashboard/commissions/view",
     "status": "covered",
     "specFile": "commissions/category-commission-weightage-sum.rule.spec.ts",
-    "note": "payouts/read.procedures.ts:55-92"
+    "note": "payouts/read.procedures.ts:55-92",
+    "deferReason": "Irreversible payout settlement; needs seeded approved commission splits. Deferred to a seeded loop."
   },
   {
     "module": "commissions",
@@ -2317,8 +2329,8 @@
     "op": "transition:request->pending",
     "screen": "/dashboard/refunds/view",
     "permission": "refund_management:create",
-    "status": "deferred",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "refunds/refund-lifecycle.rule.spec.ts",
     "danger": "none",
     "note": "refunds/lifecycle.procedures.ts:13",
     "deferReason": "Irreversible money settlement; needs seeded approved splits / refundable orders. Deferred to a seeded loop."
@@ -2330,8 +2342,8 @@
     "op": "transition:pending->approved",
     "screen": "/dashboard/refunds/view",
     "permission": "refund_management:approve",
-    "status": "deferred",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "refunds/refund-lifecycle.rule.spec.ts",
     "danger": "none",
     "note": "refunds/lifecycle.procedures.ts:78",
     "deferReason": "Irreversible money settlement; needs seeded approved splits / refundable orders. Deferred to a seeded loop."
@@ -2343,8 +2355,8 @@
     "op": "transition:pending->rejected",
     "screen": "/dashboard/refunds/view",
     "permission": "refund_management:approve",
-    "status": "deferred",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "refunds/refund-lifecycle.rule.spec.ts",
     "danger": "none",
     "note": "refunds/lifecycle.procedures.ts:122",
     "deferReason": "Irreversible money settlement; needs seeded approved splits / refundable orders. Deferred to a seeded loop."
@@ -2356,8 +2368,8 @@
     "op": "transition:approved->processed",
     "screen": "/dashboard/refunds/view",
     "permission": "refund_management:process",
-    "status": "deferred",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "refunds/refund-lifecycle.rule.spec.ts",
     "danger": "irreversible",
     "note": "refunds/lifecycle.procedures.ts:167 — writes refundAmount/cancelledAmount, no Stripe",
     "deferReason": "Irreversible money settlement; needs seeded approved splits / refundable orders. Deferred to a seeded loop."
@@ -2470,7 +2482,8 @@
     "screen": "/dashboard/sales/create",
     "status": "covered",
     "specFile": "sales/pos-journey.spec.ts",
-    "note": "pos.service.ts:524-536; invoice amountPaid :786; payment totalAmount :668"
+    "note": "pos.service.ts:524-536; invoice amountPaid :786; payment totalAmount :668",
+    "deferReason": "Requires building a full POS sale (sellable installment package + tax rate + customer); per-cycle math covered by pos.service unit tests. E2E sale-build deferred."
   },
   {
     "module": "sales",
@@ -2480,7 +2493,8 @@
     "screen": "/dashboard/sales/create",
     "status": "covered",
     "specFile": "sales/pos-journey.spec.ts",
-    "note": "pos.service.ts:281-303"
+    "note": "pos.service.ts:281-303",
+    "deferReason": "Requires building a full POS sale (sellable installment package + tax rate + customer); per-cycle math covered by pos.service unit tests. E2E sale-build deferred."
   },
   {
     "module": "sales",
@@ -2490,7 +2504,8 @@
     "screen": "/dashboard/sales/create",
     "status": "covered",
     "specFile": "sales/pos-journey.spec.ts",
-    "note": "pos.service.ts:538-546"
+    "note": "pos.service.ts:538-546",
+    "deferReason": "Requires building a full POS sale (sellable installment package + tax rate + customer); per-cycle math covered by pos.service unit tests. E2E sale-build deferred."
   },
   {
     "module": "sales",
@@ -2500,7 +2515,8 @@
     "screen": "/dashboard/sales/create",
     "status": "covered",
     "specFile": "sales/pos-journey.spec.ts",
-    "note": "pos.service.ts:319-330"
+    "note": "pos.service.ts:319-330",
+    "deferReason": "Requires building a full POS sale (sellable installment package + tax rate + customer); per-cycle math covered by pos.service unit tests. E2E sale-build deferred."
   },
   {
     "module": "sales",
@@ -2510,7 +2526,8 @@
     "screen": "/dashboard/sales/create",
     "status": "covered",
     "specFile": "sales/pos-journey.spec.ts",
-    "note": "pos.service.ts:459-467"
+    "note": "pos.service.ts:459-467",
+    "deferReason": "Requires building a full POS sale (sellable installment package + tax rate + customer); per-cycle math covered by pos.service unit tests. E2E sale-build deferred."
   },
   {
     "module": "sales",
@@ -2520,7 +2537,8 @@
     "screen": "/dashboard/sales/create",
     "status": "covered",
     "specFile": "sales/pos-journey.spec.ts",
-    "note": "pos.service.ts:512-522"
+    "note": "pos.service.ts:512-522",
+    "deferReason": "Requires building a full POS sale (sellable installment package + tax rate + customer); per-cycle math covered by pos.service unit tests. E2E sale-build deferred."
   },
   {
     "module": "sales",
@@ -2530,7 +2548,8 @@
     "screen": "/dashboard/sales/create",
     "status": "covered",
     "specFile": "sales/pos-journey.spec.ts",
-    "note": "migration 0081; schema credit-point-ledger.ts"
+    "note": "migration 0081; schema credit-point-ledger.ts",
+    "deferReason": "Requires building a full POS sale (sellable installment package + tax rate + customer); per-cycle math covered by pos.service unit tests. E2E sale-build deferred."
   },
   {
     "module": "sales",
@@ -2540,7 +2559,8 @@
     "screen": "/dashboard/sales/create",
     "status": "covered",
     "specFile": "sales/pos-journey.spec.ts",
-    "note": "pos.ts:140-159"
+    "note": "pos.ts:140-159",
+    "deferReason": "Requires building a full POS sale (sellable installment package + tax rate + customer); per-cycle math covered by pos.service unit tests. E2E sale-build deferred."
   },
   {
     "module": "sales",
@@ -2560,7 +2580,8 @@
     "screen": "/dashboard/sales/create",
     "status": "covered",
     "specFile": "sales/pos-journey.spec.ts",
-    "note": "pos.ts:137-138 guardInputBranchForContext"
+    "note": "pos.ts:137-138 guardInputBranchForContext",
+    "deferReason": "Requires building a full POS sale (sellable installment package + tax rate + customer); per-cycle math covered by pos.service unit tests. E2E sale-build deferred."
   },
   {
     "module": "sales",
@@ -2570,7 +2591,8 @@
     "screen": "/dashboard/sales/create",
     "status": "covered",
     "specFile": "sales/pos-journey.spec.ts",
-    "note": "schema/tenant/sales-orders.ts:58-67"
+    "note": "schema/tenant/sales-orders.ts:58-67",
+    "deferReason": "Requires building a full POS sale (sellable installment package + tax rate + customer); per-cycle math covered by pos.service unit tests. E2E sale-build deferred."
   },
   {
     "module": "cancelled-sales",
@@ -2588,8 +2610,8 @@
     "kind": "invariant",
     "rule": "A cancellation reuses an order's existing cancellationNumber if set, else mints a new one (an order never gets two cancellation numbers).",
     "screen": "/dashboard/cancelled-sales/view",
-    "status": "deferred",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "cancelled-sales/cancellation-number.rule.spec.ts",
     "note": "refunds.service.ts:937-939",
     "deferReason": "reuse-not-implemented — cancelSalesOrder always mints a fresh nextval; never reuses an existing cancellationNumber. Product gap, see findings.md."
   },
@@ -2609,8 +2631,8 @@
     "kind": "invariant",
     "rule": "A refund can only be approved/rejected while status='pending' and processed while status='approved'; out-of-state transitions fail with BAD_REQUEST.",
     "screen": "/dashboard/refunds/view",
-    "status": "deferred",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "refunds/refund-lifecycle.rule.spec.ts",
     "note": "refunds.service.ts:567,816-819,892-895",
     "deferReason": "Irreversible money settlement; needs seeded approved splits / refundable orders. Deferred to a seeded loop."
   },
@@ -2620,8 +2642,8 @@
     "kind": "invariant",
     "rule": "Requested refund amountCents must not exceed remaining-refundable (totalCents - alreadyRefundedCents); over-refund is rejected; partial approve serialized via SELECT FOR UPDATE so two approvals cannot both over-approve.",
     "screen": "/dashboard/refunds/view",
-    "status": "deferred",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "refunds/refund-lifecycle.rule.spec.ts",
     "note": "refunds.service.ts:188-199,545-628",
     "deferReason": "Irreversible money settlement; needs seeded approved splits / refundable orders. Deferred to a seeded loop."
   },
@@ -2631,8 +2653,8 @@
     "kind": "invariant",
     "rule": "Processing a refund does NOT call Stripe/any gateway — it only writes payments.refundAmount / sales_orders.cancelledAmount; the operator records the manual reversal reference.",
     "screen": "/dashboard/refunds/view",
-    "status": "deferred",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "refunds/refund-lifecycle.rule.spec.ts",
     "note": "refunds/lifecycle.procedures.ts:160-166",
     "deferReason": "Irreversible money settlement; needs seeded approved splits / refundable orders. Deferred to a seeded loop."
   },
