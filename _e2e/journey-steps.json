@@ -894,5 +894,11 @@
     "Create a disposable order with a known total",
     "Request a refund far exceeding the total",
     "Assert BAD_REQUEST (exceeds remaining-refundable)"
+  ],
+  "rbac/listnodes-scope.rbac.spec.ts::a branch-scoped staff sees a strict subset of the admin node tree": [
+    "As admin, call hierarchy/listNodes and count the full node tree",
+    "As the seeded staff (non-admin) session, call hierarchy/listNodes",
+    "If staff lacks the permission entirely, accept the FORBIDDEN boundary",
+    "Otherwise assert the staff node set is non-empty and a strict subset of the admin tree"
   ]
 }

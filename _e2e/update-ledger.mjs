@@ -40,7 +40,7 @@ const ALIAS = {
 	installments: ["settings", "packages"],
 	trainers: ["trainers"],
 	"my-services": ["my-services"],
-	rbac: [],
+	rbac: ["rbac"],
 	"multi-tenant": [],
 	saas: [],
 	households: ["households"],

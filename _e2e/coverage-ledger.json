@@ -2088,7 +2088,7 @@
     "rule": "requirePermissionOrpc throws FORBIDDEN when the member's role lacks the required resource:action permission.",
     "screen": "all permission-gated screens",
     "status": "covered",
-    "specFile": "access-control/rbac-staff.rbac.spec.ts",
+    "specFile": "rbac/listnodes-scope.rbac.spec.ts",
     "note": "guards.ts:106-129"
   },
   {
@@ -2098,7 +2098,7 @@
     "rule": "accessibleNodeIds = getDescendantNodeIds(member.hierarchyScopeId); a staff member can only act on nodes in their subtree; getNode/getDescendants/moveNode throw FORBIDDEN for out-of-scope nodeId.",
     "screen": "/dashboard/branch",
     "status": "covered",
-    "specFile": "access-control/rbac-staff.rbac.spec.ts",
+    "specFile": "rbac/listnodes-scope.rbac.spec.ts",
     "note": "context.ts:48; hierarchy/read.procedures.ts:144-148; move.procedures.ts:41-51"
   },
   {
@@ -2107,8 +2107,8 @@
     "kind": "invariant",
     "rule": "hierarchy.listNodes returns ALL nodes only for admin or empty accessibleNodeIds; otherwise filtered to accessibleNodeIds. Staff never see sibling/parent-branch nodes.",
     "screen": "/dashboard/branch",
-    "status": "deferred",
-    "specFile": null,
+    "status": "covered",
+    "specFile": "rbac/listnodes-scope.rbac.spec.ts",
     "note": "hierarchy/read.procedures.ts:55-65",
     "deferReason": "Remaining RBAC node-scope + SaaS-state rows need a branch-scoped staff fixture / org paymentStatus flip. Deferred (staff-RBAC permission-denied IS covered)."
   },
@@ -2119,7 +2119,7 @@
     "rule": "guardBranchAccessible throws FORBIDDEN when input.branchId is outside accessibleNodeIds (expenses/announcements/promotions/branchInvites).",
     "screen": "branch-scoped screens",
     "status": "covered",
-    "specFile": "access-control/rbac-staff.rbac.spec.ts",
+    "specFile": "rbac/listnodes-scope.rbac.spec.ts",
     "note": "guards.ts:55-70"
   },
   {
@@ -2129,7 +2129,7 @@
     "rule": "guardInputBranchForContext rejects explicit null/empty branchId with FORBIDDEN — a member cannot bypass branch scoping for an org-wide write.",
     "screen": "branch-scoped write screens",
     "status": "covered",
-    "specFile": "access-control/rbac-staff.rbac.spec.ts",
+    "specFile": "rbac/listnodes-scope.rbac.spec.ts",
     "note": "guards.ts:86-104"
   },
   {
