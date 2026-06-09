@@ -192,7 +192,7 @@ export function CreatePOSheet({
 								<SelectValue placeholder="Select supplier…" />
 							</SelectTrigger>
 							<SelectContent>
-								{suppliers.map((s: any) => (
+								{suppliers.map((s) => (
 									<SelectItem key={s.id} value={s.id}>
 										{s.name}
 									</SelectItem>
@@ -288,7 +288,7 @@ export function CreatePOSheet({
 											<SelectValue placeholder="Select…" />
 										</SelectTrigger>
 										<SelectContent>
-											{products.map((p: any) => (
+											{products.map((p) => (
 												<SelectItem key={p.id} value={p.id}>
 													{p.name} ({p.sku})
 												</SelectItem>

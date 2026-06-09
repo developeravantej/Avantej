@@ -154,7 +154,7 @@ export function ProductPriceOverrideDialog({
 									<SelectValue placeholder="Select product..." />
 								</SelectTrigger>
 								<SelectContent>
-									{products.map((p: any) => (
+									{products.map((p) => (
 										<SelectItem key={p.id} value={p.id}>
 											{p.name}
 										</SelectItem>

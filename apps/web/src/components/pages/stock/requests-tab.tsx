@@ -276,7 +276,7 @@ export function StockRequestsTabPage() {
 			});
 			const rowWithItems: StockRequestRow = {
 				...row,
-				items: detail.items.map((item: any) => ({
+				items: detail.items.map((item) => ({
 					id: item.id,
 					productId: item.productId,
 					quantityRequested: item.quantityRequested,
@@ -300,7 +300,7 @@ export function StockRequestsTabPage() {
 	}
 
 	// ---- Table data ----
-	const data: StockRequestRow[] = apiData.map((item: any) => ({
+	const data: StockRequestRow[] = apiData.map((item) => ({
 		id: item.id,
 		requestNumber: item.requestNumber,
 		dateIssued: item.dateIssued

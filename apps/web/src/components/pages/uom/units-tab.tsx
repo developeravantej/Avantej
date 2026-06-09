@@ -29,7 +29,7 @@ export function UnitsTabPage() {
 	});
 
 	// Show only base UOMs (no parent)
-	const baseUoms = allUoms.filter((u: any) => !u.baseUomId);
+	const baseUoms = allUoms.filter((u) => !u.baseUomId);
 
 	const deleteMutation = useApiMutation({
 		mutationFn: (id: string) =>

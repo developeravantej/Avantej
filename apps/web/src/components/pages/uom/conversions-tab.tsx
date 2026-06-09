@@ -38,10 +38,10 @@ export function UomConversionsTabPage() {
 	});
 
 	// Derived UOMs (have a baseUomId) are treated as conversions
-	const conversions = allUoms.filter((u: any) => u.baseUomId !== null);
+	const conversions = allUoms.filter((u) => u.baseUomId !== null);
 	// Base UOMs for the name lookup map and selector
-	const baseUoms = allUoms.filter((u: any) => !u.baseUomId);
-	const uomMap = Object.fromEntries(allUoms.map((u: any) => [u.id, u.name]));
+	const baseUoms = allUoms.filter((u) => !u.baseUomId);
+	const uomMap = Object.fromEntries(allUoms.map((u) => [u.id, u.name]));
 
 	const createMutation = useApiMutation({
 		mutationFn: (vars: {

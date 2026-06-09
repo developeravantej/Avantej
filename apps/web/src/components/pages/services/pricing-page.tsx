@@ -62,7 +62,10 @@ export function ServicePricingPage() {
 	});
 
 	const branchMap = new Map(
-		((hierarchyData as any)?.nodes ?? []).map((n: any) => [n.id, n.name]),
+		(hierarchyData?.nodes ?? []).map((n: { id: string; name: string }) => [
+			n.id,
+			n.name,
+		]),
 	);
 
 	const {

@@ -66,7 +66,7 @@ export function SupplierInvoicesTab({
 	});
 
 	const supplierMap = useMemo(
-		() => new Map(suppliers.map((s: any) => [s.id, s.name])),
+		() => new Map(suppliers.map((s) => [s.id, s.name])),
 		[suppliers],
 	);
 
@@ -85,7 +85,7 @@ export function SupplierInvoicesTab({
 			accessorKey: "supplierId",
 			cell: ({ row }) => (
 				<span className="text-sm">
-					{(supplierMap.get(row.original.supplierId) as any) ??
+					{supplierMap.get(row.original.supplierId) ??
 						row.original.supplierId.slice(0, 8) + "…"}
 				</span>
 			),

@@ -84,7 +84,7 @@ export function TrainerAvailabilityEditor({
 	useEffect(() => {
 		if (availabilityData) {
 			setShifts(
-				availabilityData.map((slot: any) => ({
+				availabilityData.map((slot) => ({
 					dayOfWeek: slot.dayOfWeek,
 					startTime: slot.startTime,
 					endTime: slot.endTime,

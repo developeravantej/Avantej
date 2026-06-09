@@ -136,7 +136,7 @@ export function useInstallmentMutations({
 					input: { organizationId: organizationId ?? "" },
 				}),
 			);
-			setSelectedInstance((prev: any) =>
+			setSelectedInstance((prev) =>
 				prev?.id === updated.id ? { ...prev, ...updated } : prev,
 			);
 			toast.success("Credits adjusted successfully.");

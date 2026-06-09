@@ -809,7 +809,7 @@ export function DashboardPage() {
 											</button>
 										</li>
 									) : (
-										auditRows.slice(0, 5).map((row: any) => (
+										auditRows.slice(0, 5).map((row) => (
 											<li key={row.id} className="flex gap-3 text-xs">
 												<Tooltip>
 													<TooltipTrigger asChild>

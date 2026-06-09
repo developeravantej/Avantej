@@ -42,7 +42,7 @@ export function BrandsTabPage() {
 
 	const productCountByBrand = useMemo(() => {
 		const counts = new Map<string, number>();
-		products?.forEach((p: any) => {
+		products?.forEach((p) => {
 			if (p.brandId) counts.set(p.brandId, (counts.get(p.brandId) ?? 0) + 1);
 		});
 		return counts;
@@ -85,30 +85,34 @@ export function BrandsTabPage() {
 		);
 	}
 
-	const tableData: BrandRow[] = brands.map((b: any) => ({
+	const tableData: BrandRow[] = brands.map((b) => ({
 		ID: b.id,
 		Name: b.name,
 		"Products Assigned": productCountByBrand.get(b.id) ?? 0,
 	}));
 
 	return (
-		<Skeleton name="inventory-brands-tab" loading={isLoading} fallback={<PageLoader />}>
-		<>
-			{tableData.length === 0 && (
-				<EmptyState
-					title="No brands yet"
-					description="Add a brand to organize your products."
-					icon={Tag}
+		<Skeleton
+			name="inventory-brands-tab"
+			loading={isLoading}
+			fallback={<PageLoader />}
+		>
+			<>
+				{tableData.length === 0 && (
+					<EmptyState
+						title="No brands yet"
+						description="Add a brand to organize your products."
+						icon={Tag}
+					/>
+				)}
+				<DataTable
+					columns={columns}
+					data={tableData}
+					organizationId={organizationId}
+					onDelete={(id) => deleteMutation.mutate(id)}
+					isMutating={deleteMutation.isPending}
 				/>
-			)}
-			<DataTable
-				columns={columns}
-				data={tableData}
-				organizationId={organizationId}
-				onDelete={(id) => deleteMutation.mutate(id)}
-				isMutating={deleteMutation.isPending}
-			/>
-		</>
+			</>
 		</Skeleton>
 	);
 }

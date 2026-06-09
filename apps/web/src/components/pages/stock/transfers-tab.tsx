@@ -279,7 +279,7 @@ export function TransferOrdersTabPage() {
 			});
 			const rowWithItems: TransferOrderRow = {
 				...row,
-				items: detail.items.map((item: any) => ({
+				items: detail.items.map((item) => ({
 					id: item.id,
 					productId: item.productId,
 					quantityTransferred: item.quantityTransferred,
@@ -303,7 +303,7 @@ export function TransferOrdersTabPage() {
 	}
 
 	// ---- Table data ----
-	const data: TransferOrderRow[] = apiData.map((item: any) => ({
+	const data: TransferOrderRow[] = apiData.map((item) => ({
 		id: item.id,
 		transferNumber: item.transferNumber,
 		dateIssued: item.dateIssued

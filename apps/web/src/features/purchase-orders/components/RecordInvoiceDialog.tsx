@@ -74,7 +74,7 @@ export function RecordInvoiceDialog({
 		enabled: !!poId && !!organizationId,
 	});
 
-	const postedReceipts = receipts.filter((r: any) => r.status === "posted");
+	const postedReceipts = receipts.filter((r) => r.status === "posted");
 
 	const createMutation = useApiMutation({
 		mutationFn: (
@@ -191,7 +191,7 @@ export function RecordInvoiceDialog({
 										</SelectTrigger>
 										<SelectContent>
 											<SelectItem value="">None</SelectItem>
-											{postedReceipts.map((r: any) => (
+											{postedReceipts.map((r) => (
 												<SelectItem key={r.id} value={r.id}>
 													{r.receiptNumber}, {formatDate(r.receivedAt)}
 												</SelectItem>

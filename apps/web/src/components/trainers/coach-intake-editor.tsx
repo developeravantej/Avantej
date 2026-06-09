@@ -97,7 +97,7 @@ export function CoachIntakeEditor({
 	useEffect(() => {
 		if (intakeData) {
 			setSlots(
-				intakeData.map((slot: any) => ({
+				intakeData.map((slot) => ({
 					dayOfWeek: slot.dayOfWeek,
 					startTime: slot.startTime,
 					endTime: slot.endTime,

@@ -87,9 +87,13 @@ export function CustomersListPage() {
 			enabled: !!organizationId,
 		}),
 	});
-	const branchNodes = (hierarchyData?.nodes ?? []).filter(
-		(n: any) => n.type === "branch",
-	);
+	const branchNodes = (
+		(hierarchyData?.nodes ?? []) as Array<{
+			id: string;
+			name: string;
+			type: string;
+		}>
+	).filter((n) => n.type === "branch");
 
 	const filteredCustomers = useMemo(
 		() =>
@@ -553,7 +557,7 @@ export function CustomersListPage() {
 										<SelectValue placeholder="Select a branch…" />
 									</SelectTrigger>
 									<SelectContent>
-										{branchNodes.map((node: any) => (
+										{branchNodes.map((node) => (
 											<SelectItem key={node.id} value={node.id}>
 												{node.name}
 											</SelectItem>

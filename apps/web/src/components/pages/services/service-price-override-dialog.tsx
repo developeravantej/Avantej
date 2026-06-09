@@ -154,7 +154,7 @@ export function ServicePriceOverrideDialog({
 									<SelectValue placeholder="Select service..." />
 								</SelectTrigger>
 								<SelectContent>
-									{services.map((s: any) => (
+									{services.map((s) => (
 										<SelectItem key={s.id} value={s.id}>
 											{s.name}
 										</SelectItem>
