@@ -15,7 +15,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatPrice } from "@/lib/money";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -192,6 +192,18 @@ export function BulkActionBar({
 	const queryClient = useQueryClient();
 	const count = selectedIds.length;
 
+	// Canonical oRPC partial keys for every commission list these bulk actions
+	// can move rows between (pending → approved → paid, or → void). The list
+	// query lives in review-tab.tsx and is fetched via
+	// `orpc.commissionSplits.listPendingReview.queryOptions(...)`, so a plain
+	// `["commissions"]` key matches nothing — use the generated keys instead.
+	const commissionListKeys = [
+		orpc.commissionSplits.listPendingReview.key(),
+		orpc.commissionSplits.listLedger.key(),
+		orpc.commissionSplits.liabilitySummary.key(),
+		orpc.commissionSplits.getMyCommissions.key(),
+	];
+
 	// Dialog state
 	const [approveDialogOpen, setApproveDialogOpen] = useState(false);
 	const [markPaidDialogOpen, setMarkPaidDialogOpen] = useState(false);
@@ -207,7 +219,7 @@ export function BulkActionBar({
 		successMessage: `Approved ${count} commission split${count !== 1 ? "s" : ""}.`,
 		errorMessage: (err) =>
 			err.message || "Failed to approve commission splits.",
-		invalidate: [["commissions"]],
+		invalidate: commissionListKeys,
 		onSuccess: () => {
 			setApproveDialogOpen(false);
 			onDone();
@@ -228,7 +240,7 @@ export function BulkActionBar({
 		},
 		successMessage: `Voided ${count} commission split${count !== 1 ? "s" : ""}.`,
 		errorMessage: (err) => err.message || "Failed to void commission splits.",
-		invalidate: [["commissions"]],
+		invalidate: commissionListKeys,
 		onSuccess: () => {
 			setVoidDialogOpen(false);
 			onDone();
@@ -316,7 +328,9 @@ export function BulkActionBar({
 				selectedIds={selectedIds}
 				organizationId={organizationId}
 				onDone={() => {
-					queryClient.invalidateQueries({ queryKey: ["commissions"] });
+					for (const queryKey of commissionListKeys) {
+						queryClient.invalidateQueries({ queryKey });
+					}
 					setMarkPaidDialogOpen(false);
 					onDone();
 				}}

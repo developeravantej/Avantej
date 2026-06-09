@@ -28,6 +28,7 @@ import type {
 	PermissionResource,
 } from "@/components/access-control/permission-matrix/permission-matrix.types";
 import { useRoles } from "@/hooks/useRoles";
+import { StatusCallout } from "@/components/ui/status-callout";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -70,13 +71,17 @@ export function RolesTabPage({
 		enabled: !!organizationId,
 	});
 
-	const { data: rolesApiData = [] as RoleItem[], isLoading: rolesLoading } =
-		useQuery({
-			...orpc.roles.list.queryOptions({
-				input: { organizationId: organizationId! },
-			}),
-			enabled: !!organizationId,
-		});
+	const {
+		data: rolesApiData = [] as RoleItem[],
+		isLoading: rolesLoading,
+		isError: rolesError,
+		refetch: refetchRoles,
+	} = useQuery({
+		...orpc.roles.list.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
+		enabled: !!organizationId,
+	});
 
 	const { data: membersData = [] as MemberItem[] } = useQuery({
 		...orpc.members.list.queryOptions({
@@ -295,7 +300,16 @@ export function RolesTabPage({
 
 				{/* Role items */}
 				<div className="flex-1 overflow-y-auto">
-					{rolesLoading ? (
+					{rolesError ? (
+						<div className="px-3 py-3">
+							<StatusCallout
+								variant="error"
+								title="Couldn't load roles"
+								message="Something went wrong while loading roles."
+								onRetry={() => refetchRoles()}
+							/>
+						</div>
+					) : rolesLoading ? (
 						<div className="space-y-1 px-3 py-2">
 							{[1, 2, 3].map((i) => (
 								<div

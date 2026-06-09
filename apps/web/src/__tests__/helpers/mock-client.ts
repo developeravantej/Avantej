@@ -50,4 +50,6 @@ export const mockClient =
 // This keeps `client.*` stubs (mockResolvedValue) and `orpc.*.queryOptions()`
 // consumers in sync — otherwise queries would resolve to undefined and TanStack
 // Query would throw "Query data cannot be undefined".
-export const mockOrpc = createTanstackQueryUtils(mockClient as never);
+export const mockOrpc = createTanstackQueryUtils(
+	mockClient as unknown as AppRouterClient,
+);

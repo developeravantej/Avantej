@@ -177,10 +177,10 @@ export function useRunBatch(organizationId: string) {
 		successMessage: (result) =>
 			`${result.payoutIds.length} payout${result.payoutIds.length !== 1 ? "s" : ""} created — ${result.splitCount} splits processed.`,
 		invalidate: [
-			[["payouts", "list"]],
-			[["commissionSplits", "liabilitySummary"]],
-			["commissions"],
-			["commissionLiability"],
+			orpc.payouts.list.key(),
+			orpc.commissionSplits.liabilitySummary.key(),
+			orpc.commissionSplits.listLedger.key(),
+			orpc.commissionSplits.listPendingReview.key(),
 		],
 	});
 }
@@ -196,15 +196,19 @@ export function useProcessForRecipient(organizationId: string) {
 				reference: params.reference,
 			}),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: [["payouts"]] });
-			queryClient.invalidateQueries({ queryKey: ["commissionLiability"] });
+			queryClient.invalidateQueries({ queryKey: orpc.payouts.key() });
+			queryClient.invalidateQueries({
+				queryKey: orpc.commissionSplits.liabilitySummary.key(),
+			});
 		},
 	});
 }
 
 export function invalidatePayouts(_organizationId: string) {
-	queryClient.invalidateQueries({ queryKey: [["payouts"]] });
-	queryClient.invalidateQueries({ queryKey: ["commissionLiability"] });
+	queryClient.invalidateQueries({ queryKey: orpc.payouts.key() });
+	queryClient.invalidateQueries({
+		queryKey: orpc.commissionSplits.liabilitySummary.key(),
+	});
 }
 
 // ---------------------------------------------------------------------------
@@ -245,10 +249,10 @@ export function useMarkPayoutPaid(organizationId: string) {
 		successMessage: "Payout marked as paid",
 		errorMessage: (err) => err.message,
 		invalidate: [
-			[["payouts", "list"]],
-			[["commissionSplits", "liabilitySummary"]],
-			["commissions"],
-			["commissionLiability"],
+			orpc.payouts.list.key(),
+			orpc.commissionSplits.liabilitySummary.key(),
+			orpc.commissionSplits.listLedger.key(),
+			orpc.commissionSplits.listPendingReview.key(),
 		],
 	});
 }
@@ -264,10 +268,10 @@ export function useMarkPayoutFailed(organizationId: string) {
 		successMessage: "Payout marked as failed",
 		errorMessage: (err) => err.message,
 		invalidate: [
-			[["payouts", "list"]],
-			[["commissionSplits", "liabilitySummary"]],
-			["commissions"],
-			["commissionLiability"],
+			orpc.payouts.list.key(),
+			orpc.commissionSplits.liabilitySummary.key(),
+			orpc.commissionSplits.listLedger.key(),
+			orpc.commissionSplits.listPendingReview.key(),
 		],
 	});
 }
@@ -282,10 +286,10 @@ export function useRetryPayout(organizationId: string) {
 		successMessage: "Payout queued for retry",
 		errorMessage: (err) => err.message,
 		invalidate: [
-			[["payouts", "list"]],
-			[["commissionSplits", "liabilitySummary"]],
-			["commissions"],
-			["commissionLiability"],
+			orpc.payouts.list.key(),
+			orpc.commissionSplits.liabilitySummary.key(),
+			orpc.commissionSplits.listLedger.key(),
+			orpc.commissionSplits.listPendingReview.key(),
 		],
 	});
 }
@@ -301,10 +305,10 @@ export function useCancelPayout(organizationId: string) {
 		successMessage: "Payout cancelled",
 		errorMessage: (err) => err.message,
 		invalidate: [
-			[["payouts", "list"]],
-			[["commissionSplits", "liabilitySummary"]],
-			["commissions"],
-			["commissionLiability"],
+			orpc.payouts.list.key(),
+			orpc.commissionSplits.liabilitySummary.key(),
+			orpc.commissionSplits.listLedger.key(),
+			orpc.commissionSplits.listPendingReview.key(),
 		],
 	});
 }

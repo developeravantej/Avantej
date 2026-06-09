@@ -35,6 +35,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { StatusCallout } from "@/components/ui/status-callout";
 import {
 	Table,
 	TableBody,
@@ -58,7 +59,7 @@ import { FreezeInstanceDialog } from "@/features/packages/components/freeze-inst
 import { useUnfreezePackageInstance } from "@/features/packages/api";
 import { useUserContext } from "@/hooks/useUserContext";
 import { formatPrice, rmToCents } from "@/lib/money";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -163,14 +164,11 @@ function PackageInstanceHistory({
 	organizationId: string;
 	packageInstanceId: string;
 }) {
-	const { data, isLoading } = useQuery({
-		queryKey: ["packageInstances", "statusHistory", packageInstanceId],
-		queryFn: () =>
-			client.packageInstances.statusHistory({
-				organizationId,
-				packageInstanceId,
-			}),
-	});
+	const { data, isLoading } = useQuery(
+		orpc.packageInstances.statusHistory.queryOptions({
+			input: { organizationId, packageInstanceId },
+		}),
+	);
 	return <StatusTimeline entries={data?.rows ?? []} isLoading={isLoading} />;
 }
 
@@ -205,15 +203,18 @@ export function PackageInstancesPage() {
 	const unfreezeMutation = useUnfreezePackageInstance(organizationId ?? "");
 
 	// Admin list — all instances for the org
-	const { data: apiData = [], isLoading } = useQuery({
-		queryKey: ["packageInstances", organizationId, statusFilter],
-		queryFn: async () => {
-			if (!organizationId) return [];
-			return client.packageInstances.listAll({
-				organizationId,
+	const {
+		data: apiData = [],
+		isLoading,
+		isError,
+		refetch,
+	} = useQuery({
+		...orpc.packageInstances.listAll.queryOptions({
+			input: {
+				organizationId: organizationId ?? "",
 				status: statusFilter as InstanceStatus | undefined,
-			});
-		},
+			},
+		}),
 		enabled: !!organizationId,
 	});
 
@@ -265,7 +266,7 @@ export function PackageInstancesPage() {
 			client.packageInstances.create(input),
 		successMessage: "Package assigned successfully.",
 		errorMessage: (err) => err.message || "Failed to assign package.",
-		invalidate: [["packageInstances", organizationId]],
+		invalidate: [orpc.packageInstances.listAll.key()],
 		onSuccess: () => {
 			setCreateOpen(false);
 			setForm(EMPTY_FORM);
@@ -274,14 +275,12 @@ export function PackageInstancesPage() {
 
 	// Staff assignment queries + mutations
 	const { data: staffRows = [], isLoading: isLoadingStaff } = useQuery({
-		queryKey: ["packageInstanceStaff", staffInstanceId, organizationId],
-		queryFn: async () => {
-			if (!staffInstanceId || !organizationId) return [];
-			return client.packageInstanceStaff.list({
-				organizationId,
-				packageInstanceId: staffInstanceId,
-			});
-		},
+		...orpc.packageInstanceStaff.list.queryOptions({
+			input: {
+				organizationId: organizationId ?? "",
+				packageInstanceId: staffInstanceId ?? "",
+			},
+		}),
 		enabled: !!staffInstanceId && !!organizationId,
 	});
 
@@ -308,7 +307,14 @@ export function PackageInstancesPage() {
 			}),
 		successMessage: "Staff assigned.",
 		errorMessage: (err) => err.message || "Failed to assign staff.",
-		invalidate: [["packageInstanceStaff", staffInstanceId, organizationId]],
+		invalidate: [
+			orpc.packageInstanceStaff.list.queryOptions({
+				input: {
+					organizationId: organizationId ?? "",
+					packageInstanceId: staffInstanceId ?? "",
+				},
+			}).queryKey,
+		],
 		onSuccess: () => setAssignStaffId(""),
 	});
 
@@ -321,7 +327,14 @@ export function PackageInstancesPage() {
 			}),
 		successMessage: "Staff removed.",
 		errorMessage: (err) => err.message || "Failed to remove staff.",
-		invalidate: [["packageInstanceStaff", staffInstanceId, organizationId]],
+		invalidate: [
+			orpc.packageInstanceStaff.list.queryOptions({
+				input: {
+					organizationId: organizationId ?? "",
+					packageInstanceId: staffInstanceId ?? "",
+				},
+			}).queryKey,
+		],
 	});
 
 	function handleAssignStaff() {
@@ -533,6 +546,18 @@ export function PackageInstancesPage() {
 					</button>
 				))}
 			</div>
+
+			{/* Load error */}
+			{isError && (
+				<div className="px-5 py-4">
+					<StatusCallout
+						variant="error"
+						title="Failed to load session packs"
+						message="Something went wrong while loading the list. Please try again."
+						onRetry={() => refetch()}
+					/>
+				</div>
+			)}
 
 			{/* Table */}
 			<Table data-testid="instances-table">

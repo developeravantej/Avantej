@@ -22,7 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 const schema = z.object({
 	packageInstanceId: z.string().uuid("Must be a valid UUID"),
@@ -87,9 +87,22 @@ export function PartialRefundDialog({
 					branchId,
 				});
 				toast.success(`Partial refund ${result.refundNumber} created`);
-				await queryClient.invalidateQueries({ queryKey: ["refunds"] });
+				// `refunds-tab.tsx` now fetches via `orpc.refunds.list.queryOptions(...)`,
+				// so its query key is oRPC-namespaced — invalidate via the matching
+				// `.key()`. (Plain `["refunds"]` no longer matches the migrated query.)
+				await queryClient.invalidateQueries({
+					queryKey: orpc.refunds.list.key(),
+				});
+				// Hand-written package-instance lists (e.g. instances-page.tsx,
+				// features/packages/api.ts) use `["packageInstances", ...]`, matched
+				// by this plain key. The oRPC-fetched `listAll` query uses an
+				// oRPC-namespaced runtime key the plain key does NOT match, so it is
+				// invalidated explicitly via `.key()` to avoid a stale list.
 				await queryClient.invalidateQueries({
 					queryKey: ["packageInstances"],
+				});
+				await queryClient.invalidateQueries({
+					queryKey: orpc.packageInstances.listAll.key(),
 				});
 				onOpenChange(false);
 				form.reset();

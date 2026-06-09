@@ -1,10 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import { RequestRefundDialog } from "@/components/refunds/request-refund-dialog";
+import { StatusCallout } from "@/components/ui/status-callout";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
-import type { Installment, InstallmentOverviewItem, InstallmentPlan, SuggestRefundResult } from "@/features/installments/types";
+import type {
+	Installment,
+	InstallmentOverviewItem,
+	InstallmentPlan,
+	SuggestRefundResult,
+} from "@/features/installments/types";
 import { AdjustCreditsDialog } from "@/features/installments/components/adjust-credits-dialog";
 import { ConfirmPaymentDialog } from "@/features/installments/components/confirm-payment-dialog";
 import { InstallmentsTable } from "@/features/installments/components/installments-table";
@@ -46,8 +52,9 @@ export function PackageInstallmentsPage() {
 		useState<Installment | null>(null);
 	const [rescheduleInstallment, setRescheduleInstallment] =
 		useState<Installment | null>(null);
-	const [waiveInstallment, setWaiveInstallment] =
-		useState<Installment | null>(null);
+	const [waiveInstallment, setWaiveInstallment] = useState<Installment | null>(
+		null,
+	);
 	const [showUnlockDialog, setShowUnlockDialog] = useState(false);
 	const [showRefundDialog, setShowRefundDialog] = useState(false);
 	const [showAdjustCreditsDialog, setShowAdjustCreditsDialog] = useState(false);
@@ -86,7 +93,12 @@ export function PackageInstallmentsPage() {
 		[plans],
 	);
 
-	const { data: overviewData, isLoading } = useQuery({
+	const {
+		data: overviewData,
+		isLoading,
+		isError: isOverviewError,
+		refetch: refetchOverview,
+	} = useQuery({
 		queryKey: [
 			"installments-overview",
 			organizationId,
@@ -161,24 +173,31 @@ export function PackageInstallmentsPage() {
 	 * workflow (request → approve → process). The UI now opens RequestRefundDialog
 	 * which calls refunds.request to create a Pending row for review.
 	 */
-	const { confirmPaymentMutation, manualUnlockMutation, adjustCreditsMutation, setOverdraftMutation, rescheduleMutation, waiveMutation, resetOverrideMutation } =
-		useInstallmentMutations({
-			organizationId,
-			selectedInstance,
-			setSelectedInstance,
-			setConfirmInstallment,
-			resetConfirmForm,
-			setShowUnlockDialog,
-			setUnlockReason,
-			setShowAdjustCreditsDialog,
-			setAdjustUnlocked,
-			setAdjustUsed,
-			setAdjustReason,
-			setShowOverdraftDialog,
-			setOverdraftReason,
-			setRescheduleInstallment,
-			setWaiveInstallment,
-		});
+	const {
+		confirmPaymentMutation,
+		manualUnlockMutation,
+		adjustCreditsMutation,
+		setOverdraftMutation,
+		rescheduleMutation,
+		waiveMutation,
+		resetOverrideMutation,
+	} = useInstallmentMutations({
+		organizationId,
+		selectedInstance,
+		setSelectedInstance,
+		setConfirmInstallment,
+		resetConfirmForm,
+		setShowUnlockDialog,
+		setUnlockReason,
+		setShowAdjustCreditsDialog,
+		setAdjustUnlocked,
+		setAdjustUsed,
+		setAdjustReason,
+		setShowOverdraftDialog,
+		setOverdraftReason,
+		setRescheduleInstallment,
+		setWaiveInstallment,
+	});
 
 	function openSheet(instance: InstallmentOverviewItem) {
 		setSelectedInstance(instance);
@@ -208,7 +227,9 @@ export function PackageInstallmentsPage() {
 
 	// ── Active filter count ───────────────────────────────────────────────────────
 
-	const activeFilterCount = [searchQuery, dueBefore, dueAfter, planCode].filter(Boolean).length;
+	const activeFilterCount = [searchQuery, dueBefore, dueAfter, planCode].filter(
+		Boolean,
+	).length;
 
 	// ── Guard ─────────────────────────────────────────────────────────────────────
 
@@ -224,6 +245,17 @@ export function PackageInstallmentsPage() {
 
 	return (
 		<>
+			{isOverviewError && (
+				<div className="px-5 py-4">
+					<StatusCallout
+						variant="error"
+						title="Failed to load installment packages"
+						message="Something went wrong while loading the list. Please try again."
+						onRetry={() => refetchOverview()}
+					/>
+				</div>
+			)}
+
 			<InstallmentsTable
 				instances={instances}
 				isLoading={isLoading}
@@ -256,7 +288,13 @@ export function PackageInstallmentsPage() {
 				onOpenUnlockDialog={() => setShowUnlockDialog(true)}
 				onOpenOverdraftDialog={() => setShowOverdraftDialog(true)}
 				onOpenAdjustCreditsDialog={() => {
-					setAdjustUnlocked(String(selectedInstance?.creditsUnlocked ?? selectedInstance?.creditsTotal ?? 0));
+					setAdjustUnlocked(
+						String(
+							selectedInstance?.creditsUnlocked ??
+								selectedInstance?.creditsTotal ??
+								0,
+						),
+					);
 					setAdjustUsed(String(selectedInstance?.creditsUsed ?? 0));
 					setShowAdjustCreditsDialog(true);
 				}}
@@ -347,7 +385,6 @@ export function PackageInstallmentsPage() {
 				onClose={() => setWaiveInstallment(null)}
 				waiveMutation={waiveMutation}
 			/>
-
 		</>
 	);
 }

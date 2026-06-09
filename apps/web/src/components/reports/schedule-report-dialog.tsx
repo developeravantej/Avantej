@@ -21,7 +21,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 const scheduleSchema = z.object({
 	recipients: z
@@ -74,12 +74,13 @@ export function ScheduleReportDialog({
 }: ScheduleReportDialogProps) {
 	const qc = useQueryClient();
 
-	const { data: existing = [], isLoading } = useQuery({
-		queryKey: ["scheduledReports", organizationId],
-		queryFn: () => client.scheduledReports.list({ organizationId }),
-		enabled: open && !!organizationId,
-		staleTime: 30 * 1000,
-	});
+	const { data: existing = [], isLoading } = useQuery(
+		orpc.scheduledReports.list.queryOptions({
+			input: { organizationId },
+			enabled: open && !!organizationId,
+			staleTime: 30 * 1000,
+		}),
+	);
 
 	const createMutation = useMutation({
 		mutationFn: (values: ScheduleFormValues) =>
@@ -91,7 +92,11 @@ export function ScheduleReportDialog({
 			toast.success(
 				"Schedule created. First email goes out on the next hourly tick.",
 			);
-			qc.invalidateQueries({ queryKey: ["scheduledReports", organizationId] });
+			qc.invalidateQueries({
+				queryKey: orpc.scheduledReports.list.queryOptions({
+					input: { organizationId },
+				}).queryKey,
+			});
 			form.reset();
 		},
 		onError: (err: Error) => {
@@ -104,7 +109,11 @@ export function ScheduleReportDialog({
 			client.scheduledReports.delete({ organizationId, id }),
 		onSuccess: () => {
 			toast.success("Schedule removed.");
-			qc.invalidateQueries({ queryKey: ["scheduledReports", organizationId] });
+			qc.invalidateQueries({
+				queryKey: orpc.scheduledReports.list.queryOptions({
+					input: { organizationId },
+				}).queryKey,
+			});
 		},
 		onError: (err: Error) => {
 			toast.error(err.message || "Failed to delete schedule");
@@ -115,7 +124,11 @@ export function ScheduleReportDialog({
 		mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
 			client.scheduledReports.toggle({ organizationId, id, isActive }),
 		onSuccess: () => {
-			qc.invalidateQueries({ queryKey: ["scheduledReports", organizationId] });
+			qc.invalidateQueries({
+				queryKey: orpc.scheduledReports.list.queryOptions({
+					input: { organizationId },
+				}).queryKey,
+			});
 		},
 		onError: (err: Error) => {
 			toast.error(err.message || "Failed to update schedule");

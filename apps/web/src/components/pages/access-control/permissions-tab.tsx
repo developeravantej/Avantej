@@ -32,6 +32,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import type { PermissionResource } from "@/components/access-control/permission-matrix/permission-matrix.types";
+import { StatusCallout } from "@/components/ui/status-callout";
 import { client, orpc } from "@/utils/orpc";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
@@ -149,7 +150,12 @@ export function PermissionsTabPage() {
 		ReturnType<typeof client.rolePermissions.list>
 	>[number];
 
-	const { data: permissions = [] as PermissionItem[], isLoading } = useQuery({
+	const {
+		data: permissions = [] as PermissionItem[],
+		isLoading,
+		isError,
+		refetch,
+	} = useQuery({
 		...orpc.permissions.list.queryOptions({
 			input: { organizationId: organizationId! },
 		}),
@@ -366,7 +372,14 @@ export function PermissionsTabPage() {
 			</Card>
 
 			{/* Resource Grid */}
-			{isLoading ? (
+			{isError ? (
+				<StatusCallout
+					variant="error"
+					title="Couldn't load permissions"
+					message="Something went wrong while loading permission resources."
+					onRetry={() => refetch()}
+				/>
+			) : isLoading ? (
 				<Card>
 					<CardContent className="py-12">
 						<div className="text-center">

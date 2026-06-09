@@ -17,7 +17,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
-import { client, queryClient } from "@/utils/orpc";
+import { client, orpc, queryClient } from "@/utils/orpc";
 import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { Globe, Map as MapIcon, Plus, Target } from "lucide-react";
@@ -259,9 +259,18 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
 				});
 
 				await Promise.all([
+					// The branch list page (branch/view.tsx) fetches via
+					// orpc.hierarchy.listNodesWithStats + orpc.hierarchy.listNodes, so the
+					// old plain ["branches", organizationId] key matched no live query and
+					// left the list stale. Invalidate the actual oRPC query keys instead.
 					queryClient.invalidateQueries({
-						queryKey: ["branches", organizationId],
+						queryKey: orpc.hierarchy.listNodesWithStats.key(),
 					}),
+					queryClient.invalidateQueries({
+						queryKey: orpc.hierarchy.listNodes.key(),
+					}),
+					// ["user-context"] is the hand-written key used by the useUserContext
+					// hook (a non-oRPC useQuery), so this invalidation is correct as-is.
 					queryClient.invalidateQueries({ queryKey: ["user-context"] }),
 				]);
 
@@ -285,7 +294,10 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
 					toast.error(
 						"One or more selected items could not be found. Please refresh and try again.",
 					);
-				} else if (msg.includes("already exists") || msg.includes("duplicate")) {
+				} else if (
+					msg.includes("already exists") ||
+					msg.includes("duplicate")
+				) {
 					toast.error(
 						"A branch with this code already exists in the selected state",
 					);
