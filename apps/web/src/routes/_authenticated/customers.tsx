@@ -75,11 +75,9 @@ function CustomersComponent() {
 		currentOrg?.hierarchy.member?.hierarchyScopeId ?? "";
 
 	const { data: profile, isLoading: profileLoading } = useQuery({
-		queryKey: ["customer-profile", organizationId],
-		queryFn: async () => {
-			if (!organizationId) return null;
-			return client.customerProfiles.get({ organizationId });
-		},
+		...orpc.customerProfiles.get.queryOptions({
+			input: { organizationId: organizationId ?? "" },
+		}),
 		enabled: !!organizationId,
 		staleTime: 60 * 1000,
 	});
@@ -127,13 +125,15 @@ function CustomersComponent() {
 		},
 		successMessage: "Profile updated",
 		errorMessage: (err) => err.message || "Failed to update profile",
-		invalidate: [["customer-profile", organizationId]],
+		invalidate: [orpc.customerProfiles.get.key()],
 		onSuccess: () => {
 			setIsProfileDialogOpen(false);
 		},
 	});
 
-	const memberListKey = orpc.members.list.queryOptions({ input: { organizationId: organizationId ?? "", role: "client" } }).queryKey;
+	const memberListKey = orpc.members.list.queryOptions({
+		input: { organizationId: organizationId ?? "", role: "client" },
+	}).queryKey;
 
 	// === 3.2 lead source — picker options for the Add Customer dialog ===
 	const { data: leadSources = [] } = useQuery({
@@ -203,7 +203,9 @@ function CustomersComponent() {
 			} else if (status === "skipped") {
 				toast.info(
 					`GHL sync skipped${
-						result?.ghlSync && "reason" in result.ghlSync && result.ghlSync.reason
+						result?.ghlSync &&
+						"reason" in result.ghlSync &&
+						result.ghlSync.reason
 							? `: ${result.ghlSync.reason}`
 							: ""
 					}`,
@@ -277,21 +279,54 @@ function CustomersComponent() {
 							<p className="text-sm text-muted-foreground">Loading…</p>
 						) : profile ? (
 							<div className="grid gap-2 text-sm">
-								{profile.phone && <p><span className="text-muted-foreground">Phone:</span> {profile.phone}</p>}
-								{profile.address && <p><span className="text-muted-foreground">Address:</span> {profile.address}</p>}
-								{profile.emergencyContactName && (
-									<p><span className="text-muted-foreground">Emergency:</span> {profile.emergencyContactName}
-										{profile.emergencyContactPhone && ` • ${profile.emergencyContactPhone}`}
+								{profile.phone && (
+									<p>
+										<span className="text-muted-foreground">Phone:</span>{" "}
+										{profile.phone}
 									</p>
 								)}
-								{profile.medicalNotes && <p><span className="text-muted-foreground">Medical notes:</span> {profile.medicalNotes}</p>}
-								{profile.notes && <p><span className="text-muted-foreground">Notes:</span> {profile.notes}</p>}
-								{!profile.phone && !profile.address && !profile.emergencyContactName && !profile.medicalNotes && !profile.notes && (
-									<p className="text-muted-foreground">No profile details yet. Click Edit profile to add.</p>
+								{profile.address && (
+									<p>
+										<span className="text-muted-foreground">Address:</span>{" "}
+										{profile.address}
+									</p>
 								)}
+								{profile.emergencyContactName && (
+									<p>
+										<span className="text-muted-foreground">Emergency:</span>{" "}
+										{profile.emergencyContactName}
+										{profile.emergencyContactPhone &&
+											` • ${profile.emergencyContactPhone}`}
+									</p>
+								)}
+								{profile.medicalNotes && (
+									<p>
+										<span className="text-muted-foreground">
+											Medical notes:
+										</span>{" "}
+										{profile.medicalNotes}
+									</p>
+								)}
+								{profile.notes && (
+									<p>
+										<span className="text-muted-foreground">Notes:</span>{" "}
+										{profile.notes}
+									</p>
+								)}
+								{!profile.phone &&
+									!profile.address &&
+									!profile.emergencyContactName &&
+									!profile.medicalNotes &&
+									!profile.notes && (
+										<p className="text-muted-foreground">
+											No profile details yet. Click Edit profile to add.
+										</p>
+									)}
 							</div>
 						) : (
-							<p className="text-sm text-muted-foreground">No profile yet. Click Edit profile to create one.</p>
+							<p className="text-sm text-muted-foreground">
+								No profile yet. Click Edit profile to create one.
+							</p>
 						)}
 					</CardContent>
 				</Card>
@@ -316,23 +351,23 @@ function CustomersComponent() {
 
 					<div className="grid gap-4">
 						{customersLoading ? (
-							<p className="text-sm text-muted-foreground py-4">Loading customers…</p>
+							<p className="text-sm text-muted-foreground py-4">
+								Loading customers…
+							</p>
 						) : filteredCustomers.length === 0 ? (
 							<p className="text-sm text-muted-foreground py-4">
 								{searchQuery
 									? "No customers match your search."
-									: "No customers yet. Click \"Add Customer\" to add one."}
+									: 'No customers yet. Click "Add Customer" to add one.'}
 							</p>
 						) : (
 							filteredCustomers.map((customer: any) => {
 								const ghlSync: GhlSyncInfo | null = customer.ghlSync
 									? {
-											syncStatus:
-												customer.ghlSync.syncStatus as GhlSyncStatus,
+											syncStatus: customer.ghlSync.syncStatus as GhlSyncStatus,
 											lastError: customer.ghlSync.lastError ?? null,
 											lastSyncedAt: customer.ghlSync.lastSyncedAt ?? null,
-											ghlContactId:
-												customer.ghlSync.ghlContactId ?? undefined,
+											ghlContactId: customer.ghlSync.ghlContactId ?? undefined,
 											customerProfileId:
 												customer.ghlSync.customerProfileId ?? undefined,
 											kind: "customer",
@@ -347,12 +382,22 @@ function CustomersComponent() {
 													<Users className="size-5 text-blue-600" />
 												</div>
 												<div>
-													<h3 className="font-semibold">{customer.name ?? customer.email ?? "Unknown"}</h3>
-													<p className="text-sm text-muted-foreground">{customer.email}</p>
+													<h3 className="font-semibold">
+														{customer.name ?? customer.email ?? "Unknown"}
+													</h3>
+													<p className="text-sm text-muted-foreground">
+														{customer.email}
+													</p>
 												</div>
 											</div>
 											<div className="flex items-center gap-2">
-												<Badge variant={customer.status === "active" ? "default" : "destructive"}>
+												<Badge
+													variant={
+														customer.status === "active"
+															? "default"
+															: "destructive"
+													}
+												>
 													{customer.status}
 												</Badge>
 												<GhlSyncBadge
@@ -370,7 +415,9 @@ function CustomersComponent() {
 												<Button
 													variant="outline"
 													size="sm"
-													onClick={() => { window.location.href = `mailto:${customer.email}`; }}
+													onClick={() => {
+														window.location.href = `mailto:${customer.email}`;
+													}}
 												>
 													<Mail className="size-4 mr-1" />
 													Contact
@@ -378,7 +425,9 @@ function CustomersComponent() {
 												<Button
 													variant="outline"
 													size="sm"
-													onClick={() => navigate({ to: "/dashboard/appointment/view" })}
+													onClick={() =>
+														navigate({ to: "/dashboard/appointment/view" })
+													}
 												>
 													<Calendar className="size-4 mr-1" />
 													Schedule
@@ -397,7 +446,7 @@ function CustomersComponent() {
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
 						<DialogTitle>My profile</DialogTitle>
-					<DialogDescription>Update your contact details.</DialogDescription>
+						<DialogDescription>Update your contact details.</DialogDescription>
 					</DialogHeader>
 					<div className="grid gap-4 py-4">
 						<div>
@@ -462,7 +511,10 @@ function CustomersComponent() {
 						</div>
 					</div>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setIsProfileDialogOpen(false)}>
+						<Button
+							variant="outline"
+							onClick={() => setIsProfileDialogOpen(false)}
+						>
 							Cancel
 						</Button>
 						<Button
@@ -479,7 +531,9 @@ function CustomersComponent() {
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
 						<DialogTitle>Add Customer</DialogTitle>
-					<DialogDescription>Create a new customer account.</DialogDescription>
+						<DialogDescription>
+							Create a new customer account.
+						</DialogDescription>
 					</DialogHeader>
 					<div className="grid gap-4 py-4">
 						<div>
@@ -532,12 +586,18 @@ function CustomersComponent() {
 											No sources configured
 										</SelectItem>
 									) : (
-										leadSources.map((s: { id: string; name: string; category?: string | null }) => (
-											<SelectItem key={s.id} value={s.id}>
-												{s.name}
-												{s.category ? ` · ${s.category}` : ""}
-											</SelectItem>
-										))
+										leadSources.map(
+											(s: {
+												id: string;
+												name: string;
+												category?: string | null;
+											}) => (
+												<SelectItem key={s.id} value={s.id}>
+													{s.name}
+													{s.category ? ` · ${s.category}` : ""}
+												</SelectItem>
+											),
+										)
 									)}
 								</SelectContent>
 							</Select>
@@ -555,7 +615,10 @@ function CustomersComponent() {
 						{/* === /3.2 === */}
 					</div>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setIsAddCustomerOpen(false)}>
+						<Button
+							variant="outline"
+							onClick={() => setIsAddCustomerOpen(false)}
+						>
 							Cancel
 						</Button>
 						<Button

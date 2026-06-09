@@ -16,7 +16,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 type RejectPackageDialogProps = {
 	open: boolean;
@@ -55,7 +55,7 @@ export function RejectPackageDialog({
 		},
 		successMessage: "Package rejected. Customer notified.",
 		errorMessage: (err) => err?.message ?? "Failed to reject package.",
-		invalidate: [["packageInstances"], ["notifications"]],
+		invalidate: [orpc.packageInstances.key(), orpc.notifications.list.key()],
 		onSuccess: () => {
 			onRejected?.();
 			onOpenChange(false);

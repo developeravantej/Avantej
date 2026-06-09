@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -85,7 +85,10 @@ export function DropInForm({
 		successMessage: () =>
 			`Drop-in check-in recorded${displayName ? ` for ${displayName}` : ""}.`,
 		errorMessage: false,
-		invalidate: [["attendance"]],
+		invalidate: [
+			orpc.checkIns.list.key(),
+			orpc.checkIns.listTodaysBookings.key(),
+		],
 		onSuccess: () => {
 			setClientId("");
 			setDisplayName("");

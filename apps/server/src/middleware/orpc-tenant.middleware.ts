@@ -11,9 +11,8 @@
 import { createMiddleware } from "hono/factory";
 import { getControlPanelDb, getTenantDb } from "@/lib/db";
 import { eq } from "drizzle-orm";
-import { members } from "@avantej-core/db/schema/tenant/members";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
-import { getDescendantNodeIds } from "@avantej-core/services";
+import { resolveMemberContext } from "@avantej-core/services";
 import { getBetterAuth } from "@/lib/better-auth";
 import { matchesPublicTenantEndpoint } from "./public-endpoints";
 
@@ -228,20 +227,10 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
 
 				// Only get member record if user exists (skip for public invitation endpoints without user)
 				if (user) {
-					// Get member record
-					const member = await tenantDb.query.members.findFirst({
-						where: eq(members.userId, user.id),
-					});
-
-					if (member) {
-						// Calculate accessible node IDs
-						const accessibleNodeIds = await getDescendantNodeIds(
-							tenantDb,
-							member.hierarchyScopeId,
-						);
-
-						c.set("member", member);
-						c.set("accessibleNodeIds", accessibleNodeIds);
+					const resolved = await resolveMemberContext(tenantDb, user.id);
+					if (resolved) {
+						c.set("member", resolved.member);
+						c.set("accessibleNodeIds", resolved.accessibleNodeIds);
 					} else {
 						// Member not found - this is OK for invitation endpoints (user might be new)
 						// For other endpoints, handler will return proper error

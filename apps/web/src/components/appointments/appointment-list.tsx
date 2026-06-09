@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { useUserContext } from "@/hooks/useUserContext";
 import { AddAppointmentModal } from "@/components/calendar/add-appointment-modal";
@@ -131,7 +131,7 @@ export function AppointmentList({
 			if (msg.startsWith("Conflict:")) return msg;
 			return msg;
 		},
-		invalidate: [["appointments"]],
+		invalidate: [orpc.appointments.list.key()],
 		onSuccess: () => {
 			setShowAddModal(false);
 		},
@@ -148,7 +148,7 @@ export function AppointmentList({
 				status: params.status,
 			}),
 		errorMessage: (err) => err.message || "Failed to update appointment",
-		invalidate: [["appointments"]],
+		invalidate: [orpc.appointments.list.key()],
 	});
 
 	const editMutation = useApiMutation({
@@ -169,7 +169,7 @@ export function AppointmentList({
 			}),
 		successMessage: "Appointment updated",
 		errorMessage: (err) => err.message || "Failed to update appointment",
-		invalidate: [["appointments"]],
+		invalidate: [orpc.appointments.list.key()],
 		onSuccess: () => {
 			setEditAppt(null);
 			setEditForm(null);

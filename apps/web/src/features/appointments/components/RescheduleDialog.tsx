@@ -15,7 +15,7 @@ import {
 	assembleIso,
 } from "@/components/appointments/DateTimeSlotPicker";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import type { CalendarAppointment } from "@/lib/appointment-mapper";
 
 function pad(n: number): string {
@@ -73,7 +73,7 @@ export function RescheduleDialog({
 			}),
 		successMessage: "Session moved.",
 		errorMessage: (err) => err.message || "Failed to reschedule",
-		invalidate: [["appointments"]],
+		invalidate: [orpc.appointments.list.key()],
 		onSuccess: () => {
 			onRescheduled?.();
 			onClose();

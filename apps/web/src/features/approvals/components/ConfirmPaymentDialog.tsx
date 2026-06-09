@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import type { PendingRow } from "../approvals.types";
 
 type OfflineMethod = "manual_transfer" | "cash" | "card" | "fpx";
@@ -73,7 +73,7 @@ export function ConfirmPaymentDialog({
 				? "Payment was already confirmed."
 				: "Payment confirmed — package is ready for trainer assignment.",
 		errorMessage: (err) => err?.message ?? "Failed to confirm payment.",
-		invalidate: [["packageInstances"], ["notifications"]],
+		invalidate: [orpc.packageInstances.key(), orpc.notifications.list.key()],
 		onSuccess: () => {
 			onConfirmed();
 			onOpenChange(false);

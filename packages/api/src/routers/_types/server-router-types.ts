@@ -44,11 +44,15 @@ export const authRouterType = {
 				lastName: string;
 				emailVerified: boolean;
 			};
+			/** True when the caller is a platform admin (any role). */
+			isSystemAdmin: boolean;
 			organizations: Array<{
 				id: string;
 				name: string;
 				slug: string;
 				role: string;
+				/** Flat "resource:action" strings the member's role grants in this org. */
+				permissions: string[];
 				hierarchy: {
 					nodes: Array<{
 						id: string;
@@ -137,6 +141,13 @@ export const serverInvitationRouterType = {
 				message: string;
 				organizationId: string;
 				userId: string;
+				/** Best-effort GHL staff sync result — may be absent if GHL not configured. */
+				ghlSync?: {
+					status: "synced" | "skipped" | "error";
+					reason?: string;
+					ghlUserId?: string;
+					error?: string;
+				};
 			} => {
 				throw new Error("Not implemented - this is only for type inference");
 			},
@@ -581,9 +592,12 @@ export const subscriptionsRouterType = {
 				pastDueAt: Date | null;
 				gracePeriodEndsAt: Date | null;
 				trialEndsAt: Date | null;
-				decision?: string;
-				banner?: string | null;
-				blockedReason?: string | null;
+				/** Access decision from subscription gate evaluation. */
+				decision: string;
+				/** Optional banner message for UI display (e.g. trial ending soon). */
+				banner: string | null;
+				/** Reason access was blocked; null when decision === "allow". */
+				blockedReason: string | null;
 			} => {
 				throw new Error("Not implemented - this is only for type inference");
 			},

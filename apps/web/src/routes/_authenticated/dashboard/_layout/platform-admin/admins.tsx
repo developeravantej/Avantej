@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Shield, UserPlus, Trash2, Search, ShieldCheck } from "lucide-react";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { useDebounce } from "@/hooks/useDebounce";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
@@ -169,13 +169,13 @@ function AddAdminDialog({
 	const debouncedSearch = useDebounce(search, 300);
 
 	const { data: usersData, isLoading: isSearching } = useQuery({
-		queryKey: ["admin", "listUsers", { search: debouncedSearch, limit: 10 }],
-		queryFn: () =>
-			client.admin.listUsers({
+		...orpc.admin.listUsers.queryOptions({
+			input: {
 				search: debouncedSearch || undefined,
 				page: 1,
 				limit: 10,
-			}),
+			},
+		}),
 		enabled: debouncedSearch.length > 0,
 	});
 
@@ -184,7 +184,7 @@ function AddAdminDialog({
 			client.admin.grantPlatformAdmin({ userId, role }),
 		successMessage: "Platform admin access granted.",
 		errorMessage: "Failed to grant admin access. Please try again.",
-		invalidate: [["admin", "listAdmins"], ["admin", "listUsers"]],
+		invalidate: [orpc.admin.listAdmins.key(), orpc.admin.listUsers.key()],
 		onSuccess: () => {
 			handleClose();
 			onSuccess();
@@ -210,7 +210,13 @@ function AddAdminDialog({
 	);
 
 	return (
-		<Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); else onOpenChange(true); }}>
+		<Dialog
+			open={open}
+			onOpenChange={(v) => {
+				if (!v) handleClose();
+				else onOpenChange(true);
+			}}
+		>
 			<DialogContent className="sm:max-w-lg">
 				<DialogHeader>
 					<DialogTitle>Add Platform Admin</DialogTitle>
@@ -223,7 +229,9 @@ function AddAdminDialog({
 				<div className="space-y-4 py-2">
 					{/* User search */}
 					<div className="space-y-2">
-						<label htmlFor="admin-user-search" className="text-sm font-medium">Search user by email or name</label>
+						<label htmlFor="admin-user-search" className="text-sm font-medium">
+							Search user by email or name
+						</label>
 						<div className="relative">
 							<Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
 							<Input
@@ -262,7 +270,9 @@ function AddAdminDialog({
 													}`}
 													onClick={() => setSelectedUser(user)}
 												>
-													<span className="block font-medium">{user.email}</span>
+													<span className="block font-medium">
+														{user.email}
+													</span>
 													<span className="block text-xs text-muted-foreground">
 														{user.name}
 													</span>
@@ -285,15 +295,23 @@ function AddAdminDialog({
 
 					{/* Role selection */}
 					<div className="space-y-2">
-						<label htmlFor="admin-role-select" className="text-sm font-medium">Role</label>
+						<label htmlFor="admin-role-select" className="text-sm font-medium">
+							Role
+						</label>
 						<Select value={role} onValueChange={(v) => setRole(v as AdminRole)}>
 							<SelectTrigger id="admin-role-select">
 								<SelectValue placeholder="Select role" />
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="super_admin">Super Admin: Full access</SelectItem>
-								<SelectItem value="support">Support: Impersonation + read access</SelectItem>
-								<SelectItem value="billing">Billing: Billing access only</SelectItem>
+								<SelectItem value="super_admin">
+									Super Admin: Full access
+								</SelectItem>
+								<SelectItem value="support">
+									Support: Impersonation + read access
+								</SelectItem>
+								<SelectItem value="billing">
+									Billing: Billing access only
+								</SelectItem>
 							</SelectContent>
 						</Select>
 					</div>
@@ -301,7 +319,11 @@ function AddAdminDialog({
 
 				<DialogFooter>
 					<DialogClose asChild>
-						<Button variant="outline" disabled={isGranting} onClick={handleClose}>
+						<Button
+							variant="outline"
+							disabled={isGranting}
+							onClick={handleClose}
+						>
 							Cancel
 						</Button>
 					</DialogClose>
@@ -326,17 +348,19 @@ function PlatformAdminAdminsPage() {
 	const [revokeTarget, setRevokeTarget] = useState<AdminRow | null>(null);
 	const [addDialogOpen, setAddDialogOpen] = useState(false);
 
-	const { data: admins, isLoading, error, refetch } = useQuery({
-		queryKey: ["admin", "listAdmins"],
-		queryFn: () => client.admin.listAdmins({}),
-	});
+	const {
+		data: admins,
+		isLoading,
+		error,
+		refetch,
+	} = useQuery(orpc.admin.listAdmins.queryOptions({ input: {} }));
 
 	const { mutate: revoke, isPending: isRevoking } = useApiMutation({
 		mutationFn: ({ userId }: { userId: string }) =>
 			client.admin.revokePlatformAdmin({ userId }),
 		successMessage: "Platform admin access revoked.",
 		errorMessage: "Failed to revoke admin access. Please try again.",
-		invalidate: [["admin", "listAdmins"], ["admin", "listUsers"]],
+		invalidate: [orpc.admin.listAdmins.key(), orpc.admin.listUsers.key()],
 		onSuccess: () => {
 			setRevokeTarget(null);
 		},
@@ -424,7 +448,10 @@ function PlatformAdminAdminsPage() {
 									adminList.map((admin) => {
 										const isSelf = admin.userId === currentUserId;
 										return (
-											<TableRow key={admin.userId} className="hover:bg-muted/30">
+											<TableRow
+												key={admin.userId}
+												className="hover:bg-muted/30"
+											>
 												<TableCell className="text-sm px-6 py-4 whitespace-nowrap font-medium">
 													{admin.email ?? "—"}
 													{isSelf && (

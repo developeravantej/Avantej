@@ -133,7 +133,7 @@ export function ExpandedRowDetail({
 		},
 		successMessage: "Trainer assigned. Package is now active.",
 		errorMessage: (err) => err?.message ?? "Failed to assign trainer.",
-		invalidate: [["packageInstances"], ["notifications"]],
+		invalidate: [orpc.packageInstances.key(), orpc.notifications.list.key()],
 		onSuccess: () => {
 			setPopoverOpen(false);
 			setSelectedTrainerId("");
@@ -156,7 +156,7 @@ export function ExpandedRowDetail({
 		},
 		successMessage: "You've been assigned as trainer.",
 		errorMessage: (err) => err?.message ?? "Failed to self-assign.",
-		invalidate: [["packageInstances"], ["notifications"]],
+		invalidate: [orpc.packageInstances.key(), orpc.notifications.list.key()],
 		// Journey B step 3: land on the same scheduling step after self-assign.
 		onSuccess: () => {
 			onSchedule(row.id);

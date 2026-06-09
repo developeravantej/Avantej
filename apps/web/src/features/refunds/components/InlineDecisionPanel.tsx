@@ -3,7 +3,7 @@ import { useApiMutation } from "@/hooks/useApiMutation";
 import { formatPrice, rmToCents } from "@/lib/money";
 import { saleRef } from "@/features/refunds/refunds.helpers";
 import type { RefundRow } from "@/features/refunds/refunds.types";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 // ─── Inline expanded decision panel ───────────────────────────────────────────
 
@@ -43,7 +43,7 @@ export function InlineDecisionPanel({
 				: "Refund approved in full.";
 		},
 		errorMessage: (err) => err.message ?? "Failed to approve refund.",
-		invalidate: [["refunds"]],
+		invalidate: [orpc.refunds.list.key()],
 		onSuccess: () => {
 			onApproved();
 		},
@@ -98,7 +98,9 @@ export function InlineDecisionPanel({
 						</div>
 						<div className="flex justify-between">
 							<span className="text-[#737373]">Reason category</span>
-							<span className="text-xs truncate max-w-[140px]">{refund.reason}</span>
+							<span className="text-xs truncate max-w-[140px]">
+								{refund.reason}
+							</span>
 						</div>
 					</div>
 				</div>

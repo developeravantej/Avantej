@@ -21,7 +21,7 @@ import { StaffPicker } from "@/components/calendar/appointment-form/StaffPicker"
 import { useAppointmentFormData } from "@/hooks/useAppointmentFormData";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 interface EditAppointmentModalProps {
 	appointmentId: string;
@@ -84,7 +84,10 @@ export function EditAppointmentModal({
 			}),
 		successMessage: "Staff assignments updated",
 		errorMessage: (err) => err.message || "Failed to update staff",
-		invalidate: [["appointments"], ["appointmentStaff", appointmentId]],
+		invalidate: [
+			orpc.appointments.list.key(),
+			["appointmentStaff", appointmentId],
+		],
 		onSuccess: () => {
 			onSuccess?.();
 			onClose();

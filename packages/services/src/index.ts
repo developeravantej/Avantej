@@ -600,6 +600,12 @@ export {
 } from "./onboarding.service";
 // #endregion
 
+// Member context helper — shared member + accessibleNodeIds resolution
+export {
+	type MemberContextResult,
+	resolveMemberContext,
+} from "./member-context";
+
 // Commission tracks config service (Phase 3 — Task #23)
 export {
 	deactivateTrack,

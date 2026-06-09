@@ -11,7 +11,7 @@ import { COL_TEMPLATE } from "@/features/refunds/refunds.helpers";
 import type { RefundRow, RefundStatus } from "@/features/refunds/refunds.types";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { useUserContext } from "@/hooks/useUserContext";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 // ─── Status tab definition ─────────────────────────────────────────────────────
 
@@ -52,18 +52,16 @@ export function RefundsTab({ organizationId }: { organizationId: string }) {
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
 	// ── Data ───────────────────────────────────────────────────────────────────
-	const { data, isLoading, isError, error, refetch } = useQuery({
-		queryKey: ["refunds", organizationId, activeTab],
-		queryFn: async () => {
-			return client.refunds.list({
+	const { data, isLoading, isError, error, refetch } = useQuery(
+		orpc.refunds.list.queryOptions({
+			input: {
 				organizationId,
 				status: activeTab === "all" ? undefined : activeTab,
 				limit: 100,
 				offset: 0,
-			});
-		},
-		enabled: true,
-	});
+			},
+		}),
+	);
 
 	const allRows: RefundRow[] =
 		(data as { rows?: RefundRow[] } | undefined)?.rows ?? [];
@@ -83,9 +81,7 @@ export function RefundsTab({ organizationId }: { organizationId: string }) {
 
 	// ── KPI computations ───────────────────────────────────────────────────────
 	const pendingRows = rows.filter((r) => r.status === "pending");
-	const processedRows = rows.filter(
-		(r) => r.status !== "pending",
-	);
+	const processedRows = rows.filter((r) => r.status !== "pending");
 	const pendingCount = pendingRows.length;
 
 	// ── Mutations ──────────────────────────────────────────────────────────────
@@ -98,7 +94,7 @@ export function RefundsTab({ organizationId }: { organizationId: string }) {
 			}),
 		successMessage: "Refund rejected.",
 		errorMessage: (err) => err.message ?? "Failed to reject refund.",
-		invalidate: [["refunds"]],
+		invalidate: [orpc.refunds.list.key()],
 		onSuccess: () => {
 			setRejectDialogOpen(false);
 			setRejectRefund(null);
@@ -135,7 +131,10 @@ export function RefundsTab({ organizationId }: { organizationId: string }) {
 	// ── Render ─────────────────────────────────────────────────────────────────
 	return (
 		<div className="flex flex-col">
-			<div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white border border-[#e5e5e5] rounded-2xl" style={{ minHeight: "calc(100vh - 200px)" }}>
+			<div
+				className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white border border-[#e5e5e5] rounded-2xl"
+				style={{ minHeight: "calc(100vh - 200px)" }}
+			>
 				{/* Toolbar */}
 				<div className="flex shrink-0 items-center justify-between border-b border-[#e5e5e5] px-6 py-3">
 					<div className="flex items-center gap-3">
@@ -168,9 +167,7 @@ export function RefundsTab({ organizationId }: { organizationId: string }) {
 							{STATUS_TABS.map((tab) => {
 								const isActive = activeTab === tab.value;
 								const count =
-									tab.value === "pending"
-										? pendingCount
-										: undefined;
+									tab.value === "pending" ? pendingCount : undefined;
 								return (
 									<button
 										key={tab.value}

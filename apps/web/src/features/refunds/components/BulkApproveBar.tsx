@@ -11,7 +11,7 @@ import {
 import { useApiMutation } from "@/hooks/useApiMutation";
 import type { RefundRow } from "@/features/refunds/refunds.types";
 import { formatPrice } from "@/lib/money";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 // ─── Bulk Approve Bar ─────────────────────────────────────────────────────────
 
@@ -38,7 +38,7 @@ export function BulkApproveBar({
 			}),
 		successMessage: `Approved ${count} refund${count !== 1 ? "s" : ""}.`,
 		errorMessage: (err) => err.message ?? "Bulk approve failed.",
-		invalidate: [["refunds"]],
+		invalidate: [orpc.refunds.list.key()],
 		onSuccess: () => {
 			setConfirmOpen(false);
 			onDone();

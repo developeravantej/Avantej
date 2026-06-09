@@ -81,7 +81,10 @@ export function useTrainerActions({
 			});
 		},
 		successMessage: "Trainer profile updated.",
-		invalidate: [["trainerProfiles", organizationId]],
+		// trainerProfiles is a hand-rolled query (client.memberProfiles.get fan-out in
+		// useTrainerData) with no oRPC-generated key — the string prefix matches it.
+		// Also refresh the orpc.members.list-driven trainer roster (profile fields shown there).
+		invalidate: [orpc.members.list.key(), ["trainerProfiles", organizationId]],
 		onSuccess: () => {
 			onUpdateSuccess?.();
 		},

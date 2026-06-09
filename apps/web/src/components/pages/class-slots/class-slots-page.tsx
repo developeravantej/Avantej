@@ -1,50 +1,10 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import {
-	CalendarDays,
-	MoreHorizontal,
-	Plus,
-	Search,
-	Users,
-} from "lucide-react";
-import { LoadingSpinner, PageLoader } from "@/components/ui/loading-spinner";
+import { Plus, Search } from "lucide-react";
 import { useApiMutation } from "@/hooks/useApiMutation";
-
 import { useUserContext } from "@/hooks/useUserContext";
 import { client, orpc } from "@/utils/orpc";
-import { EmptyState } from "@/components/ui/empty-state";
-import { BranchSelector } from "@/components/branch/branch-selector";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { StatusCallout } from "@/components/ui/status-callout";
-import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/money";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogDescription,
-	DialogFooter,
-	DialogClose,
-} from "@/components/ui/dialog";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
 	type ClassSlotRow,
 	type CreateFormState,
@@ -52,10 +12,13 @@ import {
 	EMPTY_CREATE_FORM,
 	EMPTY_EDIT_FORM,
 } from "./types";
-import { durationMinutes, deriveStatus, slotDayLabel } from "./helpers";
+import { deriveStatus } from "./helpers";
 import { KpiTile } from "./kpi-tile";
-import { FillBar } from "./fill-bar";
-import { SlotStatusBadge } from "./slot-status-badge";
+import { ClassSlotsTable } from "./ClassSlotsTable";
+import { CreateClassSlotDialog } from "./CreateClassSlotDialog";
+import { EditClassSlotDialog } from "./EditClassSlotDialog";
+import { SignupsDialog } from "./SignupsDialog";
+import { CancelClassSlotDialog } from "./CancelClassSlotDialog";
 
 // ---------------------------------------------------------------------------
 // Route component
@@ -64,7 +27,6 @@ import { SlotStatusBadge } from "./slot-status-badge";
 export function ClassSlotsPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
 
 	// --- Filter state ---
 	const [search, setSearch] = useState<string>("");
@@ -316,10 +278,6 @@ export function ClassSlotsPage() {
 				)
 			: 0;
 
-	const fullSlotsCount = activeSlots.filter(
-		(s) => s.spotsAvailable === 0,
-	).length;
-
 	const totalWaitlisted = activeSlots.reduce(
 		(sum, s) => sum + (s.waitlistCount ?? 0),
 		0,
@@ -331,7 +289,7 @@ export function ClassSlotsPage() {
 	);
 
 	// ---------------------------------------------------------------------------
-	// Filtered flat slot list (Design 3 uses a flat table, not grouped)
+	// Filtered flat slot list
 	// ---------------------------------------------------------------------------
 
 	const filteredSlots = useMemo(() => {
@@ -445,790 +403,77 @@ export function ClassSlotsPage() {
 				</div>
 
 				{/* ── Dense capacity table ── */}
-				<div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
-					{/* Table toolbar */}
-					<div className="flex items-center justify-between border-b border-[#e5e5e5] bg-[#f3f3f3] px-5 py-3">
-						<span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#737373]">
-							All Class Slots
-						</span>
-						{/* Status filter pills */}
-						<div className="flex items-center gap-1 rounded-lg border border-[#e5e5e5] bg-white p-1">
-							{(["all", "open", "waitlist", "full"] as const).map((f) => (
-								<button
-									key={f}
-									type="button"
-									onClick={() => setStatusFilter(f)}
-									className={cn(
-										"rounded-md px-2.5 py-1 text-[11px] font-semibold capitalize transition",
-										statusFilter === f
-											? "bg-[#0a0a0a] text-white"
-											: "text-[#737373] hover:text-[#0a0a0a]",
-									)}
-								>
-									{f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
-								</button>
-							))}
-						</div>
-					</div>
-
-					{/* Scrollable table body */}
-					<div className="overflow-y-auto h-[calc(100%-49px)]">
-						{isError ? (
-							<div className="p-6">
-								<StatusCallout
-									variant="error"
-									title="Couldn't load class slots"
-									onRetry={() => refetch()}
-								/>
-							</div>
-						) : isLoading ? (
-							<PageLoader />
-						) : classSlots.length === 0 ? (
-							<EmptyState
-								icon={CalendarDays}
-								title="No class slots scheduled"
-								description="Create your first class slot to start scheduling group sessions."
-								action={{
-									label: "Add Slot",
-									onClick: () => setCreateSheetOpen(true),
-								}}
-							/>
-						) : filteredSlots.length === 0 ? (
-							<EmptyState
-								icon={Search}
-								title="No slots match your filters"
-								description="Try a different search term or status filter."
-							/>
-						) : (
-							<table className="w-full text-sm">
-								<thead className="sticky top-0 z-10 border-b border-[#e5e5e5] bg-[#f3f3f3]/80 backdrop-blur-sm">
-									<tr>
-										<th className="px-5 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-[#737373]">
-											Class
-										</th>
-										<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-[#737373]">
-											Day / Time
-										</th>
-										<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-[#737373]">
-											Instructor
-										</th>
-										<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-[#737373]">
-											Studio
-										</th>
-										<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-[#737373]">
-											Duration
-										</th>
-										<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-[#737373] w-36">
-											Fill Rate
-										</th>
-										<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-[#737373]">
-											Capacity
-										</th>
-										<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-[#737373]">
-											Waitlist
-										</th>
-										<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-[#737373]">
-											Revenue
-										</th>
-										<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-[#737373]">
-											Status
-										</th>
-										<th className="px-4 py-2.5 w-10" />
-									</tr>
-								</thead>
-								<tbody className="divide-y divide-[#e5e5e5]">
-									{filteredSlots.map((slot) => {
-										const status = deriveStatus(slot);
-										const isFull = status === "full";
-										const isCancelled = status === "cancelled";
-										const dur = durationMinutes(slot.startTime, slot.endTime);
-										const instrName = memberNameById(slot.instructorId);
-										const dayLabel = slotDayLabel(slot.date);
-
-										return (
-											<tr
-												key={slot.id}
-												className={cn(
-													"transition-colors",
-													isFull && !isCancelled
-														? "bg-[#fffbf0] hover:bg-[#fff7e6]"
-														: isCancelled
-															? "opacity-60 hover:bg-[#f3f3f3]"
-															: "hover:bg-[#f3f3f3]/60",
-												)}
-											>
-												{/* Class name */}
-												<td className="px-5 py-3 font-semibold text-[#0a0a0a]">
-													{serviceNameById(slot.serviceId)}
-												</td>
-
-												{/* Day / Time */}
-												<td className="px-4 py-3 font-medium text-[#0a0a0a]">
-													{dayLabel} · {slot.startTime}
-												</td>
-
-												{/* Instructor */}
-												<td className="px-4 py-3 text-[#737373]">
-													{instrName ?? (
-														<span className="text-[#a3a3a3]">—</span>
-													)}
-												</td>
-
-												{/* Studio / Location */}
-												<td className="px-4 py-3 text-[#737373]">
-													{slot.location ?? (
-														<span className="text-[#a3a3a3]">—</span>
-													)}
-												</td>
-
-												{/* Duration */}
-												<td className="px-4 py-3 font-mono tabular-nums text-xs text-[#737373]">
-													{dur > 0 ? `${dur} min` : "—"}
-												</td>
-
-												{/* Fill rate bar */}
-												<td className="px-4 py-3">
-													{isCancelled ? (
-														<span className="text-xs text-[#a3a3a3]">—</span>
-													) : (
-														<FillBar
-															booked={slot.spotsBooked}
-															capacity={slot.capacity}
-														/>
-													)}
-												</td>
-
-												{/* Capacity fraction */}
-												<td
-													className={cn(
-														"px-4 py-3 font-mono tabular-nums font-semibold",
-														isFull && !isCancelled
-															? "text-red-600"
-															: "text-[#0a0a0a]",
-													)}
-												>
-													{slot.spotsBooked} / {slot.capacity}
-												</td>
-
-												{/* Waitlist count */}
-												<td className="px-4 py-3 font-mono tabular-nums text-[#737373]">
-													{isCancelled ? (
-														<span className="text-[#a3a3a3]">—</span>
-													) : slot.waitlistCount > 0 ? (
-														<span className="font-semibold text-amber-600">
-															{slot.waitlistCount}
-														</span>
-													) : (
-														0
-													)}
-												</td>
-
-												{/* Projected revenue: pricePerSpotCents × spotsBooked */}
-												<td className="px-4 py-3 font-mono tabular-nums text-[#737373]">
-													{isCancelled ? (
-														<span className="text-[#a3a3a3]">—</span>
-													) : (
-														formatPrice(
-															slot.pricePerSpotCents * slot.spotsBooked,
-														)
-													)}
-												</td>
-
-												{/* Status badge */}
-												<td className="px-4 py-3">
-													<SlotStatusBadge status={status} />
-												</td>
-
-												{/* Actions */}
-												<td className="px-4 py-3 text-right">
-													{isFull && !isCancelled ? (
-														// Full slot: Waitlist button replaces normal Manage
-														<DropdownMenu>
-															<DropdownMenuTrigger asChild>
-																<button
-																	type="button"
-																	className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 transition hover:bg-amber-100"
-																>
-																	Waitlist ▾
-																</button>
-															</DropdownMenuTrigger>
-															<DropdownMenuContent align="end">
-																<DropdownMenuItem
-																	onClick={() => handleViewSignups(slot)}
-																>
-																	<Users className="mr-2 h-3.5 w-3.5" />
-																	View Signups
-																</DropdownMenuItem>
-																<DropdownMenuItem
-																	onClick={() => handleOpenEdit(slot)}
-																>
-																	Edit
-																</DropdownMenuItem>
-																<DropdownMenuSeparator />
-																<DropdownMenuItem
-																	onClick={() => handleOpenCancel(slot)}
-																	className="text-destructive focus:text-destructive"
-																>
-																	Cancel Class
-																</DropdownMenuItem>
-															</DropdownMenuContent>
-														</DropdownMenu>
-													) : (
-														<DropdownMenu>
-															<DropdownMenuTrigger asChild>
-																<Button
-																	variant="ghost"
-																	size="sm"
-																	className="h-7 w-7 p-0"
-																>
-																	<MoreHorizontal className="h-3.5 w-3.5" />
-																	<span className="sr-only">Open menu</span>
-																</Button>
-															</DropdownMenuTrigger>
-															<DropdownMenuContent align="end">
-																<DropdownMenuItem
-																	onClick={() => handleViewSignups(slot)}
-																>
-																	<Users className="mr-2 h-3.5 w-3.5" />
-																	View Signups
-																</DropdownMenuItem>
-																<DropdownMenuItem
-																	onClick={() => handleOpenEdit(slot)}
-																	disabled={isCancelled}
-																>
-																	Edit
-																</DropdownMenuItem>
-																<DropdownMenuSeparator />
-																<DropdownMenuItem
-																	onClick={() => handleOpenCancel(slot)}
-																	disabled={isCancelled}
-																	className="text-destructive focus:text-destructive"
-																>
-																	Cancel Class
-																</DropdownMenuItem>
-															</DropdownMenuContent>
-														</DropdownMenu>
-													)}
-												</td>
-											</tr>
-										);
-									})}
-								</tbody>
-							</table>
-						)}
-					</div>
-				</div>
+				<ClassSlotsTable
+					classSlots={classSlots}
+					filteredSlots={filteredSlots}
+					isLoading={isLoading}
+					isError={isError}
+					statusFilter={statusFilter}
+					setStatusFilter={setStatusFilter}
+					onRetry={() => refetch()}
+					onOpenCreate={() => setCreateSheetOpen(true)}
+					onOpenEdit={handleOpenEdit}
+					onOpenCancel={handleOpenCancel}
+					onViewSignups={handleViewSignups}
+					serviceNameById={serviceNameById}
+					memberNameById={memberNameById}
+				/>
 			</div>
 
-			{/* -----------------------------------------------------------------
-			    Create Dialog
-			    ----------------------------------------------------------------- */}
-			<Dialog open={createSheetOpen} onOpenChange={setCreateSheetOpen}>
-				<DialogContent
-					hideCloseButton
-					className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
-				>
-					{/* Header */}
-					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
-						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
-							CLASS SCHEDULE
-						</p>
-						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
-							Create Class Slot
-						</DialogTitle>
-						<DialogDescription className="text-sm text-[#737373]">
-							Schedule a new group class slot.
-						</DialogDescription>
-					</DialogHeader>
+			{/* Dialogs */}
+			<CreateClassSlotDialog
+				open={createSheetOpen}
+				onOpenChange={setCreateSheetOpen}
+				organizationId={organizationId}
+				services={services}
+				membersData={membersData}
+				createForm={createForm}
+				setCreateForm={setCreateForm}
+				isPending={createMutation.isPending}
+				onSubmit={(form) => createMutation.mutate(form)}
+			/>
 
-					{/* Form body */}
-					<div className="px-6 pt-4 pb-2 space-y-4 overflow-y-auto max-h-[65vh]">
-						{/* Service */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="create-service">
-								Service <span className="text-rose-600">*</span>
-							</Label>
-							<Select
-								value={createForm.serviceId}
-								onValueChange={(v) =>
-									setCreateForm((prev) => ({ ...prev, serviceId: v }))
-								}
-							>
-								<SelectTrigger id="create-service" className="w-full">
-									<SelectValue placeholder="Select a service" />
-								</SelectTrigger>
-								<SelectContent>
-									{services.map((svc) => (
-										<SelectItem key={svc.id} value={svc.id}>
-											{svc.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
+			<EditClassSlotDialog
+				open={editSheetOpen}
+				onOpenChange={setEditSheetOpen}
+				editingSlot={editingSlot}
+				membersData={membersData}
+				editForm={editForm}
+				setEditForm={setEditForm}
+				isPending={updateMutation.isPending}
+				onSubmit={(id, form) => updateMutation.mutate({ id, form })}
+			/>
 
-						{/* Branch */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="create-branch">
-								Branch <span className="text-rose-600">*</span>
-							</Label>
-							<BranchSelector
-								value={createForm.branchId}
-								onChange={(v) =>
-									setCreateForm((prev) => ({ ...prev, branchId: v }))
-								}
-								organizationId={organizationId ?? ""}
-								placeholder="Select a branch"
-							/>
-						</div>
-
-						{/* Date */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="create-date">
-								Date <span className="text-rose-600">*</span>
-							</Label>
-							<Input
-								id="create-date"
-								type="date"
-								value={createForm.date}
-								onChange={(e) =>
-									setCreateForm((prev) => ({ ...prev, date: e.target.value }))
-								}
-							/>
-						</div>
-
-						{/* Start + End Time side by side */}
-						<div className="grid grid-cols-2 gap-3">
-							<div className="flex flex-col gap-1.5">
-								<Label htmlFor="create-start">
-									Start Time <span className="text-rose-600">*</span>
-								</Label>
-								<Input
-									id="create-start"
-									type="time"
-									value={createForm.startTime}
-									onChange={(e) =>
-										setCreateForm((prev) => ({
-											...prev,
-											startTime: e.target.value,
-										}))
-									}
-								/>
-							</div>
-							<div className="flex flex-col gap-1.5">
-								<Label htmlFor="create-end">
-									End Time <span className="text-rose-600">*</span>
-								</Label>
-								<Input
-									id="create-end"
-									type="time"
-									value={createForm.endTime}
-									onChange={(e) =>
-										setCreateForm((prev) => ({
-											...prev,
-											endTime: e.target.value,
-										}))
-									}
-								/>
-							</div>
-						</div>
-
-						{/* Capacity */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="create-capacity">
-								Capacity <span className="text-rose-600">*</span>
-							</Label>
-							<Input
-								id="create-capacity"
-								type="number"
-								min={1}
-								value={createForm.capacity}
-								onChange={(e) =>
-									setCreateForm((prev) => ({
-										...prev,
-										capacity: e.target.value,
-									}))
-								}
-							/>
-						</div>
-
-						{/* Instructor */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="create-instructor">
-								Instructor{" "}
-								<span className="text-[#737373] font-normal text-xs">
-									(optional)
-								</span>
-							</Label>
-							<Select
-								value={createForm.instructorId}
-								onValueChange={(v) =>
-									setCreateForm((prev) => ({ ...prev, instructorId: v }))
-								}
-							>
-								<SelectTrigger id="create-instructor" className="w-full">
-									<SelectValue placeholder="None" />
-								</SelectTrigger>
-								<SelectContent>
-									{membersData.map((m: { id: string; name: string }) => (
-										<SelectItem key={m.id} value={m.id}>
-											{m.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-
-						{/* Location */}
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="create-location">
-								Location{" "}
-								<span className="text-[#737373] font-normal text-xs">
-									(optional)
-								</span>
-							</Label>
-							<Input
-								id="create-location"
-								type="text"
-								placeholder="e.g. Studio A"
-								value={createForm.location}
-								onChange={(e) =>
-									setCreateForm((prev) => ({
-										...prev,
-										location: e.target.value,
-									}))
-								}
-							/>
-						</div>
-					</div>
-
-					{/* Footer */}
-					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] flex justify-end gap-2">
-						<Button variant="outline" onClick={() => setCreateSheetOpen(false)}>
-							Cancel
-						</Button>
-						<Button
-							onClick={() => createMutation.mutate(createForm)}
-							disabled={
-								createMutation.isPending ||
-								!createForm.serviceId ||
-								!createForm.branchId ||
-								!createForm.date ||
-								!createForm.startTime ||
-								!createForm.endTime
-							}
-							className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
-						>
-							{createMutation.isPending ? "Creating…" : "Create Slot"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-
-			{/* -----------------------------------------------------------------
-			    Edit Dialog
-			    ----------------------------------------------------------------- */}
-			<Dialog open={editSheetOpen} onOpenChange={setEditSheetOpen}>
-				<DialogContent className="sm:max-w-md overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle>Edit Class Slot</DialogTitle>
-						<DialogDescription>
-							Update the details for this class slot.
-						</DialogDescription>
-					</DialogHeader>
-
-					<Separator className="my-4" />
-
-					<div className="space-y-4 px-1">
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="edit-start">Start Time</Label>
-							<Input
-								id="edit-start"
-								type="time"
-								value={editForm.startTime}
-								onChange={(e) =>
-									setEditForm((prev) => ({
-										...prev,
-										startTime: e.target.value,
-									}))
-								}
-							/>
-						</div>
-
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="edit-end">End Time</Label>
-							<Input
-								id="edit-end"
-								type="time"
-								value={editForm.endTime}
-								onChange={(e) =>
-									setEditForm((prev) => ({
-										...prev,
-										endTime: e.target.value,
-									}))
-								}
-							/>
-						</div>
-
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="edit-capacity">Capacity</Label>
-							<Input
-								id="edit-capacity"
-								type="number"
-								min={1}
-								value={editForm.capacity}
-								onChange={(e) =>
-									setEditForm((prev) => ({
-										...prev,
-										capacity: e.target.value,
-									}))
-								}
-							/>
-						</div>
-
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="edit-instructor">Instructor</Label>
-							<Select
-								value={editForm.instructorId}
-								onValueChange={(v) =>
-									setEditForm((prev) => ({ ...prev, instructorId: v }))
-								}
-							>
-								<SelectTrigger id="edit-instructor" className="w-full">
-									<SelectValue placeholder="None" />
-								</SelectTrigger>
-								<SelectContent>
-									{membersData.map((m: { id: string; name: string }) => (
-										<SelectItem key={m.id} value={m.id}>
-											{m.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="edit-location">Location</Label>
-							<Input
-								id="edit-location"
-								type="text"
-								placeholder="e.g. Studio A"
-								value={editForm.location}
-								onChange={(e) =>
-									setEditForm((prev) => ({
-										...prev,
-										location: e.target.value,
-									}))
-								}
-							/>
-						</div>
-					</div>
-
-					<DialogFooter className="mt-6">
-						<Button variant="outline" onClick={() => setEditSheetOpen(false)}>
-							Cancel
-						</Button>
-						<Button
-							onClick={() => {
-								if (editingSlot) {
-									updateMutation.mutate({ id: editingSlot.id, form: editForm });
-								}
-							}}
-							disabled={updateMutation.isPending || !editingSlot}
-						>
-							{updateMutation.isPending ? "Saving..." : "Save Changes"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-
-			{/* -----------------------------------------------------------------
-			    Signups Dialog
-			    ----------------------------------------------------------------- */}
-			<Dialog
+			<SignupsDialog
 				open={signupsSheetOpen}
-				onOpenChange={(open) => {
-					setSignupsSheetOpen(open);
-					if (!open) setViewingSignupsSlot(null);
+				onOpenChange={(isOpen) => {
+					setSignupsSheetOpen(isOpen);
+					if (!isOpen) setViewingSignupsSlot(null);
 				}}
-			>
-				<DialogContent className="sm:max-w-lg overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2">
-							<Users className="h-5 w-5" />
-							Signups
-						</DialogTitle>
-						{viewingSignupsSlot && (
-							<DialogDescription>
-								{serviceNameById(viewingSignupsSlot.serviceId)} —{" "}
-								{new Date(viewingSignupsSlot.date).toLocaleDateString()} at{" "}
-								{viewingSignupsSlot.startTime}
-							</DialogDescription>
-						)}
-					</DialogHeader>
+				viewingSignupsSlot={viewingSignupsSlot}
+				signups={signups}
+				signupsLoading={signupsLoading}
+				customerMembers={customerMembers}
+				enrollClientUserId={enrollClientUserId}
+				setEnrollClientUserId={setEnrollClientUserId}
+				enrollIsPending={enrollMutation.isPending}
+				removeEnrollmentIsPending={removeEnrollmentMutation.isPending}
+				onEnroll={(clientUserId) => enrollMutation.mutate(clientUserId)}
+				onRemoveEnrollment={(appointmentId) =>
+					removeEnrollmentMutation.mutate(appointmentId)
+				}
+				serviceNameById={serviceNameById}
+			/>
 
-					<Separator className="my-4" />
-
-					{viewingSignupsSlot &&
-						!viewingSignupsSlot.isCancelled &&
-						viewingSignupsSlot.spotsBooked < viewingSignupsSlot.capacity && (
-							<div className="mb-4 flex items-end gap-2">
-								<div className="flex-1">
-									<Label htmlFor="enroll-client" className="text-xs">
-										Enroll customer
-									</Label>
-									<Select
-										value={enrollClientUserId}
-										onValueChange={setEnrollClientUserId}
-									>
-										<SelectTrigger id="enroll-client">
-											<SelectValue placeholder="Select customer..." />
-										</SelectTrigger>
-										<SelectContent>
-											{customerMembers.length === 0 ? (
-												<div className="px-2 py-1.5 text-xs text-muted-foreground">
-													No active customers — invite one first.
-												</div>
-											) : (
-												customerMembers.map(
-													(m: { id: string; userId: string; name: string }) => (
-														<SelectItem key={m.id} value={m.userId}>
-															{m.name}
-														</SelectItem>
-													),
-												)
-											)}
-										</SelectContent>
-									</Select>
-								</div>
-								<Button
-									size="sm"
-									onClick={() => enrollMutation.mutate(enrollClientUserId)}
-									disabled={!enrollClientUserId || enrollMutation.isPending}
-								>
-									{enrollMutation.isPending ? "Enrolling..." : "Enroll"}
-								</Button>
-							</div>
-						)}
-
-					{signupsLoading ? (
-						<div className="flex items-center justify-center py-12">
-							<LoadingSpinner size="md" />
-						</div>
-					) : signups.length === 0 ? (
-						<p className="py-12 text-center text-sm text-muted-foreground">
-							No sign-ups yet.
-						</p>
-					) : (
-						<div className="space-y-2">
-							{signups.map((signup, i) => (
-								<div
-									key={`${signup.appointmentId}-${i}`}
-									className="space-y-1 rounded-lg border border-[#e5e5e5] p-3"
-								>
-									<div className="flex items-center justify-between">
-										<span className="text-sm font-medium">{signup.name}</span>
-										<span
-											className={cn(
-												"inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold",
-												signup.attended === true
-													? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-													: signup.attended === false
-														? "bg-red-50 text-red-700 border border-red-200"
-														: "bg-[#f3f3f3] text-[#737373] border border-[#e5e5e5]",
-											)}
-										>
-											{signup.attended === true
-												? "Attended"
-												: signup.attended === false
-													? "No-show"
-													: "Pending"}
-										</span>
-									</div>
-									{signup.email && (
-										<p className="text-xs text-[#737373]">{signup.email}</p>
-									)}
-									{signup.phone && (
-										<p className="text-xs text-[#737373]">{signup.phone}</p>
-									)}
-									<div className="flex items-center justify-between">
-										<div className="flex items-center gap-3 text-xs text-[#737373]">
-											<span className="capitalize">
-												{signup.clientType === "walk_in" ? "Walk-in" : "Member"}
-											</span>
-											<span>·</span>
-											<span className="capitalize">
-												{signup.appointmentStatus}
-											</span>
-										</div>
-										{signup.appointmentStatus !== "cancelled" && (
-											<Button
-												variant="ghost"
-												size="sm"
-												onClick={() =>
-													removeEnrollmentMutation.mutate(signup.appointmentId)
-												}
-												disabled={removeEnrollmentMutation.isPending}
-											>
-												Remove
-											</Button>
-										)}
-									</div>
-								</div>
-							))}
-						</div>
-					)}
-				</DialogContent>
-			</Dialog>
-
-			{/* -----------------------------------------------------------------
-			    Cancel Confirmation Dialog
-			    ----------------------------------------------------------------- */}
-			<Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>Cancel Class Slot</DialogTitle>
-						<DialogDescription>
-							{cancellingSlot
-								? `Are you sure you want to cancel the class on ${new Date(cancellingSlot.date).toLocaleDateString()} at ${cancellingSlot.startTime}? This action cannot be undone.`
-								: "Are you sure you want to cancel this class slot?"}
-						</DialogDescription>
-					</DialogHeader>
-
-					<div className="flex flex-col gap-1.5 py-2">
-						<Label htmlFor="cancel-reason">
-							Cancellation reason (optional)
-						</Label>
-						<Textarea
-							id="cancel-reason"
-							placeholder="e.g. Instructor unavailable"
-							value={cancellationReason}
-							onChange={(e) => setCancellationReason(e.target.value)}
-							rows={3}
-						/>
-					</div>
-
-					<DialogFooter className="gap-2">
-						<DialogClose asChild>
-							<Button variant="outline">Keep Class</Button>
-						</DialogClose>
-						<Button
-							variant="destructive"
-							disabled={cancelMutation.isPending}
-							onClick={() => {
-								if (cancellingSlot) {
-									cancelMutation.mutate({
-										id: cancellingSlot.id,
-										reason: cancellationReason,
-									});
-								}
-							}}
-						>
-							{cancelMutation.isPending ? "Cancelling..." : "Cancel Class"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+			<CancelClassSlotDialog
+				open={cancelDialogOpen}
+				onOpenChange={setCancelDialogOpen}
+				cancellingSlot={cancellingSlot}
+				cancellationReason={cancellationReason}
+				setCancellationReason={setCancellationReason}
+				isPending={cancelMutation.isPending}
+				onConfirm={(id, reason) => cancelMutation.mutate({ id, reason })}
+			/>
 		</div>
 	);
 }

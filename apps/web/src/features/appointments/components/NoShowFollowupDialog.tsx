@@ -7,7 +7,7 @@ import {
 	DialogDescription,
 } from "@/components/ui/dialog";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 /**
  * Shown right after a session is marked no-show. Offers to reinstate the package
@@ -36,7 +36,7 @@ export function NoShowFollowupDialog({
 			}),
 		successMessage: "Credit reinstated.",
 		errorMessage: (err) => err.message || "Failed to reinstate credit",
-		invalidate: [["appointments"], ["packageInstances"]],
+		invalidate: [orpc.appointments.list.key(), orpc.packageInstances.key()],
 		onSuccess: (res) => {
 			if (res.packageInstanceId) {
 				onReinstated(res.packageInstanceId);

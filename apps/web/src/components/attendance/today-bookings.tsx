@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -236,7 +236,10 @@ export function TodayBookingsSection({
 		successMessage: (_, vars) =>
 			vars.outcome === "attended" ? "Checked in" : "Marked no-show",
 		errorMessage: false,
-		invalidate: [["attendance"]],
+		invalidate: [
+			orpc.checkIns.list.key(),
+			orpc.checkIns.listTodaysBookings.key(),
+		],
 		onSuccess: (_, vars) => {
 			markInFlight(vars.appointmentClientId, false);
 		},
@@ -281,7 +284,10 @@ export function TodayBookingsSection({
 		},
 		errorMessage: (err) =>
 			`Bulk check-in failed: ${err.message || "Unknown error"}`,
-		invalidate: [["attendance"]],
+		invalidate: [
+			orpc.checkIns.list.key(),
+			orpc.checkIns.listTodaysBookings.key(),
+		],
 		onSuccess: () => {
 			setBulkDialogForBucket(null);
 		},

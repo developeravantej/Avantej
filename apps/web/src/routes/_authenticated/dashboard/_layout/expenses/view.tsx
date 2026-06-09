@@ -288,7 +288,7 @@ function ExpensesViewPage() {
 		successMessage: "Expense submitted!",
 		errorMessage: (err) =>
 			`Failed to submit expense: ${err.message || "An unexpected error occurred"}`,
-		invalidate: [["expenses", organizationId]],
+		invalidate: [orpc.expenses.list.key()],
 		onSuccess: () => {
 			setIsCreateOpen(false);
 			resetCreateForm();
@@ -301,7 +301,7 @@ function ExpensesViewPage() {
 		successMessage: "Expense approved",
 		errorMessage: (err) =>
 			`Failed to approve expense: ${err.message || "An unexpected error occurred"}`,
-		invalidate: [["expenses", organizationId]],
+		invalidate: [orpc.expenses.list.key()],
 	});
 
 	const rejectMutation = useApiMutation({
@@ -314,7 +314,7 @@ function ExpensesViewPage() {
 		successMessage: "Expense rejected",
 		errorMessage: (err) =>
 			`Failed to reject expense: ${err.message || "An unexpected error occurred"}`,
-		invalidate: [["expenses", organizationId]],
+		invalidate: [orpc.expenses.list.key()],
 		onSuccess: () => {
 			setRejectTarget(null);
 			setRejectionReason("");
@@ -331,7 +331,7 @@ function ExpensesViewPage() {
 		successMessage: "Expense marked as paid",
 		errorMessage: (err) =>
 			`Failed to mark expense as paid: ${err.message || "An unexpected error occurred"}`,
-		invalidate: [["expenses", organizationId]],
+		invalidate: [orpc.expenses.list.key()],
 		onSuccess: () => {
 			setPaidTarget(null);
 			setPaymentReference("");

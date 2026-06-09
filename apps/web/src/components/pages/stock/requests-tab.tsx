@@ -6,7 +6,7 @@ import { useApiMutation } from "@/hooks/useApiMutation";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { Skeleton } from "boneyard-js/react";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -136,14 +136,12 @@ export function StockRequestsTabPage() {
 		isError,
 		refetch,
 	} = useQuery({
-		queryKey: ["stockRequests", organizationId, statusFilter],
-		queryFn: async () => {
-			if (!organizationId) return [];
-			return client.stockRequests.list({
-				organizationId,
+		...orpc.stockRequests.list.queryOptions({
+			input: {
+				organizationId: organizationId ?? "",
 				status: statusFilter,
-			});
-		},
+			},
+		}),
 		enabled: !!organizationId,
 	});
 
@@ -177,7 +175,7 @@ export function StockRequestsTabPage() {
 		successMessage: "Stock request created",
 		errorMessage: (error) =>
 			`Failed to create stock request: ${error.message || "An unexpected error occurred"}`,
-		invalidate: [["stockRequests", organizationId]],
+		invalidate: [orpc.stockRequests.list.key()],
 		onSuccess: () => {
 			setIsCreateOpen(false);
 			resetCreateForm();
@@ -190,7 +188,7 @@ export function StockRequestsTabPage() {
 		successMessage: "Stock request approved",
 		errorMessage: (error) =>
 			`Failed to approve stock request: ${error.message || "An unexpected error occurred"}`,
-		invalidate: [["stockRequests", organizationId]],
+		invalidate: [orpc.stockRequests.list.key()],
 	});
 
 	const rejectMutation = useApiMutation({
@@ -199,7 +197,7 @@ export function StockRequestsTabPage() {
 		successMessage: "Stock request rejected",
 		errorMessage: (error) =>
 			`Failed to reject stock request: ${error.message || "An unexpected error occurred"}`,
-		invalidate: [["stockRequests", organizationId]],
+		invalidate: [orpc.stockRequests.list.key()],
 	});
 
 	const fulfillMutation = useApiMutation({
@@ -215,7 +213,7 @@ export function StockRequestsTabPage() {
 		successMessage: "Stock request fulfilled",
 		errorMessage: (error) =>
 			`Failed to fulfill stock request: ${error.message || "An unexpected error occurred"}`,
-		invalidate: [["stockRequests", organizationId]],
+		invalidate: [orpc.stockRequests.list.key()],
 		onSuccess: () => {
 			setFulfillTarget(null);
 			setFulfillQuantities({});

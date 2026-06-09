@@ -126,7 +126,7 @@ export function ScheduleSessionsPanel({
 				? `${res.createdCount} session(s) scheduled, ${res.failedCount} failed.`
 				: `${res.createdCount} session(s) scheduled.`,
 		errorMessage: (err) => err.message || "Failed to schedule sessions",
-		invalidate: [["appointments"], ["packageInstances"]],
+		invalidate: [orpc.appointments.list.key(), orpc.packageInstances.key()],
 		onSuccess: () => {
 			setSlots(null);
 			onScheduled?.();
