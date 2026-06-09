@@ -244,3 +244,93 @@ DONE: #7e
 
 DONE: #7c
 ---
+
+## Run: 2026-06-09 (phase-gated)
+**Trigger:** /execute zplan/06-09_apps-quality-uplift/prompts/06-09_apps-quality-uplift.md --phase-gated
+
+### Phase outcomes
+- Phase 1 (invalidation): PASS — 27 files via 3 agents + tail-fix. Distinguished oRPC-backed (→orpc keys) from hand-rolled (correct as-is) queries.
+- Phase 2 (server auth+types): PASS — resolveMemberContext() dedup helper; 3 console.log removed; 3 stub drifts fixed; appRouter cast kept (documented).
+- Phase 3 (migration renumber): SKIPPED (user) — runner keys applied-state on filename-hash; rename would re-run migrations on live tenants for cosmetic gain.
+- Phase 4 (decomposition): class-slots + announcements decomposed (me); reports + branch done by concurrent session; pos-workflow + members-tab DEFERRED (domain-critical, now test-covered).
+- Phase 5 (high-risk tests): DONE by concurrent session (f0ba5cf2).
+- Phase 6 (test isolation): already solved (run-unit-isolated.ts + CI). Fixed 1 self-introduced regression (services barrel mock). 67/67 green.
+
+### Final build status
+- check-types: PASS (0 errors)  |  oxlint: PASS (0 errors)
+- server isolated unit suite: PASS (67/67)
+- web vitest: green per-file; full-run failures were jsdom setup-timeouts under machine contention (isolated re-runs pass)
+
+### Cross-cutting events
+- CONCURRENT SESSION collision: sibling plan (06-09_18-13_web-quality-uplift) committed f0ba5cf2 mid-run (route decomposition + query-key + tests + edge states). Overlap was only 2 files, type-checked clean. My verified work committed in 4059ca37 (Phase 1/2/4) + aff0d9fe (test fix), staging ONLY my files to avoid entangling the concurrent session's uncommitted changes.
+- Plan inaccuracies found: (a) LOC gate covers only packages/api routers, not apps/web; (b) backend `any` count is 724 not ~101; (c) Phase 6 already solved in prior work.
+
+### Commits
+- 4059ca37 refactor(apps): quality uplift phases 1-2 + class-slots/announcements decomposition (44 files)
+- aff0d9fe test(server): add resolveMemberContext to services barrel mock
+
+### Open / deferred
+- pos-workflow.tsx (1791) + members-tab.tsx (1508) decomposition — deferred to a dedicated browser-verified pass; now have test coverage which de-risks it.
+- backend `any` reduction (724) — needs a dedicated careful pass.
+- invitations-page.tsx hand-rolled list query — migrate to orpc.invitations.list.queryOptions to enable real-key invalidation.
+
+---
+
+## Agent: members-tab decomposition — Phase 4b
+**Completed:** 2026-06-09T21:25Z
+
+### What I Did
+- members-tab.tsx: 1508 → 630 LOC; export `MembersTabPage` preserved at same path
+- created: `components/pages/access-control/members/` with 9 files:
+  - `types.ts` (40 LOC) — `SystemRole`, `SYSTEM_ROLES`, re-exported `UserForAssignment`/`RoleResponse`, `MemberApiItem`/`RoleApiItem`
+  - `UserCard.tsx` (266 LOC) — per-member card with dropdown actions menu
+  - `RoleAssignmentSheet.tsx` (147 LOC) — "Assign Role to…" dialog
+  - `InviteUserDialog.tsx` (137 LOC) — invite-by-email dialog with empty-email guard
+  - `EditUserDialog.tsx` (207 LOC) — edit role + custom role + hierarchy scope dialog
+  - `MoveBranchDialog.tsx` (101 LOC) — move-to-branch dialog with BranchCombobox
+  - `MembersStatsBar.tsx` (52 LOC) — 4-stat grid (total/active/no-roles/available-roles)
+  - `MembersFiltersBar.tsx` (162 LOC) — search + role/status filters + show-deleted toggle + bulk selection
+  - `MembersGrid.tsx` (107 LOC) — renders UserCard grid + empty state
+
+### RBAC preserved
+- All permission gates (invite, deactivate/reactivate, softDelete, restore, updateRole, retryGhlSync, updateScope) remain as handler functions in the orchestrator (`MembersTabPage`)
+- `canMoveBranch` logic (admin/trainer/staff only) preserved in orchestrator, passed as `canMoveBranchFn` prop to `MembersGrid` → forwarded to `UserCard` as `canMoveBranch` boolean
+- No `hasPermission`/`hasRole` calls were present in this component (the original also had none); permission gating is via `useUserContext()` org scoping + API-level guards
+- members-tab.test.tsx: **PASS (16/16 tests)**
+- `bun check-types`: **0 errors** (web + server + native all clean)
+
+### Issues Encountered
+- None (bugs spotted: none)
+
+DONE: #7b
+
+---
+
+## Agent: POS decomposition — Phase 4b
+**Completed:** 2026-06-09T21:28
+
+### What I Did
+- pos-workflow.tsx: 1791 → 797 LOC; export `PosWorkflow` preserved at identical path
+- Created `components/pos/workflow/` with 9 files (1534 LOC total across sub-components):
+  - `helpers.ts` — pure functions: `calcTotals`, `getInitials`, `formatPaymentLabel`
+  - `step-primitives.tsx` — `TlDot`, `LiveDot`, `StepCard`, `LockedBadge`
+  - `PosHeader.tsx` — page header with clock + back-link
+  - `ClearCartDialog.tsx` — "Clear cart?" Dialog (56 LOC)
+  - `CustomerStepCard.tsx` — step 0 card: mode toggle, CustomerStep, done-summary
+  - `ItemsStepCard.tsx` — step 1 card: ItemsStep, trainer picker, tax select, notes
+  - `PromoStepCard.tsx` — step 2 card: PromoStep, done-summary
+  - `PaymentStepCard.tsx` — step 3 card: PaymentStep, done-summary
+  - `ConfirmStepCard.tsx` — step 4 card: order recap, CartSummary, attribution selects, submit button
+  - `LiveOrderPanel.tsx` — right panel: timeline, live totals, last receipt preview
+
+### Domain invariants verified
+- **Installment amount display:** `dueNowCents` calculation stays in orchestrator (pos-workflow.tsx ~line 251: `selectedPlan ? Math.round(totalCents * (1 + pricePremiumBps/10000) / numInstallments) : totalCents`). Passed as prop to both `ConfirmStepCard` and `LiveOrderPanel` — both display `dueNowCents` not `totalCents` in the "Due Today" / "Est. Total" rows. Full-price is shown separately only on the "Full total (N instalments)" sub-line.
+- **Commission-to-trainer (rotation + requested):** `preferredTrainerId` state lives in orchestrator, passed verbatim to `client.pos.recordSale({ preferredTrainerId: preferredTrainerId ?? undefined })`. When null → server routes via rotation queue. When set (via `PaymentStep` preferred-trainer select) → carried to specific trainer. Both paths unchanged.
+- **pos-workflow.test.tsx: PASS (4/4 tests)**
+- **bun check-types: 0 errors** (web + server + native all clean)
+
+### Issues Encountered
+- None (no bugs spotted during the structural move)
+
+DONE: #7a
+---
