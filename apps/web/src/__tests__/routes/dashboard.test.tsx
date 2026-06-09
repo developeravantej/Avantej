@@ -14,6 +14,10 @@ vi.mock("@tanstack/react-router", () => ({
 			useNavigate: vi.fn().mockReturnValue(vi.fn()),
 		};
 	},
+	getRouteApi: () => ({
+		useSearch: vi.fn().mockReturnValue({ period: "this_month" }),
+		useNavigate: vi.fn().mockReturnValue(vi.fn()),
+	}),
 	Link: ({ children }: { children: React.ReactNode }) => children,
 	useNavigate: vi.fn().mockReturnValue(vi.fn()),
 	useSearch: vi.fn().mockReturnValue({ period: "this_month" }),
