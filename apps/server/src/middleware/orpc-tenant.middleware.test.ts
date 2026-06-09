@@ -73,6 +73,18 @@ class _SharedPermissionDeniedError extends Error {
 
 mock.module("@avantej-core/services", () => ({
 	getDescendantNodeIds: mock(async () => [] as string[]),
+	// Shared member-context helper (extracted in the auth dedup refactor).
+	// Mirrors the real impl: looks up the member via the (mocked) tenantDb,
+	// returns null when absent — these fixtures resolve findFirst → null.
+	resolveMemberContext: mock(
+		async (tenantDb: {
+			query?: { members?: { findFirst?: () => Promise<unknown> } };
+		}) => {
+			const member = await tenantDb?.query?.members?.findFirst?.();
+			if (!member) return null;
+			return { member, accessibleNodeIds: [] as string[] };
+		},
+	),
 	// From customer-profiles.test.ts
 	requirePermission: mock(async () => undefined),
 	upsertCustomerProfile: mock(async () => undefined),
