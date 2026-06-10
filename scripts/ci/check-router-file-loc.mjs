@@ -6,7 +6,12 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const routersDir = join(process.cwd(), "packages/api/src/routers");
+/** Router roots scanned by the gate. Both the shared API routers and the
+ * server-only routers are held to the same per-file LOC budget. */
+const ROUTER_ROOTS = [
+	"packages/api/src/routers",
+	"apps/server/src/routers",
+].map((d) => join(process.cwd(), d));
 const MAX_LINES = 400;
 
 /** Known mega-routers tracked for D-S7 split — empty when all routers are modularized. */
@@ -16,33 +21,33 @@ const SKIP = new Set(["index.ts", "base-router.ts"]);
 
 const violations = [];
 
-function checkFile(relativePath) {
+function checkFile(rootDir, relativePath) {
 	const base = relativePath.split(/[/\\]/).pop() ?? relativePath;
 	if (base.endsWith(".test.ts") || SKIP.has(base)) return;
 	if (relativePath.includes("_types")) return;
 
-	const path = join(routersDir, relativePath);
+	const path = join(rootDir, relativePath);
 	const lineCount = readFileSync(path, "utf-8").split(/\r?\n/).length;
 	if (lineCount <= MAX_LINES) return;
 	if (ALLOWLIST.has(base)) return;
 	violations.push(`${relativePath}: ${lineCount} lines (max ${MAX_LINES})`);
 }
 
-function walk(dir, prefix = "") {
+function walk(rootDir, dir, prefix = "") {
 	for (const entry of readdirSync(dir)) {
 		const rel = prefix ? `${prefix}/${entry}` : entry;
 		const full = join(dir, entry);
 		if (statSync(full).isDirectory()) {
 			if (entry === "_types") continue;
-			walk(full, rel);
+			walk(rootDir, full, rel);
 			continue;
 		}
 		if (!entry.endsWith(".ts")) continue;
-		checkFile(rel.replace(/\\/g, "/"));
+		checkFile(rootDir, rel.replace(/\\/g, "/"));
 	}
 }
 
-walk(routersDir);
+for (const root of ROUTER_ROOTS) walk(root, root);
 
 if (violations.length > 0) {
 	console.error("Router file LOC check failed:\n");
