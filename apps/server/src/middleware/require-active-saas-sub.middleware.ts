@@ -16,7 +16,7 @@
 import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { o } from "@avantej-core/api";
-import { controlPanelDb } from "@/lib/db";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 
@@ -116,6 +116,10 @@ export const requireActiveSaaSSub = o.middleware(
 				message: "No organization context",
 			});
 		}
+
+		// Request-scoped CP DB from the Hono context (set by dbMiddleware) — never the
+		// deprecated module-level singleton, which can't be shared across Worker isolates.
+		const controlPanelDb = getControlPanelDb(context);
 
 		const [org] = await controlPanelDb
 			.select()
