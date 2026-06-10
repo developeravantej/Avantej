@@ -10,12 +10,18 @@
  * over `baseRouter.customerProfiles` (last spread wins).
  */
 
-import { profileProcedures } from "./profile.procedures";
-import { claimProcedures } from "./claim.procedures";
+import { profileWriteProcedures } from "./profile-write.procedures";
+import { profileLifecycleProcedures } from "./profile-lifecycle.procedures";
+import { profileIdentityProcedures } from "./profile-identity.procedures";
+import { claimDispatchProcedures } from "./claim-dispatch.procedures";
+import { claimUnclaimedProcedures } from "./claim-unclaimed.procedures";
 import { ghlProcedures } from "./ghl.procedures";
 
 export const serverCustomerProfilesRouter = {
-	...profileProcedures,
-	...claimProcedures,
+	...profileWriteProcedures,
+	...profileLifecycleProcedures,
+	...profileIdentityProcedures,
+	...claimDispatchProcedures,
+	...claimUnclaimedProcedures,
 	...ghlProcedures,
 };
