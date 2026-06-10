@@ -1,7 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { RolesTabPage, type RolesViewMode } from "@/components/pages/access-control/roles-tab";
+import {
+	RolesTabPage,
+	type RolesViewMode,
+} from "@/components/pages/access-control/roles-tab";
 import { PermissionsTabPage } from "@/components/pages/access-control/permissions-tab";
 import { requirePermission } from "@/lib/route-guards";
+
+import { z } from "zod";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/access-control/roles",
@@ -12,9 +17,9 @@ export const Route = createFileRoute(
 			"/dashboard",
 		);
 	},
-	validateSearch: (search: Record<string, unknown>) => ({
-		tab: (search.tab as string | undefined) ?? "roles",
-		view: ((search.view as string | undefined) ?? "matrix") as RolesViewMode,
+	validateSearch: z.object({
+		tab: z.string().catch("roles"),
+		view: z.enum(["matrix", "cards", "enhanced", "wizard"]).catch("matrix"),
 	}),
 	component: RolesPage,
 });

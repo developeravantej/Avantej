@@ -16,11 +16,13 @@ import { TIER_LIMITS, type Tier } from "@avantej-core/types";
 import { client as orpcClient } from "@/utils/orpc";
 import { useUserContext } from "@/hooks/useUserContext";
 
+import { z } from "zod";
+
 export const Route = createFileRoute("/subscribe")({
 	component: SubscribePage,
-	validateSearch: (search: Record<string, unknown>) => ({
-		session_id: search.session_id as string | undefined,
-		canceled: search.canceled as string | undefined,
+	validateSearch: z.object({
+		session_id: z.string().optional(),
+		canceled: z.string().optional(),
 	}),
 });
 

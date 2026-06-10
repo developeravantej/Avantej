@@ -4,15 +4,15 @@ import { TrainersListPage } from "@/components/pages/trainers/trainers-list-page
 import { TrainerTiersPage } from "@/components/pages/trainers/trainer-tiers-page";
 import { TrainerAvailabilityTab } from "@/components/pages/trainers/trainer-availability-tab";
 
+import { z } from "zod";
+
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/trainers/view",
 )({
 	beforeLoad: async () => {
 		await requirePermission("user_management:read");
 	},
-	validateSearch: (search: Record<string, unknown>) => ({
-		tab: (search.tab as string | undefined) ?? "trainers",
-	}),
+	validateSearch: z.object({ tab: z.string().catch("trainers") }),
 	component: TrainersTabPage,
 });
 

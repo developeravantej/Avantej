@@ -1,5 +1,3 @@
-"use client";
-
 import { createFileRoute } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
 import { useQuery } from "@tanstack/react-query";
@@ -14,15 +12,17 @@ import { Button } from "@/components/ui/button";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client, orpc } from "@/utils/orpc";
 
+import { z } from "zod";
+
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/commissions/view",
 )({
 	beforeLoad: async () => {
 		await requirePermission("commission_management:read");
 	},
-	validateSearch: (search: Record<string, unknown>) => ({
-		tab: (search.tab as string | undefined) ?? "mine",
-		recipientId: search.recipientId as string | undefined,
+	validateSearch: z.object({
+		tab: z.string().catch("mine"),
+		recipientId: z.string().optional(),
 	}),
 	component: CommissionsPage,
 });

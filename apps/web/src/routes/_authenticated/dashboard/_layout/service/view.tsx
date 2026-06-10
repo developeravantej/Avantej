@@ -7,15 +7,15 @@ import { PromotionsPage } from "@/components/pages/services/promotions-page";
 import { ServicePricingPage } from "@/components/pages/services/pricing-page";
 import { InstallmentPlansTab } from "@/components/pages/services/installment-plans-tab";
 
+import { z } from "zod";
+
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/service/view",
 )({
 	beforeLoad: async () => {
 		await requirePermission("service_management:read");
 	},
-	validateSearch: (search: Record<string, unknown>) => ({
-		tab: (search.tab as string | undefined) ?? "services",
-	}),
+	validateSearch: z.object({ tab: z.string().catch("services") }),
 	component: ServicesTabPage,
 });
 

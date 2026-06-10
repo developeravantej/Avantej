@@ -38,13 +38,15 @@ import { Label } from "@/components/ui/label";
 import { client as orpcClient } from "@/utils/orpc";
 import { useUserContext } from "@/hooks/useUserContext";
 
+import { z } from "zod";
+
 export const Route = createFileRoute("/_authenticated/billing/connect")({
 	component: BillingConnectPage,
-	validateSearch: (search: Record<string, unknown>) => ({
-		return: search.return as string | undefined,
-		refresh: search.refresh as string | undefined,
-		oauth_error: search.oauth_error as string | undefined,
-		country: search.country as string | undefined,
+	validateSearch: z.object({
+		return: z.string().optional(),
+		refresh: z.string().optional(),
+		oauth_error: z.string().optional(),
+		country: z.string().optional(),
 	}),
 });
 

@@ -11,6 +11,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { z } from "zod";
 import { RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
@@ -273,10 +274,8 @@ export const Route = createFileRoute(
 	beforeLoad: async () => {
 		await requireRole(["admin", "trainer"]);
 	},
-	validateSearch: (search: Record<string, unknown>) => ({
-		scope: (search.scope === "assignable_to_me" ? "assignable_to_me" : "all") as
-			| "all"
-			| "assignable_to_me",
+	validateSearch: z.object({
+		scope: z.enum(["all", "assignable_to_me"]).catch("all"),
 	}),
 	component: ApprovalsPage,
 });

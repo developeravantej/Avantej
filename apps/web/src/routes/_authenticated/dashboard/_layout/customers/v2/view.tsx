@@ -10,18 +10,21 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client, orpc } from "@/utils/orpc";
 
+import { z } from "zod";
+
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/customers/v2/view",
 )({
 	beforeLoad: async () => {
 		await requirePermission("customer_management:read");
 	},
-	validateSearch: (search: Record<string, unknown>) => ({
-		customer: (search.customer as string | undefined) ?? undefined,
-		showDeleted:
-			search.showDeleted === true || search.showDeleted === "true"
-				? true
-				: undefined,
+	validateSearch: z.object({
+		customer: z.string().optional(),
+		showDeleted: z
+			.unknown()
+			.transform((v) =>
+				v === true || v === "true" ? (true as const) : undefined,
+			),
 	}),
 	component: CustomersV2Page,
 });

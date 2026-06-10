@@ -4,15 +4,15 @@ import { MembersTabPage } from "@/components/pages/access-control/members-tab";
 import { InvitationsTabPage } from "@/components/pages/access-control/invitations-tab";
 import { UserPlus } from "lucide-react";
 
+import { z } from "zod";
+
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/access-control/user-assignment",
 )({
 	beforeLoad: async () => {
 		await requirePermission("role_management:read");
 	},
-	validateSearch: (search: Record<string, unknown>) => ({
-		tab: (search.tab as string | undefined) ?? "members",
-	}),
+	validateSearch: z.object({ tab: z.string().catch("members") }),
 	component: StaffAccessPage,
 });
 
