@@ -24,8 +24,6 @@
 import { z } from "zod";
 import { and, count, desc, eq, gte, isNotNull, isNull, sql } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { protectedProcedure } from "@avantej-core/api";
 import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
 import { platformPaymentLedger } from "@avantej-core/db/schema/control-panel/platform-payment-ledger";
@@ -37,25 +35,11 @@ import {
 import { orgCountryStripeAccounts } from "@avantej-core/db/schema/control-panel/org-country-stripe-accounts";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { getStripeClient } from "@/lib/stripe";
-
-function cpDbFromContext(
-	context: unknown,
-): NeonDatabase<typeof controlPanelSchema> {
-	const db = (
-		context as { honoContext?: { get: (k: string) => unknown } }
-	).honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 export const platformAdminPaymentsRouter = {
 	overview: adminProcedure.handler(async ({ context }) => {
-		const cpDb = cpDbFromContext(context);
+		const cpDb = getControlPanelDb(context);
 
 		const now = new Date();
 		const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -167,7 +151,7 @@ export const platformAdminPaymentsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFromContext(context);
+			const cpDb = getControlPanelDb(context);
 			const filters = [];
 			if (input.severity)
 				filters.push(eq(paymentDriftLog.severity, input.severity));
@@ -189,7 +173,7 @@ export const platformAdminPaymentsRouter = {
 	markDriftResolved: adminProcedure
 		.input(z.object({ driftId: z.string().uuid() }))
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFromContext(context);
+			const cpDb = getControlPanelDb(context);
 			const session = (context as { session?: { user?: { id?: string } } })
 				.session;
 			const adminUserId = session?.user?.id ?? "system";
@@ -212,7 +196,7 @@ export const platformAdminPaymentsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFromContext(context);
+			const cpDb = getControlPanelDb(context);
 			const filters = input.status
 				? [eq(platformDisputeQueue.status, input.status)]
 				: [];
@@ -228,7 +212,7 @@ export const platformAdminPaymentsRouter = {
 	markDisputeHandled: adminProcedure
 		.input(z.object({ disputeId: z.string() }))
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFromContext(context);
+			const cpDb = getControlPanelDb(context);
 			const session = (context as { session?: { user?: { id?: string } } })
 				.session;
 			const adminUserId = session?.user?.id ?? "system";
@@ -248,7 +232,7 @@ export const platformAdminPaymentsRouter = {
 		}),
 
 	listStuckOnboardings: adminProcedure.handler(async ({ context }) => {
-		const cpDb = cpDbFromContext(context);
+		const cpDb = getControlPanelDb(context);
 		const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 		const rows = await cpDb
 			.select({
@@ -280,7 +264,7 @@ export const platformAdminPaymentsRouter = {
 	runReconciliationNow: protectedProcedure
 		.use(requirePlatformAdmin(["super_admin"]))
 		.handler(async ({ context }) => {
-			const cpDb = cpDbFromContext(context);
+			const cpDb = getControlPanelDb(context);
 			const { runReconciliation } = await import(
 				"@/services/reconciler.service"
 			);
@@ -294,7 +278,7 @@ export const platformAdminPaymentsRouter = {
 	runWebhookBackfillNow: protectedProcedure
 		.use(requirePlatformAdmin(["super_admin"]))
 		.handler(async ({ context }) => {
-			const cpDb = cpDbFromContext(context);
+			const cpDb = getControlPanelDb(context);
 			const { runWebhookBackfill } = await import(
 				"@/services/webhook-backfill.service"
 			);

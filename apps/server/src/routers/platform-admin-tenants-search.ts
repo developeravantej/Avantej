@@ -14,31 +14,16 @@
 
 import { z } from "zod";
 import { eq, ilike, or, inArray } from "drizzle-orm";
-import { ORPCError } from "@orpc/server";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { adminProcedure } from "@/lib/admin-procedure";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
 import { user as userTable } from "@avantej-core/db/schema/auth";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type MatchType = "id" | "slug" | "name" | "email";
-
-function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (
-		context as { honoContext?: { get: (k: string) => unknown } }
-	).honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
 
 const RANK: Record<MatchType, number> = {
 	id: 0,
@@ -68,7 +53,7 @@ export const platformAdminTenantsSearchRouter = {
 					matchedField?: string;
 				}>;
 			}> => {
-				const cpDb = cpDbFrom(context);
+				const cpDb = getControlPanelDb(context);
 				const raw = input.query.trim();
 				if (raw.length === 0) return { results: [] };
 

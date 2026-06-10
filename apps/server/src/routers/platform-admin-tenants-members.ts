@@ -36,26 +36,11 @@ import {
 	isNull,
 	or,
 } from "drizzle-orm";
-import { ORPCError } from "@orpc/server";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { adminProcedure } from "@/lib/admin-procedure";
 import { user as cpUsers } from "@avantej-core/db/schema/auth";
 import { members as tenantMembers } from "@avantej-core/db/schema/tenant/members";
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
-
-function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (
-		context as { honoContext?: { get: (k: string) => unknown } }
-	).honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 /** Tolerant tenant-DB opener — returns null on missing org / decrypt error. */
 async function tryOpenTenantDb(organizationId: string) {
@@ -96,7 +81,7 @@ export const platformAdminTenantsMembersRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const tenantDb = await tryOpenTenantDb(input.organizationId);
 			if (!tenantDb) {
 				return {

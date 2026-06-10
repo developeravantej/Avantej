@@ -47,6 +47,7 @@ import { organizations } from "@avantej-core/db/schema/control-panel/organizatio
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { getStripeClient } from "@/lib/stripe";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 // ── Stripe surface used by this router (minimal, for testability). ─────────
 type StripeCoupon = {
@@ -106,19 +107,6 @@ export type StripeClientLike = {
 const superAdminProcedure = protectedProcedure.use(
 	requirePlatformAdmin(["super_admin"]),
 );
-
-function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (
-		context as { honoContext?: { get: (k: string) => unknown } }
-	).honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
 
 function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
@@ -236,7 +224,7 @@ export function createPlatformAdminCouponsRouter(
 					),
 			)
 			.handler(async ({ context, input }) => {
-				const cpDb = cpDbFrom(context);
+				const cpDb = getControlPanelDb(context);
 				const adminUserId = adminUserIdFrom(context);
 				const stripe = resolveStripe();
 
@@ -297,7 +285,7 @@ export function createPlatformAdminCouponsRouter(
 		deleteCoupon: superAdminProcedure
 			.input(z.object({ couponId: z.string().min(1) }))
 			.handler(async ({ context, input }) => {
-				const cpDb = cpDbFrom(context);
+				const cpDb = getControlPanelDb(context);
 				const adminUserId = adminUserIdFrom(context);
 				const stripe = resolveStripe();
 
@@ -329,7 +317,7 @@ export function createPlatformAdminCouponsRouter(
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const cpDb = cpDbFrom(context);
+				const cpDb = getControlPanelDb(context);
 				const adminUserId = adminUserIdFrom(context);
 
 				const { customerId, orgFound } = await resolveStripeCustomerId(
@@ -380,7 +368,7 @@ export function createPlatformAdminCouponsRouter(
 		removeCoupon: superAdminProcedure
 			.input(z.object({ organizationId: z.string().uuid() }))
 			.handler(async ({ context, input }) => {
-				const cpDb = cpDbFrom(context);
+				const cpDb = getControlPanelDb(context);
 				const adminUserId = adminUserIdFrom(context);
 
 				const { customerId, orgFound } = await resolveStripeCustomerId(
@@ -420,7 +408,7 @@ export function createPlatformAdminCouponsRouter(
 		getCustomerCoupon: adminProcedure
 			.input(z.object({ organizationId: z.string().uuid() }))
 			.handler(async ({ context, input }) => {
-				const cpDb = cpDbFrom(context);
+				const cpDb = getControlPanelDb(context);
 				const { customerId, orgFound } = await resolveStripeCustomerId(
 					cpDb,
 					input.organizationId,

@@ -40,6 +40,7 @@ import { controlPanelJournal, tenantJournal } from "@avantej-core/db/journals";
 import type { DrizzleJournal } from "@avantej-core/db/journals";
 import { CONTROL_PANEL_MIGRATIONS } from "@avantej-core/db/generated/control-panel-migrations.generated";
 import { TENANT_MIGRATIONS } from "@avantej-core/db/generated/tenant-migrations.generated";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 // Drizzle-kit's runtime tracking table row (control-panel uses `drizzle.__drizzle_migrations`).
 // Schema: { id serial PK, hash text, created_at bigint (epoch ms) }.
@@ -57,14 +58,7 @@ function requirePlatformAdmin() {
 					message: "Authentication required",
 				});
 			}
-			const cpDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-			if (!cpDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available in context",
-				});
-			}
+			const cpDb = getControlPanelDb(context);
 			const adminRecord = await cpDb.query.platformAdmins.findFirst({
 				where: eq(platformAdmins.userId, context.session.user.id),
 			});
@@ -81,19 +75,6 @@ function requirePlatformAdmin() {
 }
 
 const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
-
-function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (
-		context as { honoContext?: { get: (k: string) => unknown } }
-	).honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
 
 function toIsoFromEpochMs(v: unknown): string {
 	if (typeof v === "number") return new Date(v).toISOString();
@@ -231,7 +212,7 @@ export const platformAdminMigrationsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const journal = journalForSchema(input.schema);
 
 			let applied: Array<{

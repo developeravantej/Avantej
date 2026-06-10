@@ -26,21 +26,9 @@ import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { users } from "@avantej-core/db/schema/control-panel/users";
 import { tenantNotes } from "@avantej-core/db/schema/control-panel/tenant-notes";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 const EDIT_WINDOW_MS = 60 * 60 * 1000;
-
-function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (
-		context as { honoContext?: { get: (k: string) => unknown } }
-	).honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
 
 function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
@@ -76,7 +64,7 @@ export const platformAdminTenantsNotesRouter = {
 	list: adminProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			await assertOrgExists(cpDb, input.organizationId);
 
 			const rows = await cpDb
@@ -114,7 +102,7 @@ export const platformAdminTenantsNotesRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 			await assertOrgExists(cpDb, input.organizationId);
 
@@ -151,7 +139,7 @@ export const platformAdminTenantsNotesRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 
 			const [existing] = await cpDb
@@ -214,7 +202,7 @@ export const platformAdminTenantsNotesRouter = {
 	delete: adminProcedure
 		.input(z.object({ id: z.string().uuid() }))
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 			const role = adminRoleFrom(context);
 

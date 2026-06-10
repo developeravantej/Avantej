@@ -15,34 +15,19 @@
 
 import { z } from "zod";
 import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
-import { ORPCError } from "@orpc/server";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { adminProcedure } from "@/lib/admin-procedure";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import {
 	tenantUsageSnapshots,
 	type RiskFlag,
 } from "@avantej-core/db/schema/control-panel/tenant-usage-snapshots";
-
-function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (
-		context as { honoContext?: { get: (k: string) => unknown } }
-	).honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 export const platformAdminTenantsHealthRouter = {
 	get: adminProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const [row] = await cpDb
 				.select({
 					snapshotDate: tenantUsageSnapshots.snapshotDate,
@@ -76,7 +61,7 @@ export const platformAdminTenantsHealthRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const rows = await cpDb
 				.select({
 					snapshotDate: tenantUsageSnapshots.snapshotDate,
@@ -109,7 +94,7 @@ export const platformAdminTenantsHealthRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 
 			// Subquery: most-recent snapshot per org (latest date), restricted
 			// to rows that have a non-null health_score (i.e. F.1.5-onward).

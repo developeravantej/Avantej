@@ -21,25 +21,13 @@ import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
 import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { tenantTags } from "@avantej-core/db/schema/control-panel/tenant-tags";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 const BULK_CAP = 100;
 
 const superAdminProcedure = adminProcedure.use(
 	requirePlatformAdmin(["super_admin"]),
 );
-
-function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (
-		context as { honoContext?: { get: (k: string) => unknown } }
-	).honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
 
 function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
@@ -83,7 +71,7 @@ export const platformAdminTenantsTagsRouter = {
 	list: adminProcedure
 		.input(z.object({ search: z.string().trim().optional() }).default({}))
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const where = input.search
 				? sql`label ILIKE ${"%" + input.search + "%"}`
 				: sql`1=1`;
@@ -118,7 +106,7 @@ export const platformAdminTenantsTagsRouter = {
 	listForOrg: adminProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			await assertOrgExists(cpDb, input.organizationId);
 			const rows = await cpDb
 				.select({
@@ -142,7 +130,7 @@ export const platformAdminTenantsTagsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 			await assertOrgExists(cpDb, input.organizationId);
 
@@ -189,7 +177,7 @@ export const platformAdminTenantsTagsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 			await assertOrgExists(cpDb, input.organizationId);
 
@@ -222,7 +210,7 @@ export const platformAdminTenantsTagsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 			assertBulkSize(input.organizationIds);
 
@@ -279,7 +267,7 @@ export const platformAdminTenantsTagsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 			assertBulkSize(input.organizationIds);
 
@@ -320,7 +308,7 @@ export const platformAdminTenantsTagsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 			assertBulkSize(input.organizationIds);
 

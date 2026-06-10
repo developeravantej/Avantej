@@ -42,7 +42,6 @@
 
 import { z } from "zod";
 import { and, desc, eq, gte, inArray, isNotNull, type SQL } from "drizzle-orm";
-import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { adminProcedure } from "@/lib/admin-procedure";
@@ -52,6 +51,7 @@ import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin
 import { user as userTable } from "@avantej-core/db/schema/auth";
 import { getStripeClient } from "@/lib/stripe";
 import { getTierPriceUsdCents, type Tier } from "@avantej-core/types";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 // ── Stripe surface (minimal, for testability). ────────────────────────────
 type StripeInvoice = {
@@ -89,19 +89,6 @@ export type StripeClientLike = {
 		}) => Promise<{ data: StripeCoupon[]; has_more: boolean }>;
 	};
 };
-
-function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (
-		context as { honoContext?: { get: (k: string) => unknown } }
-	).honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
 
 function projectCoupon(c: StripeCoupon) {
 	return {
@@ -338,7 +325,7 @@ export function createPlatformAdminBillingRouter(
 		getOverview: adminProcedure
 			.input(z.object({}).default({}))
 			.handler(async ({ context }) => {
-				const cpDb = cpDbFrom(context);
+				const cpDb = getControlPanelDb(context);
 				const stripe = resolveStripe();
 				const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
@@ -416,7 +403,7 @@ export function createPlatformAdminBillingRouter(
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const cpDb = cpDbFrom(context);
+				const cpDb = getControlPanelDb(context);
 				const stripe = resolveStripe();
 				const result = await fetchCrossTenantInvoices(
 					cpDb,

@@ -24,25 +24,10 @@
 import { z } from "zod";
 import { and, desc, eq, gte, inArray, isNotNull } from "drizzle-orm";
 import { getTierPriceUsdCents, type Tier } from "@avantej-core/types";
-import { ORPCError } from "@orpc/server";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { adminProcedure } from "@/lib/admin-procedure";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
-
-function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (
-		context as { honoContext?: { get: (k: string) => unknown } }
-	).honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 function isoDate(d: Date): string {
 	return d.toISOString();
@@ -63,7 +48,7 @@ export const platformAdminRevenueRouter = {
 	getKpis: adminProcedure
 		.input(z.object({}).default({}))
 		.handler(async ({ context }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 
 			const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
@@ -149,7 +134,7 @@ export const platformAdminRevenueRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 
 			// Build cohort window: starting from `monthsBack` months ago, first
 			// of each month in UTC.
@@ -255,7 +240,7 @@ export const platformAdminRevenueRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const since = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
 
 			const rows = await cpDb

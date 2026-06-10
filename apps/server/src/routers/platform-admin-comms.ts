@@ -25,8 +25,6 @@
 import { z } from "zod";
 import { and, count, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { protectedProcedure } from "@avantej-core/api";
 import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
 import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
@@ -34,25 +32,13 @@ import { adminSessions } from "@avantej-core/db/schema/control-panel/admin-sessi
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { users } from "@avantej-core/db/schema/control-panel/users";
 import { commsTemplates } from "@avantej-core/db/schema/control-panel/comms-templates";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 const COMMS_ACTION_TYPES = ["tenant_dm", "tenant_announcement_create"] as const;
 
 const superAdminProcedure = protectedProcedure.use(
 	requirePlatformAdmin(["super_admin"]),
 );
-
-function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (
-		context as { honoContext?: { get: (k: string) => unknown } }
-	).honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
 
 function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
@@ -95,7 +81,7 @@ export const platformAdminCommsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const offset = (input.page - 1) * input.limit;
 
 			const filters: any[] = [];
@@ -211,7 +197,7 @@ export const platformAdminCommsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const filters: any[] = [];
 			if (input.kind) filters.push(eq(commsTemplates.kind, input.kind));
 			if (!input.includeArchived)
@@ -229,7 +215,7 @@ export const platformAdminCommsRouter = {
 	getTemplate: adminProcedure
 		.input(z.object({ id: z.string().uuid() }))
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const [row] = await cpDb
 				.select()
 				.from(commsTemplates)
@@ -249,7 +235,7 @@ export const platformAdminCommsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 
 			const [inserted] = await cpDb
@@ -290,7 +276,7 @@ export const platformAdminCommsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 
 			const patch: Record<string, unknown> = { updatedAt: new Date() };
@@ -324,7 +310,7 @@ export const platformAdminCommsRouter = {
 	archiveTemplate: superAdminProcedure
 		.input(z.object({ id: z.string().uuid() }))
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 			const [updated] = await cpDb
 				.update(commsTemplates)
@@ -345,7 +331,7 @@ export const platformAdminCommsRouter = {
 	unarchiveTemplate: superAdminProcedure
 		.input(z.object({ id: z.string().uuid() }))
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 			const [updated] = await cpDb
 				.update(commsTemplates)

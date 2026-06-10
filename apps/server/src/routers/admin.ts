@@ -13,8 +13,6 @@ import { eq, and, or, like, count, desc, isNull } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { protectedProcedure } from "@avantej-core/api";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
@@ -29,6 +27,7 @@ import {
 	getFirstActiveOrgForUser,
 } from "@/services/admin.service";
 import { getBetterAuth } from "@/lib/better-auth";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 export const adminRouter = {
 	/**
@@ -42,15 +41,7 @@ export const adminRouter = {
 			});
 		}
 
-		const controlPanelDb = context.honoContext?.get("controlPanelDb") as
-			| NeonDatabase<typeof controlPanelSchema>
-			| undefined;
-
-		if (!controlPanelDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Control panel database not available",
-			});
-		}
+		const controlPanelDb = getControlPanelDb(context);
 
 		const adminRecord = await getPlatformAdmin(
 			controlPanelDb,
@@ -79,15 +70,7 @@ export const adminRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-
-			if (!controlPanelDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available",
-				});
-			}
+			const controlPanelDb = getControlPanelDb(context);
 
 			const conditions = [];
 			if (input.search) {
@@ -161,15 +144,7 @@ export const adminRouter = {
 	listAdmins: protectedProcedure
 		.use(requirePlatformAdmin(["super_admin"]))
 		.handler(async ({ context }) => {
-			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-
-			if (!controlPanelDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available",
-				});
-			}
+			const controlPanelDb = getControlPanelDb(context);
 
 			const admins = await controlPanelDb.query.platformAdmins.findMany();
 
@@ -236,15 +211,7 @@ export const adminRouter = {
 			}
 
 			const cph = context.honoContext;
-			const controlPanelDb = cph?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-
-			if (!controlPanelDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available",
-				});
-			}
+			const controlPanelDb = getControlPanelDb(context);
 
 			// Check target is not a platform admin
 			const targetAdminRecord = await getPlatformAdmin(
@@ -387,15 +354,7 @@ export const adminRouter = {
 		const currentSessionToken = rawSession.session.token;
 
 		const cph = context.honoContext;
-		const controlPanelDb = cph?.get("controlPanelDb") as
-			| NeonDatabase<typeof controlPanelSchema>
-			| undefined;
-
-		if (!controlPanelDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Control panel database not available",
-			});
-		}
+		const controlPanelDb = getControlPanelDb(context);
 
 		const auth = getBetterAuth(cph);
 		const incomingHeaders = new Headers(cph!.req.raw.headers);
@@ -463,15 +422,7 @@ export const adminRouter = {
 
 		const originalAdminId = rawSession.session.impersonatedBy;
 
-		const controlPanelDb = context.honoContext?.get("controlPanelDb") as
-			| NeonDatabase<typeof controlPanelSchema>
-			| undefined;
-
-		if (!controlPanelDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Control panel database not available",
-			});
-		}
+		const controlPanelDb = getControlPanelDb(context);
 
 		// Look up original admin user
 		const adminUser = await controlPanelDb.query.user.findFirst({
@@ -517,15 +468,7 @@ export const adminRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-
-			if (!controlPanelDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available",
-				});
-			}
+			const controlPanelDb = getControlPanelDb(context);
 
 			// Verify target user exists
 			const targetUser = await controlPanelDb.query.user.findFirst({
@@ -572,15 +515,7 @@ export const adminRouter = {
 				});
 			}
 
-			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-
-			if (!controlPanelDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available",
-				});
-			}
+			const controlPanelDb = getControlPanelDb(context);
 
 			await controlPanelDb
 				.delete(platformAdmins)
@@ -605,15 +540,7 @@ export const adminRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-
-			if (!controlPanelDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available",
-				});
-			}
+			const controlPanelDb = getControlPanelDb(context);
 
 			// Build where conditions
 			const conditions = [];
@@ -702,15 +629,7 @@ export const adminRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-
-			if (!controlPanelDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available",
-				});
-			}
+			const controlPanelDb = getControlPanelDb(context);
 
 			const org = await controlPanelDb.query.organizations.findFirst({
 				where: eq(organizations.id, input.id),
@@ -787,15 +706,7 @@ export const adminRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-
-			if (!controlPanelDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available",
-				});
-			}
+			const controlPanelDb = getControlPanelDb(context);
 
 			const org = await controlPanelDb.query.organizations.findFirst({
 				where: eq(organizations.id, input.id),
@@ -860,15 +771,7 @@ export const adminRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
-				| NeonDatabase<typeof controlPanelSchema>
-				| undefined;
-
-			if (!controlPanelDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel database not available",
-				});
-			}
+			const controlPanelDb = getControlPanelDb(context);
 
 			const org = await controlPanelDb.query.organizations.findFirst({
 				where: eq(organizations.id, input.id),
@@ -932,15 +835,7 @@ export const adminRouter = {
 	 * Get platform statistics
 	 */
 	getStats: adminProcedure.handler(async ({ context }) => {
-		const controlPanelDb = context.honoContext?.get("controlPanelDb") as
-			| NeonDatabase<typeof controlPanelSchema>
-			| undefined;
-
-		if (!controlPanelDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Control panel database not available",
-			});
-		}
+		const controlPanelDb = getControlPanelDb(context);
 
 		// Get organization counts
 		const orgCounts = await controlPanelDb

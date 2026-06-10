@@ -8,27 +8,12 @@
 
 import { z } from "zod";
 import { and, count, desc, eq, gte, lte, sql } from "drizzle-orm";
-import { ORPCError } from "@orpc/server";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { adminProcedure } from "@/lib/admin-procedure";
 import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { adminSessions } from "@avantej-core/db/schema/control-panel/admin-sessions";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { users } from "@avantej-core/db/schema/control-panel/users";
-
-function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (
-		context as { honoContext?: { get: (k: string) => unknown } }
-	).honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 // The actor for an action is either the direct admin_user_id (Plan E E.3
 // path) or the admin who owns the impersonation session (legacy path).
@@ -51,7 +36,7 @@ export const platformAdminAuditRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const offset = (input.page - 1) * input.limit;
 
 			const filters: any[] = [];
@@ -130,7 +115,7 @@ export const platformAdminAuditRouter = {
 		}),
 
 	listActionTypes: adminProcedure.handler(async ({ context }) => {
-		const cpDb = cpDbFrom(context);
+		const cpDb = getControlPanelDb(context);
 		const rows = await cpDb
 			.selectDistinct({ actionType: adminSessionActions.actionType })
 			.from(adminSessionActions)

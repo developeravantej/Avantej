@@ -33,6 +33,7 @@ import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptio
 import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { getStripeClient } from "@/lib/stripe";
 import { getTierStripePriceId, type Tier } from "@avantej-core/types";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 // ── Stripe surface used by this router. Kept minimal for testability. ──────
 type StripeInvoice = {
@@ -159,19 +160,6 @@ const superAdminProcedure = adminProcedure.use(
 	requirePlatformAdmin(["super_admin"]),
 );
 
-function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (
-		context as { honoContext?: { get: (k: string) => unknown } }
-	).honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
-
 function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
 	const id = session?.user?.id;
@@ -260,7 +248,7 @@ export function createPlatformAdminTenantsBillingRouter(
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const cpDb = cpDbFrom(context);
+				const cpDb = getControlPanelDb(context);
 				const { customerId, orgFound } = await resolveStripeCustomerId(
 					cpDb,
 					input.organizationId,
@@ -308,7 +296,7 @@ export function createPlatformAdminTenantsBillingRouter(
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const cpDb = cpDbFrom(context);
+				const cpDb = getControlPanelDb(context);
 				const { customerId, orgFound } = await resolveStripeCustomerId(
 					cpDb,
 					input.organizationId,
@@ -359,7 +347,7 @@ export function createPlatformAdminTenantsBillingRouter(
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const cpDb = cpDbFrom(context);
+				const cpDb = getControlPanelDb(context);
 				const adminUserId = adminUserIdFrom(context);
 				const { customerId, orgFound } = await resolveStripeCustomerId(
 					cpDb,
@@ -443,7 +431,7 @@ export function createPlatformAdminTenantsBillingRouter(
 		getCustomerSummary: adminProcedure
 			.input(z.object({ organizationId: z.string().uuid() }))
 			.handler(async ({ context, input }) => {
-				const cpDb = cpDbFrom(context);
+				const cpDb = getControlPanelDb(context);
 				const { customerId, orgFound } = await resolveStripeCustomerId(
 					cpDb,
 					input.organizationId,
@@ -513,7 +501,7 @@ export function createPlatformAdminTenantsBillingRouter(
 				}),
 			)
 			.handler(async ({ context, input }) => {
-				const cpDb = cpDbFrom(context);
+				const cpDb = getControlPanelDb(context);
 				const adminUserId = adminUserIdFrom(context);
 
 				// Resolve org → subscription row.

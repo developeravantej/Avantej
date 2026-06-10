@@ -25,8 +25,6 @@ import {
 	sql,
 } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { protectedProcedure } from "@avantej-core/api";
 import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
@@ -37,6 +35,7 @@ import { platformPaymentLedger } from "@avantej-core/db/schema/control-panel/pla
 import { tenantUsageSnapshots } from "@avantej-core/db/schema/control-panel/tenant-usage-snapshots";
 import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { getStripeClient } from "@/lib/stripe";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 const superAdminProcedure = protectedProcedure.use(
 	requirePlatformAdmin(["super_admin"]),
@@ -53,21 +52,6 @@ function adminUserIdFrom(context: unknown): string {
 	return id;
 }
 
-function cpDbFromContext(
-	context: unknown,
-): NeonDatabase<typeof controlPanelSchema> {
-	const db = (
-		context as { honoContext?: { get: (k: string) => unknown } }
-	).honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
-
 export const platformAdminTenantsRouter = {
 	listTenants: adminProcedure
 		.input(
@@ -80,7 +64,7 @@ export const platformAdminTenantsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFromContext(context);
+			const cpDb = getControlPanelDb(context);
 			const offset = (input.page - 1) * input.limit;
 
 			const filters = [] as any[];
@@ -178,7 +162,7 @@ export const platformAdminTenantsRouter = {
 	getTenantDetail: adminProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFromContext(context);
+			const cpDb = getControlPanelDb(context);
 
 			const [org] = await cpDb
 				.select({
@@ -260,7 +244,7 @@ export const platformAdminTenantsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFromContext(context);
+			const cpDb = getControlPanelDb(context);
 			const rows = await cpDb
 				.select()
 				.from(tenantUsageSnapshots)
@@ -279,7 +263,7 @@ export const platformAdminTenantsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFromContext(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 
 			const [updated] = await cpDb
@@ -313,7 +297,7 @@ export const platformAdminTenantsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFromContext(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 
 			const [updated] = await cpDb
@@ -348,7 +332,7 @@ export const platformAdminTenantsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFromContext(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 
 			const [org] = await cpDb
@@ -407,7 +391,7 @@ export const platformAdminTenantsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFromContext(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 
 			const [org] = await cpDb
@@ -469,7 +453,7 @@ export const platformAdminTenantsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFromContext(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 
 			const now = new Date();
@@ -508,7 +492,7 @@ export const platformAdminTenantsRouter = {
 	getTenantFunnel: adminProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFromContext(context);
+			const cpDb = getControlPanelDb(context);
 			const { computeTenantFunnel } = await import(
 				"@/services/tenant-funnel.service"
 			);
@@ -521,7 +505,7 @@ export const platformAdminTenantsRouter = {
 		}),
 
 	runTenantUsageSnapshotsNow: adminProcedure.handler(async ({ context }) => {
-		const cpDb = cpDbFromContext(context);
+		const cpDb = getControlPanelDb(context);
 		const { runTenantUsageSnapshots } = await import(
 			"@/services/tenant-usage-snapshot.service"
 		);

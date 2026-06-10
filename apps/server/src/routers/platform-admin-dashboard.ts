@@ -21,9 +21,6 @@
 import { z } from "zod";
 import { and, count, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { getTierPriceUsdCents, type Tier } from "@avantej-core/types";
-import { ORPCError } from "@orpc/server";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { adminProcedure } from "@/lib/admin-procedure";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
@@ -34,25 +31,13 @@ import {
 	tenantUsageSnapshots,
 	type RiskFlag,
 } from "@avantej-core/db/schema/control-panel/tenant-usage-snapshots";
-
-function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (
-		context as { honoContext?: { get: (k: string) => unknown } }
-	).honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 export const platformAdminDashboardRouter = {
 	getOverview: adminProcedure
 		.input(z.object({}).default({}))
 		.handler(async ({ context }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 
 			// All reads issued in parallel.
 			const [
