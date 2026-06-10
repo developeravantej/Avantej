@@ -5,7 +5,7 @@ import { Plus, Store, Loader2, Maximize2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { client, orpc, queryClient } from "@/utils/orpc";
-import { useAuth } from "@/hooks/useAuth";
+import { authClient } from "@/lib/auth-client";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { cn } from "@/lib/utils";
@@ -19,7 +19,8 @@ import type { HierarchyNode, NodeWithStats } from "./types";
 // ─── Branch Page ───────────────────────────────────────────────────────────────
 
 export function BranchPage() {
-	const { isLoading: authLoading, isAuthenticated } = useAuth();
+	const { data: session, isPending: authLoading } = authClient.useSession();
+	const isAuthenticated = !!session?.user;
 	const { data: userContext, isLoading: isLoadingContext } = useUserContext();
 	const navigate = useNavigate();
 	const orgErrorShown = useRef(false);

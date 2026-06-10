@@ -16,7 +16,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { useAuth } from "@/hooks/useAuth";
+import { useUserContext } from "@/hooks/useUserContext";
 import { client, orpc, queryClient } from "@/utils/orpc";
 import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
@@ -157,13 +157,13 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
 	onSuccess,
 	// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars
 }) => {
-	const { user } = useAuth();
+	const { data: userContext } = useUserContext();
 	const navigate = useNavigate();
 	const [currentStep, setCurrentStep] = useState(1);
 	const [isLoading, setIsLoading] = useState(false);
 
 	const organizationId =
-		user?.current_organization_id || user?.organizations?.[0]?.id;
+		userContext?.currentOrganizationId || userContext?.organizations?.[0]?.id;
 
 	// Data states
 	const [countries, setCountries] = useState<HierarchyItem[]>([]);
@@ -356,8 +356,8 @@ const HierarchicalBranchForm: React.FC<HierarchicalBranchFormProps> = ({
 
 	const loadUserOrganization = () => {
 		const org =
-			user?.organizations?.find((o) => o.id === organizationId) ??
-			user?.organizations?.[0];
+			userContext?.organizations?.find((o) => o.id === organizationId) ??
+			userContext?.organizations?.[0];
 		if (org) {
 			setUserOrganization({ id: org.id, name: org.name });
 		}

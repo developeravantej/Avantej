@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { TIER_LIMITS, type Tier } from "@avantej-core/types";
 import { client as orpcClient } from "@/utils/orpc";
-import { useAuth } from "@/hooks/useAuth";
+import { useUserContext } from "@/hooks/useUserContext";
 
 export const Route = createFileRoute("/subscribe")({
 	component: SubscribePage,
@@ -86,12 +86,10 @@ void TIER_LIMITS;
 function SubscribePage() {
 	const navigate = useNavigate();
 	const { session_id, canceled } = Route.useSearch();
-	const { isLoading, user } = useAuth();
+	const { isLoading, data: userContext } = useUserContext();
 	const currentOrganizationId =
-		(user as { current_organization_id?: string | null; organizations?: Array<{ id: string }> } | null)
-			?.current_organization_id ??
-		(user as { organizations?: Array<{ id: string }> } | null)
-			?.organizations?.[0]?.id ??
+		userContext?.currentOrganizationId ??
+		userContext?.organizations?.[0]?.id ??
 		null;
 
 	// NOTE: no client-side auth redirect. Server-side oRPC `protectedProcedure`
@@ -131,11 +129,20 @@ function SubscribePage() {
 	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- terminal flow: redirects to Stripe checkout; queries re-fetched on return
 	const checkoutMutation = useMutation({
 		mutationFn: async ({ tier }: { tier: Tier }) => {
-			console.log("[checkout] click — currentOrganizationId:", currentOrganizationId, "tier:", tier);
+			console.log(
+				"[checkout] click — currentOrganizationId:",
+				currentOrganizationId,
+				"tier:",
+				tier,
+			);
 			if (!currentOrganizationId) {
-				throw new Error("No organization context — sign in and pick an org first");
+				throw new Error(
+					"No organization context — sign in and pick an org first",
+				);
 			}
-			console.log("[checkout] calling orpcClient.subscriptions.createCheckoutSession");
+			console.log(
+				"[checkout] calling orpcClient.subscriptions.createCheckoutSession",
+			);
 			const res = (await orpcClient.subscriptions.createCheckoutSession({
 				tier,
 				organizationId: currentOrganizationId,

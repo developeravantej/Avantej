@@ -2,7 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, CheckCircle2, AlertCircle, ExternalLink, Globe, Plus } from "lucide-react";
+import {
+	Loader2,
+	CheckCircle2,
+	AlertCircle,
+	ExternalLink,
+	Globe,
+	Plus,
+} from "lucide-react";
 import {
 	Card,
 	CardContent,
@@ -29,7 +36,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { client as orpcClient } from "@/utils/orpc";
-import { useAuth } from "@/hooks/useAuth";
+import { useUserContext } from "@/hooks/useUserContext";
 
 export const Route = createFileRoute("/_authenticated/billing/connect")({
 	component: BillingConnectPage,
@@ -53,7 +60,11 @@ type CountryAccount = {
 };
 
 // SEA + adjacent markets supported by Stripe Connect Standard.
-const SUPPORTED_COUNTRIES: Array<{ code: string; name: string; currency: string }> = [
+const SUPPORTED_COUNTRIES: Array<{
+	code: string;
+	name: string;
+	currency: string;
+}> = [
 	{ code: "MY", name: "Malaysia", currency: "MYR" },
 	{ code: "SG", name: "Singapore", currency: "SGD" },
 	{ code: "TH", name: "Thailand", currency: "THB" },
@@ -68,14 +79,17 @@ const SUPPORTED_COUNTRIES: Array<{ code: string; name: string; currency: string 
 ];
 
 function BillingConnectPage() {
-	const { isLoading, user } = useAuth();
-	const { return: returnedFromOnboarding, refresh, oauth_error } = Route.useSearch();
+	const { isLoading, data: userContext } = useUserContext();
+	const {
+		return: returnedFromOnboarding,
+		refresh,
+		oauth_error,
+	} = Route.useSearch();
 	const [addOpen, setAddOpen] = useState(false);
 
 	const currentOrganizationId =
-		(user as { current_organization_id?: string | null; organizations?: Array<{ id: string }> } | null)
-			?.current_organization_id ??
-		(user as { organizations?: Array<{ id: string }> } | null)?.organizations?.[0]?.id ??
+		userContext?.currentOrganizationId ??
+		userContext?.organizations?.[0]?.id ??
 		null;
 
 	const listQuery = useQuery({
@@ -89,7 +103,9 @@ function BillingConnectPage() {
 			// While we're waiting on Stripe to push verification status post-onboarding,
 			// keep polling so the UI flips to Active as soon as webhook lands.
 			const accts = q.state.data?.accounts ?? [];
-			const hasPending = accts.some((a) => a.stripeAccountId && !a.chargesEnabled);
+			const hasPending = accts.some(
+				(a) => a.stripeAccountId && !a.chargesEnabled,
+			);
 			return returnedFromOnboarding && hasPending ? 3000 : false;
 		},
 	});
@@ -110,7 +126,9 @@ function BillingConnectPage() {
 	const connectMutation = useMutation({
 		mutationFn: async (countryCode: string | undefined) => {
 			if (!currentOrganizationId) {
-				throw new Error("No organization context — sign in and pick an org first");
+				throw new Error(
+					"No organization context — sign in and pick an org first",
+				);
 			}
 			return (await orpcClient.stripeConnect.createOnboardingUrl({
 				organizationId: currentOrganizationId,
@@ -125,7 +143,9 @@ function BillingConnectPage() {
 			}
 		},
 		onError: (err: unknown) => {
-			toast.error(err instanceof Error ? err.message : "Failed to start onboarding");
+			toast.error(
+				err instanceof Error ? err.message : "Failed to start onboarding",
+			);
 		},
 	});
 
@@ -151,14 +171,19 @@ function BillingConnectPage() {
 		<div className="container mx-auto max-w-3xl py-12">
 			<header className="mb-8 flex items-start justify-between gap-4">
 				<div>
-					<h1 className="font-bold text-3xl tracking-tight">Payment processing</h1>
+					<h1 className="font-bold text-3xl tracking-tight">
+						Payment processing
+					</h1>
 					<p className="mt-2 text-muted-foreground">
 						Connect a Stripe account per country your business operates in. Each
 						account settles in its own currency; Avantej takes a per-transaction
 						platform fee.
 					</p>
 				</div>
-				<Button onClick={() => setAddOpen(true)} disabled={availableCountries.length === 0}>
+				<Button
+					onClick={() => setAddOpen(true)}
+					disabled={availableCountries.length === 0}
+				>
 					<Plus className="mr-1 size-4" />
 					Add country
 				</Button>
@@ -171,7 +196,8 @@ function BillingConnectPage() {
 						<div>
 							<p className="font-medium">No Stripe accounts connected yet</p>
 							<p className="mt-1 text-muted-foreground text-sm">
-								Connect a Stripe account for each country to start accepting payments.
+								Connect a Stripe account for each country to start accepting
+								payments.
 							</p>
 						</div>
 						<Button onClick={() => setAddOpen(true)}>
@@ -188,7 +214,8 @@ function BillingConnectPage() {
 							account={acct}
 							onContinue={() => connectMutation.mutate(acct.countryCode)}
 							continueLoading={
-								connectMutation.isPending && connectMutation.variables === acct.countryCode
+								connectMutation.isPending &&
+								connectMutation.variables === acct.countryCode
 							}
 						/>
 					))}
@@ -264,7 +291,9 @@ function CountryAccountCard({
 						disabled={continueLoading}
 						className="w-full"
 					>
-						{continueLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+						{continueLoading && (
+							<Loader2 className="mr-2 size-4 animate-spin" />
+						)}
 						Continue onboarding
 						<ExternalLink className="ml-2 size-3.5" />
 					</Button>
@@ -295,7 +324,12 @@ function AddCountryDialog({
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+		<Dialog
+			open={open}
+			onOpenChange={(o) => {
+				if (!o) onClose();
+			}}
+		>
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle>Connect Stripe for a new country</DialogTitle>
@@ -327,7 +361,10 @@ function AddCountryDialog({
 					<Button variant="outline" onClick={onClose} disabled={connectLoading}>
 						Cancel
 					</Button>
-					<Button onClick={handleConnect} disabled={!selected || connectLoading}>
+					<Button
+						onClick={handleConnect}
+						disabled={!selected || connectLoading}
+					>
 						{connectLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
 						Connect Stripe
 						<ExternalLink className="ml-2 size-4" />

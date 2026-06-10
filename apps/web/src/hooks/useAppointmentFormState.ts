@@ -6,7 +6,7 @@ import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { orpc } from "@/utils/orpc";
 import { useUserContext } from "@/hooks/useUserContext";
-import { useAuth } from "@/hooks/useAuth";
+import { authClient } from "@/lib/auth-client";
 import {
 	useAppointmentFormData,
 	type ServiceListItem,
@@ -94,7 +94,8 @@ export function useAppointmentFormState({
 }: UseAppointmentFormStateInput) {
 	const { data: userCtx } = useUserContext();
 	const organizationId = userCtx?.currentOrganizationId ?? "";
-	const { user } = useAuth();
+	const { data: session } = authClient.useSession();
+	const userId = session?.user?.id;
 
 	const {
 		clients,
@@ -171,17 +172,17 @@ export function useAppointmentFormState({
 	React.useEffect(() => {
 		if (defaultTrainerId) return;
 		if (
-			user?.id &&
+			userId &&
 			Array.isArray(teamMembers) &&
 			teamMembers.length &&
 			newAppointment.assignedTo === "none"
 		) {
-			const selfMember = teamMembers.find((m) => m.id === user.id);
+			const selfMember = teamMembers.find((m) => m.id === userId);
 			if (selfMember) {
 				setNewAppointment((prev) => ({ ...prev, assignedTo: selfMember.id }));
 			}
 		}
-	}, [user?.id, teamMembers, newAppointment.assignedTo, defaultTrainerId]);
+	}, [userId, teamMembers, newAppointment.assignedTo, defaultTrainerId]);
 
 	const firstServiceId = newAppointment.selectedServices[0] ?? null;
 

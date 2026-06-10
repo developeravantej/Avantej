@@ -1,6 +1,6 @@
 "use client";
 
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { client } from "@/utils/orpc";
 import {
@@ -68,7 +68,6 @@ import {
 	SidebarRail,
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { useAuth } from "@/hooks/useAuth";
 import { usePlatformAdminRole } from "@/hooks/usePlatformAdminRole";
 import { useUserContext } from "@/hooks/useUserContext";
 import { authClient } from "@/lib/auth-client";
@@ -273,7 +272,7 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 
 function SidebarUserFooter() {
 	const { data: session } = authClient.useSession();
-	const { logout } = useAuth();
+	const navigate = useNavigate();
 	const [loggingOut, setLoggingOut] = useState(false);
 
 	// Better-Auth inferAdditionalFields adds firstName/lastName at runtime; the client type doesn't reflect it.
@@ -291,8 +290,17 @@ function SidebarUserFooter() {
 	const handleLogout = async () => {
 		setLoggingOut(true);
 		try {
-			await logout();
+			await authClient.signOut();
+			// Clear cached org + hierarchy data so a subsequent login starts clean.
+			localStorage.removeItem("user_organizations");
+			localStorage.removeItem("current_organization_id");
+			for (const key of Object.keys(localStorage)) {
+				if (key.startsWith("org_") && key.endsWith("_hierarchy")) {
+					localStorage.removeItem(key);
+				}
+			}
 			toast.success("Logged out successfully");
+			navigate({ to: "/login", search: {} });
 		} catch {
 			toast.error("Logout failed");
 		} finally {
