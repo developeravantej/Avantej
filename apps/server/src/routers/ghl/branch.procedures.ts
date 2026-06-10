@@ -1,29 +1,7 @@
-/**
- * GHL integration oRPC router (server-side).
- *
- * - connectBranch: validates a GHL Private Integration API key against
- *   the supplied locationId, bootstraps required custom fields, then
- *   encrypts and upserts the row in ghl_branch_links.
- * - disconnectBranch: marks ghl_branch_links.is_active = false. Keeps
- *   the row + encrypted key for re-activation; does not delete history.
- * - listBranchLinks: read-only listing per organization, with errorCount
- *   per branch (count of ghl_contact_links rows in error state).
- * - retryFailedSyncs: re-fires syncCustomerToGhl for every errored link
- *   on a branch, capped at 50 rows per call.
- *
- * connectBranch + disconnectBranch are gated by user_management:update
- * (matches the route guard on the admin page).
- *
- * connectBranch hits the live GHL API. Failures during custom-field
- * bootstrap are logged but non-fatal (the connection still completes;
- * basic name/email/phone sync works without custom fields).
- */
-
 import { protectedProcedure } from "@avantej-core/api";
 import { decrypt, encrypt } from "@avantej-core/db";
 import { user as userTable } from "@avantej-core/db/schema/auth";
 import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch-links";
-import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { ghlContactLinks } from "@avantej-core/db/schema/tenant/ghl-contact-links";
 import { members } from "@avantej-core/db/schema/tenant/members";
@@ -38,7 +16,7 @@ import {
 } from "@/services/ghl/setup";
 import { syncCustomerToGhl } from "@/services/ghl/sync-customer";
 
-export const ghlRouter = {
+export const branchProcedures = {
 	connectBranch: protectedProcedure
 		.input(
 			z.object({
@@ -345,152 +323,6 @@ export const ghlRouter = {
 				recovered,
 				stillFailing,
 				cappedAt: input.limit,
-			};
-		}),
-
-	// ── Phase G.2: Org-shared GHL connection ───────────────────────────────
-	// One GHL sub-account per Avantej org; branches differentiated via
-	// per-country SINGLE_OPTIONS custom field on contacts/users. Lives on
-	// the `organizations` row (not ghl_branch_links).
-	connectOrgShared: protectedProcedure
-		.input(
-			z.object({
-				organizationId: z.string().uuid(),
-				ghlLocationId: z.string().min(1),
-				ghlApiKey: z.string().min(10),
-			}),
-		)
-		.handler(async ({ input, context }) => {
-			if (!context.tenantDb || !context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Tenant context required",
-				});
-			}
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"user_management",
-				"update",
-			);
-
-			const controlPanelDb = getControlPanelDb(context.honoContext);
-			if (!controlPanelDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel DB not available",
-				});
-			}
-
-			const valid = await validateGhlApiKey(
-				input.ghlApiKey,
-				input.ghlLocationId,
-			);
-			if (!valid) {
-				throw new ORPCError("BAD_REQUEST", {
-					message:
-						"GHL API key is invalid or does not belong to that locationId. Double-check the values.",
-				});
-			}
-
-			try {
-				await ensureCustomFieldsExist({
-					apiKey: input.ghlApiKey,
-					locationId: input.ghlLocationId,
-				});
-			} catch (error) {
-				console.warn("[ghl] custom field bootstrap failed", error);
-			}
-
-			const encryptedKey = encrypt(input.ghlApiKey);
-			await controlPanelDb
-				.update(organizations)
-				.set({
-					ghlLocationId: input.ghlLocationId,
-					ghlApiKeyEncrypted: encryptedKey,
-					ghlProvisionedAt: new Date(),
-					ghlSyncModel: "org-shared",
-					ghlCountryFieldMap: {},
-					updatedAt: new Date(),
-				})
-				.where(eq(organizations.id, input.organizationId));
-
-			return { status: "connected" as const };
-		}),
-
-	disconnectOrgShared: protectedProcedure
-		.input(
-			z.object({
-				organizationId: z.string().uuid(),
-			}),
-		)
-		.handler(async ({ input, context }) => {
-			if (!context.tenantDb || !context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Tenant context required",
-				});
-			}
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"user_management",
-				"update",
-			);
-
-			const controlPanelDb = getControlPanelDb(context.honoContext);
-			if (!controlPanelDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel DB not available",
-				});
-			}
-
-			await controlPanelDb
-				.update(organizations)
-				.set({
-					ghlLocationId: null,
-					ghlApiKeyEncrypted: null,
-					ghlCountryFieldMap: null,
-					ghlSyncModel: "per-branch",
-					updatedAt: new Date(),
-				})
-				.where(eq(organizations.id, input.organizationId));
-
-			return { status: "disconnected" as const };
-		}),
-
-	getOrgShared: protectedProcedure
-		.input(
-			z.object({
-				organizationId: z.string().uuid(),
-			}),
-		)
-		.handler(async ({ input, context }) => {
-			const controlPanelDb = getControlPanelDb(context.honoContext);
-			if (!controlPanelDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Control panel DB not available",
-				});
-			}
-
-			const org = await controlPanelDb.query.organizations.findFirst({
-				where: eq(organizations.id, input.organizationId),
-			});
-
-			if (!org) {
-				return {
-					ghlLocationId: null as string | null,
-					ghlSyncModel: null as string | null,
-					ghlProvisionedAt: null as Date | null,
-					hasApiKey: false,
-					countryFieldCount: 0,
-				};
-			}
-
-			const map = (org.ghlCountryFieldMap ?? {}) as Record<string, unknown>;
-			return {
-				ghlLocationId: org.ghlLocationId ?? null,
-				ghlSyncModel: org.ghlSyncModel ?? null,
-				ghlProvisionedAt: org.ghlProvisionedAt ?? null,
-				hasApiKey: !!org.ghlApiKeyEncrypted,
-				countryFieldCount: Object.keys(map).length,
 			};
 		}),
 };
