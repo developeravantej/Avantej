@@ -1,10 +1,5 @@
-import {
-	useInfiniteQuery,
-	useMutation,
-	useQueryClient,
-} from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -23,6 +18,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { useApiMutation } from "@/hooks/useApiMutation";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client, orpc } from "@/utils/orpc";
 
@@ -366,7 +362,6 @@ function ReviewRowTable({
 export function ReviewTab() {
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
 
 	const canRead = hasPermission("commission_management:read");
 
@@ -422,13 +417,17 @@ export function ReviewTab() {
 	const rawRows = data?.pages.flatMap((page) => page.rows) ?? [];
 
 	// Remap service row fields to component shape (service uses amountCents, createdByName)
-	const allRows: PendingReviewRow[] = rawRows.map((r: any) => ({
+	// `r` infers from the service `PendingReviewRow` (amountCents / note / createdByName);
+	// remap to this component's local PendingReviewRow shape. Direct field mapping —
+	// the previous `?? r.calculatedAmount/notes/createdBy` fallbacks referenced
+	// properties that don't exist on the service row (would fail type-check once typed).
+	const allRows: PendingReviewRow[] = rawRows.map((r) => ({
 		id: r.id,
 		staffId: r.staffId,
-		staffName: r.staffName ?? null,
-		calculatedAmount: r.amountCents ?? r.calculatedAmount ?? 0,
-		notes: r.note ?? r.notes ?? null,
-		createdBy: r.createdByName ?? r.createdBy ?? null,
+		staffName: r.staffName,
+		calculatedAmount: r.amountCents,
+		notes: r.note,
+		createdBy: r.createdByName,
 		createdAt: r.createdAt,
 		roleType: r.roleType ?? null,
 		trackId: r.trackId ?? null,
@@ -449,7 +448,7 @@ export function ReviewTab() {
 	const [dialogState, setDialogState] = useState<DialogState>({ open: false });
 
 	// ── Mutation ───────────────────────────────────────────────────────────────
-	const { mutate: resolveReview, isPending: isResolving } = useMutation({
+	const { mutate: resolveReview, isPending: isResolving } = useApiMutation({
 		mutationFn: ({
 			id,
 			action,
@@ -474,22 +473,16 @@ export function ReviewTab() {
 							reason: reason || "rejected",
 						},
 			),
-		onSuccess: (_data, variables) => {
-			const label = variables.action === "approve" ? "approved" : "rejected";
-			toast.success(`Adjustment ${label} successfully.`);
-			queryClient.invalidateQueries({
-				queryKey: orpc.commissionSplits.listLedger.key(),
-			});
-			queryClient.invalidateQueries({
-				queryKey: orpc.commissionSplits.listPendingReview.key(),
-			});
-			setDialogState({ open: false });
-		},
-		onError: (err) => {
-			toast.error(
-				err instanceof Error ? err.message : "Failed to process review.",
-			);
-		},
+		successMessage: (_data, variables) =>
+			`Adjustment ${
+				variables.action === "approve" ? "approved" : "rejected"
+			} successfully.`,
+		errorMessage: (err) => err.message || "Failed to process review.",
+		invalidate: [
+			orpc.commissionSplits.listLedger.key(),
+			orpc.commissionSplits.listPendingReview.key(),
+		],
+		onSuccess: () => setDialogState({ open: false }),
 	});
 
 	function openDialog(action: ReviewAction, row: PendingReviewRow) {

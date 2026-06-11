@@ -131,7 +131,7 @@ function OrgStatusStrip({ organizationId }: { organizationId: string }) {
 		}),
 		enabled: !!organizationId,
 	});
-	const orgStatus = orgStatusRaw as any;
+	const orgStatus = orgStatusRaw;
 
 	if (isLoading) {
 		return (
@@ -401,8 +401,8 @@ function SettingsSidebar({ organizationId }: { organizationId: string }) {
 		}),
 		enabled: !!organizationId,
 	});
-	const calendarData = calendarDataRaw as any;
-	const calendars: any[] = calendarData?.calendars ?? [];
+	const calendarData = calendarDataRaw;
+	const calendars = calendarData?.calendars ?? [];
 
 	useEffect(() => {
 		if (countdown <= 0) return;

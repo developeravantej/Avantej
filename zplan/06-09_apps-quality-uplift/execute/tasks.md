@@ -31,8 +31,8 @@
 
 | # | Phase | Task | Owner | Status |
 |---|-------|------|-------|--------|
-| 7a | 4b | Decompose components/pos/pos-workflow.tsx (1791) → components/pages/pos/* (preserve installment amount + commission-to-trainer) | DEFERRED | deferred to dedicated careful pass w/ browser verification (domain-critical) |
-| 7b | 4b | Decompose components/pages/access-control/members-tab.tsx (1508) | DEFERRED | deferred to dedicated careful pass (domain-critical) |
+| 7a | 4b | Decompose components/pos/pos-workflow.tsx (1791) → components/pos/workflow/* | DONE (05449a4b) | 1791→797 LOC; PosWorkflow export preserved; installment amount + commission routing intact; pos-workflow.test.tsx 4/4 |
+| 7b | 4b | Decompose members-tab.tsx (1508) → access-control/members/* | DONE (05449a4b) | 1508→630 LOC; MembersTabPage export preserved; RBAC handlers in orchestrator; members-tab.test.tsx 16/16 |
 | 7c | 4 | Decompose appointment/class-slots/view.tsx (1460) → components/pages/class-slots/* | Agent C (frontend) | pending |
 | 7d | 4 | Decompose reports/view.tsx (1292) → components/pages/reports/* | Agent D (frontend) | pending |
 | 7e | 4 | Decompose announcements/view.tsx (1211) → components/pages/announcements/* | Agent E (frontend) | pending |

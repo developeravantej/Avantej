@@ -101,3 +101,14 @@ jobs:
       - uses: ./.github/actions/bun-setup
       - name: Check formatting
         run: bunx biome format packages/api packages/services packages/db packages/types e2e scripts/ci
+
+  e2e-reconcile:
+    name: E2E suite drift guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Pure Node, no servers / no report.json (gitignored) — asserts the committed
+      # specs, journeys, and coverage ledger stay in sync, so a renamed/deleted
+      # spec can't silently drop a journey or claimed coverage. See _e2e/reconcile.mjs.
+      - name: Reconcile _e2e specs, journeys, and ledger
+        run: node _e2e/reconcile.mjs --static
