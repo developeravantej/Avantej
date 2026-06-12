@@ -208,6 +208,9 @@ export function PosWorkflow({
 		totalCents: number;
 		paymentMethod: PaymentMethod | null;
 		timestamp: Date;
+		// Stripe Payment Link for online sales — the customer pays here; webhook
+		// completes the order. Null for cash/card/transfer sales.
+		paymentLinkUrl: string | null;
 	} | null>(null);
 
 	// ── Seed lastReceipt from API on first mount (covers "first sale of session")
@@ -261,6 +264,8 @@ export function PosWorkflow({
 			totalCents: order.totalAmount,
 			paymentMethod: (apiPaymentMethod as PaymentMethod | null) ?? null,
 			timestamp: order.createdAt,
+			// getLatest only returns completed sales — no pending link to surface
+			paymentLinkUrl: null,
 		});
 	}, [latestSaleQuery.data, lastReceipt, organizationId, userContext]);
 
@@ -437,7 +442,7 @@ export function PosWorkflow({
 					),
 			);
 
-			return client.pos.recordSale({
+			const sale = await client.pos.recordSale({
 				organizationId,
 				customerType,
 				customerId,
@@ -469,6 +474,31 @@ export function PosWorkflow({
 				soldBy: soldBy ?? undefined,
 				leadSourceUserId: leadSourceUserId ?? undefined,
 			});
+
+			// Plan B Phase 3c.1 — online (Stripe) sales: the sale itself is recorded
+			// in `pending`; create the real Stripe Payment Link on the org's connected
+			// account so the customer can pay. The payment_intent.succeeded webhook
+			// then flips order→completed / payment→succeeded / package→active.
+			// Link-creation failure must NOT fail the sale (it's already recorded) —
+			// staff can regenerate from the sale detail page.
+			let paymentLinkUrl: string | null = null;
+			let paymentLinkError: string | null = null;
+			if (paymentMethod === "stripe" || paymentMethod === "online") {
+				try {
+					const link = await client.payments.createSalesOrderPaymentLink({
+						organizationId,
+						salesOrderId: sale.salesOrderId,
+					});
+					paymentLinkUrl = link.paymentLinkUrl;
+				} catch (err) {
+					paymentLinkError =
+						err instanceof Error
+							? err.message
+							: "Failed to create payment link";
+				}
+			}
+
+			return { ...sale, paymentLinkUrl, paymentLinkError };
 		},
 		successMessage: "Sale recorded successfully!",
 		errorMessage: (err) => {
@@ -481,6 +511,14 @@ export function PosWorkflow({
 			return err.message || "Failed to record sale. Please try again.";
 		},
 		onSuccess: (data) => {
+			// Online sale: link creation failed after the sale was recorded —
+			// surface a warning (the sale itself succeeded; staff can regenerate).
+			if (data.paymentLinkError) {
+				toast.warning(
+					`Sale recorded, but the Stripe payment link could not be created: ${data.paymentLinkError}`,
+				);
+			}
+
 			// Snapshot the receipt before state is reset
 			setLastReceipt({
 				orgName:
@@ -494,6 +532,7 @@ export function PosWorkflow({
 				totalCents,
 				paymentMethod,
 				timestamp: new Date(),
+				paymentLinkUrl: data.paymentLinkUrl,
 			});
 
 			// FE-C1: Reset all sale state after a completed sale

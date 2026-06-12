@@ -96,6 +96,16 @@ test("POS member checkout via UI with Online (Stripe link) records the sale", {
 
 	await expect(ok).toBeVisible({ timeout: 5_000 });
 
+	// W1 wiring: after an online sale, pos-workflow chains
+	// payments.createSalesOrderPaymentLink and surfaces the real Stripe Payment
+	// Link on the receipt panel. Assert it rendered with a Stripe-hosted URL.
+	const linkBlock = page.getByTestId("pos-payment-link");
+	await expect(linkBlock).toBeVisible({ timeout: 15_000 });
+	const linkUrl = await linkBlock.locator("code").innerText();
+	expect(linkUrl, "payment link must be a Stripe-hosted link").toMatch(
+		/^https:\/\/buy\.stripe\.com\//,
+	);
+
 	// Cleanup: cancel the just-created pending stripe order (find newest for client).
 	try {
 		type Order = {

@@ -4,6 +4,7 @@ import type {
 	CustomerType,
 	PaymentMethod,
 } from "@/components/pos/types";
+import { toast } from "sonner";
 import { formatPrice } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { LiveDot } from "./step-primitives";
@@ -19,6 +20,9 @@ interface LastReceiptData {
 	totalCents: number;
 	paymentMethod: PaymentMethod | null;
 	timestamp: Date;
+	// Stripe Payment Link for online sales — customer pays here; the
+	// payment_intent.succeeded webhook completes the order.
+	paymentLinkUrl: string | null;
 }
 
 interface InstallmentPlanOption {
@@ -352,6 +356,42 @@ export function LiveOrderPanel({
 						</>
 					)}
 				</div>
+
+				{/* Online sale: Stripe payment link — the customer completes payment
+				    here; the webhook then flips the order to completed. */}
+				{lastReceipt?.paymentLinkUrl && (
+					<div
+						data-testid="pos-payment-link"
+						className="mt-3 space-y-2 rounded-xl border border-[#0a0a0a]/15 bg-[#f8f8f8] p-3"
+					>
+						<p className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+							Payment Link
+						</p>
+						<code className="block w-full truncate rounded bg-white px-2 py-1 text-[10px] text-[#0a0a0a]">
+							{lastReceipt.paymentLinkUrl}
+						</code>
+						<div className="flex gap-2">
+							<button
+								type="button"
+								onClick={() => {
+									navigator.clipboard.writeText(lastReceipt.paymentLinkUrl!);
+									toast.success("Payment link copied");
+								}}
+								className="flex-1 cursor-pointer rounded-[10px] border border-[#e5e5e5] bg-white py-1.5 text-xs font-medium text-[#0a0a0a] transition-colors hover:bg-[#f3f3f3]"
+							>
+								Copy link
+							</button>
+							<a
+								href={lastReceipt.paymentLinkUrl}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="flex-1 rounded-[10px] border border-[#e5e5e5] bg-white py-1.5 text-center text-xs font-medium text-[#0a0a0a] transition-colors hover:bg-[#f3f3f3]"
+							>
+								Open
+							</a>
+						</div>
+					</div>
+				)}
 
 				<div className="mt-3 flex gap-2">
 					<button
