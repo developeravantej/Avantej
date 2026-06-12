@@ -16,6 +16,10 @@ import { KpiStrip } from "@/features/sales/components/KpiStrip";
 import { SalesTab } from "@/features/sales/components/SalesTab";
 import { PaymentsTab } from "@/features/sales/components/PaymentsTab";
 import { CancelledSalesTab } from "@/features/sales/components/CancelledSalesTab";
+import {
+	InstallmentsTab,
+	type InstallmentStatusFilter,
+} from "@/features/sales/components/InstallmentsTab";
 
 // ─── Route search schema ───────────────────────────────────────────────────────
 
@@ -29,7 +33,10 @@ const salesSearchSchema = z.object({
 	refundStatus: z
 		.enum(["all", "none", "pending", "partial", "processed"])
 		.default("all"),
-	tab: z.enum(["sales", "payments", "cancelled", "refunds"]).default("sales"),
+	tab: z
+		.enum(["sales", "installments", "payments", "cancelled", "refunds"])
+		.default("sales"),
+	instStatus: z.enum(["due_soon", "overdue", "all"]).default("due_soon"),
 	search: z.string().default(""),
 });
 
@@ -65,6 +72,7 @@ function RouteComponent() {
 		kpiPeriod,
 		refundStatus,
 		tab,
+		instStatus,
 		search,
 	} = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
@@ -92,6 +100,7 @@ function RouteComponent() {
 				kpiPeriod,
 				refundStatus: "all",
 				tab,
+				instStatus: "due_soon",
 				search: "",
 			},
 		});
@@ -105,9 +114,18 @@ function RouteComponent() {
 		navigate({
 			search: (prev) => ({
 				...prev,
-				tab: v as "sales" | "payments" | "cancelled" | "refunds",
+				tab: v as
+					| "sales"
+					| "installments"
+					| "payments"
+					| "cancelled"
+					| "refunds",
 			}),
 		});
+	}
+
+	function handleInstStatusChange(v: InstallmentStatusFilter) {
+		navigate({ search: (prev) => ({ ...prev, instStatus: v }) });
 	}
 
 	function handleRefundStatusChange(
@@ -184,6 +202,22 @@ function RouteComponent() {
 			input: { organizationId: organizationId! },
 		}),
 		enabled: !!organizationId,
+	});
+
+	const canSeeInstallments = hasPermission("service_management:read");
+
+	const { data: dueSoonData } = useQuery({
+		queryKey: ["sales-installments-due-soon-count", organizationId, branchId],
+		queryFn: () =>
+			client.installments.listUpcoming({
+				organizationId: organizationId!,
+				window: "due_soon",
+				branchId: branchId || undefined,
+				limit: 1,
+				offset: 0,
+			}),
+		enabled: !!organizationId && canSeeInstallments,
+		retry: false,
 	});
 
 	const {
@@ -294,6 +328,15 @@ function RouteComponent() {
 							<div className="flex shrink-0 items-center gap-2 border-b border-[#e5e5e5] px-6 py-3">
 								{[
 									{ value: "sales", label: "Sales Orders", count: salesCount },
+									...(canSeeInstallments
+										? [
+												{
+													value: "installments",
+													label: "Installments",
+													count: dueSoonData?.total ?? null,
+												},
+											]
+										: []),
 									{
 										value: "payments",
 										label: "Payments",
@@ -357,6 +400,16 @@ function RouteComponent() {
 									onBranchChange={(v) => handleFilterChange({ branchId: v })}
 									onRefundStatusChange={handleRefundStatusChange}
 									onClear={handleClear}
+									nodeOptions={nodeOptions}
+								/>
+							)}
+							{tab === "installments" && canSeeInstallments && (
+								<InstallmentsTab
+									organizationId={organizationId}
+									status={instStatus}
+									onStatusChange={handleInstStatusChange}
+									branchId={branchId}
+									onBranchChange={(v) => handleFilterChange({ branchId: v })}
 									nodeOptions={nodeOptions}
 								/>
 							)}
