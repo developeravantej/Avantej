@@ -473,9 +473,6 @@ async function _persistOriginationSplits(
 ): Promise<CommissionSplit[]> {
 	const results: CommissionSplit[] = [];
 
-	// Build a map from trackId for provenance lookup
-	const trackById = new Map(input.resolvedTracks.map((t) => [t.trackId, t]));
-
 	for (const split of input.plannedSplits) {
 		// Each PlannedSplit from planOrigination carries configVersionId = trackVersionId
 		// and slotIndex = 0. The trackId is determined by looking up which track
