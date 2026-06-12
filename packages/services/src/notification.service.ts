@@ -194,6 +194,13 @@ export async function notifyAdminsOfCancelledOrderPayment(
 		salesOrderId: string;
 		amountCents: number;
 		paymentIntentId: string;
+		/**
+		 * Which refund scenario fired:
+		 * - "cancelled_order" (default): payment landed on a cancelled sale.
+		 * - "duplicate_payment": a SECOND Stripe payment arrived for a sale
+		 *   that was already paid (multi-use/stale link).
+		 */
+		kind?: "cancelled_order" | "duplicate_payment";
 	},
 ): Promise<number> {
 	const order = await tenantDb.query.salesOrders.findFirst({
@@ -208,13 +215,22 @@ export async function notifyAdminsOfCancelledOrderPayment(
 	if (admins.length === 0) return 0;
 
 	const orderLabel = order?.salesOrderNumber ?? params.salesOrderId;
+	const customer = order?.customerName ? ` (${order.customerName})` : "";
 	const amountRm = (params.amountCents / 100).toFixed(2);
+	const isDuplicate = params.kind === "duplicate_payment";
+	const title = isDuplicate
+		? "Refund required — duplicate payment on sale"
+		: "Refund required — payment on cancelled sale";
+	const message = isDuplicate
+		? `A second Stripe payment of RM ${amountRm} was received for sale ${orderLabel}${customer}, which was already paid. Please refund the duplicate charge. Stripe PaymentIntent: ${params.paymentIntentId}.`
+		: `RM ${amountRm} was paid via Stripe on cancelled sale ${orderLabel}${customer}. The order stays cancelled — please issue a refund. Stripe PaymentIntent: ${params.paymentIntentId}.`;
+
 	await tenantDb.insert(notifications).values(
 		admins.map((a) => ({
 			userId: a.userId,
 			type: "refund_required",
-			title: "Refund required — payment on cancelled sale",
-			message: `RM ${amountRm} was paid via Stripe on cancelled sale ${orderLabel}${order?.customerName ? ` (${order.customerName})` : ""}. The order stays cancelled — please issue a refund. Stripe PaymentIntent: ${params.paymentIntentId}.`,
+			title,
+			message,
 			relatedId: params.salesOrderId,
 			relatedType: "sales_order",
 		})),

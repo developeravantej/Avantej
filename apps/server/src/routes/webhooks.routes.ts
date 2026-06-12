@@ -9,7 +9,7 @@
 
 import { Hono } from "hono";
 import type { Context } from "hono";
-import { verifyWebhookSignature } from "@/lib/stripe";
+import { getStripeClient, verifyWebhookSignature } from "@/lib/stripe";
 import { onAppointmentPaid } from "@/services/payment-side-effects.service";
 import {
 	projectStripeEventToLedger,
@@ -489,6 +489,9 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 						.select({
 							status: payments.status,
 							stripePaymentIntentId: payments.stripePaymentIntentId,
+							stripePaymentLinkId: payments.stripePaymentLinkId,
+							stripeConnectAccountIdSnapshot:
+								payments.stripeConnectAccountIdSnapshot,
 						})
 						.from(payments)
 						.where(eq(payments.id, paymentRowId))
@@ -496,6 +499,15 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 					const isPiReplay =
 						payRow?.status === "succeeded" &&
 						payRow.stripePaymentIntentId === piObj.id;
+
+					// Second-payment guard: a DIFFERENT PI succeeded for a payment row
+					// that already succeeded — the customer paid twice (multi-use or
+					// stale regenerated link). Never reprocess (it would confirm
+					// installment #2 with installment #1's money); keep the original
+					// PI on the row and tell admins to refund the duplicate.
+					const isSecondPayment =
+						payRow?.status === "succeeded" &&
+						payRow.stripePaymentIntentId !== piObj.id;
 
 					// Cancelled-order guard: the payment link is not always deactivated
 					// in time — a customer can pay AFTER staff cancelled the sale. Money
@@ -512,6 +524,26 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 						console.log(
 							`[connect webhook] sales_order replay (same PI) ignored so=${salesOrderId} pi=${piObj.id}`,
 						);
+					} else if (isSecondPayment) {
+						console.error(
+							`[connect webhook] DUPLICATE payment for already-paid order so=${salesOrderId} pay=${paymentRowId} firstPi=${payRow?.stripePaymentIntentId} duplicatePi=${piObj.id} amount=${piObj.amount} — not reprocessed; refund required`,
+						);
+						try {
+							const { notifyAdminsOfCancelledOrderPayment } = await import(
+								"@avantej-core/services"
+							);
+							await notifyAdminsOfCancelledOrderPayment(tenantDb, {
+								salesOrderId,
+								amountCents: piObj.amount_received ?? piObj.amount ?? 0,
+								paymentIntentId: piObj.id,
+								kind: "duplicate_payment",
+							});
+						} catch (notifyErr) {
+							console.error(
+								`[connect webhook] duplicate-payment notification failed for so=${salesOrderId}:`,
+								notifyErr,
+							);
+						}
 					} else if (isCancelledOrder) {
 						await tenantDb
 							.update(payments)
@@ -698,6 +730,31 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 								`[connect webhook] origination commission failed for so=${salesOrderId}:`,
 								originationErr,
 							);
+						}
+						// Belt-and-braces: deactivate the payment link now that it's paid.
+						// Links are created single-use (restrictions.completed_sessions),
+						// but links created before that change are multi-use — kill them.
+						if (payRow?.stripePaymentLinkId) {
+							try {
+								const stripe = getStripeClient();
+								await stripe.paymentLinks.update(
+									String(payRow.stripePaymentLinkId),
+									{ active: false },
+									{
+										stripeAccount:
+											(payRow.stripeConnectAccountIdSnapshot as
+												| string
+												| null) ??
+											event.account ??
+											undefined,
+									},
+								);
+							} catch (linkErr) {
+								console.error(
+									`[connect webhook] failed to deactivate paid link ${payRow.stripePaymentLinkId}:`,
+									linkErr,
+								);
+							}
 						}
 					} // end normal (non-replay, non-cancelled) processing
 				} else if (failed) {

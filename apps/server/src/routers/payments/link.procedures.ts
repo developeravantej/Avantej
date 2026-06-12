@@ -118,6 +118,28 @@ export function createLinkProcedures(resolveStripe: () => StripeClientLike) {
 					{ stripeAccount: acct.acctId },
 				);
 
+				// Regenerate: deactivate the orphaned old link first — Payment Links
+				// are multi-use by default, so a stale-but-payable link lets the
+				// appointment be charged twice. Best-effort (no delete API).
+				if (
+					input.regenerate &&
+					appt.stripePaymentLinkId &&
+					appt.stripeConnectAccountIdSnapshot
+				) {
+					try {
+						await stripe.paymentLinks.update(
+							String(appt.stripePaymentLinkId),
+							{ active: false },
+							{ stripeAccount: String(appt.stripeConnectAccountIdSnapshot) },
+						);
+					} catch (err) {
+						console.error(
+							`[payments] failed to deactivate old link ${appt.stripePaymentLinkId}:`,
+							err,
+						);
+					}
+				}
+
 				const webAppUrl = getEnvVar("WEB_APP_URL") ?? "http://localhost:3001";
 				const sharedMetadata = {
 					appointmentId: appt.id,
@@ -134,6 +156,8 @@ export function createLinkProcedures(resolveStripe: () => StripeClientLike) {
 								url: `${webAppUrl}/appointment/view?paid=1&id=${appt.id}`,
 							},
 						},
+						// Single-use: an appointment must be payable exactly once.
+						restrictions: { completed_sessions: { limit: 1 } },
 						metadata: sharedMetadata,
 						// Propagate to PaymentIntent so payment_intent.succeeded webhook
 						// (on connect endpoint) can resolve the appointment row. Link/session
@@ -272,6 +296,24 @@ export function createLinkProcedures(resolveStripe: () => StripeClientLike) {
 					{ stripeAccount: acct.acctId },
 				);
 
+				// Regenerate: the old link must stop accepting payments — Payment
+				// Links are multi-use by default, and a stale-but-payable link means
+				// the same sale can be charged twice. Best-effort (no delete API).
+				if (input.regenerate && payment.stripePaymentLinkId) {
+					try {
+						await stripe.paymentLinks.update(
+							String(payment.stripePaymentLinkId),
+							{ active: false },
+							{ stripeAccount: acct.acctId },
+						);
+					} catch (err) {
+						console.error(
+							`[payments] failed to deactivate old link ${payment.stripePaymentLinkId}:`,
+							err,
+						);
+					}
+				}
+
 				const sharedMetadata = {
 					type: "sales_order",
 					salesOrderId: salesOrder.id,
@@ -290,6 +332,10 @@ export function createLinkProcedures(resolveStripe: () => StripeClientLike) {
 								url: `${webAppUrl}/dashboard/sales/${salesOrder.id}?paid=1`,
 							},
 						},
+						// Single-use: a sale must be payable exactly once. Without this
+						// the link stays open after payment and the customer can pay
+						// the same order twice.
+						restrictions: { completed_sessions: { limit: 1 } },
 						metadata: sharedMetadata,
 						// Propagate to PaymentIntent so payment_intent.succeeded webhook
 						// can resolve the sale (Link/session metadata doesn't auto-flow).

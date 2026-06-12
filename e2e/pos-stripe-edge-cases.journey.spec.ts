@@ -239,6 +239,113 @@ test("payment link is idempotent; rejected once the payment succeeded", {
 		},
 	);
 	expect(order.status).toBe("completed");
+
+	// 6. The link is single-use at creation AND deactivated by the webhook
+	// once paid — double payments are impossible. Verified against REAL Stripe.
+	const stripeKey = readDevVar("STRIPE_SECRET_KEY");
+	if (stripeKey) {
+		type StripeLink = {
+			active: boolean;
+			restrictions?: { completed_sessions?: { limit?: number } } | null;
+		};
+		const acctResp = await request.get(
+			"https://api.stripe.com/v1/accounts?limit=10",
+			{ headers: { Authorization: `Bearer ${stripeKey}` } },
+		);
+		const acctIds: string[] = ((await acctResp.json()).data ?? []).map(
+			(a: { id: string }) => a.id,
+		);
+		let linkObj: StripeLink | null = null;
+		for (const acct of acctIds) {
+			const resp = await request.get(
+				`https://api.stripe.com/v1/payment_links/${link1.paymentLinkId}`,
+				{
+					headers: {
+						Authorization: `Bearer ${stripeKey}`,
+						"Stripe-Account": acct,
+					},
+				},
+			);
+			if (resp.ok()) {
+				linkObj = (await resp.json()) as StripeLink;
+				break;
+			}
+		}
+		expect(
+			linkObj,
+			"link must be retrievable on the connected account",
+		).not.toBeNull();
+		expect(
+			linkObj!.restrictions?.completed_sessions?.limit,
+			"link must be created single-use",
+		).toBe(1);
+		expect(linkObj!.active, "paid link must be deactivated").toBe(false);
+	}
+});
+
+test("a second payment on an already-paid order is not reprocessed and alerts admins", {
+	tag: ["@p1"],
+}, async ({ page, request }) => {
+	const secret = readDevVar("STRIPE_CONNECT_WEBHOOK_SECRET");
+	test.skip(!secret, "STRIPE_CONNECT_WEBHOOK_SECRET not set — skip");
+
+	await page.goto("/dashboard");
+	await page.waitForLoadState("networkidle");
+	const sale = await recordOnlineSale(page, 5800);
+
+	// First payment completes the order
+	const first = await sendSalesOrderEvent(request, secret!, {
+		eventId: `evt_edge_dbl1_${Date.now()}`,
+		type: "payment_intent.succeeded",
+		piId: `pi_edge_dbl1_${Date.now()}`,
+		amount: 5800,
+		salesOrderId: sale.salesOrderId,
+		paymentId: sale.paymentId,
+	});
+	expect(first.status, first.body).toBe(200);
+
+	// A SECOND, different PaymentIntent succeeds for the same payment row
+	// (multi-use or stale regenerated link — customer paid twice).
+	const second = await sendSalesOrderEvent(request, secret!, {
+		eventId: `evt_edge_dbl2_${Date.now()}`,
+		type: "payment_intent.succeeded",
+		piId: `pi_edge_dbl2_${Date.now()}`,
+		amount: 5800,
+		salesOrderId: sale.salesOrderId,
+		paymentId: sale.paymentId,
+	});
+	expect(second.status, second.body).toBe(200);
+
+	// Order state untouched by the duplicate
+	type OrderRow = { status: string };
+	const order = await orpcCall<object, OrderRow>(
+		page,
+		"salesOrders",
+		"getById",
+		{ organizationId: TEST_ORG_ID, id: sale.salesOrderId },
+	);
+	expect(order.status).toBe("completed");
+
+	// Admins are told to refund the duplicate charge
+	type NotificationRow = {
+		type: string;
+		title?: string;
+		relatedId?: string | null;
+	};
+	const notifs = await orpcCall<object, NotificationRow[]>(
+		page,
+		"notifications",
+		"list",
+		{ organizationId: TEST_ORG_ID, type: "refund_required", limit: 50 },
+	);
+	const dupNotif = notifs.find(
+		(n) =>
+			n.relatedId === sale.salesOrderId && /duplicate/i.test(n.title ?? ""),
+	);
+	expect(
+		dupNotif,
+		"org admins must receive a duplicate-payment refund notification",
+	).toBeTruthy();
 });
 
 test("payment_failed marks the payment failed, keeps the order pending, link reusable", {
