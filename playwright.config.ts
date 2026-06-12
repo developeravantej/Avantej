@@ -18,7 +18,8 @@ export default defineConfig({
 	use: {
 		baseURL,
 		trace: "on-first-retry",
-		video: "retain-on-failure",
+		// PW_VIDEO=on records video for passing runs too (demo/proof runs).
+		video: process.env.PW_VIDEO === "on" ? "on" : "retain-on-failure",
 		screenshot: "only-on-failure",
 	},
 	webServer: isCI

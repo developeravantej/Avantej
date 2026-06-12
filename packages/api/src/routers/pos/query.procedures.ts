@@ -199,6 +199,10 @@ export const posQueryProcedures = {
 							totalAmount: payment.totalAmount,
 							currency: payment.currency,
 							status: payment.status,
+							// Stripe Payment Link for online sales (persisted by
+							// payments.createSalesOrderPaymentLink) — lets the sale
+							// detail page resurface the link while payment is pending.
+							paymentLinkUrl: payment.paymentLinkUrl ?? null,
 						}
 					: null,
 				invoice: invoice

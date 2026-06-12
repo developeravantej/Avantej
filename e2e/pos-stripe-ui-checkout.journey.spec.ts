@@ -97,8 +97,12 @@ test("POS member checkout via UI with Online (Stripe link) records the sale", {
 	await expect(ok).toBeVisible({ timeout: 5_000 });
 
 	// W1 wiring: after an online sale, pos-workflow chains
-	// payments.createSalesOrderPaymentLink and surfaces the real Stripe Payment
-	// Link on the receipt panel. Assert it rendered with a Stripe-hosted URL.
+	// payments.createSalesOrderPaymentLink, then navigates to the sale detail
+	// page, which resurfaces the link while the payment is pending. Assert the
+	// link card rendered there with a Stripe-hosted URL.
+	await page.waitForURL(/\/dashboard\/sales\/[0-9a-f-]{36}/, {
+		timeout: 15_000,
+	});
 	const linkBlock = page.getByTestId("pos-payment-link");
 	await expect(linkBlock).toBeVisible({ timeout: 15_000 });
 	const linkUrl = await linkBlock.locator("code").innerText();

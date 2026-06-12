@@ -1,8 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
-import { ChevronLeft, Printer, XCircle } from "lucide-react";
+import {
+	ChevronLeft,
+	Copy,
+	ExternalLink,
+	Printer,
+	XCircle,
+} from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { PartialRefundDialog } from "@/components/refunds/partial-refund-dialog";
 import { RequestRefundDialog } from "@/components/refunds/request-refund-dialog";
 import { StatusCallout } from "@/components/ui/status-callout";
@@ -65,6 +72,14 @@ function SalesOrderDetailPage() {
 	});
 
 	const lineItems = lineItemsData?.items ?? [];
+
+	// Online (Stripe) sale awaiting payment: resurface the Payment Link so the
+	// cashier can copy/send it. Hidden once the webhook flips payment→succeeded.
+	const pendingPayment = lineItemsData?.payment;
+	const pendingPaymentLinkUrl =
+		pendingPayment?.paymentLinkUrl && pendingPayment.status !== "succeeded"
+			? pendingPayment.paymentLinkUrl
+			: null;
 
 	const {
 		data: receiptDataRaw,
@@ -173,6 +188,50 @@ function SalesOrderDetailPage() {
 				<div className="px-6 py-6">
 					{/* ── Sections (single-column scroll, Section 12.2) ── */}
 					<div className="space-y-5">
+						{/* Payment Link — online sale awaiting customer payment */}
+						{pendingPaymentLinkUrl && (
+							<div
+								data-testid="pos-payment-link"
+								className="rounded-2xl border border-[#0a0a0a]/15 bg-white p-5"
+							>
+								<div className="mb-3 flex items-center justify-between">
+									<h2 className="text-base font-bold text-[#0a0a0a]">
+										Payment Link
+									</h2>
+									<SalesStatusBadge status="pending" />
+								</div>
+								<p className="mb-3 text-sm text-[#737373]">
+									Awaiting online payment — send this link to the customer to
+									complete the sale.
+								</p>
+								<code className="block w-full truncate rounded-lg bg-[#f3f3f3] px-3 py-2 text-xs text-[#0a0a0a]">
+									{pendingPaymentLinkUrl}
+								</code>
+								<div className="mt-3 flex gap-2">
+									<button
+										type="button"
+										className="flex items-center gap-2 rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-xs font-semibold transition hover:bg-[#f3f3f3]"
+										onClick={() => {
+											navigator.clipboard.writeText(pendingPaymentLinkUrl);
+											toast.success("Payment link copied");
+										}}
+									>
+										<Copy className="h-4 w-4" />
+										Copy link
+									</button>
+									<a
+										href={pendingPaymentLinkUrl}
+										target="_blank"
+										rel="noopener noreferrer"
+										className="flex items-center gap-2 rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-xs font-semibold transition hover:bg-[#f3f3f3]"
+									>
+										<ExternalLink className="h-4 w-4" />
+										Open
+									</a>
+								</div>
+							</div>
+						)}
+
 						{/* Order Summary */}
 						<div className="rounded-2xl border border-[#e5e5e5] bg-white p-5">
 							<div className="mb-4 flex items-center justify-between">
