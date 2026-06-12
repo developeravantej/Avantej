@@ -130,15 +130,15 @@ async function seedBusinessData() {
 		// ================================================================
 		console.log("\nStep 2: Discovering existing tenant data...");
 
-		// Find branch node (type = 'branch', depth = 4)
+		// Find branch node by type only. Branch depth shifted 4 → 3 after the H1
+		// hierarchy migration (0053 region→state rename), so don't filter on depth.
 		const branchNode = await tenantDb.query.hierarchyNodes.findFirst({
-			where: (nodes, { eq: eqFn, and: andFn }) =>
-				andFn(eqFn(nodes.type, "branch"), eqFn(nodes.depth, 4)),
+			where: (nodes, { eq: eqFn }) => eqFn(nodes.type, "branch"),
 		});
 
 		if (!branchNode) {
 			throw new Error(
-				"No branch node found (type=branch, depth=4). Run seed-franchise-owner.ts first.",
+				"No branch node found (type=branch). Run seed-franchise-owner.ts first.",
 			);
 		}
 		console.log(`   Branch node: ${branchNode.id} (${branchNode.name})`);
@@ -334,12 +334,12 @@ async function seedBusinessData() {
 		console.log("\nStep 6: Seeding package instance...");
 
 		let packageInstance: typeof packageInstances.$inferSelect;
+		// Idempotency: check by purchaseNumber — it carries the UNIQUE constraint
+		// (package_instances_purchase_number_unique). Checking (serviceId, clientId)
+		// misses when the resolved client changes between runs and the re-insert
+		// then collides on the fixed "TEST-PKG-001" number.
 		const existingInstance = await tenantDb.query.packageInstances.findFirst({
-			where: (pi, { eq: eqFn, and: andFn }) =>
-				andFn(
-					eqFn(pi.serviceId, packageService1.id),
-					eqFn(pi.clientId, clientId),
-				),
+			where: (pi, { eq: eqFn }) => eqFn(pi.purchaseNumber, "TEST-PKG-001"),
 		});
 
 		if (existingInstance) {
@@ -932,6 +932,66 @@ async function seedBusinessData() {
 			});
 			console.log("   Created installment 2 (pending, due in ~60 days)");
 		}
+
+		// ================================================================
+		// STEP 13: Backfill control-panel users for orphan client members
+		// ================================================================
+		// Tenant `members` rows reference control-panel users by user_id (plain
+		// text — no cross-DB FK). Earlier seeds left some active client members
+		// with NO control-panel "user" row, so members.list resolves their name
+		// to `user?.name || "Unknown"` and the POS member search can't find them.
+		// Insert a minimal verified user row for each orphan, and name any
+		// existing-but-blank users (folded in from fix-first-client-name.ts).
+		console.log(
+			"\nStep 13: Backfilling control-panel users for orphan client members...",
+		);
+
+		const activeClients = await tenantDb.query.members.findMany({
+			where: (m, { eq: eqFn, and: andFn }) =>
+				andFn(eqFn(m.role, "client"), eqFn(m.status, "active")),
+		});
+		const clientUserIds = [
+			...new Set(activeClients.map((m) => m.userId).filter(Boolean)),
+		];
+
+		let orphanUsersCreated = 0;
+		let blankNamesFixed = 0;
+		if (clientUserIds.length > 0) {
+			const existingUsers = await controlDb.query.users.findMany({
+				where: (u, { inArray: inArrayFn }) => inArrayFn(u.id, clientUserIds),
+			});
+			const userById = new Map(existingUsers.map((u) => [u.id, u]));
+
+			for (const userId of clientUserIds) {
+				const existing = userById.get(userId);
+				const shortId = userId.slice(0, 8);
+				if (existing) {
+					if (!existing.name || existing.name.trim().length === 0) {
+						await controlDb
+							.update(users)
+							.set({ name: `Seed Client ${shortId}`, updatedAt: new Date() })
+							.where(eq(users.id, userId));
+						blankNamesFixed++;
+					}
+					continue;
+				}
+				await controlDb.insert(users).values({
+					id: userId,
+					// Deterministic per userId → idempotent across runs
+					email: `seed-client-${shortId}@test.local`,
+					name: `Seed Client ${shortId}`,
+					firstName: "Seed",
+					lastName: `Client ${shortId}`,
+					emailVerified: true,
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				});
+				orphanUsersCreated++;
+			}
+		}
+		console.log(
+			`   Active client members: ${activeClients.length} | orphan users created: ${orphanUsersCreated} | blank names fixed: ${blankNamesFixed}`,
+		);
 
 		// ================================================================
 		// SUMMARY
