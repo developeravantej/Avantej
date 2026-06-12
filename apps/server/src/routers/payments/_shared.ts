@@ -18,6 +18,11 @@ export type StripeClientLike = {
 			params: unknown,
 			options?: { stripeAccount?: string },
 		) => Promise<{ id: string; url: string }>;
+		update: (
+			id: string,
+			params: unknown,
+			options?: { stripeAccount?: string },
+		) => Promise<{ id: string; active?: boolean }>;
 	};
 	prices: {
 		create: (

@@ -403,3 +403,203 @@ test("non-divisible installment total puts the remainder on the last installment
 	// Sum must reconstruct the exact principal — no lost/gained cents
 	expect(sorted.reduce((s, r) => s + r.amount, 0)).toBe(totalCents);
 });
+
+test("a cancelled online order is NOT resurrected by a late payment", {
+	tag: ["@p1"],
+}, async ({ page, request }) => {
+	const secret = readDevVar("STRIPE_CONNECT_WEBHOOK_SECRET");
+	test.skip(!secret, "STRIPE_CONNECT_WEBHOOK_SECRET not set — skip");
+
+	await page.goto("/dashboard");
+	await page.waitForLoadState("networkidle");
+	const sale = await recordOnlineSale(page, 5700);
+
+	// Staff cancels the pending online sale
+	type UserCtx = { user?: { id?: string } };
+	const ctx = await orpcCall<object, UserCtx>(page, "auth", "userContext", {});
+	await orpcCall(page, "salesOrders", "cancel", {
+		organizationId: TEST_ORG_ID,
+		id: sale.salesOrderId,
+		cancelledBy: ctx.user?.id ?? "e2e",
+		refundAmount: 0,
+	});
+
+	// Customer pays the (still-active) link afterwards
+	const hook = await sendSalesOrderEvent(request, secret!, {
+		eventId: `evt_edge_cancel_${Date.now()}`,
+		type: "payment_intent.succeeded",
+		piId: `pi_edge_cancel_${Date.now()}`,
+		amount: 5700,
+		salesOrderId: sale.salesOrderId,
+		paymentId: sale.paymentId,
+	});
+	expect(hook.status, hook.body).toBe(200);
+
+	// Order must STAY cancelled — money is recorded on the payment row only
+	type OrderRow = { status: string };
+	const order = await orpcCall<object, OrderRow>(
+		page,
+		"salesOrders",
+		"getById",
+		{ organizationId: TEST_ORG_ID, id: sale.salesOrderId },
+	);
+	expect(order.status, "cancelled order must not be resurrected").toBe(
+		"cancelled",
+	);
+
+	// The payment fact is recorded for reconciliation/refund
+	type Receipt = { payment: { status: string } | null };
+	const receipt = await orpcCall<object, Receipt>(
+		page,
+		"pos",
+		"getReceiptData",
+		{
+			organizationId: TEST_ORG_ID,
+			salesOrderId: sale.salesOrderId,
+		},
+	);
+	expect(receipt.payment?.status).toBe("succeeded");
+});
+
+test("online + installment: nothing is paid until the webhook confirms installment #1", {
+	tag: ["@p0"],
+}, async ({ page, request }) => {
+	const secret = readDevVar("STRIPE_CONNECT_WEBHOOK_SECRET");
+	test.skip(!secret, "STRIPE_CONNECT_WEBHOOK_SECRET not set — skip");
+
+	await page.goto("/dashboard");
+	await page.waitForLoadState("networkidle");
+	await seedMinimalPosFixture(page);
+	const client = await pickFirstActiveClient(page);
+	const service = await pickFirstService(page, {
+		hasSessions: true,
+		isPackage: true,
+	});
+	const plan = await pickFirstInstallmentPlan(page);
+
+	type SaleResult = {
+		salesOrderId: string;
+		paymentId: string;
+		packageInstanceIds?: string[];
+	};
+	let sale: SaleResult;
+	try {
+		sale = await orpcCall<object, SaleResult>(page, "pos", "recordSale", {
+			organizationId: TEST_ORG_ID,
+			customerType: "member",
+			customerId: client!.userId,
+			customerName: client!.name,
+			branchId: client!.hierarchyScopeId!,
+			items: [
+				{
+					type: "package",
+					refId: service!.id,
+					description: service!.name,
+					quantity: 1,
+					unitPriceCents: 12000,
+				},
+			],
+			paymentMethod: "online",
+			installmentPlanCode: plan!.code,
+		});
+	} catch (err) {
+		if (
+			err instanceof OrpcClientError &&
+			/stripe is not configured/i.test(err.message)
+		) {
+			test.skip(true, "No Stripe connected account — skip");
+		}
+		throw err;
+	}
+	const pkgId = sale!.packageInstanceIds![0]!;
+
+	type InstallmentRow = {
+		installmentNumber: number;
+		amount: number;
+		status: string;
+	};
+	const listInstallments = async (): Promise<InstallmentRow[]> => {
+		const rows = await orpcCall<object, InstallmentRow[]>(
+			page,
+			"installments",
+			"listByPackageInstance",
+			{ organizationId: TEST_ORG_ID, packageInstanceId: pkgId },
+		);
+		return [...rows].sort((a, b) => a.installmentNumber - b.installmentNumber);
+	};
+
+	// BEFORE any payment: nothing auto-confirmed. Installment #1 is due at
+	// purchase, so the lock evaluator may already flag it "overdue" — the key
+	// invariant is that NOTHING is "paid" yet.
+	const before = await listInstallments();
+	expect(before.length).toBe(plan!.numInstallments);
+	expect(
+		["pending", "overdue"],
+		"installment #1 must be unpaid before payment",
+	).toContain(before[0]!.status);
+	for (const row of before.slice(1)) {
+		expect(
+			row.status,
+			`installment #${row.installmentNumber} must be pending before payment`,
+		).toBe("pending");
+	}
+
+	// The payment-link charge (= installment #1) succeeds
+	const piId = `pi_edge_inst_${Date.now()}`;
+	const hook = await sendSalesOrderEvent(request, secret!, {
+		eventId: `evt_edge_inst_${Date.now()}`,
+		type: "payment_intent.succeeded",
+		piId,
+		amount: before[0]!.amount,
+		salesOrderId: sale!.salesOrderId,
+		paymentId: sale!.paymentId,
+	});
+	expect(hook.status, hook.body).toBe(200);
+
+	// AFTER: installment #1 paid, the rest still pending
+	const after = await listInstallments();
+	expect(after[0]!.status, "installment #1 paid by the webhook").toBe("paid");
+	for (const row of after.slice(1)) {
+		expect(
+			row.status,
+			`installment #${row.installmentNumber} stays pending`,
+		).toBe("pending");
+	}
+
+	// Package activated but NOT marked fully paid
+	type Receipt = {
+		packageInstance: { status?: string; paymentStatus?: string } | null;
+		invoice: { status?: string } | null;
+	};
+	const receipt = await orpcCall<object, Receipt>(
+		page,
+		"pos",
+		"getReceiptData",
+		{
+			organizationId: TEST_ORG_ID,
+			salesOrderId: sale!.salesOrderId,
+		},
+	);
+	expect(receipt.packageInstance?.status).toBe("active");
+	expect(
+		receipt.packageInstance?.paymentStatus,
+		"installment package must not be marked fully paid",
+	).not.toBe("paid");
+	expect(receipt.invoice?.status).toBe("partially_paid");
+
+	// Replay of the SAME PI under a new event id must NOT confirm installment #2
+	const replay = await sendSalesOrderEvent(request, secret!, {
+		eventId: `evt_edge_inst_replay_${Date.now()}`,
+		type: "payment_intent.succeeded",
+		piId,
+		amount: before[0]!.amount,
+		salesOrderId: sale!.salesOrderId,
+		paymentId: sale!.paymentId,
+	});
+	expect(replay.status, replay.body).toBe(200);
+	const afterReplay = await listInstallments();
+	expect(
+		afterReplay.filter((r) => r.status === "paid").length,
+		"PI replay must not confirm additional installments",
+	).toBe(1);
+});

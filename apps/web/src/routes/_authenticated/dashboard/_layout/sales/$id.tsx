@@ -74,10 +74,13 @@ function SalesOrderDetailPage() {
 	const lineItems = lineItemsData?.items ?? [];
 
 	// Online (Stripe) sale awaiting payment: resurface the Payment Link so the
-	// cashier can copy/send it. Hidden once the webhook flips payment→succeeded.
+	// cashier can copy/send it. Hidden once the webhook flips payment→succeeded,
+	// and for cancelled orders (the link is deactivated on cancel).
 	const pendingPayment = lineItemsData?.payment;
 	const pendingPaymentLinkUrl =
-		pendingPayment?.paymentLinkUrl && pendingPayment.status !== "succeeded"
+		pendingPayment?.paymentLinkUrl &&
+		pendingPayment.status !== "succeeded" &&
+		order?.status !== "cancelled"
 			? pendingPayment.paymentLinkUrl
 			: null;
 

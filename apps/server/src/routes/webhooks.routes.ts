@@ -481,81 +481,207 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 								? ((latestCharge as { id?: string }).id ?? null)
 								: null;
 
-					await tenantDb
-						.update(payments)
-						.set({
-							status: "succeeded",
-							stripePaymentIntentId: piObj.id,
-							...(chargeId ? { stripeChargeId: chargeId } : {}),
-							refundedAt: null,
-							updatedAt: new Date(),
+					// Same-PI replay guard (distinct from the event-id dedupe above:
+					// Stripe can re-send the same PI under a NEW event id). Without
+					// this, the installment confirmation below would advance to
+					// installment #2 on a replay.
+					const [payRow] = await tenantDb
+						.select({
+							status: payments.status,
+							stripePaymentIntentId: payments.stripePaymentIntentId,
 						})
-						.where(eq(payments.id, paymentRowId));
+						.from(payments)
+						.where(eq(payments.id, paymentRowId))
+						.limit(1);
+					const isPiReplay =
+						payRow?.status === "succeeded" &&
+						payRow.stripePaymentIntentId === piObj.id;
 
-					// Set amountPaid = totalAmount via sql expression to avoid re-fetch.
-					await tenantDb
-						.update(invoices)
-						.set({
-							status: "paid",
-							amountPaid: sql`${invoices.totalAmount}`,
-							updatedAt: new Date(),
-						})
-						.where(eq(invoices.salesOrderId, salesOrderId));
+					// Cancelled-order guard: the payment link is not always deactivated
+					// in time — a customer can pay AFTER staff cancelled the sale. Money
+					// moved, so record it on the payment row for reconciliation/refund,
+					// but never resurrect the cancelled order/invoice/package.
+					const [orderStatusRow] = await tenantDb
+						.select({ status: salesOrders.status })
+						.from(salesOrders)
+						.where(eq(salesOrders.id, salesOrderId))
+						.limit(1);
+					const isCancelledOrder = orderStatusRow?.status === "cancelled";
 
-					await tenantDb
-						.update(salesOrders)
-						.set({ status: "completed", updatedAt: new Date() })
-						.where(eq(salesOrders.id, salesOrderId));
-
-					await tenantDb
-						.update(packageInstances)
-						.set({
-							paymentStatus: "paid",
-							status: "active",
-							updatedAt: new Date(),
-						})
-						.where(eq(packageInstances.paymentId, paymentRowId));
-
-					console.log(
-						`[connect webhook] sales_order succeeded so=${salesOrderId} pay=${paymentRowId} pi=${piObj.id}`,
-					);
-
-					// Phase 3 — Origination commission for Stripe-paid orders.
-					// Fired here (not at recordPosSale time) so unpaid online orders
-					// never pay origination. Idempotency: (sales_order_id, track_id, staff_id)
-					// unique index + 23505 skip ensures exactly one split per (order, track, staff).
-					try {
-						const { calculateOriginationCommission } = await import(
-							"@avantej-core/services"
+					if (isPiReplay) {
+						console.log(
+							`[connect webhook] sales_order replay (same PI) ignored so=${salesOrderId} pi=${piObj.id}`,
 						);
-						// Load soldBy + leadSourceUserId from the order row to resolve attribution
-						const [orderRow] = await tenantDb
-							.select({
-								soldBy: salesOrders.soldBy,
-								leadSourceUserId: salesOrders.leadSourceUserId,
+					} else if (isCancelledOrder) {
+						await tenantDb
+							.update(payments)
+							.set({
+								status: "succeeded",
+								stripePaymentIntentId: piObj.id,
+								...(chargeId ? { stripeChargeId: chargeId } : {}),
+								refundedAt: null,
+								updatedAt: new Date(),
 							})
-							.from(salesOrders)
-							.where(eq(salesOrders.id, salesOrderId))
-							.limit(1);
-						if (orderRow && (orderRow.soldBy || orderRow.leadSourceUserId)) {
-							await calculateOriginationCommission(tenantDb, {
-								salesOrderId,
-								soldByUserId: orderRow.soldBy ?? null,
-								leadSourceUserId: orderRow.leadSourceUserId ?? null,
-								actor: {
-									userId: "system",
-									memberId: "system",
-									role: "system",
-								},
-							});
-						}
-					} catch (originationErr) {
-						// Best-effort — never let commission failure fail the webhook ack
+							.where(eq(payments.id, paymentRowId));
 						console.error(
-							`[connect webhook] origination commission failed for so=${salesOrderId}:`,
-							originationErr,
+							`[connect webhook] payment received for CANCELLED order so=${salesOrderId} pay=${paymentRowId} pi=${piObj.id} amount=${piObj.amount} — order NOT completed; refund required`,
 						);
-					}
+					} else {
+						await tenantDb
+							.update(payments)
+							.set({
+								status: "succeeded",
+								stripePaymentIntentId: piObj.id,
+								...(chargeId ? { stripeChargeId: chargeId } : {}),
+								refundedAt: null,
+								updatedAt: new Date(),
+							})
+							.where(eq(payments.id, paymentRowId));
+
+						// Package instances on this payment. Installment-plan packages must
+						// NOT be blanket-marked "paid": the link only charged the first
+						// installment. They activate + confirm installment #1 instead.
+						const pkgRows = await tenantDb
+							.select({
+								id: packageInstances.id,
+								installmentsTotal: packageInstances.installmentsTotal,
+							})
+							.from(packageInstances)
+							.where(eq(packageInstances.paymentId, paymentRowId));
+						const hasInstallmentPkg = pkgRows.some(
+							(p) => (p.installmentsTotal ?? 1) > 1,
+						);
+
+						// Invoice: full payment → paid in full. Installment sale → the link
+						// charged only the due-now amount; record that and stay partial.
+						if (hasInstallmentPkg) {
+							const received = piObj.amount_received ?? piObj.amount ?? 0;
+							await tenantDb
+								.update(invoices)
+								.set({
+									status: "partially_paid",
+									amountPaid: sql`LEAST(${invoices.totalAmount}, ${received})`,
+									updatedAt: new Date(),
+								})
+								.where(eq(invoices.salesOrderId, salesOrderId));
+						} else {
+							// Set amountPaid = totalAmount via sql expression to avoid re-fetch.
+							await tenantDb
+								.update(invoices)
+								.set({
+									status: "paid",
+									amountPaid: sql`${invoices.totalAmount}`,
+									updatedAt: new Date(),
+								})
+								.where(eq(invoices.salesOrderId, salesOrderId));
+						}
+
+						await tenantDb
+							.update(salesOrders)
+							.set({ status: "completed", updatedAt: new Date() })
+							.where(eq(salesOrders.id, salesOrderId));
+
+						for (const pkg of pkgRows) {
+							if ((pkg.installmentsTotal ?? 1) > 1) {
+								// Activate; paymentStatus stays partially_paid (synced by
+								// confirmInstallmentPayment below).
+								await tenantDb
+									.update(packageInstances)
+									.set({ status: "active", updatedAt: new Date() })
+									.where(eq(packageInstances.id, pkg.id));
+
+								// Confirm installment #1 — the money for it just arrived.
+								// (recordPosSale skips the at-counter auto-confirm for
+								// online sales; this is its webhook-side counterpart.)
+								try {
+									const { confirmInstallmentPayment } = await import(
+										"@avantej-core/services"
+									);
+									// Include "overdue": installment #1 is due at purchase, so
+									// the lock evaluator may flag it before the payment lands.
+									const firstPending =
+										await tenantDb.query.installments.findFirst({
+											where: (
+												inst,
+												{ and: andFn, eq: eqFn, inArray: inArrayFn },
+											) =>
+												andFn(
+													eqFn(inst.packageInstanceId, pkg.id),
+													inArrayFn(inst.status, ["pending", "overdue"]),
+												),
+											orderBy: (inst, { asc: ascFn }) => [
+												ascFn(inst.installmentNumber),
+											],
+										});
+									if (firstPending) {
+										await confirmInstallmentPayment(tenantDb, {
+											installmentId: firstPending.id,
+											paymentMethod: "stripe",
+											confirmedBy: "system",
+											notes: `Stripe payment link — PI ${piObj.id}`,
+										});
+									}
+								} catch (instErr) {
+									// Best-effort — money is recorded on the payment row; a
+									// failed confirm is recoverable from the admin overview.
+									console.error(
+										`[connect webhook] installment #1 confirm failed for pkg=${pkg.id}:`,
+										instErr,
+									);
+								}
+							} else {
+								await tenantDb
+									.update(packageInstances)
+									.set({
+										paymentStatus: "paid",
+										status: "active",
+										updatedAt: new Date(),
+									})
+									.where(eq(packageInstances.id, pkg.id));
+							}
+						}
+
+						console.log(
+							`[connect webhook] sales_order succeeded so=${salesOrderId} pay=${paymentRowId} pi=${piObj.id}`,
+						);
+
+						// Phase 3 — Origination commission for Stripe-paid orders.
+						// Fired here (not at recordPosSale time) so unpaid online orders
+						// never pay origination. Idempotency: (sales_order_id, track_id, staff_id)
+						// unique index + 23505 skip ensures exactly one split per (order, track, staff).
+						try {
+							const { calculateOriginationCommission } = await import(
+								"@avantej-core/services"
+							);
+							// Load soldBy + leadSourceUserId from the order row to resolve attribution
+							const [orderRow] = await tenantDb
+								.select({
+									soldBy: salesOrders.soldBy,
+									leadSourceUserId: salesOrders.leadSourceUserId,
+								})
+								.from(salesOrders)
+								.where(eq(salesOrders.id, salesOrderId))
+								.limit(1);
+							if (orderRow && (orderRow.soldBy || orderRow.leadSourceUserId)) {
+								await calculateOriginationCommission(tenantDb, {
+									salesOrderId,
+									soldByUserId: orderRow.soldBy ?? null,
+									leadSourceUserId: orderRow.leadSourceUserId ?? null,
+									actor: {
+										userId: "system",
+										memberId: "system",
+										role: "system",
+									},
+								});
+							}
+						} catch (originationErr) {
+							// Best-effort — never let commission failure fail the webhook ack
+							console.error(
+								`[connect webhook] origination commission failed for so=${salesOrderId}:`,
+								originationErr,
+							);
+						}
+					} // end normal (non-replay, non-cancelled) processing
 				} else if (failed) {
 					const piObj = pi as Stripe.PaymentIntent;
 					const reason = piObj.last_payment_error?.message ?? "Payment failed";

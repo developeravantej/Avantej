@@ -764,6 +764,23 @@ export const paymentsRouterType = {
 			},
 		),
 
+	// POS online checkout — deactivate the link after a sale is cancelled
+	deactivateSalesOrderPaymentLink: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				salesOrderId: z.string().uuid(),
+			}),
+		)
+		.handler(
+			(): {
+				deactivated: boolean;
+				paymentLinkId?: string;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+
 	// POS online checkout (Plan B Phase 3c.1)
 	createSalesOrderPaymentLink: protectedProcedure
 		.input(

@@ -56,8 +56,8 @@ export function CancelSaleDialog({
 		CancellationReasonCategory | ""
 	>("");
 	const { mutate: cancelSale, isPending } = useApiMutation({
-		mutationFn: () =>
-			client.salesOrders.cancel({
+		mutationFn: async () => {
+			const result = await client.salesOrders.cancel({
 				organizationId,
 				id: orderId,
 				cancelledBy,
@@ -66,7 +66,20 @@ export function CancelSaleDialog({
 				cancellationReasonCategory: (reasonCategory || undefined) as
 					| CancellationReasonCategory
 					| undefined,
-			}),
+			});
+			// Online sale: kill the Stripe payment link so the customer can't pay a
+			// cancelled order. Best-effort — the webhook also guards cancelled
+			// orders, so a failure here can't resurrect the sale.
+			try {
+				await client.payments.deactivateSalesOrderPaymentLink({
+					organizationId,
+					salesOrderId: orderId,
+				});
+			} catch {
+				// no link / Stripe unreachable — ignore
+			}
+			return result;
+		},
 		successMessage: "Sale cancelled successfully",
 		errorMessage: (err) => err.message || "Failed to cancel sale",
 		// Broad-invalidate the sales list and cancelled-sales list via their real

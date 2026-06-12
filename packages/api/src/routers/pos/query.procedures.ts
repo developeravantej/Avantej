@@ -224,6 +224,7 @@ export const posQueryProcedures = {
 							startsAt: packageInstance.startsAt,
 							expiresAt: packageInstance.expiresAt,
 							status: packageInstance.status,
+							paymentStatus: packageInstance.paymentStatus,
 							paymentPlanType: packageInstance.paymentPlanType,
 							installmentsTotal: packageInstance.installmentsTotal,
 							installmentsPaid: packageInstance.installmentsPaid,

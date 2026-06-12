@@ -936,8 +936,12 @@ export async function recordPosSale(
 					}
 
 					// Auto-confirm installment #1: customer pays the first installment at the counter.
-					// F-INS-2: route through confirmInstallmentPayment so audit + completion fire
-					if (scheduleRows.length > 0) {
+					// F-INS-2: route through confirmInstallmentPayment so audit + completion fire.
+					// Online (Stripe) sales collect NOTHING at sale time — installment #1 is
+					// confirmed by the payment_intent.succeeded webhook once the payment-link
+					// charge (= first installment) actually lands. Confirming here would mark
+					// it paid and unlock credits before any money moved.
+					if (scheduleRows.length > 0 && input.paymentMethod !== "stripe") {
 						const first = scheduleRows[0]!;
 						const creditsAfterFirst = calculateCreditsUnlocked(
 							service.sessionCount!,
