@@ -14,6 +14,7 @@ import {
 	isNotNull,
 	or,
 	ilike,
+	lt,
 	lte,
 	gte,
 	inArray,
@@ -24,6 +25,7 @@ import { installments } from "@avantej-core/db/schema/tenant/installments";
 import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { services } from "@avantej-core/db/schema/tenant/services";
+import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
 import { user } from "@avantej-core/db/schema/auth";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
@@ -1762,6 +1764,183 @@ export async function getAdminInstallmentOverview(
 	const countRows = await tenantDb
 		.select({ count: sql<number>`count(*)::int` })
 		.from(packageInstances)
+		.where(where);
+	const total = countRows[0]?.count ?? 0;
+
+	return { items, total };
+}
+
+export type UpcomingInstallmentsParams = {
+	/** due_soon = pending, due within 14 days; overdue = past due; all = every outstanding installment */
+	window?: "due_soon" | "overdue" | "all";
+	branchId?: string;
+	search?: string;
+	limit?: number;
+	offset?: number;
+};
+
+export type UpcomingInstallmentRow = {
+	id: string;
+	installmentNumber: number;
+	amount: number;
+	taxAmount: number;
+	status: string;
+	dueDate: Date;
+	packageInstanceId: string;
+	branchId: string | null;
+	purchaseNumber: string | null;
+	installmentsTotal: number;
+	installmentsPaid: number;
+	isLocked: boolean;
+	clientId: string | null;
+	serviceId: string;
+	serviceName: string | null;
+	clientName: string | null;
+};
+
+/**
+ * List individual outstanding installments (one row per scheduled payment),
+ * joined to their package instance and originating sales order for branch scoping.
+ *
+ * Branch resolution: an installment's branch is its own sales_order link when present,
+ * falling back to the package instance's sales_order (legacy schedules created before 0051
+ * have neither and are excluded when a branchId filter is applied).
+ */
+export async function listUpcomingInstallments(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	params: UpcomingInstallmentsParams = {},
+	controlPanelDb?: ControlPanelDb,
+): Promise<{ items: UpcomingInstallmentRow[]; total: number }> {
+	const {
+		window = "due_soon",
+		branchId,
+		search,
+		limit = 50,
+		offset = 0,
+	} = params;
+
+	const now = new Date();
+	const conditions = [inArray(installments.status, ["pending", "overdue"])];
+
+	if (window === "due_soon") {
+		const in14d = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+		conditions.push(gte(installments.dueDate, now));
+		conditions.push(lte(installments.dueDate, in14d));
+	} else if (window === "overdue") {
+		conditions.push(lt(installments.dueDate, now));
+	}
+
+	if (branchId) {
+		conditions.push(eq(salesOrders.branchId, branchId));
+	}
+
+	// Same search semantics as getAdminInstallmentOverview: client display-name
+	// match via control panel, OR exact purchaseNumber; UUID-prefix fallback.
+	if (search) {
+		let searchUserIds: string[] | null = null;
+		if (controlPanelDb) {
+			const nameMatchRows = await controlPanelDb
+				.select({ id: user.id })
+				.from(user)
+				.where(ilike(user.name, `%${search}%`));
+			searchUserIds = nameMatchRows.map((r) => r.id);
+		}
+		if (searchUserIds !== null) {
+			if (searchUserIds.length > 0) {
+				// biome-ignore lint/style/noNonNullAssertion: or() with explicit args is never undefined
+				conditions.push(
+					or(
+						inArray(packageInstances.clientId, searchUserIds),
+						eq(packageInstances.purchaseNumber, search),
+					)!,
+				);
+			} else {
+				conditions.push(eq(packageInstances.purchaseNumber, search));
+			}
+		} else {
+			// biome-ignore lint/style/noNonNullAssertion: or() with explicit args is never undefined
+			conditions.push(
+				or(
+					ilike(packageInstances.clientId, `${search}%`),
+					eq(packageInstances.purchaseNumber, search),
+				)!,
+			);
+		}
+	}
+
+	const where = and(...conditions);
+	const salesOrderJoin = eq(
+		salesOrders.id,
+		sql`COALESCE(${installments.salesOrderId}, ${packageInstances.salesOrderId})`,
+	);
+
+	const rows = await tenantDb
+		.select({
+			id: installments.id,
+			installmentNumber: installments.installmentNumber,
+			amount: installments.amount,
+			taxAmount: installments.taxAmount,
+			status: installments.status,
+			dueDate: installments.dueDate,
+			packageInstanceId: installments.packageInstanceId,
+			branchId: salesOrders.branchId,
+			purchaseNumber: packageInstances.purchaseNumber,
+			installmentsTotal: packageInstances.installmentsTotal,
+			installmentsPaid: packageInstances.installmentsPaid,
+			isLocked: packageInstances.isLocked,
+			clientId: packageInstances.clientId,
+			serviceId: packageInstances.serviceId,
+		})
+		.from(installments)
+		.innerJoin(
+			packageInstances,
+			eq(packageInstances.id, installments.packageInstanceId),
+		)
+		.leftJoin(salesOrders, salesOrderJoin)
+		.where(where)
+		.orderBy(asc(installments.dueDate), asc(installments.installmentNumber))
+		.limit(Math.min(limit, 200))
+		.offset(offset);
+
+	const serviceIds = [...new Set(rows.map((r) => r.serviceId))];
+	const serviceRows =
+		serviceIds.length > 0
+			? await tenantDb.query.services.findMany({
+					where: (s, { inArray: inArr }) => inArr(s.id, serviceIds),
+				})
+			: [];
+	const serviceMap = new Map(serviceRows.map((s) => [s.id, s.name]));
+
+	let userMap = new Map<string, string>();
+	if (controlPanelDb && rows.length > 0) {
+		const clientIds = [
+			...new Set(
+				rows.map((r) => r.clientId).filter((id): id is string => id != null),
+			),
+		];
+		if (clientIds.length > 0) {
+			const userRows = await controlPanelDb
+				.select({ id: user.id, name: user.name })
+				.from(user)
+				.where(inArray(user.id, clientIds));
+			userMap = new Map(userRows.map((u) => [u.id, u.name]));
+		}
+	}
+
+	const items: UpcomingInstallmentRow[] = rows.map((row) => ({
+		...row,
+		serviceName: serviceMap.get(row.serviceId) ?? null,
+		clientName: row.clientId ? (userMap.get(row.clientId) ?? null) : null,
+	}));
+
+	const countRows = await tenantDb
+		.select({ count: sql<number>`count(*)::int` })
+		.from(installments)
+		.innerJoin(
+			packageInstances,
+			eq(packageInstances.id, installments.packageInstanceId),
+		)
+		.leftJoin(salesOrders, salesOrderJoin)
 		.where(where);
 	const total = countRows[0]?.count ?? 0;
 
