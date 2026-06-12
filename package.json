@@ -101,7 +101,7 @@
   "lint-staged": {
     "**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue,astro,svelte}": [
       "bun run check:oxlint --",
-      "biome format --write"
+      "biome format --write --no-errors-on-unmatched"
     ]
   },
   "packageManager": "bun@1.2.22"
