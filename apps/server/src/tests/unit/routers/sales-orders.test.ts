@@ -97,7 +97,7 @@ mock.module("@avantej-core/api/lib/cursor", () => ({
 	parseCursor: mock(() => null),
 }));
 
-import { salesOrdersRouter } from "@avantej-core/api/routers/sales-orders";
+import { salesOrdersRouter } from "@avantej-core/api/routers/sales-orders/index";
 
 // biome-ignore lint/suspicious/noExplicitAny: test helper
 function call(procedure: any, input: unknown, context: unknown) {
