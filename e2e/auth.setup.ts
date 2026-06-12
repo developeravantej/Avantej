@@ -7,8 +7,11 @@ const __dirname = path.dirname(__filename);
 
 const AUTH_FILE = path.join(__dirname, ".auth", "tenant-admin.json");
 
-const E2E_EMAIL = process.env.E2E_EMAIL ?? "franchisee@gmail.com";
-const E2E_PASSWORD = process.env.E2E_PASSWORD ?? "password123";
+// `||` (not `??`): in GitHub Actions an UNSET secret renders as an empty
+// string, which nullish coalescing happily accepts — CI then logs in with
+// blank credentials and every dependent spec dies at setup.
+const E2E_EMAIL = process.env.E2E_EMAIL || "franchisee@gmail.com";
+const E2E_PASSWORD = process.env.E2E_PASSWORD || "password123";
 
 setup("authenticate", async ({ page }) => {
 	await page.goto("/login");
