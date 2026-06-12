@@ -84,8 +84,14 @@ function buildCalendarEvent(appointment: AppointmentRow): CalendarEvent {
 		summary: `Appointment${appointment.bookingNumber ? ` #${appointment.bookingNumber}` : ""}`,
 		description: appointment.notes ?? undefined,
 		location: appointment.location ?? undefined,
-		start: { dateTime: appointment.startTime.toISOString(), timeZone: "Asia/Kuala_Lumpur" },
-		end: { dateTime: appointment.endTime.toISOString(), timeZone: "Asia/Kuala_Lumpur" },
+		start: {
+			dateTime: appointment.startTime.toISOString(),
+			timeZone: "Asia/Kuala_Lumpur",
+		},
+		end: {
+			dateTime: appointment.endTime.toISOString(),
+			timeZone: "Asia/Kuala_Lumpur",
+		},
 	};
 }
 
@@ -171,12 +177,13 @@ export async function syncAppointmentToGoogleCalendar(
 				await updateSyncStatus(tenantDb, conn.id, { lastSyncAt: new Date() });
 			} else if (action === "update") {
 				// Find existing mapping
-				const mapping = await tenantDb.query.googleCalendarEventMappings.findFirst({
-					where: and(
-						eq(googleCalendarEventMappings.appointmentId, appointment.id),
-						eq(googleCalendarEventMappings.connectionId, conn.id),
-					),
-				});
+				const mapping =
+					await tenantDb.query.googleCalendarEventMappings.findFirst({
+						where: and(
+							eq(googleCalendarEventMappings.appointmentId, appointment.id),
+							eq(googleCalendarEventMappings.connectionId, conn.id),
+						),
+					});
 
 				if (mapping) {
 					await updateCalendarEvent(
@@ -201,15 +208,20 @@ export async function syncAppointmentToGoogleCalendar(
 					await updateSyncStatus(tenantDb, conn.id, { lastSyncAt: new Date() });
 				}
 			} else if (action === "delete") {
-				const mapping = await tenantDb.query.googleCalendarEventMappings.findFirst({
-					where: and(
-						eq(googleCalendarEventMappings.appointmentId, appointment.id),
-						eq(googleCalendarEventMappings.connectionId, conn.id),
-					),
-				});
+				const mapping =
+					await tenantDb.query.googleCalendarEventMappings.findFirst({
+						where: and(
+							eq(googleCalendarEventMappings.appointmentId, appointment.id),
+							eq(googleCalendarEventMappings.connectionId, conn.id),
+						),
+					});
 
 				if (mapping) {
-					await deleteCalendarEvent(accessToken, conn.calendarId, mapping.googleEventId);
+					await deleteCalendarEvent(
+						accessToken,
+						conn.calendarId,
+						mapping.googleEventId,
+					);
 					await tenantDb
 						.delete(googleCalendarEventMappings)
 						.where(eq(googleCalendarEventMappings.id, mapping.id));

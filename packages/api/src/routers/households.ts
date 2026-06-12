@@ -13,7 +13,12 @@
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { households } from "@avantej-core/db/schema/tenant/households";
 import { members } from "@avantej-core/db/schema/tenant/members";
-import {requirePermissionOrpc, assertTenantContext, assertOrgContextMatch, guardBranchAccessible } from "../guards";
+import {
+	requirePermissionOrpc,
+	assertTenantContext,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../guards";
 import { ORPCError } from "@orpc/server";
 import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
@@ -35,10 +40,7 @@ function ensureCtx(context: {
 	}
 }
 
-async function checkPermission(
-	context: Context,
-	action: "read" | "update",
-) {
+async function checkPermission(context: Context, action: "read" | "update") {
 	if (!context.tenantDb || !context.member) {
 		throw new ORPCError("FORBIDDEN");
 	}
@@ -62,7 +64,7 @@ export const householdsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "update");
 
@@ -105,7 +107,7 @@ export const householdsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "update");
 
@@ -146,7 +148,7 @@ export const householdsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "update");
 
@@ -168,9 +170,7 @@ export const householdsRouter = {
 				const household = await db.query.households.findFirst({
 					where: eq(households.id, profile.householdId),
 				});
-				if (
-					household?.primaryContactProfileId === input.customerProfileId
-				) {
+				if (household?.primaryContactProfileId === input.customerProfileId) {
 					await db
 						.update(households)
 						.set({ primaryContactProfileId: null })
@@ -196,7 +196,7 @@ export const householdsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "read");
 
@@ -244,10 +244,10 @@ export const householdsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
 			ensureCtx(context);
 			await checkPermission(context, "read");
 
@@ -255,25 +255,24 @@ export const householdsRouter = {
 			const db = context.tenantDb as any;
 
 			const isAdmin = context.member.role === "admin";
-			const accessibleNodeIds = (context as any).accessibleNodeIds as string[] | null | undefined;
+			const accessibleNodeIds = (context as any).accessibleNodeIds as
+				| string[]
+				| null
+				| undefined;
 
 			// Determine the effective branch filter:
 			// - explicit branchId wins (used for drill-down UIs)
 			// - no branchId + admin → no scope restriction
 			// - no branchId + staff → restrict to accessibleNodeIds scope
-			const scopeNodeIds: string[] | null =
-				input.branchId
-					? [input.branchId]
-					: isAdmin
-						? null // null = unrestricted
-						: (accessibleNodeIds ?? []);
+			const scopeNodeIds: string[] | null = input.branchId
+				? [input.branchId]
+				: isAdmin
+					? null // null = unrestricted
+					: (accessibleNodeIds ?? []);
 
 			// If there is no scope restriction, return all households.
 			if (scopeNodeIds === null) {
-				return db
-					.select()
-					.from(households)
-					.orderBy(asc(households.name));
+				return db.select().from(households).orderBy(asc(households.name));
 			}
 
 			// Safe-guard: no accessible nodes means no households should be visible.

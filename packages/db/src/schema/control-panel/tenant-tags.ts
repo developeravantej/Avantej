@@ -9,7 +9,14 @@
  * deletion, mirroring tenant_notes / admin_session_actions semantics.
  */
 
-import { pgTable, uuid, text, timestamp, index, unique } from "drizzle-orm/pg-core";
+import {
+	pgTable,
+	uuid,
+	text,
+	timestamp,
+	index,
+	unique,
+} from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
 
 export const tenantTags = pgTable(

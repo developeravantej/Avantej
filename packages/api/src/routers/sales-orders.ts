@@ -4,9 +4,12 @@ import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import {
-
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../guards";
+import {
 	listSalesOrders,
 	getSalesOrderById,
 	createSalesOrder,
@@ -24,7 +27,12 @@ import { salesOrderItems } from "@avantej-core/db/schema/tenant-schema";
 import { getControlPanelDb } from "../lib/context-helpers";
 import { encodeCursor, parseCursor } from "../lib/cursor";
 
-const salesOrderStatusEnum = z.enum(["draft", "confirmed", "completed", "cancelled"]);
+const salesOrderStatusEnum = z.enum([
+	"draft",
+	"confirmed",
+	"completed",
+	"cancelled",
+]);
 const refundStatusEnum = z.enum(SALES_ORDER_REFUND_STATUSES);
 const cancellationReasonCategoryEnum = z.enum(CANCELLATION_REASON_CATEGORIES);
 
@@ -42,14 +50,19 @@ export const salesOrdersRouter = {
 				to: z.string().datetime().optional(),
 				limit: z.number().int().min(1).max(200).default(50),
 				offset: z.number().int().min(0).default(0),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
-			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"sales",
+				"read",
+			);
 
 			const result = await listSalesOrders(context.tenantDb, {
 				branchId: input.branchId,
@@ -66,16 +79,24 @@ export const salesOrdersRouter = {
 			if (result.rows.length === 0) return result;
 
 			// Batch-resolve createdBy IDs → display names
-			const createdByIds = [...new Set(result.rows.map((r) => r.createdBy).filter(Boolean))];
+			const createdByIds = [
+				...new Set(result.rows.map((r) => r.createdBy).filter(Boolean)),
+			];
 			const cpDb = getControlPanelDb(context);
 			const userRecords =
 				createdByIds.length > 0
 					? await cpDb
-							.select({ id: cpUsers.id, name: cpUsers.name, email: cpUsers.email })
+							.select({
+								id: cpUsers.id,
+								name: cpUsers.name,
+								email: cpUsers.email,
+							})
 							.from(cpUsers)
 							.where(inArray(cpUsers.id, createdByIds))
 					: [];
-			const nameMap = new Map(userRecords.map((u) => [u.id, u.name ?? u.email ?? "Unknown"]));
+			const nameMap = new Map(
+				userRecords.map((u) => [u.id, u.name ?? u.email ?? "Unknown"]),
+			);
 
 			// Fetch first line-item description per order
 			const orderIds = result.rows.map((r) => r.id);
@@ -108,11 +129,16 @@ export const salesOrdersRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"sales",
+				"read",
+			);
 
 			const order = await getSalesOrderById(context.tenantDb, input.id);
 			if (!order) {
@@ -151,12 +177,17 @@ export const salesOrdersRouter = {
 				status: salesOrderStatusEnum.optional(),
 				totalAmount: z.number().int(),
 				notes: z.string().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
-		guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "create");
+			assertOrgContextMatch(context, input);
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"sales",
+				"create",
+			);
 
 			return createSalesOrder(context.tenantDb, {
 				date: new Date(input.date),
@@ -181,11 +212,16 @@ export const salesOrdersRouter = {
 				status: salesOrderStatusEnum.optional(),
 				totalAmount: z.number().int().optional(),
 				notes: z.string().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "update");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"sales",
+				"update",
+			);
 
 			return updateSalesOrder(context.tenantDb, input.id, {
 				date: input.date ? new Date(input.date) : undefined,
@@ -206,11 +242,16 @@ export const salesOrdersRouter = {
 				reason: z.string().optional(),
 				refundAmount: z.number().int(),
 				cancellationReasonCategory: cancellationReasonCategoryEnum.optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "delete");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"sales",
+				"delete",
+			);
 
 			const actor = {
 				userId: context.session!.user.id,
@@ -241,16 +282,25 @@ export const salesOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"sales",
+				"read",
+			);
 
 			const limit = input.limit;
 			const parsedCursor = input.cursor ? parseCursor(input.cursor) : null;
 
-			const rawRows = await getSalesOrderStatusHistory(context.tenantDb, input.salesOrderId, {
-				parsedCursor,
-				limit,
-			});
+			const rawRows = await getSalesOrderStatusHistory(
+				context.tenantDb,
+				input.salesOrderId,
+				{
+					parsedCursor,
+					limit,
+				},
+			);
 
 			const hasMore = rawRows.length > limit;
 			const pageRows = hasMore ? rawRows.slice(0, limit) : rawRows;
@@ -259,13 +309,19 @@ export const salesOrdersRouter = {
 				hasMore && lastRow ? encodeCursor(lastRow.changedAt, lastRow.id) : null;
 
 			const userIds = [
-				...new Set(pageRows.map((r) => r.changedBy).filter((id) => id !== "system")),
+				...new Set(
+					pageRows.map((r) => r.changedBy).filter((id) => id !== "system"),
+				),
 			];
 			const cpDb = getControlPanelDb(context);
 			const userRecords =
 				userIds.length > 0
 					? await cpDb
-							.select({ id: cpUsers.id, name: cpUsers.name, email: cpUsers.email })
+							.select({
+								id: cpUsers.id,
+								name: cpUsers.name,
+								email: cpUsers.email,
+							})
 							.from(cpUsers)
 							.where(inArray(cpUsers.id, userIds))
 					: [];
@@ -276,7 +332,9 @@ export const salesOrdersRouter = {
 			const rows = pageRows.map(({ changedBy, ...rest }) => ({
 				...rest,
 				changedByName:
-					changedBy === "system" ? "System" : (nameMap.get(changedBy) ?? "Unknown User"),
+					changedBy === "system"
+						? "System"
+						: (nameMap.get(changedBy) ?? "Unknown User"),
 			}));
 
 			return { rows, nextCursor };
@@ -301,11 +359,16 @@ export const salesOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
-			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"sales",
+				"read",
+			);
 
 			// Resolve period: if new `period` param provided, use it.
 			// Otherwise fall back to legacy periodStart/periodEnd or default to "month".
@@ -315,8 +378,12 @@ export const salesOrdersRouter = {
 			} else if (input.periodStart || input.periodEnd) {
 				const now = new Date();
 				resolvedPeriod = {
-					from: input.periodStart ?? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)),
-					to: input.periodEnd ?? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)),
+					from:
+						input.periodStart ??
+						new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)),
+					to:
+						input.periodEnd ??
+						new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)),
 				};
 			} else {
 				resolvedPeriod = "month";
@@ -337,11 +404,16 @@ export const salesOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
-			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"sales",
+				"read",
+			);
 
 			return getLargestSaleToday(context.tenantDb, {
 				branchId: input.branchId,
@@ -363,11 +435,16 @@ export const salesOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
-			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"sales",
+				"read",
+			);
 
 			return getLatestCompletedSalesOrder(context.tenantDb, {
 				branchId: input.branchId,

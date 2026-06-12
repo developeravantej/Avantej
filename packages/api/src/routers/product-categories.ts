@@ -1,9 +1,8 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
-
 	listProductCategories,
 	getProductCategoryById,
 	createProductCategory,
@@ -17,15 +16,16 @@ export const productCategoriesRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				search: z.string().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"read",
+			);
 
 			return listProductCategories(context.tenantDb, { search: input.search });
 		}),
@@ -35,15 +35,16 @@ export const productCategoriesRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"read",
+			);
 
 			const category = await getProductCategoryById(context.tenantDb, input.id);
 			if (!category) {
@@ -61,15 +62,16 @@ export const productCategoriesRouter = {
 				name: z.string().min(1),
 				externalCode: z.string().optional(),
 				description: z.string().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "create")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"create",
+			);
 
 			return createProductCategory(context.tenantDb, {
 				name: input.name,
@@ -87,15 +89,16 @@ export const productCategoriesRouter = {
 				name: z.string().optional(),
 				externalCode: z.string().optional(),
 				description: z.string().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"update",
+			);
 
 			return updateProductCategory(context.tenantDb, input.id, {
 				name: input.name,
@@ -110,15 +113,16 @@ export const productCategoriesRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "delete")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"delete",
+			);
 
 			return deleteProductCategory(context.tenantDb, input.id);
 		}),

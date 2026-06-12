@@ -1,40 +1,40 @@
 {
-  "name": "@avantej-core/db",
-  "type": "module",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./src/index.ts"
-    },
-    "./*": {
-      "types": "./dist/*.d.ts",
-      "default": "./src/*.ts"
-    }
-  },
-  "scripts": {
-    "build": "tsdown",
-    "test": "bun test src",
-    "db:generate:control-panel": "drizzle-kit generate --config=drizzle.control-panel.config.ts",
-    "db:generate:tenant": "drizzle-kit generate --config=drizzle.tenant.config.ts",
-    "db:migrate:control-panel": "drizzle-kit migrate --config=drizzle.control-panel.config.ts",
-    "db:migrate:tenant": "drizzle-kit migrate --config=drizzle.tenant.config.ts",
-    "db:studio:control-panel": "drizzle-kit studio --config=drizzle.control-panel.config.ts",
-    "db:studio:tenant": "drizzle-kit studio --config=drizzle.tenant.config.ts",
-    "db:migrate-all-tenants": "bun src/scripts/migrate-all-tenants.ts"
-  },
-  "devDependencies": {
-    "drizzle-kit": "^0.31.2",
-    "@types/ws": "^8.18.1",
-    "tsdown": "catalog:"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  },
-  "dependencies": {
-    "drizzle-orm": "^0.44.2",
-    "@neondatabase/serverless": "^1.0.1",
-    "ws": "^8.18.3",
-    "dotenv": "catalog:",
-    "zod": "catalog:"
-  }
+	"name": "@avantej-core/db",
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./src/index.ts"
+		},
+		"./*": {
+			"types": "./dist/*.d.ts",
+			"default": "./src/*.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsdown",
+		"test": "bun test src",
+		"db:generate:control-panel": "drizzle-kit generate --config=drizzle.control-panel.config.ts",
+		"db:generate:tenant": "drizzle-kit generate --config=drizzle.tenant.config.ts",
+		"db:migrate:control-panel": "drizzle-kit migrate --config=drizzle.control-panel.config.ts",
+		"db:migrate:tenant": "drizzle-kit migrate --config=drizzle.tenant.config.ts",
+		"db:studio:control-panel": "drizzle-kit studio --config=drizzle.control-panel.config.ts",
+		"db:studio:tenant": "drizzle-kit studio --config=drizzle.tenant.config.ts",
+		"db:migrate-all-tenants": "bun src/scripts/migrate-all-tenants.ts"
+	},
+	"devDependencies": {
+		"drizzle-kit": "^0.31.2",
+		"@types/ws": "^8.18.1",
+		"tsdown": "catalog:"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"dependencies": {
+		"drizzle-orm": "^0.44.2",
+		"@neondatabase/serverless": "^1.0.1",
+		"ws": "^8.18.3",
+		"dotenv": "catalog:",
+		"zod": "catalog:"
+	}
 }

@@ -62,9 +62,7 @@ export async function getMembersNewToday(
 	const conditions = [gte(members.joinedAt, todayStart)];
 
 	// Hierarchy scope filter
-	const scopeIds = branchId
-		? [branchId]
-		: accessibleNodeIds;
+	const scopeIds = branchId ? [branchId] : accessibleNodeIds;
 
 	if (scopeIds.length > 0) {
 		conditions.push(inArray(members.hierarchyScopeId, scopeIds));

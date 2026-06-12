@@ -44,62 +44,64 @@ import { randomBytes } from "crypto";
  * @throws Error if invitation already exists or validation fails
  */
 export async function createInvitation(params: {
-  email: string;
-  role: string;
-  hierarchyScopeId: string;
-  invitedBy: string;
-  tenantDb: NeonDatabase<typeof tenantSchema>;
+	email: string;
+	role: string;
+	hierarchyScopeId: string;
+	invitedBy: string;
+	tenantDb: NeonDatabase<typeof tenantSchema>;
 }): Promise<typeof invitations.$inferSelect> {
-  const { email, role, hierarchyScopeId, invitedBy, tenantDb } = params;
+	const { email, role, hierarchyScopeId, invitedBy, tenantDb } = params;
 
-  // Validate email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    throw new Error("Invalid email address");
-  }
+	// Validate email format
+	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+	if (!emailRegex.test(email)) {
+		throw new Error("Invalid email address");
+	}
 
-  // Validate role
-  const validRoles = ["admin", "trainer", "staff", "client"];
-  if (!validRoles.includes(role)) {
-    throw new Error(`Invalid role. Must be one of: ${validRoles.join(", ")}`);
-  }
+	// Validate role
+	const validRoles = ["admin", "trainer", "staff", "client"];
+	if (!validRoles.includes(role)) {
+		throw new Error(`Invalid role. Must be one of: ${validRoles.join(", ")}`);
+	}
 
-  // Check for existing pending invitation
-  const existing = await tenantDb.query.invitations.findFirst({
-    where: and(
-      eq(invitations.email, email.toLowerCase()),
-      eq(invitations.status, "pending")
-    ),
-  });
+	// Check for existing pending invitation
+	const existing = await tenantDb.query.invitations.findFirst({
+		where: and(
+			eq(invitations.email, email.toLowerCase()),
+			eq(invitations.status, "pending"),
+		),
+	});
 
-  if (existing) {
-    throw new Error("A pending invitation already exists for this email address");
-  }
+	if (existing) {
+		throw new Error(
+			"A pending invitation already exists for this email address",
+		);
+	}
 
-  // Generate secure token (32 bytes = 64 hex characters)
-  const token = randomBytes(32).toString("hex");
+	// Generate secure token (32 bytes = 64 hex characters)
+	const token = randomBytes(32).toString("hex");
 
-  // Set expiration to 7 days from now
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+	// Set expiration to 7 days from now
+	const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-  // Create invitation
-  const [invitation] = await tenantDb
-    .insert(invitations)
-    .values({
-      email: email.toLowerCase(),
-      role,
-      hierarchyScopeId,
-      invitedBy,
-      token,
-      status: "pending",
-      expiresAt,
-    })
-    .returning();
+	// Create invitation
+	const [invitation] = await tenantDb
+		.insert(invitations)
+		.values({
+			email: email.toLowerCase(),
+			role,
+			hierarchyScopeId,
+			invitedBy,
+			token,
+			status: "pending",
+			expiresAt,
+		})
+		.returning();
 
-  if (!invitation) {
-    throw new Error("Failed to create invitation");
-  }
-  return invitation;
+	if (!invitation) {
+		throw new Error("Failed to create invitation");
+	}
+	return invitation;
 }
 
 /**
@@ -112,14 +114,14 @@ export async function createInvitation(params: {
  * @returns Invitation record or null if not found
  */
 export async function getInvitationByToken(
-  token: string,
-  tenantDb: NeonDatabase<typeof tenantSchema>
+	token: string,
+	tenantDb: NeonDatabase<typeof tenantSchema>,
 ): Promise<typeof invitations.$inferSelect | null> {
-  const invitation = await tenantDb.query.invitations.findFirst({
-    where: eq(invitations.token, token),
-  });
+	const invitation = await tenantDb.query.invitations.findFirst({
+		where: eq(invitations.token, token),
+	});
 
-  return invitation || null;
+	return invitation || null;
 }
 
 /**
@@ -130,26 +132,28 @@ export async function getInvitationByToken(
  * @param invitation - Invitation record
  * @returns Object with isValid flag and error message if invalid
  */
-export function validateInvitation(invitation: typeof invitations.$inferSelect | null): {
-  isValid: boolean;
-  error?: string;
+export function validateInvitation(
+	invitation: typeof invitations.$inferSelect | null,
+): {
+	isValid: boolean;
+	error?: string;
 } {
-  if (!invitation) {
-    return { isValid: false, error: "Invitation not found" };
-  }
+	if (!invitation) {
+		return { isValid: false, error: "Invitation not found" };
+	}
 
-  if (invitation.status !== "pending") {
-    return {
-      isValid: false,
-      error: `Invitation has already been ${invitation.status}`,
-    };
-  }
+	if (invitation.status !== "pending") {
+		return {
+			isValid: false,
+			error: `Invitation has already been ${invitation.status}`,
+		};
+	}
 
-  if (new Date() > invitation.expiresAt) {
-    return { isValid: false, error: "Invitation has expired" };
-  }
+	if (new Date() > invitation.expiresAt) {
+		return { isValid: false, error: "Invitation has expired" };
+	}
 
-  return { isValid: true };
+	return { isValid: true };
 }
 
 /**
@@ -165,35 +169,35 @@ export function validateInvitation(invitation: typeof invitations.$inferSelect |
  * @returns Array of invitation records
  */
 export async function listInvitations(params: {
-  tenantDb: NeonDatabase<typeof tenantSchema>;
-  status?: string;
-  email?: string;
-  invitedBy?: string;
+	tenantDb: NeonDatabase<typeof tenantSchema>;
+	status?: string;
+	email?: string;
+	invitedBy?: string;
 }): Promise<Array<typeof invitations.$inferSelect>> {
-  const { tenantDb, status, email, invitedBy } = params;
+	const { tenantDb, status, email, invitedBy } = params;
 
-  const conditions = [];
+	const conditions = [];
 
-  if (status) {
-    conditions.push(eq(invitations.status, status));
-  }
+	if (status) {
+		conditions.push(eq(invitations.status, status));
+	}
 
-  if (email) {
-    conditions.push(eq(invitations.email, email.toLowerCase()));
-  }
+	if (email) {
+		conditions.push(eq(invitations.email, email.toLowerCase()));
+	}
 
-  if (invitedBy) {
-    conditions.push(eq(invitations.invitedBy, invitedBy));
-  }
+	if (invitedBy) {
+		conditions.push(eq(invitations.invitedBy, invitedBy));
+	}
 
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const allInvitations = await tenantDb.query.invitations.findMany({
-    where: whereClause,
-    orderBy: (invitations, { desc }) => [desc(invitations.createdAt)],
-  });
+	const allInvitations = await tenantDb.query.invitations.findMany({
+		where: whereClause,
+		orderBy: (invitations, { desc }) => [desc(invitations.createdAt)],
+	});
 
-  return allInvitations;
+	return allInvitations;
 }
 
 /**
@@ -206,20 +210,20 @@ export async function listInvitations(params: {
  * @returns Updated invitation record
  */
 export async function revokeInvitation(
-  invitationId: string,
-  tenantDb: NeonDatabase<typeof tenantSchema>
+	invitationId: string,
+	tenantDb: NeonDatabase<typeof tenantSchema>,
 ): Promise<typeof invitations.$inferSelect> {
-  const [updated] = await tenantDb
-    .update(invitations)
-    .set({ status: "declined" })
-    .where(eq(invitations.id, invitationId))
-    .returning();
+	const [updated] = await tenantDb
+		.update(invitations)
+		.set({ status: "declined" })
+		.where(eq(invitations.id, invitationId))
+		.returning();
 
-  if (!updated) {
-    throw new Error("Invitation not found");
-  }
+	if (!updated) {
+		throw new Error("Invitation not found");
+	}
 
-  return updated;
+	return updated;
 }
 
 /** Invitation validity window (resend extends expiry by this amount). */
@@ -233,12 +237,14 @@ const RESEND_COOLDOWN_MS = 5 * 60 * 1000;
  * The handler maps this to a 429-style TOO_MANY_REQUESTS response.
  */
 export class InvitationResendCooldownError extends Error {
-  readonly retryAfterMs: number;
-  constructor(retryAfterMs: number) {
-    super("Invitation was resent too recently. Please wait before resending again.");
-    this.name = "InvitationResendCooldownError";
-    this.retryAfterMs = retryAfterMs;
-  }
+	readonly retryAfterMs: number;
+	constructor(retryAfterMs: number) {
+		super(
+			"Invitation was resent too recently. Please wait before resending again.",
+		);
+		this.name = "InvitationResendCooldownError";
+		this.retryAfterMs = retryAfterMs;
+	}
 }
 
 /**
@@ -253,25 +259,25 @@ export class InvitationResendCooldownError extends Error {
  * @returns Number of invitations revoked
  */
 export async function revokePendingInvitationsByEmail(
-  email: string,
-  tenantDb: NeonDatabase<typeof tenantSchema>
+	email: string,
+	tenantDb: NeonDatabase<typeof tenantSchema>,
 ): Promise<number> {
-  if (!email) {
-    return 0;
-  }
+	if (!email) {
+		return 0;
+	}
 
-  const result = await tenantDb
-    .update(invitations)
-    .set({ status: "declined" })
-    .where(
-      and(
-        eq(invitations.email, email.toLowerCase()),
-        eq(invitations.status, "pending")
-      )
-    )
-    .returning();
+	const result = await tenantDb
+		.update(invitations)
+		.set({ status: "declined" })
+		.where(
+			and(
+				eq(invitations.email, email.toLowerCase()),
+				eq(invitations.status, "pending"),
+			),
+		)
+		.returning();
 
-  return result.length;
+	return result.length;
 }
 
 /**
@@ -292,49 +298,49 @@ export async function revokePendingInvitationsByEmail(
  * @throws InvitationResendCooldownError if resent within the cooldown window
  */
 export async function resendInvitation(
-  invitationId: string,
-  tenantDb: NeonDatabase<typeof tenantSchema>
+	invitationId: string,
+	tenantDb: NeonDatabase<typeof tenantSchema>,
 ): Promise<typeof invitations.$inferSelect> {
-  const now = Date.now();
+	const now = Date.now();
 
-  const existing = await tenantDb.query.invitations.findFirst({
-    where: eq(invitations.id, invitationId),
-  });
+	const existing = await tenantDb.query.invitations.findFirst({
+		where: eq(invitations.id, invitationId),
+	});
 
-  if (!existing) {
-    throw new Error("Invitation not found");
-  }
+	if (!existing) {
+		throw new Error("Invitation not found");
+	}
 
-  // Derive the time of the last send from the current expiry. Only enforce the
-  // cooldown for still-pending invitations (expired ones should be resendable
-  // to revive them). The derived last-send is in the future relative to now
-  // only when the invitation is still within its TTL.
-  if (existing.status === "pending") {
-    const lastSentAt = existing.expiresAt.getTime() - INVITATION_TTL_MS;
-    const elapsed = now - lastSentAt;
-    if (elapsed >= 0 && elapsed < RESEND_COOLDOWN_MS) {
-      throw new InvitationResendCooldownError(RESEND_COOLDOWN_MS - elapsed);
-    }
-  }
+	// Derive the time of the last send from the current expiry. Only enforce the
+	// cooldown for still-pending invitations (expired ones should be resendable
+	// to revive them). The derived last-send is in the future relative to now
+	// only when the invitation is still within its TTL.
+	if (existing.status === "pending") {
+		const lastSentAt = existing.expiresAt.getTime() - INVITATION_TTL_MS;
+		const elapsed = now - lastSentAt;
+		if (elapsed >= 0 && elapsed < RESEND_COOLDOWN_MS) {
+			throw new InvitationResendCooldownError(RESEND_COOLDOWN_MS - elapsed);
+		}
+	}
 
-  // Extend expiration by 7 days from now
-  const newExpiresAt = new Date(now + INVITATION_TTL_MS);
+	// Extend expiration by 7 days from now
+	const newExpiresAt = new Date(now + INVITATION_TTL_MS);
 
-  const [updated] = await tenantDb
-    .update(invitations)
-    .set({
-      expiresAt: newExpiresAt,
-      // Reset status to pending if it was expired
-      status: "pending",
-    })
-    .where(eq(invitations.id, invitationId))
-    .returning();
+	const [updated] = await tenantDb
+		.update(invitations)
+		.set({
+			expiresAt: newExpiresAt,
+			// Reset status to pending if it was expired
+			status: "pending",
+		})
+		.where(eq(invitations.id, invitationId))
+		.returning();
 
-  if (!updated) {
-    throw new Error("Invitation not found");
-  }
+	if (!updated) {
+		throw new Error("Invitation not found");
+	}
 
-  return updated;
+	return updated;
 }
 
 /**
@@ -347,22 +353,19 @@ export async function resendInvitation(
  * @returns Number of invitations marked as expired
  */
 export async function markExpiredInvitations(
-  tenantDb: NeonDatabase<typeof tenantSchema>
+	tenantDb: NeonDatabase<typeof tenantSchema>,
 ): Promise<number> {
-  const now = new Date();
+	const now = new Date();
 
-  const result = await tenantDb
-    .update(invitations)
-    .set({ status: "expired" })
-    .where(
-      and(
-        eq(invitations.status, "pending"),
-        lt(invitations.expiresAt, now)
-      )
-    )
-    .returning();
+	const result = await tenantDb
+		.update(invitations)
+		.set({ status: "expired" })
+		.where(
+			and(eq(invitations.status, "pending"), lt(invitations.expiresAt, now)),
+		)
+		.returning();
 
-  return result.length;
+	return result.length;
 }
 
 /**
@@ -391,45 +394,41 @@ export async function markExpiredInvitations(
  * @param params.email          - Invitee email (case-insensitive)
  */
 export async function checkSoftDeletedCustomerBlock(params: {
-  tenantDb: NeonDatabase<typeof tenantSchema>;
-  controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
-  email: string;
+	tenantDb: NeonDatabase<typeof tenantSchema>;
+	controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+	email: string;
 }): Promise<
-  | { blocked: false }
-  | { blocked: true; userId: string; profileId: string }
+	{ blocked: false } | { blocked: true; userId: string; profileId: string }
 > {
-  const { tenantDb, controlPanelDb, email } = params;
-  const normalizedEmail = email.toLowerCase();
+	const { tenantDb, controlPanelDb, email } = params;
+	const normalizedEmail = email.toLowerCase();
 
-  // Step 1: Does a control-panel user with this email exist?
-  const existingUser = await controlPanelDb.query.user.findFirst({
-    where: eq(userTable.email, normalizedEmail),
-  });
+	// Step 1: Does a control-panel user with this email exist?
+	const existingUser = await controlPanelDb.query.user.findFirst({
+		where: eq(userTable.email, normalizedEmail),
+	});
 
-  if (!existingUser) {
-    return { blocked: false };
-  }
+	if (!existingUser) {
+		return { blocked: false };
+	}
 
-  // Step 2: Does this user have a client member record in this tenant?
-  const clientMember = await tenantDb.query.members.findFirst({
-    where: and(
-      eq(members.userId, existingUser.id),
-      eq(members.role, "client")
-    ),
-  });
+	// Step 2: Does this user have a client member record in this tenant?
+	const clientMember = await tenantDb.query.members.findFirst({
+		where: and(eq(members.userId, existingUser.id), eq(members.role, "client")),
+	});
 
-  if (!clientMember) {
-    return { blocked: false };
-  }
+	if (!clientMember) {
+		return { blocked: false };
+	}
 
-  // Step 3: Is their customer_profile soft-deleted?
-  const profile = await tenantDb.query.customerProfiles.findFirst({
-    where: eq(customerProfiles.userId, existingUser.id),
-  });
+	// Step 3: Is their customer_profile soft-deleted?
+	const profile = await tenantDb.query.customerProfiles.findFirst({
+		where: eq(customerProfiles.userId, existingUser.id),
+	});
 
-  if (profile && profile.isDeleted) {
-    return { blocked: true, userId: existingUser.id, profileId: profile.id };
-  }
+	if (profile && profile.isDeleted) {
+		return { blocked: true, userId: existingUser.id, profileId: profile.id };
+	}
 
-  return { blocked: false };
+	return { blocked: false };
 }

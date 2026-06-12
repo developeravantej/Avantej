@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
 	listTaxRates,
 	getTaxRateById,
@@ -21,14 +21,15 @@ export const taxRatesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			// Clients can read tax rates (needed during purchase preview); staff need tax_configuration:read.
 			if (context.member.role !== "client") {
-				await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "read");
+				await requirePermissionOrpc(
+					context.tenantDb,
+					context.member,
+					"tax_configuration",
+					"read",
+				);
 			}
 
 			return listTaxRates(context.tenantDb, {
@@ -45,14 +46,15 @@ export const taxRatesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			// Clients can read tax rates (needed during purchase preview); staff need tax_configuration:read.
 			if (context.member.role !== "client") {
-				await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "read");
+				await requirePermissionOrpc(
+					context.tenantDb,
+					context.member,
+					"tax_configuration",
+					"read",
+				);
 			}
 
 			const taxRate = await getTaxRateById(context.tenantDb, input.id);
@@ -71,13 +73,14 @@ export const taxRatesRouter = {
 			}),
 		)
 		.handler(async ({ context }) => {
-			
-
-			
-
 			// Clients can read tax rates (needed during purchase preview); staff need tax_configuration:read.
 			if (context.member.role !== "client") {
-				await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "read");
+				await requirePermissionOrpc(
+					context.tenantDb,
+					context.member,
+					"tax_configuration",
+					"read",
+				);
 			}
 
 			const taxRate = await getDefaultTaxRate(context.tenantDb);
@@ -99,12 +102,13 @@ export const taxRatesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "create");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"tax_configuration",
+				"create",
+			);
 
 			return createTaxRate(context.tenantDb, {
 				name: input.name,
@@ -135,12 +139,13 @@ export const taxRatesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "update");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"tax_configuration",
+				"update",
+			);
 
 			const result = await updateTaxRate(context.tenantDb, input.id, {
 				name: input.name,
@@ -172,12 +177,13 @@ export const taxRatesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "update");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"tax_configuration",
+				"update",
+			);
 
 			const actor = {
 				userId: context.session!.user.id,
@@ -196,12 +202,13 @@ export const taxRatesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "tax_configuration", "delete");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"tax_configuration",
+				"delete",
+			);
 
 			return deactivateTaxRate(context.tenantDb, input.id);
 		}),

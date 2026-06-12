@@ -36,20 +36,20 @@ const IV_LENGTH = 16; // 16 bytes for AES
  * Throws error if ENCRYPTION_KEY is not set or invalid
  */
 function getSecretKey(): Buffer {
-  const encryptionKey = process.env.ENCRYPTION_KEY;
+	const encryptionKey = process.env.ENCRYPTION_KEY;
 
-  if (!encryptionKey) {
-    throw new Error("ENCRYPTION_KEY environment variable is required");
-  }
+	if (!encryptionKey) {
+		throw new Error("ENCRYPTION_KEY environment variable is required");
+	}
 
-  // Validate hex format and length (64 hex chars = 32 bytes)
-  if (!/^[0-9a-f]{64}$/i.test(encryptionKey)) {
-    throw new Error(
-      "ENCRYPTION_KEY must be a 64-character hex string (32 bytes). Generate with: openssl rand -hex 32"
-    );
-  }
+	// Validate hex format and length (64 hex chars = 32 bytes)
+	if (!/^[0-9a-f]{64}$/i.test(encryptionKey)) {
+		throw new Error(
+			"ENCRYPTION_KEY must be a 64-character hex string (32 bytes). Generate with: openssl rand -hex 32",
+		);
+	}
 
-  return Buffer.from(encryptionKey, "hex");
+	return Buffer.from(encryptionKey, "hex");
 }
 
 /**
@@ -60,21 +60,21 @@ function getSecretKey(): Buffer {
  * @throws Error if ENCRYPTION_KEY is not set or invalid
  */
 export function encrypt(text: string): string {
-  if (!text) {
-    throw new Error("Cannot encrypt empty string");
-  }
+	if (!text) {
+		throw new Error("Cannot encrypt empty string");
+	}
 
-  const secretKey = getSecretKey();
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv(ALGORITHM, secretKey, iv);
+	const secretKey = getSecretKey();
+	const iv = crypto.randomBytes(IV_LENGTH);
+	const cipher = crypto.createCipheriv(ALGORITHM, secretKey, iv);
 
-  let encrypted = cipher.update(text, "utf8", "hex");
-  encrypted += cipher.final("hex");
+	let encrypted = cipher.update(text, "utf8", "hex");
+	encrypted += cipher.final("hex");
 
-  const authTag = cipher.getAuthTag().toString("hex");
+	const authTag = cipher.getAuthTag().toString("hex");
 
-  // Format: iv:authTag:encrypted
-  return `${iv.toString("hex")}:${authTag}:${encrypted}`;
+	// Format: iv:authTag:encrypted
+	return `${iv.toString("hex")}:${authTag}:${encrypted}`;
 }
 
 /**
@@ -85,42 +85,42 @@ export function encrypt(text: string): string {
  * @throws Error if decryption fails (invalid format, tampered data, or missing ENCRYPTION_KEY)
  */
 export function decrypt(encryptedText: string): string {
-  if (!encryptedText) {
-    throw new Error("Cannot decrypt empty string");
-  }
+	if (!encryptedText) {
+		throw new Error("Cannot decrypt empty string");
+	}
 
-  const secretKey = getSecretKey();
-  const parts = encryptedText.split(":");
+	const secretKey = getSecretKey();
+	const parts = encryptedText.split(":");
 
-  if (parts.length !== 3) {
-    throw new Error(
-      "Invalid encrypted format. Expected format: iv:authTag:encrypted"
-    );
-  }
+	if (parts.length !== 3) {
+		throw new Error(
+			"Invalid encrypted format. Expected format: iv:authTag:encrypted",
+		);
+	}
 
-  const [ivHex, authTagHex, encrypted] = parts;
+	const [ivHex, authTagHex, encrypted] = parts;
 
-  if (!ivHex || !authTagHex || !encrypted) {
-    throw new Error(
-      "Invalid encrypted format. All parts (iv, authTag, encrypted) must be present"
-    );
-  }
+	if (!ivHex || !authTagHex || !encrypted) {
+		throw new Error(
+			"Invalid encrypted format. All parts (iv, authTag, encrypted) must be present",
+		);
+	}
 
-  try {
-    const iv = Buffer.from(ivHex, "hex");
-    const authTag = Buffer.from(authTagHex, "hex");
-    const decipher = crypto.createDecipheriv(ALGORITHM, secretKey, iv);
+	try {
+		const iv = Buffer.from(ivHex, "hex");
+		const authTag = Buffer.from(authTagHex, "hex");
+		const decipher = crypto.createDecipheriv(ALGORITHM, secretKey, iv);
 
-    decipher.setAuthTag(authTag);
+		decipher.setAuthTag(authTag);
 
-    let decrypted = decipher.update(encrypted, "hex", "utf8");
-    decrypted += decipher.final("utf8");
+		let decrypted = decipher.update(encrypted, "hex", "utf8");
+		decrypted += decipher.final("utf8");
 
-    return decrypted;
-  } catch (error) {
-    if (error instanceof Error) {
-      throw new Error(`Decryption failed: ${error.message}`);
-    }
-    throw new Error("Decryption failed: Unknown error");
-  }
+		return decrypted;
+	} catch (error) {
+		if (error instanceof Error) {
+			throw new Error(`Decryption failed: ${error.message}`);
+		}
+		throw new Error("Decryption failed: Unknown error");
+	}
 }

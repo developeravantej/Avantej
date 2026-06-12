@@ -16,12 +16,7 @@
  * id (cross-database, no FK).
  */
 
-import {
-	pgTable,
-	text,
-	timestamp,
-	uuid,
-} from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const households = pgTable("households", {
 	id: uuid("id").primaryKey().defaultRandom(),

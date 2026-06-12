@@ -59,12 +59,10 @@ test("Customer directory lists customers and opens the Customer 360 detail", {
 		).toBeTruthy();
 		customerMemberId = first!.memberId;
 		customerName = first!.name;
-		test
-			.info()
-			.annotations.push({
-				type: "customer-count",
-				description: String(list.total),
-			});
+		test.info().annotations.push({
+			type: "customer-count",
+			description: String(list.total),
+		});
 	});
 
 	await test.step("Open the Customers directory page — heading + list render", async () => {

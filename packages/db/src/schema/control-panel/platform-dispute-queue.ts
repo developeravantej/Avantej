@@ -12,7 +12,14 @@
  *   3. Insert THIS row (platform admin queue)
  */
 
-import { pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
+import {
+	pgTable,
+	uuid,
+	text,
+	integer,
+	timestamp,
+	index,
+} from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
 
 export const platformDisputeQueue = pgTable(

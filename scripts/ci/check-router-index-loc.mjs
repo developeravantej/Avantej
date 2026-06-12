@@ -12,7 +12,7 @@ const lineCount = readFileSync(indexPath, "utf-8").split(/\r?\n/).length;
 if (lineCount > MAX_LINES) {
 	console.error(
 		`Router index LOC check failed: ${indexPath} has ${lineCount} lines (max ${MAX_LINES}).`,
-		);
+	);
 	console.error(
 		"Move wiring to base-router.ts or stubs to _types/ — run bun run gen:router-type-stubs if needed.",
 	);

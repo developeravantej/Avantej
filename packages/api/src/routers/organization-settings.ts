@@ -14,17 +14,33 @@ export const organizationSettingsRouter = {
 	get: tenantProcedure
 		.input(z.object({ organizationId: z.string().uuid(), key: z.string() }))
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
-						const value = await getSetting(context.tenantDb, input.key);
+			assertOrgContextMatch(context, input);
+			const value = await getSetting(context.tenantDb, input.key);
 			if (value === null) return null;
 			return { key: input.key, value };
 		}),
 
 	upsert: tenantProcedure
-		.input(z.object({ organizationId: z.string().uuid(), key: z.string(), value: z.string() }))
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				key: z.string(),
+				value: z.string(),
+			}),
+		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "organization_settings", "update");
-			return upsertSetting(context.tenantDb, input.key, input.value, context.member.userId);
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"organization_settings",
+				"update",
+			);
+			return upsertSetting(
+				context.tenantDb,
+				input.key,
+				input.value,
+				context.member.userId,
+			);
 		}),
 };

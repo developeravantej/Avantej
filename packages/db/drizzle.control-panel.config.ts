@@ -7,12 +7,12 @@ dotenv.config({
 
 /**
  * Drizzle Configuration for Control Panel Database
- * 
+ *
  * This config is used to generate and apply migrations for the control panel database,
  * which contains:
  * - Better-Auth tables (users, sessions, accounts, verifications)
  * - Control panel tables (subscriptions, organizations, organization_members, platform_admins, admin_sessions)
- * 
+ *
  * Usage:
  * - Generate migrations: bun run drizzle-kit generate --config=drizzle.control-panel.config.ts
  * - Apply migrations: bun run drizzle-kit push --config=drizzle.control-panel.config.ts
@@ -25,4 +25,3 @@ export default defineConfig({
 		url: process.env.DATABASE_URL || "",
 	},
 });
-

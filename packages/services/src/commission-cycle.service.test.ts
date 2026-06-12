@@ -52,7 +52,10 @@ describe("deriveCycleBounds — monthly_anchored", () => {
 	});
 
 	it("crosses year boundary when anchor cycle straddles December", () => {
-		const policyDec: CyclePolicy = { cycleType: "monthly_anchored", anchorDay: 22 };
+		const policyDec: CyclePolicy = {
+			cycleType: "monthly_anchored",
+			anchorDay: 22,
+		};
 		const earnedAt = new Date(Date.UTC(2027, 0, 10)); // Jan 10 2027 → cycle from Dec 22 2026
 		const { start, end } = deriveCycleBounds(policyDec, earnedAt);
 		expect(start.toISOString()).toBe("2026-12-22T00:00:00.000Z");

@@ -63,12 +63,10 @@ test.describe("Mission Control", () => {
 				{},
 			);
 			expect(ov.counts, "overview returns tenant counts").toBeTruthy();
-			test
-				.info()
-				.annotations.push({
-					type: "overview-counts",
-					description: JSON.stringify(ov.counts).slice(0, 160),
-				});
+			test.info().annotations.push({
+				type: "overview-counts",
+				description: JSON.stringify(ov.counts).slice(0, 160),
+			});
 		});
 	});
 });
@@ -128,12 +126,10 @@ test.describe("Tenants", () => {
 					walked++;
 				}
 			}
-			test
-				.info()
-				.annotations.push({
-					type: "tenant-detail-tabs-walked",
-					description: String(walked),
-				});
+			test.info().annotations.push({
+				type: "tenant-detail-tabs-walked",
+				description: String(walked),
+			});
 			// Tab-control names vary by build; the gate is that the detail page rendered cleanly.
 			await noErrorBoundary(page);
 		});
@@ -243,12 +239,10 @@ test.describe("Health & Comms", () => {
 				object,
 				{ rows?: unknown[]; total?: number }
 			>(page, "platformAdminComms", "listOutbox", { days: 90, limit: 50 });
-			test
-				.info()
-				.annotations.push({
-					type: "outbox",
-					description: String(outbox.total ?? outbox.rows?.length ?? 0),
-				});
+			test.info().annotations.push({
+				type: "outbox",
+				description: String(outbox.total ?? outbox.rows?.length ?? 0),
+			});
 			await noErrorBoundary(page);
 		});
 
@@ -325,12 +319,10 @@ test.describe("Webhooks & Migrations", () => {
 				{ kpis?: unknown; byEventType?: unknown[]; recent?: unknown[] }
 			>(page, "platformAdminWebhooks", "getOverview", {});
 			expect(ov.kpis, "overview returns kpis").toBeTruthy();
-			test
-				.info()
-				.annotations.push({
-					type: "webhook-kpis",
-					description: JSON.stringify(ov.kpis).slice(0, 160),
-				});
+			test.info().annotations.push({
+				type: "webhook-kpis",
+				description: JSON.stringify(ov.kpis).slice(0, 160),
+			});
 		});
 		await test.step("Query the event log for the last 30 days (listEvents)", async () => {
 			const ev = await orpcCall<object, { rows: unknown[]; total: number }>(
@@ -340,12 +332,10 @@ test.describe("Webhooks & Migrations", () => {
 				{ days: 30, limit: 50 },
 			);
 			expect(Array.isArray(ev.rows), "listEvents returns rows[]").toBe(true);
-			test
-				.info()
-				.annotations.push({
-					type: "webhook-events",
-					description: `total=${ev.total}`,
-				});
+			test.info().annotations.push({
+				type: "webhook-events",
+				description: `total=${ev.total}`,
+			});
 		});
 		await test.step("Open the Webhooks log page — table renders", async () => {
 			await page.goto(`${PA}/webhooks`);
@@ -372,12 +362,10 @@ test.describe("Webhooks & Migrations", () => {
 				"tenant migration journal is non-empty",
 			).toBe(true);
 			tag = res.journal[0]!.tag;
-			test
-				.info()
-				.annotations.push({
-					type: "migrations",
-					description: `${res.journal.length} entries; first=${tag}`,
-				});
+			test.info().annotations.push({
+				type: "migrations",
+				description: `${res.journal.length} entries; first=${tag}`,
+			});
 		});
 		await test.step("Open a migration file (getMigrationFile) — SQL content returned", async () => {
 			const f = await orpcCall<object, { sql: string; tag: string }>(
@@ -417,12 +405,10 @@ test.describe("Audit, Users & Admins", () => {
 				"action types exist",
 			).toBe(true);
 			actionType = res.actionTypes[0]!;
-			test
-				.info()
-				.annotations.push({
-					type: "action-types",
-					description: res.actionTypes.slice(0, 6).join(", "),
-				});
+			test.info().annotations.push({
+				type: "action-types",
+				description: res.actionTypes.slice(0, 6).join(", "),
+			});
 		});
 		await test.step("Filter the admin action log by that action type (listAdminActions)", async () => {
 			const res = await orpcCall<
@@ -434,12 +420,10 @@ test.describe("Audit, Users & Admins", () => {
 				res.actions.every((a) => a.actionType === actionType),
 				"every row matches the action-type filter",
 			).toBe(true);
-			test
-				.info()
-				.annotations.push({
-					type: "filtered-actions",
-					description: `${actionType} → total=${res.total}`,
-				});
+			test.info().annotations.push({
+				type: "filtered-actions",
+				description: `${actionType} → total=${res.total}`,
+			});
 		});
 		await test.step("Open the Audit log page — renders", async () => {
 			await page.goto(`${PA}/audit`);
@@ -465,12 +449,10 @@ test.describe("Audit, Users & Admins", () => {
 			await expect(rows.first()).toBeVisible({ timeout: 20_000 });
 			await noErrorBoundary(page);
 			const total = await rows.count();
-			test
-				.info()
-				.annotations.push({
-					type: "directory",
-					description: `loaded ${total} user row(s)`,
-				});
+			test.info().annotations.push({
+				type: "directory",
+				description: `loaded ${total} user row(s)`,
+			});
 		});
 
 		await test.step("Type 'gmail' into the search box — directory filters live", async () => {
@@ -483,12 +465,10 @@ test.describe("Audit, Users & Admins", () => {
 				timeout: 20_000,
 			});
 			const n = await rows.count();
-			test
-				.info()
-				.annotations.push({
-					type: "user-search",
-					description: `"gmail" → ${n} row(s)`,
-				});
+			test.info().annotations.push({
+				type: "user-search",
+				description: `"gmail" → ${n} row(s)`,
+			});
 			await page.waitForTimeout(600);
 		});
 
@@ -560,12 +540,10 @@ test.describe("Audit, Users & Admins", () => {
 				).toBeVisible({ timeout: 20_000 });
 				await expect(roster.first()).toBeVisible({ timeout: 20_000 });
 				const baseline = await roster.count();
-				test
-					.info()
-					.annotations.push({
-						type: "baseline-admins",
-						description: `${baseline} row(s)`,
-					});
+				test.info().annotations.push({
+					type: "baseline-admins",
+					description: `${baseline} row(s)`,
+				});
 				await noErrorBoundary(page);
 				await page.waitForTimeout(400);
 			});
@@ -657,12 +635,10 @@ test.describe("Identity & Impersonation", () => {
 				status.isImpersonating,
 				"caller is not impersonating at start",
 			).toBe(false);
-			test
-				.info()
-				.annotations.push({
-					type: "identity",
-					description: `role=${me.role ?? "?"} · impersonating=${status.isImpersonating}`,
-				});
+			test.info().annotations.push({
+				type: "identity",
+				description: `role=${me.role ?? "?"} · impersonating=${status.isImpersonating}`,
+			});
 		});
 
 		await test.step("Pick an impersonatable (non-admin) tenant user", async () => {
@@ -686,12 +662,10 @@ test.describe("Identity & Impersonation", () => {
 			}
 			expect(target, "a non-admin user must exist to impersonate").toBeTruthy();
 			targetEmail = target!.email;
-			test
-				.info()
-				.annotations.push({
-					type: "impersonate-target",
-					description: targetEmail,
-				});
+			test.info().annotations.push({
+				type: "impersonate-target",
+				description: targetEmail,
+			});
 		});
 
 		const banner = page.getByText(/^Impersonating/i);

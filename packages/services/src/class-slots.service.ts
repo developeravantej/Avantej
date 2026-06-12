@@ -105,10 +105,7 @@ export async function listClassSlots(
 			pricePerSpotCents: sql<number>`COALESCE(MAX(${services.price}), 0)::int`,
 		})
 		.from(classSlots)
-		.leftJoin(
-			waitlistEntries,
-			eq(waitlistEntries.classSlotId, classSlots.id),
-		)
+		.leftJoin(waitlistEntries, eq(waitlistEntries.classSlotId, classSlots.id))
 		.leftJoin(services, eq(services.id, classSlots.serviceId))
 		.where(conditions.length > 0 ? and(...conditions) : undefined)
 		.groupBy(classSlots.id)
@@ -119,10 +116,7 @@ export async function listClassSlots(
 	return rows;
 }
 
-export async function getClassSlotById(
-	tenantDb: TenantDb,
-	id: string,
-) {
+export async function getClassSlotById(tenantDb: TenantDb, id: string) {
 	const row = await tenantDb.query.classSlots.findFirst({
 		where: eq(classSlots.id, id),
 	});
@@ -164,7 +158,12 @@ export async function updateClassSlot(
 	data: Partial<
 		Pick<
 			CreateClassSlotParams,
-			"date" | "startTime" | "endTime" | "capacity" | "instructorId" | "location"
+			| "date"
+			| "startTime"
+			| "endTime"
+			| "capacity"
+			| "instructorId"
+			| "location"
 		>
 	>,
 ) {
@@ -188,7 +187,9 @@ export async function updateClassSlot(
 				...(data.date !== undefined && { date: data.date }),
 				...(data.startTime !== undefined && { startTime: data.startTime }),
 				...(data.endTime !== undefined && { endTime: data.endTime }),
-				...(data.instructorId !== undefined && { instructorId: data.instructorId }),
+				...(data.instructorId !== undefined && {
+					instructorId: data.instructorId,
+				}),
 				...(data.location !== undefined && { location: data.location }),
 				capacity: newCapacity,
 				spotsAvailable: newSpotsAvailable,
@@ -211,7 +212,9 @@ export async function updateClassSlot(
 			...(data.date !== undefined && { date: data.date }),
 			...(data.startTime !== undefined && { startTime: data.startTime }),
 			...(data.endTime !== undefined && { endTime: data.endTime }),
-			...(data.instructorId !== undefined && { instructorId: data.instructorId }),
+			...(data.instructorId !== undefined && {
+				instructorId: data.instructorId,
+			}),
 			...(data.location !== undefined && { location: data.location }),
 			updatedAt: new Date(),
 		})
@@ -308,10 +311,7 @@ export async function cancelClassSlot(
 	});
 }
 
-export async function incrementBooking(
-	tenantDb: TenantDb,
-	id: string,
-) {
+export async function incrementBooking(tenantDb: TenantDb, id: string) {
 	// Atomic check-and-increment: the conditional WHERE guarantees we only
 	// claim a spot when the slot is live and still below capacity. Two
 	// concurrent bookings can no longer both read a stale count and over-fill —
@@ -347,10 +347,7 @@ export async function incrementBooking(
 	return updated;
 }
 
-export async function decrementBooking(
-	tenantDb: TenantDb,
-	id: string,
-) {
+export async function decrementBooking(tenantDb: TenantDb, id: string) {
 	const slot = await tenantDb.query.classSlots.findFirst({
 		where: eq(classSlots.id, id),
 	});

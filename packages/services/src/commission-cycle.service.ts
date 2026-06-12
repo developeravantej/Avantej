@@ -93,7 +93,10 @@ export async function resolveCyclePolicy(
  * the timezone the operator configured" — at this layer we assume UTC; future work
  * could plumb a tenant timezone if needed.
  */
-export function deriveCycleBounds(policy: CyclePolicy, earnedAt: Date): CycleBounds {
+export function deriveCycleBounds(
+	policy: CyclePolicy,
+	earnedAt: Date,
+): CycleBounds {
 	const d = earnedAt;
 	const y = d.getUTCFullYear();
 	const m = d.getUTCMonth();

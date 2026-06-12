@@ -12,13 +12,7 @@
  * constraint due to cross-database; application layer enforces integrity.
  */
 
-import {
-	index,
-	pgTable,
-	text,
-	timestamp,
-	uuid,
-} from "drizzle-orm/pg-core";
+import { index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const accountGroups = pgTable(
 	"account_groups",

@@ -92,7 +92,10 @@ export async function createTrainerTier(
 		);
 	}
 
-	const missingRateCategories = await getConfigsMissingRateForTier(tenantDb, tier.id);
+	const missingRateCategories = await getConfigsMissingRateForTier(
+		tenantDb,
+		tier.id,
+	);
 
 	return { tier, missingRateCategories };
 }
@@ -105,13 +108,23 @@ export async function updateTrainerTier(
 		description,
 		rank,
 		isActive,
-	}: { name?: string; description?: string | null; rank?: number; isActive?: boolean },
+	}: {
+		name?: string;
+		description?: string | null;
+		rank?: number;
+		isActive?: boolean;
+	},
 ): Promise<typeof trainerTiers.$inferSelect> {
 	if (name !== undefined) {
 		const existing = await tenantDb
 			.select({ id: trainerTiers.id })
 			.from(trainerTiers)
-			.where(and(sql`LOWER(${trainerTiers.name}) = LOWER(${name})`, ne(trainerTiers.id, id)))
+			.where(
+				and(
+					sql`LOWER(${trainerTiers.name}) = LOWER(${name})`,
+					ne(trainerTiers.id, id),
+				),
+			)
 			.limit(1);
 
 		if (existing.length > 0) {
@@ -189,7 +202,10 @@ export async function reactivateTrainerTier(
 		throw new Error("Trainer tier not found");
 	}
 
-	const missingRateCategories = await getConfigsMissingRateForTier(tenantDb, id);
+	const missingRateCategories = await getConfigsMissingRateForTier(
+		tenantDb,
+		id,
+	);
 
 	return { tier, missingRateCategories };
 }

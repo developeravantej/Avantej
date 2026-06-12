@@ -168,10 +168,9 @@ async function checkFkReferences(
 	const conflicts: FkConflict[] = [];
 	for (const target of HIERARCHY_FK_TARGETS) {
 		// Some tables may not exist on every tenant; guard with to_regclass.
-		const exists = await client.query(
-			"SELECT to_regclass($1) AS reg",
-			[target.table],
-		);
+		const exists = await client.query("SELECT to_regclass($1) AS reg", [
+			target.table,
+		]);
 		if (!exists.rows[0]?.reg) continue;
 
 		const res = await client.query(

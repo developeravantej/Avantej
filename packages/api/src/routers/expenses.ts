@@ -1,7 +1,11 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../guards";
 import {
 	listExpenses,
 	getExpenseById,
@@ -25,15 +29,16 @@ const list = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
 		if (input.branchId) {
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 		}
-		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "read");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"expense_management",
+			"read",
+		);
 
 		return listExpenses(context.tenantDb, {
 			branchId: input.branchId,
@@ -55,12 +60,13 @@ const getById = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "read");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"expense_management",
+			"read",
+		);
 
 		const expense = await getExpenseById(context.tenantDb, input.id);
 		if (!expense) {
@@ -90,15 +96,16 @@ const create = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
 		if (input.branchId) {
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 		}
-		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "create");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"expense_management",
+			"create",
+		);
 
 		return createExpense(context.tenantDb, {
 			branchId: input.branchId,
@@ -119,17 +126,20 @@ const approve = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "update");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"expense_management",
+			"update",
+		);
 
 		// CPR-03: load expense first to enforce separation-of-duties
 		const expense = await getExpenseById(context.tenantDb, input.id);
 		if (!expense) {
-			throw new ORPCError("NOT_FOUND", { message: `Expense not found: ${input.id}` });
+			throw new ORPCError("NOT_FOUND", {
+				message: `Expense not found: ${input.id}`,
+			});
 		}
 		if (expense.submittedBy === context.member.userId) {
 			throw new ORPCError("FORBIDDEN", {
@@ -159,12 +169,13 @@ const reject = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "update");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"expense_management",
+			"update",
+		);
 
 		try {
 			return await rejectExpense(
@@ -189,17 +200,20 @@ const markPaid = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "expense_management", "update");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"expense_management",
+			"update",
+		);
 
 		// CPR-03: enforce separation-of-duties — submitter cannot mark own expense paid
 		const expenseForPay = await getExpenseById(context.tenantDb, input.id);
 		if (!expenseForPay) {
-			throw new ORPCError("NOT_FOUND", { message: `Expense not found: ${input.id}` });
+			throw new ORPCError("NOT_FOUND", {
+				message: `Expense not found: ${input.id}`,
+			});
 		}
 		if (expenseForPay.submittedBy === context.member.userId) {
 			throw new ORPCError("FORBIDDEN", {
@@ -222,4 +236,11 @@ const markPaid = tenantProcedure
 		}
 	});
 
-export const expensesRouter = { list, getById, create, approve, reject, markPaid };
+export const expensesRouter = {
+	list,
+	getById,
+	create,
+	approve,
+	reject,
+	markPaid,
+};

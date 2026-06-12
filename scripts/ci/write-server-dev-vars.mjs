@@ -11,8 +11,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const outPath = join(__dirname, "../../apps/server/.dev.vars");
 
 const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3021";
-const serverUrl =
-	process.env.PLAYWRIGHT_SERVER_URL ?? "http://localhost:3020";
+const serverUrl = process.env.PLAYWRIGHT_SERVER_URL ?? "http://localhost:3020";
 
 /** @type {Record<string, string | undefined>} */
 const mapping = {

@@ -1,16 +1,13 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import {
- convertWalkInPaymentToPackage } from "@avantej-core/services";
+import { convertWalkInPaymentToPackage } from "@avantej-core/services";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 
 const deprecated = (message: string) =>
-	tenantProcedure
-		.input(z.any().optional())
-		.handler(() => {
-			throw new ORPCError("BAD_REQUEST", { message });
-		});
+	tenantProcedure.input(z.any().optional()).handler(() => {
+		throw new ORPCError("BAD_REQUEST", { message });
+	});
 
 export const walkInCustomersRouter = {
 	list: deprecated(
@@ -39,8 +36,13 @@ export const walkInCustomersRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "walk_in_customer_management", "update");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"walk_in_customer_management",
+				"update",
+			);
 			const result = await convertWalkInPaymentToPackage(context.tenantDb, {
 				walkInPaymentId: input.walkInPaymentId,
 				targetPackageInstanceId: input.targetPackageInstanceId,

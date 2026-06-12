@@ -14,7 +14,7 @@
  */
 
 import { tenantProcedure } from "../../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
@@ -47,8 +47,14 @@ export const serviceMembersBufferProcedures = {
 				})
 				.from(serviceMembers)
 				.innerJoin(services, eq(serviceMembers.serviceId, services.id))
-				.leftJoin(serviceCategories, eq(services.categoryId, serviceCategories.id))
-				.leftJoin(serviceCategoryConfig, eq(services.categoryId, serviceCategoryConfig.categoryId))
+				.leftJoin(
+					serviceCategories,
+					eq(services.categoryId, serviceCategories.id),
+				)
+				.leftJoin(
+					serviceCategoryConfig,
+					eq(services.categoryId, serviceCategoryConfig.categoryId),
+				)
 				.where(eq(serviceMembers.memberId, context.member.id));
 
 			// Get all service-level overrides for this member
@@ -57,7 +63,9 @@ export const serviceMembersBufferProcedures = {
 				.from(memberServiceBufferOverrides)
 				.where(eq(memberServiceBufferOverrides.memberId, context.member.id));
 
-			const overrideMap = new Map(overrides.map((o: any) => [o.serviceId, o.bufferTimeMinutes]));
+			const overrideMap = new Map(
+				overrides.map((o: any) => [o.serviceId, o.bufferTimeMinutes]),
+			);
 
 			return serviceRows.map((r: any) => ({
 				serviceId: r.serviceId,
@@ -80,10 +88,10 @@ export const serviceMembersBufferProcedures = {
 				organizationId: z.string().uuid(),
 				serviceId: z.string().uuid(),
 				bufferTimeMinutes: z.number().int().min(0).max(480).nullable(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("FORBIDDEN");
 			}
@@ -95,8 +103,8 @@ export const serviceMembersBufferProcedures = {
 				.where(
 					and(
 						eq(serviceMembers.memberId, context.member.id),
-						eq(serviceMembers.serviceId, input.serviceId)
-					)
+						eq(serviceMembers.serviceId, input.serviceId),
+					),
 				)
 				.limit(1);
 
@@ -113,8 +121,8 @@ export const serviceMembersBufferProcedures = {
 					.where(
 						and(
 							eq(memberServiceBufferOverrides.memberId, context.member.id),
-							eq(memberServiceBufferOverrides.serviceId, input.serviceId)
-						)
+							eq(memberServiceBufferOverrides.serviceId, input.serviceId),
+						),
 					);
 				return { serviceId: input.serviceId, bufferTimeMinutes: null };
 			}
@@ -129,7 +137,10 @@ export const serviceMembersBufferProcedures = {
 					updatedAt: new Date(),
 				})
 				.onConflictDoUpdate({
-					target: [memberServiceBufferOverrides.memberId, memberServiceBufferOverrides.serviceId],
+					target: [
+						memberServiceBufferOverrides.memberId,
+						memberServiceBufferOverrides.serviceId,
+					],
 					set: {
 						bufferTimeMinutes: input.bufferTimeMinutes,
 						updatedAt: new Date(),
@@ -138,7 +149,10 @@ export const serviceMembersBufferProcedures = {
 				.returning();
 
 			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-			return { serviceId: input.serviceId, bufferTimeMinutes: result!.bufferTimeMinutes };
+			return {
+				serviceId: input.serviceId,
+				bufferTimeMinutes: result!.bufferTimeMinutes,
+			};
 		}),
 
 	/**
@@ -150,7 +164,7 @@ export const serviceMembersBufferProcedures = {
 			z.object({
 				organizationId: z.string().uuid(),
 				memberId: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
 			assertOrgContextMatch(context, input);
@@ -159,16 +173,27 @@ export const serviceMembersBufferProcedures = {
 			}
 
 			let hasPermission = false;
-			for (const resource of ["user_management", "service_management"] as const) {
+			for (const resource of [
+				"user_management",
+				"service_management",
+			] as const) {
 				try {
-					await requirePermissionOrpc(context.tenantDb, context.member, resource, "read");
+					await requirePermissionOrpc(
+						context.tenantDb,
+						context.member,
+						resource,
+						"read",
+					);
 					hasPermission = true;
 					break;
-				} catch { /* try next */ }
+				} catch {
+					/* try next */
+				}
 			}
 			if (!hasPermission) {
 				throw new ORPCError("FORBIDDEN", {
-					message: "Requires user_management or service_management read permission.",
+					message:
+						"Requires user_management or service_management read permission.",
 				});
 			}
 
@@ -182,8 +207,14 @@ export const serviceMembersBufferProcedures = {
 				})
 				.from(serviceMembers)
 				.innerJoin(services, eq(serviceMembers.serviceId, services.id))
-				.leftJoin(serviceCategories, eq(services.categoryId, serviceCategories.id))
-				.leftJoin(serviceCategoryConfig, eq(services.categoryId, serviceCategoryConfig.categoryId))
+				.leftJoin(
+					serviceCategories,
+					eq(services.categoryId, serviceCategories.id),
+				)
+				.leftJoin(
+					serviceCategoryConfig,
+					eq(services.categoryId, serviceCategoryConfig.categoryId),
+				)
 				.where(eq(serviceMembers.memberId, input.memberId));
 
 			const overrides = await context.tenantDb
@@ -217,7 +248,7 @@ export const serviceMembersBufferProcedures = {
 				memberId: z.string().uuid(),
 				serviceId: z.string().uuid(),
 				bufferTimeMinutes: z.number().int().min(0).max(480).nullable(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
 			assertOrgContextMatch(context, input);
@@ -226,16 +257,27 @@ export const serviceMembersBufferProcedures = {
 			}
 
 			let hasPermission = false;
-			for (const resource of ["user_management", "service_management"] as const) {
+			for (const resource of [
+				"user_management",
+				"service_management",
+			] as const) {
 				try {
-					await requirePermissionOrpc(context.tenantDb, context.member, resource, "update");
+					await requirePermissionOrpc(
+						context.tenantDb,
+						context.member,
+						resource,
+						"update",
+					);
 					hasPermission = true;
 					break;
-				} catch { /* try next */ }
+				} catch {
+					/* try next */
+				}
 			}
 			if (!hasPermission) {
 				throw new ORPCError("FORBIDDEN", {
-					message: "Requires user_management or service_management update permission.",
+					message:
+						"Requires user_management or service_management update permission.",
 				});
 			}
 
@@ -246,8 +288,8 @@ export const serviceMembersBufferProcedures = {
 				.where(
 					and(
 						eq(serviceMembers.memberId, input.memberId),
-						eq(serviceMembers.serviceId, input.serviceId)
-					)
+						eq(serviceMembers.serviceId, input.serviceId),
+					),
 				)
 				.limit(1);
 
@@ -263,8 +305,8 @@ export const serviceMembersBufferProcedures = {
 					.where(
 						and(
 							eq(memberServiceBufferOverrides.memberId, input.memberId),
-							eq(memberServiceBufferOverrides.serviceId, input.serviceId)
-						)
+							eq(memberServiceBufferOverrides.serviceId, input.serviceId),
+						),
 					);
 				return { serviceId: input.serviceId, bufferTimeMinutes: null };
 			}
@@ -278,7 +320,10 @@ export const serviceMembersBufferProcedures = {
 					updatedAt: new Date(),
 				})
 				.onConflictDoUpdate({
-					target: [memberServiceBufferOverrides.memberId, memberServiceBufferOverrides.serviceId],
+					target: [
+						memberServiceBufferOverrides.memberId,
+						memberServiceBufferOverrides.serviceId,
+					],
 					set: {
 						bufferTimeMinutes: input.bufferTimeMinutes,
 						updatedAt: new Date(),
@@ -287,6 +332,9 @@ export const serviceMembersBufferProcedures = {
 				.returning();
 
 			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-			return { serviceId: input.serviceId, bufferTimeMinutes: result!.bufferTimeMinutes };
-		})
+			return {
+				serviceId: input.serviceId,
+				bufferTimeMinutes: result!.bufferTimeMinutes,
+			};
+		}),
 };

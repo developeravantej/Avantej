@@ -71,7 +71,9 @@ describe("posRouter.recordSale", () => {
 			accessibleNodeIds: [BRANCH_ID],
 		});
 
-		const result = await call(posRouter.recordSale, validInput, { context: ctx });
+		const result = await call(posRouter.recordSale, validInput, {
+			context: ctx,
+		});
 		expect(result).toMatchObject({ salesOrderId: "so-1" });
 		expect(mockRecordPosSale).toHaveBeenCalledTimes(1);
 	});

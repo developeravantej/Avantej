@@ -65,7 +65,9 @@ const defaultMember = {
  * All fields default to sane stubs; pass `overrides` for the specific shape
  * your procedure needs.
  */
-export function createMockContext(overrides: MockContextOverrides = {}): Context {
+export function createMockContext(
+	overrides: MockContextOverrides = {},
+): Context {
 	const honoBindings: Record<string, unknown> = {
 		...(overrides.honoBindings ?? {}),
 	};
@@ -79,7 +81,8 @@ export function createMockContext(overrides: MockContextOverrides = {}): Context
 	} as Any;
 
 	return {
-		session: overrides.session === undefined ? defaultSession : overrides.session,
+		session:
+			overrides.session === undefined ? defaultSession : overrides.session,
 		organizationId:
 			overrides.organizationId === undefined
 				? "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"

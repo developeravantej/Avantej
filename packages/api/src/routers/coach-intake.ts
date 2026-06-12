@@ -4,14 +4,17 @@ import {
 	listCoachIntakeByBranch,
 	listCoachIntakeSlots,
 	listIntakeExceptions,
-
 	unclaimIntakeSlot,
 	upsertCoachIntakeSlots,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 const dayOfWeekSchema = z.enum([
@@ -34,8 +37,7 @@ export const coachIntakeRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			return listCoachIntakeSlots(context.tenantDb, input.trainerId);
 		}),
 
@@ -48,14 +50,16 @@ export const coachIntakeRouter = {
 				slots: z.array(
 					z.object({
 						dayOfWeek: dayOfWeekSchema,
-						startTime: z.string().regex(/^\d{2}:\d{2}$/, "Must be HH:MM format"),
+						startTime: z
+							.string()
+							.regex(/^\d{2}:\d{2}$/, "Must be HH:MM format"),
 						endTime: z.string().regex(/^\d{2}:\d{2}$/, "Must be HH:MM format"),
 					}),
 				),
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
@@ -64,7 +68,12 @@ export const coachIntakeRouter = {
 
 			// Allow admin (appointment_management.update) OR self-update
 			try {
-				await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
+				await requirePermissionOrpc(
+					context.tenantDb,
+					context.member,
+					"appointment_management",
+					"update",
+				);
 			} catch {
 				// Not an admin — only allow if caller is the trainer themselves
 				if (context.member.id !== input.trainerId) {
@@ -80,7 +89,10 @@ export const coachIntakeRouter = {
 				);
 			} catch (error) {
 				throw new ORPCError("BAD_REQUEST", {
-					message: error instanceof Error ? error.message : "Failed to update intake slots",
+					message:
+						error instanceof Error
+							? error.message
+							: "Failed to update intake slots",
 				});
 			}
 		}),
@@ -91,13 +103,14 @@ export const coachIntakeRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				trainerId: z.string().uuid(),
-				startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
+				startDate: z
+					.string()
+					.regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
 				endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			return computeOpenIntakeSlots(
 				context.tenantDb,
 				input.trainerId,
@@ -119,7 +132,7 @@ export const coachIntakeRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
@@ -128,7 +141,12 @@ export const coachIntakeRouter = {
 
 			// Allow admin (appointment_management.update) OR self
 			try {
-				await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update");
+				await requirePermissionOrpc(
+					context.tenantDb,
+					context.member,
+					"appointment_management",
+					"update",
+				);
 			} catch {
 				if (context.member.id !== input.trainerId) {
 					throw new ORPCError("FORBIDDEN", { message: "Permission denied" });
@@ -146,7 +164,8 @@ export const coachIntakeRouter = {
 				);
 			} catch (error) {
 				throw new ORPCError("BAD_REQUEST", {
-					message: error instanceof Error ? error.message : "Failed to claim slot",
+					message:
+						error instanceof Error ? error.message : "Failed to claim slot",
 				});
 			}
 		}),
@@ -160,8 +179,7 @@ export const coachIntakeRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			await unclaimIntakeSlot(context.tenantDb, input.exceptionId);
 			return { success: true };
 		}),
@@ -172,13 +190,14 @@ export const coachIntakeRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				trainerId: z.string().uuid(),
-				startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
+				startDate: z
+					.string()
+					.regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
 				endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD"),
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			return listIntakeExceptions(
 				context.tenantDb,
 				input.trainerId,
@@ -196,11 +215,10 @@ export const coachIntakeRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
 			const controlPanelDb = getControlPanelDb(context);
 			return listCoachIntakeByBranch(controlPanelDb, context.tenantDb, {
 				branchId: input.branchId,

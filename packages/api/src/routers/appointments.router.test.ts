@@ -48,9 +48,7 @@ function makeAdminDb(packageStatus?: string) {
 			packageInstances: {
 				findFirst: mock(() =>
 					Promise.resolve(
-						packageStatus
-							? { id: PKG_ID, status: packageStatus }
-							: null,
+						packageStatus ? { id: PKG_ID, status: packageStatus } : null,
 					),
 				),
 			},
@@ -162,7 +160,11 @@ describe("appointmentsRouter.create", () => {
 
 const PARENT_ID = "ffffffff-ffff-4fff-8fff-ffffffffffff";
 
-function makeAppt(id: string, status = "confirmed", recurringParentId: string | null = null) {
+function makeAppt(
+	id: string,
+	status = "confirmed",
+	recurringParentId: string | null = null,
+) {
 	return { id, status, branchId: BRANCH_ID, recurringParentId };
 }
 
@@ -179,7 +181,9 @@ function makeSeriesCancelDb(toCancel: ReturnType<typeof makeAppt>[] = []) {
 			roles: { findFirst: mock(() => Promise.resolve(undefined)) },
 			permissions: { findFirst: mock(() => Promise.resolve(undefined)) },
 		},
-		select: () => ({ from: () => ({ where: () => Promise.resolve(toCancel) }) }),
+		select: () => ({
+			from: () => ({ where: () => Promise.resolve(toCancel) }),
+		}),
 		transaction: (fn: (tx: unknown) => Promise<unknown>) => fn(stubTx),
 	} as unknown as never;
 }
@@ -223,7 +227,10 @@ describe("appointmentsRouter.cancelSeries", () => {
 	});
 
 	it("fires a GCal delete sync for each cancelled appointment", async () => {
-		const appts = [makeAppt(PARENT_ID), makeAppt("child-1", "confirmed", PARENT_ID)];
+		const appts = [
+			makeAppt(PARENT_ID),
+			makeAppt("child-1", "confirmed", PARENT_ID),
+		];
 		const ctx = createMockContext({
 			organizationId: ORG_ID,
 			tenantDb: makeSeriesCancelDb(appts),
@@ -395,8 +402,13 @@ describe("commission triggers", () => {
 	beforeEach(() => {
 		mockUpdateAppointment.mockClear();
 		mockGetApptById.mockClear();
-		mockUpdateAppointment.mockImplementation((_, id: string, params: { status?: string }) =>
-			Promise.resolve({ id, status: params.status ?? "confirmed", branchId: BRANCH_ID }),
+		mockUpdateAppointment.mockImplementation(
+			(_, id: string, params: { status?: string }) =>
+				Promise.resolve({
+					id,
+					status: params.status ?? "confirmed",
+					branchId: BRANCH_ID,
+				}),
 		);
 		mockGetApptById.mockImplementation(() =>
 			Promise.resolve({

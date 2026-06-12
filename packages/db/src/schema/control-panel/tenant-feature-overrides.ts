@@ -14,7 +14,15 @@
  * admin_session_actions patterns.
  */
 
-import { pgTable, uuid, text, boolean, timestamp, index, unique } from "drizzle-orm/pg-core";
+import {
+	pgTable,
+	uuid,
+	text,
+	boolean,
+	timestamp,
+	index,
+	unique,
+} from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
 
 export const tenantFeatureOverrides = pgTable(

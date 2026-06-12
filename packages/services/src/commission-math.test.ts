@@ -39,7 +39,9 @@ describe("assertConfigSumIs10000", () => {
 			{ slotIndex: 0, weightageBasisPoints: 5000 },
 			{ slotIndex: 1, weightageBasisPoints: 4999 },
 		];
-		expect(() => assertConfigSumIs10000(slots, "config-xyz")).toThrow(/config-xyz/);
+		expect(() => assertConfigSumIs10000(slots, "config-xyz")).toThrow(
+			/config-xyz/,
+		);
 	});
 
 	it("throws when slots sum to 9999bp (off-by-one low)", () => {

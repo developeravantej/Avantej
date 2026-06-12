@@ -11,29 +11,27 @@ import { tenantProcedure } from "../index";
 import { assertOrgContextMatch } from "../guards";
 
 export const userActivityLogRouter = {
-  list: tenantProcedure
-    .input(
-      z.object({
-        organizationId: z.string().uuid(),
-        activityType: z.string().optional(),
-        limit: z.number().int().min(1).max(100).optional(),
-      })
-    )
-    .handler(async ({ input, context }) => {
-      
+	list: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				activityType: z.string().optional(),
+				limit: z.number().int().min(1).max(100).optional(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			const userId = context.session?.user?.id;
+			if (!userId) {
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "User session required",
+				});
+			}
 
-		assertOrgContextMatch(context, input);
-      const userId = context.session?.user?.id;
-      if (!userId) {
-        throw new ORPCError("UNAUTHORIZED", {
-          message: "User session required",
-        });
-      }
-
-      return listUserActivityLog(context.tenantDb, {
-        userId,
-        activityType: input.activityType,
-        limit: input.limit,
-      });
-    }),
+			return listUserActivityLog(context.tenantDb, {
+				userId,
+				activityType: input.activityType,
+				limit: input.limit,
+			});
+		}),
 };

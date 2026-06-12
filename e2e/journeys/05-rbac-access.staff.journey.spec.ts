@@ -53,12 +53,10 @@ test("Scoped staff is granted exactly a read-only permission set", {
 				writeish,
 				`staff must hold no write/admin permissions, found: ${writeish.join(", ")}`,
 			).toEqual([]);
-			test
-				.info()
-				.annotations.push({
-					type: "staff-permissions",
-					description: perms.join(", "),
-				});
+			test.info().annotations.push({
+				type: "staff-permissions",
+				description: perms.join(", "),
+			});
 		});
 	});
 });
@@ -180,11 +178,9 @@ test("Hierarchy scoping bounds the staff's accessible nodes", {
 			nodes.length,
 			"staff should see a bounded set of hierarchy nodes",
 		).toBeGreaterThan(0);
-		test
-			.info()
-			.annotations.push({
-				type: "staff-accessible-nodes",
-				description: String(nodes.length),
-			});
+		test.info().annotations.push({
+			type: "staff-accessible-nodes",
+			description: String(nodes.length),
+		});
 	});
 });

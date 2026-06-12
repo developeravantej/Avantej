@@ -41,19 +41,26 @@ async function listLedger(
 	filter: { status?: string; limit?: number; offset?: number } = {},
 ): Promise<LedgerRow[]> {
 	try {
-		const resp = await orpcCall<object, LedgerResp>(page, "commissionSplits", "listLedger", {
-			organizationId: TEST_ORG_ID,
-			status: filter.status ?? "all",
-			limit: Math.min(filter.limit ?? 200, 200),
-			offset: filter.offset ?? 0,
-		});
-		return Array.isArray(resp) ? resp : resp.rows ?? [];
+		const resp = await orpcCall<object, LedgerResp>(
+			page,
+			"commissionSplits",
+			"listLedger",
+			{
+				organizationId: TEST_ORG_ID,
+				status: filter.status ?? "all",
+				limit: Math.min(filter.limit ?? 200, 200),
+				offset: filter.offset ?? 0,
+			},
+		);
+		return Array.isArray(resp) ? resp : (resp.rows ?? []);
 	} catch {
 		return [];
 	}
 }
 
-test("audit-prove deep — F-05 paymentReference / F-06 refund reversal / F-08 payout_batches", async ({ page }) => {
+test("audit-prove deep — F-05 paymentReference / F-06 refund reversal / F-08 payout_batches", async ({
+	page,
+}) => {
 	// ─────────────────────────────────────────────────────────────
 	// SETUP: navigate so page.evaluate fetch() can resolve /rpc/* (needs origin),
 	// then seed a fresh commission split via appointment completion.
@@ -66,7 +73,8 @@ test("audit-prove deep — F-05 paymentReference / F-06 refund reversal / F-08 p
 	test.skip(!trainer || !client, "Need a trainer + client in the test tenant");
 
 	const service = await pickFirstService(page);
-	const branchId = trainer!.hierarchyScopeId ?? "aaaaaaaa-0000-4000-8000-000000000001";
+	const branchId =
+		trainer!.hierarchyScopeId ?? "aaaaaaaa-0000-4000-8000-000000000001";
 
 	let seededAppointmentId = "";
 	try {
@@ -85,8 +93,13 @@ test("audit-prove deep — F-05 paymentReference / F-06 refund reversal / F-08 p
 	await test.step("SEED-01 complete the appointment to generate a pending commission split", async () => {
 		await completeAppointment(page, seededAppointmentId);
 		await page.waitForTimeout(800);
-		const splits = await getCommissionSplitsForAppointment(page, seededAppointmentId);
-		expect.soft(splits.length, "expected at least one commission split").toBeGreaterThan(0);
+		const splits = await getCommissionSplitsForAppointment(
+			page,
+			seededAppointmentId,
+		);
+		expect
+			.soft(splits.length, "expected at least one commission split")
+			.toBeGreaterThan(0);
 	});
 
 	// ─────────────────────────────────────────────────────────────
@@ -98,10 +111,16 @@ test("audit-prove deep — F-05 paymentReference / F-06 refund reversal / F-08 p
 	const paymentReference = `AUDIT-PROVE-TXN-${Date.now()}`;
 
 	await test.step("F-05 prep — approve the seeded split", async () => {
-		const apptSplits = await getCommissionSplitsForAppointment(page, seededAppointmentId);
+		const apptSplits = await getCommissionSplitsForAppointment(
+			page,
+			seededAppointmentId,
+		);
 		const pending = apptSplits.find((s) => s.status === "pending");
 		if (!pending) {
-			test.info().annotations.push({ type: "F-05 prep", description: "no pending split — was it auto-approved?" });
+			test.info().annotations.push({
+				type: "F-05 prep",
+				description: "no pending split — was it auto-approved?",
+			});
 			// Fall back: pick any pending from the ledger
 			const anyPending = (await listLedger(page, { status: "pending" }))[0];
 			approvedSplitId = anyPending?.id ?? null;
@@ -111,7 +130,9 @@ test("audit-prove deep — F-05 paymentReference / F-06 refund reversal / F-08 p
 			approvedStaffId = pending.staffId;
 		}
 		if (!approvedSplitId) {
-			expect.soft(approvedSplitId, "could not obtain a pending split id").not.toBeNull();
+			expect
+				.soft(approvedSplitId, "could not obtain a pending split id")
+				.not.toBeNull();
 			return;
 		}
 		try {
@@ -146,10 +167,12 @@ test("audit-prove deep — F-05 paymentReference / F-06 refund reversal / F-08 p
 		if (row) {
 			expect.soft(row.status, "status should flip to paid").toBe("paid");
 			const blob = JSON.stringify(row);
-			expect.soft(
-				blob.includes(paymentReference),
-				`paymentReference "${paymentReference}" not persisted; row=${blob.slice(0, 400)}`,
-			).toBe(true);
+			expect
+				.soft(
+					blob.includes(paymentReference),
+					`paymentReference "${paymentReference}" not persisted; row=${blob.slice(0, 400)}`,
+				)
+				.toBe(true);
 		}
 	});
 
@@ -172,7 +195,10 @@ test("audit-prove deep — F-05 paymentReference / F-06 refund reversal / F-08 p
 			});
 			await completeAppointment(page, secondAppointmentId);
 			await page.waitForTimeout(800);
-			const splits = await getCommissionSplitsForAppointment(page, secondAppointmentId);
+			const splits = await getCommissionSplitsForAppointment(
+				page,
+				secondAppointmentId,
+			);
 			const pending = splits.find((s) => s.status === "pending");
 			secondSplitId = pending?.id ?? null;
 			if (secondSplitId) {
@@ -182,67 +208,122 @@ test("audit-prove deep — F-05 paymentReference / F-06 refund reversal / F-08 p
 				});
 			}
 		} catch (err) {
-			test.info().annotations.push({ type: "F-08 prep", description: `seed failed: ${String(err)}` });
+			test.info().annotations.push({
+				type: "F-08 prep",
+				description: `seed failed: ${String(err)}`,
+			});
 		}
 	});
 
 	await test.step("F-08 — runBatch creates a payout_batches row + stamps batchId on payouts", async () => {
 		if (!approvedStaffId) {
-			expect.soft(approvedStaffId, "no staff id — F-08 cannot run").not.toBeNull();
+			expect
+				.soft(approvedStaffId, "no staff id — F-08 cannot run")
+				.not.toBeNull();
 			return;
 		}
 		// Use a period that covers today (earnedAt = now() for the seeded splits)
 		const now = new Date();
-		const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-		const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+		const periodStart = new Date(
+			now.getFullYear(),
+			now.getMonth(),
+			1,
+		).toISOString();
+		const periodEnd = new Date(
+			now.getFullYear(),
+			now.getMonth() + 1,
+			1,
+		).toISOString();
 
 		type RunBatchResp = {
-			payouts?: Array<{ id: string; batchId?: string | null; recipientId: string; amount: number }>;
+			payouts?: Array<{
+				id: string;
+				batchId?: string | null;
+				recipientId: string;
+				amount: number;
+			}>;
 			batchId?: string | null;
 		};
 		let result: RunBatchResp | null = null;
 		let runBatchError: string | null = null;
 		try {
-			result = await orpcCall<object, RunBatchResp>(page, "payouts", "runBatch", {
-				organizationId: TEST_ORG_ID,
-				staffIds: [approvedStaffId],
-				periodStart,
-				periodEnd,
-				paymentMethod: "cash",
-				reference: `AUDIT-PROVE-BATCH-${Date.now()}`,
-				branchId,
-			});
+			result = await orpcCall<object, RunBatchResp>(
+				page,
+				"payouts",
+				"runBatch",
+				{
+					organizationId: TEST_ORG_ID,
+					staffIds: [approvedStaffId],
+					periodStart,
+					periodEnd,
+					paymentMethod: "cash",
+					reference: `AUDIT-PROVE-BATCH-${Date.now()}`,
+					branchId,
+				},
+			);
 		} catch (err) {
-			runBatchError = err instanceof OrpcClientError ? `${err.code}: ${err.message}` : String(err);
+			runBatchError =
+				err instanceof OrpcClientError
+					? `${err.code}: ${err.message}`
+					: String(err);
 		}
 		console.log("F-08 runBatch error:", runBatchError);
 		console.log("F-08 runBatch result:", JSON.stringify(result).slice(0, 500));
-		console.log("F-08 inputs: staffId=", approvedStaffId, "periodStart=", periodStart, "periodEnd=", periodEnd, "branchId=", branchId);
+		console.log(
+			"F-08 inputs: staffId=",
+			approvedStaffId,
+			"periodStart=",
+			periodStart,
+			"periodEnd=",
+			periodEnd,
+			"branchId=",
+			branchId,
+		);
 		// Read back via payouts.list and assert paid rows have a non-null batchId.
-		type PayoutRow = { id: string; recipientId: string; batchId?: string | null; amount: number; paidAt?: string | null };
+		type PayoutRow = {
+			id: string;
+			recipientId: string;
+			batchId?: string | null;
+			amount: number;
+			paidAt?: string | null;
+		};
 		type PayoutsListResp = { rows?: PayoutRow[] } | PayoutRow[];
-		const listResp = await orpcCall<object, PayoutsListResp>(page, "payouts", "list", {
-			organizationId: TEST_ORG_ID,
-			recipientId: approvedStaffId,
-			limit: 100,
-		});
-		const rows = Array.isArray(listResp) ? listResp : listResp.rows ?? [];
-		console.log("F-08 payouts.list returned", rows.length, "rows; first 3:", JSON.stringify(rows.slice(0, 3)).slice(0, 400));
+		const listResp = await orpcCall<object, PayoutsListResp>(
+			page,
+			"payouts",
+			"list",
+			{
+				organizationId: TEST_ORG_ID,
+				recipientId: approvedStaffId,
+				limit: 100,
+			},
+		);
+		const rows = Array.isArray(listResp) ? listResp : (listResp.rows ?? []);
+		console.log(
+			"F-08 payouts.list returned",
+			rows.length,
+			"rows; first 3:",
+			JSON.stringify(rows.slice(0, 3)).slice(0, 400),
+		);
 		const recent = rows
 			.filter((r) => r.recipientId === approvedStaffId && r.amount > 0)
 			.slice(0, 5);
 		// At least one recent positive payout for this staff should have a batchId.
 		const withBatch = recent.filter((r) => r.batchId != null);
-		expect.soft(
-			withBatch.length,
-			`expected at least one payout row with non-null batchId after runBatch; recent=${JSON.stringify(recent)}`,
-		).toBeGreaterThan(0);
+		expect
+			.soft(
+				withBatch.length,
+				`expected at least one payout row with non-null batchId after runBatch; recent=${JSON.stringify(recent)}`,
+			)
+			.toBeGreaterThan(0);
 
 		// Bonus check: if the runBatch returned, ensure each payout it created carries batchId.
 		if (result?.payouts && result.payouts.length > 0) {
 			for (const p of result.payouts) {
 				if (p.amount > 0) {
-					expect.soft(p.batchId, `payout ${p.id} should have batchId after fix`).toBeTruthy();
+					expect
+						.soft(p.batchId, `payout ${p.id} should have batchId after fix`)
+						.toBeTruthy();
 				}
 			}
 		}
@@ -259,7 +340,10 @@ test("audit-prove deep — F-05 paymentReference / F-06 refund reversal / F-08 p
 	await test.step("F-06 prep — POS product sale → produces a salesOrder split (immediate split path)", async () => {
 		const product = await ensureFirstProduct(page);
 		if (!product) {
-			test.info().annotations.push({ type: "F-06 prep", description: "no product available + cannot create one — skipping" });
+			test.info().annotations.push({
+				type: "F-06 prep",
+				description: "no product available + cannot create one — skipping",
+			});
 			return;
 		}
 		try {
@@ -279,7 +363,10 @@ test("audit-prove deep — F-05 paymentReference / F-06 refund reversal / F-08 p
 				paymentMethod: "cash",
 			});
 		} catch (err) {
-			test.info().annotations.push({ type: "F-06 prep", description: `recordPosSale failed: ${String(err)}` });
+			test.info().annotations.push({
+				type: "F-06 prep",
+				description: `recordPosSale failed: ${String(err)}`,
+			});
 			return;
 		}
 		await page.waitForTimeout(800);
@@ -290,27 +377,48 @@ test("audit-prove deep — F-05 paymentReference / F-06 refund reversal / F-08 p
 		// adjustments accept salesOrderId.
 		if (!posSplit && posSalesOrderId) {
 			try {
-				await orpcCall<object, { id: string }>(page, "commissionSplits", "createManualAdjustment", {
-					organizationId: TEST_ORG_ID,
-					staffId: trainer!.userId,
-					salesOrderId: posSalesOrderId,
-					amountCents: 1000, // RM 10
-					note: "audit-prove F-06 seed (manual adjustment tied to sale)",
-				});
+				await orpcCall<object, { id: string }>(
+					page,
+					"commissionSplits",
+					"createManualAdjustment",
+					{
+						organizationId: TEST_ORG_ID,
+						staffId: trainer!.userId,
+						salesOrderId: posSalesOrderId,
+						amountCents: 1000, // RM 10
+						note: "audit-prove F-06 seed (manual adjustment tied to sale)",
+					},
+				);
 				await page.waitForTimeout(400);
 				rows = await listLedger(page, { limit: 200 });
 				posSplit = rows.find((r) => r.salesOrderId === posSalesOrderId) ?? null;
 			} catch (err) {
-				test.info().annotations.push({ type: "F-06 seed", description: `manual adjustment failed: ${String(err)}` });
+				test.info().annotations.push({
+					type: "F-06 seed",
+					description: `manual adjustment failed: ${String(err)}`,
+				});
 			}
 		}
-		console.log("F-06 posSalesOrderId=", posSalesOrderId, " split found?", !!posSplit, " splitStatus=", posSplit?.status, " amount=", posSplit?.calculatedAmount);
+		console.log(
+			"F-06 posSalesOrderId=",
+			posSalesOrderId,
+			" split found?",
+			!!posSplit,
+			" splitStatus=",
+			posSplit?.status,
+			" amount=",
+			posSplit?.calculatedAmount,
+		);
 		expect.soft(posSalesOrderId, "no posSalesOrderId").toBeTruthy();
 	});
 
 	await test.step("F-06 prep — approve + mark paid the POS split (no paymentReference)", async () => {
 		if (!posSplit) {
-			test.info().annotations.push({ type: "F-06 prep", description: "no POS split produced — service commission config missing" });
+			test.info().annotations.push({
+				type: "F-06 prep",
+				description:
+					"no POS split produced — service commission config missing",
+			});
 			return;
 		}
 		try {
@@ -324,33 +432,56 @@ test("audit-prove deep — F-05 paymentReference / F-06 refund reversal / F-08 p
 				paymentReference: `F06-${Date.now()}`,
 			});
 		} catch (err) {
-			test.info().annotations.push({ type: "F-06 prep", description: `approve/mark paid failed: ${String(err)}` });
+			test.info().annotations.push({
+				type: "F-06 prep",
+				description: `approve/mark paid failed: ${String(err)}`,
+			});
 		}
 	});
 
 	await test.step("F-06 — refund the sale → commission split flips to void; liability subtracts", async () => {
 		if (!posSplit || !posSalesOrderId) {
-			test.info().annotations.push({ type: "F-06", description: "missing seed for refund test" });
+			test.info().annotations.push({
+				type: "F-06",
+				description: "missing seed for refund test",
+			});
 			return;
 		}
 		// Capture pre-refund liability
-		type LiabRow = { staffId: string; paidCents: number; approvedCents: number; pendingCents: number };
+		type LiabRow = {
+			staffId: string;
+			paidCents: number;
+			approvedCents: number;
+			pendingCents: number;
+		};
 		type LiabResult = { rows: LiabRow[]; totalCount: number; hasMore: boolean };
-		const liabBefore = await orpcCall<object, LiabResult>(page, "commissionSplits", "liabilityByStaff", {
-			organizationId: TEST_ORG_ID,
-		});
-		const beforeRow = liabBefore.rows.find((r) => r.staffId === posSplit!.staffId);
+		const liabBefore = await orpcCall<object, LiabResult>(
+			page,
+			"commissionSplits",
+			"liabilityByStaff",
+			{
+				organizationId: TEST_ORG_ID,
+			},
+		);
+		const beforeRow = liabBefore.rows.find(
+			(r) => r.staffId === posSplit!.staffId,
+		);
 		const paidBefore = beforeRow?.paidCents ?? 0;
 
 		// Request + approve a refund of the sale
 		let refundId: string | null = null;
 		try {
-			const created = await orpcCall<object, { id: string }>(page, "refunds", "request", {
-				organizationId: TEST_ORG_ID,
-				salesOrderId: posSalesOrderId,
-				amountCents: 5000, // full sale value
-				reason: "audit-prove F-06 reversal test",
-			});
+			const created = await orpcCall<object, { id: string }>(
+				page,
+				"refunds",
+				"request",
+				{
+					organizationId: TEST_ORG_ID,
+					salesOrderId: posSalesOrderId,
+					amountCents: 5000, // full sale value
+					reason: "audit-prove F-06 reversal test",
+				},
+			);
 			refundId = created.id;
 			await orpcCall(page, "refunds", "approve", {
 				organizationId: TEST_ORG_ID,
@@ -358,7 +489,10 @@ test("audit-prove deep — F-05 paymentReference / F-06 refund reversal / F-08 p
 			});
 		} catch (err) {
 			const code = err instanceof OrpcClientError ? err.code : String(err);
-			test.info().annotations.push({ type: "F-06 refund", description: `refund flow error: ${code}` });
+			test.info().annotations.push({
+				type: "F-06 refund",
+				description: `refund flow error: ${code}`,
+			});
 			return;
 		}
 		await page.waitForTimeout(600);
@@ -367,22 +501,34 @@ test("audit-prove deep — F-05 paymentReference / F-06 refund reversal / F-08 p
 		// by the reversed amount.
 		const rowsAfter = await listLedger(page, { limit: 500 });
 		const splitAfter = rowsAfter.find((r) => r.id === posSplit!.id);
-		expect.soft(splitAfter?.status, "split should flip to void after full reversal").toBe("void");
+		expect
+			.soft(splitAfter?.status, "split should flip to void after full reversal")
+			.toBe("void");
 
-		const liabAfter = await orpcCall<object, LiabResult>(page, "commissionSplits", "liabilityByStaff", {
-			organizationId: TEST_ORG_ID,
-		});
-		const afterRow = liabAfter.rows.find((r) => r.staffId === posSplit!.staffId);
+		const liabAfter = await orpcCall<object, LiabResult>(
+			page,
+			"commissionSplits",
+			"liabilityByStaff",
+			{
+				organizationId: TEST_ORG_ID,
+			},
+		);
+		const afterRow = liabAfter.rows.find(
+			(r) => r.staffId === posSplit!.staffId,
+		);
 		const paidAfter = afterRow?.paidCents ?? 0;
-		expect.soft(
-			paidAfter < paidBefore,
-			`liabilityByStaff.paidCents must decrease after reversal (before=${paidBefore} after=${paidAfter})`,
-		).toBe(true);
+		expect
+			.soft(
+				paidAfter < paidBefore,
+				`liabilityByStaff.paidCents must decrease after reversal (before=${paidBefore} after=${paidAfter})`,
+			)
+			.toBe(true);
 	});
 
 	// ─────────────────────────────────────────────────────────────
 	// Cleanup (best-effort, idempotent)
 	// ─────────────────────────────────────────────────────────────
 	await cleanupAppointment(page, seededAppointmentId).catch(() => {});
-	if (secondAppointmentId) await cleanupAppointment(page, secondAppointmentId).catch(() => {});
+	if (secondAppointmentId)
+		await cleanupAppointment(page, secondAppointmentId).catch(() => {});
 });

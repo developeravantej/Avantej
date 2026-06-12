@@ -1,4 +1,11 @@
-import { index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+	index,
+	integer,
+	pgTable,
+	text,
+	timestamp,
+	uuid,
+} from "drizzle-orm/pg-core";
 import { hierarchyNodes } from "./hierarchy";
 import { products } from "./products";
 
@@ -23,13 +30,18 @@ export const stockMovements = pgTable(
 		sourceType: text("source_type"),
 		sourceId: uuid("source_id"),
 		actorUserId: text("actor_user_id"),
-		createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
 	},
 	(table) => ({
 		productBranchIdx: index("stock_movements_product_branch_idx").on(
 			table.productId,
 			table.branchId,
 		),
-		sourceIdx: index("stock_movements_source_idx").on(table.sourceType, table.sourceId),
+		sourceIdx: index("stock_movements_source_idx").on(
+			table.sourceType,
+			table.sourceId,
+		),
 	}),
 );

@@ -43,7 +43,9 @@ function parseArgs(): CliArgs {
 		tenant: args[tenantIdx + 1]!,
 		dryRun: args.includes("--dry-run"),
 		branchHint:
-			branchIdx !== -1 && args[branchIdx + 1] ? args[branchIdx + 1]! : undefined,
+			branchIdx !== -1 && args[branchIdx + 1]
+				? args[branchIdx + 1]!
+				: undefined,
 	};
 }
 
@@ -143,9 +145,7 @@ async function main() {
 			"UPDATE ghl_branch_links SET is_active = false, updated_at = $1 WHERE organization_id = $2",
 			[now, org.id],
 		);
-		console.log(
-			"\n✅ ghl_branch_links row(s) deactivated (is_active=false)",
-		);
+		console.log("\n✅ ghl_branch_links row(s) deactivated (is_active=false)");
 
 		if (dryRun) {
 			console.log("\n🔍 DRY RUN — rolling back.");
@@ -159,9 +159,7 @@ async function main() {
 		}
 	} catch (err) {
 		await client.query("ROLLBACK");
-		console.error(
-			`\n❌ Aborted: ${err instanceof Error ? err.message : err}`,
-		);
+		console.error(`\n❌ Aborted: ${err instanceof Error ? err.message : err}`);
 		process.exit(1);
 	} finally {
 		client.release();

@@ -1,7 +1,11 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../guards";
 import {
 	listPurchaseOrders,
 	getPurchaseOrderById,
@@ -26,15 +30,16 @@ export const purchaseOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
-			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "read");
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"read",
+			);
 
 			return listPurchaseOrders(context.tenantDb, {
 				supplierId: input.supplierId,
@@ -56,17 +61,15 @@ export const purchaseOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "read");
-
-			const result = await getPurchaseOrderById(
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
 				context.tenantDb,
-				input.id,
+				context.member,
+				"purchase_order_management",
+				"read",
 			);
+
+			const result = await getPurchaseOrderById(context.tenantDb, input.id);
 			if (!result) {
 				throw new ORPCError("NOT_FOUND", {
 					message: `Purchase order not found: ${input.id}`,
@@ -96,13 +99,14 @@ export const purchaseOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-		guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "create");
+			assertOrgContextMatch(context, input);
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"create",
+			);
 
 			return createPurchaseOrder(context.tenantDb, {
 				supplierId: input.supplierId,
@@ -125,12 +129,13 @@ export const purchaseOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "update");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"update",
+			);
 
 			try {
 				return await approvePurchaseOrder(context.tenantDb, input.id, {
@@ -163,18 +168,15 @@ export const purchaseOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "update");
-
-			return receiveItems(
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
 				context.tenantDb,
-				input.purchaseOrderId,
-				input.items,
+				context.member,
+				"purchase_order_management",
+				"update",
 			);
+
+			return receiveItems(context.tenantDb, input.purchaseOrderId, input.items);
 		}),
 
 	cancel: tenantProcedure
@@ -185,12 +187,13 @@ export const purchaseOrdersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "delete");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"delete",
+			);
 
 			try {
 				return await cancelPurchaseOrder(context.tenantDb, input.id, {

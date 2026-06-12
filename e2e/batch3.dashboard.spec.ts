@@ -4,7 +4,10 @@ async function login(page: import("@playwright/test").Page) {
 	await page.goto("/login");
 	await page.getByLabel("Email").fill("franchisee@gmail.com");
 	await page.locator("#password").fill("password123");
-	await page.getByRole("button", { name: /sign in|login/i }).first().click();
+	await page
+		.getByRole("button", { name: /sign in|login/i })
+		.first()
+		.click();
 	await page.waitForURL("**/dashboard**", { timeout: 15_000 });
 }
 
@@ -22,8 +25,15 @@ test.describe("Branch View (/dashboard/branch/view)", () => {
 
 		// Heading or icon area should be present — scoped to main to avoid sidebar matches
 		await expect(
-			page.locator("main").getByRole("heading", { name: /branch/i, level: 1 })
-				.or(page.locator("main").getByText(/branch/i).first()),
+			page
+				.locator("main")
+				.getByRole("heading", { name: /branch/i, level: 1 })
+				.or(
+					page
+						.locator("main")
+						.getByText(/branch/i)
+						.first(),
+				),
 		).toBeVisible({ timeout: 8_000 });
 
 		// Table or empty state present — either way no crash
@@ -37,7 +47,9 @@ test.describe("Branch View (/dashboard/branch/view)", () => {
 		await page.goto("/dashboard/branch/view");
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 
-		await expect(page.getByText(/something went wrong|error|crash/i)).not.toBeVisible({
+		await expect(
+			page.getByText(/something went wrong|error|crash/i),
+		).not.toBeVisible({
 			timeout: 8_000,
 		});
 	});
@@ -57,14 +69,22 @@ test.describe("Branch View (/dashboard/branch/view)", () => {
 		}
 	});
 
-	test("TC-07: Plus / Add Branch button visible for admin", async ({ page }) => {
+	test("TC-07: Plus / Add Branch button visible for admin", async ({
+		page,
+	}) => {
 		await page.goto("/dashboard/branch/view");
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 
 		// Franchisee is admin — add button should appear
 		const addBtn = page
 			.getByRole("button", { name: /add branch|add|create/i })
-			.or(page.locator("button[aria-label*='add' i], button[aria-label*='create' i]").first());
+			.or(
+				page
+					.locator(
+						"button[aria-label*='add' i], button[aria-label*='create' i]",
+					)
+					.first(),
+			);
 		// Not strictly required to be visible (permission-dependent), just assert no crash
 		await expect(page).toHaveURL(/branch\/view/, { timeout: 8_000 });
 	});
@@ -83,10 +103,14 @@ test.describe("Sales View (/dashboard/sales/view)", () => {
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 
 		// Tabs — Sales / Payments
-		await expect(page.getByRole("tab", { name: /sales/i }).first()).toBeVisible({
-			timeout: 8_000,
-		});
-		await expect(page.getByRole("tab", { name: /payment/i }).first()).toBeVisible({
+		await expect(page.getByRole("tab", { name: /sales/i }).first()).toBeVisible(
+			{
+				timeout: 8_000,
+			},
+		);
+		await expect(
+			page.getByRole("tab", { name: /payment/i }).first(),
+		).toBeVisible({
 			timeout: 8_000,
 		});
 	});
@@ -95,7 +119,9 @@ test.describe("Sales View (/dashboard/sales/view)", () => {
 		await page.goto("/dashboard/sales/view");
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 
-		await expect(page.getByText(/something went wrong|unexpected error/i)).not.toBeVisible({
+		await expect(
+			page.getByText(/something went wrong|unexpected error/i),
+		).not.toBeVisible({
 			timeout: 8_000,
 		});
 	});
@@ -116,9 +142,14 @@ test.describe("Sales View (/dashboard/sales/view)", () => {
 		await page.goto("/dashboard/sales/view");
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 
-		await page.getByRole("tab", { name: /payment/i }).first().click();
+		await page
+			.getByRole("tab", { name: /payment/i })
+			.first()
+			.click();
 		// After clicking the tab, expect no crash
-		await expect(page.getByText(/something went wrong|unexpected error/i)).not.toBeVisible({
+		await expect(
+			page.getByText(/something went wrong|unexpected error/i),
+		).not.toBeVisible({
 			timeout: 8_000,
 		});
 	});
@@ -141,7 +172,13 @@ test.describe("Sales Create (/dashboard/sales/create)", () => {
 			.getByText(/customer|select|sale|pos|step/i)
 			.first()
 			.or(page.locator("form").first())
-			.or(page.locator("[data-testid*='pos'], [data-testid*='sale'], [data-testid*='customer']").first());
+			.or(
+				page
+					.locator(
+						"[data-testid*='pos'], [data-testid*='sale'], [data-testid*='customer']",
+					)
+					.first(),
+			);
 		await expect(posContent.first()).toBeVisible({ timeout: 8_000 });
 	});
 
@@ -149,7 +186,9 @@ test.describe("Sales Create (/dashboard/sales/create)", () => {
 		await page.goto("/dashboard/sales/create");
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 
-		await expect(page.getByText(/something went wrong|unexpected error/i)).not.toBeVisible({
+		await expect(
+			page.getByText(/something went wrong|unexpected error/i),
+		).not.toBeVisible({
 			timeout: 8_000,
 		});
 		// Still on create page (not redirected away)
@@ -181,7 +220,9 @@ test.describe("Sales Detail (/dashboard/sales/$id)", () => {
 
 		// Back link
 		await expect(
-			page.getByRole("link", { name: /back|sales/i }).or(page.getByText(/back to sales/i)),
+			page
+				.getByRole("link", { name: /back|sales/i })
+				.or(page.getByText(/back to sales/i)),
 		).toBeVisible({ timeout: 8_000 });
 	});
 
@@ -199,7 +240,9 @@ test.describe("Sales Detail (/dashboard/sales/$id)", () => {
 		await rows.first().click();
 		await page.waitForURL("**/sales/**", { timeout: 15_000 });
 
-		await expect(page.getByText(/something went wrong|unexpected error/i)).not.toBeVisible({
+		await expect(
+			page.getByText(/something went wrong|unexpected error/i),
+		).not.toBeVisible({
 			timeout: 8_000,
 		});
 	});
@@ -247,13 +290,22 @@ test.describe("Refunds View (/dashboard/refunds/view)", () => {
 		await login(page);
 	});
 
-	test("TC-01: page loads with Refunds heading and status tabs", async ({ page }) => {
+	test("TC-01: page loads with Refunds heading and status tabs", async ({
+		page,
+	}) => {
 		await page.goto("/dashboard/refunds/view");
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 
 		await expect(
-			page.locator("main").getByRole("heading", { name: /refund/i, level: 1 })
-				.or(page.locator("main").getByText(/refund/i).first()),
+			page
+				.locator("main")
+				.getByRole("heading", { name: /refund/i, level: 1 })
+				.or(
+					page
+						.locator("main")
+						.getByText(/refund/i)
+						.first(),
+				),
 		).toBeVisible({ timeout: 8_000 });
 
 		// Status tabs
@@ -266,7 +318,9 @@ test.describe("Refunds View (/dashboard/refunds/view)", () => {
 		await page.goto("/dashboard/refunds/view");
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 
-		await expect(page.getByText(/something went wrong|unexpected error/i)).not.toBeVisible({
+		await expect(
+			page.getByText(/something went wrong|unexpected error/i),
+		).not.toBeVisible({
 			timeout: 8_000,
 		});
 	});
@@ -280,7 +334,9 @@ test.describe("Refunds View (/dashboard/refunds/view)", () => {
 		await pendingTab.click();
 
 		// No crash after tab switch
-		await expect(page.getByText(/something went wrong|unexpected error/i)).not.toBeVisible({
+		await expect(
+			page.getByText(/something went wrong|unexpected error/i),
+		).not.toBeVisible({
 			timeout: 8_000,
 		});
 	});
@@ -324,13 +380,22 @@ test.describe("Commissions View (/dashboard/commissions/view)", () => {
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 
 		await expect(
-			page.locator("main").getByRole("heading", { name: /commission/i, level: 1 })
-				.or(page.locator("main").getByText(/commission/i).first()),
+			page
+				.locator("main")
+				.getByRole("heading", { name: /commission/i, level: 1 })
+				.or(
+					page
+						.locator("main")
+						.getByText(/commission/i)
+						.first(),
+				),
 		).toBeVisible({ timeout: 8_000 });
 
 		// My Commissions tab always present
 		await expect(
-			page.getByRole("tab", { name: /my commission/i }).or(page.getByText(/my commission/i).first()),
+			page
+				.getByRole("tab", { name: /my commission/i })
+				.or(page.getByText(/my commission/i).first()),
 		).toBeVisible({ timeout: 8_000 });
 	});
 
@@ -338,12 +403,16 @@ test.describe("Commissions View (/dashboard/commissions/view)", () => {
 		await page.goto("/dashboard/commissions/view");
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 
-		await expect(page.getByText(/something went wrong|unexpected error/i)).not.toBeVisible({
+		await expect(
+			page.getByText(/something went wrong|unexpected error/i),
+		).not.toBeVisible({
 			timeout: 8_000,
 		});
 	});
 
-	test("TC-04: All Commissions tab visible for admin and clickable", async ({ page }) => {
+	test("TC-04: All Commissions tab visible for admin and clickable", async ({
+		page,
+	}) => {
 		await page.goto("/dashboard/commissions/view");
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 
@@ -367,7 +436,9 @@ test.describe("My Commissions (/dashboard/commissions/my)", () => {
 		await login(page);
 	});
 
-	test("TC-01: route redirects to commissions view with tab=mine", async ({ page }) => {
+	test("TC-01: route redirects to commissions view with tab=mine", async ({
+		page,
+	}) => {
 		await page.goto("/dashboard/commissions/my");
 		await page.waitForURL("**/commissions/view**", { timeout: 15_000 });
 
@@ -376,7 +447,9 @@ test.describe("My Commissions (/dashboard/commissions/my)", () => {
 		await expect(page).toHaveURL(/tab=mine/, { timeout: 8_000 });
 	});
 
-	test("TC-02: no component rendered at original /my route", async ({ page }) => {
+	test("TC-02: no component rendered at original /my route", async ({
+		page,
+	}) => {
 		await page.goto("/dashboard/commissions/my");
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 		expect(page.url()).not.toContain("/commissions/my");
@@ -391,13 +464,22 @@ test.describe("Payouts View (/dashboard/payouts/view)", () => {
 		await login(page);
 	});
 
-	test("TC-01: page loads with Payouts heading and status tabs", async ({ page }) => {
+	test("TC-01: page loads with Payouts heading and status tabs", async ({
+		page,
+	}) => {
 		await page.goto("/dashboard/payouts/view");
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 
 		await expect(
-			page.locator("main").getByRole("heading", { name: /payout/i, level: 1 })
-				.or(page.locator("main").getByText(/payout/i).first()),
+			page
+				.locator("main")
+				.getByRole("heading", { name: /payout/i, level: 1 })
+				.or(
+					page
+						.locator("main")
+						.getByText(/payout/i)
+						.first(),
+				),
 		).toBeVisible({ timeout: 8_000 });
 
 		// All tab
@@ -410,7 +492,9 @@ test.describe("Payouts View (/dashboard/payouts/view)", () => {
 		await page.goto("/dashboard/payouts/view");
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 
-		await expect(page.getByText(/something went wrong|unexpected error/i)).not.toBeVisible({
+		await expect(
+			page.getByText(/something went wrong|unexpected error/i),
+		).not.toBeVisible({
 			timeout: 8_000,
 		});
 	});
@@ -424,7 +508,9 @@ test.describe("Payouts View (/dashboard/payouts/view)", () => {
 		await pendingTab.click();
 
 		// No crash after tab switch
-		await expect(page.getByText(/something went wrong|unexpected error/i)).not.toBeVisible({
+		await expect(
+			page.getByText(/something went wrong|unexpected error/i),
+		).not.toBeVisible({
 			timeout: 8_000,
 		});
 	});
@@ -441,7 +527,9 @@ test.describe("Payouts View (/dashboard/payouts/view)", () => {
 		}
 		await paidTab.click();
 
-		await expect(page.getByText(/something went wrong|unexpected error/i)).not.toBeVisible({
+		await expect(
+			page.getByText(/something went wrong|unexpected error/i),
+		).not.toBeVisible({
 			timeout: 8_000,
 		});
 	});

@@ -269,7 +269,7 @@ export async function receiveItems(
 		if (!allowedStatuses.includes(po.status)) {
 			throw new Error(
 				`Cannot receive items on a purchase order with status "${po.status}". ` +
-				`Allowed statuses: ${allowedStatuses.join(", ")}.`,
+					`Allowed statuses: ${allowedStatuses.join(", ")}.`,
 			);
 		}
 

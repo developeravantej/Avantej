@@ -1,7 +1,12 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc, assertOrgContextMatch, guardInputBranchForContext, resolveAccessibleNodeIds } from "../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardInputBranchForContext,
+	resolveAccessibleNodeIds,
+} from "../guards";
 import {
 	listStockRequests,
 	getStockRequestById,
@@ -48,11 +53,16 @@ export const stockRequestsRouter = {
 				status: z.string().optional(),
 				fromBranchId: z.string().uuid().optional(),
 				toBranchId: z.string().uuid().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
 			assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "read");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"stock_requests",
+				"read",
+			);
 
 			return listStockRequests(context.tenantDb, {
 				status: input.status,
@@ -67,11 +77,16 @@ export const stockRequestsRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
 			assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "read");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"stock_requests",
+				"read",
+			);
 
 			const request = await getStockRequestById(context.tenantDb, input.id);
 			if (!request) {
@@ -97,13 +112,18 @@ export const stockRequestsRouter = {
 						productId: z.string().uuid(),
 						quantityRequested: z.number().int().min(1),
 						notes: z.string().optional(),
-					})
+					}),
 				),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
 			assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "create");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"stock_requests",
+				"create",
+			);
 
 			// IW-09: Verify caller has RBAC access to both branch nodes
 			await guardInputBranchForContext(context, input.toBranchId);
@@ -127,16 +147,23 @@ export const stockRequestsRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
 			assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "approve");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"stock_requests",
+				"approve",
+			);
 
 			// IW-09: Load request and verify caller can access at least one of its branch nodes
 			const request = await getStockRequestById(context.tenantDb, input.id);
 			if (!request) {
-				throw new ORPCError("NOT_FOUND", { message: `Stock request not found: ${input.id}` });
+				throw new ORPCError("NOT_FOUND", {
+					message: `Stock request not found: ${input.id}`,
+				});
 			}
 			await guardStockRequestBranchAccess(context, request);
 
@@ -148,16 +175,23 @@ export const stockRequestsRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
 			assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "reject");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"stock_requests",
+				"reject",
+			);
 
 			// IW-09: Load request and verify caller can access at least one of its branch nodes
 			const request = await getStockRequestById(context.tenantDb, input.id);
 			if (!request) {
-				throw new ORPCError("NOT_FOUND", { message: `Stock request not found: ${input.id}` });
+				throw new ORPCError("NOT_FOUND", {
+					message: `Stock request not found: ${input.id}`,
+				});
 			}
 			await guardStockRequestBranchAccess(context, request);
 
@@ -173,18 +207,25 @@ export const stockRequestsRouter = {
 					z.object({
 						itemId: z.string().uuid(),
 						quantityFulfilled: z.number().int().min(0),
-					})
+					}),
 				),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
 			assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "stock_requests", "update");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"stock_requests",
+				"update",
+			);
 
 			// IW-09: Load request and verify caller can access at least one of its branch nodes
 			const request = await getStockRequestById(context.tenantDb, input.id);
 			if (!request) {
-				throw new ORPCError("NOT_FOUND", { message: `Stock request not found: ${input.id}` });
+				throw new ORPCError("NOT_FOUND", {
+					message: `Stock request not found: ${input.id}`,
+				});
 			}
 			await guardStockRequestBranchAccess(context, request);
 

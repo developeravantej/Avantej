@@ -9,14 +9,21 @@ import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { payoutBatches } from "@avantej-core/db/schema/tenant/payout-batches";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { user } from "@avantej-core/db/schema/auth";
-import { eq, and, desc, inArray, isNull, isNotNull, or, type SQL } from "drizzle-orm";
+import {
+	eq,
+	and,
+	desc,
+	inArray,
+	isNull,
+	isNotNull,
+	or,
+	type SQL,
+} from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
-import {
-	recipientSummary,
-} from "@avantej-core/services/payouts.service";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
+import { recipientSummary } from "@avantej-core/services/payouts.service";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
@@ -33,15 +40,16 @@ export const payoutsReadProcedures = {
 					.optional(),
 				recipientId: z.string().optional(),
 				limit: z.number().int().min(1).max(200).default(50),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "read")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"commission_payout",
+				"read",
+			);
 
 			// Build filter conditions
 			const conditions: SQL[] = [];
@@ -52,7 +60,10 @@ export const payoutsReadProcedures = {
 			if (input.recipientId) {
 				conditions.push(eq(payouts.recipientId, input.recipientId));
 			}
-			if (context.member?.role !== "admin" && context.accessibleNodeIds?.length) {
+			if (
+				context.member?.role !== "admin" &&
+				context.accessibleNodeIds?.length
+			) {
 				// RBAC for non-admin callers ONLY. Admins bypass via role check —
 				// although `createContext` populates `accessibleNodeIds` for admins
 				// too (descendant nodes of their hierarchyScopeId), an admin should
@@ -68,7 +79,8 @@ export const payoutsReadProcedures = {
 				// (batchId IS NULL or batch.branchId IS NULL) are NOT visible to
 				// non-admins unless they are the recipient — this prevents org-wide
 				// batch payout leakage to branch-scoped staff.
-				const callerUserId = context.member?.userId ?? context.session?.user?.id;
+				const callerUserId =
+					context.member?.userId ?? context.session?.user?.id;
 
 				// Arm (b): appointment-linked payout, scoped by appointment.branchId
 				const appointmentBranchPredicate = and(
@@ -83,7 +95,10 @@ export const payoutsReadProcedures = {
 					inArray(payoutBatches.branchId, context.accessibleNodeIds),
 				);
 
-				const branchScopePredicate = or(appointmentBranchPredicate, batchBranchPredicate);
+				const branchScopePredicate = or(
+					appointmentBranchPredicate,
+					batchBranchPredicate,
+				);
 
 				const rbacPredicate = callerUserId
 					? or(eq(payouts.recipientId, callerUserId), branchScopePredicate)
@@ -122,9 +137,9 @@ export const payoutsReadProcedures = {
 			const userIds = memberRows.map((m: any) => m.userId);
 
 			// 2. Batch-fetch user names from control panel
-			const controlPanelDb = context.honoContext?.get(
-				"controlPanelDb"
-			) as NeonDatabase<typeof controlPanelSchema> | undefined;
+			const controlPanelDb = context.honoContext?.get("controlPanelDb") as
+				| NeonDatabase<typeof controlPanelSchema>
+				| undefined;
 
 			let userMap = new Map<string, string>();
 
@@ -174,14 +189,19 @@ export const payoutsReadProcedures = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "read")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"commission_payout",
+				"read",
+			);
 
 			// Non-admin: verify the recipient is within the caller's accessible nodes
-			if (context.member.role !== "admin" && context.accessibleNodeIds?.length) {
+			if (
+				context.member.role !== "admin" &&
+				context.accessibleNodeIds?.length
+			) {
 				const [recipientMember] = await context.tenantDb
 					.select({ hierarchyScopeId: members.hierarchyScopeId })
 					.from(members)
@@ -199,5 +219,5 @@ export const payoutsReadProcedures = {
 			}
 
 			return recipientSummary(context.tenantDb, input.recipientId);
-		})
+		}),
 };

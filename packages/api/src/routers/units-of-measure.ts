@@ -1,9 +1,8 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
-
 	listUnitsOfMeasure,
 	getUomById,
 	createUom,
@@ -17,15 +16,16 @@ export const unitsOfMeasureRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				search: z.string().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"read",
+			);
 
 			return listUnitsOfMeasure(context.tenantDb, { search: input.search });
 		}),
@@ -35,15 +35,16 @@ export const unitsOfMeasureRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"read",
+			);
 
 			const uom = await getUomById(context.tenantDb, input.id);
 			if (!uom) {
@@ -62,15 +63,16 @@ export const unitsOfMeasureRouter = {
 				description: z.string().optional(),
 				baseUomId: z.string().uuid().optional(),
 				conversionFactor: z.string().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "create")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"create",
+			);
 
 			return createUom(context.tenantDb, {
 				name: input.name,
@@ -89,15 +91,16 @@ export const unitsOfMeasureRouter = {
 				description: z.string().optional(),
 				baseUomId: z.string().uuid().optional(),
 				conversionFactor: z.string().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"update",
+			);
 
 			return updateUom(context.tenantDb, input.id, {
 				name: input.name,
@@ -112,15 +115,16 @@ export const unitsOfMeasureRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "delete")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"delete",
+			);
 
 			return deleteUom(context.tenantDb, input.id);
 		}),

@@ -25,9 +25,11 @@ import {
 function getControlPanelDb(context: {
 	honoContext?: { get: (key: string) => unknown };
 }): NeonDatabase<typeof controlPanelSchema> | null {
-	return (context.honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| null) ?? null;
+	return (
+		(context.honoContext?.get("controlPanelDb") as NeonDatabase<
+			typeof controlPanelSchema
+		> | null) ?? null
+	);
 }
 
 function getBetterAuthBaseUrl(context: {
@@ -60,7 +62,7 @@ export const onboardingRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				token: z.string().min(1),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
 			if (!context.tenantDb) {
@@ -118,7 +120,7 @@ export const onboardingRouter = {
 				password: z.string().min(8),
 				fullName: z.string().min(1).max(200),
 				phone: z.string().max(30).optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
 			if (!context.tenantDb) {

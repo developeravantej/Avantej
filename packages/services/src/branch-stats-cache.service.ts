@@ -87,10 +87,7 @@ async function executeRefresh(
 			.select({ count: sql<string>`COUNT(*)` })
 			.from(members)
 			.where(
-				and(
-					eq(members.hierarchyScopeId, nodeId),
-					eq(members.status, "active"),
-				),
+				and(eq(members.hierarchyScopeId, nodeId), eq(members.status, "active")),
 			);
 		const count = Number(row?.count ?? 0);
 

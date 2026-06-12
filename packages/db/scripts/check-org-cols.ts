@@ -1,7 +1,9 @@
 import { Pool } from "@neondatabase/serverless";
 import dotenv from "dotenv";
 import path from "node:path";
-dotenv.config({ path: path.resolve(import.meta.dir, "../../../apps/server/.env") });
+dotenv.config({
+	path: path.resolve(import.meta.dir, "../../../apps/server/.env"),
+});
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
 const r = await pool.query(`

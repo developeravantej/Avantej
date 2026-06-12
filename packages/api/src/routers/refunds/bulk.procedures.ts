@@ -1,8 +1,15 @@
-import { bulkApproveRefunds, createPartialRefund } from "@avantej-core/services/refunds.service";
+import {
+	bulkApproveRefunds,
+	createPartialRefund,
+} from "@avantej-core/services/refunds.service";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import { requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../../guards";
 
 export const refundsBulkProcedures = {
 	/**
@@ -21,14 +28,16 @@ export const refundsBulkProcedures = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
-			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "create");
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"refund_management",
+				"create",
+			);
 
 			try {
 				return await createPartialRefund(context.tenantDb, {
@@ -51,7 +60,9 @@ export const refundsBulkProcedures = {
 				if (e?.code === "NOT_FOUND") {
 					throw new ORPCError("NOT_FOUND", { message: e.message });
 				}
-				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Operation failed" });
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Operation failed",
+				});
 			}
 		}),
 
@@ -82,29 +93,29 @@ export const refundsBulkProcedures = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "approve");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"refund_management",
+				"approve",
+			);
 
 			try {
-				return await bulkApproveRefunds(
-					context.tenantDb,
-					input.items,
-					{
-						userId: context.session.user.id,
-						memberId: context.member.id,
-						role: context.member.role,
-					},
-				);
+				return await bulkApproveRefunds(context.tenantDb, input.items, {
+					userId: context.session.user.id,
+					memberId: context.member.id,
+					role: context.member.role,
+				});
 			} catch (err) {
 				if (err instanceof ORPCError) throw err;
 				const e = err as { code?: string; message?: string };
 				if (e?.code === "BAD_REQUEST") {
 					throw new ORPCError("BAD_REQUEST", { message: e.message });
 				}
-				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Operation failed" });
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Operation failed",
+				});
 			}
-		})
+		}),
 };

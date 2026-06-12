@@ -375,12 +375,10 @@ test("Admin clears all notifications and the unread count drops to zero", {
 			},
 		);
 		expect(Array.isArray(rows)).toBe(true);
-		test
-			.info()
-			.annotations.push({
-				type: "notifications-count",
-				description: String(rows.length),
-			});
+		test.info().annotations.push({
+			type: "notifications-count",
+			description: String(rows.length),
+		});
 	});
 
 	await test.step("Mark all notifications read", async () => {
@@ -444,12 +442,10 @@ test("Google Calendar connection status loads and the settings page renders", {
 		);
 		// Whether or not a connection exists, `connected` must be a boolean.
 		expect(typeof status.connected).toBe("boolean");
-		test
-			.info()
-			.annotations.push({
-				type: "gcal-connected",
-				description: String(status.connected),
-			});
+		test.info().annotations.push({
+			type: "gcal-connected",
+			description: String(status.connected),
+		});
 	});
 
 	await test.step("Open the Google Calendar settings page", async () => {

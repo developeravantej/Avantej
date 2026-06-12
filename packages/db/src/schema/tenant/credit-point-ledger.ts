@@ -1,4 +1,11 @@
-import { index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+	index,
+	integer,
+	pgTable,
+	text,
+	timestamp,
+	uuid,
+} from "drizzle-orm/pg-core";
 
 /**
  * credit_point_ledger — append-only audit trail for customer credit points
@@ -19,9 +26,13 @@ export const creditPointLedger = pgTable(
 		sourceType: text("source_type"),
 		sourceId: uuid("source_id"),
 		actorUserId: text("actor_user_id"),
-		createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
 	},
 	(table) => ({
-		customerIdx: index("credit_point_ledger_customer_idx").on(table.customerUserId),
+		customerIdx: index("credit_point_ledger_customer_idx").on(
+			table.customerUserId,
+		),
 	}),
 );

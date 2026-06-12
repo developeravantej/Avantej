@@ -73,12 +73,10 @@ test("Completing an appointment generates commission splits", {
 			// Splits only materialise when a commission rule applies to the service category.
 			// Assert the pipeline ran without error; surface the count in the report.
 			expect(Array.isArray(splits)).toBe(true);
-			test
-				.info()
-				.annotations.push({
-					type: "commission-splits",
-					description: String(splits.length),
-				});
+			test.info().annotations.push({
+				type: "commission-splits",
+				description: String(splits.length),
+			});
 		});
 	});
 

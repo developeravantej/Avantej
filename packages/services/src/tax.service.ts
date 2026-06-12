@@ -59,7 +59,11 @@ export async function resolveTaxRate(
 		)
 		// Prefer the org default; tie-break by most-recent effective_from so a
 		// freshly-introduced rate wins over an older still-active one.
-		.orderBy(desc(taxRates.isDefault), desc(taxRates.effectiveFrom), asc(taxRates.id))
+		.orderBy(
+			desc(taxRates.isDefault),
+			desc(taxRates.effectiveFrom),
+			asc(taxRates.id),
+		)
 		.limit(1);
 
 	return row[0] ?? null;

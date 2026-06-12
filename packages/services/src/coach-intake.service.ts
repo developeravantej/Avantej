@@ -66,7 +66,8 @@ export async function listCoachIntakeSlots(
 		),
 	});
 	return rows.sort((a, b) => {
-		const dayDiff = (DAY_ORDER[a.dayOfWeek] ?? 7) - (DAY_ORDER[b.dayOfWeek] ?? 7);
+		const dayDiff =
+			(DAY_ORDER[a.dayOfWeek] ?? 7) - (DAY_ORDER[b.dayOfWeek] ?? 7);
 		if (dayDiff !== 0) return dayDiff;
 		return a.startTime.localeCompare(b.startTime);
 	});
@@ -96,7 +97,9 @@ export async function upsertCoachIntakeSlots(
 		byDay.set(slot.dayOfWeek, daySlots);
 	}
 	for (const [day, daySlots] of byDay) {
-		const sorted = daySlots.sort((a, b) => a.startTime.localeCompare(b.startTime));
+		const sorted = daySlots.sort((a, b) =>
+			a.startTime.localeCompare(b.startTime),
+		);
 		for (let i = 1; i < sorted.length; i++) {
 			const current = sorted[i]!;
 			const previous = sorted[i - 1]!;
@@ -144,7 +147,10 @@ export async function computeOpenIntakeSlots(
 	const recurringSlots = await listCoachIntakeSlots(tenantDb, trainerId);
 
 	// Group by day-of-week for fast lookup
-	const slotsByDay = new Map<string, Array<{ startTime: string; endTime: string }>>();
+	const slotsByDay = new Map<
+		string,
+		Array<{ startTime: string; endTime: string }>
+	>();
 	for (const slot of recurringSlots) {
 		const list = slotsByDay.get(slot.dayOfWeek) ?? [];
 		list.push({ startTime: slot.startTime, endTime: slot.endTime });
@@ -268,7 +274,8 @@ export async function claimIntakeSlot(
 	reason?: string,
 ): Promise<typeof coachIntakeExceptions.$inferSelect> {
 	// Derive day of week from date
-	const dayOfWeek = JS_DAY_TO_NAME[new Date(`${date}T12:00:00`).getDay()] ?? "monday";
+	const dayOfWeek =
+		JS_DAY_TO_NAME[new Date(`${date}T12:00:00`).getDay()] ?? "monday";
 
 	// Validate a recurring slot exists for this day+time
 	const existing = await tenantDb.query.coachIntakeAvailability.findFirst({
@@ -401,7 +408,8 @@ export async function listCoachIntakeByBranch(
 	}
 	for (const [, list] of slotsByTrainer) {
 		list.sort((a, b) => {
-			const dayDiff = (DAY_ORDER[a.dayOfWeek] ?? 7) - (DAY_ORDER[b.dayOfWeek] ?? 7);
+			const dayDiff =
+				(DAY_ORDER[a.dayOfWeek] ?? 7) - (DAY_ORDER[b.dayOfWeek] ?? 7);
 			if (dayDiff !== 0) return dayDiff;
 			return a.startTime.localeCompare(b.startTime);
 		});

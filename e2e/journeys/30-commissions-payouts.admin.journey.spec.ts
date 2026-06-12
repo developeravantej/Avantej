@@ -98,12 +98,10 @@ test("Approving a commission split and running a payout batch produces a payout 
 	let approvableSplitId = "";
 	await test.step("Find a pending split for the appointment (or seed a manual bonus)", async () => {
 		const splits = await getCommissionSplitsForAppointment(page, appointmentId);
-		test
-			.info()
-			.annotations.push({
-				type: "engine-splits",
-				description: String(splits.length),
-			});
+		test.info().annotations.push({
+			type: "engine-splits",
+			description: String(splits.length),
+		});
 		const enginePending = splits.find((s) => s.status === "pending");
 		if (enginePending) {
 			approvableSplitId = enginePending.id;

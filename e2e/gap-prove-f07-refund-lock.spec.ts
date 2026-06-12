@@ -19,7 +19,9 @@ import {
 	pickFirstBranchId,
 } from "./helpers/seed-data";
 
-test("F-07 — concurrent approveRefund row-lock + cap check", async ({ page }) => {
+test("F-07 — concurrent approveRefund row-lock + cap check", async ({
+	page,
+}) => {
 	await page.goto("/dashboard");
 	await page.waitForLoadState("domcontentloaded");
 
@@ -76,12 +78,17 @@ test("F-07 — concurrent approveRefund row-lock + cap check", async ({ page }) 
 	// already approved 5000 → remaining=0.
 	let refundId = "";
 	try {
-		const created = await orpcCall<object, { id: string }>(page, "refunds", "request", {
-			organizationId: TEST_ORG_ID,
-			salesOrderId,
-			amountCents: saleAmount,
-			reason: "audit-prove F-07 concurrent-approve test",
-		});
+		const created = await orpcCall<object, { id: string }>(
+			page,
+			"refunds",
+			"request",
+			{
+				organizationId: TEST_ORG_ID,
+				salesOrderId,
+				amountCents: saleAmount,
+				reason: "audit-prove F-07 concurrent-approve test",
+			},
+		);
 		refundId = created.id;
 	} catch (err) {
 		test.skip(true, `refund request failed: ${String(err)}`);
@@ -92,9 +99,15 @@ test("F-07 — concurrent approveRefund row-lock + cap check", async ({ page }) 
 	// commits, the other sees status='approved' on re-read and throws BAD_REQUEST
 	// (the existing status guard).
 	const callApprove = () =>
-		orpcCall(page, "refunds", "approve", { organizationId: TEST_ORG_ID, id: refundId })
+		orpcCall(page, "refunds", "approve", {
+			organizationId: TEST_ORG_ID,
+			id: refundId,
+		})
 			.then(() => ({ ok: true as const, err: null as null }))
-			.catch((err) => ({ ok: false as const, err: err instanceof OrpcClientError ? err.code : String(err) }));
+			.catch((err) => ({
+				ok: false as const,
+				err: err instanceof OrpcClientError ? err.code : String(err),
+			}));
 
 	const [r1, r2] = await Promise.all([callApprove(), callApprove()]);
 	const successCount = [r1, r2].filter((r) => r.ok).length;

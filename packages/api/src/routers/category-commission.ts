@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import { hasPermission } from "@avantej-core/services/permission.service";
 import {
 	getCategoryCommissionConfig,
@@ -17,12 +17,13 @@ const getByCategory = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "category_commission_management", "read");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"category_commission_management",
+			"read",
+		);
 
 		return getCategoryCommissionConfig(context.tenantDb, input.categoryId);
 	});
@@ -70,10 +71,6 @@ const upsert = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
 		// Upsert authorizes EITHER `create` OR `update` — a user granted only one of the
 		// two actions should still be able to use the upsert endpoint (the operation may
@@ -97,7 +94,10 @@ const upsert = tenantProcedure
 			);
 		}
 
-		const totalBps = input.slots.reduce((sum, s) => sum + s.weightageBasisPoints, 0);
+		const totalBps = input.slots.reduce(
+			(sum, s) => sum + s.weightageBasisPoints,
+			0,
+		);
 		if (totalBps !== 10000) {
 			throw new ORPCError("BAD_REQUEST", {
 				message: `Commission slot weightages must sum to 10000 basis points (100%). Got: ${totalBps}.`,
@@ -121,7 +121,10 @@ const upsert = tenantProcedure
 		} catch (error) {
 			if (error instanceof ORPCError) throw error;
 			throw new ORPCError("BAD_REQUEST", {
-				message: error instanceof Error ? error.message : "Failed to upsert commission config",
+				message:
+					error instanceof Error
+						? error.message
+						: "Failed to upsert commission config",
 			});
 		}
 	});
@@ -134,23 +137,31 @@ const deleteConfig = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "category_commission_management", "delete");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"category_commission_management",
+			"delete",
+		);
 
 		try {
-			return await deleteCategoryCommissionConfig(context.tenantDb, input.categoryId, {
-				userId: context.member.userId,
-				id: context.member.id,
-				role: context.member.role,
-			});
+			return await deleteCategoryCommissionConfig(
+				context.tenantDb,
+				input.categoryId,
+				{
+					userId: context.member.userId,
+					id: context.member.id,
+					role: context.member.role,
+				},
+			);
 		} catch (error) {
 			if (error instanceof ORPCError) throw error;
 			throw new ORPCError("BAD_REQUEST", {
-				message: error instanceof Error ? error.message : "Failed to delete commission config",
+				message:
+					error instanceof Error
+						? error.message
+						: "Failed to delete commission config",
 			});
 		}
 	});

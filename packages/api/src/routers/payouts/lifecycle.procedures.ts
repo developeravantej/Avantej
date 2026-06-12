@@ -7,7 +7,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
 import {
 	cancelPayout,
 	markPayoutFailed,
@@ -30,7 +30,12 @@ export const payoutsLifecycleProcedures = {
 		)
 		.handler(async ({ input, context }) => {
 			assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "process");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"commission_payout",
+				"process",
+			);
 			try {
 				return await markPayoutPaid(context.tenantDb, input.id, {
 					paymentReference: input.paymentReference,
@@ -43,9 +48,13 @@ export const payoutsLifecycleProcedures = {
 			} catch (err) {
 				if (err instanceof ORPCError) throw err;
 				const e = err as { code?: string; message?: string };
-				if (e?.code === "BAD_REQUEST") throw new ORPCError("BAD_REQUEST", { message: e.message });
-				if (e?.code === "NOT_FOUND") throw new ORPCError("NOT_FOUND", { message: e.message });
-				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Failed to mark payout paid" });
+				if (e?.code === "BAD_REQUEST")
+					throw new ORPCError("BAD_REQUEST", { message: e.message });
+				if (e?.code === "NOT_FOUND")
+					throw new ORPCError("NOT_FOUND", { message: e.message });
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Failed to mark payout paid",
+				});
 			}
 		}),
 
@@ -64,7 +73,12 @@ export const payoutsLifecycleProcedures = {
 		)
 		.handler(async ({ input, context }) => {
 			assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "process");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"commission_payout",
+				"process",
+			);
 			try {
 				return await markPayoutFailed(context.tenantDb, input.id, {
 					reason: input.reason,
@@ -77,9 +91,13 @@ export const payoutsLifecycleProcedures = {
 			} catch (err) {
 				if (err instanceof ORPCError) throw err;
 				const e = err as { code?: string; message?: string };
-				if (e?.code === "BAD_REQUEST") throw new ORPCError("BAD_REQUEST", { message: e.message });
-				if (e?.code === "NOT_FOUND") throw new ORPCError("NOT_FOUND", { message: e.message });
-				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Failed to mark payout failed" });
+				if (e?.code === "BAD_REQUEST")
+					throw new ORPCError("BAD_REQUEST", { message: e.message });
+				if (e?.code === "NOT_FOUND")
+					throw new ORPCError("NOT_FOUND", { message: e.message });
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Failed to mark payout failed",
+				});
 			}
 		}),
 
@@ -95,7 +113,12 @@ export const payoutsLifecycleProcedures = {
 		)
 		.handler(async ({ input, context }) => {
 			assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "process");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"commission_payout",
+				"process",
+			);
 			try {
 				return await retryPayout(context.tenantDb, input.id, {
 					actor: {
@@ -107,9 +130,13 @@ export const payoutsLifecycleProcedures = {
 			} catch (err) {
 				if (err instanceof ORPCError) throw err;
 				const e = err as { code?: string; message?: string };
-				if (e?.code === "BAD_REQUEST") throw new ORPCError("BAD_REQUEST", { message: e.message });
-				if (e?.code === "NOT_FOUND") throw new ORPCError("NOT_FOUND", { message: e.message });
-				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Failed to retry payout" });
+				if (e?.code === "BAD_REQUEST")
+					throw new ORPCError("BAD_REQUEST", { message: e.message });
+				if (e?.code === "NOT_FOUND")
+					throw new ORPCError("NOT_FOUND", { message: e.message });
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Failed to retry payout",
+				});
 			}
 		}),
 
@@ -123,7 +150,12 @@ export const payoutsLifecycleProcedures = {
 		)
 		.handler(async ({ input, context }) => {
 			assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "process");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"commission_payout",
+				"process",
+			);
 			try {
 				return await cancelPayout(context.tenantDb, input.id, {
 					reason: input.reason,
@@ -136,9 +168,13 @@ export const payoutsLifecycleProcedures = {
 			} catch (err) {
 				if (err instanceof ORPCError) throw err;
 				const e = err as { code?: string; message?: string };
-				if (e?.code === "BAD_REQUEST") throw new ORPCError("BAD_REQUEST", { message: e.message });
-				if (e?.code === "NOT_FOUND") throw new ORPCError("NOT_FOUND", { message: e.message });
-				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Failed to cancel payout" });
+				if (e?.code === "BAD_REQUEST")
+					throw new ORPCError("BAD_REQUEST", { message: e.message });
+				if (e?.code === "NOT_FOUND")
+					throw new ORPCError("NOT_FOUND", { message: e.message });
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Failed to cancel payout",
+				});
 			}
-		})
+		}),
 };

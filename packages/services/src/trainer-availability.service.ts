@@ -22,7 +22,10 @@ export type AvailabilitySlot = {
 	kind?: TrainerAvailabilityKind;
 };
 
-export type ConflictReason = "outside_availability" | "overlaps_block" | "overlaps_timeoff";
+export type ConflictReason =
+	| "outside_availability"
+	| "overlaps_block"
+	| "overlaps_timeoff";
 
 export type ConflictEntry = {
 	slotId: string;
@@ -547,10 +550,14 @@ export async function computeAvailableSlots(
 	}
 
 	// 3. Fetch one-off exceptions and build a set of blocked date strings
-	const exceptions = await listTrainerAvailabilityExceptions(tenantDb, trainerId, {
-		from: toDateString(startDate),
-		to: toDateString(endDate),
-	});
+	const exceptions = await listTrainerAvailabilityExceptions(
+		tenantDb,
+		trainerId,
+		{
+			from: toDateString(startDate),
+			to: toDateString(endDate),
+		},
+	);
 	const blockedDates = new Set(exceptions.map((e) => e.date));
 
 	// 4. Iterate each day in range
@@ -635,7 +642,10 @@ export async function getTrainerConflicts(
 		.where(inArray(trainerAvailability.trainerId, trainerIds));
 
 	// Index slots by trainerId
-	const slotsByTrainer = new Map<string, (typeof trainerAvailability.$inferSelect)[]>();
+	const slotsByTrainer = new Map<
+		string,
+		(typeof trainerAvailability.$inferSelect)[]
+	>();
 	for (const slot of slots) {
 		const list = slotsByTrainer.get(slot.trainerId) ?? [];
 		list.push(slot);

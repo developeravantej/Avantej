@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
 	listTrainerTiers,
 	createTrainerTier,
@@ -20,14 +20,17 @@ const list = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "read")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"trainer_tier_management",
+			"read",
+		);
 
-		return listTrainerTiers(context.tenantDb, { includeInactive: input.includeInactive });
+		return listTrainerTiers(context.tenantDb, {
+			includeInactive: input.includeInactive,
+		});
 	});
 
 const create = tenantProcedure
@@ -40,12 +43,13 @@ const create = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "create")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"trainer_tier_management",
+			"create",
+		);
 
 		try {
 			return await createTrainerTier(context.tenantDb, {
@@ -73,12 +77,13 @@ const update = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "update")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"trainer_tier_management",
+			"update",
+		);
 
 		try {
 			return await updateTrainerTier(context.tenantDb, input.id, {
@@ -103,12 +108,13 @@ const deactivate = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "delete")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"trainer_tier_management",
+			"delete",
+		);
 
 		try {
 			return await deactivateTrainerTier(context.tenantDb, input.id);
@@ -129,7 +135,12 @@ const deleteTier = tenantProcedure
 	)
 	.handler(async ({ input, context }) => {
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "delete");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"trainer_tier_management",
+			"delete",
+		);
 
 		try {
 			await deleteTrainerTier(context.tenantDb, input.id);
@@ -149,12 +160,13 @@ const reactivate = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "update")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"trainer_tier_management",
+			"update",
+		);
 
 		try {
 			return await reactivateTrainerTier(context.tenantDb, input.id);
@@ -175,15 +187,20 @@ const assignToMember = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "trainer_tier_management", "update")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"trainer_tier_management",
+			"update",
+		);
 
 		try {
-			return await assignTierToMember(context.tenantDb, input.memberId, input.tierId);
+			return await assignTierToMember(
+				context.tenantDb,
+				input.memberId,
+				input.tierId,
+			);
 		} catch (err) {
 			if (err instanceof ORPCError) throw err;
 			throw new ORPCError("BAD_REQUEST", {
@@ -192,4 +209,12 @@ const assignToMember = tenantProcedure
 		}
 	});
 
-export const trainerTiersRouter = { list, create, update, deactivate, deleteTier, reactivate, assignToMember };
+export const trainerTiersRouter = {
+	list,
+	create,
+	update,
+	deactivate,
+	deleteTier,
+	reactivate,
+	assignToMember,
+};

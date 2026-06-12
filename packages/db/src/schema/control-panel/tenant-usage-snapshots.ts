@@ -49,7 +49,9 @@ export const tenantUsageSnapshots = pgTable(
 		apptCount30d: integer("appt_count_30d").notNull().default(0),
 		salesTotal30dMinor: integer("sales_total_30d_minor").notNull().default(0),
 		salesCurrency: text("sales_currency").notNull().default("MYR"),
-		storageBytes: bigint("storage_bytes", { mode: "number" }).notNull().default(0),
+		storageBytes: bigint("storage_bytes", { mode: "number" })
+			.notNull()
+			.default(0),
 		ghlActive: boolean("ghl_active").notNull().default(false),
 		// Plan F.1.5 — composite tenant health (0-100). NULL = pre-F.1.5 row.
 		healthScore: integer("health_score"),

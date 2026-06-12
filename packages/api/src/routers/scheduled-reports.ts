@@ -7,7 +7,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 
 const windowKeySchema = z.enum(["7D", "30D", "90D", "YTD"]);
 const frequencySchema = z.enum(["daily", "weekly", "monthly"]);
@@ -38,7 +38,12 @@ export const scheduledReportsRouter = {
 					message: "Tenant database or member not available",
 				});
 			}
-			await requirePermissionOrpc(context.tenantDb, context.member, "reports", "read");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"reports",
+				"read",
+			);
 			return listScheduledReports(context.tenantDb);
 		}),
 
@@ -54,13 +59,18 @@ export const scheduledReportsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
 				});
 			}
-			await requirePermissionOrpc(context.tenantDb, context.member, "reports", "export");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"reports",
+				"export",
+			);
 			return createScheduledReport(context.tenantDb, {
 				recipients: input.recipients,
 				reportName: input.reportName,
@@ -79,13 +89,18 @@ export const scheduledReportsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
 				});
 			}
-			await requirePermissionOrpc(context.tenantDb, context.member, "reports", "export");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"reports",
+				"export",
+			);
 			await deleteScheduledReport(context.tenantDb, input.id);
 			return { success: true };
 		}),
@@ -99,13 +114,18 @@ export const scheduledReportsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: "Tenant database or member not available",
 				});
 			}
-			await requirePermissionOrpc(context.tenantDb, context.member, "reports", "export");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"reports",
+				"export",
+			);
 			return toggleScheduledReportActive(
 				context.tenantDb,
 				input.id,

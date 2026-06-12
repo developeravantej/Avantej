@@ -49,7 +49,10 @@ async function loginAsAdmin(page: Page): Promise<void> {
  * "Generate QR" or "Create Invite" button that triggers invite creation
  * and renders the resulting URL in the UI.
  */
-async function generateBranchInviteUrl(page: Page, branchNodeId: string): Promise<string> {
+async function generateBranchInviteUrl(
+	page: Page,
+	branchNodeId: string,
+): Promise<string> {
 	await page.goto(`/dashboard/branch/${branchNodeId}`);
 
 	// Wait for the branch page to stabilise
@@ -70,7 +73,9 @@ async function generateBranchInviteUrl(page: Page, branchNodeId: string): Promis
 
 	const rawText = (await urlText.textContent()) ?? "";
 	// Extract the URL portion (may be embedded in a longer string)
-	const match = rawText.match(/(https?:\/\/[^\s]+\/onboarding\/[^?\s]+\?org=[^\s]+)/);
+	const match = rawText.match(
+		/(https?:\/\/[^\s]+\/onboarding\/[^?\s]+\?org=[^\s]+)/,
+	);
 	if (match?.[1]) return match[1];
 
 	// Fallback: look for an <input> or <a> containing the URL
@@ -104,7 +109,9 @@ async function resolveBranchNodeId(page: Page): Promise<string> {
 	await page.waitForLoadState("networkidle", { timeout: 15_000 });
 
 	const firstRow = page.locator("tbody tr").first();
-	const rowVisible = await firstRow.isVisible({ timeout: 5_000 }).catch(() => false);
+	const rowVisible = await firstRow
+		.isVisible({ timeout: 5_000 })
+		.catch(() => false);
 
 	if (rowVisible) {
 		await firstRow.click();
@@ -130,7 +137,9 @@ test.describe("Branch QR Onboarding — admin creates invite", () => {
 		await loginAsAdmin(page);
 	});
 
-	test("admin can navigate to a branch and generate a QR invite URL", async ({ page }) => {
+	test("admin can navigate to a branch and generate a QR invite URL", async ({
+		page,
+	}) => {
 		const branchId = await resolveBranchNodeId(page);
 
 		// Navigate to the branch detail page
@@ -145,14 +154,17 @@ test.describe("Branch QR Onboarding — admin creates invite", () => {
 			name: /generate qr|create invite|new invite|generate invite/i,
 		});
 
-		const btnVisible = await generateBtn.first().isVisible({ timeout: 10_000 }).catch(() => false);
+		const btnVisible = await generateBtn
+			.first()
+			.isVisible({ timeout: 10_000 })
+			.catch(() => false);
 
 		if (!btnVisible) {
 			// If the button isn't present, the branch page may not have the QR feature
 			// rendered yet (possible if the route hasn't been wired up).  Log and skip.
 			test.skip(
 				true,
-				"Generate QR button not found on branch page — feature may not be wired to the UI yet"
+				"Generate QR button not found on branch page — feature may not be wired to the UI yet",
 			);
 			return;
 		}
@@ -163,18 +175,22 @@ test.describe("Branch QR Onboarding — admin creates invite", () => {
 		await page.waitForTimeout(2_000); // allow the API response to render
 
 		const urlPattern = page.locator("text=/\\/onboarding\\//").first();
-		const hasUrl = await urlPattern.isVisible({ timeout: 5_000 }).catch(() => false);
+		const hasUrl = await urlPattern
+			.isVisible({ timeout: 5_000 })
+			.catch(() => false);
 
 		if (hasUrl) {
 			const rawText = (await urlPattern.textContent()) ?? "";
 			expect(rawText).toContain("/onboarding/");
 			capturedInviteUrl = rawText.includes("http")
-				? rawText.match(/(https?:\/\/[^\s]+)/)?.[1] ?? null
+				? (rawText.match(/(https?:\/\/[^\s]+)/)?.[1] ?? null)
 				: null;
 		} else {
 			// The invite may have been created silently; look for a QR code image
 			const qrImage = page.locator("img[alt*=qr i], canvas, svg").first();
-			const hasQr = await qrImage.isVisible({ timeout: 5_000 }).catch(() => false);
+			const hasQr = await qrImage
+				.isVisible({ timeout: 5_000 })
+				.catch(() => false);
 			expect(hasQr).toBe(true);
 		}
 	});
@@ -193,7 +209,9 @@ test.describe("Branch QR Onboarding — onboarding landing page", () => {
 	 * with a real token you would need to capture it from the admin flow above.
 	 */
 
-	test("onboarding page renders — invalid token shows error state", async ({ browser }) => {
+	test("onboarding page renders — invalid token shows error state", async ({
+		browser,
+	}) => {
 		const ctx: BrowserContext = await browser.newContext();
 		const page = await ctx.newPage();
 
@@ -217,7 +235,10 @@ test.describe("Branch QR Onboarding — onboarding landing page", () => {
 		// This test requires a real invite URL.  We skip if capturedInviteUrl is null
 		// (the admin-create test above was skipped or ran in a different worker).
 		if (!capturedInviteUrl) {
-			test.skip(true, "No invite URL captured from admin flow — skipping form render test");
+			test.skip(
+				true,
+				"No invite URL captured from admin flow — skipping form render test",
+			);
 			return;
 		}
 
@@ -302,7 +323,9 @@ test.describe("Branch QR Onboarding — revocation", () => {
 
 		// Look for a revoke button near the token text
 		const tokenLocator = page.locator(`text=${token.slice(0, 8)}`).first();
-		const tokenVisible = await tokenLocator.isVisible({ timeout: 5_000 }).catch(() => false);
+		const tokenVisible = await tokenLocator
+			.isVisible({ timeout: 5_000 })
+			.catch(() => false);
 
 		if (tokenVisible) {
 			// Find the nearest revoke button in the same row/card
@@ -311,7 +334,9 @@ test.describe("Branch QR Onboarding — revocation", () => {
 				.filter({ hasText: /revoke|deactivate/i })
 				.first();
 
-			const revokeVisible = await revokeBtn.isVisible({ timeout: 5_000 }).catch(() => false);
+			const revokeVisible = await revokeBtn
+				.isVisible({ timeout: 5_000 })
+				.catch(() => false);
 
 			if (revokeVisible) {
 				await revokeBtn.click();
@@ -341,7 +366,9 @@ test.describe("Branch QR Onboarding — revocation", () => {
 		// - "no longer active", "revoked", "expired", "invalid", "not found"
 		// - or the sign-up form email input is missing
 		const emailInput = incogPage.getByLabel(/email/i).first();
-		const formVisible = await emailInput.isVisible({ timeout: 5_000 }).catch(() => false);
+		const formVisible = await emailInput
+			.isVisible({ timeout: 5_000 })
+			.catch(() => false);
 
 		const showsError =
 			/no longer active|revoked|expired|invalid|not found|gone/i.test(pageText);

@@ -65,7 +65,9 @@ export async function addToWaitlist(
 		}
 
 		if (!slot.isFull) {
-			throw new Error("Class slot is not full. Book directly instead of joining the waitlist.");
+			throw new Error(
+				"Class slot is not full. Book directly instead of joining the waitlist.",
+			);
 		}
 
 		// Check member not already on waitlist for this slot
@@ -171,7 +173,7 @@ async function compactWaitlistPositions(
 export async function promoteFromWaitlist(
 	tenantDb: TenantDb,
 	classSlotId: string,
-): Promise<(typeof waitlistEntries.$inferSelect) | null> {
+): Promise<typeof waitlistEntries.$inferSelect | null> {
 	return tenantDb.transaction(async (tx) => {
 		const result = await promoteFromWaitlistInsideTx(tx, classSlotId);
 		if (result === "full") {
@@ -198,7 +200,7 @@ export async function promoteFromWaitlist(
 export async function promoteFromWaitlistInsideTx(
 	tx: TenantTx,
 	classSlotId: string,
-): Promise<(typeof waitlistEntries.$inferSelect) | null | "full"> {
+): Promise<typeof waitlistEntries.$inferSelect | null | "full"> {
 	// Find earliest "waiting" entry
 	const entry = await tx.query.waitlistEntries.findFirst({
 		where: and(
@@ -254,80 +256,86 @@ export async function promoteFromWaitlistInsideTx(
 
 	// Create the appointment row for the promoted member
 	if (slot) {
-			const [sh, sm] = slot.startTime.split(":").map(Number);
-			const [eh, em] = slot.endTime.split(":").map(Number);
-			const startTime = new Date(slot.date);
-			startTime.setHours(sh ?? 0, sm ?? 0, 0, 0);
-			const endTime = new Date(slot.date);
-			endTime.setHours(eh ?? 0, em ?? 0, 0, 0);
-			const duration = Math.max(1, Math.round((endTime.getTime() - startTime.getTime()) / 60000));
+		const [sh, sm] = slot.startTime.split(":").map(Number);
+		const [eh, em] = slot.endTime.split(":").map(Number);
+		const startTime = new Date(slot.date);
+		startTime.setHours(sh ?? 0, sm ?? 0, 0, 0);
+		const endTime = new Date(slot.date);
+		endTime.setHours(eh ?? 0, em ?? 0, 0, 0);
+		const duration = Math.max(
+			1,
+			Math.round((endTime.getTime() - startTime.getTime()) / 60000),
+		);
 
-			const [appt] = await tx
-				.insert(appointments)
-				.values({
-					type: "semi-private",
-					startTime,
-					endTime,
-					duration,
-					branchId: slot.branchId,
-					serviceId: slot.serviceId ?? undefined,
-					status: "confirmed",
-					sessionTotal: 0,
-					pricePerClient: 0,
-					userId: entry.userId,
-					trainerId: slot.instructorId ?? null,
-					classSlotId: slot.id,
-					location: slot.location ?? null,
-					createdBy: entry.userId,
-					paymentStatus: "pending",
-				})
-				.returning();
+		const [appt] = await tx
+			.insert(appointments)
+			.values({
+				type: "semi-private",
+				startTime,
+				endTime,
+				duration,
+				branchId: slot.branchId,
+				serviceId: slot.serviceId ?? undefined,
+				status: "confirmed",
+				sessionTotal: 0,
+				pricePerClient: 0,
+				userId: entry.userId,
+				trainerId: slot.instructorId ?? null,
+				classSlotId: slot.id,
+				location: slot.location ?? null,
+				createdBy: entry.userId,
+				paymentStatus: "pending",
+			})
+			.returning();
 
-			if (appt) {
-				await tx.insert(appointmentClients).values({
+		if (appt) {
+			await tx.insert(appointmentClients).values({
+				appointmentId: appt.id,
+				clientId: entry.userId,
+				clientType: "member",
+				pricePaid: 0,
+			});
+
+			// Link the appointment back to the waitlist entry
+			await tx
+				.update(waitlistEntries)
+				.set({
 					appointmentId: appt.id,
-					clientId: entry.userId,
-					clientType: "member",
-					pricePaid: 0,
+					bookedAt: new Date(),
+					updatedAt: new Date(),
+				})
+				.where(eq(waitlistEntries.id, entry.id));
+
+			// Notify the promoted member that a spot opened up. Best-effort:
+			// a notification failure must not roll back the promotion. (F-SVC-01)
+			// Audit-prove M1: the notify INSERT runs inside a SAVEPOINT (nested
+			// tx) so that if it fails it rolls back only the savepoint — the outer
+			// promotion transaction stays valid and can still COMMIT. A bare
+			// try/catch would NOT protect us: a failed statement poisons the
+			// surrounding PG transaction, turning the later COMMIT into a ROLLBACK.
+			let className: string | null = null;
+			if (slot.serviceId) {
+				const svc = await tx.query.services.findFirst({
+					where: eq(services.id, slot.serviceId),
+					columns: { name: true },
 				});
-
-				// Link the appointment back to the waitlist entry
-				await tx
-					.update(waitlistEntries)
-					.set({ appointmentId: appt.id, bookedAt: new Date(), updatedAt: new Date() })
-					.where(eq(waitlistEntries.id, entry.id));
-
-				// Notify the promoted member that a spot opened up. Best-effort:
-				// a notification failure must not roll back the promotion. (F-SVC-01)
-				// Audit-prove M1: the notify INSERT runs inside a SAVEPOINT (nested
-				// tx) so that if it fails it rolls back only the savepoint — the outer
-				// promotion transaction stays valid and can still COMMIT. A bare
-				// try/catch would NOT protect us: a failed statement poisons the
-				// surrounding PG transaction, turning the later COMMIT into a ROLLBACK.
-				let className: string | null = null;
-				if (slot.serviceId) {
-					const svc = await tx.query.services.findFirst({
-						where: eq(services.id, slot.serviceId),
-						columns: { name: true },
+				className = svc?.name ?? null;
+			}
+			try {
+				await tx.transaction(async (inner) => {
+					await notifyWaitlistPromotion(inner, {
+						userId: entry.userId,
+						classSlotId: slot.id,
+						appointmentId: appt.id,
+						className,
 					});
-					className = svc?.name ?? null;
-				}
-				try {
-					await tx.transaction(async (inner) => {
-						await notifyWaitlistPromotion(inner, {
-							userId: entry.userId,
-							classSlotId: slot.id,
-							appointmentId: appt.id,
-							className,
-						});
-					});
-				} catch {
-					// swallow — notify is non-critical; the savepoint rolled back,
-					// the outer promotion transaction is unaffected.
-				}
+				});
+			} catch {
+				// swallow — notify is non-critical; the savepoint rolled back,
+				// the outer promotion transaction is unaffected.
 			}
 		}
+	}
 
 	return promoted ?? null;
 }
-

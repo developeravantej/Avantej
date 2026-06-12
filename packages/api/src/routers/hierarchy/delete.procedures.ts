@@ -8,7 +8,11 @@ import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import { requirePermissionOrpc, assertOrgContextMatch, assertTenantContext } from "../../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	assertTenantContext,
+} from "../../guards";
 import { tryGetControlPanelDb } from "../../lib/context-helpers";
 import type { ControlPanelDb } from "../../lib/context-helpers";
 import { notifyHierarchyReassignment } from "@avantej-core/services/notification.service";
@@ -17,261 +21,272 @@ import { inArray } from "drizzle-orm";
 
 export const hierarchyDeleteProcedures = {
 	deleteNode: tenantProcedure
-    .input(
-      z.object({
-        organizationId: z.string().uuid(),
-        nodeId: z.string().uuid(),
-        /**
-         * Options for automatic handling (defaults to true for both)
-         * - autoDeleteChildren: Recursively soft-delete all active child nodes
-         * - autoReassignMembers: Reassign members to parent (or org root)
-         */
-        options: z
-          .object({
-            autoDeleteChildren: z.boolean().optional(),
-            autoReassignMembers: z.boolean().optional(),
-          })
-          .optional(),
-      })
-    )
-    .handler(async ({ input, context }) => {
-      
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				nodeId: z.string().uuid(),
+				/**
+				 * Options for automatic handling (defaults to true for both)
+				 * - autoDeleteChildren: Recursively soft-delete all active child nodes
+				 * - autoReassignMembers: Reassign members to parent (or org root)
+				 */
+				options: z
+					.object({
+						autoDeleteChildren: z.boolean().optional(),
+						autoReassignMembers: z.boolean().optional(),
+					})
+					.optional(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			assertTenantContext(context);
+			const {
+				tenantDb,
+				member,
+				accessibleNodeIds: contextAccessibleNodeIds,
+			} = context;
+			const accessibleNodeIds =
+				contextAccessibleNodeIds ||
+				(member
+					? await getDescendantNodeIds(tenantDb, member.hierarchyScopeId)
+					: []);
 
-      
+			// Check if user can access this node
+			if (!accessibleNodeIds.includes(input.nodeId)) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "User does not have access to this node",
+				});
+			}
 
-		assertOrgContextMatch(context, input);
-		assertTenantContext(context);
-      const {
-        tenantDb,
-        member,
-        accessibleNodeIds: contextAccessibleNodeIds,
-      } = context;
-      const accessibleNodeIds =
-        contextAccessibleNodeIds ||
-        (member
-          ? await getDescendantNodeIds(tenantDb, member.hierarchyScopeId)
-          : []);
+			// Check permission
+			await requirePermissionOrpc(
+				tenantDb,
+				member,
+				"hierarchy_management",
+				"delete",
+			);
 
-      // Check if user can access this node
-      if (!accessibleNodeIds.includes(input.nodeId)) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User does not have access to this node",
-        });
-      }
+			// Prepare delete options (defaults to true for both)
+			const deleteOptions: DeleteHierarchyNodeOptions = {
+				autoDeleteChildren: input.options?.autoDeleteChildren ?? true,
+				autoReassignMembers: input.options?.autoReassignMembers ?? true,
+			};
 
-      // Check permission
-      await requirePermissionOrpc(tenantDb, member, "hierarchy_management", "delete");
+			// Collect branch node IDs before deletion (for sync cleanup)
+			// This includes the node itself (if branch) and any descendant branches
+			let branchNodeIds: string[] = [];
+			const controlPanelDb = tryGetControlPanelDb(context);
+			if (controlPanelDb) {
+				try {
+					const descendantIds = await getDescendantNodeIds(
+						tenantDb,
+						input.nodeId,
+					);
+					const descendantNodes = await tenantDb.query.hierarchyNodes.findMany({
+						where: (nodes: any, { inArray }: any) =>
+							inArray(nodes.id, descendantIds),
+					});
+					branchNodeIds = descendantNodes
+						.filter((n: any) => n.type === "branch")
+						.map((n: any) => n.id);
+				} catch {
+					// If we can't collect IDs, proceed with delete anyway
+				}
+			}
 
-      // Prepare delete options (defaults to true for both)
-      const deleteOptions: DeleteHierarchyNodeOptions = {
-        autoDeleteChildren: input.options?.autoDeleteChildren ?? true,
-        autoReassignMembers: input.options?.autoReassignMembers ?? true,
-      };
+			// Fire-and-forget GHL branch option removal BEFORE the delete, so the
+			// dispatcher can still resolve the branch path while the row exists.
+			// Errors are logged but never block the delete.
+			const ghlSyncResults: Array<{
+				branchNodeId: string;
+				status: "synced" | "skipped" | "error";
+				[k: string]: unknown;
+			}> = [];
+			if (
+				controlPanelDb &&
+				branchNodeIds.length > 0 &&
+				context.organizationId
+			) {
+				const dispatchBranchRemove = context.honoContext?.get(
+					"dispatchBranchRemove",
+				) as
+					| ((args: {
+							controlPanelDb: ControlPanelDb;
+							tenantDb: typeof tenantDb;
+							organizationId: string;
+							branchNodeId: string;
+					  }) => Promise<{
+							status: "synced" | "skipped" | "error";
+							[k: string]: unknown;
+					  }>)
+					| undefined;
+				if (dispatchBranchRemove) {
+					for (const branchId of branchNodeIds) {
+						try {
+							const res = await dispatchBranchRemove({
+								controlPanelDb,
+								tenantDb,
+								organizationId: context.organizationId,
+								branchNodeId: branchId,
+							});
+							ghlSyncResults.push({ branchNodeId: branchId, ...res });
+						} catch (err) {
+							console.error("GHL branch remove sync failed for", branchId, err);
+							ghlSyncResults.push({
+								branchNodeId: branchId,
+								status: "error",
+								error: err instanceof Error ? err.message : String(err),
+							});
+						}
+					}
+				}
+			}
 
-      // Collect branch node IDs before deletion (for sync cleanup)
-      // This includes the node itself (if branch) and any descendant branches
-      let branchNodeIds: string[] = [];
-      const controlPanelDb = tryGetControlPanelDb(context);
-      if (controlPanelDb) {
-        try {
-          const descendantIds = await getDescendantNodeIds(tenantDb, input.nodeId);
-          const descendantNodes = await tenantDb.query.hierarchyNodes.findMany({
-            where: (nodes: any, { inArray }: any) => inArray(nodes.id, descendantIds),
-          });
-          branchNodeIds = descendantNodes
-            .filter((n: any) => n.type === "branch")
-            .map((n: any) => n.id);
-        } catch {
-          // If we can't collect IDs, proceed with delete anyway
-        }
-      }
+			// Collect members affected by this delete BEFORE it happens. With
+			// autoReassignMembers, every member scoped to the deleted node OR any of
+			// its descendants (which are recursively deleted) gets moved to the
+			// parent/root. We capture them up-front so we can notify them after a
+			// successful delete (their row's hierarchyScopeId no longer matches the
+			// deleted subtree once reassigned).
+			let affectedMemberUserIds: string[] = [];
+			let deletedNodeName: string | null = null;
+			if (deleteOptions.autoReassignMembers) {
+				try {
+					const subtreeIds = await getDescendantNodeIds(tenantDb, input.nodeId);
+					const idsToCheck =
+						subtreeIds.length > 0 ? subtreeIds : [input.nodeId];
+					const affectedMembers = await tenantDb.query.members.findMany({
+						where: inArray(members.hierarchyScopeId, idsToCheck),
+						columns: { userId: true },
+					});
+					affectedMemberUserIds = affectedMembers.map(
+						(m: { userId: string }) => m.userId,
+					);
+					const deletedNode = await tenantDb.query.hierarchyNodes.findFirst({
+						where: (nodes: any, { eq: eqOp }: any) =>
+							eqOp(nodes.id, input.nodeId),
+						columns: { name: true },
+					});
+					deletedNodeName = deletedNode?.name ?? null;
+				} catch (collectErr) {
+					// Non-fatal: if we can't enumerate affected members we still delete,
+					// we just can't notify them. Log so the gap is visible.
+					console.error(
+						"Failed to collect members for hierarchy reassignment notification:",
+						collectErr,
+					);
+				}
+			}
 
-      // Fire-and-forget GHL branch option removal BEFORE the delete, so the
-      // dispatcher can still resolve the branch path while the row exists.
-      // Errors are logged but never block the delete.
-      const ghlSyncResults: Array<{
-        branchNodeId: string;
-        status: "synced" | "skipped" | "error";
-        [k: string]: unknown;
-      }> = [];
-      if (controlPanelDb && branchNodeIds.length > 0 && context.organizationId) {
-        const dispatchBranchRemove = context.honoContext?.get(
-          "dispatchBranchRemove",
-        ) as
-          | ((args: {
-              controlPanelDb: ControlPanelDb;
-              tenantDb: typeof tenantDb;
-              organizationId: string;
-              branchNodeId: string;
-            }) => Promise<{
-              status: "synced" | "skipped" | "error";
-              [k: string]: unknown;
-            }>)
-          | undefined;
-        if (dispatchBranchRemove) {
-          for (const branchId of branchNodeIds) {
-            try {
-              const res = await dispatchBranchRemove({
-                controlPanelDb,
-                tenantDb,
-                organizationId: context.organizationId,
-                branchNodeId: branchId,
-              });
-              ghlSyncResults.push({ branchNodeId: branchId, ...res });
-            } catch (err) {
-              console.error(
-                "GHL branch remove sync failed for",
-                branchId,
-                err,
-              );
-              ghlSyncResults.push({
-                branchNodeId: branchId,
-                status: "error",
-                error: err instanceof Error ? err.message : String(err),
-              });
-            }
-          }
-        }
-      }
+			// Delete node with automatic handling
+			try {
+				await deleteHierarchyNode(tenantDb, input.nodeId, deleteOptions);
 
-      // Collect members affected by this delete BEFORE it happens. With
-      // autoReassignMembers, every member scoped to the deleted node OR any of
-      // its descendants (which are recursively deleted) gets moved to the
-      // parent/root. We capture them up-front so we can notify them after a
-      // successful delete (their row's hierarchyScopeId no longer matches the
-      // deleted subtree once reassigned).
-      let affectedMemberUserIds: string[] = [];
-      let deletedNodeName: string | null = null;
-      if (deleteOptions.autoReassignMembers) {
-        try {
-          const subtreeIds = await getDescendantNodeIds(tenantDb, input.nodeId);
-          const idsToCheck =
-            subtreeIds.length > 0 ? subtreeIds : [input.nodeId];
-          const affectedMembers = await tenantDb.query.members.findMany({
-            where: inArray(members.hierarchyScopeId, idsToCheck),
-            columns: { userId: true },
-          });
-          affectedMemberUserIds = affectedMembers.map((m: { userId: string }) => m.userId);
-          const deletedNode = await tenantDb.query.hierarchyNodes.findFirst({
-            where: (nodes: any, { eq: eqOp }: any) => eqOp(nodes.id, input.nodeId),
-            columns: { name: true },
-          });
-          deletedNodeName = deletedNode?.name ?? null;
-        } catch (collectErr) {
-          // Non-fatal: if we can't enumerate affected members we still delete,
-          // we just can't notify them. Log so the gap is visible.
-          console.error(
-            "Failed to collect members for hierarchy reassignment notification:",
-            collectErr,
-          );
-        }
-      }
+				// Best-effort: notify each reassigned member that their scope changed.
+				// Never fail the delete on a notification error — but DO log it.
+				if (affectedMemberUserIds.length > 0) {
+					try {
+						await notifyHierarchyReassignment(tenantDb, {
+							userIds: affectedMemberUserIds,
+							deletedNodeId: input.nodeId,
+							deletedNodeName,
+						});
+					} catch (notifyErr) {
+						console.error(
+							"Failed to notify reassigned members after hierarchy delete:",
+							notifyErr,
+						);
+					}
+				}
 
-      // Delete node with automatic handling
-      try {
-        await deleteHierarchyNode(tenantDb, input.nodeId, deleteOptions);
+				// Sync: remove deleted branches from organization_branches registry
+				if (controlPanelDb && branchNodeIds.length > 0) {
+					try {
+						for (const branchId of branchNodeIds) {
+							await controlPanelDb
+								.delete(organizationBranches)
+								.where(eq(organizationBranches.tenantNodeId, branchId));
+						}
+					} catch (syncError) {
+						console.error(
+							"Failed to sync branch deletion to organization_branches:",
+							syncError,
+						);
+					}
+				}
 
-        // Best-effort: notify each reassigned member that their scope changed.
-        // Never fail the delete on a notification error — but DO log it.
-        if (affectedMemberUserIds.length > 0) {
-          try {
-            await notifyHierarchyReassignment(tenantDb, {
-              userIds: affectedMemberUserIds,
-              deletedNodeId: input.nodeId,
-              deletedNodeName,
-            });
-          } catch (notifyErr) {
-            console.error(
-              "Failed to notify reassigned members after hierarchy delete:",
-              notifyErr,
-            );
-          }
-        }
+				return { success: true, ghlSync: ghlSyncResults };
+			} catch (error) {
+				// Compensation: GHL options were removed BEFORE the delete to allow
+				// the dispatcher to resolve branch paths while rows still existed.
+				// If the delete failed, re-add any successfully-removed options so
+				// the two systems don't drift (GHL option gone, branch row still
+				// present). Best-effort: log and continue on compensation failure.
+				const successfullyRemovedBranchIds = ghlSyncResults
+					.filter((r) => r.status === "synced")
+					.map((r) => r.branchNodeId);
+				if (
+					successfullyRemovedBranchIds.length > 0 &&
+					controlPanelDb &&
+					context.organizationId
+				) {
+					const dispatchBranchSync = context.honoContext?.get(
+						"dispatchBranchSync",
+					) as
+						| ((args: {
+								controlPanelDb: ControlPanelDb;
+								tenantDb: typeof tenantDb;
+								organizationId: string;
+								branchNodeId: string;
+						  }) => Promise<{
+								status: "synced" | "skipped" | "error";
+								[k: string]: unknown;
+						  }>)
+						| undefined;
+					if (dispatchBranchSync) {
+						for (const branchId of successfullyRemovedBranchIds) {
+							try {
+								await dispatchBranchSync({
+									controlPanelDb,
+									tenantDb,
+									organizationId: context.organizationId,
+									branchNodeId: branchId,
+								});
+								console.warn(
+									`Delete failed for ${branchId}; GHL option re-added via compensation.`,
+								);
+							} catch (compensateErr) {
+								console.error(
+									`Delete failed AND GHL compensation failed for ${branchId}:`,
+									compensateErr,
+								);
+							}
+						}
+					}
+				}
 
-        // Sync: remove deleted branches from organization_branches registry
-        if (controlPanelDb && branchNodeIds.length > 0) {
-          try {
-            for (const branchId of branchNodeIds) {
-              await controlPanelDb
-                .delete(organizationBranches)
-                .where(eq(organizationBranches.tenantNodeId, branchId));
-            }
-          } catch (syncError) {
-            console.error("Failed to sync branch deletion to organization_branches:", syncError);
-          }
-        }
-
-        return { success: true, ghlSync: ghlSyncResults };
-      } catch (error) {
-        // Compensation: GHL options were removed BEFORE the delete to allow
-        // the dispatcher to resolve branch paths while rows still existed.
-        // If the delete failed, re-add any successfully-removed options so
-        // the two systems don't drift (GHL option gone, branch row still
-        // present). Best-effort: log and continue on compensation failure.
-        const successfullyRemovedBranchIds = ghlSyncResults
-          .filter((r) => r.status === "synced")
-          .map((r) => r.branchNodeId);
-        if (
-          successfullyRemovedBranchIds.length > 0 &&
-          controlPanelDb &&
-          context.organizationId
-        ) {
-          const dispatchBranchSync = context.honoContext?.get(
-            "dispatchBranchSync",
-          ) as
-            | ((args: {
-                controlPanelDb: ControlPanelDb;
-                tenantDb: typeof tenantDb;
-                organizationId: string;
-                branchNodeId: string;
-              }) => Promise<{
-                status: "synced" | "skipped" | "error";
-                [k: string]: unknown;
-              }>)
-            | undefined;
-          if (dispatchBranchSync) {
-            for (const branchId of successfullyRemovedBranchIds) {
-              try {
-                await dispatchBranchSync({
-                  controlPanelDb,
-                  tenantDb,
-                  organizationId: context.organizationId,
-                  branchNodeId: branchId,
-                });
-                console.warn(
-                  `Delete failed for ${branchId}; GHL option re-added via compensation.`,
-                );
-              } catch (compensateErr) {
-                console.error(
-                  `Delete failed AND GHL compensation failed for ${branchId}:`,
-                  compensateErr,
-                );
-              }
-            }
-          }
-        }
-
-        // Handle specific error cases
-        if (error instanceof Error) {
-          if (error.message.includes("not found")) {
-            throw new ORPCError("NOT_FOUND", {
-              message: error.message,
-            });
-          }
-          if (
-            error.message.includes("child node") ||
-            error.message.includes("assigned member") ||
-            error.message.includes("no valid target")
-          ) {
-            throw new ORPCError("CONFLICT", {
-              message: error.message,
-            });
-          }
-        }
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            error instanceof Error ? error.message : "Failed to delete node",
-        });
-      }
-    })
+				// Handle specific error cases
+				if (error instanceof Error) {
+					if (error.message.includes("not found")) {
+						throw new ORPCError("NOT_FOUND", {
+							message: error.message,
+						});
+					}
+					if (
+						error.message.includes("child node") ||
+						error.message.includes("assigned member") ||
+						error.message.includes("no valid target")
+					) {
+						throw new ORPCError("CONFLICT", {
+							message: error.message,
+						});
+					}
+				}
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message:
+						error instanceof Error ? error.message : "Failed to delete node",
+				});
+			}
+		}),
 };

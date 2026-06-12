@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
 	listWaitlistEntries,
 	addToWaitlist,
@@ -18,12 +18,13 @@ const list = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"appointment_management",
+			"read",
+		);
 
 		return listWaitlistEntries(context.tenantDb, {
 			classSlotId: input.classSlotId,
@@ -40,12 +41,13 @@ const add = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "create")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"appointment_management",
+			"create",
+		);
 
 		try {
 			return await addToWaitlist(context.tenantDb, {
@@ -55,7 +57,8 @@ const add = tenantProcedure
 			});
 		} catch (error) {
 			throw new ORPCError("BAD_REQUEST", {
-				message: error instanceof Error ? error.message : "Failed to add to waitlist",
+				message:
+					error instanceof Error ? error.message : "Failed to add to waitlist",
 			});
 		}
 	});
@@ -68,12 +71,13 @@ const remove = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"appointment_management",
+			"update",
+		);
 
 		return removeFromWaitlist(context.tenantDb, input.id);
 	});
@@ -86,12 +90,13 @@ const promote = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"appointment_management",
+			"update",
+		);
 
 		return promoteFromWaitlist(context.tenantDb, input.classSlotId);
 	});

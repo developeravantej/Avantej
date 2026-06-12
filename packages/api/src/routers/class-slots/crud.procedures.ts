@@ -2,7 +2,11 @@ import { ORPCError } from "@orpc/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import { requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../../guards";
 import {
 	createClassSlot,
 	updateClassSlot,
@@ -25,13 +29,14 @@ const create = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
 		guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "create")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"class_slot_management",
+			"create",
+		);
 
 		return createClassSlot(context.tenantDb, {
 			serviceId: input.serviceId,
@@ -59,12 +64,13 @@ const update = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "update")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"class_slot_management",
+			"update",
+		);
 
 		if (input.capacity !== undefined) {
 			const current = await context.tenantDb.query.classSlots.findFirst({
@@ -97,12 +103,13 @@ const cancel = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "update")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"class_slot_management",
+			"update",
+		);
 
 		const actor = {
 			userId: context.member.userId,
@@ -110,7 +117,12 @@ const cancel = tenantProcedure
 			role: context.member.role,
 		};
 
-		return cancelClassSlot(context.tenantDb, input.id, input.cancellationReason, actor);
+		return cancelClassSlot(
+			context.tenantDb,
+			input.id,
+			input.cancellationReason,
+			actor,
+		);
 	});
 
 export const classSlotsCrudProcedures = {

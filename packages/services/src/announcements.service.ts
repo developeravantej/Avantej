@@ -1,4 +1,16 @@
-import { eq, and, desc, inArray, lte, gte, isNull, or, sql, notExists, exists } from "drizzle-orm";
+import {
+	eq,
+	and,
+	desc,
+	inArray,
+	lte,
+	gte,
+	isNull,
+	or,
+	sql,
+	notExists,
+	exists,
+} from "drizzle-orm";
 import { announcements } from "@avantej-core/db/schema/tenant/announcements";
 import { announcementScopes } from "@avantej-core/db/schema/tenant/announcement-scopes";
 import { members } from "@avantej-core/db/schema/tenant/members";
@@ -54,11 +66,12 @@ async function dispatchAnnouncementNotifications(
 		branchId: string | null;
 	},
 ): Promise<void> {
-	const rootNodeIds = params.scopedBranchIds.length > 0
-		? params.scopedBranchIds
-		: params.branchId
-			? [params.branchId]
-			: [];
+	const rootNodeIds =
+		params.scopedBranchIds.length > 0
+			? params.scopedBranchIds
+			: params.branchId
+				? [params.branchId]
+				: [];
 
 	const memberConditions = [
 		eq(members.status, "active"),
@@ -211,7 +224,14 @@ export async function listAnnouncements(
 		offset?: number;
 	} = {},
 ): Promise<AnnouncementWithScopes[]> {
-	const { branchId, isActive, accessibleNodeIds, isAdmin = false, limit = 50, offset = 0 } = params;
+	const {
+		branchId,
+		isActive,
+		accessibleNodeIds,
+		isAdmin = false,
+		limit = 50,
+		offset = 0,
+	} = params;
 
 	const conditions = [];
 
@@ -322,7 +342,11 @@ export async function createAnnouncement(
 			throw new Error("Failed to create announcement");
 		}
 
-		await setAnnouncementScopes(tx as unknown as TenantDb, row.id, data.scopedBranchIds ?? []);
+		await setAnnouncementScopes(
+			tx as unknown as TenantDb,
+			row.id,
+			data.scopedBranchIds ?? [],
+		);
 
 		await dispatchAnnouncementNotifications(tx as unknown as TenantDb, {
 			announcementId: row.id,
@@ -351,12 +375,16 @@ export async function updateAnnouncement(
 				...(data.title !== undefined && { title: data.title }),
 				...(data.message !== undefined && { message: data.message }),
 				...(data.priority !== undefined && { priority: data.priority }),
-				...(data.targetAudience !== undefined && { targetAudience: data.targetAudience }),
+				...(data.targetAudience !== undefined && {
+					targetAudience: data.targetAudience,
+				}),
 				...(data.startDate !== undefined && { startDate: data.startDate }),
 				...(data.endDate !== undefined && { endDate: data.endDate }),
 				...(data.isActive !== undefined && { isActive: data.isActive }),
 				...(data.isPinned !== undefined && { isPinned: data.isPinned }),
-				...(data.requiresAcknowledgement !== undefined && { requiresAcknowledgement: data.requiresAcknowledgement }),
+				...(data.requiresAcknowledgement !== undefined && {
+					requiresAcknowledgement: data.requiresAcknowledgement,
+				}),
 				...(data.createdBy !== undefined && { createdBy: data.createdBy }),
 				updatedAt: new Date(),
 			})
@@ -368,7 +396,11 @@ export async function updateAnnouncement(
 		}
 
 		if (data.scopedBranchIds !== undefined) {
-			await setAnnouncementScopes(tx as unknown as TenantDb, id, data.scopedBranchIds);
+			await setAnnouncementScopes(
+				tx as unknown as TenantDb,
+				id,
+				data.scopedBranchIds,
+			);
 		}
 
 		const scopedBranchIds =

@@ -91,7 +91,9 @@ export async function createReceipt(
 	}
 
 	return tenantDb.transaction(async (tx) => {
-		const receiptNumber = await generateReceiptNumber(tx as unknown as TenantDb);
+		const receiptNumber = await generateReceiptNumber(
+			tx as unknown as TenantDb,
+		);
 
 		const [receipt] = await tx
 			.insert(goodsReceipts)
@@ -441,7 +443,10 @@ export async function markInvoiceMatched(
 		)
 		.returning();
 
-	if (!updated) throw new Error("Invoice status changed by another user (concurrent update)");
+	if (!updated)
+		throw new Error(
+			"Invoice status changed by another user (concurrent update)",
+		);
 	return updated;
 }
 
@@ -511,10 +516,12 @@ export async function updateSupplierInvoice(
 	}
 
 	const updates: Partial<typeof supplierInvoices.$inferInsert> = {};
-	if (params.invoiceNumber !== undefined) updates.invoiceNumber = params.invoiceNumber;
+	if (params.invoiceNumber !== undefined)
+		updates.invoiceNumber = params.invoiceNumber;
 	if (params.totalCents !== undefined) updates.totalCents = params.totalCents;
 	if (params.taxCents !== undefined) updates.taxCents = params.taxCents;
-	if (params.invoiceDate !== undefined) updates.invoiceDate = params.invoiceDate;
+	if (params.invoiceDate !== undefined)
+		updates.invoiceDate = params.invoiceDate;
 
 	if (Object.keys(updates).length === 0) return invoice;
 
@@ -532,7 +539,9 @@ export async function updateSupplierInvoice(
 		.returning();
 
 	if (!updated)
-		throw new Error("Invoice status changed by another user (concurrent update)");
+		throw new Error(
+			"Invoice status changed by another user (concurrent update)",
+		);
 	return updated;
 }
 
@@ -552,12 +561,17 @@ export async function listSupplierInvoices(
 	if (filters.status)
 		conditions.push(eq(supplierInvoices.status, filters.status));
 	if (filters.purchaseOrderId)
-		conditions.push(eq(supplierInvoices.purchaseOrderId, filters.purchaseOrderId));
+		conditions.push(
+			eq(supplierInvoices.purchaseOrderId, filters.purchaseOrderId),
+		);
 	const limit = Math.min(filters.limit ?? 50, 200);
 	const offset = filters.offset ?? 0;
 	const q = tenantDb.select().from(supplierInvoices);
 	const withWhere = conditions.length ? q.where(and(...conditions)) : q;
-	return withWhere.orderBy(desc(supplierInvoices.createdAt)).limit(limit).offset(offset);
+	return withWhere
+		.orderBy(desc(supplierInvoices.createdAt))
+		.limit(limit)
+		.offset(offset);
 }
 
 export type DisputeInvoiceParams = {
@@ -594,7 +608,10 @@ export async function disputeInvoice(
 		)
 		.returning();
 
-	if (!updated) throw new Error("Invoice status changed by another user (concurrent update) or invalid status");
+	if (!updated)
+		throw new Error(
+			"Invoice status changed by another user (concurrent update) or invalid status",
+		);
 	return updated;
 }
 
@@ -622,10 +639,18 @@ export async function markInvoicePaid(
 			paidBy,
 			paymentReference: paymentReference ?? null,
 		})
-		.where(and(eq(supplierInvoices.id, invoiceId), eq(supplierInvoices.status, "matched")))
+		.where(
+			and(
+				eq(supplierInvoices.id, invoiceId),
+				eq(supplierInvoices.status, "matched"),
+			),
+		)
 		.returning();
 
-	if (!updated) throw new Error("Invoice was already marked paid by another user (concurrent update)");
+	if (!updated)
+		throw new Error(
+			"Invoice was already marked paid by another user (concurrent update)",
+		);
 	return updated;
 }
 
@@ -662,7 +687,10 @@ export async function getInvoicePreview(
 	}
 
 	if (invoice.goodsReceiptId) {
-		receiptTotalCents = await computeReceiptTotalCents(tenantDb, invoice.goodsReceiptId);
+		receiptTotalCents = await computeReceiptTotalCents(
+			tenantDb,
+			invoice.goodsReceiptId,
+		);
 	}
 
 	const tol = Math.max(
@@ -677,21 +705,31 @@ export async function getInvoicePreview(
 
 	if (poTotalCents !== null && receiptTotalCents !== null) {
 		if (!within(poTotalCents, receiptTotalCents)) {
-			mismatches.push(`PO (${poTotalCents}¢) vs Receipt (${receiptTotalCents}¢) differ by ${Math.abs(poTotalCents - receiptTotalCents)}¢`);
+			mismatches.push(
+				`PO (${poTotalCents}¢) vs Receipt (${receiptTotalCents}¢) differ by ${Math.abs(poTotalCents - receiptTotalCents)}¢`,
+			);
 		}
 		if (!within(poTotalCents, invoice.totalCents)) {
-			mismatches.push(`PO (${poTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(poTotalCents - invoice.totalCents)}¢`);
+			mismatches.push(
+				`PO (${poTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(poTotalCents - invoice.totalCents)}¢`,
+			);
 		}
 		if (!within(receiptTotalCents, invoice.totalCents)) {
-			mismatches.push(`Receipt (${receiptTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(receiptTotalCents - invoice.totalCents)}¢`);
+			mismatches.push(
+				`Receipt (${receiptTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(receiptTotalCents - invoice.totalCents)}¢`,
+			);
 		}
 	} else if (poTotalCents !== null) {
 		if (!within(poTotalCents, invoice.totalCents)) {
-			mismatches.push(`PO (${poTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(poTotalCents - invoice.totalCents)}¢`);
+			mismatches.push(
+				`PO (${poTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(poTotalCents - invoice.totalCents)}¢`,
+			);
 		}
 	} else if (receiptTotalCents !== null) {
 		if (!within(receiptTotalCents, invoice.totalCents)) {
-			mismatches.push(`Receipt (${receiptTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(receiptTotalCents - invoice.totalCents)}¢`);
+			mismatches.push(
+				`Receipt (${receiptTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(receiptTotalCents - invoice.totalCents)}¢`,
+			);
 		}
 	}
 

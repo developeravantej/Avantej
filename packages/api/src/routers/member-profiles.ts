@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
 	getMemberProfile,
 	upsertMemberProfile,
@@ -14,12 +14,13 @@ const get = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "read");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"user_management",
+			"read",
+		);
 
 		return getMemberProfile(context.tenantDb, input.memberId);
 	});
@@ -38,12 +39,13 @@ const upsert = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "user_management", "update");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"user_management",
+			"update",
+		);
 
 		return upsertMemberProfile(context.tenantDb, input.memberId, {
 			displayName: input.displayName,

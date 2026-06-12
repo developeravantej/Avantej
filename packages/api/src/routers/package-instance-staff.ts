@@ -14,7 +14,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 
 const staffAssignmentSchema = z.object({
 	staffId: z.string().uuid(),
@@ -34,7 +34,7 @@ export const packageInstanceStaffRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
@@ -42,7 +42,10 @@ export const packageInstanceStaffRouter = {
 				"read",
 			);
 
-			return listPackageInstanceStaff(context.tenantDb, input.packageInstanceId);
+			return listPackageInstanceStaff(
+				context.tenantDb,
+				input.packageInstanceId,
+			);
 		}),
 
 	/**
@@ -59,7 +62,7 @@ export const packageInstanceStaffRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
@@ -97,7 +100,7 @@ export const packageInstanceStaffRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
@@ -126,7 +129,7 @@ export const packageInstanceStaffRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,

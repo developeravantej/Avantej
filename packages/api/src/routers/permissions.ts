@@ -9,7 +9,7 @@ import { permissions } from "@avantej-core/db/schema/tenant/permissions";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 
 export const permissionsRouter = {
 	/**
@@ -20,23 +20,22 @@ export const permissionsRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				resource: z.string().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "role_management", "read")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"role_management",
+				"read",
+			);
 
 			const items = await context.tenantDb
 				.select()
 				.from(permissions)
 				.where(
-					input.resource
-						? eq(permissions.resource, input.resource)
-						: undefined
+					input.resource ? eq(permissions.resource, input.resource) : undefined,
 				);
 
 			return items;

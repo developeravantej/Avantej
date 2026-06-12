@@ -64,12 +64,19 @@ export async function resolveServicePrice(
 			and(
 				eq(servicePrices.serviceId, serviceId),
 				lte(servicePrices.effectiveFrom, at),
-				or(isNull(servicePrices.effectiveUntil), gt(servicePrices.effectiveUntil, at)),
+				or(
+					isNull(servicePrices.effectiveUntil),
+					gt(servicePrices.effectiveUntil, at),
+				),
 			),
 		)
 		.orderBy(desc(servicePrices.effectiveFrom));
 
-	const winner = pickMostSpecific(candidates as PriceRow[], branchId, customerType);
+	const winner = pickMostSpecific(
+		candidates as PriceRow[],
+		branchId,
+		customerType,
+	);
 	if (winner !== null) return winner;
 
 	// Fallback to services.price
@@ -103,12 +110,19 @@ export async function resolveProductPrice(
 			and(
 				eq(productPrices.productId, productId),
 				lte(productPrices.effectiveFrom, at),
-				or(isNull(productPrices.effectiveUntil), gt(productPrices.effectiveUntil, at)),
+				or(
+					isNull(productPrices.effectiveUntil),
+					gt(productPrices.effectiveUntil, at),
+				),
 			),
 		)
 		.orderBy(desc(productPrices.effectiveFrom));
 
-	const winner = pickMostSpecific(candidates as PriceRow[], branchId, customerType);
+	const winner = pickMostSpecific(
+		candidates as PriceRow[],
+		branchId,
+		customerType,
+	);
 	if (winner !== null) return winner;
 
 	const [prod] = await tenantDb
@@ -145,10 +159,12 @@ function pickMostSpecific(
 		// different branch is not applicable.
 		if (row.branchId !== null && row.branchId !== branchId) continue;
 		// Same for customer type.
-		if (row.customerType !== null && row.customerType !== customerType) continue;
+		if (row.customerType !== null && row.customerType !== customerType)
+			continue;
 
 		const branchHit = row.branchId !== null && row.branchId === branchId;
-		const ctHit = row.customerType !== null && row.customerType === customerType;
+		const ctHit =
+			row.customerType !== null && row.customerType === customerType;
 		let score: number;
 		if (branchHit && ctHit) score = 4;
 		else if (branchHit) score = 3;
@@ -192,7 +208,10 @@ export async function listServicePriceOverrides(
 				// Intentionally omits lte(effectiveFrom, at) so future-scheduled
 				// overrides are visible in the management UI (F-PRI-01).
 				// The not-yet-expired filter still applies.
-				or(isNull(servicePrices.effectiveUntil), gt(servicePrices.effectiveUntil, at)),
+				or(
+					isNull(servicePrices.effectiveUntil),
+					gt(servicePrices.effectiveUntil, at),
+				),
 			),
 		)
 		.orderBy(desc(servicePrices.effectiveFrom));
@@ -228,7 +247,10 @@ export async function listProductPriceOverrides(
 			and(
 				eq(productPrices.productId, productId),
 				lte(productPrices.effectiveFrom, at),
-				or(isNull(productPrices.effectiveUntil), gt(productPrices.effectiveUntil, at)),
+				or(
+					isNull(productPrices.effectiveUntil),
+					gt(productPrices.effectiveUntil, at),
+				),
 			),
 		)
 		.orderBy(desc(productPrices.effectiveFrom));
@@ -264,7 +286,9 @@ export async function setServicePrice(
 			customerType: params.customerType ?? null,
 			priceCents: params.priceCents,
 			...(params.effectiveFrom ? { effectiveFrom: params.effectiveFrom } : {}),
-			...(params.effectiveUntil !== undefined ? { effectiveUntil: params.effectiveUntil } : {}),
+			...(params.effectiveUntil !== undefined
+				? { effectiveUntil: params.effectiveUntil }
+				: {}),
 		})
 		.returning({ id: servicePrices.id });
 	return row;
@@ -292,7 +316,9 @@ export async function setProductPrice(
 			customerType: params.customerType ?? null,
 			priceCents: params.priceCents,
 			...(params.effectiveFrom ? { effectiveFrom: params.effectiveFrom } : {}),
-			...(params.effectiveUntil !== undefined ? { effectiveUntil: params.effectiveUntil } : {}),
+			...(params.effectiveUntil !== undefined
+				? { effectiveUntil: params.effectiveUntil }
+				: {}),
 		})
 		.returning({ id: productPrices.id });
 	return row;

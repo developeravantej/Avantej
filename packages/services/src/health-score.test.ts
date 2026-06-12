@@ -131,9 +131,7 @@ describe("computeHealthScore", () => {
 	it("1-2 webhook failures → webhook_failures warn", () => {
 		const { flags } = computeHealthScore(input({ failedWebhooks7d: 2 }));
 		expect(
-			flags.find(
-				(f) => f.code === "webhook_failures" && f.severity === "warn",
-			),
+			flags.find((f) => f.code === "webhook_failures" && f.severity === "warn"),
 		).toBeTruthy();
 	});
 
@@ -165,15 +163,15 @@ describe("computeHealthScore", () => {
 			}),
 		);
 		expect(score).toBe(0);
-		expect(flags.filter((f) => f.code === "no_data").length).toBeGreaterThanOrEqual(5);
+		expect(
+			flags.filter((f) => f.code === "no_data").length,
+		).toBeGreaterThanOrEqual(5);
 	});
 
 	// ── Plan F.6 (Agent Sn) — new factor-population coverage ──────────────
 	describe("Plan F.6 — factors now populated by the cron", () => {
 		it("inactive admin (15d since login) + recent webhook fails + low activity → composite drops, three flags emitted", () => {
-			const fifteenDaysAgo = new Date(
-				NOW.getTime() - 15 * 24 * 60 * 60 * 1000,
-			);
+			const fifteenDaysAgo = new Date(NOW.getTime() - 15 * 24 * 60 * 60 * 1000);
 			const { score, flags } = computeHealthScore(
 				input({
 					lastAdminLoginAt: fifteenDaysAgo,
@@ -216,7 +214,9 @@ describe("computeHealthScore", () => {
 
 		it("admin login exactly at boundary (14d) → factor zero + inactive_admin info flag", () => {
 			const boundary = new Date(NOW.getTime() - 14 * 24 * 60 * 60 * 1000);
-			const { flags } = computeHealthScore(input({ lastAdminLoginAt: boundary }));
+			const { flags } = computeHealthScore(
+				input({ lastAdminLoginAt: boundary }),
+			);
 			expect(
 				flags.find((f) => f.code === "inactive_admin" && f.severity === "info"),
 			).toBeTruthy();

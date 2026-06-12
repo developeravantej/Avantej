@@ -3,7 +3,11 @@ import { z } from "zod";
 import { inArray } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { tenantProcedure } from "../../index";
-import { requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../../guards";
 import {
 	listClassSlots,
 	getClassSlotById,
@@ -27,10 +31,6 @@ const list = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
 		if (input.branchId) {
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
@@ -38,7 +38,12 @@ const list = tenantProcedure
 		// Clients can browse class slots in their tenant without the staff
 		// permission. Staff still need class_slot_management:read.
 		if (context.member.role !== "client") {
-			await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "read")
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"class_slot_management",
+				"read",
+			);
 		}
 
 		return listClassSlots(context.tenantDb, {
@@ -61,14 +66,15 @@ const getById = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
 		// Clients can read class slots; staff need class_slot_management:read.
 		if (context.member.role !== "client") {
-			await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "read")
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"class_slot_management",
+				"read",
+			);
 		}
 
 		const slot = await getClassSlotById(context.tenantDb, input.id);
@@ -90,15 +96,16 @@ const bookingCounts = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
 		if (input.branchId) {
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 		}
-		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "read")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"class_slot_management",
+			"read",
+		);
 
 		return getBookingCounts(context.tenantDb, {
 			branchId: input.branchId,
@@ -116,12 +123,13 @@ const getSignups = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "class_slot_management", "read")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"class_slot_management",
+			"read",
+		);
 
 		const slot = await getClassSlotById(context.tenantDb, input.id);
 		if (!slot) {
@@ -130,7 +138,10 @@ const getSignups = tenantProcedure
 			});
 		}
 
-		if (context.accessibleNodeIds && !context.accessibleNodeIds.includes(slot.branchId)) {
+		if (
+			context.accessibleNodeIds &&
+			!context.accessibleNodeIds.includes(slot.branchId)
+		) {
 			throw new ORPCError("FORBIDDEN", {
 				message: "You do not have access to this class slot",
 			});

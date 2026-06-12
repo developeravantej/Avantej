@@ -19,7 +19,9 @@ export const statusHistoryColumns = {
 	fromStatus: text("from_status"),
 	toStatus: text("to_status").notNull(),
 	changedBy: text("changed_by").notNull(),
-	changedAt: timestamp("changed_at", { withTimezone: true }).defaultNow().notNull(),
+	changedAt: timestamp("changed_at", { withTimezone: true })
+		.defaultNow()
+		.notNull(),
 	reason: text("reason"),
 	notes: text("notes"),
 };

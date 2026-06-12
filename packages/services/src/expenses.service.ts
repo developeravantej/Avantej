@@ -70,7 +70,7 @@ export async function listExpenses(
 export async function getExpenseById(
 	tenantDb: TenantDb,
 	id: string,
-): Promise<(typeof expenses.$inferSelect) | undefined> {
+): Promise<typeof expenses.$inferSelect | undefined> {
 	const [row] = await tenantDb
 		.select()
 		.from(expenses)

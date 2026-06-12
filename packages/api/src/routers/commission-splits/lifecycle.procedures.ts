@@ -26,11 +26,13 @@ const approve = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "approve");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"commission_management",
+			"approve",
+		);
 
 		try {
 			return await approveCommissionSplits(context.tenantDb, input.ids, {
@@ -56,11 +58,13 @@ const markPaid = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "process");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"commission_management",
+			"process",
+		);
 
 		try {
 			return await markCommissionSplitsPaid(context.tenantDb, input.ids, {
@@ -75,7 +79,9 @@ const markPaid = tenantProcedure
 			if (error instanceof ORPCError) throw error;
 			throw new ORPCError("BAD_REQUEST", {
 				message:
-					error instanceof Error ? error.message : "Failed to mark splits as paid",
+					error instanceof Error
+						? error.message
+						: "Failed to mark splits as paid",
 			});
 		}
 	});
@@ -89,11 +95,13 @@ const voidSplit = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "approve");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"commission_management",
+			"approve",
+		);
 
 		try {
 			return await voidCommissionSplit(
@@ -129,9 +137,15 @@ const manualAdjustment = tenantProcedure
 	)
 	.handler(async ({ input, context }) => {
 		assertOrgContextMatch(context, input);
-		if (!context.tenantDb || !context.member) throw new ORPCError("UNAUTHORIZED");
+		if (!context.tenantDb || !context.member)
+			throw new ORPCError("UNAUTHORIZED");
 
-		await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "create");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"commission_payout",
+			"create",
+		);
 
 		// Input-level XOR validation: manual adjustment requires exactly one target.
 		// Guards against the DB CHECK `commission_splits_must_target_one` (Postgres 23514)
@@ -163,7 +177,9 @@ const manualAdjustment = tenantProcedure
 			});
 		} catch (err) {
 			if (err instanceof ORPCError) throw err;
-			throw new ORPCError("BAD_REQUEST", { message: err instanceof Error ? err.message : "Unknown error" });
+			throw new ORPCError("BAD_REQUEST", {
+				message: err instanceof Error ? err.message : "Unknown error",
+			});
 		}
 	});
 
@@ -189,10 +205,13 @@ const markPaidBatchProcedure = tenantProcedure
 	.handler(async ({ input, context }) => {
 		// F-PAY-3: route Liability mark-paid through payouts pipeline so KPIs include these settlements
 
-
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "commission_payout", "update");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"commission_payout",
+			"update",
+		);
 
 		try {
 			return await markPaidBatch(context.tenantDb, {
@@ -209,7 +228,8 @@ const markPaidBatchProcedure = tenantProcedure
 		} catch (err) {
 			if (err instanceof ORPCError) throw err;
 			throw new ORPCError("BAD_REQUEST", {
-				message: err instanceof Error ? err.message : "Failed to mark splits as paid",
+				message:
+					err instanceof Error ? err.message : "Failed to mark splits as paid",
 			});
 		}
 	});
@@ -228,11 +248,13 @@ const markPaidByIdProcedure = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "process");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"commission_management",
+			"process",
+		);
 
 		// Re-use existing markCommissionSplitsPaid (FOR UPDATE + audit commission.mark_paid).
 		// paymentReference is recorded in the audit payload and appended to each split's
@@ -249,7 +271,8 @@ const markPaidByIdProcedure = tenantProcedure
 		} catch (err) {
 			if (err instanceof ORPCError) throw err;
 			throw new ORPCError("BAD_REQUEST", {
-				message: err instanceof Error ? err.message : "Failed to mark splits as paid",
+				message:
+					err instanceof Error ? err.message : "Failed to mark splits as paid",
 			});
 		}
 	});
@@ -268,11 +291,13 @@ const voidByIdProcedure = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "commission_management", "approve");
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"commission_management",
+			"approve",
+		);
 
 		try {
 			return await voidCommissionSplit(

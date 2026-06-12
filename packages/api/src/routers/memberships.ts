@@ -19,7 +19,11 @@ import {
 	listHoldsForPackage,
 	resumeMembership,
 } from "@avantej-core/services/membership.service";
-import {requirePermissionOrpc, assertTenantContext, assertOrgContextMatch } from "../guards";
+import {
+	requirePermissionOrpc,
+	assertTenantContext,
+	assertOrgContextMatch,
+} from "../guards";
 
 const FreezeReasonEnum = z.enum(["medical", "travel", "other"]);
 
@@ -69,7 +73,7 @@ export const membershipsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "update");
 
@@ -92,7 +96,9 @@ export const membershipsRouter = {
 				});
 			} catch (error) {
 				const msg =
-					error instanceof Error ? error.message : "Failed to freeze membership";
+					error instanceof Error
+						? error.message
+						: "Failed to freeze membership";
 				if (msg.includes("not found")) {
 					throw new ORPCError("NOT_FOUND", { message: msg });
 				}
@@ -113,7 +119,7 @@ export const membershipsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "update");
 
@@ -124,7 +130,9 @@ export const membershipsRouter = {
 				});
 			} catch (error) {
 				const msg =
-					error instanceof Error ? error.message : "Failed to resume membership";
+					error instanceof Error
+						? error.message
+						: "Failed to resume membership";
 				if (msg.includes("not found")) {
 					throw new ORPCError("NOT_FOUND", { message: msg });
 				}
@@ -144,7 +152,7 @@ export const membershipsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "update");
 
@@ -170,7 +178,7 @@ export const membershipsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "read");
 			return listHoldsForPackage(context.tenantDb, input.packageInstanceId);

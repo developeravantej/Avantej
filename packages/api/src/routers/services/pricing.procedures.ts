@@ -86,7 +86,10 @@ export const servicePricingProcedures = {
 						}
 						return true;
 					},
-					{ message: "effectiveUntil must be after effectiveFrom", path: ["effectiveUntil"] },
+					{
+						message: "effectiveUntil must be after effectiveFrom",
+						path: ["effectiveUntil"],
+					},
 				),
 		)
 		.handler(async ({ input, context }) => {

@@ -12,7 +12,7 @@ import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 
 export const serviceCategoryConfigRouter = {
 	/**
@@ -22,45 +22,52 @@ export const serviceCategoryConfigRouter = {
 	 */
 	upsert: tenantProcedure
 		.input(
-			z.object({
-				organizationId: z.string().uuid(),
-				categoryId: z.string().uuid(),
-				// Default values for services in this category
-				defaultDuration: z.number().int().min(1).nullable().optional(),
-				defaultMaxAttendees: z.number().int().min(0).nullable().optional(),
-				// Booking rules
-				requireAdvanceBooking: z.boolean().optional(),
-				minAdvanceHours: z.number().int().min(0).nullable().optional(),
-				// Cancellation rules
-				enableCancellationWindow: z.boolean().optional(),
-				cancellationCutoffHours: z.number().int().min(0).nullable().optional(),
-				bufferTimeMinutes: z.number().int().min(0).max(480).optional(),
-			}).refine(
-				(data) => {
-					// F-SVC-08: a buffer longer than the booking itself is invalid.
-					// This config row does not know a concrete service's duration, but when a
-					// category defaultDuration is set the buffer must not exceed it. When no
-					// defaultDuration is set we fall back to the absolute .max(480) cap above.
-					// Limitation: services that override the category default with a shorter
-					// duration are not validated here (no service duration in this context).
-					if (
-						data.defaultDuration != null &&
-						data.bufferTimeMinutes != null &&
-						data.bufferTimeMinutes > data.defaultDuration
-					) {
-						return false;
-					}
-					return true;
-				},
-				{
-					message:
-						"bufferTimeMinutes must not exceed the category defaultDuration.",
-					path: ["bufferTimeMinutes"],
-				},
-			),
+			z
+				.object({
+					organizationId: z.string().uuid(),
+					categoryId: z.string().uuid(),
+					// Default values for services in this category
+					defaultDuration: z.number().int().min(1).nullable().optional(),
+					defaultMaxAttendees: z.number().int().min(0).nullable().optional(),
+					// Booking rules
+					requireAdvanceBooking: z.boolean().optional(),
+					minAdvanceHours: z.number().int().min(0).nullable().optional(),
+					// Cancellation rules
+					enableCancellationWindow: z.boolean().optional(),
+					cancellationCutoffHours: z
+						.number()
+						.int()
+						.min(0)
+						.nullable()
+						.optional(),
+					bufferTimeMinutes: z.number().int().min(0).max(480).optional(),
+				})
+				.refine(
+					(data) => {
+						// F-SVC-08: a buffer longer than the booking itself is invalid.
+						// This config row does not know a concrete service's duration, but when a
+						// category defaultDuration is set the buffer must not exceed it. When no
+						// defaultDuration is set we fall back to the absolute .max(480) cap above.
+						// Limitation: services that override the category default with a shorter
+						// duration are not validated here (no service duration in this context).
+						if (
+							data.defaultDuration != null &&
+							data.bufferTimeMinutes != null &&
+							data.bufferTimeMinutes > data.defaultDuration
+						) {
+							return false;
+						}
+						return true;
+					},
+					{
+						message:
+							"bufferTimeMinutes must not exceed the category defaultDuration.",
+						path: ["bufferTimeMinutes"],
+					},
+				),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			let hasPermission = false;
 			for (const action of ["create", "update"] as const) {
 				try {
@@ -129,7 +136,7 @@ export const serviceCategoryConfigRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,

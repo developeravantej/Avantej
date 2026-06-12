@@ -44,7 +44,7 @@ export async function listInstallmentPlans(
 export async function getInstallmentPlanById(
 	tenantDb: TenantDb,
 	id: string,
-): Promise<(typeof installmentPlans.$inferSelect) | undefined> {
+): Promise<typeof installmentPlans.$inferSelect | undefined> {
 	return tenantDb.query.installmentPlans.findFirst({
 		where: eq(installmentPlans.id, id),
 	});
@@ -53,7 +53,7 @@ export async function getInstallmentPlanById(
 export async function getInstallmentPlanByCode(
 	tenantDb: TenantDb,
 	code: string,
-): Promise<(typeof installmentPlans.$inferSelect) | null> {
+): Promise<typeof installmentPlans.$inferSelect | null> {
 	const result = await tenantDb.query.installmentPlans.findFirst({
 		where: eq(installmentPlans.code, code),
 	});
@@ -67,7 +67,10 @@ export async function createInstallmentPlan(
 	if (data.numInstallments < 1) {
 		throw new Error("numInstallments must be >= 1");
 	}
-	if (data.pricePremiumBps !== undefined && (data.pricePremiumBps < 0 || data.pricePremiumBps > 10000)) {
+	if (
+		data.pricePremiumBps !== undefined &&
+		(data.pricePremiumBps < 0 || data.pricePremiumBps > 10000)
+	) {
 		throw new Error("pricePremiumBps must be between 0 and 10000");
 	}
 
@@ -111,7 +114,10 @@ export async function updateInstallmentPlan(
 	if (data.numInstallments !== undefined && data.numInstallments < 1) {
 		throw new Error("numInstallments must be >= 1");
 	}
-	if (data.pricePremiumBps !== undefined && (data.pricePremiumBps < 0 || data.pricePremiumBps > 10000)) {
+	if (
+		data.pricePremiumBps !== undefined &&
+		(data.pricePremiumBps < 0 || data.pricePremiumBps > 10000)
+	) {
 		throw new Error("pricePremiumBps must be between 0 and 10000");
 	}
 
@@ -129,7 +135,9 @@ export async function updateInstallmentPlan(
 				description: data.description,
 			}),
 			...(data.sortOrder !== undefined && { sortOrder: data.sortOrder }),
-			...(data.pricePremiumBps !== undefined && { pricePremiumBps: data.pricePremiumBps }),
+			...(data.pricePremiumBps !== undefined && {
+				pricePremiumBps: data.pricePremiumBps,
+			}),
 			updatedAt: new Date(),
 		})
 		.where(eq(installmentPlans.id, id))

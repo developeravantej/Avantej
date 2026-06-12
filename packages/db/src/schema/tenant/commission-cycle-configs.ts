@@ -21,7 +21,15 @@
  * One config per (branchId | NULL) — UNIQUE constraint enforces this.
  */
 
-import { pgTable, uuid, text, integer, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import {
+	pgTable,
+	uuid,
+	text,
+	integer,
+	timestamp,
+	uniqueIndex,
+	index,
+} from "drizzle-orm/pg-core";
 import { hierarchyNodes } from "./hierarchy";
 
 export const commissionCycleConfigs = pgTable(
@@ -46,9 +54,9 @@ export const commissionCycleConfigs = pgTable(
 		// At most ONE row per (branchId | NULL). The UNIQUE constraint coalesces
 		// NULL so two tenant-wide rows would conflict; branch rows are unique
 		// per branch.
-		branchUniqueIdx: uniqueIndex("commission_cycle_configs_branch_unique_idx").on(
-			t.branchId,
-		),
+		branchUniqueIdx: uniqueIndex(
+			"commission_cycle_configs_branch_unique_idx",
+		).on(t.branchId),
 		branchIdx: index("commission_cycle_configs_branch_idx").on(t.branchId),
 	}),
 );

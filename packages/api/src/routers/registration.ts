@@ -92,7 +92,7 @@ export const registrationRouter = {
 				// Branch selection
 				branchId: z.string().uuid(),
 				organizationId: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
 			const controlPanelDb = getControlPanelDb(context);
@@ -151,14 +151,17 @@ export const registrationRouter = {
 						// maxUses null = unlimited; otherwise require usesCount < maxUses
 						or(
 							isNull(invitations.maxUses),
-							sql`${invitations.usesCount} < ${invitations.maxUses}`
+							sql`${invitations.usesCount} < ${invitations.maxUses}`,
 						),
 						gt(invitations.expiresAt, sql`now()`),
 						// Invite must be scoped to the same branch the user selected
 						eq(invitations.hierarchyScopeId, branch[0].tenantNodeId),
-					)
+					),
 				)
-				.returning({ id: invitations.id, hierarchyScopeId: invitations.hierarchyScopeId });
+				.returning({
+					id: invitations.id,
+					hierarchyScopeId: invitations.hierarchyScopeId,
+				});
 
 			if (!redeemedInvite) {
 				throw new ORPCError("FORBIDDEN", {

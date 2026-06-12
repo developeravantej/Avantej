@@ -1,7 +1,11 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../guards";
 import {
 	listPromotions,
 	validatePromoCode,
@@ -24,15 +28,16 @@ export const promotionsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
-			await requirePermissionOrpc(context.tenantDb, context.member, "promotion_management", "read");
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"promotion_management",
+				"read",
+			);
 
 			return listPromotions(context.tenantDb, {
 				isActive: input.isActive,
@@ -56,15 +61,16 @@ export const promotionsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
-			await requirePermissionOrpc(context.tenantDb, context.member, "promotion_management", "read");
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"promotion_management",
+				"read",
+			);
 
 			try {
 				return await validatePromoCode(context.tenantDb, input.code, {
@@ -95,12 +101,13 @@ export const promotionsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "promotion_management", "create");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"promotion_management",
+				"create",
+			);
 
 			return applyPromotion(context.tenantDb, input.promotionId, {
 				customerId: input.customerId,
@@ -133,15 +140,16 @@ export const promotionsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
-			await requirePermissionOrpc(context.tenantDb, context.member, "promotion_management", "create");
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"promotion_management",
+				"create",
+			);
 
 			const actor = {
 				userId: context.session!.user.id,
@@ -149,21 +157,25 @@ export const promotionsRouter = {
 				role: context.member.role,
 			};
 
-			return createPromotion(context.tenantDb, {
-				code: input.code,
-				name: input.name,
-				description: input.description,
-				type: input.type,
-				value: input.value,
-				minimumOrderAmount: input.minimumOrderAmount,
-				maximumDiscount: input.maximumDiscount,
-				usageLimit: input.usageLimit,
-				perCustomerLimit: input.perCustomerLimit,
-				validFrom: new Date(input.validFrom),
-				validUntil: input.validUntil ? new Date(input.validUntil) : undefined,
-				branchId: input.branchId,
-				createdBy: context.member.userId,
-			}, actor);
+			return createPromotion(
+				context.tenantDb,
+				{
+					code: input.code,
+					name: input.name,
+					description: input.description,
+					type: input.type,
+					value: input.value,
+					minimumOrderAmount: input.minimumOrderAmount,
+					maximumDiscount: input.maximumDiscount,
+					usageLimit: input.usageLimit,
+					perCustomerLimit: input.perCustomerLimit,
+					validFrom: new Date(input.validFrom),
+					validUntil: input.validUntil ? new Date(input.validUntil) : undefined,
+					branchId: input.branchId,
+					createdBy: context.member.userId,
+				},
+				actor,
+			);
 		}),
 
 	update: tenantProcedure
@@ -179,12 +191,13 @@ export const promotionsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "promotion_management", "update");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"promotion_management",
+				"update",
+			);
 
 			return updatePromotion(context.tenantDb, input.id, {
 				...(input.name !== undefined && { name: input.name }),
@@ -209,12 +222,13 @@ export const promotionsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "promotion_management", "delete");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"promotion_management",
+				"delete",
+			);
 
 			const actor = {
 				userId: context.session!.user.id,

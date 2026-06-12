@@ -60,9 +60,17 @@ function makeStaffDb() {
 			installmentPlans: { findFirst: mock(() => Promise.resolve(undefined)) },
 			services: { findFirst: mock(() => Promise.resolve(null)) },
 		},
-		insert: mock(() => ({ values: mock(() => ({ returning: mock(() => Promise.resolve([])) })) })),
-		update: mock(() => ({ set: mock(() => ({ where: mock(() => ({ returning: mock(() => Promise.resolve([])) })) })) })),
-		select: mock(() => ({ from: mock(() => ({ where: mock(() => Promise.resolve([])) })) })),
+		insert: mock(() => ({
+			values: mock(() => ({ returning: mock(() => Promise.resolve([])) })),
+		})),
+		update: mock(() => ({
+			set: mock(() => ({
+				where: mock(() => ({ returning: mock(() => Promise.resolve([])) })),
+			})),
+		})),
+		select: mock(() => ({
+			from: mock(() => ({ where: mock(() => Promise.resolve([])) })),
+		})),
 		transaction: mock(async (cb: (tx: unknown) => Promise<unknown>) => cb({})),
 	} as unknown as never;
 }
@@ -78,7 +86,11 @@ describe("servicesRouter.create", () => {
 	};
 
 	it("happy path: delegates to createService and returns result", async () => {
-		const createdRow = { id: SERVICE_ID, name: "Personal Training", isActive: true };
+		const createdRow = {
+			id: SERVICE_ID,
+			name: "Personal Training",
+			isActive: true,
+		};
 		const returningMock = mock(() => Promise.resolve([createdRow]));
 		const tenantDb = makeAdminDb();
 		// Wire insert chain to return the created row
@@ -91,7 +103,9 @@ describe("servicesRouter.create", () => {
 			accessibleNodeIds: [BRANCH_ID],
 		});
 
-		const result = await call(servicesRouter.create, validInput, { context: ctx });
+		const result = await call(servicesRouter.create, validInput, {
+			context: ctx,
+		});
 		expect(result).toMatchObject({ id: SERVICE_ID, name: "Personal Training" });
 	});
 
@@ -112,7 +126,13 @@ describe("servicesRouter.create", () => {
 	it("rejects when caller lacks service_management:create permission", async () => {
 		const ctx = createMockContext({
 			tenantDb: makeStaffDb(),
-			member: { id: "m1", userId: "u1", role: "staff", status: "active", hierarchyScopeId: null },
+			member: {
+				id: "m1",
+				userId: "u1",
+				role: "staff",
+				status: "active",
+				hierarchyScopeId: null,
+			},
 		});
 		await expect(
 			call(servicesRouter.create, validInput, { context: ctx }),
@@ -126,7 +146,11 @@ describe("servicesRouter.create", () => {
 			accessibleNodeIds: ["other-node"],
 		});
 		await expect(
-			call(servicesRouter.create, { ...validInput, branchId: BRANCH_ID }, { context: ctx }),
+			call(
+				servicesRouter.create,
+				{ ...validInput, branchId: BRANCH_ID },
+				{ context: ctx },
+			),
 		).rejects.toMatchObject({ code: "FORBIDDEN" });
 	});
 
@@ -136,14 +160,22 @@ describe("servicesRouter.create", () => {
 		});
 		const ctx = createMockContext({ tenantDb, accessibleNodeIds: [] });
 		await expect(
-			call(servicesRouter.create, { ...validInput, availablePaymentPlans: ["UNKNOWN_PLAN"] }, { context: ctx }),
+			call(
+				servicesRouter.create,
+				{ ...validInput, availablePaymentPlans: ["UNKNOWN_PLAN"] },
+				{ context: ctx },
+			),
 		).rejects.toMatchObject({ code: "BAD_REQUEST" });
 	});
 
 	it("validates name must not be empty", async () => {
 		const ctx = createMockContext({ tenantDb: makeAdminDb() });
 		await expect(
-			call(servicesRouter.create, { ...validInput, name: "" }, { context: ctx }),
+			call(
+				servicesRouter.create,
+				{ ...validInput, name: "" },
+				{ context: ctx },
+			),
 		).rejects.toBeDefined();
 	});
 });
@@ -185,17 +217,31 @@ describe("servicesRouter.update", () => {
 		});
 		const ctx = createMockContext({ tenantDb });
 		await expect(
-			call(servicesRouter.update, { organizationId: ORG_ID, id: SERVICE_ID }, { context: ctx }),
+			call(
+				servicesRouter.update,
+				{ organizationId: ORG_ID, id: SERVICE_ID },
+				{ context: ctx },
+			),
 		).rejects.toMatchObject({ code: "NOT_FOUND" });
 	});
 
 	it("throws FORBIDDEN when caller lacks update permission", async () => {
 		const ctx = createMockContext({
 			tenantDb: makeStaffDb(),
-			member: { id: "m1", userId: "u1", role: "staff", status: "active", hierarchyScopeId: null },
+			member: {
+				id: "m1",
+				userId: "u1",
+				role: "staff",
+				status: "active",
+				hierarchyScopeId: null,
+			},
 		});
 		await expect(
-			call(servicesRouter.update, { organizationId: ORG_ID, id: SERVICE_ID }, { context: ctx }),
+			call(
+				servicesRouter.update,
+				{ organizationId: ORG_ID, id: SERVICE_ID },
+				{ context: ctx },
+			),
 		).rejects.toMatchObject({ code: "FORBIDDEN" });
 	});
 
@@ -206,7 +252,11 @@ describe("servicesRouter.update", () => {
 		});
 		const ctx = createMockContext({ tenantDb, accessibleNodeIds: [BRANCH_ID] });
 		await expect(
-			call(servicesRouter.update, { organizationId: ORG_ID, id: SERVICE_ID }, { context: ctx }),
+			call(
+				servicesRouter.update,
+				{ organizationId: ORG_ID, id: SERVICE_ID },
+				{ context: ctx },
+			),
 		).rejects.toMatchObject({ code: "FORBIDDEN" });
 	});
 
@@ -217,11 +267,15 @@ describe("servicesRouter.update", () => {
 		});
 		const ctx = createMockContext({ tenantDb, accessibleNodeIds: [] });
 		await expect(
-			call(servicesRouter.update, {
-				organizationId: ORG_ID,
-				id: SERVICE_ID,
-				availablePaymentPlans: ["GHOST_PLAN"],
-			}, { context: ctx }),
+			call(
+				servicesRouter.update,
+				{
+					organizationId: ORG_ID,
+					id: SERVICE_ID,
+					availablePaymentPlans: ["GHOST_PLAN"],
+				},
+				{ context: ctx },
+			),
 		).rejects.toMatchObject({ code: "BAD_REQUEST" });
 	});
 });
@@ -233,7 +287,12 @@ describe("servicesRouter.update", () => {
 
 describe("servicesRouter.update (soft-delete via isActive=false)", () => {
 	it("returns deactivated service when isActive is set to false", async () => {
-		const activeService = { id: SERVICE_ID, name: "PT", branchId: null, isActive: true };
+		const activeService = {
+			id: SERVICE_ID,
+			name: "PT",
+			branchId: null,
+			isActive: true,
+		};
 		const deactivatedRow = { ...activeService, isActive: false };
 		const returningMock = mock(() => Promise.resolve([deactivatedRow]));
 		const tenantDb = makeAdminDb({

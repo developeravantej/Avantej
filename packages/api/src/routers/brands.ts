@@ -1,9 +1,8 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
-
 	listBrands,
 	getBrandById,
 	createBrand,
@@ -17,15 +16,16 @@ export const brandsRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				search: z.string().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"read",
+			);
 
 			return listBrands(context.tenantDb, { search: input.search });
 		}),
@@ -35,15 +35,16 @@ export const brandsRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"read",
+			);
 
 			const brand = await getBrandById(context.tenantDb, input.id);
 			if (!brand) {
@@ -60,15 +61,16 @@ export const brandsRouter = {
 				organizationId: z.string().uuid(),
 				name: z.string().min(1),
 				description: z.string().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "create")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"create",
+			);
 
 			return createBrand(context.tenantDb, {
 				name: input.name,
@@ -84,15 +86,16 @@ export const brandsRouter = {
 				id: z.string().uuid(),
 				name: z.string().optional(),
 				description: z.string().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"update",
+			);
 
 			return updateBrand(context.tenantDb, input.id, {
 				name: input.name,
@@ -106,15 +109,16 @@ export const brandsRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "delete")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"delete",
+			);
 
 			return deleteBrand(context.tenantDb, input.id);
 		}),

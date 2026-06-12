@@ -36,103 +36,102 @@
 
 import { test, expect } from "@playwright/test";
 import {
-  seedWalkInCustomer,
-  cleanupWalkInCustomer,
-  TEST_ORG_ID,
+	seedWalkInCustomer,
+	cleanupWalkInCustomer,
+	TEST_ORG_ID,
 } from "./helpers/seed-data";
 import { orpcCall } from "./helpers/orpc-client";
 
 const CUSTOMER_NAME = "E2E QuickAdd Test";
 
-test(
-  "Quick Add customer → POS page prefills that customer via ?customerId param",
-  { tag: ["@p0"] },
-  async ({ page }) => {
-    // ── Seed: create an unclaimed profile ────────────────────────────────────
-    const profile = await seedWalkInCustomer(page, {
-      name: CUSTOMER_NAME,
-      phone: "+60 11-9999 9888",
-    });
-    test.skip(
-      !profile,
-      "Could not seed unclaimed customer profile (missing user_management:create permission or hierarchy node) — skip",
-    );
+test("Quick Add customer → POS page prefills that customer via ?customerId param", {
+	tag: ["@p0"],
+}, async ({ page }) => {
+	// ── Seed: create an unclaimed profile ────────────────────────────────────
+	const profile = await seedWalkInCustomer(page, {
+		name: CUSTOMER_NAME,
+		phone: "+60 11-9999 9888",
+	});
+	test.skip(
+		!profile,
+		"Could not seed unclaimed customer profile (missing user_management:create permission or hierarchy node) — skip",
+	);
 
-    // ── Resolve the tenant members.id for this profile ────────────────────────
-    // seedWalkInCustomer returns { id: memberId, userId }. The POS prefill param
-    // is customerId which maps to customerDirectory.getById({ memberId }).
-    // Use the id (members.id) directly as the customerId query param.
-    let memberId = profile!.id;
+	// ── Resolve the tenant members.id for this profile ────────────────────────
+	// seedWalkInCustomer returns { id: memberId, userId }. The POS prefill param
+	// is customerId which maps to customerDirectory.getById({ memberId }).
+	// Use the id (members.id) directly as the customerId query param.
+	let memberId = profile!.id;
 
-    // If memberId came back empty, try resolving via customerDirectory.list
-    if (!memberId) {
-      type DirRow = { memberId: string; name: string };
-      type DirResult = { rows?: DirRow[] } | DirRow[];
-      try {
-        const result = await orpcCall<object, DirResult>(
-          page,
-          "customerDirectory",
-          "list",
-          {
-            organizationId: TEST_ORG_ID,
-            search: CUSTOMER_NAME,
-            limit: 5,
-            offset: 0,
-          },
-        );
-        const rows = Array.isArray(result)
-          ? result
-          : (result as { rows?: DirRow[] }).rows ?? [];
-        const found = rows.find((r) =>
-          r.name.toLowerCase().includes("e2e") ||
-          r.name.toLowerCase().includes("quickadd"),
-        );
-        memberId = found?.memberId ?? "";
-      } catch {
-        // ignore — proceed with empty memberId
-      }
-    }
+	// If memberId came back empty, try resolving via customerDirectory.list
+	if (!memberId) {
+		type DirRow = { memberId: string; name: string };
+		type DirResult = { rows?: DirRow[] } | DirRow[];
+		try {
+			const result = await orpcCall<object, DirResult>(
+				page,
+				"customerDirectory",
+				"list",
+				{
+					organizationId: TEST_ORG_ID,
+					search: CUSTOMER_NAME,
+					limit: 5,
+					offset: 0,
+				},
+			);
+			const rows = Array.isArray(result)
+				? result
+				: ((result as { rows?: DirRow[] }).rows ?? []);
+			const found = rows.find(
+				(r) =>
+					r.name.toLowerCase().includes("e2e") ||
+					r.name.toLowerCase().includes("quickadd"),
+			);
+			memberId = found?.memberId ?? "";
+		} catch {
+			// ignore — proceed with empty memberId
+		}
+	}
 
-    test.skip(!memberId, "Could not resolve memberId for seeded profile — skip");
+	test.skip(!memberId, "Could not resolve memberId for seeded profile — skip");
 
-    // ── Navigate to POS with prefill param ───────────────────────────────────
-    await page.goto(`/dashboard/sales/create?customerId=${memberId}`);
+	// ── Navigate to POS with prefill param ───────────────────────────────────
+	await page.goto(`/dashboard/sales/create?customerId=${memberId}`);
 
-    // The POS workflow starts at step 1 (Items) when prefillCustomerId is set.
-    // The customer pill should appear in the Items step header.
-    // Wait up to 15s for the POS to load and prefill the customer.
-    await page.waitForSelector(
-      '[data-testid="pos-member-search-input"], [data-testid="pos-complete-sale-button"], .rounded-2xl',
-      { timeout: 15_000 },
-    );
+	// The POS workflow starts at step 1 (Items) when prefillCustomerId is set.
+	// The customer pill should appear in the Items step header.
+	// Wait up to 15s for the POS to load and prefill the customer.
+	await page.waitForSelector(
+		'[data-testid="pos-member-search-input"], [data-testid="pos-complete-sale-button"], .rounded-2xl',
+		{ timeout: 15_000 },
+	);
 
-    // Give the prefill query time to resolve (customerDirectory.getById is async)
-    await page.waitForTimeout(2_000);
+	// Give the prefill query time to resolve (customerDirectory.getById is async)
+	await page.waitForTimeout(2_000);
 
-    // ── Assert: customer name is visible in the POS layout ───────────────────
-    // The PosWorkflow renders the customer name in:
-    //   - The Live Order right panel ("Customer" row)
-    //   - The Items step customer recap pill
-    //   - The Step 0 "done" summary (if step 0 is shown as done)
-    // At least one of these must contain the first/last name of the seeded profile.
-    const nameFragment = "E2E"; // partial match — avoids locale formatting issues
+	// ── Assert: customer name is visible in the POS layout ───────────────────
+	// The PosWorkflow renders the customer name in:
+	//   - The Live Order right panel ("Customer" row)
+	//   - The Items step customer recap pill
+	//   - The Step 0 "done" summary (if step 0 is shown as done)
+	// At least one of these must contain the first/last name of the seeded profile.
+	const nameFragment = "E2E"; // partial match — avoids locale formatting issues
 
-    const customerVisible = await page
-      .getByText(nameFragment, { exact: false })
-      .first()
-      .isVisible({ timeout: 5_000 })
-      .catch(() => false);
+	const customerVisible = await page
+		.getByText(nameFragment, { exact: false })
+		.first()
+		.isVisible({ timeout: 5_000 })
+		.catch(() => false);
 
-    if (!customerVisible) {
-      // Soft fallback: assert the URL still points to the right page (no 404)
-      expect(page.url()).toContain("/dashboard/sales/create");
-      // And assert the POS root container rendered
-      await expect(page.locator(".rounded-2xl").first()).toBeVisible();
-    } else {
-      expect(customerVisible).toBe(true);
-    }
+	if (!customerVisible) {
+		// Soft fallback: assert the URL still points to the right page (no 404)
+		expect(page.url()).toContain("/dashboard/sales/create");
+		// And assert the POS root container rendered
+		await expect(page.locator(".rounded-2xl").first()).toBeVisible();
+	} else {
+		expect(customerVisible).toBe(true);
+	}
 
-    // ── Cleanup ───────────────────────────────────────────────────────────────
-    await cleanupWalkInCustomer(page, profile!.userId);
-  },
-);
+	// ── Cleanup ───────────────────────────────────────────────────────────────
+	await cleanupWalkInCustomer(page, profile!.userId);
+});

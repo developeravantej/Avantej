@@ -14,7 +14,7 @@
  */
 
 import { tenantProcedure } from "../../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
@@ -33,7 +33,7 @@ export const serviceMembersAssignmentProcedures = {
 				organizationId: z.string().uuid(),
 				memberId: z.string().uuid(),
 				serviceId: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
 			assertOrgContextMatch(context, input);
@@ -42,16 +42,27 @@ export const serviceMembersAssignmentProcedures = {
 			}
 
 			let hasPermission = false;
-			for (const resource of ["user_management", "service_management"] as const) {
+			for (const resource of [
+				"user_management",
+				"service_management",
+			] as const) {
 				try {
-					await requirePermissionOrpc(context.tenantDb, context.member, resource, "update");
+					await requirePermissionOrpc(
+						context.tenantDb,
+						context.member,
+						resource,
+						"update",
+					);
 					hasPermission = true;
 					break;
-				} catch { /* try next */ }
+				} catch {
+					/* try next */
+				}
 			}
 			if (!hasPermission) {
 				throw new ORPCError("FORBIDDEN", {
-					message: "Requires user_management or service_management update permission.",
+					message:
+						"Requires user_management or service_management update permission.",
 				});
 			}
 
@@ -77,7 +88,7 @@ export const serviceMembersAssignmentProcedures = {
 				organizationId: z.string().uuid(),
 				memberId: z.string().uuid(),
 				serviceId: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
 			assertOrgContextMatch(context, input);
@@ -86,16 +97,27 @@ export const serviceMembersAssignmentProcedures = {
 			}
 
 			let hasPermission = false;
-			for (const resource of ["user_management", "service_management"] as const) {
+			for (const resource of [
+				"user_management",
+				"service_management",
+			] as const) {
 				try {
-					await requirePermissionOrpc(context.tenantDb, context.member, resource, "update");
+					await requirePermissionOrpc(
+						context.tenantDb,
+						context.member,
+						resource,
+						"update",
+					);
 					hasPermission = true;
 					break;
-				} catch { /* try next */ }
+				} catch {
+					/* try next */
+				}
 			}
 			if (!hasPermission) {
 				throw new ORPCError("FORBIDDEN", {
-					message: "Requires user_management or service_management update permission.",
+					message:
+						"Requires user_management or service_management update permission.",
 				});
 			}
 
@@ -105,8 +127,8 @@ export const serviceMembersAssignmentProcedures = {
 				.where(
 					and(
 						eq(memberServiceBufferOverrides.memberId, input.memberId),
-						eq(memberServiceBufferOverrides.serviceId, input.serviceId)
-					)
+						eq(memberServiceBufferOverrides.serviceId, input.serviceId),
+					),
 				);
 
 			await context.tenantDb
@@ -114,8 +136,8 @@ export const serviceMembersAssignmentProcedures = {
 				.where(
 					and(
 						eq(serviceMembers.memberId, input.memberId),
-						eq(serviceMembers.serviceId, input.serviceId)
-					)
+						eq(serviceMembers.serviceId, input.serviceId),
+					),
 				);
 
 			return { success: true };
@@ -130,25 +152,37 @@ export const serviceMembersAssignmentProcedures = {
 			z.object({
 				organizationId: z.string().uuid(),
 				serviceId: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			if (!context.tenantDb || !context.member) {
 				throw new ORPCError("FORBIDDEN");
 			}
 
 			let hasPermission = false;
-			for (const resource of ["user_management", "service_management", "appointment_management"] as const) {
+			for (const resource of [
+				"user_management",
+				"service_management",
+				"appointment_management",
+			] as const) {
 				try {
-					await requirePermissionOrpc(context.tenantDb, context.member, resource, "read");
+					await requirePermissionOrpc(
+						context.tenantDb,
+						context.member,
+						resource,
+						"read",
+					);
 					hasPermission = true;
 					break;
-				} catch { /* try next */ }
+				} catch {
+					/* try next */
+				}
 			}
 			if (!hasPermission) {
 				throw new ORPCError("FORBIDDEN", {
-					message: "Requires user_management, service_management, or appointment_management read permission.",
+					message:
+						"Requires user_management, service_management, or appointment_management read permission.",
 				});
 			}
 
@@ -159,7 +193,10 @@ export const serviceMembersAssignmentProcedures = {
 					displayName: memberProfiles.displayName,
 				})
 				.from(serviceMembers)
-				.leftJoin(memberProfiles, eq(memberProfiles.memberId, serviceMembers.memberId))
+				.leftJoin(
+					memberProfiles,
+					eq(memberProfiles.memberId, serviceMembers.memberId),
+				)
 				.where(eq(serviceMembers.serviceId, input.serviceId));
 
 			return rows.map(
@@ -173,5 +210,5 @@ export const serviceMembersAssignmentProcedures = {
 					displayName: r.displayName ?? r.memberId,
 				}),
 			);
-		})
+		}),
 };

@@ -32,7 +32,9 @@ export const memberSessions = pgTable(
 		adminUserId: text("admin_user_id").notNull(),
 		impersonatedUserId: text("impersonated_user_id").notNull(),
 		sessionToken: text("session_token").notNull().unique(),
-		startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+		startedAt: timestamp("started_at", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
 		endedAt: timestamp("ended_at", { withTimezone: true }),
 	},
 	(table) => ({

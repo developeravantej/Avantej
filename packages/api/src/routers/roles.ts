@@ -12,7 +12,7 @@ import { eq, desc } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 
 export const rolesRouter = {
 	/**
@@ -22,14 +22,15 @@ export const rolesRouter = {
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ context }) => {
-			
-
-			
-
-			await requirePermissionOrpc(context.tenantDb, context.member, "role_management", "read")
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"role_management",
+				"read",
+			);
 
 			const items = await context.tenantDb
 				.select()
@@ -52,15 +53,16 @@ export const rolesRouter = {
 				name: z.string().min(1).max(100),
 				description: z.string().max(500).optional(),
 				priority: z.number().int().min(1).max(99),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "role_management", "create")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"role_management",
+				"create",
+			);
 
 			try {
 				const [created] = await context.tenantDb
@@ -76,19 +78,14 @@ export const rolesRouter = {
 				return created;
 			} catch (error) {
 				// Handle unique constraint violation on name
-				if (
-					error instanceof Error &&
-					error.message.includes("unique")
-				) {
+				if (error instanceof Error && error.message.includes("unique")) {
 					throw new ORPCError("CONFLICT", {
 						message: `A role with name "${input.name}" already exists`,
 					});
 				}
 				throw new ORPCError("BAD_REQUEST", {
 					message:
-						error instanceof Error
-							? error.message
-							: "Failed to create role",
+						error instanceof Error ? error.message : "Failed to create role",
 				});
 			}
 		}),
@@ -106,15 +103,16 @@ export const rolesRouter = {
 				name: z.string().min(1).max(100).optional(),
 				description: z.string().max(500).optional(),
 				priority: z.number().int().min(1).max(99).optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "role_management", "update")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"role_management",
+				"update",
+			);
 
 			// Check role exists and is not system
 			const existing = await context.tenantDb.query.roles.findFirst({
@@ -151,19 +149,14 @@ export const rolesRouter = {
 
 				return updated;
 			} catch (error) {
-				if (
-					error instanceof Error &&
-					error.message.includes("unique")
-				) {
+				if (error instanceof Error && error.message.includes("unique")) {
 					throw new ORPCError("CONFLICT", {
 						message: `A role with name "${input.name}" already exists`,
 					});
 				}
 				throw new ORPCError("BAD_REQUEST", {
 					message:
-						error instanceof Error
-							? error.message
-							: "Failed to update role",
+						error instanceof Error ? error.message : "Failed to update role",
 				});
 			}
 		}),
@@ -178,15 +171,16 @@ export const rolesRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "role_management", "delete")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"role_management",
+				"delete",
+			);
 
 			const existing = await context.tenantDb.query.roles.findFirst({
 				where: eq(roles.id, input.id),

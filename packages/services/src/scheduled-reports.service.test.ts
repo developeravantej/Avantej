@@ -227,8 +227,7 @@ describe("markScheduledReportFailed", () => {
 		const tenantDb: AnyTenantDb = {
 			select: () => ({
 				from: () => ({
-					where: () =>
-						Promise.resolve([{ id: "sr-1", frequency: "daily" }]),
+					where: () => Promise.resolve([{ id: "sr-1", frequency: "daily" }]),
 				}),
 			}),
 			update: () => ({ set: updateSetMock }),
@@ -253,8 +252,7 @@ describe("markScheduledReportFailed", () => {
 		const tenantDb: AnyTenantDb = {
 			select: () => ({
 				from: () => ({
-					where: () =>
-						Promise.resolve([{ id: "sr-1", frequency: "daily" }]),
+					where: () => Promise.resolve([{ id: "sr-1", frequency: "daily" }]),
 				}),
 			}),
 			update: () => ({ set: updateSetMock }),

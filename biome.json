@@ -17,6 +17,10 @@
 			"!**/.vscode",
 			"!**/routeTree.gen.ts",
 			"!**/tenant-migrations.generated.ts",
+			"!**/.claude",
+			"!**/zplan",
+			"!**/graphify-out",
+			"!apps/native/android",
 			"!**/src-tauri",
 			"!**/.nuxt",
 			"!bts.jsonc",
@@ -31,6 +35,11 @@
 	"formatter": {
 		"enabled": true,
 		"indentStyle": "tab"
+	},
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
+		}
 	},
 	"assist": { "actions": { "source": { "organizeImports": "on" } } },
 	"linter": {

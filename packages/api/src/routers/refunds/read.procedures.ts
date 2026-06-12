@@ -1,8 +1,15 @@
-import { getRefundById, listRefunds } from "@avantej-core/services/refunds.service";
+import {
+	getRefundById,
+	listRefunds,
+} from "@avantej-core/services/refunds.service";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import { requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../../guards";
 import { getControlPanelDb } from "../../lib/context-helpers";
 
 export const refundsReadProcedures = {
@@ -45,14 +52,16 @@ export const refundsReadProcedures = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
-			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "read");
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"refund_management",
+				"read",
+			);
 
 			const controlPanelDb = getControlPanelDb(context);
 			const accessibleNodeIds = context.accessibleNodeIds ?? [];
@@ -81,11 +90,13 @@ export const refundsReadProcedures = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "read");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"refund_management",
+				"read",
+			);
 
 			const refund = await getRefundById(context.tenantDb, input.id);
 			if (!refund) {
@@ -94,5 +105,5 @@ export const refundsReadProcedures = {
 				});
 			}
 			return refund;
-		})
+		}),
 };

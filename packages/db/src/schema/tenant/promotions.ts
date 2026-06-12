@@ -93,11 +93,11 @@ export const promotions = pgTable(
 		isActiveIdx: index("promotions_active_idx").on(table.isActive),
 		validDatesIdx: index("promotions_valid_dates_idx").on(
 			table.validFrom,
-			table.validUntil
+			table.validUntil,
 		),
 		branchIdx: index("promotions_branch_idx").on(table.branchId),
 		typeIdx: index("promotions_type_idx").on(table.type),
-	})
+	}),
 );
 
 export const promotionUsages = pgTable(
@@ -121,18 +121,18 @@ export const promotionUsages = pgTable(
 		// How much discount was actually applied (in cents, post cap)
 		discountAmount: integer("discount_amount").notNull(),
 
-		usedAt: timestamp("used_at", { withTimezone: true })
-			.defaultNow()
-			.notNull(),
+		usedAt: timestamp("used_at", { withTimezone: true }).defaultNow().notNull(),
 	},
 	(table) => ({
 		promotionIdIdx: index("promo_usages_promo_idx").on(table.promotionId),
 		customerIdx: index("promo_usages_customer_idx").on(table.customerId),
 		// Non-unique lookup index (migration 0046)
-		salesOrderLookupIdx: index("promotion_usages_sales_order_idx").on(table.salesOrderId),
+		salesOrderLookupIdx: index("promotion_usages_sales_order_idx").on(
+			table.salesOrderId,
+		),
 		// One promotion per customer per sales order (unique index recreated in 0046 with uuid type)
 		uniqueCustomerOrderPromo: uniqueIndex(
-			"promo_usages_unique_customer_order"
+			"promo_usages_unique_customer_order",
 		).on(table.promotionId, table.customerId, table.salesOrderId),
-	})
+	}),
 );

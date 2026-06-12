@@ -85,6 +85,8 @@ export const checkIns = pgTable(
 			table.appointmentClientId,
 		),
 		checkedInAtIdx: index("check_ins_checked_in_at_idx").on(table.checkedInAt),
-		packageInstanceIdx: index("check_ins_package_instance_idx").on(table.packageInstanceId),
+		packageInstanceIdx: index("check_ins_package_instance_idx").on(
+			table.packageInstanceId,
+		),
 	}),
 );

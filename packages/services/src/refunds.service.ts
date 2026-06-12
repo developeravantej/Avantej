@@ -608,7 +608,10 @@ export async function approveRefund(
 		// refunds only.
 		let remainingCents = existing.amountCents;
 		if (existing.salesOrderId) {
-			const info = await computeRemainingBySalesOrder(tx, existing.salesOrderId);
+			const info = await computeRemainingBySalesOrder(
+				tx,
+				existing.salesOrderId,
+			);
 			remainingCents = info.remainingCents + existing.amountCents;
 		} else if (existing.paymentId) {
 			const info = await computeRemainingByPayment(tx, existing.paymentId);
@@ -658,7 +661,9 @@ export async function approveRefund(
 		}
 
 		const now = new Date();
-		const auditAction = isPartial ? "refund.approve.partial" : "refund.approve.full";
+		const auditAction = isPartial
+			? "refund.approve.partial"
+			: "refund.approve.full";
 
 		const [updated] = await tx
 			.update(refunds)
@@ -706,7 +711,8 @@ export async function approveRefund(
 
 			if (pkgInstance) {
 				const totalPrice = pkgInstance.totalPrice ?? 0;
-				const isFullRefund = totalPrice > 0 && effectiveAmountCents >= totalPrice;
+				const isFullRefund =
+					totalPrice > 0 && effectiveAmountCents >= totalPrice;
 
 				if (isFullRefund && pkgInstance.status !== "cancelled") {
 					const now = new Date();
@@ -735,12 +741,16 @@ export async function approveRefund(
 						})
 						.where(eq(packageInstances.id, existing.packageInstanceId));
 
-					await appendPackageInstanceStatusHistory(tx, existing.packageInstanceId, {
-						fromStatus: previousStatus,
-						toStatus: "cancelled",
-						changedBy: params.actor.userId,
-						reason: `Full refund approved: ${existing.refundNumber}`,
-					});
+					await appendPackageInstanceStatusHistory(
+						tx,
+						existing.packageInstanceId,
+						{
+							fromStatus: previousStatus,
+							toStatus: "cancelled",
+							changedBy: params.actor.userId,
+							reason: `Full refund approved: ${existing.refundNumber}`,
+						},
+					);
 
 					await writeAudit(tx, {
 						actorUserId: params.actor.userId,
@@ -926,7 +936,10 @@ export async function processRefund(
 
 			if (order) {
 				if (order.status === "cancelled") {
-					throw { code: "BAD_REQUEST", message: "Sale is already fully refunded" };
+					throw {
+						code: "BAD_REQUEST",
+						message: "Sale is already fully refunded",
+					};
 				}
 
 				const newCancelledAmount =
@@ -1307,7 +1320,10 @@ export async function createPartialRefund(
 	tenantDb: TenantDb,
 	params: CreatePartialRefundParams,
 ): Promise<CreatePartialRefundResult> {
-	if (params.creditsRefunded <= 0 || !Number.isInteger(params.creditsRefunded)) {
+	if (
+		params.creditsRefunded <= 0 ||
+		!Number.isInteger(params.creditsRefunded)
+	) {
 		throw {
 			code: "BAD_REQUEST",
 			message: "creditsRefunded must be a positive integer",

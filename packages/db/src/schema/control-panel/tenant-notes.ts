@@ -9,7 +9,14 @@
  * note survives user deletion, mirroring admin_session_actions semantics.
  */
 
-import { pgTable, uuid, text, boolean, timestamp, index } from "drizzle-orm/pg-core";
+import {
+	pgTable,
+	uuid,
+	text,
+	boolean,
+	timestamp,
+	index,
+} from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
 
 export const tenantNotes = pgTable(
@@ -27,7 +34,10 @@ export const tenantNotes = pgTable(
 		deletedAt: timestamp("deleted_at"),
 	},
 	(table) => ({
-		orgIdx: index("tenant_notes_org_idx").on(table.organizationId, table.createdAt),
+		orgIdx: index("tenant_notes_org_idx").on(
+			table.organizationId,
+			table.createdAt,
+		),
 		pinnedIdx: index("tenant_notes_pinned_idx").on(
 			table.organizationId,
 			table.isPinned,

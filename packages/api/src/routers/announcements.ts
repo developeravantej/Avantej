@@ -1,7 +1,11 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../guards";
 import {
 	listAnnouncements,
 	listActiveAnnouncements,
@@ -21,15 +25,16 @@ const list = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
 		if (input.branchId) {
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 		}
-		await requirePermissionOrpc(context.tenantDb, context.member, "announcement_management", "read")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"announcement_management",
+			"read",
+		);
 
 		return listAnnouncements(context.tenantDb, {
 			branchId: input.branchId,
@@ -48,11 +53,12 @@ const listActive = tenantProcedure
 		}),
 	)
 	.handler(async ({ context }) => {
-		
-
-		
-
-		await requirePermissionOrpc(context.tenantDb, context.member, "announcement_management", "read")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"announcement_management",
+			"read",
+		);
 
 		return listActiveAnnouncements(context.tenantDb, {
 			accessibleNodeIds: context.accessibleNodeIds ?? [],
@@ -77,15 +83,16 @@ const create = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
 		if (input.branchId) {
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 		}
-		await requirePermissionOrpc(context.tenantDb, context.member, "announcement_management", "create")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"announcement_management",
+			"create",
+		);
 
 		return createAnnouncement(context.tenantDb, {
 			branchId: input.branchId,
@@ -120,12 +127,13 @@ const update = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "announcement_management", "update")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"announcement_management",
+			"update",
+		);
 
 		try {
 			return await updateAnnouncement(context.tenantDb, input.id, {
@@ -155,12 +163,13 @@ const deleteHandler = tenantProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		
-
-		
-
 		assertOrgContextMatch(context, input);
-		await requirePermissionOrpc(context.tenantDb, context.member, "announcement_management", "delete")
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"announcement_management",
+			"delete",
+		);
 
 		return deleteAnnouncement(context.tenantDb, input.id);
 	});

@@ -14,7 +14,9 @@ import {
  * step's assertion fails. The remediation loop maps failing-step ids back to
  * targets via the leading token (GP-XX / F-XX).
  */
-test("audit-prove commission — golden paths + finding regressions", async ({ page }) => {
+test("audit-prove commission — golden paths + finding regressions", async ({
+	page,
+}) => {
 	const COMMISSIONS_URL = "/dashboard/commissions/view";
 
 	// ─────────────────────────────────────────────────────────────
@@ -89,12 +91,17 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 		let observedCode: string | null = null;
 		let observedMessage: string | null = null;
 		try {
-			await orpcCall<object, { id: string }>(page, "commissionSplits", "createManualAdjustment", {
-				organizationId: TEST_ORG_ID,
-				staffId: trainer.userId,
-				amountCents: 100, // RM 1.00
-				note: "audit-prove F-04 bonus (no target)",
-			});
+			await orpcCall<object, { id: string }>(
+				page,
+				"commissionSplits",
+				"createManualAdjustment",
+				{
+					organizationId: TEST_ORG_ID,
+					staffId: trainer.userId,
+					amountCents: 100, // RM 1.00
+					note: "audit-prove F-04 bonus (no target)",
+				},
+			);
 		} catch (err) {
 			if (err instanceof OrpcClientError) {
 				observedCode = err.code;
@@ -108,14 +115,19 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 		// oRPC actually wraps the error code inside body.json.code; parse it out of the message.
 		const innerCode =
 			observedMessage?.match(/"code":\s*"([A-Z_]+)"/)?.[1] ?? observedCode;
-		expect.soft(innerCode, `expected BAD_REQUEST; got ${innerCode} (${observedMessage?.slice(0, 200)})`).toBe(
-			"BAD_REQUEST",
-		);
+		expect
+			.soft(
+				innerCode,
+				`expected BAD_REQUEST; got ${innerCode} (${observedMessage?.slice(0, 200)})`,
+			)
+			.toBe("BAD_REQUEST");
 		// Sanity: message must NOT leak raw SQL (post-fix, the procedure validates pre-insert).
-		expect.soft(
-			observedMessage ?? "",
-			"BAD_REQUEST message should not leak raw SQL ('Failed query: insert into commission_splits ...')",
-		).not.toMatch(/Failed query: insert into "commission_splits"/);
+		expect
+			.soft(
+				observedMessage ?? "",
+				"BAD_REQUEST message should not leak raw SQL ('Failed query: insert into commission_splits ...')",
+			)
+			.not.toMatch(/Failed query: insert into "commission_splits"/);
 	});
 
 	await test.step("F-05 markPaidById persists paymentReference in audit log", async () => {
@@ -124,11 +136,16 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 		type LedgerResp = { rows: LedgerRow[] } | LedgerRow[];
 		let approvedId: string | null = null;
 		try {
-			const resp = await orpcCall<object, LedgerResp>(page, "commissionSplits", "listLedger", {
-				organizationId: TEST_ORG_ID,
-				status: "approved",
-				limit: 5,
-			});
+			const resp = await orpcCall<object, LedgerResp>(
+				page,
+				"commissionSplits",
+				"listLedger",
+				{
+					organizationId: TEST_ORG_ID,
+					status: "approved",
+					limit: 5,
+				},
+			);
 			const rows = Array.isArray(resp) ? resp : resp.rows;
 			approvedId = rows?.[0]?.id ?? null;
 		} catch {
@@ -140,7 +157,8 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 			// verification deferred to a future seed pass. Not a code regression.
 			test.info().annotations.push({
 				type: "F-05",
-				description: "skip — no approved commission split available in test tenant (data gap)",
+				description:
+					"skip — no approved commission split available in test tenant (data gap)",
 			});
 			return;
 		}
@@ -159,7 +177,12 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 
 		// Read-back: row should be paid; reference should be visible somewhere (row, ledger, or audit).
 		// Tolerant matcher: look at the ledger row's notes / paymentReference field, fall back to audit_log if available.
-		type ReadRow = { id: string; status: string; notes?: string | null; paymentReference?: string | null };
+		type ReadRow = {
+			id: string;
+			status: string;
+			notes?: string | null;
+			paymentReference?: string | null;
+		};
 		let refFound = false;
 		try {
 			const resp = await orpcCall<object, ReadRow[] | { rows: ReadRow[] }>(
@@ -181,21 +204,37 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 		} catch {
 			// fall through
 		}
-		expect.soft(refFound, `paymentReference "${ref}" missing from persisted row / ledger`).toBe(true);
+		expect
+			.soft(
+				refFound,
+				`paymentReference "${ref}" missing from persisted row / ledger`,
+			)
+			.toBe(true);
 	});
 
 	await test.step("F-06 refund of paid sale voids/reverses the source commission split", async () => {
 		// This journey requires: a paid sales order with at least one paid commission split.
 		// Find one via ledger; if none available, soft-skip.
-		type LedgerRow = { id: string; status: string; staffId: string; salesOrderId?: string | null; calculatedAmount: number };
+		type LedgerRow = {
+			id: string;
+			status: string;
+			staffId: string;
+			salesOrderId?: string | null;
+			calculatedAmount: number;
+		};
 		type LedgerResp = { rows: LedgerRow[] } | LedgerRow[];
 		let paidWithSO: LedgerRow | null = null;
 		try {
-			const resp = await orpcCall<object, LedgerResp>(page, "commissionSplits", "listLedger", {
-				organizationId: TEST_ORG_ID,
-				status: "paid",
-				limit: 25,
-			});
+			const resp = await orpcCall<object, LedgerResp>(
+				page,
+				"commissionSplits",
+				"listLedger",
+				{
+					organizationId: TEST_ORG_ID,
+					status: "paid",
+					limit: 25,
+				},
+			);
 			const rows = Array.isArray(resp) ? resp : resp.rows;
 			paidWithSO = rows?.find((r) => r.salesOrderId) ?? null;
 		} catch {
@@ -207,17 +246,26 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 			// runtime verification deferred. Not a code regression.
 			test.info().annotations.push({
 				type: "F-06",
-				description: "skip — no paid commission tied to a sales order (data gap)",
+				description:
+					"skip — no paid commission tied to a sales order (data gap)",
 			});
 			return;
 		}
 		// We won't actually approve a refund here (irreversible). Instead, query the existing
 		// reversal-aware liability and assert it would subtract reversal totals from paid.
 		// After the fix: liabilityByStaff.paidCents must equal sum(paid) - sum(reversals).
-		type LiabRow = { staffId: string; paidCents: number; pendingCents: number; approvedCents: number };
+		type LiabRow = {
+			staffId: string;
+			paidCents: number;
+			pendingCents: number;
+			approvedCents: number;
+		};
 		let liabPaid = -1;
 		try {
-			const result = await orpcCall<object, { rows: LiabRow[]; totalCount: number; hasMore: boolean }>(page, "commissionSplits", "liabilityByStaff", {
+			const result = await orpcCall<
+				object,
+				{ rows: LiabRow[]; totalCount: number; hasMore: boolean }
+			>(page, "commissionSplits", "liabilityByStaff", {
 				organizationId: TEST_ORG_ID,
 			});
 			const row = result.rows.find((r) => r.staffId === paidWithSO!.staffId);
@@ -226,7 +274,9 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 			// ignore
 		}
 		// Tolerant assertion: liability should be ≥ 0 and a number. Tightened after the fix lands.
-		expect.soft(liabPaid, "liabilityByStaff.paidCents missing for staffId").toBeGreaterThanOrEqual(0);
+		expect
+			.soft(liabPaid, "liabilityByStaff.paidCents missing for staffId")
+			.toBeGreaterThanOrEqual(0);
 	});
 
 	await test.step("F-02 getCategoryCommissionConfig should not surface inactive configs to admin form", async () => {
@@ -235,31 +285,51 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 		type CatRow = { id: string; name: string };
 		let categoryId: string | null = null;
 		try {
-			const cats = await orpcCall<object, CatRow[]>(page, "serviceCategories", "list", {
-				organizationId: TEST_ORG_ID,
-			});
+			const cats = await orpcCall<object, CatRow[]>(
+				page,
+				"serviceCategories",
+				"list",
+				{
+					organizationId: TEST_ORG_ID,
+				},
+			);
 			categoryId = cats?.[0]?.id ?? null;
 		} catch {
 			// fall through
 		}
 		if (!categoryId) {
-			expect.soft(categoryId, "no service category found — F-02 skipped").not.toBeNull();
+			expect
+				.soft(categoryId, "no service category found — F-02 skipped")
+				.not.toBeNull();
 			return;
 		}
-		type ConfigResp = { config: { isActive?: boolean }; slots: unknown[] } | null;
+		type ConfigResp = {
+			config: { isActive?: boolean };
+			slots: unknown[];
+		} | null;
 		let config: ConfigResp = null;
 		try {
-			config = await orpcCall<object, ConfigResp>(page, "categoryCommission", "getByCategory", {
-				organizationId: TEST_ORG_ID,
-				categoryId,
-			});
+			config = await orpcCall<object, ConfigResp>(
+				page,
+				"categoryCommission",
+				"getByCategory",
+				{
+					organizationId: TEST_ORG_ID,
+					categoryId,
+				},
+			);
 		} catch {
 			// no config — that's fine
 		}
 		// If a config is returned, the response MUST surface isActive so the admin form
 		// can render correct UI. Pre-fix: isActive field may be missing entirely.
 		if (config?.config) {
-			expect.soft(config.config.isActive, "config payload must include isActive flag").toBeDefined();
+			expect
+				.soft(
+					config.config.isActive,
+					"config payload must include isActive flag",
+				)
+				.toBeDefined();
 		}
 	});
 
@@ -272,11 +342,16 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 		type MyResp = { rows: MyRow[]; totalAmount?: number } | MyRow[];
 		let rows: MyRow[] = [];
 		try {
-			const resp = await orpcCall<object, MyResp>(page, "commissionSplits", "myCommissions", {
-				organizationId: TEST_ORG_ID,
-				from: from.toISOString(),
-				to: to.toISOString(),
-			});
+			const resp = await orpcCall<object, MyResp>(
+				page,
+				"commissionSplits",
+				"myCommissions",
+				{
+					organizationId: TEST_ORG_ID,
+					from: from.toISOString(),
+					to: to.toISOString(),
+				},
+			);
 			rows = Array.isArray(resp) ? resp : resp.rows;
 		} catch {
 			// ignore
@@ -285,10 +360,12 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 		for (const r of rows) {
 			if (!r.earnedAt) continue;
 			const ts = new Date(r.earnedAt).getTime();
-			expect.soft(
-				ts >= from.getTime() && ts <= to.getTime(),
-				`row ${r.id} earnedAt=${r.earnedAt} outside window [${from.toISOString()}, ${to.toISOString()}]`,
-			).toBe(true);
+			expect
+				.soft(
+					ts >= from.getTime() && ts <= to.getTime(),
+					`row ${r.id} earnedAt=${r.earnedAt} outside window [${from.toISOString()}, ${to.toISOString()}]`,
+				)
+				.toBe(true);
 		}
 	});
 
@@ -298,25 +375,38 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 		const boundary = new Date(Date.UTC(2026, 4, 1, 0, 0, 0)); // 2026-05-01T00:00:00Z
 		const earlier = new Date(Date.UTC(2026, 3, 1, 0, 0, 0));
 		const later = new Date(Date.UTC(2026, 5, 1, 0, 0, 0));
-		type LiabResp = { trainers?: Array<{ staffId: string; totalCents: number }>; totalCents?: number };
+		type LiabResp = {
+			trainers?: Array<{ staffId: string; totalCents: number }>;
+			totalCents?: number;
+		};
 		let leftTotal = 0;
 		let rightTotal = 0;
 		try {
-			const left = await orpcCall<object, LiabResp>(page, "commissionSplits", "liabilitySummary", {
-				organizationId: TEST_ORG_ID,
-				from: earlier.toISOString(),
-				to: boundary.toISOString(),
-			});
+			const left = await orpcCall<object, LiabResp>(
+				page,
+				"commissionSplits",
+				"liabilitySummary",
+				{
+					organizationId: TEST_ORG_ID,
+					from: earlier.toISOString(),
+					to: boundary.toISOString(),
+				},
+			);
 			leftTotal = left.totalCents ?? 0;
 		} catch {
 			// ignore
 		}
 		try {
-			const right = await orpcCall<object, LiabResp>(page, "commissionSplits", "liabilitySummary", {
-				organizationId: TEST_ORG_ID,
-				from: boundary.toISOString(),
-				to: later.toISOString(),
-			});
+			const right = await orpcCall<object, LiabResp>(
+				page,
+				"commissionSplits",
+				"liabilitySummary",
+				{
+					organizationId: TEST_ORG_ID,
+					from: boundary.toISOString(),
+					to: later.toISOString(),
+				},
+			);
 			rightTotal = right.totalCents ?? 0;
 		} catch {
 			// ignore
@@ -324,16 +414,23 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 		// Total over [earlier, later] should equal sum of two halves; if boundary is double-counted,
 		// the sum will exceed it. Tolerant: just require both halves return non-error.
 		try {
-			const full = await orpcCall<object, LiabResp>(page, "commissionSplits", "liabilitySummary", {
-				organizationId: TEST_ORG_ID,
-				from: earlier.toISOString(),
-				to: later.toISOString(),
-			});
+			const full = await orpcCall<object, LiabResp>(
+				page,
+				"commissionSplits",
+				"liabilitySummary",
+				{
+					organizationId: TEST_ORG_ID,
+					from: earlier.toISOString(),
+					to: later.toISOString(),
+				},
+			);
 			const fullTotal = full.totalCents ?? 0;
-			expect.soft(
-				leftTotal + rightTotal,
-				`boundary split is double-counted: left+right (${leftTotal + rightTotal}) > full (${fullTotal})`,
-			).toBeLessThanOrEqual(fullTotal);
+			expect
+				.soft(
+					leftTotal + rightTotal,
+					`boundary split is double-counted: left+right (${leftTotal + rightTotal}) > full (${fullTotal})`,
+				)
+				.toBeLessThanOrEqual(fullTotal);
 		} catch {
 			// liabilitySummary may not return totalCents — fallback: just assert no throw
 			expect.soft(true).toBe(true);
@@ -343,26 +440,43 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 	await test.step("F-15 payouts.list shows reversal/clawback rows to recipient (non-admin)", async () => {
 		// This proves the negative-amount payout (reversal) is visible to the recipient even
 		// without an appointmentId. Verified via the recipient-facing payouts list.
-		type PayoutRow = { id: string; recipientId: string; amount: number; appointmentId?: string | null };
+		type PayoutRow = {
+			id: string;
+			recipientId: string;
+			amount: number;
+			appointmentId?: string | null;
+		};
 		type PayoutsResp = { rows: PayoutRow[] } | PayoutRow[];
 		let rows: PayoutRow[] = [];
 		try {
-			const resp = await orpcCall<object, PayoutsResp>(page, "payouts", "list", {
-				organizationId: TEST_ORG_ID,
-				limit: 50,
-			});
+			const resp = await orpcCall<object, PayoutsResp>(
+				page,
+				"payouts",
+				"list",
+				{
+					organizationId: TEST_ORG_ID,
+					limit: 50,
+				},
+			);
 			rows = Array.isArray(resp) ? resp : resp.rows;
 		} catch {
 			// ignore
 		}
 		// Pure sanity: list returned without error, and (when reversals exist) they have
 		// recipientId set. After fix: list includes reversal rows for non-admin viewers.
-		expect.soft(Array.isArray(rows), "payouts.list returns an array shape").toBe(true);
+		expect
+			.soft(Array.isArray(rows), "payouts.list returns an array shape")
+			.toBe(true);
 		// Tolerant check: if any reversal-like row exists (amount < 0 with appointmentId null),
 		// confirm it has a recipientId — that's the persistence anchor non-admins need.
 		const reversal = rows.find((r) => r.amount < 0 && !r.appointmentId);
 		if (reversal) {
-			expect.soft(reversal.recipientId, "reversal payout must carry recipientId for non-admin RBAC").toBeTruthy();
+			expect
+				.soft(
+					reversal.recipientId,
+					"reversal payout must carry recipientId for non-admin RBAC",
+				)
+				.toBeTruthy();
 		}
 	});
 
@@ -371,35 +485,57 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 			expect.soft(trainer, "no trainer for F-19").not.toBeNull();
 			return;
 		}
-		type Summary = { totalPaid?: number; avgPerCycle?: number; lastPayoutAt?: string | null };
+		type Summary = {
+			totalPaid?: number;
+			avgPerCycle?: number;
+			lastPayoutAt?: string | null;
+		};
 		let summary: Summary | null = null;
 		try {
-			summary = await orpcCall<object, Summary>(page, "payouts", "recipientSummary", {
-				organizationId: TEST_ORG_ID,
-				recipientId: trainer.userId,
-			});
+			summary = await orpcCall<object, Summary>(
+				page,
+				"payouts",
+				"recipientSummary",
+				{
+					organizationId: TEST_ORG_ID,
+					recipientId: trainer.userId,
+				},
+			);
 		} catch {
 			// ignore
 		}
 		if (!summary || summary.totalPaid === undefined) {
-			expect.soft(summary, "recipientSummary returned no data — F-19 inconclusive").toBeTruthy();
+			expect
+				.soft(summary, "recipientSummary returned no data — F-19 inconclusive")
+				.toBeTruthy();
 			return;
 		}
 		// After fix: avgPerCycle must be >= 0 even if reversals exist.
-		expect.soft(summary.avgPerCycle ?? 0, "avgPerCycle should be non-negative").toBeGreaterThanOrEqual(0);
+		expect
+			.soft(summary.avgPerCycle ?? 0, "avgPerCycle should be non-negative")
+			.toBeGreaterThanOrEqual(0);
 	});
 
 	await test.step("F-08 payouts.runBatch links to a payout_batches row", async () => {
 		// Don't actually run a batch (irreversible in dev). Instead, confirm runBatch CONTRACT:
 		// after a run, payouts.list rows should expose batchId (non-null). Read-only assert.
-		type PayoutRow = { id: string; batchId?: string | null; paidAt?: string | null };
+		type PayoutRow = {
+			id: string;
+			batchId?: string | null;
+			paidAt?: string | null;
+		};
 		type PayoutsResp = { rows: PayoutRow[] } | PayoutRow[];
 		let rows: PayoutRow[] = [];
 		try {
-			const resp = await orpcCall<object, PayoutsResp>(page, "payouts", "list", {
-				organizationId: TEST_ORG_ID,
-				limit: 50,
-			});
+			const resp = await orpcCall<object, PayoutsResp>(
+				page,
+				"payouts",
+				"list",
+				{
+					organizationId: TEST_ORG_ID,
+					limit: 50,
+				},
+			);
 			rows = Array.isArray(resp) ? resp : resp.rows;
 		} catch {
 			// ignore
@@ -407,7 +543,12 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 		// At least one paid payout should expose batchId after the fix lands.
 		const paid = rows.find((r) => r.paidAt);
 		if (paid) {
-			expect.soft(paid.batchId, "paid payouts must reference a payout_batches row after fix").toBeTruthy();
+			expect
+				.soft(
+					paid.batchId,
+					"paid payouts must reference a payout_batches row after fix",
+				)
+				.toBeTruthy();
 		}
 	});
 
@@ -416,7 +557,12 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 		// is reachable; the fix adds a commission.skip audit when no condition matches.
 		// We can't grep audit_log via API (no public procedure), so this is a placeholder
 		// that the remediation agent can sharpen once it adds the audit write.
-		expect.soft(true, "F-13 requires audit_log inspection — defer to remediation agent for tightening").toBe(true);
+		expect
+			.soft(
+				true,
+				"F-13 requires audit_log inspection — defer to remediation agent for tightening",
+			)
+			.toBe(true);
 	});
 
 	await test.step("F-14 categoryCommission.upsert permission OR(create,update)", async () => {
@@ -427,14 +573,21 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 		type CatRow = { id: string };
 		let cats: CatRow[] = [];
 		try {
-			cats = await orpcCall<object, CatRow[]>(page, "serviceCategories", "list", {
-				organizationId: TEST_ORG_ID,
-			});
+			cats = await orpcCall<object, CatRow[]>(
+				page,
+				"serviceCategories",
+				"list",
+				{
+					organizationId: TEST_ORG_ID,
+				},
+			);
 		} catch {
 			// ignore
 		}
 		// Just confirm we have categories — the upsert path itself is exercised by humans.
-		expect.soft(cats.length, "categories list reachable").toBeGreaterThanOrEqual(0);
+		expect
+			.soft(cats.length, "categories list reachable")
+			.toBeGreaterThanOrEqual(0);
 	});
 
 	await test.step("F-01 categoryCommission.upsert preserves isActive on re-save", async () => {
@@ -443,9 +596,14 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 		type CatRow = { id: string };
 		let categoryId: string | null = null;
 		try {
-			const cats = await orpcCall<object, CatRow[]>(page, "serviceCategories", "list", {
-				organizationId: TEST_ORG_ID,
-			});
+			const cats = await orpcCall<object, CatRow[]>(
+				page,
+				"serviceCategories",
+				"list",
+				{
+					organizationId: TEST_ORG_ID,
+				},
+			);
 			categoryId = cats?.[0]?.id ?? null;
 		} catch {
 			// ignore
@@ -455,21 +613,38 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 			return;
 		}
 		type GetResp = {
-			config: { id: string; paymentType: string; isConditional: boolean; maxCoaches?: number; isActive?: boolean };
-			slots: Array<{ slotIndex: number; label?: string | null; weightageBasisPoints: number }>;
+			config: {
+				id: string;
+				paymentType: string;
+				isConditional: boolean;
+				maxCoaches?: number;
+				isActive?: boolean;
+			};
+			slots: Array<{
+				slotIndex: number;
+				label?: string | null;
+				weightageBasisPoints: number;
+			}>;
 			rates?: Array<{ trainerTierId: string; amount: number }>;
 		} | null;
 		let initial: GetResp = null;
 		try {
-			initial = await orpcCall<object, GetResp>(page, "categoryCommission", "getByCategory", {
-				organizationId: TEST_ORG_ID,
-				categoryId,
-			});
+			initial = await orpcCall<object, GetResp>(
+				page,
+				"categoryCommission",
+				"getByCategory",
+				{
+					organizationId: TEST_ORG_ID,
+					categoryId,
+				},
+			);
 		} catch {
 			// no config — skip
 		}
 		if (!initial?.config) {
-			expect.soft(initial, "no commission config for category — F-01 skipped").toBeTruthy();
+			expect
+				.soft(initial, "no commission config for category — F-01 skipped")
+				.toBeTruthy();
 			return;
 		}
 		const wasActive = initial.config.isActive ?? true;
@@ -490,19 +665,31 @@ test("audit-prove commission — golden paths + finding regressions", async ({ p
 				conditions: [],
 			});
 		} catch (err) {
-			expect.soft(err, `upsert errored: ${err instanceof OrpcClientError ? err.code : String(err)}`).toBeNull();
+			expect
+				.soft(
+					err,
+					`upsert errored: ${err instanceof OrpcClientError ? err.code : String(err)}`,
+				)
+				.toBeNull();
 			return;
 		}
 		let after: GetResp = null;
 		try {
-			after = await orpcCall<object, GetResp>(page, "categoryCommission", "getByCategory", {
-				organizationId: TEST_ORG_ID,
-				categoryId,
-			});
+			after = await orpcCall<object, GetResp>(
+				page,
+				"categoryCommission",
+				"getByCategory",
+				{
+					organizationId: TEST_ORG_ID,
+					categoryId,
+				},
+			);
 		} catch {
 			// ignore
 		}
 		const nowActive = after?.config?.isActive ?? true;
-		expect.soft(nowActive, "upsert must not silently change isActive on resave").toBe(wasActive);
+		expect
+			.soft(nowActive, "upsert must not silently change isActive on resave")
+			.toBe(wasActive);
 	});
 });

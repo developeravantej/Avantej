@@ -35,9 +35,7 @@ export function tryGetControlPanelDb(context: Context): ControlPanelDb | null {
  *
  * @throws ORPCError("INTERNAL_SERVER_ERROR") if the DB is unavailable.
  */
-export function getControlPanelDb(
-	context: Context,
-): ControlPanelDb {
+export function getControlPanelDb(context: Context): ControlPanelDb {
 	const db = tryGetControlPanelDb(context);
 	if (!db) {
 		throw new ORPCError("INTERNAL_SERVER_ERROR", {

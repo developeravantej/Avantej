@@ -465,12 +465,10 @@ test("Bulk check-in marks today's pending bookings attended in one call", {
 			.filter((b) => b.attendanceStatus === "pending" && !b.checkInId)
 			.map((b) => b.appointmentClientId)
 			.slice(0, 100);
-		test
-			.info()
-			.annotations.push({
-				type: "todays-pending-bookings",
-				description: String(pendingIds.length),
-			});
+		test.info().annotations.push({
+			type: "todays-pending-bookings",
+			description: String(pendingIds.length),
+		});
 		expect(
 			pendingIds.length,
 			"the seeded class-slot enrolments must surface as today's pending bookings",

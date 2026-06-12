@@ -16,7 +16,11 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../guards";
 import {
 	createBranchInvite,
 	listAllBranchInvites,
@@ -44,17 +48,18 @@ export const branchInvitesRouter = {
 				organizationId: z.string().uuid(),
 				branchId: z.string().uuid(),
 				maxUses: z.number().int().positive().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-		guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			assertOrgContextMatch(context, input);
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			// Permission: hierarchy_management (existing resource for branch admin actions)
-			await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "create");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"hierarchy_management",
+				"create",
+			);
 
 			const invite = await createBranchInvite(context.tenantDb, {
 				branchId: input.branchId,
@@ -85,10 +90,17 @@ export const branchInvitesRouter = {
 	listAll: tenantProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context }) => {
-			
-			
-			await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "read");
-			const rows = await listAllBranchInvites(context.tenantDb, context.accessibleNodeIds ?? [], getWebUrl());
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"hierarchy_management",
+				"read",
+			);
+			const rows = await listAllBranchInvites(
+				context.tenantDb,
+				context.accessibleNodeIds ?? [],
+				getWebUrl(),
+			);
 			// AC-A-06: strip token from list responses — only expose it on create/regenerate
 			return rows.map((row) => ({
 				...row,
@@ -106,17 +118,18 @@ export const branchInvitesRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				branchId: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-		guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			assertOrgContextMatch(context, input);
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			// Permission: hierarchy_management read
-			await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "read");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"hierarchy_management",
+				"read",
+			);
 
 			const invites = await listBranchInvites(context.tenantDb, input.branchId);
 
@@ -146,28 +159,31 @@ export const branchInvitesRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			// Permission: hierarchy_management delete
-			await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "delete");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"hierarchy_management",
+				"delete",
+			);
 
 			// Load invite first to validate branch access before mutating
 			const { invitations: invitationsTable } = await import(
 				"@avantej-core/db/schema/tenant/invitations"
 			);
 			const { eq: eqRevoke, and: andRevoke } = await import("drizzle-orm");
-			const existingInvite = await context.tenantDb.query.invitations.findFirst({
-				where: andRevoke(
-					eqRevoke(invitationsTable.id, input.id),
-					eqRevoke(invitationsTable.kind, "branch_self_signup")
-				),
-			});
+			const existingInvite = await context.tenantDb.query.invitations.findFirst(
+				{
+					where: andRevoke(
+						eqRevoke(invitationsTable.id, input.id),
+						eqRevoke(invitationsTable.kind, "branch_self_signup"),
+					),
+				},
+			);
 
 			if (!existingInvite) {
 				throw new ORPCError("NOT_FOUND", {
@@ -175,7 +191,10 @@ export const branchInvitesRouter = {
 				});
 			}
 
-			guardBranchAccessible(existingInvite.hierarchyScopeId, context.accessibleNodeIds ?? []);
+			guardBranchAccessible(
+				existingInvite.hierarchyScopeId,
+				context.accessibleNodeIds ?? [],
+			);
 
 			const updated = await revokeBranchInvite(context.tenantDb, input.id);
 
@@ -197,16 +216,17 @@ export const branchInvitesRouter = {
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
 				maxUses: z.number().int().positive().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			// Permission: hierarchy_management create (creating a replacement)
-			await requirePermissionOrpc(context.tenantDb, context.member, "hierarchy_management", "create");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"hierarchy_management",
+				"create",
+			);
 
 			// Look up old invite to get branchId
 			const { invitations } = await import(
@@ -216,7 +236,7 @@ export const branchInvitesRouter = {
 			const oldInvite = await context.tenantDb.query.invitations.findFirst({
 				where: and(
 					eq(invitations.id, input.id),
-					eq(invitations.kind, "branch_self_signup")
+					eq(invitations.kind, "branch_self_signup"),
 				),
 			});
 
@@ -227,7 +247,10 @@ export const branchInvitesRouter = {
 			}
 
 			// Guard: caller must have access to this invite's branch
-			guardBranchAccessible(oldInvite.hierarchyScopeId, context.accessibleNodeIds ?? []);
+			guardBranchAccessible(
+				oldInvite.hierarchyScopeId,
+				context.accessibleNodeIds ?? [],
+			);
 
 			// Revoke old
 			await revokeBranchInvite(context.tenantDb, input.id);

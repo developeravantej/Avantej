@@ -1,7 +1,9 @@
 import { Pool } from "@neondatabase/serverless";
 import dotenv from "dotenv";
 import path from "node:path";
-dotenv.config({ path: path.resolve(import.meta.dir, "../../../apps/server/.env") });
+dotenv.config({
+	path: path.resolve(import.meta.dir, "../../../apps/server/.env"),
+});
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
 
@@ -24,7 +26,8 @@ try {
 	);
 	console.log("→ added unique constraint");
 } catch (e: any) {
-	if (e.code === "42710") console.log("→ unique constraint already exists, skipped");
+	if (e.code === "42710")
+		console.log("→ unique constraint already exists, skipped");
 	else throw e;
 }
 

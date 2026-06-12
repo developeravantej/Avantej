@@ -29,10 +29,16 @@ function buildSoftDeleteTenantDb({
 	target,
 	updatedRow,
 }: {
-	target: { id: string; hierarchyScopeId: string; deletedAt: Date | null } | null;
-	updatedRow:
-		| { id: string; hierarchyScopeId: string; deletedAt: Date | null }
-		| null;
+	target: {
+		id: string;
+		hierarchyScopeId: string;
+		deletedAt: Date | null;
+	} | null;
+	updatedRow: {
+		id: string;
+		hierarchyScopeId: string;
+		deletedAt: Date | null;
+	} | null;
 }) {
 	const updateBuilder = {
 		set: mock(() => updateBuilder),
@@ -61,7 +67,8 @@ function buildSoftDeleteTenantDb({
 
 describe("memberRouter.retryGhlSync", () => {
 	it("returns ghlSync error when GHL dispatcher binding is missing", async () => {
-		const context = createMockContext({ organizationId: ORG_ID,
+		const context = createMockContext({
+			organizationId: ORG_ID,
 			tenantDb: {} as never,
 			// no honoBindings — controlPanelDb + dispatchStaffSync absent
 		});
@@ -90,7 +97,8 @@ describe("memberRouter.retryGhlSync", () => {
 		const controlPanelDb = { __marker: "cp-db" };
 		const tenantDb = { __marker: "tenant-db" };
 
-		const context = createMockContext({ organizationId: ORG_ID,
+		const context = createMockContext({
+			organizationId: ORG_ID,
 			tenantDb: tenantDb as never,
 			honoBindings: { controlPanelDb, dispatchStaffSync },
 		});
@@ -120,10 +128,9 @@ describe("memberRouter.retryGhlSync", () => {
 	});
 
 	it("wraps dispatcher rejections into a ghlSync error result", async () => {
-		const dispatchStaffSync = mock(() =>
-			Promise.reject(new Error("boom")),
-		);
-		const context = createMockContext({ organizationId: ORG_ID,
+		const dispatchStaffSync = mock(() => Promise.reject(new Error("boom")));
+		const context = createMockContext({
+			organizationId: ORG_ID,
 			tenantDb: {} as never,
 			honoBindings: {
 				controlPanelDb: {},
@@ -143,7 +150,10 @@ describe("memberRouter.retryGhlSync", () => {
 	});
 
 	it("throws INTERNAL_SERVER_ERROR when tenantDb is missing", async () => {
-		const context = createMockContext({ organizationId: ORG_ID, tenantDb: undefined });
+		const context = createMockContext({
+			organizationId: ORG_ID,
+			tenantDb: undefined,
+		});
 
 		await expect(
 			call(
@@ -176,7 +186,8 @@ describe("memberRouter.softDelete", () => {
 			Promise.resolve({ status: "synced" as const }),
 		);
 
-		const context = createMockContext({ organizationId: ORG_ID,
+		const context = createMockContext({
+			organizationId: ORG_ID,
 			tenantDb,
 			honoBindings: { controlPanelDb: {}, dispatchStaffSync },
 		});
@@ -209,7 +220,10 @@ describe("memberRouter.softDelete", () => {
 	});
 
 	it("throws INTERNAL_SERVER_ERROR when tenantDb is missing", async () => {
-		const context = createMockContext({ organizationId: ORG_ID, tenantDb: undefined });
+		const context = createMockContext({
+			organizationId: ORG_ID,
+			tenantDb: undefined,
+		});
 
 		await expect(
 			call(
@@ -241,7 +255,8 @@ describe("memberRouter.restore", () => {
 			Promise.resolve({ status: "synced" as const }),
 		);
 
-		const context = createMockContext({ organizationId: ORG_ID,
+		const context = createMockContext({
+			organizationId: ORG_ID,
 			tenantDb,
 			honoBindings: { controlPanelDb: {}, dispatchStaffSync },
 		});

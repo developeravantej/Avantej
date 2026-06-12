@@ -33,7 +33,7 @@ export async function listProducts(
 		supplierId?: string;
 		status?: string;
 		search?: string;
-	} = {}
+	} = {},
 ): Promise<(typeof products.$inferSelect)[]> {
 	const { brandId, categoryId, supplierId, status, search } = params;
 
@@ -55,8 +55,8 @@ export async function listProducts(
 			or(
 				ilike(products.sku, `%${search}%`),
 				ilike(products.name, `%${search}%`),
-				ilike(products.barcode, `%${search}%`)
-			)
+				ilike(products.barcode, `%${search}%`),
+			),
 		);
 	}
 
@@ -68,8 +68,8 @@ export async function listProducts(
 
 export async function getProductById(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
-): Promise<(typeof products.$inferSelect) | null> {
+	id: string,
+): Promise<typeof products.$inferSelect | null> {
 	const row = await tenantDb.query.products.findFirst({
 		where: eq(products.id, id),
 	});
@@ -78,7 +78,7 @@ export async function getProductById(
 
 export async function createProduct(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: CreateProductParams
+	params: CreateProductParams,
 ): Promise<typeof products.$inferSelect> {
 	const [row] = await tenantDb
 		.insert(products)
@@ -108,7 +108,7 @@ export async function createProduct(
 export async function updateProduct(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	id: string,
-	params: UpdateProductParams
+	params: UpdateProductParams,
 ): Promise<typeof products.$inferSelect> {
 	const [row] = await tenantDb
 		.update(products)
@@ -121,7 +121,9 @@ export async function updateProduct(
 			...(params.categoryId !== undefined && { categoryId: params.categoryId }),
 			...(params.supplierId !== undefined && { supplierId: params.supplierId }),
 			...(params.uomId !== undefined && { uomId: params.uomId }),
-			...(params.conversionFactor !== undefined && { conversionFactor: params.conversionFactor }),
+			...(params.conversionFactor !== undefined && {
+				conversionFactor: params.conversionFactor,
+			}),
 			...(params.price !== undefined && { price: params.price }),
 			...(params.status !== undefined && { status: params.status }),
 			...(params.updatedBy !== undefined && { updatedBy: params.updatedBy }),
@@ -139,12 +141,12 @@ export async function updateProduct(
 export async function getProductStock(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	productId: string,
-	branchId: string
-): Promise<(typeof productStock.$inferSelect) | null> {
+	branchId: string,
+): Promise<typeof productStock.$inferSelect | null> {
 	const row = await tenantDb.query.productStock.findFirst({
 		where: and(
 			eq(productStock.productId, productId),
-			eq(productStock.branchId, branchId)
+			eq(productStock.branchId, branchId),
 		),
 	});
 	return row ?? null;
@@ -154,7 +156,7 @@ export async function upsertProductStock(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	productId: string,
 	branchId: string,
-	quantity: number
+	quantity: number,
 ): Promise<typeof productStock.$inferSelect> {
 	const [row] = await tenantDb
 		.insert(productStock)
@@ -197,7 +199,7 @@ export async function adjustStock(
 	productId: string,
 	branchId: string,
 	delta: number,
-	meta: StockMovementMeta = {}
+	meta: StockMovementMeta = {},
 ): Promise<typeof productStock.$inferSelect> {
 	// Try atomic update first.
 	// For negative deltas, gate the UPDATE so quantity cannot go below zero.
@@ -211,10 +213,8 @@ export async function adjustStock(
 			and(
 				eq(productStock.productId, productId),
 				eq(productStock.branchId, branchId),
-				...(delta < 0
-					? [sql`${productStock.quantity} + ${delta} >= 0`]
-					: []),
-			)
+				...(delta < 0 ? [sql`${productStock.quantity} + ${delta} >= 0`] : []),
+			),
 		)
 		.returning();
 
@@ -275,7 +275,7 @@ async function recordStockMovement(
 		delta: number;
 		quantityAfter: number;
 		meta: StockMovementMeta;
-	}
+	},
 ): Promise<void> {
 	await tenantDb.insert(stockMovements).values({
 		productId: args.productId,

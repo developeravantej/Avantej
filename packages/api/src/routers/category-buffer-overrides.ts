@@ -5,7 +5,7 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import { eq, and } from "drizzle-orm";
 import { serviceMembers } from "@avantej-core/db/schema/tenant/service-members";
 import { services } from "@avantej-core/db/schema/tenant/services";
@@ -40,7 +40,8 @@ async function requireUserOrServiceManagementUpdate(
 		}
 	}
 	throw new ORPCError("FORBIDDEN", {
-		message: "Requires user_management or service_management update permission.",
+		message:
+			"Requires user_management or service_management update permission.",
 	});
 }
 
@@ -53,7 +54,7 @@ export const categoryBufferOverridesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			await requireUserOrServiceManagementRead(
 				context.tenantDb,
 				context.member,
@@ -74,7 +75,7 @@ export const categoryBufferOverridesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			await requireUserOrServiceManagementUpdate(
 				context.tenantDb,
 				context.member,
@@ -105,7 +106,7 @@ export const categoryBufferOverridesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			const hasAssignment = await context.tenantDb
 				.select({ id: serviceMembers.id })
 				.from(serviceMembers)

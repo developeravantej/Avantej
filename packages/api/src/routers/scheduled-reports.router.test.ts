@@ -50,7 +50,9 @@ function makeAdminDb(overrides: Record<string, unknown> = {}) {
 		update: mock(() => ({
 			set: mock(() => ({
 				where: mock(() => ({
-					returning: mock(() => Promise.resolve([{ ...REPORT_ROW, isActive: false }])),
+					returning: mock(() =>
+						Promise.resolve([{ ...REPORT_ROW, isActive: false }]),
+					),
 				})),
 			})),
 		})),
@@ -62,16 +64,13 @@ function makeAdminDb(overrides: Record<string, unknown> = {}) {
 				const arr = [REPORT_ROW] as unknown[];
 				// listScheduledReports awaits select().from(table) directly;
 				// other calls chain .where() etc. Make the chain thenable.
-				const chain = Object.assign(
-					Promise.resolve(arr),
-					{
-						where: mock(() => ({
-							orderBy: mock(() => Promise.resolve(arr)),
-							then: (r: (v: unknown) => unknown) => Promise.resolve(arr).then(r),
-						})),
+				const chain = Object.assign(Promise.resolve(arr), {
+					where: mock(() => ({
 						orderBy: mock(() => Promise.resolve(arr)),
-					},
-				);
+						then: (r: (v: unknown) => unknown) => Promise.resolve(arr).then(r),
+					})),
+					orderBy: mock(() => Promise.resolve(arr)),
+				});
 				return chain;
 			}),
 		})),
@@ -87,10 +86,18 @@ function makeStaffDb() {
 			rolePermissions: { findFirst: mock(() => Promise.resolve(undefined)) },
 			scheduledReports: { findMany: mock(() => Promise.resolve([])) },
 		},
-		insert: mock(() => ({ values: mock(() => ({ returning: mock(() => Promise.resolve([])) })) })),
-		update: mock(() => ({ set: mock(() => ({ where: mock(() => ({ returning: mock(() => Promise.resolve([])) })) })) })),
+		insert: mock(() => ({
+			values: mock(() => ({ returning: mock(() => Promise.resolve([])) })),
+		})),
+		update: mock(() => ({
+			set: mock(() => ({
+				where: mock(() => ({ returning: mock(() => Promise.resolve([])) })),
+			})),
+		})),
 		delete: mock(() => ({ where: mock(() => Promise.resolve([])) })),
-		select: mock(() => ({ from: mock(() => ({ where: mock(() => Promise.resolve([])) })) })),
+		select: mock(() => ({
+			from: mock(() => ({ where: mock(() => Promise.resolve([])) })),
+		})),
 	} as unknown as never;
 }
 
@@ -102,14 +109,22 @@ describe("scheduledReportsRouter.list", () => {
 		// list procedure uses the service which queries tenantDb; just confirm no throw
 		const ctx = createMockContext({ tenantDb });
 		// The underlying service will use select chain — result may be [] depending on mock
-		const result = await call(scheduledReportsRouter.list, { organizationId: ORG_ID }, { context: ctx });
+		const result = await call(
+			scheduledReportsRouter.list,
+			{ organizationId: ORG_ID },
+			{ context: ctx },
+		);
 		expect(Array.isArray(result)).toBe(true);
 	});
 
 	it("throws INTERNAL_SERVER_ERROR when tenantDb is null", async () => {
 		const ctx = createMockContext({ tenantDb: null });
 		await expect(
-			call(scheduledReportsRouter.list, { organizationId: ORG_ID }, { context: ctx }),
+			call(
+				scheduledReportsRouter.list,
+				{ organizationId: ORG_ID },
+				{ context: ctx },
+			),
 		).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
 	});
 });
@@ -129,14 +144,22 @@ describe("scheduledReportsRouter.create", () => {
 	it("happy path: creates and returns a scheduled report", async () => {
 		const tenantDb = makeAdminDb();
 		const ctx = createMockContext({ tenantDb });
-		const result = await call(scheduledReportsRouter.create, validInput, { context: ctx });
+		const result = await call(scheduledReportsRouter.create, validInput, {
+			context: ctx,
+		});
 		expect(result).toMatchObject({ reportName: "Weekly Summary" });
 	});
 
 	it("throws FORBIDDEN when caller lacks reports:read permission", async () => {
 		const ctx = createMockContext({
 			tenantDb: makeStaffDb(),
-			member: { id: "m1", userId: "u1", role: "staff", status: "active", hierarchyScopeId: null },
+			member: {
+				id: "m1",
+				userId: "u1",
+				role: "staff",
+				status: "active",
+				hierarchyScopeId: null,
+			},
 		});
 		await expect(
 			call(scheduledReportsRouter.create, validInput, { context: ctx }),
@@ -146,21 +169,33 @@ describe("scheduledReportsRouter.create", () => {
 	it("rejects when recipients contains an invalid email", async () => {
 		const ctx = createMockContext({ tenantDb: makeAdminDb() });
 		await expect(
-			call(scheduledReportsRouter.create, { ...validInput, recipients: "admin@gym.com,not-an-email" }, { context: ctx }),
+			call(
+				scheduledReportsRouter.create,
+				{ ...validInput, recipients: "admin@gym.com,not-an-email" },
+				{ context: ctx },
+			),
 		).rejects.toBeDefined();
 	});
 
 	it("rejects when recipients string is empty", async () => {
 		const ctx = createMockContext({ tenantDb: makeAdminDb() });
 		await expect(
-			call(scheduledReportsRouter.create, { ...validInput, recipients: "" }, { context: ctx }),
+			call(
+				scheduledReportsRouter.create,
+				{ ...validInput, recipients: "" },
+				{ context: ctx },
+			),
 		).rejects.toBeDefined();
 	});
 
 	it("rejects single invalid email in recipients", async () => {
 		const ctx = createMockContext({ tenantDb: makeAdminDb() });
 		await expect(
-			call(scheduledReportsRouter.create, { ...validInput, recipients: "bad-email-only" }, { context: ctx }),
+			call(
+				scheduledReportsRouter.create,
+				{ ...validInput, recipients: "bad-email-only" },
+				{ context: ctx },
+			),
 		).rejects.toBeDefined();
 	});
 
@@ -189,17 +224,31 @@ describe("scheduledReportsRouter.delete", () => {
 	it("throws FORBIDDEN when caller lacks reports:read permission", async () => {
 		const ctx = createMockContext({
 			tenantDb: makeStaffDb(),
-			member: { id: "m1", userId: "u1", role: "staff", status: "active", hierarchyScopeId: null },
+			member: {
+				id: "m1",
+				userId: "u1",
+				role: "staff",
+				status: "active",
+				hierarchyScopeId: null,
+			},
 		});
 		await expect(
-			call(scheduledReportsRouter.delete, { organizationId: ORG_ID, id: REPORT_ID }, { context: ctx }),
+			call(
+				scheduledReportsRouter.delete,
+				{ organizationId: ORG_ID, id: REPORT_ID },
+				{ context: ctx },
+			),
 		).rejects.toMatchObject({ code: "FORBIDDEN" });
 	});
 
 	it("throws FORBIDDEN when member is null", async () => {
 		const ctx = createMockContext({ tenantDb: makeAdminDb(), member: null });
 		await expect(
-			call(scheduledReportsRouter.delete, { organizationId: ORG_ID, id: REPORT_ID }, { context: ctx }),
+			call(
+				scheduledReportsRouter.delete,
+				{ organizationId: ORG_ID, id: REPORT_ID },
+				{ context: ctx },
+			),
 		).rejects.toMatchObject({ code: "FORBIDDEN" });
 	});
 });
@@ -232,7 +281,13 @@ describe("scheduledReportsRouter.toggle", () => {
 	it("throws FORBIDDEN when caller lacks reports:read permission", async () => {
 		const ctx = createMockContext({
 			tenantDb: makeStaffDb(),
-			member: { id: "m1", userId: "u1", role: "staff", status: "active", hierarchyScopeId: null },
+			member: {
+				id: "m1",
+				userId: "u1",
+				role: "staff",
+				status: "active",
+				hierarchyScopeId: null,
+			},
 		});
 		await expect(
 			call(

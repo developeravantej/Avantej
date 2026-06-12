@@ -40,7 +40,7 @@ export async function listTaxRates(
 export async function getTaxRateById(
 	tenantDb: TenantDb,
 	id: string,
-): Promise<(typeof taxRates.$inferSelect) | undefined> {
+): Promise<typeof taxRates.$inferSelect | undefined> {
 	return tenantDb.query.taxRates.findFirst({
 		where: eq(taxRates.id, id),
 	});
@@ -48,7 +48,7 @@ export async function getTaxRateById(
 
 export async function getDefaultTaxRate(
 	tenantDb: TenantDb,
-): Promise<(typeof taxRates.$inferSelect) | undefined> {
+): Promise<typeof taxRates.$inferSelect | undefined> {
 	return tenantDb.query.taxRates.findFirst({
 		where: and(eq(taxRates.isDefault, true), eq(taxRates.isActive, true)),
 	});

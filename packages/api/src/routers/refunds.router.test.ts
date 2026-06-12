@@ -48,7 +48,8 @@ function makeAdminDb(overrides: Record<string, unknown> = {}) {
 		orderBy: mock(() => selectChain),
 		limit: mock(() => selectChain),
 		leftJoin: mock(() => selectChain),
-		then: (resolve: (v: unknown) => unknown) => Promise.resolve([]).then(resolve),
+		then: (resolve: (v: unknown) => unknown) =>
+			Promise.resolve([]).then(resolve),
 	};
 	return {
 		query: {
@@ -60,7 +61,13 @@ function makeAdminDb(overrides: Record<string, unknown> = {}) {
 				...((overrides.refunds as object) ?? {}),
 			},
 			salesOrders: {
-				findFirst: mock(() => Promise.resolve({ id: SALES_ORDER_ID, totalAmountCents: 5000, cancelledAmount: 0 })),
+				findFirst: mock(() =>
+					Promise.resolve({
+						id: SALES_ORDER_ID,
+						totalAmountCents: 5000,
+						cancelledAmount: 0,
+					}),
+				),
 				...((overrides.salesOrders as object) ?? {}),
 			},
 			payments: {
@@ -76,7 +83,9 @@ function makeAdminDb(overrides: Record<string, unknown> = {}) {
 		update: mock(() => ({
 			set: mock(() => ({
 				where: mock(() => ({
-					returning: mock(() => Promise.resolve([{ ...REFUND_ROW, status: "processed" }])),
+					returning: mock(() =>
+						Promise.resolve([{ ...REFUND_ROW, status: "processed" }]),
+					),
 				})),
 			})),
 		})),
@@ -98,7 +107,15 @@ function makeAdminDb(overrides: Record<string, unknown> = {}) {
 				select: mock(() => selectChain),
 				query: {
 					refunds: { findFirst: mock(() => Promise.resolve(REFUND_ROW)) },
-					salesOrders: { findFirst: mock(() => Promise.resolve({ id: SALES_ORDER_ID, totalAmountCents: 5000, cancelledAmount: 0 })) },
+					salesOrders: {
+						findFirst: mock(() =>
+							Promise.resolve({
+								id: SALES_ORDER_ID,
+								totalAmountCents: 5000,
+								cancelledAmount: 0,
+							}),
+						),
+					},
 					payments: { findFirst: mock(() => Promise.resolve(null)) },
 				},
 			});
@@ -111,7 +128,8 @@ function makeStaffDb() {
 		from: mock(() => selectChain),
 		where: mock(() => selectChain),
 		limit: mock(() => selectChain),
-		then: (resolve: (v: unknown) => unknown) => Promise.resolve([]).then(resolve),
+		then: (resolve: (v: unknown) => unknown) =>
+			Promise.resolve([]).then(resolve),
 	};
 	return {
 		query: {
@@ -120,8 +138,14 @@ function makeStaffDb() {
 			rolePermissions: { findFirst: mock(() => Promise.resolve(undefined)) },
 			refunds: { findFirst: mock(() => Promise.resolve(null)) },
 		},
-		insert: mock(() => ({ values: mock(() => ({ returning: mock(() => Promise.resolve([])) })) })),
-		update: mock(() => ({ set: mock(() => ({ where: mock(() => ({ returning: mock(() => Promise.resolve([])) })) })) })),
+		insert: mock(() => ({
+			values: mock(() => ({ returning: mock(() => Promise.resolve([])) })),
+		})),
+		update: mock(() => ({
+			set: mock(() => ({
+				where: mock(() => ({ returning: mock(() => Promise.resolve([])) })),
+			})),
+		})),
 		select: mock(() => selectChain),
 		transaction: mock(async (cb: (tx: unknown) => Promise<unknown>) => cb({})),
 	} as unknown as never;
@@ -143,45 +167,66 @@ describe("refundsRouter.request", () => {
 	it("happy path: creates a pending refund", async () => {
 		const tenantDb = makeAdminDb();
 		// Ensure the transaction's salesOrders query also returns customer info
-		(tenantDb as any).transaction = mock(async (cb: (tx: unknown) => Promise<unknown>) => {
-			const txUpdate = {
-				set: mock(() => txUpdate),
-				where: mock(() => txUpdate),
-				returning: mock(() => Promise.resolve([REFUND_ROW])),
-			};
-			// Generic chainable select: supports .from().where() → resolves to arr
-			function makeSelectChain(arr: unknown[]) {
-				const c: Record<string, unknown> = {};
-				for (const m of ["from", "where", "orderBy", "limit", "leftJoin", "groupBy", "having"]) {
-					c[m] = mock(() => c);
+		(tenantDb as any).transaction = mock(
+			async (cb: (tx: unknown) => Promise<unknown>) => {
+				const txUpdate = {
+					set: mock(() => txUpdate),
+					where: mock(() => txUpdate),
+					returning: mock(() => Promise.resolve([REFUND_ROW])),
+				};
+				// Generic chainable select: supports .from().where() → resolves to arr
+				function makeSelectChain(arr: unknown[]) {
+					const c: Record<string, unknown> = {};
+					for (const m of [
+						"from",
+						"where",
+						"orderBy",
+						"limit",
+						"leftJoin",
+						"groupBy",
+						"having",
+					]) {
+						c[m] = mock(() => c);
+					}
+					c.then = (resolve: (v: unknown) => unknown) =>
+						Promise.resolve(arr).then(resolve);
+					return c;
 				}
-				c.then = (resolve: (v: unknown) => unknown) => Promise.resolve(arr).then(resolve);
-				return c;
-			}
-			return cb({
-				update: mock(() => txUpdate),
-				// insert for refunds table → returning the inserted row
-				insert: mock(() => ({ values: mock(() => ({ returning: mock(() => Promise.resolve([REFUND_ROW])) })) })),
-				// computeRemainingBySalesOrder uses tx.select(...).from(refunds).where(...) → [{total: null}]
-				select: mock(() => makeSelectChain([{ total: null }])),
-				query: {
-					salesOrders: { findFirst: mock(() => Promise.resolve({
-						id: SALES_ORDER_ID,
-						customerId: "cust-1",
-						customerName: "John Doe",
-						branchId: "bbbbbbbb-bbbb-4bbb-8bbb-000000000001",
-						totalAmount: 5000,
-						cancelledAmount: 0,
-						status: "pending",
-					})) },
-					payments: { findFirst: mock(() => Promise.resolve(null)) },
-					packageInstances: { findFirst: mock(() => Promise.resolve(null)) },
-					refunds: { findFirst: mock(() => Promise.resolve(null)) },
-				},
-			});
-		});
+				return cb({
+					update: mock(() => txUpdate),
+					// insert for refunds table → returning the inserted row
+					insert: mock(() => ({
+						values: mock(() => ({
+							returning: mock(() => Promise.resolve([REFUND_ROW])),
+						})),
+					})),
+					// computeRemainingBySalesOrder uses tx.select(...).from(refunds).where(...) → [{total: null}]
+					select: mock(() => makeSelectChain([{ total: null }])),
+					query: {
+						salesOrders: {
+							findFirst: mock(() =>
+								Promise.resolve({
+									id: SALES_ORDER_ID,
+									customerId: "cust-1",
+									customerName: "John Doe",
+									branchId: "bbbbbbbb-bbbb-4bbb-8bbb-000000000001",
+									totalAmount: 5000,
+									cancelledAmount: 0,
+									status: "pending",
+								}),
+							),
+						},
+						payments: { findFirst: mock(() => Promise.resolve(null)) },
+						packageInstances: { findFirst: mock(() => Promise.resolve(null)) },
+						refunds: { findFirst: mock(() => Promise.resolve(null)) },
+					},
+				});
+			},
+		);
 		const ctx = createMockContext({ tenantDb, accessibleNodeIds: [] });
-		const result = await call(refundsRouter.request, validInput, { context: ctx });
+		const result = await call(refundsRouter.request, validInput, {
+			context: ctx,
+		});
 		expect(result).toMatchObject({ id: REFUND_ID });
 	});
 
@@ -202,7 +247,13 @@ describe("refundsRouter.request", () => {
 	it("throws when caller lacks refund_management:create permission", async () => {
 		const ctx = createMockContext({
 			tenantDb: makeStaffDb(),
-			member: { id: "m1", userId: "u1", role: "staff", status: "active", hierarchyScopeId: null },
+			member: {
+				id: "m1",
+				userId: "u1",
+				role: "staff",
+				status: "active",
+				hierarchyScopeId: null,
+			},
 		});
 		await expect(
 			call(refundsRouter.request, validInput, { context: ctx }),
@@ -212,14 +263,22 @@ describe("refundsRouter.request", () => {
 	it("validates amountCents must be positive (0 is rejected)", async () => {
 		const ctx = createMockContext({ tenantDb: makeAdminDb() });
 		await expect(
-			call(refundsRouter.request, { ...validInput, amountCents: 0 }, { context: ctx }),
+			call(
+				refundsRouter.request,
+				{ ...validInput, amountCents: 0 },
+				{ context: ctx },
+			),
 		).rejects.toBeDefined();
 	});
 
 	it("validates reason must not be empty", async () => {
 		const ctx = createMockContext({ tenantDb: makeAdminDb() });
 		await expect(
-			call(refundsRouter.request, { ...validInput, reason: "" }, { context: ctx }),
+			call(
+				refundsRouter.request,
+				{ ...validInput, reason: "" },
+				{ context: ctx },
+			),
 		).rejects.toBeDefined();
 	});
 });
@@ -234,7 +293,11 @@ describe("refundsRouter.process", () => {
 	};
 
 	it("happy path: marks an approved refund as processed", async () => {
-		const approvedRefund = { ...REFUND_ROW, status: "approved", salesOrderId: null };
+		const approvedRefund = {
+			...REFUND_ROW,
+			status: "approved",
+			salesOrderId: null,
+		};
 		const processedRow = { ...approvedRefund, status: "processed" };
 
 		const txUpdate = {
@@ -258,18 +321,25 @@ describe("refundsRouter.process", () => {
 		}
 
 		const tenantDb = makeAdminDb();
-		(tenantDb as any).transaction = mock(async (cb: (tx: unknown) => Promise<unknown>) =>
-			cb({
-				update: mock(() => txUpdate),
-				insert: mock(() => ({ values: mock(() => ({ returning: mock(() => Promise.resolve([{}])) })) })),
-				// processRefund does: tx.select().from(refunds).where(...).for("update")
-				select: mock(() => makeSelectChain([approvedRefund])),
-				query: {},
-			}),
+		(tenantDb as any).transaction = mock(
+			async (cb: (tx: unknown) => Promise<unknown>) =>
+				cb({
+					update: mock(() => txUpdate),
+					insert: mock(() => ({
+						values: mock(() => ({
+							returning: mock(() => Promise.resolve([{}])),
+						})),
+					})),
+					// processRefund does: tx.select().from(refunds).where(...).for("update")
+					select: mock(() => makeSelectChain([approvedRefund])),
+					query: {},
+				}),
 		);
 
 		const ctx = createMockContext({ tenantDb, accessibleNodeIds: [] });
-		const result = await call(refundsRouter.process, validInput, { context: ctx });
+		const result = await call(refundsRouter.process, validInput, {
+			context: ctx,
+		});
 		expect(result).toMatchObject({ status: "processed" });
 	});
 
@@ -283,7 +353,13 @@ describe("refundsRouter.process", () => {
 	it("throws when caller lacks refund_management:process permission", async () => {
 		const ctx = createMockContext({
 			tenantDb: makeStaffDb(),
-			member: { id: "m1", userId: "u1", role: "staff", status: "active", hierarchyScopeId: null },
+			member: {
+				id: "m1",
+				userId: "u1",
+				role: "staff",
+				status: "active",
+				hierarchyScopeId: null,
+			},
 		});
 		await expect(
 			call(refundsRouter.process, validInput, { context: ctx }),
@@ -293,7 +369,11 @@ describe("refundsRouter.process", () => {
 	it("validates refundMethod enum — rejects unknown method", async () => {
 		const ctx = createMockContext({ tenantDb: makeAdminDb() });
 		await expect(
-			call(refundsRouter.process, { ...validInput, refundMethod: "bitcoin" as never }, { context: ctx }),
+			call(
+				refundsRouter.process,
+				{ ...validInput, refundMethod: "bitcoin" as never },
+				{ context: ctx },
+			),
 		).rejects.toBeDefined();
 	});
 });
@@ -311,25 +391,35 @@ describe("refundsRouter.bulkApprove", () => {
 		const tenantDb = makeAdminDb({
 			refunds: { findFirst: mock(() => Promise.resolve(pendingRefund)) },
 		});
-		(tenantDb as any).transaction = mock(async (cb: (tx: unknown) => Promise<unknown>) => {
-			const txUpdate = {
-				set: mock(() => txUpdate),
-				where: mock(() => txUpdate),
-				returning: mock(() => Promise.resolve([{ ...pendingRefund, status: "approved" }])),
-			};
-			return cb({
-				update: mock(() => txUpdate),
-				insert: mock(() => ({ values: mock(() => ({ returning: mock(() => Promise.resolve([{}])) })) })),
-				query: {
-					refunds: { findFirst: mock(() => Promise.resolve(pendingRefund)) },
-					salesOrders: { findFirst: mock(() => Promise.resolve(null)) },
-					payments: { findFirst: mock(() => Promise.resolve(null)) },
-				},
-			});
-		});
+		(tenantDb as any).transaction = mock(
+			async (cb: (tx: unknown) => Promise<unknown>) => {
+				const txUpdate = {
+					set: mock(() => txUpdate),
+					where: mock(() => txUpdate),
+					returning: mock(() =>
+						Promise.resolve([{ ...pendingRefund, status: "approved" }]),
+					),
+				};
+				return cb({
+					update: mock(() => txUpdate),
+					insert: mock(() => ({
+						values: mock(() => ({
+							returning: mock(() => Promise.resolve([{}])),
+						})),
+					})),
+					query: {
+						refunds: { findFirst: mock(() => Promise.resolve(pendingRefund)) },
+						salesOrders: { findFirst: mock(() => Promise.resolve(null)) },
+						payments: { findFirst: mock(() => Promise.resolve(null)) },
+					},
+				});
+			},
+		);
 
 		const ctx = createMockContext({ tenantDb, accessibleNodeIds: [] });
-		const result = await call(refundsRouter.bulkApprove, validInput, { context: ctx });
+		const result = await call(refundsRouter.bulkApprove, validInput, {
+			context: ctx,
+		});
 		expect(Array.isArray(result)).toBe(true);
 	});
 
@@ -343,7 +433,13 @@ describe("refundsRouter.bulkApprove", () => {
 	it("throws when caller lacks refund_management:approve permission", async () => {
 		const ctx = createMockContext({
 			tenantDb: makeStaffDb(),
-			member: { id: "m1", userId: "u1", role: "staff", status: "active", hierarchyScopeId: null },
+			member: {
+				id: "m1",
+				userId: "u1",
+				role: "staff",
+				status: "active",
+				hierarchyScopeId: null,
+			},
 		});
 		await expect(
 			call(refundsRouter.bulkApprove, validInput, { context: ctx }),
@@ -353,7 +449,11 @@ describe("refundsRouter.bulkApprove", () => {
 	it("validates items must have at least 1 entry", async () => {
 		const ctx = createMockContext({ tenantDb: makeAdminDb() });
 		await expect(
-			call(refundsRouter.bulkApprove, { ...validInput, items: [] }, { context: ctx }),
+			call(
+				refundsRouter.bulkApprove,
+				{ ...validInput, items: [] },
+				{ context: ctx },
+			),
 		).rejects.toBeDefined();
 	});
 
@@ -363,7 +463,11 @@ describe("refundsRouter.bulkApprove", () => {
 			id: `${i.toString().padStart(8, "0")}-0000-4000-8000-000000000000`,
 		}));
 		await expect(
-			call(refundsRouter.bulkApprove, { organizationId: ORG_ID, items: oversized }, { context: ctx }),
+			call(
+				refundsRouter.bulkApprove,
+				{ organizationId: ORG_ID, items: oversized },
+				{ context: ctx },
+			),
 		).rejects.toBeDefined();
 	});
 });

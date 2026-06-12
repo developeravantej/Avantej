@@ -58,119 +58,117 @@ const OTHER_ORG_ID = "00000000-0000-4000-8000-000000000001";
 // on seeded data.
 const NONEXISTENT_APPT_ID = "00000000-0000-4000-8000-0000000000aa";
 
-test(
-  "refactored payments stack — guards fire through full middleware chain",
-  { tag: ["@p0", "@payments", "@refactor-regression"] },
-  async ({ page }) => {
-    // Navigate so the session cookie applies and relative-URL fetch resolves.
-    // orpcCall uses fetch("/rpc/...") which needs a real origin.
-    await page.goto("/dashboard");
-    await page.waitForURL("**/dashboard**", { timeout: 25_000 });
+test("refactored payments stack — guards fire through full middleware chain", {
+	tag: ["@p0", "@payments", "@refactor-regression"],
+}, async ({ page }) => {
+	// Navigate so the session cookie applies and relative-URL fetch resolves.
+	// orpcCall uses fetch("/rpc/...") which needs a real origin.
+	await page.goto("/dashboard");
+	await page.waitForURL("**/dashboard**", { timeout: 25_000 });
 
-    // ── Sub-test A: cross-tenant spoof must be rejected ────────────────────
-    //
-    // This is the core security test. The session cookie authenticates the
-    // user into TEST_ORG_ID. Sending input.organizationId = OTHER_ORG_ID
-    // must be rejected by either:
-    //   - tenantMiddleware (rejects org-not-found at the middleware layer)
-    //   - assertOrgContextMatch (rejects mismatch at the procedure layer)
-    // Both are acceptable — the point is that the call MUST NOT succeed,
-    // and a cross-tenant query MUST NOT reach the DB on TEST_ORG_ID's
-    // tenantDb instance.
-    let spoofError: OrpcClientError | null = null;
-    try {
-      await orpcCall<object, unknown>(page, "payments", "getPaymentStatus", {
-        organizationId: OTHER_ORG_ID,
-        appointmentId: NONEXISTENT_APPT_ID,
-      });
-    } catch (err) {
-      if (err instanceof OrpcClientError) {
-        spoofError = err;
-      } else {
-        throw err;
-      }
-    }
+	// ── Sub-test A: cross-tenant spoof must be rejected ────────────────────
+	//
+	// This is the core security test. The session cookie authenticates the
+	// user into TEST_ORG_ID. Sending input.organizationId = OTHER_ORG_ID
+	// must be rejected by either:
+	//   - tenantMiddleware (rejects org-not-found at the middleware layer)
+	//   - assertOrgContextMatch (rejects mismatch at the procedure layer)
+	// Both are acceptable — the point is that the call MUST NOT succeed,
+	// and a cross-tenant query MUST NOT reach the DB on TEST_ORG_ID's
+	// tenantDb instance.
+	let spoofError: OrpcClientError | null = null;
+	try {
+		await orpcCall<object, unknown>(page, "payments", "getPaymentStatus", {
+			organizationId: OTHER_ORG_ID,
+			appointmentId: NONEXISTENT_APPT_ID,
+		});
+	} catch (err) {
+		if (err instanceof OrpcClientError) {
+			spoofError = err;
+		} else {
+			throw err;
+		}
+	}
 
-    expect(
-      spoofError,
-      "Cross-tenant call must throw — tenantMiddleware or assertOrgContextMatch should fire",
-    ).not.toBeNull();
-    // The cross-tenant spoof must be rejected with a 403 (FORBIDDEN). This
-    // is enforced by orpc-tenant.middleware.ts: when input.organizationId
-    // doesn't resolve to any organization in the control panel, the
-    // middleware returns 403 BEFORE attempting getTenantDb. Previously this
-    // returned 500 because the middleware fell through silently and
-    // assertTenantContext fired its "tenantDb missing" branch — fixed as
-    // part of this sprint.
-    //
-    // Allow "FORBIDDEN" (when orpc-client parses the body's code field) and
-    // "403" (when it falls back to result.status). Do NOT accept 500/
-    // INTERNAL_SERVER_ERROR — if the middleware regresses to that path,
-    // this test must fail loudly.
-    expect(
-      ["FORBIDDEN", "403"].includes(spoofError!.code),
-      `Cross-tenant spoof must be rejected with FORBIDDEN/403; got ${spoofError!.code} — "${spoofError!.message}"`,
-    ).toBe(true);
+	expect(
+		spoofError,
+		"Cross-tenant call must throw — tenantMiddleware or assertOrgContextMatch should fire",
+	).not.toBeNull();
+	// The cross-tenant spoof must be rejected with a 403 (FORBIDDEN). This
+	// is enforced by orpc-tenant.middleware.ts: when input.organizationId
+	// doesn't resolve to any organization in the control panel, the
+	// middleware returns 403 BEFORE attempting getTenantDb. Previously this
+	// returned 500 because the middleware fell through silently and
+	// assertTenantContext fired its "tenantDb missing" branch — fixed as
+	// part of this sprint.
+	//
+	// Allow "FORBIDDEN" (when orpc-client parses the body's code field) and
+	// "403" (when it falls back to result.status). Do NOT accept 500/
+	// INTERNAL_SERVER_ERROR — if the middleware regresses to that path,
+	// this test must fail loudly.
+	expect(
+		["FORBIDDEN", "403"].includes(spoofError!.code),
+		`Cross-tenant spoof must be rejected with FORBIDDEN/403; got ${spoofError!.code} — "${spoofError!.message}"`,
+	).toBe(true);
 
-    // ── Sub-test B: same-org, non-existent appointment → NOT_FOUND ─────────
-    //
-    // Proves the guards pass for a valid same-org call, then the procedure
-    // reaches its NOT_FOUND check. If the refactor accidentally broke the
-    // DB query path, this test fails with a different code (likely
-    // INTERNAL_SERVER_ERROR).
-    let lookupError: OrpcClientError | null = null;
-    try {
-      await orpcCall<object, unknown>(page, "payments", "getPaymentStatus", {
-        organizationId: TEST_ORG_ID,
-        appointmentId: NONEXISTENT_APPT_ID,
-      });
-    } catch (err) {
-      if (err instanceof OrpcClientError) {
-        lookupError = err;
-      } else {
-        throw err;
-      }
-    }
+	// ── Sub-test B: same-org, non-existent appointment → NOT_FOUND ─────────
+	//
+	// Proves the guards pass for a valid same-org call, then the procedure
+	// reaches its NOT_FOUND check. If the refactor accidentally broke the
+	// DB query path, this test fails with a different code (likely
+	// INTERNAL_SERVER_ERROR).
+	let lookupError: OrpcClientError | null = null;
+	try {
+		await orpcCall<object, unknown>(page, "payments", "getPaymentStatus", {
+			organizationId: TEST_ORG_ID,
+			appointmentId: NONEXISTENT_APPT_ID,
+		});
+	} catch (err) {
+		if (err instanceof OrpcClientError) {
+			lookupError = err;
+		} else {
+			throw err;
+		}
+	}
 
-    expect(
-      lookupError,
-      "getPaymentStatus on a non-existent appointmentId must throw NOT_FOUND",
-    ).not.toBeNull();
-    // FORBIDDEN is also accepted: if the admin lacks payments:read in this
-    // env, the guard fires before the DB query — that's a different (also
-    // correct) outcome that still proves the stack is wired.
-    expect(
-      ["NOT_FOUND", "FORBIDDEN", "404", "403"].includes(lookupError!.code),
-      `Same-org lookup must return NOT_FOUND or FORBIDDEN; got ${lookupError!.code} — "${lookupError!.message}"`,
-    ).toBe(true);
+	expect(
+		lookupError,
+		"getPaymentStatus on a non-existent appointmentId must throw NOT_FOUND",
+	).not.toBeNull();
+	// FORBIDDEN is also accepted: if the admin lacks payments:read in this
+	// env, the guard fires before the DB query — that's a different (also
+	// correct) outcome that still proves the stack is wired.
+	expect(
+		["NOT_FOUND", "FORBIDDEN", "404", "403"].includes(lookupError!.code),
+		`Same-org lookup must return NOT_FOUND or FORBIDDEN; got ${lookupError!.code} — "${lookupError!.message}"`,
+	).toBe(true);
 
-    // ── Sub-test C: refund on non-existent appointment → NOT_FOUND ─────────
-    //
-    // Proves the refund handler — which was refactored — still routes
-    // correctly through assertOrgContextMatch + assertTenantContext to its
-    // NOT_FOUND check. If a guard were dropped during refactor, this would
-    // either succeed (security regression) or fail with INTERNAL_SERVER_ERROR.
-    let refundError: OrpcClientError | null = null;
-    try {
-      await orpcCall<object, unknown>(page, "payments", "refund", {
-        organizationId: TEST_ORG_ID,
-        appointmentId: NONEXISTENT_APPT_ID,
-      });
-    } catch (err) {
-      if (err instanceof OrpcClientError) {
-        refundError = err;
-      } else {
-        throw err;
-      }
-    }
+	// ── Sub-test C: refund on non-existent appointment → NOT_FOUND ─────────
+	//
+	// Proves the refund handler — which was refactored — still routes
+	// correctly through assertOrgContextMatch + assertTenantContext to its
+	// NOT_FOUND check. If a guard were dropped during refactor, this would
+	// either succeed (security regression) or fail with INTERNAL_SERVER_ERROR.
+	let refundError: OrpcClientError | null = null;
+	try {
+		await orpcCall<object, unknown>(page, "payments", "refund", {
+			organizationId: TEST_ORG_ID,
+			appointmentId: NONEXISTENT_APPT_ID,
+		});
+	} catch (err) {
+		if (err instanceof OrpcClientError) {
+			refundError = err;
+		} else {
+			throw err;
+		}
+	}
 
-    expect(
-      refundError,
-      "Refund of a non-existent appointment must throw NOT_FOUND",
-    ).not.toBeNull();
-    expect(
-      ["NOT_FOUND", "FORBIDDEN", "404", "403"].includes(refundError!.code),
-      `Refund of non-existent appt must return NOT_FOUND or FORBIDDEN; got ${refundError!.code} — "${refundError!.message}"`,
-    ).toBe(true);
-  },
-);
+	expect(
+		refundError,
+		"Refund of a non-existent appointment must throw NOT_FOUND",
+	).not.toBeNull();
+	expect(
+		["NOT_FOUND", "FORBIDDEN", "404", "403"].includes(refundError!.code),
+		`Refund of non-existent appt must return NOT_FOUND or FORBIDDEN; got ${refundError!.code} — "${refundError!.message}"`,
+	).toBe(true);
+});

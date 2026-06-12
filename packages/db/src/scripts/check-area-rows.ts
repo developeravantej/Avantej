@@ -11,7 +11,9 @@ interface Organization {
 	connectionString: string;
 }
 
-async function getOrganizations(controlPanelUrl: string): Promise<Organization[]> {
+async function getOrganizations(
+	controlPanelUrl: string,
+): Promise<Organization[]> {
 	const pool = new Pool({ connectionString: controlPanelUrl });
 	try {
 		const result = await pool.query(
@@ -54,7 +56,9 @@ async function main() {
 	if (!controlPanelUrl) throw new Error("DATABASE_URL not set");
 
 	const orgs = await getOrganizations(controlPanelUrl);
-	console.log(`\nChecking ${orgs.length} tenants for hierarchy node type counts:\n`);
+	console.log(
+		`\nChecking ${orgs.length} tenants for hierarchy node type counts:\n`,
+	);
 
 	const ALL_TYPES = ["organization", "country", "region", "area", "branch"];
 	let totalAreas = 0;

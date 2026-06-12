@@ -14,27 +14,42 @@
  * 4. Proceed with registration into the correct organization
  */
 
-import { pgTable, uuid, text, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+	pgTable,
+	uuid,
+	text,
+	timestamp,
+	index,
+	uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
 
-export const organizationBranches = pgTable("organization_branches", {
-	id: uuid("id").primaryKey().defaultRandom(),
-	organizationId: uuid("organization_id")
-		.notNull()
-		.references(() => organizations.id, { onDelete: "cascade" }),
-	tenantNodeId: uuid("tenant_node_id").notNull(), // References tenant hierarchy_nodes.id (no FK constraint due to cross-database)
-	name: text("name").notNull(), // Branch name (globally unique across all organizations)
-	countryTenantNodeId: uuid("country_tenant_node_id"), // References tenant hierarchy_nodes.id where type="country" (no FK due to cross-database)
-	country: text("country"), // Denormalized country name from tenant hierarchy
-	address: text("address"), // Physical address of the branch
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-	updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (table) => ({
-	// Branch names are globally unique across all organizations
-	nameUniqueIdx: uniqueIndex("org_branches_name_unique_idx").on(table.name),
-	// Indexes for performance
-	organizationIdIdx: index("org_branches_org_idx").on(table.organizationId),
-	tenantNodeIdIdx: index("org_branches_tenant_node_idx").on(table.tenantNodeId),
-	countryTenantNodeIdIdx: index("org_branches_country_node_idx").on(table.countryTenantNodeId),
-	countryIdx: index("org_branches_country_idx").on(table.country),
-}));
+export const organizationBranches = pgTable(
+	"organization_branches",
+	{
+		id: uuid("id").primaryKey().defaultRandom(),
+		organizationId: uuid("organization_id")
+			.notNull()
+			.references(() => organizations.id, { onDelete: "cascade" }),
+		tenantNodeId: uuid("tenant_node_id").notNull(), // References tenant hierarchy_nodes.id (no FK constraint due to cross-database)
+		name: text("name").notNull(), // Branch name (globally unique across all organizations)
+		countryTenantNodeId: uuid("country_tenant_node_id"), // References tenant hierarchy_nodes.id where type="country" (no FK due to cross-database)
+		country: text("country"), // Denormalized country name from tenant hierarchy
+		address: text("address"), // Physical address of the branch
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+		updatedAt: timestamp("updated_at").defaultNow().notNull(),
+	},
+	(table) => ({
+		// Branch names are globally unique across all organizations
+		nameUniqueIdx: uniqueIndex("org_branches_name_unique_idx").on(table.name),
+		// Indexes for performance
+		organizationIdIdx: index("org_branches_org_idx").on(table.organizationId),
+		tenantNodeIdIdx: index("org_branches_tenant_node_idx").on(
+			table.tenantNodeId,
+		),
+		countryTenantNodeIdIdx: index("org_branches_country_node_idx").on(
+			table.countryTenantNodeId,
+		),
+		countryIdx: index("org_branches_country_idx").on(table.country),
+	}),
+);

@@ -1,7 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
 	listInstallmentPlans,
 	getInstallmentPlanById,
@@ -21,14 +21,15 @@ export const installmentPlansRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			// Clients can read installment plans (needed during purchase); staff need service_management:read.
 			if (context.member.role !== "client") {
-				await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read");
+				await requirePermissionOrpc(
+					context.tenantDb,
+					context.member,
+					"service_management",
+					"read",
+				);
 			}
 
 			return listInstallmentPlans(context.tenantDb, {
@@ -44,14 +45,15 @@ export const installmentPlansRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			// Clients can read installment plans (needed during purchase); staff need service_management:read.
 			if (context.member.role !== "client") {
-				await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read");
+				await requirePermissionOrpc(
+					context.tenantDb,
+					context.member,
+					"service_management",
+					"read",
+				);
 			}
 
 			const plan = await getInstallmentPlanById(context.tenantDb, input.id);
@@ -71,14 +73,15 @@ export const installmentPlansRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			// Clients can read installment plans (needed during purchase); staff need service_management:read.
 			if (context.member.role !== "client") {
-				await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "read");
+				await requirePermissionOrpc(
+					context.tenantDb,
+					context.member,
+					"service_management",
+					"read",
+				);
 			}
 
 			return getInstallmentPlanByCode(context.tenantDb, input.code);
@@ -99,12 +102,13 @@ export const installmentPlansRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"service_management",
+				"update",
+			);
 
 			try {
 				return await createInstallmentPlan(context.tenantDb, {
@@ -158,12 +162,13 @@ export const installmentPlansRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"service_management",
+				"update",
+			);
 
 			try {
 				const result = await updateInstallmentPlan(context.tenantDb, input.id, {
@@ -213,12 +218,13 @@ export const installmentPlansRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"service_management",
+				"update",
+			);
 
 			return setDefaultInstallmentPlan(context.tenantDb, input.id);
 		}),
@@ -231,12 +237,13 @@ export const installmentPlansRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "delete");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"service_management",
+				"delete",
+			);
 
 			return deactivateInstallmentPlan(context.tenantDb, input.id);
 		}),
@@ -250,7 +257,12 @@ export const installmentPlansRouter = {
 		)
 		.handler(async ({ input, context }) => {
 			assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "service_management", "update");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"service_management",
+				"update",
+			);
 
 			return reactivateInstallmentPlan(context.tenantDb, input.id);
 		}),

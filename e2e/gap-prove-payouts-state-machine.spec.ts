@@ -31,15 +31,23 @@ type LedgerRow = {
 };
 type LedgerResp = { rows?: LedgerRow[] } | LedgerRow[];
 
-async function listLedger(page: import("@playwright/test").Page, status?: string): Promise<LedgerRow[]> {
+async function listLedger(
+	page: import("@playwright/test").Page,
+	status?: string,
+): Promise<LedgerRow[]> {
 	try {
-		const resp = await orpcCall<object, LedgerResp>(page, "commissionSplits", "listLedger", {
-			organizationId: TEST_ORG_ID,
-			status: status ?? "all",
-			limit: 200,
-			offset: 0,
-		});
-		return Array.isArray(resp) ? resp : resp.rows ?? [];
+		const resp = await orpcCall<object, LedgerResp>(
+			page,
+			"commissionSplits",
+			"listLedger",
+			{
+				organizationId: TEST_ORG_ID,
+				status: status ?? "all",
+				limit: 200,
+				offset: 0,
+			},
+		);
+		return Array.isArray(resp) ? resp : (resp.rows ?? []);
 	} catch {
 		return [];
 	}
@@ -64,12 +72,14 @@ async function fetchPayout(
 		recipientId,
 		limit: 200,
 	});
-	const rows = Array.isArray(resp) ? resp : resp.rows ?? [];
+	const rows = Array.isArray(resp) ? resp : (resp.rows ?? []);
 	if (payoutId) return rows.find((r) => r.id === payoutId) ?? null;
 	return rows[0] ?? null;
 }
 
-test("S-payouts-state-machine — full lifecycle + concurrency", async ({ page }) => {
+test("S-payouts-state-machine — full lifecycle + concurrency", async ({
+	page,
+}) => {
 	await page.goto("/dashboard");
 	await page.waitForLoadState("domcontentloaded");
 
@@ -84,41 +94,63 @@ test("S-payouts-state-machine — full lifecycle + concurrency", async ({ page }
 
 	// Helper — forge a fresh approved split by manual-adjustment + approve flow.
 	// (POS doesn't auto-produce splits in the test tenant; F-04 fix permits this.)
-	async function forgeApprovedSplit(amountCents: number): Promise<string | null> {
+	async function forgeApprovedSplit(
+		amountCents: number,
+	): Promise<string | null> {
 		let salesOrderId = "";
 		try {
 			salesOrderId = await recordPosSale(page, {
 				customerId: client!.userId,
 				customerName: client!.name,
 				branchId,
-				items: [{ type: "product", refId: product!.id, description: product!.name, quantity: 1, unitPriceCents: amountCents * 5 }],
+				items: [
+					{
+						type: "product",
+						refId: product!.id,
+						description: product!.name,
+						quantity: 1,
+						unitPriceCents: amountCents * 5,
+					},
+				],
 				paymentMethod: "cash",
 			});
 		} catch {
 			return null;
 		}
 		try {
-			const adj = await orpcCall<object, { id: string }>(page, "commissionSplits", "createManualAdjustment", {
-				organizationId: TEST_ORG_ID,
-				staffId: trainer!.userId,
-				salesOrderId,
-				amountCents,
-				note: "audit-prove state-machine seed",
-			});
+			const adj = await orpcCall<object, { id: string }>(
+				page,
+				"commissionSplits",
+				"createManualAdjustment",
+				{
+					organizationId: TEST_ORG_ID,
+					staffId: trainer!.userId,
+					salesOrderId,
+					amountCents,
+					note: "audit-prove state-machine seed",
+				},
+			);
 			await orpcCall(page, "commissionSplits", "approve", {
 				organizationId: TEST_ORG_ID,
 				ids: [adj.id],
 			});
 			return adj.id;
 		} catch (err) {
-			console.warn("forgeApprovedSplit failed:", err instanceof OrpcClientError ? err.code : String(err));
+			console.warn(
+				"forgeApprovedSplit failed:",
+				err instanceof OrpcClientError ? err.code : String(err),
+			);
 			return null;
 		}
 	}
 
 	const now = new Date();
-	const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-	const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+	const periodStart = new Date(
+		Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+	);
+	const periodEnd = new Date(
+		Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
+	);
 
 	// LC-01 — runBatch with confirmImmediately:false (state machine mode)
 	let payoutId01 = "";
@@ -126,20 +158,28 @@ test("S-payouts-state-machine — full lifecycle + concurrency", async ({ page }
 	await test.step("LC-01 runBatch(confirmImmediately:false) → pending payout, splits stay approved", async () => {
 		const seeded = await forgeApprovedSplit(1500);
 		if (!seeded) {
-			test.info().annotations.push({ type: "LC-01", description: "could not forge approved split" });
+			test.info().annotations.push({
+				type: "LC-01",
+				description: "could not forge approved split",
+			});
 			return;
 		}
 		splitId01 = seeded;
-		const res = await orpcCall<object, { payoutIds: string[] }>(page, "payouts", "runBatch", {
-			organizationId: TEST_ORG_ID,
-			staffIds: [trainer!.userId],
-			periodStart,
-			periodEnd,
-			paymentMethod: "bank_transfer",
-			reference: `LC-01-${Date.now()}`,
-			branchId,
-			confirmImmediately: false,
-		});
+		const res = await orpcCall<object, { payoutIds: string[] }>(
+			page,
+			"payouts",
+			"runBatch",
+			{
+				organizationId: TEST_ORG_ID,
+				staffIds: [trainer!.userId],
+				periodStart,
+				periodEnd,
+				paymentMethod: "bank_transfer",
+				reference: `LC-01-${Date.now()}`,
+				branchId,
+				confirmImmediately: false,
+			},
+		);
 		payoutId01 = res.payoutIds[0] ?? "";
 		expect.soft(payoutId01, "runBatch must return a payoutId").toBeTruthy();
 
@@ -149,8 +189,12 @@ test("S-payouts-state-machine — full lifecycle + concurrency", async ({ page }
 		// Linked split should still be 'approved' but carry the payoutId.
 		const ledger = await listLedger(page);
 		const split = ledger.find((s) => s.id === splitId01);
-		expect.soft(split?.status, "split must remain approved during pending payout").toBe("approved");
-		expect.soft(split?.payoutId, "split must carry the new payoutId").toBe(payoutId01);
+		expect
+			.soft(split?.status, "split must remain approved during pending payout")
+			.toBe("approved");
+		expect
+			.soft(split?.payoutId, "split must carry the new payoutId")
+			.toBe(payoutId01);
 	});
 
 	// LC-02 — markPaid: pending → paid; splits flip to paid; reference persists
@@ -164,11 +208,18 @@ test("S-payouts-state-machine — full lifecycle + concurrency", async ({ page }
 		});
 		const payout = await fetchPayout(page, trainer!.userId, payoutId01);
 		expect.soft(payout?.status, "payout should be paid").toBe("paid");
-		expect.soft(payout?.description?.includes(ref), `description should include the wire ref: ${payout?.description}`).toBe(true);
+		expect
+			.soft(
+				payout?.description?.includes(ref),
+				`description should include the wire ref: ${payout?.description}`,
+			)
+			.toBe(true);
 
 		const ledger = await listLedger(page);
 		const split = ledger.find((s) => s.id === splitId01);
-		expect.soft(split?.status, "split should flip to paid on markPaid").toBe("paid");
+		expect
+			.soft(split?.status, "split should flip to paid on markPaid")
+			.toBe("paid");
 	});
 
 	// LC-03..LC-05 — second payout: markFailed + retry
@@ -177,22 +228,32 @@ test("S-payouts-state-machine — full lifecycle + concurrency", async ({ page }
 	await test.step("LC-03 runBatch second batch → second pending payout", async () => {
 		const seeded = await forgeApprovedSplit(2000);
 		if (!seeded) {
-			test.info().annotations.push({ type: "LC-03", description: "could not forge second split" });
+			test.info().annotations.push({
+				type: "LC-03",
+				description: "could not forge second split",
+			});
 			return;
 		}
 		splitId02 = seeded;
-		const res = await orpcCall<object, { payoutIds: string[] }>(page, "payouts", "runBatch", {
-			organizationId: TEST_ORG_ID,
-			staffIds: [trainer!.userId],
-			periodStart,
-			periodEnd,
-			paymentMethod: "bank_transfer",
-			reference: `LC-03-${Date.now()}`,
-			branchId,
-			confirmImmediately: false,
-		});
+		const res = await orpcCall<object, { payoutIds: string[] }>(
+			page,
+			"payouts",
+			"runBatch",
+			{
+				organizationId: TEST_ORG_ID,
+				staffIds: [trainer!.userId],
+				periodStart,
+				periodEnd,
+				paymentMethod: "bank_transfer",
+				reference: `LC-03-${Date.now()}`,
+				branchId,
+				confirmImmediately: false,
+			},
+		);
 		payoutId02 = res.payoutIds[0] ?? "";
-		expect.soft(payoutId02, "second runBatch must return a payoutId").toBeTruthy();
+		expect
+			.soft(payoutId02, "second runBatch must return a payoutId")
+			.toBeTruthy();
 	});
 
 	await test.step("LC-04 markFailed → failed", async () => {
@@ -213,7 +274,9 @@ test("S-payouts-state-machine — full lifecycle + concurrency", async ({ page }
 			id: payoutId02,
 		});
 		const payout = await fetchPayout(page, trainer!.userId, payoutId02);
-		expect.soft(payout?.status, "payout should reset to pending after retry").toBe("pending");
+		expect
+			.soft(payout?.status, "payout should reset to pending after retry")
+			.toBe("pending");
 	});
 
 	// LC-06 — cancel: pending → canceled; splits revert
@@ -229,27 +292,39 @@ test("S-payouts-state-machine — full lifecycle + concurrency", async ({ page }
 
 		const ledger = await listLedger(page);
 		const split = ledger.find((s) => s.id === splitId02);
-		expect.soft(split?.status, "split should revert to approved on cancel").toBe("approved");
-		expect.soft(split?.payoutId, "split's payoutId should be cleared").toBeFalsy();
+		expect
+			.soft(split?.status, "split should revert to approved on cancel")
+			.toBe("approved");
+		expect
+			.soft(split?.payoutId, "split's payoutId should be cleared")
+			.toBeFalsy();
 	});
 
 	// LC-07 — concurrency: two concurrent markPaid → one wins, one rejects
 	await test.step("LC-07 concurrent markPaid race → exactly one succeeds", async () => {
 		const seeded = await forgeApprovedSplit(2500);
 		if (!seeded) {
-			test.info().annotations.push({ type: "LC-07", description: "could not forge concurrency-test split" });
+			test.info().annotations.push({
+				type: "LC-07",
+				description: "could not forge concurrency-test split",
+			});
 			return;
 		}
-		const res = await orpcCall<object, { payoutIds: string[] }>(page, "payouts", "runBatch", {
-			organizationId: TEST_ORG_ID,
-			staffIds: [trainer!.userId],
-			periodStart,
-			periodEnd,
-			paymentMethod: "bank_transfer",
-			reference: `LC-07-${Date.now()}`,
-			branchId,
-			confirmImmediately: false,
-		});
+		const res = await orpcCall<object, { payoutIds: string[] }>(
+			page,
+			"payouts",
+			"runBatch",
+			{
+				organizationId: TEST_ORG_ID,
+				staffIds: [trainer!.userId],
+				periodStart,
+				periodEnd,
+				paymentMethod: "bank_transfer",
+				reference: `LC-07-${Date.now()}`,
+				branchId,
+				confirmImmediately: false,
+			},
+		);
 		const payoutId07 = res.payoutIds[0] ?? "";
 		if (!payoutId07) return;
 
@@ -261,10 +336,15 @@ test("S-payouts-state-machine — full lifecycle + concurrency", async ({ page }
 				paymentReference: ref,
 			})
 				.then(() => ({ ok: true as const, err: null as null }))
-				.catch((err) => ({ ok: false as const, err: err instanceof OrpcClientError ? err.code : String(err) }));
+				.catch((err) => ({
+					ok: false as const,
+					err: err instanceof OrpcClientError ? err.code : String(err),
+				}));
 		const [r1, r2] = await Promise.all([call(), call()]);
 		console.log("LC-07 race results:", JSON.stringify({ r1, r2 }));
 		const successCount = [r1, r2].filter((r) => r.ok).length;
-		expect.soft(successCount, "exactly one concurrent markPaid must succeed").toBe(1);
+		expect
+			.soft(successCount, "exactly one concurrent markPaid must succeed")
+			.toBe(1);
 	});
 });

@@ -12,7 +12,15 @@
  * historical reconciliation valid even if the acct id moves between rows.
  */
 
-import { pgTable, uuid, text, timestamp, boolean, uniqueIndex, index } from "drizzle-orm/pg-core";
+import {
+	pgTable,
+	uuid,
+	text,
+	timestamp,
+	boolean,
+	uniqueIndex,
+	index,
+} from "drizzle-orm/pg-core";
 import { organizations } from "./organizations";
 
 export const orgCountryStripeAccounts = pgTable(
@@ -24,7 +32,9 @@ export const orgCountryStripeAccounts = pgTable(
 			.references(() => organizations.id, { onDelete: "cascade" }),
 		countryCode: text("country_code").notNull(), // ISO 3166-1 alpha-2 (MY, SG, TH, ...)
 		stripeAccountId: text("stripe_account_id").unique(),
-		stripeConnectStatus: text("stripe_connect_status").default("pending").notNull(),
+		stripeConnectStatus: text("stripe_connect_status")
+			.default("pending")
+			.notNull(),
 		stripeConnectAccountType: text("stripe_connect_account_type")
 			.default("standard")
 			.notNull(),
@@ -32,7 +42,9 @@ export const orgCountryStripeAccounts = pgTable(
 		payoutsEnabled: boolean("payouts_enabled").default(false).notNull(),
 		detailsSubmitted: boolean("details_submitted").default(false).notNull(),
 		currency: text("currency").notNull(), // MYR | SGD | THB | ...
-		stripeConnectOnboardingCompletedAt: timestamp("stripe_connect_onboarding_completed_at"),
+		stripeConnectOnboardingCompletedAt: timestamp(
+			"stripe_connect_onboarding_completed_at",
+		),
 		connectAccountUpdatedAt: timestamp("connect_account_updated_at"),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -42,6 +54,8 @@ export const orgCountryStripeAccounts = pgTable(
 			t.organizationId,
 			t.countryCode,
 		),
-		acctIdx: index("org_country_stripe_accounts_acct_idx").on(t.stripeAccountId),
+		acctIdx: index("org_country_stripe_accounts_acct_idx").on(
+			t.stripeAccountId,
+		),
 	}),
 );

@@ -1,11 +1,26 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
 import {
- listRooms, getRoomById, createRoom, updateRoom, deleteRoom } from "@avantej-core/services";
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../guards";
+import {
+	listRooms,
+	getRoomById,
+	createRoom,
+	updateRoom,
+	deleteRoom,
+} from "@avantej-core/services";
 
-const roomTypeEnum = z.enum(["consultation", "group_session", "private", "training", "individual"]);
+const roomTypeEnum = z.enum([
+	"consultation",
+	"group_session",
+	"private",
+	"training",
+	"individual",
+]);
 
 export const roomsRouter = {
 	list: tenantProcedure
@@ -14,18 +29,19 @@ export const roomsRouter = {
 				organizationId: z.string().uuid(),
 				branchId: z.string().uuid().optional(),
 				isActive: z.boolean().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
-			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read")
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"appointment_management",
+				"read",
+			);
 
 			return listRooms(context.tenantDb, {
 				branchId: input.branchId,
@@ -39,15 +55,16 @@ export const roomsRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "read")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"appointment_management",
+				"read",
+			);
 
 			const room = await getRoomById(context.tenantDb, input.id);
 			if (!room) {
@@ -67,16 +84,17 @@ export const roomsRouter = {
 				capacity: z.number().int().min(1),
 				branchId: z.string().uuid(),
 				isActive: z.boolean().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-		guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "create")
+			assertOrgContextMatch(context, input);
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"appointment_management",
+				"create",
+			);
 
 			return createRoom(context.tenantDb, {
 				name: input.name,
@@ -97,18 +115,19 @@ export const roomsRouter = {
 				capacity: z.number().int().min(1).optional(),
 				branchId: z.string().uuid().optional(),
 				isActive: z.boolean().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
-			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update")
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"appointment_management",
+				"update",
+			);
 
 			return updateRoom(context.tenantDb, input.id, {
 				name: input.name,
@@ -124,15 +143,16 @@ export const roomsRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "appointment_management", "update")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"appointment_management",
+				"update",
+			);
 
 			return deleteRoom(context.tenantDb, input.id);
 		}),

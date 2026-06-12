@@ -72,9 +72,7 @@ export async function freezeMembership(
 			where: eq(packageInstances.id, params.packageInstanceId),
 		});
 		if (!pkg) {
-			throw new Error(
-				`Package instance ${params.packageInstanceId} not found`,
-			);
+			throw new Error(`Package instance ${params.packageInstanceId} not found`);
 		}
 		if (pkg.status === "paused" || pkg.status === "frozen") {
 			throw new Error(
@@ -200,10 +198,7 @@ export async function cancelMembershipHold(
 		.update(membershipHolds)
 		.set({ status: "cancelled", resumedAt: new Date() })
 		.where(
-			and(
-				eq(membershipHolds.id, holdId),
-				eq(membershipHolds.status, "active"),
-			),
+			and(eq(membershipHolds.id, holdId), eq(membershipHolds.status, "active")),
 		)
 		.returning();
 	if (!updated) {
@@ -258,7 +253,11 @@ export async function runAutoResumeHolds(
 	tenantDb: TenantDb,
 	systemActor = "system:auto-resume-holds",
 	now: Date = new Date(),
-): Promise<{ scanned: number; resumed: number; errors: { holdId: string; message: string }[] }> {
+): Promise<{
+	scanned: number;
+	resumed: number;
+	errors: { holdId: string; message: string }[];
+}> {
 	const expired = await listExpiredActiveHolds(tenantDb, now);
 	const errors: { holdId: string; message: string }[] = [];
 	let resumed = 0;

@@ -1,7 +1,11 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../guards";
 import {
 	cancelReceipt,
 	createReceipt,
@@ -14,7 +18,6 @@ import {
 	listSupplierInvoices,
 	markInvoiceMatched,
 	markInvoicePaid,
-
 } from "@avantej-core/services";
 
 export const goodsReceiptsRouter = {
@@ -26,10 +29,13 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-			
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "read");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"read",
+			);
 			return listReceiptsForPo(context.tenantDb, input.purchaseOrderId);
 		}),
 
@@ -41,10 +47,13 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-			
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "read");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"read",
+			);
 			const result = await getReceiptById(context.tenantDb, input.id);
 			if (!result) {
 				throw new ORPCError("NOT_FOUND", {
@@ -76,11 +85,14 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-			
-		assertOrgContextMatch(context, input);
-		guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "update");
+			assertOrgContextMatch(context, input);
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"update",
+			);
 			try {
 				return await createReceipt(context.tenantDb, {
 					purchaseOrderId: input.purchaseOrderId,
@@ -93,9 +105,7 @@ export const goodsReceiptsRouter = {
 			} catch (error) {
 				throw new ORPCError("BAD_REQUEST", {
 					message:
-						error instanceof Error
-							? error.message
-							: "Failed to create receipt",
+						error instanceof Error ? error.message : "Failed to create receipt",
 				});
 			}
 		}),
@@ -108,10 +118,13 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-			
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "update");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"update",
+			);
 			try {
 				return await cancelReceipt(context.tenantDb, input.id, {
 					userId: context.member.userId,
@@ -122,9 +135,7 @@ export const goodsReceiptsRouter = {
 			} catch (error) {
 				throw new ORPCError("BAD_REQUEST", {
 					message:
-						error instanceof Error
-							? error.message
-							: "Failed to cancel receipt",
+						error instanceof Error ? error.message : "Failed to cancel receipt",
 				});
 			}
 		}),
@@ -144,10 +155,13 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-			
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "create");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"create",
+			);
 			return createSupplierInvoice(context.tenantDb, {
 				invoiceNumber: input.invoiceNumber,
 				supplierId: input.supplierId,
@@ -174,14 +188,21 @@ export const goodsReceiptsRouter = {
 		)
 		.handler(async ({ input, context }) => {
 			assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "update");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"update",
+			);
 			try {
 				return await updateSupplierInvoice(context.tenantDb, {
 					invoiceId: input.invoiceId,
 					invoiceNumber: input.invoiceNumber,
 					totalCents: input.totalCents,
 					taxCents: input.taxCents,
-					invoiceDate: input.invoiceDate ? new Date(input.invoiceDate) : undefined,
+					invoiceDate: input.invoiceDate
+						? new Date(input.invoiceDate)
+						: undefined,
 				});
 			} catch (error) {
 				throw new ORPCError("BAD_REQUEST", {
@@ -203,10 +224,13 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-			
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "read");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"read",
+			);
 			return listSupplierInvoices(context.tenantDb, {
 				supplierId: input.supplierId,
 				status: input.status,
@@ -225,10 +249,13 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-			
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "update");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"update",
+			);
 			try {
 				return await markInvoiceMatched(context.tenantDb, {
 					invoiceId: input.invoiceId,
@@ -238,9 +265,7 @@ export const goodsReceiptsRouter = {
 			} catch (error) {
 				throw new ORPCError("BAD_REQUEST", {
 					message:
-						error instanceof Error
-							? error.message
-							: "Failed to match invoice",
+						error instanceof Error ? error.message : "Failed to match invoice",
 				});
 			}
 		}),
@@ -254,12 +279,25 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
-									await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "update")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"update",
+			);
 			try {
-				return await disputeInvoice(context.tenantDb, { invoiceId: input.invoiceId, disputeReason: input.reason });
+				return await disputeInvoice(context.tenantDb, {
+					invoiceId: input.invoiceId,
+					disputeReason: input.reason,
+				});
 			} catch (error) {
-				throw new ORPCError("BAD_REQUEST", { message: error instanceof Error ? error.message : "Failed to dispute invoice" });
+				throw new ORPCError("BAD_REQUEST", {
+					message:
+						error instanceof Error
+							? error.message
+							: "Failed to dispute invoice",
+				});
 			}
 		}),
 
@@ -272,12 +310,27 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
-									await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "update")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"update",
+			);
 			try {
-				return await markInvoicePaid(context.tenantDb, input.invoiceId, context.member.userId, input.paymentReference);
+				return await markInvoicePaid(
+					context.tenantDb,
+					input.invoiceId,
+					context.member.userId,
+					input.paymentReference,
+				);
 			} catch (error) {
-				throw new ORPCError("BAD_REQUEST", { message: error instanceof Error ? error.message : "Failed to mark invoice as paid" });
+				throw new ORPCError("BAD_REQUEST", {
+					message:
+						error instanceof Error
+							? error.message
+							: "Failed to mark invoice as paid",
+				});
 			}
 		}),
 
@@ -289,12 +342,22 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
-									await requirePermissionOrpc(context.tenantDb, context.member, "purchase_order_management", "read")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"read",
+			);
 			try {
 				return await getInvoicePreview(context.tenantDb, input.invoiceId);
 			} catch (error) {
-				throw new ORPCError("BAD_REQUEST", { message: error instanceof Error ? error.message : "Failed to get invoice preview" });
+				throw new ORPCError("BAD_REQUEST", {
+					message:
+						error instanceof Error
+							? error.message
+							: "Failed to get invoice preview",
+				});
 			}
 		}),
 };

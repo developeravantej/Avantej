@@ -7,7 +7,11 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import { requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../../guards";
 
 export const refundsLifecycleProcedures = {
 	request: tenantProcedure
@@ -29,14 +33,16 @@ export const refundsLifecycleProcedures = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
-			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "create");
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"refund_management",
+				"create",
+			);
 
 			try {
 				return await requestRefund(context.tenantDb, {
@@ -64,7 +70,9 @@ export const refundsLifecycleProcedures = {
 				if (e?.code === "NOT_FOUND") {
 					throw new ORPCError("NOT_FOUND", { message: e.message });
 				}
-				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Operation failed" });
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Operation failed",
+				});
 			}
 		}),
 
@@ -86,11 +94,13 @@ export const refundsLifecycleProcedures = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "approve");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"refund_management",
+				"approve",
+			);
 
 			try {
 				return await approveRefund(context.tenantDb, input.id, {
@@ -111,7 +121,9 @@ export const refundsLifecycleProcedures = {
 				if (e?.code === "NOT_FOUND") {
 					throw new ORPCError("NOT_FOUND", { message: e.message });
 				}
-				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Operation failed" });
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Operation failed",
+				});
 			}
 		}),
 
@@ -128,12 +140,14 @@ export const refundsLifecycleProcedures = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
+			assertOrgContextMatch(context, input);
 			// Reject is part of the review flow — same permission as approve
-			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "approve");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"refund_management",
+				"approve",
+			);
 
 			try {
 				return await rejectRefund(context.tenantDb, input.id, {
@@ -153,7 +167,9 @@ export const refundsLifecycleProcedures = {
 				if (e?.code === "NOT_FOUND") {
 					throw new ORPCError("NOT_FOUND", { message: e.message });
 				}
-				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Operation failed" });
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Operation failed",
+				});
 			}
 		}),
 
@@ -179,11 +195,13 @@ export const refundsLifecycleProcedures = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "refund_management", "process");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"refund_management",
+				"process",
+			);
 
 			try {
 				return await processRefund(context.tenantDb, input.id, {
@@ -204,7 +222,9 @@ export const refundsLifecycleProcedures = {
 				if (e?.code === "NOT_FOUND") {
 					throw new ORPCError("NOT_FOUND", { message: e.message });
 				}
-				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Operation failed" });
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Operation failed",
+				});
 			}
-		})
+		}),
 };

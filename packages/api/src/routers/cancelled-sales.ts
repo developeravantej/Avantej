@@ -1,9 +1,8 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
-
 	listCancelledSales,
 	getCancelledSaleById,
 	exportCancelledSalesCsv,
@@ -19,11 +18,16 @@ export const cancelledSalesRouter = {
 				to: z.string().datetime().optional(),
 				limit: z.number().int().min(1).max(200).default(50),
 				offset: z.number().int().min(0).default(0),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"sales",
+				"read",
+			);
 
 			return listCancelledSales(context.tenantDb, {
 				customerId: input.customerId,
@@ -40,11 +44,16 @@ export const cancelledSalesRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"sales",
+				"read",
+			);
 
 			const row = await getCancelledSaleById(
 				context.tenantDb,
@@ -68,11 +77,16 @@ export const cancelledSalesRouter = {
 				customerId: z.string().optional(),
 				from: z.string().datetime().optional(),
 				to: z.string().datetime().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "sales", "read");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"sales",
+				"read",
+			);
 
 			return exportCancelledSalesCsv(context.tenantDb, {
 				customerId: input.customerId,

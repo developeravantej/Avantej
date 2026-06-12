@@ -30,13 +30,21 @@ import { hasPermission } from "@avantej-core/services/permission.service";
 import { tenantProcedure } from "../index";
 import { assertOrgContextMatch, requirePermissionOrpc } from "../guards";
 
-const CYCLE_TYPES = ["calendar_month", "monthly_anchored", "semi_monthly", "weekly"] as const;
+const CYCLE_TYPES = [
+	"calendar_month",
+	"monthly_anchored",
+	"semi_monthly",
+	"weekly",
+] as const;
 type CycleType = (typeof CYCLE_TYPES)[number];
 
 const cycleTypeSchema = z.enum(CYCLE_TYPES);
 
 // Server-side guard mirroring the DB CHECK on (cycle_type, anchor_day).
-function validateAnchorDayForCycleType(cycleType: CycleType, anchorDay: number | null): void {
+function validateAnchorDayForCycleType(
+	cycleType: CycleType,
+	anchorDay: number | null,
+): void {
 	if (cycleType === "calendar_month") {
 		if (anchorDay !== null) {
 			throw new ORPCError("BAD_REQUEST", {
@@ -51,16 +59,20 @@ function validateAnchorDayForCycleType(cycleType: CycleType, anchorDay: number |
 		});
 	}
 	if (!Number.isInteger(anchorDay)) {
-		throw new ORPCError("BAD_REQUEST", { message: "anchorDay must be an integer" });
+		throw new ORPCError("BAD_REQUEST", {
+			message: "anchorDay must be an integer",
+		});
 	}
 	if (cycleType === "monthly_anchored" && (anchorDay < 1 || anchorDay > 28)) {
 		throw new ORPCError("BAD_REQUEST", {
-			message: "monthly_anchored anchorDay must be 1–28 (avoid month-length edge cases)",
+			message:
+				"monthly_anchored anchorDay must be 1–28 (avoid month-length edge cases)",
 		});
 	}
 	if (cycleType === "semi_monthly" && (anchorDay < 1 || anchorDay > 15)) {
 		throw new ORPCError("BAD_REQUEST", {
-			message: "semi_monthly anchorDay must be 1–15 (defines the first half-month start)",
+			message:
+				"semi_monthly anchorDay must be 1–15 (defines the first half-month start)",
 		});
 	}
 	if (cycleType === "weekly" && (anchorDay < 0 || anchorDay > 6)) {
@@ -124,23 +136,25 @@ const list = tenantProcedure
 			.orderBy(sql`${commissionCycleConfigs.branchId} IS NULL DESC`);
 
 		return {
-			policies: rows.map((r: {
-				id: string;
-				branchId: string | null;
-				branchName: string | null;
-				cycleType: string;
-				anchorDay: number | null;
-				updatedBy: string | null;
-				updatedAt: Date;
-			}) => ({
-				id: r.id,
-				branchId: r.branchId,
-				branchName: r.branchName,
-				cycleType: r.cycleType as CycleType,
-				anchorDay: r.anchorDay,
-				updatedBy: r.updatedBy,
-				updatedAt: r.updatedAt,
-			})),
+			policies: rows.map(
+				(r: {
+					id: string;
+					branchId: string | null;
+					branchName: string | null;
+					cycleType: string;
+					anchorDay: number | null;
+					updatedBy: string | null;
+					updatedAt: Date;
+				}) => ({
+					id: r.id,
+					branchId: r.branchId,
+					branchName: r.branchName,
+					cycleType: r.cycleType as CycleType,
+					anchorDay: r.anchorDay,
+					updatedBy: r.updatedBy,
+					updatedAt: r.updatedAt,
+				}),
+			),
 		};
 	});
 

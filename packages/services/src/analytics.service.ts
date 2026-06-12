@@ -40,9 +40,9 @@ export interface DashboardKpisResult {
 	activeMembersCount: number;
 	revenueByBranch: RevenueByBranch[];
 	// ── New scalars ─────────────────────────────────────────────
-	churnRatePct: number;       // % of active members who lapsed during the period
-	avgLtvCents: number;        // running avg cumulative spend per customer up to period end
-	classFillRatePct: number;   // spotsBooked / capacity * 100 for the period
+	churnRatePct: number; // % of active members who lapsed during the period
+	avgLtvCents: number; // running avg cumulative spend per customer up to period end
+	classFillRatePct: number; // spotsBooked / capacity * 100 for the period
 }
 
 export interface RevenueSeriesParams {
@@ -63,11 +63,11 @@ export interface StaffPerformanceParams {
 }
 
 export interface StaffPerformanceRow {
-	staffId: string;          // members.userId (text)
-	memberId: string;         // members.id (uuid)
+	staffId: string; // members.userId (text)
+	memberId: string; // members.id (uuid)
 	staffName: string | null; // resolved from member_profiles.display_name; null if no profile row
 	appointmentsCompleted: number;
-	totalCommission: number;  // cents
+	totalCommission: number; // cents
 }
 
 // Helper to compute from/to dates for a period
@@ -113,11 +113,9 @@ function getPeriodDates(
 	}
 	// custom — use provided dates or fallback to this_month
 	return {
-		from:
-			from ?? new Date(now.getFullYear(), now.getMonth(), 1),
+		from: from ?? new Date(now.getFullYear(), now.getMonth(), 1),
 		to:
-			to ??
-			new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999),
+			to ?? new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999),
 	};
 }
 
@@ -199,9 +197,7 @@ export async function getDashboardKpis(
 
 	// 3. Active members count (scoped to hierarchy nodes)
 	const memberFilter =
-		nodeIds.length > 0
-			? inArray(members.hierarchyScopeId, nodeIds)
-			: undefined;
+		nodeIds.length > 0 ? inArray(members.hierarchyScopeId, nodeIds) : undefined;
 
 	const membersResult = await tenantDb
 		.select({ activeCount: count() })
@@ -217,7 +213,10 @@ export async function getDashboardKpis(
 		nodeIds.length > 0
 			? sql`AND cp.user_id IN (
 				SELECT DISTINCT so.customer_id FROM sales_orders so
-				WHERE so.branch_id = ANY(ARRAY[${sql.join(nodeIds.map((id) => sql`${id}::uuid`), sql`, `)}])
+				WHERE so.branch_id = ANY(ARRAY[${sql.join(
+					nodeIds.map((id) => sql`${id}::uuid`),
+					sql`, `,
+				)}])
 			  )`
 			: sql``;
 
@@ -257,7 +256,10 @@ export async function getDashboardKpis(
 	// NAP-03: scope to accessible branches via sales_orders.branch_id filter.
 	const ltvBranchClause =
 		nodeIds.length > 0
-			? sql`AND branch_id = ANY(ARRAY[${sql.join(nodeIds.map((id) => sql`${id}::uuid`), sql`, `)}])`
+			? sql`AND branch_id = ANY(ARRAY[${sql.join(
+					nodeIds.map((id) => sql`${id}::uuid`),
+					sql`, `,
+				)}])`
 			: sql``;
 
 	const ltvResult = await tenantDb.execute<{ avg_ltv: string }>(sql`
@@ -293,9 +295,7 @@ export async function getDashboardKpis(
 	const totalBooked = Number(fillDrizzle[0]?.spotsBooked ?? 0);
 	const totalCap = Number(fillDrizzle[0]?.capacity ?? 0);
 	const classFillRatePct =
-		totalCap > 0
-			? Math.round((totalBooked / totalCap) * 1000) / 10
-			: 0;
+		totalCap > 0 ? Math.round((totalBooked / totalCap) * 1000) / 10 : 0;
 
 	// 4. Revenue by branch (join with hierarchyNodes for branch names)
 	const revByBranch = await tenantDb
@@ -532,12 +532,18 @@ export async function getMemberCountSeries(
 		nodeIds.length > 0
 			? sql`AND cp.user_id IN (
 				SELECT DISTINCT so.customer_id FROM sales_orders so
-				WHERE so.branch_id = ANY(ARRAY[${sql.join(nodeIds.map((id) => sql`${id}::uuid`), sql`, `)}])
+				WHERE so.branch_id = ANY(ARRAY[${sql.join(
+					nodeIds.map((id) => sql`${id}::uuid`),
+					sql`, `,
+				)}])
 			  )`
 			: sql``;
 
 	// Single SQL: generate_series date spine + correlated count
-	const rows = await tenantDb.execute<{ day: string; active_members: string }>(sql`
+	const rows = await tenantDb.execute<{
+		day: string;
+		active_members: string;
+	}>(sql`
 		WITH spine AS (
 			SELECT generate_series(
 				${from}::timestamptz,
@@ -584,7 +590,10 @@ export async function getChurnSeries(
 		nodeIds.length > 0
 			? sql`AND pi.client_id IN (
 				SELECT DISTINCT so.customer_id FROM sales_orders so
-				WHERE so.branch_id = ANY(ARRAY[${sql.join(nodeIds.map((id) => sql`${id}::uuid`), sql`, `)}])
+				WHERE so.branch_id = ANY(ARRAY[${sql.join(
+					nodeIds.map((id) => sql`${id}::uuid`),
+					sql`, `,
+				)}])
 			  )`
 			: sql``;
 
@@ -658,10 +667,16 @@ export async function getLtvSeries(
 	// NAP-03: scope sales_orders to accessible branches.
 	const ltvSeriesBranchClause =
 		nodeIds.length > 0
-			? sql`AND so.branch_id = ANY(ARRAY[${sql.join(nodeIds.map((id) => sql`${id}::uuid`), sql`, `)}])`
+			? sql`AND so.branch_id = ANY(ARRAY[${sql.join(
+					nodeIds.map((id) => sql`${id}::uuid`),
+					sql`, `,
+				)}])`
 			: sql``;
 
-	const rows = await tenantDb.execute<{ day: string; avg_ltv_cents: string }>(sql`
+	const rows = await tenantDb.execute<{
+		day: string;
+		avg_ltv_cents: string;
+	}>(sql`
 		WITH spine AS (
 			SELECT generate_series(
 				${from}::timestamptz,

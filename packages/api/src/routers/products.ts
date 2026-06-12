@@ -2,9 +2,12 @@ import { ORPCError } from "@orpc/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { assertOrgContextMatch, guardBranchAccessible, requirePermissionOrpc } from "../guards";
 import {
-
+	assertOrgContextMatch,
+	guardBranchAccessible,
+	requirePermissionOrpc,
+} from "../guards";
+import {
 	listProducts,
 	getProductById,
 	createProduct,
@@ -32,15 +35,16 @@ export const productsRouter = {
 				supplierId: z.string().uuid().optional(),
 				status: productStatusEnum.optional(),
 				search: z.string().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"read",
+			);
 
 			return listProducts(context.tenantDb, {
 				brandId: input.brandId,
@@ -56,15 +60,16 @@ export const productsRouter = {
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"read",
+			);
 
 			const product = await getProductById(context.tenantDb, input.id);
 			if (!product) {
@@ -90,15 +95,16 @@ export const productsRouter = {
 				conversionFactor: z.string().optional(),
 				price: z.number().int().min(0),
 				status: productStatusEnum.optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "create")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"create",
+			);
 
 			return createProduct(context.tenantDb, {
 				sku: input.sku,
@@ -132,15 +138,16 @@ export const productsRouter = {
 				conversionFactor: z.string().optional(),
 				price: z.number().int().min(0).optional(),
 				status: productStatusEnum.optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"update",
+			);
 
 			return updateProduct(context.tenantDb, input.id, {
 				sku: input.sku,
@@ -164,15 +171,16 @@ export const productsRouter = {
 				organizationId: z.string().uuid(),
 				productId: z.string().uuid(),
 				branchId: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"read",
+			);
 
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 
@@ -186,19 +194,25 @@ export const productsRouter = {
 				productId: z.string().uuid(),
 				branchId: z.string().uuid(),
 				delta: z.number().int(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"update",
+			);
 
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 
-			return adjustProductStock(context.tenantDb, input.productId, input.branchId, input.delta);
+			return adjustProductStock(
+				context.tenantDb,
+				input.productId,
+				input.branchId,
+				input.delta,
+			);
 		}),
 
 	// #region Agent 2.2 — branch pricing (J2)
@@ -212,10 +226,13 @@ export const productsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-
-
 			assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"read",
+			);
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 			const priceCents = await resolveProductPrice(
 				context.tenantDb,
@@ -234,10 +251,13 @@ export const productsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-			
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "read")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"read",
+			);
 			return listProductPriceOverrides(context.tenantDb, input.productId);
 		}),
 
@@ -265,10 +285,13 @@ export const productsRouter = {
 				),
 		)
 		.handler(async ({ input, context }) => {
-			
-			
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"update",
+			);
 			if (input.branchId) {
 				guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 			}
@@ -277,7 +300,9 @@ export const productsRouter = {
 				branchId: input.branchId,
 				customerType: input.customerType ?? null,
 				priceCents: input.priceCents,
-				effectiveFrom: input.effectiveFrom ? new Date(input.effectiveFrom) : undefined,
+				effectiveFrom: input.effectiveFrom
+					? new Date(input.effectiveFrom)
+					: undefined,
 				effectiveUntil:
 					input.effectiveUntil === undefined
 						? undefined
@@ -296,21 +321,31 @@ export const productsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-			
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "update")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"update",
+			);
 			const [priceRow] = await context.tenantDb
 				.select({ id: productPrices.id, productId: productPrices.productId })
 				.from(productPrices)
 				.where(eq(productPrices.id, input.priceId))
 				.limit(1);
 			if (!priceRow) {
-				throw new ORPCError("NOT_FOUND", { message: "Price override not found" });
+				throw new ORPCError("NOT_FOUND", {
+					message: "Price override not found",
+				});
 			}
-			const product = await getProductById(context.tenantDb, priceRow.productId);
+			const product = await getProductById(
+				context.tenantDb,
+				priceRow.productId,
+			);
 			if (!product) {
-				throw new ORPCError("NOT_FOUND", { message: "Price override not found" });
+				throw new ORPCError("NOT_FOUND", {
+					message: "Price override not found",
+				});
 			}
 			await expireProductPrice(
 				context.tenantDb,
@@ -328,21 +363,31 @@ export const productsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			
-			
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "inventory", "delete")
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"delete",
+			);
 			const [priceRow] = await context.tenantDb
 				.select({ id: productPrices.id, productId: productPrices.productId })
 				.from(productPrices)
 				.where(eq(productPrices.id, input.priceId))
 				.limit(1);
 			if (!priceRow) {
-				throw new ORPCError("NOT_FOUND", { message: "Price override not found" });
+				throw new ORPCError("NOT_FOUND", {
+					message: "Price override not found",
+				});
 			}
-			const product = await getProductById(context.tenantDb, priceRow.productId);
+			const product = await getProductById(
+				context.tenantDb,
+				priceRow.productId,
+			);
 			if (!product) {
-				throw new ORPCError("NOT_FOUND", { message: "Price override not found" });
+				throw new ORPCError("NOT_FOUND", {
+					message: "Price override not found",
+				});
 			}
 			await deleteProductPrice(context.tenantDb, input.priceId);
 			return { success: true };

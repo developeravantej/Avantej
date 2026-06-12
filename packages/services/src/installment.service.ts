@@ -6,7 +6,19 @@
  * and admin overview queries.
  */
 
-import { eq, and, isNull, asc, isNotNull, or, ilike, lte, gte, inArray, sql } from "drizzle-orm";
+import {
+	eq,
+	and,
+	isNull,
+	asc,
+	isNotNull,
+	or,
+	ilike,
+	lte,
+	gte,
+	inArray,
+	sql,
+} from "drizzle-orm";
 import { appendPackageInstanceStatusHistory } from "./status-history.helper";
 import { installments } from "@avantej-core/db/schema/tenant/installments";
 import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
@@ -121,9 +133,17 @@ export type SuggestedRefundResult = {
  * - suggestedRefund = min(unusedCreditValue, paidAmount) — capped at what was paid
  * - suggestedRefundTax = proportional share of paidTaxAmount
  */
-export function calculateSuggestedRefund(input: SuggestedRefundInput): SuggestedRefundResult {
-	const { creditsTotal, creditsUnlocked, creditsUsed, totalPrice, paidAmount, paidTaxAmount } =
-		input;
+export function calculateSuggestedRefund(
+	input: SuggestedRefundInput,
+): SuggestedRefundResult {
+	const {
+		creditsTotal,
+		creditsUnlocked,
+		creditsUsed,
+		totalPrice,
+		paidAmount,
+		paidTaxAmount,
+	} = input;
 
 	if (creditsTotal <= 0) {
 		return {
@@ -141,7 +161,9 @@ export function calculateSuggestedRefund(input: SuggestedRefundInput): Suggested
 	const unusedCreditValue = pricePerCredit * unusedCredits;
 	const suggestedRefund = Math.min(unusedCreditValue, paidAmount);
 	const suggestedRefundTax =
-		paidAmount > 0 ? Math.round(paidTaxAmount * (suggestedRefund / paidAmount)) : 0;
+		paidAmount > 0
+			? Math.round(paidTaxAmount * (suggestedRefund / paidAmount))
+			: 0;
 
 	const reasoning =
 		unusedCredits === 0
@@ -195,7 +217,9 @@ function addDays(date: Date, days: number): Date {
 
 /** Returns the start of the given day in UTC (midnight). Used for date-only comparisons. */
 function startOfDayUTC(date: Date): Date {
-	return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+	return new Date(
+		Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+	);
 }
 
 // ---------------------------------------------------------------------------
@@ -237,9 +261,15 @@ export async function createInstallmentSchedule(
 	});
 
 	const installmentsTotal = params.installmentsTotal;
-	const amounts = calculateInstallmentAmounts(params.totalPrice, installmentsTotal);
-	const baseTaxPerInstallment = Math.floor(params.taxAmount / installmentsTotal);
-	const taxRemainder = params.taxAmount - baseTaxPerInstallment * installmentsTotal;
+	const amounts = calculateInstallmentAmounts(
+		params.totalPrice,
+		installmentsTotal,
+	);
+	const baseTaxPerInstallment = Math.floor(
+		params.taxAmount / installmentsTotal,
+	);
+	const taxRemainder =
+		params.taxAmount - baseTaxPerInstallment * installmentsTotal;
 
 	const run = async (tx: TenantTx) => {
 		const rows: (typeof installments.$inferSelect)[] = [];
@@ -252,7 +282,10 @@ export async function createInstallmentSchedule(
 					? baseTaxPerInstallment + taxRemainder
 					: baseTaxPerInstallment;
 			// i=1 → day 0 (due at purchase), i=2 → day intervalDays, etc.
-			const dueDate = addDays(params.purchaseDate, (i - 1) * params.intervalDays);
+			const dueDate = addDays(
+				params.purchaseDate,
+				(i - 1) * params.intervalDays,
+			);
 			const creditsUnlockedByThis =
 				calculateCreditsUnlocked(params.creditsTotal, i, installmentsTotal) -
 				calculateCreditsUnlocked(params.creditsTotal, i - 1, installmentsTotal);
@@ -282,10 +315,14 @@ export async function createInstallmentSchedule(
 			}
 		}
 
-		console.log("[installment] schedule created", { packageInstanceId: params.packageInstanceId, count: rows.length });
+		console.log("[installment] schedule created", {
+			packageInstanceId: params.packageInstanceId,
+			count: rows.length,
+		});
 
 		// Update packageInstance with schedule metadata — atomic with inserts
-		const firstDueDate = rows[0]?.dueDate ?? addDays(params.purchaseDate, params.intervalDays);
+		const firstDueDate =
+			rows[0]?.dueDate ?? addDays(params.purchaseDate, params.intervalDays);
 		await tx
 			.update(packageInstances)
 			.set({
@@ -404,7 +441,10 @@ export async function confirmInstallmentPayment(
 			newInstallmentsPaid + (pkg.installmentsWaived ?? 0),
 			pkg.installmentsTotal,
 		);
-		const newCreditsUnlocked = Math.max(pkg.creditsUnlocked ?? 0, formulaCredits);
+		const newCreditsUnlocked = Math.max(
+			pkg.creditsUnlocked ?? 0,
+			formulaCredits,
+		);
 		// Determine nextDueDate
 		let newNextDueDate: Date | null = null;
 		let newGracePeriodEndsAt: Date | null = null; // clear grace period on payment
@@ -526,7 +566,11 @@ export async function evaluateAndExpireIfOverdue(
 ): Promise<void> {
 	const now = new Date();
 	const [pkg] = await tenantDb
-		.select({ id: packageInstances.id, status: packageInstances.status, expiresAt: packageInstances.expiresAt })
+		.select({
+			id: packageInstances.id,
+			status: packageInstances.status,
+			expiresAt: packageInstances.expiresAt,
+		})
 		.from(packageInstances)
 		.where(eq(packageInstances.id, packageInstanceId));
 
@@ -576,7 +620,10 @@ export async function evaluateAndLockIfOverdue(
 	await evaluateAndExpireIfOverdue(tenantDb, packageInstanceId);
 
 	// Read grace period config before taking the row lock — pure read, no race concern
-	const gracePeriodDays = await getGracePeriodDaysForPackage(tenantDb, packageInstanceId);
+	const gracePeriodDays = await getGracePeriodDaysForPackage(
+		tenantDb,
+		packageInstanceId,
+	);
 
 	return tenantDb.transaction(async (tx) => {
 		// -----------------------------------------------------------------------
@@ -593,19 +640,30 @@ export async function evaluateAndLockIfOverdue(
 
 		// Already locked — nothing to do
 		if (pkg.isLocked) {
-			console.log("[installment] evaluateAndLockIfOverdue: already locked", { packageInstanceId });
+			console.log("[installment] evaluateAndLockIfOverdue: already locked", {
+				packageInstanceId,
+			});
 			return pkg;
 		}
 
 		// Not on installment plan, or fully paid — nothing to do
-		if (pkg.paymentPlanType === null || pkg.installmentsPaid >= pkg.installmentsTotal) {
-			console.log("[installment] evaluateAndLockIfOverdue: skip (no plan or fully paid)", { packageInstanceId });
+		if (
+			pkg.paymentPlanType === null ||
+			pkg.installmentsPaid >= pkg.installmentsTotal
+		) {
+			console.log(
+				"[installment] evaluateAndLockIfOverdue: skip (no plan or fully paid)",
+				{ packageInstanceId },
+			);
 			return pkg;
 		}
 
 		// No due date set — nothing to do
 		if (!pkg.nextDueDate) {
-			console.log("[installment] evaluateAndLockIfOverdue: skip (no nextDueDate)", { packageInstanceId });
+			console.log(
+				"[installment] evaluateAndLockIfOverdue: skip (no nextDueDate)",
+				{ packageInstanceId },
+			);
 			return pkg;
 		}
 
@@ -662,11 +720,14 @@ export async function evaluateAndLockIfOverdue(
 			if (!pkg.gracePeriodEndsAt) {
 				// Start grace period
 				const gracePeriodEndsAt = addDays(pkg.nextDueDate, gracePeriodDays);
-				console.log("[installment] evaluateAndLockIfOverdue: starting grace period", {
-					packageInstanceId,
-					gracePeriodEndsAt: gracePeriodEndsAt.toISOString(),
-					gracePeriodDays,
-				});
+				console.log(
+					"[installment] evaluateAndLockIfOverdue: starting grace period",
+					{
+						packageInstanceId,
+						gracePeriodEndsAt: gracePeriodEndsAt.toISOString(),
+						gracePeriodDays,
+					},
+				);
 				const [updated] = await tx
 					.update(packageInstances)
 					.set({ gracePeriodEndsAt, updatedAt: now })
@@ -681,10 +742,13 @@ export async function evaluateAndLockIfOverdue(
 				});
 			} else if (pkg.gracePeriodEndsAt < now) {
 				// Grace period expired — lock the package
-				console.log("[installment] evaluateAndLockIfOverdue: LOCKING package (grace expired)", {
-					packageInstanceId,
-					gracePeriodEndsAt: pkg.gracePeriodEndsAt.toISOString(),
-				});
+				console.log(
+					"[installment] evaluateAndLockIfOverdue: LOCKING package (grace expired)",
+					{
+						packageInstanceId,
+						gracePeriodEndsAt: pkg.gracePeriodEndsAt.toISOString(),
+					},
+				);
 				const [updated] = await tx
 					.update(packageInstances)
 					.set({
@@ -919,14 +983,25 @@ export async function adjustCredits(
 
 		if (!pkg) throw new Error("Package instance not found");
 
-		const newUnlocked = params.creditsUnlocked ?? (pkg.creditsUnlocked ?? pkg.creditsTotal);
+		const newUnlocked =
+			params.creditsUnlocked ?? pkg.creditsUnlocked ?? pkg.creditsTotal;
 		const newUsed = params.creditsUsed ?? pkg.creditsUsed;
 
 		if (newUnlocked > pkg.creditsTotal) {
-			throw Object.assign(new Error(`creditsUnlocked (${newUnlocked}) cannot exceed creditsTotal (${pkg.creditsTotal})`), { code: "BAD_REQUEST" });
+			throw Object.assign(
+				new Error(
+					`creditsUnlocked (${newUnlocked}) cannot exceed creditsTotal (${pkg.creditsTotal})`,
+				),
+				{ code: "BAD_REQUEST" },
+			);
 		}
 		if (newUsed > newUnlocked) {
-			throw Object.assign(new Error(`creditsUsed (${newUsed}) cannot exceed creditsUnlocked (${newUnlocked})`), { code: "BAD_REQUEST" });
+			throw Object.assign(
+				new Error(
+					`creditsUsed (${newUsed}) cannot exceed creditsUnlocked (${newUnlocked})`,
+				),
+				{ code: "BAD_REQUEST" },
+			);
 		}
 
 		const newRemaining = newUnlocked - newUsed;
@@ -956,7 +1031,10 @@ export async function adjustCredits(
 			metadata: JSON.stringify({
 				creditsUnlocked: newUnlocked,
 				creditsUsed: newUsed,
-				previous: { creditsUnlocked: pkg.creditsUnlocked, creditsUsed: pkg.creditsUsed },
+				previous: {
+					creditsUnlocked: pkg.creditsUnlocked,
+					creditsUsed: pkg.creditsUsed,
+				},
 			}),
 			reason: params.reason,
 		});
@@ -1041,7 +1119,11 @@ export async function processRefund(
 			entityType: "package_instance",
 			entityId: packageInstanceId,
 			summary: `Admin processed refund for package ${packageInstanceId}: ${reason}`,
-			changes: { refundAmount: amount, reason, cancelledInstallmentIds: cancelledRows.map((r) => r.id) },
+			changes: {
+				refundAmount: amount,
+				reason,
+				cancelledInstallmentIds: cancelledRows.map((r) => r.id),
+			},
 		});
 
 		return { cancelledInstallmentIds: cancelledRows.map((r) => r.id) };
@@ -1105,7 +1187,9 @@ export async function rescheduleInstallment(
 		}
 
 		if (pkg.isLocked) {
-			const err = new Error("Cannot reschedule an installment for a locked package");
+			const err = new Error(
+				"Cannot reschedule an installment for a locked package",
+			);
 			(err as any).code = "CONFLICT";
 			throw err;
 		}
@@ -1140,7 +1224,10 @@ export async function rescheduleInstallment(
 			eventType: "installment_rescheduled",
 			actorId,
 			reason,
-			metadata: JSON.stringify({ oldDueDate: oldDueDate.toISOString(), newDueDate: newDueDate.toISOString() }),
+			metadata: JSON.stringify({
+				oldDueDate: oldDueDate.toISOString(),
+				newDueDate: newDueDate.toISOString(),
+			}),
 		});
 
 		// SP-02: Re-evaluate overdue/lock state after the reschedule. This
@@ -1175,7 +1262,8 @@ export async function syncPackagePaymentStatus(
 		.where(eq(packageInstances.id, packageInstanceId));
 
 	if (!pkg) return;
-	if (pkg.paymentStatus === "refunded" || pkg.paymentStatus === "cancelled") return;
+	if (pkg.paymentStatus === "refunded" || pkg.paymentStatus === "cancelled")
+		return;
 
 	const newStatus: string =
 		pkg.installmentsPaid === 0
@@ -1199,7 +1287,10 @@ export async function waiveInstallment(
 	installmentId: string,
 	actorId: string,
 	reason: string,
-): Promise<{ installment: typeof installments.$inferSelect; packageInstance: typeof packageInstances.$inferSelect }> {
+): Promise<{
+	installment: typeof installments.$inferSelect;
+	packageInstance: typeof packageInstances.$inferSelect;
+}> {
 	// Probe packageInstanceId outside tx (non-mutating) so we can acquire the
 	// parent lock first inside the transaction.
 	const [probe] = await tenantDb
@@ -1232,7 +1323,9 @@ export async function waiveInstallment(
 
 		// CAS-style re-check after acquiring locks
 		if (["paid", "waived", "cancelled"].includes(installment.status)) {
-			const err = new Error(`Cannot waive an installment with status: ${installment.status}`);
+			const err = new Error(
+				`Cannot waive an installment with status: ${installment.status}`,
+			);
 			(err as any).code = "CONFLICT";
 			throw err;
 		}
@@ -1251,7 +1344,9 @@ export async function waiveInstallment(
 				),
 			});
 			if (otherUnpaid) {
-				const err = new Error("Cannot waive an installment for a locked package");
+				const err = new Error(
+					"Cannot waive an installment for a locked package",
+				);
 				(err as any).code = "CONFLICT";
 				throw err;
 			}
@@ -1271,7 +1366,11 @@ export async function waiveInstallment(
 		// Only update formula credits if admin hasn't manually overridden
 		const newCreditsUnlocked = pkg.creditsAdminOverride
 			? (pkg.creditsUnlocked ?? 0)
-			: calculateCreditsUnlocked(pkg.creditsTotal, combinedCount, pkg.installmentsTotal);
+			: calculateCreditsUnlocked(
+					pkg.creditsTotal,
+					combinedCount,
+					pkg.installmentsTotal,
+				);
 
 		const [updatedPkg] = await tx
 			.update(packageInstances)
@@ -1298,7 +1397,11 @@ export async function waiveInstallment(
 			entityType: "installment",
 			entityId: installmentId,
 			summary: `Installment ${installmentId} waived (package: ${pkg.id}, #${updatedInstallment.installmentNumber})`,
-			changes: { reason, installmentsWaived: newInstallmentsWaived, creditsUnlocked: newCreditsUnlocked },
+			changes: {
+				reason,
+				installmentsWaived: newInstallmentsWaived,
+				creditsUnlocked: newCreditsUnlocked,
+			},
 		});
 
 		await syncPackagePaymentStatus(tx, pkg.id);
@@ -1334,14 +1437,22 @@ export async function resetCreditsOverride(
 		if (!pkg) throw new Error("Package instance not found");
 
 		const combinedCount = pkg.installmentsPaid + (pkg.installmentsWaived ?? 0);
-		const formulaCredits = calculateCreditsUnlocked(pkg.creditsTotal, combinedCount, pkg.installmentsTotal);
+		const formulaCredits = calculateCreditsUnlocked(
+			pkg.creditsTotal,
+			combinedCount,
+			pkg.installmentsTotal,
+		);
 		// Clamp to creditsUsed so we never unlock fewer credits than already consumed
 		const newCredits = Math.max(formulaCredits, pkg.creditsUsed ?? 0);
 		const wasClamped = newCredits > formulaCredits;
 
 		const [updated] = await tx
 			.update(packageInstances)
-			.set({ creditsUnlocked: newCredits, creditsAdminOverride: false, updatedAt: new Date() })
+			.set({
+				creditsUnlocked: newCredits,
+				creditsAdminOverride: false,
+				updatedAt: new Date(),
+			})
 			.where(eq(packageInstances.id, packageInstanceId))
 			.returning();
 		if (!updated) throw new Error("Failed to update package instance");
@@ -1423,7 +1534,9 @@ export async function setPackageOverdraft(
 			actorUserId: actor.userId,
 			actorMemberId: actor.memberId,
 			actorRole: actor.role,
-			action: enabled ? "package.overdraft_enabled" : "package.overdraft_disabled",
+			action: enabled
+				? "package.overdraft_enabled"
+				: "package.overdraft_disabled",
 			entityType: "package_instance",
 			entityId: packageInstanceId,
 			summary: `Admin ${enabled ? "enabled" : "disabled"} overdraft on package ${packageInstanceId}: ${reason}`,
@@ -1464,12 +1577,13 @@ export type AdminInstallmentOverviewParams = {
 	paymentPlanCode?: string;
 };
 
-export type AdminInstallmentOverviewItem = typeof packageInstances.$inferSelect & {
-	serviceName: string | null;
-	clientName: string | null;
-	nextInstallmentAmount?: number | null;
-	nextInstallmentId?: string | null;
-};
+export type AdminInstallmentOverviewItem =
+	typeof packageInstances.$inferSelect & {
+		serviceName: string | null;
+		clientName: string | null;
+		nextInstallmentAmount?: number | null;
+		nextInstallmentId?: string | null;
+	};
 
 /**
  * Get a paginated overview of installment-based package instances for admin use.
@@ -1479,7 +1593,15 @@ export async function getAdminInstallmentOverview(
 	params: AdminInstallmentOverviewParams = {},
 	controlPanelDb?: ControlPanelDb,
 ): Promise<{ items: AdminInstallmentOverviewItem[]; total: number }> {
-	const { status, limit = 50, offset = 0, search, dueBefore, dueAfter, paymentPlanCode } = params;
+	const {
+		status,
+		limit = 50,
+		offset = 0,
+		search,
+		dueBefore,
+		dueAfter,
+		paymentPlanCode,
+	} = params;
 
 	// Build the filter conditions
 	const conditions = [
@@ -1551,7 +1673,8 @@ export async function getAdminInstallmentOverview(
 	}
 	if (dueBefore) conditions.push(lte(packageInstances.nextDueDate, dueBefore));
 	if (dueAfter) conditions.push(gte(packageInstances.nextDueDate, dueAfter));
-	if (paymentPlanCode) conditions.push(eq(packageInstances.paymentPlanType, paymentPlanCode));
+	if (paymentPlanCode)
+		conditions.push(eq(packageInstances.paymentPlanType, paymentPlanCode));
 
 	const where = and(...conditions);
 
@@ -1576,7 +1699,11 @@ export async function getAdminInstallmentOverview(
 	// Cross-DB: batch-lookup client names from control panel
 	let userMap = new Map<string, string>();
 	if (controlPanelDb && rows.length > 0) {
-		const clientIds = [...new Set(rows.map((r) => r.clientId).filter((id): id is string => id != null))];
+		const clientIds = [
+			...new Set(
+				rows.map((r) => r.clientId).filter((id): id is string => id != null),
+			),
+		];
 		if (clientIds.length > 0) {
 			const userRows = await controlPanelDb
 				.select({ id: user.id, name: user.name })
@@ -1612,7 +1739,10 @@ export async function getAdminInstallmentOverview(
 		// Take the first row per package (lowest installment_number due to ASC order)
 		for (const row of nextInstallmentRows) {
 			if (!nextInstallmentMap.has(row.packageInstanceId)) {
-				nextInstallmentMap.set(row.packageInstanceId, { id: row.id, amount: row.amount });
+				nextInstallmentMap.set(row.packageInstanceId, {
+					id: row.id,
+					amount: row.amount,
+				});
 			}
 		}
 	}
@@ -1659,7 +1789,10 @@ export async function getSuggestedRefund(
 	});
 
 	const paidAmount = paidInstallments.reduce((sum, i) => sum + i.amount, 0);
-	const paidTaxAmount = paidInstallments.reduce((sum, i) => sum + (i.taxAmount ?? 0), 0);
+	const paidTaxAmount = paidInstallments.reduce(
+		(sum, i) => sum + (i.taxAmount ?? 0),
+		0,
+	);
 
 	const input: SuggestedRefundInput = {
 		creditsTotal: pkg.creditsTotal,

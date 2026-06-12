@@ -12,13 +12,17 @@ async function login(page: import("@playwright/test").Page) {
 // ─── Fix 1: Appointment — defaultTrainerId passed to calendar ────────────────
 
 test.describe("Appointment page", () => {
-	test.beforeEach(async ({ page }) => { await login(page); });
+	test.beforeEach(async ({ page }) => {
+		await login(page);
+	});
 
 	test("loads with trainer sidebar (admin view)", async ({ page }) => {
 		await page.goto("/dashboard/appointment/view");
 
 		// Page title should be "Appointments" (admin view)
-		await expect(page.getByRole("heading", { name: "Appointments" })).toBeVisible({ timeout: 15_000 });
+		await expect(
+			page.getByRole("heading", { name: "Appointments" }),
+		).toBeVisible({ timeout: 15_000 });
 
 		// Trainer sidebar should be visible (for admin/staff users)
 		const sidebar = page.getByText("All Trainers");
@@ -27,14 +31,18 @@ test.describe("Appointment page", () => {
 
 	test("add appointment modal opens", async ({ page }) => {
 		await page.goto("/dashboard/appointment/view");
-		await expect(page.getByRole("heading", { name: "Appointments" })).toBeVisible({ timeout: 15_000 });
+		await expect(
+			page.getByRole("heading", { name: "Appointments" }),
+		).toBeVisible({ timeout: 15_000 });
 
 		// Click "Add Appointment" button
 		const addBtn = page.getByRole("button", { name: /add appointment/i });
 		if (await addBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
 			await addBtn.click();
 			// Modal should appear with appointment form
-			await expect(page.getByText(/new appointment|schedule appointment/i).first()).toBeVisible({ timeout: 5_000 });
+			await expect(
+				page.getByText(/new appointment|schedule appointment/i).first(),
+			).toBeVisible({ timeout: 5_000 });
 		}
 	});
 });
@@ -42,16 +50,22 @@ test.describe("Appointment page", () => {
 // ─── Fix 2 & 3: Service Category — detail + config, edit real data ──────────
 
 test.describe("Service Category page", () => {
-	test.beforeEach(async ({ page }) => { await login(page); });
+	test.beforeEach(async ({ page }) => {
+		await login(page);
+	});
 
 	test("loads service categories page", async ({ page }) => {
 		await page.goto("/dashboard/service-category/view");
-		await expect(page.getByRole("button", { name: /add service category/i })).toBeVisible({ timeout: 15_000 });
+		await expect(
+			page.getByRole("button", { name: /add service category/i }),
+		).toBeVisible({ timeout: 15_000 });
 	});
 
 	test("detail dialog shows config section", async ({ page }) => {
 		await page.goto("/dashboard/service-category/view");
-		await expect(page.getByRole("button", { name: /add service category/i })).toBeVisible({ timeout: 15_000 });
+		await expect(
+			page.getByRole("button", { name: /add service category/i }),
+		).toBeVisible({ timeout: 15_000 });
 
 		const firstRow = page.locator("tbody tr").first();
 		if (!(await firstRow.isVisible({ timeout: 5_000 }).catch(() => false))) {
@@ -60,7 +74,9 @@ test.describe("Service Category page", () => {
 		}
 
 		await firstRow.click();
-		await expect(page.getByText("Service Category Details")).toBeVisible({ timeout: 5_000 });
+		await expect(page.getByText("Service Category Details")).toBeVisible({
+			timeout: 5_000,
+		});
 
 		// Basic fields
 		await expect(page.getByText("Name").first()).toBeVisible();
@@ -68,7 +84,9 @@ test.describe("Service Category page", () => {
 
 		// Config section (added by our fix)
 		const configSection = page.getByText("Category Configuration");
-		const hasConfig = await configSection.isVisible({ timeout: 3_000 }).catch(() => false);
+		const hasConfig = await configSection
+			.isVisible({ timeout: 3_000 })
+			.catch(() => false);
 		if (hasConfig) {
 			await expect(page.getByText("Default Duration").first()).toBeVisible();
 			await expect(page.getByText("Incentive Type").first()).toBeVisible();
@@ -79,7 +97,9 @@ test.describe("Service Category page", () => {
 
 	test("edit loads real data (not empty/hardcoded)", async ({ page }) => {
 		await page.goto("/dashboard/service-category/view");
-		await expect(page.getByRole("button", { name: /add service category/i })).toBeVisible({ timeout: 15_000 });
+		await expect(
+			page.getByRole("button", { name: /add service category/i }),
+		).toBeVisible({ timeout: 15_000 });
 
 		const firstRow = page.locator("tbody tr").first();
 		if (!(await firstRow.isVisible({ timeout: 5_000 }).catch(() => false))) {
@@ -90,7 +110,9 @@ test.describe("Service Category page", () => {
 		const categoryName = await firstRow.locator("td").first().textContent();
 
 		await firstRow.click();
-		await expect(page.getByText("Service Category Details")).toBeVisible({ timeout: 5_000 });
+		await expect(page.getByText("Service Category Details")).toBeVisible({
+			timeout: 5_000,
+		});
 
 		const editBtn = page.getByRole("button", { name: /edit/i });
 		if (!(await editBtn.isVisible({ timeout: 3_000 }).catch(() => false))) {
@@ -115,16 +137,22 @@ test.describe("Service Category page", () => {
 // ─── Fix 4 & 5: Service — detail + extra fields, edit real data ─────────────
 
 test.describe("Service page", () => {
-	test.beforeEach(async ({ page }) => { await login(page); });
+	test.beforeEach(async ({ page }) => {
+		await login(page);
+	});
 
 	test("loads services page", async ({ page }) => {
 		await page.goto("/dashboard/service/view");
-		await expect(page.getByRole("button", { name: /add service/i })).toBeVisible({ timeout: 15_000 });
+		await expect(
+			page.getByRole("button", { name: /add service/i }),
+		).toBeVisible({ timeout: 15_000 });
 	});
 
 	test("detail dialog shows extended fields", async ({ page }) => {
 		await page.goto("/dashboard/service/view");
-		await expect(page.getByRole("button", { name: /add service/i })).toBeVisible({ timeout: 15_000 });
+		await expect(
+			page.getByRole("button", { name: /add service/i }),
+		).toBeVisible({ timeout: 15_000 });
 
 		const firstRow = page.locator("tbody tr").first();
 		if (!(await firstRow.isVisible({ timeout: 5_000 }).catch(() => false))) {
@@ -133,7 +161,9 @@ test.describe("Service page", () => {
 		}
 
 		await firstRow.click();
-		await expect(page.getByText("Service Details")).toBeVisible({ timeout: 5_000 });
+		await expect(page.getByText("Service Details")).toBeVisible({
+			timeout: 5_000,
+		});
 
 		// Basic fields
 		await expect(page.getByText("Name").first()).toBeVisible();
@@ -150,7 +180,9 @@ test.describe("Service page", () => {
 
 	test("edit loads real data (not empty/hardcoded)", async ({ page }) => {
 		await page.goto("/dashboard/service/view");
-		await expect(page.getByRole("button", { name: /add service/i })).toBeVisible({ timeout: 15_000 });
+		await expect(
+			page.getByRole("button", { name: /add service/i }),
+		).toBeVisible({ timeout: 15_000 });
 
 		const firstRow = page.locator("tbody tr").first();
 		if (!(await firstRow.isVisible({ timeout: 5_000 }).catch(() => false))) {
@@ -161,7 +193,9 @@ test.describe("Service page", () => {
 		const serviceName = await firstRow.locator("td").first().textContent();
 
 		await firstRow.click();
-		await expect(page.getByText("Service Details")).toBeVisible({ timeout: 5_000 });
+		await expect(page.getByText("Service Details")).toBeVisible({
+			timeout: 5_000,
+		});
 
 		const editBtn = page.getByRole("button", { name: /edit/i });
 		if (!(await editBtn.isVisible({ timeout: 3_000 }).catch(() => false))) {
@@ -172,11 +206,18 @@ test.describe("Service page", () => {
 		await editBtn.click();
 
 		// Wait for edit form to appear — look for the first text input
-		const nameInput = page.locator('input[id="name"], input[name="name"]').first();
+		const nameInput = page
+			.locator('input[id="name"], input[name="name"]')
+			.first();
 		const anyInput = page.locator('input[type="text"]').first();
 		const target = nameInput.or(anyInput);
 
-		if (await target.first().isVisible({ timeout: 5_000 }).catch(() => false)) {
+		if (
+			await target
+				.first()
+				.isVisible({ timeout: 5_000 })
+				.catch(() => false)
+		) {
 			if (serviceName && serviceName !== "N/A") {
 				const inputValue = await target.first().inputValue();
 				expect(inputValue.length).toBeGreaterThan(0);

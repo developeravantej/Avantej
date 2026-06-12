@@ -23,7 +23,8 @@ async function safeCall<I, O>(
 	try {
 		return await orpcCall<I, O>(page, router, procedure, input);
 	} catch (err) {
-		if (err instanceof OrpcClientError) return { __error: `${err.code}: ${err.message}` };
+		if (err instanceof OrpcClientError)
+			return { __error: `${err.code}: ${err.message}` };
 		return { __error: String((err as Error).message ?? err) };
 	}
 }
@@ -88,14 +89,22 @@ test("audit-prove-a — commission + installment golden paths & finding journeys
 			{ organizationId: ORG },
 		);
 		if ("__error" in (my as object)) {
-			expect.soft(my, "F-COM-A getMyCommissions errored — likely procedure name drift").toEqual(
-				expect.any(Array),
-			);
+			expect
+				.soft(
+					my,
+					"F-COM-A getMyCommissions errored — likely procedure name drift",
+				)
+				.toEqual(expect.any(Array));
 			return;
 		}
-		const len = Array.isArray(my) ? my.length : (my as { items?: unknown[] }).items?.length ?? 0;
+		const len = Array.isArray(my)
+			? my.length
+			: ((my as { items?: unknown[] }).items?.length ?? 0);
 		expect
-			.soft(len, "F-COM-A: my commissions returned empty — likely member.id vs userId bug")
+			.soft(
+				len,
+				"F-COM-A: my commissions returned empty — likely member.id vs userId bug",
+			)
 			.toBeGreaterThan(0);
 	});
 
@@ -105,14 +114,25 @@ test("audit-prove-a — commission + installment golden paths & finding journeys
 		const ledger = await safeCall<
 			{ organizationId: string; limit?: number },
 			{ items?: Array<{ splitType?: string; configVersionId?: string | null }> }
-		>(page, "commissionSplits", "listLedger", { organizationId: ORG, limit: 50 });
+		>(page, "commissionSplits", "listLedger", {
+			organizationId: ORG,
+			limit: 50,
+		});
 		if ("__error" in (ledger as object)) {
 			expect
 				.soft(ledger, "F-COM-B listLedger errored — verify procedure exists")
 				.toEqual(expect.any(Object));
 			return;
 		}
-		const items = (ledger as { items?: Array<{ splitType?: string; configVersionId?: string | null }> }).items ?? [];
+		const items =
+			(
+				ledger as {
+					items?: Array<{
+						splitType?: string;
+						configVersionId?: string | null;
+					}>;
+				}
+			).items ?? [];
 		const automaticRows = items.filter((r) => r.splitType === "automatic");
 		const withConfig = automaticRows.filter((r) => r.configVersionId != null);
 		if (automaticRows.length === 0) return; // no data — neutral
@@ -134,8 +154,17 @@ test("audit-prove-a — commission + installment golden paths & finding journeys
 		// proportional refunds when refund < salesOrder.total.
 		const reversals = await safeCall<
 			{ organizationId: string; limit?: number },
-			{ items?: Array<{ amountCents: number; reversedSplitId: string; refundId: string }> }
-		>(page, "commissionSplits", "listReversals", { organizationId: ORG, limit: 20 });
+			{
+				items?: Array<{
+					amountCents: number;
+					reversedSplitId: string;
+					refundId: string;
+				}>;
+			}
+		>(page, "commissionSplits", "listReversals", {
+			organizationId: ORG,
+			limit: 20,
+		});
 		if ("__error" in (reversals as object)) {
 			// Procedure may not exist — log as informational, not a hard fail.
 			return;
@@ -193,16 +222,25 @@ test("audit-prove-a — commission + installment golden paths & finding journeys
 		// Read the disbursed KPI element + cross-check with API summary
 		const summary = await safeCall<
 			{ organizationId: string },
-			{ disbursedThisMonthCents?: number; rows?: Array<{ amount: number; status: string }> }
+			{
+				disbursedThisMonthCents?: number;
+				rows?: Array<{ amount: number; status: string }>;
+			}
 		>(page, "payouts", "summary", { organizationId: ORG });
 		if ("__error" in (summary as object)) return;
-		const sigSum = (summary as { rows?: Array<{ amount: number; status: string }> }).rows
+		const sigSum = (
+			summary as { rows?: Array<{ amount: number; status: string }> }
+		).rows
 			?.filter((r) => r.status === "paid")
 			.reduce((s, r) => s + r.amount, 0);
-		const reported = (summary as { disbursedThisMonthCents?: number }).disbursedThisMonthCents;
+		const reported = (summary as { disbursedThisMonthCents?: number })
+			.disbursedThisMonthCents;
 		if (typeof reported === "number" && typeof sigSum === "number") {
 			expect
-				.soft(reported, "F-PAY-4: disbursed KPI must use signed sum (reversals are negative)")
+				.soft(
+					reported,
+					"F-PAY-4: disbursed KPI must use signed sum (reversals are negative)",
+				)
 				.toBe(sigSum);
 		}
 	});
@@ -212,12 +250,10 @@ test("audit-prove-a — commission + installment golden paths & finding journeys
 		// the API surface to confirm the dual-write path exists. The bug is in the
 		// router/handler choosing only one of the two. Snapshot summary counts and
 		// compare with split-count diffs in subsequent runs.
-		const before = await safeCall<{ organizationId: string }, { totalPayouts?: number }>(
-			page,
-			"payouts",
-			"summary",
-			{ organizationId: ORG },
-		);
+		const before = await safeCall<
+			{ organizationId: string },
+			{ totalPayouts?: number }
+		>(page, "payouts", "summary", { organizationId: ORG });
 		expect.soft(before).toBeDefined();
 	});
 
@@ -247,7 +283,9 @@ test("audit-prove-a — commission + installment golden paths & finding journeys
 			{ items?: Array<{ method: string; status: string }> }
 		>(page, "payouts", "listBatches", { organizationId: ORG, limit: 20 });
 		if ("__error" in (batches as object)) return;
-		const items = (batches as { items?: Array<{ method: string; status: string }> }).items ?? [];
+		const items =
+			(batches as { items?: Array<{ method: string; status: string }> })
+				.items ?? [];
 		const bankRows = items.filter((b) => b.method === "bank_transfer");
 		if (bankRows.length === 0) return;
 		const allPaid = bankRows.every((b) => b.status === "paid");
@@ -267,12 +305,24 @@ test("audit-prove-a — commission + installment golden paths & finding journeys
 		// Read any installment plan and verify rounding sits on LAST row, not FIRST.
 		const plans = await safeCall<
 			{ organizationId: string; limit?: number },
-			{ items?: Array<{ id: string; totalCents: number; rows: Array<{ amount: number }> }> }
+			{
+				items?: Array<{
+					id: string;
+					totalCents: number;
+					rows: Array<{ amount: number }>;
+				}>;
+			}
 		>(page, "installmentPlans", "list", { organizationId: ORG, limit: 5 });
 		if ("__error" in (plans as object)) return;
 		const items =
-			(plans as { items?: Array<{ totalCents: number; rows: Array<{ amount: number }> }> })
-				.items ?? [];
+			(
+				plans as {
+					items?: Array<{
+						totalCents: number;
+						rows: Array<{ amount: number }>;
+					}>;
+				}
+			).items ?? [];
 		for (const p of items) {
 			if (!p.rows || p.rows.length < 2) continue;
 			const sum = p.rows.reduce((s, r) => s + r.amount, 0);
@@ -298,7 +348,11 @@ test("audit-prove-a — commission + installment golden paths & finding journeys
 		const logs = await safeCall<
 			{ organizationId: string; action?: string; limit?: number },
 			{ items?: unknown[] }
-		>(page, "auditLog", "list", { organizationId: ORG, action: "installment.paid", limit: 5 });
+		>(page, "auditLog", "list", {
+			organizationId: ORG,
+			action: "installment.paid",
+			limit: 5,
+		});
 		if ("__error" in (logs as object)) return;
 		const items = (logs as { items?: unknown[] }).items ?? [];
 		expect

@@ -13,15 +13,20 @@ import { pgTable, uuid, uniqueIndex } from "drizzle-orm/pg-core";
 import { announcements } from "./announcements";
 import { hierarchyNodes } from "./hierarchy";
 
-export const announcementScopes = pgTable("announcement_scopes", {
-	id: uuid("id").primaryKey().defaultRandom(),
-	announcementId: uuid("announcement_id")
-		.notNull()
-		.references(() => announcements.id, { onDelete: "cascade" }),
-	branchId: uuid("branch_id")
-		.notNull()
-		.references(() => hierarchyNodes.id, { onDelete: "cascade" }),
-}, (table) => ({
-	announcementBranchUniqueIdx: uniqueIndex("announcement_scopes_unique_idx")
-		.on(table.announcementId, table.branchId),
-}));
+export const announcementScopes = pgTable(
+	"announcement_scopes",
+	{
+		id: uuid("id").primaryKey().defaultRandom(),
+		announcementId: uuid("announcement_id")
+			.notNull()
+			.references(() => announcements.id, { onDelete: "cascade" }),
+		branchId: uuid("branch_id")
+			.notNull()
+			.references(() => hierarchyNodes.id, { onDelete: "cascade" }),
+	},
+	(table) => ({
+		announcementBranchUniqueIdx: uniqueIndex(
+			"announcement_scopes_unique_idx",
+		).on(table.announcementId, table.branchId),
+	}),
+);

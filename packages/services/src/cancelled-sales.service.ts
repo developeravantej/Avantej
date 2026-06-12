@@ -140,7 +140,11 @@ export async function listCancelledSales(
 	// Walk-in customers have NULL customerId — their count is always 0 (no tracking across walk-ins).
 	const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 	const customerIds = [
-		...new Set(orderRows.map((r) => r.customerId).filter((id): id is string => id !== null)),
+		...new Set(
+			orderRows
+				.map((r) => r.customerId)
+				.filter((id): id is string => id !== null),
+		),
 	];
 
 	const repeatCounts = new Map<string, number>();
@@ -181,7 +185,8 @@ export async function listCancelledSales(
 		customerType: row.customerType,
 		createdAt: row.createdAt,
 		lineItems: itemsByOrder.get(row.id) ?? [],
-		repeatOffenderCount: row.customerId !== null ? (repeatCounts.get(row.customerId) ?? 0) : 0,
+		repeatOffenderCount:
+			row.customerId !== null ? (repeatCounts.get(row.customerId) ?? 0) : 0,
 	}));
 
 	return { rows, total };

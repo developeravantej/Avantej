@@ -12,33 +12,31 @@
 
 import { test, expect } from "@playwright/test";
 
-test(
-	"Cancelled Sales tab on Sales & Payments page renders the cancellation list",
-	{ tag: ["@p1"] },
-	async ({ page }) => {
-		// Navigate directly to the sales page with the cancelled tab active.
-		// The old /dashboard/cancelled-sales/view route redirects here automatically.
-		await page.goto("/dashboard/sales/view");
+test("Cancelled Sales tab on Sales & Payments page renders the cancellation list", {
+	tag: ["@p1"],
+}, async ({ page }) => {
+	// Navigate directly to the sales page with the cancelled tab active.
+	// The old /dashboard/cancelled-sales/view route redirects here automatically.
+	await page.goto("/dashboard/sales/view");
 
-		// The "Cancelled" pill tab must be present.
-		const cancelledTab = page.getByTestId("sales-tab-cancelled");
-		await expect(cancelledTab).toBeVisible();
+	// The "Cancelled" pill tab must be present.
+	const cancelledTab = page.getByTestId("sales-tab-cancelled");
+	await expect(cancelledTab).toBeVisible();
 
-		// Click it.
-		await cancelledTab.click();
+	// Click it.
+	await cancelledTab.click();
 
-		// URL must include the cancelled tab search param.
-		await expect(page).toHaveURL(/tab=cancelled/, { timeout: 10_000 });
+	// URL must include the cancelled tab search param.
+	await expect(page).toHaveURL(/tab=cancelled/, { timeout: 10_000 });
 
-		// The cancelled sales table OR empty-state placeholder must render.
-		const tableOrEmpty = page
-			.getByTestId("cancelled-sales-table")
-			.or(page.getByText(/no cancelled sales/i));
-		await expect(tableOrEmpty.first()).toBeVisible({ timeout: 10_000 });
+	// The cancelled sales table OR empty-state placeholder must render.
+	const tableOrEmpty = page
+		.getByTestId("cancelled-sales-table")
+		.or(page.getByText(/no cancelled sales/i));
+	await expect(tableOrEmpty.first()).toBeVisible({ timeout: 10_000 });
 
-		// Must NOT show a "coming soon" stub in main content.
-		await expect(
-			page.locator("main").getByText(/coming soon/i),
-		).not.toBeVisible();
-	},
-);
+	// Must NOT show a "coming soon" stub in main content.
+	await expect(
+		page.locator("main").getByText(/coming soon/i),
+	).not.toBeVisible();
+});

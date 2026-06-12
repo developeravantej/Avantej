@@ -21,7 +21,11 @@ import { ORPCError } from "@orpc/server";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import {requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } from "../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 export const checkInsRouter = {
@@ -57,24 +61,30 @@ export const checkInsRouter = {
 				}),
 		)
 		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "attendance_management", "create");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"attendance_management",
+				"create",
+			);
 
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 
 			if (input.appointmentClientId) {
-				const apptClient = await context.tenantDb.query.appointmentClients.findFirst({
-					where: eq(appointmentClients.id, input.appointmentClientId),
-				});
+				const apptClient =
+					await context.tenantDb.query.appointmentClients.findFirst({
+						where: eq(appointmentClients.id, input.appointmentClientId),
+					});
 				if (!apptClient) {
-					throw new ORPCError("BAD_REQUEST", { message: "appointmentClientId not found" });
+					throw new ORPCError("BAD_REQUEST", {
+						message: "appointmentClientId not found",
+					});
 				}
 				if (input.clientId && apptClient.clientId !== input.clientId) {
 					throw new ORPCError("BAD_REQUEST", {
-						message: "appointmentClientId does not belong to the specified client",
+						message:
+							"appointmentClientId does not belong to the specified client",
 					});
 				}
 			}
@@ -125,11 +135,13 @@ export const checkInsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "attendance_management", "read");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"attendance_management",
+				"read",
+			);
 
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 
@@ -154,11 +166,17 @@ export const checkInsRouter = {
 				// Service calls new Date() which parses both.
 				from: z
 					.string()
-					.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected ISO datetime")
+					.regex(
+						/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/,
+						"Expected ISO datetime",
+					)
 					.optional(),
 				to: z
 					.string()
-					.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected ISO datetime")
+					.regex(
+						/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/,
+						"Expected ISO datetime",
+					)
 					.optional(),
 				clientId: z.string().optional(),
 				clientType: z.enum(["member", "walk_in"]).optional(),
@@ -168,14 +186,16 @@ export const checkInsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
-		if (input.branchId) {
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
-		}
-			await requirePermissionOrpc(context.tenantDb, context.member, "attendance_management", "read");
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"attendance_management",
+				"read",
+			);
 
 			const accessibleNodeIds = context.accessibleNodeIds ?? [];
 			const controlPanelDb = getControlPanelDb(context);
@@ -206,10 +226,13 @@ export const checkInsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			
-			
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "attendance_management", "create");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"attendance_management",
+				"create",
+			);
 			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			return recordBulkCheckIn(context.tenantDb, {
 				bookingIds: input.bookingIds,
@@ -234,10 +257,13 @@ export const checkInsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			
-			
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "attendance_management", "read");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"attendance_management",
+				"read",
+			);
 
 			const rows = await context.tenantDb
 				.select({
@@ -274,11 +300,13 @@ export const checkInsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			
-			
-
-		assertOrgContextMatch(context, input);
-			await requirePermissionOrpc(context.tenantDb, context.member, "attendance_management", "delete");
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"attendance_management",
+				"delete",
+			);
 
 			try {
 				await deleteCheckIn(context.tenantDb, input.id, {
