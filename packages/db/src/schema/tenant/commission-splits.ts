@@ -33,8 +33,10 @@ import { categoryCommissionConfigVersions } from "./category-commission-config-v
 import { commissionTracks } from "./commission-tracks";
 import { commissionTrackVersions } from "./commission-track-versions";
 
-// Local type alias — canonical definition in @avantej-core/types
-type CommissionRoleType = "trainer" | "sales" | "marketing" | "referrer";
+// Local type alias — canonical definition in @avantej-core/types.
+// Exported so service-layer filters can cast user-supplied roleType strings
+// when comparing against the typed column.
+export type CommissionRoleType = "trainer" | "sales" | "marketing" | "referrer";
 
 export const commissionSplits = pgTable(
 	"commission_splits",

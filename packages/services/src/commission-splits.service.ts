@@ -29,7 +29,10 @@ import {
 	or,
 	sql,
 } from "drizzle-orm";
-import { commissionSplits } from "@avantej-core/db/schema/tenant/commission-splits";
+import {
+	commissionSplits,
+	type CommissionRoleType,
+} from "@avantej-core/db/schema/tenant/commission-splits";
 import { commissionSplitReversals } from "@avantej-core/db/schema/tenant/commission-split-reversals";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
@@ -1155,7 +1158,7 @@ export interface LiabilitySummaryParams {
 	/** SQL-side filter: only include splits for this track. */
 	trackId?: string;
 	/** SQL-side filter: only include splits with this roleType (NULL treated as "delivery_legacy"). */
-	roleType?: string;
+	roleType?: string | null;
 }
 
 /**
@@ -1196,6 +1199,7 @@ export async function liabilitySummary(
 					paidCents: 0,
 					manualAdjustmentCents: 0,
 					netPayableCents: 0,
+					byRoleType: {},
 				},
 			};
 		}
@@ -1213,6 +1217,7 @@ export async function liabilitySummary(
 					paidCents: 0,
 					manualAdjustmentCents: 0,
 					netPayableCents: 0,
+					byRoleType: {},
 				},
 			};
 		}
@@ -1240,7 +1245,9 @@ export async function liabilitySummary(
 		if (roleType === null || roleType === "delivery_legacy") {
 			baseConditions.push(sql`${commissionSplits.roleType} IS NULL`);
 		} else {
-			baseConditions.push(eq(commissionSplits.roleType, roleType));
+			baseConditions.push(
+				eq(commissionSplits.roleType, roleType as CommissionRoleType),
+			);
 		}
 	}
 
@@ -1513,8 +1520,15 @@ export interface MarkPaidBatchParams {
 	/**
 	 * F-PAY-3: Payment method stored on the created payouts row.
 	 * Defaults to "bank_transfer" when omitted.
+	 * "stripe_connect" = settled via a Stripe Connect transfer (router offers
+	 * it; payouts.payout_method is plain text so all values store fine).
 	 */
-	paymentMethod?: "bank_transfer" | "cash" | "check" | "other";
+	paymentMethod?:
+		| "bank_transfer"
+		| "cash"
+		| "check"
+		| "other"
+		| "stripe_connect";
 	/**
 	 * Optional branch anchor for the payout_batches row. NULL = cross-branch batch.
 	 * Passed through to getOrCreatePayoutBatch for idempotent batch resolution.
@@ -1873,7 +1887,9 @@ export async function liabilityByStaff(
 		if (filterRoleType === null || filterRoleType === "delivery_legacy") {
 			conditions.push(sql`${commissionSplits.roleType} IS NULL`);
 		} else {
-			conditions.push(eq(commissionSplits.roleType, filterRoleType));
+			conditions.push(
+				eq(commissionSplits.roleType, filterRoleType as CommissionRoleType),
+			);
 		}
 	}
 
@@ -2138,7 +2154,9 @@ export async function listCommissionLedger(
 		if (filterRoleType === null || filterRoleType === "delivery_legacy") {
 			baseConditions.push(sql`${commissionSplits.roleType} IS NULL`);
 		} else {
-			baseConditions.push(eq(commissionSplits.roleType, filterRoleType));
+			baseConditions.push(
+				eq(commissionSplits.roleType, filterRoleType as CommissionRoleType),
+			);
 		}
 	}
 
@@ -2576,7 +2594,9 @@ export async function reverseForRefund(
 	async function fetchSplitsForOrderPaginated(orderId: string): Promise<void> {
 		let lastId: string | null = null;
 		while (true) {
-			const batch = await tdb
+			// Explicit annotation: without it tsc hits TS7022 — `batch` feeds
+			// addSplits, whose inferred type circles back into this initializer.
+			const batch: (typeof commissionSplits.$inferSelect)[] = await tdb
 				.select()
 				.from(commissionSplits)
 				.where(
@@ -2886,7 +2906,7 @@ export async function listPendingReview(
 		? eq(commissionSplits.trackId, params.trackId)
 		: sql`true`;
 	const roleCondition = params.roleType
-		? eq(commissionSplits.roleType, params.roleType)
+		? eq(commissionSplits.roleType, params.roleType as CommissionRoleType)
 		: sql`true`;
 
 	// COUNT query for badge
