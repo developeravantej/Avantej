@@ -627,27 +627,40 @@ export async function ensureFirstProduct(
 
 // ─── POS sale helper ──────────────────────────────────────────────────────────
 
+export interface PosSaleParams {
+	customerId: string;
+	customerName: string;
+	branchId: string;
+	items: Array<{
+		type: "service" | "package" | "product" | "custom";
+		refId?: string;
+		description: string;
+		quantity: number;
+		unitPriceCents: number;
+	}>;
+	paymentMethod?: "cash" | "card" | "bank_transfer";
+	installmentPlanCode?: string;
+}
+
+export interface PosSaleResult {
+	salesOrderId: string;
+	paymentId?: string;
+	invoiceId?: string;
+	/** Package instances created by this sale (present for type:"package" items). */
+	packageInstanceIds?: string[];
+	/** Installment rows created when installmentPlanCode was applied. */
+	installmentIds?: string[];
+}
+
 /**
- * Record a POS sale via oRPC and return the sales order ID.
+ * Record a POS sale via oRPC and return the full sale result, including
+ * packageInstanceIds / installmentIds so specs can read back deterministically
+ * (instead of fishing through paginated overviews).
  */
-export async function recordPosSale(
+export async function recordPosSaleFull(
 	page: Page,
-	params: {
-		customerId: string;
-		customerName: string;
-		branchId: string;
-		items: Array<{
-			type: "service" | "package" | "product" | "custom";
-			refId?: string;
-			description: string;
-			quantity: number;
-			unitPriceCents: number;
-		}>;
-		paymentMethod?: "cash" | "card" | "bank_transfer";
-		installmentPlanCode?: string;
-	},
-): Promise<string> {
-	type SaleResult = { salesOrderId: string; id?: string };
+	params: PosSaleParams,
+): Promise<PosSaleResult> {
 	// Cash sales require amountTenderedCents >= total. Compute a generous tender
 	// covering items + worst-case tax (assume rate is small in test data); the
 	// backend re-derives the true total, so over-tendering is safe.
@@ -656,7 +669,7 @@ export async function recordPosSale(
 		0,
 	);
 	const amountTenderedCents = Math.ceil(grossCents * 1.2); // 20% buffer for tax
-	const result = await orpcCall<object, SaleResult>(page, "pos", "recordSale", {
+	return orpcCall<object, PosSaleResult>(page, "pos", "recordSale", {
 		organizationId: TEST_ORG_ID,
 		customerType: "member",
 		customerId: params.customerId,
@@ -667,7 +680,17 @@ export async function recordPosSale(
 		amountTenderedCents,
 		installmentPlanCode: params.installmentPlanCode,
 	});
-	return result.salesOrderId ?? result.id ?? "";
+}
+
+/**
+ * Record a POS sale via oRPC and return the sales order ID.
+ */
+export async function recordPosSale(
+	page: Page,
+	params: PosSaleParams,
+): Promise<string> {
+	const result = await recordPosSaleFull(page, params);
+	return result.salesOrderId ?? "";
 }
 
 // ─── Tax rate helper (POS precondition) ──────────────────────────────────────
