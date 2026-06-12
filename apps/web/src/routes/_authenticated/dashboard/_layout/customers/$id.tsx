@@ -192,6 +192,8 @@ function Customer360Page() {
 		member,
 		user,
 		profile,
+		primaryStaffMember,
+		referrerMember,
 		packageInstances,
 		recentPayments,
 		appointmentCount,
@@ -285,6 +287,8 @@ function Customer360Page() {
 				organizationId={organizationId}
 				targetUserId={member.userId}
 				profile={profile ?? null}
+				primaryStaffMember={primaryStaffMember ?? null}
+				referrerMember={referrerMember ?? null}
 				canEdit={canFreeze}
 			/>
 			{/* === /3.2 === */}

@@ -6,9 +6,9 @@ import {
 	listTrainerAvailabilityByBranch,
 } from "@avantej-core/services";
 import { z } from "zod";
-import { tenantProcedure } from "../index";
-import { assertOrgContextMatch, guardBranchAccessible } from "../guards";
-import { getControlPanelDb } from "../lib/context-helpers";
+import { tenantProcedure } from "../../index";
+import { assertOrgContextMatch, guardBranchAccessible } from "../../guards";
+import { getControlPanelDb } from "../../lib/context-helpers";
 
 export const queryProcedures = {
 	/**

@@ -17,6 +17,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { PlatformAdminPaymentsPage } from "@/components/pages/platform-admin-payments/PlatformAdminPaymentsPage";
 import { client } from "@/utils/orpc";
+import { MoneyHubTabs } from "@/components/platform-admin/money-hub-tabs";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/platform-admin/payments",

@@ -3835,29 +3835,30 @@ CREATE CONSTRAINT TRIGGER commission_coach_slots_weightage_check
 		sql: `-- Phase H1: rename hierarchy 'region' → 'state', shift branch depth 4 → 3.
 -- Prerequisite: zero rows with type='area' (run flatten-areas.ts first per tenant).
 -- Idempotent: WHERE clauses make repeat runs no-op.
-
--- All of this runs only while hierarchy_nodes.type is still TEXT. After 0057
--- converts the column to the hierarchy_node_type enum (which has no 'area' or
--- 'region' member), comparing the enum to those literals throws
--- \`invalid input value for enum\`. Guarding on the column type makes a re-run on a
--- drifted/already-migrated tenant a safe no-op (the rename + depth shift are done).
+--
+-- IMPORTANT: compare via type::text, NOT \`type = 'area'\`/\`type = 'region'\`.
+-- 'area' and 'region' are legacy enum labels that later migrations remove from
+-- the hierarchy_node_type enum. On a tenant whose enum no longer contains them,
+-- a bare \`type = 'region'\` makes Postgres cast the literal to the enum and fail
+-- with \`invalid input value for enum hierarchy_node_type: "region"\` (22P02)
+-- before any row is examined. Casting the column to text sidesteps the enum cast
+-- so this migration is a true no-op when those values are already gone.
 DO $$
-DECLARE area_count int; col_type text;
+DECLARE area_count int;
 BEGIN
-  SELECT data_type INTO col_type FROM information_schema.columns
-   WHERE table_name = 'hierarchy_nodes' AND column_name = 'type';
-
-  IF col_type = 'text' THEN
-    -- Safety: hard-fail if area rows still exist
-    SELECT count(*) INTO area_count FROM hierarchy_nodes WHERE type = 'area';
-    IF area_count > 0 THEN
-      RAISE EXCEPTION 'Migration blocked: % area row(s) exist. Run flatten-areas.ts first.', area_count;
-    END IF;
-
-    UPDATE hierarchy_nodes SET type = 'state', updated_at = now() WHERE type = 'region';
-    UPDATE hierarchy_nodes SET depth = 3, updated_at = now() WHERE type = 'branch' AND depth = 4;
+  -- Safety: hard-fail if area rows still exist. type::text so the check is a
+  -- no-op (not an enum-cast error) on a tenant where the enum no longer has 'area'.
+  SELECT count(*) INTO area_count FROM hierarchy_nodes WHERE type::text = 'area';
+  IF area_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % area row(s) exist. Run flatten-areas.ts first.', area_count;
   END IF;
 END $$;
+--> statement-breakpoint
+
+UPDATE hierarchy_nodes SET type = 'state', updated_at = now() WHERE type::text = 'region';
+--> statement-breakpoint
+
+UPDATE hierarchy_nodes SET depth = 3, updated_at = now() WHERE type = 'branch' AND depth = 4;
 `,
 	},
 	{
@@ -4172,23 +4173,19 @@ END $$;
 --> statement-breakpoint
 
 -- Pre-flight: any rows with a value outside the enum would block the cast.
--- Should be impossible post-H1, but verify. Runs only while the column is still
--- TEXT — once it is the hierarchy_node_type enum, string_agg(enum, ...) does not
--- exist (and every value is necessarily valid), so a re-run skips this check.
+-- Should be impossible post-H1, but verify.
+-- Cast type::text throughout: on a tenant where the column is ALREADY the enum
+-- (idempotent re-run), \`string_agg(type, ...)\` has no enum overload and fails
+-- with \`function string_agg(hierarchy_node_type, unknown) does not exist\`.
 DO $$
-DECLARE bad_count int; bad_types text; col_type text;
+DECLARE bad_count int; bad_types text;
 BEGIN
-  SELECT data_type INTO col_type FROM information_schema.columns
-   WHERE table_name = 'hierarchy_nodes' AND column_name = 'type';
-
-  IF col_type = 'text' THEN
-    SELECT count(DISTINCT type), string_agg(DISTINCT type, ', ')
-      INTO bad_count, bad_types
-    FROM hierarchy_nodes
-    WHERE type NOT IN ('organization', 'country', 'state', 'branch');
-    IF bad_count > 0 THEN
-      RAISE EXCEPTION 'Migration blocked: % unexpected type value(s) in hierarchy_nodes: %', bad_count, bad_types;
-    END IF;
+  SELECT count(DISTINCT type::text), string_agg(DISTINCT type::text, ', ')
+    INTO bad_count, bad_types
+  FROM hierarchy_nodes
+  WHERE type::text NOT IN ('organization', 'country', 'state', 'branch');
+  IF bad_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % unexpected type value(s) in hierarchy_nodes: %', bad_count, bad_types;
   END IF;
 END $$;
 --> statement-breakpoint
@@ -4647,6 +4644,14 @@ ALTER TABLE commission_conditions ADD COLUMN IF NOT EXISTS min_quantity integer;
 `,
 	},
 	{
+		hash: "0072_customer_lead_acquisition_type",
+		sql: `-- Persist the raw GHL lead_acquisition_type alongside the resolved lead_source FK,
+-- so the value survives even when no lead_sources lookup row matches.
+ALTER TABLE customer_profiles
+	ADD COLUMN IF NOT EXISTS lead_acquisition_type text;
+`,
+	},
+	{
 		hash: "0072_trainer_availability_exceptions",
 		sql: `-- Tenant migration: trainer_availability_exceptions
 -- One-off date-specific overrides to the recurring trainer schedule.
@@ -4664,6 +4669,25 @@ CREATE TABLE IF NOT EXISTS trainer_availability_exceptions (
 
 CREATE UNIQUE INDEX IF NOT EXISTS trainer_availability_exc_trainer_date_uniq
   ON trainer_availability_exceptions(trainer_id, date);
+`,
+	},
+	{
+		hash: "0073_customer_primary_staff_member",
+		sql: `-- migration: 0073_customer_primary_staff_member
+-- description: resolve the GHL lead webhook \`primary_staff\` to an Avantej member.
+--   * customer_profiles.primary_staff_member_id: nullable FK -> members(id).
+--   * ON DELETE SET NULL so the profile survives staff churn (mirrors referrer_member_id).
+--   * Idempotent — safe to re-run; no enum types.
+ALTER TABLE "customer_profiles" ADD COLUMN IF NOT EXISTS "primary_staff_member_id" uuid;
+--> statement-breakpoint
+DO $$ BEGIN
+	ALTER TABLE "customer_profiles"
+		ADD CONSTRAINT "customer_profiles_primary_staff_member_id_fk"
+		FOREIGN KEY ("primary_staff_member_id") REFERENCES "members"("id") ON DELETE set null;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "customer_profiles_primary_staff_member_idx"
+	ON "customer_profiles" ("primary_staff_member_id");
 `,
 	},
 	{
@@ -4700,6 +4724,16 @@ CREATE TABLE IF NOT EXISTS scheduled_reports (
 
 CREATE INDEX IF NOT EXISTS scheduled_reports_due_idx
   ON scheduled_reports(is_active, next_run_at);
+`,
+	},
+	{
+		hash: "0074_ghl_user_links_primary_staff_label",
+		sql: `-- migration: 0074_ghl_user_links_primary_staff_label
+-- description: store each synced staff member's unique label in the org's GHL
+--   "Primary Staff" dropdown, so an inbound lead webhook can resolve
+--   primary_staff (a label string) to the exact member.
+--   Idempotent — safe to re-run; no enum types.
+ALTER TABLE "ghl_user_links" ADD COLUMN IF NOT EXISTS "primary_staff_option_label" text;
 `,
 	},
 	{

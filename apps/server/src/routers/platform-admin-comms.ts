@@ -33,6 +33,7 @@ import { organizations } from "@avantej-core/db/schema/control-panel/organizatio
 import { users } from "@avantej-core/db/schema/control-panel/users";
 import { commsTemplates } from "@avantej-core/db/schema/control-panel/comms-templates";
 import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
+import { recordAdminAction } from "@/services/admin-audit.service";
 
 const COMMS_ACTION_TYPES = ["tenant_dm", "tenant_announcement_create"] as const;
 
@@ -251,7 +252,7 @@ export const platformAdminCommsRouter = {
 				})
 				.returning();
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "comms_template_create",
 				metadata: {
@@ -298,7 +299,7 @@ export const platformAdminCommsRouter = {
 				throw new ORPCError("NOT_FOUND", { message: "Template not found" });
 			}
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "comms_template_update",
 				metadata: { templateId: input.id, fields: Object.keys(patch) },
@@ -320,7 +321,7 @@ export const platformAdminCommsRouter = {
 			if (!updated) {
 				throw new ORPCError("NOT_FOUND", { message: "Template not found" });
 			}
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "comms_template_archive",
 				metadata: { templateId: input.id },
@@ -341,7 +342,7 @@ export const platformAdminCommsRouter = {
 			if (!updated) {
 				throw new ORPCError("NOT_FOUND", { message: "Template not found" });
 			}
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "comms_template_unarchive",
 				metadata: { templateId: input.id },

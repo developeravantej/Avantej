@@ -1,13 +1,14 @@
 import { getControlPanelDb, getTenantDb } from "@/lib/db";
 import { user } from "@avantej-core/db/schema/auth";
 import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch-links";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Context } from "hono";
 import { createHash } from "node:crypto";
 import { accountGroups } from "@avantej-core/db/schema/tenant/account-groups";
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { ghlContactLinks } from "@avantej-core/db/schema/tenant/ghl-contact-links";
 import { ghlSyncEvents } from "@avantej-core/db/schema/tenant/ghl-sync-events";
+import { ghlUserLinks } from "@avantej-core/db/schema/tenant/ghl-user-links";
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { leadSources } from "@avantej-core/db/schema/tenant/lead-sources";
 import { members } from "@avantej-core/db/schema/tenant/members";
@@ -858,6 +859,9 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 					? true
 					: userRecord.emailVerified,
 			phone: extracted.phone || userRecord.phone,
+			// Single write site: the create branch always runs this UPDATE right
+			// after the INSERT, so fresh users still get the passport here.
+			idPassportNo: customFields.idPassport ?? userRecord.idPassportNo,
 			updatedAt: now,
 		})
 		.where(eq(user.id, userRecord.id));
@@ -873,6 +877,14 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 
 	const dobFromAge =
 		customFields.age != null ? deriveDobFromAge(customFields.age, now) : null;
+	// Prefer an explicit DOB from GHL over the age-derived approximation.
+	const explicitDob = customFields.dateOfBirth
+		? (() => {
+				const d = new Date(customFields.dateOfBirth as string);
+				return Number.isNaN(d.getTime()) ? null : d;
+			})()
+		: null;
+	const effectiveDob = explicitDob ?? dobFromAge;
 	const leadSourceId = await resolveLeadSourceId(
 		tenantDb,
 		customFields.leadAcquisitionType,
@@ -882,6 +894,15 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 		controlPanelDb,
 		customFields.referrerPhone,
 	);
+	const primaryStaffMemberId = await resolvePrimaryStaffMemberId({
+		tenantDb,
+		controlPanelDb,
+		candidateGhlUserIds: [
+			customFields.primaryStaffGhlUserId,
+			customFields.assignedGhlUserId,
+		],
+		primaryStaffName: customFields.primaryStaff,
+	});
 	const campaignId = customFields.leadOriginator || null;
 	const gender = customFields.gender || null;
 
@@ -898,11 +919,16 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 			.values({
 				userId: userRecord.id,
 				phone: extracted.phone || null,
-				dateOfBirth: dobFromAge,
+				dateOfBirth: effectiveDob,
 				gender,
 				leadSourceId,
 				referrerMemberId,
+				primaryStaffMemberId,
 				campaignId,
+				leadAcquisitionType: customFields.leadAcquisitionType,
+				emergencyContactName: customFields.emergencyContactName,
+				emergencyContactPhone: customFields.emergencyContactPhone,
+				address: customFields.address,
 				createdAt: now,
 				updatedAt: now,
 			})
@@ -913,11 +939,23 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 			.update(customerProfiles)
 			.set({
 				phone: extracted.phone || existingProfile.phone,
-				dateOfBirth: dobFromAge ?? existingProfile.dateOfBirth,
+				dateOfBirth: effectiveDob ?? existingProfile.dateOfBirth,
 				gender: gender ?? existingProfile.gender,
 				leadSourceId: leadSourceId ?? existingProfile.leadSourceId,
 				referrerMemberId: referrerMemberId ?? existingProfile.referrerMemberId,
+				primaryStaffMemberId:
+					primaryStaffMemberId ?? existingProfile.primaryStaffMemberId,
 				campaignId: campaignId ?? existingProfile.campaignId,
+				leadAcquisitionType:
+					customFields.leadAcquisitionType ??
+					existingProfile.leadAcquisitionType,
+				emergencyContactName:
+					customFields.emergencyContactName ??
+					existingProfile.emergencyContactName,
+				emergencyContactPhone:
+					customFields.emergencyContactPhone ??
+					existingProfile.emergencyContactPhone,
+				address: customFields.address ?? existingProfile.address,
 				isDeleted: false,
 				deletedAt: null,
 				deletedSource: null,
@@ -1092,6 +1130,11 @@ async function processDependentInGroup(args: {
 	const gender = customFields.gender || null;
 
 	// Insert dependent customer_profile (user_id = NULL by design).
+	// v1: primary_staff is intentionally NOT resolved on the shared-email
+	// dependent path (would require threading controlPanelDb here for name
+	// matching). Dependents get primary_staff_member_id = null; the raw name
+	// remains in the archived ghl_sync_events.rawPayload. Revisit if the
+	// business needs coach attribution on family/shared-inbox dependents.
 	const [dependentProfile] = await tenantDb
 		.insert(customerProfiles)
 		.values({
@@ -1163,6 +1206,21 @@ async function updateEventStatus(
 		.where(eq(ghlSyncEvents.eventKey, eventKey));
 }
 
+const GENDER_CANON: Record<string, string> = {
+	male: "male",
+	m: "male",
+	female: "female",
+	f: "female",
+	other: "other",
+	prefer_not_to_say: "prefer_not_to_say",
+	"prefer not to say": "prefer_not_to_say",
+};
+
+function normalizeGenderValue(value: string | null): string | null {
+	if (!value) return null;
+	return GENDER_CANON[value.trim().toLowerCase()] ?? null;
+}
+
 export type GhlCustomFields = {
 	gender: string | null;
 	age: number | null;
@@ -1172,6 +1230,15 @@ export type GhlCustomFields = {
 	referrerPhone: string | null;
 	leadAcquisitionType: string | null;
 	leadOriginator: string | null;
+	emergencyContactName: string | null;
+	emergencyContactPhone: string | null;
+	address: string | null;
+	dateOfBirth: string | null; // ISO date string as provided by GHL
+	idPassport: string | null;
+	// Explicit coach GHL user id (recommended deterministic field) — highest priority.
+	primaryStaffGhlUserId: string | null;
+	// GHL contact owner (a GHL user id) — secondary deterministic fallback.
+	assignedGhlUserId: string | null;
 };
 
 export function extractCustomFieldsForProfile(
@@ -1187,7 +1254,7 @@ export function extractCustomFieldsForProfile(
 		Number.isFinite(ageNum) && ageNum > 0 && ageNum < 150 ? ageNum : null;
 
 	return {
-		gender: pick(["gender"]),
+		gender: normalizeGenderValue(pick(["gender"])),
 		age,
 		selectedCountry: pick(["selected_country", "sys_selected_country"]),
 		selectedLocation: pick(["selected_location", "sys_selected_location"]),
@@ -1202,6 +1269,20 @@ export function extractCustomFieldsForProfile(
 			"lead_originatator",
 			"sys_lead_originator",
 		]),
+		emergencyContactName: pick(["emergency_name", "emergency_contact_name"]),
+		emergencyContactPhone: pick([
+			"emergency_phone",
+			"emergency_contact_no",
+			"emergency_contact_phone",
+		]),
+		address: pick(["full_address", "address"]),
+		dateOfBirth: pick(["dob", "date_of_birth", "dateOfBirth"]),
+		idPassport: pick(["id_passport", "nric_no__id_no"]),
+		primaryStaffGhlUserId: pick([
+			"primary_staff_ghl_user_id",
+			"primary_staff_id",
+		]),
+		assignedGhlUserId: pick(["assigned_to", "assignedTo"]),
 	};
 }
 
@@ -1263,6 +1344,133 @@ async function resolveReferrerMemberId(
 		.where(eq(members.userId, userRow.id))
 		.limit(1);
 	return memberRow?.id ?? null;
+}
+
+/**
+ * Pure: pick the member whose name uniquely matches the GHL `primary_staff`
+ * string (case-insensitive, trimmed). Returns the member id only on an
+ * unambiguous single match — ambiguous (≥2) or no match → null, so we never
+ * guess which coach a lead belongs to. Exported for unit testing.
+ */
+export function matchStaffByName(
+	staff: Array<{ memberId: string; name: string }>,
+	rawName: string | null | undefined,
+): string | null {
+	if (!rawName) return null;
+	const needle = rawName.trim().toLowerCase();
+	if (!needle) return null;
+	const matches = staff.filter((s) => s.name.trim().toLowerCase() === needle);
+	const [only] = matches;
+	return matches.length === 1 && only ? only.memberId : null;
+}
+
+/**
+ * Resolve the GHL lead's `primary_staff` to an Avantej member, in priority order:
+ *   1. GHL native assigned-user id (contact owner) → ghl_user_links → member.
+ *   2. Unique name match of primary_staff against active synced staff.
+ * Returns null (and logs) when unresolved — the raw name stays in the archived
+ * rawPayload and primary_staff_member_id is left null rather than guessed.
+ */
+async function resolvePrimaryStaffMemberId(args: {
+	tenantDb: Awaited<ReturnType<typeof getTenantDb>>;
+	controlPanelDb: ReturnType<typeof getControlPanelDb>;
+	// GHL user-id candidates tried in priority order (e.g. the explicit
+	// primary_staff_ghl_user_id field first, then the contact's assigned owner).
+	candidateGhlUserIds: Array<string | null>;
+	primaryStaffName: string | null;
+}): Promise<string | null> {
+	const { tenantDb, controlPanelDb, candidateGhlUserIds, primaryStaffName } =
+		args;
+
+	// 0. Exact match against an Avantej-owned dropdown label. When Avantej manages
+	// the GHL "Primary Staff" dropdown, primary_staff IS the unique label we
+	// stored on ghl_user_links — resolve it directly (handles disambiguated
+	// labels like "Alex Tan (KL)" that a plain name match would miss).
+	const labelNeedle = primaryStaffName?.trim();
+	if (labelNeedle) {
+		const [byLabel] = await tenantDb
+			.select({ memberId: ghlUserLinks.memberId })
+			.from(ghlUserLinks)
+			.innerJoin(members, eq(members.id, ghlUserLinks.memberId))
+			.where(
+				and(
+					eq(ghlUserLinks.primaryStaffOptionLabel, labelNeedle),
+					eq(ghlUserLinks.syncStatus, "active"),
+					eq(members.status, "active"),
+				),
+			)
+			.limit(1);
+		if (byLabel?.memberId) return byLabel.memberId;
+	}
+
+	// 1. Deterministic: a GHL user id → ghl_user_links → member, tried in order.
+	// Require BOTH the sync link AND the member to be active — never assign a
+	// lead to a deactivated/suspended coach who still has a stale sync row.
+	for (const ghlUserId of candidateGhlUserIds) {
+		if (!ghlUserId) continue;
+		const [link] = await tenantDb
+			.select({ memberId: ghlUserLinks.memberId })
+			.from(ghlUserLinks)
+			.innerJoin(members, eq(members.id, ghlUserLinks.memberId))
+			.where(
+				and(
+					eq(ghlUserLinks.ghlUserId, ghlUserId),
+					eq(ghlUserLinks.syncStatus, "active"),
+					eq(members.status, "active"),
+				),
+			)
+			.limit(1);
+		if (link?.memberId) return link.memberId;
+	}
+
+	if (!primaryStaffName || !primaryStaffName.trim()) return null;
+
+	// 2. Name fallback against active synced staff (any role: admin/staff/trainer),
+	// excluding deactivated/suspended members.
+	const links = await tenantDb
+		.select({ memberId: ghlUserLinks.memberId, userId: ghlUserLinks.userId })
+		.from(ghlUserLinks)
+		.innerJoin(members, eq(members.id, ghlUserLinks.memberId))
+		.where(
+			and(eq(ghlUserLinks.syncStatus, "active"), eq(members.status, "active")),
+		);
+	if (links.length === 0) return null;
+
+	const userRows = await controlPanelDb
+		.select({
+			id: user.id,
+			name: user.name,
+			firstName: user.firstName,
+			lastName: user.lastName,
+		})
+		.from(user)
+		.where(
+			inArray(
+				user.id,
+				links.map((l) => l.userId),
+			),
+		);
+	const nameByUserId = new Map(
+		userRows.map((u) => [
+			u.id,
+			(u.name && u.name.trim()) ||
+				`${u.firstName ?? ""} ${u.lastName ?? ""}`.trim(),
+		]),
+	);
+	const staff = links
+		.map((l) => ({
+			memberId: l.memberId,
+			name: nameByUserId.get(l.userId) ?? "",
+		}))
+		.filter((s) => s.name !== "");
+
+	const matched = matchStaffByName(staff, primaryStaffName);
+	if (!matched) {
+		console.warn(
+			`[ghl-webhook] primary_staff unresolved: "${primaryStaffName}" (no unique synced-staff match)`,
+		);
+	}
+	return matched;
 }
 
 /**

@@ -14,6 +14,7 @@ import { client } from "@/utils/orpc";
 import { RevenueKpiRow } from "@/components/platform-admin/revenue-kpi-row";
 import { ChurnWaterfall } from "@/components/platform-admin/churn-waterfall";
 import { CohortRetentionGrid } from "@/components/platform-admin/cohort-retention-grid";
+import { MoneyHubTabs } from "@/components/platform-admin/money-hub-tabs";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/platform-admin/revenue",
@@ -66,8 +67,7 @@ function PlatformAdminRevenuePage() {
 
 	const churnQ = useQuery({
 		queryKey: ["platformAdminRevenue", "getRecentChurn", 30],
-		queryFn: () =>
-			client.platformAdminRevenue.getRecentChurn({ days: 30 }),
+		queryFn: () => client.platformAdminRevenue.getRecentChurn({ days: 30 }),
 		staleTime: 0,
 	});
 
@@ -82,6 +82,7 @@ function PlatformAdminRevenuePage() {
 
 	return (
 		<div className="p-6 space-y-6" data-testid="revenue-page">
+			<MoneyHubTabs />
 			<header>
 				<h1 className="text-2xl font-semibold">Revenue</h1>
 				<p className="text-sm text-muted-foreground">
@@ -179,7 +180,9 @@ function PlatformAdminRevenuePage() {
 											<span className="text-red-700 dark:text-red-400 tabular-nums">
 												-{fmtCents(e.mrrCentsLost)}
 											</span>
-											<span className="text-xs">{fmtRelative(e.canceledAt)}</span>
+											<span className="text-xs">
+												{fmtRelative(e.canceledAt)}
+											</span>
 										</div>
 									</li>
 								))}

@@ -1,0 +1,1038 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Avantej — E2E Journey Review</title><style>
+:root{--bg:#0b0d10;--card:#151a1f;--ln:#222a31;--fg:#e6edf3;--mut:#8b98a5;--ok:#3fb950;--bad:#f85149;--skip:#d29922;--accent:#d6cdb1;--saas:#6ea8fe}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.wrap{max-width:1060px;margin:0 auto;padding:32px 24px 100px}
+h1{font-size:25px;margin:0 0 4px}.sub{color:var(--mut);margin:0 0 22px;font-size:13px}
+.tabbar{display:flex;gap:8px;margin:0 0 8px;border-bottom:1px solid var(--ln)}
+.tabbtn{appearance:none;background:transparent;border:0;border-bottom:2px solid transparent;color:var(--mut);font:600 15px/1 inherit;padding:12px 16px;cursor:pointer}
+.tabbtn .n{font-size:12px;color:var(--mut);margin-left:6px}
+.tabbtn.active{color:var(--fg);border-bottom-color:var(--accent)}
+.tabpanel{display:none}.tabpanel.active{display:block}
+.tsummary{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0 6px}
+.pill{font-size:13px;font-weight:600;padding:6px 14px;border-radius:999px;border:1px solid var(--ln);background:var(--card)}
+.pill.ok{color:var(--ok)}.pill.bad{color:var(--bad)}.pill.skip{color:var(--skip)}
+.module{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin:30px 0 12px;border-bottom:1px solid var(--ln);padding-bottom:8px}
+.card{position:relative;background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:22px;margin:0 0 18px}
+.card.reviewed{border-color:rgba(63,185,80,.5);background:linear-gradient(0deg,rgba(63,185,80,.05),rgba(63,185,80,.05)),var(--card)}
+.card.reviewed::before{content:"\2713 reviewed";position:absolute;top:-9px;right:14px;background:var(--ok);color:#0b0d10;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;letter-spacing:.04em}
+.rev{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--mut);cursor:pointer;user-select:none;white-space:nowrap}
+.rev input{width:16px;height:16px;cursor:pointer;accent-color:var(--ok)}
+.revbar{margin:0 0 14px;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--mut)}
+.revbar #rev-count{color:var(--ok);font-weight:700}
+.revreset{appearance:none;background:transparent;border:1px solid var(--ln);color:var(--mut);border-radius:6px;padding:3px 10px;font:inherit;font-size:12px;cursor:pointer}
+.revreset:hover{color:var(--fg);border-color:var(--mut)}
+.thead{display:flex;align-items:center;gap:10px;margin:0 0 14px;flex-wrap:wrap}
+.ttitle{font-size:16px;font-weight:600;flex:1;min-width:260px}
+.badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.05em}
+.badge.ok{background:rgba(63,185,80,.15);color:var(--ok);border:1px solid rgba(63,185,80,.4)}
+.badge.bad{background:rgba(248,81,73,.15);color:var(--bad);border:1px solid rgba(248,81,73,.4)}
+.badge.skip{background:rgba(210,153,34,.15);color:var(--skip);border:1px solid rgba(210,153,34,.4)}
+.tier{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;background:rgba(214,205,177,.12);color:var(--accent);border:1px solid rgba(214,205,177,.3)}
+.dur{color:var(--mut);font-size:12px}
+ol.steps{margin:0 0 18px;padding:0;counter-reset:s;list-style:none}
+ol.steps li{counter-increment:s;position:relative;padding:8px 0 8px 38px;border-bottom:1px solid var(--ln);font-size:14px}
+ol.steps li:last-child{border-bottom:0}
+ol.steps li::before{content:counter(s);position:absolute;left:0;top:7px;width:24px;height:24px;border-radius:50%;background:rgba(214,205,177,.1);border:1px solid rgba(214,205,177,.35);color:var(--accent);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.nosteps{color:var(--mut);font-size:13px;font-style:italic;margin:0 0 16px}
+.label{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px}
+video{width:100%;border-radius:10px;border:1px solid var(--ln);background:#000;display:block}
+.shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.shots img{width:100%;border-radius:8px;border:1px solid var(--ln);background:#000;cursor:zoom-in}
+.err{background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3);border-radius:8px;padding:12px;color:#ffb3ae;font:12px/1.5 ui-monospace,Menlo,monospace;white-space:pre-wrap;margin:12px 0 0}
+.foot{color:var(--mut);font-size:12px;text-align:center;margin-top:30px}
+</style></head>
+<body><div class="wrap">
+<h1>Avantej — E2E Journey Review</h1>
+<p class="sub">Playwright (Chromium) · 66 journeys (66 passed · 0 failed · 0 skipped) · recorded against the running dev app · each card shows its journey steps + video</p>
+<div class="revbar">Reviewed <span id="rev-count">0</span> / 66 · marks persist in this browser <button id="rev-reset" class="revreset">Reset all</button></div>
+<div class="tabbar"><button class="tabbtn active" data-i="0">SaaS Platform<span class="n">12</span></button><button class="tabbtn" data-i="1">Tenant Platform<span class="n">54</span></button></div>
+<div class="tabpanel active" id="panel-0"><div class="tsummary">
+    <span class="pill">12 journeys</span>
+    <span class="pill">7 modules</span>
+    <span class="pill ok">12 passed</span>
+    <span class="pill bad">0 failed</span>
+    <span class="pill skip">0 skipped</span>
+  </div><div class="module">Mission Control · 1</div>
+<section class="card" data-id="platform-admin-lands-on-mission-control-with-the-core-nav-pl">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">Platform admin lands on Mission Control with the core nav</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">2.2s · platform-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="platform-admin-lands-on-mission-control-with-the-core-nav-pl"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Open Mission Control</li><li>Primary nav shows Mission Control · Tenants · Billing</li><li>System group reveals Health · Comms · Webhooks · Audit · Users</li><li>Mission Control overview KPIs load (platformAdminDashboard.getOverview)</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/platform-admin-lands-on-mission-control-with-the-core-nav-pl/test-finished-1.png"><source src="assets/platform-admin-lands-on-mission-control-with-the-core-nav-pl/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/platform-admin-lands-on-mission-control-with-the-core-nav-pl/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section><div class="module">Tenants · 2</div>
+<section class="card" data-id="tenants-directory-lists-tenants-with-bulk-select-platform-jo">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">Tenants directory lists tenants with bulk-select</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">1.5s · platform-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="tenants-directory-lists-tenants-with-bulk-select-platform-jo"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Open the Tenants directory</li><li>Directory renders the cross-tenant table (bulk-select control present)</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/tenants-directory-lists-tenants-with-bulk-select-platform-jo/test-finished-1.png"><source src="assets/tenants-directory-lists-tenants-with-bulk-select-platform-jo/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/tenants-directory-lists-tenants-with-bulk-select-platform-jo/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="opening-a-tenant-exposes-its-detail-tabs-billing-health-risk">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Opening a tenant exposes its detail tabs (billing · health · risk · notes · tags · members · feature flags)</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">3.9s · platform-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="opening-a-tenant-exposes-its-detail-tabs-billing-health-risk"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Open the Tenants directory and click the first tenant</li><li>Walk the tenant-detail tabs (tolerant — tab set varies by build)</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/opening-a-tenant-exposes-its-detail-tabs-billing-health-risk/test-finished-1.png"><source src="assets/opening-a-tenant-exposes-its-detail-tabs-billing-health-risk/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/opening-a-tenant-exposes-its-detail-tabs-billing-health-risk/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section><div class="module">Money &amp; Billing · 1</div>
+<section class="card" data-id="billing-money-hub-tabs-navigate-overview-revenue-renewals-pa">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">Billing money-hub tabs navigate (Overview · Revenue · Renewals · Payments)</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">4.1s · platform-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="billing-money-hub-tabs-navigate-overview-revenue-renewals-pa"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Open Billing (global)</li><li>Switch to the Revenue tab</li><li>Renewals surface renders</li><li>Payments surface renders</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/billing-money-hub-tabs-navigate-overview-revenue-renewals-pa/test-finished-1.png"><source src="assets/billing-money-hub-tabs-navigate-overview-revenue-renewals-pa/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/billing-money-hub-tabs-navigate-overview-revenue-renewals-pa/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section><div class="module">Health &amp; Comms · 2</div>
+<section class="card" data-id="tenant-health-scoreboard-renders-histogram-at-risk-flags-spa">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Tenant Health scoreboard renders (histogram · at-risk · flags · sparkline) and getScoreboard is consistent</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">3.5s · platform-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="tenant-health-scoreboard-renders-histogram-at-risk-flags-spa"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Fetch the cross-tenant scoreboard via platformAdminHealth.getScoreboard</li><li>Open the Health Scoreboard page</li><li>Histogram, at-risk widget, risk-flag rollup, and sparkline all render</li><li>Refresh re-fetches the scoreboard without error</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/tenant-health-scoreboard-renders-histogram-at-risk-flags-spa/test-finished-1.png"><source src="assets/tenant-health-scoreboard-renders-histogram-at-risk-flags-spa/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/tenant-health-scoreboard-renders-histogram-at-risk-flags-spa/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="comms-create-then-archive-a-message-template-platform-journe">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Comms — create then archive a message template</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">5.2s · platform-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="comms-create-then-archive-a-message-template-platform-journe"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Open Comms and read the outbox (listOutbox)</li><li>Create a message template (createTemplate)</li><li>Reload Comms, open the Templates tab — the new template is shown</li><li>Archive the template (archiveTemplate) and confirm it leaves the active list</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/comms-create-then-archive-a-message-template-platform-journe/test-finished-1.png"><source src="assets/comms-create-then-archive-a-message-template-platform-journe/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/comms-create-then-archive-a-message-template-platform-journe/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section><div class="module">Webhooks &amp; Migrations · 2</div>
+<section class="card" data-id="webhooks-overview-kpis-event-log-query-platform-journeys">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Webhooks — overview KPIs + event-log query</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">3.1s · platform-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="webhooks-overview-kpis-event-log-query-platform-journeys"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Read the webhook overview (getOverview)</li><li>Query the event log for the last 30 days (listEvents)</li><li>Open the Webhooks log page — table renders</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/webhooks-overview-kpis-event-log-query-platform-journeys/test-finished-1.png"><source src="assets/webhooks-overview-kpis-event-log-query-platform-journeys/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/webhooks-overview-kpis-event-log-query-platform-journeys/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="migrations-list-then-open-a-migration-file-platform-journeys">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Migrations — list then open a migration file</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">2.6s · platform-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="migrations-list-then-open-a-migration-file-platform-journeys"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>List tenant migrations (listMigrations)</li><li>Open a migration file (getMigrationFile) — SQL content returned</li><li>Open the Migrations viewer page — renders</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/migrations-list-then-open-a-migration-file-platform-journeys/test-finished-1.png"><source src="assets/migrations-list-then-open-a-migration-file-platform-journeys/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/migrations-list-then-open-a-migration-file-platform-journeys/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section><div class="module">Audit, Users &amp; Admins · 3</div>
+<section class="card" data-id="audit-list-action-types-then-filter-the-admin-action-log-pla">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Audit — list action types then filter the admin action log</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">2.9s · platform-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="audit-list-action-types-then-filter-the-admin-action-log-pla"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>List distinct action types (listActionTypes)</li><li>Filter the admin action log by that action type (listAdminActions)</li><li>Open the Audit log page — renders</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/audit-list-action-types-then-filter-the-admin-action-log-pla/test-finished-1.png"><source src="assets/audit-list-action-types-then-filter-the-admin-action-log-pla/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/audit-list-action-types-then-filter-the-admin-action-log-pla/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="users-search-the-directory-and-inspect-platform-admin-flags-">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Users — search the directory and inspect platform-admin flags</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">5.7s · platform-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="users-search-the-directory-and-inspect-platform-admin-flags-"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Open the Users directory page — full roster loads</li><li>Type 'gmail' into the search box — directory filters live</li><li>Refine to 'developer' — results narrow to the matching user</li><li>Inspect the Platform Admin column — role flags are shown</li><li>Clear the search — the full directory returns</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/users-search-the-directory-and-inspect-platform-admin-flags-/test-finished-1.png"><source src="assets/users-search-the-directory-and-inspect-platform-admin-flags-/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/users-search-the-directory-and-inspect-platform-admin-flags-/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="platform-admins-management-grant-then-revoke-a-platform-admi">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Platform admins management — grant then revoke a platform admin</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">9.5s · platform-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="platform-admins-management-grant-then-revoke-a-platform-admi"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Pick a non-admin user to promote</li><li>Open the Admins surface — current roster loads</li><li>Open 'Add Admin' and search the directory for the user</li><li>Choose the Support role and grant access</li><li>Revoke via the row action and confirm in the dialog</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/platform-admins-management-grant-then-revoke-a-platform-admi/test-finished-1.png"><source src="assets/platform-admins-management-grant-then-revoke-a-platform-admi/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/platform-admins-management-grant-then-revoke-a-platform-admi/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section><div class="module">Identity &amp; Impersonation · 1</div>
+<section class="card" data-id="platform-admin-identity-impersonation-status-resolve-platfor">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Platform-admin identity + impersonation status resolve</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">10.5s · platform-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="platform-admin-identity-impersonation-status-resolve-platfor"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Confirm caller identity (admin.me) and a clean impersonation status</li><li>Pick an impersonatable (non-admin) tenant user</li><li>Open Users, search the user, and click 'Login as'</li><li>Confirm in the 'Impersonate user?' dialog</li><li>Land in the impersonated session — the impersonation banner shows</li><li>Stop impersonating — banner clears, identity restored to platform admin</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/platform-admin-identity-impersonation-status-resolve-platfor/test-finished-1.png"><source src="assets/platform-admin-identity-impersonation-status-resolve-platfor/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/platform-admin-identity-impersonation-status-resolve-platfor/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section></div><div class="tabpanel" id="panel-1"><div class="tsummary">
+    <span class="pill">54 journeys</span>
+    <span class="pill">13 modules</span>
+    <span class="pill ok">54 passed</span>
+    <span class="pill bad">0 failed</span>
+    <span class="pill skip">0 skipped</span>
+  </div><div class="module">Dashboard &amp; Home · 1</div>
+<section class="card" data-id="dashboard-home-kpis-quick-actions-render-after-login-admin-j">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">Dashboard home — KPIs + quick actions render after login</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">3.3s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="dashboard-home-kpis-quick-actions-render-after-login-admin-j"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Open the dashboard as the authenticated tenant admin</li><li>Organization context is bootstrapped (current_organization_id present)</li><li>Dashboard shell + key widgets are visible (no crash / no error boundary)</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/dashboard-home-kpis-quick-actions-render-after-login-admin-j/test-finished-1.png"><source src="assets/dashboard-home-kpis-quick-actions-render-after-login-admin-j/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/dashboard-home-kpis-quick-actions-render-after-login-admin-j/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section><div class="module">POS &amp; Sales · 5</div>
+<section class="card" data-id="pos-product-sale-appears-in-the-sales-ledger-with-correct-to">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">POS product sale appears in the Sales ledger with correct total</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">9.4s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="pos-product-sale-appears-in-the-sales-ledger-with-correct-to"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve tenant fixtures (client, product, branch)</li><li>Record a cash POS sale of 1 product via the POS pipeline</li><li>Open the Sales ledger — the new order is listed</li><li>Verify the order via sales-orders.getById (status + total)</li><li>Open the order detail page</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/pos-product-sale-appears-in-the-sales-ledger-with-correct-to/test-finished-1.png"><source src="assets/pos-product-sale-appears-in-the-sales-ledger-with-correct-to/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/pos-product-sale-appears-in-the-sales-ledger-with-correct-to/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="pos-sale-of-a-package-service-creates-a-package-instance-lin">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">POS sale of a package service creates a package instance linked by salesOrderId</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">8.1s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="pos-sale-of-a-package-service-creates-a-package-instance-lin"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve fixtures (client, package-eligible service, branch)</li><li>Record a POS sale of the package service (cash, member customer)</li><li>A package instance exists for this client linked by salesOrderId</li><li>Cross-check the link via the POS receipt DTO</li><li>Open the order detail page — the new sale renders</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/pos-sale-of-a-package-service-creates-a-package-instance-lin/test-finished-1.png"><source src="assets/pos-sale-of-a-package-service-creates-a-package-instance-lin/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/pos-sale-of-a-package-service-creates-a-package-instance-lin/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="applying-a-promotion-code-to-a-pos-order-discounts-the-total">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">Applying a promotion code to a POS order discounts the total</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">9.9s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="applying-a-promotion-code-to-a-pos-order-discounts-the-total"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve fixtures (client, product, branch)</li><li>Create a 10% promotion (valid now, member-scoped)</li><li>Validate the promo against the order amount</li><li>Record a POS sale that applies the promotion code</li><li>The discounted order total persists on the sales order (pre-tax, post-discount)</li><li>Open the Promotions page (Service catalog → Promotions tab)</li><li>Cleanup — deactivate the seeded promotion</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/applying-a-promotion-code-to-a-pos-order-discounts-the-total/test-finished-1.png"><source src="assets/applying-a-promotion-code-to-a-pos-order-discounts-the-total/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/applying-a-promotion-code-to-a-pos-order-discounts-the-total/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="cancelling-a-sales-order-moves-it-into-cancelled-sales-admin">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Cancelling a sales order moves it into Cancelled Sales</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">10.8s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="cancelling-a-sales-order-moves-it-into-cancelled-sales-admin"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Seed a product POS sale to cancel</li><li>The order starts in a non-cancelled state</li><li>Cancel the sales order (full refund of pre-tax total)</li><li>The order is now reported as cancelled</li><li>The order appears in the Cancelled Sales ledger</li><li>Open the Cancelled Sales page — the heading and a row render</li><li>It no longer appears as an active (non-cancelled) sale</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/cancelling-a-sales-order-moves-it-into-cancelled-sales-admin/test-finished-1.png"><source src="assets/cancelling-a-sales-order-moves-it-into-cancelled-sales-admin/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/cancelling-a-sales-order-moves-it-into-cancelled-sales-admin/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="sales-list-renders-with-kpi-stats-and-a-seeded-order-row-adm">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Sales list renders with KPI stats and a seeded order row</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">9.4s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="sales-list-renders-with-kpi-stats-and-a-seeded-order-row-adm"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Seed a product POS sale so the ledger is non-empty</li><li>KPI summary computes without error</li><li>The seeded order is present in the sales list</li><li>Open the Sales ledger — heading and order rows render</li><li>Cleanup — cancel the seeded order</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/sales-list-renders-with-kpi-stats-and-a-seeded-order-row-adm/test-finished-1.png"><source src="assets/sales-list-renders-with-kpi-stats-and-a-seeded-order-row-adm/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/sales-list-renders-with-kpi-stats-and-a-seeded-order-row-adm/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section><div class="module">Appointments &amp; Commissions · 1</div>
+<section class="card" data-id="completing-an-appointment-generates-commission-splits-admin-">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">Completing an appointment generates commission splits</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">9.5s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="completing-an-appointment-generates-commission-splits-admin-"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve fixtures (trainer, client, service, branch)</li><li>Seed a confirmed private appointment for trainer + client</li><li>Mark the appointment completed (triggers the commission engine)</li><li>Open the Commissions surface</li><li>Commission splits exist for the completed appointment</li><li>Cleanup — cancel the seeded appointment</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/completing-an-appointment-generates-commission-splits-admin-/test-finished-1.png"><source src="assets/completing-an-appointment-generates-commission-splits-admin-/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/completing-an-appointment-generates-commission-splits-admin-/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section><div class="module">Packages &amp; Installments · 5</div>
+<section class="card" data-id="purchased-package-starts-pending-then-assigning-a-trainer-ac">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">Purchased package starts pending, then assigning a trainer activates it</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">13.5s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="purchased-package-starts-pending-then-assigning-a-trainer-ac"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve a package-eligible service + assignable trainer</li><li>Create a customer-purchased package (hits the approval gate)</li><li>Pending package appears in the Approvals queue</li><li>Assign a trainer — package transitions pending → active</li><li>Verify the package is now active via getById</li><li>Open the Packages view (legacy instances tab redirects here)</li><li>Cleanup — cancel the seeded package</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/purchased-package-starts-pending-then-assigning-a-trainer-ac/test-finished-1.png"><source src="assets/purchased-package-starts-pending-then-assigning-a-trainer-ac/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/purchased-package-starts-pending-then-assigning-a-trainer-ac/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="rejecting-a-pending-package-cancels-it-admin-journeys">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">Rejecting a pending package cancels it</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">9.0s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="rejecting-a-pending-package-cancels-it-admin-journeys"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Seed a customer-purchased (pending) package</li><li>Reject the pending package as admin</li><li>Verify the package status is cancelled via getById</li><li>Open the Approvals queue (rejected package no longer pending)</li><li>Cleanup — none needed (reject already cancelled the package)</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/rejecting-a-pending-package-cancels-it-admin-journeys/test-finished-1.png"><source src="assets/rejecting-a-pending-package-cancels-it-admin-journeys/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/rejecting-a-pending-package-cancels-it-admin-journeys/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="confirming-an-installment-payment-unlocks-credits-on-the-pac">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">Confirming an installment payment unlocks credits on the package</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">10.2s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="confirming-an-installment-payment-unlocks-credits-on-the-pac"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Seed an active installment-plan package</li><li>Read the generated installment schedule</li><li>Confirm the first installment payment (cash)</li><li>Open the Installments view (legacy tab redirects to packages)</li><li>Cleanup — cancel the installment package</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/confirming-an-installment-payment-unlocks-credits-on-the-pac/test-finished-1.png"><source src="assets/confirming-an-installment-payment-unlocks-credits-on-the-pac/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/confirming-an-installment-payment-unlocks-credits-on-the-pac/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="package-staff-can-be-assigned-replaced-and-removed-admin-jou">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Package staff can be assigned, replaced, and removed</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">11.3s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="package-staff-can-be-assigned-replaced-and-removed-admin-jou"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Seed an active package to attach staff to</li><li>Assign a trainer to staff slot 0</li><li>Replace ALL staff assignments atomically (slot 0 only)</li><li>Remove the staff member</li><li>Open the Session Packs view to show the package list renders</li><li>Cleanup — cancel the seeded package</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/package-staff-can-be-assigned-replaced-and-removed-admin-jou/test-finished-1.png"><source src="assets/package-staff-can-be-assigned-replaced-and-removed-admin-jou/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/package-staff-can-be-assigned-replaced-and-removed-admin-jou/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="memberships-list-renders-for-the-admin-admin-journeys">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Memberships list renders for the admin</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">3.6s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="memberships-list-renders-for-the-admin-admin-journeys"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>List active memberships via packageInstances.listMemberships</li><li>Open the Memberships view (legacy tab redirects to packages)</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/memberships-list-renders-for-the-admin-admin-journeys/test-finished-1.png"><source src="assets/memberships-list-renders-for-the-admin-admin-journeys/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/memberships-list-renders-for-the-admin-admin-journeys/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section><div class="module">Commissions, Payouts &amp; Expenses · 5</div>
+<section class="card" data-id="approving-a-commission-split-and-running-a-payout-batch-prod">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">Approving a commission split and running a payout batch produces a payout row</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">13.6s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="approving-a-commission-split-and-running-a-payout-batch-prod"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve fixtures (trainer, client, service, branch)</li><li>Seed a confirmed private appointment for trainer + client</li><li>Mark the appointment completed (runs the commission engine)</li><li>Find a pending split for the appointment (or seed a manual bonus)</li><li>Approve the pending split (commissionSplits.approve)</li><li>Run a payout batch for the trainer (inserts a payout row + marks splits paid)</li><li>Assert the payout row appears via payouts.list</li><li>Open the Payouts ledger — the page renders without error</li><li>Open the Commissions ledger — paid split is visible end-to-end</li><li>Cleanup — cancel the seeded appointment</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/approving-a-commission-split-and-running-a-payout-batch-prod/test-finished-1.png"><source src="assets/approving-a-commission-split-and-running-a-payout-batch-prod/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/approving-a-commission-split-and-running-a-payout-batch-prod/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="a-manual-commission-bonus-can-be-created-and-then-voided-wit">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">A manual commission bonus can be created and then voided with a reason</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">7.1s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="a-manual-commission-bonus-can-be-created-and-then-voided-wit"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve a trainer to credit the bonus to</li><li>Create a manual commission adjustment (bonus)</li><li>Void the bonus with a reason (commissionSplits.void)</li><li>Open the Commissions ledger — page renders without error</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/a-manual-commission-bonus-can-be-created-and-then-voided-wit/test-finished-1.png"><source src="assets/a-manual-commission-bonus-can-be-created-and-then-voided-wit/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/a-manual-commission-bonus-can-be-created-and-then-voided-wit/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="an-expense-can-be-approved-then-marked-paid-and-a-separate-e">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">An expense can be approved then marked paid, and a separate expense can be rejected</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">9.7s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="an-expense-can-be-approved-then-marked-paid-and-a-separate-e"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve a branch scope for the expenses</li><li>Create an expense to push through approve → paid</li><li>Create a second expense to push through the reject path</li><li>Approve the first expense (expenses.approve)</li><li>Mark the approved expense paid (expenses.markPaid)</li><li>Reject the second expense with a reason (expenses.reject)</li><li>Verify final statuses via expenses.getById</li><li>Open the Expenses page — both expenses are reflected without error</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/an-expense-can-be-approved-then-marked-paid-and-a-separate-e/test-finished-1.png"><source src="assets/an-expense-can-be-approved-then-marked-paid-and-a-separate-e/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/an-expense-can-be-approved-then-marked-paid-and-a-separate-e/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="a-trainer-tier-can-be-created-updated-and-deactivated-admin-">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">A trainer tier can be created, updated and deactivated</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">7.3s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="a-trainer-tier-can-be-created-updated-and-deactivated-admin-"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Create a trainer tier (trainerTiers.create)</li><li>Update the trainer tier (trainerTiers.update)</li><li>Open the Trainer Tiers page (trainers/tiers → trainers/view?tab=tiers)</li><li>Deactivate (delete) the trainer tier (trainerTiers.deactivate)</li><li>Cleanup — ensure the tier is deactivated (idempotent)</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/a-trainer-tier-can-be-created-updated-and-deactivated-admin-/test-finished-1.png"><source src="assets/a-trainer-tier-can-be-created-updated-and-deactivated-admin-/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/a-trainer-tier-can-be-created-updated-and-deactivated-admin-/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="the-my-commissions-surface-renders-for-an-admin-admin-journe">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">The My Commissions surface renders for an admin</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">3.1s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="the-my-commissions-surface-renders-for-an-admin-admin-journe"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Fetch the admin's own commissions via commissionSplits.getMyCommissions</li><li>Open commissions/my (redirects to the Commissions hub, 'mine' tab)</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/the-my-commissions-surface-renders-for-an-admin-admin-journe/test-finished-1.png"><source src="assets/the-my-commissions-surface-renders-for-an-admin-admin-journe/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/the-my-commissions-surface-renders-for-an-admin-admin-journe/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section><div class="module">Refunds &amp; Cancellations · 3</div>
+<section class="card" data-id="admin-refunds-a-paid-pos-sale-end-to-end-request-approve-pro">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">Admin refunds a paid POS sale end-to-end: request → approve → process</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">10.7s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-refunds-a-paid-pos-sale-end-to-end-request-approve-pro"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve tenant fixtures (client, product, branch)</li><li>Record a paid cash POS product sale (the order being refunded)</li><li>Request a refund against the sale (creates a pending row)</li><li>Approve the pending refund (full amount)</li><li>Process the approved refund (records the manual reversal)</li><li>Confirm via refunds.getById — refund is recorded as processed</li><li>Refund appears under the Processed filter (refunds.list)</li><li>Open the Refunds ledger — heading + status tabs render</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-refunds-a-paid-pos-sale-end-to-end-request-approve-pro/test-finished-1.png"><source src="assets/admin-refunds-a-paid-pos-sale-end-to-end-request-approve-pro/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-refunds-a-paid-pos-sale-end-to-end-request-approve-pro/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="admin-rejects-a-refund-request-with-a-documented-reason-admi">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">Admin rejects a refund request with a documented reason</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">8.7s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-rejects-a-refund-request-with-a-documented-reason-admi"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve tenant fixtures and record a paid POS sale</li><li>Request a refund against the sale (pending)</li><li>Reject the refund with required review notes</li><li>Confirm rejection persisted via refunds.getById</li><li>Open the Refunds ledger filtered to Rejected — page renders cleanly</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-rejects-a-refund-request-with-a-documented-reason-admi/test-finished-1.png"><source src="assets/admin-rejects-a-refund-request-with-a-documented-reason-admi/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-rejects-a-refund-request-with-a-documented-reason-admi/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="admin-processes-an-installment-refund-against-a-package-purc">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Admin processes an installment refund against a package purchase</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">7.7s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-processes-an-installment-refund-against-a-package-purc"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve fixtures (package service, client, installment plan, branch)</li><li>Sell the package on an installment plan via POS</li><li>Process an installment refund against the package instance</li><li>Verify the installment refund event via installments.getEvents</li><li>Open the Refunds ledger — page renders cleanly</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-processes-an-installment-refund-against-a-package-purc/test-finished-1.png"><source src="assets/admin-processes-an-installment-refund-against-a-package-purc/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-processes-an-installment-refund-against-a-package-purc/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section><div class="module">Attendance &amp; Check-in · 4</div>
+<section class="card" data-id="recording-a-booking-check-in-consumes-one-package-credit-adm">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">Recording a booking check-in consumes one package credit</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">13.2s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="recording-a-booking-check-in-consumes-one-package-credit-adm"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve fixtures (client, package-service, trainer/admin member, branch)</li><li>Seed an assigned package with 1 credit for the client</li><li>Seed a confirmed appointment for the same client</li><li>Capture credits_used BEFORE the check-in</li><li>Record the booking check-in consuming 1 credit</li><li>Verify credits_used incremented by exactly 1 (getById)</li><li>Cross-check via getActivePackageForMember (credit now spent)</li><li>Open the Attendance page — the result is visible to staff</li><li>Cleanup — delete the check-in (reverts credit) and cancel the appointment</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/recording-a-booking-check-in-consumes-one-package-credit-adm/test-finished-1.png"><source src="assets/recording-a-booking-check-in-consumes-one-package-credit-adm/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/recording-a-booking-check-in-consumes-one-package-credit-adm/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="deleting-a-check-in-reverts-the-consumed-package-credit-admi">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">Deleting a check-in reverts the consumed package credit</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">13.4s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="deleting-a-check-in-reverts-the-consumed-package-credit-admi"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Seed an assigned 1-credit package + confirmed appointment</li><li>Confirm the credit was consumed before deletion</li><li>Delete the check-in (mistake correction)</li><li>Verify the credit was reverted (creditsUsed back to original)</li><li>Open the Attendance page — log reflects the corrected state</li><li>Cleanup — cancel the seeded appointment</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/deleting-a-check-in-reverts-the-consumed-package-credit-admi/test-finished-1.png"><source src="assets/deleting-a-check-in-reverts-the-consumed-package-credit-admi/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/deleting-a-check-in-reverts-the-consumed-package-credit-admi/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="bulk-check-in-marks-today-s-pending-bookings-attended-in-one">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Bulk check-in marks today's pending bookings attended in one call</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">23.5s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="bulk-check-in-marks-today-s-pending-bookings-attended-in-one"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve branch, a service, an instructor, and clients to enroll</li><li>Create a class slot dated TODAY (noon, so it lands inside the today window)</li><li>Enroll the clients — creates today's pending bookings (appointment_clients rows)</li><li>List today's bookings — the enrolled clients appear as pending</li><li>Bulk check-in all pending bookings in a single call</li><li>Open the Attendance page — bookings now show as checked-in</li><li>Cleanup — delete the bulk check-ins, then cancel the class slot</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/bulk-check-in-marks-today-s-pending-bookings-attended-in-one/test-finished-1.png"><source src="assets/bulk-check-in-marks-today-s-pending-bookings-attended-in-one/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/bulk-check-in-marks-today-s-pending-bookings-attended-in-one/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="an-anonymous-walk-in-drop-in-is-recorded-and-shows-in-the-ch">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">An anonymous walk-in drop-in is recorded and shows in the check-in log</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">7.7s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="an-anonymous-walk-in-drop-in-is-recorded-and-shows-in-the-ch"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve the branch scope</li><li>Record an anonymous walk-in drop-in (no package, no credit)</li><li>Verify the drop-in appears in checkIns.list for today</li><li>Open the Attendance page — the drop-in is visible in the log</li><li>Cleanup — delete the drop-in check-in</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/an-anonymous-walk-in-drop-in-is-recorded-and-shows-in-the-ch/test-finished-1.png"><source src="assets/an-anonymous-walk-in-drop-in-is-recorded-and-shows-in-the-ch/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/an-anonymous-walk-in-drop-in-is-recorded-and-shows-in-the-ch/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section><div class="module">Inventory &amp; Procurement · 5</div>
+<section class="card" data-id="admin-adjusts-product-stock-and-the-new-level-is-reflected-a">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">Admin adjusts product stock and the new level is reflected</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">6.4s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-adjusts-product-stock-and-the-new-level-is-reflected-a"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve a UOM and a real branch node</li><li>Create a fresh active product</li><li>Read the baseline stock level at the branch</li><li>Adjust stock up by 25 units</li><li>getStock reflects the new level</li><li>Open the Products catalog page</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-adjusts-product-stock-and-the-new-level-is-reflected-a/test-finished-1.png"><source src="assets/admin-adjusts-product-stock-and-the-new-level-is-reflected-a/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-adjusts-product-stock-and-the-new-level-is-reflected-a/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="admin-approves-a-purchase-order-and-receiving-goods-increase">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">Admin approves a purchase order and receiving goods increases stock</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">10.3s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-approves-a-purchase-order-and-receiving-goods-increase"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve supplier, branch, and a product</li><li>Create a draft purchase order for 12 units</li><li>Resolve the PO line-item id via getById</li><li>Approve the purchase order</li><li>Read the baseline stock at the receiving branch</li><li>Receive all 12 units via a goods receipt (posts to stock)</li><li>Stock increased by the received quantity</li><li>PO rolled to received after full receipt</li><li>Open the Purchase Orders page</li><li>Cleanup — cancel the posted goods receipt (reverses stock)</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-approves-a-purchase-order-and-receiving-goods-increase/test-finished-1.png"><source src="assets/admin-approves-a-purchase-order-and-receiving-goods-increase/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-approves-a-purchase-order-and-receiving-goods-increase/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="admin-moves-stock-between-branches-via-a-transfer-order-admi">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Admin moves stock between branches via a transfer order</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">7.5s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-moves-stock-between-branches-via-a-transfer-order-admi"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve two branches, a member, and a product</li><li>Seed source-branch stock so the transfer has units to move</li><li>Create a pending transfer order for 5 units</li><li>Mark the transfer in transit</li><li>Complete the transfer (receives 5 units at destination)</li><li>Transfer order reads back as completed</li><li>Open the Transfer Orders page</li><li>Cleanup — cancel the transfer if it never completed</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-moves-stock-between-branches-via-a-transfer-order-admi/test-finished-1.png"><source src="assets/admin-moves-stock-between-branches-via-a-transfer-order-admi/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-moves-stock-between-branches-via-a-transfer-order-admi/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="admin-approves-and-fulfills-an-inter-branch-stock-request-ad">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Admin approves and fulfills an inter-branch stock request</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">7.7s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-approves-and-fulfills-an-inter-branch-stock-request-ad"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve branch(es), a member, and a product</li><li>Create a pending stock request for 4 units</li><li>Approve the stock request</li><li>Fulfill the stock request for 4 units</li><li>Destination branch stock reflects the fulfilled units</li><li>Open the Stock Requests page</li><li>Cleanup — reject the request if it never reached fulfilled</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-approves-and-fulfills-an-inter-branch-stock-request-ad/test-finished-1.png"><source src="assets/admin-approves-and-fulfills-an-inter-branch-stock-request-ad/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-approves-and-fulfills-an-inter-branch-stock-request-ad/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="admin-creates-inventory-option-records-brand-category-suppli">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Admin creates inventory option records (brand, category, supplier, UOM) and lists them</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">13.6s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-creates-inventory-option-records-brand-category-suppli"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Ensure baseline catalog fixtures resolve</li><li>Create a brand and confirm it appears in the list</li><li>Create a product category and confirm it lists</li><li>Create a supplier and confirm it lists</li><li>Create a unit of measure and confirm it lists</li><li>Open the Inventory Options dashboard</li><li>Cleanup — remove the created brand, category and UOM (deactivate supplier)</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-creates-inventory-option-records-brand-category-suppli/test-finished-1.png"><source src="assets/admin-creates-inventory-option-records-brand-category-suppli/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-creates-inventory-option-records-brand-category-suppli/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section><div class="module">Customers &amp; Trainers · 5</div>
+<section class="card" data-id="customer-directory-lists-customers-and-opens-the-customer-36">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Customer directory lists customers and opens the Customer 360 detail</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">6.1s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="customer-directory-lists-customers-and-opens-the-customer-36"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>List registered customers via customerDirectory.list</li><li>Open the Customers directory page — heading + list render</li><li>Fetch the Customer 360 detail via customerDirectory.getById</li><li>Open the Customer 360 page</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/customer-directory-lists-customers-and-opens-the-customer-36/test-finished-1.png"><source src="assets/customer-directory-lists-customers-and-opens-the-customer-36/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/customer-directory-lists-customers-and-opens-the-customer-36/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="admin-upserts-a-customer-profile-customerprofiles-upsertforc">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Admin upserts a customer profile (customerProfiles.upsertForCustomer)</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">4.1s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-upserts-a-customer-profile-customerprofiles-upsertforc"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve an active client to edit</li><li>Upsert the client's profile via the admin-scoped procedure</li><li>Open the Customer 360 page so the edited profile is visible</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-upserts-a-customer-profile-customerprofiles-upsertforc/test-finished-1.png"><source src="assets/admin-upserts-a-customer-profile-customerprofiles-upsertforc/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-upserts-a-customer-profile-customerprofiles-upsertforc/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="walk-in-customers-list-surface-renders-admin-journeys">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Walk-in customers list surface renders</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">3.2s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="walk-in-customers-list-surface-renders-admin-journeys"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Fetch the walk-in customers list via walkInCustomers.list</li><li>Open the walk-in page — it redirects to the Customers directory</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/walk-in-customers-list-surface-renders-admin-journeys/test-finished-1.png"><source src="assets/walk-in-customers-list-surface-renders-admin-journeys/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/walk-in-customers-list-surface-renders-admin-journeys/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="assign-a-member-to-a-service-list-then-remove-servicemembers">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Assign a member to a service, list, then remove (serviceMembers)</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">5.6s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="assign-a-member-to-a-service-list-then-remove-servicemembers"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve a trainer member + a service</li><li>Assign the member to the service via serviceMembers.assign</li><li>listForService includes the assigned member</li><li>Open the My Services page (renders the logged-in admin's assignments)</li><li>Remove the member from the service and confirm it's gone</li><li>Cleanup — ensure the assignment is removed</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/assign-a-member-to-a-service-list-then-remove-servicemembers/test-finished-1.png"><source src="assets/assign-a-member-to-a-service-list-then-remove-servicemembers/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/assign-a-member-to-a-service-list-then-remove-servicemembers/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="trainers-directory-renders-admin-journeys">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Trainers directory renders</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">6.3s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="trainers-directory-renders-admin-journeys"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Confirm at least one trainer exists via members.list (trainer role)</li><li>Open the Trainers directory page — heading renders</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/trainers-directory-renders-admin-journeys/test-finished-1.png"><source src="assets/trainers-directory-renders-admin-journeys/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/trainers-directory-renders-admin-journeys/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section><div class="module">Settings, Notifications &amp; Announcements · 6</div>
+<section class="card" data-id="admin-upserts-organization-settings-and-the-value-round-trip">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Admin upserts organization settings and the value round-trips via get</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">4.4s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-upserts-organization-settings-and-the-value-round-trip"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Upsert the organization name setting via oRPC</li><li>Upsert the organization timezone setting via oRPC</li><li>Read both settings back via get — values reflect the upsert</li><li>Open the Organization Settings page</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-upserts-organization-settings-and-the-value-round-trip/test-finished-1.png"><source src="assets/admin-upserts-organization-settings-and-the-value-round-trip/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-upserts-organization-settings-and-the-value-round-trip/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="admin-creates-a-tax-rate-sets-it-default-and-getdefault-refl">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Admin creates a tax rate, sets it default, and getDefault reflects it</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">5.1s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-creates-a-tax-rate-sets-it-default-and-getdefault-refl"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Create a new tax rate via oRPC</li><li>Mark the tax rate as default</li><li>getDefault returns the newly defaulted tax rate</li><li>Open the Tax Rates settings page</li><li>Cleanup — deactivate the seeded tax rate</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-creates-a-tax-rate-sets-it-default-and-getdefault-refl/test-finished-1.png"><source src="assets/admin-creates-a-tax-rate-sets-it-default-and-getdefault-refl/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-creates-a-tax-rate-sets-it-default-and-getdefault-refl/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="admin-creates-an-installment-plan-and-sets-it-as-the-default">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Admin creates an installment plan and sets it as the default</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">5.3s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-creates-an-installment-plan-and-sets-it-as-the-default"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Create a 3-instalment plan via oRPC</li><li>Mark the installment plan as default (no getDefault → assert returned row)</li><li>getById confirms the plan persisted as default</li><li>Open the Installment Plans settings page</li><li>Cleanup — deactivate the seeded installment plan</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-creates-an-installment-plan-and-sets-it-as-the-default/test-finished-1.png"><source src="assets/admin-creates-an-installment-plan-and-sets-it-as-the-default/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-creates-an-installment-plan-and-sets-it-as-the-default/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="admin-publishes-a-branch-scoped-announcement-and-it-appears-">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Admin publishes a branch-scoped announcement and it appears in listActive</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">8.4s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-publishes-a-branch-scoped-announcement-and-it-appears-"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Create an active, branch-scoped announcement via oRPC</li><li>listActive surfaces the new announcement</li><li>Open the Announcements page — the new announcement renders</li><li>Cleanup — delete the seeded announcement</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-publishes-a-branch-scoped-announcement-and-it-appears-/test-finished-1.png"><source src="assets/admin-publishes-a-branch-scoped-announcement-and-it-appears-/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-publishes-a-branch-scoped-announcement-and-it-appears-/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="admin-clears-all-notifications-and-the-unread-count-drops-to">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Admin clears all notifications and the unread count drops to zero</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">4.3s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-clears-all-notifications-and-the-unread-count-drops-to"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>List the current notifications via oRPC</li><li>Mark all notifications read</li><li>getUnreadCount is now zero</li><li>Open the Notifications page</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-clears-all-notifications-and-the-unread-count-drops-to/test-finished-1.png"><source src="assets/admin-clears-all-notifications-and-the-unread-count-drops-to/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-clears-all-notifications-and-the-unread-count-drops-to/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="google-calendar-connection-status-loads-and-the-settings-pag">
+  <div class="thead">
+    <span class="tier">P2</span>
+    <div class="ttitle">Google Calendar connection status loads and the settings page renders</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">2.8s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="google-calendar-connection-status-loads-and-the-settings-pag"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Fetch the caller's Google Calendar connection status via oRPC</li><li>Open the Google Calendar settings page</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/google-calendar-connection-status-loads-and-the-settings-pag/test-finished-1.png"><source src="assets/google-calendar-connection-status-loads-and-the-settings-pag/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/google-calendar-connection-status-loads-and-the-settings-pag/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section><div class="module">Hierarchy &amp; Branch · 4</div>
+<section class="card" data-id="admin-builds-a-country-state-branch-chain-and-sees-it-listed">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Admin builds a country → state → branch chain and sees it listed</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">12.5s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-builds-a-country-state-branch-chain-and-sees-it-listed"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve the organization root to parent the new country</li><li>Create the country node (depth 1)</li><li>Create the state node under the country (depth 2)</li><li>Create the branch node under the state (depth 3)</li><li>listNodes shows the full chain</li><li>Open the Create Branch page (UI heading renders)</li><li>Open the new branch detail page</li><li>Cleanup — delete the created chain (cascade)</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-builds-a-country-state-branch-chain-and-sees-it-listed/test-finished-1.png"><source src="assets/admin-builds-a-country-state-branch-chain-and-sees-it-listed/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-builds-a-country-state-branch-chain-and-sees-it-listed/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="admin-reassigns-a-single-member-to-a-new-branch-scope-admin-">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Admin reassigns a single member to a new branch scope</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">6.4s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-reassigns-a-single-member-to-a-new-branch-scope-admin-"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve a target branch scope (accessible to admin)</li><li>Pick a member to move (trusted picker → tenant members.id)</li><li>Reassign the member to the target branch scope</li><li>Assert the new scope via getNode + listMembers</li><li>Open the branch detail page to visualise the scope</li><li>Cleanup — restore the member to its original scope</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-reassigns-a-single-member-to-a-new-branch-scope-admin-/test-finished-1.png"><source src="assets/admin-reassigns-a-single-member-to-a-new-branch-scope-admin-/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-reassigns-a-single-member-to-a-new-branch-scope-admin-/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="admin-bulk-reassigns-members-to-a-new-branch-scope-admin-jou">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Admin bulk-reassigns members to a new branch scope</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">7.0s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-bulk-reassigns-members-to-a-new-branch-scope-admin-jou"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve a target branch scope</li><li>Pick up to 2 members to bulk-move (trusted pickers)</li><li>Bulk-reassign the members to the target scope</li><li>Assert via listMembers — all moved members are in the new scope</li><li>Open the branch detail page</li><li>Cleanup — restore each member to its original scope</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-bulk-reassigns-members-to-a-new-branch-scope-admin-jou/test-finished-1.png"><source src="assets/admin-bulk-reassigns-members-to-a-new-branch-scope-admin-jou/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-bulk-reassigns-members-to-a-new-branch-scope-admin-jou/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="getdescendants-returns-the-full-subtree-of-a-freshly-built-c">
+  <div class="thead">
+    <span class="tier">P2</span>
+    <div class="ttitle">getDescendants returns the full subtree of a freshly-built chain</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">9.5s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="getdescendants-returns-the-full-subtree-of-a-freshly-built-c"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve the organization root</li><li>Build a country → state → branch chain</li><li>getDescendants(country) returns state + branch (not the country itself)</li><li>getDescendants(state) returns just the branch</li><li>Open the branch detail page for the leaf node</li><li>Cleanup — delete the chain (cascade)</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/getdescendants-returns-the-full-subtree-of-a-freshly-built-c/test-finished-1.png"><source src="assets/getdescendants-returns-the-full-subtree-of-a-freshly-built-c/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/getdescendants-returns-the-full-subtree-of-a-freshly-built-c/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section><div class="module">Appointments &amp; Scheduling · 5</div>
+<section class="card" data-id="admin-creates-a-recurring-weekly-appointment-series-sees-vir">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Admin creates a recurring weekly appointment series, sees virtual occurrences, then cancels all future occurrences</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">10.9s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-creates-a-recurring-weekly-appointment-series-sees-vir"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve fixtures (trainer, client, service, branch)</li><li>Create a confirmed weekly recurring series (8 occurrences)</li><li>List the series — virtual occurrences expand from the parent</li><li>Open the Appointments schedule — the series renders without error</li><li>Cancel all future occurrences from a mid-series date</li><li>Cleanup — cancel the whole series</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-creates-a-recurring-weekly-appointment-series-sees-vir/test-finished-1.png"><source src="assets/admin-creates-a-recurring-weekly-appointment-series-sees-vir/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-creates-a-recurring-weekly-appointment-series-sees-vir/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="admin-creates-a-class-slot-and-reads-its-empty-signup-list-a">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Admin creates a class slot and reads its (empty) signup list</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">8.0s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-creates-a-class-slot-and-reads-its-empty-signup-list-a"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve fixtures (service, branch, trainer as instructor)</li><li>Create a class slot for the service (capacity 10)</li><li>Read the slot's signups — fresh slot has zero enrollments</li><li>Open the Class Slots schedule — the new slot renders without error</li><li>Cleanup — cancel the seeded class slot</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-creates-a-class-slot-and-reads-its-empty-signup-list-a/test-finished-1.png"><source src="assets/admin-creates-a-class-slot-and-reads-its-empty-signup-list-a/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-creates-a-class-slot-and-reads-its-empty-signup-list-a/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="admin-creates-lists-updates-and-deletes-a-room-admin-journey">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Admin creates, lists, updates, and deletes a room</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">8.8s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-creates-lists-updates-and-deletes-a-room-admin-journey"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve fixtures (branch)</li><li>Create a training room (capacity 4)</li><li>List rooms — the new room is present</li><li>Update the room (rename + bump capacity)</li><li>Open the Rooms surface (redirects to Services → Rooms tab) without error</li><li>Delete the room and confirm it is gone from the list</li><li>Cleanup — delete the room if it still exists</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-creates-lists-updates-and-deletes-a-room-admin-journey/test-finished-1.png"><source src="assets/admin-creates-lists-updates-and-deletes-a-room-admin-journey/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-creates-lists-updates-and-deletes-a-room-admin-journey/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="admin-upserts-a-trainer-s-weekly-availability-template-and-r">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Admin upserts a trainer's weekly availability template and reads it back</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">6.8s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="admin-upserts-a-trainer-s-weekly-availability-template-and-r"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve fixtures (trainer)</li><li>Upsert a Mon/Wed availability template for the trainer</li><li>List the trainer's availability — both slots are present</li><li>Open the Trainer Availability page — template renders without error</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/admin-upserts-a-trainer-s-weekly-availability-template-and-r/test-finished-1.png"><source src="assets/admin-upserts-a-trainer-s-weekly-availability-template-and-r/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/admin-upserts-a-trainer-s-weekly-availability-template-and-r/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="double-booking-the-same-trainer-at-the-same-time-is-rejected">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Double-booking the same trainer at the same time is rejected by the overlap guard</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">9.0s · admin-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="double-booking-the-same-trainer-at-the-same-time-is-rejected"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Resolve fixtures (trainer, client, service, branch)</li><li>Book the trainer's first appointment (confirmed)</li><li>Attempt a second, overlapping booking for the SAME trainer → rejected</li><li>Open the Appointments schedule — the single booking renders without error</li><li>Cleanup — cancel any appointments created in this journey</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/double-booking-the-same-trainer-at-the-same-time-is-rejected/test-finished-1.png"><source src="assets/double-booking-the-same-trainer-at-the-same-time-is-rejected/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/double-booking-the-same-trainer-at-the-same-time-is-rejected/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section><div class="module">RBAC &amp; Access Control · 5</div>
+<section class="card" data-id="scoped-staff-is-granted-exactly-a-read-only-permission-set-s">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">Scoped staff is granted exactly a read-only permission set</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">0.9s · staff-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="scoped-staff-is-granted-exactly-a-read-only-permission-set-s"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Load the staff's userContext</li><li>Role is 'staff' and the platform-admin flag is off</li><li>Permissions are read-only — no create/update/delete/approve</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/scoped-staff-is-granted-exactly-a-read-only-permission-set-s/test-finished-1.png"><source src="assets/scoped-staff-is-granted-exactly-a-read-only-permission-set-s/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/scoped-staff-is-granted-exactly-a-read-only-permission-set-s/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="scoped-staff-is-denied-write-admin-actions-by-the-permission">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">Scoped staff is DENIED write &amp; admin actions by the permission gate</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">2.2s · staff-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="scoped-staff-is-denied-write-admin-actions-by-the-permission"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>brands.create → FORBIDDEN</li><li>productCategories.create → FORBIDDEN</li><li>members.deactivate → FORBIDDEN</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/scoped-staff-is-denied-write-admin-actions-by-the-permission/test-finished-1.png"><source src="assets/scoped-staff-is-denied-write-admin-actions-by-the-permission/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/scoped-staff-is-denied-write-admin-actions-by-the-permission/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="scoped-staff-is-allowed-its-permitted-reads-positive-control">
+  <div class="thead">
+    <span class="tier">P0</span>
+    <div class="ttitle">Scoped staff IS allowed its permitted reads (positive control)</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">2.7s · staff-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="scoped-staff-is-allowed-its-permitted-reads-positive-control"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>services.list (service_management:read) succeeds</li><li>appointments.list (appointment_management:read) succeeds</li><li>members.list (user_management:read) succeeds</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/scoped-staff-is-allowed-its-permitted-reads-positive-control/test-finished-1.png"><source src="assets/scoped-staff-is-allowed-its-permitted-reads-positive-control/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/scoped-staff-is-allowed-its-permitted-reads-positive-control/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="scoped-staff-dashboard-renders-a-restricted-surface-staff-jo">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Scoped staff dashboard renders a restricted surface</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">6.8s · staff-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="scoped-staff-dashboard-renders-a-restricted-surface-staff-jo"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>Staff lands on the dashboard (authenticated)</li><li>Navigating to an admin-only area degrades gracefully (no crash)</li><li>Navigating to inventory (no permission) degrades gracefully</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/scoped-staff-dashboard-renders-a-restricted-surface-staff-jo/test-finished-1.png"><source src="assets/scoped-staff-dashboard-renders-a-restricted-surface-staff-jo/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/scoped-staff-dashboard-renders-a-restricted-surface-staff-jo/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section>
+<section class="card" data-id="hierarchy-scoping-bounds-the-staff-s-accessible-nodes-staff-">
+  <div class="thead">
+    <span class="tier">P1</span>
+    <div class="ttitle">Hierarchy scoping bounds the staff's accessible nodes</div>
+    <span class="badge ok">passed</span>
+    <span class="dur">0.8s · staff-journeys</span>
+    <label class="rev"><input type="checkbox" class="revchk" data-id="hierarchy-scoping-bounds-the-staff-s-accessible-nodes-staff-"> Reviewed</label>
+  </div>
+  <div class="label">Journey steps</div>
+  <ol class="steps"><li>userContext exposes a non-empty, bounded hierarchy for the staff</li></ol>
+  <div class="label">Recorded video</div><video controls preload="metadata" poster="assets/hierarchy-scoping-bounds-the-staff-s-accessible-nodes-staff-/test-finished-1.png"><source src="assets/hierarchy-scoping-bounds-the-staff-s-accessible-nodes-staff-/video.webm" type="video/webm"></video>
+  <div class="label">Screenshots</div><div class="shots"><img src="assets/hierarchy-scoping-bounds-the-staff-s-accessible-nodes-staff-/test-finished-1.png" loading="lazy" onclick="window.open(this.src)"></div>
+  
+</section></div>
+<p class="foot">Generated from e2e/journeys/.results/report.json</p>
+</div>
+<script>
+// Committed review state: every test was reviewed at build time. A fresh viewer
+// (no localStorage yet) is seeded to "all reviewed"; an existing viewer keeps theirs.
+var REVIEWED_BASELINE = ["dashboard-home-kpis-quick-actions-render-after-login-admin-j","pos-product-sale-appears-in-the-sales-ledger-with-correct-to","completing-an-appointment-generates-commission-splits-admin-","pos-sale-of-a-package-service-creates-a-package-instance-lin","applying-a-promotion-code-to-a-pos-order-discounts-the-total","cancelling-a-sales-order-moves-it-into-cancelled-sales-admin","sales-list-renders-with-kpi-stats-and-a-seeded-order-row-adm","purchased-package-starts-pending-then-assigning-a-trainer-ac","rejecting-a-pending-package-cancels-it-admin-journeys","confirming-an-installment-payment-unlocks-credits-on-the-pac","package-staff-can-be-assigned-replaced-and-removed-admin-jou","memberships-list-renders-for-the-admin-admin-journeys","approving-a-commission-split-and-running-a-payout-batch-prod","a-manual-commission-bonus-can-be-created-and-then-voided-wit","an-expense-can-be-approved-then-marked-paid-and-a-separate-e","a-trainer-tier-can-be-created-updated-and-deactivated-admin-","the-my-commissions-surface-renders-for-an-admin-admin-journe","admin-refunds-a-paid-pos-sale-end-to-end-request-approve-pro","admin-rejects-a-refund-request-with-a-documented-reason-admi","admin-processes-an-installment-refund-against-a-package-purc","recording-a-booking-check-in-consumes-one-package-credit-adm","deleting-a-check-in-reverts-the-consumed-package-credit-admi","bulk-check-in-marks-today-s-pending-bookings-attended-in-one","an-anonymous-walk-in-drop-in-is-recorded-and-shows-in-the-ch","admin-adjusts-product-stock-and-the-new-level-is-reflected-a","admin-approves-a-purchase-order-and-receiving-goods-increase","admin-moves-stock-between-branches-via-a-transfer-order-admi","admin-approves-and-fulfills-an-inter-branch-stock-request-ad","admin-creates-inventory-option-records-brand-category-suppli","customer-directory-lists-customers-and-opens-the-customer-36","admin-upserts-a-customer-profile-customerprofiles-upsertforc","walk-in-customers-list-surface-renders-admin-journeys","assign-a-member-to-a-service-list-then-remove-servicemembers","trainers-directory-renders-admin-journeys","admin-upserts-organization-settings-and-the-value-round-trip","admin-creates-a-tax-rate-sets-it-default-and-getdefault-refl","admin-creates-an-installment-plan-and-sets-it-as-the-default","admin-publishes-a-branch-scoped-announcement-and-it-appears-","admin-clears-all-notifications-and-the-unread-count-drops-to","google-calendar-connection-status-loads-and-the-settings-pag","admin-builds-a-country-state-branch-chain-and-sees-it-listed","admin-reassigns-a-single-member-to-a-new-branch-scope-admin-","admin-bulk-reassigns-members-to-a-new-branch-scope-admin-jou","getdescendants-returns-the-full-subtree-of-a-freshly-built-c","admin-creates-a-recurring-weekly-appointment-series-sees-vir","admin-creates-a-class-slot-and-reads-its-empty-signup-list-a","admin-creates-lists-updates-and-deletes-a-room-admin-journey","admin-upserts-a-trainer-s-weekly-availability-template-and-r","double-booking-the-same-trainer-at-the-same-time-is-rejected","scoped-staff-is-granted-exactly-a-read-only-permission-set-s","scoped-staff-is-denied-write-admin-actions-by-the-permission","scoped-staff-is-allowed-its-permitted-reads-positive-control","scoped-staff-dashboard-renders-a-restricted-surface-staff-jo","hierarchy-scoping-bounds-the-staff-s-accessible-nodes-staff-","platform-admin-lands-on-mission-control-with-the-core-nav-pl","tenants-directory-lists-tenants-with-bulk-select-platform-jo","opening-a-tenant-exposes-its-detail-tabs-billing-health-risk","billing-money-hub-tabs-navigate-overview-revenue-renewals-pa","tenant-health-scoreboard-renders-histogram-at-risk-flags-spa","comms-create-then-archive-a-message-template-platform-journe","webhooks-overview-kpis-event-log-query-platform-journeys","migrations-list-then-open-a-migration-file-platform-journeys","audit-list-action-types-then-filter-the-admin-action-log-pla","users-search-the-directory-and-inspect-platform-admin-flags-","platform-admins-management-grant-then-revoke-a-platform-admi","platform-admin-identity-impersonation-status-resolve-platfor"];
+document.querySelectorAll('.tabbtn').forEach(function(b){
+  b.addEventListener('click', function(){
+    var i = b.getAttribute('data-i');
+    document.querySelectorAll('.tabbtn').forEach(function(x){ x.classList.remove('active'); });
+    document.querySelectorAll('.tabpanel').forEach(function(x){ x.classList.remove('active'); });
+    b.classList.add('active');
+    document.getElementById('panel-' + i).classList.add('active');
+  });
+});
+// Persistent "Reviewed" checkboxes — state stored in localStorage (survives reload/close).
+(function(){
+  var KEY = 'avantej-e2e-reviewed-v1';
+  function load(){ try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(e){ return {}; } }
+  function save(m){ try { localStorage.setItem(KEY, JSON.stringify(m)); } catch(e){} }
+  function refresh(){ var m = load(); var n = Object.keys(m).filter(function(k){ return m[k]; }).length; var el = document.getElementById('rev-count'); if (el) el.textContent = n; }
+  // Seed the committed "all reviewed" baseline on first visit only.
+  if (localStorage.getItem(KEY) === null) {
+    var seed = {};
+    REVIEWED_BASELINE.forEach(function(id){ seed[id] = true; });
+    save(seed);
+  }
+  var state = load();
+  document.querySelectorAll('.revchk').forEach(function(chk){
+    var id = chk.getAttribute('data-id');
+    var card = chk.closest('.card');
+    if (state[id]) { chk.checked = true; if (card) card.classList.add('reviewed'); }
+    chk.addEventListener('change', function(){
+      var m = load();
+      if (chk.checked) { m[id] = true; if (card) card.classList.add('reviewed'); }
+      else { delete m[id]; if (card) card.classList.remove('reviewed'); }
+      save(m); refresh();
+    });
+  });
+  var rb = document.getElementById('rev-reset');
+  if (rb) rb.addEventListener('click', function(){
+    if (confirm('Clear all reviewed marks?')) {
+      save({});
+      document.querySelectorAll('.revchk').forEach(function(c){ c.checked = false; var cc = c.closest('.card'); if (cc) cc.classList.remove('reviewed'); });
+      refresh();
+    }
+  });
+  refresh();
+})();
+</script>
+</body></html>

@@ -9,7 +9,7 @@
  * TIER_PRICES_USD_CENTS` (placeholder prices until Stripe is wired in).
  * Source of truth for billing remains Stripe.
  *
- * Gated behind requirePlatformAdmin — any role (super_admin, support,
+ * Gated behind platformAdminProcedure — any role (super_admin, support,
  * billing) can read.
  *
  * Procs:

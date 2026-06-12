@@ -1,4 +1,8 @@
 import { ORPCError, os } from "@orpc/server";
+import { eq } from "drizzle-orm";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
+import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
 import type { Context } from "./context";
 
 export const o = os.$context<Context>();

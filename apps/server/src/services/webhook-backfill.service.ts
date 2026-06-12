@@ -9,40 +9,45 @@
  * Strategy:
  *   1. For each connected acct (org_country_stripe_accounts) AND the
  *      platform acct, call stripe.events.list with a 24h lookback.
- *   2. For each event whose id is NOT in processed_webhook_events,
- *      synthesize a webhook delivery: verify signature was not the gate
- *      (we trust Stripe Connect API), dispatch through our own webhook
- *      handler URL via internal fetch. This routes through the normal
- *      handler path so all side effects + ledger writes fire.
+ *   2. For each event, ask the shared projector (projectStripeEventToLedger)
+ *      whether it maps to a ledger row; skip non-ledger types.
+ *   3. For ledger-relevant events, route through the SAME dedupe interface the
+ *      live webhook uses (claimWebhookEvent / markEventProcessed /
+ *      markEventFailed) with source='reconciler' (ADR-0011). claimWebhookEvent
+ *      inserts/updates the processed_webhook_events row, so recovered events are
+ *      recorded as processed and are NOT re-replayed on the next hourly pass
+ *      (fixes bug B5). We replay ONLY on a clean claim (no prior dedupe row =
+ *      true gap); rows that already exist — processed OR in-flight ("retry",
+ *      e.g. a live webhook mid-Stripe-retry) — are skipped, because this
+ *      backfill writes only the ledger row and never the deferred side effects
+ *      (ADR-0019), so it must not mark a live handler's event processed.
  *
- * v1 simplification: instead of internal fetch, the cron writes the
- * MISSING events directly to platform_payment_ledger via recordLedgerEvent
- * for the 4 ledger-relevant event types. The downstream business logic
- * (appointment.paymentStatus flip, etc.) is NOT replayed in v1 — that
- * requires careful idempotency on every downstream handler. Phase C.1.1
- * will add full replay once we have observability data on what types
- * of events get dropped.
+ * v1 scope (ADR-0019): the cron writes the MISSING events directly to
+ * platform_payment_ledger via the projector + recordLedgerEvent. The downstream
+ * business logic (appointment.paymentStatus flip, etc.) is NOT replayed — that
+ * requires careful idempotency on every downstream handler. Phase C.1.1 will
+ * add full side-effect replay once we have observability data.
  *
- * Result: v1 closes the AVANTEJ REVENUE AUDIT gap (ledger drift) without
- * risking double-side-effects on tenants.
+ * Result: closes the AVANTEJ REVENUE AUDIT gap (ledger drift) without
+ * risking double-side-effects on tenants, and without re-replaying recovered
+ * events every hour.
  */
 
 import type Stripe from "stripe";
-import { eq } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { orgCountryStripeAccounts } from "@avantej-core/db/schema/control-panel/org-country-stripe-accounts";
-import { processedWebhookEvents } from "@avantej-core/db/schema/control-panel/processed-webhook-events";
-import { recordLedgerEvent } from "./platform-ledger.service";
+import {
+	projectStripeEventToLedger,
+	recordLedgerEvent,
+} from "./platform-ledger.service";
+import {
+	claimWebhookEvent,
+	markEventFailed,
+	markEventProcessed,
+} from "./webhook-dedupe.service";
 
 type CpDb = NeonDatabase<typeof controlPanelSchema>;
-
-const LEDGER_EVENT_TYPES: Stripe.Event["type"][] = [
-	"payment_intent.succeeded",
-	"charge.refunded",
-	"application_fee.created",
-	"invoice.paid",
-];
 
 const LOOKBACK_HOURS = 24;
 
@@ -143,25 +148,19 @@ async function scanAndReplayForAcct(
 		{ stripeAccount },
 	)) {
 		report.eventsExamined++;
-		if (!LEDGER_EVENT_TYPES.includes(evt.type)) continue;
+		// Ledger membership is owned by the projector (returns null for
+		// non-ledger types). Skip BEFORE claiming so the firehose of
+		// non-ledger event types never lands in processed_webhook_events.
+		if (!projectStripeEventToLedger(evt)) continue;
 
-		const dedupe = await controlPanelDb
-			.select({ eventId: processedWebhookEvents.eventId })
-			.from(processedWebhookEvents)
-			.where(eq(processedWebhookEvents.eventId, evt.id))
-			.limit(1);
-		if (dedupe.length > 0) {
-			report.alreadyProcessed++;
-			continue;
-		}
-
-		try {
-			await replayLedger(evt, organizationId, stripeAccount, controlPanelDb);
-			report.replayed++;
-		} catch (e) {
-			report.errors++;
-			console.error(`[backfill] replay failed for ${evt.id}:`, e);
-		}
+		const claimed = await claimAndReplay({
+			evt,
+			controlPanelDb,
+			organizationId,
+			stripeAccount,
+			report,
+		});
+		if (!claimed) continue;
 	}
 }
 
@@ -176,84 +175,97 @@ async function scanAndReplayForPlatform(
 		limit: 100,
 	})) {
 		report.eventsExamined++;
-		if (evt.type !== "invoice.paid") continue;
+		// Membership owned by the projector. On the platform stream this is
+		// effectively invoice.paid (saas_invoice_paid); skip everything else
+		// before claiming.
+		if (!projectStripeEventToLedger(evt)) continue;
 
-		const dedupe = await controlPanelDb
-			.select({ eventId: processedWebhookEvents.eventId })
-			.from(processedWebhookEvents)
-			.where(eq(processedWebhookEvents.eventId, evt.id))
-			.limit(1);
-		if (dedupe.length > 0) {
-			report.alreadyProcessed++;
-			continue;
-		}
-
-		try {
-			const inv = evt.data.object as Stripe.Invoice;
-			await recordLedgerEvent({
-				controlPanelDb,
-				organizationId: null,
-				eventKind: "saas_invoice_paid",
-				stripeEventId: evt.id,
-				stripeObjectId: inv.id ?? "",
-				stripeAccount: null,
-				amount: inv.amount_paid ?? 0,
-				applicationFee: 0,
-				currency: (inv.currency ?? "usd").toLowerCase(),
-				occurredAt: new Date(evt.created * 1000),
-			});
-			report.replayed++;
-		} catch (e) {
-			report.errors++;
-			console.error(`[backfill] platform replay failed for ${evt.id}:`, e);
-		}
+		const claimed = await claimAndReplay({
+			evt,
+			controlPanelDb,
+			organizationId: null,
+			stripeAccount: null,
+			report,
+		});
+		if (!claimed) continue;
 	}
 }
 
-async function replayLedger(
-	evt: Stripe.Event,
-	organizationId: string,
-	stripeAccount: string,
-	controlPanelDb: CpDb,
-) {
-	const obj = evt.data.object as
-		| Stripe.PaymentIntent
-		| Stripe.Charge
-		| Stripe.ApplicationFee;
-	const isRefund = evt.type === "charge.refunded";
-	const isAppFee = evt.type === "application_fee.created";
+/**
+ * Claim → replay → mark, routed through the SAME dedupe interface the live
+ * webhook uses (ADR-0006), with source='reconciler' (ADR-0011).
+ *
+ * Returns true if the event was claimed (and a replay was attempted), false if
+ * it was already processed (skipped). The processed_webhook_events row is what
+ * stops a recovered event from re-replaying on the next hourly pass (bug B5).
+ */
+async function claimAndReplay(params: {
+	evt: Stripe.Event;
+	controlPanelDb: CpDb;
+	organizationId: string | null;
+	stripeAccount: string | null;
+	report: BackfillReport;
+}): Promise<boolean> {
+	const { evt, controlPanelDb, organizationId, stripeAccount, report } = params;
 
-	let kind: "pi_succeeded" | "pi_refunded" | "application_fee_collected";
-	let amount = 0;
-	let appFee = 0;
-
-	if (isAppFee) {
-		kind = "application_fee_collected";
-		amount = (obj as Stripe.ApplicationFee).amount;
-		appFee = (obj as Stripe.ApplicationFee).amount;
-	} else if (isRefund) {
-		kind = "pi_refunded";
-		amount = (obj as Stripe.Charge).amount_refunded ?? 0;
-		appFee = (obj as Stripe.Charge).application_fee_amount ?? 0;
-	} else {
-		kind = "pi_succeeded";
-		amount =
-			(obj as Stripe.PaymentIntent).amount_received ??
-			(obj as Stripe.PaymentIntent).amount ??
-			0;
-		appFee = 0;
+	const claim = await claimWebhookEvent(
+		{
+			eventId: evt.id,
+			eventType: evt.type,
+			source: "reconciler",
+			stripeAccount,
+		},
+		controlPanelDb,
+	);
+	// Only proceed on a CLEAN claim — i.e. the INSERT hit no conflict, meaning
+	// no processed_webhook_events row existed and this is a true delivery gap.
+	//
+	// We deliberately skip "retry" (a row exists with processedAt=null, e.g. a
+	// live webhook that claimed the event but then failed in its side-effect
+	// block and will be retried by Stripe). The dedupe table is shared with the
+	// live handlers; since this backfill replays ONLY the ledger row and NOT the
+	// deferred side effects (ADR-0019), marking such an event processed here
+	// would suppress Stripe's retry and silently strip the appointment/package/
+	// subscription state flip. Residual ledger drift from skipped rows is the
+	// C.5 nightly reconciler's job (ADR-0019). This matches the prior
+	// hand-rolled behavior (skip on ANY existing dedupe row).
+	if (claim.status !== "claimed") {
+		report.alreadyProcessed++;
+		return false;
 	}
 
+	try {
+		await replayLedger(evt, organizationId, stripeAccount, controlPanelDb);
+		await markEventProcessed(evt.id, controlPanelDb);
+		report.replayed++;
+	} catch (e) {
+		report.errors++;
+		const msg = e instanceof Error ? e.message : String(e);
+		await markEventFailed(evt.id, msg, controlPanelDb);
+		console.error(`[backfill] replay failed for ${evt.id}:`, e);
+	}
+	return true;
+}
+
+/**
+ * Project the event to ledger args (shared projector — identical taxonomy +
+ * arithmetic to the live webhook) and write the ledger row. The caller has
+ * already confirmed the event is ledger-relevant (projector non-null) via the
+ * scan loop, so a null here would only occur on a logic error; we no-op safely.
+ */
+async function replayLedger(
+	evt: Stripe.Event,
+	organizationId: string | null,
+	stripeAccount: string | null,
+	controlPanelDb: CpDb,
+) {
+	const projected = projectStripeEventToLedger(evt);
+	if (!projected) return;
+
 	await recordLedgerEvent({
+		...projected,
 		controlPanelDb,
 		organizationId,
-		eventKind: kind,
-		stripeEventId: evt.id,
-		stripeObjectId: obj.id,
 		stripeAccount,
-		amount,
-		applicationFee: appFee,
-		currency: ((obj as { currency?: string }).currency ?? "usd").toLowerCase(),
-		occurredAt: new Date(evt.created * 1000),
 	});
 }

@@ -76,7 +76,7 @@ export function WebhooksLogTable({
 
 	return (
 		<div className="space-y-3" data-testid="webhooks-log-table">
-			<div className="overflow-hidden rounded-xl border border-brand-secondary-3">
+			<div className="overflow-hidden rounded-xl border border-border bg-card">
 				<Table>
 					<TableHeader className="sticky top-0 z-10 bg-white">
 						<TableRow className="hover:bg-transparent">
@@ -142,10 +142,7 @@ export function WebhooksLogTable({
 										{r.source}
 									</TableCell>
 									<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
-										<Badge
-											variant="outline"
-											className={statusClass(r.status)}
-										>
+										<Badge variant="outline" className={statusClass(r.status)}>
 											{r.status}
 										</Badge>
 										{r.error ? (

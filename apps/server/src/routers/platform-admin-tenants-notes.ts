@@ -22,7 +22,7 @@ import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { adminProcedure } from "@/lib/admin-procedure";
-import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
+import { recordAdminAction } from "@/services/admin-audit.service";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { users } from "@avantej-core/db/schema/control-panel/users";
 import { tenantNotes } from "@avantej-core/db/schema/control-panel/tenant-notes";
@@ -116,7 +116,7 @@ export const platformAdminTenantsNotesRouter = {
 				})
 				.returning({ id: tenantNotes.id });
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_note_create",
 				targetOrganizationId: input.organizationId,
@@ -182,7 +182,7 @@ export const platformAdminTenantsNotesRouter = {
 				.set(patch)
 				.where(eq(tenantNotes.id, input.id));
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_note_update",
 				targetOrganizationId: existing.organizationId,
@@ -239,7 +239,7 @@ export const platformAdminTenantsNotesRouter = {
 				.set({ deletedAt: sql`now()` })
 				.where(eq(tenantNotes.id, input.id));
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_note_delete",
 				targetOrganizationId: existing.organizationId,

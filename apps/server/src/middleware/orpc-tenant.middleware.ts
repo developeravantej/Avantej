@@ -15,6 +15,13 @@ import { organizations } from "@avantej-core/db/schema/control-panel/organizatio
 import { resolveMemberContext } from "@avantej-core/services";
 import { getBetterAuth } from "@/lib/better-auth";
 import { matchesPublicTenantEndpoint } from "./public-endpoints";
+import { isAppBlocked } from "@/services/tenant-lifecycle.service";
+import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
+import {
+	evaluateAccess,
+	isWriteProcedure,
+	type SubStateInput,
+} from "@/middleware/require-active-saas-sub.middleware";
 
 export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
 	// Only process oRPC routes
@@ -118,17 +125,32 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
 				return;
 			}
 
-			// Plan E E.3 / ADR-0024 — block oRPC mutations on suspended tenants.
-			// Platform-admin endpoints bypass so ops can resume/cancel.
-			const methodStr = String(method ?? "");
+			// ─── ADR-0024 suspension/cancellation gate (Layer 1) ───────────────
+			// Block oRPC mutations on app-blocked tenants (suspended | cancelled —
+			// see isAppBlocked). Platform-admin endpoints bypass so ops can
+			// resume/cancel/inspect. A later Layer-2 read-only billing gate sits
+			// beside this self-contained block.
+			//
+			// Procedure identity is taken from the URL PATH — the oRPC RPCLink wire
+			// format encodes the procedure in the path (/rpc/<router>/<proc>) and the
+			// body is { json: input } with NO `method`. Deriving the bypass from a
+			// body `method` makes it always-false, which would 403 every platform-admin
+			// recovery call (resume / forceCancel / reTrial) against the suspended
+			// target tenant — a deadlock with no way back.
+			const procPath = c.req.path.replace(/^\/rpc\//, "").replace(/\//g, ".");
 			const isPlatformAdminCall =
-				methodStr.startsWith("platformAdmin") || methodStr.startsWith("admin.");
+				procPath.startsWith("platformAdmin") || procPath.startsWith("admin.");
 			if (!isPlatformAdminCall) {
 				try {
 					const cpDb = getControlPanelDb(c);
 					const org = await cpDb.query.organizations.findFirst({
 						where: eq(organizations.id, organizationId),
-						columns: { id: true, paymentStatus: true },
+						columns: {
+							id: true,
+							paymentStatus: true,
+							subscriptionId: true,
+							trialEndsAt: true,
+						},
 					});
 					// Cross-tenant safety: if the requested organizationId doesn't
 					// resolve to any organization, reject with FORBIDDEN BEFORE we
@@ -139,21 +161,14 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
 					// works, but a permission denial surfaced as a 500 is wrong and
 					// creates noisy monitoring. Use 403 here so the surface code
 					// matches the actual reason.
-					//
-					// Invitation endpoints are an exception only when the org exists
-					// (an invitation's target org always exists by construction —
-					// invitations are issued FROM an org). We don't carve out an
-					// invitation bypass here.
 					if (!org) {
 						return c.json(
 							{ error: "Forbidden: organization not accessible" },
 							403,
 						);
 					}
-					if (
-						org.paymentStatus === "suspended" ||
-						org.paymentStatus === "cancelled"
-					) {
+					// `org` is defined — check Layer-1 app-blocked state.
+					if (isAppBlocked(org.paymentStatus)) {
 						return c.json(
 							{
 								error: `Tenant is ${org.paymentStatus}`,
@@ -161,6 +176,63 @@ export const orpcTenantMiddleware = createMiddleware(async (c, next) => {
 							},
 							403,
 						);
+					}
+
+					// ─── ADR-0003/0009 SaaS-subscription read-only gate (Layer 2) ───
+					// A lapsed SaaS subscription (past_due past grace / canceled /
+					// unpaid / trial-expired) puts the tenant in read-only: WRITE
+					// (mutation) procedures are blocked, reads pass. The billing escape
+					// hatch (subscriptions.*) and signup (registration.*) are exempt so a
+					// lapsed tenant can still reach checkout to recover. Platform-admin
+					// already bypassed above. We only load the subscription row for write
+					// procedures (reads skip this entirely).
+					//
+					// NOTE: this enforces read-only (block writes) for BOTH the
+					// read_only and block decisions. The stricter ADR-0003 full lockout
+					// (trial-expired = no access at all, including reads) is intentionally
+					// deferred until the locked-out UX and a read-side exempt-list
+					// (auth/userContext, subscriptions) are verified — blocking reads
+					// here would lock a tenant out of the screens needed to subscribe.
+					const isBillingExempt =
+						procPath.startsWith("subscriptions") ||
+						procPath.startsWith("registration");
+					// Only gate tenants actually on the SaaS billing path (those with a
+					// subscription). An admin-provisioned tenant (paymentStatus=active,
+					// no subscription yet) must NOT be write-locked — the Layer-1
+					// lifecycle gate already governs its access. Without this guard,
+					// evaluateAccess(null sub) returns `block` (trial_expired_no_sub) and
+					// 403s a healthy provisioned tenant.
+					if (
+						org.subscriptionId &&
+						!isBillingExempt &&
+						isWriteProcedure(procPath)
+					) {
+						let sub: SubStateInput = null;
+						{
+							const subRow = await cpDb.query.subscriptions.findFirst({
+								where: eq(subscriptions.id, org.subscriptionId),
+								columns: {
+									status: true,
+									pastDueAt: true,
+									gracePeriodEndsAt: true,
+									trialEndsAt: true,
+								},
+							});
+							if (subRow) sub = subRow;
+						}
+						const decision = evaluateAccess(sub, new Date(), org.trialEndsAt);
+						if (
+							decision.decision === "read_only" ||
+							decision.decision === "block"
+						) {
+							return c.json(
+								{
+									error: `Read-only: SaaS subscription ${decision.reason}`,
+									saas: decision.reason,
+								},
+								403,
+							);
+						}
 					}
 				} catch (e) {
 					// If we can't check (e.g. control-panel DB unavailable), fall

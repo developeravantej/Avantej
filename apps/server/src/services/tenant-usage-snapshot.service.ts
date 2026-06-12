@@ -226,42 +226,33 @@ async function snapshotOne(
 			now,
 		});
 
+		// Build the non-key columns once so the insert .values and the conflict
+		// .set cannot drift. Previously storageBytes was in .values but missing
+		// from .set, so it was silently not updated on an UPSERT (B7).
+		const factors = {
+			memberCount,
+			customerCount,
+			apptCount30d,
+			salesTotal30dMinor: salesRow.total,
+			salesCurrency: (salesRow.currency ?? "MYR").toUpperCase(),
+			storageBytes: 0,
+			ghlActive: org.ghlProvisionedAt !== null,
+			healthScore: health.score,
+			riskFlags: health.flags,
+			lastAdminLoginAt,
+			failedWebhooks7d,
+			dailyActiveMembers30dAvg,
+		};
+
 		await deps.controlPanelDb
 			.insert(tenantUsageSnapshots)
-			.values({
-				organizationId: org.id,
-				snapshotDate,
-				memberCount,
-				customerCount,
-				apptCount30d,
-				salesTotal30dMinor: salesRow.total,
-				salesCurrency: (salesRow.currency ?? "MYR").toUpperCase(),
-				storageBytes: 0,
-				ghlActive: org.ghlProvisionedAt !== null,
-				healthScore: health.score,
-				riskFlags: health.flags,
-				lastAdminLoginAt,
-				failedWebhooks7d,
-				dailyActiveMembers30dAvg,
-			})
+			.values({ organizationId: org.id, snapshotDate, ...factors })
 			.onConflictDoUpdate({
 				target: [
 					tenantUsageSnapshots.organizationId,
 					tenantUsageSnapshots.snapshotDate,
 				],
-				set: {
-					memberCount,
-					customerCount,
-					apptCount30d,
-					salesTotal30dMinor: salesRow.total,
-					salesCurrency: (salesRow.currency ?? "MYR").toUpperCase(),
-					ghlActive: org.ghlProvisionedAt !== null,
-					healthScore: health.score,
-					riskFlags: health.flags,
-					lastAdminLoginAt,
-					failedWebhooks7d,
-					dailyActiveMembers30dAvg,
-				},
+				set: factors,
 			});
 
 		return { ok: true };

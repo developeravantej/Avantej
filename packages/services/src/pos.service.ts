@@ -39,6 +39,11 @@ import {
 	calculateInstallmentAmounts,
 	confirmInstallmentPayment,
 } from "./installment.service";
+import {
+	enrichPosItemTrainerAssignments,
+	getLeadAttributionForCustomer,
+	writePackageInstanceLeadStaff,
+} from "./lead-attribution.service";
 // Agent 2.3 — Phase 2 Wave 3b — J2 — fallback tax-rate resolution
 import { resolveTaxRate } from "./tax.service";
 import * as branchStatsCache from "./branch-stats-cache.service";
@@ -314,6 +319,17 @@ export async function recordPosSale(
 			});
 		}
 	}
+
+	const leadAttribution =
+		input.customerType === "member"
+			? await getLeadAttributionForCustomer(tenantDb, input.customerId)
+			: { primaryStaffMemberId: null, primaryStaffUserId: null };
+
+	const effectiveItemTrainerAssignments = enrichPosItemTrainerAssignments(
+		input.items,
+		input.itemTrainerAssignments,
+		leadAttribution.primaryStaffUserId,
+	);
 
 	// ------------------------------------------------------------------
 	// F-CRM-02: credit-point redemption is members-only (balance lives on
@@ -886,6 +902,18 @@ export async function recordPosSale(
 				if (!pkgInstance) throw new Error("Failed to insert package_instance");
 				packageInstanceIds.push(pkgInstance.id);
 
+				if (input.customerType === "member") {
+					await writePackageInstanceLeadStaff(
+						tx as unknown as typeof tenantDb,
+						{
+							packageInstanceId: pkgInstance.id,
+							customerUserId: input.customerId,
+							preferredTrainerMemberId: input.preferredTrainerId ?? null,
+							assignedBy: input.actor.userId,
+						},
+					);
+				}
+
 				// Step 13c: Installment schedule — 7.2: use shared helper
 				if (isInstallmentPlan && installmentPlan) {
 					const intervalDays = installmentPlan.defaultIntervalDays ?? 30;
@@ -1002,8 +1030,8 @@ export async function recordPosSale(
 	// when the linked appointment is delivered (completed or cancelled). The line's
 	// commissionDeferred flag is already set to true in the transaction above.
 	if (
-		input.itemTrainerAssignments &&
-		Object.keys(input.itemTrainerAssignments).length > 0
+		effectiveItemTrainerAssignments &&
+		Object.keys(effectiveItemTrainerAssignments).length > 0
 	) {
 		const { calculateCommissionForPos } = await import(
 			"./commission-calculator.service"
@@ -1032,7 +1060,7 @@ export async function recordPosSale(
 		);
 
 		for (const [indexStr, staffAssignments] of Object.entries(
-			input.itemTrainerAssignments,
+			effectiveItemTrainerAssignments,
 		)) {
 			const itemIndex = parseInt(indexStr, 10);
 			const item = input.items[itemIndex];

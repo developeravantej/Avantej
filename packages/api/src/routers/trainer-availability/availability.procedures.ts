@@ -6,8 +6,8 @@ import {
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { tenantProcedure } from "../index";
-import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { tenantProcedure } from "../../index";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
 import { dayOfWeekSchema, kindSchema } from "./_shared";
 
 export const availabilityProcedures = {

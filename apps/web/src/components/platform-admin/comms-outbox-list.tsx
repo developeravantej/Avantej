@@ -62,7 +62,9 @@ export function CommsOutboxList(props: CommsOutboxListProps) {
 			<div className="grid grid-cols-1 md:grid-cols-4 gap-3">
 				<Select
 					value={props.kindFilter}
-					onValueChange={(v) => props.onKindChange(v as typeof props.kindFilter)}
+					onValueChange={(v) =>
+						props.onKindChange(v as typeof props.kindFilter)
+					}
 				>
 					<SelectTrigger data-testid="outbox-kind-filter">
 						<SelectValue placeholder="Kind" />
@@ -106,7 +108,7 @@ export function CommsOutboxList(props: CommsOutboxListProps) {
 					: `${props.total} message${props.total === 1 ? "" : "s"}`}
 			</div>
 
-			<div className="overflow-hidden rounded-xl border border-brand-secondary-3">
+			<div className="overflow-hidden rounded-xl border border-border bg-card">
 				<Table>
 					<TableHeader className="sticky top-0 z-10 bg-white">
 						<TableRow className="hover:bg-transparent">

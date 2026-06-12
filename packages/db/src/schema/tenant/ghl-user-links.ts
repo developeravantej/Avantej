@@ -24,6 +24,10 @@ export const ghlUserLinks = pgTable(
 		memberId: uuid("member_id").notNull(),
 		branchNodeId: uuid("branch_node_id").notNull(),
 		ghlLocationId: text("ghl_location_id").notNull(),
+		// The unique label this member occupies in the org's GHL "Primary Staff"
+		// dropdown. Set by the desired-state reconcile; lets the inbound lead
+		// webhook resolve primary_staff (a label string) to this member exactly.
+		primaryStaffOptionLabel: text("primary_staff_option_label"),
 		lastError: text("last_error"),
 		syncStatus: text("sync_status").default("active").notNull(),
 		lastSyncedAt: timestamp("last_synced_at"),
@@ -31,19 +35,17 @@ export const ghlUserLinks = pgTable(
 		updatedAt: timestamp("updated_at").defaultNow().notNull(),
 	},
 	(table) => ({
-		ghlUserIdUniqueIdx: uniqueIndex(
-			"ghl_user_links_ghl_user_id_unique",
-		).on(table.ghlUserId),
+		ghlUserIdUniqueIdx: uniqueIndex("ghl_user_links_ghl_user_id_unique").on(
+			table.ghlUserId,
+		),
 		// Phase G: org-shared GHL model — one member maps to ONE GHL user per
 		// org (branch differentiation lives in a GHL custom-field dropdown).
-		memberUniqueIdx: uniqueIndex(
-			"ghl_user_links_member_unique",
-		).on(table.memberId),
+		memberUniqueIdx: uniqueIndex("ghl_user_links_member_unique").on(
+			table.memberId,
+		),
 		userIdIdx: index("ghl_user_links_user_idx").on(table.userId),
 		memberIdIdx: index("ghl_user_links_member_idx").on(table.memberId),
-		branchNodeIdIdx: index("ghl_user_links_branch_idx").on(
-			table.branchNodeId,
-		),
+		branchNodeIdIdx: index("ghl_user_links_branch_idx").on(table.branchNodeId),
 		ghlLocationIdIdx: index("ghl_user_links_ghl_location_idx").on(
 			table.ghlLocationId,
 		),

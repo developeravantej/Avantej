@@ -396,12 +396,44 @@ export interface CustomerDetail {
 	member: typeof members.$inferSelect;
 	user: { name: string; email: string };
 	profile: typeof customerProfiles.$inferSelect | null;
+	primaryStaffMember: { id: string; name: string } | null;
+	referrerMember: { id: string; name: string } | null;
 	packageInstances: (typeof packageInstances.$inferSelect & {
 		serviceName: string | null;
 	})[];
 	recentPayments: (typeof payments.$inferSelect)[];
 	appointmentCount: number;
 	outstandingBalanceCents: number;
+}
+
+async function resolveMemberDisplayNames(
+	controlPanelDb: ControlPanelDb,
+	tenantDb: TenantDb,
+	memberIds: string[],
+): Promise<Map<string, string>> {
+	const uniqueIds = [...new Set(memberIds.filter(Boolean))];
+	if (uniqueIds.length === 0) return new Map();
+
+	const memberRows = await tenantDb
+		.select({ id: members.id, userId: members.userId })
+		.from(members)
+		.where(inArray(members.id, uniqueIds));
+
+	const userIds = memberRows.map((m) => m.userId);
+	const userRows =
+		userIds.length > 0
+			? await controlPanelDb
+					.select({ id: user.id, name: user.name })
+					.from(user)
+					.where(inArray(user.id, userIds))
+			: [];
+
+	const userNameById = new Map(
+		userRows.map((u) => [u.id, u.name ?? "Unknown"]),
+	);
+	return new Map(
+		memberRows.map((m) => [m.id, userNameById.get(m.userId) ?? "Unknown"]),
+	);
 }
 
 /**
@@ -499,6 +531,12 @@ export async function getCustomerDetail(
 	const outstandingBalanceCents =
 		(outstandingResult.rows[0] as { outstanding: number })?.outstanding ?? 0;
 
+	const staffNameMap = await resolveMemberDisplayNames(
+		controlPanelDb,
+		tenantDb,
+		[profile?.primaryStaffMemberId ?? "", profile?.referrerMemberId ?? ""],
+	);
+
 	return {
 		member,
 		user: {
@@ -515,6 +553,18 @@ export async function getCustomerDetail(
 					...profile,
 					isUnclaimed:
 						(profile.isUnclaimed ?? false) && !userDetail?.emailVerified,
+				}
+			: null,
+		primaryStaffMember: profile?.primaryStaffMemberId
+			? {
+					id: profile.primaryStaffMemberId,
+					name: staffNameMap.get(profile.primaryStaffMemberId) ?? "Unknown",
+				}
+			: null,
+		referrerMember: profile?.referrerMemberId
+			? {
+					id: profile.referrerMemberId,
+					name: staffNameMap.get(profile.referrerMemberId) ?? "Unknown",
 				}
 			: null,
 		packageInstances: pkgInstances,

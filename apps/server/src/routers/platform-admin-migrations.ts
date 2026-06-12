@@ -30,12 +30,11 @@
  */
 
 import { z } from "zod";
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { protectedProcedure } from "@avantej-core/api";
-import { platformAdmins } from "@avantej-core/db/schema/control-panel/platform-admins";
+import { adminProcedure } from "@/lib/admin-procedure";
 import { controlPanelJournal, tenantJournal } from "@avantej-core/db/journals";
 import type { DrizzleJournal } from "@avantej-core/db/journals";
 import { CONTROL_PANEL_MIGRATIONS } from "@avantej-core/db/generated/control-panel-migrations.generated";
@@ -49,32 +48,6 @@ type CpAppliedRow = { id: number; hash: string; created_at: string | number };
 // currently not surfaced here (per-tenant DB access lives in tenant context).
 
 const TAG_REGEX = /^\d{4}_[a-z0-9_]+$/;
-
-function requirePlatformAdmin() {
-	return (protectedProcedure as any).middleware(
-		async ({ context, next }: { context: any; next: any }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Authentication required",
-				});
-			}
-			const cpDb = getControlPanelDb(context);
-			const adminRecord = await cpDb.query.platformAdmins.findFirst({
-				where: eq(platformAdmins.userId, context.session.user.id),
-			});
-			if (!adminRecord) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Admin access required",
-				});
-			}
-			return next({
-				context: { ...context, adminRecord, adminRole: adminRecord.role },
-			});
-		},
-	);
-}
-
-const adminProcedure = protectedProcedure.use(requirePlatformAdmin());
 
 function toIsoFromEpochMs(v: unknown): string {
 	if (typeof v === "number") return new Date(v).toISOString();

@@ -35,6 +35,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { normalizeGender } from "@/lib/gender";
 import { formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
 import { PackageRow } from "@/components/customers/customer-360/package-row";
@@ -211,15 +212,20 @@ export function CustomerDetailSheet({
 		enabled: open && !!memberId && !!organizationId,
 	});
 
-	// Populate form when a new customer's data arrives (not on every render).
-	// Keying on memberId avoids blowing away user edits on background refetch.
+	// Populate the form once data arrives for this member. Keyed on memberId +
+	// the loaded profile id so it runs when the fetched record first lands on a
+	// fresh open, and re-runs only on member switch — never on a background
+	// refetch of the same record, which would wipe unsaved edits.
+	const loadedProfileKey = data
+		? `${memberId}:${data.profile?.id ?? "none"}`
+		: null;
 	useEffect(() => {
 		if (!data) return;
 		const profile = data.profile;
 		setProfileForm({
 			phone: profile?.phone ?? "",
 			dateOfBirth: toDateInputValue(profile?.dateOfBirth),
-			gender: (profile?.gender as Gender) ?? "",
+			gender: normalizeGender(profile?.gender),
 			address: profile?.address ?? "",
 			emergencyContactName: profile?.emergencyContactName ?? "",
 			emergencyContactPhone: profile?.emergencyContactPhone ?? "",
@@ -228,8 +234,9 @@ export function CustomerDetailSheet({
 			notes: profile?.notes ?? "",
 		});
 		setFormDirty(false);
+		// loadedProfileKey changes only on member switch or first data arrival.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [memberId]);
+	}, [loadedProfileKey]);
 
 	// ── Profile upsert mutation ────────────────────────────────────────────
 
@@ -326,6 +333,27 @@ export function CustomerDetailSheet({
 							{/* ── Section 1: Profile (editable) ──────────── */}
 							<Section title="Profile" icon={User}>
 								<div className="space-y-4">
+									{(data?.profile?.leadAcquisitionType ||
+										data?.profile?.campaignId) && (
+										<div className="flex flex-wrap items-center gap-2">
+											{data.profile.leadAcquisitionType && (
+												<span className="flex items-center gap-1.5 text-muted-foreground text-xs">
+													Lead source
+													<Badge variant="secondary">
+														{data.profile.leadAcquisitionType}
+													</Badge>
+												</span>
+											)}
+											{data.profile.campaignId && (
+												<span className="flex items-center gap-1.5 text-muted-foreground text-xs">
+													Campaign
+													<Badge variant="secondary">
+														{data.profile.campaignId}
+													</Badge>
+												</span>
+											)}
+										</div>
+									)}
 									<div className="grid grid-cols-2 gap-4">
 										{/* Phone */}
 										<div className="flex flex-col gap-1.5">

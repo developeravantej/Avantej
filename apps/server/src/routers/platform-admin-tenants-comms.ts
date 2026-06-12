@@ -21,12 +21,13 @@ import { ORPCError } from "@orpc/server";
 import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { users } from "@avantej-core/db/schema/control-panel/users";
-import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { notifications } from "@avantej-core/db/schema/tenant/notifications";
 import { announcements } from "@avantej-core/db/schema/tenant/announcements";
 import { sendEmail } from "@/lib/email";
 import { getTenantDb } from "@/lib/db";
 import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
+import { recordAdminAction } from "@/services/admin-audit.service";
+import { escapeHtml } from "@/lib/html";
 
 const superAdminProcedure = adminProcedure.use(
 	requirePlatformAdmin(["super_admin"]),
@@ -40,15 +41,6 @@ function adminUserIdFrom(context: unknown): string {
 			message: "No admin user in session",
 		});
 	return id;
-}
-
-function escapeHtml(s: string): string {
-	return s
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#039;");
 }
 
 function renderDmHtml(subject: string, message: string, orgName: string) {
@@ -137,7 +129,7 @@ export const platformAdminTenantsCommsRouter = {
 			}
 
 			try {
-				await cpDb.insert(adminSessionActions).values({
+				await recordAdminAction(cpDb, {
 					adminUserId,
 					actionType: "tenant_dm",
 					targetOrganizationId: org.id,
@@ -191,7 +183,7 @@ export const platformAdminTenantsCommsRouter = {
 				})
 				.returning({ id: announcements.id });
 
-			await cpDb.insert(adminSessionActions).values({
+			await recordAdminAction(cpDb, {
 				adminUserId,
 				actionType: "tenant_announcement_create",
 				targetOrganizationId: org.id,
@@ -260,7 +252,7 @@ export const platformAdminTenantsCommsRouter = {
 				} catch (e) {
 					console.error("[bulk-dm] in-app failed for", orgId, e);
 				}
-				await cpDb.insert(adminSessionActions).values({
+				await recordAdminAction(cpDb, {
 					adminUserId,
 					actionType: "tenant_dm",
 					targetOrganizationId: org.id,
@@ -332,7 +324,7 @@ export const platformAdminTenantsCommsRouter = {
 						createdBy: adminUserId,
 					})
 					.returning({ id: announcements.id });
-				await cpDb.insert(adminSessionActions).values({
+				await recordAdminAction(cpDb, {
 					adminUserId,
 					actionType: "tenant_announcement_create",
 					targetOrganizationId: org.id,

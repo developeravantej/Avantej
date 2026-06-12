@@ -12,22 +12,13 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusCallout } from "@/components/ui/status-callout";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { client } from "@/utils/orpc";
+import { MoneyHubTabs } from "@/components/platform-admin/money-hub-tabs";
 import { BigNumberCard } from "@/components/platform-admin/big-number-card";
 import { RecentInvoicesPanel } from "@/components/platform-admin/recent-invoices-panel";
 import { RefundQueuePanel } from "@/components/platform-admin/refund-queue-panel";
@@ -129,6 +120,7 @@ function PlatformAdminBillingPage() {
 
 	return (
 		<div className="p-6 space-y-6" data-testid="billing-global-page">
+			<MoneyHubTabs />
 			<header className="flex items-start justify-between gap-3">
 				<div>
 					<div className="text-sm text-muted-foreground">Platform admin</div>
@@ -195,9 +187,7 @@ function PlatformAdminBillingPage() {
 						value={overviewQ.data.kpis.refundsLast30dCount}
 						subLabel={
 							overviewQ.data.kpis.refundsLast30dAmountCents > 0
-								? fmtCents(
-										overviewQ.data.kpis.refundsLast30dAmountCents,
-									)
+								? fmtCents(overviewQ.data.kpis.refundsLast30dAmountCents)
 								: "no refunds"
 						}
 						band={
@@ -262,9 +252,7 @@ function PlatformAdminBillingPage() {
 								coupons={coupons}
 								isSuperAdmin={isSuperAdmin}
 								onCreate={() => setCreateOpen(true)}
-								onDelete={(couponId) =>
-									deleteMutation.mutate(couponId)
-								}
+								onDelete={(couponId) => deleteMutation.mutate(couponId)}
 								isLoading={overviewQ.isLoading}
 							/>
 						</CardContent>

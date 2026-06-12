@@ -17,7 +17,7 @@ import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 import { orgCountryStripeAccounts } from "@avantej-core/db/schema/control-panel/org-country-stripe-accounts";
-import { TIER_LIMITS, type Tier } from "@avantej-core/types";
+import { resolveEffectiveTier, type Tier } from "@avantej-core/types";
 
 export type ResolvedConnectAccount = {
 	acctId: string;
@@ -48,26 +48,18 @@ async function resolveTier(
 		.from(organizations)
 		.where(eq(organizations.id, orgId))
 		.limit(1);
-	let tier: Tier | null = null;
-	if (org?.subscriptionId) {
-		const [sub] = await controlPanelDb
-			.select({ tier: subscriptions.tier })
-			.from(subscriptions)
-			.where(eq(subscriptions.id, org.subscriptionId))
-			.limit(1);
-		if (
-			sub?.tier &&
-			(sub.tier === "basic" ||
-				sub.tier === "professional" ||
-				sub.tier === "enterprise")
-		) {
-			tier = sub.tier;
-		}
+	if (!org?.subscriptionId) {
+		return resolveEffectiveTier(null);
 	}
-	const appFeeBps = tier
-		? TIER_LIMITS[tier].appFeeBps
-		: TIER_LIMITS.basic.appFeeBps;
-	return { tier, appFeeBps };
+	// Read status alongside tier: a non-live (canceled/unpaid) subscription must
+	// NOT keep its tier's discounted fee — resolveEffectiveTier applies the
+	// LIVE_SUBSCRIPTION_STATUSES gate and falls back to basic otherwise.
+	const [sub] = await controlPanelDb
+		.select({ tier: subscriptions.tier, status: subscriptions.status })
+		.from(subscriptions)
+		.where(eq(subscriptions.id, org.subscriptionId))
+		.limit(1);
+	return resolveEffectiveTier(sub ?? null);
 }
 
 /**

@@ -44,6 +44,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { useUserContext } from "@/hooks/useUserContext";
 import { LogsTab } from "@/features/customers-detail/components/LogsTab";
+import { normalizeGender } from "@/lib/gender";
 import { formatPrice } from "@/lib/money";
 import { client, orpc } from "@/utils/orpc";
 
@@ -342,13 +343,20 @@ export function CustomerProfilePanel({
 		},
 	});
 
+	// Populate the form once data arrives for this member. Keyed on memberId +
+	// the loaded profile id so it (a) runs when the fetched record first lands
+	// on a fresh load, and (b) re-runs only when switching customers — never on
+	// a background refetch of the same record, which would wipe unsaved edits.
+	const loadedProfileKey = detail
+		? `${memberId}:${detail.profile?.id ?? "none"}`
+		: null;
 	useEffect(() => {
 		if (!detail) return;
 		const profile = detail.profile;
 		setProfileForm({
 			phone: profile?.phone ?? "",
 			dateOfBirth: toDateInputValue(profile?.dateOfBirth),
-			gender: (profile?.gender as Gender) ?? "",
+			gender: normalizeGender(profile?.gender),
 			address: profile?.address ?? "",
 			emergencyContactName: profile?.emergencyContactName ?? "",
 			emergencyContactPhone: profile?.emergencyContactPhone ?? "",
@@ -359,9 +367,10 @@ export function CustomerProfilePanel({
 		setFormDirty(false);
 		setNameEditDirty(false);
 		setEmailEditDirty(false);
+		// loadedProfileKey changes only on member switch or first data arrival.
 		// intentional: profile in deps would wipe unsaved form edits on every background refetch
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [memberId]);
+	}, [loadedProfileKey]);
 
 	useEffect(() => {
 		if (!detail) return;
@@ -756,6 +765,28 @@ export function CustomerProfilePanel({
 					{/* Profile card */}
 					<SectionCard title="Profile">
 						<div className="space-y-4">
+							{/* Lead source / campaign attribution badges */}
+							{(profile?.leadAcquisitionType || profile?.campaignId) && (
+								<div className="flex flex-wrap items-center gap-2">
+									{profile?.leadAcquisitionType && (
+										<span className="flex items-center gap-1.5 text-[#737373] text-xs">
+											Lead source
+											<span className="inline-flex items-center rounded-full bg-[#f3f3f3] px-2 py-0.5 text-[11px] font-medium text-[#0a0a0a]">
+												{profile.leadAcquisitionType}
+											</span>
+										</span>
+									)}
+									{profile?.campaignId && (
+										<span className="flex items-center gap-1.5 text-[#737373] text-xs">
+											Campaign
+											<span className="inline-flex items-center rounded-full bg-[#f3f3f3] px-2 py-0.5 text-[11px] font-medium text-[#0a0a0a]">
+												{profile.campaignId}
+											</span>
+										</span>
+									)}
+								</div>
+							)}
+
 							{/* Name */}
 							<div className="flex flex-col gap-1.5">
 								<Label htmlFor="cd-name">Name</Label>

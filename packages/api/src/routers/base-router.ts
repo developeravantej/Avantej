@@ -59,6 +59,7 @@ import { taxRatesRouter } from "./tax-rates";
 import { trainerAvailabilityRouter } from "./trainer-availability";
 import { trainerTiersRouter } from "./trainer-tiers";
 import { trainersRouter } from "./trainers";
+import { ghlSyncRouter } from "./ghl-sync";
 import { transferOrdersRouter } from "./transfer-orders";
 import { unitsOfMeasureRouter } from "./units-of-measure";
 import { userActivityLogRouter } from "./user-activity-log";
@@ -139,4 +140,5 @@ export const baseRouter = {
 	branchInvites: branchInvitesRouter,
 	onboarding: onboardingRouter,
 	trainers: trainersRouter,
+	ghlSync: ghlSyncRouter,
 };

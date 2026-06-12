@@ -12,23 +12,19 @@ END $$;
 --> statement-breakpoint
 
 -- Pre-flight: any rows with a value outside the enum would block the cast.
--- Should be impossible post-H1, but verify. Runs only while the column is still
--- TEXT — once it is the hierarchy_node_type enum, string_agg(enum, ...) does not
--- exist (and every value is necessarily valid), so a re-run skips this check.
+-- Should be impossible post-H1, but verify.
+-- Cast type::text throughout: on a tenant where the column is ALREADY the enum
+-- (idempotent re-run), `string_agg(type, ...)` has no enum overload and fails
+-- with `function string_agg(hierarchy_node_type, unknown) does not exist`.
 DO $$
-DECLARE bad_count int; bad_types text; col_type text;
+DECLARE bad_count int; bad_types text;
 BEGIN
-  SELECT data_type INTO col_type FROM information_schema.columns
-   WHERE table_name = 'hierarchy_nodes' AND column_name = 'type';
-
-  IF col_type = 'text' THEN
-    SELECT count(DISTINCT type), string_agg(DISTINCT type, ', ')
-      INTO bad_count, bad_types
-    FROM hierarchy_nodes
-    WHERE type NOT IN ('organization', 'country', 'state', 'branch');
-    IF bad_count > 0 THEN
-      RAISE EXCEPTION 'Migration blocked: % unexpected type value(s) in hierarchy_nodes: %', bad_count, bad_types;
-    END IF;
+  SELECT count(DISTINCT type::text), string_agg(DISTINCT type::text, ', ')
+    INTO bad_count, bad_types
+  FROM hierarchy_nodes
+  WHERE type::text NOT IN ('organization', 'country', 'state', 'branch');
+  IF bad_count > 0 THEN
+    RAISE EXCEPTION 'Migration blocked: % unexpected type value(s) in hierarchy_nodes: %', bad_count, bad_types;
   END IF;
 END $$;
 --> statement-breakpoint

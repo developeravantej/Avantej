@@ -6,12 +6,12 @@ import {
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { tenantProcedure } from "../index";
+import { tenantProcedure } from "../../index";
 import {
 	requirePermissionOrpc,
 	assertOrgContextMatch,
 	guardBranchAccessible,
-} from "../guards";
+} from "../../guards";
 
 export const exceptionsProcedures = {
 	getConflicts: tenantProcedure
