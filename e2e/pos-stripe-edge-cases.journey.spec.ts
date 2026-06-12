@@ -459,6 +459,32 @@ test("a cancelled online order is NOT resurrected by a late payment", {
 		},
 	);
 	expect(receipt.payment?.status).toBe("succeeded");
+
+	// Admins are notified in-app that a refund is required
+	type NotificationRow = {
+		type: string;
+		relatedId?: string | null;
+		title?: string;
+	};
+	const notifs = await orpcCall<object, NotificationRow[]>(
+		page,
+		"notifications",
+		"list",
+		{ organizationId: TEST_ORG_ID, type: "refund_required", limit: 50 },
+	);
+	const refundNotif = notifs.find((n) => n.relatedId === sale.salesOrderId);
+	expect(
+		refundNotif,
+		"org admins must receive a refund_required notification",
+	).toBeTruthy();
+
+	// The sale detail page shouts about it where staff actually look
+	await page.goto(`/dashboard/sales/${sale.salesOrderId}`);
+	await expect(page.getByTestId("refund-required-callout")).toBeVisible({
+		timeout: 15_000,
+	});
+	// ...and the dead payment link is no longer offered
+	await expect(page.getByTestId("pos-payment-link")).not.toBeVisible();
 });
 
 test("online + installment: nothing is paid until the webhook confirms installment #1", {

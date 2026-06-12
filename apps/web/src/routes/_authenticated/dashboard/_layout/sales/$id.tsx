@@ -84,6 +84,12 @@ function SalesOrderDetailPage() {
 			? pendingPayment.paymentLinkUrl
 			: null;
 
+	// Edge case: the customer paid the Stripe link AFTER the sale was cancelled.
+	// The webhook records the money but never resurrects the order — staff must
+	// refund manually, so shout about it here (admins also get a notification).
+	const refundRequired =
+		order?.status === "cancelled" && pendingPayment?.status === "succeeded";
+
 	const {
 		data: receiptDataRaw,
 		isLoading: receiptLoading,
@@ -191,6 +197,17 @@ function SalesOrderDetailPage() {
 				<div className="px-6 py-6">
 					{/* ── Sections (single-column scroll, Section 12.2) ── */}
 					<div className="space-y-5">
+						{/* Refund required — Stripe payment landed on a cancelled sale */}
+						{refundRequired && (
+							<div data-testid="refund-required-callout">
+								<StatusCallout
+									variant="error"
+									title="Refund required"
+									message={`A Stripe payment of ${formatPrice(pendingPayment?.totalAmount ?? 0, "MYR")} was received after this sale was cancelled. The order remains cancelled — issue a refund to the customer.`}
+								/>
+							</div>
+						)}
+
 						{/* Payment Link — online sale awaiting customer payment */}
 						{pendingPaymentLinkUrl && (
 							<div

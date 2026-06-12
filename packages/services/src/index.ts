@@ -320,6 +320,7 @@ export {
 	listNotifications,
 	markAllNotificationsRead,
 	markNotificationRead,
+	notifyAdminsOfCancelledOrderPayment,
 } from "./notification.service";
 // Notification preference services
 export {

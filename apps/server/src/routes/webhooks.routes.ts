@@ -526,6 +526,24 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 						console.error(
 							`[connect webhook] payment received for CANCELLED order so=${salesOrderId} pay=${paymentRowId} pi=${piObj.id} amount=${piObj.amount} — order NOT completed; refund required`,
 						);
+						// Surface to humans: fan out an in-app "refund_required"
+						// notification to every active org admin. Best-effort — the
+						// payment row + log above are the source of truth.
+						try {
+							const { notifyAdminsOfCancelledOrderPayment } = await import(
+								"@avantej-core/services"
+							);
+							await notifyAdminsOfCancelledOrderPayment(tenantDb, {
+								salesOrderId,
+								amountCents: piObj.amount_received ?? piObj.amount ?? 0,
+								paymentIntentId: piObj.id,
+							});
+						} catch (notifyErr) {
+							console.error(
+								`[connect webhook] refund_required notification failed for so=${salesOrderId}:`,
+								notifyErr,
+							);
+						}
 					} else {
 						await tenantDb
 							.update(payments)
