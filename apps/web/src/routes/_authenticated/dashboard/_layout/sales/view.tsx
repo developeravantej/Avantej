@@ -411,6 +411,7 @@ function RouteComponent() {
 									branchId={branchId}
 									onBranchChange={(v) => handleFilterChange({ branchId: v })}
 									nodeOptions={nodeOptions}
+									canCollect={hasPermission("service_management:update")}
 								/>
 							)}
 							{tab === "payments" && (

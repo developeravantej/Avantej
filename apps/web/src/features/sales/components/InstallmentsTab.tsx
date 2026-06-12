@@ -1,7 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ExternalLink, SearchX } from "lucide-react";
+import { ExternalLink, HandCoins, SearchX } from "lucide-react";
 import { useState } from "react";
+import {
+	CollectPaymentDialog,
+	type CollectPaymentTarget,
+} from "@/features/sales/components/CollectPaymentDialog";
 import { useDebounce } from "@/hooks/useDebounce";
 import { formatPrice } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -70,6 +74,7 @@ export interface InstallmentsTabProps {
 	branchId: string;
 	onBranchChange: (v: string) => void;
 	nodeOptions: { id: string; name: string }[];
+	canCollect: boolean;
 }
 
 export function InstallmentsTab({
@@ -79,9 +84,12 @@ export function InstallmentsTab({
 	branchId,
 	onBranchChange,
 	nodeOptions,
+	canCollect,
 }: InstallmentsTabProps) {
 	const [searchQuery, setSearchQuery] = useState("");
 	const debouncedSearch = useDebounce(searchQuery, 300);
+	const [collectTarget, setCollectTarget] =
+		useState<CollectPaymentTarget | null>(null);
 
 	const { data, isLoading, isError, error, refetch } = useQuery({
 		queryKey: [
@@ -223,6 +231,7 @@ export function InstallmentsTab({
 								<th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
 									Status
 								</th>
+								{canCollect && <th className="w-24 px-4 py-3" />}
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-[#e5e5e5]">
@@ -280,6 +289,28 @@ export function InstallmentsTab({
 												{rowStatus.label}
 											</span>
 										</td>
+										{canCollect && (
+											<td className="px-4 py-3 text-right">
+												<button
+													type="button"
+													data-testid={`collect-installment-${row.id}`}
+													onClick={() =>
+														setCollectTarget({
+															installmentId: row.id,
+															installmentNumber: row.installmentNumber,
+															installmentsTotal: row.installmentsTotal,
+															customerName: row.clientName,
+															serviceName: row.serviceName,
+															amountDue: row.amount + (row.taxAmount ?? 0),
+														})
+													}
+													className="inline-flex items-center gap-1.5 rounded-lg border border-[#e5e5e5] bg-white px-3 py-1.5 text-xs font-semibold transition hover:bg-[#0a0a0a] hover:text-white"
+												>
+													<HandCoins className="h-3.5 w-3.5" />
+													Collect
+												</button>
+											</td>
+										)}
 									</tr>
 								);
 							})}
@@ -300,6 +331,12 @@ export function InstallmentsTab({
 					)}
 				</div>
 			)}
+
+			<CollectPaymentDialog
+				organizationId={organizationId}
+				target={collectTarget}
+				onClose={() => setCollectTarget(null)}
+			/>
 		</div>
 	);
 }
