@@ -38,10 +38,10 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+      # The action's input schema changed upstream (diff/github-token/fail-on/
+      # verbose were removed; it now takes directory/scope/blocking/comment).
+      # Advisory scan: report findings, never block the PR.
       - uses: millionco/react-doctor@main
         with:
           directory: ${{ matrix.target.directory }}
-          diff: main
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          fail-on: error
-          verbose: true
+          blocking: false

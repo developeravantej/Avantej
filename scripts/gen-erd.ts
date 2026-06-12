@@ -127,6 +127,13 @@ const IGNORE = new Set(["drizzle_migrations", "__drizzle_migrations"]);
 const INTENTIONAL_MIGRATION_ONLY_FKS = new Set([
 	"commission_splits.payout_id",
 	"refunds.payment_id",
+	// Self-FK declared via the drizzle `(): any =>` pattern, which the schema
+	// regex parser cannot see (commission-split-reversals.ts:42).
+	"commission_split_reversals.reversed_by_reversal_id",
+	// Deliberately has no drizzle .references() — the constraint is created
+	// by hand as DEFERRABLE INITIALLY DEFERRED in 0045_add_households.sql to
+	// break the households <-> customer_profiles cycle (households.ts header).
+	"households.primary_contact_profile_id",
 ]);
 
 const FK_QUERY = `
@@ -167,7 +174,9 @@ async function fetchDb(url: string): Promise<{ tables: string[]; fks: Fk[] }> {
 	const fks = ((await db.execute(FK_QUERY)).rows as Fk[]).filter(
 		(f) => !IGNORE.has(f.child_table) && !IGNORE.has(f.parent_table),
 	);
-	const tables = ((await db.execute(TABLE_QUERY)).rows as Array<{ table_name: string }>)
+	const tables = (
+		(await db.execute(TABLE_QUERY)).rows as Array<{ table_name: string }>
+	)
 		.map((r) => r.table_name)
 		.filter((t) => !IGNORE.has(t));
 	await pool.end();
@@ -176,11 +185,24 @@ async function fetchDb(url: string): Promise<{ tables: string[]; fks: Fk[] }> {
 
 // Parse schema source for `.references(() => X.Y, { onDelete: ... })` AND `(): any => X.Y`.
 // Returns map: child_table.child_col → { parent_table, parent_col, on_delete }
-type SchemaFk = { child: string; col: string; parent: string; on_delete: string };
-type LogicalRef = { child: string; col: string; target: string; source: string };
+type SchemaFk = {
+	child: string;
+	col: string;
+	parent: string;
+	on_delete: string;
+};
+type LogicalRef = {
+	child: string;
+	col: string;
+	target: string;
+	source: string;
+};
 
 function camelToSnake(s: string): string {
-	return s.replace(/([A-Z])/g, "_$1").toLowerCase().replace(/^_/, "");
+	return s
+		.replace(/([A-Z])/g, "_$1")
+		.toLowerCase()
+		.replace(/^_/, "");
 }
 
 function parseSchemaFks(): SchemaFk[] {
@@ -189,7 +211,11 @@ function parseSchemaFks(): SchemaFk[] {
 		for (const e of readdirSync(dir, { withFileTypes: true })) {
 			const p = join(dir, e.name);
 			if (e.isDirectory()) walk(p);
-			else if (e.name.endsWith(".ts") && !e.name.endsWith("-schema.ts") && e.name !== "index.ts") {
+			else if (
+				e.name.endsWith(".ts") &&
+				!e.name.endsWith("-schema.ts") &&
+				e.name !== "index.ts"
+			) {
 				files.push(p);
 			}
 		}
@@ -227,7 +253,9 @@ function parseSchemaFks(): SchemaFk[] {
 			// References call may span lines: `.references(` on line N, `() => X.Y` on line N+1.
 			// Concatenate up to 3 lines forward for matching.
 			const window = lines.slice(i, Math.min(lines.length, i + 4)).join(" ");
-			const refMatch = window.match(/\.references\(\s*\(\s*\)\s*(?::\s*any)?\s*=>\s*(\w+)\.(\w+)/);
+			const refMatch = window.match(
+				/\.references\(\s*\(\s*\)\s*(?::\s*any)?\s*=>\s*(\w+)\.(\w+)/,
+			);
 			if (!refMatch || !currentTable) continue;
 			// Skip if the .references( anchor is not on the current line (avoid double-matching from later lines)
 			if (!line.includes(".references(")) continue;
@@ -237,7 +265,9 @@ function parseSchemaFks(): SchemaFk[] {
 			// Look back for column name
 			let col: string | null = null;
 			for (let j = i; j >= Math.max(0, i - 8); j--) {
-				const cm = lines[j].match(/(?:uuid|text|integer|bigint)\(\s*\"(\w+)\"\s*\)/);
+				const cm = lines[j].match(
+					/(?:uuid|text|integer|bigint)\(\s*\"(\w+)\"\s*\)/,
+				);
 				if (cm) {
 					col = cm[1];
 					break;
@@ -295,7 +325,12 @@ function parseLogicalRefs(): LogicalRef[] {
 		for (const e of readdirSync(dir, { withFileTypes: true })) {
 			const p = join(dir, e.name);
 			if (e.isDirectory()) walk(p);
-			else if (e.name.endsWith(".ts") && !e.name.endsWith("-schema.ts") && e.name !== "index.ts") files.push(p);
+			else if (
+				e.name.endsWith(".ts") &&
+				!e.name.endsWith("-schema.ts") &&
+				e.name !== "index.ts"
+			)
+				files.push(p);
 		}
 	}
 	walk(SCHEMA_ROOT);
@@ -312,11 +347,16 @@ function parseLogicalRefs(): LogicalRef[] {
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
 			const sameLine = line.match(/pgTable\(\s*\"(\w+)\"/);
-			if (sameLine) { currentTable = sameLine[1]; pendingPgTable = false; }
-			else if (line.includes("pgTable(") && !sameLine) pendingPgTable = true;
+			if (sameLine) {
+				currentTable = sameLine[1];
+				pendingPgTable = false;
+			} else if (line.includes("pgTable(") && !sameLine) pendingPgTable = true;
 			else if (pendingPgTable) {
 				const nm = line.match(/^\s*\"(\w+)\"/);
-				if (nm) { currentTable = nm[1]; pendingPgTable = false; }
+				if (nm) {
+					currentTable = nm[1];
+					pendingPgTable = false;
+				}
 			}
 
 			if (!currentTable) continue;
@@ -348,7 +388,11 @@ function parseLogicalRefs(): LogicalRef[] {
 				if (col === "user_id" || /_user_id$/.test(col)) {
 					target = "user.id (CP)";
 					source = "convention";
-				} else if (/^(created_by|requested_by|reviewed_by|processed_by|granted_by|invited_by|approved_by|recipient_id|partner_id|client_id|assigned_trainer_assigned_by|manual_payout_confirmed_by)$/.test(col)) {
+				} else if (
+					/^(created_by|requested_by|reviewed_by|processed_by|granted_by|invited_by|approved_by|recipient_id|partner_id|client_id|assigned_trainer_assigned_by|manual_payout_confirmed_by)$/.test(
+						col,
+					)
+				) {
 					target = "members.userId (text)";
 					source = "convention";
 				}
@@ -368,12 +412,29 @@ async function main() {
 	const cpUrl = process.env.DATABASE_URL!;
 	const cpPool = new Pool({ connectionString: cpUrl });
 	const cpDb = drizzle({ client: cpPool, schema: { organizations } });
-	const orgs = await cpDb.query.organizations.findMany({ limit: 1 });
+	const orgs = await cpDb.query.organizations.findMany({ limit: 10 });
 	if (!orgs.length) throw new Error("No orgs in control panel");
-	const tenantUrl = decrypt(orgs[0].connectionString);
+	// Some rows (placeholder/test orgs) carry undecryptable connection
+	// strings — skip them instead of failing the whole drift report.
+	let tenantUrl: string | null = null;
+	let tenantOrgName = "";
+	for (const org of orgs) {
+		try {
+			tenantUrl = decrypt(org.connectionString);
+			tenantOrgName = org.name;
+			break;
+		} catch (err) {
+			console.warn(
+				`Skipping org "${org.name}" — connection string not decryptable: ${err instanceof Error ? err.message : String(err)}`,
+			);
+		}
+	}
 	await cpPool.end();
+	if (!tenantUrl) {
+		throw new Error("No org with a decryptable connection string found");
+	}
 
-	console.log(`Using tenant: ${orgs[0].name}`);
+	console.log(`Using tenant: ${tenantOrgName}`);
 
 	const [cp, tenant] = await Promise.all([fetchDb(cpUrl), fetchDb(tenantUrl)]);
 	const schemaFks = parseSchemaFks();
@@ -399,7 +460,11 @@ async function main() {
 	for (const s of schemaFks) {
 		const live = liveByCol.get(`${s.child}.${s.col}`);
 		if (live && live.on_delete.toUpperCase() !== s.on_delete.toUpperCase()) {
-			actionDrift.push({ key: `${s.child}.${s.col}`, schema: s.on_delete, live: live.on_delete });
+			actionDrift.push({
+				key: `${s.child}.${s.col}`,
+				schema: s.on_delete,
+				live: live.on_delete,
+			});
 		}
 	}
 	// Drift C: live has FK schema doesn't declare (split: intentional vs unexpected)
@@ -473,7 +538,9 @@ async function main() {
 	out += `## Logical Text-Column Refs (no pg_constraint)\n\nDetected via comment hints + naming conventions. Not enforced at DB level.\n\n`;
 	if (logicalRefs.length) {
 		out += `| Child | Col | → | Target | Source |\n|---|---|---|---|---|\n`;
-		for (const r of logicalRefs.sort((a, b) => `${a.child}.${a.col}`.localeCompare(`${b.child}.${b.col}`))) {
+		for (const r of logicalRefs.sort((a, b) =>
+			`${a.child}.${a.col}`.localeCompare(`${b.child}.${b.col}`),
+		)) {
 			out += `| ${r.child} | ${r.col} | → | ${r.target} | ${r.source} |\n`;
 		}
 	} else out += `_None_\n`;
@@ -493,7 +560,8 @@ async function main() {
 	out += `### onDelete action mismatch (${actionDrift.length})\n\n`;
 	if (actionDrift.length) {
 		out += `| FK | Schema | Live |\n|---|---|---|\n`;
-		for (const d of actionDrift) out += `| ${d.key} | ${d.schema} | ${d.live} |\n`;
+		for (const d of actionDrift)
+			out += `| ${d.key} | ${d.schema} | ${d.live} |\n`;
 	} else out += `_None_\n`;
 	out += "\n";
 
@@ -533,7 +601,10 @@ async function main() {
 	const orphanTablesCp = cp.tables.filter((t) => !schemaTables.has(t));
 
 	out += `### Tables in live, not in schema source (${orphanTables.length + orphanTablesCp.length})\n\n`;
-	const all = [...orphanTables.map((t) => `tenant: ${t}`), ...orphanTablesCp.map((t) => `cp: ${t}`)];
+	const all = [
+		...orphanTables.map((t) => `tenant: ${t}`),
+		...orphanTablesCp.map((t) => `cp: ${t}`),
+	];
 	if (all.length) out += all.map((t) => `- ${t}`).join("\n") + "\n";
 	else out += `_None_\n`;
 	out += "\n";
@@ -542,7 +613,8 @@ async function main() {
 	const liveTables = new Set([...cp.tables, ...tenant.tables]);
 	const missingTables = [...schemaTables].filter((t) => !liveTables.has(t));
 	out += `### Tables in schema source, not in live (${missingTables.length})\n\n`;
-	if (missingTables.length) out += missingTables.map((t) => `- ${t}`).join("\n") + "\n";
+	if (missingTables.length)
+		out += missingTables.map((t) => `- ${t}`).join("\n") + "\n";
 	else out += `_None_\n`;
 	out += "\n";
 
@@ -559,7 +631,9 @@ async function main() {
 	function bucketByDb<T extends { child?: string; child_table?: string }>(
 		item: T,
 	): "cp" | "tenant" | "unknown" {
-		const t = (item as { child?: string }).child ?? (item as { child_table?: string }).child_table;
+		const t =
+			(item as { child?: string }).child ??
+			(item as { child_table?: string }).child_table;
 		if (!t) return "unknown";
 		if (tenantTableSet.has(t)) return "tenant";
 		if (cpTableSet.has(t)) return "cp";

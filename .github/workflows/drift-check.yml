@@ -39,6 +39,10 @@ jobs:
       - name: Generate ERD + drift report
         env:
           DATABASE_URL: ${{ secrets.DRIFT_CHECK_DATABASE_URL }}
+          # gen-erd derives each tenant's connection string from the
+          # organizations table, which is encrypted at rest — decryption
+          # needs the same key the server uses.
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
         run: bun scripts/gen-erd.ts
 
       - name: Check drift (fails on any drift section)

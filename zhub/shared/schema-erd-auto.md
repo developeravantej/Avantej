@@ -2,10 +2,10 @@
 
 > **Do not edit by hand.** Regenerate with `bun scripts/gen-erd.ts`.
 
-Generated: 2026-05-30T09:20:10.264Z
-Tenant org: Test Org 1777516948038
+Generated: 2026-06-12T11:13:01.191Z
+Tenant org: Plan F.3.5 Global Billing Test Org
 Control panel: 29 tables, 30 FKs
-Tenant: 97 tables, 168 FKs
+Tenant: 104 tables, 179 FKs
 
 ## Control Panel
 
@@ -55,8 +55,8 @@ Tables: account, admin_session_actions, admin_sessions, comms_templates, ghl_bra
 erDiagram
   appointments ||--o{ appointment_clients : "appointment_id cascade"
   package_instances ||--o{ appointment_clients : "package_instance_id set null"
-  walk_in_customers ||--o{ appointment_clients : "walk_in_customer_id no action"
   walk_in_customers ||--o{ appointment_clients : "walk_in_customer_id restrict"
+  walk_in_customers ||--o{ appointment_clients : "walk_in_customer_id no action"
   appointments ||--o{ appointment_staff : "appointment_id cascade"
   hierarchy_nodes ||--o{ appointments : "branch_id restrict"
   class_slots ||--o{ appointments : "class_slot_id set null"
@@ -93,12 +93,13 @@ erDiagram
 
 ### Commission & Payouts
 
-**Tables**: category_commission_configs, commission_coach_slots, commission_condition_rates, commission_conditions, commission_splits, commission_tier_rates, partner_stripe_accounts, payouts
+**Tables**: category_commission_configs, commission_coach_slots, commission_condition_rates, commission_conditions, commission_splits, commission_tier_rates, payouts
 
 ```mermaid
 erDiagram
   service_categories ||--o{ category_commission_configs : "category_id cascade"
   category_commission_configs ||--o{ commission_coach_slots : "config_id cascade"
+  commission_tracks ||--o{ commission_coach_slots : "track_id set null"
   commission_conditions ||--o{ commission_condition_rates : "condition_id cascade"
   trainer_tiers ||--o{ commission_condition_rates : "trainer_tier_id restrict"
   category_commission_configs ||--o{ commission_conditions : "config_id cascade"
@@ -107,6 +108,8 @@ erDiagram
   package_instances ||--o{ commission_splits : "package_instance_id set null"
   payouts ||--o{ commission_splits : "payout_id set null"
   sales_orders ||--o{ commission_splits : "sales_order_id restrict"
+  commission_tracks ||--o{ commission_splits : "track_id set null"
+  commission_track_versions ||--o{ commission_splits : "track_version_id set null"
   category_commission_configs ||--o{ commission_tier_rates : "config_id cascade"
   trainer_tiers ||--o{ commission_tier_rates : "trainer_tier_id restrict"
   appointments ||--o{ payouts : "appointment_id restrict"
@@ -174,7 +177,7 @@ erDiagram
 
 ### Misc
 
-**Tables**: account_groups, announcement_scopes, appointment_status_history, branch_details, branch_stats_cache, category_commission_config_versions, commission_split_reversals, goods_receipt_items, goods_receipts, households, lead_sources, membership_holds, package_instance_status_history, payment_status_history, payout_batches, product_prices, push_tokens, refund_items, sales_order_status_history, service_prices, supplier_invoices
+**Tables**: account_groups, announcement_scopes, appointment_status_history, branch_details, branch_stats_cache, category_commission_config_versions, commission_cycle_configs, commission_split_reversals, commission_track_rates, commission_track_versions, commission_tracks, credit_point_ledger, goods_receipt_items, goods_receipts, households, lead_sources, membership_holds, package_instance_status_history, payment_status_history, payout_batches, product_prices, push_tokens, refund_items, sales_order_status_history, scheduled_reports, service_prices, stock_movements, supplier_invoices, trainer_availability_exceptions
 
 ```mermaid
 erDiagram
@@ -184,10 +187,15 @@ erDiagram
   hierarchy_nodes ||--o{ branch_details : "node_id cascade"
   hierarchy_nodes ||--o{ branch_stats_cache : "hierarchy_node_id cascade"
   service_categories ||--o{ category_commission_config_versions : "category_id cascade"
+  hierarchy_nodes ||--o{ commission_cycle_configs : "branch_id cascade"
   payouts ||--o{ commission_split_reversals : "payout_adjustment_id set null"
   refunds ||--o{ commission_split_reversals : "refund_id restrict"
   commission_split_reversals ||--o{ commission_split_reversals : "reversed_by_reversal_id set null"
   commission_splits ||--o{ commission_split_reversals : "reversed_split_id restrict"
+  trainer_tiers ||--o{ commission_track_rates : "tier_id restrict"
+  commission_tracks ||--o{ commission_track_rates : "track_id cascade"
+  commission_tracks ||--o{ commission_track_versions : "track_id cascade"
+  service_categories ||--o{ commission_tracks : "category_id restrict"
   goods_receipts ||--o{ goods_receipt_items : "goods_receipt_id cascade"
   products ||--o{ goods_receipt_items : "product_id restrict"
   purchase_order_items ||--o{ goods_receipt_items : "purchase_order_item_id restrict"
@@ -207,9 +215,12 @@ erDiagram
   sales_orders ||--o{ sales_order_status_history : "sales_order_id cascade"
   hierarchy_nodes ||--o{ service_prices : "branch_id cascade"
   services ||--o{ service_prices : "service_id cascade"
+  hierarchy_nodes ||--o{ stock_movements : "branch_id restrict"
+  products ||--o{ stock_movements : "product_id cascade"
   goods_receipts ||--o{ supplier_invoices : "goods_receipt_id set null"
   purchase_orders ||--o{ supplier_invoices : "purchase_order_id set null"
   suppliers ||--o{ supplier_invoices : "supplier_id restrict"
+  members ||--o{ trainer_availability_exceptions : "trainer_id cascade"
 ```
 
 ### Sales & Payments
@@ -282,6 +293,7 @@ erDiagram
 ### Standalone (no FKs)
 
 - audit_logs
+- credit_point_ledger
 - dashboard_snapshots
 - ghl_sync_events
 - ghl_user_links
@@ -289,8 +301,8 @@ erDiagram
 - notification_preferences
 - notifications
 - organization_settings
-- partner_stripe_accounts
 - push_tokens
+- scheduled_reports
 - user_activity_log
 
 ## Logical Text-Column Refs (no pg_constraint)
@@ -299,6 +311,7 @@ Detected via comment hints + naming conventions. Not enforced at DB level.
 
 | Child | Col | → | Target | Source |
 |---|---|---|---|---|
+| account_groups | name | → | user.id | comment |
 | account_groups | primary_user_id | → | user.id (CP) | convention |
 | admin_session_actions | target_user_id | → | user.id (CP) | convention |
 | announcements | created_by | → | members.userId (text) | convention |
@@ -310,6 +323,7 @@ Detected via comment hints + naming conventions. Not enforced at DB level.
 | brands | created_by | → | members.userId (text) | convention |
 | category_commission_config_versions | created_by | → | members.userId (text) | convention |
 | check_ins | client_id | → | members.userId (text) | convention |
+| check_ins | client_type | → | members.userId | comment |
 | commission_split_reversals | created_by | → | members.userId | comment |
 | commission_splits | approved_by | → | members.userId | comment |
 | commission_splits | created_by_user_id | → | user.id (CP) | convention |
@@ -335,7 +349,6 @@ Detected via comment hints + naming conventions. Not enforced at DB level.
 | package_instance_staff | staff_id | → | members.userId | comment |
 | package_instances | approved_by | → | members.userId (text) | convention |
 | package_instances | assigned_trainer_assigned_by | → | members.userId (text) | convention |
-| partner_stripe_accounts | partner_id | → | members.userId (text) | convention |
 | payments | customer_id | → | members.userId | comment |
 | payments | user_id | → | user.id | comment |
 | payout_batches | created_by | → | members.userId | comment |
@@ -346,10 +359,13 @@ Detected via comment hints + naming conventions. Not enforced at DB level.
 | promotions | created_by | → | members.userId (text) | convention |
 | purchase_orders | approved_by | → | members.userId (text) | convention |
 | purchase_orders | created_by | → | members.userId (text) | convention |
+| push_tokens | user_id | → | user.id (CP) | convention |
 | refunds | customer_id | → | member.userId | comment |
 | refunds | processed_by | → | members.userId | comment |
 | refunds | requested_by | → | members.userId | comment |
 | refunds | reviewed_by | → | members.userId | comment |
+| sales_orders | customer_name | → | member.userId | comment |
+| sales_orders | lead_source_user_id | → | user.id (CP) | convention |
 | scheduled_reports | created_by | → | members.userId (text) | convention |
 | service_categories | created_by | → | members.userId (text) | convention |
 | services | created_by | → | members.userId (text) | convention |
@@ -365,64 +381,34 @@ Detected via comment hints + naming conventions. Not enforced at DB level.
 
 ## Drift Report
 
-### Schema declares FK, live missing (11)
+### Schema declares FK, live missing (0)
 
-| Child | Col | → | Parent | Action |
-|---|---|---|---|---|
-| commission_coach_slots | track_id | → | commission_tracks | SET NULL |
-| commission_cycle_configs | branch_id | → | hierarchy_nodes | CASCADE |
-| commission_splits | track_id | → | commission_tracks | SET NULL |
-| commission_splits | track_version_id | → | commission_track_versions | SET NULL |
-| commission_track_rates | track_id | → | commission_tracks | CASCADE |
-| commission_track_rates | tier_id | → | trainer_tiers | RESTRICT |
-| commission_track_versions | track_id | → | commission_tracks | CASCADE |
-| commission_tracks | category_id | → | service_categories | RESTRICT |
-| stock_movements | product_id | → | products | CASCADE |
-| stock_movements | branch_id | → | hierarchy_nodes | RESTRICT |
-| trainer_availability_exceptions | trainer_id | → | members | CASCADE |
+_None_
 
-### onDelete action mismatch (1)
+### onDelete action mismatch (0)
 
-| FK | Schema | Live |
-|---|---|---|
-| organizations.owner_user_id | RESTRICT | NO ACTION |
+_None_
 
-### Live has FK, schema doesn't declare — UNEXPECTED (7)
+### Live has FK, schema doesn't declare — UNEXPECTED (0)
 
-| Child | Col | → | Parent | Action |
-|---|---|---|---|---|
-| invitation | inviter_id | → | user | CASCADE |
-| invitation | organization_id | → | organization | CASCADE |
-| member | organization_id | → | organization | CASCADE |
-| member | user_id | → | user | CASCADE |
-| commission_split_reversals | reversed_by_reversal_id | → | commission_split_reversals | SET NULL |
-| customer_profiles | primary_staff_member_id | → | members | SET NULL |
-| households | primary_contact_profile_id | → | customer_profiles | SET NULL |
+_None_
 
-### Live FKs intentionally migration-only (2)
+### Live FKs intentionally migration-only (4)
 
 Declared via raw migration to avoid Drizzle circular imports. Tracked in `INTENTIONAL_MIGRATION_ONLY_FKS` in `scripts/gen-erd.ts`.
 
 | Child | Col | → | Parent | Action |
 |---|---|---|---|---|
+| commission_split_reversals | reversed_by_reversal_id | → | commission_split_reversals | SET NULL |
 | commission_splits | payout_id | → | payouts | SET NULL |
+| households | primary_contact_profile_id | → | customer_profiles | SET NULL |
 | refunds | payment_id | → | payments | RESTRICT |
 
-### Tables in live, not in schema source (4)
+### Tables in live, not in schema source (0)
 
-- tenant: push_tokens
-- cp: invitation
-- cp: member
-- cp: organization
+_None_
 
-### Tables in schema source, not in live (8)
+### Tables in schema source, not in live (0)
 
-- commission_cycle_configs
-- commission_track_rates
-- commission_track_versions
-- commission_tracks
-- stock_movements
-- trainer_availability_exceptions
-- credit_point_ledger
-- scheduled_reports
+_None_
 

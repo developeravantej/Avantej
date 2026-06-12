@@ -1,108 +1,17 @@
 {
-  "generated_at": "2026-05-30T09:20:10.298Z",
+  "generated_at": "2026-06-12T11:13:01.208Z",
   "tenant": {
-    "missing_in_live": [
-      {
-        "child": "commission_coach_slots",
-        "col": "track_id",
-        "parent": "commission_tracks",
-        "on_delete": "SET NULL"
-      },
-      {
-        "child": "commission_splits",
-        "col": "track_id",
-        "parent": "commission_tracks",
-        "on_delete": "SET NULL"
-      },
-      {
-        "child": "commission_splits",
-        "col": "track_version_id",
-        "parent": "commission_track_versions",
-        "on_delete": "SET NULL"
-      }
-    ],
-    "extra_in_live": [
-      {
-        "child_table": "commission_split_reversals",
-        "child_col": "reversed_by_reversal_id",
-        "parent_table": "commission_split_reversals",
-        "parent_col": "id",
-        "on_delete": "SET NULL"
-      },
-      {
-        "child_table": "customer_profiles",
-        "child_col": "primary_staff_member_id",
-        "parent_table": "members",
-        "parent_col": "id",
-        "on_delete": "SET NULL"
-      },
-      {
-        "child_table": "households",
-        "child_col": "primary_contact_profile_id",
-        "parent_table": "customer_profiles",
-        "parent_col": "id",
-        "on_delete": "SET NULL"
-      }
-    ],
+    "missing_in_live": [],
+    "extra_in_live": [],
     "action_mismatches": [],
-    "orphan_tables": [
-      "push_tokens"
-    ],
-    "missing_tables": [
-      "commission_cycle_configs",
-      "commission_track_rates",
-      "commission_track_versions",
-      "commission_tracks",
-      "stock_movements",
-      "trainer_availability_exceptions",
-      "credit_point_ledger",
-      "scheduled_reports"
-    ]
+    "orphan_tables": [],
+    "missing_tables": []
   },
   "controlPanel": {
     "missing_in_live": [],
-    "extra_in_live": [
-      {
-        "child_table": "invitation",
-        "child_col": "inviter_id",
-        "parent_table": "user",
-        "parent_col": "id",
-        "on_delete": "CASCADE"
-      },
-      {
-        "child_table": "invitation",
-        "child_col": "organization_id",
-        "parent_table": "organization",
-        "parent_col": "id",
-        "on_delete": "CASCADE"
-      },
-      {
-        "child_table": "member",
-        "child_col": "organization_id",
-        "parent_table": "organization",
-        "parent_col": "id",
-        "on_delete": "CASCADE"
-      },
-      {
-        "child_table": "member",
-        "child_col": "user_id",
-        "parent_table": "user",
-        "parent_col": "id",
-        "on_delete": "CASCADE"
-      }
-    ],
-    "action_mismatches": [
-      {
-        "key": "organizations.owner_user_id",
-        "schema": "RESTRICT",
-        "live": "NO ACTION"
-      }
-    ],
-    "orphan_tables": [
-      "invitation",
-      "member",
-      "organization"
-    ],
+    "extra_in_live": [],
+    "action_mismatches": [],
+    "orphan_tables": [],
     "missing_tables": []
   }
 }

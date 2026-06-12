@@ -59,6 +59,7 @@ export * from "./products";
 export * from "./credit-point-ledger";
 export * from "./stock-movements";
 export * from "./promotions";
+export * from "./push-tokens";
 export * from "./purchase-orders";
 export * from "./recurrence-rules";
 export * from "./refunds";

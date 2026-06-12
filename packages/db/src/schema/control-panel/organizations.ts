@@ -37,9 +37,11 @@ export const organizations = pgTable(
 		paymentStatus: text("payment_status").notNull(), // active, suspended, failed
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at").defaultNow().notNull(),
-		ownerUserId: text("owner_user_id").references(() => users.id, {
-			onDelete: "restrict",
-		}),
+		// NO ACTION (drizzle default) matches the live constraint — the schema
+		// previously declared RESTRICT, which the drift gate flagged as an
+		// action mismatch. In Postgres the two are equivalent for our use
+		// (both block deleting a user who still owns an org).
+		ownerUserId: text("owner_user_id").references(() => users.id),
 		// Plan E follow-up — primary country (ISO 3166-1 alpha-2). Captured at
 		// provisioning time by the E.7 wizard. Nullable for legacy rows.
 		countryCode: text("country_code"),

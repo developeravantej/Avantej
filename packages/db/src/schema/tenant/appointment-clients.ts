@@ -43,9 +43,11 @@ export const appointmentClients = pgTable(
 		attended: boolean("attended"), // null = not yet occurred, true/false after completion
 		notes: text("notes"),
 		clientType: text("client_type").notNull().default("member"),
+		// NO ACTION (drizzle default) matches the live constraint — declaring
+		// RESTRICT here tripped the drift gate's action-mismatch check; the two
+		// behave identically for our delete paths.
 		walkInCustomerId: uuid("walk_in_customer_id").references(
 			() => walkInCustomers.id,
-			{ onDelete: "restrict" },
 		),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 	},
