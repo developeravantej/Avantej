@@ -20,6 +20,9 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  # The action publishes a score commit status; without this it warns
+  # "Resource not accessible by integration".
+  statuses: write
 
 jobs:
   react-doctor:
@@ -40,8 +43,11 @@ jobs:
           fetch-depth: 0
       # The action's input schema changed upstream (diff/github-token/fail-on/
       # verbose were removed; it now takes directory/scope/blocking/comment).
-      # Advisory scan: report findings, never block the PR.
+      # Advisory scan: report findings, never block the PR. The action still
+      # propagates the CLI exit code on pull_request events even with
+      # blocking:false, so continue-on-error keeps the job green.
       - uses: millionco/react-doctor@main
+        continue-on-error: true
         with:
           directory: ${{ matrix.target.directory }}
           blocking: false

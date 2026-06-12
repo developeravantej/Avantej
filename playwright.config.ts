@@ -46,7 +46,10 @@ export default defineConfig({
 		{
 			name: "chromium",
 			use: { ...devices["Desktop Chrome"], storageState: TENANT_ADMIN_AUTH },
-			testMatch: /\.(smoke|fixes-verification)\.spec\.ts/,
+			// The smoke files are literally smoke.spec.ts / fixes-verification.spec.ts
+			// (no module prefix) — requiring a leading dot matched nothing, which
+			// broke `bun e2e:smoke` and the CI smoke workflow ("No tests found").
+			testMatch: /(^|[\\/])(smoke|fixes-verification)\.spec\.ts$/,
 			dependencies: ["setup"],
 		},
 		{
