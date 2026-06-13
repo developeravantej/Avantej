@@ -265,6 +265,7 @@ export {
 	evaluateAndLockIfOverdue,
 	getAdminInstallmentOverview,
 	listUpcomingInstallments,
+	exportUpcomingInstallmentsCsv,
 	resolveUpcomingWindow,
 	type UpcomingInstallmentRow,
 	type UpcomingInstallmentsParams,

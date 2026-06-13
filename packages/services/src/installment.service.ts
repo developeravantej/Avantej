@@ -1803,6 +1803,13 @@ export type UpcomingInstallmentRow = {
 	clientName: string | null;
 };
 
+/**
+ * Hard ceiling on rows returned by listUpcomingInstallments. The tab list passes
+ * limit:50, so this only bites the CSV export, which requests the full set. Sized
+ * well above any realistic per-tenant outstanding-installment count for an SME gym.
+ */
+export const UPCOMING_INSTALLMENTS_MAX_LIMIT = 5000;
+
 export interface UpcomingWindowBounds {
 	from: Date | null;
 	fromInclusive: boolean;
@@ -1942,7 +1949,7 @@ export async function listUpcomingInstallments(
 		.leftJoin(salesOrders, salesOrderJoin)
 		.where(where)
 		.orderBy(asc(installments.dueDate), asc(installments.installmentNumber))
-		.limit(Math.min(limit, 200))
+		.limit(Math.min(limit, UPCOMING_INSTALLMENTS_MAX_LIMIT))
 		.offset(offset);
 
 	const serviceIds = [...new Set(rows.map((r) => r.serviceId))];
@@ -1988,6 +1995,64 @@ export async function listUpcomingInstallments(
 	const total = countRows[0]?.count ?? 0;
 
 	return { items, total };
+}
+
+function escapeInstallmentCsvField(
+	value: string | number | null | undefined,
+): string {
+	if (value == null) return "";
+	const str = String(value);
+	if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+		return `"${str.replace(/"/g, '""')}"`;
+	}
+	return str;
+}
+
+const UPCOMING_INSTALLMENTS_CSV_HEADER =
+	"purchase_number,customer_name,package,installment_number,installments_total,installments_paid,due_date,original_due_date,amount_due_cents,status,is_locked,branch_id,package_instance_id\n";
+
+/**
+ * Build a CSV of upcoming/outstanding installments matching the SAME filters as
+ * listUpcomingInstallments (window/branch/search) — it delegates to that query so
+ * the export can never drift from what the tab shows. Caps at
+ * UPCOMING_INSTALLMENTS_MAX_LIMIT and reports truncation.
+ */
+export async function exportUpcomingInstallmentsCsv(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	params: Omit<UpcomingInstallmentsParams, "limit" | "offset">,
+	controlPanelDb?: ControlPanelDb,
+): Promise<{ csv: string; truncated: boolean; totalMatching: number }> {
+	const { items, total } = await listUpcomingInstallments(
+		tenantDb,
+		{ ...params, limit: UPCOMING_INSTALLMENTS_MAX_LIMIT, offset: 0 },
+		controlPanelDb,
+	);
+
+	const body = items
+		.map((r) =>
+			[
+				escapeInstallmentCsvField(r.purchaseNumber),
+				escapeInstallmentCsvField(r.clientName),
+				escapeInstallmentCsvField(r.serviceName),
+				escapeInstallmentCsvField(r.installmentNumber),
+				escapeInstallmentCsvField(r.installmentsTotal),
+				escapeInstallmentCsvField(r.installmentsPaid),
+				escapeInstallmentCsvField(r.dueDate.toISOString()),
+				escapeInstallmentCsvField(r.originalDueDate?.toISOString() ?? null),
+				escapeInstallmentCsvField(r.amount + (r.taxAmount ?? 0)),
+				escapeInstallmentCsvField(r.status),
+				escapeInstallmentCsvField(r.isLocked ? "true" : "false"),
+				escapeInstallmentCsvField(r.branchId),
+				escapeInstallmentCsvField(r.packageInstanceId),
+			].join(","),
+		)
+		.join("\n");
+
+	return {
+		csv: UPCOMING_INSTALLMENTS_CSV_HEADER + body + (body ? "\n" : ""),
+		truncated: total > items.length,
+		totalMatching: total,
+	};
 }
 
 /**

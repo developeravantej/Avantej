@@ -1,7 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { CalendarClock, ExternalLink, HandCoins, SearchX } from "lucide-react";
+import {
+	CalendarClock,
+	Download,
+	ExternalLink,
+	HandCoins,
+	SearchX,
+} from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import {
 	CollectPaymentDialog,
 	type CollectPaymentTarget,
@@ -102,6 +109,39 @@ export function InstallmentsTab({
 		useState<RescheduleTarget | null>(null);
 	const [scheduleTarget, setScheduleTarget] =
 		useState<ScheduleDialogTarget | null>(null);
+	const [exporting, setExporting] = useState(false);
+
+	async function handleExportCsv() {
+		setExporting(true);
+		try {
+			const result = await client.installments.exportUpcomingCsv({
+				organizationId,
+				window: status,
+				branchId: branchId || undefined,
+				search: debouncedSearch || undefined,
+			});
+			const blob = new Blob([result.csv], { type: "text/csv;charset=utf-8;" });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = `installments-${status}-${new Date().toISOString().slice(0, 10)}.csv`;
+			a.click();
+			URL.revokeObjectURL(url);
+			if (result.truncated) {
+				toast.warning(
+					`Export truncated — ${result.totalMatching} total matches. Narrow your filters for a complete export.`,
+				);
+			} else {
+				toast.success("CSV exported successfully.");
+			}
+		} catch (err) {
+			toast.error(
+				err instanceof Error ? err.message : "Export failed. Please try again.",
+			);
+		} finally {
+			setExporting(false);
+		}
+	}
 
 	const { data, isLoading, isError, error, refetch } = useQuery({
 		queryKey: [
@@ -190,14 +230,26 @@ export function InstallmentsTab({
 					</select>
 				</div>
 
-				<Link
-					to="/dashboard/packages/view"
-					search={{ tab: "installments" }}
-					className="flex items-center gap-2 rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-xs font-semibold transition hover:bg-[#f3f3f3]"
-				>
-					<ExternalLink className="h-3.5 w-3.5" />
-					Manage Installments
-				</Link>
+				<div className="flex items-center gap-2">
+					<button
+						type="button"
+						data-testid="installments-export-csv"
+						onClick={handleExportCsv}
+						disabled={exporting || rows.length === 0}
+						className="flex items-center gap-2 rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-xs font-semibold transition hover:bg-[#f3f3f3] disabled:opacity-50 disabled:cursor-not-allowed"
+					>
+						<Download className="h-3.5 w-3.5" />
+						{exporting ? "Exporting…" : "Export CSV"}
+					</button>
+					<Link
+						to="/dashboard/packages/view"
+						search={{ tab: "installments" }}
+						className="flex items-center gap-2 rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-xs font-semibold transition hover:bg-[#f3f3f3]"
+					>
+						<ExternalLink className="h-3.5 w-3.5" />
+						Manage Installments
+					</Link>
+				</div>
 			</div>
 
 			{/* Body */}

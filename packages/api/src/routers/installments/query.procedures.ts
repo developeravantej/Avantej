@@ -9,6 +9,7 @@ import {
 	getInstallmentsByPackageInstance,
 	getAdminInstallmentOverview,
 	listUpcomingInstallments,
+	exportUpcomingInstallmentsCsv,
 	evaluateAndLockIfOverdue,
 	getSuggestedRefund,
 } from "@avantej-core/services";
@@ -156,6 +157,40 @@ const listUpcoming = tenantProcedure
 		);
 	});
 
+const exportUpcomingCsv = tenantProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			window: z.enum(["due_soon", "overdue", "all"]).optional(),
+			branchId: z.string().uuid().optional(),
+			search: z.string().optional(),
+		}),
+	)
+	.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"service_management",
+			"read",
+		);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds);
+		}
+
+		const controlPanelDb = getControlPanelDb(context);
+
+		return exportUpcomingInstallmentsCsv(
+			context.tenantDb,
+			{
+				window: input.window,
+				branchId: input.branchId,
+				search: input.search,
+			},
+			controlPanelDb,
+		);
+	});
+
 const getEvents = tenantProcedure
 	.input(
 		z.object({
@@ -201,6 +236,7 @@ export const installmentQueryProcedures = {
 	listByPackageInstance,
 	adminOverview,
 	listUpcoming,
+	exportUpcomingCsv,
 	getEvents,
 	suggestRefund,
 };
