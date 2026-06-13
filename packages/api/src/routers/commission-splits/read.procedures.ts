@@ -21,7 +21,9 @@ const list = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
-			memberId: z.string().uuid().optional(),
+			// memberId filters by commission_splits.staffId = members.userId, a
+			// Better-Auth id (NOT a UUID). listLedger.staffId already uses z.string().
+			memberId: z.string().min(1).optional(),
 			appointmentId: z.string().uuid().optional(),
 			from: z.string().datetime().optional(),
 			to: z.string().datetime().optional(),
