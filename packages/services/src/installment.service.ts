@@ -16,6 +16,7 @@ import {
 	ilike,
 	lt,
 	lte,
+	gt,
 	gte,
 	inArray,
 	sql,
@@ -1802,6 +1803,39 @@ export type UpcomingInstallmentRow = {
 	clientName: string | null;
 };
 
+export interface UpcomingWindowBounds {
+	from: Date | null;
+	fromInclusive: boolean;
+	to: Date | null;
+	toInclusive: boolean;
+}
+
+/**
+ * Pure date-range descriptor for the upcoming-installments window. Kept side-effect
+ * free (now injected) so the boundary logic is unit-testable without a DB:
+ *   - due_soon: [now, now + 14d] inclusive both ends
+ *   - overdue:  (-∞, now) — strictly before now (exclusive upper)
+ *   - all:      unbounded (status filter alone decides membership)
+ */
+export function resolveUpcomingWindow(
+	window: "due_soon" | "overdue" | "all",
+	now: Date,
+): UpcomingWindowBounds {
+	switch (window) {
+		case "due_soon":
+			return {
+				from: now,
+				fromInclusive: true,
+				to: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000),
+				toInclusive: true,
+			};
+		case "overdue":
+			return { from: null, fromInclusive: false, to: now, toInclusive: false };
+		default:
+			return { from: null, fromInclusive: false, to: null, toInclusive: false };
+	}
+}
+
 /**
  * List individual outstanding installments (one row per scheduled payment),
  * joined to their package instance and originating sales order for branch scoping.
@@ -1826,12 +1860,16 @@ export async function listUpcomingInstallments(
 	const now = new Date();
 	const conditions = [inArray(installments.status, ["pending", "overdue"])];
 
-	if (window === "due_soon") {
-		const in14d = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
-		conditions.push(gte(installments.dueDate, now));
-		conditions.push(lte(installments.dueDate, in14d));
-	} else if (window === "overdue") {
-		conditions.push(lt(installments.dueDate, now));
+	const bounds = resolveUpcomingWindow(window, now);
+	if (bounds.from) {
+		conditions.push(
+			(bounds.fromInclusive ? gte : gt)(installments.dueDate, bounds.from),
+		);
+	}
+	if (bounds.to) {
+		conditions.push(
+			(bounds.toInclusive ? lte : lt)(installments.dueDate, bounds.to),
+		);
 	}
 
 	if (branchId) {
