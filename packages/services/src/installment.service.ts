@@ -1206,11 +1206,14 @@ export async function rescheduleInstallment(
 
 		const oldDueDate = installment.dueDate;
 
-		// Update the installment — set to pending (clears overdue status) with new due date
+		// Update the installment — set to pending (clears overdue status) with new due date.
+		// Capture the original schedule on the FIRST reschedule only, so the UI can show
+		// "was {originalDueDate} → now {dueDate}" even across multiple reschedules.
 		const [updated] = await tx
 			.update(installments)
 			.set({
 				dueDate: newDueDate,
+				originalDueDate: installment.originalDueDate ?? oldDueDate,
 				status: "pending",
 				updatedAt: now,
 			})
@@ -1786,6 +1789,7 @@ export type UpcomingInstallmentRow = {
 	taxAmount: number;
 	status: string;
 	dueDate: Date;
+	originalDueDate: Date | null;
 	packageInstanceId: string;
 	branchId: string | null;
 	purchaseNumber: string | null;
@@ -1882,6 +1886,7 @@ export async function listUpcomingInstallments(
 			taxAmount: installments.taxAmount,
 			status: installments.status,
 			dueDate: installments.dueDate,
+			originalDueDate: installments.originalDueDate,
 			packageInstanceId: installments.packageInstanceId,
 			branchId: salesOrders.branchId,
 			purchaseNumber: packageInstances.purchaseNumber,

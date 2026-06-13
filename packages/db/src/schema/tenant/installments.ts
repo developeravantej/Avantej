@@ -24,6 +24,9 @@ export const installments = pgTable(
 		taxAmount: integer("tax_amount").default(0).notNull(),
 		status: text("status").notNull(), // 'pending' | 'paid' | 'overdue' | 'cancelled' | 'waived'
 		dueDate: timestamp("due_date", { withTimezone: true }).notNull(),
+		// Set on the first reschedule only (preserves the plan's original schedule);
+		// null means the installment has never been rescheduled.
+		originalDueDate: timestamp("original_due_date", { withTimezone: true }),
 		paidAt: timestamp("paid_at", { withTimezone: true }),
 		paymentMethod: text("payment_method"), // 'manual_transfer' | 'cash'
 		confirmedBy: text("confirmed_by"),

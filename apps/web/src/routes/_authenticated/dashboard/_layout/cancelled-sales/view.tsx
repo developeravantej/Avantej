@@ -4,7 +4,10 @@ export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/cancelled-sales/view",
 )({
 	beforeLoad: () => {
-		throw redirect({ to: "/dashboard/sales/view", search: { tab: "cancelled" } });
+		throw redirect({
+			to: "/dashboard/sales/view",
+			search: { tab: "cancelled" },
+		});
 	},
 	component: () => null,
 });
