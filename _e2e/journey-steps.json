@@ -968,5 +968,57 @@
     "Fetch invoices/getById and assert customerName, status=draft, and totalAmount persisted",
     "Update via invoices/update to status=sent and totalAmount 20000; assert getById reflects both edits",
     "Cancel via invoices/update (status=cancelled) and assert the terminal status (no hard delete exists)"
+  ],
+  "installments/installments.deep.spec.ts::Installments tab loads with a due-soon count badge": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/sales/view?tab=installments&instStatus=due_soon.",
+    "Wait for the app shell + the Installments tab toolbar (status pills) to render.",
+    "Assert the \"Installments\" tab chip is visible and shows a numeric due-soon count badge.",
+    "Assert the per-payment table (or a documented empty state) is present."
+  ],
+  "installments/installments.deep.spec.ts::Status pills filter the list and sync the instStatus URL param": [
+    "Open the Installments tab (Due Soon).",
+    "Click the Overdue pill; assert the URL updates to instStatus=overdue.",
+    "Click the All Outstanding pill; assert the URL updates to instStatus=all.",
+    "Assert the list (or empty state) re-renders for the All Outstanding window."
+  ],
+  "installments/installments.deep.spec.ts::Branch filter narrows results (positive + empty cases)": [
+    "Open the Installments tab on the All Outstanding window.",
+    "Wait for rows to paint; capture the All-Branches baseline (>0 rows).",
+    "Select \"Tenant Test Fitness Franchise Branch\"; assert branchId is set in the URL and rows remain (>0).",
+    "Select \"San Francisco Branch\" (no installment plans); assert the empty state shows and the table is gone."
+  ],
+  "installments/installments.deep.spec.ts::Customer search filters the list": [
+    "Open the Installments tab on the All Outstanding window.",
+    "Type \"Ahmad\" into the customer/purchase-# search box.",
+    "Wait for the 300ms debounce to refire the listUpcoming query.",
+    "Assert any returned rows belong to the searched customer."
+  ],
+  "installments/installments.deep.spec.ts::Row opens the read-only schedule dialog with the full plan": [
+    "Open the Installments tab (All Outstanding) and wait for the first row.",
+    "Click the row Customer cell (avoiding the action buttons).",
+    "Assert a Payment Schedule dialog opens.",
+    "Assert it renders the full installment schedule table (all installments for the package).",
+    "Close the dialog with Escape."
+  ],
+  "installments/installments.deep.spec.ts::Reschedule shows the original date struck-through → new date + badge": [
+    "Open the Installments tab (All Outstanding) and wait for the first row.",
+    "Click the row Reschedule action button; assert the Reschedule Installment dialog opens.",
+    "Set a new due date ~10 days out and enter a reason.",
+    "Confirm; assert the \"Installment rescheduled.\" toast.",
+    "Assert a row now shows the Rescheduled badge with the original date struck-through next to the new date."
+  ],
+  "installments/installments.deep.spec.ts::Collect confirms an installment payment and the list updates": [
+    "Open the Installments tab (All Outstanding) and wait for rows.",
+    "Record the first installment row id (the payment being collected).",
+    "Click its Collect action; assert the Collect Payment dialog opens.",
+    "Confirm with the default Manual Transfer method; assert the \"Payment confirmed successfully.\" toast.",
+    "Assert the paid installment row drops out of the outstanding list on refetch."
+  ],
+  "installments/installments.deep.spec.ts::Export CSV serializes rows honouring the active filters": [
+    "Open the Installments tab (All Outstanding) and wait for rows.",
+    "Install an in-page hook to capture the generated CSV blob (and swallow the download click).",
+    "Click Export CSV; assert the \"CSV exported successfully.\" toast.",
+    "Assert the captured CSV has the expected header (purchase_number,customer_name,package…,amount_due_cents) and at least one data row."
   ]
 }
