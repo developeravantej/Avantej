@@ -64,10 +64,18 @@
 - Regression: `pos-checkout-installment-schedule.journey.spec.ts` **2/2 passed**.
 
 ## STATUS: all 7 phases complete. Working tree only (NOT committed). check-types 3/3; services unit 32/32; commission conservation 8/8; e2e 7/7 + regression 2/2.
-### Honest caveats
-1. D's proportional commission ran the clean-exit path live (no tracks seeded) — conservation is unit-tested, not e2e-exercised. Seed an on_sale commission track in the test tenant to exercise it end-to-end.
-2. E2 auto-charge cron + saved-card setup webhook were NOT exercised live (need a Stripe saved card + cron trigger); code reviewed + type-checked only.
-3. Migrations 0091/0092 still need rollout to OTHER live tenants (only test tenant migrated).
+### Caveats RESOLVED (post-session "go all")
+1. D conservation proven LIVE — seeded on_sale track (seed-commission-track-test-tenant.ts); lifecycle D now 3×300¢=900¢=planned. Surfaced + fixed 2 real bugs (userId-as-memberId → uuid audit crash; track-version id into category-config FK). committed in 21f7511b.
+2. E2 auto-charge proven LIVE against real Stripe test mode — `apps/server/src/tests/integration/installment-autocharge.integration.test.ts` (3/3):
+   - success: off-session PI pi_3ThrHr… succeeded on acct_1TWwNZ, persisted, metadata correct.
+   - SCA: authentication_required card → no PI, fallback plink_… created, `installment_autocharge_failed` notification written.
+   - refund: `refund_required` notification written; paid→refunded.
+3. UI dialog click-paths proven in real browser — `e2e/installment-admin-ui.journey.spec.ts` (10/10): partial-pay hint, waive, adjust-credits, overdraft, refund (suggested amount), unlock-hidden-when-unlocked, send-link. No app bugs.
+
+### Remaining (genuinely not done)
+- Migrations 0091/0092 rollout to OTHER live tenants (only test tenant migrated).
+- Push / PR (held — entangled remote state; user chose local-only).
+- Stripe test PM gotcha for connected accounts: use `tok_*` tokens, not `pm_*` (platform-scoped). Documented in the integration test.
 Next phases change credit-unlock logic, distribute commission to trainers, and charge customer cards.
 Awaiting user go-ahead + confirmation of the C/D/E design below.
 
