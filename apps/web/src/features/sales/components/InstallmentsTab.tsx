@@ -1,10 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
 	CalendarClock,
+	Copy,
 	Download,
 	ExternalLink,
 	HandCoins,
+	Link2,
+	MinusCircle,
 	SearchX,
 } from "lucide-react";
 import { useState } from "react";
@@ -21,12 +24,18 @@ import {
 	RescheduleInstallmentDialog,
 	type RescheduleTarget,
 } from "@/features/sales/components/RescheduleInstallmentDialog";
+import {
+	WaiveInstallmentDialog,
+	type WaiveInstallmentTarget,
+} from "@/features/sales/components/WaiveInstallmentDialog";
 import { useDebounce } from "@/hooks/useDebounce";
 import { formatPrice } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { client } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { ErrorCard } from "@/features/sales/components/ErrorCard";
+
+type InstallmentLinkResult = { url: string; paymentLinkId: string };
 
 export type InstallmentStatusFilter = "due_soon" | "overdue" | "all";
 
@@ -109,7 +118,30 @@ export function InstallmentsTab({
 		useState<RescheduleTarget | null>(null);
 	const [scheduleTarget, setScheduleTarget] =
 		useState<ScheduleDialogTarget | null>(null);
+	const [waiveTarget, setWaiveTarget] =
+		useState<WaiveInstallmentTarget | null>(null);
 	const [exporting, setExporting] = useState(false);
+	// Per-installment payment link: tracks the active link overlay by installment id.
+	const [linkResult, setLinkResult] = useState<
+		(InstallmentLinkResult & { installmentId: string }) | null
+	>(null);
+
+	const sendInstallmentLink = useMutation({
+		mutationFn: (installmentId: string) =>
+			client.payments.createInstallmentPaymentLink({
+				organizationId,
+				installmentId,
+			}),
+		onSuccess: (data, installmentId) => {
+			setLinkResult({ ...data, installmentId });
+			toast.success("Payment link generated");
+		},
+		onError: (err) => {
+			toast.error(
+				err instanceof Error ? err.message : "Failed to generate payment link",
+			);
+		},
+	});
 
 	async function handleExportCsv() {
 		setExporting(true);
@@ -364,8 +396,18 @@ export function InstallmentsTab({
 										</td>
 										<td className="px-4 py-3 text-right">
 											<span className="font-mono tabular-nums text-sm text-[#0a0a0a]">
-												{formatPrice(row.amount + (row.taxAmount ?? 0), "MYR")}
+												{formatPrice(
+													row.amount +
+														(row.taxAmount ?? 0) -
+														(row.amountPaid ?? 0),
+													"MYR",
+												)}
 											</span>
+											{(row.amountPaid ?? 0) > 0 && (
+												<span className="ml-1 text-[10px] text-amber-700">
+													({formatPrice(row.amountPaid, "MYR")} paid)
+												</span>
+											)}
 										</td>
 										<td className="px-4 py-3">
 											<span
@@ -379,44 +421,120 @@ export function InstallmentsTab({
 										</td>
 										{canCollect && (
 											<td className="px-4 py-3">
-												<div className="flex items-center justify-end gap-1.5">
-													<button
-														type="button"
-														data-testid={`reschedule-installment-${row.id}`}
-														onClick={(e) => {
-															e.stopPropagation();
-															setRescheduleTarget({
-																installmentId: row.id,
-																installmentNumber: row.installmentNumber,
-																installmentsTotal: row.installmentsTotal,
-																currentDueDate: row.dueDate,
-																customerName: row.clientName,
-															});
-														}}
-														title="Reschedule"
-														className="inline-flex items-center justify-center rounded-lg border border-[#e5e5e5] bg-white p-1.5 text-[#737373] transition hover:bg-[#f3f3f3] hover:text-[#0a0a0a]"
-													>
-														<CalendarClock className="h-3.5 w-3.5" />
-													</button>
-													<button
-														type="button"
-														data-testid={`collect-installment-${row.id}`}
-														onClick={(e) => {
-															e.stopPropagation();
-															setCollectTarget({
-																installmentId: row.id,
-																installmentNumber: row.installmentNumber,
-																installmentsTotal: row.installmentsTotal,
-																customerName: row.clientName,
-																serviceName: row.serviceName,
-																amountDue: row.amount + (row.taxAmount ?? 0),
-															});
-														}}
-														className="inline-flex items-center gap-1.5 rounded-lg border border-[#e5e5e5] bg-white px-3 py-1.5 text-xs font-semibold transition hover:bg-[#0a0a0a] hover:text-white"
-													>
-														<HandCoins className="h-3.5 w-3.5" />
-														Collect
-													</button>
+												<div className="flex flex-col gap-1.5">
+													<div className="flex items-center justify-end gap-1.5">
+														<button
+															type="button"
+															data-testid={`reschedule-installment-${row.id}`}
+															onClick={(e) => {
+																e.stopPropagation();
+																setRescheduleTarget({
+																	installmentId: row.id,
+																	installmentNumber: row.installmentNumber,
+																	installmentsTotal: row.installmentsTotal,
+																	currentDueDate: row.dueDate,
+																	customerName: row.clientName,
+																});
+															}}
+															title="Reschedule"
+															className="inline-flex items-center justify-center rounded-lg border border-[#e5e5e5] bg-white p-1.5 text-[#737373] transition hover:bg-[#f3f3f3] hover:text-[#0a0a0a]"
+														>
+															<CalendarClock className="h-3.5 w-3.5" />
+														</button>
+														<button
+															type="button"
+															data-testid={`waive-installment-${row.id}`}
+															onClick={(e) => {
+																e.stopPropagation();
+																setWaiveTarget({
+																	installmentId: row.id,
+																	installmentNumber: row.installmentNumber,
+																	installmentsTotal: row.installmentsTotal,
+																	packageInstanceId: row.packageInstanceId,
+																	customerName: row.clientName,
+																});
+															}}
+															title="Waive"
+															className="inline-flex items-center justify-center rounded-lg border border-[#e5e5e5] bg-white p-1.5 text-[#737373] transition hover:bg-[#f3f3f3] hover:text-rose-600"
+														>
+															<MinusCircle className="h-3.5 w-3.5" />
+														</button>
+														<button
+															type="button"
+															data-testid={`collect-installment-${row.id}`}
+															onClick={(e) => {
+																e.stopPropagation();
+																setCollectTarget({
+																	installmentId: row.id,
+																	installmentNumber: row.installmentNumber,
+																	installmentsTotal: row.installmentsTotal,
+																	customerName: row.clientName,
+																	serviceName: row.serviceName,
+																	amountDue:
+																		row.amount +
+																		(row.taxAmount ?? 0) -
+																		(row.amountPaid ?? 0),
+																});
+															}}
+															className="inline-flex items-center gap-1.5 rounded-lg border border-[#e5e5e5] bg-white px-3 py-1.5 text-xs font-semibold transition hover:bg-[#0a0a0a] hover:text-white"
+														>
+															<HandCoins className="h-3.5 w-3.5" />
+															Collect
+														</button>
+														<button
+															type="button"
+															data-testid={`send-installment-link-${row.id}`}
+															title="Send payment link"
+															onClick={(e) => {
+																e.stopPropagation();
+																sendInstallmentLink.mutate(row.id);
+															}}
+															disabled={
+																sendInstallmentLink.isPending &&
+																sendInstallmentLink.variables === row.id
+															}
+															className="inline-flex items-center justify-center rounded-lg border border-[#e5e5e5] bg-white p-1.5 text-[#737373] transition hover:bg-[#f3f3f3] hover:text-[#0a0a0a] disabled:opacity-50"
+														>
+															<Link2 className="h-3.5 w-3.5" />
+														</button>
+													</div>
+													{/* Inline link display for this row */}
+													{linkResult?.installmentId === row.id && (
+														<div
+															data-testid={`installment-payment-link-${row.id}`}
+															className="flex items-center gap-1 rounded-md border border-[#e5e5e5] bg-[#fafafa] px-2 py-1 text-[11px]"
+															onClick={(e) => e.stopPropagation()}
+														>
+															<code className="flex-1 truncate font-mono text-[#0a0a0a]">
+																{linkResult.url}
+															</code>
+															<button
+																type="button"
+																title="Copy link"
+																onClick={async () => {
+																	try {
+																		await navigator.clipboard.writeText(
+																			linkResult.url,
+																		);
+																		toast.success("Link copied");
+																	} catch {
+																		toast.error("Copy failed");
+																	}
+																}}
+																className="shrink-0 text-[#737373] hover:text-[#0a0a0a]"
+															>
+																<Copy className="h-3 w-3" />
+															</button>
+															<a
+																href={linkResult.url}
+																target="_blank"
+																rel="noreferrer"
+																className="shrink-0 text-[#737373] hover:text-[#0a0a0a]"
+															>
+																<ExternalLink className="h-3 w-3" />
+															</a>
+														</div>
+													)}
 												</div>
 											</td>
 										)}
@@ -455,6 +573,12 @@ export function InstallmentsTab({
 				organizationId={organizationId}
 				target={scheduleTarget}
 				onClose={() => setScheduleTarget(null)}
+				canManage={canCollect}
+			/>
+			<WaiveInstallmentDialog
+				organizationId={organizationId}
+				target={waiveTarget}
+				onClose={() => setWaiveTarget(null)}
 			/>
 		</div>
 	);

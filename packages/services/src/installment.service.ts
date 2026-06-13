@@ -27,6 +27,9 @@ import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-ev
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
+import { commissionSplits } from "@avantej-core/db/schema/tenant/commission-splits";
+import { notifications } from "@avantej-core/db/schema/tenant/notifications";
+import { members } from "@avantej-core/db/schema/tenant/members";
 import { user } from "@avantej-core/db/schema/auth";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
@@ -354,6 +357,16 @@ export type ConfirmInstallmentPaymentParams = {
 	notes?: string;
 	confirmedBy: string;
 	nextIntervalDays?: number;
+	/**
+	 * Phase C — partial payments. Cents to apply against this installment.
+	 * Omitted = pay the full remaining balance (legacy behaviour). Clamped to
+	 * the remaining balance; the installment only flips to "paid" once
+	 * cumulative amount_paid covers amount + taxAmount.
+	 */
+	amount?: number;
+	/** Stripe correlation ids (Phase E) — persisted on the installment row. */
+	stripePaymentIntentId?: string;
+	stripePaymentLinkId?: string;
 };
 
 export async function confirmInstallmentPayment(
@@ -421,15 +434,36 @@ export async function confirmInstallmentPayment(
 
 		const now = new Date();
 
-		// Mark installment as paid
+		// -------- Phase C: partial-payment accounting --------
+		const dueTotal = installment.amount + (installment.taxAmount ?? 0);
+		const alreadyPaid = installment.amountPaid ?? 0;
+		const remaining = Math.max(0, dueTotal - alreadyPaid);
+		// Default = pay the full remaining balance (legacy callers: POS, webhook).
+		const requested = params.amount ?? remaining;
+		const payment = Math.min(Math.max(0, requested), remaining);
+		if (payment <= 0) {
+			throw new Error("Installment already fully paid — nothing to collect.");
+		}
+		const newAmountPaidThis = alreadyPaid + payment;
+		const isFull = newAmountPaidThis >= dueTotal;
+
+		// Update the installment row. Status only flips to "paid" on full
+		// settlement; a partial payment leaves it pending/overdue but records
+		// amount_paid so subsequent top-ups accumulate.
 		const [updatedInstallment] = await tx
 			.update(installments)
 			.set({
-				status: "paid",
-				paidAt: now,
+				...(isFull ? { status: "paid", paidAt: now } : {}),
+				amountPaid: newAmountPaidThis,
 				paymentMethod: params.paymentMethod,
 				confirmedBy: params.confirmedBy,
-				notes: params.notes ?? null,
+				notes: params.notes ?? installment.notes ?? null,
+				...(params.stripePaymentIntentId
+					? { stripePaymentIntentId: params.stripePaymentIntentId }
+					: {}),
+				...(params.stripePaymentLinkId
+					? { stripePaymentLinkId: params.stripePaymentLinkId }
+					: {}),
 				updatedAt: now,
 			})
 			.where(eq(installments.id, params.installmentId))
@@ -437,34 +471,56 @@ export async function confirmInstallmentPayment(
 
 		if (!updatedInstallment) throw new Error("Failed to update installment");
 
-		// Recalculate credits — use max() so an admin override is never rolled back by a payment
-		const newInstallmentsPaid = pkg.installmentsPaid + 1;
-		const formulaCredits = calculateCreditsUnlocked(
-			pkg.creditsTotal,
-			newInstallmentsPaid + (pkg.installmentsWaived ?? 0),
-			pkg.installmentsTotal,
+		// installmentsPaid only advances when an installment fully clears.
+		const newInstallmentsPaid = pkg.installmentsPaid + (isFull ? 1 : 0);
+
+		// -------- Credits: proportional to total money paid across the package --------
+		// User decision 2026-06-13: unlock credits proportional to amount paid.
+		// Basis is money paid / total due (converges to creditsTotal at full
+		// settlement). max() so an admin override / prior unlock never rolls back.
+		const allRows = await tx
+			.select({
+				amount: installments.amount,
+				taxAmount: installments.taxAmount,
+				amountPaid: installments.amountPaid,
+			})
+			.from(installments)
+			.where(eq(installments.packageInstanceId, pkg.id));
+		const totalDueAll = allRows.reduce(
+			(s, r) => s + r.amount + (r.taxAmount ?? 0),
+			0,
 		);
+		const totalPaidAll = allRows.reduce((s, r) => s + (r.amountPaid ?? 0), 0);
+		const proportionalCredits =
+			totalDueAll > 0
+				? Math.floor((pkg.creditsTotal * totalPaidAll) / totalDueAll)
+				: 0;
 		const newCreditsUnlocked = Math.max(
 			pkg.creditsUnlocked ?? 0,
-			formulaCredits,
+			proportionalCredits,
 		);
-		// Determine nextDueDate
-		let newNextDueDate: Date | null = null;
-		let newGracePeriodEndsAt: Date | null = null; // clear grace period on payment
 
-		if (newInstallmentsPaid < pkg.installmentsTotal) {
-			if (params.nextIntervalDays !== undefined) {
-				newNextDueDate = addDays(now, params.nextIntervalDays);
+		// -------- nextDueDate / grace: only advance on full settlement --------
+		let newNextDueDate: Date | null = pkg.nextDueDate;
+		let newGracePeriodEndsAt: Date | null = pkg.gracePeriodEndsAt;
+		if (isFull) {
+			newGracePeriodEndsAt = null; // a full payment clears grace pressure
+			if (newInstallmentsPaid < pkg.installmentsTotal) {
+				if (params.nextIntervalDays !== undefined) {
+					newNextDueDate = addDays(now, params.nextIntervalDays);
+				} else {
+					// Next still-owed installment (pending OR overdue)
+					const nextInstallment = await tx.query.installments.findFirst({
+						where: and(
+							eq(installments.packageInstanceId, pkg.id),
+							inArray(installments.status, ["pending", "overdue"]),
+						),
+						orderBy: [asc(installments.installmentNumber)],
+					});
+					newNextDueDate = nextInstallment?.dueDate ?? null;
+				}
 			} else {
-				// Find next pending installment
-				const nextInstallment = await tx.query.installments.findFirst({
-					where: and(
-						eq(installments.packageInstanceId, pkg.id),
-						eq(installments.status, "pending"),
-					),
-					orderBy: [asc(installments.installmentNumber)],
-				});
-				newNextDueDate = nextInstallment?.dueDate ?? null;
+				newNextDueDate = null;
 			}
 		}
 
@@ -483,13 +539,18 @@ export async function confirmInstallmentPayment(
 
 		if (!updatedPkg) throw new Error("Failed to update package instance");
 
-		// Log events
+		// Log events — record the delta actually collected, not the face value.
 		await logInstallmentEvent(tx, {
 			packageInstanceId: pkg.id,
 			installmentId: params.installmentId,
 			eventType: "payment_received",
 			actorId: params.confirmedBy,
-			amount: installment.amount,
+			amount: payment,
+			metadata: JSON.stringify({
+				partial: !isFull,
+				amountPaidToDate: newAmountPaidThis,
+				dueTotal,
+			}),
 		});
 
 		await logInstallmentEvent(tx, {
@@ -500,17 +561,22 @@ export async function confirmInstallmentPayment(
 			metadata: JSON.stringify({ creditsUnlocked: newCreditsUnlocked }),
 		});
 
-		// D.2.3 — Audit installment payment confirmation
+		// Audit installment payment confirmation
 		await writeAudit(tx, {
 			actorUserId: params.confirmedBy,
-			action: "installment.paid",
+			action: isFull ? "installment.paid" : "installment.partial_payment",
 			entityType: "installment",
 			entityId: params.installmentId,
-			summary: `Installment ${params.installmentId} confirmed paid (package: ${pkg.id}, installment #${updatedInstallment.installmentNumber})`,
+			summary: isFull
+				? `Installment ${params.installmentId} confirmed paid (package: ${pkg.id}, installment #${updatedInstallment.installmentNumber})`
+				: `Installment ${params.installmentId} partial payment of ${payment} (paid ${newAmountPaidThis}/${dueTotal}, package: ${pkg.id}, installment #${updatedInstallment.installmentNumber})`,
 			changes: {
 				packageInstanceId: pkg.id,
 				installmentNumber: updatedInstallment.installmentNumber,
-				amount: updatedInstallment.amount,
+				amountCollected: payment,
+				amountPaidToDate: newAmountPaidThis,
+				dueTotal,
+				fullySettled: isFull,
 				paymentMethod: params.paymentMethod,
 				creditsUnlocked: newCreditsUnlocked,
 			},
@@ -520,11 +586,86 @@ export async function confirmInstallmentPayment(
 			installmentId: params.installmentId,
 			installmentNumber: updatedInstallment.installmentNumber,
 			packageInstanceId: pkg.id,
+			collected: payment,
+			fullySettled: isFull,
 			newInstallmentsPaid,
 			newCreditsUnlocked,
 		});
 
 		await syncPackagePaymentStatus(tx, pkg.id);
+
+		// Phase D — Proportional origination commission for multi-installment plans.
+		// Fires when this installment FULLY clears (isFull) and the package was created
+		// under a multi-installment plan (installmentsTotal > 1).
+		// Single-payment / 'full' plans continue to use the front-load path in
+		// pos.service.ts / webhooks.routes.ts (unchanged).
+		if (isFull && pkg.installmentsTotal > 1) {
+			const salesOrderId =
+				updatedInstallment.salesOrderId ?? pkg.salesOrderId ?? null;
+
+			if (salesOrderId) {
+				try {
+					// Load soldBy + leadSourceUserId from the order (within tx)
+					const [orderRow] = await tx
+						.select({
+							soldBy: salesOrders.soldBy,
+							leadSourceUserId: salesOrders.leadSourceUserId,
+						})
+						.from(salesOrders)
+						.where(eq(salesOrders.id, salesOrderId))
+						.limit(1);
+
+					if (orderRow) {
+						// isLastInstallment: all paid+waived installments cover the plan total
+						const isLastInstallment =
+							newInstallmentsPaid + (pkg.installmentsWaived ?? 0) >=
+							pkg.installmentsTotal;
+
+						// Resolve the actor's MEMBER uuid — confirmedBy is a user id, and
+						// audit_logs.actor_member_id is a uuid column. System/cron confirms
+						// ("system") have no member row → memberId null (allowed by writeAudit).
+						const [actorMember] = await tx
+							.select({ id: members.id, role: members.role })
+							.from(members)
+							.where(eq(members.userId, params.confirmedBy))
+							.limit(1);
+
+						// Import directly from the module file (NOT the barrel) to avoid cycles
+						const { distributeInstallmentOriginationCommission } = await import(
+							"./commission-calculator.service"
+						);
+
+						await distributeInstallmentOriginationCommission(tx, {
+							salesOrderId,
+							installmentId: params.installmentId,
+							installmentDueCents: dueTotal,
+							orderTotalDueCents: totalDueAll,
+							isLastInstallment,
+							soldByUserId: orderRow.soldBy ?? null,
+							leadSourceUserId: orderRow.leadSourceUserId ?? null,
+							actor: {
+								userId: params.confirmedBy,
+								memberId: actorMember?.id ?? null,
+								role: actorMember?.role ?? "staff",
+							},
+							earnedAt: now,
+						});
+					}
+				} catch (commErr) {
+					// Commission failure must NEVER block payment confirmation — best-effort,
+					// same posture as the origination commission at the webhook site.
+					console.warn(
+						JSON.stringify({
+							event: "installment_origination_commission_failed",
+							installmentId: params.installmentId,
+							salesOrderId,
+							error:
+								commErr instanceof Error ? commErr.message : String(commErr),
+						}),
+					);
+				}
+			}
+		}
 
 		return { installment: updatedInstallment, packageInstance: updatedPkg };
 	};
@@ -1072,7 +1213,13 @@ export async function processRefund(
 	actorId: string,
 	reason: string,
 	actor: { userId: string; memberId: string; role: string },
-): Promise<{ cancelledInstallmentIds: string[] }> {
+): Promise<{
+	cancelledInstallmentIds: string[];
+	refundedInstallmentIds: string[];
+	paidAmountToRefund: number;
+	voidedCommissionCount: number;
+	commissionNeedingManualReversal: number;
+}> {
 	return tenantDb.transaction(async (tx) => {
 		// Lock the package row first to serialise against concurrent payment confirmations
 		const [pkg] = await tx
@@ -1082,10 +1229,12 @@ export async function processRefund(
 			.for("update");
 		if (!pkg) throw new Error("Package instance not found");
 
-		// Bulk-cancel all remaining pending/overdue installments before marking package cancelled
+		const now = new Date();
+
+		// 1. Bulk-cancel all remaining pending/overdue installments.
 		const cancelledRows = await tx
 			.update(installments)
-			.set({ status: "cancelled", updatedAt: new Date() })
+			.set({ status: "cancelled", updatedAt: now })
 			.where(
 				and(
 					eq(installments.packageInstanceId, packageInstanceId),
@@ -1094,16 +1243,59 @@ export async function processRefund(
 			)
 			.returning({ id: installments.id });
 
+		// 2. PAID installments: reverse the records (mark refunded) so they no
+		// longer read as collected money. Sum what was actually paid — this is
+		// what an admin must refund OUT OF BAND (decision 2026-06-13: flag for
+		// manual refund, NO automatic Stripe money movement here).
+		const paidRows = await tx
+			.update(installments)
+			.set({ status: "refunded", updatedAt: now })
+			.where(
+				and(
+					eq(installments.packageInstanceId, packageInstanceId),
+					eq(installments.status, "paid"),
+				),
+			)
+			.returning({ id: installments.id, amountPaid: installments.amountPaid });
+		const paidAmountToRefund = paidRows.reduce(
+			(s, r) => s + (r.amountPaid ?? 0),
+			0,
+		);
+
+		// 3. Mark the package refunded + cancelled.
 		await tx
 			.update(packageInstances)
-			.set({
-				paymentStatus: "refunded",
-				status: "cancelled",
-				updatedAt: new Date(),
-			})
+			.set({ paymentStatus: "refunded", status: "cancelled", updatedAt: now })
 			.where(eq(packageInstances.id, packageInstanceId));
 
-		// Log the installment event (uses tx for consistency)
+		// 4. Reverse commission. Void still-PENDING splits for this order/package
+		// so trainers are not paid on a refunded sale. Splits already approved/paid
+		// (batched toward a payout) can't be safely mutated here — count them so the
+		// admin can reverse those payouts out of band.
+		const orderCommissionCond = pkg.salesOrderId
+			? or(
+					eq(commissionSplits.salesOrderId, pkg.salesOrderId),
+					eq(commissionSplits.packageInstanceId, packageInstanceId),
+				)!
+			: eq(commissionSplits.packageInstanceId, packageInstanceId);
+
+		const voidedCommission = await tx
+			.update(commissionSplits)
+			.set({ status: "void", updatedAt: now })
+			.where(and(orderCommissionCond, eq(commissionSplits.status, "pending")))
+			.returning({ id: commissionSplits.id });
+
+		const alreadyBatched = await tx
+			.select({ id: commissionSplits.id })
+			.from(commissionSplits)
+			.where(
+				and(
+					orderCommissionCond,
+					inArray(commissionSplits.status, ["approved", "paid"]),
+				),
+			);
+
+		// 5. Log + audit.
 		await tx.insert(installmentEvents).values({
 			packageInstanceId,
 			installmentId: null,
@@ -1111,7 +1303,13 @@ export async function processRefund(
 			actorId,
 			amount,
 			reason,
-			metadata: null,
+			metadata: JSON.stringify({
+				paidAmountToRefund,
+				refundedInstallmentIds: paidRows.map((r) => r.id),
+				cancelledInstallmentIds: cancelledRows.map((r) => r.id),
+				voidedCommissionCount: voidedCommission.length,
+				commissionNeedingManualReversal: alreadyBatched.length,
+			}),
 		});
 
 		await writeAudit(tx, {
@@ -1124,12 +1322,45 @@ export async function processRefund(
 			summary: `Admin processed refund for package ${packageInstanceId}: ${reason}`,
 			changes: {
 				refundAmount: amount,
+				paidAmountToRefund,
 				reason,
 				cancelledInstallmentIds: cancelledRows.map((r) => r.id),
+				refundedInstallmentIds: paidRows.map((r) => r.id),
+				voidedCommissionCount: voidedCommission.length,
+				commissionNeedingManualReversal: alreadyBatched.length,
 			},
 		});
 
-		return { cancelledInstallmentIds: cancelledRows.map((r) => r.id) };
+		// 6. Notify active admins to issue the actual refund out of band.
+		const admins = await tx
+			.select({ userId: members.userId })
+			.from(members)
+			.where(and(eq(members.role, "admin"), eq(members.status, "active")));
+		if (admins.length > 0) {
+			const rm = (paidAmountToRefund / 100).toFixed(2);
+			const manualNote =
+				alreadyBatched.length > 0
+					? ` ${alreadyBatched.length} commission split(s) are already approved/paid and need manual payout reversal.`
+					: "";
+			await tx.insert(notifications).values(
+				admins.map((a) => ({
+					userId: a.userId,
+					type: "refund_required",
+					title: "Manual refund required",
+					message: `Package ${pkg.purchaseNumber ?? packageInstanceId} was refunded (${reason}). Issue a refund of RM ${rm} to the customer out of band — no payment was reversed automatically.${manualNote}`,
+					relatedId: packageInstanceId,
+					relatedType: "package_instance",
+				})),
+			);
+		}
+
+		return {
+			cancelledInstallmentIds: cancelledRows.map((r) => r.id),
+			refundedInstallmentIds: paidRows.map((r) => r.id),
+			paidAmountToRefund,
+			voidedCommissionCount: voidedCommission.length,
+			commissionNeedingManualReversal: alreadyBatched.length,
+		};
 	});
 }
 
@@ -1788,6 +2019,8 @@ export type UpcomingInstallmentRow = {
 	installmentNumber: number;
 	amount: number;
 	taxAmount: number;
+	/** Phase C — cumulative cents paid against this installment (partial payments). */
+	amountPaid: number;
 	status: string;
 	dueDate: Date;
 	originalDueDate: Date | null;
@@ -1929,6 +2162,7 @@ export async function listUpcomingInstallments(
 			installmentNumber: installments.installmentNumber,
 			amount: installments.amount,
 			taxAmount: installments.taxAmount,
+			amountPaid: installments.amountPaid,
 			status: installments.status,
 			dueDate: installments.dueDate,
 			originalDueDate: installments.originalDueDate,
@@ -2053,6 +2287,64 @@ export async function exportUpcomingInstallmentsCsv(
 		truncated: total > items.length,
 		totalMatching: total,
 	};
+}
+
+// ---------------------------------------------------------------------------
+// Package installment state query
+// ---------------------------------------------------------------------------
+
+export type PackageInstallmentState = {
+	isLocked: boolean;
+	lockedReason: string | null;
+	lockedAt: Date | null;
+	creditsTotal: number;
+	creditsUnlocked: number | null;
+	creditsUsed: number;
+	allowCreditOverdraft: boolean;
+	creditsAdminOverride: boolean;
+	paymentStatus: string;
+	status: string;
+	installmentsTotal: number;
+	installmentsPaid: number;
+	installmentsWaived: number;
+	/** Phase E2 — Stripe customer id saved for auto-charge (null if no card on file). */
+	stripeCustomerId: string | null;
+	/** Phase E2 — Whether automatic off-session charging is enabled for this package. */
+	autoChargeEnabled: boolean;
+};
+
+/**
+ * Return the package-level installment and credit state for a single package instance.
+ * Used by admin action dialogs to render the correct set of available operations.
+ */
+export async function getPackageInstallmentState(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	packageInstanceId: string,
+): Promise<PackageInstallmentState> {
+	const [pkg] = await tenantDb
+		.select({
+			isLocked: packageInstances.isLocked,
+			lockedReason: packageInstances.lockedReason,
+			lockedAt: packageInstances.lockedAt,
+			creditsTotal: packageInstances.creditsTotal,
+			creditsUnlocked: packageInstances.creditsUnlocked,
+			creditsUsed: packageInstances.creditsUsed,
+			allowCreditOverdraft: packageInstances.allowCreditOverdraft,
+			creditsAdminOverride: packageInstances.creditsAdminOverride,
+			paymentStatus: packageInstances.paymentStatus,
+			status: packageInstances.status,
+			installmentsTotal: packageInstances.installmentsTotal,
+			installmentsPaid: packageInstances.installmentsPaid,
+			installmentsWaived: packageInstances.installmentsWaived,
+			stripeCustomerId: packageInstances.stripeCustomerId,
+			autoChargeEnabled: packageInstances.autoChargeEnabled,
+		})
+		.from(packageInstances)
+		.where(eq(packageInstances.id, packageInstanceId))
+		.limit(1);
+
+	if (!pkg) throw new Error("Package instance not found");
+	return pkg;
 }
 
 /**

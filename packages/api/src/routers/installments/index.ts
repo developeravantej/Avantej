@@ -25,4 +25,5 @@ export const installmentsRouter = {
 	getEvents: installmentQueryProcedures.getEvents,
 	suggestRefund: installmentQueryProcedures.suggestRefund,
 	setOverdraft: installmentMutateProcedures.setOverdraft,
+	getPackageState: installmentQueryProcedures.getPackageState,
 };

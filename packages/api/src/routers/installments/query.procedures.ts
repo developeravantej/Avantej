@@ -12,6 +12,7 @@ import {
 	exportUpcomingInstallmentsCsv,
 	evaluateAndLockIfOverdue,
 	getSuggestedRefund,
+	getPackageInstallmentState,
 } from "@avantej-core/services";
 import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
@@ -232,6 +233,28 @@ const suggestRefund = tenantProcedure
 		return getSuggestedRefund(context.tenantDb, input.packageInstanceId);
 	});
 
+const getPackageState = tenantProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			packageInstanceId: z.string().uuid(),
+		}),
+	)
+	.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"service_management",
+			"read",
+		);
+
+		return getPackageInstallmentState(
+			context.tenantDb,
+			input.packageInstanceId,
+		);
+	});
+
 export const installmentQueryProcedures = {
 	listByPackageInstance,
 	adminOverview,
@@ -239,4 +262,5 @@ export const installmentQueryProcedures = {
 	exportUpcomingCsv,
 	getEvents,
 	suggestRefund,
+	getPackageState,
 };

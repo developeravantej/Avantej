@@ -116,6 +116,9 @@ export {
 	calculateCommissionForPos,
 	calculateOriginationCommission,
 	type CalculateOriginationParams,
+	distributeInstallmentOriginationCommission,
+	type DistributeInstallmentOriginationParams,
+	scaleInstallmentCommission,
 } from "./commission-calculator.service";
 // Commission pipeline sub-modules (gather / plan / persist)
 export {
@@ -284,6 +287,8 @@ export {
 	type SuggestedRefundInput,
 	type SuggestedRefundResult,
 	unlockPackage,
+	getPackageInstallmentState,
+	type PackageInstallmentState,
 } from "./installment.service";
 // Installment plan services
 export * from "./installment-plan.service";

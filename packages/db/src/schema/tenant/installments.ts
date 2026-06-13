@@ -3,6 +3,7 @@ import {
 	uuid,
 	integer,
 	text,
+	boolean,
 	timestamp,
 	index,
 	uniqueIndex,
@@ -32,6 +33,14 @@ export const installments = pgTable(
 		confirmedBy: text("confirmed_by"),
 		creditsUnlockedByThis: integer("credits_unlocked_by_this").notNull(),
 		notes: text("notes"),
+		// Partial payment tracking
+		amountPaid: integer("amount_paid").default(0).notNull(),
+		// Per-installment commission
+		commissionAmount: integer("commission_amount").default(0).notNull(),
+		commissionDistributed: boolean("commission_distributed").default(false).notNull(),
+		// Stripe per-installment correlation
+		stripePaymentIntentId: text("stripe_payment_intent_id"),
+		stripePaymentLinkId: text("stripe_payment_link_id"),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.defaultNow()
 			.notNull(),

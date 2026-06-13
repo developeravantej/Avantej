@@ -5028,6 +5028,57 @@ CREATE UNIQUE INDEX IF NOT EXISTS "push_tokens_token_unique" ON "push_tokens" ("
 ALTER TABLE "installments"
 	ADD COLUMN IF NOT EXISTS "original_due_date" timestamp with time zone;
 ` },
+	{ hash: "0091_installment_partial_pay_and_stripe", sql: `ALTER TABLE installments ADD COLUMN IF NOT EXISTS amount_paid integer NOT NULL DEFAULT 0;
+ALTER TABLE installments ADD COLUMN IF NOT EXISTS commission_amount integer NOT NULL DEFAULT 0;
+ALTER TABLE installments ADD COLUMN IF NOT EXISTS commission_distributed boolean NOT NULL DEFAULT false;
+ALTER TABLE installments ADD COLUMN IF NOT EXISTS stripe_payment_intent_id text;
+ALTER TABLE installments ADD COLUMN IF NOT EXISTS stripe_payment_link_id text;
+ALTER TABLE package_instances ADD COLUMN IF NOT EXISTS stripe_customer_id text;
+ALTER TABLE package_instances ADD COLUMN IF NOT EXISTS default_payment_method_id text;
+ALTER TABLE package_instances ADD COLUMN IF NOT EXISTS auto_charge_enabled boolean NOT NULL DEFAULT false;
+` },
+	{ hash: "0092_commission_splits_installment", sql: `-- Migration 0092: Phase D — per-installment origination commission
+-- Adds installment_id column to commission_splits so each installment clearance
+-- can carry exactly one proportional origination split.
+-- Replaces the (sales_order_id, track_id, staff_id) partial-unique index with
+-- a four-column variant that allows one row per (order, track, staff, installment).
+
+ALTER TABLE commission_splits ADD COLUMN IF NOT EXISTS installment_id uuid;
+
+CREATE INDEX IF NOT EXISTS commission_splits_installment_idx
+  ON commission_splits (installment_id);
+
+-- Drop old three-column partial unique index (migration 0083)
+DROP INDEX IF EXISTS commission_splits_so_track_staff_unique;
+
+-- New four-column partial unique index:
+-- NULL installment_id (front-load / single-payment rows) is normalised to a
+-- sentinel UUID so the uniqueness still holds for legacy rows.
+CREATE UNIQUE INDEX IF NOT EXISTS commission_splits_so_track_staff_inst_unique
+  ON commission_splits (sales_order_id, track_id, staff_id, COALESCE(installment_id, '00000000-0000-0000-0000-000000000000'::uuid))
+  WHERE sales_order_id IS NOT NULL;
+` },
+	{ hash: "0093_commission_dispute", sql: `-- Migration 0093 — Staff commission dispute / contest workflow.
+--
+-- Adds the columns that back a trainer-initiated dispute on a commission split.
+-- A \`pending\` or \`approved\` split can be contested by its earner, moving it to
+-- status='contested' (a plain text value — no enum to alter). A manager then
+-- resolves it: uphold (restore contested_from_status), void, or adjust.
+--
+-- All columns are nullable and additive; idempotent ADD COLUMN IF NOT EXISTS so
+-- re-runs on partially-migrated tenants are safe. No new index required — the
+-- existing commission_splits_status_idx already serves the status='contested'
+-- list query.
+
+ALTER TABLE "commission_splits" ADD COLUMN IF NOT EXISTS "contested_by" text;
+ALTER TABLE "commission_splits" ADD COLUMN IF NOT EXISTS "contested_reason" text;
+ALTER TABLE "commission_splits" ADD COLUMN IF NOT EXISTS "contested_category" text;
+ALTER TABLE "commission_splits" ADD COLUMN IF NOT EXISTS "contested_at" timestamptz;
+ALTER TABLE "commission_splits" ADD COLUMN IF NOT EXISTS "contested_from_status" text;
+ALTER TABLE "commission_splits" ADD COLUMN IF NOT EXISTS "resolved_by" text;
+ALTER TABLE "commission_splits" ADD COLUMN IF NOT EXISTS "resolved_at" timestamptz;
+ALTER TABLE "commission_splits" ADD COLUMN IF NOT EXISTS "resolution_note" text;
+` },
 ] as const;
 
 export const LATEST_MIGRATION_VERSION =

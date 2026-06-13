@@ -14,11 +14,17 @@
  *   plan    → planOrigination (pure)
  *   persist → _persistOriginationSplits (caps + 23505-safe insert + audit)
  *
+ * Phase D addition: distributeInstallmentOriginationCommission
+ *   Distributes origination commission proportionally across multi-installment
+ *   plans. Called by confirmInstallmentPayment when an installment fully clears.
+ *   The last installment performs a true-up to ensure the per-staff total
+ *   equals the full planned amount (modulo caps).
+ *
  * Public signatures are IDENTICAL to the pre-refactor version.
  * Callers at appointment.service.ts and pos.service.ts are unchanged.
  */
 
-import { eq, and } from "drizzle-orm";
+import { eq, and, sum, isNotNull } from "drizzle-orm";
 import { loadCommissionContext } from "./commission/context";
 import { planSplits } from "./commission/plan";
 import { persistSplits } from "./commission/persist";
@@ -50,7 +56,10 @@ type TenantTx = Parameters<Parameters<TenantDb["transaction"]>[0]>[0];
 
 interface Actor {
 	userId: string;
-	memberId: string;
+	// Nullable: system/cron actors (e.g. "system" on webhook/auto-charge confirms)
+	// have no member row. memberId is written to audit_logs.actor_member_id (uuid,
+	// nullable) — never pass a non-uuid string (a userId or "system") here.
+	memberId: string | null;
 	role: string;
 }
 
@@ -184,17 +193,210 @@ export interface CalculateOriginationParams {
  *
  * Pipeline: gather (DB reads) → planOrigination (pure) → _persistOriginationSplits (DB writes).
  *
- * Idempotency: relies on the (sales_order_id, track_id, staff_id) unique index
- * created in migration 0083 plus the 23505 skip inside _persistOriginationSplits.
+ * Idempotency: relies on the (sales_order_id, track_id, staff_id, installment_id) unique index
+ * created in migration 0092 plus the 23505 skip inside _persistOriginationSplits.
  * A retried webhook or race produces exactly one split per (order, track, staff).
  *
  * Base = full totalAmount (whole deal, not first installment) per OQ6 decision.
+ *
+ * Phase D: for MULTI-installment plans this function must NOT be called —
+ * distributeInstallmentOriginationCommission handles them instead, one row per installment.
+ * Callers guard this via the isInstallmentPlan check (see pos.service.ts and webhooks.routes.ts).
  */
 export async function calculateOriginationCommission(
 	tenantDb: TenantDb | TenantTx,
 	params: CalculateOriginationParams,
 ): Promise<CommissionSplit[]> {
 	const db = tenantDb as TenantDb;
+	const earnedAt = params.earnedAt ?? new Date();
+
+	const plan = await planOriginationForOrder(db, params);
+	if (!plan || plan.plannedSplits.length === 0) {
+		return [];
+	}
+
+	return _persistOriginationSplits(db, {
+		salesOrderId: params.salesOrderId,
+		plannedSplits: plan.plannedSplits,
+		resolvedTracks: plan.resolvedTracks,
+		actor: params.actor,
+		earnedAt,
+		installmentId: null,
+	});
+}
+
+// ---------------------------------------------------------------------------
+// distributeInstallmentOriginationCommission (Phase D)
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Pure math helper — exported for unit-testing (conservation proof)
+// ---------------------------------------------------------------------------
+
+/**
+ * Compute the scaled commission amount for one installment.
+ *
+ * For all installments except the last:
+ *   scaled = floor(plannedTotal × installmentDue / orderTotal)
+ *
+ * For the last installment (true-up):
+ *   scaled = max(0, plannedTotal - alreadyAttributed)
+ *
+ * This ensures the sum of all per-installment amounts equals `plannedTotal`
+ * regardless of rounding across intermediate installments.
+ *
+ * @param plannedTotal       Full planned commission for this staff/track (cents)
+ * @param installmentDue     This installment's due amount (cents)
+ * @param orderTotal         Sum of all installments' due amounts (cents)
+ * @param isLast             Whether this is the final installment
+ * @param alreadyAttributed  Sum of commission rows already persisted for prior installments
+ * @returns Scaled amount in cents (always ≥ 0)
+ */
+export function scaleInstallmentCommission(
+	plannedTotal: number,
+	installmentDue: number,
+	orderTotal: number,
+	isLast: boolean,
+	alreadyAttributed: number,
+): number {
+	if (isLast) {
+		return Math.max(0, plannedTotal - alreadyAttributed);
+	}
+	if (orderTotal === 0) return 0;
+	return Math.floor((plannedTotal * installmentDue) / orderTotal);
+}
+
+export interface DistributeInstallmentOriginationParams {
+	salesOrderId: string;
+	installmentId: string;
+	/** This installment's amount + taxAmount (cents). */
+	installmentDueCents: number;
+	/** Sum of all installments' amount + taxAmount for the order (cents). */
+	orderTotalDueCents: number;
+	/**
+	 * True when this clearance settles the FINAL still-owed installment.
+	 * When true a rounding true-up is applied so per-staff totals equal the
+	 * full planned amount (modulo caps).
+	 */
+	isLastInstallment: boolean;
+	soldByUserId: string | null | undefined;
+	leadSourceUserId?: string | null;
+	actor: Actor;
+	earnedAt?: Date;
+}
+
+/**
+ * Distribute origination commission proportionally as each installment of a
+ * multi-installment plan clears. Creates ONE immutable commission row per
+ * installment clearance per staff/track, sized to its proportional share.
+ *
+ * Conservation guarantee: floor(planned × each_due / total) for installments
+ * 1..N-1, plus true-up on the last = full planned amount (modulo caps).
+ *
+ * Idempotency: new (sales_order_id, track_id, staff_id, installment_id) unique
+ * index (migration 0092) + 23505-skip inside _persistOriginationSplits.
+ */
+export async function distributeInstallmentOriginationCommission(
+	tenantDb: TenantDb | TenantTx,
+	params: DistributeInstallmentOriginationParams,
+): Promise<CommissionSplit[]> {
+	const db = tenantDb as TenantDb;
+	const earnedAt = params.earnedAt ?? new Date();
+
+	// Stage 1: Plan — same gather+plan as calculateOriginationCommission
+	const plan = await planOriginationForOrder(db, {
+		salesOrderId: params.salesOrderId,
+		soldByUserId: params.soldByUserId,
+		leadSourceUserId: params.leadSourceUserId,
+		actor: params.actor,
+		earnedAt,
+	});
+	if (!plan || plan.plannedSplits.length === 0) {
+		return [];
+	}
+
+	const allResults: CommissionSplit[] = [];
+
+	// Stage 2: Scale each planned split to this installment's proportion
+	for (const split of plan.plannedSplits) {
+		// Resolve the matching track (same logic as _persistOriginationSplits)
+		const resolvedTrack =
+			plan.resolvedTracks.find(
+				(t) =>
+					t.trackVersionId === split.configVersionId ||
+					t.configVersionId === split.configVersionId,
+			) ?? plan.resolvedTracks[0];
+
+		if (!resolvedTrack) continue;
+
+		// Query already-persisted Phase D rows for this staff/track/order
+		// (installment_id IS NOT NULL = Phase D rows only; NULL != any value so this
+		//  naturally excludes the old front-load sentinel row if present)
+		const [alreadyRow] = await db
+			.select({ total: sum(commissionSplits.calculatedAmount) })
+			.from(commissionSplits)
+			.where(
+				and(
+					eq(commissionSplits.salesOrderId, params.salesOrderId),
+					eq(commissionSplits.staffId, split.staffId),
+					eq(commissionSplits.trackId, resolvedTrack.trackId),
+					// Phase D rows only — never subtract a front-load / manual split
+					// (installment_id IS NULL) from the per-installment true-up.
+					isNotNull(commissionSplits.installmentId),
+				),
+			);
+		// Drizzle SUM returns a string or null
+		const alreadySum = alreadyRow?.total
+			? parseInt(String(alreadyRow.total), 10)
+			: 0;
+
+		const scaled = scaleInstallmentCommission(
+			split.finalAmountCents,
+			params.installmentDueCents,
+			params.orderTotalDueCents,
+			params.isLastInstallment,
+			alreadySum,
+		);
+
+		if (scaled <= 0) continue;
+
+		// Stage 3: Persist (caps + 23505-safe) with installmentId set
+		const results = await _persistOriginationSplits(db, {
+			salesOrderId: params.salesOrderId,
+			plannedSplits: [{ ...split, finalAmountCents: scaled }],
+			resolvedTracks: plan.resolvedTracks,
+			actor: params.actor,
+			earnedAt,
+			installmentId: params.installmentId,
+		});
+		allResults.push(...results);
+	}
+
+	return allResults;
+}
+
+// ---------------------------------------------------------------------------
+// Internal: planOriginationForOrder — gather + plan stages (no DB writes)
+// ---------------------------------------------------------------------------
+
+interface PlanOriginationResult {
+	plannedSplits: import("./commission/plan").PlannedSplit[];
+	resolvedTracks: ResolvedOriginationTrack[];
+}
+
+/**
+ * Stages 1 (gather) + 2 (plan) of calculateOriginationCommission — all DB reads,
+ * no writes. Returns null when the order does not exist, is complimentary, or
+ * has no active on_sale tracks configured.
+ *
+ * Extracted so both calculateOriginationCommission (single-payment, front-load)
+ * and distributeInstallmentOriginationCommission (per-installment, Phase D)
+ * share the identical gather+plan logic.
+ */
+async function planOriginationForOrder(
+	db: TenantDb,
+	params: CalculateOriginationParams,
+): Promise<PlanOriginationResult | null> {
 	const earnedAt = params.earnedAt ?? new Date();
 
 	// ── Stage 1: Gather ─────────────────────────────────────────────────────
@@ -218,7 +420,7 @@ export async function calculateOriginationCommission(
 				salesOrderId: params.salesOrderId,
 			}),
 		);
-		return [];
+		return null;
 	}
 
 	// Skip complimentary orders — same rule as delivery commission
@@ -229,7 +431,7 @@ export async function calculateOriginationCommission(
 				salesOrderId: params.salesOrderId,
 			}),
 		);
-		return [];
+		return null;
 	}
 
 	// Resolve closer: prefer explicit params.soldByUserId, fallback to DB field
@@ -316,7 +518,7 @@ export async function calculateOriginationCommission(
 
 	if (onSaleTracks.length === 0) {
 		// No origination tracks configured — clean exit, no commission
-		return [];
+		return null;
 	}
 
 	// 1e. Resolve track rates + versions for each track
@@ -382,7 +584,7 @@ export async function calculateOriginationCommission(
 	}
 
 	if (resolvedTracks.length === 0) {
-		return [];
+		return null;
 	}
 
 	// 1f. Fetch member tier IDs for the beneficiaries (needed for PlannedSplit.trainerTierId)
@@ -430,7 +632,7 @@ export async function calculateOriginationCommission(
 		);
 		await writeAudit(db, {
 			actorUserId: params.actor.userId,
-			actorMemberId: params.actor.memberId,
+			actorMemberId: params.actor.memberId ?? undefined,
 			actorRole: params.actor.role,
 			action: "commission.skip",
 			entityType: "commission_split",
@@ -441,18 +643,10 @@ export async function calculateOriginationCommission(
 	}
 
 	if (plannedSplits.length === 0) {
-		return [];
+		return null;
 	}
 
-	// ── Stage 3: Persist ────────────────────────────────────────────────────
-
-	return _persistOriginationSplits(db, {
-		salesOrderId: params.salesOrderId,
-		plannedSplits,
-		resolvedTracks,
-		actor: params.actor,
-		earnedAt,
-	});
+	return { plannedSplits, resolvedTracks };
 }
 
 // ---------------------------------------------------------------------------
@@ -465,6 +659,11 @@ interface PersistOriginationInput {
 	resolvedTracks: ResolvedOriginationTrack[];
 	actor: Actor;
 	earnedAt: Date;
+	/**
+	 * Phase D: installment_id to tag this row with. null/undefined for
+	 * single-payment front-loaded rows (pre-Phase D).
+	 */
+	installmentId?: string | null;
 }
 
 async function _persistOriginationSplits(
@@ -510,7 +709,11 @@ async function _persistOriginationSplits(
 				.insert(commissionSplits)
 				.values({
 					salesOrderId: input.salesOrderId,
-					configVersionId: split.configVersionId,
+					// config_version_id FKs category_commission_config_versions (delivery
+					// commission). Origination tracks have NO category-config version — their
+					// provenance is trackVersionId below. Writing a commission_track_versions
+					// id here violates the FK, so leave it null for origination splits.
+					configVersionId: undefined,
 					staffId: split.staffId,
 					splitPercentage: split.splitPercentage,
 					calculatedAmount: cappedAmount,
@@ -534,6 +737,10 @@ async function _persistOriginationSplits(
 						? { trackVersionId: resolvedTrack.trackVersionId }
 						: {}),
 					...(capDecision.reason ? { notes: capDecision.reason } : {}),
+					// Phase D: tag with installment_id when set (null for front-load / single-payment)
+					...(input.installmentId != null
+						? { installmentId: input.installmentId }
+						: {}),
 				})
 				.returning();
 			inserted = row as CommissionSplit;
@@ -550,6 +757,7 @@ async function _persistOriginationSplits(
 						salesOrderId: input.salesOrderId,
 						staffId: split.staffId,
 						trackId: resolvedTrack.trackId,
+						installmentId: input.installmentId ?? null,
 					}),
 				);
 				continue;
@@ -560,7 +768,7 @@ async function _persistOriginationSplits(
 		if (inserted) {
 			await writeAudit(db, {
 				actorUserId: input.actor.userId,
-				actorMemberId: input.actor.memberId,
+				actorMemberId: input.actor.memberId ?? undefined,
 				actorRole: input.actor.role,
 				action: "commission.create",
 				entityType: "commission_split",
@@ -575,6 +783,7 @@ async function _persistOriginationSplits(
 					calculatedAmount: cappedAmount,
 					capReason: capDecision.reason,
 					basis: resolvedTrack.basis,
+					installmentId: input.installmentId ?? null,
 				},
 			});
 			results.push(inserted);

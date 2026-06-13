@@ -103,6 +103,21 @@ export const commissionSplits = pgTable(
 		excluded: boolean("excluded").notNull().default(false),
 		isComplimentary: boolean("is_complimentary").notNull().default(false),
 
+		// Migration 0093 — staff dispute / contest workflow.
+		// A trainer may contest a `pending`|`approved` split they believe is wrong.
+		// The split moves to status='contested' (leaving the payout-eligible pool —
+		// liability + batch queries filter on approved/paid), and a manager resolves
+		// it (uphold → restore prior status, void, or adjust → void + new adjustment).
+		// All cross-DB user references are plain text (no FK), per convention.
+		contestedBy: text("contested_by"), // members.userId of the earner who contested
+		contestedReason: text("contested_reason"), // free-text justification
+		contestedCategory: text("contested_category"), // wrong_amount | wrong_staff | should_not_earn | missing_split | other
+		contestedAt: timestamp("contested_at", { withTimezone: true }),
+		contestedFromStatus: text("contested_from_status"), // status to restore on "uphold"
+		resolvedBy: text("resolved_by"), // members.userId of the manager who resolved
+		resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+		resolutionNote: text("resolution_note"),
+
 		// Use earnedAt (not createdAt) for payroll period filtering
 		earnedAt: timestamp("earned_at", { withTimezone: true }).notNull(),
 
@@ -128,6 +143,12 @@ export const commissionSplits = pgTable(
 			{ onDelete: "set null" },
 		),
 
+		// Migration 0092 — Phase D: per-installment origination commission.
+		// NULL for single-payment / front-loaded rows (pre-Phase D and single plans).
+		// Set to the installments.id that triggered this split for multi-installment plans.
+		// No FK reference — plain column, matches cross-cutting style (avoids import cycle).
+		installmentId: uuid("installment_id"),
+
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at").defaultNow().notNull(),
 	},
@@ -135,6 +156,9 @@ export const commissionSplits = pgTable(
 		// Partial unique indexes handled in migration SQL (Drizzle can't express WHERE clause)
 		// commission_splits_appt_staff_unique  ON (appointment_id, staff_id) WHERE appointment_id IS NOT NULL
 		// commission_splits_so_staff_unique    ON (sales_order_id, staff_id) WHERE sales_order_id IS NOT NULL
+		// commission_splits_so_track_staff_inst_unique — replaces 0083 index; one row per
+		// (sales_order_id, track_id, staff_id, COALESCE(installment_id, sentinel_uuid))
+		// managed in raw SQL (migration 0092) — Drizzle cannot express WHERE + COALESCE.
 
 		// Regular indexes for query performance
 		appointmentIdIdx: index("commission_splits_appointment_idx").on(
@@ -161,8 +185,12 @@ export const commissionSplits = pgTable(
 		),
 		// Migration 0083 — track lookups
 		trackIdx: index("commission_splits_track_idx").on(table.trackId),
+		// Migration 0092 — installment lookup
+		installmentIdx: index("commission_splits_installment_idx").on(
+			table.installmentId,
+		),
 		// NOTE: The partial unique indexes for (sales_order_id, track_id, staff_id)
-		// and (appointment_id, track_id, staff_id) are managed in raw SQL (migration
-		// 0083 §4) — Drizzle uniqueIndex() cannot express WHERE clauses.
+		// and (appointment_id, track_id, staff_id) are managed in raw SQL (migrations
+		// 0083 and 0092) — Drizzle uniqueIndex() cannot express WHERE/COALESCE clauses.
 	}),
 );
