@@ -962,5 +962,11 @@
     "As an org B member session, list org B hierarchy nodes (proves per-org tenantDb routing)",
     "Call the same procedure for org A",
     "Assert org A is rejected (not a member there)"
+  ],
+  "payment/invoices.lifecycle.spec.ts::Invoice lifecycle — create(draft) -> update(sent) -> cancel (API-verified)": [
+    "Create an invoice via invoices/create (status draft, totalAmount 12345) and assert an id is returned",
+    "Fetch invoices/getById and assert customerName, status=draft, and totalAmount persisted",
+    "Update via invoices/update to status=sent and totalAmount 20000; assert getById reflects both edits",
+    "Cancel via invoices/update (status=cancelled) and assert the terminal status (no hard delete exists)"
   ]
 }
