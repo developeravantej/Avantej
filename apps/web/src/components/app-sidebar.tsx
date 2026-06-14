@@ -97,7 +97,12 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 	{
 		label: "Main",
 		items: [
-			{ title: "Home", url: "/dashboard", icon: Home },
+			{ title: "Dashboard", url: "/dashboard", icon: Home },
+			{
+				title: "Overview",
+				url: "/dashboard/overview",
+				icon: LayoutDashboard,
+			},
 			{
 				title: "Approvals",
 				url: "/dashboard/operations/approvals",

@@ -1,14 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { z } from "zod";
 
 import { client } from "@/utils/orpc";
-import { DashboardPage } from "@/components/pages/dashboard/DashboardPage";
-
-const dashboardSearchSchema = z.object({
-	period: z
-		.enum(["today", "this_week", "this_month", "this_year"])
-		.default("this_month"),
-});
+import { DashboardLaunchpad } from "@/components/pages/launchpad/DashboardLaunchpad";
 
 export const Route = createFileRoute("/_authenticated/dashboard/_layout/")({
 	// Pure SaaS owners (platform admin with no org membership) get the
@@ -34,6 +27,5 @@ export const Route = createFileRoute("/_authenticated/dashboard/_layout/")({
 			// Non-admin or transient error: fall through to the tenant dashboard.
 		}
 	},
-	component: DashboardPage,
-	validateSearch: dashboardSearchSchema,
+	component: DashboardLaunchpad,
 });

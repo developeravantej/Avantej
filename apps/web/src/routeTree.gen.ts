@@ -33,6 +33,7 @@ import { Route as AuthenticatedDashboardLayoutRouteImport } from './routes/_auth
 import { Route as AuthenticatedBillingConnectRouteImport } from './routes/_authenticated/billing.connect'
 import { Route as AuthenticatedAppointmentViewRouteImport } from './routes/_authenticated/appointment/view'
 import { Route as AuthenticatedDashboardLayoutIndexRouteImport } from './routes/_authenticated/dashboard/_layout/index'
+import { Route as AuthenticatedDashboardLayoutOverviewRouteImport } from './routes/_authenticated/dashboard/_layout/overview'
 import { Route as AuthenticatedDashboardLayoutInventoryOptionsRouteImport } from './routes/_authenticated/dashboard/_layout/inventory-options'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminIndexRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/index'
 import { Route as AuthenticatedDashboardLayoutUserViewRouteImport } from './routes/_authenticated/dashboard/_layout/user/view'
@@ -231,6 +232,12 @@ const AuthenticatedDashboardLayoutIndexRoute =
   AuthenticatedDashboardLayoutIndexRouteImport.update({
     id: '/',
     path: '/',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutOverviewRoute =
+  AuthenticatedDashboardLayoutOverviewRouteImport.update({
+    id: '/overview',
+    path: '/overview',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
 const AuthenticatedDashboardLayoutInventoryOptionsRoute =
@@ -714,6 +721,7 @@ export interface FileRoutesByFullPath {
   '/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
   '/user/view': typeof AuthenticatedUserViewRoute
   '/dashboard/inventory-options': typeof AuthenticatedDashboardLayoutInventoryOptionsRoute
+  '/dashboard/overview': typeof AuthenticatedDashboardLayoutOverviewRoute
   '/dashboard/': typeof AuthenticatedDashboardLayoutIndexRoute
   '/dashboard/access-control/invitations': typeof AuthenticatedDashboardLayoutAccessControlInvitationsRoute
   '/dashboard/access-control/permissions': typeof AuthenticatedDashboardLayoutAccessControlPermissionsRoute
@@ -812,6 +820,7 @@ export interface FileRoutesByTo {
   '/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
   '/user/view': typeof AuthenticatedUserViewRoute
   '/dashboard/inventory-options': typeof AuthenticatedDashboardLayoutInventoryOptionsRoute
+  '/dashboard/overview': typeof AuthenticatedDashboardLayoutOverviewRoute
   '/dashboard': typeof AuthenticatedDashboardLayoutIndexRoute
   '/dashboard/access-control/invitations': typeof AuthenticatedDashboardLayoutAccessControlInvitationsRoute
   '/dashboard/access-control/permissions': typeof AuthenticatedDashboardLayoutAccessControlPermissionsRoute
@@ -912,6 +921,7 @@ export interface FileRoutesById {
   '/_authenticated/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
   '/_authenticated/user/view': typeof AuthenticatedUserViewRoute
   '/_authenticated/dashboard/_layout/inventory-options': typeof AuthenticatedDashboardLayoutInventoryOptionsRoute
+  '/_authenticated/dashboard/_layout/overview': typeof AuthenticatedDashboardLayoutOverviewRoute
   '/_authenticated/dashboard/_layout/': typeof AuthenticatedDashboardLayoutIndexRoute
   '/_authenticated/dashboard/_layout/access-control/invitations': typeof AuthenticatedDashboardLayoutAccessControlInvitationsRoute
   '/_authenticated/dashboard/_layout/access-control/permissions': typeof AuthenticatedDashboardLayoutAccessControlPermissionsRoute
@@ -1013,6 +1023,7 @@ export interface FileRouteTypes {
     | '/service-category/view'
     | '/user/view'
     | '/dashboard/inventory-options'
+    | '/dashboard/overview'
     | '/dashboard/'
     | '/dashboard/access-control/invitations'
     | '/dashboard/access-control/permissions'
@@ -1111,6 +1122,7 @@ export interface FileRouteTypes {
     | '/service-category/view'
     | '/user/view'
     | '/dashboard/inventory-options'
+    | '/dashboard/overview'
     | '/dashboard'
     | '/dashboard/access-control/invitations'
     | '/dashboard/access-control/permissions'
@@ -1210,6 +1222,7 @@ export interface FileRouteTypes {
     | '/_authenticated/service-category/view'
     | '/_authenticated/user/view'
     | '/_authenticated/dashboard/_layout/inventory-options'
+    | '/_authenticated/dashboard/_layout/overview'
     | '/_authenticated/dashboard/_layout/'
     | '/_authenticated/dashboard/_layout/access-control/invitations'
     | '/_authenticated/dashboard/_layout/access-control/permissions'
@@ -1472,6 +1485,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/dashboard/'
       preLoaderRoute: typeof AuthenticatedDashboardLayoutIndexRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/overview': {
+      id: '/_authenticated/dashboard/_layout/overview'
+      path: '/overview'
+      fullPath: '/dashboard/overview'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutOverviewRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
     '/_authenticated/dashboard/_layout/inventory-options': {
@@ -2018,6 +2038,7 @@ const AuthenticatedDashboardLayoutPlatformAdminTenantsRouteWithChildren =
 
 interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutInventoryOptionsRoute: typeof AuthenticatedDashboardLayoutInventoryOptionsRoute
+  AuthenticatedDashboardLayoutOverviewRoute: typeof AuthenticatedDashboardLayoutOverviewRoute
   AuthenticatedDashboardLayoutIndexRoute: typeof AuthenticatedDashboardLayoutIndexRoute
   AuthenticatedDashboardLayoutAccessControlInvitationsRoute: typeof AuthenticatedDashboardLayoutAccessControlInvitationsRoute
   AuthenticatedDashboardLayoutAccessControlPermissionsRoute: typeof AuthenticatedDashboardLayoutAccessControlPermissionsRoute
@@ -2095,6 +2116,8 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
   {
     AuthenticatedDashboardLayoutInventoryOptionsRoute:
       AuthenticatedDashboardLayoutInventoryOptionsRoute,
+    AuthenticatedDashboardLayoutOverviewRoute:
+      AuthenticatedDashboardLayoutOverviewRoute,
     AuthenticatedDashboardLayoutIndexRoute:
       AuthenticatedDashboardLayoutIndexRoute,
     AuthenticatedDashboardLayoutAccessControlInvitationsRoute:

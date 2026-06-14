@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Avantej — Home (master/detail mockup)</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --ink: #0f172a;
+    --muted: #64748b;
+    --line: #e8ebf0;
+    --brand: #2563eb;
+    --brand-soft: #eff4ff;
+    --green: #16a34a;
+    --amber: #d97706;
+    --red: #dc2626;
+    --shadow: 0 1px 2px rgba(15,23,42,.04), 0 8px 24px rgba(15,23,42,.05);
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- top bar ---- */
+  .topbar {
+    height: 60px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 22px;
+  }
+  .logo { font-weight: 700; font-size: 16px; letter-spacing: -.2px; }
+  .logo span { color: var(--brand); }
+  .topbar .today {
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .topbar .user {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 600;
+  }
+  .avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--brand-soft); color: var(--brand);
+    display: grid; place-items: center; font-size: 12px; font-weight: 700;
+  }
+
+  /* ---- summary strip (the "overview" glance) ---- */
+  .strip {
+    display: flex; gap: 14px;
+    padding: 18px 22px 4px;
+    flex-wrap: wrap;
+  }
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 16px;
+    min-width: 150px;
+    box-shadow: var(--shadow);
+  }
+  .stat .label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .stat .value { font-size: 20px; font-weight: 700; letter-spacing: -.3px; }
+  .stat .value small { font-size: 12px; font-weight: 600; color: var(--green); margin-left: 6px; }
+
+  /* ---- layout: cards left, detail right ---- */
+  .shell {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 18px;
+    padding: 18px 22px 28px;
+    align-items: start;
+  }
+
+  .rail { display: flex; flex-direction: column; gap: 10px; }
+  .rail-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .6px; color: var(--muted); padding: 2px 4px 4px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  }
+  .card:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+  .card.active {
+    border-color: var(--brand);
+    background: var(--brand-soft);
+    box-shadow: var(--shadow);
+  }
+  .card .ico {
+    width: 38px; height: 38px; border-radius: 10px;
+    display: grid; place-items: center; font-size: 18px;
+    background: #f1f5f9; flex-shrink: 0;
+  }
+  .card.active .ico { background: #fff; }
+  .card .meta { min-width: 0; }
+  .card .name { font-size: 14px; font-weight: 650; }
+  .card .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .badge {
+    margin-left: auto;
+    font-size: 11px; font-weight: 700;
+    background: var(--red); color: #fff;
+    border-radius: 999px; padding: 2px 8px;
+    flex-shrink: 0;
+  }
+  .badge.amber { background: var(--amber); }
+  .badge.soft { background: #e2e8f0; color: var(--ink); }
+
+  /* ---- detail panel ---- */
+  .detail {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    min-height: 460px;
+    padding: 24px 26px;
+  }
+  .detail h2 { margin: 0 0 2px; font-size: 19px; letter-spacing: -.3px; }
+  .detail .desc { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .panel { display: none; }
+  .panel.active { display: block; animation: fade .18s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  .btn {
+    border: none; border-radius: 10px; cursor: pointer;
+    font-size: 13px; font-weight: 650; padding: 10px 16px;
+  }
+  .btn.primary { background: var(--brand); color: #fff; }
+  .btn.ghost { background: #f1f5f9; color: var(--ink); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+
+  .field { margin-bottom: 14px; max-width: 420px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  .field input, .field select {
+    width: 100%; padding: 10px 12px; font-size: 14px;
+    border: 1px solid var(--line); border-radius: 9px; background: #fff; color: var(--ink);
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .4px;
+       color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  td { padding: 11px 10px; border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: none; }
+  .pill { font-size: 11px; font-weight: 700; border-radius: 999px; padding: 3px 9px; display: inline-block; }
+  .pill.paid { background: #dcfce7; color: var(--green); }
+  .pill.due { background: #fef3c7; color: var(--amber); }
+  .pill.late { background: #fee2e2; color: var(--red); }
+  .empty-hint { font-size: 12px; color: var(--muted); margin-top: 18px; }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="logo">Avan<span>tej</span></div>
+    <div class="today">Saturday, 14 June 2026 · Main Branch</div>
+    <div class="user"><div class="avatar">AF</div> Front Desk</div>
+  </div>
+
+  <!-- the "overview" glance, folded into the top -->
+  <div class="strip">
+    <div class="stat"><div class="label">Today's sales</div><div class="value">RM 2,400 <small>▲ 12%</small></div></div>
+    <div class="stat"><div class="label">Installments due today</div><div class="value">3</div></div>
+    <div class="stat"><div class="label">Appointments</div><div class="value">8</div></div>
+    <div class="stat"><div class="label">Payouts pending</div><div class="value">RM 640</div></div>
+  </div>
+
+  <div class="shell">
+
+    <!-- LEFT: cards -->
+    <div class="rail">
+      <div class="rail-title">Daily tasks</div>
+
+      <div class="card active" data-target="new-sale">
+        <div class="ico">🧾</div>
+        <div class="meta"><div class="name">New Sale</div><div class="sub">POS · package / service</div></div>
+      </div>
+
+      <div class="card" data-target="new-customer">
+        <div class="ico">➕</div>
+        <div class="meta"><div class="name">Create Customer</div><div class="sub">Register a member</div></div>
+      </div>
+
+      <div class="card" data-target="customers">
+        <div class="ico">👥</div>
+        <div class="meta"><div class="name">View Customers</div><div class="sub">Search & manage</div></div>
+      </div>
+
+      <div class="card" data-target="installments">
+        <div class="ico">📅</div>
+        <div class="meta"><div class="name">Installments</div><div class="sub">Upcoming & status</div></div>
+        <div class="badge amber">3 due</div>
+      </div>
+
+      <div class="card" data-target="payouts">
+        <div class="ico">💰</div>
+        <div class="meta"><div class="name">Commission Payout</div><div class="sub">Trainer earnings</div></div>
+        <div class="badge soft">RM 640</div>
+      </div>
+
+      <div class="card" data-target="schedule">
+        <div class="ico">🗓️</div>
+        <div class="meta"><div class="name">Trainer Schedule</div><div class="sub">Today's sessions</div></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: detail -->
+    <div class="detail">
+
+      <!-- New Sale -->
+      <div class="panel active" id="new-sale">
+        <h2>New Sale</h2>
+        <div class="desc">Ring up a package or service. Installment plans show the per-month amount, not full price.</div>
+        <div class="field"><label>Customer</label><input value="Ahmad Firdaus  (+60123456789)" /></div>
+        <div class="field"><label>Item</label>
+          <select><option>Body Massage 60min — RM 300</option><option>3-Month Package — RM 300 (RM 100 / month)</option></select>
+        </div>
+        <div class="field"><label>Payment</label>
+          <select><option>Full payment</option><option selected>Installment — 3 months</option></select>
+        </div>
+        <div class="row"><button class="btn primary">Charge RM 100 (first installment)</button><button class="btn ghost">Save draft</button></div>
+        <div class="empty-hint">↳ Live preview: installment plan creates 3 payments of RM 100 · commission routed to assigned trainer.</div>
+      </div>
+
+      <!-- New Customer -->
+      <div class="panel" id="new-customer">
+        <h2>Create Customer</h2>
+        <div class="desc">Register a new member. Minimal fields — staff can fill the rest later.</div>
+        <div class="field"><label>Full name</label><input placeholder="e.g. Ahmad Firdaus" /></div>
+        <div class="field"><label>Phone</label><input placeholder="+60..." /></div>
+        <div class="field"><label>Email (optional)</label><input placeholder="member@test.my" /></div>
+        <div class="field"><label>Branch</label><select><option>Main Branch</option></select></div>
+        <div class="row"><button class="btn primary">Create customer</button><button class="btn ghost">Create & start sale</button></div>
+      </div>
+
+      <!-- View Customers -->
+      <div class="panel" id="customers">
+        <h2>Customers</h2>
+        <div class="desc">Search, open a profile, or jump straight into a new sale.</div>
+        <div class="field"><input placeholder="🔍  Search by name or phone..." /></div>
+        <table>
+          <thead><tr><th>Name</th><th>Phone</th><th>Active plan</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>Ahmad Firdaus</td><td>+60123456789</td><td><span class="pill due">Installment 1/3</span></td><td><button class="btn ghost">Open</button></td></tr>
+            <tr><td>Siti Nurhaliza</td><td>+60198887766</td><td><span class="pill paid">Paid in full</span></td><td><button class="btn ghost">Open</button></td></tr>
+            <tr><td>Lim Wei Jie</td><td>+60165554433</td><td>—</td><td><button class="btn ghost">Open</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Installments -->
+      <div class="panel" id="installments">
+        <h2>Installments</h2>
+        <div class="desc">Upcoming, due today, and overdue — all in one queue.</div>
+        <div class="row">
+          <button class="btn ghost">All</button><button class="btn primary">Due / Upcoming</button><button class="btn ghost">Overdue</button>
+        </div>
+        <table>
+          <thead><tr><th>Customer</th><th>Plan</th><th>Amount</th><th>Due</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>Ahmad Firdaus</td><td>2 / 3</td><td>RM 100</td><td>Today</td><td><span class="pill due">Due</span></td><td><button class="btn primary">Collect</button></td></tr>
+            <tr><td>Raj Kumar</td><td>3 / 6</td><td>RM 80</td><td>16 Jun</td><td><span class="pill due">Upcoming</span></td><td><button class="btn ghost">Remind</button></td></tr>
+            <tr><td>Chloe Tan</td><td>1 / 4</td><td>RM 150</td><td>10 Jun</td><td><span class="pill late">Overdue</span></td><td><button class="btn primary">Collect</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Commission Payout -->
+      <div class="panel" id="payouts">
+        <h2>Commission Payout</h2>
+        <div class="desc">Pending trainer earnings ready to approve and pay out.</div>
+        <table>
+          <thead><tr><th>Trainer</th><th>Sessions</th><th>Earned</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>Coach Danial</td><td>12</td><td>RM 360</td><td><span class="pill due">Pending</span></td><td><button class="btn primary">Approve</button></td></tr>
+            <tr><td>Coach Mei Ling</td><td>9</td><td>RM 280</td><td><span class="pill due">Pending</span></td><td><button class="btn primary">Approve</button></td></tr>
+            <tr><td>Coach Arjun</td><td>15</td><td>RM 450</td><td><span class="pill paid">Paid</span></td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Trainer Schedule -->
+      <div class="panel" id="schedule">
+        <h2>Trainer Schedule — Today</h2>
+        <div class="desc">Who's in, what's booked, and the next free slot.</div>
+        <table>
+          <thead><tr><th>Time</th><th>Trainer</th><th>Member</th><th>Service</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>09:00</td><td>Coach Danial</td><td>Ahmad Firdaus</td><td>Body Massage 60min</td><td><span class="pill paid">Done</span></td></tr>
+            <tr><td>11:00</td><td>Coach Mei Ling</td><td>Siti Nurhaliza</td><td>Personal Training</td><td><span class="pill due">Upcoming</span></td></tr>
+            <tr><td>14:30</td><td>Coach Danial</td><td>—</td><td>Free slot</td><td><span class="pill soft" style="background:#e2e8f0;color:#475569">Open</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+<script>
+  const cards = document.querySelectorAll('.card');
+  const panels = document.querySelectorAll('.panel');
+  cards.forEach(card => {
+    card.addEventListener('click', () => {
+      cards.forEach(c => c.classList.remove('active'));
+      panels.forEach(p => p.classList.remove('active'));
+      card.classList.add('active');
+      document.getElementById(card.dataset.target).classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
