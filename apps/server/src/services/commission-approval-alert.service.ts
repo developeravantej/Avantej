@@ -148,14 +148,21 @@ export async function runCommissionApprovalAlert(
 				});
 				if (existing) continue;
 
-				await tenantDb.insert(notifications).values({
-					userId: admin.userId,
-					type: "commission_pending_digest",
-					title,
-					message,
-					icon: "alert-circle",
-					color: "amber",
-				});
+				// onConflictDoNothing backstops the find-first dedupe against a
+				// concurrent run: migration 0094's partial unique index
+				// (user_id WHERE type=digest AND is_read=false) makes a double
+				// insert a no-op instead of a 23505.
+				await tenantDb
+					.insert(notifications)
+					.values({
+						userId: admin.userId,
+						type: "commission_pending_digest",
+						title,
+						message,
+						icon: "alert-circle",
+						color: "amber",
+					})
+					.onConflictDoNothing();
 				report.notificationsCreated++;
 			}
 		} catch (orgErr) {

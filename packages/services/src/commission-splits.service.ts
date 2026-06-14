@@ -1738,24 +1738,29 @@ export async function createManualAdjustment(
 	}
 
 	// Duplicate guard: reject if a non-void manual split already exists for the
-	// same staff + appointment combination. Prevents accidental double-entry.
-	if (params.appointmentId) {
-		const dupe = await tenantDb.query.commissionSplits.findFirst({
-			where: and(
-				eq(commissionSplits.staffId, params.staffId),
-				eq(commissionSplits.appointmentId, params.appointmentId),
-				eq(commissionSplits.splitType, "manual"),
-				ne(commissionSplits.status, "void"),
+	// same staff + the SAME target (appointment, sales-order, OR package). Exactly
+	// one target is set (XOR enforced above). Prevents accidental double-entry
+	// across all target types, not just appointments.
+	const targetMatch = params.appointmentId
+		? eq(commissionSplits.appointmentId, params.appointmentId)
+		: params.salesOrderId
+			? eq(commissionSplits.salesOrderId, params.salesOrderId)
+			: eq(commissionSplits.packageInstanceId, params.packageInstanceId!);
+	const dupe = await tenantDb.query.commissionSplits.findFirst({
+		where: and(
+			eq(commissionSplits.staffId, params.staffId),
+			targetMatch,
+			eq(commissionSplits.splitType, "manual"),
+			ne(commissionSplits.status, "void"),
+		),
+	});
+	if (dupe) {
+		throw Object.assign(
+			new Error(
+				`A manual adjustment for this staff member and target already exists (split ${dupe.id}). Void it first before creating another.`,
 			),
-		});
-		if (dupe) {
-			throw Object.assign(
-				new Error(
-					`A manual adjustment for this staff member and appointment already exists (split ${dupe.id}). Void it first before creating another.`,
-				),
-				{ code: "CONFLICT" },
-			);
-		}
+			{ code: "CONFLICT" },
+		);
 	}
 
 	// High-value flag: amounts above the threshold enter "pending_review" so they

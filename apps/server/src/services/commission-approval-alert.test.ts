@@ -52,7 +52,7 @@ function makeTenantDb(opts: {
 		insert: () => ({
 			values: (row: AnyDb) => {
 				inserted.push(row);
-				return Promise.resolve();
+				return { onConflictDoNothing: () => Promise.resolve() };
 			},
 		}),
 	};
