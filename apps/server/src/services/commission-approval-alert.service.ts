@@ -108,7 +108,7 @@ export async function runCommissionApprovalAlert(
 				count === 1 ? "" : "s"
 			} (RM ${amountRm}) have been pending approval for more than ${staleDays} day${
 				staleDays === 1 ? "" : "s"
-			}. Review them on the Commissions → Review queue.`;
+			}. Approve them under Commissions → All (Pending filter).`;
 
 			for (const admin of admins) {
 				// DEDUPE: skip if this admin already has an unread digest outstanding.
