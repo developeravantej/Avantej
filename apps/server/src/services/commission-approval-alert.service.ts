@@ -39,7 +39,8 @@ const DEFAULT_STALE_DAYS = 3;
 
 export interface CommissionApprovalAlertReport {
 	orgsScanned: number;
-	orgsWithStalePending: number;
+	/** Orgs that had a non-empty approval and/or review backlog. */
+	orgsWithBacklog: number;
 	notificationsCreated: number;
 	errors: number;
 }
@@ -62,7 +63,7 @@ export async function runCommissionApprovalAlert(
 
 	const report: CommissionApprovalAlertReport = {
 		orgsScanned: 0,
-		orgsWithStalePending: 0,
+		orgsWithBacklog: 0,
 		notificationsCreated: 0,
 		errors: 0,
 	};
@@ -77,12 +78,15 @@ export async function runCommissionApprovalAlert(
 		try {
 			const tenantDb = (await getTenantDb(org.id)) as TenantDb;
 
-			// Aggregate stale-pending splits in one query.
-			const [agg] = await tenantDb
-				.select({
-					count: sql<number>`COUNT(*)::int`,
-					totalCents: sql<number>`COALESCE(SUM(${commissionSplits.calculatedAmount}), 0)::int`,
-				})
+			const sums = {
+				count: sql<number>`COUNT(*)::int`,
+				totalCents: sql<number>`COALESCE(SUM(${commissionSplits.calculatedAmount}), 0)::int`,
+			};
+
+			// Backlog 1 — approval queue: pending splits older than staleDays.
+			// These are approved under Commissions → All (Pending filter).
+			const [pendingAgg] = await tenantDb
+				.select(sums)
 				.from(commissionSplits)
 				.where(
 					and(
@@ -91,10 +95,20 @@ export async function runCommissionApprovalAlert(
 					),
 				);
 
-			const count = agg?.count ?? 0;
-			const totalCents = agg?.totalCents ?? 0;
-			if (count === 0) continue;
-			report.orgsWithStalePending++;
+			// Backlog 2 — review queue: high-value manual adjustments awaiting
+			// sign-off (any age — they need prompt attention). Resolved under
+			// Commissions → Review.
+			const [reviewAgg] = await tenantDb
+				.select(sums)
+				.from(commissionSplits)
+				.where(eq(commissionSplits.status, "pending_review"));
+
+			const pendingCount = pendingAgg?.count ?? 0;
+			const pendingCents = pendingAgg?.totalCents ?? 0;
+			const reviewCount = reviewAgg?.count ?? 0;
+			const reviewCents = reviewAgg?.totalCents ?? 0;
+			if (pendingCount === 0 && reviewCount === 0) continue;
+			report.orgsWithBacklog++;
 
 			const admins = await tenantDb.query.members.findMany({
 				where: and(eq(members.role, "admin"), eq(members.status, "active")),
@@ -102,13 +116,25 @@ export async function runCommissionApprovalAlert(
 			});
 			if (admins.length === 0) continue;
 
-			const amountRm = (totalCents / 100).toFixed(2);
+			const parts: string[] = [];
+			if (pendingCount > 0) {
+				parts.push(
+					`${pendingCount} commission split${pendingCount === 1 ? "" : "s"} (RM ${(
+						pendingCents / 100
+					).toFixed(
+						2,
+					)}) pending approval >${staleDays}d — Commissions → All (Pending filter).`,
+				);
+			}
+			if (reviewCount > 0) {
+				parts.push(
+					`${reviewCount} manual adjustment${reviewCount === 1 ? "" : "s"} (RM ${(
+						reviewCents / 100
+					).toFixed(2)}) awaiting review — Commissions → Review.`,
+				);
+			}
 			const title = "Commission approvals waiting";
-			const message = `${count} commission split${
-				count === 1 ? "" : "s"
-			} (RM ${amountRm}) have been pending approval for more than ${staleDays} day${
-				staleDays === 1 ? "" : "s"
-			}. Approve them under Commissions → All (Pending filter).`;
+			const message = parts.join(" ");
 
 			for (const admin of admins) {
 				// DEDUPE: skip if this admin already has an unread digest outstanding.
