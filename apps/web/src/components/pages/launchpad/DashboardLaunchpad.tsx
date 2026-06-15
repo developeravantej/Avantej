@@ -29,7 +29,7 @@ function StatTile({
 }
 
 export function DashboardLaunchpad() {
-	const { data: userContext, hasPermission } = useUserContext();
+	const { data: userContext, hasPermission, isLoading } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 
 	// Cards the current user is allowed to see.
@@ -85,6 +85,17 @@ export function DashboardLaunchpad() {
 		payouts: payoutsPendingQuery.data?.length ?? undefined,
 		schedule: todayKpisQuery.data?.totalAppointments ?? undefined,
 	};
+
+	// While the user context is still resolving, organizationId and permissions
+	// are not yet known — show a neutral loading state rather than a misleading
+	// "Select an organization" / "No tasks" flash.
+	if (isLoading && !userContext) {
+		return (
+			<div className="-m-6 flex h-screen items-center justify-center text-muted-foreground">
+				Loading your dashboard…
+			</div>
+		);
+	}
 
 	if (!organizationId) {
 		return (
