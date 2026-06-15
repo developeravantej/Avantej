@@ -42,9 +42,11 @@ function getEnvVar(key: string): string | undefined {
 let resendClient: Resend | null = null;
 
 /**
- * Get Resend client instance (lazy-loaded)
+ * Get Resend client instance (lazy-loaded).
+ * Exported so other modules (resend-domains wrapper, tenant sender) can reuse
+ * the same singleton — the `__resetResendClient` test hook only resets this one.
  */
-function getResendClient(): Resend {
+export function getResendClient(): Resend {
 	if (!resendClient) {
 		const apiKey = getEnvVar("RESEND_API_KEY");
 		if (!apiKey) {
@@ -127,7 +129,7 @@ export function __getCapturedEmails(type?: CapturedEmailType): CapturedEmail[] {
 	return capturedEmails.filter((email) => email.type === type);
 }
 
-function recordEmailCapture(capture: Omit<CapturedEmail, "sentAt">): void {
+export function recordEmailCapture(capture: Omit<CapturedEmail, "sentAt">): void {
 	if (!emailCaptureEnabled) {
 		return;
 	}

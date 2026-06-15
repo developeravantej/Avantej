@@ -26,3 +26,5 @@ export * from "./tenant-notes";
 export * from "./tenant-tags";
 export * from "./comms-templates";
 export * from "./tenant-feature-overrides";
+export * from "./email-domains";
+export * from "./email-logs";

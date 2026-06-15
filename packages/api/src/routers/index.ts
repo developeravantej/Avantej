@@ -2785,6 +2785,71 @@ export const platformAdminMigrationsRouterType = {
 		}),
 };
 
+/**
+ * Type-only twin of the server emailDomains router. Lets the web client
+ * infer types for client.emailDomains.* without depending on apps/server.
+ */
+interface EmailDomainRow {
+	id: string;
+	organizationId: string;
+	resendDomainId: string;
+	domain: string;
+	fromName: string;
+	status: string;
+	dnsRecords: unknown;
+	verifiedAt: Date | null;
+	createdAt: Date;
+	updatedAt: Date;
+}
+
+const RESEND_REGIONS_TYPE = [
+	"us-east-1",
+	"eu-west-1",
+	"sa-east-1",
+	"ap-northeast-1",
+] as const;
+
+export const emailDomainsRouterType = {
+	create: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				domain: z.string().min(3).max(253),
+				fromName: z.string().min(1).max(100),
+				region: z.enum(RESEND_REGIONS_TYPE).optional(),
+			}),
+		)
+		.handler((): EmailDomainRow => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	list: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler((): EmailDomainRow[] => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	get: protectedProcedure
+		.input(
+			z.object({
+				id: z.string().uuid(),
+				organizationId: z.string().uuid(),
+				refresh: z.boolean().optional(),
+			}),
+		)
+		.handler((): EmailDomainRow => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	verify: protectedProcedure
+		.input(
+			z.object({
+				id: z.string().uuid(),
+				organizationId: z.string().uuid(),
+			}),
+		)
+		.handler((): EmailDomainRow => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+};
+
 // Full appRouter with auth and server-specific procedures for type inference on the client
 export const appRouter = {
 	...baseRouter,
@@ -2832,6 +2897,7 @@ export const appRouter = {
 	platformAdminHealth: platformAdminHealthRouterType,
 	platformAdminWebhooks: platformAdminWebhooksRouterType,
 	platformAdminMigrations: platformAdminMigrationsRouterType,
+	emailDomains: emailDomainsRouterType,
 };
 
 export type AppRouter = typeof appRouter;

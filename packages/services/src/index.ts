@@ -162,6 +162,8 @@ export {
 	type StaffSyncSkipReason,
 	type SyncStaffOrchestrator,
 } from "./ghl-staff-sync.service";
+// Email domain & log services (control-panel persistence)
+export * from "./email-domain.service";
 // Google Calendar services
 export * from "./google-calendar.service";
 export * from "./google-calendar-sync.service";
