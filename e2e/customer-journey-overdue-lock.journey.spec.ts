@@ -2,27 +2,19 @@
  * Customer journey (UI, video): installment overdue → package lock.
  *
  * An installment plan goes unpaid past its grace period and the package locks
- * (sessions blocked) until payment resumes. The overdue state is seeded via the
- * `reschedule` API (backdate the next instalment beyond the 7-day grace), and
- * the lock is triggered by `getPackageState` (which runs evaluateAndLockIfOverdue
- * on read). The lock is PROVEN via API; the installments admin view is shown for
- * the visual.
+ * (sessions blocked) until payment resumes.
  *
- * BLOCKED (test.fixme): there is no API path to seed an overdue instalment.
- * `rescheduleInstallment` rejects past dates BY DESIGN (installment.service.ts
- * ~1433: "new due date must be today or in the future"), so backdating via
- * `installments.reschedule` is not allowed — and it currently surfaces as a raw
- * HTTP 500 rather than a clean 400 (the BAD_REQUEST-coded error loses its `.code`
- * across the drizzle transaction boundary, so the router's catch misses it).
- *
- * To finish this chapter, add a TEST-ONLY backdate helper (direct DB update of
- * installments.due_date + package_instances.next_due_date to the past) — then the
- * flow below (getPackageState triggers evaluateAndLockIfOverdue → isLocked →
- * manualUnlock to resume) works as written. Drop `.fixme` once that helper lands.
+ * There is no API path to seed an overdue instalment — `reschedule` rejects past
+ * dates by design — so a TEST-ONLY DB helper (scripts/e2e-backdate-installment.ts)
+ * backdates due_date + next_due_date + grace, then invokes the REAL lock evaluator
+ * (evaluateAndLockIfOverdue — the same function the nightly sweep runs). The spec
+ * then reads the locked state via getPackageState, shows the installments admin
+ * view, and manualUnlock resumes it.
  *
  * Record: PW_VIDEO=on bunx playwright test e2e/customer-journey-overdue-lock.journey.spec.ts --project=journeys-e2e
  */
 
+import { execSync } from "node:child_process";
 import { test, expect } from "@playwright/test";
 import {
 	TEST_ORG_ID,
@@ -42,7 +34,7 @@ type PackageState = {
 	paymentStatus?: string;
 };
 
-test.fixme("customer journey — installment overdue past grace → package locks", {
+test("customer journey — installment overdue past grace → package locks", {
 	tag: ["@p1"],
 }, async ({ page }) => {
 	const ctx = await orpcCall<object, UserCtx>(page, "auth", "userContext", {});
@@ -95,15 +87,14 @@ test.fixme("customer journey — installment overdue past grace → package lock
 	test.skip(!nextDue, "no pending installment to make overdue");
 
 	// ── Make it overdue: backdate the next instalment 30 days (> 7-day grace) ─
-	const pastDue = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-	await orpcCall(page, "installments", "reschedule", {
-		organizationId: orgId,
-		installmentId: nextDue!.id,
-		newDueDate: pastDue,
-		reason: "E2E overdue-lock journey",
-	});
+	// No API path exists (reschedule rejects past dates by design), so a
+	// test-only DB helper backdates due_date + next_due_date directly.
+	execSync(
+		`bun run apps/server/scripts/e2e-backdate-installment.ts ${packageInstanceId} 30`,
+		{ stdio: "inherit" },
+	);
 
-	// ── Trigger the lock: getPackageState runs evaluateAndLockIfOverdue ───────
+	// ── Read the locked state (the backdate script already ran the evaluator) ─
 	const state = await orpcCall<object, PackageState>(
 		page,
 		"installments",
