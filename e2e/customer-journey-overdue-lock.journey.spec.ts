@@ -8,11 +8,17 @@
  * on read). The lock is PROVEN via API; the installments admin view is shown for
  * the visual.
  *
- * BLOCKED (test.fixme): the only API path to seed an overdue instalment —
- * `installments.reschedule` to a past date — currently returns HTTP 500
- * (rescheduleInstallment throws an unhandled error on backdating; its router
- * try/catch only maps CONFLICT/BAD_REQUEST). Once reschedule tolerates a past
- * newDueDate (or a test-only backdate helper exists), drop `.fixme` and record.
+ * BLOCKED (test.fixme): there is no API path to seed an overdue instalment.
+ * `rescheduleInstallment` rejects past dates BY DESIGN (installment.service.ts
+ * ~1433: "new due date must be today or in the future"), so backdating via
+ * `installments.reschedule` is not allowed — and it currently surfaces as a raw
+ * HTTP 500 rather than a clean 400 (the BAD_REQUEST-coded error loses its `.code`
+ * across the drizzle transaction boundary, so the router's catch misses it).
+ *
+ * To finish this chapter, add a TEST-ONLY backdate helper (direct DB update of
+ * installments.due_date + package_instances.next_due_date to the past) — then the
+ * flow below (getPackageState triggers evaluateAndLockIfOverdue → isLocked →
+ * manualUnlock to resume) works as written. Drop `.fixme` once that helper lands.
  *
  * Record: PW_VIDEO=on bunx playwright test e2e/customer-journey-overdue-lock.journey.spec.ts --project=journeys-e2e
  */
