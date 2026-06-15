@@ -32,7 +32,7 @@ export type UpsertMemberProfileParams = {
 export async function getMemberProfile(
 	tenantDb: TenantDb,
 	memberId: string,
-): Promise<(typeof memberProfiles.$inferSelect) | null> {
+): Promise<typeof memberProfiles.$inferSelect | null> {
 	const row = await tenantDb.query.memberProfiles.findFirst({
 		where: eq(memberProfiles.memberId, memberId),
 	});

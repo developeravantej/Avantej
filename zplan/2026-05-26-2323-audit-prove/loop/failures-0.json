@@ -1,0 +1,11 @@
+[
+  { "id": "GP-01", "kind": "journey-failure", "note": "KPI card / heading locator mismatch — dashboard renders but selector didn't match" },
+  { "id": "GP-02", "kind": "journey-failure", "note": "tbody tr / empty-state locator didn't match customers v2 page structure" },
+  { "id": "GP-03", "kind": "journey-failure", "note": "POS workflow locator didn't match sales/create page structure" },
+  { "id": "GP-04", "kind": "journey-failure", "note": "Calendar locator didn't match appointment/view page structure" },
+  { "id": "F-AC-04", "kind": "journey-failure", "note": "auditLogs.list returned paginated { items, total } not array — router shape mismatch in spec" },
+  { "id": "F-SP-01", "kind": "journey-failure", "note": "CONFIRMED FINDING: stripe sale succeeded without error — SP-01 guard missing" },
+  { "id": "F-PS-02", "kind": "journey-failure", "note": "CONFIRMED FINDING: setBranchPrice null succeeded — PS-02 guard missing" },
+  { "id": "F-PS-03", "kind": "journey-failure", "note": "CONFIRMED FINDING: missingRateCategories.length === 2 — PS-03 scaffold missing" },
+  { "id": "F-ST-04", "kind": "journey-failure", "note": "reassignMember returned unexpected error code — spec needs adjustment; RBAC gap likely still present" }
+]

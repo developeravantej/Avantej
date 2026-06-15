@@ -6,7 +6,7 @@
  * for services with schedulingType === "time-preset".
  */
 
-export const DAY_ORDER = [
+const DAY_ORDER = [
 	"Monday",
 	"Tuesday",
 	"Wednesday",
@@ -16,9 +16,9 @@ export const DAY_ORDER = [
 	"Sunday",
 ] as const;
 
-export type DayOfWeek = (typeof DAY_ORDER)[number];
+type DayOfWeek = (typeof DAY_ORDER)[number];
 
-export interface TimePresetConfig {
+interface TimePresetConfig {
 	recurringDays: string[];
 	timeSlotsPerDay: Record<string, string[]>;
 }
@@ -42,13 +42,15 @@ export function TimePresetEditor({
 }: TimePresetEditorProps) {
 	return (
 		<div className="rounded-2xl border border-brand-secondary-3 bg-card p-6 space-y-4">
-			<h4 className="font-subheading text-sm text-foreground">Time-Preset Configuration</h4>
+			<h4 className="font-subheading text-sm text-foreground">
+				Time-Preset Configuration
+			</h4>
 
 			{/* Recurring Days */}
 			<div>
-				<label className="block text-sm font-medium text-foreground mb-2">
+				<span className="block text-sm font-medium text-foreground mb-2">
 					Recurring Days <span className="text-destructive">*</span>
-				</label>
+				</span>
 				<div className="grid grid-cols-7 gap-2">
 					{DAY_ORDER.map((day) => (
 						<div key={day} className="flex items-center">
@@ -60,7 +62,10 @@ export function TimePresetEditor({
 								disabled={isPending}
 								className="size-4 accent-primary text-primary focus:ring-ring border-brand-secondary-3 rounded"
 							/>
-							<label htmlFor={`day-${day}`} className="ml-1 text-xs text-foreground">
+							<label
+								htmlFor={`day-${day}`}
+								className="ml-1 text-xs text-foreground"
+							>
 								{day.slice(0, 3)}
 							</label>
 						</div>
@@ -70,18 +75,21 @@ export function TimePresetEditor({
 
 			{/* Time Slots per Day */}
 			<div>
-				<label className="block text-sm font-medium text-foreground mb-2">
+				<span className="block text-sm font-medium text-foreground mb-2">
 					Time Slots per Day <span className="text-destructive">*</span>
-				</label>
+				</span>
 				<div className="space-y-4">
-					{[...config.recurringDays]
-						.sort(
+					{config.recurringDays
+						.toSorted(
 							(a, b) =>
 								DAY_ORDER.indexOf(a as DayOfWeek) -
 								DAY_ORDER.indexOf(b as DayOfWeek),
 						)
 						.map((day) => (
-							<div key={day} className="border border-brand-secondary-3 rounded-lg p-3">
+							<div
+								key={day}
+								className="border border-brand-secondary-3 rounded-lg p-3"
+							>
 								<div className="flex items-center justify-between mb-2">
 									<h5 className="text-sm font-medium text-foreground">{day}</h5>
 									<button
@@ -92,7 +100,7 @@ export function TimePresetEditor({
 									>
 										<svg
 											xmlns="http://www.w3.org/2000/svg"
-											className="h-3 w-3 mr-1"
+											className="size-3 mr-1"
 											viewBox="0 0 20 20"
 											fill="currentColor"
 										>
@@ -107,11 +115,14 @@ export function TimePresetEditor({
 								</div>
 								<div className="space-y-2">
 									{(config.timeSlotsPerDay[day] || []).map((time, index) => (
+										// react-doctor-disable-next-line react-doctor/no-array-index-as-key -- position-as-identity: ordered time-slot inputs, callbacks reference the same index
 										<div key={index} className="flex items-center gap-2">
 											<input
 												type="time"
 												value={time}
-												onChange={(e) => onUpdateSlot(day, index, e.target.value)}
+												onChange={(e) =>
+													onUpdateSlot(day, index, e.target.value)
+												}
 												disabled={isPending}
 												className="p-2 rounded-md border border-input bg-white shadow-xs focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:text-sm"
 											/>
@@ -126,7 +137,7 @@ export function TimePresetEditor({
 											>
 												<svg
 													xmlns="http://www.w3.org/2000/svg"
-													className="h-4 w-4"
+													className="size-4"
 													viewBox="0 0 20 20"
 													fill="currentColor"
 												>

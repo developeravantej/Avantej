@@ -33,15 +33,3 @@ export const fonts = {
 	 */
 	body: "Plus Jakarta Sans",
 } as const;
-
-/**
- * Type-safe font access
- */
-export type FontKey = keyof typeof fonts;
-
-/**
- * Helper function to get font family
- */
-export const getFont = (key: FontKey): string => {
-	return fonts[key];
-};

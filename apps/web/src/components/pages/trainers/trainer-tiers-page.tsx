@@ -6,23 +6,16 @@ import { toast } from "sonner";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogDescription,
-	DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, AlertTriangle } from "lucide-react";
+import {
+	CreateTierDialog,
+	DeactivateTierDialog,
+	DeleteTierDialog,
+	EMPTY_TIER_FORM as EMPTY_FORM,
+} from "./trainer-tier-dialogs";
 
 type MissingRateCategory = { categoryId: string; configId: string };
-
-const EMPTY_FORM = { name: "", rank: 0, description: "" };
 
 export function TrainerTiersPage() {
 	const { data: userContext } = useUserContext();
@@ -30,10 +23,14 @@ export function TrainerTiersPage() {
 
 	const [createOpen, setCreateOpen] = useState(false);
 	const [deactivateTarget, setDeactivateTarget] = useState<string | null>(null);
+	const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 	const [missingRateBanner, setMissingRateBanner] = useState<
 		MissingRateCategory[] | null
 	>(null);
 	const [createForm, setCreateForm] = useState(EMPTY_FORM);
+	const [statusFilter, setStatusFilter] = useState<
+		"all" | "active" | "inactive"
+	>("all");
 
 	const {
 		data: tiers = [],
@@ -44,7 +41,10 @@ export function TrainerTiersPage() {
 	} = useQuery({
 		queryKey: ["trainerTiers", orgId, "list"],
 		queryFn: () =>
-			client.trainerTiers.list({ organizationId: orgId, includeInactive: true }),
+			client.trainerTiers.list({
+				organizationId: orgId,
+				includeInactive: true,
+			}),
 		enabled: !!orgId,
 	});
 
@@ -57,9 +57,13 @@ export function TrainerTiersPage() {
 			setCreateOpen(false);
 			setCreateForm(EMPTY_FORM);
 			refetch();
-			const missing = result && typeof result === "object" && "missingRateCategories" in result
-				? (result as { missingRateCategories: MissingRateCategory[] }).missingRateCategories
-				: [];
+			const missing =
+				result &&
+				typeof result === "object" &&
+				"missingRateCategories" in result
+					? (result as { missingRateCategories: MissingRateCategory[] })
+							.missingRateCategories
+					: [];
 			if (missing.length > 0) {
 				setMissingRateBanner(missing);
 			}
@@ -77,6 +81,17 @@ export function TrainerTiersPage() {
 		},
 	});
 
+	const deleteMutation = useApiMutation({
+		mutationFn: (id: string) =>
+			client.trainerTiers.deleteTier({ organizationId: orgId, id }),
+		successMessage: "Tier deleted",
+		errorMessage: (err) => err.message || "Failed to delete tier",
+		onSuccess: () => {
+			setDeleteTarget(null);
+			refetch();
+		},
+	});
+
 	const reactivateMutation = useApiMutation({
 		mutationFn: (id: string) =>
 			client.trainerTiers.reactivate({ organizationId: orgId, id }),
@@ -84,14 +99,28 @@ export function TrainerTiersPage() {
 		errorMessage: (err) => err.message || "Failed to reactivate tier",
 		onSuccess: (result) => {
 			refetch();
-			const missing = result && typeof result === "object" && "missingRateCategories" in result
-				? (result as { missingRateCategories: MissingRateCategory[] }).missingRateCategories
-				: [];
+			const missing =
+				result &&
+				typeof result === "object" &&
+				"missingRateCategories" in result
+					? (result as { missingRateCategories: MissingRateCategory[] })
+							.missingRateCategories
+					: [];
 			if (missing.length > 0) {
 				setMissingRateBanner(missing);
 			}
 		},
 	});
+
+	const filteredTiers = tiers.filter((tier) => {
+		const isActive = tier.isActive !== false;
+		if (statusFilter === "active") return isActive;
+		if (statusFilter === "inactive") return !isActive;
+		return true;
+	});
+
+	const activeCnt = tiers.filter((t) => t.isActive !== false).length;
+	const inactiveCnt = tiers.filter((t) => t.isActive === false).length;
 
 	function handleCreate(e: React.FormEvent) {
 		e.preventDefault();
@@ -118,14 +147,14 @@ export function TrainerTiersPage() {
 		<div className="p-6">
 			<div className="flex items-center justify-end mb-4">
 				<Button onClick={() => setCreateOpen(true)}>
-					<Plus className="w-4 h-4 mr-2" />
+					<Plus className="size-4 mr-2" />
 					New Tier
 				</Button>
 			</div>
 
 			{missingRateBanner && missingRateBanner.length > 0 && (
 				<Alert variant="destructive" className="mb-4">
-					<AlertTriangle className="h-4 w-4" />
+					<AlertTriangle className="size-4" />
 					<AlertDescription>
 						The following categories don't have a commission rate for this tier
 						yet. Commission for trainers with this tier will be silently skipped
@@ -141,7 +170,7 @@ export function TrainerTiersPage() {
 
 			{isError ? (
 				<Alert variant="destructive" className="mb-4">
-					<AlertTriangle className="h-4 w-4" />
+					<AlertTriangle className="size-4" />
 					<AlertDescription className="flex items-center justify-between">
 						<span>
 							{error instanceof Error
@@ -159,195 +188,166 @@ export function TrainerTiersPage() {
 					</AlertDescription>
 				</Alert>
 			) : isLoading ? (
-				<div className="text-center py-12 text-muted-foreground">Loading...</div>
+				<div className="text-center py-12 text-muted-foreground">Loading…</div>
 			) : tiers.length === 0 ? (
 				<div className="text-center py-12 text-muted-foreground">
 					No tiers yet. Create your first tier.
 				</div>
 			) : (
-				<div className="rounded-md border">
-					<table className="w-full text-sm">
-						<thead>
-							<tr className="border-b bg-muted/50">
-								<th className="px-4 py-3 text-left font-medium text-muted-foreground">
-									Name
-								</th>
-								<th className="px-4 py-3 text-left font-medium text-muted-foreground">
-									Rank
-								</th>
-								<th className="px-4 py-3 text-left font-medium text-muted-foreground">
-									Status
-								</th>
-								<th className="px-4 py-3 text-right font-medium text-muted-foreground">
-									Actions
-								</th>
-							</tr>
-						</thead>
-						<tbody>
-							{tiers.map((tier) => {
-								const isActive = tier.isActive !== false;
-								return (
-									<tr key={tier.id} className="border-b last:border-0">
-										<td className="px-4 py-3 font-medium">{tier.name}</td>
-										<td className="px-4 py-3 text-muted-foreground">
-											{tier.rank ?? 0}
-										</td>
-										<td className="px-4 py-3">
-											{isActive ? (
-												<Badge variant="default">Active</Badge>
-											) : (
-												<Badge variant="secondary">Inactive</Badge>
-											)}
-										</td>
-										<td className="px-4 py-3 text-right">
-											{isActive ? (
-												<Button
-													variant="outline"
-													size="sm"
-													onClick={() => setDeactivateTarget(tier.id)}
-													disabled={deactivateMutation.isPending}
-												>
-													Deactivate
-												</Button>
-											) : (
-												<Button
-													variant="outline"
-													size="sm"
-													onClick={() => reactivateMutation.mutate(tier.id)}
-													disabled={reactivateMutation.isPending}
-												>
-													Reactivate
-												</Button>
-											)}
-										</td>
+				<>
+					<div className="flex items-center gap-1 mb-3 border-b pb-0">
+						{(
+							[
+								{ key: "all", label: "All", count: tiers.length },
+								{ key: "active", label: "Active", count: activeCnt },
+								{ key: "inactive", label: "Inactive", count: inactiveCnt },
+							] as const
+						).map(({ key, label, count }) => (
+							<button
+								key={key}
+								type="button"
+								onClick={() => setStatusFilter(key)}
+								className={[
+									"relative px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none",
+									statusFilter === key
+										? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-foreground"
+										: "text-muted-foreground hover:text-foreground",
+								].join(" ")}
+							>
+								{label}
+								<span
+									className={[
+										"ml-1.5 rounded-full px-1.5 py-0.5 text-xs font-medium",
+										statusFilter === key
+											? "bg-foreground text-background"
+											: "bg-muted text-muted-foreground",
+									].join(" ")}
+								>
+									{count}
+								</span>
+							</button>
+						))}
+					</div>
+
+					{filteredTiers.length === 0 ? (
+						<div className="text-center py-12 text-muted-foreground">
+							No {statusFilter} tiers.
+						</div>
+					) : (
+						<div className="rounded-md border">
+							<table className="w-full text-sm">
+								<thead>
+									<tr className="border-b bg-muted/50">
+										<th className="px-4 py-3 text-left font-medium text-muted-foreground">
+											Name
+										</th>
+										<th className="px-4 py-3 text-left font-medium text-muted-foreground">
+											Rank
+										</th>
+										<th className="px-4 py-3 text-left font-medium text-muted-foreground">
+											Status
+										</th>
+										<th className="px-4 py-3 text-right font-medium text-muted-foreground">
+											Actions
+										</th>
 									</tr>
-								);
-							})}
-						</tbody>
-					</table>
-				</div>
+								</thead>
+								<tbody>
+									{filteredTiers.map((tier) => {
+										const isActive = tier.isActive !== false;
+										return (
+											<tr key={tier.id} className="border-b last:border-0">
+												<td className="px-4 py-3 font-medium">{tier.name}</td>
+												<td className="px-4 py-3 text-muted-foreground">
+													{tier.rank ?? 0}
+												</td>
+												<td className="px-4 py-3">
+													{isActive ? (
+														<Badge variant="default">Active</Badge>
+													) : (
+														<Badge variant="secondary">Inactive</Badge>
+													)}
+												</td>
+												<td className="px-4 py-3 text-right">
+													{isActive ? (
+														<Button
+															variant="outline"
+															size="sm"
+															onClick={() => setDeactivateTarget(tier.id)}
+															disabled={deactivateMutation.isPending}
+														>
+															Deactivate
+														</Button>
+													) : (
+														<div className="flex items-center gap-2 justify-end">
+															<Button
+																variant="outline"
+																size="sm"
+																onClick={() =>
+																	reactivateMutation.mutate(tier.id)
+																}
+																disabled={
+																	reactivateMutation.isPending ||
+																	deleteMutation.isPending
+																}
+															>
+																Reactivate
+															</Button>
+															<Button
+																variant="destructive"
+																size="sm"
+																onClick={() => setDeleteTarget(tier.id)}
+																disabled={
+																	deleteMutation.isPending ||
+																	reactivateMutation.isPending
+																}
+															>
+																Delete
+															</Button>
+														</div>
+													)}
+												</td>
+											</tr>
+										);
+									})}
+								</tbody>
+							</table>
+						</div>
+					)}
+				</>
 			)}
 
-			<Dialog
+			<CreateTierDialog
 				open={createOpen}
-				onOpenChange={(open) => {
-					if (!open) {
-						setCreateOpen(false);
-						setCreateForm(EMPTY_FORM);
-					}
+				form={createForm}
+				setForm={setCreateForm}
+				onClose={() => {
+					setCreateOpen(false);
+					setCreateForm(EMPTY_FORM);
 				}}
-			>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>New Tier</DialogTitle>
-						<DialogDescription>
-							Create a new seniority tier for commission calculation.
-						</DialogDescription>
-					</DialogHeader>
-					<form onSubmit={handleCreate} className="flex flex-col gap-4 pt-2">
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="tier-name">
-								Name <span className="text-destructive">*</span>
-							</Label>
-							<Input
-								id="tier-name"
-								placeholder="e.g. Senior Trainer"
-								value={createForm.name}
-								onChange={(e) =>
-									setCreateForm((f) => ({ ...f, name: e.target.value }))
-								}
-								autoComplete="off"
-							/>
-						</div>
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="tier-rank">Rank</Label>
-							<Input
-								id="tier-rank"
-								type="number"
-								min={0}
-								value={createForm.rank}
-								onChange={(e) =>
-									setCreateForm((f) => ({
-										...f,
-										rank: parseInt(e.target.value, 10) || 0,
-									}))
-								}
-							/>
-						</div>
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="tier-description">Description</Label>
-							<Textarea
-								id="tier-description"
-								placeholder="Optional description..."
-								rows={3}
-								value={createForm.description}
-								onChange={(e) =>
-									setCreateForm((f) => ({ ...f, description: e.target.value }))
-								}
-							/>
-						</div>
-						<DialogFooter className="pt-2">
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => {
-									setCreateOpen(false);
-									setCreateForm(EMPTY_FORM);
-								}}
-								disabled={createMutation.isPending}
-							>
-								Cancel
-							</Button>
-							<Button type="submit" disabled={createMutation.isPending}>
-								{createMutation.isPending ? "Creating..." : "Create Tier"}
-							</Button>
-						</DialogFooter>
-					</form>
-				</DialogContent>
-			</Dialog>
+				onSubmit={handleCreate}
+				isPending={createMutation.isPending}
+			/>
 
-			<Dialog
+			<DeactivateTierDialog
 				open={deactivateTarget !== null}
-				onOpenChange={(open) => {
-					if (!open) setDeactivateTarget(null);
+				targetName={tiers.find((t) => t.id === deactivateTarget)?.name ?? null}
+				onCancel={() => setDeactivateTarget(null)}
+				onConfirm={() => {
+					if (deactivateTarget) deactivateMutation.mutate(deactivateTarget);
 				}}
-			>
-				<DialogContent className="sm:max-w-sm">
-					<DialogHeader>
-						<DialogTitle>Deactivate Tier</DialogTitle>
-						<DialogDescription>
-							Are you sure you want to deactivate{" "}
-							<span className="font-semibold text-foreground">
-								{tiers.find((t) => t.id === deactivateTarget)?.name ??
-									"this tier"}
-							</span>
-							? Trainers assigned to it will have their commission skipped until
-							the tier is reactivated.
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter className="pt-2">
-						<Button
-							variant="outline"
-							onClick={() => setDeactivateTarget(null)}
-							disabled={deactivateMutation.isPending}
-						>
-							Cancel
-						</Button>
-						<Button
-							variant="destructive"
-							onClick={() => {
-								if (deactivateTarget)
-									deactivateMutation.mutate(deactivateTarget);
-							}}
-							disabled={deactivateMutation.isPending}
-						>
-							{deactivateMutation.isPending
-								? "Deactivating..."
-								: "Deactivate"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+				isPending={deactivateMutation.isPending}
+			/>
+
+			<DeleteTierDialog
+				open={deleteTarget !== null}
+				targetName={tiers.find((t) => t.id === deleteTarget)?.name ?? null}
+				onCancel={() => setDeleteTarget(null)}
+				onConfirm={() => {
+					if (deleteTarget) deleteMutation.mutate(deleteTarget);
+				}}
+				isPending={deleteMutation.isPending}
+			/>
 		</div>
 	);
 }

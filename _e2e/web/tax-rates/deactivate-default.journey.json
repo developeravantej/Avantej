@@ -1,0 +1,8 @@
+{
+  "tax-rates/deactivate-default.rule.spec.ts::deactivating the default does not throw and clears isDefault": [
+    "Capture the pre-existing default to restore later",
+    "Create a tax rate with isDefault:true",
+    "Deactivate it and assert the call succeeds returning isActive:false and isDefault:false",
+    "Assert getById confirms the cleared isDefault and isActive flags persisted"
+  ]
+}

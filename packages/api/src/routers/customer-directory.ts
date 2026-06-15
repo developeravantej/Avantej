@@ -5,14 +5,19 @@
  * Requires customer_management:read permission.
  */
 
-import { requirePermission } from "@avantej-core/services";
 import {
 	getCustomerDetail,
+	getCustomerStats,
 	listCustomerDirectory,
 } from "@avantej-core/services/customer-directory.service";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 export const customerDirectoryRouter = {
@@ -22,7 +27,7 @@ export const customerDirectoryRouter = {
 	 * RBAC: returns only customers whose hierarchyScopeId is within the caller's
 	 * accessibleNodeIds. Admin (priority>=100) sees all via requirePermission bypass.
 	 */
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -34,18 +39,11 @@ export const customerDirectoryRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
-
-			await requirePermission(
+			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
 				"customer_management",
@@ -71,12 +69,43 @@ export const customerDirectoryRouter = {
 		}),
 
 	/**
+	 * Aggregate KPI stats for the customer directory tiles.
+	 * Respects the same RBAC scope as list (accessibleNodeIds).
+	 */
+	getStats: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				branchId: z.string().uuid().optional(),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"customer_management",
+				"read",
+			);
+
+			const accessibleNodeIds = context.accessibleNodeIds ?? [];
+
+			return getCustomerStats(context.tenantDb, {
+				accessibleNodeIds,
+				branchId: input.branchId,
+			});
+		}),
+
+	/**
 	 * Get full detail for a single customer (for the drawer).
 	 *
 	 * Defense-in-depth: verifies the returned member's hierarchyScopeId is within
 	 * the caller's accessibleNodeIds even after requirePermission passes.
 	 */
-	getById: protectedProcedure
+	getById: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -84,18 +113,8 @@ export const customerDirectoryRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
-
-			await requirePermission(
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
 				"customer_management",

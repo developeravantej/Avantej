@@ -1,0 +1,9 @@
+{
+  "settings/organization-settings.rule.spec.ts::rule: upsert persists a changed setting, then restore original (no residue)": [
+    "Read the original value of organization setting 'grace_period_days'",
+    "Upsert a changed value (13) via organizationSettings/upsert",
+    "Re-read and assert the changed value persisted",
+    "Restore the original value in a finally block",
+    "Re-read and assert the changed value is no longer present"
+  ]
+}

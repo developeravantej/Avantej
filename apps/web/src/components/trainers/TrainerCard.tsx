@@ -31,8 +31,7 @@ export type TrainerRow = {
 function getInitials(name: string) {
 	return name
 		.split(" ")
-		.map((p) => p[0])
-		.filter(Boolean)
+		.flatMap((p) => (p[0] ? [p[0]] : []))
 		.slice(0, 2)
 		.join("")
 		.toUpperCase();
@@ -72,7 +71,7 @@ export function TrainerCard({
 			className="flex flex-col rounded-xl bg-card border border-border shadow-sm hover:shadow-md transition-all duration-150 overflow-hidden cursor-pointer"
 		>
 			<div className="flex items-start gap-3 px-4 pt-4 pb-3">
-				<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-secondary-2 text-brand-primary-1 text-sm font-bold">
+				<div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-secondary-2 text-brand-primary-1 text-sm font-bold">
 					{initials}
 				</div>
 				<div className="flex-1 min-w-0">
@@ -94,7 +93,9 @@ export function TrainerCard({
 				</div>
 				<StatusBadge
 					status={isActive ? "active" : "inactive"}
-					label={isActive ? "Active" : isSuspended ? "Suspended" : trainer.status}
+					label={
+						isActive ? "Active" : isSuspended ? "Suspended" : trainer.status
+					}
 					className="shrink-0 self-start text-xs"
 				/>
 			</div>
@@ -105,7 +106,9 @@ export function TrainerCard({
 				)}
 			/>
 			{/* Tier selector — stop propagation so click doesn't open detail dialog */}
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: wrapper for stopPropagation only, contains interactive child */}
 			<div
+				role="presentation"
 				className="px-4 py-2 border-t border-border"
 				onClick={(e) => e.stopPropagation()}
 				onKeyDown={(e) => e.stopPropagation()}

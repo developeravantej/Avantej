@@ -1,9 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Layers, Package } from "lucide-react";
+import { Package } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
@@ -13,15 +12,8 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUserContext } from "@/hooks/useUserContext";
-import { formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
 import {
 	PackagesTabFilters,
@@ -31,6 +23,7 @@ import {
 	type InstallmentPlanOption,
 } from "./packages-tab-filters";
 import { PackagesTabRowDrawer } from "./packages-tab-row-drawer";
+import { PackageInstanceRow } from "./package-instance-row";
 
 // ── Inferred API types ────────────────────────────────────────────────────────
 
@@ -106,7 +99,7 @@ type PlanInfo = { code: string; name: string; numInstallments: number };
 
 // ── Adapter functions ─────────────────────────────────────────────────────────
 
-export function fromMembershipRow(row: MembershipRow): PackageRowVM {
+function fromMembershipRow(row: MembershipRow): PackageRowVM {
 	return {
 		id: row.packageInstanceId,
 		clientId: row.clientId,
@@ -132,7 +125,7 @@ export function fromMembershipRow(row: MembershipRow): PackageRowVM {
 	};
 }
 
-export function fromInstanceRow(
+function fromInstanceRow(
 	row: PackageInstanceListAllRow,
 	plansMap: Map<string, PlanInfo>,
 ): PackageRowVM {
@@ -147,7 +140,8 @@ export function fromInstanceRow(
 	const installment: PackageRowVM["installment"] = hasInstallment
 		? {
 				paymentPlanType: row.paymentPlanType as string,
-				paymentPlanName: plansMap.get(row.paymentPlanType as string)?.name ?? null,
+				paymentPlanName:
+					plansMap.get(row.paymentPlanType as string)?.name ?? null,
 				installmentsPaid: row.installmentsPaid ?? 0,
 				installmentsTotal: row.installmentsTotal ?? 0,
 				nextDueDate: row.nextDueDate ?? null,
@@ -181,7 +175,7 @@ export function fromInstanceRow(
 	};
 }
 
-export function fromInstallmentOverview(
+function fromInstallmentOverview(
 	item: InstallmentOverviewItem,
 	plansMap: Map<string, PlanInfo>,
 ): PackageRowVM {
@@ -221,36 +215,6 @@ export function fromInstallmentOverview(
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function formatDate(value: Date | string | null | undefined): string {
-	if (!value) return "—";
-	try {
-		const d = value instanceof Date ? value : new Date(value as string);
-		if (Number.isNaN(d.getTime())) return "—";
-		return d.toISOString().slice(0, 10);
-	} catch {
-		return "—";
-	}
-}
-
-function expiryLabel(days: number | null): { text: string; className: string } {
-	if (days === null) return { text: "No expiry", className: "text-muted-foreground" };
-	if (days <= 0) return { text: "Expired", className: "text-red-600 font-medium" };
-	if (days <= 7)
-		return { text: `in ${days} day${days !== 1 ? "s" : ""}`, className: "text-red-600 font-medium" };
-	if (days <= 30)
-		return { text: `in ${days} days`, className: "text-amber-600 font-medium" };
-	return { text: `in ${days} days`, className: "text-muted-foreground" };
-}
-
-function getInitials(name: string): string {
-	return name
-		.split(" ")
-		.filter(Boolean)
-		.slice(0, 2)
-		.map((n) => n[0].toUpperCase())
-		.join("");
-}
-
 function statusVariant(
 	status: PackageRowVM["status"],
 	isLocked: boolean,
@@ -268,7 +232,10 @@ function statusVariant(
 	}
 }
 
-function statusLabel(status: PackageRowVM["status"], isLocked: boolean): string {
+function statusLabel(
+	status: PackageRowVM["status"],
+	isLocked: boolean,
+): string {
 	if (isLocked) return "Frozen";
 	switch (status) {
 		case "active":
@@ -286,12 +253,13 @@ function statusLabel(status: PackageRowVM["status"], isLocked: boolean): string 
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const TH = "px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground";
+const TH =
+	"px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground";
 const TD = "px-5 py-4";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-export interface PackagesTabProps {
+interface PackagesTabProps {
 	organizationId: string;
 	/** When set, filter rows to this client and hide search/branch controls. */
 	clientUserId?: string;
@@ -305,6 +273,7 @@ export function PackagesTab({
 	organizationId,
 	clientUserId,
 	accessibleNodeIds,
+	// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }: PackagesTabProps) {
 	const { data: userContext } = useUserContext();
 
@@ -347,7 +316,10 @@ export function PackagesTab({
 	const plansMap = useMemo(
 		() =>
 			new Map<string, PlanInfo>(
-				plans.map((p) => [p.code, { code: p.code, name: p.name, numInstallments: p.numInstallments }]),
+				plans.map((p) => [
+					p.code,
+					{ code: p.code, name: p.name, numInstallments: p.numInstallments },
+				]),
 			),
 		[plans],
 	);
@@ -405,14 +377,20 @@ export function PackagesTab({
 					organizationId,
 					status:
 						installmentStatusFilter !== "all"
-							? (installmentStatusFilter as "active" | "overdue" | "locked" | "due_soon")
+							? (installmentStatusFilter as
+									| "active"
+									| "overdue"
+									| "locked"
+									| "due_soon")
 							: undefined,
 					paymentPlanCode: planCode,
 					search: debouncedSearch || undefined,
 					limit: 50,
 					offset: 0,
 				});
-				return result.items.map((item) => fromInstallmentOverview(item, plansMap));
+				return result.items.map((item) =>
+					fromInstallmentOverview(item, plansMap),
+				);
 			}
 
 			if (isMembershipFilter) {
@@ -448,7 +426,9 @@ export function PackagesTab({
 				clientId: clientUserId,
 				limit: 100,
 			});
-			return listAllRows.map((r: PackageInstanceListAllRow) => fromInstanceRow(r, plansMap));
+			return listAllRows.map((r: PackageInstanceListAllRow) =>
+				fromInstanceRow(r, plansMap),
+			);
 		},
 		enabled: !!organizationId,
 		staleTime: 5 * 60_000,
@@ -477,7 +457,9 @@ export function PackagesTab({
 				<div className="flex min-h-60 items-center justify-center text-muted-foreground">
 					<div className="space-y-2 text-center">
 						<p className="font-medium">Permission Denied</p>
-						<p className="text-sm">You don't have permission to view packages.</p>
+						<p className="text-sm">
+							You don't have permission to view packages.
+						</p>
 					</div>
 				</div>
 			);
@@ -537,11 +519,21 @@ export function PackagesTab({
 										</div>
 									</TableCell>
 								)}
-								<TableCell className={TD}><Skeleton className="h-3.5 w-20" /></TableCell>
-								<TableCell className={TD}><Skeleton className="h-3.5 w-20" /></TableCell>
-								<TableCell className={TD}><Skeleton className="h-3.5 w-20" /></TableCell>
-								<TableCell className={TD}><Skeleton className="h-3.5 w-16" /></TableCell>
-								<TableCell className={TD}><Skeleton className="h-3.5 w-16" /></TableCell>
+								<TableCell className={TD}>
+									<Skeleton className="h-3.5 w-20" />
+								</TableCell>
+								<TableCell className={TD}>
+									<Skeleton className="h-3.5 w-20" />
+								</TableCell>
+								<TableCell className={TD}>
+									<Skeleton className="h-3.5 w-20" />
+								</TableCell>
+								<TableCell className={TD}>
+									<Skeleton className="h-3.5 w-16" />
+								</TableCell>
+								<TableCell className={TD}>
+									<Skeleton className="h-3.5 w-16" />
+								</TableCell>
 							</TableRow>
 						))
 					) : rows.length === 0 ? (
@@ -549,7 +541,7 @@ export function PackagesTab({
 							<TableCell colSpan={clientUserId ? 5 : 6} className="h-60">
 								<div className="flex flex-col items-center justify-center gap-3 text-center">
 									<div className="flex size-14 items-center justify-center rounded-full bg-muted">
-										<Package className="h-6 w-6 text-muted-foreground" />
+										<Package className="size-6 text-muted-foreground" />
 									</div>
 									<p className="text-sm font-medium">No packages found</p>
 									<p className="text-xs text-muted-foreground">
@@ -560,101 +552,17 @@ export function PackagesTab({
 						</TableRow>
 					) : (
 						rows.map((row) => {
-							const name = row.clientName ?? "Unknown";
-							const initials = getInitials(name);
-							const dateStr = formatDate(row.expiresAt);
-							const expiry = expiryLabel(row.daysUntilExpiry);
 							const variant = statusVariant(row.status, row.isLocked);
 							const label = statusLabel(row.status, row.isLocked);
-
 							return (
-								<TableRow
+								<PackageInstanceRow
 									key={row.id}
-									className="cursor-pointer hover:bg-muted/20"
+									row={row}
+									showCustomer={!clientUserId}
+									variant={variant}
+									label={label}
 									onClick={() => setSelectedRow(row)}
-								>
-									{/* Customer — hidden per-customer */}
-									{!clientUserId && (
-										<TableCell className={TD}>
-											<div className="flex items-center gap-3.5">
-												<span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-primary text-xs">
-													{initials}
-												</span>
-												<span className="font-medium">{name}</span>
-											</div>
-										</TableCell>
-									)}
-
-									{/* Package */}
-									<TableCell className={TD}>
-										<div className="flex items-center gap-2">
-											<span className="font-medium">{row.serviceName ?? "—"}</span>
-											{row.installment && (
-												<Layers className="h-3.5 w-3.5 text-muted-foreground" />
-											)}
-										</div>
-									</TableCell>
-
-									{/* Credits */}
-									<TableCell className={TD}>
-										<div className="flex flex-col gap-1">
-											<span className="tabular-nums text-sm">
-												{row.creditsRemaining} / {row.creditsTotal}
-											</span>
-											<div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
-												<div
-													className="h-full rounded-full bg-primary transition-all"
-													style={{
-														width: `${Math.round(
-															(row.creditsRemaining / Math.max(row.creditsTotal, 1)) * 100,
-														)}%`,
-													}}
-												/>
-											</div>
-										</div>
-									</TableCell>
-
-									{/* Expires */}
-									<TableCell className={TD}>
-										<div className="flex flex-col gap-0.5">
-											<span className="text-sm">{dateStr}</span>
-											<span className={`text-xs ${expiry.className}`}>{expiry.text}</span>
-										</div>
-									</TableCell>
-
-									{/* Status */}
-									<TableCell className={TD}>
-										{row.isLocked && row.lockedReason ? (
-											<TooltipProvider>
-												<Tooltip>
-													<TooltipTrigger asChild>
-														<span>
-															<Badge variant={variant}>{label}</Badge>
-														</span>
-													</TooltipTrigger>
-													<TooltipContent>
-														<p>{row.lockedReason}</p>
-													</TooltipContent>
-												</Tooltip>
-											</TooltipProvider>
-										) : (
-											<Badge variant={variant}>{label}</Badge>
-										)}
-									</TableCell>
-
-									{/* Outstanding */}
-									<TableCell className={TD}>
-										<span
-											className={`tabular-nums ${
-												row.outstandingBalanceCents > 0
-													? "font-medium text-red-600"
-													: "text-muted-foreground"
-											}`}
-										>
-											{formatPrice(row.outstandingBalanceCents, "MYR")}
-										</span>
-									</TableCell>
-								</TableRow>
+								/>
 							);
 						})
 					)}

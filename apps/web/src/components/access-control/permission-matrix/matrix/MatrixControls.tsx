@@ -8,9 +8,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import {
-	ROLE_GROUPS,
-} from "./scope-style";
+import { ROLE_GROUPS } from "./scope-style";
 import type { RoleGroup, ViewMode } from "@/hooks/usePermissionMatrixState";
 
 export interface MatrixControlsProps {
@@ -37,9 +35,15 @@ export function MatrixControls({
 
 	return (
 		<>
-			<div className={isMobile ? "flex gap-2" : "flex items-center gap-4 flex-wrap"}>
-				<div className={isMobile ? "relative flex-1" : "relative flex-1 max-w-md"}>
-					<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+			<div
+				className={
+					isMobile ? "flex gap-2" : "flex items-center gap-4 flex-wrap"
+				}
+			>
+				<div
+					className={isMobile ? "relative flex-1" : "relative flex-1 max-w-md"}
+				>
+					<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground size-4" />
 					<Input
 						placeholder="Search roles..."
 						value={searchQuery}
@@ -69,7 +73,7 @@ export function MatrixControls({
 							size="sm"
 							onClick={() => onViewModeChange("matrix")}
 						>
-							<Grid className="w-4 h-4 mr-2" />
+							<Grid className="size-4 mr-2" />
 							Matrix
 						</Button>
 						<Button
@@ -77,7 +81,7 @@ export function MatrixControls({
 							size="sm"
 							onClick={() => onViewModeChange("compact")}
 						>
-							<List className="w-4 h-4 mr-2" />
+							<List className="size-4 mr-2" />
 							Compact
 						</Button>
 					</div>
@@ -91,7 +95,7 @@ export function MatrixControls({
 						onClick={() => onViewModeChange("roles")}
 						className="flex-1"
 					>
-						<Users className="w-4 h-4 mr-2" />
+						<Users className="size-4 mr-2" />
 						By Roles
 					</Button>
 					<Button
@@ -100,7 +104,7 @@ export function MatrixControls({
 						onClick={() => onViewModeChange("matrix")}
 						className="flex-1"
 					>
-						<Grid className="w-4 h-4 mr-2" />
+						<Grid className="size-4 mr-2" />
 						Matrix
 					</Button>
 				</div>

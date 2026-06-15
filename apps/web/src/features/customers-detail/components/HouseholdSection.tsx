@@ -1,35 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import type { HouseholdProfileShape } from "../types";
+import {
+	AttachHouseholdDialog,
+	CreateHouseholdDialog,
+} from "./HouseholdDialogs";
 
 export function HouseholdSection(props: {
 	organizationId: string;
 	profile: HouseholdProfileShape;
 	canEdit: boolean;
+	// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }) {
 	const { organizationId, profile, canEdit } = props;
 	const queryClient = useQueryClient();
@@ -48,20 +33,16 @@ export function HouseholdSection(props: {
 
 	// Current household + its members (only fetched when this profile is in one).
 	const { data: household } = useQuery({
-		queryKey: ["households", "get", organizationId, householdId],
-		queryFn: () =>
-			client.households.get({
-				organizationId,
-				householdId: householdId!,
-			}),
+		...orpc.households.get.queryOptions({
+			input: { organizationId, householdId: householdId ?? "" },
+		}),
 		enabled: !!organizationId && !!householdId,
 		staleTime: 60_000,
 	});
 
 	// All households in the org (for the attach picker).
 	const { data: allHouseholds = [] } = useQuery({
-		queryKey: ["households", "list", organizationId],
-		queryFn: () => client.households.list({ organizationId }),
+		...orpc.households.list.queryOptions({ input: { organizationId } }),
 		enabled: !!organizationId && canEdit,
 		staleTime: 60_000,
 	});
@@ -76,13 +57,13 @@ export function HouseholdSection(props: {
 		});
 	};
 
+	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- helper-based invalidation: onSuccess invalidates households + customer queries (line 55-58)
 	const createMutation = useMutation({
 		mutationFn: () =>
 			client.households.create({
 				organizationId,
 				name: newName.trim(),
-				primaryContactProfileId:
-					makePrimary && profileId ? profileId : null,
+				primaryContactProfileId: makePrimary && profileId ? profileId : null,
 				notes: newNotes.trim() || null,
 			}),
 		onSuccess: async (created) => {
@@ -116,6 +97,7 @@ export function HouseholdSection(props: {
 		},
 	});
 
+	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- helper-based invalidation: onSuccess invalidates households + customer queries
 	const attachMutation = useMutation({
 		mutationFn: () => {
 			if (!profileId || !pickedHouseholdId) {
@@ -139,6 +121,7 @@ export function HouseholdSection(props: {
 		},
 	});
 
+	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- helper-based invalidation: onSuccess invalidates households + customer queries
 	const detachMutation = useMutation({
 		mutationFn: () => {
 			if (!profileId) {
@@ -242,28 +225,36 @@ export function HouseholdSection(props: {
 									<p className="text-muted-foreground">No members yet.</p>
 								) : (
 									<ul className="mt-1 space-y-1">
-										{household.members.map((m: { id: string; userId: string; phone?: string | null }) => {
-											const isPrimary =
-												household.primaryContactProfileId === m.id;
-											const isThis = m.id === profileId;
-											return (
-												<li
-													key={m.id}
-													className="flex items-center justify-between rounded-md border px-3 py-2"
-												>
-													<span className="font-mono text-xs">
-														{m.userId.slice(0, 8)}
-														{m.phone ? ` · ${m.phone}` : ""}
-													</span>
-													<span className="flex gap-1.5">
-														{isPrimary && (
-															<Badge variant="default">Primary</Badge>
-														)}
-														{isThis && <Badge variant="outline">This customer</Badge>}
-													</span>
-												</li>
-											);
-										})}
+										{household.members.map(
+											(m: {
+												id: string;
+												userId: string;
+												phone?: string | null;
+											}) => {
+												const isPrimary =
+													household.primaryContactProfileId === m.id;
+												const isThis = m.id === profileId;
+												return (
+													<li
+														key={m.id}
+														className="flex items-center justify-between rounded-md border px-3 py-2"
+													>
+														<span className="font-mono text-xs">
+															{m.userId.slice(0, 8)}
+															{m.phone ? ` · ${m.phone}` : ""}
+														</span>
+														<span className="flex gap-1.5">
+															{isPrimary && (
+																<Badge variant="default">Primary</Badge>
+															)}
+															{isThis && (
+																<Badge variant="outline">This customer</Badge>
+															)}
+														</span>
+													</li>
+												);
+											},
+										)}
 									</ul>
 								)}
 							</div>
@@ -272,129 +263,30 @@ export function HouseholdSection(props: {
 				</CardContent>
 			</Card>
 
-			{/* Create dialog */}
-			<Dialog open={createOpen} onOpenChange={setCreateOpen}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>Create household</DialogTitle>
-						<DialogDescription>
-							Group this customer with family members under one household.
-						</DialogDescription>
-					</DialogHeader>
-					<div className="space-y-4 py-2">
-						<div className="space-y-1.5">
-							<Label htmlFor="hh-name">Name</Label>
-							<Input
-								id="hh-name"
-								value={newName}
-								onChange={(e) => setNewName(e.target.value)}
-								placeholder="e.g. The Tan Family"
-							/>
-						</div>
-						<div className="space-y-1.5">
-							<Label htmlFor="hh-notes">Notes (optional)</Label>
-							<Textarea
-								id="hh-notes"
-								value={newNotes}
-								onChange={(e) => setNewNotes(e.target.value)}
-								placeholder="Any context about the household."
-							/>
-						</div>
-						<div className="flex items-center gap-2">
-							<Checkbox
-								id="hh-primary"
-								checked={makePrimary}
-								onCheckedChange={(c) => setMakePrimary(c === true)}
-							/>
-							<Label htmlFor="hh-primary" className="font-normal">
-								Make this customer the primary contact
-							</Label>
-						</div>
-						{submitError && (
-							<Alert variant="destructive">
-								<AlertDescription>{submitError}</AlertDescription>
-							</Alert>
-						)}
-					</div>
-					<DialogFooter>
-						<Button
-							type="button"
-							variant="ghost"
-							onClick={() => setCreateOpen(false)}
-							disabled={createMutation.isPending}
-						>
-							Cancel
-						</Button>
-						<Button
-							type="button"
-							onClick={() => createMutation.mutate()}
-							disabled={createMutation.isPending || !newName.trim()}
-						>
-							{createMutation.isPending ? "Creating…" : "Create"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+			<CreateHouseholdDialog
+				open={createOpen}
+				onOpenChange={setCreateOpen}
+				newName={newName}
+				setNewName={setNewName}
+				newNotes={newNotes}
+				setNewNotes={setNewNotes}
+				makePrimary={makePrimary}
+				setMakePrimary={setMakePrimary}
+				submitError={submitError}
+				onCreate={() => createMutation.mutate()}
+				isPending={createMutation.isPending}
+			/>
 
-			{/* Attach dialog */}
-			<Dialog open={attachOpen} onOpenChange={setAttachOpen}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>Attach to household</DialogTitle>
-						<DialogDescription>
-							Pick an existing household to add this customer to.
-						</DialogDescription>
-					</DialogHeader>
-					<div className="space-y-4 py-2">
-						<div className="space-y-1.5">
-							<Label htmlFor="hh-pick">Household</Label>
-							<Select
-								value={pickedHouseholdId}
-								onValueChange={setPickedHouseholdId}
-							>
-								<SelectTrigger id="hh-pick">
-									<SelectValue placeholder="Select a household" />
-								</SelectTrigger>
-								<SelectContent>
-									{allHouseholds.length === 0 ? (
-										<SelectItem value="__none__" disabled>
-											No households yet
-										</SelectItem>
-									) : (
-										allHouseholds.map((h: { id: string; name: string }) => (
-											<SelectItem key={h.id} value={h.id}>
-												{h.name}
-											</SelectItem>
-										))
-									)}
-								</SelectContent>
-							</Select>
-						</div>
-						{submitError && (
-							<Alert variant="destructive">
-								<AlertDescription>{submitError}</AlertDescription>
-							</Alert>
-						)}
-					</div>
-					<DialogFooter>
-						<Button
-							type="button"
-							variant="ghost"
-							onClick={() => setAttachOpen(false)}
-							disabled={attachMutation.isPending}
-						>
-							Cancel
-						</Button>
-						<Button
-							type="button"
-							onClick={() => attachMutation.mutate()}
-							disabled={attachMutation.isPending || !pickedHouseholdId}
-						>
-							{attachMutation.isPending ? "Attaching…" : "Attach"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+			<AttachHouseholdDialog
+				open={attachOpen}
+				onOpenChange={setAttachOpen}
+				pickedHouseholdId={pickedHouseholdId}
+				setPickedHouseholdId={setPickedHouseholdId}
+				allHouseholds={allHouseholds}
+				submitError={submitError}
+				onAttach={() => attachMutation.mutate()}
+				isPending={attachMutation.isPending}
+			/>
 		</>
 	);
 }

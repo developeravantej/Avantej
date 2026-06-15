@@ -1,6 +1,24 @@
 import { useMemo } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors } from "@/lib/colors";
+
+const styles = StyleSheet.create({
+	slotPill: {
+		position: "absolute",
+		top: 2,
+		bottom: 2,
+		backgroundColor: "rgba(0,0,0,0.5)",
+		borderRadius: 6,
+		borderWidth: 2,
+		borderStyle: "solid",
+		borderColor: colors.primary[1],
+		paddingHorizontal: 8,
+		flexDirection: "row",
+		alignItems: "center",
+		justifyContent: "center",
+		gap: 4,
+	},
+});
 
 type TimetableSlot = {
 	dayOfWeek: string; // "monday" through "sunday"
@@ -87,7 +105,7 @@ export function WeeklyTimetable({
 		((minutes - startHour * 60) / 60) * hourWidth;
 
 	return (
-		<View style={{ padding: 8, backgroundColor: "#FFFFFF" }}>
+		<View style={{ padding: 8 }}>
 			{weekLabel ? (
 				<Text
 					className="mb-2 text-center text-xs font-medium"
@@ -115,7 +133,7 @@ export function WeeklyTimetable({
 						>
 							<Text
 								style={{
-									fontSize: 11,
+									fontSize: 12,
 									fontWeight: "700",
 									color: colors.primary[1],
 								}}
@@ -149,7 +167,7 @@ export function WeeklyTimetable({
 										position: "absolute",
 										left: pxFromMinutes(h * 60),
 										transform: [{ translateX: -16 }],
-										fontSize: 10,
+										fontSize: 12,
 										color: colors.secondary[1],
 										fontWeight: "600",
 									}}
@@ -196,37 +214,18 @@ export function WeeklyTimetable({
 										const endMin = hhmmToMinutes(slot.endTime);
 										const durationMin = Math.max(endMin - startMin, 15);
 										const left = pxFromMinutes(startMin);
-										const width = Math.max(
-											(durationMin / 60) * hourWidth,
-											48,
-										);
+										const width = Math.max((durationMin / 60) * hourWidth, 48);
 
 										return (
 											<View
 												key={`${slot.dayOfWeek}-${slot.startTime}-${slot.endTime}`}
-												style={{
-													position: "absolute",
-													top: 2,
-													bottom: 2,
-													left,
-													width,
-													backgroundColor: "rgba(0,0,0,0.08)",
-													borderRadius: 6,
-													borderWidth: 2,
-													borderStyle: "solid",
-													borderColor: colors.primary[1],
-													paddingHorizontal: 8,
-													flexDirection: "row",
-													alignItems: "center",
-													justifyContent: "center",
-													gap: 4,
-												}}
+												style={[styles.slotPill, { left, width }]}
 											>
 												<Text
 													numberOfLines={1}
 													style={{
 														color: colors.primary[2],
-														fontSize: 11,
+														fontSize: 12,
 														fontWeight: "700",
 													}}
 												>
@@ -237,7 +236,7 @@ export function WeeklyTimetable({
 														<Text
 															style={{
 																color: colors.primary[2],
-																fontSize: 10,
+																fontSize: 12,
 																fontWeight: "700",
 																opacity: 0.6,
 															}}
@@ -248,7 +247,7 @@ export function WeeklyTimetable({
 															numberOfLines={1}
 															style={{
 																color: colors.primary[2],
-																fontSize: 11,
+																fontSize: 12,
 																fontWeight: "700",
 															}}
 														>

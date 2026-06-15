@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,6 +35,7 @@ export function DropInForm({
 	organizationId,
 	branchId,
 	queryKey: _queryKey,
+	// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }: DropInFormProps) {
 	const [clientId, setClientId] = useState("");
 	const [clientType, setClientType] = useState<"member" | "walk_in">("member");
@@ -84,7 +85,10 @@ export function DropInForm({
 		successMessage: () =>
 			`Drop-in check-in recorded${displayName ? ` for ${displayName}` : ""}.`,
 		errorMessage: false,
-		invalidate: [["attendance"]],
+		invalidate: [
+			orpc.checkIns.list.key(),
+			orpc.checkIns.listTodaysBookings.key(),
+		],
 		onSuccess: () => {
 			setClientId("");
 			setDisplayName("");
@@ -123,7 +127,7 @@ export function DropInForm({
 							className={`flex-1 rounded-md border py-2 font-medium text-sm transition-colors ${
 								clientType === "member"
 									? "border-primary bg-primary text-primary-foreground"
-									: "border-border bg-background text-foreground hover:bg-muted"
+									: "border-[#e5e5e5] bg-white text-foreground hover:bg-[#f3f3f3]"
 							}`}
 						>
 							Member
@@ -134,7 +138,7 @@ export function DropInForm({
 							className={`flex-1 rounded-md border py-2 font-medium text-sm transition-colors ${
 								clientType === "walk_in"
 									? "border-primary bg-primary text-primary-foreground"
-									: "border-border bg-background text-foreground hover:bg-muted"
+									: "border-[#e5e5e5] bg-white text-foreground hover:bg-[#f3f3f3]"
 							}`}
 						>
 							Walk-in
@@ -151,21 +155,22 @@ export function DropInForm({
 								onChange={(e) => setClientId(e.target.value)}
 								className="font-mono text-xs"
 							/>
-							<p className="text-[11px] text-muted-foreground">
-								Find via Customer Directory — copy the user ID.
+							<p className="text-[11px] text-[#737373]">
+								Find via Customer Directory, copy the user ID.
 							</p>
 							{/* Credits lookup result */}
 							{clientType === "member" && isValidUuid && (
 								<div className="mt-2">
 									{activePackage === null && (
 										<p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-											No active package credits. Check-in will not debit anything.
+											No active package credits. Check-in will not debit
+											anything.
 										</p>
 									)}
 									{activePackage && (
 										<p className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-800">
-											{activePackage.creditsRemaining} credits remaining on active
-											package
+											{activePackage.creditsRemaining} credits remaining on
+											active package
 										</p>
 									)}
 								</div>
@@ -179,8 +184,8 @@ export function DropInForm({
 								value={displayName}
 								onChange={(e) => setDisplayName(e.target.value)}
 							/>
-							<p className="text-[11px] text-muted-foreground">
-								Optional — shown in the check-in log.
+							<p className="text-[11px] text-[#737373]">
+								Optional, shown in the check-in log.
 							</p>
 						</div>
 					)}
@@ -191,24 +196,39 @@ export function DropInForm({
 						disabled={!canSubmit}
 						onClick={() => checkInMutation.mutate()}
 					>
-						{checkInMutation.isPending ? "Checking in..." : "Check In (Drop-in)"}
+						{checkInMutation.isPending
+							? "Checking in..."
+							: "Check In (Drop-in)"}
 					</Button>
 				</CardContent>
 			</Card>
 
 			<Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
-				<DialogContent className="sm:max-w-sm">
-					<DialogHeader>
-						<DialogTitle>Already Checked In</DialogTitle>
-						<DialogDescription>
+				<DialogContent
+					className="sm:max-w-sm p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							ATTENDANCE
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Already Checked In
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
 							{duplicateMins
 								? `This client was already checked in ${duplicateMins} minutes ago.`
-								: "This client was already checked in recently."}
-							{" "}Check-ins within 30 minutes are not allowed.
+								: "This client was already checked in recently."}{" "}
+							Check-ins within 30 minutes are not allowed.
 						</DialogDescription>
 					</DialogHeader>
-					<DialogFooter>
-						<Button onClick={() => setDuplicateDialogOpen(false)}>Dismiss</Button>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+						<Button
+							className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+							onClick={() => setDuplicateDialogOpen(false)}
+						>
+							Dismiss
+						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>

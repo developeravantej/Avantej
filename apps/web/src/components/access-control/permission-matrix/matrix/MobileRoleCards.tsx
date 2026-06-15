@@ -9,14 +9,13 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import {
-	cycleScope,
 	getPermissionScope,
 	hasPermission,
 } from "@/hooks/usePermissionMatrixState";
 import type {
 	PermissionResource,
 	Role,
-} from "@/components/access-control/permission-matrix/PermissionMatrix";
+} from "@/components/access-control/permission-matrix/permission-matrix.types";
 import {
 	formatActionName,
 	formatResourceName,
@@ -61,18 +60,15 @@ export function MobileRoleCards({
 								<CardHeader className="cursor-pointer hover:bg-muted/50 pb-3">
 									<CardTitle className="flex items-center justify-between text-base">
 										<div className="flex items-center gap-2 min-w-0 flex-1">
-											<div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-												<Users className="w-4 h-4 text-primary" />
+											<div className="size-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+												<Users className="size-4 text-primary" />
 											</div>
 											<div className="min-w-0 flex-1">
 												<div className="flex items-center gap-2 flex-wrap">
 													<span className="font-medium">{role.name}</span>
 													{groupBadge && (
 														<Badge
-															className={cn(
-																"text-xs",
-																groupBadge.config.color,
-															)}
+															className={cn("text-xs", groupBadge.config.color)}
 														>
 															{groupBadge.config.label}
 														</Badge>
@@ -84,9 +80,9 @@ export function MobileRoleCards({
 											</div>
 										</div>
 										{isExpanded ? (
-											<ChevronDown className="w-4 h-4" />
+											<ChevronDown className="size-4" />
 										) : (
-											<ChevronRight className="w-4 h-4" />
+											<ChevronRight className="size-4" />
 										)}
 									</CardTitle>
 								</CardHeader>
@@ -102,9 +98,7 @@ export function MobileRoleCards({
 											return (
 												<div key={resource.id} className="space-y-2">
 													<div className="flex items-center gap-2 text-sm font-medium">
-														{Icon && (
-															<Icon className="w-4 h-4 text-primary" />
-														)}
+														{Icon && <Icon className="size-4 text-primary" />}
 														<span>{formatResourceName(resource.name)}</span>
 														<Badge variant="outline" className="text-xs">
 															{rolePerms.length}/{resource.actions.length}
@@ -134,7 +128,7 @@ export function MobileRoleCards({
 																			variant="ghost"
 																			size="sm"
 																			className={cn(
-																				"w-6 h-6 p-0 rounded-full flex-shrink-0",
+																				"size-6 p-0 rounded-full flex-shrink-0",
 																				hasAccess
 																					? getScopeButtonStyle(scope)
 																					: "bg-brand-secondary-3 hover:bg-brand-secondary-3",
@@ -183,6 +177,3 @@ export function MobileRoleCards({
 		</div>
 	);
 }
-
-/** Helper for consumers that want to keep the cycle logic inline. */
-export const cycleScopeForMobile = cycleScope;

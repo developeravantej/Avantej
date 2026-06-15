@@ -8,14 +8,20 @@
 
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { X, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogDescription,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { StaffPicker } from "@/components/calendar/appointment-form/StaffPicker";
 import { useAppointmentFormData } from "@/hooks/useAppointmentFormData";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 interface EditAppointmentModalProps {
 	appointmentId: string;
@@ -32,16 +38,16 @@ export function EditAppointmentModal({
 	onClose,
 	onSuccess,
 }: EditAppointmentModalProps) {
-	const { data: userCtx } = useUserContext();
+	const { data: _userCtx } = useUserContext();
 	const { trainers } = useAppointmentFormData();
 
 	// Fetch appointment detail to get current staff
-	const { data: staffRows = [], isLoading: isLoadingStaff } = useQuery({
+	const { data: _staffRows = [], isLoading: isLoadingStaff } = useQuery({
 		queryKey: ["appointmentStaff", appointmentId],
 		queryFn: () =>
 			client.packageInstanceStaff
 				? // packageInstanceStaff is for packages; for appointments we use appointment detail
-				  Promise.resolve([])
+					Promise.resolve([])
 				: Promise.resolve([]),
 		enabled: false, // replaced below
 	});
@@ -49,13 +55,16 @@ export function EditAppointmentModal({
 	// Fetch the appointment detail to populate existing trainer
 	const { data: appointmentDetail } = useQuery({
 		queryKey: ["appointmentDetail", appointmentId, organizationId],
-		queryFn: () => client.appointments.getById({ id: appointmentId, organizationId }),
+		queryFn: () =>
+			client.appointments.getById({ id: appointmentId, organizationId }),
 		enabled: isOpen && !!appointmentId && !!organizationId,
 	});
 
 	// Local state: slot 0 (primary) trainer, additional slots
 	const [employeeId, setEmployeeId] = useState("");
-	const [additionalSlotTrainers, setAdditionalSlotTrainers] = useState<string[]>([]);
+	const [additionalSlotTrainers, setAdditionalSlotTrainers] = useState<
+		string[]
+	>([]);
 
 	// Populate from appointment detail when loaded
 	useEffect(() => {
@@ -75,14 +84,15 @@ export function EditAppointmentModal({
 			}),
 		successMessage: "Staff assignments updated",
 		errorMessage: (err) => err.message || "Failed to update staff",
-		invalidate: [["appointments"], ["appointmentStaff", appointmentId]],
+		invalidate: [
+			orpc.appointments.list.key(),
+			["appointmentStaff", appointmentId],
+		],
 		onSuccess: () => {
 			onSuccess?.();
 			onClose();
 		},
 	});
-
-	if (!isOpen) return null;
 
 	// Translate members.id → members.userId for submission
 	const findUserId = (membersId: string): string | null => {
@@ -118,42 +128,64 @@ export function EditAppointmentModal({
 	};
 
 	return (
-		<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-			<Card className="w-full max-w-md">
-				<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-					<div className="flex items-center gap-2">
-						<Users className="h-5 w-5 text-muted-foreground" />
-						<CardTitle className="text-lg font-semibold">Edit Staff Assignment</CardTitle>
-					</div>
-					<Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0">
-						<X className="h-4 w-4" />
-					</Button>
-				</CardHeader>
-				<CardContent className="space-y-4">
-					{isLoadingStaff ? (
-						<div className="text-sm text-muted-foreground">Loading...</div>
-					) : (
-						<StaffPicker
-							trainers={trainers}
-							commissionSlots={[{ slotIndex: 0, label: "Primary Trainer", weightageBasisPoints: 10000 }]}
-							employeeId={employeeId}
-							additionalSlotTrainers={additionalSlotTrainers}
-							onChangeEmployeeId={setEmployeeId}
-							onChangeAdditionalTrainer={handleAdditionalTrainerChange}
-							trainerPlaceholder="Select trainer"
-						/>
-					)}
+		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						APPOINTMENTS
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Edit Staff Assignment
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
+						Update the trainer assigned to this appointment.
+					</DialogDescription>
+				</DialogHeader>
 
-					<div className="flex gap-3 pt-2 border-t">
-						<Button variant="outline" onClick={onClose} className="flex-1" disabled={updateMutation.isPending}>
-							Cancel
-						</Button>
-						<Button onClick={handleSave} className="flex-1" disabled={updateMutation.isPending}>
-							{updateMutation.isPending ? "Saving..." : "Save"}
-						</Button>
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					<div className="space-y-4">
+						{isLoadingStaff ? (
+							<div className="text-sm text-[#737373]">Loading…</div>
+						) : (
+							<StaffPicker
+								trainers={trainers}
+								commissionSlots={[
+									{
+										slotIndex: 0,
+										label: "Primary Trainer",
+										weightageBasisPoints: 10000,
+									},
+								]}
+								employeeId={employeeId}
+								additionalSlotTrainers={additionalSlotTrainers}
+								onChangeEmployeeId={setEmployeeId}
+								onChangeAdditionalTrainer={handleAdditionalTrainerChange}
+								trainerPlaceholder="Select trainer"
+							/>
+						)}
 					</div>
-				</CardContent>
-			</Card>
-		</div>
+				</div>
+
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+					<Button
+						variant="outline"
+						onClick={onClose}
+						disabled={updateMutation.isPending}
+					>
+						Cancel
+					</Button>
+					<Button
+						onClick={handleSave}
+						disabled={updateMutation.isPending}
+						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+					>
+						{updateMutation.isPending ? "Saving..." : "Save"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }

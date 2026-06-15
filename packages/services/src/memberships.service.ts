@@ -73,9 +73,7 @@ export async function listExpiringMemberships(
 
 	// Batch-resolve member display names from control panel (users table)
 	const memberIds = [
-		...new Set(
-			raw.map((r) => r.clientId).filter((c): c is string => !!c),
-		),
+		...new Set(raw.map((r) => r.clientId).filter((c): c is string => !!c)),
 	];
 	const nameMap = new Map<string, string>();
 
@@ -97,9 +95,7 @@ export async function listExpiringMemberships(
 		const expiresAt = r.expiresAt;
 		const daysUntilExpiry = Math.max(
 			0,
-			Math.ceil(
-				(expiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000),
-			),
+			Math.ceil((expiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)),
 		);
 		return {
 			packageInstanceId: r.id,

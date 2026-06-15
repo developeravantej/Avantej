@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "sessionPath": "zplan/06-09_apps-quality-uplift",
+  "planPath": "zplan/06-09_apps-quality-uplift/prompts/06-09_apps-quality-uplift.md",
+  "updatedAt": "2026-06-09T13:10:00Z",
+  "status": "complete",
+  "gitHeadAtStart": "67c1b140153a05b5ebfeb5a44ec02b074f40432d",
+  "gitHeadAtEnd": "aff0d9fe",
+  "lastCompletedPhase": 6,
+  "currentPhase": null,
+  "totalPhases": 6,
+  "pendingPhases": [],
+  "taskCoverage": {
+    "1": { "total": 4, "done": 4, "missed": 0 },
+    "2": { "total": 2, "done": 2, "missed": 0 },
+    "3": { "total": 1, "done": 0, "skipped": 1 },
+    "4": { "total": 6, "doneMine": 2, "doneConcurrent": 2, "deferred": 2 },
+    "5": { "total": 3, "doneConcurrent": 3 },
+    "6": { "total": 1, "done": 1 }
+  },
+  "commits": ["4059ca37", "aff0d9fe"],
+  "deferred": [
+    "pos-workflow.tsx + members-tab.tsx decomposition (domain-critical, now test-covered)",
+    "backend any-reduction (724, needs dedicated pass)",
+    "invitations-page.tsx hand-rolled query migration"
+  ],
+  "notes": "Concurrent session committed sibling plan (f0ba5cf2) mid-run. Phases 3/5/6 resolved-as-already-done or skipped. Final: check-types 0, oxlint 0, server isolated 67/67 green.",
+  "subagentRetryLog": []
+}

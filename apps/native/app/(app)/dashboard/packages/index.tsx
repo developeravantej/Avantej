@@ -3,25 +3,26 @@ import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useCallback, useState } from "react";
 import {
+	Pressable,
 	RefreshControl,
 	ScrollView,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { Container } from "@/components/container";
 import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
-import { fonts } from "@/lib/font";
-import { formatMoney } from "@/lib/money";
 import { orpc } from "@/utils/orpc";
+import { PackageInstanceCard } from "./_components/package-instance-card";
 
-type StatusFilter = "all" | "active" | "pending" | "expired" | "exhausted";
+const DEFAULT_IMAGE =
+	"https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop";
+
+type StatusFilter = "all" | "active" | "expired" | "exhausted";
 
 const STATUS_TABS: { key: StatusFilter; label: string }[] = [
 	{ key: "all", label: "All" },
 	{ key: "active", label: "Active" },
-	{ key: "pending", label: "Pending" },
 	{ key: "expired", label: "Expired" },
 	{ key: "exhausted", label: "Exhausted" },
 ];
@@ -31,68 +32,39 @@ const STATUS_BADGE: Record<
 	{ bg: string; text: string; label: string }
 > = {
 	active: { bg: "#DCFCE7", text: "#16A34A", label: "Active" },
-	expired: { bg: colors.secondary[3], text: colors.secondary[1], label: "Expired" },
+	expired: { bg: "#FEE2E2", text: "#DC2626", label: "Expired" },
 	exhausted: { bg: "#FEF3C7", text: "#D97706", label: "Exhausted" },
-	cancelled: { bg: colors.secondary[3], text: colors.secondary[1], label: "Cancelled" },
-	pending: { bg: "#FEF3C7", text: "#D97706", label: "Pending" },
+	cancelled: { bg: "#F3F4F6", text: "#6B7280", label: "Cancelled" },
+	pending: { bg: "#FEF3C7", text: "#D97706", label: "Pending Approval" },
 };
 
 function SkeletonCard() {
 	return (
-		<View
-			className="mb-3 overflow-hidden rounded-2xl"
-			style={{
-				backgroundColor: colors.primary[2],
-				borderWidth: 1,
-				borderColor: colors.secondary[3],
-			}}
-		>
-			<View className="p-4">
-				<View className="flex-row items-start justify-between">
-					<View>
-						<View
-							className="mb-1 h-12 w-20 rounded"
-							style={{ backgroundColor: colors.secondary[3] }}
-						/>
-						<View
-							className="h-3 w-24 rounded"
-							style={{ backgroundColor: colors.secondary[3] }}
-						/>
-					</View>
-					<View>
-						<View
-							className="mb-1.5 h-4 w-24 rounded"
-							style={{ backgroundColor: colors.secondary[3] }}
-						/>
-						<View
-							className="h-5 w-16 self-end rounded-full"
-							style={{ backgroundColor: colors.secondary[3] }}
-						/>
-					</View>
-				</View>
-				<View className="mt-3">
+		<View className="mb-4 rounded-2xl bg-white p-4 shadow-sm">
+			<View className="mb-4 flex-row">
+				<View
+					className="mr-4 size-24 rounded-xl"
+					style={{ backgroundColor: colors.secondary[3] }}
+				/>
+				<View className="flex-1">
 					<View
-						className="h-0.5 rounded-full"
+						className="mb-2 h-5 w-3/4 rounded"
+						style={{ backgroundColor: colors.secondary[3] }}
+					/>
+					<View
+						className="mb-2 h-4 w-1/2 rounded"
+						style={{ backgroundColor: colors.secondary[3] }}
+					/>
+					<View
+						className="h-4 w-1/3 rounded"
 						style={{ backgroundColor: colors.secondary[3] }}
 					/>
 				</View>
 			</View>
 			<View
-				className="flex-row items-center justify-between px-4 py-2.5"
-				style={{
-					borderTopWidth: 1,
-					borderTopColor: colors.secondary[3],
-				}}
-			>
-				<View
-					className="h-4 w-16 rounded"
-					style={{ backgroundColor: colors.secondary[3] }}
-				/>
-				<View
-					className="h-3 w-20 rounded"
-					style={{ backgroundColor: colors.secondary[3] }}
-				/>
-			</View>
+				className="h-2 rounded-full"
+				style={{ backgroundColor: colors.secondary[3] }}
+			/>
 		</View>
 	);
 }
@@ -126,514 +98,170 @@ export default function PackagesScreen() {
 		packageName: inst.package?.name ?? "Package",
 		totalCredits: inst.creditsTotal ?? 0,
 		remainingCredits: inst.creditsRemaining ?? 0,
+		purchaseDate: inst.createdAt
+			? new Date(inst.createdAt).toLocaleDateString("en-US", {
+					month: "short",
+					day: "numeric",
+					year: "numeric",
+				})
+			: "",
 		status: inst.status ?? "active",
 		price: inst.totalPrice ?? 0,
 		category: inst.package?.appointmentType ?? "",
+		imageUrl: inst.package?.imageUrl ?? DEFAULT_IMAGE,
 		expiresAt: inst.expiresAt,
 		startsAt: inst.startsAt,
-		assignedTrainerName: inst.assignedTrainerName ?? null,
-		installmentsPaid: inst.installmentsPaid ?? null,
-		installmentsTotal: inst.installmentsTotal ?? null,
-		paymentPlanType: inst.paymentPlanType ?? "full",
-		pinnedAt: inst.pinnedAt ?? null,
 	}));
 
-	const getExpiryLabel = (expiresAt: string | null) => {
+	const getExpiryText = (expiresAt: string | null) => {
 		if (!expiresAt) return null;
+		const now = new Date();
 		const expiry = new Date(expiresAt);
-		return expiry.toLocaleDateString("en-US", {
-			month: "short",
-			year: "numeric",
-		});
+		const diffMs = expiry.getTime() - now.getTime();
+		const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+		if (diffDays < 0) return "Expired";
+		if (diffDays === 0) return "Expires today";
+		if (diffDays === 1) return "Expires tomorrow";
+		if (diffDays <= 30) return `Expires in ${diffDays} days`;
+		return null;
 	};
-
-	const isExpiredStatus = (status: string) =>
-		status === "expired" || status === "cancelled";
 
 	return (
 		<Container>
 			<ScrollView
-				className="flex-1"
-				style={{ backgroundColor: colors.secondary[3] }}
-				contentContainerStyle={{ paddingBottom: 32 }}
+				className="flex-1 bg-secondary-3"
+				contentContainerStyle={{ paddingBottom: 8 }}
 				showsVerticalScrollIndicator={false}
 				refreshControl={
 					<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
 				}
 			>
-				{/* Header */}
-				<View className="px-4 pt-4 pb-4">
-					<View className="flex-row items-center">
-						<TouchableOpacity
-							onPress={() => router.back()}
-							className="mr-2.5 h-9 w-9 items-center justify-center"
-							activeOpacity={0.7}
-						>
-							<Ionicons
-								name="chevron-back"
-								size={24}
-								color={colors.primary[1]}
-							/>
-						</TouchableOpacity>
-						<Text
-							className="flex-1"
-							style={{
-								fontFamily: fonts.heading,
-								fontSize: 24,
-								fontWeight: "700",
-								color: colors.primary[1],
-							}}
-						>
-							My Packages
+				<View className="px-4 pt-4">
+					{/* Header Section */}
+					<View className="mb-6">
+						<View className="mb-2 flex-row items-center">
+							<Pressable
+								onPress={() => router.back()}
+								className="mr-3 size-10 items-center justify-center"
+							>
+								<Ionicons
+									name="arrow-back"
+									size={24}
+									color={colors.primary[1]}
+								/>
+							</Pressable>
+							<Text
+								className="flex-1 font-bold text-2xl"
+								style={{ color: colors.primary[1] }}
+							>
+								My Packages & Credits
+							</Text>
+						</View>
+						<Text className="text-sm" style={{ color: colors.secondary[1] }}>
+							Manage your purchased packages and track your credits
 						</Text>
 					</View>
-				</View>
 
-				{/* Tab Filter */}
-				<ScrollView
-					horizontal
-					showsHorizontalScrollIndicator={false}
-					className="mb-4"
-					contentContainerStyle={{ paddingHorizontal: 16 }}
-				>
-					<View className="flex-row gap-2">
-						{STATUS_TABS.map((tab) => (
-							<TouchableOpacity
-								key={tab.key}
-								onPress={() => setStatusFilter(tab.key)}
-								className="rounded-full px-4 py-2"
-								activeOpacity={0.7}
-								style={{
-									backgroundColor:
-										statusFilter === tab.key
-											? colors.primary[1]
-											: colors.primary[2],
-									borderWidth: 1,
-									borderColor:
-										statusFilter === tab.key
-											? colors.primary[1]
-											: colors.secondary[3],
-								}}
-							>
-								<Text
+					{/* Tab Filter */}
+					<ScrollView
+						horizontal
+						showsHorizontalScrollIndicator={false}
+						className="mb-4"
+					>
+						<View className="flex-row gap-2">
+							{STATUS_TABS.map((tab) => (
+								<Pressable
+									key={tab.key}
+									onPress={() => setStatusFilter(tab.key)}
+									className="rounded-full px-4 py-2"
 									style={{
-										fontFamily: fonts.body,
-										fontSize: 13,
-										fontWeight: "500",
-										color:
+										backgroundColor:
 											statusFilter === tab.key
-												? colors.primary[2]
-												: colors.primary[1],
+												? colors.primary[1]
+												: colors.primary[2],
+										borderWidth: 1,
+										borderColor:
+											statusFilter === tab.key
+												? colors.primary[1]
+												: colors.secondary[3],
 									}}
 								>
-									{tab.label}
-								</Text>
-							</TouchableOpacity>
-						))}
-					</View>
-				</ScrollView>
-
-				{/* Loading State */}
-				{isLoading && (
-					<View className="px-4">
-						<SkeletonCard />
-						<SkeletonCard />
-						<SkeletonCard />
-					</View>
-				)}
-
-				{/* Package Cards */}
-				{!isLoading &&
-					packages.map((pkg) => {
-						const badge = STATUS_BADGE[pkg.status] ?? STATUS_BADGE.active;
-						const usedCredits = pkg.totalCredits - pkg.remainingCredits;
-						const progressPercent =
-							pkg.totalCredits > 0
-								? (usedCredits / pkg.totalCredits) * 100
-								: 0;
-						const expiryLabel = getExpiryLabel(pkg.expiresAt);
-						const isExpired = isExpiredStatus(pkg.status);
-						const isPending = pkg.status === "pending";
-
-						// Determine progress bar fill color + track
-						const progressFillColor = isPending
-							? "#D97706"
-							: isExpired
-								? colors.secondary[1]
-								: colors.primary[1];
-						const progressTrackColor = isPending
-							? "#FEF3C7"
-							: colors.secondary[3];
-
-						// Installment info
-						const hasInstallments =
-							pkg.paymentPlanType !== "full" &&
-							pkg.installmentsTotal != null &&
-							pkg.installmentsTotal > 0;
-						const installmentLabel = hasInstallments
-							? `${pkg.installmentsPaid ?? 0}/${pkg.installmentsTotal} installments paid`
-							: null;
-
-						return (
-							<TouchableOpacity
-								key={pkg.id}
-								activeOpacity={0.7}
-								onPress={() => {
-									router.push({
-										pathname: "/dashboard/packages/[id]" as never,
-										params: { id: pkg.id },
-									});
-								}}
-								className="mx-4 mb-3 overflow-hidden rounded-2xl"
-								style={{
-									backgroundColor: colors.primary[2],
-									borderWidth: 1,
-									borderColor: colors.secondary[3],
-									opacity: isExpired ? 0.55 : 1,
-								}}
-							>
-								{/* Card inner */}
-								<View className="p-4">
-									{/* Pinned indicator */}
-									{pkg.pinnedAt != null && (
-										<View className="flex-row items-center mb-2">
-											<View
-												className="flex-row items-center rounded-full px-2 py-0.5"
-												style={{
-													backgroundColor: colors.primary[1],
-													alignSelf: "flex-start",
-												}}
-											>
-												<Ionicons
-													name="bookmark"
-													size={11}
-													color={colors.primary[2]}
-												/>
-												<Text
-													style={{
-														fontFamily: fonts.subheading,
-														fontSize: 10,
-														fontWeight: "700",
-														color: colors.primary[2],
-														marginLeft: 4,
-														letterSpacing: 0.5,
-													}}
-												>
-													Pinned
-												</Text>
-											</View>
-										</View>
-									)}
-
-									{/* Top row: big number + name/badge */}
-									<View className="flex-row items-start justify-between mb-2">
-										{/* Left: metric number */}
-										<View>
-											<View className="flex-row items-baseline">
-												<Text
-													style={{
-														fontFamily: fonts.heading,
-														fontSize: 48,
-														fontWeight: "800",
-														color: isPending
-															? "#D97706"
-															: isExpired
-																? colors.secondary[1]
-																: colors.primary[1],
-														lineHeight: 52,
-													}}
-												>
-													{pkg.remainingCredits}
-												</Text>
-												<Text
-													style={{
-														fontFamily: fonts.body,
-														fontSize: 16,
-														color: colors.secondary[1],
-														marginLeft: 3,
-													}}
-												>
-													/ {pkg.totalCredits}
-												</Text>
-											</View>
-											<Text
-												style={{
-													fontFamily: fonts.body,
-													fontSize: 12,
-													color: colors.secondary[1],
-													marginTop: 2,
-												}}
-											>
-												{isExpired
-													? "credits used"
-													: isPending
-														? "credits ready"
-														: "credits remaining"}
-											</Text>
-										</View>
-
-										{/* Right: name + badge */}
-										<View className="items-end ml-3" style={{ maxWidth: 130 }}>
-											<Text
-												style={{
-													fontFamily: fonts.heading,
-													fontSize: 15,
-													fontWeight: "700",
-													color: isExpired
-														? colors.secondary[1]
-														: colors.primary[1],
-													textAlign: "right",
-													lineHeight: 18,
-													marginBottom: 6,
-												}}
-												numberOfLines={2}
-											>
-												{pkg.packageName}
-											</Text>
-											<View
-												className="rounded-full px-2.5 py-0.5"
-												style={{ backgroundColor: badge.bg }}
-											>
-												<Text
-													style={{
-														fontFamily: fonts.body,
-														fontSize: 11,
-														fontWeight: "600",
-														color: badge.text,
-													}}
-												>
-													{badge.label}
-												</Text>
-											</View>
-										</View>
-									</View>
-
-									{/* Meta chips */}
-									<View className="flex-row items-center gap-3 mb-2.5">
-										{expiryLabel && !isPending && (
-											<View className="flex-row items-center gap-1">
-												<Ionicons
-													name="calendar-outline"
-													size={12}
-													color={colors.secondary[1]}
-												/>
-												<Text
-													style={{
-														fontFamily: fonts.body,
-														fontSize: 11,
-														color: isExpired
-															? colors.secondary[1]
-															: colors.secondary[1],
-													}}
-												>
-													{isExpired
-														? `Expired ${expiryLabel}`
-														: expiryLabel}
-												</Text>
-											</View>
-										)}
-										{pkg.assignedTrainerName && !isExpired && (
-											<View className="flex-row items-center gap-1">
-												<Ionicons
-													name="person-outline"
-													size={12}
-													color={colors.secondary[1]}
-												/>
-												<Text
-													style={{
-														fontFamily: fonts.body,
-														fontSize: 11,
-														color: colors.secondary[1],
-													}}
-												>
-													{pkg.assignedTrainerName}
-												</Text>
-											</View>
-										)}
-										{isPending && (
-											<View className="flex-row items-center gap-1">
-												<Ionicons
-													name="alert-circle-outline"
-													size={12}
-													color="#D97706"
-												/>
-												<Text
-													style={{
-														fontFamily: fonts.body,
-														fontSize: 11,
-														color: "#D97706",
-													}}
-												>
-													Awaiting trainer
-												</Text>
-											</View>
-										)}
-										{hasInstallments &&
-											!isExpired &&
-											!isPending &&
-											pkg.installmentsPaid === pkg.installmentsTotal && (
-												<Text
-													style={{
-														fontFamily: fonts.body,
-														fontSize: 11,
-														color: "#16A34A",
-														fontWeight: "600",
-													}}
-												>
-													Fully paid
-												</Text>
-											)}
-									</View>
-
-									{/* Thin progress bar */}
-									<View
-										className="overflow-hidden rounded-full"
+									<Text
+										className="font-medium text-sm"
 										style={{
-											height: 2,
-											backgroundColor: progressTrackColor,
+											color:
+												statusFilter === tab.key
+													? colors.primary[2]
+													: colors.primary[1],
 										}}
 									>
-										<View
-											className="rounded-full"
-											style={{
-												height: "100%",
-												width: `${isExpired ? 100 : Math.min(progressPercent, 100)}%`,
-												backgroundColor: progressFillColor,
-											}}
-										/>
-									</View>
-								</View>
-
-								{/* Card footer */}
-								<View
-									className="flex-row items-center justify-between px-4 py-2.5"
-									style={{
-										borderTopWidth: 1,
-										borderTopColor: colors.secondary[3],
-									}}
-								>
-									{!isExpired ? (
-										<Text
-											style={{
-												fontFamily: fonts.heading,
-												fontSize: 14,
-												fontWeight: "600",
-												color: colors.primary[1],
-											}}
-										>
-											{formatMoney(pkg.price)}
-										</Text>
-									) : (
-										<Text
-											style={{
-												fontFamily: fonts.body,
-												fontSize: 11,
-												color: colors.secondary[1],
-											}}
-										>
-											Package expired
-										</Text>
-									)}
-
-									{installmentLabel && !isExpired && (
-										<Text
-											style={{
-												fontFamily: fonts.body,
-												fontSize: 11,
-												color: colors.secondary[1],
-											}}
-										>
-											{installmentLabel}
-										</Text>
-									)}
-
-									<View className="flex-row items-center gap-0.5">
-										<Text
-											style={{
-												fontFamily: fonts.body,
-												fontSize: 12,
-												fontWeight: "500",
-												color: isExpired
-													? colors.secondary[1]
-													: colors.primary[1],
-											}}
-										>
-											View
-										</Text>
-										<Ionicons
-											name="chevron-forward"
-											size={14}
-											color={
-												isExpired
-													? colors.secondary[1]
-													: colors.primary[1]
-											}
-										/>
-									</View>
-								</View>
-							</TouchableOpacity>
-						);
-					})}
-
-				{/* Empty State */}
-				{!isLoading && packages.length === 0 && (
-					<View
-						className="mx-4 rounded-2xl p-8"
-						style={{
-							backgroundColor: colors.primary[2],
-							borderWidth: 1,
-							borderColor: colors.secondary[3],
-						}}
-					>
-						<View className="items-center">
-							<Ionicons
-								name="cube-outline"
-								size={48}
-								color={colors.secondary[1]}
-							/>
-							<Text
-								className="mt-4 mb-2 text-center"
-								style={{
-									fontFamily: fonts.heading,
-									fontSize: 18,
-									fontWeight: "700",
-									color: colors.primary[1],
-								}}
-							>
-								No Packages Yet
-							</Text>
-							<Text
-								className="mb-6 text-center"
-								style={{
-									fontFamily: fonts.body,
-									fontSize: 14,
-									color: colors.secondary[1],
-								}}
-							>
-								Purchase a package to get started with your fitness journey
-							</Text>
-							<TouchableOpacity
-								onPress={() =>
-									router.push("/dashboard/buy-package/setup" as never)
-								}
-								className="rounded-xl px-6 py-3"
-								activeOpacity={0.7}
-								style={{ backgroundColor: colors.primary[1] }}
-							>
-								<Text
-									style={{
-										fontFamily: fonts.heading,
-										fontSize: 15,
-										fontWeight: "700",
-										color: colors.primary[2],
-									}}
-								>
-									Buy Package
-								</Text>
-							</TouchableOpacity>
+										{tab.label}
+									</Text>
+								</Pressable>
+							))}
 						</View>
-					</View>
-				)}
+					</ScrollView>
+
+					{/* Loading State */}
+					{isLoading && (
+						<View>
+							<SkeletonCard />
+							<SkeletonCard />
+							<SkeletonCard />
+						</View>
+					)}
+
+					{/* Package Cards */}
+					{!isLoading &&
+						packages.map((pkg: any) => {
+							const badge = STATUS_BADGE[pkg.status] ?? STATUS_BADGE.active;
+							const expiryText = getExpiryText(pkg.expiresAt);
+							return (
+								<PackageInstanceCard
+									key={pkg.id}
+									pkg={pkg}
+									badge={badge}
+									expiryText={expiryText}
+								/>
+							);
+						})}
+
+					{/* Empty State */}
+					{!isLoading && packages.length === 0 && (
+						<View className="mb-4 rounded-2xl bg-white p-8 shadow-sm">
+							<View className="items-center">
+								<Ionicons
+									name="cube-outline"
+									size={48}
+									color={colors.secondary[1]}
+								/>
+								<Text
+									className="mt-4 mb-2 text-center font-semibold text-lg"
+									style={{ color: colors.primary[1] }}
+								>
+									No Packages Yet
+								</Text>
+								<Text
+									className="mb-6 text-center text-sm"
+									style={{ color: colors.secondary[1] }}
+								>
+									Purchase a package to get started with your fitness journey
+								</Text>
+								<Pressable
+									onPress={() =>
+										router.push("/dashboard/buy-package/setup" as never)
+									}
+									className="rounded-xl px-6 py-3"
+									style={{ backgroundColor: "#2563EB" }}
+								>
+									<Text className="font-semibold text-base text-white">
+										Buy Package
+									</Text>
+								</Pressable>
+							</View>
+						</View>
+					)}
+				</View>
 			</ScrollView>
 		</Container>
 	);

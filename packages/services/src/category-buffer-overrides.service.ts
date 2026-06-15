@@ -31,7 +31,10 @@ export async function listCategoryBufferOverridesForMember(
 		.from(serviceMembers)
 		.innerJoin(services, eq(serviceMembers.serviceId, services.id))
 		.leftJoin(serviceCategories, eq(services.categoryId, serviceCategories.id))
-		.leftJoin(serviceCategoryConfig, eq(services.categoryId, serviceCategoryConfig.categoryId))
+		.leftJoin(
+			serviceCategoryConfig,
+			eq(services.categoryId, serviceCategoryConfig.categoryId),
+		)
 		.where(eq(serviceMembers.memberId, memberId));
 
 	const categoryIds = assignedCategories
@@ -50,7 +53,9 @@ export async function listCategoryBufferOverridesForMember(
 			),
 		);
 
-	const overrideMap = new Map(overrides.map((o) => [o.categoryId, o.bufferTimeMinutes]));
+	const overrideMap = new Map(
+		overrides.map((o) => [o.categoryId, o.bufferTimeMinutes]),
+	);
 
 	return assignedCategories
 		.filter((r) => !!r.categoryId)
@@ -88,13 +93,18 @@ export async function upsertCategoryBufferOverride(
 		.insert(memberCategoryBufferOverrides)
 		.values({ memberId, categoryId, bufferTimeMinutes, updatedAt: new Date() })
 		.onConflictDoUpdate({
-			target: [memberCategoryBufferOverrides.memberId, memberCategoryBufferOverrides.categoryId],
+			target: [
+				memberCategoryBufferOverrides.memberId,
+				memberCategoryBufferOverrides.categoryId,
+			],
 			set: { bufferTimeMinutes, updatedAt: new Date() },
 		})
 		.returning();
 
 	if (!result) {
-		throw new Error("upsertCategoryBufferOverride: INSERT returned no rows unexpectedly");
+		throw new Error(
+			"upsertCategoryBufferOverride: INSERT returned no rows unexpectedly",
+		);
 	}
 	return { categoryId, bufferTimeMinutes: result.bufferTimeMinutes };
 }

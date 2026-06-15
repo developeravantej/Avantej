@@ -77,6 +77,12 @@ function getDefaultFromName(): string {
 /**
  * Email sending options
  */
+export interface SendEmailAttachment {
+	filename: string;
+	/** Resend accepts base64 string or Buffer. We pass base64 strings only. */
+	content: string;
+}
+
 export interface SendEmailOptions {
 	to: string | string[];
 	subject: string;
@@ -84,9 +90,15 @@ export interface SendEmailOptions {
 	text?: string;
 	from?: string;
 	fromName?: string;
+	attachments?: SendEmailAttachment[];
 }
 
-type CapturedEmailType = "verification" | "password-reset" | "invitation" | "generic";
+type CapturedEmailType =
+	| "verification"
+	| "password-reset"
+	| "invitation"
+	| "magic-link"
+	| "generic";
 
 interface CapturedEmail {
 	type: CapturedEmailType;
@@ -102,7 +114,8 @@ const EMAIL_CAPTURE_LIMIT = 50;
 const capturedEmails: CapturedEmail[] = [];
 
 let emailCaptureEnabled =
-	getEnvVar("EMAIL_CAPTURE_ENABLED") === "true" || (process.env.NODE_ENV as string) === "test";
+	getEnvVar("EMAIL_CAPTURE_ENABLED") === "true" ||
+	(process.env.NODE_ENV as string) === "test";
 
 export function __setEmailCaptureEnabled(enabled: boolean): void {
 	emailCaptureEnabled = enabled;
@@ -132,7 +145,7 @@ function recordEmailCapture(capture: Omit<CapturedEmail, "sentAt">): void {
 	}
 	if (capture.metadata?.token) {
 		console.log(
-			`📬 Captured ${capture.type} token for ${capture.to}: ${capture.metadata.token}`
+			`📬 Captured ${capture.type} token for ${capture.to}: ${capture.metadata.token}`,
 		);
 	}
 }
@@ -179,7 +192,7 @@ function extractTokenFromLink(link?: string): string | undefined {
  * ```
  */
 export async function sendEmail(options: SendEmailOptions): Promise<void> {
-	const { to, subject, html, text, from, fromName } = options;
+	const { to, subject, html, text, from, fromName, attachments } = options;
 
 	if (!to || !subject || !html) {
 		throw new Error("To, subject, and html are required");
@@ -197,19 +210,29 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
 			subject,
 			html,
 			text: text || html.replace(/<[^>]*>/g, ""), // Strip HTML tags for text version
+			...(attachments && attachments.length > 0
+				? {
+						attachments: attachments.map((a) => ({
+							filename: a.filename,
+							content: a.content,
+						})),
+					}
+				: {}),
 		});
 
 		if (result.error) {
 			throw new Error(
-				`Resend API error: ${result.error.message || "Unknown error"}`
+				`Resend API error: ${result.error.message || "Unknown error"}`,
 			);
 		}
 
-		console.log(`Email sent successfully to ${Array.isArray(to) ? to.join(", ") : to}`);
+		console.log(
+			`Email sent successfully to ${Array.isArray(to) ? to.join(", ") : to}`,
+		);
 	} catch (error) {
 		console.error("Failed to send email:", error);
 		throw new Error(
-			`Failed to send email: ${error instanceof Error ? error.message : "Unknown error"}`
+			`Failed to send email: ${error instanceof Error ? error.message : "Unknown error"}`,
 		);
 	}
 }
@@ -224,12 +247,14 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
 export async function sendVerificationEmail(
 	to: string,
 	verificationLink: string,
-	userName?: string
+	userName?: string,
 ): Promise<void> {
 	// Send users to the frontend UI instead of the backend `/api/auth/verify-email` URL.
 	// The frontend page will call our API (`POST /auth/verify-email`) and then redirect.
 	const frontendURL =
-		getEnvVar("CORS_ORIGIN") || getEnvVar("FRONTEND_URL") || "http://localhost:3001";
+		getEnvVar("CORS_ORIGIN") ||
+		getEnvVar("FRONTEND_URL") ||
+		"http://localhost:3001";
 	const tokenFromLink = extractTokenFromLink(verificationLink);
 	const callbackURLFromLink = (() => {
 		try {
@@ -239,10 +264,9 @@ export async function sendVerificationEmail(
 			return "/login";
 		}
 	})();
-	const verificationLinkForUser =
-		tokenFromLink
-			? `${frontendURL}/verify-email?token=${encodeURIComponent(tokenFromLink)}&callbackURL=${encodeURIComponent(callbackURLFromLink)}`
-			: verificationLink;
+	const verificationLinkForUser = tokenFromLink
+		? `${frontendURL}/verify-email?token=${encodeURIComponent(tokenFromLink)}&callbackURL=${encodeURIComponent(callbackURLFromLink)}`
+		: verificationLink;
 
 	const subject = "Verify Your Email Address - Avantej Core";
 	const html = `
@@ -319,7 +343,7 @@ If you didn't create an account, you can safely ignore this email.
 export async function sendPasswordResetEmail(
 	to: string,
 	resetLink: string,
-	userName?: string
+	userName?: string,
 ): Promise<void> {
 	const subject = "Reset Your Password - Avantej Core";
 	const html = `
@@ -400,7 +424,7 @@ export async function sendInvitationEmail(
 	invitationLink: string,
 	organizationName: string,
 	inviterName?: string,
-	role?: string
+	role?: string,
 ): Promise<void> {
 	const subject = `You've been invited to join ${organizationName}`;
 	const html = `
@@ -469,3 +493,79 @@ If you don't want to join this organization, you can safely ignore this email.
 	});
 }
 
+/**
+ * Send a magic-link sign-in email
+ *
+ * @param to - Recipient email
+ * @param magicLink - One-click sign-in URL
+ * @param userName - Recipient name (optional)
+ * @param organizationName - Org name displayed in subject/body (optional)
+ */
+export async function sendMagicLinkEmail(
+	to: string,
+	magicLink: string,
+	userName?: string,
+	organizationName?: string,
+): Promise<void> {
+	const orgPhrase = organizationName ? ` to ${organizationName}` : "";
+	const subject = `Sign in${orgPhrase}`;
+	const greeting = userName ? `Hi ${userName},` : "Hi there,";
+	const html = `
+		<!DOCTYPE html>
+		<html>
+		<head>
+			<meta charset="utf-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			<title>Sign in to Avantej</title>
+		</head>
+		<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+			<div style="background-color: #f4f4f4; padding: 20px; border-radius: 5px;">
+				<h1 style="color: #2c3e50;">Sign in${orgPhrase}</h1>
+				<p>${greeting}</p>
+				<p>Click the button below to sign in. This link is single-use and expires shortly.</p>
+				<div style="text-align: center; margin: 30px 0;">
+					<a href="${magicLink}" style="background-color: #2980b9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">Sign in</a>
+				</div>
+				<p>Or copy and paste this link into your browser:</p>
+				<p style="word-break: break-all; color: #7f8c8d;">${magicLink}</p>
+				<p>If you did not request this email, you can safely ignore it.</p>
+				<hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+				<p style="color: #7f8c8d; font-size: 12px;">© ${new Date().getFullYear()} Avantej Core. All rights reserved.</p>
+			</div>
+		</body>
+		</html>
+	`;
+
+	const text = `
+Sign in${orgPhrase}
+
+${greeting}
+
+Click the link below to sign in. This link is single-use and expires shortly.
+
+${magicLink}
+
+If you did not request this email, you can safely ignore it.
+
+© ${new Date().getFullYear()} Avantej Core. All rights reserved.
+	`.trim();
+
+	await sendEmail({
+		to,
+		subject,
+		html,
+		text,
+	});
+
+	recordEmailCapture({
+		type: "magic-link",
+		to,
+		subject,
+		html,
+		text,
+		metadata: {
+			magicLink,
+			organizationName,
+		},
+	});
+}

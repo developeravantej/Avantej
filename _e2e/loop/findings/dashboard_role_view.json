@@ -1,0 +1,38 @@
+{
+  "route": "/dashboard/role/view",
+  "module": "role",
+  "interactablesFound": {
+    "buttons": 10,
+    "links": 27,
+    "textboxes": 2,
+    "comboboxes": 107,
+    "checkboxes": 1,
+    "tabs": 0
+  },
+  "actionsTaken": 9,
+  "findings": [],
+  "newLinks": [
+    "/dashboard",
+    "/dashboard/operations/approvals",
+    "/dashboard/customers/v2/view",
+    "/dashboard/appointment/view",
+    "/dashboard/appointment/class-slots/view",
+    "/dashboard/trainers/view",
+    "/dashboard/service/view",
+    "/dashboard/sales/create",
+    "/dashboard/reports/view",
+    "/dashboard/announcements/view",
+    "/dashboard/sales/view",
+    "/dashboard/commissions/view",
+    "/dashboard/settings/tax-rates",
+    "/dashboard/expenses/view",
+    "/dashboard/packages/view",
+    "/dashboard/commissions/view?tab=payouts",
+    "/dashboard/user/view",
+    "/dashboard/access-control/roles",
+    "/dashboard/access-control/user-assignment",
+    "/dashboard/branch/view"
+  ],
+  "authExpired": false,
+  "serverDown": false
+}

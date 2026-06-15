@@ -42,7 +42,6 @@ const formatDate = (dateString: string | null | undefined): string => {
 	}
 };
 
-
 export const columns: ColumnDef<PayoutRow>[] = [
 	{
 		accessorKey: "id",
@@ -52,6 +51,7 @@ export const columns: ColumnDef<PayoutRow>[] = [
 		cell: ({ getValue }) => {
 			const id = getValue<string>();
 			return id ? (
+				// react-doctor-disable-next-line react-doctor/server-dedup-props -- SPA (Vite/TanStack Router), no RSC serialization cost; explicit displayText avoids re-deriving truncation on every render
 				<CopyableCell value={id} displayText={id.slice(0, 8)} />
 			) : (
 				"N/A"
@@ -123,9 +123,10 @@ export const columns: ColumnDef<PayoutRow>[] = [
 		cell: ({ getValue }) => {
 			const id = getValue<string | null>();
 			return id ? (
+				// react-doctor-disable-next-line react-doctor/server-dedup-props -- SPA (Vite/TanStack Router), no RSC serialization cost; explicit displayText avoids re-deriving truncation on every render
 				<CopyableCell value={id} displayText={id.slice(0, 8)} />
 			) : (
-				<span className="text-muted-foreground">—</span>
+				<span className="text-muted-foreground">-</span>
 			);
 		},
 		enableSorting: true,

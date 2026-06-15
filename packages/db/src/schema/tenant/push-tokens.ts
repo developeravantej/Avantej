@@ -1,20 +1,21 @@
-// packages/db/src/schema/tenant/push-tokens.ts
-
 /**
- * Tenant Push Tokens Schema
+ * Push Tokens Schema (tenant)
  *
- * Stores Expo push notification tokens per device per user.
- * Unique on token (a device only has one Expo push token at a time).
- * On token refresh / re-registration we upsert by token.
+ * Expo/native push-notification device tokens, one row per registered
+ * device. userId is the cross-DB Better-Auth user id (plain text — never an
+ * FK across the control-panel/tenant boundary).
+ *
+ * Modeled from the live table (migration 0089 backfills it idempotently —
+ * the table predates its schema model; see schema-drift gate).
  */
 
 import {
+	index,
 	pgTable,
-	uuid,
 	text,
 	timestamp,
-	index,
 	uniqueIndex,
+	uuid,
 } from "drizzle-orm/pg-core";
 
 export const pushTokens = pgTable(
@@ -29,7 +30,7 @@ export const pushTokens = pgTable(
 		updatedAt: timestamp("updated_at").defaultNow().notNull(),
 	},
 	(table) => ({
-		userIdIdx: index("push_tokens_user_idx").on(table.userId),
-		tokenUniqueIdx: uniqueIndex("push_tokens_token_unique").on(table.token),
+		userIdx: index("push_tokens_user_idx").on(table.userId),
+		tokenUnique: uniqueIndex("push_tokens_token_unique").on(table.token),
 	}),
 );

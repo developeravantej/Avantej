@@ -1,0 +1,167 @@
+{
+  "iteration": 0,
+  "exitReason": null,
+  "targets": [
+    {
+      "id": "CP-001", "kind": "missing", "severity": "critical",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["packages/db/src/seed-rbac.ts"],
+      "note": "commission_payout:process never seeded — runBatch & processForRecipient always FORBIDDEN",
+      "humanNote": ""
+    },
+    {
+      "id": "CP-002", "kind": "missing", "severity": "critical",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["packages/db/src/seed-rbac.ts"],
+      "note": "commission_review:resolve never seeded — resolveReview always FORBIDDEN",
+      "humanNote": ""
+    },
+    {
+      "id": "DU-001", "kind": "missing", "severity": "high",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/web/src/routes/_authenticated/dashboard/_layout/payment/view.tsx"],
+      "note": "item.date.toISOString() runtime crash — date is already a string over oRPC",
+      "humanNote": ""
+    },
+    {
+      "id": "SI-001", "kind": "missing", "severity": "high",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/server/src/services/notification-dispatch.service.ts"],
+      "note": "no LIMIT on pending notifications SELECT — unbounded batch risks OOM",
+      "humanNote": ""
+    },
+    {
+      "id": "CU-002", "kind": "missing", "severity": "high",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/server/src/routers/customer-profiles.ts"],
+      "note": "addEmailAndDispatchMagicLink missing RBAC scope check (line 463)",
+      "humanNote": ""
+    },
+    {
+      "id": "CU-003", "kind": "missing", "severity": "high",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/server/src/routers/customer-profiles.ts"],
+      "note": "resendMagicLink missing RBAC scope check (line 570)",
+      "humanNote": ""
+    },
+    {
+      "id": "CU-004", "kind": "missing", "severity": "high",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/server/src/routers/customer-profiles.ts"],
+      "note": "sendClaimLink missing RBAC scope check (line 774)",
+      "humanNote": ""
+    },
+    {
+      "id": "CU-005", "kind": "missing", "severity": "high",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/server/src/routers/customer-profiles.ts"],
+      "note": "createUnclaimed non-atomic — CP user created before tenant write can fail",
+      "humanNote": ""
+    },
+    {
+      "id": "CP-003", "kind": "partial", "severity": "high",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/web/src/components/pages/commissions/payouts-tab.tsx"],
+      "note": "UI gates on commission_payout:update but API needs :process — buttons always fail",
+      "humanNote": ""
+    },
+    {
+      "id": "DU-002", "kind": "missing", "severity": "medium",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/web/src/routes/_authenticated/dashboard/_layout/payment/view.tsx"],
+      "note": "Created By column shows raw user UUID instead of resolved name",
+      "humanNote": ""
+    },
+    {
+      "id": "SI-002", "kind": "missing", "severity": "medium",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/server/src/services/notification-dispatch.service.ts"],
+      "note": "TOCTOU race on emailSentAt — concurrent cron runs can double-send",
+      "humanNote": ""
+    },
+    {
+      "id": "SI-008", "kind": "partial", "severity": "medium",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/server/src/lib/better-auth.ts"],
+      "note": "BETTER_AUTH_SECRET public fallback string in source — sessions forgeable if env missing",
+      "humanNote": ""
+    },
+    {
+      "id": "SI-009", "kind": "partial", "severity": "medium",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/server/src/index.ts"],
+      "note": "localhost CORS origins hardcoded — always active in production Worker",
+      "humanNote": ""
+    },
+    {
+      "id": "CP-004", "kind": "partial", "severity": "medium",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/web/src/components/app-sidebar.tsx"],
+      "note": "Payouts isActive never true — pathname excludes query string",
+      "humanNote": ""
+    },
+    {
+      "id": "CP-009", "kind": "partial", "severity": "medium",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["packages/api/src/routers/payouts.ts"],
+      "note": "batch payouts bypass RBAC scope check via isNull(appointmentId) arm",
+      "humanNote": ""
+    },
+    {
+      "id": "CU-006", "kind": "missing", "severity": "medium",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/server/src/routers/customer-profiles.ts"],
+      "note": "createUnclaimed no phone deduplication — duplicate unclaimed profiles possible",
+      "humanNote": ""
+    },
+    {
+      "id": "PO-006", "kind": "missing", "severity": "medium",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/web/src/routes/_authenticated/dashboard/_layout/sales/view.tsx"],
+      "note": "STATUS_PILLS Refunded maps to value='cancelled' — wrong filter applied",
+      "humanNote": ""
+    },
+    {
+      "id": "DU-005", "kind": "partial", "severity": "medium",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/web/src/components/app-sidebar.tsx"],
+      "note": "Packages sidebar uses service_management:read but route needs package_management:read",
+      "humanNote": ""
+    },
+    {
+      "id": "SI-010", "kind": "missing", "severity": "low",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/server/src/services/notification-dispatch.service.ts"],
+      "note": "email subject CRLF injection risk",
+      "humanNote": ""
+    },
+    {
+      "id": "CU-007", "kind": "missing", "severity": "low",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/server/src/routers/customer-profiles.ts"],
+      "note": "Quick Add email field silently dropped by server Zod schema",
+      "humanNote": ""
+    },
+    {
+      "id": "PO-007", "kind": "missing", "severity": "low",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/web/src/routes/_authenticated/dashboard/_layout/sales/$id.tsx"],
+      "note": "line items only visible in Print Receipt modal — not in main view",
+      "humanNote": ""
+    },
+    {
+      "id": "PO-008", "kind": "missing", "severity": "low",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/web/src/routes/_authenticated/dashboard/_layout/sales/$id.tsx"],
+      "note": "Cancel Sale gated on status='confirmed' — POS sales land at 'completed', button never shows",
+      "humanNote": ""
+    },
+    {
+      "id": "CU-008", "kind": "missing", "severity": "low",
+      "status": "open", "attempts": 0,
+      "ownedFiles": ["apps/web/src/components/customers/customer-360/magic-link-actions.tsx"],
+      "note": "placeholder domain mismatch — client checks @ghl.placeholder, server uses @avantej.placeholder",
+      "humanNote": ""
+    }
+  ]
+}

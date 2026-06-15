@@ -1,30 +1,44 @@
-import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	useNavigate,
+	useSearch,
+} from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Mail, CheckCircle, XCircle, UserPlus } from "lucide-react";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
+import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { AcceptInvitationSignupCard } from "./accept-invitation-signup-card";
+
+import { z } from "zod";
 
 export const Route = createFileRoute("/accept-invitation")({
 	component: AcceptInvitationPage,
-	validateSearch: (search: Record<string, unknown>) => {
-		return {
-			token: (search.token as string) || "",
-			orgId: (search.orgId as string) || "",
-		};
-	},
+	validateSearch: z.object({
+		token: z.string().catch(""),
+		orgId: z.string().catch(""),
+	}),
 });
 
+// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 function AcceptInvitationPage() {
 	const { token, orgId } = useSearch({ from: "/accept-invitation" });
 	const navigate = useNavigate();
-	const { data: session, isPending: isSessionLoading, refetch: refetchSession } = authClient.useSession();
+	const {
+		data: session,
+		isPending: isSessionLoading,
+		refetch: _refetchSession,
+	} = authClient.useSession();
 
 	// Fetch invitation details
 	const {
@@ -50,6 +64,7 @@ function AcceptInvitationPage() {
 	const isValid = invitationData?.isValid;
 
 	// Pre-verify invited email (enables existing-but-unverified users to log in)
+	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- terminal auth flow: navigates to login after invitation acceptance, no cached queries to invalidate
 	const verifyEmailMutation = useMutation({
 		mutationFn: async () => {
 			if (!token || !orgId) {
@@ -79,8 +94,14 @@ function AcceptInvitationPage() {
 			if (error.message.includes("UNAUTHORIZED")) {
 				return "Please sign up or log in to accept this invitation";
 			}
-			if (error.message.includes("different email address") || error.message.includes("sent to")) {
-				return error.message || "This invitation was sent to a different email address";
+			if (
+				error.message.includes("different email address") ||
+				error.message.includes("sent to")
+			) {
+				return (
+					error.message ||
+					"This invitation was sent to a different email address"
+				);
 			}
 			return `Failed to accept invitation: ${error.message}`;
 		},
@@ -124,7 +145,7 @@ function AcceptInvitationPage() {
 				// Email mismatch — show a user-facing warning instead of silently ignoring
 				toast.warning(
 					`This invitation was sent to ${invitation?.email}. You're signed in as ${session.user.email}. Please sign out and use the correct email.`,
-					{ duration: 10000 }
+					{ duration: 10000 },
 				);
 			}
 		}
@@ -174,7 +195,7 @@ function AcceptInvitationPage() {
 			return await client.invitations.acceptWithSignup({
 				token,
 				organizationId: orgId,
-				email: invitation.email,
+				email: invitation.email ?? "",
 				password,
 				firstName: firstName.trim(),
 				lastName: lastName.trim(),
@@ -216,140 +237,24 @@ function AcceptInvitationPage() {
 	// Show signup form directly if not authenticated and invitation is valid
 	if (!isSessionLoading && !session?.user && isValid && invitation) {
 		return (
-			<div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-				<div className="w-full max-w-md space-y-4">
-					<Card>
-						<CardHeader className="text-center space-y-2">
-							<div className="flex justify-center">
-								<div className="rounded-full bg-primary/10 p-3">
-									<UserPlus className="h-6 w-6 text-primary" />
-								</div>
-							</div>
-							<CardTitle className="text-2xl">You've Been Invited!</CardTitle>
-							<CardDescription className="text-base">
-								Sign up to join and accept your invitation as a{" "}
-								<span className="font-semibold text-primary">{invitation.role}</span>
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="space-y-4">
-							{/* Invitation details */}
-							<div className="rounded-lg bg-muted/50 p-4 space-y-2">
-								<div className="flex items-center gap-2 text-sm">
-									<Mail className="h-4 w-4 text-muted-foreground" />
-									<span className="text-muted-foreground">Invited email:</span>
-									<span className="font-medium">{invitation.email}</span>
-								</div>
-								<div className="flex items-center gap-2 text-sm">
-									<span className="text-muted-foreground">Role:</span>
-									<span className="font-medium capitalize">{invitation.role}</span>
-								</div>
-							</div>
-
-							{/* Atomic signup-and-accept form */}
-							<div className="pt-2">
-								<p className="text-sm text-muted-foreground mb-4 text-center">
-									Create your account to accept this invitation and join the organization
-								</p>
-								<form onSubmit={handleSubmitSignup} className="space-y-3">
-									<div>
-										<Label htmlFor="firstName">First Name</Label>
-										<Input
-											id="firstName"
-											value={firstName}
-											onChange={(e) => setFirstName(e.target.value)}
-											required
-										/>
-									</div>
-									<div>
-										<Label htmlFor="lastName">Last Name</Label>
-										<Input
-											id="lastName"
-											value={lastName}
-											onChange={(e) => setLastName(e.target.value)}
-											required
-										/>
-									</div>
-									<div>
-										<Label htmlFor="email">Email Address</Label>
-										<Input
-											id="email"
-											value={invitation.email}
-											readOnly
-											className="bg-muted"
-										/>
-										<p className="text-xs text-muted-foreground mt-1">
-											This email is required for this invitation
-										</p>
-									</div>
-									<div>
-										<Label htmlFor="phone">
-											Phone <span className="text-muted-foreground">(optional)</span>
-										</Label>
-										<Input
-											id="phone"
-											type="tel"
-											value={phone}
-											onChange={(e) => setPhone(e.target.value)}
-											placeholder="+60123456789"
-											autoComplete="tel"
-										/>
-									</div>
-									<div>
-										<Label htmlFor="password">Password</Label>
-										<Input
-											id="password"
-											type="password"
-											value={password}
-											onChange={(e) => setPassword(e.target.value)}
-											required
-											minLength={8}
-										/>
-									</div>
-									<div>
-										<Label htmlFor="confirmPassword">Confirm Password</Label>
-										<Input
-											id="confirmPassword"
-											type="password"
-											value={confirmPassword}
-											onChange={(e) => setConfirmPassword(e.target.value)}
-											required
-											minLength={8}
-										/>
-									</div>
-									<Button
-										type="submit"
-										className="w-full"
-										disabled={acceptWithSignupMutation.isPending}
-									>
-										{acceptWithSignupMutation.isPending
-											? "Setting up your account…"
-											: "Sign Up & Accept Invitation"}
-									</Button>
-								</form>
-							</div>
-
-							{/* Login option */}
-							<div className="pt-4 border-t">
-								<p className="text-sm text-center text-muted-foreground">
-									Already have an account?{" "}
-									<Button
-										variant="link"
-										className="h-auto p-0 text-primary"
-										onClick={() => {
-											navigate({
-												to: "/login",
-												search: { invitationToken: token, orgId },
-											});
-										}}
-									>
-										Log in to accept invitation
-									</Button>
-								</p>
-							</div>
-						</CardContent>
-					</Card>
-				</div>
-			</div>
+			<AcceptInvitationSignupCard
+				invitation={invitation as any}
+				firstName={firstName}
+				setFirstName={setFirstName}
+				lastName={lastName}
+				setLastName={setLastName}
+				phone={phone}
+				setPhone={setPhone}
+				password={password}
+				setPassword={setPassword}
+				confirmPassword={confirmPassword}
+				setConfirmPassword={setConfirmPassword}
+				onSubmit={handleSubmitSignup}
+				isPending={acceptWithSignupMutation.isPending}
+				onLoginInstead={() =>
+					navigate({ to: "/login", search: { invitationToken: token, orgId } })
+				}
+			/>
 		);
 	}
 
@@ -357,7 +262,7 @@ function AcceptInvitationPage() {
 	if (isSessionLoading || isLoadingInvitation) {
 		return (
 			<div className="min-h-screen flex items-center justify-center">
-				<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+				<Loader2 className="size-8 animate-spin text-muted-foreground" />
 			</div>
 		);
 	}
@@ -371,11 +276,11 @@ function AcceptInvitationPage() {
 				: "Invalid invitation");
 
 		return (
-			<div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+			<div className="min-h-screen flex items-center justify-center bg-zinc-50 p-4">
 				<Card className="w-full max-w-md">
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2 text-destructive">
-							<XCircle className="h-5 w-5" />
+							<XCircle className="size-5" />
 							Invalid Invitation
 						</CardTitle>
 						<CardDescription>{errorMessage}</CardDescription>
@@ -397,19 +302,19 @@ function AcceptInvitationPage() {
 	// Processing acceptance
 	if (acceptMutation.isPending || acceptMutation.isSuccess) {
 		return (
-			<div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+			<div className="min-h-screen flex items-center justify-center bg-zinc-50 p-4">
 				<Card className="w-full max-w-md">
 					<CardHeader>
 						<CardTitle className="flex items-center gap-2">
 							{acceptMutation.isSuccess ? (
 								<>
-									<CheckCircle className="h-5 w-5 text-green-600" />
+									<CheckCircle className="size-5 text-green-600" />
 									Success!
 								</>
 							) : (
 								<>
-									<Loader2 className="h-5 w-5 animate-spin" />
-									Accepting Invitation...
+									<Loader2 className="size-5 animate-spin" />
+									Accepting Invitation…
 								</>
 							)}
 						</CardTitle>
@@ -427,7 +332,7 @@ function AcceptInvitationPage() {
 	// Default loading state
 	return (
 		<div className="min-h-screen flex items-center justify-center">
-			<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+			<Loader2 className="size-8 animate-spin text-muted-foreground" />
 		</div>
 	);
 }

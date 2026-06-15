@@ -22,7 +22,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Search } from "lucide-react";
 import {
 	Dialog,
@@ -55,8 +54,8 @@ export function DataTable({
 	isDeactivating = false,
 	error,
 	onRetry,
+	// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }: DataTableProps) {
-	const qc = useQueryClient();
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [globalFilter, setGlobalFilter] = useState("");
 	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -123,7 +122,7 @@ export function DataTable({
 			{/* Search bar row */}
 			<div className="flex shrink-0 items-center border-b border-border/40 px-6 py-3">
 				<div className="relative w-64">
-					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
 						placeholder="Search suppliers..."
 						value={globalFilter ?? ""}
@@ -134,10 +133,10 @@ export function DataTable({
 				<div className="ml-auto flex gap-2">
 					<Button
 						onClick={() => setIsAddDialogOpen(true)}
-						className="bg-black text-white hover:bg-black/90"
+						className="bg-zinc-950 text-white hover:bg-black/90"
 						type="button"
 					>
-						<Plus className="mr-2 h-4 w-4" />
+						<Plus className="mr-2 size-4" />
 						Add Supplier
 					</Button>
 				</div>
@@ -174,7 +173,7 @@ export function DataTable({
 												: flexRender(
 														header.column.columnDef.header,
 														header.getContext(),
-												  )}
+													)}
 										</TableHead>
 									))}
 								</TableRow>
@@ -282,16 +281,24 @@ export function DataTable({
 				open={isDeactivateDialogOpen}
 				onOpenChange={setIsDeactivateDialogOpen}
 			>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Deactivate Supplier</DialogTitle>
-						<DialogDescription>
+				<DialogContent
+					className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							SUPPLIERS
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Deactivate Supplier
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
 							Are you sure you want to deactivate{" "}
 							<strong>{supplierToDeactivate?.name}</strong>? The supplier will
 							be marked as inactive and hidden from active lists.
 						</DialogDescription>
 					</DialogHeader>
-					<DialogFooter>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button
 							variant="outline"
 							onClick={() => {
@@ -306,6 +313,7 @@ export function DataTable({
 							variant="destructive"
 							onClick={handleDeactivateConfirm}
 							disabled={isDeactivating}
+							className="bg-red-600 hover:bg-red-700 text-white"
 						>
 							{isDeactivating ? "Deactivating..." : "Deactivate"}
 						</Button>

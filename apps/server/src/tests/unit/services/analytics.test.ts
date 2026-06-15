@@ -1,5 +1,8 @@
-import { describe, test, expect, beforeEach, mock } from "bun:test";
-import { createMockTenantDb } from "../../helpers/db-mock.factory";
+import { describe, test, expect, beforeEach } from "bun:test";
+import {
+	createMockTenantDb,
+	selectChainResolving,
+} from "../../helpers/db-mock.factory";
 
 import {
 	getDashboardKpis,
@@ -8,25 +11,23 @@ import {
 
 let mockDb: any;
 
-function selectChainResolving(value: unknown) {
-	const chain: Record<string, unknown> = {};
-	for (const m of ["from", "where", "orderBy", "limit", "offset", "leftJoin", "innerJoin", "groupBy", "having"]) {
-		chain[m] = mock(() => chain);
-	}
-	chain.then = (resolve: (v: unknown) => unknown) =>
-		Promise.resolve(value).then(resolve);
-	return chain;
-}
-
 function setupEmptyKpiMocks(db: ReturnType<typeof createMockTenantDb>) {
-	// getDashboardKpis makes 5 select() calls:
-	// 1. salesResult, 2. apptTotal, 3. apptCompleted, 4. membersResult, 5. revByBranch
+	// getDashboardKpis makes 7 select() calls (in order):
+	// 1. salesResult, 2. prevSalesResult, 3. apptTotal, 4. apptCompleted,
+	// 5. membersResult, 6. fillDrizzle (class fill rate), 7. revByBranch
 	db.select
+		.mockReturnValueOnce(selectChainResolving([{ total: null, orderCount: 0 }]))
 		.mockReturnValueOnce(selectChainResolving([{ total: null, orderCount: 0 }]))
 		.mockReturnValueOnce(selectChainResolving([{ apptCount: 0 }]))
 		.mockReturnValueOnce(selectChainResolving([{ completedCount: 0 }]))
 		.mockReturnValueOnce(selectChainResolving([{ activeCount: 0 }]))
+		.mockReturnValueOnce(
+			selectChainResolving([{ spotsBooked: null, capacity: null }]),
+		)
 		.mockReturnValueOnce(selectChainResolving([]));
+	// getDashboardKpis also makes 2 tenantDb.execute() calls (churn, ltv).
+	// Both read `.rows[0]`; the default mock returns [] (no `.rows`) → crash.
+	db.execute.mockResolvedValue({ rows: [] });
 }
 
 beforeEach(() => {
@@ -130,13 +131,31 @@ describe("getDashboardKpis — return values", () => {
 
 	test("returns correct values with actual data", async () => {
 		mockDb.select
-			.mockReturnValueOnce(selectChainResolving([{ total: "50000", orderCount: 5 }]))
+			.mockReturnValueOnce(
+				selectChainResolving([{ total: "50000", orderCount: 5 }]),
+			)
+			// prevSalesResult (previous equal-length window)
+			.mockReturnValueOnce(
+				selectChainResolving([{ total: "40000", orderCount: 4 }]),
+			)
 			.mockReturnValueOnce(selectChainResolving([{ apptCount: 10 }]))
 			.mockReturnValueOnce(selectChainResolving([{ completedCount: 7 }]))
 			.mockReturnValueOnce(selectChainResolving([{ activeCount: 15 }]))
-			.mockReturnValueOnce(selectChainResolving([
-				{ branchId: "branch-1", branchName: "KL Branch", totalRevenue: "30000", orderCount: 3 },
-			]));
+			// fillDrizzle (class fill rate)
+			.mockReturnValueOnce(
+				selectChainResolving([{ spotsBooked: null, capacity: null }]),
+			)
+			.mockReturnValueOnce(
+				selectChainResolving([
+					{
+						branchId: "branch-1",
+						branchName: "KL Branch",
+						totalRevenue: "30000",
+						orderCount: 3,
+					},
+				]),
+			);
+		mockDb.execute.mockResolvedValue({ rows: [] });
 
 		const result = await getDashboardKpis(mockDb, {
 			period: "this_month",

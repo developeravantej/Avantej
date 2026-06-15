@@ -1,5 +1,6 @@
-import { eq, and, asc, ilike } from "drizzle-orm";
+import { eq, and, asc, ilike, inArray } from "drizzle-orm";
 import { suppliers } from "@avantej-core/db/schema/tenant/suppliers";
+import { purchaseOrders } from "@avantej-core/db/schema/tenant/purchase-orders";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
@@ -21,7 +22,7 @@ export type UpdateSupplierParams = Partial<CreateSupplierParams>;
 
 export async function listSuppliers(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: { isActive?: boolean; search?: string } = {}
+	params: { isActive?: boolean; search?: string } = {},
 ): Promise<(typeof suppliers.$inferSelect)[]> {
 	const { isActive, search } = params;
 
@@ -41,8 +42,8 @@ export async function listSuppliers(
 
 export async function getSupplierById(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
-): Promise<(typeof suppliers.$inferSelect) | null> {
+	id: string,
+): Promise<typeof suppliers.$inferSelect | null> {
 	const row = await tenantDb.query.suppliers.findFirst({
 		where: eq(suppliers.id, id),
 	});
@@ -51,7 +52,7 @@ export async function getSupplierById(
 
 export async function createSupplier(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: CreateSupplierParams
+	params: CreateSupplierParams,
 ): Promise<typeof suppliers.$inferSelect> {
 	const [row] = await tenantDb
 		.insert(suppliers)
@@ -79,18 +80,30 @@ export async function createSupplier(
 export async function updateSupplier(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	id: string,
-	params: UpdateSupplierParams
+	params: UpdateSupplierParams,
 ): Promise<typeof suppliers.$inferSelect> {
 	const [row] = await tenantDb
 		.update(suppliers)
 		.set({
 			...(params.name !== undefined && { name: params.name }),
-			...(params.description !== undefined && { description: params.description }),
-			...(params.accountNumber !== undefined && { accountNumber: params.accountNumber }),
-			...(params.paymentTerms !== undefined && { paymentTerms: params.paymentTerms }),
-			...(params.contactPerson !== undefined && { contactPerson: params.contactPerson }),
-			...(params.contactPhone !== undefined && { contactPhone: params.contactPhone }),
-			...(params.officePhone !== undefined && { officePhone: params.officePhone }),
+			...(params.description !== undefined && {
+				description: params.description,
+			}),
+			...(params.accountNumber !== undefined && {
+				accountNumber: params.accountNumber,
+			}),
+			...(params.paymentTerms !== undefined && {
+				paymentTerms: params.paymentTerms,
+			}),
+			...(params.contactPerson !== undefined && {
+				contactPerson: params.contactPerson,
+			}),
+			...(params.contactPhone !== undefined && {
+				contactPhone: params.contactPhone,
+			}),
+			...(params.officePhone !== undefined && {
+				officePhone: params.officePhone,
+			}),
 			...(params.email !== undefined && { email: params.email }),
 			...(params.website !== undefined && { website: params.website }),
 			...(params.barcode !== undefined && { barcode: params.barcode }),
@@ -108,8 +121,26 @@ export async function updateSupplier(
 
 export async function deactivateSupplier(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
+	id: string,
 ): Promise<typeof suppliers.$inferSelect> {
+	// Block deactivation while the supplier has open purchase orders.
+	const openPo = await tenantDb.query.purchaseOrders.findFirst({
+		where: and(
+			eq(purchaseOrders.supplierId, id),
+			inArray(purchaseOrders.status, [
+				"approved",
+				"ordered",
+				"partially_received",
+			]),
+		),
+		columns: { id: true },
+	});
+	if (openPo) {
+		throw new Error(
+			"Cannot deactivate supplier with active purchase orders (approved, ordered, or partially received)",
+		);
+	}
+
 	const [row] = await tenantDb
 		.update(suppliers)
 		.set({ isActive: false, updatedAt: new Date() })

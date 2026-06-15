@@ -35,9 +35,19 @@ const mockOrderBy = mock(() => ({ limit: mockLimit }));
 // where() is used both as terminal (count queries resolve immediately) and as
 // the start of orderBy chain. We give it a dual-return: the Promise also has
 // .orderBy on it so the chain works. We handle this via mockImplementation per test.
-const mockSelectWhere = mock((..._args: any[]): any => Promise.resolve([{ total: 0 }]));
+const mockSelectWhere = mock((..._args: any[]): any =>
+	Promise.resolve([{ total: 0 }]),
+);
 const mockSelectFrom = mock(() => ({ where: mockSelectWhere }));
 const mockSelect = mock(() => ({ from: mockSelectFrom }));
+
+// execute() runs raw SQL — used by generateSalesOrderNumber and
+// generateCancellationNumber to read the next value of a dedicated Postgres
+// sequence (`SELECT nextval(...) AS seq`). Returns { rows: [{ seq }] }.
+// Override per-test via mockResolvedValueOnce.
+const mockExecute = mock((..._args: any[]) =>
+	Promise.resolve({ rows: [{ seq: 1 }] } as any),
+);
 
 // We override mockSelectWhere behaviour per test to return either:
 //   - [{total: N}] for count queries
@@ -46,19 +56,34 @@ const mockSelect = mock(() => ({ from: mockSelectFrom }));
 // to return different things per call within a test.
 
 // transaction mock: calls the callback with a tx that mirrors the top-level db mock
-const mockTransaction = mock(async (cb: (tx: any) => Promise<any>) => {
-	const tx = {
+// transaction mock: calls the callback with a tx that mirrors the top-level db
+// mock. The tx also exposes `transaction` so nested transactions
+// (voidCommissionSplitsForSalesOrder opens its own) re-enter the same impl.
+function makeTx(): any {
+	const tx: any = {
 		update: mockUpdate,
 		select: mockSelect,
 		insert: mockInsert,
+		execute: mockExecute,
 	};
-	return cb(tx);
-});
+	// Nested transactions (voidCommissionSplitsForSalesOrder opens its own)
+	// re-enter on a fresh tx without incrementing the outer mockTransaction
+	// counter — the cancel test asserts the OUTER transaction runs exactly once.
+	tx.transaction = mock(async (cb: (innerTx: any) => Promise<any>) =>
+		cb(makeTx()),
+	);
+	return tx;
+}
+
+const mockTransaction = mock(async (cb: (tx: any) => Promise<any>) =>
+	cb(makeTx()),
+);
 
 const mockTenantDb = {
 	insert: mockInsert,
 	update: mockUpdate,
 	select: mockSelect,
+	execute: mockExecute,
 	transaction: mockTransaction,
 	query: {
 		salesOrders: {
@@ -80,6 +105,7 @@ beforeEach(() => {
 	mockLimit.mockClear();
 	mockOrderBy.mockClear();
 	mockTransaction.mockClear();
+	mockExecute.mockClear();
 });
 
 // Helper: set up the mock chain for listSalesOrders which calls
@@ -129,7 +155,9 @@ describe("listSalesOrders", () => {
 	test("applies customerId filter", async () => {
 		setupListMock(0, []);
 
-		const result = await listSalesOrders(mockTenantDb, { customerId: "cust-1" });
+		const result = await listSalesOrders(mockTenantDb, {
+			customerId: "cust-1",
+		});
 
 		expect(result.rows).toEqual([]);
 		expect(mockSelectWhere).toHaveBeenCalledTimes(2);
@@ -147,7 +175,9 @@ describe("listSalesOrders", () => {
 	});
 
 	test("returns empty result immediately when accessibleNodeIds is empty (no DB call)", async () => {
-		const result = await listSalesOrders(mockTenantDb, { accessibleNodeIds: [] });
+		const result = await listSalesOrders(mockTenantDb, {
+			accessibleNodeIds: [],
+		});
 
 		expect(result).toEqual({ rows: [], total: 0 });
 		// No DB queries should have been made
@@ -159,7 +189,7 @@ describe("listSalesOrders", () => {
 			listSalesOrders(mockTenantDb, {
 				accessibleNodeIds: ["br1"],
 				branchId: "br2",
-			})
+			}),
 		).rejects.toThrow("FORBIDDEN: branch not in accessible scope");
 
 		expect(mockSelect).not.toHaveBeenCalled();
@@ -172,7 +202,9 @@ describe("listSalesOrders", () => {
 		];
 		setupListMock(2, fakeOrders);
 
-		const result = await listSalesOrders(mockTenantDb, { accessibleNodeIds: ["br1", "br3"] });
+		const result = await listSalesOrders(mockTenantDb, {
+			accessibleNodeIds: ["br1", "br3"],
+		});
 
 		expect(result.rows).toHaveLength(2);
 		expect(result.total).toBe(2);
@@ -187,7 +219,9 @@ describe("listSalesOrders", () => {
 		const mockLimitCapture = mock(() => ({ offset: mockOffsetCapture }));
 		const mockOrderByCapture = mock(() => ({ limit: mockLimitCapture }));
 
-		mockSelectWhere.mockImplementationOnce(() => Promise.resolve([{ total: 10 }]));
+		mockSelectWhere.mockImplementationOnce(() =>
+			Promise.resolve([{ total: 10 }]),
+		);
 		mockSelectWhere.mockImplementationOnce(() => ({
 			orderBy: mockOrderByCapture,
 		}));
@@ -205,7 +239,9 @@ describe("listSalesOrders", () => {
 		const mockLimitCapture = mock(() => ({ offset: mockOffsetCapture }));
 		const mockOrderByCapture = mock(() => ({ limit: mockLimitCapture }));
 
-		mockSelectWhere.mockImplementationOnce(() => Promise.resolve([{ total: 0 }]));
+		mockSelectWhere.mockImplementationOnce(() =>
+			Promise.resolve([{ total: 0 }]),
+		);
 		mockSelectWhere.mockImplementationOnce(() => ({
 			orderBy: mockOrderByCapture,
 		}));
@@ -238,13 +274,15 @@ describe("getSalesOrderById", () => {
 });
 
 describe("createSalesOrder", () => {
-	test("generates order number and inserts the order (total=3 → 0004)", async () => {
-		// Mock count query → total=3 → seq=4 → SO-20260227-0004
-		mockSelectWhere.mockResolvedValueOnce([{ total: 3 }]);
+	test("generates order number from sequence and inserts the order (seq=4 → SO-000004)", async () => {
+		// Order numbers now come from a dedicated Postgres sequence read via
+		// execute(SELECT nextval(...)), not a COUNT()+1. seq=4 → SO-000004
+		// (6-digit zero-padded seq, no date segment).
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: 4 }] });
 
 		const fakeOrder = {
 			id: "so1",
-			salesOrderNumber: "SO-20260227-0004",
+			salesOrderNumber: "SO-000004",
 			customerName: "Alice",
 			totalAmount: 100,
 			status: "draft",
@@ -260,18 +298,18 @@ describe("createSalesOrder", () => {
 		});
 
 		expect(result).toEqual(fakeOrder as any);
-		expect(mockSelect).toHaveBeenCalledTimes(1);
+		expect(mockExecute).toHaveBeenCalledTimes(1);
 		expect(mockInsert).toHaveBeenCalledTimes(1);
 
 		const valuesArg = mockValues.mock.calls[0]![0]!;
-		expect(valuesArg.salesOrderNumber).toBe("SO-20260227-0004");
+		expect(valuesArg.salesOrderNumber).toBe("SO-000004");
 		expect(valuesArg.status).toBe("draft");
 	});
 
-	test("generates order number 0001 when no existing orders (total=0)", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
+	test("generates order number SO-000001 when sequence returns 1", async () => {
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: 1 }] });
 
-		const fakeOrder = { id: "so1", salesOrderNumber: "SO-20260227-0001" };
+		const fakeOrder = { id: "so1", salesOrderNumber: "SO-000001" };
 		mockReturning.mockResolvedValueOnce([fakeOrder]);
 
 		await createSalesOrder(mockTenantDb, {
@@ -283,11 +321,12 @@ describe("createSalesOrder", () => {
 		});
 
 		const valuesArg = mockValues.mock.calls[0]![0]!;
-		expect(valuesArg.salesOrderNumber).toMatch(/SO-\d{8}-0001/);
+		expect(valuesArg.salesOrderNumber).toMatch(/SO-\d{6}/);
+		expect(valuesArg.salesOrderNumber).toBe("SO-000001");
 	});
 
 	test("throws 'Failed to create sales order' when insert returns empty", async () => {
-		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: 1 }] });
 		mockReturning.mockResolvedValueOnce([]);
 
 		await expect(
@@ -297,20 +336,27 @@ describe("createSalesOrder", () => {
 				createdBy: "user-1",
 				branchId: "br1",
 				totalAmount: 50,
-			})
+			}),
 		).rejects.toThrow("Failed to create sales order");
 	});
 });
 
 describe("updateSalesOrder", () => {
 	test("updates and returns the order", async () => {
-		const updatedOrder = { id: "so1", customerName: "Alice Updated", status: "confirmed" };
+		const updatedOrder = {
+			id: "so1",
+			customerName: "Alice Updated",
+			status: "confirmed",
+		};
 		const mockReturningUpd = mock(() => Promise.resolve([updatedOrder]));
 		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		const result = await updateSalesOrder(mockTenantDb, "so1", { customerName: "Alice Updated", status: "confirmed" });
+		const result = await updateSalesOrder(mockTenantDb, "so1", {
+			customerName: "Alice Updated",
+			status: "confirmed",
+		});
 
 		expect(result).toEqual(updatedOrder as any);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
@@ -322,9 +368,9 @@ describe("updateSalesOrder", () => {
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		await expect(updateSalesOrder(mockTenantDb, "nonexistent", { customerName: "X" })).rejects.toThrow(
-			"Sales order not found"
-		);
+		await expect(
+			updateSalesOrder(mockTenantDb, "nonexistent", { customerName: "X" }),
+		).rejects.toThrow("Sales order not found");
 	});
 });
 
@@ -333,7 +379,12 @@ describe("cancelSalesOrder", () => {
 		mockFindFirst.mockResolvedValueOnce(undefined);
 
 		await expect(
-			cancelSalesOrder(mockTenantDb, "nonexistent", { cancelledBy: "user-1", refundAmount: 100 }, MOCK_ACTOR)
+			cancelSalesOrder(
+				mockTenantDb,
+				"nonexistent",
+				{ cancelledBy: "user-1", refundAmount: 100 },
+				MOCK_ACTOR,
+			),
 		).rejects.toThrow("Sales order not found");
 	});
 
@@ -351,8 +402,8 @@ describe("cancelSalesOrder", () => {
 		// getSalesOrderById internal call
 		mockFindFirst.mockResolvedValueOnce(mockOrder);
 
-		// generateCancellationNumber count query → total=0
-		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
+		// generateCancellationNumber sequence read → seq=1 → CAN-...-0001
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: 1 }] });
 
 		// update returning cancelled order
 		const mockReturningUpd = mock(() => Promise.resolve([cancelledOrder]));
@@ -360,10 +411,15 @@ describe("cancelSalesOrder", () => {
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		const result = await cancelSalesOrder(mockTenantDb, "so1", {
-			cancelledBy: "user-1",
-			refundAmount: 100,
-		}, MOCK_ACTOR);
+		const result = await cancelSalesOrder(
+			mockTenantDb,
+			"so1",
+			{
+				cancelledBy: "user-1",
+				refundAmount: 100,
+			},
+			MOCK_ACTOR,
+		);
 
 		expect(result).toBeDefined();
 		expect(result.status).toBe("cancelled");
@@ -387,7 +443,7 @@ describe("cancelSalesOrder", () => {
 		};
 
 		mockFindFirst.mockResolvedValueOnce(mockOrder);
-		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: 1 }] });
 
 		const mockReturningUpd = mock(() => Promise.resolve([cancelledOrder]));
 		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
@@ -398,11 +454,16 @@ describe("cancelSalesOrder", () => {
 		});
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		const result = await cancelSalesOrder(mockTenantDb, "so2", {
-			cancelledBy: "user-2",
-			reason: "Customer request",
-			refundAmount: 200,
-		}, MOCK_ACTOR);
+		const result = await cancelSalesOrder(
+			mockTenantDb,
+			"so2",
+			{
+				cancelledBy: "user-2",
+				reason: "Customer request",
+				refundAmount: 200,
+			},
+			MOCK_ACTOR,
+		);
 
 		expect(result.cancellationReason).toBe("Customer request");
 		expect(result.cancelledBy).toBe("user-2");
@@ -413,6 +474,44 @@ describe("cancelSalesOrder", () => {
 		expect(setArg.cancellationReason).toBe("Customer request");
 		expect(setArg.cancelledBy).toBe("user-2");
 		expect(setArg.cancellationNumber).toMatch(/CAN-\d{8}-0001/);
+	});
+
+	test("reuses an existing cancellationNumber instead of minting a new one (an order never gets two)", async () => {
+		// Order already carries a cancellation number from a prior cancel.
+		const EXISTING = "CAN-19990101-0099";
+		const mockOrder = {
+			id: "so-reuse",
+			customerName: "Eve",
+			customerId: "cust-9",
+			totalAmount: 10000,
+			cancellationNumber: EXISTING,
+		};
+		const cancelledOrder = { ...mockOrder, status: "cancelled" };
+
+		mockFindFirst.mockResolvedValueOnce(mockOrder);
+		// If the (fixed) code wrongly minted a fresh number, this seq=7 would
+		// produce CAN-<today>-0007 — different from EXISTING. Reuse must win.
+		mockExecute.mockClear();
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: 7 }] });
+
+		const mockReturningUpd = mock(() => Promise.resolve([cancelledOrder]));
+		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
+		const capturedSet: any[] = [];
+		const mockSetUpd = mock((setArg: any) => {
+			capturedSet.push(setArg);
+			return { where: mockWhereUpd };
+		});
+		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
+
+		await cancelSalesOrder(
+			mockTenantDb,
+			"so-reuse",
+			{ cancelledBy: "user-9", refundAmount: 0 },
+			MOCK_ACTOR,
+		);
+
+		// The number written must be the order's existing one, not a fresh mint.
+		expect(capturedSet[0].cancellationNumber).toBe(EXISTING);
 	});
 
 	test("persists refundAmount to cancelled_amount column", async () => {
@@ -432,7 +531,7 @@ describe("cancelSalesOrder", () => {
 		};
 
 		mockFindFirst.mockResolvedValueOnce(mockOrder);
-		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
+		mockExecute.mockResolvedValueOnce({ rows: [{ seq: 1 }] });
 
 		const mockReturningUpd = mock(() => Promise.resolve([cancelledOrder]));
 		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
@@ -443,10 +542,15 @@ describe("cancelSalesOrder", () => {
 		});
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		const result = await cancelSalesOrder(mockTenantDb, "so3", {
-			cancelledBy: "user-3",
-			refundAmount: 5000, // partial refund — half of totalAmount
-		}, MOCK_ACTOR);
+		const result = await cancelSalesOrder(
+			mockTenantDb,
+			"so3",
+			{
+				cancelledBy: "user-3",
+				refundAmount: 5000, // partial refund — half of totalAmount
+			},
+			MOCK_ACTOR,
+		);
 
 		// The set() call must write cancelled_amount with the partial refund value
 		const setArg = capturedSet[0];
@@ -466,10 +570,15 @@ describe("cancelSalesOrder", () => {
 		mockFindFirst.mockResolvedValueOnce(mockOrder);
 
 		await expect(
-			cancelSalesOrder(mockTenantDb, "so4", {
-				cancelledBy: "user-4",
-				refundAmount: 20000, // > totalAmount
-			}, MOCK_ACTOR)
+			cancelSalesOrder(
+				mockTenantDb,
+				"so4",
+				{
+					cancelledBy: "user-4",
+					refundAmount: 20000, // > totalAmount
+				},
+				MOCK_ACTOR,
+			),
 		).rejects.toThrow(/out of range/);
 
 		// update() must not have been called — validation happens before the DB write
@@ -486,10 +595,15 @@ describe("cancelSalesOrder", () => {
 		mockFindFirst.mockResolvedValueOnce(mockOrder);
 
 		await expect(
-			cancelSalesOrder(mockTenantDb, "so5", {
-				cancelledBy: "user-5",
-				refundAmount: -100,
-			}, MOCK_ACTOR)
+			cancelSalesOrder(
+				mockTenantDb,
+				"so5",
+				{
+					cancelledBy: "user-5",
+					refundAmount: -100,
+				},
+				MOCK_ACTOR,
+			),
 		).rejects.toThrow(/out of range/);
 
 		expect(mockUpdate).not.toHaveBeenCalled();

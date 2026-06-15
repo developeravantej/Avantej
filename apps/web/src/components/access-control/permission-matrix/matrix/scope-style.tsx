@@ -1,6 +1,6 @@
 import { Check, X, Minus } from "lucide-react";
 import type { PermissionScope } from "@/hooks/usePermissionMatrixState";
-import type { Role } from "@/components/access-control/permission-matrix/PermissionMatrix";
+import type { Role } from "@/components/access-control/permission-matrix/permission-matrix.types";
 
 /** Snake_case → "Title Case" */
 export function formatResourceName(name: string): string {
@@ -18,17 +18,17 @@ export function formatActionName(name: string): string {
 export function getScopeIcon(scope?: PermissionScope) {
 	switch (scope) {
 		case "own":
-			return <Minus className="w-3 h-3 text-yellow-700" />;
+			return <Minus className="size-3 text-yellow-700" />;
 		case "team":
-			return <Check className="w-3 h-3 text-orange-700" />;
+			return <Check className="size-3 text-orange-700" />;
 		case "organization":
 		case "country":
 		case "region":
 		case "area":
 		case "branch":
-			return <Check className="w-3 h-3 text-green-700" />;
+			return <Check className="size-3 text-green-700" />;
 		default:
-			return <X className="w-3 h-3 text-brand-secondary-1" />;
+			return <X className="size-3 text-brand-secondary-1" />;
 	}
 }
 

@@ -1,10 +1,11 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { AppLayout } from "@/components/app-layout";
 import { authClient } from "@/lib/auth-client";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 /**
  * Authenticated Layout Route
- * 
+ *
  * This route wraps all authenticated pages and provides:
  * - Authentication check (redirects to /login if not authenticated)
  * - AppLayout with sidebar and topbar
@@ -32,8 +33,10 @@ function AuthenticatedLayout() {
 	const title = "Dashboard"; // Default title, can be overridden by child routes
 
 	return (
-		<AppLayout title={title}>
-			<Outlet />
-		</AppLayout>
+		<ErrorBoundary>
+			<AppLayout title={title}>
+				<Outlet />
+			</AppLayout>
+		</ErrorBoundary>
 	);
 }

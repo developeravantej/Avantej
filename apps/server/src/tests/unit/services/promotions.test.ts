@@ -1,5 +1,8 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
-import { createMockTenantDb } from "../../helpers/db-mock.factory";
+import {
+	createMockTenantDb,
+	selectChainResolving,
+} from "../../helpers/db-mock.factory";
 import { makePromotion } from "../../helpers/fixtures";
 
 import {
@@ -12,16 +15,6 @@ import {
 
 let mockDb: ReturnType<typeof createMockTenantDb>;
 const CUSTOMER_ID = "customer-uuid-1";
-
-function selectChainResolving(value: unknown) {
-	const chain: Record<string, unknown> = {};
-	for (const m of ["from", "where", "orderBy", "limit", "offset", "leftJoin", "innerJoin", "groupBy", "having"]) {
-		chain[m] = mock(() => chain);
-	}
-	chain.then = (resolve: (v: unknown) => unknown) =>
-		Promise.resolve(value).then(resolve);
-	return chain;
-}
 
 beforeEach(() => {
 	mockDb = createMockTenantDb();
@@ -67,7 +60,9 @@ describe("validatePromoCode", () => {
 		// Step 1: find promotion by code
 		mockDb.select.mockReturnValueOnce(selectChainResolving([promo]));
 		// Step 6: per-customer usage check
-		mockDb.select.mockReturnValueOnce(selectChainResolving([{ usageCount: 0 }]));
+		mockDb.select.mockReturnValueOnce(
+			selectChainResolving([{ usageCount: 0 }]),
+		);
 
 		const result = await validatePromoCode(mockDb, "SAVE10", {
 			customerId: CUSTOMER_ID,
@@ -88,7 +83,9 @@ describe("validatePromoCode", () => {
 		});
 
 		mockDb.select.mockReturnValueOnce(selectChainResolving([promo]));
-		mockDb.select.mockReturnValueOnce(selectChainResolving([{ usageCount: 0 }]));
+		mockDb.select.mockReturnValueOnce(
+			selectChainResolving([{ usageCount: 0 }]),
+		);
 
 		const result = await validatePromoCode(mockDb, "uppercase", {
 			customerId: CUSTOMER_ID,
@@ -103,7 +100,10 @@ describe("validatePromoCode", () => {
 		mockDb.select.mockReturnValueOnce(selectChainResolving([]));
 
 		await expect(
-			validatePromoCode(mockDb, "INVALID", { customerId: CUSTOMER_ID, orderAmount: 5000 }),
+			validatePromoCode(mockDb, "INVALID", {
+				customerId: CUSTOMER_ID,
+				orderAmount: 5000,
+			}),
 		).rejects.toThrow("Promotion code not found");
 	});
 
@@ -112,16 +112,25 @@ describe("validatePromoCode", () => {
 		mockDb.select.mockReturnValueOnce(selectChainResolving([promo]));
 
 		await expect(
-			validatePromoCode(mockDb, promo.code as string, { customerId: CUSTOMER_ID, orderAmount: 5000 }),
+			validatePromoCode(mockDb, promo.code as string, {
+				customerId: CUSTOMER_ID,
+				orderAmount: 5000,
+			}),
 		).rejects.toThrow("Promotion is not active");
 	});
 
 	test("throws when promotion has not started yet (validFrom in future)", async () => {
-		const promo = makePromotion({ isActive: true, validFrom: new Date("2099-01-01") });
+		const promo = makePromotion({
+			isActive: true,
+			validFrom: new Date("2099-01-01"),
+		});
 		mockDb.select.mockReturnValueOnce(selectChainResolving([promo]));
 
 		await expect(
-			validatePromoCode(mockDb, promo.code as string, { customerId: CUSTOMER_ID, orderAmount: 5000 }),
+			validatePromoCode(mockDb, promo.code as string, {
+				customerId: CUSTOMER_ID,
+				orderAmount: 5000,
+			}),
 		).rejects.toThrow("Promotion not yet valid");
 	});
 
@@ -134,7 +143,10 @@ describe("validatePromoCode", () => {
 		mockDb.select.mockReturnValueOnce(selectChainResolving([promo]));
 
 		await expect(
-			validatePromoCode(mockDb, promo.code as string, { customerId: CUSTOMER_ID, orderAmount: 5000 }),
+			validatePromoCode(mockDb, promo.code as string, {
+				customerId: CUSTOMER_ID,
+				orderAmount: 5000,
+			}),
 		).rejects.toThrow("Promotion has expired");
 	});
 
@@ -148,7 +160,10 @@ describe("validatePromoCode", () => {
 		mockDb.select.mockReturnValueOnce(selectChainResolving([promo]));
 
 		await expect(
-			validatePromoCode(mockDb, promo.code as string, { customerId: CUSTOMER_ID, orderAmount: 5000 }),
+			validatePromoCode(mockDb, promo.code as string, {
+				customerId: CUSTOMER_ID,
+				orderAmount: 5000,
+			}),
 		).rejects.toThrow("Promotion usage limit reached");
 	});
 
@@ -162,10 +177,15 @@ describe("validatePromoCode", () => {
 			minimumOrderAmount: 0,
 		});
 		mockDb.select.mockReturnValueOnce(selectChainResolving([promo]));
-		mockDb.select.mockReturnValueOnce(selectChainResolving([{ usageCount: 1 }]));
+		mockDb.select.mockReturnValueOnce(
+			selectChainResolving([{ usageCount: 1 }]),
+		);
 
 		await expect(
-			validatePromoCode(mockDb, promo.code as string, { customerId: CUSTOMER_ID, orderAmount: 5000 }),
+			validatePromoCode(mockDb, promo.code as string, {
+				customerId: CUSTOMER_ID,
+				orderAmount: 5000,
+			}),
 		).rejects.toThrow("You have already used this promotion");
 	});
 
@@ -179,10 +199,15 @@ describe("validatePromoCode", () => {
 			perCustomerLimit: 10,
 		});
 		mockDb.select.mockReturnValueOnce(selectChainResolving([promo]));
-		mockDb.select.mockReturnValueOnce(selectChainResolving([{ usageCount: 0 }]));
+		mockDb.select.mockReturnValueOnce(
+			selectChainResolving([{ usageCount: 0 }]),
+		);
 
 		await expect(
-			validatePromoCode(mockDb, promo.code as string, { customerId: CUSTOMER_ID, orderAmount: 5000 }),
+			validatePromoCode(mockDb, promo.code as string, {
+				customerId: CUSTOMER_ID,
+				orderAmount: 5000,
+			}),
 		).rejects.toThrow("Order amount too low for this promotion");
 	});
 
@@ -199,7 +224,9 @@ describe("validatePromoCode", () => {
 			perCustomerLimit: 10,
 		});
 		mockDb.select.mockReturnValueOnce(selectChainResolving([promo]));
-		mockDb.select.mockReturnValueOnce(selectChainResolving([{ usageCount: 0 }]));
+		mockDb.select.mockReturnValueOnce(
+			selectChainResolving([{ usageCount: 0 }]),
+		);
 
 		const result = await validatePromoCode(mockDb, promo.code as string, {
 			customerId: CUSTOMER_ID,
@@ -222,7 +249,9 @@ describe("validatePromoCode", () => {
 			maximumDiscount: null,
 		});
 		mockDb.select.mockReturnValueOnce(selectChainResolving([promo]));
-		mockDb.select.mockReturnValueOnce(selectChainResolving([{ usageCount: 0 }]));
+		mockDb.select.mockReturnValueOnce(
+			selectChainResolving([{ usageCount: 0 }]),
+		);
 
 		const result = await validatePromoCode(mockDb, promo.code as string, {
 			customerId: CUSTOMER_ID,
@@ -245,7 +274,9 @@ describe("validatePromoCode", () => {
 			maximumDiscount: null,
 		});
 		mockDb.select.mockReturnValueOnce(selectChainResolving([promo]));
-		mockDb.select.mockReturnValueOnce(selectChainResolving([{ usageCount: 0 }]));
+		mockDb.select.mockReturnValueOnce(
+			selectChainResolving([{ usageCount: 0 }]),
+		);
 
 		const result = await validatePromoCode(mockDb, promo.code as string, {
 			customerId: CUSTOMER_ID,
@@ -253,6 +284,59 @@ describe("validatePromoCode", () => {
 		});
 
 		expect(result.discountAmount).toBe(5000);
+	});
+
+	// ─── Branch-scope guard (F-CRM-06) ──────────────────────────────────────────
+	// A branch-scoped promotion (branchId != null) must reject orders whose branch
+	// does not match, and accept orders whose branch matches. Org-wide promotions
+	// (branchId == null) skip this check — covered by every test above.
+
+	test("throws when a branch-scoped promotion does not match the order branch", async () => {
+		const promo = makePromotion({
+			branchId: "branch-A",
+			isActive: true,
+			validFrom: new Date("2026-01-01"),
+			usageCount: 0,
+			usageLimit: null,
+			minimumOrderAmount: 0,
+			perCustomerLimit: 10,
+		});
+		mockDb.select.mockReturnValueOnce(selectChainResolving([promo]));
+
+		await expect(
+			validatePromoCode(mockDb, promo.code as string, {
+				customerId: CUSTOMER_ID,
+				orderAmount: 5000,
+				branchId: "branch-B", // different branch → rejected
+			}),
+		).rejects.toThrow("Promotion is not valid for this branch");
+	});
+
+	test("accepts a branch-scoped promotion when the order branch matches", async () => {
+		const promo = makePromotion({
+			branchId: "branch-A",
+			type: "percentage",
+			value: 1000,
+			isActive: true,
+			validFrom: new Date("2026-01-01"),
+			usageCount: 0,
+			usageLimit: null,
+			minimumOrderAmount: 0,
+			perCustomerLimit: 10,
+			maximumDiscount: null,
+		});
+		mockDb.select.mockReturnValueOnce(selectChainResolving([promo]));
+		mockDb.select.mockReturnValueOnce(
+			selectChainResolving([{ usageCount: 0 }]),
+		);
+
+		const result = await validatePromoCode(mockDb, promo.code as string, {
+			customerId: CUSTOMER_ID,
+			orderAmount: 10000,
+			branchId: "branch-A", // matching branch → allowed
+		});
+
+		expect(result.discountAmount).toBe(1000);
 	});
 });
 
@@ -263,9 +347,16 @@ describe("applyPromotion", () => {
 
 		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
 			const tx = createMockTenantDb();
+			// applyPromotion re-locks the promotion (SELECT … FOR UPDATE) inside the
+			// transaction to re-check isActive before incrementing usage (SP-03).
+			tx.select.mockReturnValueOnce(selectChainResolving([{ isActive: true }]));
 			const insertValues = { returning: mock(() => Promise.resolve([])) };
 			tx.insert.mockReturnValueOnce({ values: mock(() => insertValues) });
-			const setChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([updated])) })) };
+			const setChain = {
+				where: mock(() => ({
+					returning: mock(() => Promise.resolve([updated])),
+				})),
+			};
 			tx.update.mockReturnValueOnce({ set: mock(() => setChain) });
 			return cb(tx);
 		});
@@ -284,20 +375,34 @@ describe("applyPromotion", () => {
 // ─── updatePromotion ─────────────────────────────────────────────────────────
 describe("updatePromotion", () => {
 	test("allows updating mutable fields", async () => {
-		const updated = makePromotion({ name: "Updated Name", description: "New desc" });
-		const setChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([updated])) })) };
+		const updated = makePromotion({
+			name: "Updated Name",
+			description: "New desc",
+		});
+		const setChain = {
+			where: mock(() => ({
+				returning: mock(() => Promise.resolve([updated])),
+			})),
+		};
 		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
 
-		const result = await updatePromotion(mockDb, updated.id, { name: "Updated Name", description: "New desc" });
+		const result = await updatePromotion(mockDb, updated.id, {
+			name: "Updated Name",
+			description: "New desc",
+		});
 
 		expect(result.name).toBe("Updated Name");
 	});
 
 	test("throws when promotion not found", async () => {
-		const setChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([])) })) };
+		const setChain = {
+			where: mock(() => ({ returning: mock(() => Promise.resolve([])) })),
+		};
 		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
 
-		await expect(updatePromotion(mockDb, "nonexistent", { name: "x" })).rejects.toThrow("Promotion not found");
+		await expect(
+			updatePromotion(mockDb, "nonexistent", { name: "x" }),
+		).rejects.toThrow("Promotion not found");
 	});
 });
 
@@ -308,7 +413,11 @@ describe("deactivatePromotion", () => {
 
 		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
 			const tx = createMockTenantDb();
-			const setChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([deactivated])) })) };
+			const setChain = {
+				where: mock(() => ({
+					returning: mock(() => Promise.resolve([deactivated])),
+				})),
+			};
 			tx.update.mockReturnValueOnce({ set: mock(() => setChain) });
 			tx.insert.mockReturnValueOnce({ values: mock(() => Promise.resolve()) });
 			return cb(tx);

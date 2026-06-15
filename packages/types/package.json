@@ -1,28 +1,28 @@
 {
-  "name": "@avantej-core/types",
-  "version": "0.0.1",
-  "type": "module",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./src/index.ts"
-    },
-    "./better-auth": {
-      "types": "./dist/better-auth.d.ts",
-      "default": "./src/better-auth.ts"
-    }
-  },
-  "scripts": {
-    "build": "tsdown"
-  },
-  "devDependencies": {
-    "tsdown": "catalog:"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  },
-  "dependencies": {
-    "better-auth": "catalog:"
-  }
+	"name": "@avantej-core/types",
+	"version": "0.0.1",
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./src/index.ts"
+		},
+		"./better-auth": {
+			"types": "./dist/better-auth.d.ts",
+			"default": "./src/better-auth.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsdown",
+		"test": "bun test src"
+	},
+	"devDependencies": {
+		"tsdown": "catalog:"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"dependencies": {
+		"better-auth": "catalog:"
+	}
 }
-

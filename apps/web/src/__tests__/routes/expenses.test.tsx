@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, beforeAll, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
 // Capture the component passed to createFileRoute
 let ExpensesViewPage: React.ComponentType;
@@ -11,16 +11,24 @@ vi.mock("@tanstack/react-router", () => ({
 		return { component: opts.component };
 	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
+	useNavigate: vi.fn().mockReturnValue(vi.fn()),
 }));
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({
+	client: mockClient,
+	orpc: mockOrpc,
+	queryClient: {
+		invalidateQueries: () => Promise.resolve(),
+		setQueryData: () => {},
+		getQueryData: () => undefined,
+		clear: () => {},
+	},
+}));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: {
 			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
 		},
-		hasPermission: () => true,
-		hasAnyPermission: () => true,
-		hasRole: () => true,
+		hasPermission: vi.fn().mockReturnValue(true),
 	}),
 }));
 vi.mock("sonner", () => ({
@@ -28,9 +36,7 @@ vi.mock("sonner", () => ({
 }));
 
 beforeAll(async () => {
-	await import(
-		"@/routes/_authenticated/dashboard/_layout/expenses/view"
-	);
+	await import("@/routes/_authenticated/dashboard/_layout/expenses/view");
 });
 
 describe("Expenses page", () => {
@@ -53,11 +59,8 @@ describe("Expenses page", () => {
 		await waitFor(() => {
 			expect(screen.getByText("Expenses")).toBeInTheDocument();
 			expect(
-				screen.getByText("Submit and manage expense claims"),
-			).toBeInTheDocument();
-			expect(
-				screen.getAllByRole("button", { name: /submit expense/i })[0],
-			).toBeInTheDocument();
+				screen.getAllByRole("button", { name: /submit expense/i }).length,
+			).toBeGreaterThan(0);
 		});
 	});
 

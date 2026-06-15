@@ -4,8 +4,14 @@ import {
 	applyAlphaCanonical,
 	buildGhlEventKey,
 	buildGhlResponseData,
+	buildPlaceholderEmail,
+	deriveDobFromAge,
 	detectGhlEventType,
+	extractCustomFieldsForProfile,
 	extractGhlContactPayload,
+	findHierarchyBranchByName,
+	isPlaceholderEmail,
+	matchStaffByName,
 	verifyGhlWebhookAuth,
 } from "./gohighlevel.service";
 
@@ -197,15 +203,35 @@ describe("GoHighLevel Service", () => {
 	});
 
 	test("throws when contact id is missing", () => {
-		expect(() => extractGhlContactPayload({ email: "missing-id@example.com" })).toThrow(
-			"Missing required field: contact.id"
+		expect(() =>
+			extractGhlContactPayload({ email: "missing-id@example.com" }),
+		).toThrow("Missing required field: contact.id");
+	});
+
+	test("throws when both email and phone are missing", () => {
+		expect(() => extractGhlContactPayload({ id: "ghl_777" })).toThrow(
+			"Missing required field: email or phone",
 		);
 	});
 
-	test("throws when email is missing", () => {
-		expect(() => extractGhlContactPayload({ id: "ghl_777" })).toThrow(
-			"Missing required field: email"
-		);
+	test("synthesizes placeholder email when only phone provided", () => {
+		const extracted = extractGhlContactPayload({
+			id: "ghl_phone_only",
+			phone: "+60123456789",
+		});
+		expect(extracted.contactId).toBe("ghl_phone_only");
+		expect(extracted.email).toBe("ghl-ghl_phone_only@ghl.placeholder");
+		expect(extracted.emailIsPlaceholder).toBe(true);
+		expect(extracted.phone).toBe("+60123456789");
+	});
+
+	test("emailIsPlaceholder is false when real email present", () => {
+		const extracted = extractGhlContactPayload({
+			id: "ghl_real",
+			email: "real@example.com",
+		});
+		expect(extracted.emailIsPlaceholder).toBe(false);
+		expect(extracted.email).toBe("real@example.com");
 	});
 
 	test("detects delete event type from explicit event type", () => {
@@ -270,7 +296,7 @@ describe("GoHighLevel Service", () => {
 				headerSecret: undefined,
 				querySecret: undefined,
 				webhookSecret: "super-secret",
-			})
+			}),
 		).resolves.toBeUndefined();
 	});
 
@@ -283,7 +309,7 @@ describe("GoHighLevel Service", () => {
 				headerSecret: undefined,
 				querySecret: undefined,
 				webhookSecret: "super-secret",
-			})
+			}),
 		).resolves.toBeUndefined();
 	});
 
@@ -296,13 +322,15 @@ describe("GoHighLevel Service", () => {
 				headerSecret: undefined,
 				querySecret: undefined,
 				webhookSecret: "super-secret",
-			})
+			}),
 		).resolves.toBeUndefined();
 	});
 
 	test("accepts x-wh-signature when webhook secret is configured", async () => {
 		const rawBody = JSON.stringify({ id: "abc" });
-		const signature = createHash("sha256").update(`${"super-secret"}.${rawBody}`).digest("hex");
+		const signature = createHash("sha256")
+			.update(`${"super-secret"}.${rawBody}`)
+			.digest("hex");
 
 		await expect(
 			verifyGhlWebhookAuth({
@@ -312,7 +340,7 @@ describe("GoHighLevel Service", () => {
 				headerSecret: undefined,
 				querySecret: undefined,
 				webhookSecret: "super-secret",
-			})
+			}),
 		).resolves.toBeUndefined();
 	});
 
@@ -325,7 +353,7 @@ describe("GoHighLevel Service", () => {
 				headerSecret: undefined,
 				querySecret: undefined,
 				webhookSecret: "super-secret",
-			})
+			}),
 		).rejects.toThrow("Missing or invalid webhook authorization");
 	});
 });
@@ -382,5 +410,279 @@ describe("applyAlphaCanonical (α strict canonical)", () => {
 		});
 		expect(linked).toEqual({ skip: false });
 		expect(unlinked).toEqual({ skip: false });
+	});
+
+	// Phase 2 carve-out: placeholder email backfill
+	test("update with placeholder existing + real incoming → skip:false (backfill)", () => {
+		const result = applyAlphaCanonical({
+			existingLink: { id: "lnk_1" },
+			eventType: "update",
+			existingUserEmail: "ghl-abc@ghl.placeholder",
+			incomingEmailIsPlaceholder: false,
+		});
+		expect(result).toEqual({ skip: false });
+	});
+
+	test("update with placeholder existing + placeholder incoming → still skipped", () => {
+		const result = applyAlphaCanonical({
+			existingLink: { id: "lnk_1" },
+			eventType: "update",
+			existingUserEmail: "ghl-abc@ghl.placeholder",
+			incomingEmailIsPlaceholder: true,
+		});
+		expect(result).toEqual({ skip: true, reason: "avantej-canonical" });
+	});
+
+	test("update with real existing email is unaffected by carve-out", () => {
+		const result = applyAlphaCanonical({
+			existingLink: { id: "lnk_1" },
+			eventType: "update",
+			existingUserEmail: "real@example.com",
+			incomingEmailIsPlaceholder: false,
+		});
+		expect(result).toEqual({ skip: true, reason: "avantej-canonical" });
+	});
+
+	test("delete on placeholder still canonical-skipped (no backfill via delete)", () => {
+		const result = applyAlphaCanonical({
+			existingLink: { id: "lnk_1" },
+			eventType: "delete",
+			existingUserEmail: "ghl-abc@ghl.placeholder",
+			incomingEmailIsPlaceholder: false,
+		});
+		expect(result).toEqual({ skip: true, reason: "avantej-canonical" });
+	});
+
+	// Phase 3 carve-out: GHL only fires create, so backfill happens on re-submit.
+	test("create re-submit with placeholder existing + real incoming → skip:false (backfill)", () => {
+		const result = applyAlphaCanonical({
+			existingLink: { id: "lnk_1" },
+			eventType: "create",
+			existingUserEmail: "ghl-xyz@ghl.placeholder",
+			incomingEmailIsPlaceholder: false,
+		});
+		expect(result).toEqual({ skip: false });
+	});
+
+	test("create re-submit with placeholder + placeholder → still already-linked", () => {
+		const result = applyAlphaCanonical({
+			existingLink: { id: "lnk_1" },
+			eventType: "create",
+			existingUserEmail: "ghl-xyz@ghl.placeholder",
+			incomingEmailIsPlaceholder: true,
+		});
+		expect(result).toEqual({ skip: true, reason: "already-linked" });
+	});
+
+	test("create re-submit with real existing email is unaffected by carve-out", () => {
+		const result = applyAlphaCanonical({
+			existingLink: { id: "lnk_1" },
+			eventType: "create",
+			existingUserEmail: "real@example.com",
+			incomingEmailIsPlaceholder: false,
+		});
+		expect(result).toEqual({ skip: true, reason: "already-linked" });
+	});
+});
+
+describe("Placeholder email helpers", () => {
+	test("buildPlaceholderEmail produces ghl-<id>@ghl.placeholder", () => {
+		expect(buildPlaceholderEmail("abc123")).toBe("ghl-abc123@ghl.placeholder");
+	});
+
+	test("isPlaceholderEmail detects placeholder domain", () => {
+		expect(isPlaceholderEmail("ghl-xyz@ghl.placeholder")).toBe(true);
+		expect(isPlaceholderEmail("real@example.com")).toBe(false);
+		expect(isPlaceholderEmail(null)).toBe(false);
+		expect(isPlaceholderEmail("")).toBe(false);
+	});
+});
+
+describe("deriveDobFromAge", () => {
+	test("returns Jan 1 of (currentYear - age) as UTC", () => {
+		const now = new Date(Date.UTC(2026, 4, 19));
+		const dob = deriveDobFromAge(30, now);
+		expect(dob).not.toBeNull();
+		expect(dob?.toISOString()).toBe("1996-01-01T00:00:00.000Z");
+	});
+
+	test("returns null for non-positive or absurd age", () => {
+		expect(deriveDobFromAge(0)).toBeNull();
+		expect(deriveDobFromAge(-5)).toBeNull();
+		expect(deriveDobFromAge(200)).toBeNull();
+		expect(deriveDobFromAge(Number.NaN)).toBeNull();
+	});
+
+	test("floors fractional age", () => {
+		const now = new Date(Date.UTC(2026, 0, 1));
+		const dob = deriveDobFromAge(25.9, now);
+		expect(dob?.getUTCFullYear()).toBe(2001);
+	});
+});
+
+describe("findHierarchyBranchByName", () => {
+	const branches = [
+		{ id: "b1", name: "KL Branch", type: "branch" },
+		{ id: "b2", name: "Penang Branch", type: "branch" },
+		{ id: "c1", name: "Malaysia", type: "country" },
+	];
+
+	test("matches branch name case-insensitively", () => {
+		expect(findHierarchyBranchByName(branches, "kl branch")).toBe("b1");
+		expect(findHierarchyBranchByName(branches, "  PENANG Branch  ")).toBe("b2");
+	});
+
+	test("returns null when no branch matches", () => {
+		expect(findHierarchyBranchByName(branches, "Singapore")).toBeNull();
+		expect(findHierarchyBranchByName(branches, "")).toBeNull();
+		expect(findHierarchyBranchByName(branches, null)).toBeNull();
+	});
+
+	test("ignores non-branch nodes even if name matches", () => {
+		expect(findHierarchyBranchByName(branches, "Malaysia")).toBeNull();
+	});
+});
+
+describe("extractCustomFieldsForProfile", () => {
+	test("extracts standard fields from nested contact", () => {
+		const fields = extractCustomFieldsForProfile({
+			contact: {
+				id: "c1",
+				gender: "female",
+				age: "29",
+				selected_country: "Malaysia",
+				selected_location: "KL Branch",
+				primary_staff: "Coach A",
+				referrer_phone: "+60111222333",
+				lead_acquisition_type: "Walk-in",
+				lead_originator: "Instagram Campaign",
+			},
+		});
+		expect(fields.gender).toBe("female");
+		expect(fields.age).toBe(29);
+		expect(fields.selectedCountry).toBe("Malaysia");
+		expect(fields.selectedLocation).toBe("KL Branch");
+		expect(fields.primaryStaff).toBe("Coach A");
+		expect(fields.referrerPhone).toBe("+60111222333");
+		expect(fields.leadAcquisitionType).toBe("Walk-in");
+		expect(fields.leadOriginator).toBe("Instagram Campaign");
+	});
+
+	test("accepts sys_-prefixed and ops_-prefixed variants", () => {
+		const fields = extractCustomFieldsForProfile({
+			sys_selected_location: "Penang Branch",
+			ops_primary_staff: "Coach B",
+			sys_lead_acquisition_type: "Referral",
+			sys_lead_originator: "Friend",
+		});
+		expect(fields.selectedLocation).toBe("Penang Branch");
+		expect(fields.primaryStaff).toBe("Coach B");
+		expect(fields.leadAcquisitionType).toBe("Referral");
+		expect(fields.leadOriginator).toBe("Friend");
+	});
+
+	test("invalid age string yields null", () => {
+		const fields = extractCustomFieldsForProfile({ age: "abc" });
+		expect(fields.age).toBeNull();
+	});
+
+	test("empty strings yield null", () => {
+		const fields = extractCustomFieldsForProfile({
+			gender: "",
+			selected_location: "",
+		});
+		expect(fields.gender).toBeNull();
+		expect(fields.selectedLocation).toBeNull();
+	});
+
+	test("tolerates lead_originatator typo (matches GHL field id)", () => {
+		const fields = extractCustomFieldsForProfile({
+			contact: { lead_originatator: "Typo Source" },
+		});
+		expect(fields.leadOriginator).toBe("Typo Source");
+	});
+
+	test("treats literal 'null'/'undefined' strings from GHL merge tags as absent", () => {
+		const fields = extractCustomFieldsForProfile({
+			contact: {
+				gender: "null",
+				selected_location: "undefined",
+				lead_acquisition_type: "NULL",
+				lead_originator: "Undefined",
+			},
+		});
+		expect(fields.gender).toBeNull();
+		expect(fields.selectedLocation).toBeNull();
+		expect(fields.leadAcquisitionType).toBeNull();
+		expect(fields.leadOriginator).toBeNull();
+	});
+});
+
+describe("extractCustomFieldsForProfile — gender normalization", () => {
+	test("lowercases gender from GHL", () => {
+		const cf = extractCustomFieldsForProfile({ contact: { gender: "Male" } });
+		expect(cf.gender).toBe("male");
+	});
+	test("maps prefer-not-to-say and unknowns", () => {
+		expect(
+			extractCustomFieldsForProfile({
+				contact: { gender: "Prefer not to say" },
+			}).gender,
+		).toBe("prefer_not_to_say");
+		expect(
+			extractCustomFieldsForProfile({ contact: { gender: "banana" } }).gender,
+		).toBeNull();
+	});
+});
+
+describe("matchStaffByName", () => {
+	const staff = [
+		{ memberId: "m-afifah", name: "AFIFAH ZAHRA BINTI HAS TUAH" },
+		{ memberId: "m-alex", name: "Alex Tan" },
+		{ memberId: "m-alex2", name: "Alex Tan" },
+	];
+	test("unique case-insensitive trimmed match returns member id", () => {
+		expect(matchStaffByName(staff, "  afifah zahra binti has tuah ")).toBe(
+			"m-afifah",
+		);
+	});
+	test("ambiguous match (duplicate names) returns null", () => {
+		expect(matchStaffByName(staff, "Alex Tan")).toBeNull();
+	});
+	test("no match returns null", () => {
+		expect(matchStaffByName(staff, "Nobody Here")).toBeNull();
+	});
+	test("nullish / empty name returns null", () => {
+		expect(matchStaffByName(staff, null)).toBeNull();
+		expect(matchStaffByName(staff, undefined)).toBeNull();
+		expect(matchStaffByName(staff, "   ")).toBeNull();
+	});
+});
+
+describe("extractCustomFieldsForProfile — contact detail fields", () => {
+	test("extracts emergency contact, address, dob, passport", () => {
+		const cf = extractCustomFieldsForProfile({
+			contact: {
+				emergency_name: "Jane Doe",
+				emergency_contact_no: "+60111222333",
+				full_address: "12 Jalan Ampang, KL",
+				date_of_birth: "1989-04-01",
+				nric_no__id_no: "A1234567",
+			},
+		});
+		expect(cf.emergencyContactName).toBe("Jane Doe");
+		expect(cf.emergencyContactPhone).toBe("+60111222333");
+		expect(cf.address).toBe("12 Jalan Ampang, KL");
+		expect(cf.dateOfBirth).toBe("1989-04-01");
+		expect(cf.idPassport).toBe("A1234567");
+	});
+	test("leaves new fields null when absent", () => {
+		const cf = extractCustomFieldsForProfile({
+			contact: { id: "x", email: "a@b.com" },
+		});
+		expect(cf.emergencyContactName).toBeNull();
+		expect(cf.address).toBeNull();
+		expect(cf.dateOfBirth).toBeNull();
+		expect(cf.idPassport).toBeNull();
 	});
 });

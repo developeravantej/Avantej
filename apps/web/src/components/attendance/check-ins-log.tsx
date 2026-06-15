@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -111,19 +112,32 @@ function DeleteDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-sm">
-				<DialogHeader>
-					<DialogTitle>Remove Check-in Record</DialogTitle>
+			<DialogContent
+				className="sm:max-w-sm p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						ATTENDANCE
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Remove Check-in Record
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
+						This action cannot be undone.
+					</DialogDescription>
 				</DialogHeader>
-				<p className="text-muted-foreground text-sm">
-					This will permanently delete the check-in record for{" "}
-					<span className="font-medium text-foreground">
-						{row?.clientName ?? "this client"}
-					</span>
-					. Appointment attendance flags will be reverted. This action cannot be
-					undone.
-				</p>
-				<DialogFooter className="gap-2">
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					<p className="text-[#737373] text-sm">
+						This will permanently delete the check-in record for{" "}
+						<span className="font-medium text-foreground">
+							{row?.clientName ?? "this client"}
+						</span>
+						. Appointment attendance flags will be reverted. This action cannot
+						be undone.
+					</p>
+				</div>
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 					<Button
 						variant="outline"
 						onClick={() => onOpenChange(false)}
@@ -132,7 +146,7 @@ function DeleteDialog({
 						Cancel
 					</Button>
 					<Button
-						variant="destructive"
+						className="bg-red-600 hover:bg-red-700 text-white"
 						onClick={() => deleteMutation.mutate()}
 						disabled={deleteMutation.isPending}
 					>
@@ -164,7 +178,7 @@ export function CheckInsLog({
 			accessorKey: "checkedInAt",
 			header: "Time",
 			cell: ({ row }) => (
-				<span className="whitespace-nowrap text-muted-foreground text-sm">
+				<span className="whitespace-nowrap text-[#737373] text-sm">
 					{formatDateTime(row.original.checkedInAt)}
 				</span>
 			),
@@ -174,8 +188,10 @@ export function CheckInsLog({
 			header: "Name",
 			cell: ({ row }) => (
 				<div className="flex flex-col">
-					<span className="font-medium text-sm">{row.original.clientName || "Unknown client"}</span>
-					<span className="text-muted-foreground text-xs capitalize">
+					<span className="font-medium text-sm">
+						{row.original.clientName || "Unknown client"}
+					</span>
+					<span className="text-[#737373] text-xs capitalize">
 						{row.original.clientType === "walk_in" ? "Walk-in" : "Member"}
 					</span>
 				</div>
@@ -195,7 +211,7 @@ export function CheckInsLog({
 			accessorKey: "checkedInByName",
 			header: "Staff",
 			cell: ({ row }) => (
-				<span className="text-muted-foreground text-sm">
+				<span className="text-[#737373] text-sm">
 					{row.original.checkedInByName ?? "—"}
 				</span>
 			),
@@ -211,11 +227,11 @@ export function CheckInsLog({
 							<Button
 								variant="ghost"
 								size="sm"
-								className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+								className="size-7 p-0 text-rose-600 hover:bg-rose-50 hover:text-rose-600"
 								onClick={() => setDeleteTarget(row.original)}
 								aria-label="Delete check-in"
 							>
-								<Trash2 className="h-4 w-4" />
+								<Trash2 className="size-4" />
 							</Button>
 						),
 					} satisfies ColumnDef<CheckInRow>,

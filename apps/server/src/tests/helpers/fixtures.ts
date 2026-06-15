@@ -4,6 +4,52 @@ const BRANCH_NODE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
 const MEMBER_ID = "bbbbbbbb-0000-4000-8000-000000000001";
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Package Instance Fixtures
+//
+// XOR REQUIREMENT — pkg_owner_xor constraint (migration 0027_walkin_commission.sql):
+//   (client_id IS NULL) <> (walk_in_customer_id IS NULL)
+//
+// Exactly ONE of clientId or walkInCustomerId must be supplied.
+// Passing both or neither throws an early descriptive error rather than
+// propagating a confusing Postgres check constraint violation.
+//
+// Most tests want a regular client — pass { clientId, ... }.
+// Walk-in tests should pass { walkInCustomerId, ... } instead.
+// ──────────────────────────────────────────────────────────────────────────────
+export function makePackageInstance(opts: {
+	serviceId: string;
+	clientId?: string | null;
+	walkInCustomerId?: string | null;
+	[key: string]: unknown;
+}) {
+	const { clientId = null, walkInCustomerId = null, serviceId, ...rest } = opts;
+	const hasClient = clientId != null;
+	const hasWalkIn = walkInCustomerId != null;
+	if (hasClient === hasWalkIn) {
+		throw new Error(
+			"makePackageInstance: must supply exactly one of clientId or walkInCustomerId (XOR). " +
+				`Received clientId=${JSON.stringify(clientId)}, walkInCustomerId=${JSON.stringify(walkInCustomerId)}.`,
+		);
+	}
+
+	const now = new Date();
+	return {
+		id: randomUUID(),
+		serviceId,
+		clientId,
+		walkInCustomerId,
+		source: "assigned" as string,
+		paymentStatus: "pending" as string,
+		creditsTotal: 1,
+		creditsUsed: 0,
+		status: "active" as string,
+		startsAt: now,
+		expiresAt: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000),
+		...rest,
+	};
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Expense Fixtures
 // ──────────────────────────────────────────────────────────────────────────────
 export function makeExpense(overrides: Partial<Record<string, unknown>> = {}) {
@@ -109,7 +155,11 @@ export function makePromotion(
 ) {
 	return {
 		id: randomUUID(),
-		branchId: BRANCH_NODE_ID,
+		// Org-wide by default (applies to any branch). The branch-scope guard in
+		// validatePromoCode only engages when branchId is non-null, so tests that
+		// exercise discount math don't need to thread a matching params.branchId.
+		// Override with a node id to test branch-scoped rejection.
+		branchId: null,
 		code: "PROMO10",
 		name: "10% Off Promo",
 		description: null,
@@ -224,7 +274,9 @@ export function makeMember(overrides: Partial<Record<string, unknown>> = {}) {
 // ──────────────────────────────────────────────────────────────────────────────
 // Class Slot Fixtures
 // ──────────────────────────────────────────────────────────────────────────────
-export function makeClassSlot(overrides: Partial<Record<string, unknown>> = {}) {
+export function makeClassSlot(
+	overrides: Partial<Record<string, unknown>> = {},
+) {
 	return {
 		id: randomUUID(),
 		branchId: BRANCH_NODE_ID,

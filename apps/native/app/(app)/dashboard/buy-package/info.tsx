@@ -1,14 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
-import {
-	Image,
-	ScrollView,
-	Text,
-	TextInput,
-	TouchableOpacity,
-	View,
-} from "react-native";
+import { Image } from "expo-image";
+import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
@@ -44,16 +38,12 @@ export default function InfoScreen() {
 				{/* Header */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
-						<TouchableOpacity
+						<Pressable
 							onPress={() => router.back()}
-							className="mr-3 h-10 w-10 items-center justify-center"
+							className="mr-3 size-10 items-center justify-center"
 						>
-							<Ionicons
-								name="arrow-back"
-								size={24}
-								color={colors.primary[1]}
-							/>
-						</TouchableOpacity>
+							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
+						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-black">
 							Additional Information
 						</Text>
@@ -67,7 +57,7 @@ export default function InfoScreen() {
 							uri: "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=800",
 						}}
 						className="h-full w-full"
-						resizeMode="cover"
+						contentFit="cover"
 					/>
 				</View>
 
@@ -123,7 +113,7 @@ export default function InfoScreen() {
 											{isCompleted ? (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-6 w-6 items-center justify-center rounded-full border-2 border-primary-1"
+														className="size-6 items-center justify-center rounded-full border-2 border-primary-1"
 														style={{
 															backgroundColor: colors.primary[1],
 															zIndex: 2,
@@ -139,14 +129,14 @@ export default function InfoScreen() {
 											) : isActive ? (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-6 w-6 items-center justify-center rounded-full border-2 border-primary-1"
+														className="size-6 items-center justify-center rounded-full border-2 border-primary-1"
 														style={{
 															backgroundColor: colors.primary[1],
 															zIndex: 2,
 														}}
 													>
 														<View
-															className="h-2 w-2 rounded-full"
+															className="size-2 rounded-full"
 															style={{ backgroundColor: colors.primary[2] }}
 														/>
 													</View>
@@ -154,7 +144,7 @@ export default function InfoScreen() {
 											) : (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-6 w-6 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
+														className="size-6 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
 														style={{ zIndex: 2 }}
 													>
 														<Text className="font-semibold text-primary-1 text-xs">
@@ -221,15 +211,15 @@ export default function InfoScreen() {
 				edges={["bottom"]}
 				className="border-secondary-3 border-t bg-primary-2"
 			>
-				<View className="px-4 py-4">
-					<TouchableOpacity
+				<View className="p-4">
+					<Pressable
 						onPress={handleContinue}
 						className="items-center justify-center rounded-xl bg-primary-1 py-4"
 					>
 						<Text className="font-semibold text-base text-primary-2">
 							Continue
 						</Text>
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 			</SafeAreaView>
 		</Container>

@@ -81,16 +81,18 @@ export function BranchCombobox({
 					variant="outline"
 					role="combobox"
 					aria-expanded={open}
+					aria-controls="branch-combobox-list"
 					disabled={disabled}
 					className="w-full justify-between font-normal"
 				>
 					<span className={cn(!selectedName && "text-muted-foreground")}>
 						{selectedName ?? placeholder}
 					</span>
-					<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+					<ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
 				</Button>
 			</PopoverTrigger>
 			<PopoverContent
+				id="branch-combobox-list"
 				className="w-[--radix-popover-trigger-width] p-0"
 				align="start"
 			>
@@ -120,7 +122,7 @@ export function BranchCombobox({
 							>
 								<Check
 									className={cn(
-										"h-4 w-4 shrink-0",
+										"size-4 shrink-0",
 										value === branch.id ? "opacity-100" : "opacity-0",
 									)}
 								/>

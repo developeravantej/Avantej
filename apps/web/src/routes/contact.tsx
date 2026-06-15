@@ -1,19 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MessageSquare, Zap, Building2 } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "@tanstack/react-form";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-	Form,
-	FormControl,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/contact")({
@@ -29,30 +21,46 @@ const contactSchema = z.object({
 
 type ContactForm = z.infer<typeof contactSchema>;
 
+function FieldError({ errors }: { errors: unknown[] }) {
+	if (errors.length === 0) return null;
+	return (
+		<>
+			{errors.map((error, i) => (
+				<p key={i} className="text-sm text-destructive">
+					{typeof error === "string"
+						? error
+						: (error as { message?: string })?.message || "Invalid value"}
+				</p>
+			))}
+		</>
+	);
+}
+
 function ContactPage() {
-	const form = useForm<ContactForm>({
-		resolver: zodResolver(contactSchema),
+	const form = useForm({
 		defaultValues: {
 			name: "",
 			email: "",
 			subject: "",
 			message: "",
+		} as ContactForm,
+		validators: { onSubmit: contactSchema },
+		onSubmit: async ({ value }) => {
+			const mailtoUrl = `mailto:support@avantej.com?subject=${encodeURIComponent(value.subject)}&body=${encodeURIComponent(`From: ${value.name} (${value.email})\n\n${value.message}`)}`;
+			window.location.href = mailtoUrl;
+			toast.success("Opening your email client...");
 		},
 	});
-
-	const onSubmit = (data: ContactForm) => {
-		const mailtoUrl = `mailto:support@avantej.com?subject=${encodeURIComponent(data.subject)}&body=${encodeURIComponent(`From: ${data.name} (${data.email})\n\n${data.message}`)}`;
-		window.location.href = mailtoUrl;
-		toast.success("Opening your email client...");
-	};
 
 	return (
 		<div className="min-h-screen bg-white">
 			{/* Hero Section */}
-			<section className="py-20 bg-gray-50">
+			<section className="py-20 bg-zinc-50">
 				<div className="container mx-auto px-4">
-					<h1 className="text-4xl font-bold text-center mb-4">Contact Us</h1>
-					<p className="text-xl text-center text-gray-600 max-w-3xl mx-auto">
+					<h1 className="text-4xl font-semibold text-center mb-4">
+						Contact Us
+					</h1>
+					<p className="text-xl text-center text-zinc-600 max-w-3xl mx-auto">
 						Have questions or need assistance? Our team is here to help you get
 						the most out of Avantej.
 					</p>
@@ -65,40 +73,40 @@ function ContactPage() {
 					<div className="grid md:grid-cols-2 gap-12 max-w-4xl mx-auto">
 						<div className="space-y-8">
 							<div className="flex items-start gap-4">
-								<div className="w-12 h-12 bg-black/5 rounded-full flex items-center justify-center flex-shrink-0">
-									<MessageSquare className="h-6 w-6 text-black" />
+								<div className="size-12 bg-black/5 rounded-full flex items-center justify-center flex-shrink-0">
+									<MessageSquare className="size-6 text-black" />
 								</div>
 								<div>
 									<h3 className="text-xl font-semibold mb-2">
 										General Inquiries
 									</h3>
-									<p className="text-gray-600 mb-1">Email: info@avantej.com</p>
-									<p className="text-gray-600">Phone: (800) 123-4567</p>
+									<p className="text-zinc-600 mb-1">Email: info@avantej.com</p>
+									<p className="text-zinc-600">Phone: (800) 123-4567</p>
 								</div>
 							</div>
 
 							<div className="flex items-start gap-4">
-								<div className="w-12 h-12 bg-black/5 rounded-full flex items-center justify-center flex-shrink-0">
-									<Zap className="h-6 w-6 text-black" />
+								<div className="size-12 bg-black/5 rounded-full flex items-center justify-center flex-shrink-0">
+									<Zap className="size-6 text-black" />
 								</div>
 								<div>
 									<h3 className="text-xl font-semibold mb-2">
 										Technical Support
 									</h3>
-									<p className="text-gray-600 mb-1">
+									<p className="text-zinc-600 mb-1">
 										Email: support@avantej.com
 									</p>
-									<p className="text-gray-600">Phone: (800) 765-4321</p>
+									<p className="text-zinc-600">Phone: (800) 765-4321</p>
 								</div>
 							</div>
 
 							<div className="flex items-start gap-4">
-								<div className="w-12 h-12 bg-black/5 rounded-full flex items-center justify-center flex-shrink-0">
-									<Building2 className="h-6 w-6 text-black" />
+								<div className="size-12 bg-black/5 rounded-full flex items-center justify-center flex-shrink-0">
+									<Building2 className="size-6 text-black" />
 								</div>
 								<div>
 									<h3 className="text-xl font-semibold mb-2">Headquarters</h3>
-									<p className="text-gray-600">
+									<p className="text-zinc-600">
 										123 Business Plaza
 										<br />
 										Suite 500
@@ -115,10 +123,10 @@ function ContactPage() {
 										type="button"
 										aria-disabled="true"
 										onClick={() => toast.info("Social links coming soon")}
-										className="w-10 h-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-black hover:text-white transition-colors"
+										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-zinc-950 hover:text-white transition-colors"
 									>
 										<svg
-											className="h-5 w-5"
+											className="size-5"
 											fill="currentColor"
 											viewBox="0 0 24 24"
 											aria-hidden="true"
@@ -134,10 +142,10 @@ function ContactPage() {
 										type="button"
 										aria-disabled="true"
 										onClick={() => toast.info("Social links coming soon")}
-										className="w-10 h-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-black hover:text-white transition-colors"
+										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-zinc-950 hover:text-white transition-colors"
 									>
 										<svg
-											className="h-5 w-5"
+											className="size-5"
 											fill="currentColor"
 											viewBox="0 0 24 24"
 											aria-hidden="true"
@@ -149,10 +157,10 @@ function ContactPage() {
 										type="button"
 										aria-disabled="true"
 										onClick={() => toast.info("Social links coming soon")}
-										className="w-10 h-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-black hover:text-white transition-colors"
+										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-zinc-950 hover:text-white transition-colors"
 									>
 										<svg
-											className="h-5 w-5"
+											className="size-5"
 											fill="currentColor"
 											viewBox="0 0 24 24"
 											aria-hidden="true"
@@ -168,10 +176,10 @@ function ContactPage() {
 										type="button"
 										aria-disabled="true"
 										onClick={() => toast.info("Social links coming soon")}
-										className="w-10 h-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-black hover:text-white transition-colors"
+										className="size-10 bg-black/5 rounded-full flex items-center justify-center hover:bg-zinc-950 hover:text-white transition-colors"
 									>
 										<svg
-											className="h-5 w-5"
+											className="size-5"
 											fill="currentColor"
 											viewBox="0 0 24 24"
 											aria-hidden="true"
@@ -189,86 +197,96 @@ function ContactPage() {
 
 						<div className="bg-white p-8 rounded-lg shadow-md">
 							<h3 className="text-xl font-semibold mb-6">Send Us a Message</h3>
-							<Form {...form}>
-								<form
-									onSubmit={form.handleSubmit(onSubmit)}
-									className="space-y-4"
-								>
-									<div className="grid grid-cols-2 gap-4">
-										<FormField
-											control={form.control}
-											name="name"
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>Name</FormLabel>
-													<FormControl>
-														<Input placeholder="Your name" {...field} />
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-										<FormField
-											control={form.control}
-											name="email"
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>Email</FormLabel>
-													<FormControl>
-														<Input
-															type="email"
-															placeholder="Your email"
-															{...field}
-														/>
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-									</div>
-									<FormField
-										control={form.control}
-										name="subject"
-										render={({ field }) => (
-											<FormItem>
-												<FormLabel>Subject</FormLabel>
-												<FormControl>
-													<Input
-														placeholder="Subject of your message"
-														{...field}
-													/>
-												</FormControl>
-												<FormMessage />
-											</FormItem>
+							{/* react-doctor-disable-next-line react-doctor/no-prevent-default -- TanStack Router SPA */}
+							<form
+								onSubmit={(e) => {
+									e.preventDefault();
+									e.stopPropagation();
+									form.handleSubmit();
+								}}
+								className="space-y-4"
+							>
+								<div className="grid grid-cols-2 gap-4">
+									<form.Field name="name">
+										{(field) => (
+											<div className="space-y-2">
+												<Label htmlFor={field.name}>Name</Label>
+												<Input
+													id={field.name}
+													placeholder="Your name"
+													value={field.state.value}
+													onBlur={field.handleBlur}
+													onChange={(e) => field.handleChange(e.target.value)}
+												/>
+												<FieldError errors={field.state.meta.errors} />
+											</div>
 										)}
-									/>
-									<FormField
-										control={form.control}
-										name="message"
-										render={({ field }) => (
-											<FormItem>
-												<FormLabel>Message</FormLabel>
-												<FormControl>
-													<Textarea
-														rows={4}
-														placeholder="How can we help you?"
-														{...field}
-													/>
-												</FormControl>
-												<FormMessage />
-											</FormItem>
+									</form.Field>
+
+									<form.Field name="email">
+										{(field) => (
+											<div className="space-y-2">
+												<Label htmlFor={field.name}>Email</Label>
+												<Input
+													id={field.name}
+													type="email"
+													placeholder="Your email"
+													value={field.state.value}
+													onBlur={field.handleBlur}
+													onChange={(e) => field.handleChange(e.target.value)}
+												/>
+												<FieldError errors={field.state.meta.errors} />
+											</div>
 										)}
-									/>
-									<Button
-										type="submit"
-										size="lg"
-										className="w-full bg-black text-white hover:bg-black/90"
-										disabled={form.formState.isSubmitting}
-									>
-										Send Message
-									</Button>
-								</form>
-							</Form>
+									</form.Field>
+								</div>
+
+								<form.Field name="subject">
+									{(field) => (
+										<div className="space-y-2">
+											<Label htmlFor={field.name}>Subject</Label>
+											<Input
+												id={field.name}
+												placeholder="Subject of your message"
+												value={field.state.value}
+												onBlur={field.handleBlur}
+												onChange={(e) => field.handleChange(e.target.value)}
+											/>
+											<FieldError errors={field.state.meta.errors} />
+										</div>
+									)}
+								</form.Field>
+
+								<form.Field name="message">
+									{(field) => (
+										<div className="space-y-2">
+											<Label htmlFor={field.name}>Message</Label>
+											<Textarea
+												id={field.name}
+												rows={4}
+												placeholder="How can we help you?"
+												value={field.state.value}
+												onBlur={field.handleBlur}
+												onChange={(e) => field.handleChange(e.target.value)}
+											/>
+											<FieldError errors={field.state.meta.errors} />
+										</div>
+									)}
+								</form.Field>
+
+								<form.Subscribe selector={(state) => state.isSubmitting}>
+									{(isSubmitting) => (
+										<Button
+											type="submit"
+											size="lg"
+											className="w-full bg-zinc-950 text-white hover:bg-black/90"
+											disabled={isSubmitting}
+										>
+											Send Message
+										</Button>
+									)}
+								</form.Subscribe>
+							</form>
 						</div>
 					</div>
 				</div>

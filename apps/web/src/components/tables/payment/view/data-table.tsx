@@ -67,7 +67,7 @@ export default function DataTable<TData, TValue>({
 		<div className="flex h-full flex-col">
 			<div className="flex shrink-0 items-center border-b border-border/40 px-6 py-3">
 				<div className="relative w-64">
-					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
 						placeholder="Search..."
 						value={globalFilter ?? ""}
@@ -81,7 +81,9 @@ export default function DataTable<TData, TValue>({
 					<StatusCallout
 						variant="error"
 						title="Couldn't load data"
-						message={error instanceof Error ? error.message : "An error occurred"}
+						message={
+							error instanceof Error ? error.message : "An error occurred"
+						}
 						onRetry={onRetry}
 					/>
 				</div>

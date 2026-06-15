@@ -1,6 +1,11 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../guards";
 import {
 	listExpenses,
 	getExpenseById,
@@ -9,9 +14,8 @@ import {
 	rejectExpense,
 	markExpensePaid,
 } from "@avantej-core/services/expenses.service";
-import { requirePermission } from "@avantej-core/services";
 
-const list = protectedProcedure
+const list = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -25,31 +29,16 @@ const list = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message:
-					"Tenant database not available. Ensure organization context is set.",
-			});
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 		}
-
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"expense_management",
-				"read",
-			);
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"expense_management",
+			"read",
+		);
 
 		return listExpenses(context.tenantDb, {
 			branchId: input.branchId,
@@ -63,7 +52,7 @@ const list = protectedProcedure
 		});
 	});
 
-const getById = protectedProcedure
+const getById = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -71,31 +60,13 @@ const getById = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message:
-					"Tenant database not available. Ensure organization context is set.",
-			});
-		}
-
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"expense_management",
-				"read",
-			);
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
-			});
-		}
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"expense_management",
+			"read",
+		);
 
 		const expense = await getExpenseById(context.tenantDb, input.id);
 		if (!expense) {
@@ -106,7 +77,7 @@ const getById = protectedProcedure
 		return expense;
 	});
 
-const create = protectedProcedure
+const create = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -125,31 +96,16 @@ const create = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message:
-					"Tenant database not available. Ensure organization context is set.",
-			});
+		assertOrgContextMatch(context, input);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 		}
-
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"expense_management",
-				"create",
-			);
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
-			});
-		}
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"expense_management",
+			"create",
+		);
 
 		return createExpense(context.tenantDb, {
 			branchId: input.branchId,
@@ -162,7 +118,7 @@ const create = protectedProcedure
 		});
 	});
 
-const approve = protectedProcedure
+const approve = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -170,29 +126,24 @@ const approve = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message:
-					"Tenant database not available. Ensure organization context is set.",
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"expense_management",
+			"update",
+		);
+
+		// CPR-03: load expense first to enforce separation-of-duties
+		const expense = await getExpenseById(context.tenantDb, input.id);
+		if (!expense) {
+			throw new ORPCError("NOT_FOUND", {
+				message: `Expense not found: ${input.id}`,
 			});
 		}
-
-		if (!context.member) {
+		if (expense.submittedBy === context.member.userId) {
 			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"expense_management",
-				"update",
-			);
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
+				message: "Cannot approve your own expense submission",
 			});
 		}
 
@@ -209,7 +160,7 @@ const approve = protectedProcedure
 		}
 	});
 
-const reject = protectedProcedure
+const reject = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -218,31 +169,13 @@ const reject = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message:
-					"Tenant database not available. Ensure organization context is set.",
-			});
-		}
-
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"expense_management",
-				"update",
-			);
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
-			});
-		}
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"expense_management",
+			"update",
+		);
 
 		try {
 			return await rejectExpense(
@@ -258,7 +191,7 @@ const reject = protectedProcedure
 		}
 	});
 
-const markPaid = protectedProcedure
+const markPaid = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -267,29 +200,24 @@ const markPaid = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message:
-					"Tenant database not available. Ensure organization context is set.",
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"expense_management",
+			"update",
+		);
+
+		// CPR-03: enforce separation-of-duties — submitter cannot mark own expense paid
+		const expenseForPay = await getExpenseById(context.tenantDb, input.id);
+		if (!expenseForPay) {
+			throw new ORPCError("NOT_FOUND", {
+				message: `Expense not found: ${input.id}`,
 			});
 		}
-
-		if (!context.member) {
+		if (expenseForPay.submittedBy === context.member.userId) {
 			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"expense_management",
-				"update",
-			);
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
+				message: "Cannot mark your own expense submission as paid",
 			});
 		}
 
@@ -308,4 +236,11 @@ const markPaid = protectedProcedure
 		}
 	});
 
-export const expensesRouter = { list, getById, create, approve, reject, markPaid };
+export const expensesRouter = {
+	list,
+	getById,
+	create,
+	approve,
+	reject,
+	markPaid,
+};

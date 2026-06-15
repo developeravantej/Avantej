@@ -1,0 +1,1473 @@
+[
+  {
+    "area": "Access Control",
+    "module": "access-control",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/access-control/user-assignment.",
+      "Navigate to /dashboard/access-control/roles.",
+      "Navigate to /dashboard/access-control/permissions.",
+      "Navigate to /dashboard/access-control/invitations."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "access-control/smoke.spec.ts",
+        "title": "User assignment (Staff Access) loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/access-control/user-assignment.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — User assignment (Staff Access)."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "access-control/smoke.spec.ts",
+        "title": "Roles tab loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/access-control/roles.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Roles tab."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "access-control/smoke.spec.ts",
+        "title": "Permissions tab loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/access-control/permissions.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Permissions tab."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "access-control/smoke.spec.ts",
+        "title": "Invitations loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/access-control/invitations.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Invitations."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Announcements",
+    "module": "announcements",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/announcements/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "announcements/smoke.spec.ts",
+        "title": "Announcements list loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/announcements/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Announcements list."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Appointment",
+    "module": "appointment",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/appointment/view.",
+      "Navigate to /dashboard/appointment/class-slots/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "appointment/smoke.spec.ts",
+        "title": "Appointments calendar/list loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/appointment/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Appointments calendar/list."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "appointment/smoke.spec.ts",
+        "title": "Class slots loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/appointment/class-slots/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Class slots."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Attendance",
+    "module": "attendance",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/attendance/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "attendance/smoke.spec.ts",
+        "title": "Attendance loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/attendance/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Attendance."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Audit",
+    "module": "audit",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/audit/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "audit/smoke.spec.ts",
+        "title": "Audit log loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/audit/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Audit log."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Branch",
+    "module": "branch",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/branch/view.",
+      "Navigate to /dashboard/branch/create."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "branch/smoke.spec.ts",
+        "title": "Branch list loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/branch/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Branch list."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "branch/smoke.spec.ts",
+        "title": "Create-branch form loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/branch/create.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Create-branch form."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Brands",
+    "module": "brands",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/brands/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "brands/smoke.spec.ts",
+        "title": "Brands list loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/brands/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Brands list."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Cancelled Sales",
+    "module": "cancelled-sales",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/cancelled-sales/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "cancelled-sales/smoke.spec.ts",
+        "title": "Cancelled sales loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/cancelled-sales/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Cancelled sales."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Categories",
+    "module": "categories",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/categories/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "categories/smoke.spec.ts",
+        "title": "Categories loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/categories/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Categories."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Commissions",
+    "module": "commissions",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/commissions/my.",
+      "Navigate to /dashboard/commissions/view.",
+      "Load Commissions (/dashboard/commissions/view) on the default \"My Commissions\" pill."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke for every page in this module + a core interaction journey.",
+    "gaps": [
+      "full create/edit/delete CRUD journeys (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "commissions/smoke.spec.ts",
+        "title": "My commissions loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/commissions/my.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — My commissions."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "commissions/smoke.spec.ts",
+        "title": "All commissions loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/commissions/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — All commissions."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "commissions/commissions-journey.spec.ts",
+        "title": "Commissions journey — switch from My to All Commissions tab",
+        "journeySteps": [
+          "Start logged-in as the tenant admin.",
+          "Load Commissions (/dashboard/commissions/view) on the default \"My Commissions\" pill.",
+          "Click the \"All Commissions\" pill.",
+          "Assert the URL reflects tab=all and the panel re-renders without crashing.",
+          "Confirm a table or empty state is shown under the new tab. Read-only — no adjustments created."
+        ],
+        "testType": "e2e-ui",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Customers",
+    "module": "customers",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/customers/v2/view.",
+      "Navigate to /dashboard/customers/walk-in/view.",
+      "Load the Customers directory (/dashboard/customers/v2/view)."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke for every page in this module + a core interaction journey.",
+    "gaps": [
+      "full create/edit/delete CRUD journeys (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "customers/smoke.spec.ts",
+        "title": "Customers list loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/customers/v2/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Customers list."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "customers/smoke.spec.ts",
+        "title": "Walk-in customers loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/customers/walk-in/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Walk-in customers."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "customers/customers-journey.spec.ts",
+        "title": "Customers journey — search directory and open a profile",
+        "journeySteps": [
+          "Start logged-in as the tenant admin.",
+          "Load the Customers directory (/dashboard/customers/v2/view).",
+          "Type \"a\" into the \"Search customers…\" box (debounced lookup).",
+          "Confirm the filtered query resolves with no ErrorBoundary crash.",
+          "If a customer row rendered, open it and confirm the profile panel; otherwise confirm a graceful empty state."
+        ],
+        "testType": "e2e-ui",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Expenses",
+    "module": "expenses",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/expenses/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "expenses/smoke.spec.ts",
+        "title": "Expenses loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/expenses/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Expenses."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Home",
+    "module": "home",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "home/smoke.spec.ts",
+        "title": "Dashboard home loads with KPIs/widgets",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Dashboard home with KPIs/widgets."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Inventory Options",
+    "module": "inventory-options",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/inventory-options."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "inventory-options/smoke.spec.ts",
+        "title": "Inventory options loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/inventory-options.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Inventory options."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Memberships",
+    "module": "memberships",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/memberships/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "memberships/smoke.spec.ts",
+        "title": "Memberships loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/memberships/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Memberships."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "My Services",
+    "module": "my-services",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/my-services/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "my-services/smoke.spec.ts",
+        "title": "My services loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/my-services/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — My services."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Notifications",
+    "module": "notifications",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/notifications/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "notifications/smoke.spec.ts",
+        "title": "Notifications loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/notifications/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Notifications."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Onboarding",
+    "module": "onboarding",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/onboarding/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "onboarding/smoke.spec.ts",
+        "title": "Onboarding loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/onboarding/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Onboarding."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Operations",
+    "module": "operations",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/operations/approvals."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "operations/smoke.spec.ts",
+        "title": "Operations approvals loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/operations/approvals.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Operations approvals."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Packages",
+    "module": "packages",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/packages/view.",
+      "Navigate to /dashboard/packages/instances/view.",
+      "Navigate to /dashboard/packages/installments/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "packages/smoke.spec.ts",
+        "title": "Packages list loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/packages/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Packages list."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "packages/smoke.spec.ts",
+        "title": "Package instances loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/packages/instances/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Package instances."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "packages/smoke.spec.ts",
+        "title": "Installments loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/packages/installments/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Installments."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Payment",
+    "module": "payment",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/payment/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "payment/smoke.spec.ts",
+        "title": "Payments loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/payment/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Payments."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Products",
+    "module": "products",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/products/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "products/smoke.spec.ts",
+        "title": "Products loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/products/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Products."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Promotions",
+    "module": "promotions",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/promotions/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "promotions/smoke.spec.ts",
+        "title": "Promotions loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/promotions/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Promotions."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Purchase Orders",
+    "module": "purchase-orders",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/purchase-orders/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "purchase-orders/smoke.spec.ts",
+        "title": "Purchase orders loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/purchase-orders/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Purchase orders."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Refunds",
+    "module": "refunds",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/refunds/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "refunds/smoke.spec.ts",
+        "title": "Refunds loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/refunds/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Refunds."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Reports",
+    "module": "reports",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/reports/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "reports/smoke.spec.ts",
+        "title": "Reports loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/reports/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Reports."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Role",
+    "module": "role",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/role/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "role/smoke.spec.ts",
+        "title": "Legacy role route redirects + loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/role/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Legacy role route redirects +."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Rooms",
+    "module": "rooms",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/rooms/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "rooms/smoke.spec.ts",
+        "title": "Legacy rooms route redirects + loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/rooms/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Legacy rooms route redirects +."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Sales",
+    "module": "sales",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/sales/view.",
+      "Navigate to /dashboard/sales/create.",
+      "Load the Sales list (/dashboard/sales/view) and confirm it renders."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke for every page in this module + a core interaction journey.",
+    "gaps": [
+      "full create/edit/delete CRUD journeys (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "sales/smoke.spec.ts",
+        "title": "Sales list loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/sales/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Sales list."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "sales/smoke.spec.ts",
+        "title": "POS create page loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/sales/create.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — POS create page."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "sales/pos-journey.spec.ts",
+        "title": "POS journey — open New Sale and search a member (no submit)",
+        "journeySteps": [
+          "Start logged-in as the tenant admin.",
+          "Load the Sales list (/dashboard/sales/view) and confirm it renders.",
+          "Open the POS create flow (/dashboard/sales/create).",
+          "Wait for the customer step — the member search box — to mount.",
+          "Type a member name (\"Ahmad\") to drive the read-only member lookup.",
+          "Confirm the lookup resolves with no ErrorBoundary crash. No sale is submitted."
+        ],
+        "testType": "e2e-ui",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Service",
+    "module": "service",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/service/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "service/smoke.spec.ts",
+        "title": "Services loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/service/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Services."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Service Category",
+    "module": "service-category",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/service-category/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "service-category/smoke.spec.ts",
+        "title": "Service categories loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/service-category/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Service categories."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Settings",
+    "module": "settings",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/settings/organization.",
+      "Navigate to /dashboard/settings/commission-cycles.",
+      "Navigate to /dashboard/settings/installment-plans.",
+      "Navigate to /dashboard/settings/notifications.",
+      "Navigate to /dashboard/settings/google-calendar.",
+      "Navigate to /dashboard/settings/tax-rates."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "settings/smoke.spec.ts",
+        "title": "Organization settings loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/settings/organization.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Organization settings."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "settings/smoke.spec.ts",
+        "title": "Commission cycles settings loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/settings/commission-cycles.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Commission cycles settings."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "settings/smoke.spec.ts",
+        "title": "Installment plans settings loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/settings/installment-plans.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Installment plans settings."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "settings/smoke.spec.ts",
+        "title": "Notification settings loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/settings/notifications.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Notification settings."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "settings/smoke.spec.ts",
+        "title": "Google Calendar settings loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/settings/google-calendar.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Google Calendar settings."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "settings/smoke.spec.ts",
+        "title": "Tax rates settings loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/settings/tax-rates.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Tax rates settings."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Stock Requests",
+    "module": "stock-requests",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/stock-requests/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "stock-requests/smoke.spec.ts",
+        "title": "Stock requests loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/stock-requests/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Stock requests."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Suppliers",
+    "module": "suppliers",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/suppliers/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "suppliers/smoke.spec.ts",
+        "title": "Suppliers loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/suppliers/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Suppliers."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Trainers",
+    "module": "trainers",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/trainers/view.",
+      "Navigate to /dashboard/trainers/availability.",
+      "Navigate to /dashboard/trainers/tiers."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "trainers/smoke.spec.ts",
+        "title": "Trainers list loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/trainers/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Trainers list."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "trainers/smoke.spec.ts",
+        "title": "Trainer availability loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/trainers/availability.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Trainer availability."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      },
+      {
+        "specFile": "trainers/smoke.spec.ts",
+        "title": "Trainer tiers loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/trainers/tiers.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Trainer tiers."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Transfer Orders",
+    "module": "transfer-orders",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/transfer-orders/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "transfer-orders/smoke.spec.ts",
+        "title": "Transfer orders loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/transfer-orders/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Transfer orders."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Uom",
+    "module": "uom",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/uom/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "uom/smoke.spec.ts",
+        "title": "Units of measure loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/uom/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — Units of measure."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "Uom Conversions",
+    "module": "uom-conversions",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/uom-conversions/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "uom-conversions/smoke.spec.ts",
+        "title": "UOM conversions loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/uom-conversions/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — UOM conversions."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  },
+  {
+    "area": "User",
+    "module": "user",
+    "platform": "web",
+    "procedures": [],
+    "screens": [
+      "Navigate to /dashboard/user/view."
+    ],
+    "coverageStatus": "partial",
+    "coverageNotes": "Page-load smoke implemented for every page in this module.",
+    "gaps": [
+      "interaction journeys: create/edit/delete, filters, dialogs (backlog)"
+    ],
+    "proposedSpecs": [
+      {
+        "specFile": "user/smoke.spec.ts",
+        "title": "User profile loads",
+        "journeySteps": [
+          "Start logged-in as the tenant admin (franchisee@gmail.com).",
+          "Navigate to /dashboard/user/view.",
+          "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+          "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+          "Confirm page content (a heading) painted — User profile."
+        ],
+        "testType": "read-only",
+        "prodMutation": "none",
+        "authorability": "ready"
+      }
+    ]
+  }
+]

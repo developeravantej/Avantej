@@ -4,6 +4,10 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { googleCalendarConnections } from "@avantej-core/db/schema/tenant/google-calendar-connections";
 import { googleCalendarEventMappings } from "@avantej-core/db/schema/tenant/google-calendar-event-mappings";
+import {
+	decryptToken,
+	encryptToken,
+} from "@avantej-core/db/lib/oauth-security";
 import { eq, and } from "drizzle-orm";
 import {
 	refreshAccessToken,
@@ -40,7 +44,7 @@ async function ensureValidToken(
 	if (connection.tokenExpiresAt < new Date(Date.now() + 5 * 60 * 1000)) {
 		try {
 			const refreshed = await refreshAccessToken({
-				refreshToken: connection.refreshToken,
+				refreshToken: decryptToken(connection.refreshToken),
 				clientId: config.clientId,
 				clientSecret: config.clientSecret,
 			});
@@ -48,8 +52,10 @@ async function ensureValidToken(
 			await tenantDb
 				.update(googleCalendarConnections)
 				.set({
-					accessToken: refreshed.access_token,
+					accessToken: encryptToken(refreshed.access_token),
 					tokenExpiresAt: new Date(Date.now() + refreshed.expires_in * 1000),
+					encryptionKeyId: "v1",
+					tokenRotatedAt: new Date(),
 					updatedAt: new Date(),
 				})
 				.where(eq(googleCalendarConnections.id, connection.id));
@@ -70,7 +76,7 @@ async function ensureValidToken(
 			);
 		}
 	}
-	return connection.accessToken;
+	return decryptToken(connection.accessToken);
 }
 
 function buildCalendarEvent(appointment: AppointmentRow): CalendarEvent {
@@ -78,8 +84,14 @@ function buildCalendarEvent(appointment: AppointmentRow): CalendarEvent {
 		summary: `Appointment${appointment.bookingNumber ? ` #${appointment.bookingNumber}` : ""}`,
 		description: appointment.notes ?? undefined,
 		location: appointment.location ?? undefined,
-		start: { dateTime: appointment.startTime.toISOString(), timeZone: "Asia/Kuala_Lumpur" },
-		end: { dateTime: appointment.endTime.toISOString(), timeZone: "Asia/Kuala_Lumpur" },
+		start: {
+			dateTime: appointment.startTime.toISOString(),
+			timeZone: "Asia/Kuala_Lumpur",
+		},
+		end: {
+			dateTime: appointment.endTime.toISOString(),
+			timeZone: "Asia/Kuala_Lumpur",
+		},
 	};
 }
 
@@ -165,12 +177,13 @@ export async function syncAppointmentToGoogleCalendar(
 				await updateSyncStatus(tenantDb, conn.id, { lastSyncAt: new Date() });
 			} else if (action === "update") {
 				// Find existing mapping
-				const mapping = await tenantDb.query.googleCalendarEventMappings.findFirst({
-					where: and(
-						eq(googleCalendarEventMappings.appointmentId, appointment.id),
-						eq(googleCalendarEventMappings.connectionId, conn.id),
-					),
-				});
+				const mapping =
+					await tenantDb.query.googleCalendarEventMappings.findFirst({
+						where: and(
+							eq(googleCalendarEventMappings.appointmentId, appointment.id),
+							eq(googleCalendarEventMappings.connectionId, conn.id),
+						),
+					});
 
 				if (mapping) {
 					await updateCalendarEvent(
@@ -195,15 +208,20 @@ export async function syncAppointmentToGoogleCalendar(
 					await updateSyncStatus(tenantDb, conn.id, { lastSyncAt: new Date() });
 				}
 			} else if (action === "delete") {
-				const mapping = await tenantDb.query.googleCalendarEventMappings.findFirst({
-					where: and(
-						eq(googleCalendarEventMappings.appointmentId, appointment.id),
-						eq(googleCalendarEventMappings.connectionId, conn.id),
-					),
-				});
+				const mapping =
+					await tenantDb.query.googleCalendarEventMappings.findFirst({
+						where: and(
+							eq(googleCalendarEventMappings.appointmentId, appointment.id),
+							eq(googleCalendarEventMappings.connectionId, conn.id),
+						),
+					});
 
 				if (mapping) {
-					await deleteCalendarEvent(accessToken, conn.calendarId, mapping.googleEventId);
+					await deleteCalendarEvent(
+						accessToken,
+						conn.calendarId,
+						mapping.googleEventId,
+					);
 					await tenantDb
 						.delete(googleCalendarEventMappings)
 						.where(eq(googleCalendarEventMappings.id, mapping.id));

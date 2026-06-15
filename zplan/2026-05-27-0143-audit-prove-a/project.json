@@ -1,0 +1,41 @@
+{
+  "stack": {
+    "web": "vite+tanstack-router",
+    "server": "cloudflare-workers+orpc",
+    "orm": "drizzle",
+    "auth": "better-auth",
+    "testRunner": "bun-test+vitest+playwright"
+  },
+  "buildCommand": "bun check-types",
+  "healthCheck": "bun check-types && cd apps/web && bun test --run 2>&1 | tail -5",
+  "apiSurface": {
+    "routerGlobs": ["packages/api/src/routers/**/*.ts", "apps/server/src/routers/**/*.ts"],
+    "serviceGlobs": ["packages/services/src/**/*.ts", "apps/server/src/services/**/*.ts"]
+  },
+  "e2e": {
+    "baseURL": "http://localhost:3021",
+    "serverHealthUrl": "http://localhost:3020",
+    "testDir": "./e2e",
+    "configFile": "playwright.config.ts",
+    "authStorageState": "e2e/.auth/tenant-admin.json",
+    "authSetupMatch": "auth.setup.ts"
+  },
+  "db": {
+    "verifyMode": "api-read-back",
+    "controlPanelNote": "Neon PG — control panel DB",
+    "tenantNote": "Neon PG per-tenant branch"
+  },
+  "remediation": {
+    "enabled": true,
+    "branch": "audit-prove/remediation-services-tabs-20260525-1529",
+    "maxIterations": 5,
+    "maxFixesPerTarget": 3,
+    "parallelFixAgents": 4,
+    "scope": "full"
+  },
+  "verifyTopN": 5,
+  "currentBranch": "audit-prove/remediation-services-tabs-20260525-1529",
+  "priorAuditSession": "zplan/2026-05-26-2323-audit-prove",
+  "priorAuditStatus": "converged — 21 items fixed",
+  "auditScope": "incremental — new changes since prior audit session"
+}

@@ -1,0 +1,221 @@
+/**
+ * Platform Admin — Mission Control Dashboard (Plan F.1.5 — Agent M).
+ *
+ * Aggregator for the platform-admin home page. Single proc, parallel
+ * reads, real-time (no cache). Targets tens-of-ms latency.
+ *
+ * Reads:
+ *   - organizations counts grouped by payment_status
+ *   - subscriptions counts (active + trialing)
+ *   - MRR estimate (Plan F.2 — sums TIER_PRICES_USD_CENTS across
+ *     active+trialing subs; prices are placeholders until Stripe wires in)
+ *   - recent admin actions (top 10 from admin_session_actions, joined
+ *     with users for actor email + organizations for target name)
+ *   - at-risk top 5 (mirrors platform-admin-tenants-health.listAtRisk)
+ *   - recent signups (top 5 organizations by created_at DESC)
+ *
+ * Gated behind requirePlatformAdmin — any role (super_admin, support,
+ * billing) can read.
+ */
+
+import { z } from "zod";
+import { and, count, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { getTierPriceUsdCents, type Tier } from "@avantej-core/types";
+import { adminProcedure } from "@/lib/admin-procedure";
+import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
+import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
+import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
+import { adminSessions } from "@avantej-core/db/schema/control-panel/admin-sessions";
+import { users } from "@avantej-core/db/schema/control-panel/users";
+import {
+	tenantUsageSnapshots,
+	type RiskFlag,
+} from "@avantej-core/db/schema/control-panel/tenant-usage-snapshots";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
+
+export const platformAdminDashboardRouter = {
+	getOverview: adminProcedure
+		.input(z.object({}).default({}))
+		.handler(async ({ context }) => {
+			const cpDb = getControlPanelDb(context);
+
+			// All reads issued in parallel.
+			const [
+				orgsTotalRow,
+				orgsByStatus,
+				subsByStatus,
+				activeSubTiers,
+				recentActionsRows,
+				atRiskRows,
+				recentSignupsRows,
+			] = await Promise.all([
+				cpDb.select({ c: count() }).from(organizations),
+
+				cpDb
+					.select({
+						paymentStatus: organizations.paymentStatus,
+						c: count(),
+					})
+					.from(organizations)
+					.groupBy(organizations.paymentStatus),
+
+				cpDb
+					.select({ status: subscriptions.status, c: count() })
+					.from(subscriptions)
+					.groupBy(subscriptions.status),
+
+				// Plan F.2 — MRR estimate: tiers of active/trialing subs.
+				cpDb
+					.select({ tier: subscriptions.tier })
+					.from(subscriptions)
+					.where(inArray(subscriptions.status, ["active", "trialing"])),
+
+				cpDb
+					.select({
+						actorUserId: sql<
+							string | null
+						>`COALESCE(${adminSessionActions.adminUserId}, ${adminSessions.adminUserId})`,
+						actorEmail: users.email,
+						action: adminSessionActions.actionType,
+						targetOrgId: adminSessionActions.targetOrganizationId,
+						targetOrgName: organizations.name,
+						createdAt: adminSessionActions.createdAt,
+					})
+					.from(adminSessionActions)
+					.leftJoin(
+						adminSessions,
+						eq(adminSessions.id, adminSessionActions.adminSessionId),
+					)
+					.leftJoin(
+						users,
+						sql`${users.id} = COALESCE(${adminSessionActions.adminUserId}, ${adminSessions.adminUserId})`,
+					)
+					.leftJoin(
+						organizations,
+						eq(organizations.id, adminSessionActions.targetOrganizationId),
+					)
+					.orderBy(desc(adminSessionActions.createdAt))
+					.limit(10),
+
+				// At-risk top 5 — mirrors platform-admin-tenants-health.listAtRisk.
+				(async () => {
+					const latest = cpDb
+						.select({
+							organizationId: tenantUsageSnapshots.organizationId,
+							maxDate:
+								sql<string>`MAX(${tenantUsageSnapshots.snapshotDate})`.as(
+									"max_date",
+								),
+						})
+						.from(tenantUsageSnapshots)
+						.where(isNotNull(tenantUsageSnapshots.healthScore))
+						.groupBy(tenantUsageSnapshots.organizationId)
+						.as("latest");
+
+					return cpDb
+						.select({
+							orgId: organizations.id,
+							orgName: organizations.name,
+							healthScore: tenantUsageSnapshots.healthScore,
+							riskFlags: tenantUsageSnapshots.riskFlags,
+						})
+						.from(tenantUsageSnapshots)
+						.innerJoin(
+							latest,
+							and(
+								eq(tenantUsageSnapshots.organizationId, latest.organizationId),
+								eq(tenantUsageSnapshots.snapshotDate, latest.maxDate),
+							),
+						)
+						.innerJoin(
+							organizations,
+							eq(organizations.id, tenantUsageSnapshots.organizationId),
+						)
+						.where(isNotNull(tenantUsageSnapshots.healthScore))
+						.orderBy(tenantUsageSnapshots.healthScore)
+						.limit(5);
+				})(),
+
+				cpDb
+					.select({
+						orgId: organizations.id,
+						orgName: organizations.name,
+						createdAt: organizations.createdAt,
+					})
+					.from(organizations)
+					.orderBy(desc(organizations.createdAt))
+					.limit(5),
+			]);
+
+			const total = Number(orgsTotalRow[0]?.c ?? 0);
+
+			const statusCounts: Record<string, number> = {};
+			for (const r of orgsByStatus) {
+				statusCounts[r.paymentStatus] = Number(r.c);
+			}
+
+			const subsCounts: Record<string, number> = {};
+			for (const r of subsByStatus) {
+				subsCounts[r.status] = Number(r.c);
+			}
+
+			// Plan F.2 — MRR estimate: sum TIER_PRICES across active+trialing
+			// subs. Prices are placeholders in @avantej-core/types until Stripe
+			// Dashboard prices are wired in; billing remains Stripe-driven.
+			const mrrCents = activeSubTiers.reduce(
+				(sum, row) => sum + getTierPriceUsdCents(row.tier as Tier),
+				0,
+			);
+			const mrrEstimateAvailable = true;
+
+			return {
+				counts: {
+					total,
+					active: statusCounts.active ?? 0,
+					trialing: statusCounts.trialing ?? 0,
+					pastDue: statusCounts.past_due ?? 0,
+					unpaid: statusCounts.unpaid ?? 0,
+					cancelled: statusCounts.cancelled ?? 0,
+				},
+				subs: {
+					activeCount: subsCounts.active ?? 0,
+					trialingCount: subsCounts.trialing ?? 0,
+				},
+				mrr: {
+					cents: mrrCents,
+					estimateAvailable: mrrEstimateAvailable,
+				},
+				recentActions: recentActionsRows.map((r) => ({
+					actorUserId: r.actorUserId ?? "",
+					actorEmail: r.actorEmail ?? undefined,
+					action: r.action,
+					targetOrgId: r.targetOrgId ?? undefined,
+					targetOrgName: r.targetOrgName ?? undefined,
+					createdAt:
+						r.createdAt instanceof Date
+							? r.createdAt.toISOString()
+							: String(r.createdAt),
+				})),
+				atRisk: atRiskRows.map((r) => {
+					const flags = (r.riskFlags ?? []) as RiskFlag[];
+					const criticalFlagCount = flags.filter(
+						(f) => f.severity === "critical",
+					).length;
+					return {
+						orgId: r.orgId,
+						orgName: r.orgName,
+						healthScore: r.healthScore,
+						criticalFlagCount,
+					};
+				}),
+				recentSignups: recentSignupsRows.map((r) => ({
+					orgId: r.orgId,
+					orgName: r.orgName,
+					createdAt:
+						r.createdAt instanceof Date
+							? r.createdAt.toISOString()
+							: String(r.createdAt),
+				})),
+			};
+		}),
+};

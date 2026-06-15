@@ -14,7 +14,7 @@ export type CreateTransferOrderParams = {
 	items: { productId: string; quantityTransferred: number; notes?: string }[];
 };
 
-export type TransferOrderWithItems = (typeof transferOrders.$inferSelect) & {
+export type TransferOrderWithItems = typeof transferOrders.$inferSelect & {
 	items: (typeof transferOrderItems.$inferSelect)[];
 };
 
@@ -27,7 +27,7 @@ function formatDateYYYYMMDD(date: Date): string {
 
 async function generateTransferNumber(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	date: Date
+	date: Date,
 ): Promise<string> {
 	const datePart = formatDateYYYYMMDD(date);
 	const prefix = `TO-${datePart}-`;
@@ -48,7 +48,7 @@ export async function listTransferOrders(
 		fromBranchId?: string;
 		toBranchId?: string;
 		accessibleNodeIds?: string[];
-	} = {}
+	} = {},
 ): Promise<(typeof transferOrders.$inferSelect)[]> {
 	const { status, fromBranchId, toBranchId, accessibleNodeIds } = params;
 
@@ -72,7 +72,7 @@ export async function listTransferOrders(
 		return rows.filter(
 			(row) =>
 				accessibleNodeIds.includes(row.fromBranchId) ||
-				accessibleNodeIds.includes(row.toBranchId)
+				accessibleNodeIds.includes(row.toBranchId),
 		);
 	}
 
@@ -81,7 +81,7 @@ export async function listTransferOrders(
 
 export async function getTransferOrderById(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
+	id: string,
 ): Promise<TransferOrderWithItems | null> {
 	const row = await tenantDb.query.transferOrders.findFirst({
 		where: eq(transferOrders.id, id),
@@ -100,9 +100,12 @@ export async function getTransferOrderById(
 
 export async function createTransferOrder(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: CreateTransferOrderParams
+	params: CreateTransferOrderParams,
 ): Promise<TransferOrderWithItems> {
-	const transferNumber = await generateTransferNumber(tenantDb, params.dateIssued);
+	const transferNumber = await generateTransferNumber(
+		tenantDb,
+		params.dateIssued,
+	);
 
 	return tenantDb.transaction(async (tx) => {
 		const [header] = await tx
@@ -131,7 +134,7 @@ export async function createTransferOrder(
 					quantityTransferred: item.quantityTransferred,
 					quantityReceived: 0,
 					notes: item.notes ?? null,
-				}))
+				})),
 			)
 			.returning();
 
@@ -141,7 +144,7 @@ export async function createTransferOrder(
 
 export async function markInTransit(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
+	id: string,
 ): Promise<typeof transferOrders.$inferSelect> {
 	const [row] = await tenantDb
 		.update(transferOrders)
@@ -155,14 +158,29 @@ export async function markInTransit(
 	return row;
 }
 
-export async function completeTransfer(
+/**
+ * Mark a transfer received at its destination (F-INV-05).
+ *
+ * Introduces an intermediate acceptance state: in_transit ->
+ * received_pending_acceptance. This records the quantities the destination
+ * physically received WITHOUT moving stock yet — stock only moves once the
+ * destination explicitly accepts the transfer in `completeTransfer`. This
+ * separates "goods arrived" from "goods accepted into inventory", giving the
+ * destination branch a chance to reconcile before stock balances change.
+ */
+export async function markTransferReceived(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	id: string,
-	items: { itemId: string; quantityReceived: number }[]
+	items: { itemId: string; quantityReceived: number }[],
 ): Promise<typeof transferOrders.$inferSelect> {
 	const transfer = await getTransferOrderById(tenantDb, id);
 	if (!transfer) {
 		throw new Error("Transfer order not found");
+	}
+	if (transfer.status !== "in_transit") {
+		throw new Error(
+			`Only in_transit transfers can be marked received (current status: ${transfer.status})`,
+		);
 	}
 
 	return tenantDb.transaction(async (tx) => {
@@ -173,7 +191,58 @@ export async function completeTransfer(
 				.where(eq(transferOrderItems.id, item.itemId));
 		}
 
-		// Adjust stock: deduct from source, add to destination
+		const [updated] = await tx
+			.update(transferOrders)
+			.set({ status: "received_pending_acceptance", updatedAt: new Date() })
+			.where(eq(transferOrders.id, id))
+			.returning();
+
+		if (!updated) {
+			throw new Error("Failed to update transfer order status");
+		}
+		return updated;
+	});
+}
+
+/**
+ * Finalize a transfer (F-INV-05). Stock moves HERE — at the acceptance step —
+ * not before. Deducts the transferred quantity from the source branch and adds
+ * the received quantity to the destination branch, recording a stock_movements
+ * audit row for each leg (F-INV-06).
+ *
+ * Acceptance requires the transfer to be in `received_pending_acceptance`.
+ * For backward compatibility with callers that still drive a transfer straight
+ * from `in_transit`, that state is also accepted; the received quantities are
+ * taken from the `items` argument in both cases.
+ */
+export async function completeTransfer(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	id: string,
+	items: { itemId: string; quantityReceived: number }[],
+	actorUserId?: string,
+): Promise<typeof transferOrders.$inferSelect> {
+	const transfer = await getTransferOrderById(tenantDb, id);
+	if (!transfer) {
+		throw new Error("Transfer order not found");
+	}
+	if (
+		transfer.status !== "received_pending_acceptance" &&
+		transfer.status !== "in_transit"
+	) {
+		throw new Error(
+			`Only received_pending_acceptance or in_transit transfers can be completed (current status: ${transfer.status})`,
+		);
+	}
+
+	return tenantDb.transaction(async (tx) => {
+		for (const item of items) {
+			await tx
+				.update(transferOrderItems)
+				.set({ quantityReceived: item.quantityReceived })
+				.where(eq(transferOrderItems.id, item.itemId));
+		}
+
+		// Move stock at acceptance: deduct from source, add to destination.
 		for (const item of items) {
 			const transferItem = transfer.items.find((i) => i.id === item.itemId);
 			if (transferItem) {
@@ -181,20 +250,36 @@ export async function completeTransfer(
 					tx as unknown as NeonDatabase<typeof tenantSchema>,
 					transferItem.productId,
 					transfer.fromBranchId,
-					-transferItem.quantityTransferred
+					-transferItem.quantityTransferred,
+					{
+						reason: "transfer_order",
+						sourceType: "transfer_order",
+						sourceId: id,
+						actorUserId,
+					},
 				);
 				await adjustStock(
 					tx as unknown as NeonDatabase<typeof tenantSchema>,
 					transferItem.productId,
 					transfer.toBranchId,
-					item.quantityReceived
+					item.quantityReceived,
+					{
+						reason: "transfer_order",
+						sourceType: "transfer_order",
+						sourceId: id,
+						actorUserId,
+					},
 				);
 			}
 		}
 
 		const [updated] = await tx
 			.update(transferOrders)
-			.set({ status: "completed", completedAt: new Date(), updatedAt: new Date() })
+			.set({
+				status: "completed",
+				completedAt: new Date(),
+				updatedAt: new Date(),
+			})
 			.where(eq(transferOrders.id, id))
 			.returning();
 
@@ -207,7 +292,7 @@ export async function completeTransfer(
 
 export async function cancelTransfer(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
+	id: string,
 ): Promise<typeof transferOrders.$inferSelect> {
 	const [row] = await tenantDb
 		.update(transferOrders)

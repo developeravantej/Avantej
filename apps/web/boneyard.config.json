@@ -1,0 +1,31 @@
+{
+  "routes": [
+    "/dashboard/announcements/view",
+    "/dashboard/audit/view",
+    "/dashboard/commissions/view",
+    "/dashboard/commissions/view?tab=all",
+    "/dashboard/commissions/view?tab=liability",
+    "/dashboard/expenses/view",
+    "/dashboard/inventory-options?tab=brands",
+    "/dashboard/inventory-options?tab=categories",
+    "/dashboard/inventory-options?tab=suppliers",
+    "/dashboard/my-services/view?tab=buffer",
+    "/dashboard/notifications/view",
+    "/dashboard/products/view",
+    "/dashboard/purchase-orders/view",
+    "/dashboard/sales/view?tab=payments",
+    "/dashboard/service/view",
+    "/dashboard/service/view?tab=categories",
+    "/dashboard/service/view?tab=installments",
+    "/dashboard/service/view?tab=promotions",
+    "/dashboard/service/view?tab=rooms",
+    "/dashboard/settings/installment-plans",
+    "/dashboard/stock-requests/view",
+    "/dashboard/stock-requests/view?tab=transfers",
+    "/dashboard/trainers/view",
+    "/dashboard/uom/view",
+    "/dashboard/uom/view?tab=conversions",
+    "/dashboard/user/view"
+  ],
+  "wait": 2500
+}

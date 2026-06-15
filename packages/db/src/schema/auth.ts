@@ -69,3 +69,47 @@ export const verification = pgTable("verification", {
 	createdAt: timestamp("created_at"),
 	updatedAt: timestamp("updated_at"),
 });
+
+// ── Better-Auth organization plugin tables ────────────────────────────────────
+// Managed by the Better-Auth `organization()` plugin (see apps/server
+// lib/better-auth.ts). Distinct from the app's own `organizations` /
+// `organization_members` tables — these back the plugin's session-level org
+// features. Modeled here so the schema-drift gate sees them (they live in the
+// control-panel DB); the app reads/writes them only through Better-Auth.
+
+export const organization = pgTable("organization", {
+	id: text("id").primaryKey(),
+	name: text("name").notNull(),
+	slug: text("slug").notNull(),
+	logo: text("logo"),
+	metadata: text("metadata"),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const member = pgTable("member", {
+	id: text("id").primaryKey(),
+	organizationId: text("organization_id")
+		.notNull()
+		.references(() => organization.id, { onDelete: "cascade" }),
+	userId: text("user_id")
+		.notNull()
+		.references(() => user.id, { onDelete: "cascade" }),
+	role: text("role").notNull(),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const invitation = pgTable("invitation", {
+	id: text("id").primaryKey(),
+	organizationId: text("organization_id")
+		.notNull()
+		.references(() => organization.id, { onDelete: "cascade" }),
+	email: text("email").notNull(),
+	role: text("role").notNull(),
+	status: text("status").default("pending").notNull(),
+	teamId: text("team_id"),
+	inviterId: text("inviter_id")
+		.notNull()
+		.references(() => user.id, { onDelete: "cascade" }),
+	expiresAt: timestamp("expires_at").notNull(),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+});

@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_authenticated/appointment/view")({
 	beforeLoad: async () => {
 		await requirePermission(
 			{ resource: "appointment_management", action: "read" },
-			"/dashboard"
+			"/dashboard",
 		);
 	},
 	component: AppointmentViewComponent,
@@ -53,14 +53,16 @@ function AppointmentViewComponent() {
 
 	const appointments = useMemo(
 		() => apiAppointments.map(mapApiAppointmentToCalendar),
-		[apiAppointments]
+		[apiAppointments],
 	);
 
 	if (!organizationId) {
 		return (
 			<div className="space-y-4">
-				<h1 className="text-3xl font-bold">Appointments</h1>
-				<p className="text-muted-foreground">No organization selected. Please select an organization first.</p>
+				<h1 className="text-3xl font-semibold">Appointments</h1>
+				<p className="text-muted-foreground">
+					No organization selected. Please select an organization first.
+				</p>
 			</div>
 		);
 	}
@@ -68,8 +70,12 @@ function AppointmentViewComponent() {
 	if (error) {
 		return (
 			<div className="space-y-4">
-				<h1 className="text-3xl font-bold">Appointments</h1>
-				<p className="text-destructive">{error instanceof Error ? error.message : "Failed to load appointments"}</p>
+				<h1 className="text-3xl font-semibold">Appointments</h1>
+				<p className="text-destructive">
+					{error instanceof Error
+						? error.message
+						: "Failed to load appointments"}
+				</p>
 			</div>
 		);
 	}
@@ -77,11 +83,11 @@ function AppointmentViewComponent() {
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
-				<h1 className="text-3xl font-bold">Appointments</h1>
+				<h1 className="text-3xl font-semibold">Appointments</h1>
 			</div>
 			{isLoading ? (
 				<div className="flex items-center justify-center py-24 text-muted-foreground">
-					Loading appointments...
+					Loading appointments…
 				</div>
 			) : (
 				<AppointmentCalendar appointments={appointments} />

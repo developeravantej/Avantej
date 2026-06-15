@@ -4,10 +4,7 @@ import {
 	shouldSkipIntegration,
 	createTenantDb,
 } from "../helpers/integration-setup";
-import {
-	getDashboardKpis,
-	getStaffPerformance,
-} from "@avantej-core/services";
+import { getDashboardKpis, getStaffPerformance } from "@avantej-core/services";
 
 let tenantDb: ReturnType<typeof createTenantDb>;
 
@@ -54,12 +51,7 @@ describe("Analytics Integration", () => {
 	test("getDashboardKpis returns correct shape for all period types", async () => {
 		if (shouldSkipIntegration()) return;
 
-		const periods = [
-			"today",
-			"this_week",
-			"this_month",
-			"this_year",
-		] as const;
+		const periods = ["today", "this_week", "this_month", "this_year"] as const;
 
 		for (const period of periods) {
 			const result = await getDashboardKpis(tenantDb, {
@@ -72,9 +64,7 @@ describe("Analytics Integration", () => {
 			expect(typeof result.salesOrderCount).toBe("number");
 			expect(result.from).toBeInstanceOf(Date);
 			expect(result.to).toBeInstanceOf(Date);
-			expect(result.from.getTime()).toBeLessThanOrEqual(
-				result.to.getTime(),
-			);
+			expect(result.from.getTime()).toBeLessThanOrEqual(result.to.getTime());
 		}
 	}, 60000);
 

@@ -1,0 +1,10 @@
+{
+  "sales/sales-detail-direct.detail.spec.ts::Sale detail ($id) renders order content + Cancel dialog opens (no submit)": [
+    "Start logged-in as the tenant admin.",
+    "Fetch a real sales-order id from the API (salesOrders.list) so the test isn't dependent on the list view showing rows.",
+    "Navigate directly to /dashboard/sales/<id> (the refactored $id detail page).",
+    "Assert no ErrorBoundary / 'order not found' crash.",
+    "Assert real order content renders: the order number, the 'Total Amount' label, and 'Created By' (which reads order.createdByName — the field whose `as any` cast was removed).",
+    "Open the Cancel Sale dialog (extracted CancelSaleDialog), assert it shows, then Escape-close it — never submit, because cancelling a sale is irreversible."
+  ]
+}

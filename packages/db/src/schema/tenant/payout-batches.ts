@@ -6,7 +6,14 @@
  * window. Payouts wire to a batch via payouts.batchId (FK added in 0034).
  */
 
-import { pgTable, uuid, text, timestamp, integer, index } from "drizzle-orm/pg-core";
+import {
+	pgTable,
+	uuid,
+	text,
+	timestamp,
+	integer,
+	index,
+} from "drizzle-orm/pg-core";
 import { hierarchyNodes } from "./hierarchy";
 
 export const payoutBatches = pgTable(
@@ -28,7 +35,10 @@ export const payoutBatches = pgTable(
 		finalizedAt: timestamp("finalized_at", { withTimezone: true }),
 	},
 	(t) => ({
-		periodIdx: index("payout_batches_period_idx").on(t.periodStart, t.periodEnd),
+		periodIdx: index("payout_batches_period_idx").on(
+			t.periodStart,
+			t.periodEnd,
+		),
 		branchIdx: index("payout_batches_branch_idx").on(t.branchId),
 		statusIdx: index("payout_batches_status_idx").on(t.status),
 	}),

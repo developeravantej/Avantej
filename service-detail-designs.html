@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Service Detail — 5 Design Variants</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f0f0; }
+
+  /* NAV */
+  .nav { position: sticky; top: 0; z-index: 100; background: #0a0a0a; display: flex; gap: 0; border-bottom: 1px solid #1a1a1a; }
+  .nav a { color: #737373; font-size: 12px; font-weight: 600; padding: 12px 20px; text-decoration: none; letter-spacing: .04em; text-transform: uppercase; transition: color .15s, background .15s; }
+  .nav a:hover { color: #fff; background: #1a1a1a; }
+  .nav a.active { color: #fff; border-bottom: 2px solid #fff; }
+
+  /* STAGE */
+  .stage { display: none; min-height: 100vh; align-items: center; justify-content: center; padding: 48px 24px; }
+  .stage.visible { display: flex; }
+  .label-pill { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #0a0a0a; color: #fff; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; padding: 6px 16px; border-radius: 99px; opacity: .7; pointer-events: none; }
+
+  /* ─────────────────────────── DESIGN 1 ─────────────────────────── */
+  /* Current / Reference — two-column with section dividers */
+  .d1-modal { width: 780px; background: #fff; border-radius: 16px; box-shadow: 0 24px 64px rgba(0,0,0,.18); display: flex; flex-direction: column; overflow: hidden; }
+  .d1-header { padding: 20px 24px 16px; border-bottom: 1px solid #e5e5e5; display: flex; align-items: flex-start; justify-content: space-between; }
+  .d1-header-left h2 { font-size: 20px; font-weight: 800; color: #0a0a0a; letter-spacing: -.02em; }
+  .d1-header-left p { font-size: 12px; color: #737373; margin-top: 4px; }
+  .d1-header-actions { display: flex; gap: 8px; }
+  .d1-body { display: grid; grid-template-columns: 1fr 1fr; divide-x: 1px; }
+  .d1-col { padding: 20px 24px; }
+  .d1-col:first-child { border-right: 1px solid #e5e5e5; }
+  .d1-sec + .d1-sec { margin-top: 20px; }
+  .d1-sec-label { font-size: 10px; font-weight: 700; color: #737373; letter-spacing: .1em; text-transform: uppercase; display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .d1-sec-label::after { content: ''; flex: 1; height: 1px; background: #e5e5e5; }
+  .d1-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; }
+  .d1-field { margin-bottom: 12px; }
+  .d1-field-label { font-size: 10px; font-weight: 700; color: #737373; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 2px; }
+  .d1-field-val { font-size: 13px; color: #0a0a0a; }
+  .d1-footer { padding: 12px 24px; border-top: 1px solid #e5e5e5; display: flex; justify-content: flex-end; }
+  .badge-active { display: inline-block; background: #dcfce7; color: #166534; font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 99px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .chip { border: 1px solid #e5e5e5; border-radius: 6px; padding: 2px 8px; font-size: 11px; color: #0a0a0a; font-weight: 500; }
+  .btn-ghost { border: 1px solid #e5e5e5; background: #fff; padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 500; color: #404040; cursor: pointer; }
+  .btn-danger { background: #dc2626; color: #fff; border: none; padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-close { border: 1px solid #e5e5e5; background: #fff; padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 500; color: #404040; cursor: pointer; }
+
+  /* ─────────────────────────── DESIGN 2 ─────────────────────────── */
+  /* Card Bento — fields live in individual soft cards */
+  .d2-modal { width: 820px; background: #fafafa; border-radius: 20px; box-shadow: 0 28px 72px rgba(0,0,0,.16); display: flex; flex-direction: column; overflow: hidden; }
+  .d2-header { padding: 24px 28px 20px; background: #0a0a0a; display: flex; align-items: flex-start; justify-content: space-between; }
+  .d2-header h2 { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -.02em; }
+  .d2-header p { font-size: 12px; color: #737373; margin-top: 5px; }
+  .d2-header-actions { display: flex; gap: 8px; align-items: flex-start; }
+  .d2-btn-edit { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15); color: #fff; padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .d2-btn-danger { background: #dc2626; color: #fff; border: none; padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .d2-body { padding: 20px 24px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .d2-card { background: #fff; border: 1px solid #e5e5e5; border-radius: 14px; padding: 14px 16px; }
+  .d2-card.span2 { grid-column: span 2; }
+  .d2-card.span3 { grid-column: span 3; }
+  .d2-card-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #737373; margin-bottom: 6px; }
+  .d2-card-val { font-size: 14px; font-weight: 600; color: #0a0a0a; }
+  .d2-card-val.big { font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+  .d2-card-val.mono { font-family: "SF Mono", "Fira Mono", monospace; }
+  .d2-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .d2-chip { background: #f3f3f3; border-radius: 6px; padding: 3px 10px; font-size: 11px; font-weight: 500; color: #262626; }
+  .d2-footer { padding: 14px 24px; border-top: 1px solid #e5e5e5; display: flex; justify-content: flex-end; gap: 8px; background: #fff; }
+  .d2-badge { display: inline-flex; align-items: center; gap: 5px; }
+  .d2-badge::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; }
+  .d2-badge span { font-size: 14px; font-weight: 600; color: #0a0a0a; }
+  .d2-footer-btn { border: 1px solid #e5e5e5; background: #fff; padding: 8px 18px; border-radius: 10px; font-size: 13px; font-weight: 500; color: #404040; cursor: pointer; }
+
+  /* ─────────────────────────── DESIGN 3 ─────────────────────────── */
+  /* Left sidebar hero + right detail panel */
+  .d3-modal { width: 800px; background: #fff; border-radius: 20px; box-shadow: 0 28px 72px rgba(0,0,0,.18); display: flex; overflow: hidden; max-height: 560px; }
+  .d3-sidebar { width: 240px; flex-shrink: 0; background: linear-gradient(160deg, #0f0f0f 0%, #1c1c1c 100%); padding: 28px 24px; display: flex; flex-direction: column; gap: 0; }
+  .d3-sidebar-name { font-size: 20px; font-weight: 800; color: #fff; letter-spacing: -.02em; line-height: 1.2; margin-bottom: 8px; }
+  .d3-sidebar-meta { font-size: 11px; color: #737373; line-height: 1.6; margin-bottom: 20px; }
+  .d3-sidebar-price { font-size: 32px; font-weight: 900; color: #fff; letter-spacing: -.03em; margin-bottom: 4px; }
+  .d3-sidebar-price-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; color: #555; margin-bottom: 24px; }
+  .d3-sidebar-stat { margin-bottom: 14px; }
+  .d3-sidebar-stat-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #555; margin-bottom: 2px; }
+  .d3-sidebar-stat-val { font-size: 14px; font-weight: 700; color: #e5e5e5; }
+  .d3-sidebar-badge { display: inline-block; background: #22c55e; color: #fff; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 2px 10px; border-radius: 99px; margin-top: auto; }
+  .d3-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .d3-main-header { padding: 20px 24px 16px; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; justify-content: space-between; }
+  .d3-main-header-title { font-size: 13px; font-weight: 700; color: #0a0a0a; text-transform: uppercase; letter-spacing: .06em; }
+  .d3-main-actions { display: flex; gap: 8px; }
+  .d3-main-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+  .d3-section { margin-bottom: 20px; }
+  .d3-section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #737373; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid #f0f0f0; }
+  .d3-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; }
+  .d3-field-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #737373; margin-bottom: 2px; }
+  .d3-field-val { font-size: 13px; color: #0a0a0a; }
+  .d3-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .d3-chip { border: 1px solid #e5e5e5; border-radius: 6px; padding: 2px 8px; font-size: 11px; color: #0a0a0a; font-weight: 500; }
+  .d3-footer { padding: 12px 24px; border-top: 1px solid #e5e5e5; display: flex; justify-content: flex-end; gap: 8px; }
+  .d3-btn-ghost { border: 1px solid #e5e5e5; background: #fff; padding: 7px 14px; border-radius: 9px; font-size: 12px; font-weight: 500; color: #404040; cursor: pointer; }
+  .d3-btn-danger { background: #dc2626; color: #fff; border: none; padding: 7px 14px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; }
+
+  /* ─────────────────────────── DESIGN 4 ─────────────────────────── */
+  /* Minimal mono — ultra-sparse, editorial style */
+  .d4-modal { width: 760px; background: #fff; border-radius: 4px; box-shadow: 0 2px 40px rgba(0,0,0,.10), 0 0 0 1px rgba(0,0,0,.06); display: flex; flex-direction: column; overflow: hidden; }
+  .d4-header { padding: 24px 32px 20px; border-bottom: 2px solid #0a0a0a; display: flex; align-items: flex-start; justify-content: space-between; }
+  .d4-header-left { display: flex; flex-direction: column; gap: 6px; }
+  .d4-eyebrow { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: #737373; }
+  .d4-header h2 { font-size: 28px; font-weight: 900; color: #0a0a0a; letter-spacing: -.03em; line-height: 1; }
+  .d4-header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .d4-price-big { font-size: 32px; font-weight: 900; color: #0a0a0a; letter-spacing: -.04em; font-family: "SF Mono", "Fira Mono", monospace; }
+  .d4-header-actions { display: flex; gap: 6px; }
+  .d4-body { padding: 24px 32px; display: grid; grid-template-columns: 1fr 1px 1fr; gap: 0 32px; }
+  .d4-divider-col { background: #e5e5e5; width: 1px; }
+  .d4-col { display: flex; flex-direction: column; gap: 18px; }
+  .d4-row { display: grid; grid-template-columns: 130px 1fr; align-items: baseline; gap: 8px; }
+  .d4-row-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #a0a0a0; }
+  .d4-row-val { font-size: 13px; color: #0a0a0a; font-weight: 500; }
+  .d4-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .d4-chip { background: #0a0a0a; color: #fff; border-radius: 3px; padding: 2px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  .d4-badge { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #16a34a; }
+  .d4-footer { padding: 14px 32px; border-top: 1px solid #e5e5e5; display: flex; align-items: center; justify-content: space-between; }
+  .d4-meta { font-size: 10px; color: #a0a0a0; }
+  .d4-footer-actions { display: flex; gap: 6px; }
+  .d4-btn-outline { border: 2px solid #0a0a0a; background: #fff; padding: 7px 16px; border-radius: 3px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #0a0a0a; cursor: pointer; }
+  .d4-btn-fill { border: 2px solid #dc2626; background: #dc2626; color: #fff; padding: 7px 16px; border-radius: 3px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; cursor: pointer; }
+
+  /* ─────────────────────────── DESIGN 5 ─────────────────────────── */
+  /* Full-bleed header image + floating cards */
+  .d5-modal { width: 800px; background: #fff; border-radius: 20px; box-shadow: 0 32px 80px rgba(0,0,0,.2); display: flex; flex-direction: column; overflow: hidden; }
+  .d5-hero { background: linear-gradient(135deg, #18181b 0%, #27272a 50%, #3f3f46 100%); padding: 32px 28px 24px; position: relative; }
+  .d5-hero-close { position: absolute; top: 16px; right: 16px; width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,.1); border: none; color: #fff; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+  .d5-hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(34,197,94,.15); border: 1px solid rgba(34,197,94,.3); border-radius: 99px; padding: 3px 10px 3px 7px; margin-bottom: 12px; }
+  .d5-hero-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; }
+  .d5-hero-badge-text { font-size: 11px; font-weight: 600; color: #86efac; }
+  .d5-hero-name { font-size: 26px; font-weight: 900; color: #fff; letter-spacing: -.02em; margin-bottom: 6px; }
+  .d5-hero-meta { font-size: 12px; color: #71717a; }
+  .d5-hero-price-row { display: flex; align-items: baseline; gap: 8px; margin-top: 16px; }
+  .d5-hero-price { font-size: 36px; font-weight: 900; color: #fff; letter-spacing: -.04em; }
+  .d5-hero-price-per { font-size: 13px; color: #71717a; }
+  .d5-hero-actions { position: absolute; bottom: 20px; right: 24px; display: flex; gap: 8px; }
+  .d5-btn-white { background: rgba(255,255,255,.1); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,.15); color: #fff; padding: 8px 16px; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .d5-btn-red { background: #dc2626; border: none; color: #fff; padding: 8px 16px; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .d5-body { padding: 20px 24px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .d5-section { background: #fafafa; border: 1px solid #e5e5e5; border-radius: 14px; padding: 16px 18px; }
+  .d5-section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #737373; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .d5-section-title::after { content: ''; flex: 1; height: 1px; background: #e5e5e5; }
+  .d5-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+  .d5-field-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #a0a0a0; margin-bottom: 2px; }
+  .d5-field-val { font-size: 13px; color: #0a0a0a; font-weight: 500; }
+  .d5-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .d5-chip { background: #e4e4e7; border-radius: 6px; padding: 2px 8px; font-size: 11px; color: #3f3f46; font-weight: 500; }
+  .d5-footer { padding: 14px 24px; border-top: 1px solid #e5e5e5; display: flex; justify-content: flex-end; gap: 8px; }
+  .d5-btn-close { border: 1px solid #e5e5e5; background: #fff; padding: 8px 18px; border-radius: 10px; font-size: 13px; font-weight: 500; color: #404040; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="#" class="active" onclick="show(1,this)">1 · Current (Two-Col)</a>
+  <a href="#" onclick="show(2,this)">2 · Bento Cards</a>
+  <a href="#" onclick="show(3,this)">3 · Sidebar Hero</a>
+  <a href="#" onclick="show(4,this)">4 · Minimal Mono</a>
+  <a href="#" onclick="show(5,this)">5 · Dark Hero</a>
+</nav>
+
+<!-- ══════════════════════ DESIGN 1 ══════════════════════ -->
+<div class="stage visible" id="stage1">
+  <div class="d1-modal">
+    <div class="d1-header">
+      <div class="d1-header-left">
+        <h2>E2E Test Session</h2>
+        <p>Class slot · 160 minute(s) · RM 500.00</p>
+      </div>
+      <div class="d1-header-actions">
+        <button class="btn-ghost">Edit</button>
+        <button class="btn-danger">Deactivate</button>
+      </div>
+    </div>
+    <div class="d1-body">
+      <div class="d1-col">
+        <div class="d1-sec">
+          <div class="d1-sec-label">Overview</div>
+          <div class="d1-grid">
+            <div class="d1-field">
+              <div class="d1-field-label">Status</div>
+              <div class="d1-field-val"><span class="badge-active">Active</span></div>
+            </div>
+            <div class="d1-field">
+              <div class="d1-field-label">Type</div>
+              <div class="d1-field-val">Private</div>
+            </div>
+            <div class="d1-field">
+              <div class="d1-field-label">Recommended</div>
+              <div class="d1-field-val">No</div>
+            </div>
+          </div>
+        </div>
+        <div class="d1-sec">
+          <div class="d1-sec-label">Scheduling</div>
+          <div class="d1-grid">
+            <div class="d1-field">
+              <div class="d1-field-label">Type</div>
+              <div class="d1-field-val">Class slot</div>
+            </div>
+            <div class="d1-field">
+              <div class="d1-field-label">Duration</div>
+              <div class="d1-field-val">160 minute(s)</div>
+            </div>
+            <div class="d1-field">
+              <div class="d1-field-label">Max Attendees</div>
+              <div class="d1-field-val">1</div>
+            </div>
+          </div>
+          <div class="d1-field" style="margin-top:8px">
+            <div class="d1-field-label">Recurring Days</div>
+            <div class="chips">
+              <span class="chip">Monday</span>
+              <span class="chip">Tuesday</span>
+              <span class="chip">Wednesday</span>
+            </div>
+          </div>
+        </div>
+        <div class="d1-grid" style="border-top:1px solid #e5e5e5;padding-top:16px;margin-top:16px">
+          <div class="d1-field">
+            <div class="d1-field-label">Created</div>
+            <div class="d1-field-val">April 28, 2026 at 11:36 AM</div>
+          </div>
+          <div class="d1-field">
+            <div class="d1-field-label">Updated</div>
+            <div class="d1-field-val">May 17, 2026 at 07:20 PM</div>
+          </div>
+        </div>
+      </div>
+      <div class="d1-col">
+        <div class="d1-sec-label">Pricing &amp; Sessions</div>
+        <div class="d1-grid">
+          <div class="d1-field">
+            <div class="d1-field-label">Price</div>
+            <div class="d1-field-val">RM 500.00</div>
+          </div>
+          <div class="d1-field">
+            <div class="d1-field-label">Taxable</div>
+            <div class="d1-field-val">Yes (6%)</div>
+          </div>
+          <div class="d1-field">
+            <div class="d1-field-label">Sessions</div>
+            <div class="d1-field-val">10</div>
+          </div>
+          <div class="d1-field">
+            <div class="d1-field-label">Expiry</div>
+            <div class="d1-field-val">None</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="d1-footer">
+      <button class="btn-close">Close</button>
+    </div>
+  </div>
+  <div class="label-pill">Design 1 — Current (Two-Col with Divider)</div>
+</div>
+
+<!-- ══════════════════════ DESIGN 2 ══════════════════════ -->
+<div class="stage" id="stage2">
+  <div class="d2-modal">
+    <div class="d2-header">
+      <div>
+        <h2>E2E Test Session</h2>
+        <p>Class slot · 160 minutes · Private</p>
+      </div>
+      <div class="d2-header-actions">
+        <button class="d2-btn-edit">Edit</button>
+        <button class="d2-btn-danger">Deactivate</button>
+      </div>
+    </div>
+    <div class="d2-body">
+      <!-- Row 1 -->
+      <div class="d2-card">
+        <div class="d2-card-label">Status</div>
+        <div class="d2-badge"><span>Active</span></div>
+      </div>
+      <div class="d2-card">
+        <div class="d2-card-label">Price</div>
+        <div class="d2-card-val big mono">RM 500</div>
+      </div>
+      <div class="d2-card">
+        <div class="d2-card-label">Sessions</div>
+        <div class="d2-card-val big">10</div>
+      </div>
+      <!-- Row 2 -->
+      <div class="d2-card">
+        <div class="d2-card-label">Type</div>
+        <div class="d2-card-val">Private</div>
+      </div>
+      <div class="d2-card">
+        <div class="d2-card-label">Duration</div>
+        <div class="d2-card-val">160 minutes</div>
+      </div>
+      <div class="d2-card">
+        <div class="d2-card-label">Max Attendees</div>
+        <div class="d2-card-val">1</div>
+      </div>
+      <!-- Row 3 -->
+      <div class="d2-card">
+        <div class="d2-card-label">Taxable</div>
+        <div class="d2-card-val">Yes — 6%</div>
+      </div>
+      <div class="d2-card">
+        <div class="d2-card-label">Scheduling</div>
+        <div class="d2-card-val">Class slot</div>
+      </div>
+      <div class="d2-card">
+        <div class="d2-card-label">Recommended</div>
+        <div class="d2-card-val">No</div>
+      </div>
+      <!-- Recurring days full-width -->
+      <div class="d2-card span3">
+        <div class="d2-card-label">Recurring Days</div>
+        <div class="d2-chips">
+          <span class="d2-chip">Monday</span>
+          <span class="d2-chip">Tuesday</span>
+          <span class="d2-chip">Wednesday</span>
+        </div>
+      </div>
+    </div>
+    <div class="d2-footer">
+      <button class="d2-footer-btn">Close</button>
+    </div>
+  </div>
+  <div class="label-pill">Design 2 — Bento Cards</div>
+</div>
+
+<!-- ══════════════════════ DESIGN 3 ══════════════════════ -->
+<div class="stage" id="stage3">
+  <div class="d3-modal">
+    <div class="d3-sidebar">
+      <div class="d3-sidebar-name">E2E Test Session</div>
+      <div class="d3-sidebar-meta">Class slot · Private<br/>160 minutes per session</div>
+      <div class="d3-sidebar-price">RM 500</div>
+      <div class="d3-sidebar-price-label">per session</div>
+      <div class="d3-sidebar-stat">
+        <div class="d3-sidebar-stat-label">Sessions</div>
+        <div class="d3-sidebar-stat-val">10</div>
+      </div>
+      <div class="d3-sidebar-stat">
+        <div class="d3-sidebar-stat-label">Tax</div>
+        <div class="d3-sidebar-stat-val">6%</div>
+      </div>
+      <div class="d3-sidebar-stat">
+        <div class="d3-sidebar-stat-label">Max Attendees</div>
+        <div class="d3-sidebar-stat-val">1</div>
+      </div>
+      <div style="flex:1"></div>
+      <span class="d3-sidebar-badge">● Active</span>
+    </div>
+    <div class="d3-main">
+      <div class="d3-main-header">
+        <div class="d3-main-header-title">Service Details</div>
+        <div class="d3-main-actions">
+          <button class="d3-btn-ghost">Edit</button>
+          <button class="d3-btn-danger">Deactivate</button>
+        </div>
+      </div>
+      <div class="d3-main-body">
+        <div class="d3-section">
+          <div class="d3-section-label">Overview</div>
+          <div class="d3-grid">
+            <div>
+              <div class="d3-field-label">Type</div>
+              <div class="d3-field-val">Private</div>
+            </div>
+            <div>
+              <div class="d3-field-label">Recommended</div>
+              <div class="d3-field-val">No</div>
+            </div>
+            <div>
+              <div class="d3-field-label">Expiry</div>
+              <div class="d3-field-val">None</div>
+            </div>
+            <div>
+              <div class="d3-field-label">Scheduling</div>
+              <div class="d3-field-val">Class slot</div>
+            </div>
+          </div>
+        </div>
+        <div class="d3-section">
+          <div class="d3-section-label">Recurring Schedule</div>
+          <div class="d3-chips">
+            <span class="d3-chip">Monday</span>
+            <span class="d3-chip">Tuesday</span>
+            <span class="d3-chip">Wednesday</span>
+          </div>
+        </div>
+        <div class="d3-section">
+          <div class="d3-section-label">Timestamps</div>
+          <div class="d3-grid">
+            <div>
+              <div class="d3-field-label">Created</div>
+              <div class="d3-field-val">Apr 28, 2026 at 11:36 AM</div>
+            </div>
+            <div>
+              <div class="d3-field-label">Updated</div>
+              <div class="d3-field-val">May 17, 2026 at 07:20 PM</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="d3-footer">
+        <button class="d3-btn-ghost">Close</button>
+      </div>
+    </div>
+  </div>
+  <div class="label-pill">Design 3 — Sidebar Hero</div>
+</div>
+
+<!-- ══════════════════════ DESIGN 4 ══════════════════════ -->
+<div class="stage" id="stage4">
+  <div class="d4-modal">
+    <div class="d4-header">
+      <div class="d4-header-left">
+        <div class="d4-eyebrow">Class slot · Private · Active</div>
+        <h2>E2E Test Session</h2>
+      </div>
+      <div class="d4-header-right">
+        <div class="d4-price-big">RM500</div>
+        <div class="d4-header-actions">
+          <button class="d4-btn-outline">Edit</button>
+          <button class="d4-btn-fill">Deactivate</button>
+        </div>
+      </div>
+    </div>
+    <div class="d4-body">
+      <div class="d4-col">
+        <div class="d4-row">
+          <div class="d4-row-label">Status</div>
+          <div class="d4-badge">● Active</div>
+        </div>
+        <div class="d4-row">
+          <div class="d4-row-label">Service type</div>
+          <div class="d4-row-val">Private</div>
+        </div>
+        <div class="d4-row">
+          <div class="d4-row-label">Scheduling</div>
+          <div class="d4-row-val">Class slot</div>
+        </div>
+        <div class="d4-row">
+          <div class="d4-row-label">Duration</div>
+          <div class="d4-row-val">160 minutes</div>
+        </div>
+        <div class="d4-row">
+          <div class="d4-row-label">Max attendees</div>
+          <div class="d4-row-val">1</div>
+        </div>
+        <div class="d4-row">
+          <div class="d4-row-label">Recurring days</div>
+          <div class="d4-chips">
+            <span class="d4-chip">Mon</span>
+            <span class="d4-chip">Tue</span>
+            <span class="d4-chip">Wed</span>
+          </div>
+        </div>
+      </div>
+      <div class="d4-divider-col"></div>
+      <div class="d4-col">
+        <div class="d4-row">
+          <div class="d4-row-label">Price</div>
+          <div class="d4-row-val">RM 500.00</div>
+        </div>
+        <div class="d4-row">
+          <div class="d4-row-label">Taxable</div>
+          <div class="d4-row-val">Yes, 6%</div>
+        </div>
+        <div class="d4-row">
+          <div class="d4-row-label">Sessions</div>
+          <div class="d4-row-val">10</div>
+        </div>
+        <div class="d4-row">
+          <div class="d4-row-label">Expiry</div>
+          <div class="d4-row-val">None</div>
+        </div>
+        <div class="d4-row">
+          <div class="d4-row-label">Recommended</div>
+          <div class="d4-row-val">No</div>
+        </div>
+        <div class="d4-row">
+          <div class="d4-row-label">Created</div>
+          <div class="d4-row-val">Apr 28, 2026</div>
+        </div>
+        <div class="d4-row">
+          <div class="d4-row-label">Updated</div>
+          <div class="d4-row-val">May 17, 2026</div>
+        </div>
+      </div>
+    </div>
+    <div class="d4-footer">
+      <div class="d4-meta">ID: e2e-test-session-001 · Last modified by Admin</div>
+      <div class="d4-footer-actions">
+        <button class="d4-btn-outline">Close</button>
+      </div>
+    </div>
+  </div>
+  <div class="label-pill">Design 4 — Minimal Mono</div>
+</div>
+
+<!-- ══════════════════════ DESIGN 5 ══════════════════════ -->
+<div class="stage" id="stage5">
+  <div class="d5-modal">
+    <div class="d5-hero">
+      <button class="d5-hero-close">×</button>
+      <div class="d5-hero-badge">
+        <span class="d5-hero-badge-dot"></span>
+        <span class="d5-hero-badge-text">Active</span>
+      </div>
+      <div class="d5-hero-name">E2E Test Session</div>
+      <div class="d5-hero-meta">Class slot · Private · 160 minutes per session</div>
+      <div class="d5-hero-price-row">
+        <span class="d5-hero-price">RM 500.00</span>
+        <span class="d5-hero-price-per">per session · 6% tax</span>
+      </div>
+      <div class="d5-hero-actions">
+        <button class="d5-btn-white">Edit</button>
+        <button class="d5-btn-red">Deactivate</button>
+      </div>
+    </div>
+    <div class="d5-body">
+      <div class="d5-section">
+        <div class="d5-section-title">Scheduling</div>
+        <div class="d5-grid">
+          <div>
+            <div class="d5-field-label">Type</div>
+            <div class="d5-field-val">Class slot</div>
+          </div>
+          <div>
+            <div class="d5-field-label">Duration</div>
+            <div class="d5-field-val">160 minutes</div>
+          </div>
+          <div>
+            <div class="d5-field-label">Max Attendees</div>
+            <div class="d5-field-val">1</div>
+          </div>
+          <div>
+            <div class="d5-field-label">Recommended</div>
+            <div class="d5-field-val">No</div>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <div class="d5-field-label">Recurring Days</div>
+          <div class="d5-chips">
+            <span class="d5-chip">Monday</span>
+            <span class="d5-chip">Tuesday</span>
+            <span class="d5-chip">Wednesday</span>
+          </div>
+        </div>
+      </div>
+      <div class="d5-section">
+        <div class="d5-section-title">Pricing &amp; Sessions</div>
+        <div class="d5-grid">
+          <div>
+            <div class="d5-field-label">Price</div>
+            <div class="d5-field-val">RM 500.00</div>
+          </div>
+          <div>
+            <div class="d5-field-label">Tax</div>
+            <div class="d5-field-val">6%</div>
+          </div>
+          <div>
+            <div class="d5-field-label">Sessions</div>
+            <div class="d5-field-val">10</div>
+          </div>
+          <div>
+            <div class="d5-field-label">Expiry</div>
+            <div class="d5-field-val">None</div>
+          </div>
+        </div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid #e5e5e5;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <div class="d5-field-label">Created</div>
+            <div class="d5-field-val">Apr 28, 2026 at 11:36 AM</div>
+          </div>
+          <div>
+            <div class="d5-field-label">Updated</div>
+            <div class="d5-field-val">May 17, 2026 at 07:20 PM</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="d5-footer">
+      <button class="d5-btn-close">Close</button>
+    </div>
+  </div>
+  <div class="label-pill">Design 5 — Dark Hero</div>
+</div>
+
+<script>
+function show(n, link) {
+  document.querySelectorAll('.stage').forEach(s => s.classList.remove('visible'));
+  document.getElementById('stage' + n).classList.add('visible');
+  document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
+  link.classList.add('active');
+  return false;
+}
+</script>
+</body>
+</html>

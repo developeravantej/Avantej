@@ -1,0 +1,53 @@
+{
+	"domains": [
+		{
+			"id": "D-commission-engine",
+			"name": "Commission rule engine, splits, math, cycle",
+			"files": [
+				"packages/api/src/routers/category-commission.ts",
+				"packages/api/src/routers/commission-splits.ts",
+				"packages/api/src/routers/commission-splits/**/*.ts",
+				"packages/services/src/category-commission.service.ts",
+				"packages/services/src/commission-calculator.service.ts",
+				"packages/services/src/commission-cycle.service.ts",
+				"packages/services/src/commission-math.ts",
+				"packages/services/src/commission-splits.service.ts"
+			],
+			"focus": "Rule resolution, weightages SUM=10000 invariant, per-(branch|tenant) cycle policy, math for splits, edge cases (zero/negative, multi-payer, refund recompute, cycle boundary)."
+		},
+		{
+			"id": "D-commission-payouts",
+			"name": "Commission payouts router + service + tabs",
+			"files": [
+				"packages/api/src/routers/payouts.ts",
+				"packages/services/src/payouts.service.ts",
+				"apps/web/src/routes/_authenticated/dashboard/_layout/commissions/**/*.tsx",
+				"apps/web/src/components/pages/commissions/**/*.tsx"
+			],
+			"focus": "Payouts router (list/create/approve/bulk-approve/void/dispute/mark-paid), payouts.service business logic, the five tabs (all / mine / review / payouts / liability), permission gates, RBAC by staffId vs members.id."
+		},
+		{
+			"id": "D-installments-pos",
+			"name": "POS installments (payment-items) + sweep",
+			"files": [
+				"packages/api/src/routers/installment-plans.ts",
+				"packages/api/src/routers/installments.ts",
+				"packages/services/src/installment-plan.service.ts",
+				"packages/services/src/installment.service.ts",
+				"apps/server/src/services/installment-sweep.service.ts",
+				"apps/server/src/services/installment-sweep.test.ts",
+				"apps/web/src/routes/_authenticated/dashboard/_layout/payment/**/*.tsx"
+			],
+			"focus": "First-installment-at-POS flow, schedule generation, mark overdue (cron 02:00), partial payment handling, refund interaction, invariant: schedule sum = order total in cents."
+		},
+		{
+			"id": "D-installments-saas",
+			"name": "SaaS subscription installments + Stripe reconciliation",
+			"files": [
+				"apps/server/src/services/saas-subscription.service.ts",
+				"apps/server/src/services/saas-subscription.service.integration.test.ts"
+			],
+			"focus": "Subscription billing installments, past-due/suspend lifecycle (interacts with orpc-tenant.middleware), Stripe reconciliation cron 02:00, idempotency on webhook replay."
+		}
+	]
+}

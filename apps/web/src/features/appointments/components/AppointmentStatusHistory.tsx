@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { client } from "@/utils/orpc";
+import { orpc } from "@/utils/orpc";
 import { StatusTimeline } from "@/components/ui/status-timeline";
 
 export function AppointmentStatusHistory({
@@ -9,12 +9,10 @@ export function AppointmentStatusHistory({
 	organizationId: string;
 	appointmentId: string;
 }) {
-	const { data, isLoading } = useQuery({
-		queryKey: ["appointments", "statusHistory", appointmentId],
-		queryFn: () =>
-			client.appointments.statusHistory({ organizationId, appointmentId }),
-	});
-	return (
-		<StatusTimeline entries={data?.rows ?? []} isLoading={isLoading} />
+	const { data, isLoading } = useQuery(
+		orpc.appointments.statusHistory.queryOptions({
+			input: { organizationId, appointmentId },
+		}),
 	);
+	return <StatusTimeline entries={data?.rows ?? []} isLoading={isLoading} />;
 }

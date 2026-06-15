@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import type { Role } from "@/components/access-control/permission-matrix/PermissionMatrix";
+import type { Role } from "@/components/access-control/permission-matrix/permission-matrix.types";
 import { getRoleGroupBadge } from "./scope-style";
 
 export interface RolePickerProps {
@@ -33,7 +33,7 @@ export function RolePicker({
 								<Checkbox
 									checked={selectedBatchRoles.has(role.id)}
 									onCheckedChange={() => onToggleBatchRole(role.id)}
-									className="w-3 h-3"
+									className="size-3"
 								/>
 								<span className="font-medium text-xs leading-tight">
 									{role.name}

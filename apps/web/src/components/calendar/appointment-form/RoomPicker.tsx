@@ -1,7 +1,17 @@
 import React from "react";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Link } from "@tanstack/react-router";
 
 type Room = {
@@ -18,18 +28,26 @@ type RoomPickerProps = {
 	onNavigateAway: () => void;
 };
 
-export function RoomPicker({ rooms, value, onChange, onNavigateAway }: RoomPickerProps) {
+export function RoomPicker({
+	rooms,
+	value,
+	onChange,
+	onNavigateAway,
+}: RoomPickerProps) {
 	return (
 		<div className="space-y-2">
 			<div className="flex items-center gap-2">
-				<Label htmlFor="roomId" className="text-sm font-medium text-brand-primary-1">
+				<Label
+					htmlFor="roomId"
+					className="text-sm font-medium text-brand-primary-1"
+				>
 					Area *
 				</Label>
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<button
 							type="button"
-							className="w-5 h-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium"
+							className="size-5 rounded-full bg-brand-secondary-3 text-brand-secondary-1 hover:bg-brand-secondary-2 hover:text-brand-primary-1 flex items-center justify-center text-xs font-medium"
 						>
 							?
 						</button>
@@ -39,7 +57,9 @@ export function RoomPicker({ rooms, value, onChange, onNavigateAway }: RoomPicke
 						align="start"
 						className="z-[10002] bg-brand-secondary-3 text-brand-primary-1 font-medium [&>svg]:hidden [&>svg]:!hidden [&>svg]:opacity-0 [&>svg]:pointer-events-none"
 					>
-						<p className="text-black font-medium">Select the room where the appointment will take place.</p>
+						<p className="text-black font-medium">
+							Select the room where the appointment will take place.
+						</p>
 					</TooltipContent>
 				</Tooltip>
 			</div>

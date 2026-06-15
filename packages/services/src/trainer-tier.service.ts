@@ -70,7 +70,32 @@ export async function createTrainerTier(
 
 	const tier = inserted[0]!;
 
-	const missingRateCategories = await getConfigsMissingRateForTier(tenantDb, tier.id);
+	// Scaffold zero-amount stub rows for every active non-conditional commission config
+	// so commission calculation doesn't fail for trainers assigned to this new tier.
+	const activeConfigs = await tenantDb
+		.select({ id: categoryCommissionConfigs.id })
+		.from(categoryCommissionConfigs)
+		.where(
+			and(
+				eq(categoryCommissionConfigs.isActive, true),
+				eq(categoryCommissionConfigs.isConditional, false),
+			),
+		);
+
+	if (activeConfigs.length > 0) {
+		await tenantDb.insert(commissionTierRates).values(
+			activeConfigs.map((config) => ({
+				configId: config.id,
+				trainerTierId: tier.id,
+				amount: 0,
+			})),
+		);
+	}
+
+	const missingRateCategories = await getConfigsMissingRateForTier(
+		tenantDb,
+		tier.id,
+	);
 
 	return { tier, missingRateCategories };
 }
@@ -83,13 +108,23 @@ export async function updateTrainerTier(
 		description,
 		rank,
 		isActive,
-	}: { name?: string; description?: string | null; rank?: number; isActive?: boolean },
+	}: {
+		name?: string;
+		description?: string | null;
+		rank?: number;
+		isActive?: boolean;
+	},
 ): Promise<typeof trainerTiers.$inferSelect> {
 	if (name !== undefined) {
 		const existing = await tenantDb
 			.select({ id: trainerTiers.id })
 			.from(trainerTiers)
-			.where(and(sql`LOWER(${trainerTiers.name}) = LOWER(${name})`, ne(trainerTiers.id, id)))
+			.where(
+				and(
+					sql`LOWER(${trainerTiers.name}) = LOWER(${name})`,
+					ne(trainerTiers.id, id),
+				),
+			)
 			.limit(1);
 
 		if (existing.length > 0) {
@@ -129,6 +164,30 @@ export async function deactivateTrainerTier(
 	return updated;
 }
 
+export async function deleteTrainerTier(
+	tenantDb: TenantDb,
+	id: string,
+): Promise<void> {
+	const [existing] = await tenantDb
+		.select({ id: trainerTiers.id })
+		.from(trainerTiers)
+		.where(eq(trainerTiers.id, id))
+		.limit(1);
+
+	if (!existing) {
+		throw new Error("Trainer tier not found");
+	}
+
+	// Unassign any members still pointing at this tier
+	await tenantDb
+		.update(members)
+		.set({ trainerTierId: null })
+		.where(eq(members.trainerTierId, id));
+
+	// Hard delete the tier
+	await tenantDb.delete(trainerTiers).where(eq(trainerTiers.id, id));
+}
+
 export async function reactivateTrainerTier(
 	tenantDb: TenantDb,
 	id: string,
@@ -143,7 +202,10 @@ export async function reactivateTrainerTier(
 		throw new Error("Trainer tier not found");
 	}
 
-	const missingRateCategories = await getConfigsMissingRateForTier(tenantDb, id);
+	const missingRateCategories = await getConfigsMissingRateForTier(
+		tenantDb,
+		id,
+	);
 
 	return { tier, missingRateCategories };
 }

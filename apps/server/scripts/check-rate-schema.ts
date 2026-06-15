@@ -1,0 +1,47 @@
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
+import { readFileSync } from "fs";
+import { decrypt } from "@avantej-core/db/lib/encryption";
+neonConfig.webSocketConstructor = ws;
+const env = Object.fromEntries(
+	readFileSync(".dev.vars", "utf8")
+		.split(/\r?\n/)
+		.filter((l) => l && !l.startsWith("#"))
+		.map((l) => {
+			const i = l.indexOf("=");
+			return [l.slice(0, i), l.slice(i + 1).replace(/^"|"$/g, "")];
+		}),
+);
+process.env.ENCRYPTION_KEY = env.ENCRYPTION_KEY!;
+const cp = new Pool({ connectionString: env.DATABASE_URL });
+const conn = decrypt(
+	(
+		await cp.query(
+			"SELECT connection_string FROM organizations WHERE slug='test-fitness-franchise'",
+		)
+	).rows[0].connection_string,
+);
+const t = new Pool({ connectionString: conn });
+const list = async (tbl: string) => {
+	const r = await t.query(
+		`SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name=$1 ORDER BY ordinal_position`,
+		[tbl],
+	);
+	console.log(`\n=== ${tbl} ===`);
+	for (const c of r.rows)
+		console.log(
+			`  ${c.column_name}: ${c.data_type}${c.is_nullable === "YES" ? " (nullable)" : ""}`,
+		);
+};
+for (const tbl of [
+	"commission_condition_rates",
+	"commission_conditions",
+	"commission_tier_rates",
+	"trainer_tiers",
+])
+	await list(tbl);
+const tt = await t.query(`SELECT * FROM trainer_tiers ORDER BY name`);
+console.log("\n=== trainer_tiers data ===");
+console.log(tt.rows);
+await t.end();
+await cp.end();

@@ -31,10 +31,7 @@ const baseInvitation = {
 
 describe("validateAcceptanceInput", () => {
 	test("ok when token matches a pending invitation and emails align", () => {
-		const result = validateAcceptanceInput(
-			baseInvitation,
-			"user@example.com",
-		);
+		const result = validateAcceptanceInput(baseInvitation, "user@example.com");
 		expect(result).toEqual({ ok: true });
 	});
 
@@ -52,10 +49,7 @@ describe("validateAcceptanceInput", () => {
 	});
 
 	test("email comparison is case-insensitive", () => {
-		const result = validateAcceptanceInput(
-			baseInvitation,
-			"USER@EXAMPLE.COM",
-		);
+		const result = validateAcceptanceInput(baseInvitation, "USER@EXAMPLE.COM");
 		expect(result).toEqual({ ok: true });
 	});
 

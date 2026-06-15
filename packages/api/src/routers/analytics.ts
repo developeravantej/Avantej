@@ -1,13 +1,21 @@
-import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
-import { requirePermission } from "@avantej-core/services";
+import { tenantProcedure } from "../index";
+import {
+	assertOrgContextMatch,
+	guardBranchAccessible,
+	requirePermissionOrpc,
+} from "../guards";
 import {
 	getDashboardKpis,
 	getStaffPerformance,
+	getRevenueSeries,
+	getMemberCountSeries,
+	getChurnSeries,
+	getLtvSeries,
+	getClassFillRateSeries,
 } from "@avantej-core/services/analytics.service";
 
-const getDashboardKpisHandler = protectedProcedure
+const getDashboardKpisHandler = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -24,31 +32,14 @@ const getDashboardKpisHandler = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message:
-					"Tenant database not available. Ensure organization context is set.",
-			});
-		}
-
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"reports",
-				"read",
-			);
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
-			});
-		}
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"reports",
+			"read",
+		);
+		guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 
 		return getDashboardKpis(context.tenantDb, {
 			period: input.period,
@@ -59,7 +50,7 @@ const getDashboardKpisHandler = protectedProcedure
 		});
 	});
 
-const getStaffPerformanceHandler = protectedProcedure
+const getStaffPerformanceHandler = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -68,31 +59,14 @@ const getStaffPerformanceHandler = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message:
-					"Tenant database not available. Ensure organization context is set.",
-			});
-		}
-
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"reports",
-				"read",
-			);
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
-			});
-		}
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"reports",
+			"read",
+		);
+		guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 
 		return getStaffPerformance(context.tenantDb, {
 			period: input.period,
@@ -101,7 +75,106 @@ const getStaffPerformanceHandler = protectedProcedure
 		});
 	});
 
+const getRevenueSeriesHandler = tenantProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			days: z.number().int().min(1).max(365),
+			branchId: z.string().uuid().optional(),
+		}),
+	)
+	.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"reports",
+			"read",
+		);
+		guardBranchAccessible(input.branchId, context.accessibleNodeIds);
+
+		return getRevenueSeries(context.tenantDb, {
+			days: input.days,
+			branchId: input.branchId,
+			accessibleNodeIds: context.accessibleNodeIds ?? [],
+		});
+	});
+
+const seriesInput = z.object({
+	organizationId: z.string().uuid(),
+	days: z.union([z.literal(7), z.literal(30), z.literal(90)]),
+});
+
+const getMemberCountSeriesHandler = tenantProcedure
+	.input(seriesInput)
+	.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"reports",
+			"read",
+		);
+		return getMemberCountSeries(context.tenantDb, {
+			days: input.days,
+			accessibleNodeIds: context.accessibleNodeIds ?? [],
+		});
+	});
+
+const getChurnSeriesHandler = tenantProcedure
+	.input(seriesInput)
+	.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"reports",
+			"read",
+		);
+		return getChurnSeries(context.tenantDb, {
+			days: input.days,
+			accessibleNodeIds: context.accessibleNodeIds ?? [],
+		});
+	});
+
+const getLtvSeriesHandler = tenantProcedure
+	.input(seriesInput)
+	.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"reports",
+			"read",
+		);
+		return getLtvSeries(context.tenantDb, {
+			days: input.days,
+			accessibleNodeIds: context.accessibleNodeIds ?? [],
+		});
+	});
+
+const getClassFillRateSeriesHandler = tenantProcedure
+	.input(seriesInput)
+	.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"reports",
+			"read",
+		);
+		return getClassFillRateSeries(context.tenantDb, {
+			days: input.days,
+			accessibleNodeIds: context.accessibleNodeIds ?? [],
+		});
+	});
+
 export const analyticsRouter = {
 	getDashboardKpis: getDashboardKpisHandler,
 	getStaffPerformance: getStaffPerformanceHandler,
+	getRevenueSeries: getRevenueSeriesHandler,
+	getMemberCountSeries: getMemberCountSeriesHandler,
+	getChurnSeries: getChurnSeriesHandler,
+	getLtvSeries: getLtvSeriesHandler,
+	getClassFillRateSeries: getClassFillRateSeriesHandler,
 };

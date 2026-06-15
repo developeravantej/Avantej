@@ -2,7 +2,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+	Alert,
+	Image,
+	ScrollView,
+	Text,
+	TouchableOpacity,
+	View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
@@ -27,8 +34,8 @@ export default function PayScreen() {
 	const { state, update } = usePurchaseFlow();
 	const queryClient = useQueryClient();
 
-	const currentStep = 6;
-	const totalSteps = 7;
+	const currentStep = 7;
+	const totalSteps = 8;
 	const progressPercentage = Math.round((currentStep / totalSteps) * 100);
 
 	const [isProcessing, setIsProcessing] = useState(false);
@@ -150,11 +157,7 @@ export default function PayScreen() {
 							onPress={() => router.back()}
 							className="mr-3 h-10 w-10 items-center justify-center"
 						>
-							<Ionicons
-								name="arrow-back"
-								size={24}
-								color={colors.primary[1]}
-							/>
+							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 						</TouchableOpacity>
 						<Text className="flex-1 font-bold text-2xl text-black">
 							Review &amp; Submit
@@ -341,7 +344,7 @@ export default function PayScreen() {
 						</View>
 
 						{/* Payment Plan Summary */}
-						{state.paymentPlanType && state.paymentPlanType !== "full" && (
+						{state.selectedInstallmentPlanNumInstallments > 1 && (
 							<View className="mt-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 								<Text
 									className="mb-1 font-semibold text-sm"
@@ -353,21 +356,53 @@ export default function PayScreen() {
 									className="text-sm"
 									style={{ color: colors.secondary[1] }}
 								>
-									{state.paymentPlanType === "half"
-										? "Half Payment (2\u00d7)"
-										: "Quarterly Payment (4\u00d7)"}
+									{state.selectedInstallmentPlanLabel ?? state.paymentPlanType}{" "}
+									({state.selectedInstallmentPlanNumInstallments}
+									{"\u00d7"})
 								</Text>
-								<Text
-									className="mt-1 font-semibold text-sm"
-									style={{ color: colors.primary[1] }}
-								>
-									First installment:{" "}
-									{fmt(
-										subtotal /
-											(state.paymentPlanType === "half" ? 2 : 4),
-									)}{" "}
-									+ tax
-								</Text>
+								{(() => {
+									const numInstallments =
+										state.selectedInstallmentPlanNumInstallments;
+									const pricePremiumBps =
+										state.selectedInstallmentPlanPricePremiumBps;
+									const priceWithSurcharge = Math.round(
+										(subtotal * (10000 + pricePremiumBps)) / 10000,
+									);
+									const installmentAmount = Math.ceil(
+										priceWithSurcharge / numInstallments,
+									);
+									const intervalDays = state.installmentIntervalDays;
+									const surchargePercent = pricePremiumBps / 100;
+
+									return (
+										<>
+											<Text
+												className="mt-1 font-semibold text-sm"
+												style={{ color: colors.primary[1] }}
+											>
+												First installment: {fmt(installmentAmount)} + tax
+											</Text>
+											<Text
+												className="mt-1 text-xs"
+												style={{ color: colors.secondary[1] }}
+											>
+												{numInstallments} payments every {intervalDays} days
+											</Text>
+											{pricePremiumBps > 0 && (
+												<Text
+													className="mt-1 text-xs"
+													style={{ color: colors.secondary[1] }}
+												>
+													+
+													{surchargePercent.toFixed(
+														surchargePercent % 1 === 0 ? 0 : 1,
+													)}
+													% surcharge applied
+												</Text>
+											)}
+										</>
+									);
+								})()}
 							</View>
 						)}
 
@@ -380,10 +415,7 @@ export default function PayScreen() {
 								>
 									Subtotal
 								</Text>
-								<Text
-									className="text-sm"
-									style={{ color: colors.primary[1] }}
-								>
+								<Text className="text-sm" style={{ color: colors.primary[1] }}>
 									{fmt(subtotal)}
 								</Text>
 							</View>
@@ -394,10 +426,7 @@ export default function PayScreen() {
 								>
 									Tax{taxRatePercent > 0 ? ` (${taxRatePercent}%)` : ""}
 								</Text>
-								<Text
-									className="text-sm"
-									style={{ color: colors.primary[1] }}
-								>
+								<Text className="text-sm" style={{ color: colors.primary[1] }}>
 									{fmt(taxAmount)}
 								</Text>
 							</View>
@@ -437,9 +466,9 @@ export default function PayScreen() {
 							className="mb-3 text-sm leading-5"
 							style={{ color: colors.primary[1] }}
 						>
-							In-app payment is not available yet. Your order will be
-							submitted as <Text className="font-bold">pending</Text>,
-							and you can settle payment offline.
+							In-app payment is not available yet. Your order will be submitted
+							as <Text className="font-bold">pending</Text>, and you can settle
+							payment offline.
 						</Text>
 
 						<Text
@@ -474,8 +503,8 @@ export default function PayScreen() {
 									className="flex-1 text-sm leading-5"
 									style={{ color: colors.secondary[1] }}
 								>
-									Pay via bank transfer or visit the branch in person
-									(cash / card).
+									Pay via bank transfer or visit the branch in person (cash /
+									card).
 								</Text>
 							</View>
 							<View className="flex-row">
@@ -504,8 +533,8 @@ export default function PayScreen() {
 									className="flex-1 text-sm leading-5"
 									style={{ color: colors.secondary[1] }}
 								>
-									Staff will mark your package as paid — credits become
-									usable for bookings.
+									Staff will mark your package as paid — credits become usable
+									for bookings.
 								</Text>
 							</View>
 						</View>

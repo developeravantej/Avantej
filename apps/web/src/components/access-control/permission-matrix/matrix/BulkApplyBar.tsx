@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { PermissionResource } from "@/components/access-control/permission-matrix/PermissionMatrix";
+import type { PermissionResource } from "@/components/access-control/permission-matrix/permission-matrix.types";
 
 export interface BulkApplyBarProps {
 	selectedBatchRoles: Set<string>;

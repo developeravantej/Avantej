@@ -1,0 +1,555 @@
+[
+  {
+    "id": "PRI-C01",
+    "title": "Select service — overrides table populates",
+    "type": "golden",
+    "steps": [
+      "Navigate to /dashboard/service/view?tab=pricing",
+      "Open service dropdown",
+      "Select any service with existing price overrides"
+    ],
+    "expected": "Table renders rows with Branch, Customer Type, Price (RM formatted), Effective From, Effective Until columns. Branch column shows node name (not raw UUID). Price formatted as 'RM X.XX'.",
+    "selectorHints": [
+      "getByRole('combobox', { name: /select a service/i })",
+      "getByRole('table')"
+    ],
+    "testable": true,
+    "sourceRef": "pricing-page.tsx:47-72"
+  },
+  {
+    "id": "PRI-C02",
+    "title": "No service selected — empty state shown",
+    "type": "golden",
+    "steps": [
+      "Navigate to /dashboard/service/view?tab=pricing",
+      "Do not select any service"
+    ],
+    "expected": "Dashed empty-state box with text 'Select a service above to view its price overrides.' is visible. Add Override button is disabled.",
+    "selectorHints": [
+      "getByText(/select a service above/i)",
+      "getByRole('button', { name: /add override/i })"
+    ],
+    "testable": true,
+    "sourceRef": "pricing-page.tsx:157-160"
+  },
+  {
+    "id": "PRI-C03",
+    "title": "Service selected with no overrides — empty state shown",
+    "type": "golden",
+    "steps": [
+      "Navigate to /dashboard/service/view?tab=pricing",
+      "Select a service that has zero price overrides"
+    ],
+    "expected": "Dashed empty-state box with text 'No price overrides configured for this service.' is visible. Add Override button is enabled.",
+    "selectorHints": [
+      "getByText(/no price overrides configured/i)"
+    ],
+    "testable": true,
+    "sourceRef": "pricing-page.tsx:165-168"
+  },
+  {
+    "id": "PRI-C04",
+    "title": "Add org-wide, all-customer-type override — happy path",
+    "type": "golden",
+    "steps": [
+      "Select a service",
+      "Click 'Add Override'",
+      "Leave Branch as 'Org-wide / All branches'",
+      "Leave Customer Type as 'All'",
+      "Enter price '150.00'",
+      "Leave Effective From as default (now)",
+      "Leave Effective Until blank (open-ended)",
+      "Click 'Save Override'"
+    ],
+    "expected": "Toast 'Price override saved.' appears. Dialog closes. Table refreshes and shows a new row with Branch='Org-wide / All branches', Customer Type='All', Price='RM 150.00', Effective Until='Open-ended'.",
+    "selectorHints": [
+      "getByRole('button', { name: /save override/i })",
+      "getByText(/price override saved/i)"
+    ],
+    "testable": true,
+    "sourceRef": "service-price-override-dialog.tsx:84-108, pricing.procedures.ts:70-106"
+  },
+  {
+    "id": "PRI-C05",
+    "title": "Add branch-scoped, member-only override with date range",
+    "type": "golden",
+    "steps": [
+      "Select a service",
+      "Click 'Add Override'",
+      "Select a specific branch from Branch dropdown",
+      "Select 'Member' for Customer Type",
+      "Enter price '99.00'",
+      "Set Effective From to tomorrow",
+      "Set Effective Until to 30 days from now",
+      "Click 'Save Override'"
+    ],
+    "expected": "Toast 'Price override saved.' appears. Override row shows the branch name, 'Member', 'RM 99.00', and both dates formatted in en-MY locale.",
+    "selectorHints": [
+      "getByRole('button', { name: /save override/i })"
+    ],
+    "testable": true,
+    "sourceRef": "service-price-override-dialog.tsx:84-108, pricing.procedures.ts:70-106"
+  },
+  {
+    "id": "PRI-C06",
+    "title": "Expire an override — confirmation flow",
+    "type": "golden",
+    "steps": [
+      "Select a service with at least one override",
+      "Click 'Expire' on a row",
+      "Verify confirmation dialog opens with correct text",
+      "Click 'Expire Override'"
+    ],
+    "expected": "Toast 'Price override expired.' appears. Dialog closes. The expired row disappears from the table (effectiveUntil is set to now, so it fails the >now filter).",
+    "selectorHints": [
+      "getByRole('button', { name: /^expire$/i })",
+      "getByRole('dialog', { name: /expire price override/i })",
+      "getByRole('button', { name: /expire override/i })"
+    ],
+    "testable": true,
+    "sourceRef": "pricing-page.tsx:80-96, pricing.procedures.ts:108-154"
+  },
+  {
+    "id": "PRI-C07",
+    "title": "Delete an override — confirmation flow",
+    "type": "golden",
+    "steps": [
+      "Select a service with at least one override",
+      "Click 'Delete' on a row",
+      "Verify confirmation dialog opens",
+      "Click 'Delete Override'"
+    ],
+    "expected": "Toast 'Price override deleted.' appears. Dialog closes. Row is permanently removed from table.",
+    "selectorHints": [
+      "getByRole('button', { name: /^delete$/i })",
+      "getByRole('dialog', { name: /delete price override/i })",
+      "getByRole('button', { name: /delete override/i })"
+    ],
+    "testable": true,
+    "sourceRef": "pricing-page.tsx:98-114, pricing.procedures.ts:156-197"
+  },
+  {
+    "id": "PRI-C08",
+    "title": "Cancel expire confirmation — no mutation",
+    "type": "golden",
+    "steps": [
+      "Click 'Expire' on a row",
+      "Click 'Cancel' in confirmation dialog"
+    ],
+    "expected": "Dialog closes. Row remains in table. No toast. No API call.",
+    "selectorHints": [
+      "getByRole('button', { name: /^cancel$/i })"
+    ],
+    "testable": true,
+    "sourceRef": "pricing-page.tsx:257-264"
+  },
+  {
+    "id": "PRI-C09",
+    "title": "Cancel delete confirmation — no mutation",
+    "type": "golden",
+    "steps": [
+      "Click 'Delete' on a row",
+      "Click 'Cancel' in confirmation dialog"
+    ],
+    "expected": "Dialog closes. Row remains in table. No toast. No API call.",
+    "selectorHints": [
+      "getByRole('button', { name: /^cancel$/i })"
+    ],
+    "testable": true,
+    "sourceRef": "pricing-page.tsx:275-282"
+  },
+  {
+    "id": "PRI-C10",
+    "title": "Cancel add override dialog — form resets",
+    "type": "golden",
+    "steps": [
+      "Click 'Add Override'",
+      "Change price to '200', change branch to something specific",
+      "Click 'Cancel'"
+    ],
+    "expected": "Dialog closes. Re-opening 'Add Override' shows fresh form with defaults: Org-wide branch, All customer type, empty price, effectiveFrom = now, effectiveUntil blank.",
+    "selectorHints": [
+      "getByRole('button', { name: /cancel/i })"
+    ],
+    "testable": true,
+    "sourceRef": "service-price-override-dialog.tsx:111-123"
+  },
+  {
+    "id": "PRI-C11",
+    "title": "Submit with no service selected — client guard fires",
+    "type": "error",
+    "steps": [
+      "Open add override dialog (if service is pre-filled, clear it — only possible via direct prop change or if defaultServiceId is undefined)",
+      "Attempt to submit with empty service select"
+    ],
+    "expected": "Toast 'Please select a service.' shown. No API call. Dialog stays open.",
+    "selectorHints": [
+      "getByText(/please select a service/i)"
+    ],
+    "testable": true,
+    "sourceRef": "service-price-override-dialog.tsx:70-74"
+  },
+  {
+    "id": "PRI-C12",
+    "title": "Submit with empty price — HTML required fires (or rmToCents NaN path)",
+    "type": "error",
+    "steps": [
+      "Open add override dialog, select a service",
+      "Leave price field empty",
+      "Attempt to submit"
+    ],
+    "expected": "Browser native 'required' validation fires first. If bypassed, rmToCents('') throws NaN path → toast 'Enter a valid price in RM.'",
+    "selectorHints": [
+      "getByRole('spinbutton', { name: /price/i })"
+    ],
+    "testable": true,
+    "sourceRef": "service-price-override-dialog.tsx:75-80, money.ts:5-8"
+  },
+  {
+    "id": "PRI-C13",
+    "title": "Submit with negative price — client guard fires",
+    "type": "error",
+    "steps": [
+      "Open add override dialog, select a service",
+      "Enter price '-5'",
+      "Submit"
+    ],
+    "expected": "rmToCents throws 'Invalid amount' → toast 'Enter a valid price in RM.' No API call.",
+    "selectorHints": [
+      "getByText(/enter a valid price/i)"
+    ],
+    "testable": true,
+    "sourceRef": "money.ts:7, service-price-override-dialog.tsx:76-79"
+  },
+  {
+    "id": "PRI-C14",
+    "title": "Submit with price zero — allowed at all layers",
+    "type": "edge",
+    "steps": [
+      "Open add override dialog, select a service",
+      "Enter price '0.00'",
+      "Submit"
+    ],
+    "expected": "API accepts (server: z.number().int().min(0) allows 0). Override saved with RM 0.00. Table shows 'RM 0.00'. No error.",
+    "selectorHints": [
+      "getByRole('spinbutton', { name: /price/i })"
+    ],
+    "testable": true,
+    "sourceRef": "pricing.procedures.ts:77, money.ts:7"
+  },
+  {
+    "id": "PRI-C15",
+    "title": "Submit with effectiveUntil before effectiveFrom — no validation, silent bad row",
+    "type": "edge",
+    "steps": [
+      "Open add override dialog, select a service",
+      "Set Effective From to 2026-12-31 23:59",
+      "Set Effective Until to 2026-01-01 00:00 (earlier than From)",
+      "Submit"
+    ],
+    "expected": "CURRENT BEHAVIOR: Save succeeds. Toast 'Price override saved.' appears. Row does NOT appear in the table (fails effectiveFrom <= now filter). No error is shown to user — this is a silent usability failure. DESIRED: validation error before submit.",
+    "selectorHints": [
+      "getByRole('button', { name: /save override/i })"
+    ],
+    "testable": true,
+    "sourceRef": "pricing.procedures.ts:78-79, pricing.service.ts:186-194"
+  },
+  {
+    "id": "PRI-C16",
+    "title": "Add future-dated override — disappears from list immediately",
+    "type": "edge",
+    "steps": [
+      "Open add override dialog, select a service",
+      "Set Effective From to tomorrow",
+      "Leave Effective Until blank",
+      "Enter price '75.00'",
+      "Submit"
+    ],
+    "expected": "CURRENT BEHAVIOR: Save succeeds (toast success). Table shows 'No price overrides configured' because listServicePriceOverrides filters effectiveFrom <= now. The just-created row is invisible. No user feedback explains this. DESIRED: future-dated overrides should appear in the list (they are valid configurations).",
+    "selectorHints": [
+      "getByText(/no price overrides configured/i)"
+    ],
+    "testable": true,
+    "sourceRef": "pricing.service.ts:186-194 (lte effectiveFrom filter)"
+  },
+  {
+    "id": "PRI-C17",
+    "title": "Add duplicate (same service/branch/customerType/overlap) — silent insert, no overlap error",
+    "type": "edge",
+    "steps": [
+      "Add override: service A, org-wide, all, RM 100, open-ended",
+      "Add override again: same service A, org-wide, all, RM 200, open-ended"
+    ],
+    "expected": "CURRENT BEHAVIOR: Both rows inserted. Table shows both. Pricing resolution uses tie-breaking (most recent effectiveFrom wins). No error or warning about overlap. DESIRED: server should reject or warn about overlapping overrides for the same (service, branch, customerType) combination.",
+    "selectorHints": [
+      "getByRole('table')"
+    ],
+    "testable": true,
+    "sourceRef": "pricing.service.ts:252-269 (no overlap check), pricing.service.ts:136-165 (tie-breaking)"
+  },
+  {
+    "id": "PRI-C18",
+    "title": "Add override with past effectiveFrom — row immediately active",
+    "type": "edge",
+    "steps": [
+      "Open add override dialog",
+      "Set Effective From to 2020-01-01 00:00",
+      "Enter price '50.00'",
+      "Submit"
+    ],
+    "expected": "Save succeeds. Row appears in table immediately (effectiveFrom <= now filter passes). No validation error for past dates. Consider whether this is intended.",
+    "selectorHints": [
+      "getByRole('table')"
+    ],
+    "testable": true,
+    "sourceRef": "pricing.procedures.ts:78 (no min date constraint)"
+  },
+  {
+    "id": "PRI-C19",
+    "title": "Expire an already-expired override — server allows it",
+    "type": "edge",
+    "steps": [
+      "Directly create a price override row with effectiveUntil in the past (via API or DB seed)",
+      "Attempt to expire it via the UI (it won't appear in the table, so this requires a direct API call)"
+    ],
+    "expected": "Server side: expireServicePrice updates effectiveUntil to now even if already past. No error. UI: this state is unreachable via normal UI flow because expired rows are filtered out.",
+    "selectorHints": [],
+    "testable": false,
+    "sourceRef": "pricing.procedures.ts:148-153, pricing.service.ts:300-309"
+  },
+  {
+    "id": "PRI-C20",
+    "title": "Network error on setBranchPrice — error toast with server message",
+    "type": "error",
+    "steps": [
+      "Open add override dialog",
+      "Fill valid data",
+      "Intercept/mock the setBranchPrice call to throw an Error('Server unavailable')",
+      "Submit"
+    ],
+    "expected": "Toast shows 'Server unavailable' (server error message forwarded). Dialog stays open. isSaving resets to false.",
+    "selectorHints": [
+      "getByText(/server unavailable/i)"
+    ],
+    "testable": true,
+    "sourceRef": "service-price-override-dialog.tsx:102-105"
+  },
+  {
+    "id": "PRI-C21",
+    "title": "Network error on expireBranchPrice — generic error toast",
+    "type": "error",
+    "steps": [
+      "Click 'Expire' on a row",
+      "Confirm dialog",
+      "Intercept/mock expireBranchPrice to reject"
+    ],
+    "expected": "Toast shows generic 'Failed to expire price override.' Server error detail is NOT forwarded. Dialog remains open. isExpiring resets.",
+    "selectorHints": [
+      "getByText(/failed to expire price override/i)"
+    ],
+    "testable": true,
+    "sourceRef": "pricing-page.tsx:91-93"
+  },
+  {
+    "id": "PRI-C22",
+    "title": "Network error on deleteBranchPrice — generic error toast",
+    "type": "error",
+    "steps": [
+      "Click 'Delete' on a row",
+      "Confirm dialog",
+      "Intercept/mock deleteBranchPrice to reject"
+    ],
+    "expected": "Toast shows generic 'Failed to delete price override.' Server error detail NOT forwarded. isDeleting resets.",
+    "selectorHints": [
+      "getByText(/failed to delete price override/i)"
+    ],
+    "testable": true,
+    "sourceRef": "pricing-page.tsx:108-111"
+  },
+  {
+    "id": "PRI-C23",
+    "title": "listPriceOverrides API error — misleading empty state",
+    "type": "error",
+    "steps": [
+      "Select a service",
+      "Mock the listPriceOverrides call to fail (network error / 500)"
+    ],
+    "expected": "CURRENT BEHAVIOR: Query returns undefined, overrides defaults to [], renders 'No price overrides configured' empty state — identical to genuinely empty. No error message. DESIRED: error state should be surfaced separately.",
+    "selectorHints": [
+      "getByText(/no price overrides configured/i)"
+    ],
+    "testable": true,
+    "sourceRef": "pricing-page.tsx:64-68 (no isError handling)"
+  },
+  {
+    "id": "PRI-C24",
+    "title": "Permission: user without service_management:update cannot add override",
+    "type": "error",
+    "steps": [
+      "Log in as a user with service_management:read but NOT service_management:update",
+      "Select a service",
+      "Click 'Add Override'",
+      "Fill valid data and submit"
+    ],
+    "expected": "Server returns FORBIDDEN. Client shows toast with error (server message forwarded). Override is not created.",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "pricing.procedures.ts:83-89"
+  },
+  {
+    "id": "PRI-C25",
+    "title": "Permission: user without service_management:delete cannot delete override",
+    "type": "error",
+    "steps": [
+      "Log in as user with service_management:update but NOT service_management:delete",
+      "Click 'Delete' on a row and confirm"
+    ],
+    "expected": "Server returns FORBIDDEN. Toast 'Failed to delete price override.' shown (generic — server detail NOT forwarded for delete).",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "pricing.procedures.ts:165-169"
+  },
+  {
+    "id": "PRI-C26",
+    "title": "Staff member sets override for branch outside their scope",
+    "type": "error",
+    "steps": [
+      "Log in as staff member scoped to Branch A",
+      "Click 'Add Override', select Branch B (a sibling branch not in scope)",
+      "Fill valid price and submit"
+    ],
+    "expected": "Server calls guardInputBranchForContext → FORBIDDEN. Client toast shows server error message. Override not saved.",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "pricing.procedures.ts:90-91, guards.ts:86-93"
+  },
+  {
+    "id": "PRI-C27",
+    "title": "No organization context — page shows org-selection message",
+    "type": "edge",
+    "steps": [
+      "Load page while userContext.currentOrganizationId is null"
+    ],
+    "expected": "Full-page centered message 'Select an organization to manage pricing.' No table, no dropdown.",
+    "selectorHints": [
+      "getByText(/select an organization to manage pricing/i)"
+    ],
+    "testable": true,
+    "sourceRef": "pricing-page.tsx:116-122"
+  },
+  {
+    "id": "PRI-C28",
+    "title": "Overrides loading state — spinner text visible",
+    "type": "golden",
+    "steps": [
+      "Select a service",
+      "Observe the brief loading state before data arrives"
+    ],
+    "expected": "Text 'Loading...' is visible while overridesLoading is true.",
+    "selectorHints": [
+      "getByText(/loading/i)"
+    ],
+    "testable": true,
+    "sourceRef": "pricing-page.tsx:161-163"
+  },
+  {
+    "id": "PRI-C29",
+    "title": "Branch name resolution — unknown branchId falls back to raw UUID",
+    "type": "edge",
+    "steps": [
+      "Create a price override for a branch that has since been deleted or is not in the hierarchy query",
+      "View the overrides table"
+    ],
+    "expected": "Branch column shows raw UUID string (branchMap.get returns undefined, fallback is row.branchId). Not a crash, but unreadable UX.",
+    "selectorHints": [
+      "getByRole('table')"
+    ],
+    "testable": true,
+    "sourceRef": "pricing-page.tsx:188-190 (branchMap.get(row.branchId) ?? row.branchId)"
+  },
+  {
+    "id": "PRI-C30",
+    "title": "Open-ended override displays 'Open-ended' in Effective Until column",
+    "type": "golden",
+    "steps": [
+      "Add override with blank Effective Until",
+      "View the table"
+    ],
+    "expected": "'Open-ended' text appears in Effective Until column for that row.",
+    "selectorHints": [
+      "getByText(/open-ended/i)"
+    ],
+    "testable": true,
+    "sourceRef": "pricing-page.tsx:26-33"
+  },
+  {
+    "id": "PRI-C31",
+    "title": "Services list empty — select dropdown is empty",
+    "type": "edge",
+    "steps": [
+      "Log in to an org with no services configured",
+      "Navigate to pricing tab"
+    ],
+    "expected": "Service dropdown renders empty. 'Select a service to view overrides...' placeholder shown. Add Override disabled.",
+    "selectorHints": [
+      "getByRole('combobox', { name: /select a service/i })"
+    ],
+    "testable": true,
+    "sourceRef": "pricing-page.tsx:47-52, 137-143"
+  },
+  {
+    "id": "PRI-C32",
+    "title": "Route guard redirects unauthenticated user",
+    "type": "error",
+    "steps": [
+      "Access /dashboard/service/view?tab=pricing without a valid session"
+    ],
+    "expected": "Redirect to /login (handled by _authenticated parent route or requirePermission detecting missing session).",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "view.tsx:13-15, route-guards.ts:90-97"
+  },
+  {
+    "id": "PRI-C33",
+    "title": "Route guard redirects user without service_management:read",
+    "type": "error",
+    "steps": [
+      "Log in as user without service_management:read permission",
+      "Navigate to /dashboard/service/view?tab=pricing"
+    ],
+    "expected": "Redirect to /dashboard?unauthorized=true (requirePermission beforeLoad fires).",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "view.tsx:13-15, route-guards.ts:114-117"
+  },
+  {
+    "id": "PRI-C34",
+    "title": "Walk-in customer type override displays 'Walk-in' label in table",
+    "type": "golden",
+    "steps": [
+      "Add override with Customer Type = 'Walk-in'",
+      "View table"
+    ],
+    "expected": "Customer Type column shows 'Walk-in' (not 'walk_in' raw value).",
+    "selectorHints": [
+      "getByText('Walk-in')"
+    ],
+    "testable": true,
+    "sourceRef": "pricing-page.tsx:193-198"
+  },
+  {
+    "id": "PRI-C35",
+    "title": "Changing selected service clears previous service's overrides",
+    "type": "golden",
+    "steps": [
+      "Select Service A — table shows Service A overrides",
+      "Select Service B"
+    ],
+    "expected": "Table immediately shows loading state then Service B overrides (different queryKey). Service A overrides are NOT shown.",
+    "selectorHints": [
+      "getByRole('combobox')"
+    ],
+    "testable": true,
+    "sourceRef": "pricing-page.tsx:64-68 (queryKey includes selectedServiceId)"
+  }
+]

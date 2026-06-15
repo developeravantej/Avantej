@@ -2,10 +2,30 @@ import { CalendarPlus, ShoppingCart, Calendar, BarChart3 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 const actions = [
-	{ label: "New Appointment", icon: CalendarPlus, href: "/dashboard/appointment/view", primary: true },
-	{ label: "New Sale", icon: ShoppingCart, href: "/dashboard/sales/view", primary: false },
-	{ label: "Calendar", icon: Calendar, href: "/dashboard/appointment/view", primary: false },
-	{ label: "Reports", icon: BarChart3, href: "/dashboard/sales/view", primary: false },
+	{
+		label: "New Appointment",
+		icon: CalendarPlus,
+		href: "/dashboard/appointment/view",
+		primary: true,
+	},
+	{
+		label: "New Sale",
+		icon: ShoppingCart,
+		href: "/dashboard/sales/view",
+		primary: false,
+	},
+	{
+		label: "Calendar",
+		icon: Calendar,
+		href: "/dashboard/appointment/view",
+		primary: false,
+	},
+	{
+		label: "Reports",
+		icon: BarChart3,
+		href: "/dashboard/sales/view",
+		primary: false,
+	},
 ];
 
 export function QuickActions() {
@@ -21,7 +41,7 @@ export function QuickActions() {
 							: "border border-brand-secondary-3 bg-card text-brand-primary-1 hover:bg-brand-secondary-3"
 					}`}
 				>
-					<action.icon className="h-6 w-6" />
+					<action.icon className="size-6" />
 					<span className="text-sm font-medium">{action.label}</span>
 				</Link>
 			))}

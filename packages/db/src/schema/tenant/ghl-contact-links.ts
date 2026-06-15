@@ -45,9 +45,9 @@ export const ghlContactLinks = pgTable(
 		).on(table.ghlContactId),
 		// Phase G: org-shared GHL model — one customer maps to ONE GHL contact
 		// per org (branch differentiation lives in a GHL custom-field dropdown).
-		customerUniqueIdx: uniqueIndex(
-			"ghl_contact_links_customer_unique",
-		).on(table.customerProfileId),
+		customerUniqueIdx: uniqueIndex("ghl_contact_links_customer_unique").on(
+			table.customerProfileId,
+		),
 		userIdIdx: index("ghl_contact_links_user_idx").on(table.userId),
 		customerProfileIdIdx: index("ghl_contact_links_customer_profile_idx").on(
 			table.customerProfileId,

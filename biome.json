@@ -16,6 +16,11 @@
 			"!**/.zed",
 			"!**/.vscode",
 			"!**/routeTree.gen.ts",
+			"!**/tenant-migrations.generated.ts",
+			"!**/.claude",
+			"!**/zplan",
+			"!**/graphify-out",
+			"!apps/native/android",
 			"!**/src-tauri",
 			"!**/.nuxt",
 			"!bts.jsonc",
@@ -30,6 +35,11 @@
 	"formatter": {
 		"enabled": true,
 		"indentStyle": "tab"
+	},
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
+		}
 	},
 	"assist": { "actions": { "source": { "organizeImports": "on" } } },
 	"linter": {
@@ -49,7 +59,7 @@
 				}
 			},
 			"suspicious": {
-				"noConsoleLog": "error"
+				"noConsole": "error"
 			},
 			"style": {
 				"noParameterAssign": "error",
@@ -72,8 +82,11 @@
 	},
 	"overrides": [
 		{
-			"include": ["apps/web/src/**"],
-			"ignore": ["apps/web/src/routeTree.gen.ts", "apps/web/src/__tests__/**"],
+			"includes": [
+				"apps/web/src/**",
+				"!apps/web/src/routeTree.gen.ts",
+				"!apps/web/src/__tests__/**"
+			],
 			"linter": {
 				"rules": {
 					"suspicious": {

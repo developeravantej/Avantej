@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,7 +9,15 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { Mail, RefreshCw, X, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import {
+	Mail,
+	RefreshCw,
+	X,
+	Clock,
+	CheckCircle,
+	XCircle,
+	AlertCircle,
+} from "lucide-react";
 
 // Simple date formatting utility
 function formatDistanceToNow(
@@ -61,9 +70,13 @@ export function InvitationList({
 	isRevoking,
 	isResending,
 }: InvitationListProps) {
+	// Stable "now" snapshot per mount so expiry comparisons don't drift across
+	// re-renders and trigger hydration/render-mismatch concerns.
+	const now = useMemo(() => new Date(), []);
+
 	const getStatusBadge = (status: string, expiresAt: Date | string) => {
 		const expiresDate = new Date(expiresAt);
-		const isExpired = expiresDate < new Date() && status === "pending";
+		const isExpired = expiresDate < now && status === "pending";
 
 		switch (status) {
 			case "pending":
@@ -74,12 +87,12 @@ export function InvitationList({
 					>
 						{isExpired ? (
 							<>
-								<AlertCircle className="h-3 w-3" />
+								<AlertCircle className="size-3" />
 								Expired
 							</>
 						) : (
 							<>
-								<Clock className="h-3 w-3" />
+								<Clock className="size-3" />
 								Pending
 							</>
 						)}
@@ -87,22 +100,25 @@ export function InvitationList({
 				);
 			case "accepted":
 				return (
-					<Badge variant="outline" className="gap-1 text-green-600 border-green-200">
-						<CheckCircle className="h-3 w-3" />
+					<Badge
+						variant="outline"
+						className="gap-1 text-green-600 border-green-200"
+					>
+						<CheckCircle className="size-3" />
 						Accepted
 					</Badge>
 				);
 			case "declined":
 				return (
 					<Badge variant="outline" className="gap-1 text-brand-secondary-1">
-						<XCircle className="h-3 w-3" />
+						<XCircle className="size-3" />
 						Declined
 					</Badge>
 				);
 			case "expired":
 				return (
 					<Badge variant="destructive" className="gap-1">
-						<AlertCircle className="h-3 w-3" />
+						<AlertCircle className="size-3" />
 						Expired
 					</Badge>
 				);
@@ -129,7 +145,7 @@ export function InvitationList({
 	if (invitations.length === 0) {
 		return (
 			<div className="rounded-lg border border-dashed p-12 text-center">
-				<Mail className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+				<Mail className="size-12 mx-auto text-muted-foreground mb-4" />
 				<h3 className="text-lg font-semibold mb-2">No invitations found</h3>
 				<p className="text-muted-foreground">
 					Get started by inviting a new member to your organization.
@@ -154,7 +170,8 @@ export function InvitationList({
 				<TableBody>
 					{invitations.map((invitation) => {
 						const expiresDate = new Date(invitation.expiresAt);
-						const isExpired = expiresDate < new Date() && invitation.status === "pending";
+						const isExpired =
+							expiresDate < now && invitation.status === "pending";
 						const canResend = invitation.status === "pending" && isExpired;
 						const canRevoke = invitation.status === "pending" && !isExpired;
 
@@ -188,7 +205,7 @@ export function InvitationList({
 												onClick={() => onResend(invitation.id)}
 												disabled={isResending}
 											>
-												<RefreshCw className="h-4 w-4 mr-1" />
+												<RefreshCw className="size-4 mr-1" />
 												Resend
 											</Button>
 										)}
@@ -199,7 +216,7 @@ export function InvitationList({
 												onClick={() => onRevoke(invitation.id)}
 												disabled={isRevoking}
 											>
-												<X className="h-4 w-4 mr-1" />
+												<X className="size-4 mr-1" />
 												Revoke
 											</Button>
 										)}

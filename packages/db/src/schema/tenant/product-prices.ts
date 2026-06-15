@@ -5,7 +5,14 @@
  * semantics as service_prices — see that file for the resolution chain.
  */
 
-import { pgTable, uuid, integer, text, timestamp, index } from "drizzle-orm/pg-core";
+import {
+	pgTable,
+	uuid,
+	integer,
+	text,
+	timestamp,
+	index,
+} from "drizzle-orm/pg-core";
 import { products } from "./products";
 import { hierarchyNodes } from "./hierarchy";
 
@@ -17,16 +24,26 @@ export const productPrices = pgTable(
 			.notNull()
 			.references(() => products.id, { onDelete: "cascade" }),
 		// NULL branchId = org-wide override
-		branchId: uuid("branch_id").references(() => hierarchyNodes.id, { onDelete: "cascade" }),
+		branchId: uuid("branch_id").references(() => hierarchyNodes.id, {
+			onDelete: "cascade",
+		}),
 		// NULL customerType = applies to all customer types
 		customerType: text("customer_type"),
 		priceCents: integer("price_cents").notNull(),
-		effectiveFrom: timestamp("effective_from", { withTimezone: true }).defaultNow().notNull(),
+		effectiveFrom: timestamp("effective_from", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
 		// NULL effectiveUntil = open-ended
 		effectiveUntil: timestamp("effective_until", { withTimezone: true }),
-		createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.defaultNow()
+			.notNull(),
 	},
 	(t) => ({
-		lookupIdx: index("product_prices_lookup_idx").on(t.productId, t.branchId, t.customerType),
+		lookupIdx: index("product_prices_lookup_idx").on(
+			t.productId,
+			t.branchId,
+			t.customerType,
+		),
 	}),
 );

@@ -336,8 +336,8 @@ describe("deactivateTaxRate", () => {
 	test("throws when tax rate not found", async () => {
 		mockDb.query.taxRates.findFirst.mockResolvedValueOnce(undefined);
 
-		await expect(
-			deactivateTaxRate(mockDb, "nonexistent"),
-		).rejects.toThrow("Tax rate not found");
+		await expect(deactivateTaxRate(mockDb, "nonexistent")).rejects.toThrow(
+			"Tax rate not found",
+		);
 	});
 });

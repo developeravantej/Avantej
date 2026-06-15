@@ -1,10 +1,16 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../guards";
 import {
 	cancelReceipt,
 	createReceipt,
 	createSupplierInvoice,
+	updateSupplierInvoice,
 	disputeInvoice,
 	getInvoicePreview,
 	getReceiptById,
@@ -12,11 +18,10 @@ import {
 	listSupplierInvoices,
 	markInvoiceMatched,
 	markInvoicePaid,
-	requirePermission,
 } from "@avantej-core/services";
 
 export const goodsReceiptsRouter = {
-	listForPo: protectedProcedure
+	listForPo: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -24,34 +29,17 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"purchase_order_management",
-					"read",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"read",
+			);
 			return listReceiptsForPo(context.tenantDb, input.purchaseOrderId);
 		}),
 
-	getById: protectedProcedure
+	getById: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -59,30 +47,13 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"purchase_order_management",
-					"read",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"read",
+			);
 			const result = await getReceiptById(context.tenantDb, input.id);
 			if (!result) {
 				throw new ORPCError("NOT_FOUND", {
@@ -92,7 +63,7 @@ export const goodsReceiptsRouter = {
 			return result;
 		}),
 
-	create: protectedProcedure
+	create: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -114,30 +85,14 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"purchase_order_management",
-					"update",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"update",
+			);
 			try {
 				return await createReceipt(context.tenantDb, {
 					purchaseOrderId: input.purchaseOrderId,
@@ -150,14 +105,12 @@ export const goodsReceiptsRouter = {
 			} catch (error) {
 				throw new ORPCError("BAD_REQUEST", {
 					message:
-						error instanceof Error
-							? error.message
-							: "Failed to create receipt",
+						error instanceof Error ? error.message : "Failed to create receipt",
 				});
 			}
 		}),
 
-	cancel: protectedProcedure
+	cancel: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -165,43 +118,29 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"update",
+			);
 			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"purchase_order_management",
-					"update",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
+				return await cancelReceipt(context.tenantDb, input.id, {
+					userId: context.member.userId,
+					memberId: context.member.id,
+					role: context.member.role,
+					branchId: context.member.hierarchyScopeId ?? undefined,
 				});
-			}
-			try {
-				return await cancelReceipt(context.tenantDb, input.id);
 			} catch (error) {
 				throw new ORPCError("BAD_REQUEST", {
 					message:
-						error instanceof Error
-							? error.message
-							: "Failed to cancel receipt",
+						error instanceof Error ? error.message : "Failed to cancel receipt",
 				});
 			}
 		}),
 
-	createInvoice: protectedProcedure
+	createInvoice: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -216,30 +155,13 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"purchase_order_management",
-					"create",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"create",
+			);
 			return createSupplierInvoice(context.tenantDb, {
 				invoiceNumber: input.invoiceNumber,
 				supplierId: input.supplierId,
@@ -252,7 +174,45 @@ export const goodsReceiptsRouter = {
 			});
 		}),
 
-	listInvoices: protectedProcedure
+	// F-INV-04: edit a supplier invoice while pending/disputed.
+	updateInvoice: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				invoiceId: z.string().uuid(),
+				invoiceNumber: z.string().min(1).optional(),
+				totalCents: z.number().int().nonnegative().optional(),
+				taxCents: z.number().int().nonnegative().optional(),
+				invoiceDate: z.string().datetime().optional(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"update",
+			);
+			try {
+				return await updateSupplierInvoice(context.tenantDb, {
+					invoiceId: input.invoiceId,
+					invoiceNumber: input.invoiceNumber,
+					totalCents: input.totalCents,
+					taxCents: input.taxCents,
+					invoiceDate: input.invoiceDate
+						? new Date(input.invoiceDate)
+						: undefined,
+				});
+			} catch (error) {
+				throw new ORPCError("BAD_REQUEST", {
+					message:
+						error instanceof Error ? error.message : "Failed to update invoice",
+				});
+			}
+		}),
+
+	listInvoices: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -264,30 +224,13 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"purchase_order_management",
-					"read",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"read",
+			);
 			return listSupplierInvoices(context.tenantDb, {
 				supplierId: input.supplierId,
 				status: input.status,
@@ -297,7 +240,7 @@ export const goodsReceiptsRouter = {
 			});
 		}),
 
-	matchInvoice: protectedProcedure
+	matchInvoice: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -306,30 +249,13 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"purchase_order_management",
-					"update",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"update",
+			);
 			try {
 				return await markInvoiceMatched(context.tenantDb, {
 					invoiceId: input.invoiceId,
@@ -339,14 +265,12 @@ export const goodsReceiptsRouter = {
 			} catch (error) {
 				throw new ORPCError("BAD_REQUEST", {
 					message:
-						error instanceof Error
-							? error.message
-							: "Failed to match invoice",
+						error instanceof Error ? error.message : "Failed to match invoice",
 				});
 			}
 		}),
 
-	disputeInvoice: protectedProcedure
+	disputeInvoice: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -355,21 +279,29 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant database not available." });
-			if (!context.member) throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"update",
+			);
 			try {
-				await requirePermission(context.tenantDb, context.member, "purchase_order_management", "update");
+				return await disputeInvoice(context.tenantDb, {
+					invoiceId: input.invoiceId,
+					disputeReason: input.reason,
+				});
 			} catch (error) {
-				throw new ORPCError("FORBIDDEN", { message: error instanceof Error ? error.message : "Permission denied" });
-			}
-			try {
-				return await disputeInvoice(context.tenantDb, { invoiceId: input.invoiceId, disputeReason: input.reason });
-			} catch (error) {
-				throw new ORPCError("BAD_REQUEST", { message: error instanceof Error ? error.message : "Failed to dispute invoice" });
+				throw new ORPCError("BAD_REQUEST", {
+					message:
+						error instanceof Error
+							? error.message
+							: "Failed to dispute invoice",
+				});
 			}
 		}),
 
-	markInvoicePaid: protectedProcedure
+	markInvoicePaid: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -378,21 +310,31 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant database not available." });
-			if (!context.member) throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"update",
+			);
 			try {
-				await requirePermission(context.tenantDb, context.member, "purchase_order_management", "update");
+				return await markInvoicePaid(
+					context.tenantDb,
+					input.invoiceId,
+					context.member.userId,
+					input.paymentReference,
+				);
 			} catch (error) {
-				throw new ORPCError("FORBIDDEN", { message: error instanceof Error ? error.message : "Permission denied" });
-			}
-			try {
-				return await markInvoicePaid(context.tenantDb, input.invoiceId, context.member.userId, input.paymentReference);
-			} catch (error) {
-				throw new ORPCError("BAD_REQUEST", { message: error instanceof Error ? error.message : "Failed to mark invoice as paid" });
+				throw new ORPCError("BAD_REQUEST", {
+					message:
+						error instanceof Error
+							? error.message
+							: "Failed to mark invoice as paid",
+				});
 			}
 		}),
 
-	getInvoicePreview: protectedProcedure
+	getInvoicePreview: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -400,17 +342,22 @@ export const goodsReceiptsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant database not available." });
-			if (!context.member) throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization" });
-			try {
-				await requirePermission(context.tenantDb, context.member, "purchase_order_management", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", { message: error instanceof Error ? error.message : "Permission denied" });
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"purchase_order_management",
+				"read",
+			);
 			try {
 				return await getInvoicePreview(context.tenantDb, input.invoiceId);
 			} catch (error) {
-				throw new ORPCError("BAD_REQUEST", { message: error instanceof Error ? error.message : "Failed to get invoice preview" });
+				throw new ORPCError("BAD_REQUEST", {
+					message:
+						error instanceof Error
+							? error.message
+							: "Failed to get invoice preview",
+				});
 			}
 		}),
 };

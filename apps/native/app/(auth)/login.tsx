@@ -1,14 +1,14 @@
 import { useAuth } from "@/hooks/useAuth";
 import { router } from "expo-router";
 import { useState } from "react";
+import { Image } from "expo-image";
 import {
 	ActivityIndicator,
-	Image,
 	KeyboardAvoidingView,
 	Platform,
+	Pressable,
 	Text,
 	TextInput,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -51,7 +51,7 @@ export default function LoginScreen() {
 							<Image
 								source={require("../../assets/images/Logo-B.png")}
 								style={{ width: 64, height: 64 }}
-								resizeMode="contain"
+								contentFit="contain"
 							/>
 						</View>
 						<Text
@@ -88,7 +88,7 @@ export default function LoginScreen() {
 								Email
 							</Text>
 							<TextInput
-								className="mb-4 h-14 w-full rounded-xl border border-gray-200 bg-white px-4 text-base text-black"
+								className="mb-4 h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-black"
 								placeholder="Enter your email"
 								placeholderTextColor="#9CA3AF"
 								value={email}
@@ -103,7 +103,7 @@ export default function LoginScreen() {
 								Password
 							</Text>
 							<TextInput
-								className="mb-2 h-14 w-full rounded-xl border border-gray-200 bg-white px-4 text-base text-black"
+								className="mb-2 h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-black"
 								placeholder="Enter your password"
 								placeholderTextColor="#9CA3AF"
 								value={password}
@@ -112,18 +112,18 @@ export default function LoginScreen() {
 							/>
 
 							{/* Forgot Password */}
-							<TouchableOpacity
+							<Pressable
 								onPress={() => router.push("/(auth)/forgot-password")}
 								className="mb-6 self-end"
 							>
-								<Text className="text-sm text-gray-500">Forgot Password?</Text>
-							</TouchableOpacity>
+								<Text className="text-sm text-zinc-500">Forgot Password?</Text>
+							</Pressable>
 
 							{/* Login Button */}
-							<TouchableOpacity
+							<Pressable
 								onPress={handleLogin}
 								disabled={isLoading || !email.trim() || !password.trim()}
-								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-black"
+								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-zinc-950"
 								style={{
 									opacity:
 										isLoading || !email.trim() || !password.trim() ? 0.6 : 1,
@@ -136,18 +136,28 @@ export default function LoginScreen() {
 										Sign In
 									</Text>
 								)}
-							</TouchableOpacity>
+							</Pressable>
+
+							{/* Magic-link alternative */}
+							<Pressable
+								onPress={() => router.push("/(auth)/sign-in-link")}
+								className="mt-3 h-14 w-full flex-row items-center justify-center rounded-xl border border-zinc-200 bg-white"
+							>
+								<Text className="font-medium text-base text-black">
+									Sign in with email link instead
+								</Text>
+							</Pressable>
 						</View>
 					</View>
 
 					{/* Sign Up Link */}
 					<View className="mt-4 flex-row items-center">
-						<Text className="text-base text-gray-500">
+						<Text className="text-base text-zinc-500">
 							Don't have an account?{" "}
 						</Text>
-						<TouchableOpacity onPress={() => router.push("/(auth)/sign-up")}>
+						<Pressable onPress={() => router.push("/(auth)/sign-up")}>
 							<Text className="font-medium text-base text-black">Sign Up</Text>
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 				</View>
 			</KeyboardAvoidingView>

@@ -5,12 +5,14 @@ import {
 	getCoreRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import { Search, LogIn } from "lucide-react";
+import { Search, LogIn, Users } from "lucide-react";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/ui/empty-state";
+import { StatusCallout } from "@/components/ui/status-callout";
 import {
 	Dialog,
 	DialogContent,
@@ -58,12 +60,14 @@ interface UsersTableProps {
 	searchValue: string;
 	pagination: Pagination | undefined;
 	onPageChange: (page: number) => void;
+	error?: unknown;
+	onRetry?: () => void;
 }
 
 // ─── Role badge ───────────────────────────────────────────────────────────────
 
 function PlatformRoleBadge({ role }: { role: string | null }) {
-	if (!role) return <span className="text-muted-foreground">—</span>;
+	if (!role) return <span className="text-muted-foreground">-</span>;
 
 	const variantMap: Record<string, "default" | "secondary" | "outline"> = {
 		super_admin: "default",
@@ -88,11 +92,14 @@ export function UsersTable({
 	searchValue,
 	pagination,
 	onPageChange,
+	error,
+	onRetry,
 }: UsersTableProps) {
 	// Controlled dialog for confirmation — one dialog shared across all rows
 	const [confirmingUser, setConfirmingUser] = useState<UserRow | null>(null);
 
-	const canImpersonate = callerRole === "super_admin" || callerRole === "support";
+	const canImpersonate =
+		callerRole === "super_admin" || callerRole === "support";
 
 	const impersonateMutation = useApiMutation({
 		mutationFn: (userId: string) => client.admin.impersonateUser({ userId }),
@@ -115,12 +122,18 @@ export function UsersTable({
 		{
 			accessorKey: "firstName",
 			header: "First Name",
-			cell: ({ row }) => row.original.firstName || <span className="text-muted-foreground">—</span>,
+			cell: ({ row }) =>
+				row.original.firstName || (
+					<span className="text-muted-foreground">-</span>
+				),
 		},
 		{
 			accessorKey: "lastName",
 			header: "Last Name",
-			cell: ({ row }) => row.original.lastName || <span className="text-muted-foreground">—</span>,
+			cell: ({ row }) =>
+				row.original.lastName || (
+					<span className="text-muted-foreground">-</span>
+				),
 		},
 		{
 			accessorKey: "lastLoginAt",
@@ -176,7 +189,7 @@ export function UsersTable({
 			{/* Search bar */}
 			<div className="flex items-center gap-2">
 				<div className="relative w-80">
-					<Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Search className="absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
 						placeholder="Search by email or name..."
 						value={searchValue}
@@ -192,72 +205,93 @@ export function UsersTable({
 			</div>
 
 			{/* Table */}
-			<div className="rounded-md border shadow-sm">
-				<Table>
-					<TableHeader>
-						{table.getHeaderGroups().map((headerGroup) => (
-							<TableRow
-								key={headerGroup.id}
-								className="border-b bg-muted/50 hover:bg-muted/60"
-							>
-								{headerGroup.headers.map((header) => (
-									<TableHead
-										key={header.id}
-										className="px-4 py-3 text-sm font-medium text-muted-foreground whitespace-nowrap"
+			{error ? (
+				<StatusCallout
+					variant="error"
+					title="Couldn't load users"
+					message={error instanceof Error ? error.message : "An error occurred"}
+					onRetry={onRetry}
+				/>
+			) : (
+				<div className="flex h-full flex-col rounded-2xl border border-brand-secondary-3 bg-card overflow-hidden">
+					<div className="flex-1 overflow-y-auto">
+						<Table>
+							<TableHeader>
+								{table.getHeaderGroups().map((headerGroup) => (
+									<TableRow
+										key={headerGroup.id}
+										className="sticky top-0 z-10 bg-white hover:bg-white"
 									>
-										{header.isPlaceholder
-											? null
-											: flexRender(
-													header.column.columnDef.header,
-													header.getContext(),
-												)}
-									</TableHead>
+										{headerGroup.headers.map((header) => (
+											<TableHead
+												key={header.id}
+												className="px-6 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground whitespace-nowrap"
+											>
+												{header.isPlaceholder
+													? null
+													: flexRender(
+															header.column.columnDef.header,
+															header.getContext(),
+														)}
+											</TableHead>
+										))}
+									</TableRow>
 								))}
-							</TableRow>
-						))}
-					</TableHeader>
-					<TableBody>
-						{isLoading ? (
-							<TableRow>
-								<TableCell
-									colSpan={columns.length}
-									className="h-24 text-center text-muted-foreground"
-								>
-									Loading...
-								</TableCell>
-							</TableRow>
-						) : table.getRowModel().rows.length ? (
-							table.getRowModel().rows.map((row, index) => (
-								<TableRow
-									key={row.id}
-									className={`border-b transition-colors hover:bg-muted/50 ${index % 2 === 0 ? "bg-background" : "bg-muted/20"}`}
-								>
-									{row.getVisibleCells().map((cell) => (
+							</TableHeader>
+							<TableBody>
+								{isLoading ? (
+									<TableRow>
 										<TableCell
-											key={cell.id}
-											className="px-4 py-3 text-sm whitespace-nowrap"
+											colSpan={columns.length}
+											className="h-24 text-center text-muted-foreground"
 										>
-											{flexRender(
-												cell.column.columnDef.cell,
-												cell.getContext(),
-											)}
+											Loading…
 										</TableCell>
-									))}
-								</TableRow>
-							))
-						) : (
-							<TableRow>
-								<TableCell
-									colSpan={columns.length}
-									className="h-24 text-center"
-								>
-									No users found.
-								</TableCell>
-							</TableRow>
-						)}
-					</TableBody>
-				</Table>
-			</div>
+									</TableRow>
+								) : table.getRowModel().rows.length ? (
+									table.getRowModel().rows.map((row) => (
+										<TableRow
+											key={row.id}
+											className="transition-colors hover:bg-muted/30"
+										>
+											{row.getVisibleCells().map((cell) => (
+												<TableCell
+													key={cell.id}
+													className="px-6 py-4 text-sm whitespace-nowrap"
+												>
+													{flexRender(
+														cell.column.columnDef.cell,
+														cell.getContext(),
+													)}
+												</TableCell>
+											))}
+										</TableRow>
+									))
+								) : (
+									<TableRow>
+										<TableCell colSpan={columns.length} className="p-0">
+											<EmptyState
+												icon={Users}
+												title={
+													searchValue
+														? "No users match your search"
+														: "No users found"
+												}
+												description={
+													searchValue
+														? "Try different search terms."
+														: undefined
+												}
+												context={searchValue ? "search" : "empty"}
+											/>
+										</TableCell>
+									</TableRow>
+								)}
+							</TableBody>
+						</Table>
+					</div>
+				</div>
+			)}
 
 			{/* Pagination */}
 			{pagination && pagination.totalPages > 1 && (
@@ -276,7 +310,9 @@ export function UsersTable({
 					<Button
 						variant="outline"
 						size="sm"
-						disabled={pagination.currentPage >= pagination.totalPages || isLoading}
+						disabled={
+							pagination.currentPage >= pagination.totalPages || isLoading
+						}
 						onClick={() => onPageChange(pagination.currentPage + 1)}
 					>
 						Next
@@ -302,7 +338,10 @@ export function UsersTable({
 					</DialogHeader>
 					<DialogFooter>
 						<DialogClose asChild>
-							<Button variant="outline" disabled={impersonateMutation.isPending}>
+							<Button
+								variant="outline"
+								disabled={impersonateMutation.isPending}
+							>
 								Cancel
 							</Button>
 						</DialogClose>
@@ -315,7 +354,9 @@ export function UsersTable({
 								}
 							}}
 						>
-							{impersonateMutation.isPending ? "Logging in..." : "Confirm — Login as user"}
+							{impersonateMutation.isPending
+								? "Logging in..."
+								: "Confirm — Login as user"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

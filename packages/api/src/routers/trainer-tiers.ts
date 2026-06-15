@@ -1,17 +1,18 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
 	listTrainerTiers,
 	createTrainerTier,
 	updateTrainerTier,
 	deactivateTrainerTier,
+	deleteTrainerTier,
 	reactivateTrainerTier,
 	assignTierToMember,
 } from "@avantej-core/services/trainer-tier.service";
-import { requirePermission } from "@avantej-core/services";
 
-const list = protectedProcedure
+const list = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -19,30 +20,20 @@ const list = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"trainer_tier_management",
+			"read",
+		);
 
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-
-		try {
-			await requirePermission(context.tenantDb, context.member, "trainer_tier_management", "read");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
-
-		return listTrainerTiers(context.tenantDb, { includeInactive: input.includeInactive });
+		return listTrainerTiers(context.tenantDb, {
+			includeInactive: input.includeInactive,
+		});
 	});
 
-const create = protectedProcedure
+const create = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -52,25 +43,13 @@ const create = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
-
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-
-		try {
-			await requirePermission(context.tenantDb, context.member, "trainer_tier_management", "create");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"trainer_tier_management",
+			"create",
+		);
 
 		try {
 			return await createTrainerTier(context.tenantDb, {
@@ -86,7 +65,7 @@ const create = protectedProcedure
 		}
 	});
 
-const update = protectedProcedure
+const update = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -98,25 +77,13 @@ const update = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
-
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-
-		try {
-			await requirePermission(context.tenantDb, context.member, "trainer_tier_management", "update");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"trainer_tier_management",
+			"update",
+		);
 
 		try {
 			return await updateTrainerTier(context.tenantDb, input.id, {
@@ -133,7 +100,7 @@ const update = protectedProcedure
 		}
 	});
 
-const deactivate = protectedProcedure
+const deactivate = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -141,25 +108,13 @@ const deactivate = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
-
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-
-		try {
-			await requirePermission(context.tenantDb, context.member, "trainer_tier_management", "delete");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"trainer_tier_management",
+			"delete",
+		);
 
 		try {
 			return await deactivateTrainerTier(context.tenantDb, input.id);
@@ -171,7 +126,7 @@ const deactivate = protectedProcedure
 		}
 	});
 
-const reactivate = protectedProcedure
+const deleteTier = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -179,25 +134,39 @@ const reactivate = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
-
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"trainer_tier_management",
+			"delete",
+		);
 
 		try {
-			await requirePermission(context.tenantDb, context.member, "trainer_tier_management", "update");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
+			await deleteTrainerTier(context.tenantDb, input.id);
+		} catch (err) {
+			if (err instanceof ORPCError) throw err;
+			throw new ORPCError("BAD_REQUEST", {
+				message: err instanceof Error ? err.message : "Unknown error",
 			});
 		}
+	});
+
+const reactivate = tenantProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			id: z.string().uuid(),
+		}),
+	)
+	.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"trainer_tier_management",
+			"update",
+		);
 
 		try {
 			return await reactivateTrainerTier(context.tenantDb, input.id);
@@ -209,7 +178,7 @@ const reactivate = protectedProcedure
 		}
 	});
 
-const assignToMember = protectedProcedure
+const assignToMember = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -218,28 +187,20 @@ const assignToMember = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
-
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"trainer_tier_management",
+			"update",
+		);
 
 		try {
-			await requirePermission(context.tenantDb, context.member, "trainer_tier_management", "update");
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
-
-		try {
-			return await assignTierToMember(context.tenantDb, input.memberId, input.tierId);
+			return await assignTierToMember(
+				context.tenantDb,
+				input.memberId,
+				input.tierId,
+			);
 		} catch (err) {
 			if (err instanceof ORPCError) throw err;
 			throw new ORPCError("BAD_REQUEST", {
@@ -248,4 +209,12 @@ const assignToMember = protectedProcedure
 		}
 	});
 
-export const trainerTiersRouter = { list, create, update, deactivate, reactivate, assignToMember };
+export const trainerTiersRouter = {
+	list,
+	create,
+	update,
+	deactivate,
+	deleteTier,
+	reactivate,
+	assignToMember,
+};

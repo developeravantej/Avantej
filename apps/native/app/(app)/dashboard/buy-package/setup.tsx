@@ -2,19 +2,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useState } from "react";
-import {
-	Image,
-	ScrollView,
-	Text,
-	TouchableOpacity,
-	View,
-} from "react-native";
+import { Image } from "expo-image";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { ServiceOptionCard } from "./_components/service-option-card";
 import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
 import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
-import { formatMoney } from "@/lib/money";
 import { orpc } from "@/utils/orpc";
 
 const steps = [
@@ -38,6 +33,105 @@ function SkeletonCard() {
 				className="h-4 w-1/2 rounded"
 				style={{ backgroundColor: colors.secondary[3] }}
 			/>
+		</View>
+	);
+}
+
+type ProgressIndicatorProps = {
+	currentStep: number;
+	totalSteps: number;
+	progressPercentage: number;
+};
+
+function ProgressIndicator({
+	currentStep,
+	totalSteps,
+	progressPercentage,
+}: ProgressIndicatorProps) {
+	return (
+		<View className="mb-6">
+			<View className="mb-2 flex-row items-center justify-between">
+				<Text className="font-semibold text-primary-1 text-sm">
+					Step {currentStep} of {totalSteps}
+				</Text>
+				<Text className="font-semibold text-primary-1 text-sm">
+					{progressPercentage}%
+				</Text>
+			</View>
+
+			<View
+				className="mb-4 h-2 overflow-hidden rounded-full"
+				style={{ backgroundColor: colors.secondary[2] }}
+			>
+				<View
+					className="h-full rounded-full"
+					style={{
+						width: `${progressPercentage}%`,
+						backgroundColor: colors.primary[1],
+					}}
+				/>
+			</View>
+
+			<View className="relative" style={{ height: 50 }}>
+				<View
+					className="absolute rounded-full"
+					style={{
+						left: "15%",
+						right: "14%",
+						top: "24%",
+						height: 2,
+						backgroundColor: colors.secondary[2],
+						zIndex: 0,
+					}}
+				/>
+				<View className="absolute inset-0 flex-row items-center justify-between">
+					{steps.map((step) => (
+						<View
+							key={step.number}
+							className="items-center justify-center"
+							style={{ flex: 1, zIndex: 1 }}
+						>
+							{step.active ? (
+								<View className="mb-1 items-center justify-center">
+									<View
+										className="size-7 items-center justify-center rounded-full border-2 border-primary-1"
+										style={{
+											backgroundColor: colors.primary[1],
+											zIndex: 2,
+										}}
+									>
+										<View
+											className="size-2 rounded-full"
+											style={{ backgroundColor: colors.primary[2] }}
+										/>
+									</View>
+								</View>
+							) : (
+								<View className="mb-1 items-center justify-center">
+									<View
+										className="size-7 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
+										style={{ zIndex: 2 }}
+									>
+										<Text className="font-semibold text-primary-1 text-xs">
+											{step.number}
+										</Text>
+									</View>
+								</View>
+							)}
+							<Text
+								className={`mt-1 text-center text-xs ${
+									step.active ? "font-bold" : "font-medium"
+								}`}
+								style={{
+									color: step.active ? colors.primary[1] : colors.secondary[1],
+								}}
+							>
+								{step.label}
+							</Text>
+						</View>
+					))}
+				</View>
+			</View>
 		</View>
 	);
 }
@@ -67,7 +161,7 @@ export default function SetupScreen() {
 	// Fetch services for selected category — only package-style (sessionCount != null)
 	const { data: services, isLoading: servicesLoading } = useQuery({
 		...orpc.services.list.queryOptions({
-			input: { organizationId, categoryId: selectedCategoryId ?? "", isActive: true },
+			input: { organizationId, categoryId: selectedCategoryId ?? "" },
 		}),
 		enabled: !!selectedCategoryId,
 	});
@@ -103,12 +197,10 @@ export default function SetupScreen() {
 					| "class_slot"
 					| null) ?? "appointment",
 			timePresetConfig:
-				((selectedSvc as any).timePresetConfig as
-					| {
-							recurringDays: string[];
-							timeSlotsPerDay: Record<string, string[]>;
-					  }
-					| null) ?? null,
+				((selectedSvc as any).timePresetConfig as {
+					recurringDays: string[];
+					timeSlotsPerDay: Record<string, string[]>;
+				} | null) ?? null,
 			// Service IS the package — store same id/name in package fields so
 			// downstream screens (pay.tsx) continue to read state.packageId etc.
 			packageId: selectedServiceId,
@@ -129,16 +221,12 @@ export default function SetupScreen() {
 				{/* Header with Title */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
-						<TouchableOpacity
+						<Pressable
 							onPress={() => router.back()}
-							className="mr-3 h-10 w-10 items-center justify-center"
+							className="mr-3 size-10 items-center justify-center"
 						>
-							<Ionicons
-								name="arrow-back"
-								size={24}
-								color={colors.primary[1]}
-							/>
-						</TouchableOpacity>
+							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
+						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-black">
 							Buy Package
 						</Text>
@@ -152,99 +240,17 @@ export default function SetupScreen() {
 							uri: "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=800",
 						}}
 						className="h-full w-full"
-						resizeMode="cover"
+						contentFit="cover"
 					/>
 				</View>
 
 				<View className="px-4 pb-6">
 					{/* Progress Indicator */}
-					<View className="mb-6">
-						<View className="mb-2 flex-row items-center justify-between">
-							<Text className="font-semibold text-primary-1 text-sm">
-								Step {currentStep} of {totalSteps}
-							</Text>
-							<Text className="font-semibold text-primary-1 text-sm">
-								{progressPercentage}%
-							</Text>
-						</View>
-
-						<View
-							className="mb-4 h-2 overflow-hidden rounded-full"
-							style={{ backgroundColor: colors.secondary[2] }}
-						>
-							<View
-								className="h-full rounded-full"
-								style={{
-									width: `${progressPercentage}%`,
-									backgroundColor: colors.primary[1],
-								}}
-							/>
-						</View>
-
-						{/* Step Navigation */}
-						<View className="relative" style={{ height: 50 }}>
-							<View
-								className="absolute rounded-full"
-								style={{
-									left: "15%",
-									right: "14%",
-									top: "24%",
-									height: 2,
-									backgroundColor: colors.secondary[2],
-									zIndex: 0,
-								}}
-							/>
-							<View className="absolute inset-0 flex-row items-center justify-between">
-								{steps.map((step) => (
-									<View
-										key={step.number}
-										className="items-center justify-center"
-										style={{ flex: 1, zIndex: 1 }}
-									>
-										{step.active ? (
-											<View className="mb-1 items-center justify-center">
-												<View
-													className="h-7 w-7 items-center justify-center rounded-full border-2 border-primary-1"
-													style={{
-														backgroundColor: colors.primary[1],
-														zIndex: 2,
-													}}
-												>
-													<View
-														className="h-2 w-2 rounded-full"
-														style={{ backgroundColor: colors.primary[2] }}
-													/>
-												</View>
-											</View>
-										) : (
-											<View className="mb-1 items-center justify-center">
-												<View
-													className="h-7 w-7 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
-													style={{ zIndex: 2 }}
-												>
-													<Text className="font-semibold text-primary-1 text-xs">
-														{step.number}
-													</Text>
-												</View>
-											</View>
-										)}
-										<Text
-											className={`mt-1 text-center text-xs ${
-												step.active ? "font-bold" : "font-medium"
-											}`}
-											style={{
-												color: step.active
-													? colors.primary[1]
-													: colors.secondary[1],
-											}}
-										>
-											{step.label}
-										</Text>
-									</View>
-								))}
-							</View>
-						</View>
-					</View>
+					<ProgressIndicator
+						currentStep={currentStep}
+						totalSteps={totalSteps}
+						progressPercentage={progressPercentage}
+					/>
 
 					{/* Category Selection Section */}
 					<View className="mb-4">
@@ -269,7 +275,7 @@ export default function SetupScreen() {
 							</>
 						) : (
 							(categories ?? []).map((category: any) => (
-								<TouchableOpacity
+								<Pressable
 									key={category.id}
 									onPress={() => {
 										setSelectedCategoryId(category.id);
@@ -297,7 +303,7 @@ export default function SetupScreen() {
 											{category.description}
 										</Text>
 									)}
-								</TouchableOpacity>
+								</Pressable>
 							))
 						)}
 					</View>
@@ -342,78 +348,12 @@ export default function SetupScreen() {
 							</View>
 						) : (
 							purchasableServices.map((service: any) => (
-								<TouchableOpacity
+								<ServiceOptionCard
 									key={service.id}
-									onPress={() => {
-										setSelectedServiceId(service.id);
-									}}
-									className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
-										selectedServiceId === service.id
-											? "border-primary-1"
-											: "border-secondary-3"
-									} shadow-sm`}
-								>
-									<View className="mb-2 flex-row items-start justify-between">
-										<Text
-											className="flex-1 font-bold text-lg"
-											style={{ color: colors.primary[1] }}
-										>
-											{service.name}
-										</Text>
-										<View className="ml-2 flex-row gap-1">
-											{service.sessionCount != null && (
-												<View
-													className="rounded-full px-2 py-1"
-													style={{ backgroundColor: colors.secondary[3] }}
-												>
-													<Text
-														className="font-medium text-xs"
-														style={{ color: colors.primary[1] }}
-													>
-														{service.sessionCount} credits
-													</Text>
-												</View>
-											)}
-											<View
-												className="rounded-full px-2 py-1"
-												style={{ backgroundColor: colors.secondary[3] }}
-											>
-												<Text
-													className="font-medium text-xs"
-													style={{ color: colors.primary[1] }}
-												>
-													{service.schedulingType === "class_slot"
-														? "Class Slot"
-														: "Appointment"}
-												</Text>
-											</View>
-										</View>
-									</View>
-									{service.description && (
-										<Text
-											className="mb-2 text-sm"
-											style={{ color: colors.secondary[1] }}
-										>
-											{service.description}
-										</Text>
-									)}
-									<View className="flex-row items-center justify-between">
-										<Text
-											className="font-semibold text-base"
-											style={{ color: colors.primary[1] }}
-										>
-											{service.price != null ? formatMoney(service.price) : "—"}
-										</Text>
-										{service.expiryDays && (
-											<Text
-												className="text-xs"
-												style={{ color: colors.secondary[1] }}
-											>
-												Valid for {service.expiryDays} days
-											</Text>
-										)}
-									</View>
-								</TouchableOpacity>
+									service={service}
+									selected={selectedServiceId === service.id}
+									onSelect={setSelectedServiceId}
+								/>
 							))
 						)}
 					</View>
@@ -426,15 +366,15 @@ export default function SetupScreen() {
 					edges={["bottom"]}
 					className="border-secondary-3 border-t bg-primary-2"
 				>
-					<View className="px-4 py-4">
-						<TouchableOpacity
+					<View className="p-4">
+						<Pressable
 							onPress={handleContinue}
 							className="items-center justify-center rounded-xl bg-primary-1 py-4"
 						>
 							<Text className="font-semibold text-base text-primary-2">
 								Continue
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 				</SafeAreaView>
 			)}

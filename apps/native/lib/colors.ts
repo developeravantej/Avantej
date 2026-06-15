@@ -34,38 +34,3 @@ export const colors = {
 		3: "#EDEDE4",
 	},
 } as const;
-
-/**
- * Type-safe color access
- */
-export type ColorKey = keyof typeof colors;
-export type PrimaryColorKey = keyof typeof colors.primary;
-export type SecondaryColorKey = keyof typeof colors.secondary;
-
-/**
- * Helper function to get primary color
- */
-export const getPrimaryColor = (key: PrimaryColorKey): string => {
-	return colors.primary[key];
-};
-
-/**
- * Helper function to get secondary color
- */
-export const getSecondaryColor = (key: SecondaryColorKey): string => {
-	return colors.secondary[key];
-};
-
-/**
- * Get color by path (e.g., "primary.1" or "secondary.2")
- */
-export const getColor = (path: string): string => {
-	const [category, key] = path.split(".");
-	if (category === "primary" && key in colors.primary) {
-		return colors.primary[key as PrimaryColorKey];
-	}
-	if (category === "secondary" && key in colors.secondary) {
-		return colors.secondary[key as SecondaryColorKey];
-	}
-	throw new Error(`Color not found: ${path}`);
-};

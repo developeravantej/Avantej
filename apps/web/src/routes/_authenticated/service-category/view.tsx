@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_authenticated/service-category/view")({
 	beforeLoad: async () => {
 		await requirePermission(
 			{ resource: "service_management", action: "read" },
-			"/dashboard"
+			"/dashboard",
 		);
 	},
 	component: ServiceCategoryViewComponent,
@@ -47,8 +47,10 @@ function ServiceCategoryViewComponent() {
 	if (!organizationId) {
 		return (
 			<div className="space-y-4">
-				<h1 className="text-3xl font-bold">Service Categories</h1>
-				<p className="text-muted-foreground">No organization selected. Please select an organization first.</p>
+				<h1 className="text-3xl font-semibold">Service Categories</h1>
+				<p className="text-muted-foreground">
+					No organization selected. Please select an organization first.
+				</p>
 			</div>
 		);
 	}
@@ -56,8 +58,10 @@ function ServiceCategoryViewComponent() {
 	if (error) {
 		return (
 			<div className="space-y-4">
-				<h1 className="text-3xl font-bold">Service Categories</h1>
-				<p className="text-destructive">{error instanceof Error ? error.message : "Failed to load categories"}</p>
+				<h1 className="text-3xl font-semibold">Service Categories</h1>
+				<p className="text-destructive">
+					{error instanceof Error ? error.message : "Failed to load categories"}
+				</p>
 			</div>
 		);
 	}
@@ -65,7 +69,7 @@ function ServiceCategoryViewComponent() {
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
-				<h1 className="text-3xl font-bold">Service Categories</h1>
+				<h1 className="text-3xl font-semibold">Service Categories</h1>
 			</div>
 			<DataTable
 				columns={columns}

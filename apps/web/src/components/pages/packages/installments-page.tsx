@@ -1,24 +1,33 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import { RequestRefundDialog } from "@/components/refunds/request-refund-dialog";
+import { StatusCallout } from "@/components/ui/status-callout";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
-import type { Installment, InstallmentOverviewItem, InstallmentPlan, SuggestRefundResult } from "@/features/installments/types";
+import type {
+	Installment,
+	InstallmentOverviewItem,
+	InstallmentPlan,
+	SuggestRefundResult,
+} from "@/features/installments/types";
 import { AdjustCreditsDialog } from "@/features/installments/components/adjust-credits-dialog";
 import { ConfirmPaymentDialog } from "@/features/installments/components/confirm-payment-dialog";
 import { InstallmentsTable } from "@/features/installments/components/installments-table";
 import { ManualUnlockDialog } from "@/features/installments/components/manual-unlock-dialog";
 import { OverdraftDialog } from "@/features/installments/components/overdraft-dialog";
 import { PackageDetailDialog } from "@/features/installments/components/package-detail-dialog";
+import { RescheduleDialog } from "@/features/installments/components/reschedule-dialog";
+import { WaiveDialog } from "@/features/installments/components/waive-dialog";
 import { useInstallmentMutations } from "@/features/installments/hooks/useInstallmentMutations";
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
+// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 export function PackageInstallmentsPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const queryClient = useQueryClient();
 
 	// ── List state ──────────────────────────────────────────────────────────────
 	const [statusFilter, setStatusFilter] = useState<
@@ -41,6 +50,11 @@ export function PackageInstallmentsPage() {
 	// ── Dialog states ────────────────────────────────────────────────────────────
 	const [confirmInstallment, setConfirmInstallment] =
 		useState<Installment | null>(null);
+	const [rescheduleInstallment, setRescheduleInstallment] =
+		useState<Installment | null>(null);
+	const [waiveInstallment, setWaiveInstallment] = useState<Installment | null>(
+		null,
+	);
 	const [showUnlockDialog, setShowUnlockDialog] = useState(false);
 	const [showRefundDialog, setShowRefundDialog] = useState(false);
 	const [showAdjustCreditsDialog, setShowAdjustCreditsDialog] = useState(false);
@@ -49,7 +63,7 @@ export function PackageInstallmentsPage() {
 
 	// ── Form state ───────────────────────────────────────────────────────────────
 	const [paymentMethod, setPaymentMethod] = useState<
-		"manual_transfer" | "cash"
+		"manual_transfer" | "cash" | "card" | "fpx" | "stripe"
 	>("manual_transfer");
 	const [notes, setNotes] = useState("");
 	const [nextIntervalDays, setNextIntervalDays] = useState("");
@@ -79,7 +93,12 @@ export function PackageInstallmentsPage() {
 		[plans],
 	);
 
-	const { data: overviewData, isLoading } = useQuery({
+	const {
+		data: overviewData,
+		isLoading,
+		isError: isOverviewError,
+		refetch: refetchOverview,
+	} = useQuery({
 		queryKey: [
 			"installments-overview",
 			organizationId,
@@ -154,22 +173,31 @@ export function PackageInstallmentsPage() {
 	 * workflow (request → approve → process). The UI now opens RequestRefundDialog
 	 * which calls refunds.request to create a Pending row for review.
 	 */
-	const { confirmPaymentMutation, manualUnlockMutation, adjustCreditsMutation, setOverdraftMutation } =
-		useInstallmentMutations({
-			organizationId,
-			selectedInstance,
-			setSelectedInstance,
-			setConfirmInstallment,
-			resetConfirmForm,
-			setShowUnlockDialog,
-			setUnlockReason,
-			setShowAdjustCreditsDialog,
-			setAdjustUnlocked,
-			setAdjustUsed,
-			setAdjustReason,
-			setShowOverdraftDialog,
-			setOverdraftReason,
-		});
+	const {
+		confirmPaymentMutation,
+		manualUnlockMutation,
+		adjustCreditsMutation,
+		setOverdraftMutation,
+		rescheduleMutation,
+		waiveMutation,
+		resetOverrideMutation,
+	} = useInstallmentMutations({
+		organizationId,
+		selectedInstance,
+		setSelectedInstance,
+		setConfirmInstallment,
+		resetConfirmForm,
+		setShowUnlockDialog,
+		setUnlockReason,
+		setShowAdjustCreditsDialog,
+		setAdjustUnlocked,
+		setAdjustUsed,
+		setAdjustReason,
+		setShowOverdraftDialog,
+		setOverdraftReason,
+		setRescheduleInstallment,
+		setWaiveInstallment,
+	});
 
 	function openSheet(instance: InstallmentOverviewItem) {
 		setSelectedInstance(instance);
@@ -199,7 +227,9 @@ export function PackageInstallmentsPage() {
 
 	// ── Active filter count ───────────────────────────────────────────────────────
 
-	const activeFilterCount = [searchQuery, dueBefore, dueAfter, planCode].filter(Boolean).length;
+	const activeFilterCount = [searchQuery, dueBefore, dueAfter, planCode].filter(
+		Boolean,
+	).length;
 
 	// ── Guard ─────────────────────────────────────────────────────────────────────
 
@@ -215,6 +245,17 @@ export function PackageInstallmentsPage() {
 
 	return (
 		<>
+			{isOverviewError && (
+				<div className="px-5 py-4">
+					<StatusCallout
+						variant="error"
+						title="Failed to load installment packages"
+						message="Something went wrong while loading the list. Please try again."
+						onRetry={() => refetchOverview()}
+					/>
+				</div>
+			)}
+
 			<InstallmentsTable
 				instances={instances}
 				isLoading={isLoading}
@@ -242,10 +283,18 @@ export function PackageInstallmentsPage() {
 				installments={installments}
 				onClose={closeSheet}
 				onConfirmInstallment={setConfirmInstallment}
+				onReschedule={setRescheduleInstallment}
+				onWaive={setWaiveInstallment}
 				onOpenUnlockDialog={() => setShowUnlockDialog(true)}
 				onOpenOverdraftDialog={() => setShowOverdraftDialog(true)}
 				onOpenAdjustCreditsDialog={() => {
-					setAdjustUnlocked(String(selectedInstance?.creditsUnlocked ?? selectedInstance?.creditsTotal ?? 0));
+					setAdjustUnlocked(
+						String(
+							selectedInstance?.creditsUnlocked ??
+								selectedInstance?.creditsTotal ??
+								0,
+						),
+					);
 					setAdjustUsed(String(selectedInstance?.creditsUsed ?? 0));
 					setShowAdjustCreditsDialog(true);
 				}}
@@ -296,6 +345,7 @@ export function PackageInstallmentsPage() {
 					setAdjustReason("");
 				}}
 				adjustCreditsMutation={adjustCreditsMutation}
+				resetOverrideMutation={resetOverrideMutation}
 			/>
 
 			<OverdraftDialog
@@ -324,6 +374,17 @@ export function PackageInstallmentsPage() {
 				/>
 			)}
 
+			<RescheduleDialog
+				rescheduleInstallment={rescheduleInstallment}
+				onClose={() => setRescheduleInstallment(null)}
+				rescheduleMutation={rescheduleMutation}
+			/>
+
+			<WaiveDialog
+				waiveInstallment={waiveInstallment}
+				onClose={() => setWaiveInstallment(null)}
+				waiveMutation={waiveMutation}
+			/>
 		</>
 	);
 }

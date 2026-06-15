@@ -32,32 +32,35 @@ export function StatusTimeline({
 	statusBadgeRenderer,
 	isLoading,
 }: StatusTimelineProps) {
-	const renderBadge = (status: string) =>
-		statusBadgeRenderer ? statusBadgeRenderer(status) : <DefaultStatusBadge status={status} />;
-
 	if (isLoading) {
 		return (
 			<div className="space-y-3">
-				{[1, 2, 3].map((i) => (
-					<Skeleton key={i} className="h-14 w-full" />
+				{[1, 2, 3].map((n) => (
+					<Skeleton key={`skel-${n}`} className="h-14 w-full" />
 				))}
 			</div>
 		);
 	}
 
 	if (!entries.length) {
-		return <p className="text-muted-foreground text-sm">No history available.</p>;
+		return (
+			<p className="text-muted-foreground text-sm">No history available.</p>
+		);
 	}
 
 	return (
 		<ol className="relative border-l border-muted ml-3 space-y-4">
 			{entries.map((entry) => (
 				<li key={entry.id} className="ml-4">
-					<div className="absolute -left-1.5 mt-1.5 h-3 w-3 rounded-full border border-white bg-muted-foreground" />
+					<div className="absolute -left-1.5 mt-1.5 size-3 rounded-full border border-white bg-muted-foreground" />
 					<div className="flex flex-wrap items-center gap-2">
 						{entry.fromStatus !== null ? (
 							<span className="flex items-center gap-1 text-sm text-muted-foreground">
-								{renderBadge(entry.fromStatus)}
+								{statusBadgeRenderer ? (
+									statusBadgeRenderer(entry.fromStatus)
+								) : (
+									<DefaultStatusBadge status={entry.fromStatus} />
+								)}
 								<span>→</span>
 							</span>
 						) : (
@@ -65,7 +68,11 @@ export function StatusTimeline({
 								Initial state →
 							</span>
 						)}
-						{renderBadge(entry.toStatus)}
+						{statusBadgeRenderer ? (
+							statusBadgeRenderer(entry.toStatus)
+						) : (
+							<DefaultStatusBadge status={entry.toStatus} />
+						)}
 					</div>
 					<p className="mt-0.5 text-xs text-muted-foreground">
 						{entry.changedByName} &middot;{" "}

@@ -1,16 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { ServicesPage } from "@/components/pages/services/services-page";
 import { ServiceCategoriesPage } from "@/components/pages/services/categories-page";
 import { RoomsPage } from "@/components/pages/services/rooms-page";
 import { PromotionsPage } from "@/components/pages/services/promotions-page";
 import { ServicePricingPage } from "@/components/pages/services/pricing-page";
+import { InstallmentPlansTab } from "@/components/pages/services/installment-plans-tab";
+
+import { z } from "zod";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/service/view",
 )({
-	validateSearch: (search: Record<string, unknown>) => ({
-		tab: (search.tab as string | undefined) ?? "services",
-	}),
+	beforeLoad: async () => {
+		await requirePermission("service_management:read");
+	},
+	validateSearch: z.object({ tab: z.string().catch("services") }),
 	component: ServicesTabPage,
 });
 
@@ -20,6 +25,7 @@ const TABS = [
 	{ id: "rooms", label: "Rooms" },
 	{ id: "promotions", label: "Promotions" },
 	{ id: "pricing", label: "Pricing" },
+	{ id: "installments", label: "Installment Plans" },
 ];
 
 function ServicesTabPage() {
@@ -27,7 +33,9 @@ function ServicesTabPage() {
 	const navigate = Route.useNavigate();
 
 	const content =
-		tab === "pricing" ? (
+		tab === "installments" ? (
+			<InstallmentPlansTab />
+		) : tab === "pricing" ? (
 			<ServicePricingPage />
 		) : tab === "promotions" ? (
 			<PromotionsPage />
@@ -40,34 +48,29 @@ function ServicesTabPage() {
 		);
 
 	return (
-		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
-			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
-				<div>
-					<h1 className="text-xl font-semibold">Services</h1>
-					<p className="mt-0.5 text-sm text-muted-foreground">
-						Manage services, categories, rooms, and promotions for your organization
-					</p>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Services</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Catalog</span>
 				</div>
-			</div>
-			<div className="shrink-0 border-b border-border/40 px-6">
-				<div className="flex h-10 items-end gap-0">
+				<div className="ml-8 flex items-center gap-1 rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-1">
 					{TABS.map((t) => (
 						<button
 							key={t.id}
 							type="button"
 							onClick={() => navigate({ search: { tab: t.id } })}
-							className={`px-4 pb-2 pt-0 text-sm font-medium border-b-2 transition-colors ${
-								tab === t.id
-									? "border-foreground text-foreground"
-									: "border-transparent text-muted-foreground hover:text-foreground"
-							}`}
+							className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${tab === t.id ? "bg-[#0a0a0a] text-white" : "text-muted-foreground hover:text-foreground"}`}
 						>
 							{t.label}
 						</button>
 					))}
 				</div>
-			</div>
-			<div className="min-h-0 flex-1 overflow-hidden">{content}</div>
+			</header>
+
+			{/* ── Tab content ─────────────────────────────────────────────────── */}
+			<div className="px-6 py-6">{content}</div>
 		</div>
 	);
 }

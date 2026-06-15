@@ -27,7 +27,11 @@ type DayOfWeek =
 	| "saturday"
 	| "sunday";
 
-export type PreferredTimeItem = { dayOfWeek: DayOfWeek; time: string; priority: number };
+export type PreferredTimeItem = {
+	dayOfWeek: DayOfWeek;
+	time: string;
+	priority: number;
+};
 
 export function PreferredTimesEditor({
 	items,
@@ -42,7 +46,11 @@ export function PreferredTimesEditor({
 	onCancel: () => void;
 	isSaving: boolean;
 }) {
-	function updateItem(index: number, field: "dayOfWeek" | "time", value: string) {
+	function updateItem(
+		index: number,
+		field: "dayOfWeek" | "time",
+		value: string,
+	) {
 		const next = items.map((item, i) =>
 			i === index ? { ...item, [field]: value } : item,
 		);
@@ -50,9 +58,11 @@ export function PreferredTimesEditor({
 	}
 
 	function removeItem(index: number) {
-		const next = items
-			.filter((_, i) => i !== index)
-			.map((item, i) => ({ ...item, priority: i + 1 }));
+		const next = items.reduce<typeof items>((acc, item, i) => {
+			if (i === index) return acc;
+			acc.push({ ...item, priority: acc.length + 1 });
+			return acc;
+		}, []);
 		onChange(next);
 	}
 
@@ -68,6 +78,7 @@ export function PreferredTimesEditor({
 		<div className="space-y-2">
 			{items.map((item, i) => (
 				// biome-ignore lint/suspicious/noArrayIndexKey: order is the identity here
+				// react-doctor-disable-next-line react-doctor/no-array-index-as-key -- position-as-identity: items are ordered preferences with no stable id
 				<div key={i} className="flex items-center gap-2">
 					<span className="text-xs text-muted-foreground w-4">{i + 1}.</span>
 					<Select

@@ -1,12 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import {
-	ActivityIndicator,
-	Text,
-	TouchableOpacity,
-	View,
-} from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { authClient } from "@/lib/auth-client";
 
@@ -40,7 +35,7 @@ export default function VerifyEmailScreen() {
 					Check Your Email
 				</Text>
 
-				<Text className="mb-2 text-center text-base text-gray-600">
+				<Text className="mb-2 text-center text-base text-zinc-600">
 					We've sent a verification link to
 				</Text>
 				{email && (
@@ -49,25 +44,25 @@ export default function VerifyEmailScreen() {
 					</Text>
 				)}
 
-				<Text className="mb-8 text-center text-sm text-gray-500">
+				<Text className="mb-8 text-center text-sm text-zinc-500">
 					Click the link in your email to verify your account, then come back
 					here to sign in.
 				</Text>
 
 				<View className="w-full">
-					<TouchableOpacity
+					<Pressable
 						onPress={() => router.replace("/(auth)/login")}
-						className="mb-4 h-14 w-full flex-row items-center justify-center rounded-xl bg-black"
+						className="mb-4 h-14 w-full flex-row items-center justify-center rounded-xl bg-zinc-950"
 					>
 						<Text className="font-medium text-base text-white">
 							Go to Sign In
 						</Text>
-					</TouchableOpacity>
+					</Pressable>
 
-					<TouchableOpacity
+					<Pressable
 						onPress={handleResend}
 						disabled={isResending || resent}
-						className="h-14 w-full flex-row items-center justify-center rounded-xl border border-gray-300"
+						className="h-14 w-full flex-row items-center justify-center rounded-xl border border-zinc-300"
 						style={{ opacity: isResending || resent ? 0.6 : 1 }}
 					>
 						{isResending ? (
@@ -77,7 +72,7 @@ export default function VerifyEmailScreen() {
 								{resent ? "Email Sent" : "Resend Verification Email"}
 							</Text>
 						)}
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 			</View>
 		</SafeAreaView>

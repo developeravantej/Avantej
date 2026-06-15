@@ -3,7 +3,9 @@ import { toast } from "sonner";
 import { createORPCClientConfig } from "@avantej-core/api/client";
 
 const { queryClient, client, orpc } = createORPCClientConfig({
-	serverUrl: import.meta.env.VITE_SERVER_URL ?? "",
+	// If VITE_SERVER_URL is not set, use the page origin so requests route through
+	// the Vite proxy (same-site) and session cookies are included correctly.
+	serverUrl: import.meta.env.VITE_SERVER_URL ?? window.location.origin,
 	QueryClient,
 	QueryCache,
 	onError: (error) => {

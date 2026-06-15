@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_authenticated/user/view")({
 	beforeLoad: async () => {
 		await requirePermission(
 			{ resource: "user_management", action: "read" },
-			"/dashboard"
+			"/dashboard",
 		);
 	},
 	component: UserViewComponent,
@@ -34,11 +34,11 @@ function UserViewComponent() {
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
-				<h1 className="text-3xl font-bold">Users</h1>
+				<h1 className="text-3xl font-semibold">Users</h1>
 			</div>
 			{isLoading ? (
 				<div className="flex items-center justify-center py-8 text-muted-foreground">
-					Loading members...
+					Loading members…
 				</div>
 			) : (
 				<DataTable columns={columns} data={membersData} />
@@ -46,4 +46,3 @@ function UserViewComponent() {
 		</div>
 	);
 }
-

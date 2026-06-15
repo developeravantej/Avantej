@@ -1,0 +1,291 @@
+{
+  "generatedAt": "2026-05-12T18:00:00.000Z",
+  "planRef": ".playwright/test-plan.json (v1, 20 journeys, sourceRef feat/package-approval-flow)",
+  "coverageScore": 0.05,
+  "coverageNotes": "1 of 20 journeys is partially covered (branch-onboarding admin-create flow only — pre-form-submit). 19 journeys are completely untested. Existing batch1-5 specs are smoke visits and assert no error boundary; they do NOT exercise the mutations listed in the plan.",
+  "untestedJourneys": [
+    "commission-rule-cancel-appointment",
+    "commission-rule-complete-appointment",
+    "commission-rule-pos-service-no-split",
+    "commission-rule-pos-product-immediate-split",
+    "payouts-kpi-mounts",
+    "payouts-run-batch-drawer",
+    "payouts-confirm-creates-row",
+    "trainer-assigned-packages-tab-loads",
+    "trainer-assigned-packages-drawer",
+    "package-lifecycle-cancel",
+    "package-lifecycle-freeze-unfreeze",
+    "package-lifecycle-extend",
+    "sales-cancellation-kpi-confirmed",
+    "sales-cancellation-cancel-sale",
+    "sales-cancellation-cancelled-list",
+    "sales-cancellation-receipt-fallback",
+    "pos-checkout-package-salesorderid",
+    "pos-checkout-non-client-member-error",
+    "pos-checkout-installment-schedule"
+  ],
+  "partiallyTested": [
+    {
+      "journey": "branch-onboarding-full-submit",
+      "existingSpec": "e2e/branch-onboarding.spec.ts",
+      "gaps": [
+        "Existing spec stops BEFORE form submission (intentional, to avoid orphan users)",
+        "No incognito navigation to the captured invite URL with form fill+submit",
+        "No assertion of redirect to /dashboard after submit",
+        "No cleanup helper for created Better-Auth users",
+        "Existing spec uses brittle text-based extraction of invite URL; planned spec uses data-testid='invite-url-input'"
+      ]
+    }
+  ],
+  "missingSelectors": [
+    {
+      "testId": "generate-qr-button",
+      "neededBy": ["branch-onboarding-full-submit"],
+      "component": "apps/web/src/features/branch-invites/components/qr-code-card.tsx (around line 219-231 — the primary <Button> that triggers invite creation)",
+      "estimatedAddEffort": "trivial"
+    },
+    {
+      "testId": "invite-url-input",
+      "neededBy": ["branch-onboarding-full-submit"],
+      "component": "apps/web/src/features/branch-invites/components/qr-code-card.tsx (the Input/text node showing the invite URL after generation)",
+      "estimatedAddEffort": "trivial"
+    },
+    {
+      "testId": "onboarding-branch-name",
+      "neededBy": ["branch-onboarding-full-submit"],
+      "component": "apps/web/src/routes/onboarding.$token.tsx (heading element rendering the branch name)",
+      "estimatedAddEffort": "trivial"
+    },
+    {
+      "testId": "onboarding-name-input / onboarding-email-input / onboarding-password-input / onboarding-submit-button",
+      "neededBy": ["branch-onboarding-full-submit"],
+      "component": "apps/web/src/routes/onboarding.$token.tsx (the sign-up form fields and submit Button)",
+      "estimatedAddEffort": "trivial"
+    },
+    {
+      "testId": "appointment-cancel-button",
+      "neededBy": ["commission-rule-cancel-appointment"],
+      "component": "apps/web/src/features/appointments/components/AppointmentDetailDialog.tsx OR CalendarDetailModal.tsx (cancel action button)",
+      "estimatedAddEffort": "small"
+    },
+    {
+      "testId": "appointment-cancel-confirm-button",
+      "neededBy": ["commission-rule-cancel-appointment"],
+      "component": "apps/web/src/features/appointments/components/OccurrenceActionDialog.tsx (confirmation in cancel dialog)",
+      "estimatedAddEffort": "trivial"
+    },
+    {
+      "testId": "appointment-complete-button",
+      "neededBy": ["commission-rule-complete-appointment"],
+      "component": "apps/web/src/features/appointments/components/AppointmentDetailDialog.tsx OR AttendanceDialog.tsx",
+      "estimatedAddEffort": "small"
+    },
+    {
+      "testId": "commission-earn-reason-badge / commission-status-badge",
+      "neededBy": ["commission-rule-cancel-appointment", "commission-rule-complete-appointment", "commission-rule-pos-product-immediate-split"],
+      "component": "apps/web/src/components/pages/commissions/all-tab.tsx (badge cells in the table column definitions). VERIFY the earnReason column exists; if not, the EXECUTE phase must add it before the testid.",
+      "estimatedAddEffort": "small"
+    },
+    {
+      "testId": "pos-member-search-input / pos-add-service-button / pos-add-product-button / pos-catalog-item / pos-payment-method-installment / pos-installment-plan-select / pos-complete-sale-button / pos-sale-success-screen / pos-sale-success-id / pos-error-toast",
+      "neededBy": [
+        "commission-rule-pos-service-no-split",
+        "commission-rule-pos-product-immediate-split",
+        "pos-checkout-package-salesorderid",
+        "pos-checkout-non-client-member-error",
+        "pos-checkout-installment-schedule"
+      ],
+      "component": "apps/web/src/routes/_authenticated/dashboard/_layout/sales/create.tsx + child step components (member search step, catalog grid step, payment step, success screen). Approx 10 testids across ~4-5 sub-components.",
+      "estimatedAddEffort": "medium"
+    },
+    {
+      "testId": "payouts-kpi-strip / payouts-kpi-pending / payouts-kpi-approved / payouts-kpi-paid",
+      "neededBy": ["payouts-kpi-mounts", "payouts-run-batch-drawer", "payouts-confirm-creates-row"],
+      "component": "apps/web/src/features/payouts/components/payouts-kpi-strip.tsx (root container + each KPI card value element)",
+      "estimatedAddEffort": "trivial"
+    },
+    {
+      "testId": "run-batch-button / run-batch-drawer / batch-staff-combobox / batch-period-start / batch-period-end / batch-preview-count / batch-confirm-button",
+      "neededBy": ["payouts-run-batch-drawer", "payouts-confirm-creates-row"],
+      "component": "apps/web/src/features/payouts/components/run-batch-drawer.tsx (trigger button likely lives in payouts/view.tsx; drawer + form fields inside this file)",
+      "estimatedAddEffort": "small"
+    },
+    {
+      "testId": "payouts-table",
+      "neededBy": ["payouts-confirm-creates-row"],
+      "component": "apps/web/src/features/payouts/components/payouts-table.tsx (table root)",
+      "estimatedAddEffort": "trivial"
+    },
+    {
+      "testId": "tab-assigned-packages / assigned-packages-tab / assigned-packages-table / assigned-packages-empty",
+      "neededBy": ["trainer-assigned-packages-tab-loads", "trainer-assigned-packages-drawer"],
+      "component": "apps/web/src/features/my-services/components/assigned-packages-table.tsx + the Tabs trigger in apps/web/src/routes/_authenticated/dashboard/_layout/my-services/view.tsx",
+      "estimatedAddEffort": "small"
+    },
+    {
+      "testId": "assigned-package-drawer / drawer-client-name / drawer-service-name",
+      "neededBy": ["trainer-assigned-packages-drawer"],
+      "component": "apps/web/src/features/my-services/components/assigned-package-drawer.tsx (Sheet root + name fields)",
+      "estimatedAddEffort": "trivial"
+    },
+    {
+      "testId": "instances-table / instance-action-menu / instance-action-cancel / instance-action-freeze / instance-action-unfreeze / instance-action-extend / instance-expires-at / status-filter-active / status-filter-frozen / status-filter-cancelled",
+      "neededBy": ["package-lifecycle-cancel", "package-lifecycle-freeze-unfreeze", "package-lifecycle-extend"],
+      "component": "apps/web/src/routes/_authenticated/dashboard/_layout/packages/view.tsx + likely a session-packs sub-component (find via grep for instance row rendering). Action menu items live in a DropdownMenu component for each row.",
+      "estimatedAddEffort": "medium"
+    },
+    {
+      "testId": "cancel-instance-dialog / cancel-reason-input / cancel-instance-confirm-button",
+      "neededBy": ["package-lifecycle-cancel"],
+      "component": "apps/web/src/features/packages/components/cancel-instance-dialog.tsx",
+      "estimatedAddEffort": "trivial"
+    },
+    {
+      "testId": "freeze-instance-dialog / freeze-until-input / freeze-instance-confirm-button",
+      "neededBy": ["package-lifecycle-freeze-unfreeze"],
+      "component": "apps/web/src/features/packages/components/freeze-instance-dialog.tsx",
+      "estimatedAddEffort": "trivial"
+    },
+    {
+      "testId": "extend-instance-dialog / extend-days-input / extend-instance-confirm-button",
+      "neededBy": ["package-lifecycle-extend"],
+      "component": "apps/web/src/features/packages/components/extend-instance-dialog.tsx",
+      "estimatedAddEffort": "trivial"
+    },
+    {
+      "testId": "sales-kpi-strip / sales-kpi-confirmed / sales-kpi-revenue",
+      "neededBy": ["sales-cancellation-kpi-confirmed"],
+      "component": "apps/web/src/routes/_authenticated/dashboard/_layout/sales/view.tsx (KPI strip — verify component path; may be in @/components/pages/sales/)",
+      "estimatedAddEffort": "trivial"
+    },
+    {
+      "testId": "cancel-sale-button / cancel-sale-dialog / cancel-sale-reason-input / cancel-sale-confirm-button",
+      "neededBy": ["sales-cancellation-cancel-sale"],
+      "component": "apps/web/src/routes/_authenticated/dashboard/_layout/sales/$id.tsx (the CancelSaleDialog and its trigger button — code inspection per plan confirms wiring exists at line ~120)",
+      "estimatedAddEffort": "trivial"
+    },
+    {
+      "testId": "cancelled-sales-table / sidebar-cancelled-sales",
+      "neededBy": ["sales-cancellation-cancelled-list"],
+      "component": "apps/web/src/routes/_authenticated/dashboard/_layout/cancelled-sales/view.tsx + apps/web/src/components/app-sidebar.tsx (sidebar nav item)",
+      "estimatedAddEffort": "trivial"
+    },
+    {
+      "testId": "print-receipt-button / receipt-unavailable-message",
+      "neededBy": ["sales-cancellation-receipt-fallback"],
+      "component": "apps/web/src/routes/_authenticated/dashboard/_layout/sales/$id.tsx (receipt section)",
+      "estimatedAddEffort": "trivial"
+    }
+  ],
+  "missingSelectorsTotalCount": 65,
+  "componentFilesNeedingEdits": 17,
+  "qualityIssues": [
+    {
+      "file": "playwright.config.ts",
+      "issue": "auth.setup.ts exists but is NOT registered as a setup project. The `projects` array has chromium / dashboard-e2e / onboarding-e2e but none has `dependencies: ['setup']` and there is no `name: 'setup'` project with `testMatch: /auth\\.setup\\.ts/`. Result: storage state at e2e/.auth/user.json is never created, and ALL existing batch + branch-onboarding specs do their own UI login via a per-test login() helper — slow and brittle.",
+      "severity": "high"
+    },
+    {
+      "file": "playwright.config.ts",
+      "issue": "No project uses `storageState`. Even if auth.setup.ts ran, no spec would consume the cookie. EXECUTE must add a setup project AND add `use: { storageState: 'e2e/.auth/tenant-admin.json' }` to dashboard-e2e and any new journey project.",
+      "severity": "high"
+    },
+    {
+      "file": "playwright.config.ts",
+      "issue": "fullyParallel: false + workers: 1 — every spec runs serially. With 20 new journeys this will become very slow. Consider enabling parallelism per project (the existing batch suites are read-only smoke and parallel-safe).",
+      "severity": "medium"
+    },
+    {
+      "file": "e2e/smoke.spec.ts",
+      "issue": "Test 'dashboard loads after auth' does NOT actually authenticate — it just navigates to /dashboard. Because no project loads storageState, this test is effectively asserting that a redirect to /login happens (URL still contains 'dashboard' as substring of nothing). Misleading test name; either delete or wire to real auth.",
+      "severity": "medium"
+    },
+    {
+      "file": "e2e/branch-onboarding.spec.ts (lines 163, 326)",
+      "issue": "Uses page.waitForTimeout(2000) and waitForTimeout(1500). Replace with web-first assertions (expect(locator).toBeVisible()) once data-testids are added.",
+      "severity": "low"
+    },
+    {
+      "file": "e2e/batch5.dashboard.spec.ts (line 336)",
+      "issue": "Uses page.waitForTimeout(1000). Same fix as above.",
+      "severity": "low"
+    },
+    {
+      "file": "e2e/branch-onboarding.spec.ts",
+      "issue": "Captures invite URL via brittle text/regex extraction across multiple fallback strategies. Will be obsolete once data-testid='invite-url-input' is added — EXECUTE should refactor this spec to use the testid (do NOT rewrite, just simplify the helper).",
+      "severity": "low"
+    },
+    {
+      "file": "e2e/batch1-5.dashboard.spec.ts",
+      "issue": "Each describe block calls login() in beforeEach — full UI login per test, 5 files * many tests = enormous wall-clock time. Recommend converting to use storageState once setup project exists.",
+      "severity": "medium"
+    }
+  ],
+  "seedInfrastructure": {
+    "neededHelpers": [
+      {
+        "name": "createTestUser({ email, password, role })",
+        "purpose": "Used by branch-onboarding-full-submit; can also serve installment / non-client tests",
+        "approach": "Use existing better-auth signUp via a bun script (no test-only oRPC endpoint exists today). Cleanup via direct Drizzle delete on control-panel users + organization_members tables.",
+        "complexity": "medium"
+      },
+      {
+        "name": "cleanupTestUser(email) / cleanupByEmailPrefix('testuser+')",
+        "purpose": "Required by branch-onboarding-full-submit. No oRPC procedure exists for user deletion (grep confirms).",
+        "approach": "Implement as a bun CLI script (apps/server/scripts/e2e-cleanup.ts) that connects directly to control-panel DB via existing Drizzle client and deletes by email pattern. Tests invoke via execSync or page.request to a dev-only endpoint.",
+        "complexity": "small"
+      },
+      {
+        "name": "seedAppointment({ trainerId, customerId, serviceId, status })",
+        "purpose": "commission-rule-cancel-appointment, commission-rule-complete-appointment",
+        "approach": "Prefer existing oRPC: client.appointments.create exists for booking; status transition (confirmed → completed/cancelled) goes through normal oRPC mutations. Insertion of confirmed-state seed: probably needs a small bun script that inserts directly into tenant DB to bypass time/permission checks. Trainer member must already exist; the test tenant only has admin franchisee@. Decision needed: (a) re-use admin as trainer via direct DB role tweak, or (b) seed a dedicated trainer member.",
+        "complexity": "large"
+      },
+      {
+        "name": "seedApprovedCommissionSplit({ staffId, amount, periodStart, periodEnd })",
+        "purpose": "payouts-confirm-creates-row, payouts-run-batch-drawer (preview > 0)",
+        "approach": "Direct tenant DB INSERT into commission_splits (status='approved'). No oRPC procedure for arbitrary split creation. Bun script.",
+        "complexity": "medium"
+      },
+      {
+        "name": "seedPackageInstance({ ownerId, serviceId, assignedTrainerId, status })",
+        "purpose": "trainer-assigned-packages-drawer, package-lifecycle-* (if test tenant lacks active instances), pos-checkout-package-salesorderid (verification)",
+        "approach": "Prefer creating via the POS oRPC (client.salesOrders.create) — exercises the real code path. Fall back to direct DB insert only for assignedTrainerId=admin scenarios that can't be set via UI.",
+        "complexity": "medium"
+      },
+      {
+        "name": "ensureInstallmentPlanExists()",
+        "purpose": "pos-checkout-installment-schedule",
+        "approach": "Check via oRPC if any installment plan exists; if not, create one via the existing settings router. Idempotent.",
+        "complexity": "small"
+      }
+    ],
+    "preferredFile": "e2e/helpers/seed-data.ts (single module exporting all helpers; uses oRPC when possible, falls back to bun-script invocation via execSync for direct DB writes)",
+    "secondaryFile": "apps/server/scripts/e2e-cleanup.ts (bun CLI for user/data teardown)"
+  },
+  "agentNotes": {
+    "forExecuteAgent": "Critical sequencing: (1) Fix playwright.config.ts FIRST — add a 'setup' project that runs auth.setup.ts and persists storage state to e2e/.auth/tenant-admin.json (rename from user.json), then add `dependencies: ['setup']` and `use: { storageState }` to dashboard-e2e + a new 'journeys-e2e' project. (2) Verify the setup actually produces a usable cookie by running a single test against the new project before adding any data-testids. (3) Then proceed with selector additions in component-file batches — each commit can land independent testids per file without breaking anything. (4) Build seed helpers in parallel with no-seed specs. The 10 'achievable without seeding' journeys (per plan's seedingRequiredVsNot.achievableWithoutSeedHelpers list) should be written FIRST and gated only on testid additions.",
+    "blockers": [
+      "playwright.config.ts auth wiring is broken — must be fixed before any new spec relies on storageState. Without this, EXECUTE will repeat the pattern of UI-login-per-test which is the slowest possible approach.",
+      "Zero data-testid attributes exist in production components for any planned selector — all 65 must be added before specs can run. Group additions by component file to minimise PRs.",
+      "No user-deletion oRPC endpoint exists; branch-onboarding-full-submit cannot do clean teardown without a new bun script (apps/server/scripts/e2e-cleanup.ts).",
+      "Test tenant has no trainer member — commission-rule-cancel/complete journeys need either a direct DB role tweak on admin or a dedicated seeded trainer. Decide BEFORE writing the spec.",
+      "Receipt-fallback journey (sales-cancellation-receipt-fallback) is not deterministically reproducible without a direct DB mutation that nulls receipt fields. Plan already flagged this as a P2-deferral candidate — recommend EXECUTE skips it.",
+      "Installment-plan journey requires Settings to have at least one configured plan; ensureInstallmentPlanExists() must run as a precondition or test will fail at payment step."
+    ],
+    "executionOrder": [
+      "Day 1 (config + selectors, no specs): (a) Fix playwright.config.ts — add setup project, storageState, rename auth file. (b) Add data-testid attributes file-by-file. Suggested order (single PR per group):",
+      "  Group A (trivial, 6 files): qr-code-card.tsx, onboarding.$token.tsx, payouts-kpi-strip.tsx, payouts-table.tsx, assigned-package-drawer.tsx, cancelled-sales/view.tsx + app-sidebar.tsx",
+      "  Group B (small, 4 files): cancel-instance-dialog.tsx, freeze-instance-dialog.tsx, extend-instance-dialog.tsx, sales/$id.tsx (cancel + receipt)",
+      "  Group C (small, 3 files): sales/view.tsx (KPI strip), my-services/view.tsx + assigned-packages-table.tsx, run-batch-drawer.tsx + payouts/view.tsx",
+      "  Group D (medium, 4 files): packages/view.tsx + session-packs sub-component (instances table + action menu), commissions/all-tab.tsx (verify earnReason column first), appointments dialogs (cancel/complete buttons), sales/create.tsx + POS step components (largest — 10 testids)",
+      "Day 2 (no-seed specs): write the 10 journeys listed in plan.seedingRequiredVsNot.achievableWithoutSeedHelpers as e2e/<area>.journey.spec.ts files. Use storageState. Each file ~50-100 lines. Skip sales-cancellation-receipt-fallback.",
+      "Day 3 (seed infrastructure): create e2e/helpers/seed-data.ts + apps/server/scripts/e2e-cleanup.ts. Then write the remaining 9 seed-dependent journeys.",
+      "Day 4 (verification + flake hunt): run full suite 3x, triage flakes, replace any remaining waitForTimeout calls with web-first assertions."
+    ],
+    "doNotRewrite": [
+      "e2e/branch-onboarding.spec.ts — keep all 5 existing tests; just add the new full-submit journey as a 6th test in the same file (or a sibling branch-onboarding.journey.spec.ts). The existing admin-create + invalid-token + multi-use + revocation specs are useful coverage.",
+      "e2e/batch1-5.dashboard.spec.ts — keep as smoke (do not delete), but DO migrate them to use storageState in a follow-up so they stop UI-logging-in per test."
+    ]
+  }
+}

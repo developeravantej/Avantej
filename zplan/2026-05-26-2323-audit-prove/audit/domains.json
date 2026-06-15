@@ -1,0 +1,145 @@
+{
+  "domains": [
+    {
+      "id": "auth-customers",
+      "name": "Auth & Customers",
+      "verifyTopN": 4,
+      "routers": [
+        "apps/server/src/routers/auth.ts",
+        "apps/server/src/routers/customer-profiles.ts",
+        "apps/server/src/routers/invitation-acceptance.ts",
+        "apps/server/src/routers/invitations.ts",
+        "packages/api/src/routers/customer-directory.ts",
+        "packages/api/src/routers/customer-profiles.ts",
+        "packages/api/src/routers/invitations",
+        "packages/api/src/routers/members",
+        "packages/api/src/routers/households.ts",
+        "packages/api/src/routers/walk-in-customers.ts",
+        "packages/api/src/routers/member-profiles.ts",
+        "packages/api/src/routers/user-activity-log.ts"
+      ],
+      "services": [
+        "packages/services/src/customer-directory.service.ts",
+        "packages/services/src/membership.service.ts"
+      ]
+    },
+    {
+      "id": "sales-pos-payments",
+      "name": "Sales, POS & Payments",
+      "verifyTopN": 5,
+      "routers": [
+        "packages/api/src/routers/pos.ts",
+        "packages/api/src/routers/sales-orders.ts",
+        "packages/api/src/routers/installments.ts",
+        "packages/api/src/routers/installment-plans.ts",
+        "packages/api/src/routers/refunds",
+        "packages/api/src/routers/cancelled-sales.ts",
+        "packages/api/src/routers/promotions.ts",
+        "packages/api/src/routers/tax-rates.ts",
+        "packages/api/src/routers/invoices.ts",
+        "apps/server/src/routers/payments.ts",
+        "apps/server/src/routers/stripe-connect.ts"
+      ],
+      "services": [
+        "packages/services/src/pos.service.ts",
+        "packages/services/src/sales-order.service.ts",
+        "packages/services/src/installment.service.ts",
+        "packages/services/src/installment-plan.service.ts",
+        "packages/services/src/promotions.service.ts"
+      ]
+    },
+    {
+      "id": "appointments-calendar",
+      "name": "Appointments & Calendar",
+      "verifyTopN": 4,
+      "routers": [
+        "packages/api/src/routers/appointments",
+        "packages/api/src/routers/class-slots",
+        "packages/api/src/routers/rooms.ts",
+        "packages/api/src/routers/trainer-availability.ts",
+        "packages/api/src/routers/check-ins.ts",
+        "packages/api/src/routers/preferred-times.ts",
+        "packages/api/src/routers/google-calendar.ts",
+        "packages/api/src/routers/coach-intake.ts",
+        "packages/api/src/routers/waitlist.ts"
+      ],
+      "services": [
+        "packages/services/src/appointment.service.ts",
+        "packages/services/src/trainer-availability.service.ts",
+        "packages/services/src/waitlist.service.ts",
+        "packages/services/src/utils/appointment-status-machine.ts"
+      ]
+    },
+    {
+      "id": "packages-services",
+      "name": "Packages, Services & Trainers",
+      "verifyTopN": 5,
+      "routers": [
+        "packages/api/src/routers/package-instances",
+        "packages/api/src/routers/package-instance-staff.ts",
+        "packages/api/src/routers/services",
+        "packages/api/src/routers/service-categories.ts",
+        "packages/api/src/routers/service-category-config.ts",
+        "packages/api/src/routers/service-members.ts",
+        "packages/api/src/routers/trainers.ts",
+        "packages/api/src/routers/trainer-tiers.ts",
+        "packages/api/src/routers/memberships.ts",
+        "packages/api/src/routers/category-buffer-overrides.ts"
+      ],
+      "services": [
+        "packages/services/src/package-instance.service.ts",
+        "packages/services/src/trainer-tier.service.ts"
+      ]
+    },
+    {
+      "id": "operations-finance",
+      "name": "Operations & Finance",
+      "verifyTopN": 4,
+      "routers": [
+        "packages/api/src/routers/commission-splits",
+        "packages/api/src/routers/category-commission.ts",
+        "packages/api/src/routers/payouts.ts",
+        "packages/api/src/routers/expenses.ts",
+        "packages/api/src/routers/purchase-orders.ts",
+        "packages/api/src/routers/goods-receipts.ts",
+        "packages/api/src/routers/stock-requests.ts",
+        "packages/api/src/routers/transfer-orders.ts",
+        "packages/api/src/routers/products.ts",
+        "packages/api/src/routers/brands.ts",
+        "packages/api/src/routers/product-categories.ts",
+        "packages/api/src/routers/units-of-measure.ts",
+        "packages/api/src/routers/suppliers.ts"
+      ],
+      "services": [
+        "packages/services/src/commission-calculator.service.ts",
+        "packages/services/src/commission-splits.service.ts",
+        "packages/services/src/commission-math.test.ts"
+      ]
+    },
+    {
+      "id": "settings-platform",
+      "name": "Settings, Hierarchy & Platform",
+      "verifyTopN": 3,
+      "routers": [
+        "packages/api/src/routers/hierarchy",
+        "packages/api/src/routers/roles.ts",
+        "packages/api/src/routers/role-permissions.ts",
+        "packages/api/src/routers/permissions.ts",
+        "packages/api/src/routers/announcements.ts",
+        "packages/api/src/routers/notifications.ts",
+        "packages/api/src/routers/notification-preferences.ts",
+        "packages/api/src/routers/audit-logs.ts",
+        "packages/api/src/routers/organization-settings.ts",
+        "packages/api/src/routers/analytics.ts",
+        "packages/api/src/routers/scheduled-reports.ts",
+        "packages/api/src/routers/onboarding.ts",
+        "packages/api/src/routers/registration.ts",
+        "packages/api/src/routers/branch-invites.ts"
+      ],
+      "services": [
+        "packages/services/src/hierarchy.service.ts",
+        "packages/services/src/analytics.service.ts"
+      ]
+    }
+  ]
+}

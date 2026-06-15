@@ -1,0 +1,9 @@
+{
+  "brands/brands.lifecycle.spec.ts::Brand lifecycle — create, list, update, delete (API-verified)": [
+    "Create a uniquely-named (E2E-DEEP-) brand via the brands API and register its teardown.",
+    "Assert the brand appears in brands/list.",
+    "Update the brand name and assert brands/getById returns the new name.",
+    "Delete the brand and assert it no longer appears in brands/list.",
+    "Teardown deletes the fixture in finally — no test data left behind."
+  ]
+}

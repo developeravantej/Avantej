@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
+import { sql } from "drizzle-orm";
 import { createMockTenantDb } from "../../helpers/db-mock.factory";
 import { makeCommissionSplit } from "../../helpers/fixtures";
 
@@ -18,12 +19,50 @@ const TO = "2026-04-30T23:59:59.999Z";
 
 function selectChainResolving(value: unknown) {
 	const chain: Record<string, unknown> = {};
-	for (const m of ["from", "where", "orderBy", "limit", "offset", "leftJoin", "innerJoin", "groupBy", "having"]) {
+	for (const m of [
+		"from",
+		"where",
+		"orderBy",
+		"limit",
+		"offset",
+		"leftJoin",
+		"innerJoin",
+		"groupBy",
+		"having",
+	]) {
 		chain[m] = mock(() => chain);
 	}
+	// `.as("alias")` turns the chain into a subquery. liabilitySummary builds a
+	// `reversalsSubquery` (pre-aggregated commission reversals) and interpolates
+	// `reversalsSubquery.total` / `.splitId` into the outer aggregation SQL. The
+	// returned stub exposes those as raw SQL fragments so drizzle's `sql` template
+	// tag accepts them without throwing on `undefined`.
+	chain.as = mock(() => ({
+		total: sql.raw("rev.reversal_total"),
+		splitId: sql.raw("rev.split_id"),
+	}));
 	chain.then = (resolve: (v: unknown) => unknown) =>
 		Promise.resolve(value).then(resolve);
 	return chain;
+}
+
+/**
+ * liabilitySummary issues an extra `db.select(...).as("rev")` reversals subquery
+ * BEFORE (and in addition to) the awaited aggregation select. That subquery is
+ * never awaited — only its `.as()` result is interpolated into SQL — so it must
+ * not consume a configured aggregation result. `queueSelects` drives `db.select`
+ * from an ordered list of resolve-values matching the ACTUAL call order, and
+ * transparently supplies an `.as()`-capable chain for any unconfigured call
+ * (e.g. the subquery). Each entry resolves the chain awaited at that position.
+ */
+function queueSelects(
+	db: { select: ReturnType<typeof mock> },
+	values: unknown[],
+) {
+	const queue = [...values];
+	db.select.mockImplementation(() =>
+		selectChainResolving(queue.length > 0 ? queue.shift() : []),
+	);
 }
 
 /** Extended mock with execute() for hierarchy CTE usage */
@@ -150,19 +189,24 @@ describe("liabilitySummary", () => {
 		const db = createMockTenantDbWithExecute();
 		const cpDb = createMockControlPanelDb([{ id: MEMBER_ID, name: "Alice" }]);
 
-		// The service performs one aggregation SELECT groupBy(staffId)
-		db.select.mockReturnValueOnce(
-			selectChainResolving([
+		// liabilitySummary issues a reversals subquery (.as("rev")) then the
+		// aggregation SELECT groupBy(staffId). Queue: subquery (unused), then rows.
+		queueSelects(db, [
+			[],
+			[
 				{
 					staffId: MEMBER_ID,
 					approvedUnpaid: 10000,
 					paid: 5000,
 					manualAdj: 2000,
 				},
-			]),
-		);
+			],
+		]);
 
-		const result = await liabilitySummary(db as any, cpDb, { from: FROM, to: TO });
+		const result = await liabilitySummary(db as any, cpDb, {
+			from: FROM,
+			to: TO,
+		});
 
 		expect(result.trainers).toHaveLength(1);
 		const trainer = result.trainers[0]!;
@@ -178,14 +222,28 @@ describe("liabilitySummary", () => {
 		const db = createMockTenantDbWithExecute();
 		const cpDb = createMockControlPanelDb([]);
 
-		db.select.mockReturnValueOnce(
-			selectChainResolving([
-				{ staffId: MEMBER_ID, approvedUnpaid: 8000, paid: 2000, manualAdj: 500 },
-				{ staffId: MEMBER_ID_2, approvedUnpaid: 4000, paid: 1000, manualAdj: -300 },
-			]),
-		);
+		queueSelects(db, [
+			[],
+			[
+				{
+					staffId: MEMBER_ID,
+					approvedUnpaid: 8000,
+					paid: 2000,
+					manualAdj: 500,
+				},
+				{
+					staffId: MEMBER_ID_2,
+					approvedUnpaid: 4000,
+					paid: 1000,
+					manualAdj: -300,
+				},
+			],
+		]);
 
-		const result = await liabilitySummary(db as any, cpDb, { from: FROM, to: TO });
+		const result = await liabilitySummary(db as any, cpDb, {
+			from: FROM,
+			to: TO,
+		});
 
 		expect(result.totals.approvedUnpaidCents).toBe(12000);
 		expect(result.totals.paidCents).toBe(3000);
@@ -197,9 +255,12 @@ describe("liabilitySummary", () => {
 		const db = createMockTenantDbWithExecute();
 		const cpDb = createMockControlPanelDb([]);
 
-		db.select.mockReturnValueOnce(selectChainResolving([]));
+		queueSelects(db, [[], []]);
 
-		const result = await liabilitySummary(db as any, cpDb, { from: FROM, to: TO });
+		const result = await liabilitySummary(db as any, cpDb, {
+			from: FROM,
+			to: TO,
+		});
 
 		expect(result.trainers).toHaveLength(0);
 		expect(result.totals.approvedUnpaidCents).toBe(0);
@@ -207,21 +268,23 @@ describe("liabilitySummary", () => {
 		expect(result.totals.netPayableCents).toBe(0);
 	});
 
-	test("filters via earnedAt range — fires one aggregation select", async () => {
-		// We verify the query runs (not the WHERE clause internals, which Drizzle builds)
-		// The fact that a single select is called confirms date scoping is SQL-side.
+	test("filters via earnedAt range — fires aggregation select SQL-side", async () => {
+		// We verify the query runs (not the WHERE clause internals, which Drizzle builds).
+		// Date scoping is entirely SQL-side: no secondary selects to fetch rows for
+		// in-memory filtering. The selects fired are the reversals subquery (.as("rev"))
+		// + the single aggregation query — 2 total, both built once SQL-side.
 		const db = createMockTenantDbWithExecute();
 		const cpDb = createMockControlPanelDb([]);
 
-		db.select.mockReturnValueOnce(selectChainResolving([]));
+		queueSelects(db, [[], []]);
 
 		await liabilitySummary(db as any, cpDb, {
 			from: "2026-04-01T00:00:00.000Z",
 			to: "2026-04-30T23:59:59.999Z",
 		});
 
-		// One aggregation SELECT (no secondary selects for date range — all SQL-side)
-		expect(db.select).toHaveBeenCalledTimes(1);
+		// reversals subquery + aggregation SELECT — no per-row secondary selects.
+		expect(db.select).toHaveBeenCalledTimes(2);
 	});
 
 	test("void splits are excluded — approvedUnpaid sum is zero when only void rows", async () => {
@@ -231,9 +294,12 @@ describe("liabilitySummary", () => {
 		const cpDb = createMockControlPanelDb([]);
 
 		// Simulate DB returning nothing (void rows filtered out at DB level)
-		db.select.mockReturnValueOnce(selectChainResolving([]));
+		queueSelects(db, [[], []]);
 
-		const result = await liabilitySummary(db as any, cpDb, { from: FROM, to: TO });
+		const result = await liabilitySummary(db as any, cpDb, {
+			from: FROM,
+			to: TO,
+		});
 
 		expect(result.trainers).toHaveLength(0);
 		expect(result.totals.approvedUnpaidCents).toBe(0);
@@ -244,13 +310,15 @@ describe("liabilitySummary", () => {
 		// Empty control-panel — no user names returned
 		const cpDb = createMockControlPanelDb([]);
 
-		db.select.mockReturnValueOnce(
-			selectChainResolving([
-				{ staffId: MEMBER_ID, approvedUnpaid: 1000, paid: 0, manualAdj: 0 },
-			]),
-		);
+		queueSelects(db, [
+			[],
+			[{ staffId: MEMBER_ID, approvedUnpaid: 1000, paid: 0, manualAdj: 0 }],
+		]);
 
-		const result = await liabilitySummary(db as any, cpDb, { from: FROM, to: TO });
+		const result = await liabilitySummary(db as any, cpDb, {
+			from: FROM,
+			to: TO,
+		});
 
 		expect(result.trainers[0]!.name).toBe(MEMBER_ID);
 	});
@@ -260,16 +328,13 @@ describe("liabilitySummary", () => {
 		const db = createMockTenantDbWithExecute({ rows: [{ id: NODE_ID }] });
 		const cpDb = createMockControlPanelDb([]);
 
-		// 1st select: fetch scoped members (hierarchyScopeId IN descendants)
-		db.select.mockReturnValueOnce(
-			selectChainResolving([{ userId: MEMBER_ID }]),
-		);
-		// 2nd select: aggregation query
-		db.select.mockReturnValueOnce(
-			selectChainResolving([
-				{ staffId: MEMBER_ID, approvedUnpaid: 3000, paid: 0, manualAdj: 0 },
-			]),
-		);
+		// Selects in order: (1) scoped members (hierarchyScopeId IN descendants),
+		// (2) reversals subquery (.as("rev"), unused), (3) aggregation query.
+		queueSelects(db, [
+			[{ userId: MEMBER_ID }],
+			[],
+			[{ staffId: MEMBER_ID, approvedUnpaid: 3000, paid: 0, manualAdj: 0 }],
+		]);
 
 		const result = await liabilitySummary(db as any, cpDb, {
 			from: FROM,
@@ -333,9 +398,15 @@ describe("markPaidBatch", () => {
 		const setMock = mock(() => ({ where: whereMock }));
 		innerDb.update = mock(() => ({ set: setMock })) as any;
 		// audit write inside transaction uses insert
-		innerDb.insert = mock(() => ({ values: mock(() => ({ returning: mock(() => Promise.resolve([{ id: "audit-1" }])) })) })) as any;
+		innerDb.insert = mock(() => ({
+			values: mock(() => ({
+				returning: mock(() => Promise.resolve([{ id: "audit-1" }])),
+			})),
+		})) as any;
 
-		db.transaction = mock((cb: (tx: unknown) => Promise<unknown>) => cb(innerDb)) as any;
+		db.transaction = mock((cb: (tx: unknown) => Promise<unknown>) =>
+			cb(innerDb),
+		) as any;
 
 		const result = await markPaidBatch(db as any, {
 			memberIds: [MEMBER_ID, MEMBER_ID_2],
@@ -361,9 +432,15 @@ describe("markPaidBatch", () => {
 		const whereMock = mock(() => ({ returning: returningMock }));
 		const setMock = mock(() => ({ where: whereMock }));
 		innerDb.update = mock(() => ({ set: setMock })) as any;
-		innerDb.insert = mock(() => ({ values: mock(() => ({ returning: mock(() => Promise.resolve([{ id: "audit-1" }])) })) })) as any;
+		innerDb.insert = mock(() => ({
+			values: mock(() => ({
+				returning: mock(() => Promise.resolve([{ id: "audit-1" }])),
+			})),
+		})) as any;
 
-		db.transaction = mock((cb: (tx: unknown) => Promise<unknown>) => cb(innerDb)) as any;
+		db.transaction = mock((cb: (tx: unknown) => Promise<unknown>) =>
+			cb(innerDb),
+		) as any;
 
 		const result = await markPaidBatch(db as any, {
 			memberIds: [MEMBER_ID],
@@ -386,13 +463,21 @@ describe("markPaidBatch", () => {
 			execute: mock(() => Promise.resolve({ rows: [] })),
 		};
 		// Only 1 approved split returned (2 pending/paid/void were excluded by DB)
-		const returningMock = mock(() => Promise.resolve([{ staffId: MEMBER_ID, id: "split-approved" }]));
+		const returningMock = mock(() =>
+			Promise.resolve([{ staffId: MEMBER_ID, id: "split-approved" }]),
+		);
 		const whereMock = mock(() => ({ returning: returningMock }));
 		const setMock = mock(() => ({ where: whereMock }));
 		innerDb.update = mock(() => ({ set: setMock })) as any;
-		innerDb.insert = mock(() => ({ values: mock(() => ({ returning: mock(() => Promise.resolve([{ id: "audit-1" }])) })) })) as any;
+		innerDb.insert = mock(() => ({
+			values: mock(() => ({
+				returning: mock(() => Promise.resolve([{ id: "audit-1" }])),
+			})),
+		})) as any;
 
-		db.transaction = mock((cb: (tx: unknown) => Promise<unknown>) => cb(innerDb)) as any;
+		db.transaction = mock((cb: (tx: unknown) => Promise<unknown>) =>
+			cb(innerDb),
+		) as any;
 
 		const result = await markPaidBatch(db as any, {
 			memberIds: [MEMBER_ID],
@@ -418,7 +503,11 @@ describe("markPaidBatch", () => {
 				where: mock(() => ({ returning: mock(() => Promise.resolve([])) })),
 			})),
 		})) as any;
-		innerDb.insert = mock(() => ({ values: mock(() => ({ returning: mock(() => Promise.resolve([{ id: "audit-1" }])) })) })) as any;
+		innerDb.insert = mock(() => ({
+			values: mock(() => ({
+				returning: mock(() => Promise.resolve([{ id: "audit-1" }])),
+			})),
+		})) as any;
 
 		const txMock = mock((cb: (tx: unknown) => Promise<unknown>) => cb(innerDb));
 		db.transaction = txMock as any;
@@ -434,16 +523,18 @@ describe("markPaidBatch", () => {
 		expect(txMock).toHaveBeenCalledTimes(1);
 	});
 
-	test("audit is written once per affected member (not per split)", async () => {
+	test("commission audit is written once per affected member (not per split)", async () => {
 		const db = createMockTenantDbWithExecute();
 
-		// 3 splits for MEMBER_ID, 2 for MEMBER_ID_2 → should audit 2 times
+		// 3 splits for MEMBER_ID, 2 for MEMBER_ID_2 → 2 distinct members.
+		// calculatedAmount is required now: markPaidBatch sums it per staff for the
+		// F-PAY-3 payout row it creates alongside the audit log.
 		const updatedRows = [
-			{ staffId: MEMBER_ID, id: "s1" },
-			{ staffId: MEMBER_ID, id: "s2" },
-			{ staffId: MEMBER_ID, id: "s3" },
-			{ staffId: MEMBER_ID_2, id: "s4" },
-			{ staffId: MEMBER_ID_2, id: "s5" },
+			{ staffId: MEMBER_ID, id: "s1", calculatedAmount: 1000 },
+			{ staffId: MEMBER_ID, id: "s2", calculatedAmount: 1000 },
+			{ staffId: MEMBER_ID, id: "s3", calculatedAmount: 1000 },
+			{ staffId: MEMBER_ID_2, id: "s4", calculatedAmount: 1000 },
+			{ staffId: MEMBER_ID_2, id: "s5", calculatedAmount: 1000 },
 		];
 
 		const innerDb = {
@@ -452,16 +543,32 @@ describe("markPaidBatch", () => {
 		};
 		innerDb.update = mock(() => ({
 			set: mock(() => ({
-				where: mock(() => ({ returning: mock(() => Promise.resolve(updatedRows)) })),
+				where: mock(() => ({
+					returning: mock(() => Promise.resolve(updatedRows)),
+				})),
 			})),
 		})) as any;
 
-		const auditReturning = mock(() => Promise.resolve([{ id: "audit-row" }]));
-		const auditValues = mock(() => ({ returning: auditReturning }));
+		// markPaidBatch now (F-PAY-3) issues several inserts inside the txn:
+		//   - getOrCreatePayoutBatch → payout_batches
+		//   - one payouts row per affected staff
+		//   - writeAudit "payout.create" per affected staff
+		//   - writeAudit "commission.batch_paid" per affected member  ← the invariant
+		// A single insert mock backs all of them. We capture every .values(row)
+		// payload so we can isolate the commission-lifecycle audit specifically and
+		// assert it fires exactly once per distinct member, regardless of split count.
+		const insertedValues: any[] = [];
+		const auditReturning = mock(() => Promise.resolve([{ id: "row-1" }]));
+		const auditValues = mock((row: any) => {
+			insertedValues.push(row);
+			return { returning: auditReturning };
+		});
 		const auditInsert = mock(() => ({ values: auditValues }));
 		innerDb.insert = auditInsert as any;
 
-		db.transaction = mock((cb: (tx: unknown) => Promise<unknown>) => cb(innerDb)) as any;
+		db.transaction = mock((cb: (tx: unknown) => Promise<unknown>) =>
+			cb(innerDb),
+		) as any;
 
 		await markPaidBatch(db as any, {
 			memberIds: [MEMBER_ID, MEMBER_ID_2],
@@ -470,7 +577,14 @@ describe("markPaidBatch", () => {
 			actor,
 		});
 
-		// audit_logs insert called twice (once per distinct memberId)
-		expect(auditInsert).toHaveBeenCalledTimes(2);
+		// Exactly one commission.batch_paid audit per distinct member (2), not per
+		// split (which would be 5). The per-staff payout rows/audits are separate.
+		const commissionAudits = insertedValues.filter(
+			(v) => v?.action === "commission.batch_paid",
+		);
+		expect(commissionAudits).toHaveLength(2);
+		expect(commissionAudits.map((v) => v.entityId).sort()).toEqual(
+			[MEMBER_ID, MEMBER_ID_2].sort(),
+		);
 	});
 });

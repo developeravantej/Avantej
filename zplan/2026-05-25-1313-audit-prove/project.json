@@ -1,0 +1,98 @@
+{
+  "stack": "oRPC routers + Drizzle services, multi-tenant SaaS — Turborepo monorepo, Bun package manager, TanStack Router (file-based), Better-Auth sessions, Neon per-tenant DB branches",
+  "conventions": "amounts in integer cents; tax rates in basis points; cross-DB user refs as plain text (no FK); soft-delete via isActive boolean; { withTimezone: true } on all timestamps; within-tenant FKs only if target has a unique CONSTRAINT (not just unique INDEX)",
+
+  "packageManager": "bun",
+
+  "buildGate": {
+    "command": "bun check-types",
+    "supportsFilter": false,
+    "extraChecks": []
+  },
+
+  "apiSurface": {
+    "routerGlobs": [
+      "packages/api/src/routers/**/*.ts",
+      "apps/server/src/routers/**/*.ts"
+    ],
+    "serviceGlobs": ["packages/services/src/**/*.ts"]
+  },
+
+  "routes": {
+    "routeGlobs": ["apps/web/src/routes/**/*.tsx"],
+    "clientPattern": "client.<router>.<procedure>(...)"
+  },
+
+  "hub": {
+    "index": "zhub/index.md",
+    "apiOverview": "zhub/shared/api-overview.md",
+    "pagesDir": "zhub/pages"
+  },
+
+  "e2e": {
+    "testDir": "e2e",
+    "baseURL": "http://avantej.localhost:3021",
+    "authStorageState": "e2e/.auth/tenant-admin.json",
+    "setupTestMatch": "auth.setup.ts",
+    "devServerCommand": "bun dev",
+    "specName": "gap-prove"
+  },
+
+  "domainStrategy": "manual",
+
+  "remediation": {
+    "enabled": true,
+    "scope": "full",
+    "maxIterations": 6,
+    "maxFixesPerTarget": 3,
+    "stopOnNoProgress": true,
+    "branch": "audit-prove/remediation",
+    "parallelFixAgents": 3,
+    "fixPolicy": {
+      "latitude": "touched-path",
+      "flagLargeRefactorsAs": "deferred-finding"
+    }
+  },
+
+  "db": {
+    "enabled": true,
+    "verifyMode": "auto",
+    "runner": "bun",
+    "connectionEnv": "DATABASE_URL",
+    "devVarsFile": "apps/server/.dev.vars",
+    "verifyHelper": "apps/server/src/tests/helpers/integration-setup.ts",
+    "multiTenant": true,
+    "testOrgId": "996febce-aaad-4ded-8f47-02d2b566c8ee"
+  },
+
+  "_pageScope": [
+    { "name": "Home", "route": "/dashboard" },
+    { "name": "Approvals", "route": "/dashboard/operations/approvals" },
+    { "name": "Customers", "route": "/dashboard/customers/view" },
+    { "name": "Appointments", "route": "/dashboard/appointment/view" },
+    { "name": "Class Slots", "route": "/dashboard/appointment/class-slots/view" },
+    { "name": "Trainer Availability", "route": "/dashboard/trainers/availability" },
+    { "name": "Services", "route": "/dashboard/service/view" },
+    { "name": "POS", "route": "/dashboard/sales/create" },
+    { "name": "Reports", "route": "/dashboard/reports/view" },
+    { "name": "Announcements", "route": "/dashboard/announcements/view" },
+    { "name": "Sales & Payments", "route": "/dashboard/sales/view" },
+    { "name": "Payment History", "route": "/dashboard/payment/view" },
+    { "name": "Cancelled Sales", "route": "/dashboard/cancelled-sales/view" },
+    { "name": "Payouts", "route": "/dashboard/payouts/view" },
+    { "name": "Refunds", "route": "/dashboard/refunds/view" },
+    { "name": "Commissions", "route": "/dashboard/commissions/view" },
+    { "name": "Tax Rates", "route": "/dashboard/settings/tax-rates" },
+    { "name": "Installment Plans", "route": "/dashboard/packages/installments/view" },
+    { "name": "Expenses", "route": "/dashboard/expenses/view" },
+    { "name": "Products", "route": "/dashboard/products/view" },
+    { "name": "Packages", "route": "/dashboard/packages/instances/view" },
+    { "name": "Trainers", "route": "/dashboard/trainers/view" },
+    { "name": "Employees", "route": "/dashboard/user/view" },
+    { "name": "Attendance", "route": "/dashboard/attendance/view" },
+    { "name": "Roles", "route": "/dashboard/access-control/roles" },
+    { "name": "Staff Access", "route": "/dashboard/access-control/user-assignment" },
+    { "name": "Branches", "route": "/dashboard/branch/:id" },
+    { "name": "Onboarding QR", "route": "/dashboard/onboarding/view" }
+  ]
+}

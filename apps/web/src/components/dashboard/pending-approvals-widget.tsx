@@ -10,7 +10,7 @@ import { ClipboardCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserContext } from "@/hooks/useUserContext";
-import { client } from "@/utils/orpc";
+import { orpc } from "@/utils/orpc";
 
 type PendingRow = {
 	id: string;
@@ -22,11 +22,6 @@ type PendingRow = {
 	totalPrice: number | null;
 	createdAt: string | Date;
 };
-
-function formatPrice(cents: number | null): string {
-	if (cents == null) return "—";
-	return `RM ${(cents / 100).toFixed(2)}`;
-}
 
 function timeAgo(value: string | Date): string {
 	const now = Date.now();
@@ -52,13 +47,9 @@ export function PendingApprovalsWidget() {
 	const isStaff = callerRole === "admin" || callerRole === "trainer";
 
 	const { data: rows, isLoading } = useQuery({
-		queryKey: ["packageInstances", "listPending", organizationId, "widget"],
-		queryFn: () =>
-			client.packageInstances.listPending({
-				organizationId,
-				scope: "all",
-				limit: 100,
-			}),
+		...orpc.packageInstances.listPending.queryOptions({
+			input: { organizationId, scope: "all", limit: 100 },
+		}),
 		enabled: !!organizationId && isStaff,
 		staleTime: 60 * 1000,
 	});
@@ -75,7 +66,7 @@ export function PendingApprovalsWidget() {
 			<CardContent className="pt-6">
 				<div className="mb-3 flex items-center justify-between">
 					<div className="flex items-center gap-2">
-						<ClipboardCheck className="h-4 w-4 text-brand-secondary-1" />
+						<ClipboardCheck className="size-4 text-brand-secondary-1" />
 						<p className="text-xs font-bold uppercase tracking-wide text-brand-secondary-1">
 							Pending Approvals
 						</p>
@@ -83,6 +74,7 @@ export function PendingApprovalsWidget() {
 					{total > 0 && (
 						<Link
 							to="/dashboard/operations/approvals"
+							search={{ scope: "all" }}
 							className="text-xs font-medium text-brand-primary-1 hover:underline"
 						>
 							View all
@@ -113,6 +105,7 @@ export function PendingApprovalsWidget() {
 								<Link
 									key={row.id}
 									to="/dashboard/operations/approvals"
+									search={{ scope: "all" }}
 									className="flex items-center justify-between py-2 text-sm hover:bg-brand-secondary-3/30"
 								>
 									<div className="min-w-0 flex-1">
@@ -137,6 +130,7 @@ export function PendingApprovalsWidget() {
 						{total > 3 && (
 							<Link
 								to="/dashboard/operations/approvals"
+								search={{ scope: "all" }}
 								className="mt-2 block text-center text-xs text-brand-secondary-1 hover:text-brand-primary-1"
 							>
 								+ {total - 3} more

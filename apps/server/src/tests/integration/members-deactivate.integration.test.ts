@@ -27,6 +27,7 @@ beforeAll(async () => {
 		.insert(hierarchyNodes)
 		.values({
 			name: `Test Branch for Members Deactivate ${Date.now()}`,
+			slug: `test-branch-members-deactivate-${Date.now()}`,
 			type: "branch",
 			depth: 4,
 		} as any)
@@ -40,9 +41,7 @@ afterAll(async () => {
 	// Restore test members to active status and clean up
 	for (const id of createdMemberIds) {
 		try {
-			await tenantDb
-				.delete(members)
-				.where(eq(members.id, id));
+			await tenantDb.delete(members).where(eq(members.id, id));
 		} catch {
 			// Ignore cleanup errors
 		}
@@ -116,9 +115,9 @@ describe("Members Deactivate Integration", () => {
 
 		const fakeId = "00000000-0000-4000-8000-000000000099";
 
-		await expect(deactivateMember(tenantDb, fakeId, TEST_ACTOR)).rejects.toThrow(
-			`Member not found: ${fakeId}`,
-		);
+		await expect(
+			deactivateMember(tenantDb, fakeId, TEST_ACTOR),
+		).rejects.toThrow(`Member not found: ${fakeId}`);
 	}, 15000);
 
 	test("deactivate already-inactive member still succeeds", async () => {
@@ -147,7 +146,11 @@ describe("Members Deactivate Integration", () => {
 		});
 		createdMemberIds.push(testMember.id);
 
-		const deactivated = await deactivateMember(tenantDb, testMember.id, TEST_ACTOR);
+		const deactivated = await deactivateMember(
+			tenantDb,
+			testMember.id,
+			TEST_ACTOR,
+		);
 
 		// Role and other fields should be preserved
 		expect(deactivated.role).toBe("admin");

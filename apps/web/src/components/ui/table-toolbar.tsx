@@ -31,7 +31,7 @@ export function TableToolbar({
 		>
 			{search && (
 				<div className="relative">
-					<Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
 						value={search.value}
 						onChange={(e) => search.onChange(e.target.value)}
@@ -41,7 +41,9 @@ export function TableToolbar({
 				</div>
 			)}
 			{filters && <div className="flex items-center gap-2">{filters}</div>}
-			{actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
+			{actions && (
+				<div className="ml-auto flex items-center gap-2">{actions}</div>
+			)}
 		</div>
 	);
 }

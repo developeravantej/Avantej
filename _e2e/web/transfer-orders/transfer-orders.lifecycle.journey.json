@@ -1,0 +1,14 @@
+{
+	"transfer-orders/transfer-orders.lifecycle.spec.ts::Transfer rule — source branch equals destination branch is rejected (400)": [
+		"Resolves the caller's own member id and a branch id",
+		"Posts transferOrders/create with fromBranchId == toBranchId",
+		"Asserts the zod .refine() rejects it with 400 ('Transfer source and destination must be different branches')"
+	],
+	"transfer-orders/transfer-orders.lifecycle.spec.ts::Transfer lifecycle — create(pending) -> markInTransit (API-verified)": [
+		"Resolves two distinct branch node ids from the hierarchy; skips if fewer than two exist",
+		"Creates a throwaway uom and product for the line item",
+		"Creates a transfer order between two distinct branches and asserts status is 'pending'",
+		"Calls markInTransit and re-queries getById to assert status is 'in_transit'",
+		"Tears down transfer (cancel — no stock moved), product (discontinue), uom (delete)"
+	]
+}

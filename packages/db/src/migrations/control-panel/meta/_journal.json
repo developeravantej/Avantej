@@ -1,104 +1,139 @@
 {
-  "version": "7",
-  "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1762147927296,
-      "tag": "0000_far_luminals",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1762238916961,
-      "tag": "0001_redundant_stature",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1763365921819,
-      "tag": "0002_wealthy_mariko_yashida",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1763365949693,
-      "tag": "0003_careful_mole_man",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1769083811084,
-      "tag": "0004_flaky_kang",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1769336177363,
-      "tag": "0005_little_victor_mancha",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1770455253425,
-      "tag": "0006_free_bruce_banner",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1774428982484,
-      "tag": "0007_narrow_boom_boom",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1774436029466,
-      "tag": "0008_cooing_the_spike",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1774438107010,
-      "tag": "0009_abandoned_blonde_phantom",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1777619354284,
-      "tag": "0010_rename_ghl_links_per_branch",
-      "breakpoints": true
-    },
-    {
-      "idx": 11,
-      "version": "7",
-      "when": 1778022597347,
-      "tag": "0011_worthless_black_tom",
-      "breakpoints": true
-    },
-    {
-      "idx": 12,
-      "version": "7",
-      "when": 1778470800000,
-      "tag": "0012_ghl_org_shared",
-      "breakpoints": true
-    },
-    {
-      "idx": 13,
-      "version": "7",
-      "when": 1778920000000,
-      "tag": "0013_org_timezone",
-      "breakpoints": true
-    }
-  ]
+	"version": "7",
+	"dialect": "postgresql",
+	"entries": [
+		{
+			"idx": 0,
+			"version": "7",
+			"when": 1762147927296,
+			"tag": "0000_far_luminals",
+			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "7",
+			"when": 1762238916961,
+			"tag": "0001_redundant_stature",
+			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "7",
+			"when": 1763365921819,
+			"tag": "0002_wealthy_mariko_yashida",
+			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "7",
+			"when": 1763365949693,
+			"tag": "0003_careful_mole_man",
+			"breakpoints": true
+		},
+		{
+			"idx": 4,
+			"version": "7",
+			"when": 1769083811084,
+			"tag": "0004_flaky_kang",
+			"breakpoints": true
+		},
+		{
+			"idx": 5,
+			"version": "7",
+			"when": 1769336177363,
+			"tag": "0005_little_victor_mancha",
+			"breakpoints": true
+		},
+		{
+			"idx": 6,
+			"version": "7",
+			"when": 1770455253425,
+			"tag": "0006_free_bruce_banner",
+			"breakpoints": true
+		},
+		{
+			"idx": 7,
+			"version": "7",
+			"when": 1774428982484,
+			"tag": "0007_narrow_boom_boom",
+			"breakpoints": true
+		},
+		{
+			"idx": 8,
+			"version": "7",
+			"when": 1774436029466,
+			"tag": "0008_cooing_the_spike",
+			"breakpoints": true
+		},
+		{
+			"idx": 9,
+			"version": "7",
+			"when": 1774438107010,
+			"tag": "0009_abandoned_blonde_phantom",
+			"breakpoints": true
+		},
+		{
+			"idx": 10,
+			"version": "7",
+			"when": 1777619354284,
+			"tag": "0010_rename_ghl_links_per_branch",
+			"breakpoints": true
+		},
+		{
+			"idx": 11,
+			"version": "7",
+			"when": 1778022597347,
+			"tag": "0011_worthless_black_tom",
+			"breakpoints": true
+		},
+		{
+			"idx": 12,
+			"version": "7",
+			"when": 1778470800000,
+			"tag": "0012_ghl_org_shared",
+			"breakpoints": true
+		},
+		{
+			"idx": 13,
+			"version": "7",
+			"when": 1778688291651,
+			"tag": "0013_subscriptions_extensions",
+			"breakpoints": true
+		},
+		{
+			"idx": 14,
+			"version": "7",
+			"when": 1778688550760,
+			"tag": "0014_subscriptions_cancel_bool_and_index",
+			"breakpoints": true
+		},
+		{
+			"idx": 15,
+			"version": "7",
+			"when": 1778689840330,
+			"tag": "0015_organizations_trial_and_connect_state",
+			"breakpoints": true
+		},
+		{
+			"idx": 16,
+			"version": "7",
+			"when": 1778690071147,
+			"tag": "0016_organizations_trial_idx",
+			"breakpoints": true
+		},
+		{
+			"idx": 17,
+			"version": "7",
+			"when": 1778690222107,
+			"tag": "0017_processed_webhook_events",
+			"breakpoints": true
+		},
+		{
+			"idx": 18,
+			"version": "7",
+			"when": 1778690422486,
+			"tag": "0018_platform_payment_ledger",
+			"breakpoints": true
+		}
+	]
 }

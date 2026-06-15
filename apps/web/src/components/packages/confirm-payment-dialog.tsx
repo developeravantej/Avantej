@@ -46,7 +46,7 @@ export function ConfirmPaymentDialog({
 	const queryClient = useQueryClient();
 
 	const [paymentMethod, setPaymentMethod] = useState<
-		"manual_transfer" | "cash"
+		"manual_transfer" | "cash" | "card" | "fpx" | "stripe"
 	>("manual_transfer");
 	const [notes, setNotes] = useState("");
 	const [nextIntervalDays, setNextIntervalDays] = useState("");
@@ -67,11 +67,16 @@ export function ConfirmPaymentDialog({
 			client.installments.confirmPayment({
 				organizationId,
 				installmentId: vars.installmentId,
-				paymentMethod: vars.paymentMethod as "manual_transfer" | "cash",
+				paymentMethod: vars.paymentMethod as
+					| "manual_transfer"
+					| "cash"
+					| "card"
+					| "fpx"
+					| "stripe",
 				notes: vars.notes || undefined,
 				nextIntervalDays: vars.nextIntervalDays,
 			}),
-		onSuccess: (_, vars) => {
+		onSuccess: (_, _vars) => {
 			// Invalidate the per-instance timeline (the dialog knows which installment was paid)
 			if (installment) {
 				// We invalidate by matching the installmentId in the queryKey
@@ -108,65 +113,87 @@ export function ConfirmPaymentDialog({
 		: "this installment";
 
 	return (
-		<Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>Confirm Payment</DialogTitle>
-					<DialogDescription>
+		<Dialog
+			open={open}
+			onOpenChange={(v) => {
+				if (!v) handleClose();
+			}}
+		>
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						INSTALLMENT PLANS
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Confirm Payment
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
 						Confirm payment for {installmentLabel}.
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="flex flex-col gap-4 py-2">
-					{/* Payment method */}
-					<div className="flex flex-col gap-1.5">
-						<Label htmlFor="payment-method">Payment Method</Label>
-						<Select
-							value={paymentMethod}
-							onValueChange={(v) =>
-								setPaymentMethod(v as "manual_transfer" | "cash")
-							}
-						>
-							<SelectTrigger id="payment-method">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="manual_transfer">Manual Transfer</SelectItem>
-								<SelectItem value="cash">Cash</SelectItem>
-							</SelectContent>
-						</Select>
-					</div>
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					<div className="flex flex-col gap-4 py-2">
+						{/* Payment method */}
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="payment-method">Payment Method</Label>
+							<Select
+								value={paymentMethod}
+								onValueChange={(v) =>
+									setPaymentMethod(
+										v as "manual_transfer" | "cash" | "card" | "fpx" | "stripe",
+									)
+								}
+							>
+								<SelectTrigger id="payment-method">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="manual_transfer">
+										Manual Transfer
+									</SelectItem>
+									<SelectItem value="cash">Cash</SelectItem>
+									<SelectItem value="card">Card</SelectItem>
+									<SelectItem value="fpx">FPX</SelectItem>
+									<SelectItem value="stripe">Stripe</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
 
-					{/* Notes */}
-					<div className="flex flex-col gap-1.5">
-						<Label htmlFor="confirm-notes">Notes (optional)</Label>
-						<Textarea
-							id="confirm-notes"
-							placeholder="Add any notes…"
-							rows={2}
-							value={notes}
-							onChange={(e) => setNotes(e.target.value)}
-						/>
-					</div>
+						{/* Notes */}
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="confirm-notes">Notes (optional)</Label>
+							<Textarea
+								id="confirm-notes"
+								placeholder="Add any notes…"
+								rows={2}
+								value={notes}
+								onChange={(e) => setNotes(e.target.value)}
+							/>
+						</div>
 
-					{/* Next interval days override */}
-					<div className="flex flex-col gap-1.5">
-						<Label htmlFor="next-interval">
-							Override Next Interval (days, optional)
-						</Label>
-						<Input
-							id="next-interval"
-							type="number"
-							min="1"
-							step="1"
-							placeholder="e.g. 30"
-							value={nextIntervalDays}
-							onChange={(e) => setNextIntervalDays(e.target.value)}
-						/>
+						{/* Next interval days override */}
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="next-interval">
+								Override Next Interval (days, optional)
+							</Label>
+							<Input
+								id="next-interval"
+								type="number"
+								min="1"
+								step="1"
+								placeholder="e.g. 30"
+								value={nextIntervalDays}
+								onChange={(e) => setNextIntervalDays(e.target.value)}
+							/>
+						</div>
 					</div>
 				</div>
 
-				<DialogFooter>
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 					<Button
 						variant="outline"
 						onClick={handleClose}
@@ -175,6 +202,7 @@ export function ConfirmPaymentDialog({
 						Cancel
 					</Button>
 					<Button
+						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
 						onClick={() => {
 							if (!installment) return;
 							const intervalDays = nextIntervalDays

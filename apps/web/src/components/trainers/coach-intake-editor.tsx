@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus, X, Save, CalendarClock, Mail } from "lucide-react";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { Button } from "@/components/ui/button";
 import {
 	Select,
@@ -86,12 +86,14 @@ export function CoachIntakeEditor({
 	// ── Fetch existing intake slots ──────────────────────────────────────────
 
 	const { data: intakeData, isLoading } = useQuery({
-		queryKey: ["coachIntakeSlots", trainerId],
-		queryFn: () => client.coachIntake.listSlots({ organizationId, trainerId }),
+		...orpc.coachIntake.listSlots.queryOptions({
+			input: { organizationId, trainerId },
+		}),
 		enabled: !!organizationId && !!trainerId && open,
 	});
 
 	// Populate local state from fetched data
+	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- prop-driven hydration: populates local state from fetched intakeData
 	useEffect(() => {
 		if (intakeData) {
 			setSlots(
@@ -133,7 +135,13 @@ export function CoachIntakeEditor({
 			}),
 		successMessage: "Intake availability saved successfully.",
 		errorMessage: (err) => err.message || "Failed to save intake availability.",
-		invalidate: [["coachIntakeSlots", trainerId], ["coachIntakeByBranch"]],
+		invalidate: [
+			orpc.coachIntake.listSlots.queryOptions({
+				input: { organizationId, trainerId },
+			}).queryKey,
+			orpc.coachIntake.listByBranch.queryOptions({ input: { organizationId } })
+				.queryKey,
+		],
 		onSuccess: () => {
 			onSaved?.();
 		},
@@ -152,7 +160,11 @@ export function CoachIntakeEditor({
 		setSlots((prev) => prev.filter((_, i) => i !== index));
 	}
 
-	function updateSlot(index: number, field: "startTime" | "endTime", value: string) {
+	function updateSlot(
+		index: number,
+		field: "startTime" | "endTime",
+		value: string,
+	) {
 		setSlots((prev) =>
 			prev.map((slot, i) => (i === index ? { ...slot, [field]: value } : slot)),
 		);
@@ -165,13 +177,15 @@ export function CoachIntakeEditor({
 			<SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md">
 				<SheetHeader className="border-b border-border/40">
 					<div className="flex items-center gap-3">
-						<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-							<CalendarClock className="h-5 w-5 text-primary" />
+						<div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
+							<CalendarClock className="size-5 text-primary" />
 						</div>
 						<div className="min-w-0">
-							<SheetTitle className="truncate text-lg">{trainerName}</SheetTitle>
+							<SheetTitle className="truncate text-lg">
+								{trainerName}
+							</SheetTitle>
 							<SheetDescription className="flex items-center gap-1.5 text-xs">
-								<Mail className="h-3 w-3" />
+								<Mail className="size-3" />
 								<span className="truncate">Intake Availability Schedule</span>
 							</SheetDescription>
 						</div>
@@ -182,14 +196,14 @@ export function CoachIntakeEditor({
 					{isLoading ? (
 						<div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
 							<LoadingSpinner size="sm" />
-							Loading intake slots...
+							Loading intake slots…
 						</div>
 					) : (
 						<div className="space-y-4">
 							{DAYS.map((day) => {
-								const daySlots = slots
-									.map((slot, originalIndex) => ({ slot, originalIndex }))
-									.filter(({ slot }) => slot.dayOfWeek === day);
+								const daySlots = slots.flatMap((slot, originalIndex) =>
+									slot.dayOfWeek === day ? [{ slot, originalIndex }] : [],
+								);
 
 								return (
 									<div
@@ -197,7 +211,9 @@ export function CoachIntakeEditor({
 										className="rounded-md border border-border/40 bg-card p-4 space-y-2"
 									>
 										<div className="flex items-center justify-between">
-											<span className="text-sm font-medium">{DAY_LABELS[day]}</span>
+											<span className="text-sm font-medium">
+												{DAY_LABELS[day]}
+											</span>
 											<Button
 												type="button"
 												variant="ghost"
@@ -205,47 +221,66 @@ export function CoachIntakeEditor({
 												className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
 												onClick={() => addSlot(day)}
 											>
-												<Plus className="h-3 w-3 mr-1" />
+												<Plus className="size-3 mr-1" />
 												Add Window
 											</Button>
 										</div>
 
 										{daySlots.length === 0 ? (
-											<p className="text-xs text-muted-foreground pl-1">No intake windows</p>
+											<p className="text-xs text-muted-foreground pl-1">
+												No intake windows
+											</p>
 										) : (
 											<div className="space-y-1.5 pl-1">
 												{daySlots.map(({ slot, originalIndex }) => (
-													<div key={originalIndex} className="flex items-center gap-2">
+													<div
+														key={originalIndex}
+														className="flex items-center gap-2"
+													>
 														{/* Start time */}
 														<Select
 															value={slot.startTime}
-															onValueChange={(v) => updateSlot(originalIndex, "startTime", v)}
+															onValueChange={(v) =>
+																updateSlot(originalIndex, "startTime", v)
+															}
 														>
 															<SelectTrigger className="h-8 w-28 text-xs">
 																<SelectValue />
 															</SelectTrigger>
 															<SelectContent>
 																{TIME_OPTIONS.map((t) => (
-																	<SelectItem key={t} value={t} className="text-xs">
+																	<SelectItem
+																		key={t}
+																		value={t}
+																		className="text-xs"
+																	>
 																		{t}
 																	</SelectItem>
 																))}
 															</SelectContent>
 														</Select>
 
-														<span className="text-xs text-muted-foreground">to</span>
+														<span className="text-xs text-muted-foreground">
+															to
+														</span>
 
 														{/* End time */}
 														<Select
 															value={slot.endTime}
-															onValueChange={(v) => updateSlot(originalIndex, "endTime", v)}
+															onValueChange={(v) =>
+																updateSlot(originalIndex, "endTime", v)
+															}
 														>
 															<SelectTrigger className="h-8 w-28 text-xs">
 																<SelectValue />
 															</SelectTrigger>
 															<SelectContent>
 																{TIME_OPTIONS.map((t) => (
-																	<SelectItem key={t} value={t} className="text-xs">
+																	<SelectItem
+																		key={t}
+																		value={t}
+																		className="text-xs"
+																	>
 																		{t}
 																	</SelectItem>
 																))}
@@ -257,11 +292,11 @@ export function CoachIntakeEditor({
 															type="button"
 															variant="ghost"
 															size="sm"
-															className="h-7 w-7 p-0 text-muted-foreground hover:text-red-600"
+															className="size-7 p-0 text-muted-foreground hover:text-red-600"
 															onClick={() => removeSlot(originalIndex)}
 															aria-label={`Remove ${DAY_LABELS[day]} intake window`}
 														>
-															<X className="h-3.5 w-3.5" />
+															<X className="size-3.5" />
 														</Button>
 													</div>
 												))}
@@ -277,10 +312,12 @@ export function CoachIntakeEditor({
 									type="button"
 									onClick={() => saveMutation.mutate()}
 									disabled={saveMutation.isPending}
-									className="inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+									className="inline-flex justify-center rounded-md border border-transparent bg-zinc-950 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
 								>
-									<Save className="h-4 w-4 mr-2" />
-									{saveMutation.isPending ? "Saving..." : "Save Intake Availability"}
+									<Save className="size-4 mr-2" />
+									{saveMutation.isPending
+										? "Saving..."
+										: "Save Intake Availability"}
 								</button>
 							</div>
 						</div>

@@ -10,16 +10,18 @@ neonConfig.webSocketConstructor = ws;
  * For Cloudflare Workers, use apps/server/src/lib/db.ts instead
  */
 export function createDb(connectionString: string) {
-  const pool = new Pool({ connectionString });
-  return drizzle({ client: pool });
+	const pool = new Pool({ connectionString });
+	return drizzle({ client: pool });
 }
-
 
 // Export encryption utilities
 export { encrypt, decrypt } from "./lib/encryption";
 
 // Export migration runner and version constant
-export { runTenantMigrations, LATEST_MIGRATION_VERSION } from "./migrate-tenant";
+export {
+	runTenantMigrations,
+	LATEST_MIGRATION_VERSION,
+} from "./migrate-tenant";
 
 // Export RBAC seed function
 export { seedRBACData } from "./seed-rbac";

@@ -3,7 +3,7 @@ import * as SecureStore from "expo-secure-store";
 import {
 	createContext,
 	useCallback,
-	useContext,
+	use,
 	useEffect,
 	useMemo,
 	useState,
@@ -45,7 +45,9 @@ interface OrganizationContextValue {
 	refetch: () => Promise<void>;
 }
 
-const OrganizationContext = createContext<OrganizationContextValue | null>(null);
+const OrganizationContext = createContext<OrganizationContextValue | null>(
+	null,
+);
 
 export function OrganizationProvider({
 	children,
@@ -54,7 +56,9 @@ export function OrganizationProvider({
 	children: ReactNode;
 	isAuthenticated: boolean;
 }) {
-	const [organizationId, setOrganizationIdState] = useState<string | null>(null);
+	const [organizationId, setOrganizationIdState] = useState<string | null>(
+		null,
+	);
 	const [organizations, setOrganizations] = useState<Organization[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<Error | null>(null);
@@ -75,7 +79,8 @@ export function OrganizationProvider({
 
 			// Try to restore previously selected org
 			const storedId = await SecureStore.getItemAsync(STORAGE_KEY);
-			const storedOrgStillValid = storedId && orgs.some((o) => o.id === storedId);
+			const storedOrgStillValid =
+				storedId && orgs.some((o) => o.id === storedId);
 
 			if (storedOrgStillValid) {
 				setOrganizationIdState(storedId);
@@ -86,12 +91,15 @@ export function OrganizationProvider({
 				setOrganizationId(userContext.currentOrganizationId);
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err : new Error("Failed to fetch user context"));
+			setError(
+				err instanceof Error ? err : new Error("Failed to fetch user context"),
+			);
 		} finally {
 			setIsLoading(false);
 		}
 	}, [setOrganizationId]);
 
+	// react-doctor-disable-next-line react-doctor/no-cascading-set-state -- async restore flow with multiple branches (stored vs single-org vs current-org) interleaved with abort checks; each setter targets independent context state and cannot be consolidated without obscuring the abort/branch logic
 	useEffect(() => {
 		let aborted = false;
 		if (isAuthenticated) {
@@ -144,7 +152,14 @@ export function OrganizationProvider({
 			error,
 			refetch: fetchUserContext,
 		}),
-		[organizationId, setOrganizationId, organizations, isLoading, error, fetchUserContext],
+		[
+			organizationId,
+			setOrganizationId,
+			organizations,
+			isLoading,
+			error,
+			fetchUserContext,
+		],
 	);
 
 	return (
@@ -155,9 +170,11 @@ export function OrganizationProvider({
 }
 
 export function useOrganizationContext() {
-	const context = useContext(OrganizationContext);
+	const context = use(OrganizationContext);
 	if (!context) {
-		throw new Error("useOrganizationContext must be used within an OrganizationProvider");
+		throw new Error(
+			"useOrganizationContext must be used within an OrganizationProvider",
+		);
 	}
 	return context;
 }

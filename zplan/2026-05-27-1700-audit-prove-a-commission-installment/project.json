@@ -1,0 +1,72 @@
+{
+	"stack": "Bun + Turborepo monorepo; Vite + TanStack Router (web 3021); oRPC; Better-Auth; Drizzle (control-panel + per-tenant Neon branches); Cloudflare Workers (server 3020); Playwright e2e",
+	"conventions": "oRPC procedures via packages/api/src/routers; server-only procedures in apps/server/src/routers; tenant context resolved via tenant.middleware/orpc-tenant.middleware; permissions via requirePermissionOrpc + useUserContext; integer cents for money; soft-delete via isActive; oxlint+biome (format only); no Node-only in server paths",
+	"packageManager": "bun",
+	"monorepo": true,
+	"buildGate": {
+		"command": "bun run check-types",
+		"supportsFilter": false,
+		"extraChecks": []
+	},
+	"apiSurface": {
+		"routerGlobs": [
+			"packages/api/src/routers/**/*.ts",
+			"apps/server/src/routers/**/*.ts"
+		],
+		"serviceGlobs": [
+			"packages/services/src/**/*.ts"
+		]
+	},
+	"routes": {
+		"routeGlobs": [
+			"apps/web/src/routes/**/*.tsx"
+		],
+		"clientPattern": "client.<router>.<procedure>(...) / orpc.<router>.<procedure>.queryOptions(...) from @/utils/orpc"
+	},
+	"hub": {
+		"index": "zhub/index.md",
+		"apiOverview": "zhub/shared/api-overview.md",
+		"pagesDir": "zhub/pages"
+	},
+	"e2e": {
+		"testDir": "./e2e",
+		"baseURL": "http://localhost:3021",
+		"authStorageState": "e2e/.auth/tenant-admin.json",
+		"setupTestMatch": "auth.setup.ts",
+		"devServerCommand": "bun run dev",
+		"specName": "gap-prove-commission-installment"
+	},
+	"domainStrategy": "manual",
+	"remediation": {
+		"enabled": true,
+		"scope": "full",
+		"maxIterations": 6,
+		"maxFixesPerTarget": 3,
+		"stopOnNoProgress": true,
+		"branch": "audit-prove-a/commission-installment-20260527-1700",
+		"parallelFixAgents": 3,
+		"fixPolicy": {
+			"latitude": "touched-path",
+			"flagLargeRefactorsAs": "deferred-finding"
+		}
+	},
+	"db": {
+		"enabled": true,
+		"verifyMode": "readback",
+		"runner": "bun",
+		"connectionEnv": "DATABASE_URL",
+		"devVarsFile": "apps/server/.dev.vars",
+		"verifyHelper": "apps/server/src/tests/helpers/integration-setup.ts",
+		"multiTenant": true,
+		"testOrgId": "996febce-aaad-4ded-8f47-02d2b566c8ee"
+	},
+	"focus": {
+		"domains": ["commission", "installment"],
+		"scopeNote": "Commission: rule engine, splits, payouts, weightages, tabs (all/mine/review/payouts/liability), bulk approve, void/dispute, mark-paid. Installments: POS first-installment + sweep service (installment-sweep.service.ts, payment-items installments), subscription/billing installments (saas-subscription, Stripe reconciliation)."
+	},
+	"humanLoop": {
+		"enabled": true,
+		"requireApprovalEveryIteration": true,
+		"alwaysPrintFullWorklist": true
+	}
+}

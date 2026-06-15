@@ -1,8 +1,11 @@
-import { and, eq, gte, lte, lt, gt, inArray, isNull, not } from "drizzle-orm";
-import { trainerAvailability } from "@avantej-core/db/schema/tenant/trainer-availability";
-import { coachIntakeAvailability } from "@avantej-core/db/schema/tenant/coach-intake-availability";
+import { and, eq, gte, lte, inArray, not, isNotNull, or } from "drizzle-orm";
+import {
+	trainerAvailability,
+	trainerAvailabilityExceptions,
+} from "@avantej-core/db/schema/tenant/trainer-availability";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { memberProfiles } from "@avantej-core/db/schema/tenant/member-profiles";
 import { user } from "@avantej-core/db/schema/auth";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
@@ -10,10 +13,24 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 // ─── Types ──────────────────────────────────────────────────────────
 
+export type TrainerAvailabilityKind = "available" | "blocked" | "timeoff";
+
 export type AvailabilitySlot = {
 	dayOfWeek: string;
 	startTime: string;
 	endTime: string;
+	kind?: TrainerAvailabilityKind;
+};
+
+export type ConflictReason =
+	| "outside_availability"
+	| "overlaps_block"
+	| "overlaps_timeoff";
+
+export type ConflictEntry = {
+	slotId: string;
+	appointmentId: string;
+	reason: ConflictReason;
 };
 
 export type TimeWindow = { startTime: string; endTime: string };
@@ -42,66 +59,9 @@ export async function listTrainerAvailability(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	trainerId: string,
 ): Promise<(typeof trainerAvailability.$inferSelect)[]> {
-	// Soft-deleted members must not surface availability. JOIN ensures the trainer
-	// member row is alive (deletedAt IS NULL).
-	const rows = await tenantDb
-		.select({
-			id: trainerAvailability.id,
-			trainerId: trainerAvailability.trainerId,
-			dayOfWeek: trainerAvailability.dayOfWeek,
-			startTime: trainerAvailability.startTime,
-			endTime: trainerAvailability.endTime,
-			isActive: trainerAvailability.isActive,
-			createdAt: trainerAvailability.createdAt,
-			updatedAt: trainerAvailability.updatedAt,
-		})
-		.from(trainerAvailability)
-		.innerJoin(members, eq(members.id, trainerAvailability.trainerId))
-		.where(
-			and(
-				eq(trainerAvailability.trainerId, trainerId),
-				isNull(members.deletedAt),
-			),
-		);
-	return rows.sort((a, b) => {
-		const dayDiff =
-			(DAY_ORDER[a.dayOfWeek] ?? 7) - (DAY_ORDER[b.dayOfWeek] ?? 7);
-		if (dayDiff !== 0) return dayDiff;
-		return a.startTime.localeCompare(b.startTime);
+	const rows = await tenantDb.query.trainerAvailability.findMany({
+		where: eq(trainerAvailability.trainerId, trainerId),
 	});
-}
-
-/**
- * List a trainer's intake-specific recurring availability windows (from
- * `coach_intake_availability`). Mirrors {@link listTrainerAvailability} —
- * active rows only, soft-deleted members hidden. The web admin "Trainer
- * Availability" page writes here today, so the booking flow must union read
- * to avoid silent invisibility of legitimate windows.
- */
-export async function listCoachIntakeAvailability(
-	tenantDb: NeonDatabase<typeof tenantSchema>,
-	trainerId: string,
-): Promise<(typeof coachIntakeAvailability.$inferSelect)[]> {
-	const rows = await tenantDb
-		.select({
-			id: coachIntakeAvailability.id,
-			trainerId: coachIntakeAvailability.trainerId,
-			dayOfWeek: coachIntakeAvailability.dayOfWeek,
-			startTime: coachIntakeAvailability.startTime,
-			endTime: coachIntakeAvailability.endTime,
-			isActive: coachIntakeAvailability.isActive,
-			createdAt: coachIntakeAvailability.createdAt,
-			updatedAt: coachIntakeAvailability.updatedAt,
-		})
-		.from(coachIntakeAvailability)
-		.innerJoin(members, eq(members.id, coachIntakeAvailability.trainerId))
-		.where(
-			and(
-				eq(coachIntakeAvailability.trainerId, trainerId),
-				eq(coachIntakeAvailability.isActive, true),
-				isNull(members.deletedAt),
-			),
-		);
 	return rows.sort((a, b) => {
 		const dayDiff =
 			(DAY_ORDER[a.dayOfWeek] ?? 7) - (DAY_ORDER[b.dayOfWeek] ?? 7);
@@ -164,6 +124,7 @@ export async function upsertTrainerAvailability(
 					dayOfWeek: s.dayOfWeek,
 					startTime: s.startTime,
 					endTime: s.endTime,
+					kind: (s.kind ?? "available") as TrainerAvailabilityKind,
 				})),
 			)
 			.returning();
@@ -178,6 +139,7 @@ export type TrainerAvailabilityByBranchRow = {
 	trainerId: string;
 	trainerName: string;
 	trainerEmail: string;
+	specialization: string | null;
 	slots: (typeof trainerAvailability.$inferSelect)[];
 };
 
@@ -191,7 +153,7 @@ export async function listTrainerAvailabilityByBranch(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	params: { branchId?: string },
 ): Promise<TrainerAvailabilityByBranchRow[]> {
-	// 1. Get active trainers (optionally scoped to a branch)
+	// 1. Get active trainers (optionally scoped to a branch) with their profile specialization
 	const trainerConditions = [
 		eq(members.role, "trainer"),
 		eq(members.status, "active"),
@@ -204,8 +166,10 @@ export async function listTrainerAvailabilityByBranch(
 		.select({
 			id: members.id,
 			userId: members.userId,
+			specialization: memberProfiles.specialization,
 		})
 		.from(members)
+		.leftJoin(memberProfiles, eq(memberProfiles.memberId, members.id))
 		.where(and(...trainerConditions));
 
 	if (trainerMembers.length === 0) return [];
@@ -254,9 +218,65 @@ export async function listTrainerAvailabilityByBranch(
 			trainerId: m.id,
 			trainerName: u?.name ?? "Unknown",
 			trainerEmail: u?.email ?? "",
+			specialization: m.specialization ?? null,
 			slots: slotsByTrainer.get(m.id) ?? [],
 		};
 	});
+}
+
+// ─── Create single slot ────────────────────────────────────────────
+
+export async function createTrainerAvailability(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	params: {
+		trainerId: string;
+		dayOfWeek: string;
+		startTime: string;
+		endTime: string;
+		kind?: TrainerAvailabilityKind;
+	},
+): Promise<typeof trainerAvailability.$inferSelect> {
+	const [row] = await tenantDb
+		.insert(trainerAvailability)
+		.values({
+			trainerId: params.trainerId,
+			dayOfWeek: params.dayOfWeek,
+			startTime: params.startTime,
+			endTime: params.endTime,
+			kind: params.kind ?? "available",
+		})
+		.returning();
+	if (!row) throw new Error("Failed to create trainer availability slot");
+	return row;
+}
+
+// ─── Update single slot ────────────────────────────────────────────
+
+export async function updateTrainerAvailability(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	id: string,
+	params: {
+		dayOfWeek?: string;
+		startTime?: string;
+		endTime?: string;
+		kind?: TrainerAvailabilityKind;
+	},
+): Promise<typeof trainerAvailability.$inferSelect> {
+	const updates: Record<string, unknown> = {
+		updatedAt: new Date(),
+	};
+	if (params.dayOfWeek !== undefined) updates.dayOfWeek = params.dayOfWeek;
+	if (params.startTime !== undefined) updates.startTime = params.startTime;
+	if (params.endTime !== undefined) updates.endTime = params.endTime;
+	if (params.kind !== undefined) updates.kind = params.kind;
+
+	const [row] = await tenantDb
+		.update(trainerAvailability)
+		.set(updates)
+		.where(eq(trainerAvailability.id, id))
+		.returning();
+	if (!row) throw new Error("Trainer availability slot not found");
+	return row;
 }
 
 // ─── Delete single slot ────────────────────────────────────────────
@@ -270,7 +290,132 @@ export async function deleteTrainerAvailabilitySlot(
 		.where(eq(trainerAvailability.id, id));
 }
 
+// ─── Utilisation ────────────────────────────────────────────────────
+
+export type TrainerUtilisationEntry = {
+	availableHours: number;
+	bookedHours: number;
+	utilisationPct: number;
+};
+
+/**
+ * Parse "HH:MM" to minutes since midnight.
+ */
+function slotMinutes(start: string, end: string): number {
+	const toMins = (t: string) => {
+		const [h, m] = t.split(":").map(Number);
+		return (h ?? 0) * 60 + (m ?? 0);
+	};
+	return Math.max(0, toMins(end) - toMins(start));
+}
+
+/**
+ * Given a weekStart (YYYY-MM-DD, Monday), compute per-trainer utilisation:
+ * - availableHours: sum of recurring slot minutes for Mon–Sun ÷ 60
+ * - bookedHours: sum of appointment durations (confirmed/completed) for that week ÷ 60
+ * - utilisationPct: Math.round((booked / available) * 100), or 0 if no available time
+ */
+export async function getTrainerUtilisation(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	params: { branchId?: string; weekStart: string },
+): Promise<Record<string, TrainerUtilisationEntry>> {
+	// Derive week window [Monday 00:00 → Sunday 23:59:59]
+	const weekStartDate = new Date(`${params.weekStart}T00:00:00`);
+	// Ensure weekStart is treated as a Monday; add 6 days to get Sunday
+	const weekEndDate = new Date(weekStartDate);
+	weekEndDate.setDate(weekEndDate.getDate() + 6);
+	weekEndDate.setHours(23, 59, 59, 999);
+
+	// 1. Get active trainers
+	const trainerConditions = [
+		eq(members.role, "trainer"),
+		eq(members.status, "active"),
+	];
+	if (params.branchId) {
+		trainerConditions.push(eq(members.hierarchyScopeId, params.branchId));
+	}
+
+	const trainerMembers = await tenantDb
+		.select({ id: members.id })
+		.from(members)
+		.where(and(...trainerConditions));
+
+	if (trainerMembers.length === 0) return {};
+
+	const trainerIds = trainerMembers.map((m) => m.id);
+
+	// 2. Fetch all recurring slots for these trainers
+	const slots = await tenantDb
+		.select({
+			trainerId: trainerAvailability.trainerId,
+			startTime: trainerAvailability.startTime,
+			endTime: trainerAvailability.endTime,
+		})
+		.from(trainerAvailability)
+		.where(inArray(trainerAvailability.trainerId, trainerIds));
+
+	// Sum available minutes per trainer (slots repeat each week, so raw sum is correct for a 7-day window)
+	const availMins = new Map<string, number>();
+	for (const slot of slots) {
+		const mins = slotMinutes(slot.startTime, slot.endTime);
+		availMins.set(slot.trainerId, (availMins.get(slot.trainerId) ?? 0) + mins);
+	}
+
+	// 3. Fetch confirmed/completed appointments for that week
+	const bookedAppts = await tenantDb
+		.select({
+			trainerId: appointments.trainerId,
+			duration: appointments.duration,
+		})
+		.from(appointments)
+		.where(
+			and(
+				isNotNull(appointments.trainerId),
+				inArray(appointments.trainerId, trainerIds),
+				gte(appointments.startTime, weekStartDate),
+				lte(appointments.startTime, weekEndDate),
+				// count confirmed + completed only
+				not(eq(appointments.status, "cancelled")),
+				not(eq(appointments.status, "pending")),
+				not(eq(appointments.status, "no-show")),
+			),
+		);
+
+	// Sum booked minutes per trainer
+	const bookedMins = new Map<string, number>();
+	for (const appt of bookedAppts) {
+		if (!appt.trainerId) continue;
+		bookedMins.set(
+			appt.trainerId,
+			(bookedMins.get(appt.trainerId) ?? 0) + appt.duration,
+		);
+	}
+
+	// 4. Assemble result
+	const result: Record<string, TrainerUtilisationEntry> = {};
+	for (const { id } of trainerMembers) {
+		const avail = availMins.get(id) ?? 0;
+		const booked = bookedMins.get(id) ?? 0;
+		result[id] = {
+			availableHours: Math.round((avail / 60) * 10) / 10,
+			bookedHours: Math.round((booked / 60) * 10) / 10,
+			utilisationPct: avail > 0 ? Math.round((booked / avail) * 100) : 0,
+		};
+	}
+	return result;
+}
+
 // ─── Computed Available Slots ─────────────────────────────────────
+
+const JS_DAY_TO_NAME: Record<number, string> = {
+	0: "sunday",
+	1: "monday",
+	2: "tuesday",
+	3: "wednesday",
+	4: "thursday",
+	5: "friday",
+	6: "saturday",
+};
 
 /**
  * Convert "HH:MM" to minutes since midnight for easy arithmetic.
@@ -334,65 +479,29 @@ function subtractBookings(
 }
 
 /**
- * Format a Date to "YYYY-MM-DD" in the given IANA timezone.
- * Workers-compatible (uses Intl.DateTimeFormat, not Date.getFullYear()).
+ * Format a Date to "YYYY-MM-DD".
  */
-function toDateStringInTz(date: Date, tz: string): string {
-	const parts = new Intl.DateTimeFormat("en-CA", {
-		timeZone: tz,
-		year: "numeric",
-		month: "2-digit",
-		day: "2-digit",
-	}).formatToParts(date);
-	const y = parts.find((p) => p.type === "year")?.value ?? "0000";
-	const m = parts.find((p) => p.type === "month")?.value ?? "01";
-	const d = parts.find((p) => p.type === "day")?.value ?? "01";
-	return `${y}-${m}-${d}`;
+function toDateString(d: Date): string {
+	const y = d.getFullYear();
+	const m = String(d.getMonth() + 1).padStart(2, "0");
+	const day = String(d.getDate()).padStart(2, "0");
+	return `${y}-${m}-${day}`;
 }
 
 /**
- * Extract "HH:MM" from a Date in the given IANA timezone. Workers' Date.getHours()
- * returns UTC — this preserves the admin's wall-clock semantics.
+ * Extract "HH:MM" from a Date/timestamp (in the timezone the Date is constructed).
  */
-function toHHMMInTz(date: Date, tz: string): string {
-	const parts = new Intl.DateTimeFormat("en-GB", {
-		timeZone: tz,
-		hour: "2-digit",
-		minute: "2-digit",
-		hour12: false,
-	}).formatToParts(date);
-	const h = parts.find((p) => p.type === "hour")?.value ?? "00";
-	const m = parts.find((p) => p.type === "minute")?.value ?? "00";
-	return `${h === "24" ? "00" : h}:${m}`;
-}
-
-/**
- * Day-of-week name ("monday"..."sunday") for a Date in the given IANA timezone.
- */
-function dayNameInTz(date: Date, tz: string): string {
-	return new Intl.DateTimeFormat("en-US", {
-		timeZone: tz,
-		weekday: "long",
-	})
-		.format(date)
-		.toLowerCase();
+function toHHMM(d: Date): string {
+	return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 /**
  * Compute actual available time windows for a trainer over a date range.
  *
- * Reads the **union** of `trainer_availability` ∪ `coach_intake_availability`
- * (deduped by `(dayOfWeek, startTime, endTime)`). All HH:MM math is performed
- * in `orgTimezone` (sourced from `organizations.timezone` in the control-panel
- * DB), because the recurring rows store the admin's local wall-clock — using
- * UTC `Date.getHours()` on Cloudflare Workers would silently misalign windows
- * against bookings and let double-bookings slip through.
- *
  * Algorithm:
- * 1. Fetch recurring weekly windows from BOTH tables in parallel, then dedupe
+ * 1. Fetch trainer's recurring weekly windows
  * 2. Fetch all non-cancelled appointments for the trainer in [startDate, endDate]
- * 3. For each calendar day (interpreted in `orgTimezone`), overlay recurring
- *    windows and subtract booked appointments (also interpreted in `orgTimezone`)
+ * 3. For each calendar day, overlay recurring windows and subtract booked appointments
  * 4. Return date-by-date free windows
  */
 export async function computeAvailableSlots(
@@ -400,20 +509,13 @@ export async function computeAvailableSlots(
 	trainerId: string,
 	startDate: Date,
 	endDate: Date,
-	orgTimezone: string,
 ): Promise<ComputedDayAvailability[]> {
-	// 1. Get recurring availability from BOTH sources in parallel, then merge + dedupe.
-	const [primary, intake] = await Promise.all([
-		listTrainerAvailability(tenantDb, trainerId),
-		listCoachIntakeAvailability(tenantDb, trainerId),
-	]);
+	// 1. Get recurring availability
+	const recurringSlots = await listTrainerAvailability(tenantDb, trainerId);
 
-	const seen = new Set<string>();
+	// Group by day-of-week for fast lookup
 	const slotsByDay = new Map<string, TimeWindow[]>();
-	for (const slot of [...primary, ...intake]) {
-		const key = `${slot.dayOfWeek}|${slot.startTime}|${slot.endTime}`;
-		if (seen.has(key)) continue;
-		seen.add(key);
+	for (const slot of recurringSlots) {
 		const list = slotsByDay.get(slot.dayOfWeek) ?? [];
 		list.push({ startTime: slot.startTime, endTime: slot.endTime });
 		slotsByDay.set(slot.dayOfWeek, list);
@@ -435,19 +537,30 @@ export async function computeAvailableSlots(
 			),
 		);
 
-	// Index appointments by date string for fast lookup (in org tz, not UTC)
+	// Index appointments by date string for fast lookup
 	const apptsByDate = new Map<string, TimeWindow[]>();
 	for (const appt of bookedAppts) {
-		const dateStr = toDateStringInTz(appt.startTime, orgTimezone);
+		const dateStr = toDateString(appt.startTime);
 		const list = apptsByDate.get(dateStr) ?? [];
 		list.push({
-			startTime: toHHMMInTz(appt.startTime, orgTimezone),
-			endTime: toHHMMInTz(appt.endTime, orgTimezone),
+			startTime: toHHMM(appt.startTime),
+			endTime: toHHMM(appt.endTime),
 		});
 		apptsByDate.set(dateStr, list);
 	}
 
-	// 3. Iterate each day in range
+	// 3. Fetch one-off exceptions and build a set of blocked date strings
+	const exceptions = await listTrainerAvailabilityExceptions(
+		tenantDb,
+		trainerId,
+		{
+			from: toDateString(startDate),
+			to: toDateString(endDate),
+		},
+	);
+	const blockedDates = new Set(exceptions.map((e) => e.date));
+
+	// 4. Iterate each day in range
 	const result: ComputedDayAvailability[] = [];
 	const current = new Date(startDate);
 	current.setHours(0, 0, 0, 0);
@@ -455,11 +568,17 @@ export async function computeAvailableSlots(
 	end.setHours(23, 59, 59, 999);
 
 	while (current <= end) {
-		const dayName = dayNameInTz(current, orgTimezone);
+		const dateStr = toDateString(current);
+
+		if (blockedDates.has(dateStr)) {
+			current.setDate(current.getDate() + 1);
+			continue;
+		}
+
+		const dayName = JS_DAY_TO_NAME[current.getDay()] ?? "monday";
 		const dayWindows = slotsByDay.get(dayName);
 
 		if (dayWindows && dayWindows.length > 0) {
-			const dateStr = toDateStringInTz(current, orgTimezone);
 			const dayBookings = apptsByDate.get(dateStr) ?? [];
 
 			const freeWindows = subtractBookings(dayWindows, dayBookings);
@@ -479,71 +598,226 @@ export async function computeAvailableSlots(
 	return result;
 }
 
-// ─── Slot Lock & Re-check (concurrency guard) ──────────────────────
+// ─── Conflict detection ───────────────────────────────────────────────────────
 
 /**
- * Asserts that the given trainer is free for [startTime, endTime). Must be
- * called inside a transaction with row locking. Throws Error('SLOT_TAKEN')
- * on overlap or Error('OUT_OF_WINDOW') if the slot is no longer within any
- * free availability window.
+ * For a given week (Monday weekStart), find scheduling conflicts per trainer:
+ *   - "outside_availability"  — confirmed/completed appointment falls on a day/time
+ *     not covered by any `available` slot for that trainer.
+ *   - "overlaps_block"        — confirmed/completed appointment overlaps a `blocked` slot.
+ *   - "overlaps_timeoff"      — confirmed/completed appointment overlaps a `timeoff` slot.
+ *
+ * Returns a map keyed by trainerId.
  */
-export async function assertTrainerSlotAvailable(
-	tx: NeonDatabase<typeof tenantSchema>,
-	trainerId: string,
-	startTime: Date,
-	endTime: Date,
-	orgTimezone: string,
-): Promise<void> {
-	// 1. Lock + read conflicting non-cancelled appointments. The FOR UPDATE
-	//    lock serializes concurrent bookers — the second TX blocks until the
-	//    first commits, then sees the row this query inserted and bails out.
-	const conflicts = await tx
+export async function getTrainerConflicts(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	params: { branchId?: string; weekStart: string },
+): Promise<Record<string, ConflictEntry[]>> {
+	const weekStartDate = new Date(`${params.weekStart}T00:00:00`);
+	const weekEndDate = new Date(weekStartDate);
+	weekEndDate.setDate(weekEndDate.getDate() + 6);
+	weekEndDate.setHours(23, 59, 59, 999);
+
+	// 1. Get active trainers (optionally branch-scoped)
+	const trainerConditions = [
+		eq(members.role, "trainer"),
+		eq(members.status, "active"),
+	];
+	if (params.branchId) {
+		trainerConditions.push(eq(members.hierarchyScopeId, params.branchId));
+	}
+	const trainerMembers = await tenantDb
+		.select({ id: members.id })
+		.from(members)
+		.where(and(...trainerConditions));
+
+	if (trainerMembers.length === 0) return {};
+
+	const trainerIds = trainerMembers.map((m) => m.id);
+
+	// 2. Fetch all slots for these trainers
+	const slots = await tenantDb
+		.select()
+		.from(trainerAvailability)
+		.where(inArray(trainerAvailability.trainerId, trainerIds));
+
+	// Index slots by trainerId
+	const slotsByTrainer = new Map<
+		string,
+		(typeof trainerAvailability.$inferSelect)[]
+	>();
+	for (const slot of slots) {
+		const list = slotsByTrainer.get(slot.trainerId) ?? [];
+		list.push(slot);
+		slotsByTrainer.set(slot.trainerId, list);
+	}
+
+	// 3. Fetch confirmed/completed appointments for the week
+	const bookedAppts = await tenantDb
 		.select({
 			id: appointments.id,
+			trainerId: appointments.trainerId,
 			startTime: appointments.startTime,
 			endTime: appointments.endTime,
 		})
 		.from(appointments)
 		.where(
 			and(
-				eq(appointments.trainerId, trainerId),
-				not(eq(appointments.status, "cancelled")),
-				lt(appointments.startTime, endTime),
-				gt(appointments.endTime, startTime),
+				isNotNull(appointments.trainerId),
+				inArray(appointments.trainerId, trainerIds),
+				gte(appointments.startTime, weekStartDate),
+				lte(appointments.startTime, weekEndDate),
+				or(
+					eq(appointments.status, "confirmed"),
+					eq(appointments.status, "completed"),
+				),
 			),
-		)
-		.for("update");
+		);
 
-	if (conflicts.length > 0) {
-		throw new Error("SLOT_TAKEN");
+	// 4. For each appointment check for conflicts
+	const result: Record<string, ConflictEntry[]> = {};
+
+	for (const appt of bookedAppts) {
+		if (!appt.trainerId) continue;
+
+		const apptDayName = JS_DAY_TO_NAME[appt.startTime.getDay()] ?? "monday";
+		const apptStartMins = hhmmToMinutes(toHHMM(appt.startTime));
+		const apptEndMins = hhmmToMinutes(toHHMM(appt.endTime));
+		const trainerSlots = slotsByTrainer.get(appt.trainerId) ?? [];
+
+		// Filter to slots matching the same day-of-week
+		const daySlots = trainerSlots.filter((s) => s.dayOfWeek === apptDayName);
+
+		let foundAvailableWindow = false;
+		let overlapsBlock = false;
+		let overlapsTimeoff = false;
+
+		for (const slot of daySlots) {
+			const slotStartMins = hhmmToMinutes(slot.startTime);
+			const slotEndMins = hhmmToMinutes(slot.endTime);
+			const overlaps =
+				apptStartMins < slotEndMins && apptEndMins > slotStartMins;
+
+			if (!overlaps) continue;
+
+			if (slot.kind === "available") {
+				// The appointment is inside an available window — not "outside"
+				foundAvailableWindow = true;
+			} else if (slot.kind === "blocked") {
+				overlapsBlock = true;
+			} else if (slot.kind === "timeoff") {
+				overlapsTimeoff = true;
+			}
+		}
+
+		const conflicts = result[appt.trainerId] ?? [];
+
+		if (!foundAvailableWindow) {
+			conflicts.push({
+				slotId: "",
+				appointmentId: appt.id,
+				reason: "outside_availability",
+			});
+		}
+		if (overlapsBlock) {
+			const blockSlot = daySlots.find((s) => {
+				const sS = hhmmToMinutes(s.startTime);
+				const sE = hhmmToMinutes(s.endTime);
+				return s.kind === "blocked" && apptStartMins < sE && apptEndMins > sS;
+			});
+			conflicts.push({
+				slotId: blockSlot?.id ?? "",
+				appointmentId: appt.id,
+				reason: "overlaps_block",
+			});
+		}
+		if (overlapsTimeoff) {
+			const toSlot = daySlots.find((s) => {
+				const sS = hhmmToMinutes(s.startTime);
+				const sE = hhmmToMinutes(s.endTime);
+				return s.kind === "timeoff" && apptStartMins < sE && apptEndMins > sS;
+			});
+			conflicts.push({
+				slotId: toSlot?.id ?? "",
+				appointmentId: appt.id,
+				reason: "overlaps_timeoff",
+			});
+		}
+
+		if (conflicts.length > 0) {
+			result[appt.trainerId] = conflicts;
+		}
 	}
 
-	// 2. Re-derive the day-of-week and HH:MM bounds in orgTimezone so we
-	//    interpret the slot against the admin's wall-clock — matching the
-	//    semantics used by computeAvailableSlots and the booking UI.
-	const requestedStartHHMM = toHHMMInTz(startTime, orgTimezone);
-	const requestedEndHHMM = toHHMMInTz(endTime, orgTimezone);
-	const requestedDate = toDateStringInTz(startTime, orgTimezone);
+	return result;
+}
 
-	// computeAvailableSlots already subtracts non-cancelled bookings. We
-	// hand it a single-day window (startTime, startTime) — it expands to
-	// the full org-local day and returns free windows for that day.
-	const dayAvailability = await computeAvailableSlots(
-		tx,
-		trainerId,
-		startTime,
-		startTime,
-		orgTimezone,
-	);
-	const today = dayAvailability.find((d) => d.date === requestedDate);
-	if (!today) {
-		throw new Error("OUT_OF_WINDOW");
+// ─── Date-specific exceptions (one-off overrides) ──────────────────────────────
+
+export type TrainerAvailabilityExceptionKind = "blocked" | "timeoff";
+
+export type AddTrainerAvailabilityExceptionParams = {
+	trainerId: string;
+	date: string; // YYYY-MM-DD
+	kind: TrainerAvailabilityExceptionKind;
+	reason?: string;
+	createdBy?: string;
+};
+
+/**
+ * Add a one-off date-specific exception (time-off or blocked) for a trainer.
+ * Throws if an exception for the same (trainerId, date) already exists — the
+ * caller should delete and re-create if they want to overwrite.
+ */
+export async function addTrainerAvailabilityException(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	params: AddTrainerAvailabilityExceptionParams,
+): Promise<typeof trainerAvailabilityExceptions.$inferSelect> {
+	const [row] = await tenantDb
+		.insert(trainerAvailabilityExceptions)
+		.values({
+			trainerId: params.trainerId,
+			date: params.date,
+			kind: params.kind,
+			reason: params.reason,
+			createdBy: params.createdBy,
+		})
+		.returning();
+	if (!row) throw new Error("Failed to create trainer availability exception");
+	return row;
+}
+
+/**
+ * List exceptions for a trainer, optionally bounded by date range.
+ * Dates are inclusive on both ends (YYYY-MM-DD strings).
+ */
+export async function listTrainerAvailabilityExceptions(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	trainerId: string,
+	range?: { from?: string; to?: string },
+): Promise<(typeof trainerAvailabilityExceptions.$inferSelect)[]> {
+	const conditions = [eq(trainerAvailabilityExceptions.trainerId, trainerId)];
+	if (range?.from) {
+		conditions.push(gte(trainerAvailabilityExceptions.date, range.from));
 	}
-	const covered = today.windows.some(
-		(w) =>
-			w.startTime <= requestedStartHHMM && w.endTime >= requestedEndHHMM,
-	);
-	if (!covered) {
-		throw new Error("OUT_OF_WINDOW");
+	if (range?.to) {
+		conditions.push(lte(trainerAvailabilityExceptions.date, range.to));
 	}
+	const rows = await tenantDb
+		.select()
+		.from(trainerAvailabilityExceptions)
+		.where(and(...conditions));
+	return rows.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Delete a single exception by id.
+ */
+export async function deleteTrainerAvailabilityException(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	id: string,
+): Promise<void> {
+	await tenantDb
+		.delete(trainerAvailabilityExceptions)
+		.where(eq(trainerAvailabilityExceptions.id, id));
 }

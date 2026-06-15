@@ -68,7 +68,7 @@
 
 **Goal:** Prove that changing filter values alone does not trigger a new `classSlots.list` request — only the Apply button does. This documents the deliberate manual-apply behavior the page ships today.
 
-**Why it matters:** several seed rows may exist; a reactive filter would visibly refetch on each keystroke. The page's design is intentional (see `zhub/pages/web-dashboard-appointment-class-slots-view.md §6` and plan §6 Phase 6.1.2), but a future refactor could silently regress it.
+**Why it matters:** several seed rows may exist; a reactive filter would visibly refetch on each keystroke. The page's design is intentional (see the class-slots view route source under `apps/web/src/routes/` and plan §6 Phase 6.1.2), but a future refactor could silently regress it.
 
 **Preparation:** still on the page from §1. At least one slot now exists (§1 created it); ideally a second service's slot exists too — if not, the assertion "filter narrows" at step 7 just reduces to "filter is applied on click" which is still meaningful.
 

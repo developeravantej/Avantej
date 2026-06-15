@@ -8,8 +8,7 @@ import {
 	usePermissionMatrixState,
 	type PermissionScope,
 } from "@/hooks/usePermissionMatrixState";
-import type { PermissionResource, Role } from "./PermissionMatrix";
-import { ActionCell } from "./matrix/ActionCell";
+import type { PermissionResource, Role } from "./permission-matrix.types";
 import { BulkApplyBar } from "./matrix/BulkApplyBar";
 import { CompactView } from "./matrix/CompactView";
 import { MatrixControls } from "./matrix/MatrixControls";
@@ -19,6 +18,8 @@ import { ResourceRow } from "./matrix/ResourceRow";
 import { RolePagination } from "./matrix/RolePagination";
 import { RolePicker } from "./matrix/RolePicker";
 import { ROLE_GROUPS } from "./matrix/scope-style";
+
+const EMPTY_SELECTED_ROLES: string[] = [];
 
 interface EnhancedPermissionMatrixProps {
 	roles: Role[];
@@ -41,7 +42,7 @@ export function EnhancedPermissionMatrix({
 	resources,
 	onPermissionChange,
 	onRoleSelect: _onRoleSelect,
-	selectedRoles: _selectedRoles = [],
+	selectedRoles: _selectedRoles = EMPTY_SELECTED_ROLES,
 	maxVisibleRoles = 6,
 	hideControls = false,
 }: EnhancedPermissionMatrixProps) {
@@ -240,6 +241,3 @@ export function EnhancedPermissionMatrix({
 		</div>
 	);
 }
-
-// Re-export for consumers that want the raw cell.
-export { ActionCell };

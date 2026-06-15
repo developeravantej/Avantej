@@ -13,7 +13,10 @@ export type LeadSourceProfileShape = {
 	leadSourceId?: string | null;
 	referrerMemberId?: string | null;
 	campaignId?: string | null;
+	leadAcquisitionType?: string | null;
 } | null;
+
+export type AttributedMemberShape = { id: string; name: string } | null;
 
 export type HouseholdProfileShape = {
 	id?: string | null;

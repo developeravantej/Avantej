@@ -1,14 +1,17 @@
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { Image } from "expo-image";
 import {
 	FlatList,
-	Image,
 	Modal,
+	Platform,
+	Pressable,
 	ScrollView,
+	StyleSheet,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -138,18 +141,10 @@ const AndroidTimePicker = ({
 			{/* Hour Picker */}
 			<View style={{ flex: 1, height: itemHeight * 3, position: "relative" }}>
 				<View
-					style={{
-						position: "absolute",
-						top: itemHeight,
-						left: 0,
-						right: 0,
-						height: itemHeight,
-						borderTopWidth: 1,
-						borderBottomWidth: 1,
-						borderColor: colors.primary[1],
-						zIndex: 1,
-						pointerEvents: "none",
-					}}
+					style={[
+						pickerStyles.indicator,
+						{ top: itemHeight, height: itemHeight },
+					]}
 				/>
 				<ScrollView
 					ref={hourRef}
@@ -167,6 +162,7 @@ const AndroidTimePicker = ({
 						}
 					}}
 				>
+					{/* react-doctor-disable-next-line react-doctor/rn-no-scrollview-mapped-list -- fixed-size snap-picker (12 hours), FlatList breaks snapToInterval UX */}
 					{HOURS.map((hour) => {
 						const isSelected = displayHour === hour;
 						return (
@@ -202,18 +198,10 @@ const AndroidTimePicker = ({
 			{/* Minute Picker */}
 			<View style={{ flex: 1, height: itemHeight * 3, position: "relative" }}>
 				<View
-					style={{
-						position: "absolute",
-						top: itemHeight,
-						left: 0,
-						right: 0,
-						height: itemHeight,
-						borderTopWidth: 1,
-						borderBottomWidth: 1,
-						borderColor: colors.primary[1],
-						zIndex: 1,
-						pointerEvents: "none",
-					}}
+					style={[
+						pickerStyles.indicator,
+						{ top: itemHeight, height: itemHeight },
+					]}
 				/>
 				<ScrollView
 					ref={minuteRef}
@@ -231,6 +219,7 @@ const AndroidTimePicker = ({
 						}
 					}}
 				>
+					{/* react-doctor-disable-next-line react-doctor/rn-no-scrollview-mapped-list -- fixed-size snap-picker (12 minutes), FlatList breaks snapToInterval UX */}
 					{MINUTES.map((minute) => {
 						const isSelected = displayMinuteStr === minute;
 						return (
@@ -260,18 +249,10 @@ const AndroidTimePicker = ({
 			{/* AM/PM Picker */}
 			<View style={{ flex: 0.8, height: itemHeight * 3, position: "relative" }}>
 				<View
-					style={{
-						position: "absolute",
-						top: itemHeight,
-						left: 0,
-						right: 0,
-						height: itemHeight,
-						borderTopWidth: 1,
-						borderBottomWidth: 1,
-						borderColor: colors.primary[1],
-						zIndex: 1,
-						pointerEvents: "none",
-					}}
+					style={[
+						pickerStyles.indicator,
+						{ top: itemHeight, height: itemHeight },
+					]}
 				/>
 				<ScrollView
 					showsVerticalScrollIndicator={false}
@@ -289,6 +270,7 @@ const AndroidTimePicker = ({
 						}
 					}}
 				>
+					{/* react-doctor-disable-next-line react-doctor/rn-no-scrollview-mapped-list -- fixed-size snap-picker (2 items AM/PM), FlatList breaks snapToInterval UX */}
 					{(["AM", "PM"] as const).map((period) => {
 						const isSelected = isPM === (period === "PM");
 						return (
@@ -323,6 +305,84 @@ type PreferredTime = {
 	time: string;
 };
 
+const trainerRowStyles = StyleSheet.create({
+	name: { color: colors.primary[1] },
+	email: { color: colors.secondary[1] },
+});
+
+const pickerStyles = StyleSheet.create({
+	indicator: {
+		position: "absolute",
+		left: 0,
+		right: 0,
+		borderTopWidth: 1,
+		borderBottomWidth: 1,
+		borderColor: colors.primary[1],
+		zIndex: 1,
+		pointerEvents: "none",
+	},
+});
+
+const slotCardStyles = StyleSheet.create({
+	closeButton: {
+		position: "absolute",
+		top: 8,
+		right: 8,
+		width: 24,
+		height: 24,
+		borderRadius: 12,
+		backgroundColor: "rgba(255,255,255,0.18)",
+		alignItems: "center",
+		justifyContent: "center",
+	},
+	addCard: {
+		width: "48%",
+		minHeight: 110,
+		borderRadius: 16,
+		borderStyle: "dashed",
+		borderWidth: 1.5,
+		borderColor: colors.secondary[1],
+		alignItems: "center",
+		justifyContent: "center",
+		padding: 14,
+	},
+});
+
+type TrainerLike = {
+	trainerId: string;
+	trainerName: string;
+	trainerEmail?: string | null;
+};
+
+const TrainerRow = memo(function TrainerRow({
+	item,
+	onPick,
+}: {
+	item: TrainerLike;
+	onPick: (id: string, name: string) => void;
+}) {
+	const handlePress = useCallback(
+		() => onPick(item.trainerId, item.trainerName),
+		[item.trainerId, item.trainerName, onPick],
+	);
+	return (
+		<Pressable
+			onPress={handlePress}
+			className="border-b border-secondary-3 py-3"
+		>
+			<Text style={trainerRowStyles.name} className="font-medium text-base">
+				{item.trainerName}
+			</Text>
+			{item.trainerEmail ? (
+				<Text style={trainerRowStyles.email} className="text-xs">
+					{item.trainerEmail}
+				</Text>
+			) : null}
+		</Pressable>
+	);
+});
+
+// react-doctor-disable-next-line react-doctor/prefer-useReducer, react-doctor/no-giant-component -- prefer-useReducer: independent state vars with no cross-state transitions; no-giant-component: buy-package schedule with nested snap pickers, calendar, recurrence config, needs further refactor PR
 export default function ScheduleScreen() {
 	const { organizationId } = useOrganization();
 	const { organizations } = useOrganizationContext();
@@ -364,30 +424,42 @@ export default function ScheduleScreen() {
 		}),
 	);
 
-	const trainers = (trainersQuery.data as Array<{
-		trainerId: string;
-		trainerName: string;
-		trainerEmail: string;
-		slots: Array<{
-			dayOfWeek: string;
-			startTime: string;
-			endTime: string;
-		}>;
-	}> | undefined) ?? [];
+	const trainers =
+		(trainersQuery.data as
+			| Array<{
+					trainerId: string;
+					trainerName: string;
+					trainerEmail: string;
+					slots: Array<{
+						dayOfWeek: string;
+						startTime: string;
+						endTime: string;
+					}>;
+			  }>
+			| undefined) ?? [];
 
 	const selectedTrainer = trainers.find(
 		(t) => t.trainerId === selectedTrainerId,
 	);
 
-	const handleSelectTrainer = (
-		trainer: { id: string; name: string } | null,
-	) => {
-		update({
-			preferredTrainerId: trainer?.id ?? null,
-			preferredTrainerName: trainer?.name ?? null,
-		});
-		setSelectedTrainerId(trainer?.id ?? null);
-	};
+	const handlePickTrainerFromList = useCallback(
+		(id: string, name: string) => {
+			update({
+				preferredTrainerId: id,
+				preferredTrainerName: name,
+			});
+			setSelectedTrainerId(id);
+			setTrainerDropdownOpen(false);
+		},
+		[update],
+	);
+
+	const renderTrainerItem = useCallback(
+		({ item }: { item: TrainerLike }) => (
+			<TrainerRow item={item} onPick={handlePickTrainerFromList} />
+		),
+		[handlePickTrainerFromList],
+	);
 
 	const canContinue = isAppointment
 		? !!selectedTrainerId && preferredTimes.length > 0
@@ -400,7 +472,7 @@ export default function ScheduleScreen() {
 				(pt) => pt.day === day && pt.time === time,
 			);
 			if (!exists) {
-				setPreferredTimes([...preferredTimes, { day, time }]);
+				setPreferredTimes((prev) => [...prev, { day, time }]);
 			}
 		}
 	};
@@ -422,16 +494,12 @@ export default function ScheduleScreen() {
 				{/* Header */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
-						<TouchableOpacity
+						<Pressable
 							onPress={() => router.back()}
-							className="mr-3 h-10 w-10 items-center justify-center"
+							className="mr-3 size-10 items-center justify-center"
 						>
-							<Ionicons
-								name="arrow-back"
-								size={24}
-								color={colors.primary[1]}
-							/>
-						</TouchableOpacity>
+							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
+						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-primary-1">
 							Select Schedule
 						</Text>
@@ -445,7 +513,7 @@ export default function ScheduleScreen() {
 							uri: "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=800",
 						}}
 						className="h-full w-full"
-						resizeMode="cover"
+						contentFit="cover"
 					/>
 				</View>
 
@@ -501,7 +569,7 @@ export default function ScheduleScreen() {
 											{isCompleted ? (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-6 w-6 items-center justify-center rounded-full border-2 border-primary-1"
+														className="size-6 items-center justify-center rounded-full border-2 border-primary-1"
 														style={{
 															backgroundColor: colors.primary[1],
 															zIndex: 2,
@@ -517,14 +585,14 @@ export default function ScheduleScreen() {
 											) : isActive ? (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-6 w-6 items-center justify-center rounded-full border-2 border-primary-1"
+														className="size-6 items-center justify-center rounded-full border-2 border-primary-1"
 														style={{
 															backgroundColor: colors.primary[1],
 															zIndex: 2,
 														}}
 													>
 														<View
-															className="h-2 w-2 rounded-full"
+															className="size-2 rounded-full"
 															style={{ backgroundColor: colors.primary[2] }}
 														/>
 													</View>
@@ -532,7 +600,7 @@ export default function ScheduleScreen() {
 											) : (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-6 w-6 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
+														className="size-6 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
 														style={{ zIndex: 2 }}
 													>
 														<Text className="font-semibold text-primary-1 text-xs">
@@ -562,139 +630,112 @@ export default function ScheduleScreen() {
 					</View>
 
 					{isAppointment && (
-					<>
-					{/* Trainer Selection */}
-					<View className="mb-4">
-						<Text
-							className="mb-2 font-bold text-sm uppercase tracking-wide"
-							style={{ color: colors.primary[1] }}
-						>
-							CHOOSE YOUR TRAINER
-						</Text>
-						<Text
-							className="mb-4 text-base"
-							style={{ color: colors.primary[1] }}
-						>
-							Select a trainer to view their intake availability for new clients.
-						</Text>
-
-						{trainersQuery.isLoading ? (
-							<View className="h-12 rounded-xl bg-secondary-3" />
-						) : (
-							<TouchableOpacity
-								onPress={() => setTrainerDropdownOpen(true)}
-								activeOpacity={0.8}
-								className="flex-row items-center justify-between rounded-xl border border-secondary-3 bg-primary-2 px-4 py-3"
-							>
+						<>
+							{/* Trainer Selection */}
+							<View className="mb-4">
 								<Text
-									style={{
-										color: selectedTrainerId
-											? colors.primary[1]
-											: colors.secondary[1],
-									}}
-								>
-									{selectedTrainer?.trainerName ?? "Select a trainer..."}
-								</Text>
-								<Ionicons
-									name="chevron-down"
-									size={16}
-									color={colors.secondary[1]}
-								/>
-							</TouchableOpacity>
-						)}
-					</View>
-
-					{/* Trainer Availability Preview */}
-					{selectedTrainerId && (
-						<View className="mb-6">
-							<Text
-								className="mb-3 font-bold text-sm uppercase tracking-wide"
-								style={{ color: colors.primary[1] }}
-							>
-								Trainer Availability
-							</Text>
-							{(selectedTrainer?.slots ?? []).length === 0 ? (
-								<View className="items-center rounded-2xl border border-secondary-3 bg-card py-8">
-									<Ionicons
-										name="calendar-outline"
-										size={32}
-										color={colors.secondary[1]}
-									/>
-									<Text
-										className="mt-2 text-sm italic"
-										style={{ color: colors.secondary[1] }}
-									>
-										No intake slots this week
-									</Text>
-								</View>
-							) : (
-								<View className="rounded-2xl border border-secondary-3 overflow-hidden" style={{ backgroundColor: "#FFFFFF" }}>
-									<WeeklyTimetable slots={selectedTrainer?.slots ?? []} />
-								</View>
-							)}
-						</View>
-					)}
-
-					{/* Trainer Dropdown Modal */}
-					<Modal
-						visible={trainerDropdownOpen}
-						transparent
-						animationType="fade"
-						onRequestClose={() => setTrainerDropdownOpen(false)}
-					>
-						<TouchableOpacity
-							style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}
-							activeOpacity={1}
-							onPress={() => setTrainerDropdownOpen(false)}
-						>
-							<View className="mx-4 mt-32 rounded-2xl bg-primary-2 p-4">
-								<Text
-									className="mb-3 font-bold text-base"
+									className="mb-2 font-bold text-sm uppercase tracking-wide"
 									style={{ color: colors.primary[1] }}
 								>
-									Select a Trainer
+									CHOOSE YOUR TRAINER
 								</Text>
-								<FlatList
-									data={trainers}
-									keyExtractor={(item) => item.trainerId}
-									renderItem={({ item }) => (
-										<TouchableOpacity
-											onPress={() => {
-												handleSelectTrainer({
-													id: item.trainerId,
-													name: item.trainerName,
-												});
-												setTrainerDropdownOpen(false);
-											}}
-											className="border-b border-secondary-3 py-3"
-										>
-											<Text
-												style={{ color: colors.primary[1] }}
-												className="font-medium text-base"
-											>
-												{item.trainerName}
-											</Text>
-											{item.trainerEmail ? (
-												<Text
-													style={{ color: colors.secondary[1] }}
-													className="text-xs"
-												>
-													{item.trainerEmail}
-												</Text>
-											) : null}
-										</TouchableOpacity>
-									)}
-								/>
-								<TouchableOpacity
-									onPress={() => setTrainerDropdownOpen(false)}
-									className="mt-3 items-center py-3"
+								<Text
+									className="mb-4 text-base"
+									style={{ color: colors.primary[1] }}
 								>
-									<Text style={{ color: colors.secondary[1] }}>Cancel</Text>
-								</TouchableOpacity>
+									Select a trainer to view their intake availability for new
+									clients.
+								</Text>
+
+								{trainersQuery.isLoading ? (
+									<View className="h-12 rounded-xl bg-secondary-3" />
+								) : (
+									<Pressable
+										onPress={() => setTrainerDropdownOpen(true)}
+										className="flex-row items-center justify-between rounded-xl border border-secondary-3 bg-primary-2 px-4 py-3"
+									>
+										<Text
+											style={{
+												color: selectedTrainerId
+													? colors.primary[1]
+													: colors.secondary[1],
+											}}
+										>
+											{selectedTrainer?.trainerName ?? "Select a trainer..."}
+										</Text>
+										<Ionicons
+											name="chevron-down"
+											size={16}
+											color={colors.secondary[1]}
+										/>
+									</Pressable>
+								)}
 							</View>
-						</TouchableOpacity>
-					</Modal>
-					</>
+
+							{/* Trainer Availability Preview */}
+							{selectedTrainerId && (
+								<View className="mb-6">
+									<Text
+										className="mb-3 font-bold text-sm uppercase tracking-wide"
+										style={{ color: colors.primary[1] }}
+									>
+										Trainer Availability
+									</Text>
+									{(selectedTrainer?.slots ?? []).length === 0 ? (
+										<View className="items-center rounded-2xl border border-secondary-3 bg-card py-8">
+											<Ionicons
+												name="calendar-outline"
+												size={32}
+												color={colors.secondary[1]}
+											/>
+											<Text
+												className="mt-2 text-sm italic"
+												style={{ color: colors.secondary[1] }}
+											>
+												No intake slots this week
+											</Text>
+										</View>
+									) : (
+										<View className="rounded-2xl border border-secondary-3 bg-card overflow-hidden">
+											<WeeklyTimetable slots={selectedTrainer?.slots ?? []} />
+										</View>
+									)}
+								</View>
+							)}
+
+							{/* Trainer Dropdown Modal */}
+							<Modal
+								visible={trainerDropdownOpen}
+								transparent
+								animationType="fade"
+								onRequestClose={() => setTrainerDropdownOpen(false)}
+							>
+								<Pressable
+									style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}
+									onPress={() => setTrainerDropdownOpen(false)}
+								>
+									<View className="mx-4 mt-32 rounded-2xl bg-primary-2 p-4">
+										<Text
+											className="mb-3 font-bold text-base"
+											style={{ color: colors.primary[1] }}
+										>
+											Select a Trainer
+										</Text>
+										<FlatList
+											data={trainers}
+											keyExtractor={(item) => item.trainerId}
+											renderItem={renderTrainerItem}
+										/>
+										<Pressable
+											onPress={() => setTrainerDropdownOpen(false)}
+											className="mt-3 items-center py-3"
+										>
+											<Text style={{ color: colors.secondary[1] }}>Cancel</Text>
+										</Pressable>
+									</View>
+								</Pressable>
+							</Modal>
+						</>
 					)}
 
 					{/* Schedule Selection */}
@@ -745,14 +786,14 @@ export default function ScheduleScreen() {
 									gap: 10,
 								}}
 							>
-								{[0, 1, 2, 3].map((i) => {
-									const pref = preferredTimes[i];
-									const label = `PREF ${String(i + 1).padStart(2, "0")}`;
+								{[0, 1, 2, 3].map((slotIdx) => {
+									const pref = preferredTimes[slotIdx];
+									const label = `PREF ${String(slotIdx + 1).padStart(2, "0")}`;
 
 									if (pref) {
 										return (
 											<View
-												key={i}
+												key={`pref-${slotIdx}`}
 												style={{
 													width: "48%",
 													minHeight: 110,
@@ -763,31 +804,22 @@ export default function ScheduleScreen() {
 													position: "relative",
 												}}
 											>
-												<TouchableOpacity
-													onPress={() => handleRemovePreferredTime(i)}
-													style={{
-														position: "absolute",
-														top: 8,
-														right: 8,
-														width: 24,
-														height: 24,
-														borderRadius: 12,
-														backgroundColor: "rgba(255,255,255,0.18)",
-														alignItems: "center",
-														justifyContent: "center",
-													}}
+												<Pressable
+													onPress={() => handleRemovePreferredTime(slotIdx)}
+													style={slotCardStyles.closeButton}
 												>
 													<Ionicons
 														name="close"
 														size={14}
 														color={colors.primary[2]}
 													/>
-												</TouchableOpacity>
+												</Pressable>
 												<Text
 													style={{
 														color: colors.primary[2],
-														fontSize: 10,
+														fontSize: 12,
 														fontWeight: "800",
+														// react-doctor-disable-next-line react-doctor/no-wide-letter-spacing -- short uppercase label, rule permits
 														letterSpacing: 1.4,
 														opacity: 0.6,
 													}}
@@ -822,23 +854,13 @@ export default function ScheduleScreen() {
 									}
 
 									return (
-										<TouchableOpacity
-											key={i}
+										<Pressable
+											key={`pref-${slotIdx}`}
 											onPress={() => {
 												if (!expandedDay) setExpandedDay(DAYS_OF_WEEK[0]);
 												setPickerOpen(true);
 											}}
-											style={{
-												width: "48%",
-												minHeight: 110,
-												borderRadius: 16,
-												borderStyle: "dashed",
-												borderWidth: 1.5,
-												borderColor: colors.secondary[1],
-												alignItems: "center",
-												justifyContent: "center",
-												padding: 14,
-											}}
+											style={slotCardStyles.addCard}
 										>
 											<Text
 												style={{
@@ -853,19 +875,19 @@ export default function ScheduleScreen() {
 											<Text
 												style={{
 													color: colors.secondary[1],
-													fontSize: 11,
+													fontSize: 12,
 													fontWeight: "700",
 													marginTop: 4,
+													// react-doctor-disable-next-line react-doctor/no-wide-letter-spacing -- short uppercase label, rule permits
 													letterSpacing: 1.2,
 												}}
 											>
-												ADD {String(i + 1).padStart(2, "0")}
+												ADD {String(slotIdx + 1).padStart(2, "0")}
 											</Text>
-										</TouchableOpacity>
+										</Pressable>
 									);
 								})}
 							</View>
-
 						</View>
 					) : (
 						/* Class slot: read-only display of the preset time slots */
@@ -904,9 +926,9 @@ export default function ScheduleScreen() {
 													</Text>
 													<View className="flex-row flex-wrap gap-2">
 														{slots.length > 0 ? (
-															slots.map((time, i) => (
+															slots.map((time) => (
 																<View
-																	key={`${day}-${i}`}
+																	key={`${day}-${time}`}
 																	className="rounded-full border border-secondary-3 bg-secondary-3 px-3 py-1.5"
 																>
 																	<Text
@@ -949,18 +971,17 @@ export default function ScheduleScreen() {
 				edges={["bottom"]}
 				className="border-secondary-3 border-t bg-primary-2"
 			>
-				<View className="px-4 py-4">
-					<TouchableOpacity
+				<View className="p-4">
+					<Pressable
 						onPress={handleContinue}
 						disabled={!canContinue}
-						activeOpacity={0.8}
 						className="items-center justify-center rounded-xl bg-primary-1 py-4"
 						style={{ opacity: canContinue ? 1 : 0.4 }}
 					>
 						<Text className="font-semibold text-base text-primary-2">
 							Continue
 						</Text>
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 			</SafeAreaView>
 
@@ -972,11 +993,7 @@ export default function ScheduleScreen() {
 				onRequestClose={() => setPickerOpen(false)}
 			>
 				<View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}>
-					<TouchableOpacity
-						style={{ flex: 1 }}
-						activeOpacity={1}
-						onPress={() => setPickerOpen(false)}
-					/>
+					<Pressable style={{ flex: 1 }} onPress={() => setPickerOpen(false)} />
 					<View
 						style={{
 							backgroundColor: colors.primary[2],
@@ -1003,13 +1020,13 @@ export default function ScheduleScreen() {
 								className="font-bold text-base uppercase"
 								style={{
 									color: colors.primary[1],
+									// react-doctor-disable-next-line react-doctor/no-wide-letter-spacing -- short uppercase label, rule permits
 									letterSpacing: 1.4,
 								}}
 							>
-								Add slot{" "}
-								{String(preferredTimes.length + 1).padStart(2, "0")}
+								Add slot {String(preferredTimes.length + 1).padStart(2, "0")}
 							</Text>
-							<TouchableOpacity
+							<Pressable
 								onPress={() => setPickerOpen(false)}
 								style={{
 									width: 32,
@@ -1020,18 +1037,15 @@ export default function ScheduleScreen() {
 									backgroundColor: colors.secondary[3],
 								}}
 							>
-								<Ionicons
-									name="close"
-									size={18}
-									color={colors.primary[1]}
-								/>
-							</TouchableOpacity>
+								<Ionicons name="close" size={18} color={colors.primary[1]} />
+							</Pressable>
 						</View>
 
 						<Text
 							className="mb-2 font-semibold text-xs uppercase"
 							style={{
 								color: colors.secondary[1],
+								// react-doctor-disable-next-line react-doctor/no-wide-letter-spacing -- short uppercase label, rule permits
 								letterSpacing: 1.2,
 							}}
 						>
@@ -1046,7 +1060,7 @@ export default function ScheduleScreen() {
 								{DAYS_OF_WEEK.map((day) => {
 									const active = expandedDay === day;
 									return (
-										<TouchableOpacity
+										<Pressable
 											key={day}
 											onPress={() => setExpandedDay(day)}
 											className="rounded-xl border px-4 py-3"
@@ -1062,14 +1076,12 @@ export default function ScheduleScreen() {
 											<Text
 												className="font-semibold text-sm"
 												style={{
-													color: active
-														? colors.primary[2]
-														: colors.primary[1],
+													color: active ? colors.primary[2] : colors.primary[1],
 												}}
 											>
 												{day.substring(0, 3)}
 											</Text>
-										</TouchableOpacity>
+										</Pressable>
 									);
 								})}
 							</View>
@@ -1079,6 +1091,7 @@ export default function ScheduleScreen() {
 							className="mb-2 font-semibold text-xs uppercase"
 							style={{
 								color: colors.secondary[1],
+								// react-doctor-disable-next-line react-doctor/no-wide-letter-spacing -- short uppercase label, rule permits
 								letterSpacing: 1.2,
 							}}
 						>
@@ -1094,13 +1107,28 @@ export default function ScheduleScreen() {
 							>
 								{formatTime(selectedTime)}
 							</Text>
-							<AndroidTimePicker
-								selectedTime={selectedTime}
-								onTimeChange={setSelectedTime}
-							/>
+							{Platform.OS === "ios" ? (
+								<DateTimePicker
+									value={selectedTime}
+									mode="time"
+									is24Hour={false}
+									display="spinner"
+									onChange={(event: { type: string }, date?: Date) => {
+										if (event.type !== "dismissed" && date) {
+											setSelectedTime(date);
+										}
+									}}
+									style={{ alignSelf: "center", height: 180 }}
+								/>
+							) : (
+								<AndroidTimePicker
+									selectedTime={selectedTime}
+									onTimeChange={setSelectedTime}
+								/>
+							)}
 						</View>
 
-						<TouchableOpacity
+						<Pressable
 							onPress={() => {
 								if (!expandedDay) return;
 								const timeString = formatTime(selectedTime);
@@ -1119,7 +1147,7 @@ export default function ScheduleScreen() {
 							<Text className="font-semibold text-base text-primary-2">
 								Add This Slot
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 				</View>
 			</Modal>

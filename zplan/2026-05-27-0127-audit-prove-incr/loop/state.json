@@ -1,0 +1,15 @@
+{
+  "session": "2026-05-27-0127-audit-prove-incr",
+  "basedOn": "zplan/2026-05-26-2323-audit-prove (all 21 prior findings fixed, 23/23 Playwright PASS)",
+  "mode": "incremental — auth-customers domain only (customer-profiles.ts changed)",
+  "iteration": 1,
+  "exitReason": null,
+  "targets": [
+    { "id": "AC-05", "kind": "missing", "title": "resendMagicLink missing callbackURL", "status": "fixed", "attempts": 1, "fixedIn": "apps/server/src/routers/customer-profiles.ts — signInMagicLink body now includes callbackURL: frontendURL/dashboard" },
+    { "id": "AC-06", "kind": "missing", "title": "addEmailAndDispatchMagicLink missing callbackURL", "status": "fixed", "attempts": 1, "fixedIn": "apps/server/src/routers/customer-profiles.ts — same fix as AC-05" },
+    { "id": "AC-07", "kind": "missing", "title": "email param in createUnclaimed silently ignored", "status": "fixed", "attempts": 1, "fixedIn": "apps/server/src/routers/customer-profiles.ts — removed dead email: z.string().email().optional() param from createUnclaimed input schema" },
+    { "id": "AC-08", "kind": "missing", "title": "softDelete allows deletion of unclaimed profiles — orphaned CP user", "status": "fixed", "attempts": 1, "fixedIn": "apps/server/src/routers/customer-profiles.ts — guard added before soft-delete: throws BAD_REQUEST if profile.isUnclaimed=true" },
+    { "id": "AC-09", "kind": "partial", "title": "createUnclaimed dateOfBirth z.string().datetime() rejects plain dates", "status": "fixed", "attempts": 1, "fixedIn": "apps/server/src/routers/customer-profiles.ts — changed z.string().datetime().optional() → z.string().optional() (matches sibling upsertForCustomer)" },
+    { "id": "AC-10", "kind": "partial", "title": "createUnclaimed CP user insert no conflict handler", "status": "deferred", "attempts": 0, "note": "P3 cosmetic, UUID v4 collision ~impossible. Deferred for human review." }
+  ]
+}

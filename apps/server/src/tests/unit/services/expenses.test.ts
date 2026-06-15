@@ -1,5 +1,8 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
-import { createMockTenantDb } from "../../helpers/db-mock.factory";
+import {
+	createMockTenantDb,
+	selectChainResolving,
+} from "../../helpers/db-mock.factory";
 import { makeExpense } from "../../helpers/fixtures";
 
 import {
@@ -14,28 +17,6 @@ import {
 let mockDb: any;
 const MEMBER_ID = "bbbbbbbb-0000-4000-8000-000000000001";
 const BRANCH_NODE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
-
-/** Creates a select chain that resolves to the given value. */
-function selectChainResolving(value: unknown) {
-	const chain: Record<string, unknown> = {};
-	const methods = [
-		"from",
-		"where",
-		"orderBy",
-		"limit",
-		"offset",
-		"leftJoin",
-		"innerJoin",
-		"groupBy",
-		"having",
-	];
-	for (const m of methods) {
-		chain[m] = mock(() => chain);
-	}
-	chain.then = (resolve: (v: unknown) => unknown) =>
-		Promise.resolve(value).then(resolve);
-	return chain;
-}
 
 beforeEach(() => {
 	mockDb = createMockTenantDb();
@@ -156,18 +137,18 @@ describe("approveExpense — state machine", () => {
 		const expense = makeExpense({ status: "approved" });
 		mockDb.select.mockReturnValueOnce(selectChainResolving([expense]));
 
-		await expect(
-			approveExpense(mockDb, expense.id, MEMBER_ID),
-		).rejects.toThrow("Expense must be pending to approve");
+		await expect(approveExpense(mockDb, expense.id, MEMBER_ID)).rejects.toThrow(
+			"Expense must be pending to approve",
+		);
 	});
 
 	test("throws when trying to approve a rejected expense", async () => {
 		const expense = makeExpense({ status: "rejected" });
 		mockDb.select.mockReturnValueOnce(selectChainResolving([expense]));
 
-		await expect(
-			approveExpense(mockDb, expense.id, MEMBER_ID),
-		).rejects.toThrow("Expense must be pending to approve");
+		await expect(approveExpense(mockDb, expense.id, MEMBER_ID)).rejects.toThrow(
+			"Expense must be pending to approve",
+		);
 	});
 
 	test("throws when expense not found", async () => {

@@ -1,0 +1,14 @@
+{
+	"appointment/class-slots.lifecycle.spec.ts::Class slot rule — reducing capacity below booked spots is rejected (400)": [
+		"Creates a throwaway service and a class slot with capacity 2",
+		"Enrolls one synthetic client so spotsBooked becomes 1",
+		"Asserts classSlots/update with capacity 0 (below spotsBooked) is rejected with 400",
+		"Tears down slot (cancel, cascades enrollment) and service (isActive:false)"
+	],
+	"appointment/class-slots.lifecycle.spec.ts::Class slot rule — enrolling the same client twice is rejected (409)": [
+		"Creates a throwaway service and a class slot with capacity 5",
+		"Enrolls a synthetic client once (succeeds, returns appointmentId)",
+		"Asserts a second enrollment of the same clientUserId is rejected with 409 (CONFLICT: already enrolled)",
+		"Tears down slot (cancel) and service (isActive:false)"
+	]
+}

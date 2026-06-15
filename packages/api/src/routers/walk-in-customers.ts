@@ -1,19 +1,18 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { requirePermission, convertWalkInPaymentToPackage } from "@avantej-core/services";
-import { protectedProcedure } from "../index";
+import { convertWalkInPaymentToPackage } from "@avantej-core/services";
+import { tenantProcedure } from "../index";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 
 const deprecated = (message: string) =>
-	protectedProcedure
-		.input(z.any().optional())
-		.handler(() => {
-			throw new ORPCError("BAD_REQUEST", { message });
-		});
+	tenantProcedure.input(z.any().optional()).handler(() => {
+		throw new ORPCError("BAD_REQUEST", { message });
+	});
 
 export const walkInCustomersRouter = {
-	list: protectedProcedure
-		.input(z.any().optional())
-		.handler(() => ({ items: [], total: 0 })),
+	list: deprecated(
+		"walk-in customers were replaced by customer_profiles — use customers.list",
+	),
 	getById: deprecated("Walk-in customers have been removed"),
 	create: deprecated(
 		"Walk-in customers have been removed — use anonymous walk-in flow",
@@ -27,7 +26,7 @@ export const walkInCustomersRouter = {
 	 * Use case: customer pays RM50 drop-in, then upgrades to a 10-pack
 	 * mid-session — the original payment becomes credit toward the package.
 	 */
-	convertToPackage: protectedProcedure
+	convertToPackage: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -37,7 +36,8 @@ export const walkInCustomersRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			await requirePermission(
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
 				"walk_in_customer_management",

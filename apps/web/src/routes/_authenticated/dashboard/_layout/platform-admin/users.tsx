@@ -36,7 +36,7 @@ function PlatformAdminUsersPage() {
 	const debouncedSearch = useDebounce(search, 300);
 	const { role } = usePlatformAdminRole();
 
-	const { data, isLoading } = useQuery({
+	const { data, isLoading, error, refetch } = useQuery({
 		queryKey: ["admin", "listUsers", { search: debouncedSearch, page }],
 		queryFn: () =>
 			client.admin.listUsers({
@@ -55,7 +55,8 @@ function PlatformAdminUsersPage() {
 	return (
 		<div className="p-6 space-y-4">
 			<div>
-				<h1 className="text-2xl font-bold">Platform Admin — Users</h1>
+				<div className="text-sm text-muted-foreground">Platform admin</div>
+				<h1 className="text-2xl font-semibold">Users</h1>
 				<p className="text-sm text-muted-foreground mt-1">
 					Manage and impersonate platform users. All actions are audited.
 				</p>
@@ -68,6 +69,8 @@ function PlatformAdminUsersPage() {
 				onSearch={handleSearch}
 				pagination={data?.pagination}
 				onPageChange={setPage}
+				error={error}
+				onRetry={() => refetch()}
 			/>
 		</div>
 	);

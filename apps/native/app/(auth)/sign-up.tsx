@@ -1,20 +1,21 @@
 import { useAuth } from "@/hooks/useAuth";
 import { router } from "expo-router";
 import { useState } from "react";
+import { Image } from "expo-image";
 import {
 	ActivityIndicator,
 	Alert,
-	Image,
 	KeyboardAvoidingView,
 	Platform,
+	Pressable,
 	ScrollView,
 	Text,
 	TextInput,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 export default function SignUpScreen() {
 	const [firstName, setFirstName] = useState("");
 	const [lastName, setLastName] = useState("");
@@ -26,7 +27,12 @@ export default function SignUpScreen() {
 	const { signUp } = useAuth();
 
 	const handleSignUp = async () => {
-		if (!firstName.trim() || !lastName.trim() || !email.trim() || !password.trim()) {
+		if (
+			!firstName.trim() ||
+			!lastName.trim() ||
+			!email.trim() ||
+			!password.trim()
+		) {
 			return;
 		}
 
@@ -44,7 +50,13 @@ export default function SignUpScreen() {
 		setError(null);
 
 		try {
-			await signUp(`${firstName.trim()} ${lastName.trim()}`, email, password, firstName.trim(), lastName.trim());
+			await signUp(
+				`${firstName.trim()} ${lastName.trim()}`,
+				email,
+				password,
+				firstName.trim(),
+				lastName.trim(),
+			);
 			router.replace({
 				pathname: "/(auth)/verify-email",
 				params: { email },
@@ -90,7 +102,7 @@ export default function SignUpScreen() {
 							<Image
 								source={require("../../assets/images/Logo-B.png")}
 								style={{ width: 64, height: 64 }}
-								resizeMode="contain"
+								contentFit="contain"
 							/>
 						</View>
 						<Text
@@ -126,7 +138,7 @@ export default function SignUpScreen() {
 								First Name
 							</Text>
 							<TextInput
-								className="mb-4 h-14 w-full rounded-xl border border-gray-200 bg-white px-4 text-base text-black"
+								className="mb-4 h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-black"
 								placeholder="Enter your first name"
 								placeholderTextColor="#9CA3AF"
 								value={firstName}
@@ -138,7 +150,7 @@ export default function SignUpScreen() {
 								Last Name
 							</Text>
 							<TextInput
-								className="mb-4 h-14 w-full rounded-xl border border-gray-200 bg-white px-4 text-base text-black"
+								className="mb-4 h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-black"
 								placeholder="Enter your last name"
 								placeholderTextColor="#9CA3AF"
 								value={lastName}
@@ -150,7 +162,7 @@ export default function SignUpScreen() {
 								Email
 							</Text>
 							<TextInput
-								className="mb-4 h-14 w-full rounded-xl border border-gray-200 bg-white px-4 text-base text-black"
+								className="mb-4 h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-black"
 								placeholder="Enter your email"
 								placeholderTextColor="#9CA3AF"
 								value={email}
@@ -164,7 +176,7 @@ export default function SignUpScreen() {
 								Password
 							</Text>
 							<TextInput
-								className="mb-4 h-14 w-full rounded-xl border border-gray-200 bg-white px-4 text-base text-black"
+								className="mb-4 h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-black"
 								placeholder="At least 8 characters"
 								placeholderTextColor="#9CA3AF"
 								value={password}
@@ -176,7 +188,7 @@ export default function SignUpScreen() {
 								Confirm Password
 							</Text>
 							<TextInput
-								className="mb-6 h-14 w-full rounded-xl border border-gray-200 bg-white px-4 text-base text-black"
+								className="mb-6 h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-black"
 								placeholder="Confirm your password"
 								placeholderTextColor="#9CA3AF"
 								value={confirmPassword}
@@ -184,7 +196,7 @@ export default function SignUpScreen() {
 								secureTextEntry
 							/>
 
-							<TouchableOpacity
+							<Pressable
 								onPress={handleSignUp}
 								disabled={
 									isLoading ||
@@ -194,7 +206,7 @@ export default function SignUpScreen() {
 									!password.trim() ||
 									!confirmPassword.trim()
 								}
-								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-black"
+								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-zinc-950"
 								style={{
 									opacity:
 										isLoading ||
@@ -214,18 +226,18 @@ export default function SignUpScreen() {
 										Create Account
 									</Text>
 								)}
-							</TouchableOpacity>
+							</Pressable>
 						</View>
 					</View>
 
 					{/* Sign In Link */}
 					<View className="mb-8 flex-row items-center justify-center">
-						<Text className="text-base text-gray-500">
+						<Text className="text-base text-zinc-500">
 							Already have an account?{" "}
 						</Text>
-						<TouchableOpacity onPress={() => router.replace("/(auth)/login")}>
+						<Pressable onPress={() => router.replace("/(auth)/login")}>
 							<Text className="font-medium text-base text-black">Sign In</Text>
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 				</ScrollView>
 			</KeyboardAvoidingView>

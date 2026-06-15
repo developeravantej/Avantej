@@ -1,14 +1,12 @@
 /**
- * Canonical form shape. See: zplan/Done_04-24_14-00_form-standardization/plan/plan.md §3.
+ * Canonical form shape (TanStack Form):
  * - Zod schema colocated (top of file)
  * - organizationId is a prop, never a form field
- * - Prices use z.number().transform((v) => Math.round(v * 100))
- * - Error display: inline <FormMessage> + toast on mutation error
+ * - Error display: inline field errors + toast on mutation error
  */
 
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "@tanstack/react-form";
 import * as z from "zod";
 
 import { useApiMutation } from "@/hooks/useApiMutation";
@@ -22,17 +20,9 @@ import {
 	DialogTitle,
 	DialogDescription,
 } from "@/components/ui/dialog";
-import {
-	Form,
-	FormControl,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-// 1. Schema — colocated, defines UI shape + validation. Server validates separately.
 const brandFormSchema = z.object({
 	name: z
 		.string()
@@ -42,7 +32,21 @@ const brandFormSchema = z.object({
 
 type BrandFormValues = z.infer<typeof brandFormSchema>;
 
-// 2. Props — organizationId is a prop, NOT a form field
+function FieldError({ errors }: { errors: unknown[] }) {
+	if (errors.length === 0) return null;
+	return (
+		<>
+			{errors.map((error, i) => (
+				<p key={i} className="text-sm text-rose-600">
+					{typeof error === "string"
+						? error
+						: (error as { message?: string })?.message || "Invalid value"}
+				</p>
+			))}
+		</>
+	);
+}
+
 interface BrandFormDialogProps {
 	isOpen: boolean;
 	onClose: () => void;
@@ -58,18 +62,6 @@ export function BrandFormDialog({
 	mode,
 	initialData,
 }: BrandFormDialogProps) {
-	// 3. Form instance
-	const form = useForm<BrandFormValues>({
-		resolver: zodResolver(brandFormSchema),
-		defaultValues: { name: initialData?.name ?? "" },
-	});
-
-	// 4. Reset on dialog re-open with fresh initialData
-	useEffect(() => {
-		if (isOpen) form.reset({ name: initialData?.name ?? "" });
-	}, [isOpen, initialData, form]);
-
-	// 5. Mutation — isPending drives submit state
 	const mutation = useApiMutation({
 		mutationFn: (values: BrandFormValues) =>
 			mode === "create"
@@ -85,63 +77,91 @@ export function BrandFormDialog({
 		onSuccess: () => onClose(),
 	});
 
-	// 6. Submit handler
-	const onSubmit = (values: BrandFormValues) => mutation.mutate(values);
+	const form = useForm({
+		defaultValues: { name: initialData?.name ?? "" } as BrandFormValues,
+		validators: { onSubmit: brandFormSchema },
+		onSubmit: async ({ value }) => {
+			await mutation.mutateAsync(value);
+		},
+	});
+
+	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- prop-driven reset (isOpen toggles externally), not a user event
+	useEffect(() => {
+		if (isOpen) form.reset({ name: initialData?.name ?? "" });
+	}, [isOpen, initialData, form]);
 
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						PRODUCT CATALOG
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
 						{mode === "create" ? "Add Brand" : "Edit Brand"}
 					</DialogTitle>
-					<DialogDescription>
+					<DialogDescription className="text-sm text-[#737373]">
 						{mode === "create"
 							? "Create a new brand for your product catalog."
 							: "Update the brand details."}
 					</DialogDescription>
 				</DialogHeader>
 
-				<Form {...form}>
-					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-						<FormField
-							control={form.control}
-							name="name"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>
-										Brand Name{" "}
-										<span className="text-destructive">*</span>
-									</FormLabel>
-									<FormControl>
-										<Input placeholder="Enter brand name" {...field} />
-									</FormControl>
-									<FormMessage />
-								</FormItem>
+				{/* react-doctor-disable-next-line react-doctor/no-prevent-default -- TanStack Router SPA */}
+				<form
+					onSubmit={(e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						form.handleSubmit();
+					}}
+				>
+					<div className="px-6 pt-4 pb-2">
+						<form.Field name="name">
+							{(field) => (
+								<div className="flex flex-col gap-1.5">
+									<Label htmlFor={field.name}>
+										Brand Name <span className="text-rose-600">*</span>
+									</Label>
+									<Input
+										id={field.name}
+										placeholder="Enter brand name"
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(e) => field.handleChange(e.target.value)}
+									/>
+									<FieldError errors={field.state.meta.errors} />
+								</div>
 							)}
-						/>
+						</form.Field>
+					</div>
 
-						<DialogFooter>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={onClose}
-								disabled={mutation.isPending}
-							>
-								Cancel
-							</Button>
-							<Button type="submit" disabled={mutation.isPending}>
-								{mutation.isPending
-									? mode === "create"
-										? "Adding..."
-										: "Saving..."
-									: mode === "create"
-										? "Add Brand"
-										: "Save Changes"}
-							</Button>
-						</DialogFooter>
-					</form>
-				</Form>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={onClose}
+							disabled={mutation.isPending}
+						>
+							Cancel
+						</Button>
+						<Button
+							type="submit"
+							disabled={mutation.isPending}
+							className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+						>
+							{mutation.isPending
+								? mode === "create"
+									? "Adding..."
+									: "Saving..."
+								: mode === "create"
+									? "Add Brand"
+									: "Save Changes"}
+						</Button>
+					</DialogFooter>
+				</form>
 			</DialogContent>
 		</Dialog>
 	);

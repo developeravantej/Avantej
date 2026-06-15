@@ -196,19 +196,27 @@ CREATE INDEX IF NOT EXISTS "commission_split_reversals_reversed_by_idx"
 -- Drop unique index that includes the text column first
 DROP INDEX IF EXISTS "promo_usages_unique_customer_order";
 --> statement-breakpoint
--- Add new uuid column
-ALTER TABLE "promotion_usages" ADD COLUMN IF NOT EXISTS "sales_order_id_new" uuid;
---> statement-breakpoint
--- Backfill: cast only well-formed UUIDs (no-op on dev; safe for prod rows)
-UPDATE "promotion_usages"
-	SET "sales_order_id_new" = "sales_order_id"::uuid
-	WHERE "sales_order_id" ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
---> statement-breakpoint
--- Drop old text column
-ALTER TABLE "promotion_usages" DROP COLUMN IF EXISTS "sales_order_id";
---> statement-breakpoint
--- Rename new column into place
-ALTER TABLE "promotion_usages" RENAME COLUMN "sales_order_id_new" TO "sales_order_id";
+-- Convert sales_order_id text → uuid. Guarded so a re-run on an already-converted
+-- (drifted) tenant is a SAFE no-op. Without the guard a re-run would re-add the temp
+-- column, throw on the `uuid ~ text` backfill, and — worse — DROP the real, already-uuid
+-- sales_order_id column (data loss). The whole conversion runs only while the column
+-- is still text.
+DO $$
+BEGIN
+	IF EXISTS (
+		SELECT 1 FROM information_schema.columns
+		WHERE table_name = 'promotion_usages'
+		  AND column_name = 'sales_order_id'
+		  AND data_type = 'text'
+	) THEN
+		ALTER TABLE "promotion_usages" ADD COLUMN IF NOT EXISTS "sales_order_id_new" uuid;
+		UPDATE "promotion_usages"
+			SET "sales_order_id_new" = "sales_order_id"::uuid
+			WHERE "sales_order_id" ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+		ALTER TABLE "promotion_usages" DROP COLUMN IF EXISTS "sales_order_id";
+		ALTER TABLE "promotion_usages" RENAME COLUMN "sales_order_id_new" TO "sales_order_id";
+	END IF;
+END $$;
 --> statement-breakpoint
 DO $$ BEGIN
 	ALTER TABLE "promotion_usages"

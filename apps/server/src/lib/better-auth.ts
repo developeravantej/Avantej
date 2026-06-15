@@ -26,6 +26,7 @@ import { betterAuth } from "better-auth";
 import { expo } from "@better-auth/expo";
 import { organization } from "better-auth/plugins";
 import { admin } from "better-auth/plugins";
+import { magicLink } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { eq } from "drizzle-orm";
 import { Pool, neonConfig } from "@neondatabase/serverless";
@@ -38,9 +39,10 @@ import * as schema from "@avantej-core/db/schema/auth";
 // Configure Neon for Cloudflare Workers (WebSocket support)
 neonConfig.webSocketConstructor = ws;
 import {
-  sendVerificationEmail as sendVerificationEmailResend,
-  sendPasswordResetEmail as sendPasswordResetEmailResend,
-  sendInvitationEmail as sendInvitationEmailResend,
+	sendVerificationEmail as sendVerificationEmailResend,
+	sendPasswordResetEmail as sendPasswordResetEmailResend,
+	sendInvitationEmail as sendInvitationEmailResend,
+	sendMagicLinkEmail as sendMagicLinkEmailResend,
 } from "@/lib/email";
 import { dispatchProfileSync } from "@/services/ghl/dispatch-staff-sync";
 import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
@@ -50,20 +52,20 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
  * Get environment variable from Cloudflare Workers env or process.env (for Node.js/test environments)
  */
 function getEnvVar(key: string): string | undefined {
-  try {
-    // Try to access Cloudflare Workers env (only available in Workers runtime)
-    // Using dynamic require to avoid TypeScript errors in Node.js/test environments
-    const cloudflareWorkers = require("cloudflare:workers") as {
-      env?: Record<string, string>;
-    };
-    if (cloudflareWorkers?.env?.[key]) {
-      return cloudflareWorkers.env[key];
-    }
-  } catch {
-    // Not in Cloudflare Workers environment (e.g., in tests)
-  }
-  // Fall back to process.env
-  return process.env[key];
+	try {
+		// Try to access Cloudflare Workers env (only available in Workers runtime)
+		// Using dynamic require to avoid TypeScript errors in Node.js/test environments
+		const cloudflareWorkers = require("cloudflare:workers") as {
+			env?: Record<string, string>;
+		};
+		if (cloudflareWorkers?.env?.[key]) {
+			return cloudflareWorkers.env[key];
+		}
+	} catch {
+		// Not in Cloudflare Workers environment (e.g., in tests)
+	}
+	// Fall back to process.env
+	return process.env[key];
 }
 
 /**
@@ -73,22 +75,22 @@ function getEnvVar(key: string): string | undefined {
  * @param c - Optional Hono context. If provided, uses request-scoped pool.
  */
 function createBetterAuthDb(c?: Context) {
-  // If context is provided, use request-scoped pool from context
-  if (c) {
-    const controlPanelPool = c.get("controlPanelPool");
-    if (controlPanelPool) {
-      // Create drizzle instance without schema (Better-Auth adds its own)
-      return drizzle({ client: controlPanelPool });
-    }
-  }
+	// If context is provided, use request-scoped pool from context
+	if (c) {
+		const controlPanelPool = c.get("controlPanelPool");
+		if (controlPanelPool) {
+			// Create drizzle instance without schema (Better-Auth adds its own)
+			return drizzle({ client: controlPanelPool });
+		}
+	}
 
-  // Fall back to creating a new pool (for non-request contexts)
-  const databaseUrl = getEnvVar("DATABASE_URL");
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL environment variable is required");
-  }
-  const pool = new Pool({ connectionString: databaseUrl });
-  return drizzle({ client: pool });
+	// Fall back to creating a new pool (for non-request contexts)
+	const databaseUrl = getEnvVar("DATABASE_URL");
+	if (!databaseUrl) {
+		throw new Error("DATABASE_URL environment variable is required");
+	}
+	const pool = new Pool({ connectionString: databaseUrl });
+	return drizzle({ client: pool });
 }
 
 /**
@@ -98,323 +100,376 @@ function createBetterAuthDb(c?: Context) {
  * @returns Better-Auth instance configured with request-scoped database
  */
 function createBetterAuth(c?: Context) {
-  // Determine if we're running over HTTPS (production) or HTTP (development)
-  const betterAuthUrl = getEnvVar("BETTER_AUTH_URL") || "http://localhost:3000";
-  const isHttps = betterAuthUrl.startsWith("https://");
+	// Determine if we're running over HTTPS (production) or HTTP (development)
+	const betterAuthUrl = getEnvVar("BETTER_AUTH_URL") || "http://localhost:3000";
+	const isHttps = betterAuthUrl.startsWith("https://");
 
-  return betterAuth({
-    database: drizzleAdapter(createBetterAuthDb(c), {
-      provider: "pg",
-      schema: schema,
-    }),
-  user: {
-    additionalFields: {
-      firstName: {
-        type: "string",
-        required: false,
-        fieldName: "firstName",
-        defaultValue: "",
-      },
-      lastName: {
-        type: "string",
-        required: false,
-        fieldName: "lastName",
-        defaultValue: "",
-      },
-      phone: {
-        type: "string",
-        required: false,
-        fieldName: "phone",
-      },
-      idPassportNo: {
-        type: "string",
-        required: false,
-        fieldName: "idPassportNo",
-      },
-      addressType: {
-        type: "string",
-        required: false,
-        fieldName: "addressType",
-      },
-      streetAddress: {
-        type: "string",
-        required: false,
-        fieldName: "streetAddress",
-      },
-      city: {
-        type: "string",
-        required: false,
-        fieldName: "city",
-      },
-      state: {
-        type: "string",
-        required: false,
-        fieldName: "state",
-      },
-      country: {
-        type: "string",
-        required: false,
-        fieldName: "country",
-      },
-      postalCode: {
-        type: "string",
-        required: false,
-        fieldName: "postalCode",
-      },
-      dateOfBirth: {
-        type: "string",
-        required: false,
-        fieldName: "dateOfBirth",
-      },
-      emergencyContactName: {
-        type: "string",
-        required: false,
-        fieldName: "emergencyContactName",
-      },
-      emergencyContactRelationship: {
-        type: "string",
-        required: false,
-        fieldName: "emergencyContactRelationship",
-      },
-      emergencyContactPhone: {
-        type: "string",
-        required: false,
-        fieldName: "emergencyContactPhone",
-      },
-    },
-  },
-  trustedOrigins: [
-    getEnvVar("CORS_ORIGIN") || "http://localhost:3001",
-    "http://localhost:4001", // E2E alt port
-    "mybettertapp://",
-    "exp://",
-  ],
-  emailAndPassword: {
-    enabled: true,
-    requireEmailVerification: true,
-    sendVerificationEmail: async ({
-      user,
-      url,
-    }: {
-      user: { email: string; name?: string | null };
-      url: string;
-    }) => {
-      await sendVerificationEmailResend(
-        user.email,
-        url,
-        user.name || undefined
-      );
-    },
-    sendResetPassword: async ({
-      user,
-      url,
-    }: {
-      user: { email: string; name?: string | null };
-      url: string;
-    }) => {
-      await sendPasswordResetEmailResend(
-        user.email,
-        url,
-        user.name || undefined
-      );
-    },
-  },
-  emailVerification: {
-    sendVerificationEmail: async ({
-      user,
-      url,
-    }: {
-      user: { email: string; name?: string | null };
-      url: string;
-    }) => {
-      await sendVerificationEmailResend(
-        user.email,
-        url,
-        user.name || undefined
-      );
-    },
-    sendOnSignUp: true, // Automatically send verification email on signup
-  },
-  email: {
-    sendVerificationEmail: async ({
-      user,
-      url,
-    }: {
-      user: { email: string; name?: string | null };
-      url: string;
-    }) => {
-      await sendVerificationEmailResend(
-        user.email,
-        url,
-        user.name || undefined
-      );
-    },
-    sendPasswordResetEmail: async ({
-      user,
-      url,
-    }: {
-      user: { email: string; name?: string | null };
-      url: string;
-    }) => {
-      await sendPasswordResetEmailResend(
-        user.email,
-        url,
-        user.name || undefined
-      );
-    },
-  },
-  databaseHooks: {
-    user: {
-      create: {
-        before: async (user) => {
-          return { data: { ...user, role: null } };
-        },
-      },
-      update: {
-        // Fire GHL profile sync after a user record changes. The dispatcher is
-        // idempotent and soft-fails — it is safe to invoke on every update
-        // (it short-circuits when the user has no GHL link rows or when
-        // GHL_AGENCY_ID is unset).
-        after: async (user) => {
-          try {
-            const ghlAgencyId = getEnvVar("GHL_AGENCY_ID");
-            if (!ghlAgencyId) return;
-            const databaseUrl = getEnvVar("DATABASE_URL");
-            if (!databaseUrl) return;
+	return betterAuth({
+		database: drizzleAdapter(createBetterAuthDb(c), {
+			provider: "pg",
+			schema: schema,
+		}),
+		user: {
+			additionalFields: {
+				firstName: {
+					type: "string",
+					required: false,
+					fieldName: "firstName",
+					defaultValue: "",
+				},
+				lastName: {
+					type: "string",
+					required: false,
+					fieldName: "lastName",
+					defaultValue: "",
+				},
+				phone: {
+					type: "string",
+					required: false,
+					fieldName: "phone",
+				},
+				idPassportNo: {
+					type: "string",
+					required: false,
+					fieldName: "idPassportNo",
+				},
+				addressType: {
+					type: "string",
+					required: false,
+					fieldName: "addressType",
+				},
+				streetAddress: {
+					type: "string",
+					required: false,
+					fieldName: "streetAddress",
+				},
+				city: {
+					type: "string",
+					required: false,
+					fieldName: "city",
+				},
+				state: {
+					type: "string",
+					required: false,
+					fieldName: "state",
+				},
+				country: {
+					type: "string",
+					required: false,
+					fieldName: "country",
+				},
+				postalCode: {
+					type: "string",
+					required: false,
+					fieldName: "postalCode",
+				},
+				dateOfBirth: {
+					type: "string",
+					required: false,
+					fieldName: "dateOfBirth",
+				},
+				emergencyContactName: {
+					type: "string",
+					required: false,
+					fieldName: "emergencyContactName",
+				},
+				emergencyContactRelationship: {
+					type: "string",
+					required: false,
+					fieldName: "emergencyContactRelationship",
+				},
+				emergencyContactPhone: {
+					type: "string",
+					required: false,
+					fieldName: "emergencyContactPhone",
+				},
+			},
+		},
+		trustedOrigins: [
+			getEnvVar("CORS_ORIGIN") || "http://localhost:3021",
+			"http://localhost:3001", // legacy / alternate dev port
+			"http://localhost:3021", // primary dev port
+			"http://localhost:4001", // E2E alt port
+			"mybettertapp://",
+			"exp://",
+		],
+		emailAndPassword: {
+			enabled: true,
+			requireEmailVerification: true,
+			sendVerificationEmail: async ({
+				user,
+				url,
+			}: {
+				user: { email: string; name?: string | null };
+				url: string;
+			}) => {
+				await sendVerificationEmailResend(
+					user.email,
+					url,
+					user.name || undefined,
+				);
+			},
+			sendResetPassword: async ({
+				user,
+				url,
+			}: {
+				user: { email: string; name?: string | null };
+				url: string;
+			}) => {
+				await sendPasswordResetEmailResend(
+					user.email,
+					url,
+					user.name || undefined,
+				);
+			},
+		},
+		emailVerification: {
+			sendVerificationEmail: async ({
+				user,
+				url,
+			}: {
+				user: { email: string; name?: string | null };
+				url: string;
+			}) => {
+				await sendVerificationEmailResend(
+					user.email,
+					url,
+					user.name || undefined,
+				);
+			},
+			sendOnSignUp: true, // Automatically send verification email on signup
+		},
+		email: {
+			sendVerificationEmail: async ({
+				user,
+				url,
+			}: {
+				user: { email: string; name?: string | null };
+				url: string;
+			}) => {
+				await sendVerificationEmailResend(
+					user.email,
+					url,
+					user.name || undefined,
+				);
+			},
+			sendPasswordResetEmail: async ({
+				user,
+				url,
+			}: {
+				user: { email: string; name?: string | null };
+				url: string;
+			}) => {
+				await sendPasswordResetEmailResend(
+					user.email,
+					url,
+					user.name || undefined,
+				);
+			},
+		},
+		databaseHooks: {
+			user: {
+				create: {
+					before: async (user) => {
+						return { data: { ...user, role: null } };
+					},
+				},
+				update: {
+					// Fire GHL profile sync after a user record changes. The dispatcher is
+					// idempotent and soft-fails — it is safe to invoke on every update
+					// (it short-circuits when the user has no GHL link rows or when
+					// GHL_AGENCY_ID is unset).
+					after: async (user) => {
+						try {
+							const ghlAgencyId = getEnvVar("GHL_AGENCY_ID");
+							if (!ghlAgencyId) return;
+							const databaseUrl = getEnvVar("DATABASE_URL");
+							if (!databaseUrl) return;
 
-            // Build a control-panel db scoped to this hook invocation. We
-            // can't reuse the request-scoped pool here because the betterAuth
-            // hook signature does not surface the Hono context. A short-lived
-            // pool is acceptable since dispatchProfileSync awaits its work.
-            const pool = new Pool({ connectionString: databaseUrl });
-            try {
-              const controlPanelDb = drizzle({
-                client: pool,
-                schema: controlPanelSchema,
-              }) as NeonDatabase<typeof controlPanelSchema>;
+							// Build a control-panel db scoped to this hook invocation. We
+							// can't reuse the request-scoped pool here because the betterAuth
+							// hook signature does not surface the Hono context. A short-lived
+							// pool is acceptable since dispatchProfileSync awaits its work.
+							const pool = new Pool({ connectionString: databaseUrl });
+							try {
+								const controlPanelDb = drizzle({
+									client: pool,
+									schema: controlPanelSchema,
+								}) as NeonDatabase<typeof controlPanelSchema>;
 
-              await dispatchProfileSync({
-                controlPanelDb,
-                userId: user.id,
-                env: { GHL_AGENCY_ID: ghlAgencyId },
-              });
-            } finally {
-              await pool.end();
-            }
-          } catch (err) {
-            console.error(
-              "dispatchProfileSync failed in user.update.after hook:",
-              err,
-            );
-          }
-        },
-      },
-    },
-  },
-  session: {
-    expiresIn: 60 * 60 * 8, // 8 hours for development
-    updateAge: 60 * 30, // Refresh every 30 minutes
-  },
-  secret:
-    getEnvVar("BETTER_AUTH_SECRET") ||
-    "dev-secret-key-minimum-32-characters-long",
-  baseURL: getEnvVar("BETTER_AUTH_URL") || "http://localhost:3000",
-  advanced: {
-    defaultCookieAttributes: {
-      sameSite: isHttps ? "none" : "lax",
-      secure: isHttps,
-      httpOnly: true,
-    },
-    // uncomment cookieCache setting when ready to deploy to Cloudflare using *.workers.dev domains
-    // cookieCache: {
-    //   enabled: true,
-    //   maxAge: 60,
-    // },
-    // uncomment crossSubDomainCookies setting when ready to deploy and replace <your-workers-subdomain> with your actual workers subdomain
-    // https://developers.cloudflare.com/workers/wrangler/configuration/#workersdev
-    // crossSubDomainCookies: {
-    //   enabled: true,
-    //   domain: "<your-workers-subdomain>",
-    // },
-  },
-  plugins: [
-    expo(), // Expo plugin - safe for both web and native, only activates for Expo requests
-    organization({
-      // Only allow org creation if user has valid subscription
-      // This will be enforced via payment-gated provisioning (T040)
-      allowUserToCreateOrganization: async () => {
-        // For now, allow organization creation
-        // Will be replaced with subscription check in T040 integration
-        return true;
-      },
-      // Send invitation email using Resend
-      sendInvitationEmail: async ({
-        email,
-        invitation,
-        inviter,
-      }: {
-        email: string;
-        invitation: {
-          id: string;
-          organizationId: string;
-          email: string;
-          role: string;
-          expiresAt: Date;
-        };
-        inviter?: { id: string; name?: string | null } | null;
-      }) => {
-        // Construct invitation link using invitation ID
-        // Better-Auth organization plugin uses invitation ID for acceptance
-        const baseURL = getEnvVar("BETTER_AUTH_URL") || "http://localhost:3000";
-        const invitationLink = `${baseURL}/accept-invitation?id=${invitation.id}`;
+								await dispatchProfileSync({
+									controlPanelDb,
+									userId: user.id,
+									env: { GHL_AGENCY_ID: ghlAgencyId },
+								});
+							} finally {
+								await pool.end();
+							}
+						} catch (err) {
+							console.error(
+								"dispatchProfileSync failed in user.update.after hook:",
+								err,
+							);
+						}
+					},
+				},
+			},
+		},
+		session: {
+			expiresIn: 60 * 60 * 8, // 8 hours for development
+			updateAge: 60 * 30, // Refresh every 30 minutes
+		},
+		secret: (() => {
+			const s = getEnvVar("BETTER_AUTH_SECRET");
+			if (!s) {
+				// Two complementary production signals:
+				// 1. NODE_ENV=production — explicitly set in wrangler.jsonc vars
+				// 2. isHttps — true when BETTER_AUTH_URL is an https:// URL (prod deployment)
+				// Either signal triggers a hard startup failure; this prevents forgeable sessions
+				// from a publicly-known fallback key reaching production.
+				if (getEnvVar("NODE_ENV") === "production" || isHttps) {
+					throw new Error(
+						"BETTER_AUTH_SECRET is required in production. " +
+							"Set it via `wrangler secret put BETTER_AUTH_SECRET`.",
+					);
+				}
+				console.error(
+					"[better-auth] BETTER_AUTH_SECRET is unset — using insecure dev fallback. DO NOT DEPLOY.",
+				);
+				return "dev-secret-key-minimum-32-characters-long";
+			}
+			return s;
+		})(),
+		baseURL: getEnvVar("BETTER_AUTH_URL") || "http://localhost:3000",
+		advanced: {
+			defaultCookieAttributes: {
+				sameSite: isHttps ? "none" : "lax",
+				secure: isHttps,
+				httpOnly: true,
+			},
+			// uncomment cookieCache setting when ready to deploy to Cloudflare using *.workers.dev domains
+			// cookieCache: {
+			//   enabled: true,
+			//   maxAge: 60,
+			// },
+			// uncomment crossSubDomainCookies setting when ready to deploy and replace <your-workers-subdomain> with your actual workers subdomain
+			// https://developers.cloudflare.com/workers/wrangler/configuration/#workersdev
+			// crossSubDomainCookies: {
+			//   enabled: true,
+			//   domain: "<your-workers-subdomain>",
+			// },
+		},
+		plugins: [
+			expo(), // Expo plugin - safe for both web and native, only activates for Expo requests
+			organization({
+				// Only allow org creation if user has valid subscription
+				// This will be enforced via payment-gated provisioning (T040)
+				allowUserToCreateOrganization: async () => {
+					// For now, allow organization creation
+					// Will be replaced with subscription check in T040 integration
+					return true;
+				},
+				// Send invitation email using Resend
+				sendInvitationEmail: async ({
+					email,
+					invitation,
+					inviter,
+				}: {
+					email: string;
+					invitation: {
+						id: string;
+						organizationId: string;
+						email: string;
+						role: string;
+						expiresAt: Date;
+					};
+					inviter?: { id: string; name?: string | null } | null;
+				}) => {
+					// Construct invitation link using invitation ID
+					// Better-Auth organization plugin uses invitation ID for acceptance
+					const baseURL =
+						getEnvVar("BETTER_AUTH_URL") || "http://localhost:3000";
+					const invitationLink = `${baseURL}/accept-invitation?id=${invitation.id}`;
 
-        // Fetch organization name from database
-        // Note: This callback doesn't have access to Hono context,
-        // so we create a temporary pool for this operation (Cloudflare Workers requirement)
-        let organizationName = "an organization";
-        try {
-          // Create a temporary pool for this read operation
-          // Cannot use singleton pool in Cloudflare Workers due to I/O isolation
-          const databaseUrl = getEnvVar("DATABASE_URL");
-          if (databaseUrl) {
-            const tempPool = new Pool({ connectionString: databaseUrl });
-            const tempDb = drizzle({ client: tempPool, schema: { organizations } });
-            try {
-              const org = await tempDb.query.organizations.findFirst({
-                where: eq(organizations.id, invitation.organizationId),
-              });
-              if (org) {
-                organizationName = org.name;
-              }
-            } finally {
-              await tempPool.end();
-            }
-          }
-        } catch (error) {
-          console.error(
-            "Failed to fetch organization name for invitation email:",
-            error
-          );
-          // Fall back to default name
-        }
+					// Fetch organization name from database
+					// Note: This callback doesn't have access to Hono context,
+					// so we create a temporary pool for this operation (Cloudflare Workers requirement)
+					let organizationName = "an organization";
+					try {
+						// Create a temporary pool for this read operation
+						// Cannot use singleton pool in Cloudflare Workers due to I/O isolation
+						const databaseUrl = getEnvVar("DATABASE_URL");
+						if (databaseUrl) {
+							const tempPool = new Pool({ connectionString: databaseUrl });
+							const tempDb = drizzle({
+								client: tempPool,
+								schema: { organizations },
+							});
+							try {
+								const org = await tempDb.query.organizations.findFirst({
+									where: eq(organizations.id, invitation.organizationId),
+								});
+								if (org) {
+									organizationName = org.name;
+								}
+							} finally {
+								await tempPool.end();
+							}
+						}
+					} catch (error) {
+						console.error(
+							"Failed to fetch organization name for invitation email:",
+							error,
+						);
+						// Fall back to default name
+					}
 
-        const inviterName = inviter?.name || undefined;
-        const role = invitation.role;
+					const inviterName = inviter?.name || undefined;
+					const role = invitation.role;
 
-        await sendInvitationEmailResend(
-          email,
-          invitationLink,
-          organizationName,
-          inviterName,
-          role
-        );
-      },
-    }),
-    admin({
-      impersonationSessionDuration: 60 * 60,
-    }),
-  ],
-  });
+					await sendInvitationEmailResend(
+						email,
+						invitationLink,
+						organizationName,
+						inviterName,
+						role,
+					);
+				},
+			}),
+			admin({
+				impersonationSessionDuration: 60 * 60,
+			}),
+			magicLink({
+				// Single-use token. 30 min covers email delivery + user attention lag.
+				expiresIn: 60 * 30,
+				sendMagicLink: async ({
+					email,
+					url,
+				}: {
+					email: string;
+					token: string;
+					url: string;
+				}) => {
+					try {
+						await sendMagicLinkEmailResend(email, url);
+					} catch (err) {
+						// In dev (HTTP), Resend's onboarding@resend.dev sandbox only delivers
+						// to the Resend account's own email. Log the link so it's always
+						// accessible locally regardless of email config.
+						const betterAuthUrl = getEnvVar("BETTER_AUTH_URL") ?? "";
+						if (!betterAuthUrl.startsWith("https://")) {
+							console.warn(
+								`[magic-link] Email delivery failed (${err instanceof Error ? err.message : err}). ` +
+									`Dev fallback — open this link directly:\n\n  ${url}\n`,
+							);
+							return;
+						}
+						throw err;
+					}
+				},
+			}),
+		],
+	});
 }
 
 // Lazy singleton — not initialized at module load time to avoid throwing during
@@ -431,13 +486,13 @@ let _authInstance: ReturnType<typeof createBetterAuth> | null = null;
  * @returns Better-Auth instance configured with request-scoped database
  */
 export function getBetterAuth(c?: Context) {
-  if (c) {
-    return createBetterAuth(c);
-  }
-  if (!_authInstance) {
-    _authInstance = createBetterAuth();
-  }
-  return _authInstance;
+	if (c) {
+		return createBetterAuth(c);
+	}
+	if (!_authInstance) {
+		_authInstance = createBetterAuth();
+	}
+	return _authInstance;
 }
 
 /**
@@ -448,7 +503,9 @@ export function getBetterAuth(c?: Context) {
  * Only use this in test environments or scripts outside request handlers.
  */
 export const auth = new Proxy({} as ReturnType<typeof createBetterAuth>, {
-  get(_target, prop: string | symbol) {
-    return (getBetterAuth() as unknown as Record<string | symbol, unknown>)[prop];
-  },
+	get(_target, prop: string | symbol) {
+		return (getBetterAuth() as unknown as Record<string | symbol, unknown>)[
+			prop
+		];
+	},
 });

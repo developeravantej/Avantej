@@ -1,0 +1,721 @@
+{
+  "version": "1",
+  "generatedAt": "2026-05-12T17:10:00.000Z",
+  "sourceRef": "feat/package-approval-flow",
+  "areas": [
+    {
+      "id": "branch-onboarding",
+      "name": "Branch QR Customer Onboarding (Phase 0)",
+      "priority": "P0",
+      "routes": ["/dashboard/branch/$id", "/onboarding/$token"],
+      "existingCoverage": "e2e/branch-onboarding.spec.ts (5 specs — admin generates URL, incognito renders form, multi-use, revoke; stops before form submission)",
+      "overlappingBatchSpec": null,
+      "journeys": [
+        {
+          "id": "branch-onboarding-full-submit",
+          "name": "Full submit-form-and-create-account (seed-driven with cleanup)",
+          "actor": "tenant_admin + anonymous_browser",
+          "preconditions": [
+            "Dev stack running (bun dev)",
+            "A branch hierarchy node exists in the test tenant",
+            "e2e/helpers/seed-data.ts provides cleanupTestUser(email) — to be created in EXECUTE phase",
+            "Test uses unique email per run: testuser+{Date.now()}@avantej-e2e.test"
+          ],
+          "steps": [
+            "Admin logs in → navigate to /dashboard/branch/view → click first table row → land on /dashboard/branch/<nodeId>",
+            "Click button [data-testid='generate-qr-button']",
+            "Wait for modal → extract URL from [data-testid='invite-url-input'] value",
+            "Open fresh browser context (incognito) → navigate to extracted URL",
+            "Assert [data-testid='onboarding-branch-name'] shows branch name (non-empty, not placeholder)",
+            "Fill [data-testid='onboarding-name-input'] with 'E2E Test Customer'",
+            "Fill [data-testid='onboarding-email-input'] with testuser+{timestamp}@avantej-e2e.test",
+            "Fill [data-testid='onboarding-password-input'] with 'TestPass123!'",
+            "Click [data-testid='onboarding-submit-button']",
+            "Assert redirect to /dashboard or /dashboard/buy-package (URL contains 'dashboard')",
+            "Cleanup: call test-only cleanup endpoint or bun script to delete created user"
+          ],
+          "assertions": [
+            "Branch name on onboarding page is non-empty and matches the branch navigated to in step 1",
+            "After submit, page URL contains /dashboard",
+            "Network request POST /rpc/onboarding/redeemInvite returns 2xx",
+            "No JS errors in browser console during submit"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"generate-qr-button\"",
+            "data-testid=\"invite-url-input\"",
+            "data-testid=\"onboarding-branch-name\"",
+            "data-testid=\"onboarding-name-input\"",
+            "data-testid=\"onboarding-email-input\"",
+            "data-testid=\"onboarding-password-input\"",
+            "data-testid=\"onboarding-submit-button\""
+          ],
+          "estimatedComplexity": "high"
+        }
+      ]
+    },
+    {
+      "id": "commission-rule",
+      "name": "Commission Rule (Phase 1)",
+      "priority": "P0",
+      "routes": ["/dashboard/appointment/view", "/dashboard/commissions/view", "/dashboard/commissions/my"],
+      "existingCoverage": "fixes-verification.spec.ts has appointment load test; does NOT test commission splits",
+      "overlappingBatchSpec": "batch2.dashboard.spec.ts (likely smoke-visits commissions pages)",
+      "journeys": [
+        {
+          "id": "commission-rule-cancel-appointment",
+          "name": "Trainer cancels appointment → admin sees pending split with earnReason=cancellation",
+          "actor": "tenant_admin",
+          "preconditions": [
+            "At least one appointment in 'confirmed' status exists in test tenant",
+            "Seed helper: seedAppointment({ trainerId, customerId, serviceId, status: 'confirmed' }) — to be created in EXECUTE phase",
+            "Admin has appointment management permission"
+          ],
+          "steps": [
+            "Navigate to /dashboard/appointment/view",
+            "Locate the seeded appointment row in the calendar or list view",
+            "Click the appointment → appointment detail panel opens",
+            "Click [data-testid='appointment-cancel-button']",
+            "Assert confirm dialog appears with commission policy text",
+            "Click [data-testid='appointment-cancel-confirm-button']",
+            "Wait for toast 'Appointment cancelled'",
+            "Navigate to /dashboard/commissions/view",
+            "Switch to 'All Commissions' tab if not default",
+            "Filter or search for the trainer's name"
+          ],
+          "assertions": [
+            "Commission split row is visible for the trainer with earnReason badge showing 'Cancellation'",
+            "Row status badge shows 'Pending'",
+            "Split amount is greater than 0",
+            "No duplicate split rows for the same appointment"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"appointment-cancel-button\"",
+            "data-testid=\"appointment-cancel-confirm-button\"",
+            "data-testid=\"commission-earn-reason-badge\"",
+            "data-testid=\"commission-status-badge\""
+          ],
+          "estimatedComplexity": "high"
+        },
+        {
+          "id": "commission-rule-complete-appointment",
+          "name": "Trainer completes appointment → split appears with earnReason=completion",
+          "actor": "tenant_admin",
+          "preconditions": [
+            "Seeded appointment in 'confirmed' status",
+            "Seed helper: seedAppointment()"
+          ],
+          "steps": [
+            "Navigate to /dashboard/appointment/view → locate seeded appointment",
+            "Click appointment → click [data-testid='appointment-complete-button']",
+            "Confirm if dialog shown",
+            "Navigate to /dashboard/commissions/view → 'All Commissions' tab",
+            "Locate the split row for this appointment"
+          ],
+          "assertions": [
+            "Commission split row is visible with earnReason badge showing 'Completion'",
+            "Row status is 'Pending'",
+            "Amount > 0"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"appointment-complete-button\"",
+            "data-testid=\"commission-earn-reason-badge\""
+          ],
+          "estimatedComplexity": "high"
+        },
+        {
+          "id": "commission-rule-pos-service-no-split",
+          "name": "POS sale of a service → NO commission split appears immediately",
+          "actor": "tenant_admin",
+          "preconditions": [
+            "At least one bookable service and one role=client member in test tenant",
+            "No pre-existing commission splits for the test member in this period (or use fresh member)"
+          ],
+          "steps": [
+            "Navigate to /dashboard/sales/create",
+            "Step 1 (Member): search and select a role=client member via [data-testid='pos-member-search-input']",
+            "Step 2 (Items): add a bookable service item via catalog",
+            "Step 3 (Payment): select cash → complete sale",
+            "Note sale ID from success screen",
+            "Navigate to /dashboard/commissions/view → 'All Commissions' tab",
+            "Filter by trainer assigned to the service"
+          ],
+          "assertions": [
+            "No commission split row exists with salesOrderId matching the new sale",
+            "Commission split count for the trainer has NOT increased after the POS sale",
+            "No POST /rpc/commissions/* request fired during the POS flow"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"pos-member-search-input\"",
+            "data-testid=\"pos-add-service-button\"",
+            "data-testid=\"pos-complete-sale-button\"",
+            "data-testid=\"pos-sale-success-id\""
+          ],
+          "estimatedComplexity": "medium"
+        },
+        {
+          "id": "commission-rule-pos-product-immediate-split",
+          "name": "POS sale of a product → split appears immediately (not deferred)",
+          "actor": "tenant_admin",
+          "preconditions": [
+            "At least one non-bookable product with a commission rule configured",
+            "A role=client member in test tenant"
+          ],
+          "steps": [
+            "Navigate to /dashboard/sales/create",
+            "Add a product item (not a service) to the cart",
+            "Complete sale with cash payment",
+            "Navigate to /dashboard/commissions/view → 'All Commissions' tab"
+          ],
+          "assertions": [
+            "Commission split row IS visible for the product sale",
+            "earnReason badge shows 'Sale' or immediate-earn label (not 'Cancellation' / 'Completion')",
+            "Status is 'Pending'"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"pos-add-product-button\"",
+            "data-testid=\"commission-earn-reason-badge\""
+          ],
+          "estimatedComplexity": "medium"
+        }
+      ]
+    },
+    {
+      "id": "payouts",
+      "name": "Payouts UI (Phase 2)",
+      "priority": "P1",
+      "routes": ["/dashboard/payouts/view"],
+      "existingCoverage": "None (page was a 5-line stub before this session)",
+      "overlappingBatchSpec": "batch3.dashboard.spec.ts or batch4.dashboard.spec.ts (smoke visit only)",
+      "journeys": [
+        {
+          "id": "payouts-kpi-mounts",
+          "name": "Payouts page mounts with real KPI strip (not stub)",
+          "actor": "tenant_admin",
+          "preconditions": [
+            "Admin has commission_payout:read permission",
+            "At least one commission_splits row exists (any status)"
+          ],
+          "steps": [
+            "Navigate to /dashboard/payouts/view",
+            "Wait for [data-testid='payouts-kpi-strip'] to be visible"
+          ],
+          "assertions": [
+            "[data-testid='payouts-kpi-pending'] is visible (value may be 0)",
+            "[data-testid='payouts-kpi-approved'] shows a number >= 0",
+            "[data-testid='payouts-kpi-paid'] shows a number >= 0",
+            "No 'Coming soon' or redirect stub text visible",
+            "Page title 'Payouts' is in the DOM"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"payouts-kpi-strip\"",
+            "data-testid=\"payouts-kpi-pending\"",
+            "data-testid=\"payouts-kpi-approved\"",
+            "data-testid=\"payouts-kpi-paid\""
+          ],
+          "estimatedComplexity": "low"
+        },
+        {
+          "id": "payouts-run-batch-drawer",
+          "name": "Run Batch drawer opens and preview fires on field change",
+          "actor": "tenant_admin",
+          "preconditions": [
+            "Admin has commission_payout:update permission",
+            "At least one approved commission split exists (for non-zero preview)"
+          ],
+          "steps": [
+            "Navigate to /dashboard/payouts/view",
+            "Click [data-testid='run-batch-button']",
+            "Assert [data-testid='run-batch-drawer'] is visible",
+            "Select a staff member from [data-testid='batch-staff-combobox']",
+            "Set date range via [data-testid='batch-period-start'] and [data-testid='batch-period-end']",
+            "Wait for [data-testid='batch-preview-count'] to update (debounced preview API call)"
+          ],
+          "assertions": [
+            "Drawer is visible after clicking 'Run Batch'",
+            "After selecting staff + dates, [data-testid='batch-preview-count'] shows a number",
+            "[data-testid='batch-confirm-button'] is visible (enabled if count > 0, disabled if 0)"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"run-batch-button\"",
+            "data-testid=\"run-batch-drawer\"",
+            "data-testid=\"batch-staff-combobox\"",
+            "data-testid=\"batch-period-start\"",
+            "data-testid=\"batch-period-end\"",
+            "data-testid=\"batch-preview-count\"",
+            "data-testid=\"batch-confirm-button\""
+          ],
+          "estimatedComplexity": "medium"
+        },
+        {
+          "id": "payouts-confirm-creates-row",
+          "name": "Confirm payout creates a row in the payouts table",
+          "actor": "tenant_admin",
+          "preconditions": [
+            "At least one approved commission split for a specific staff member",
+            "Date range encompasses the split's earnedAt"
+          ],
+          "steps": [
+            "Navigate to /dashboard/payouts/view",
+            "Note initial row count of [data-testid='payouts-table'] tbody tr",
+            "Click 'Run Batch' → fill drawer → click [data-testid='batch-confirm-button']",
+            "Wait for toast containing 'payout' text",
+            "Wait for drawer to close"
+          ],
+          "assertions": [
+            "Toast appears with success message mentioning payout(s) created",
+            "[data-testid='payouts-table'] tbody tr count increased by >= 1",
+            "The new row shows today's date in the Paid At column",
+            "The split that was 'approved' is now shown as 'paid' in /dashboard/commissions/view"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"payouts-table\""
+          ],
+          "estimatedComplexity": "high"
+        }
+      ]
+    },
+    {
+      "id": "trainer-assigned-packages",
+      "name": "Trainer Assigned Packages Tab (Phase 4)",
+      "priority": "P1",
+      "routes": ["/dashboard/my-services/view"],
+      "existingCoverage": "None for the new Assigned Packages tab",
+      "overlappingBatchSpec": "batch1.dashboard.spec.ts (smoke visit to My Services page only)",
+      "journeys": [
+        {
+          "id": "trainer-assigned-packages-tab-loads",
+          "name": "Assigned Packages tab renders with table or empty state (no error)",
+          "actor": "tenant_admin",
+          "preconditions": [
+            "Dev stack running",
+            "Assigned Packages tab exists as default tab on my-services/view"
+          ],
+          "steps": [
+            "Navigate to /dashboard/my-services/view",
+            "Assert default tab is 'Assigned Packages' (?tab=assigned in URL or tab active state)",
+            "Click [data-testid='tab-assigned-packages'] if not already active"
+          ],
+          "assertions": [
+            "[data-testid='assigned-packages-tab'] is visible and active",
+            "[data-testid='assigned-packages-table'] is in the DOM (even if empty)",
+            "If rows exist: each row shows client name, service name, credits remaining, status badge",
+            "If no rows: [data-testid='assigned-packages-empty'] renders (not an error state)"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"tab-assigned-packages\"",
+            "data-testid=\"assigned-packages-table\"",
+            "data-testid=\"assigned-packages-empty\""
+          ],
+          "estimatedComplexity": "low"
+        },
+        {
+          "id": "trainer-assigned-packages-drawer",
+          "name": "Click a row opens the assigned package detail drawer",
+          "actor": "tenant_admin",
+          "preconditions": [
+            "At least one package_instances row where assignedTrainerId = context.member.id in active or frozen status",
+            "Seed or rely on existing tenant data"
+          ],
+          "steps": [
+            "Navigate to /dashboard/my-services/view?tab=assigned",
+            "Wait for [data-testid='assigned-packages-table']",
+            "If table has rows: click first tbody tr",
+            "Assert [data-testid='assigned-package-drawer'] opens"
+          ],
+          "assertions": [
+            "Drawer is visible",
+            "Client name displayed in [data-testid='drawer-client-name']",
+            "Service name displayed in [data-testid='drawer-service-name']",
+            "Credits remaining shown",
+            "Status badge present",
+            "No JS errors during render"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"assigned-package-drawer\"",
+            "data-testid=\"drawer-client-name\"",
+            "data-testid=\"drawer-service-name\""
+          ],
+          "estimatedComplexity": "medium"
+        }
+      ]
+    },
+    {
+      "id": "package-lifecycle",
+      "name": "Package-Instance Lifecycle (Phase 5)",
+      "priority": "P0",
+      "routes": ["/dashboard/packages/view?tab=session-packs"],
+      "existingCoverage": "None for lifecycle mutations",
+      "overlappingBatchSpec": "batch3.dashboard.spec.ts (likely smoke-visits packages page)",
+      "notes": "packages/instances/view now redirects to packages/view?tab=session-packs via makeTabRedirect. All journeys target the canonical URL.",
+      "journeys": [
+        {
+          "id": "package-lifecycle-cancel",
+          "name": "Cancel package instance → row moves to Cancelled tab",
+          "actor": "tenant_admin",
+          "preconditions": [
+            "At least one package_instances row in 'active' status in test tenant",
+            "Admin has package_management permission"
+          ],
+          "steps": [
+            "Navigate to /dashboard/packages/view?tab=session-packs",
+            "Wait for [data-testid='instances-table'] to render with rows",
+            "Click [data-testid='instance-action-menu'] on the first active row",
+            "Click [data-testid='instance-action-cancel'] in the dropdown",
+            "Assert [data-testid='cancel-instance-dialog'] is visible",
+            "Fill [data-testid='cancel-reason-input'] with 'E2E test cancellation'",
+            "Click [data-testid='cancel-instance-confirm-button']",
+            "Wait for success toast",
+            "Assert the row is no longer in the active tab",
+            "Click the 'Cancelled' status filter [data-testid='status-filter-cancelled']",
+            "Assert the row appears in the Cancelled tab"
+          ],
+          "assertions": [
+            "Cancel dialog opens after clicking action menu item",
+            "After confirmation, success toast appears",
+            "Row disappears from active list",
+            "Row appears in Cancelled filter list with status badge 'Cancelled'"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"instances-table\"",
+            "data-testid=\"instance-action-menu\"",
+            "data-testid=\"instance-action-cancel\"",
+            "data-testid=\"cancel-instance-dialog\"",
+            "data-testid=\"cancel-reason-input\"",
+            "data-testid=\"cancel-instance-confirm-button\"",
+            "data-testid=\"status-filter-cancelled\""
+          ],
+          "estimatedComplexity": "medium"
+        },
+        {
+          "id": "package-lifecycle-freeze-unfreeze",
+          "name": "Freeze package instance → moves to Frozen tab → Unfreeze restores to Active",
+          "actor": "tenant_admin",
+          "preconditions": [
+            "Active package instance in test tenant",
+            "Admin has package_management permission"
+          ],
+          "steps": [
+            "Navigate to /dashboard/packages/view?tab=session-packs",
+            "Click [data-testid='instance-action-menu'] on an active row",
+            "Click [data-testid='instance-action-freeze']",
+            "Assert [data-testid='freeze-instance-dialog'] is visible",
+            "Optionally fill [data-testid='freeze-until-input'] with a future date",
+            "Click [data-testid='freeze-instance-confirm-button']",
+            "Wait for success toast",
+            "Select 'Frozen' filter [data-testid='status-filter-frozen'] — row appears",
+            "Click [data-testid='instance-action-menu'] on the frozen row",
+            "Click [data-testid='instance-action-unfreeze']",
+            "Confirm unfreeze",
+            "Select 'Active' filter [data-testid='status-filter-active'] — row returns"
+          ],
+          "assertions": [
+            "After freeze: row appears in Frozen filter, not in Active",
+            "After unfreeze: row returns to Active filter, disappears from Frozen",
+            "Status badge transitions: Active → Frozen → Active"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"instance-action-freeze\"",
+            "data-testid=\"freeze-instance-dialog\"",
+            "data-testid=\"freeze-until-input\"",
+            "data-testid=\"freeze-instance-confirm-button\"",
+            "data-testid=\"instance-action-unfreeze\"",
+            "data-testid=\"status-filter-frozen\"",
+            "data-testid=\"status-filter-active\""
+          ],
+          "estimatedComplexity": "medium"
+        },
+        {
+          "id": "package-lifecycle-extend",
+          "name": "Extend package instance expiry date by 30 days",
+          "actor": "tenant_admin",
+          "preconditions": [
+            "Active package instance with a known expiresAt date",
+            "Admin has package_management permission"
+          ],
+          "steps": [
+            "Navigate to /dashboard/packages/view?tab=session-packs",
+            "Note the expiry date from [data-testid='instance-expires-at'] on first active row",
+            "Click [data-testid='instance-action-menu'] → click [data-testid='instance-action-extend']",
+            "Assert [data-testid='extend-instance-dialog'] is visible",
+            "Fill [data-testid='extend-days-input'] with '30'",
+            "Click [data-testid='extend-instance-confirm-button']",
+            "Wait for success toast"
+          ],
+          "assertions": [
+            "After extension, expiry date shown in the row is 30 days later than original",
+            "Toast shows success message",
+            "No error state in the dialog"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"instance-expires-at\"",
+            "data-testid=\"instance-action-extend\"",
+            "data-testid=\"extend-instance-dialog\"",
+            "data-testid=\"extend-days-input\"",
+            "data-testid=\"extend-instance-confirm-button\""
+          ],
+          "estimatedComplexity": "medium"
+        }
+      ]
+    },
+    {
+      "id": "sales-cancellation",
+      "name": "Sales KPI + Cancellation (Phase 6)",
+      "priority": "P1",
+      "routes": ["/dashboard/sales/view", "/dashboard/sales/$id", "/dashboard/cancelled-sales/view"],
+      "existingCoverage": "fixes-verification.spec.ts does NOT cover sales KPIs or cancel flow",
+      "overlappingBatchSpec": "batch2.dashboard.spec.ts (likely smoke-visits sales/view)",
+      "journeys": [
+        {
+          "id": "sales-cancellation-kpi-confirmed",
+          "name": "Sales list KPI shows 'Confirmed' label and non-zero count",
+          "actor": "tenant_admin",
+          "preconditions": [
+            "At least one sales_orders row with status='confirmed' in test tenant"
+          ],
+          "steps": [
+            "Navigate to /dashboard/sales/view",
+            "Wait for [data-testid='sales-kpi-strip'] to render"
+          ],
+          "assertions": [
+            "[data-testid='sales-kpi-confirmed'] contains a number > 0",
+            "The label reads 'Confirmed' (not 'Completed') — Phase 6.1 relabelled the KPI",
+            "[data-testid='sales-kpi-revenue'] shows a non-zero value (includes tax)",
+            "No '0' for confirmed count when confirmed orders exist in test tenant"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"sales-kpi-strip\"",
+            "data-testid=\"sales-kpi-confirmed\"",
+            "data-testid=\"sales-kpi-revenue\""
+          ],
+          "estimatedComplexity": "low"
+        },
+        {
+          "id": "sales-cancellation-cancel-sale",
+          "name": "Cancel Sale button on detail page works end-to-end",
+          "actor": "tenant_admin",
+          "preconditions": [
+            "A sales_orders row with status='confirmed' and no captured payment beyond preauth"
+          ],
+          "steps": [
+            "Navigate to /dashboard/sales/view",
+            "Click a row with 'Confirmed' status badge → land on /dashboard/sales/<id>",
+            "Assert [data-testid='cancel-sale-button'] is visible and enabled",
+            "Click it",
+            "Assert [data-testid='cancel-sale-dialog'] is visible",
+            "Fill [data-testid='cancel-sale-reason-input'] with 'E2E test cancellation'",
+            "Click [data-testid='cancel-sale-confirm-button']",
+            "Wait for navigation to /dashboard/cancelled-sales/view"
+          ],
+          "assertions": [
+            "'Cancel Sale' button present only on confirmed sales (not on cancelled/refunded)",
+            "After confirm, page navigates to /dashboard/cancelled-sales/view",
+            "Toast shows 'Sale cancelled'",
+            "If revisiting the detail page: status shows 'Cancelled'"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"cancel-sale-button\"",
+            "data-testid=\"cancel-sale-dialog\"",
+            "data-testid=\"cancel-sale-reason-input\"",
+            "data-testid=\"cancel-sale-confirm-button\""
+          ],
+          "estimatedComplexity": "medium"
+        },
+        {
+          "id": "sales-cancellation-cancelled-list",
+          "name": "Cancelled Sales view lists rows (no longer a redirect stub)",
+          "actor": "tenant_admin",
+          "preconditions": [
+            "At least one cancelled sale exists (may be created by journey sales-cancellation-cancel-sale in same run)"
+          ],
+          "steps": [
+            "Navigate to /dashboard/cancelled-sales/view",
+            "Assert page renders (no redirect, no 'Coming soon')",
+            "Wait for [data-testid='cancelled-sales-table']"
+          ],
+          "assertions": [
+            "Page URL stays at /dashboard/cancelled-sales/view (not redirected)",
+            "[data-testid='cancelled-sales-table'] is in the DOM",
+            "At least one row visible if test tenant has cancelled orders",
+            "Each row shows: order number / amount / cancellation date / status badge 'Cancelled'",
+            "[data-testid='sidebar-cancelled-sales'] sidebar link is visible in navigation"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"cancelled-sales-table\"",
+            "data-testid=\"sidebar-cancelled-sales\""
+          ],
+          "estimatedComplexity": "low"
+        },
+        {
+          "id": "sales-cancellation-receipt-fallback",
+          "name": "Receipt fallback shows 'Receipt unavailable' not a fake receipt",
+          "actor": "tenant_admin",
+          "preconditions": [
+            "A sale exists where buildReceiptData would return null/empty (incomplete item metadata)"
+          ],
+          "steps": [
+            "Navigate to /dashboard/sales/$id for a sale with missing receipt data",
+            "Click [data-testid='print-receipt-button'] or wait for receipt section to render",
+            "Observe receipt area"
+          ],
+          "assertions": [
+            "If receipt data unavailable: [data-testid='receipt-unavailable-message'] is visible",
+            "Text contains 'unavailable' or 'loading' — NOT a fake/blank printable receipt layout",
+            "No phantom receipt card with zeroed-out values"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"print-receipt-button\"",
+            "data-testid=\"receipt-unavailable-message\""
+          ],
+          "estimatedComplexity": "medium"
+        }
+      ]
+    },
+    {
+      "id": "pos-checkout",
+      "name": "POS Sale Creation (regression suite — Phase 7)",
+      "priority": "P0",
+      "routes": ["/dashboard/sales/create", "/dashboard/sales/$id"],
+      "existingCoverage": "fixes-verification.spec.ts does NOT cover POS creation flow",
+      "overlappingBatchSpec": "None covering POS creation",
+      "journeys": [
+        {
+          "id": "pos-checkout-package-salesorderid",
+          "name": "Service-line package sale creates package_instances row with salesOrderId populated",
+          "actor": "tenant_admin",
+          "preconditions": [
+            "A service-linked package available in the catalog",
+            "A role=client member in test tenant"
+          ],
+          "steps": [
+            "Navigate to /dashboard/sales/create",
+            "Step 1: search and select a role=client member via [data-testid='pos-member-search-input']",
+            "Step 2: select a package/service item from catalog via [data-testid='pos-catalog-item']",
+            "Step 3: review order summary",
+            "Step 4: select cash payment → click [data-testid='pos-complete-sale-button']",
+            "Wait for [data-testid='pos-sale-success-screen']",
+            "Note sale ID from [data-testid='pos-sale-success-id']",
+            "Navigate to /dashboard/packages/view?tab=session-packs",
+            "Search/filter for the package just created"
+          ],
+          "assertions": [
+            "POS completes without error toast",
+            "A package_instances row appears in Session Packs tab",
+            "Network call response includes salesOrderId that is not null/empty (verify via response interception)",
+            "Status badge on new package instance shows 'Active' or 'Pending'"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"pos-member-search-input\"",
+            "data-testid=\"pos-catalog-item\"",
+            "data-testid=\"pos-complete-sale-button\"",
+            "data-testid=\"pos-sale-success-screen\"",
+            "data-testid=\"pos-sale-success-id\""
+          ],
+          "estimatedComplexity": "medium"
+        },
+        {
+          "id": "pos-checkout-non-client-member-error",
+          "name": "Selling to member with role != 'client' shows friendly toast (BAD_REQUEST)",
+          "actor": "tenant_admin",
+          "preconditions": [
+            "Phase 7.8 fix deployed: pos.service.ts returns typed BAD_REQUEST for non-client members",
+            "The admin member themselves has role='admin' and qualifies as the 'bad' actor — no special seeding needed"
+          ],
+          "steps": [
+            "Navigate to /dashboard/sales/create",
+            "Step 1: search and select the admin member (role=admin) via [data-testid='pos-member-search-input']",
+            "Add any item to cart",
+            "Attempt to complete sale via [data-testid='pos-complete-sale-button']"
+          ],
+          "assertions": [
+            "A toast or inline error appears with a friendly message (e.g., 'Sales can only be created for client members')",
+            "Toast does NOT show a raw server error or stack trace",
+            "The sale does NOT appear in /dashboard/sales/view (no orphan order created)",
+            "POS form remains open / does not navigate away"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"pos-member-search-input\"",
+            "data-testid=\"pos-complete-sale-button\"",
+            "data-testid=\"pos-error-toast\""
+          ],
+          "estimatedComplexity": "low"
+        },
+        {
+          "id": "pos-checkout-installment-schedule",
+          "name": "Installment plan POS path creates correct schedule (no drift)",
+          "actor": "tenant_admin",
+          "preconditions": [
+            "An installment plan configured in Settings with >= 2 installments",
+            "A role=client member in test tenant"
+          ],
+          "steps": [
+            "Navigate to /dashboard/sales/create",
+            "Select a client member",
+            "Select a service package supporting installment payment",
+            "Choose installment plan via [data-testid='pos-payment-method-installment']",
+            "Select the plan from [data-testid='pos-installment-plan-select']",
+            "Complete the sale",
+            "Navigate to the Installments tab in /dashboard/packages/view?tab=installments",
+            "Locate the newly created installments for this sale"
+          ],
+          "assertions": [
+            "Number of installment rows matches the plan's numInstallments (exactly — not N-1 or N+1)",
+            "Due dates follow the plan's schedule (first due = sale date; subsequent = monthly cadence)",
+            "Each installment's salesOrderId is populated (Phase 7.3 fix)",
+            "No schedule drift: if plan says 6 installments, exactly 6 rows exist"
+          ],
+          "requiredTestIds": [
+            "data-testid=\"pos-payment-method-installment\"",
+            "data-testid=\"pos-installment-plan-select\"",
+            "data-testid=\"pos-complete-sale-button\""
+          ],
+          "estimatedComplexity": "medium"
+        }
+      ]
+    }
+  ],
+  "agentNotes": {
+    "forAuditAgent": "CRITICAL: A codebase-wide grep for 'data-testid' in apps/web/src/ (excluding test files) returned ZERO matches in production components as of 2026-05-12. Every single data-testid listed in this plan must be ADDED by the EXECUTE phase before selectors can work. The AUDIT agent should verify: (1) each required data-testid has been added to the correct component, (2) the packages/instances/view redirect is in place (confirmed — uses makeTabRedirect), (3) CancelSaleDialog and salesOrders.cancel mutation are wired in sales/$id.tsx (confirmed by code inspection), (4) PayoutsKpiStrip / RunBatchDrawer components are not themselves stubs (verify by reading features/payouts/ directory), (5) AssignedPackagesTable in features/my-services/ is a real component not a placeholder, (6) earnReason field is surfaced in AllCommissionsPage column definitions.",
+    "blockers": [
+      "No data-testid attributes exist in any production component — EXECUTE phase must add them as first sub-task before writing any selectors.",
+      "Commission-rule journeys 2.1 and 2.2 require a seeded appointment in a specific status. No pre-seeded trainer member exists for E2E (franchisee@gmail.com is admin, not trainer). Requires e2e/helpers/seed-data.ts with createTestAppointment() before these specs can run.",
+      "Journey 1.1 (full onboarding submit) creates a real Better-Auth user — cleanup is required. Needs either a test-only DELETE endpoint or a CLI script (bun scripts/e2e-cleanup.ts) to be created in the EXECUTE phase.",
+      "Journey 3.3 (runBatch confirm) requires approved commission splits. Without a completed/cancelled appointment in the test tenant, there are no approved splits to batch. Depends on commission-rule seeding infrastructure.",
+      "Journey 6.4 (receipt fallback) requires a sale with deliberately missing receipt data. Hard to produce deterministically — recommend P2 deferral.",
+      "Journey 7.3 (installment schedule) requires an installment plan configured in Settings. If the test tenant has none, this journey will fail at the payment step with 'no plans available'."
+    ],
+    "assumptions": [
+      "Dev stack (bun dev) is running with real Neon DB connections for the test tenant during E2E runs.",
+      "auth.setup.ts auth state file (e2e/.auth/tenant-admin.json) is generated before any journey spec runs via Playwright project dependencies.",
+      "Test tenant 'Test Fitness Franchise' (ID: 996febce-aaad-4ded-8f47-02d2b566c8ee) has at least one hierarchy node, one service, one role=client member, and at least one confirmed sale — matching existing integration test setup in project memory.",
+      "EXECUTE phase will add data-testid attributes to components before writing selector code — not after.",
+      "packages/instances/view redirect is permanent; canonical route for session packs is /dashboard/packages/view?tab=session-packs.",
+      "The CancelInstanceDialog, FreezeInstanceDialog, and ExtendInstanceDialog components already exist in apps/web/src/features/packages/components/ (confirmed by import statements in instances-page.tsx).",
+      "The Cancel Sale dialog and mutation are wired in sales/$id.tsx (confirmed by code inspection — CancelSaleDialog at line 120+, useMutation at line 144+).",
+      "Payouts page is fully implemented (confirmed — imports PayoutsKpiStrip, PayoutsTable, RunBatchDrawer from @/features/payouts/)."
+    ],
+    "seedingRequiredVsNot": {
+      "achievableWithoutSeedHelpers": [
+        "payouts-kpi-mounts",
+        "payouts-run-batch-drawer",
+        "trainer-assigned-packages-tab-loads",
+        "package-lifecycle-cancel",
+        "package-lifecycle-freeze-unfreeze",
+        "package-lifecycle-extend",
+        "sales-cancellation-kpi-confirmed",
+        "sales-cancellation-cancel-sale",
+        "sales-cancellation-cancelled-list",
+        "pos-checkout-non-client-member-error"
+      ],
+      "requireSeedingInfrastructure": [
+        "branch-onboarding-full-submit",
+        "commission-rule-cancel-appointment",
+        "commission-rule-complete-appointment",
+        "commission-rule-pos-product-immediate-split",
+        "payouts-confirm-creates-row",
+        "trainer-assigned-packages-drawer",
+        "pos-checkout-package-salesorderid",
+        "pos-checkout-installment-schedule"
+      ]
+    }
+  }
+}

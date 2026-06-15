@@ -1,0 +1,8 @@
+{
+  "suppliers/suppliers.lifecycle.spec.ts::Supplier lifecycle — create, update, deactivate (API-verified)": [
+    "Create a supplier via suppliers/create and assert an id is returned",
+    "Fetch suppliers/getById and assert the stored name matches the created name",
+    "Update the supplier name via suppliers/update and assert getById reflects the edit",
+    "Deactivate the supplier via suppliers/deactivate and assert it is absent from the isActive:true list"
+  ]
+}

@@ -3,18 +3,19 @@ import { colors } from "@/lib/colors";
 import { client } from "@/utils/orpc";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { Image } from "expo-image";
 import {
 	ActivityIndicator,
 	Alert,
 	FlatList,
-	Image,
 	Modal,
 	Platform,
+	Pressable,
 	ScrollView,
+	StyleSheet,
 	Text,
 	TextInput,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -279,6 +280,58 @@ function FormInput({
 	);
 }
 
+const countryRowStyles = StyleSheet.create({
+	checkmark: { marginLeft: 8 },
+	rowBase: {
+		borderBottomColor: colors.secondary[3],
+		backgroundColor: "transparent",
+	},
+	rowSelected: {
+		borderBottomColor: colors.secondary[3],
+		backgroundColor: colors.secondary[3],
+	},
+});
+
+const CountryRow = memo(function CountryRow({
+	item,
+	isSelected,
+	onPick,
+}: {
+	item: CountryCode;
+	isSelected: boolean;
+	onPick: (code: CountryCode) => void;
+}) {
+	const handlePress = useCallback(() => onPick(item), [item, onPick]);
+	return (
+		<Pressable
+			onPress={handlePress}
+			className="mx-4 flex-row items-center border-b px-2 py-3"
+			style={
+				isSelected ? countryRowStyles.rowSelected : countryRowStyles.rowBase
+			}
+		>
+			<Text className="mr-3 text-2xl">{item.flag}</Text>
+			<Text className="flex-1 text-base" style={{ color: colors.primary[1] }}>
+				{item.name}
+			</Text>
+			<Text
+				className="font-medium text-sm"
+				style={{ color: colors.secondary[1] }}
+			>
+				{item.dialCode}
+			</Text>
+			{isSelected && (
+				<Ionicons
+					name="checkmark"
+					size={20}
+					color={colors.primary[1]}
+					style={countryRowStyles.checkmark}
+				/>
+			)}
+		</Pressable>
+	);
+});
+
 function CountryCodePicker({
 	selected,
 	onSelect,
@@ -292,23 +345,43 @@ function CountryCodePicker({
 }) {
 	const [search, setSearch] = useState("");
 
-	const filtered = search.trim()
-		? COUNTRY_CODES.filter(
-				(c) =>
-					c.name.toLowerCase().includes(search.toLowerCase()) ||
-					c.dialCode.includes(search) ||
-					c.code.toLowerCase().includes(search.toLowerCase()),
-			)
-		: COUNTRY_CODES;
+	const filtered = useMemo(
+		() =>
+			search.trim()
+				? COUNTRY_CODES.filter(
+						(c) =>
+							c.name.toLowerCase().includes(search.toLowerCase()) ||
+							c.dialCode.includes(search) ||
+							c.code.toLowerCase().includes(search.toLowerCase()),
+					)
+				: COUNTRY_CODES,
+		[search],
+	);
+
+	const handlePick = useCallback(
+		(country: CountryCode) => {
+			onSelect(country);
+			setSearch("");
+			onClose();
+		},
+		[onSelect, onClose],
+	);
+
+	const renderCountry = useCallback(
+		({ item }: { item: CountryCode }) => (
+			<CountryRow
+				item={item}
+				isSelected={selected.code === item.code}
+				onPick={handlePick}
+			/>
+		),
+		[selected.code, handlePick],
+	);
 
 	return (
 		<Modal visible={visible} animationType="slide" transparent>
 			<View className="flex-1 justify-end">
-				<TouchableOpacity
-					className="flex-1"
-					activeOpacity={1}
-					onPress={onClose}
-				/>
+				<Pressable className="flex-1" onPress={onClose} />
 				<View
 					className="rounded-t-3xl bg-primary-2"
 					style={{ maxHeight: "70%" }}
@@ -333,11 +406,7 @@ function CountryCodePicker({
 							className="flex-row items-center rounded-xl border bg-primary-3 px-3"
 							style={{ borderColor: colors.secondary[2] }}
 						>
-							<Ionicons
-								name="search"
-								size={18}
-								color={colors.secondary[1]}
-							/>
+							<Ionicons name="search" size={18} color={colors.secondary[1]} />
 							<TextInput
 								className="ml-2 flex-1 py-3 text-base"
 								style={{ color: colors.primary[1] }}
@@ -349,13 +418,13 @@ function CountryCodePicker({
 								autoCorrect={false}
 							/>
 							{search.length > 0 && (
-								<TouchableOpacity onPress={() => setSearch("")}>
+								<Pressable onPress={() => setSearch("")}>
 									<Ionicons
 										name="close-circle"
 										size={18}
 										color={colors.secondary[1]}
 									/>
-								</TouchableOpacity>
+								</Pressable>
 							)}
 						</View>
 					</View>
@@ -365,45 +434,7 @@ function CountryCodePicker({
 						data={filtered}
 						keyExtractor={(item) => item.code}
 						keyboardShouldPersistTaps="handled"
-						renderItem={({ item }) => (
-							<TouchableOpacity
-								onPress={() => {
-									onSelect(item);
-									setSearch("");
-									onClose();
-								}}
-								className="mx-4 flex-row items-center border-b px-2 py-3"
-								style={{
-									borderBottomColor: colors.secondary[3],
-									backgroundColor:
-										selected.code === item.code
-											? colors.secondary[3]
-											: "transparent",
-								}}
-							>
-								<Text className="mr-3 text-2xl">{item.flag}</Text>
-								<Text
-									className="flex-1 text-base"
-									style={{ color: colors.primary[1] }}
-								>
-									{item.name}
-								</Text>
-								<Text
-									className="font-medium text-sm"
-									style={{ color: colors.secondary[1] }}
-								>
-									{item.dialCode}
-								</Text>
-								{selected.code === item.code && (
-									<Ionicons
-										name="checkmark"
-										size={20}
-										color={colors.primary[1]}
-										style={{ marginLeft: 8 }}
-									/>
-								)}
-							</TouchableOpacity>
-						)}
+						renderItem={renderCountry}
 						ListEmptyComponent={
 							<Text
 								className="py-8 text-center text-sm"
@@ -444,7 +475,7 @@ function PhoneInput({
 				style={{ borderColor: error ? "#E53935" : colors.secondary[2] }}
 			>
 				{/* Country code selector */}
-				<TouchableOpacity
+				<Pressable
 					onPress={() => setPickerVisible(true)}
 					className="flex-row items-center border-r py-3 pl-4 pr-3"
 					style={{ borderRightColor: colors.secondary[2] }}
@@ -456,12 +487,8 @@ function PhoneInput({
 					>
 						{selectedCountry.dialCode}
 					</Text>
-					<Ionicons
-						name="chevron-down"
-						size={14}
-						color={colors.secondary[1]}
-					/>
-				</TouchableOpacity>
+					<Ionicons name="chevron-down" size={14} color={colors.secondary[1]} />
+				</Pressable>
 
 				{/* Phone number input */}
 				<TextInput
@@ -517,7 +544,6 @@ function PersonalDetailsStep({
 
 	return (
 		<>
-
 			<FormLabel text="First Name" required />
 			<FormInput
 				placeholder="First Name as per IC"
@@ -566,7 +592,7 @@ function PersonalDetailsStep({
 
 			<FormLabel text="Address Type" required />
 			<View className="mb-4 flex-row gap-4">
-				<TouchableOpacity
+				<Pressable
 					onPress={() => onChange({ addressType: "home" })}
 					className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl border p-3 ${
 						data.addressType === "home"
@@ -575,7 +601,7 @@ function PersonalDetailsStep({
 					} bg-primary-2`}
 				>
 					<View
-						className="h-5 w-5 items-center justify-center rounded-full border-2"
+						className="size-5 items-center justify-center rounded-full border-2"
 						style={{
 							borderColor:
 								data.addressType === "home"
@@ -585,7 +611,7 @@ function PersonalDetailsStep({
 					>
 						{data.addressType === "home" && (
 							<View
-								className="h-2.5 w-2.5 rounded-full"
+								className="size-2.5 rounded-full"
 								style={{ backgroundColor: colors.primary[1] }}
 							/>
 						)}
@@ -596,9 +622,9 @@ function PersonalDetailsStep({
 					>
 						Home
 					</Text>
-				</TouchableOpacity>
+				</Pressable>
 
-				<TouchableOpacity
+				<Pressable
 					onPress={() => onChange({ addressType: "work" })}
 					className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl border p-3 ${
 						data.addressType === "work"
@@ -607,7 +633,7 @@ function PersonalDetailsStep({
 					} bg-primary-2`}
 				>
 					<View
-						className="h-5 w-5 items-center justify-center rounded-full border-2"
+						className="size-5 items-center justify-center rounded-full border-2"
 						style={{
 							borderColor:
 								data.addressType === "work"
@@ -617,7 +643,7 @@ function PersonalDetailsStep({
 					>
 						{data.addressType === "work" && (
 							<View
-								className="h-2.5 w-2.5 rounded-full"
+								className="size-2.5 rounded-full"
 								style={{ backgroundColor: colors.primary[1] }}
 							/>
 						)}
@@ -628,7 +654,7 @@ function PersonalDetailsStep({
 					>
 						Work
 					</Text>
-				</TouchableOpacity>
+				</Pressable>
 			</View>
 
 			<FormLabel text="Street Address" required />
@@ -683,21 +709,17 @@ function PersonalDetailsStep({
 			</View>
 
 			<FormLabel text="Date of Birth" required />
-			<TouchableOpacity
+			<Pressable
 				onPress={() => setShowDatePicker(true)}
 				className="mb-4 rounded-xl border bg-primary-2 px-4 py-3"
 				style={{
-					borderColor: errors.dateOfBirth
-						? "#E53935"
-						: colors.secondary[2],
+					borderColor: errors.dateOfBirth ? "#E53935" : colors.secondary[2],
 				}}
 			>
 				<Text
 					className="text-base"
 					style={{
-						color: data.dateOfBirth
-							? colors.primary[1]
-							: colors.secondary[1],
+						color: data.dateOfBirth ? colors.primary[1] : colors.secondary[1],
 					}}
 				>
 					{data.dateOfBirth
@@ -708,12 +730,9 @@ function PersonalDetailsStep({
 							})
 						: "Select date of birth"}
 				</Text>
-			</TouchableOpacity>
+			</Pressable>
 			{errors.dateOfBirth && (
-				<Text
-					className="-mt-3 mb-4 text-xs"
-					style={{ color: "#E53935" }}
-				>
+				<Text className="-mt-3 mb-4 text-xs" style={{ color: "#E53935" }}>
 					{errors.dateOfBirth}
 				</Text>
 			)}
@@ -731,7 +750,7 @@ function PersonalDetailsStep({
 					}}
 				/>
 			)}
-						<TouchableOpacity
+			<Pressable
 				onPress={handleSignOut}
 				className="mb-4 self-start flex-row items-center gap-2 rounded-xl border border-red-400 bg-red-50 px-4 py-2"
 			>
@@ -739,7 +758,7 @@ function PersonalDetailsStep({
 				<Text className="text-sm font-medium" style={{ color: "#E53935" }}>
 					Sign Out
 				</Text>
-			</TouchableOpacity>
+			</Pressable>
 		</>
 	);
 }
@@ -801,10 +820,16 @@ function BranchSelectionStep({
 	data: BranchSelection;
 	onChange: (data: Partial<BranchSelection>) => void;
 	errors: Record<string, string>;
+	// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }) {
 	const [countries, setCountries] = useState<string[]>([]);
 	const [branches, setBranches] = useState<
-		{ id: string; name: string; address: string | null; organizationId: string }[]
+		{
+			id: string;
+			name: string;
+			address: string | null;
+			organizationId: string;
+		}[]
 	>([]);
 	const [loadingCountries, setLoadingCountries] = useState(true);
 	const [loadingBranches, setLoadingBranches] = useState(false);
@@ -827,6 +852,7 @@ function BranchSelectionStep({
 	}, []);
 
 	// Fetch branches when country changes
+	// react-doctor-disable-next-line react-doctor/no-cascading-set-state -- setters split across early-return, try success, catch, and finally branches of an async fetch; independent loading + data slices
 	useEffect(() => {
 		if (!data.country) {
 			setBranches([]);
@@ -852,7 +878,7 @@ function BranchSelectionStep({
 		return (
 			<View className="items-center py-8">
 				<ActivityIndicator size="large" color={colors.primary[1]} />
-				<Text className="mt-2 text-secondary-1">Loading countries...</Text>
+				<Text className="mt-2 text-secondary-1">Loading countries…</Text>
 			</View>
 		);
 	}
@@ -862,13 +888,13 @@ function BranchSelectionStep({
 			<FormLabel text="Country" required />
 			<View className="mb-6 flex-row flex-wrap justify-center gap-4">
 				{countries.map((country) => (
-					<TouchableOpacity
+					<Pressable
 						key={country}
 						onPress={() => {
 							onChange({ country, branchId: "", organizationId: "" });
 							setDropdownOpen(false);
 						}}
-						className={`items-center rounded-2xl border bg-primary-2 px-3 py-3 ${
+						className={`items-center rounded-2xl border bg-primary-2 p-3 ${
 							data.country === country
 								? "border-primary-1"
 								: "border-secondary-2"
@@ -884,7 +910,7 @@ function BranchSelectionStep({
 						>
 							{country}
 						</Text>
-					</TouchableOpacity>
+					</Pressable>
 				))}
 			</View>
 			{errors.country && (
@@ -907,7 +933,7 @@ function BranchSelectionStep({
 					) : (
 						<>
 							{/* Dropdown trigger */}
-							<TouchableOpacity
+							<Pressable
 								onPress={() => setDropdownOpen(!dropdownOpen)}
 								className={`mb-1 flex-row items-center justify-between rounded-xl border bg-primary-2 px-4 py-3 ${
 									errors.branchId
@@ -916,11 +942,7 @@ function BranchSelectionStep({
 											? "border-primary-1"
 											: "border-secondary-2"
 								}`}
-								style={
-									errors.branchId
-										? { borderColor: "#E53935" }
-										: undefined
-								}
+								style={errors.branchId ? { borderColor: "#E53935" } : undefined}
 							>
 								<Text
 									className="flex-1 text-base"
@@ -937,13 +959,13 @@ function BranchSelectionStep({
 									size={18}
 									color={colors.secondary[1]}
 								/>
-							</TouchableOpacity>
+							</Pressable>
 
 							{/* Dropdown list */}
 							{dropdownOpen && (
 								<View className="mb-1 overflow-hidden rounded-xl border border-secondary-2 bg-primary-2">
 									{branches.map((branch, index) => (
-										<TouchableOpacity
+										<Pressable
 											key={branch.id}
 											onPress={() => {
 												onChange({
@@ -985,7 +1007,7 @@ function BranchSelectionStep({
 													color={colors.primary[1]}
 												/>
 											)}
-										</TouchableOpacity>
+										</Pressable>
 									))}
 								</View>
 							)}
@@ -993,10 +1015,7 @@ function BranchSelectionStep({
 					)}
 
 					{errors.branchId && (
-						<Text
-							className="mt-1 text-xs"
-							style={{ color: "#E53935" }}
-						>
+						<Text className="mt-1 text-xs" style={{ color: "#E53935" }}>
 							{errors.branchId}
 						</Text>
 					)}
@@ -1008,13 +1027,22 @@ function BranchSelectionStep({
 
 // ─── Main Registration Form ──────────────────────────────────────
 
-export default function RegistrationForm() {
+// react-doctor-disable-next-line react-doctor/prefer-useReducer, react-doctor/no-giant-component -- prefer-useReducer: independent state vars with no cross-state transitions; no-giant-component: multi-step registration form with tight step+state coupling, needs further refactor PR
+interface RegistrationFormProps {
+	/** Branch self-signup invite token. Required by registration.complete to prevent cross-org joins. */
+	inviteToken?: string;
+}
+
+export default function RegistrationForm({
+	inviteToken = "",
+}: RegistrationFormProps) {
 	const { user, refetch } = useAuth();
 	const [currentStep, setCurrentStep] = useState(0);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [errors, setErrors] = useState<Record<string, string>>({});
 
-	const userFirstName = (user as { firstName?: string } | null)?.firstName || "";
+	const userFirstName =
+		(user as { firstName?: string } | null)?.firstName || "";
 	const userLastName = (user as { lastName?: string } | null)?.lastName || "";
 
 	const [personalDetails, setPersonalDetails] = useState<PersonalDetails>({
@@ -1032,7 +1060,11 @@ export default function RegistrationForm() {
 		dateOfBirth: null,
 	});
 
-	// Auto-fill user details once session loads
+	// Auto-fill user details once session loads. This is a sync to async session
+	// state, not an event handler — there is no user action to attach to. The
+	// `prev.x || ...` guard preserves any in-progress edits, so re-running on
+	// session refresh is safe and idempotent.
+	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- syncs async session into form state, not user-triggered
 	useEffect(() => {
 		if (user) {
 			setPersonalDetails((prev) => ({
@@ -1044,8 +1076,10 @@ export default function RegistrationForm() {
 		}
 	}, [user, userFirstName, userLastName]);
 
-	const [phoneCountry, setPhoneCountry] = useState<CountryCode>(getDefaultCountry);
-	const [emergencyPhoneCountry, setEmergencyPhoneCountry] = useState<CountryCode>(getDefaultCountry);
+	const [phoneCountry, setPhoneCountry] =
+		useState<CountryCode>(getDefaultCountry);
+	const [emergencyPhoneCountry, setEmergencyPhoneCountry] =
+		useState<CountryCode>(getDefaultCountry);
 
 	const [emergencyContact, setEmergencyContact] = useState<EmergencyContact>({
 		name: "",
@@ -1092,8 +1126,10 @@ export default function RegistrationForm() {
 			if (!emergencyContact.phone.trim())
 				newErrors.phone = "Emergency Contact No. is required";
 		} else if (step === 2) {
-			if (!branchSelection.country) newErrors.country = "Please select a country";
-			if (!branchSelection.branchId) newErrors.branchId = "Please select a branch";
+			if (!branchSelection.country)
+				newErrors.country = "Please select a country";
+			if (!branchSelection.branchId)
+				newErrors.branchId = "Please select a branch";
 		}
 
 		setErrors(newErrors);
@@ -1117,6 +1153,7 @@ export default function RegistrationForm() {
 		setIsSubmitting(true);
 		try {
 			await client.registration.complete({
+				inviteToken,
 				phone: `${phoneCountry.dialCode}${personalDetails.phone}`,
 				idPassportNo: personalDetails.idPassportNo,
 				addressType: personalDetails.addressType,
@@ -1156,233 +1193,228 @@ export default function RegistrationForm() {
 	};
 
 	return (
-		<SafeAreaView edges={["top"]} className="flex-1 bg-secondary-3">
+		<View className="flex-1 bg-secondary-3">
 			<ScrollView
 				className="flex-1 bg-secondary-3"
 				contentContainerStyle={{ paddingBottom: 120 }}
+				contentInsetAdjustmentBehavior="automatic"
 				keyboardShouldPersistTaps="handled"
 				showsVerticalScrollIndicator={false}
 				automaticallyAdjustKeyboardInsets
 			>
-					{/* Header */}
-					<View className="items-center px-4 pt-4 pb-2">
-						<Image
-							source={require("../assets/images/Logo-B.png")}
-							className="mb-2 h-12 w-12"
-							resizeMode="contain"
-						/>
-						<Text className="font-bold text-2xl text-primary-1">
-							User Registration
-						</Text>
-					</View>
+				{/* Header */}
+				<View className="items-center px-4 pt-4 pb-2">
+					<Image
+						source={require("../assets/images/Logo-B.png")}
+						className="mb-2 size-12"
+						contentFit="contain"
+					/>
+					<Text className="font-bold text-2xl text-primary-1">
+						User Registration
+					</Text>
+				</View>
 
-					<View className="px-4 pb-6">
-						{/* Progress Indicator */}
-						<View className="mb-6">
-							<View className="mb-2 flex-row items-center justify-between">
-								<Text className="font-semibold text-primary-1 text-sm">
-									Step {currentStep + 1} of {totalSteps}
-								</Text>
-								<Text className="font-semibold text-primary-1 text-sm">
-									{progressPercentage}%
-								</Text>
-							</View>
-
-							{/* Progress Bar */}
-							<View
-								className="mb-4 h-2 overflow-hidden rounded-full"
-								style={{ backgroundColor: colors.secondary[2] }}
-							>
-								<View
-									className="h-full rounded-full"
-									style={{
-										width: `${progressPercentage}%`,
-										backgroundColor: colors.primary[1],
-									}}
-								/>
-							</View>
-
-							{/* Step Navigation */}
-							<View className="relative" style={{ height: 50 }}>
-								{/* Connector line */}
-								<View
-									className="absolute rounded-full"
-									style={{
-										left: "15%",
-										right: "14%",
-										top: "24%",
-										height: 2,
-										backgroundColor: colors.secondary[2],
-										zIndex: 0,
-									}}
-								/>
-								{/* Steps */}
-								<View className="absolute inset-0 flex-row items-center justify-between">
-									{STEPS.map((step, index) => (
-										<View
-											key={step.number}
-											className="items-center justify-center"
-											style={{ flex: 1, zIndex: 1 }}
-										>
-											{index <= currentStep ? (
-												<View className="mb-1 items-center justify-center">
-													<View
-														className="h-7 w-7 items-center justify-center rounded-full border-2 border-primary-1"
-														style={{
-															backgroundColor:
-																index === currentStep
-																	? colors.primary[1]
-																	: colors.primary[2],
-															zIndex: 2,
-														}}
-													>
-														{index < currentStep ? (
-															<Ionicons
-																name="checkmark"
-																size={14}
-																color={colors.primary[1]}
-															/>
-														) : (
-															<View
-																className="h-2 w-2 rounded-full"
-																style={{
-																	backgroundColor: colors.primary[2],
-																}}
-															/>
-														)}
-													</View>
-												</View>
-											) : (
-												<View className="mb-1 items-center justify-center">
-													<View
-														className="h-7 w-7 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
-														style={{ zIndex: 2 }}
-													>
-														<Text className="font-semibold text-primary-1 text-xs">
-															{step.number}
-														</Text>
-													</View>
-												</View>
-											)}
-											<Text
-												className={`mt-1 text-center text-xs ${
-													index === currentStep
-														? "font-bold"
-														: "font-medium"
-												}`}
-												style={{
-													color:
-														index <= currentStep
-															? colors.primary[1]
-															: colors.secondary[1],
-												}}
-											>
-												{step.label}
-											</Text>
-										</View>
-									))}
-								</View>
-							</View>
+				<View className="px-4 pb-6">
+					{/* Progress Indicator */}
+					<View className="mb-6">
+						<View className="mb-2 flex-row items-center justify-between">
+							<Text className="font-semibold text-primary-1 text-sm">
+								Step {currentStep + 1} of {totalSteps}
+							</Text>
+							<Text className="font-semibold text-primary-1 text-sm">
+								{progressPercentage}%
+							</Text>
 						</View>
 
-						{/* Section Title */}
-						<Text
-							className="mb-4 font-bold text-sm uppercase tracking-wide"
-							style={{ color: colors.primary[1] }}
+						{/* Progress Bar */}
+						<View
+							className="mb-4 h-2 overflow-hidden rounded-full"
+							style={{ backgroundColor: colors.secondary[2] }}
 						>
-							{currentStep === 0
-								? "PERSONAL DETAILS"
-								: currentStep === 1
-									? "EMERGENCY CONTACT"
-									: "SELECT PREFERRED LOCATION"}
-						</Text>
+							<View
+								className="h-full rounded-full"
+								style={{
+									width: `${progressPercentage}%`,
+									backgroundColor: colors.primary[1],
+								}}
+							/>
+						</View>
 
-						{/* Form Card */}
-						<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
-							{currentStep === 0 && (
-								<PersonalDetailsStep
-									data={personalDetails}
-									onChange={(d) =>
-										setPersonalDetails((prev) => ({ ...prev, ...d }))
-									}
-									errors={errors}
-									phoneCountry={phoneCountry}
-									onPhoneCountryChange={setPhoneCountry}
-								/>
-							)}
-
-							{currentStep === 1 && (
-								<EmergencyContactStep
-									data={emergencyContact}
-									onChange={(d) =>
-										setEmergencyContact((prev) => ({ ...prev, ...d }))
-									}
-									errors={errors}
-									phoneCountry={emergencyPhoneCountry}
-									onPhoneCountryChange={setEmergencyPhoneCountry}
-								/>
-							)}
-
-							{currentStep === 2 && (
-								<BranchSelectionStep
-									data={branchSelection}
-									onChange={(d) =>
-										setBranchSelection((prev) => ({ ...prev, ...d }))
-									}
-									errors={errors}
-								/>
-							)}
+						{/* Step Navigation */}
+						<View className="relative" style={{ height: 50 }}>
+							{/* Connector line */}
+							<View
+								className="absolute rounded-full"
+								style={{
+									left: "15%",
+									right: "14%",
+									top: "24%",
+									height: 2,
+									backgroundColor: colors.secondary[2],
+									zIndex: 0,
+								}}
+							/>
+							{/* Steps */}
+							<View className="absolute inset-0 flex-row items-center justify-between">
+								{STEPS.map((step, index) => (
+									<View
+										key={step.number}
+										className="items-center justify-center"
+										style={{ flex: 1, zIndex: 1 }}
+									>
+										{index <= currentStep ? (
+											<View className="mb-1 items-center justify-center">
+												<View
+													className="size-7 items-center justify-center rounded-full border-2 border-primary-1"
+													style={{
+														backgroundColor:
+															index === currentStep
+																? colors.primary[1]
+																: colors.primary[2],
+														zIndex: 2,
+													}}
+												>
+													{index < currentStep ? (
+														<Ionicons
+															name="checkmark"
+															size={14}
+															color={colors.primary[1]}
+														/>
+													) : (
+														<View
+															className="size-2 rounded-full"
+															style={{
+																backgroundColor: colors.primary[2],
+															}}
+														/>
+													)}
+												</View>
+											</View>
+										) : (
+											<View className="mb-1 items-center justify-center">
+												<View
+													className="size-7 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
+													style={{ zIndex: 2 }}
+												>
+													<Text className="font-semibold text-primary-1 text-xs">
+														{step.number}
+													</Text>
+												</View>
+											</View>
+										)}
+										<Text
+											className={`mt-1 text-center text-xs ${
+												index === currentStep ? "font-bold" : "font-medium"
+											}`}
+											style={{
+												color:
+													index <= currentStep
+														? colors.primary[1]
+														: colors.secondary[1],
+											}}
+										>
+											{step.label}
+										</Text>
+									</View>
+								))}
+							</View>
 						</View>
 					</View>
-				</ScrollView>
 
-				{/* Bottom Navigation */}
-				<SafeAreaView
-					edges={["bottom"]}
-					className="border-secondary-3 border-t bg-primary-2"
-				>
-					<View className="flex-row gap-3 px-4 py-4">
-						{currentStep > 0 && (
-							<TouchableOpacity
-								onPress={handlePrev}
-								className="flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-primary-1 py-4"
-							>
-								<Ionicons
-									name="arrow-back"
-									size={18}
-									color={colors.primary[1]}
-								/>
-								<Text className="font-semibold text-base text-primary-1">
-									Back
-								</Text>
-							</TouchableOpacity>
+					{/* Section Title */}
+					<Text
+						className="mb-4 font-bold text-sm uppercase tracking-wide"
+						style={{ color: colors.primary[1] }}
+					>
+						{currentStep === 0
+							? "PERSONAL DETAILS"
+							: currentStep === 1
+								? "EMERGENCY CONTACT"
+								: "SELECT PREFERRED LOCATION"}
+					</Text>
+
+					{/* Form Card */}
+					<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
+						{currentStep === 0 && (
+							<PersonalDetailsStep
+								data={personalDetails}
+								onChange={(d) =>
+									setPersonalDetails((prev) => ({ ...prev, ...d }))
+								}
+								errors={errors}
+								phoneCountry={phoneCountry}
+								onPhoneCountryChange={setPhoneCountry}
+							/>
 						)}
 
-						<TouchableOpacity
-							onPress={currentStep === 2 ? handleSubmit : handleNext}
-							disabled={isSubmitting}
-							className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-primary-1 py-4"
-							style={{ opacity: isSubmitting ? 0.6 : 1 }}
-						>
-							{isSubmitting ? (
-								<ActivityIndicator size="small" color={colors.primary[2]} />
-							) : (
-								<>
-									<Text className="font-semibold text-base text-primary-2">
-										{currentStep === 2 ? "Submit" : "Continue"}
-									</Text>
-									{currentStep < 2 && (
-										<Ionicons
-											name="arrow-forward"
-											size={18}
-											color={colors.primary[2]}
-										/>
-									)}
-								</>
-							)}
-						</TouchableOpacity>
+						{currentStep === 1 && (
+							<EmergencyContactStep
+								data={emergencyContact}
+								onChange={(d) =>
+									setEmergencyContact((prev) => ({ ...prev, ...d }))
+								}
+								errors={errors}
+								phoneCountry={emergencyPhoneCountry}
+								onPhoneCountryChange={setEmergencyPhoneCountry}
+							/>
+						)}
+
+						{currentStep === 2 && (
+							<BranchSelectionStep
+								data={branchSelection}
+								onChange={(d) =>
+									setBranchSelection((prev) => ({ ...prev, ...d }))
+								}
+								errors={errors}
+							/>
+						)}
 					</View>
-				</SafeAreaView>
-		</SafeAreaView>
+				</View>
+			</ScrollView>
+
+			{/* Bottom Navigation */}
+			<SafeAreaView
+				edges={["bottom"]}
+				className="border-secondary-3 border-t bg-primary-2"
+			>
+				<View className="flex-row gap-3 p-4">
+					{currentStep > 0 && (
+						<Pressable
+							onPress={handlePrev}
+							className="flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-primary-1 py-4"
+						>
+							<Ionicons name="arrow-back" size={18} color={colors.primary[1]} />
+							<Text className="font-semibold text-base text-primary-1">
+								Back
+							</Text>
+						</Pressable>
+					)}
+
+					<Pressable
+						onPress={currentStep === 2 ? handleSubmit : handleNext}
+						disabled={isSubmitting}
+						className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-primary-1 py-4"
+						style={{ opacity: isSubmitting ? 0.6 : 1 }}
+					>
+						{isSubmitting ? (
+							<ActivityIndicator size="small" color={colors.primary[2]} />
+						) : (
+							<>
+								<Text className="font-semibold text-base text-primary-2">
+									{currentStep === 2 ? "Submit" : "Continue"}
+								</Text>
+								{currentStep < 2 && (
+									<Ionicons
+										name="arrow-forward"
+										size={18}
+										color={colors.primary[2]}
+									/>
+								)}
+							</>
+						)}
+					</Pressable>
+				</View>
+			</SafeAreaView>
+		</View>
 	);
 }

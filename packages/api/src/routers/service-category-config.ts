@@ -11,8 +11,8 @@ import { serviceCategoryConfig } from "@avantej-core/db/schema/tenant/service-ca
 import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
-import { requirePermission } from "@avantej-core/services";
+import { tenantProcedure } from "../index";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 
 export const serviceCategoryConfigRouter = {
 	/**
@@ -20,46 +20,62 @@ export const serviceCategoryConfigRouter = {
 	 *
 	 * Creates or updates based on category_id uniqueness.
 	 */
-	upsert: protectedProcedure
+	upsert: tenantProcedure
 		.input(
-			z.object({
-				organizationId: z.string().uuid(),
-				categoryId: z.string().uuid(),
-				// Default values for services in this category
-				defaultDuration: z.number().int().min(1).nullable().optional(),
-				defaultMaxAttendees: z.number().int().min(0).nullable().optional(),
-				// Booking rules
-				requireAdvanceBooking: z.boolean().optional(),
-				minAdvanceHours: z.number().int().min(0).nullable().optional(),
-				// Cancellation rules
-				enableCancellationWindow: z.boolean().optional(),
-				cancellationCutoffHours: z.number().int().min(0).nullable().optional(),
-				bufferTimeMinutes: z.number().int().min(0).max(480).optional(),
-			})
+			z
+				.object({
+					organizationId: z.string().uuid(),
+					categoryId: z.string().uuid(),
+					// Default values for services in this category
+					defaultDuration: z.number().int().min(1).nullable().optional(),
+					defaultMaxAttendees: z.number().int().min(0).nullable().optional(),
+					// Booking rules
+					requireAdvanceBooking: z.boolean().optional(),
+					minAdvanceHours: z.number().int().min(0).nullable().optional(),
+					// Cancellation rules
+					enableCancellationWindow: z.boolean().optional(),
+					cancellationCutoffHours: z
+						.number()
+						.int()
+						.min(0)
+						.nullable()
+						.optional(),
+					bufferTimeMinutes: z.number().int().min(0).max(480).optional(),
+				})
+				.refine(
+					(data) => {
+						// F-SVC-08: a buffer longer than the booking itself is invalid.
+						// This config row does not know a concrete service's duration, but when a
+						// category defaultDuration is set the buffer must not exceed it. When no
+						// defaultDuration is set we fall back to the absolute .max(480) cap above.
+						// Limitation: services that override the category default with a shorter
+						// duration are not validated here (no service duration in this context).
+						if (
+							data.defaultDuration != null &&
+							data.bufferTimeMinutes != null &&
+							data.bufferTimeMinutes > data.defaultDuration
+						) {
+							return false;
+						}
+						return true;
+					},
+					{
+						message:
+							"bufferTimeMinutes must not exceed the category defaultDuration.",
+						path: ["bufferTimeMinutes"],
+					},
+				),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			// Check for service_management create or update permission
+			assertOrgContextMatch(context, input);
 			let hasPermission = false;
 			for (const action of ["create", "update"] as const) {
 				try {
-					await requirePermission(
+					await requirePermissionOrpc(
 						context.tenantDb,
 						context.member,
 						"service_management",
-						action
+						action,
 					);
 					hasPermission = true;
 					break;
@@ -69,7 +85,8 @@ export const serviceCategoryConfigRouter = {
 			}
 			if (!hasPermission) {
 				throw new ORPCError("FORBIDDEN", {
-					message: "Permission denied: requires service_management create or update",
+					message:
+						"Permission denied: requires service_management create or update",
 				});
 			}
 
@@ -111,39 +128,21 @@ export const serviceCategoryConfigRouter = {
 	 * Get config for a specific category.
 	 * Returns the config row or null if not yet configured.
 	 */
-	getByCategoryId: protectedProcedure
+	getByCategoryId: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				categoryId: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"service_management",
-					"read"
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"service_management",
+				"read",
+			);
 
 			const row = await context.tenantDb.query.serviceCategoryConfig.findFirst({
 				where: eq(serviceCategoryConfig.categoryId, input.categoryId),

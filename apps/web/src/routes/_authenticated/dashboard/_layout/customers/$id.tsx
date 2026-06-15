@@ -8,8 +8,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { ArrowLeft, PauseCircle } from "lucide-react";
 import { useState } from "react";
+import { MagicLinkActions } from "@/components/customers/customer-360/magic-link-actions";
 import { PackageRow } from "@/components/customers/customer-360/package-row";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -18,22 +20,30 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserContext } from "@/hooks/useUserContext";
 import { formatPrice } from "@/lib/money";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { AppointmentsTab } from "@/features/customers-detail/components/AppointmentsTab";
 import { FreezeMembershipDialog } from "@/features/customers-detail/components/FreezeMembershipDialog";
 import { HouseholdSection } from "@/features/customers-detail/components/HouseholdSection";
 import { KpiCard } from "@/features/customers-detail/components/KpiCard";
 import { LeadSourceSection } from "@/features/customers-detail/components/LeadSourceSection";
+import { LogsTab } from "@/features/customers-detail/components/LogsTab";
 import { OverviewTab } from "@/features/customers-detail/components/OverviewTab";
 import { PageSkeleton } from "@/features/customers-detail/components/PageSkeleton";
 import { PaymentsTab } from "@/features/customers-detail/components/PaymentsTab";
-import { getInitials, memberStatusVariant, formatDate } from "@/features/customers-detail/utils";
+import {
+	getInitials,
+	memberStatusVariant,
+	formatDate,
+} from "@/features/customers-detail/utils";
 
 // ─── Route ─────────────────────────────────────────────────────────────────────
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/customers/$id",
 )({
+	beforeLoad: async () => {
+		await requirePermission("customer_management:read");
+	},
 	component: Customer360Page,
 });
 
@@ -61,12 +71,9 @@ function Customer360Page() {
 		isLoading,
 		error,
 	} = useQuery({
-		queryKey: ["customerDirectory", "detail", organizationId, id],
-		queryFn: () =>
-			client.customerDirectory.getById({
-				organizationId: organizationId!,
-				memberId: id,
-			}),
+		...orpc.customerDirectory.getById.queryOptions({
+			input: { organizationId: organizationId!, memberId: id },
+		}),
 		enabled: !!organizationId && canRead && idIsValid,
 		staleTime: 60_000,
 		retry: (failureCount, err) => {
@@ -86,37 +93,18 @@ function Customer360Page() {
 
 	// ── Upcoming appointments (overview tab) ───────────────────────────────
 	const { data: upcomingAppts } = useQuery({
-		queryKey: [
-			"appointments",
-			"upcoming",
-			organizationId,
-			detail?.member.userId,
-		],
-		queryFn: () =>
-			client.appointments.list({
-				organizationId: organizationId!,
-				clientUserId: detail!.member.userId,
-				status: "confirmed",
-				limit: 3,
-			} as any),
+		...orpc.appointments.list.queryOptions({
+			input: { organizationId: organizationId!, status: "confirmed", limit: 3 },
+		}),
 		enabled: !!organizationId && !!detail?.member.userId,
 		staleTime: 60_000,
 	});
 
 	// ── All appointments (appointments tab) ────────────────────────────────
 	const { data: allAppts } = useQuery({
-		queryKey: [
-			"appointments",
-			"all",
-			organizationId,
-			detail?.member.userId,
-		],
-		queryFn: () =>
-			client.appointments.list({
-				organizationId: organizationId!,
-				clientUserId: detail!.member.userId,
-				limit: 50,
-			} as any),
+		...orpc.appointments.list.queryOptions({
+			input: { organizationId: organizationId!, limit: 50 },
+		}),
 		enabled: !!organizationId && !!detail?.member.userId,
 		staleTime: 60_000,
 	});
@@ -152,7 +140,13 @@ function Customer360Page() {
 					</AlertDescription>
 				</Alert>
 				<Button variant="outline" asChild>
-					<Link to="/dashboard/customers/view" search={{ tab: "registered" } as any}>
+					<Link
+						to="/dashboard/customers/v2/view"
+						search={(_prev) => ({
+							customer: undefined,
+							showDeleted: undefined,
+						})}
+					>
 						<ArrowLeft className="mr-2 h-4 w-4" />
 						Back to Customers
 					</Link>
@@ -166,8 +160,7 @@ function Customer360Page() {
 	if (error || !detail) {
 		const isNotFound =
 			error instanceof Error &&
-			(error.message.includes("NOT_FOUND") ||
-				error.message.includes("404"));
+			(error.message.includes("NOT_FOUND") || error.message.includes("404"));
 		return (
 			<div className="flex min-h-96 flex-col items-center justify-center gap-4 p-6">
 				<Alert variant="destructive" className="max-w-md">
@@ -178,7 +171,13 @@ function Customer360Page() {
 					</AlertDescription>
 				</Alert>
 				<Button variant="outline" asChild>
-					<Link to="/dashboard/customers/view" search={{ tab: "registered" } as any}>
+					<Link
+						to="/dashboard/customers/v2/view"
+						search={(_prev) => ({
+							customer: undefined,
+							showDeleted: undefined,
+						})}
+					>
 						<ArrowLeft className="mr-2 h-4 w-4" />
 						Back to Customers
 					</Link>
@@ -189,8 +188,20 @@ function Customer360Page() {
 
 	// ── Derived values ─────────────────────────────────────────────────────
 
-	const { member, user, profile, packageInstances, recentPayments, appointmentCount, outstandingBalanceCents } = detail;
-	const activePackageCount = packageInstances.filter((p) => p.status === "active").length;
+	const {
+		member,
+		user,
+		profile,
+		primaryStaffMember,
+		referrerMember,
+		packageInstances,
+		recentPayments,
+		appointmentCount,
+		outstandingBalanceCents,
+	} = detail;
+	const activePackageCount = packageInstances.filter(
+		(p) => p.status === "active",
+	).length;
 	const initials = getInitials(user.name ?? "?");
 
 	// ── Render ─────────────────────────────────────────────────────────────
@@ -199,7 +210,10 @@ function Customer360Page() {
 		<div className="space-y-6 p-6">
 			{/* Back navigation */}
 			<Button variant="ghost" size="sm" asChild className="-ml-1">
-				<Link to="/dashboard/customers/view" search={{ tab: "registered" } as any}>
+				<Link
+					to="/dashboard/customers/v2/view"
+					search={(_prev) => ({ customer: undefined, showDeleted: undefined })}
+				>
 					<ArrowLeft className="mr-1 h-4 w-4" />
 					Customers
 				</Link>
@@ -219,13 +233,21 @@ function Customer360Page() {
 					</div>
 					<p className="text-muted-foreground text-sm">{user.email}</p>
 					{profile?.phone && (
-						<p className="text-muted-foreground text-sm">
-							{profile.phone}
-						</p>
+						<p className="text-muted-foreground text-sm">{profile.phone}</p>
 					)}
 					<p className="text-muted-foreground text-xs">
 						Joined {formatDate(member.joinedAt)}
 					</p>
+					{organizationId && profile?.id && (
+						<div className="pt-2">
+							<MagicLinkActions
+								organizationId={organizationId}
+								customerProfileId={profile.id}
+								customerEmail={user.email}
+								isUnclaimed={profile.isUnclaimed ?? false}
+							/>
+						</div>
+					)}
 				</div>
 				{/* === 3.1 membership freeze === */}
 				<div className="flex shrink-0 items-start gap-2">
@@ -253,7 +275,8 @@ function Customer360Page() {
 					packages={packageInstances.map((p) => ({
 						id: p.id,
 						status: p.status,
-						serviceName: (p as { serviceName?: string | null }).serviceName ?? null,
+						serviceName:
+							(p as { serviceName?: string | null }).serviceName ?? null,
 					}))}
 				/>
 			)}
@@ -264,6 +287,8 @@ function Customer360Page() {
 				organizationId={organizationId}
 				targetUserId={member.userId}
 				profile={profile ?? null}
+				primaryStaffMember={primaryStaffMember ?? null}
+				referrerMember={referrerMember ?? null}
 				canEdit={canFreeze}
 			/>
 			{/* === /3.2 === */}
@@ -278,7 +303,11 @@ function Customer360Page() {
 
 			{/* ── KPI Strip ──────────────────────────────────────────────── */}
 			<div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-				<KpiCard label="LTV" value="N/A" valueClassName="text-muted-foreground" />
+				<KpiCard
+					label="LTV"
+					value="N/A"
+					valueClassName="text-muted-foreground"
+				/>
 				<KpiCard
 					label="Outstanding"
 					value={formatPrice(outstandingBalanceCents, "MYR")}
@@ -302,6 +331,7 @@ function Customer360Page() {
 					</TabsTrigger>
 					<TabsTrigger value="payments">Payments</TabsTrigger>
 					<TabsTrigger value="appointments">Appointments</TabsTrigger>
+					<TabsTrigger value="logs">Logs</TabsTrigger>
 				</TabsList>
 
 				{/* ── Overview tab ───────────────────────────────────────── */}
@@ -341,6 +371,15 @@ function Customer360Page() {
 				{/* ── Appointments tab ─────────────────────────────────────── */}
 				<TabsContent value="appointments" className="mt-4">
 					<AppointmentsTab allAppts={allAppts} />
+				</TabsContent>
+
+				{/* ── Logs tab ─────────────────────────────────────────────── */}
+				<TabsContent value="logs" className="mt-4">
+					<LogsTab
+						organizationId={organizationId}
+						memberId={member.id}
+						memberUserId={member.userId}
+					/>
 				</TabsContent>
 			</Tabs>
 		</div>

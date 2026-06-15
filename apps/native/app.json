@@ -12,29 +12,34 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.avantej.app",
       "buildNumber": "1",
-      "infoPlist": {
-        "UIBackgroundModes": [
-          "remote-notification"
-        ],
-        "ITSAppUsesNonExemptEncryption": false
-      },
-      "entitlements": {
-        "aps-environment": "production"
-      }
+      "associatedDomains": ["applinks:app.avantej.com"]
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF",
+        "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "softwareKeyboardLayoutMode": "resize",
+      "softwareKeyboardLayoutMode": "adjustResize",
       "predictiveBackGestureEnabled": false,
       "package": "com.avantej.app",
       "versionCode": 1,
-      "googleServicesFile": "./google-services.json"
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "app.avantej.com",
+              "pathPrefix": "/onboarding"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "output": "static",
@@ -42,7 +47,6 @@
     },
     "plugins": [
       "expo-router",
-      "expo-notifications",
       [
         "expo-splash-screen",
         {
@@ -55,8 +59,8 @@
           }
         }
       ],
-      "@react-native-community/datetimepicker",
-      "expo-asset"
+      "expo-asset",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -65,15 +69,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "5bec2fe8-4f3d-4138-9fd0-a90886480209"
+        "projectId": "5a313f96-b7c5-43c6-87cd-c6a526474cd3"
       }
     },
-    "owner": "avantejdevelopers-organization",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/5bec2fe8-4f3d-4138-9fd0-a90886480209"
-    }
+    "owner": "wilfredfoo96"
   }
 }

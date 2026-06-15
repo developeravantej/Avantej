@@ -1,14 +1,12 @@
 # zplan/ Audit Ledger
 
-**Last run:** 2026-05-13 23:25
-**Sessions audited:** 1
-**Clean:** 0 · **Needs attention:** 1 · **Critical:** 0
+**Last run:** 2026-05-27 17:30
+**Sessions audited:** 0
+**Clean:** 0 · **Needs attention:** 0 · **Critical:** 0
 
 ## Sessions
 
-| Status | Session | Summary | Report |
-|--------|---------|---------|--------|
-| 🟡 needs-attention | `05-13_22-30_push-notifications` | 8/8 sections, 0 broken refs, 0 missing impact, 3 open TODO markers, not executed | [report](05-13_22-30_push-notifications/audit/report.md) |
+_No active sessions to audit. Run `/audit` to scan again, or `/audit --all` to include every active session._
 
 ## How to act on this
 

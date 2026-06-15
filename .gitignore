@@ -28,6 +28,9 @@ build
 # Logs
 logs
 *.log
+
+# Playwright artifacts (root-level test-results from running specs at repo root)
+test-results/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -43,9 +46,19 @@ lerna-debug.log*
 # Testing
 coverage
 .nyc_output
+# Playwright artifacts (test-results, traces, screenshots) and auth state
+test-results/
+playwright-report/
+e2e/.auth/
+# Journey-suite run artifacts (transient traces/videos) + login storageState (cookies).
+# The curated review bundle under e2e/journeys/review/ IS committed; these are not.
+e2e/journeys/.results/
+e2e/journeys/.auth/
 
 # Local Claude settings
-.claude/
+.claude/worktrees/
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
 
 # Misc
 *.tgz
@@ -63,13 +76,48 @@ Backup/*.json
 Backup/
 newmd/
 Plan/
-zplan/
-zhub/
-zmemory/
-zsession/
-zdocs/
 
-# Apple push / signing keys
-*.p8
-*.p12
-*.mobileprovision
+# Skill installer fan-out dirs from non-Claude AI tools.
+# Each holds a duplicate react-doctor/SKILL.md copy that Claude Code
+# does not read. Keep .claude/ only.
+.agents/
+.codebuddy/
+.commandcode/
+.continue/
+.crush/
+.cursor/
+.factory/
+.goose/
+.junie/
+.kilocode/
+.kiro/
+.kode/
+.mcpjam/
+.mux/
+.neovate/
+.openhands/
+.playwright-mcp/
+.pochi/
+.qoder/
+.qwen/
+.roo/
+.trae/
+.windsurf/
+.zencoder/
+# /e2e skill review-suite artifacts (commit the suite: specs/journeys/strategy/
+# review.html/config/scripts; ignore all recorded run output regardless of nesting)
+_e2e/**/.auth/
+_e2e/**/results/
+_e2e/**/videos/
+_e2e/**/evidence/
+_e2e/**/test-artifacts/
+_e2e/run-logs/
+_e2e/loop/server.json
+_e2e/*-parts/
+# Artifact file types anywhere under _e2e (videos, traces, screenshots, run logs)
+_e2e/**/*.webm
+_e2e/**/*.zip
+_e2e/**/*.png
+_e2e/**/*.log
+_e2e/**/*.txt
+_e2e/results/report-*.json

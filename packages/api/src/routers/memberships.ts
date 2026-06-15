@@ -11,14 +11,19 @@
 
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import type { Context } from "../context";
 import {
 	cancelMembershipHold,
 	freezeMembership,
 	listHoldsForPackage,
 	resumeMembership,
 } from "@avantej-core/services/membership.service";
-import { requirePermission } from "@avantej-core/services";
+import {
+	requirePermissionOrpc,
+	assertTenantContext,
+	assertOrgContextMatch,
+} from "../guards";
 
 const FreezeReasonEnum = z.enum(["medical", "travel", "other"]);
 
@@ -29,42 +34,32 @@ function ensureCtx(context: {
 	tenantDb: NonNullable<typeof context.tenantDb>;
 	member: NonNullable<typeof context.member> & { userId: string };
 } {
-	if (!context.tenantDb) {
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message:
-				"Tenant database not available. Ensure organization context is set.",
-		});
-	}
-	if (!context.member) {
+	assertTenantContext(context as Parameters<typeof assertTenantContext>[0]);
+	if (!context.member?.userId) {
 		throw new ORPCError("FORBIDDEN", {
-			message: "User is not a member of this organization",
+			message: "Member userId is required",
 		});
 	}
 }
 
 async function checkPermission(
-	context: { tenantDb: unknown; member: unknown },
+	context: Context,
 	action: "create" | "update" | "read",
 ) {
-	try {
-		await requirePermission(
-			// biome-ignore lint/suspicious/noExplicitAny: ctx types are constrained at call site
-			context.tenantDb as any,
-			// biome-ignore lint/suspicious/noExplicitAny: ctx types are constrained at call site
-			context.member as any,
-			"customer_management",
-			action,
-		);
-	} catch (error) {
-		throw new ORPCError("FORBIDDEN", {
-			message: error instanceof Error ? error.message : "Permission denied",
-		});
+	if (!context.tenantDb || !context.member) {
+		throw new ORPCError("FORBIDDEN");
 	}
+	await requirePermissionOrpc(
+		context.tenantDb,
+		context.member,
+		"customer_management",
+		action,
+	);
 }
 
 export const membershipsRouter = {
 	/** Freeze a customer's package (medical / travel / other). */
-	freeze: protectedProcedure
+	freeze: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -78,6 +73,7 @@ export const membershipsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "update");
 
@@ -100,7 +96,9 @@ export const membershipsRouter = {
 				});
 			} catch (error) {
 				const msg =
-					error instanceof Error ? error.message : "Failed to freeze membership";
+					error instanceof Error
+						? error.message
+						: "Failed to freeze membership";
 				if (msg.includes("not found")) {
 					throw new ORPCError("NOT_FOUND", { message: msg });
 				}
@@ -112,7 +110,7 @@ export const membershipsRouter = {
 		}),
 
 	/** Manually resume a frozen package (front-desk action; cron also calls service). */
-	resume: protectedProcedure
+	resume: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -121,6 +119,7 @@ export const membershipsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "update");
 
@@ -131,7 +130,9 @@ export const membershipsRouter = {
 				});
 			} catch (error) {
 				const msg =
-					error instanceof Error ? error.message : "Failed to resume membership";
+					error instanceof Error
+						? error.message
+						: "Failed to resume membership";
 				if (msg.includes("not found")) {
 					throw new ORPCError("NOT_FOUND", { message: msg });
 				}
@@ -143,7 +144,7 @@ export const membershipsRouter = {
 		}),
 
 	/** Cancel an erroneous freeze without flipping the package back automatically. */
-	cancel: protectedProcedure
+	cancel: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -151,6 +152,7 @@ export const membershipsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "update");
 
@@ -168,7 +170,7 @@ export const membershipsRouter = {
 		}),
 
 	/** List holds for one package (audit trail tab). */
-	listHolds: protectedProcedure
+	listHolds: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -176,6 +178,7 @@ export const membershipsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "read");
 			return listHoldsForPackage(context.tenantDb, input.packageInstanceId);

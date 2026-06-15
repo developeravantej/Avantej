@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, beforeAll, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
 let RouteComponent: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
@@ -19,9 +19,7 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 vi.mock("@/utils/orpc", () => ({
 	client: mockClient,
-	orpc: {
-		unitsOfMeasure: { list: { key: () => ["unitsOfMeasure", "list"] } },
-	},
+	orpc: mockOrpc,
 }));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
@@ -36,9 +34,7 @@ vi.mock("sonner", () => ({
 }));
 
 beforeAll(async () => {
-	await import(
-		"@/routes/_authenticated/dashboard/_layout/uom/view"
-	);
+	await import("@/routes/_authenticated/dashboard/_layout/uom/view");
 });
 
 describe("Unit of Measure page", () => {
@@ -54,7 +50,9 @@ describe("Unit of Measure page", () => {
 		renderWithProviders(<RouteComponent />);
 
 		await waitFor(() => {
-			expect(screen.getByRole("button", { name: /add uom/i })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /add uom/i }),
+			).toBeInTheDocument();
 		});
 	});
 

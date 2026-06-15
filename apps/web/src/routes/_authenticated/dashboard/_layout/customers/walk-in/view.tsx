@@ -4,5 +4,5 @@ import { makeTabRedirect } from "@/lib/tab-redirect";
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/customers/walk-in/view",
 )({
-	beforeLoad: makeTabRedirect("/dashboard/customers/view", "registered"),
+	beforeLoad: makeTabRedirect("/dashboard/customers/v2/view", "customers"),
 });

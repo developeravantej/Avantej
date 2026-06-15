@@ -23,7 +23,9 @@ function parseArgs(): CliArgs {
 	const args = process.argv.slice(2);
 	const tenantIdx = args.indexOf("--tenant");
 	if (tenantIdx === -1 || !args[tenantIdx + 1]) {
-		console.error('Usage: bun run flatten-areas.ts --tenant "<name>" [--dry-run]');
+		console.error(
+			'Usage: bun run flatten-areas.ts --tenant "<name>" [--dry-run]',
+		);
 		process.exit(1);
 	}
 	return {
@@ -32,7 +34,10 @@ function parseArgs(): CliArgs {
 	};
 }
 
-async function getTenantConn(controlPanelUrl: string, name: string): Promise<string> {
+async function getTenantConn(
+	controlPanelUrl: string,
+	name: string,
+): Promise<string> {
 	const pool = new Pool({ connectionString: controlPanelUrl });
 	try {
 		const res = await pool.query(
@@ -69,7 +74,9 @@ async function main() {
 		);
 		console.log(`\nFound ${areas.rows.length} area row(s):\n`);
 		for (const a of areas.rows) {
-			console.log(`  [area] ${a.name} (id=${a.id.slice(0, 8)})  parent_id=${a.parent_id?.slice(0, 8) ?? "NULL"}`);
+			console.log(
+				`  [area] ${a.name} (id=${a.id.slice(0, 8)})  parent_id=${a.parent_id?.slice(0, 8) ?? "NULL"}`,
+			);
 		}
 
 		// 2. Validate every area has parent_id (no orphans)

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tag } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import DataTable from "@/components/tables/brands/view/data-table";
 import { columns } from "@/components/tables/brands/view/columns";
 import type { BrandRow } from "@/components/tables/brands/view/columns";
@@ -16,8 +17,7 @@ export function BrandsTabPage() {
 	const organizationId = userContext?.currentOrganizationId ?? null;
 
 	// Dialog state
-	const [_editTarget, setEditTarget] = useState<BrandRow | null>(null);
-	const [_deleteTarget, setDeleteTarget] = useState<BrandRow | null>(null);
+	const [_editTarget, _setEditTarget] = useState<BrandRow | null>(null);
 
 	// Query
 	const {
@@ -57,7 +57,6 @@ export function BrandsTabPage() {
 		invalidate: [
 			[orpc.brands.list.key({ input: { organizationId: organizationId! } })],
 		],
-		onSuccess: () => setDeleteTarget(null),
 	});
 
 	if (!organizationId) {
@@ -66,10 +65,6 @@ export function BrandsTabPage() {
 				Select an organization to view brands.
 			</div>
 		);
-	}
-
-	if (isLoading) {
-		return <PageLoader />;
 	}
 
 	if (isError) {
@@ -97,21 +92,27 @@ export function BrandsTabPage() {
 	}));
 
 	return (
-		<>
-			{tableData.length === 0 && (
-				<EmptyState
-					title="No brands yet"
-					description="Add a brand to organize your products."
-					icon={Tag}
+		<Skeleton
+			name="inventory-brands-tab"
+			loading={isLoading}
+			fallback={<PageLoader />}
+		>
+			<>
+				{tableData.length === 0 && (
+					<EmptyState
+						title="No brands yet"
+						description="Add a brand to organize your products."
+						icon={Tag}
+					/>
+				)}
+				<DataTable
+					columns={columns}
+					data={tableData}
+					organizationId={organizationId}
+					onDelete={(id) => deleteMutation.mutate(id)}
+					isMutating={deleteMutation.isPending}
 				/>
-			)}
-			<DataTable
-				columns={columns}
-				data={tableData}
-				organizationId={organizationId}
-				onDelete={(id) => deleteMutation.mutate(id)}
-				isMutating={deleteMutation.isPending}
-			/>
-		</>
+			</>
+		</Skeleton>
 	);
 }

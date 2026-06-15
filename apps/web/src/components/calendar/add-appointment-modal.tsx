@@ -8,10 +8,6 @@ import { useAppointmentFormState } from "@/hooks/useAppointmentFormState";
 import { AppointmentFormContent } from "./appointment-form/AppointmentFormContent";
 import type { TeamMember, OnSubmitPayload } from "@/types/appointments";
 
-// ─── Public types re-exported for consumers ───────────────────────────────────
-
-export type { TeamMember } from "@/types/appointments";
-
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface AddAppointmentModalProps {

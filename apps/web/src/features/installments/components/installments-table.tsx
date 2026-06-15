@@ -1,4 +1,10 @@
-import { ChevronDown, ChevronUp, CreditCard, SlidersHorizontal, X } from "lucide-react";
+import {
+	ChevronDown,
+	ChevronUp,
+	CreditCard,
+	SlidersHorizontal,
+	X,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,10 +41,15 @@ const STATUS_TABS = [
 interface InstallmentsTableProps {
 	instances: InstallmentOverviewItem[];
 	isLoading: boolean;
-	plansMap: Map<string, { code: string; name: string; numInstallments: number }>;
+	plansMap: Map<
+		string,
+		{ code: string; name: string; numInstallments: number }
+	>;
 	plans: InstallmentPlan[] | undefined;
 	statusFilter: "active" | "overdue" | "locked" | "due_soon" | undefined;
-	setStatusFilter: (v: "active" | "overdue" | "locked" | "due_soon" | undefined) => void;
+	setStatusFilter: (
+		v: "active" | "overdue" | "locked" | "due_soon" | undefined,
+	) => void;
 	showFilters: boolean;
 	setShowFilters: (v: (prev: boolean) => boolean) => void;
 	searchQuery: string;
@@ -78,9 +89,13 @@ export function InstallmentsTable({
 			{/* Header */}
 			<div className="flex flex-wrap items-center gap-3 border-b px-5 py-4">
 				<div className="mr-auto">
-					<h1 className="text-base font-semibold tracking-tight">Installments</h1>
+					<h1 className="text-base font-semibold tracking-tight">
+						Installments
+					</h1>
 					<p className="text-xs text-muted-foreground">
-						{isLoading ? "Loading…" : `${instances.length} record${instances.length !== 1 ? "s" : ""}`}
+						{isLoading
+							? "Loading…"
+							: `${instances.length} record${instances.length !== 1 ? "s" : ""}`}
 					</p>
 				</div>
 				<Button
@@ -89,14 +104,18 @@ export function InstallmentsTable({
 					onClick={() => setShowFilters((v) => !v)}
 					className="gap-1.5"
 				>
-					<SlidersHorizontal className="h-3.5 w-3.5" />
+					<SlidersHorizontal className="size-3.5" />
 					Filters
 					{activeFilterCount > 0 && (
 						<span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-xs font-medium text-primary-foreground">
 							{activeFilterCount}
 						</span>
 					)}
-					{showFilters ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+					{showFilters ? (
+						<ChevronUp className="size-3.5" />
+					) : (
+						<ChevronDown className="size-3.5" />
+					)}
 				</Button>
 			</div>
 
@@ -104,10 +123,14 @@ export function InstallmentsTable({
 			{showFilters && (
 				<div className="flex flex-wrap items-end gap-3 border-b bg-muted/30 px-5 py-4">
 					<div className="flex min-w-[200px] flex-1 flex-col gap-1">
-						<label className="font-medium text-muted-foreground text-xs">
+						<label
+							htmlFor="installments-search"
+							className="font-medium text-muted-foreground text-xs"
+						>
 							Search
 						</label>
 						<Input
+							id="installments-search"
 							placeholder="Search client ID or purchase number"
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
@@ -115,10 +138,14 @@ export function InstallmentsTable({
 					</div>
 
 					<div className="flex flex-col gap-1">
-						<label className="font-medium text-muted-foreground text-xs">
+						<label
+							htmlFor="installments-due-after"
+							className="font-medium text-muted-foreground text-xs"
+						>
 							Due After
 						</label>
 						<Input
+							id="installments-due-after"
 							type="date"
 							value={dueAfter ?? ""}
 							onChange={(e) => setDueAfter(e.target.value || undefined)}
@@ -127,10 +154,14 @@ export function InstallmentsTable({
 					</div>
 
 					<div className="flex flex-col gap-1">
-						<label className="font-medium text-muted-foreground text-xs">
+						<label
+							htmlFor="installments-due-before"
+							className="font-medium text-muted-foreground text-xs"
+						>
 							Due Before
 						</label>
 						<Input
+							id="installments-due-before"
 							type="date"
 							value={dueBefore ?? ""}
 							onChange={(e) => setDueBefore(e.target.value || undefined)}
@@ -139,14 +170,19 @@ export function InstallmentsTable({
 					</div>
 
 					<div className="flex min-w-[160px] flex-col gap-1">
-						<label className="font-medium text-muted-foreground text-xs">
+						<label
+							htmlFor="installments-plan"
+							className="font-medium text-muted-foreground text-xs"
+						>
 							Plan
 						</label>
 						<Select
 							value={planCode ?? "__all__"}
-							onValueChange={(v) => setPlanCode(v === "__all__" ? undefined : v)}
+							onValueChange={(v) =>
+								setPlanCode(v === "__all__" ? undefined : v)
+							}
 						>
-							<SelectTrigger>
+							<SelectTrigger id="installments-plan">
 								<SelectValue placeholder="All plans" />
 							</SelectTrigger>
 							<SelectContent>
@@ -171,7 +207,7 @@ export function InstallmentsTable({
 							setPlanCode(undefined);
 						}}
 					>
-						<X className="h-3.5 w-3.5" />
+						<X className="size-3.5" />
 						Clear
 					</Button>
 				</div>
@@ -199,41 +235,76 @@ export function InstallmentsTable({
 			<Table>
 				<TableHeader>
 					<TableRow>
-						<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Client</TableHead>
-						<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Plan Type</TableHead>
-						<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Credits</TableHead>
-						<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Progress</TableHead>
+						<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+							Client
+						</TableHead>
+						<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+							Plan Type
+						</TableHead>
+						<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+							Credits
+						</TableHead>
+						<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+							Progress
+						</TableHead>
 						{statusFilter === "due_soon" && (
-							<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Next Amount</TableHead>
+							<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+								Next Amount
+							</TableHead>
 						)}
-						<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Next Due Date</TableHead>
-						<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</TableHead>
+						<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+							Next Due Date
+						</TableHead>
+						<TableHead className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+							Status
+						</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
 					{isLoading ? (
 						Array.from({ length: 5 }).map((_, i) => (
 							<TableRow key={i}>
-								<TableCell className="px-5 py-4"><Skeleton className="h-4 w-24" /></TableCell>
-								<TableCell className="px-5 py-4"><Skeleton className="h-4 w-20" /></TableCell>
-								<TableCell className="px-5 py-4"><Skeleton className="h-4 w-28" /></TableCell>
-								<TableCell className="px-5 py-4"><Skeleton className="h-4 w-16" /></TableCell>
+								<TableCell className="px-5 py-4">
+									<Skeleton className="h-4 w-24" />
+								</TableCell>
+								<TableCell className="px-5 py-4">
+									<Skeleton className="h-4 w-20" />
+								</TableCell>
+								<TableCell className="px-5 py-4">
+									<Skeleton className="h-4 w-28" />
+								</TableCell>
+								<TableCell className="px-5 py-4">
+									<Skeleton className="h-4 w-16" />
+								</TableCell>
 								{statusFilter === "due_soon" && (
-									<TableCell className="px-5 py-4"><Skeleton className="h-4 w-20" /></TableCell>
+									<TableCell className="px-5 py-4">
+										<Skeleton className="h-4 w-20" />
+									</TableCell>
 								)}
-								<TableCell className="px-5 py-4"><Skeleton className="h-4 w-24" /></TableCell>
-								<TableCell className="px-5 py-4"><Skeleton className="h-5 w-16 rounded-full" /></TableCell>
+								<TableCell className="px-5 py-4">
+									<Skeleton className="h-4 w-24" />
+								</TableCell>
+								<TableCell className="px-5 py-4">
+									<Skeleton className="h-5 w-16 rounded-full" />
+								</TableCell>
 							</TableRow>
 						))
 					) : instances.length === 0 ? (
 						<TableRow>
-							<TableCell colSpan={statusFilter === "due_soon" ? 7 : 6} className="h-60">
+							<TableCell
+								colSpan={statusFilter === "due_soon" ? 7 : 6}
+								className="h-60"
+							>
 								<div className="flex flex-col items-center justify-center gap-3 text-center">
 									<div className="flex size-14 items-center justify-center rounded-full bg-muted">
-										<CreditCard className="h-6 w-6 text-muted-foreground" />
+										<CreditCard className="size-6 text-muted-foreground" />
 									</div>
-									<p className="text-sm font-medium">No installment packages found</p>
-									<p className="text-xs text-muted-foreground">Try adjusting your filters.</p>
+									<p className="text-sm font-medium">
+										No installment packages found
+									</p>
+									<p className="text-xs text-muted-foreground">
+										Try adjusting your filters.
+									</p>
 								</div>
 							</TableCell>
 						</TableRow>
@@ -248,7 +319,9 @@ export function InstallmentsTable({
 								: "—";
 							// nextInstallmentAmount is an optional field added by Agent 1A (backend).
 							// Use optional chaining to tolerate when the backend hasn't deployed yet.
-							const nextAmount = (row as { nextInstallmentAmount?: number | null }).nextInstallmentAmount;
+							const nextAmount = (
+								row as { nextInstallmentAmount?: number | null }
+							).nextInstallmentAmount;
 							return (
 								<TableRow
 									key={row.id}
@@ -258,7 +331,10 @@ export function InstallmentsTable({
 									<TableCell className="px-5 py-4">
 										<CopyableCell
 											value={row.clientId ?? ""}
-											displayText={(row as { clientName?: string | null }).clientName ?? `${(row.clientId ?? "").slice(0, 8)}…`}
+											displayText={
+												(row as { clientName?: string | null }).clientName ??
+												`${(row.clientId ?? "").slice(0, 8)}…`
+											}
 										/>
 									</TableCell>
 									<TableCell className="px-5 py-4">
@@ -266,26 +342,31 @@ export function InstallmentsTable({
 									</TableCell>
 									<TableCell className="px-5 py-4">
 										<span className="text-sm tabular-nums">
-											{row.creditsUnlocked ?? 0} unlocked / {row.creditsTotal ?? 0} total
+											{row.creditsUnlocked ?? 0} unlocked /{" "}
+											{row.creditsTotal ?? 0} total
 										</span>
 									</TableCell>
 									<TableCell className="px-5 py-4">
 										<span className="text-sm tabular-nums">
-											{row.installmentsPaid ?? 0} of {row.installmentsTotal ?? 0}
+											{row.installmentsPaid ?? 0} of{" "}
+											{row.installmentsTotal ?? 0}
 										</span>
 									</TableCell>
 									{statusFilter === "due_soon" && (
 										<TableCell className="px-5 py-4 text-sm font-medium tabular-nums">
-											{nextAmount != null ? formatPrice(nextAmount, "MYR") : "—"}
+											{nextAmount != null
+												? formatPrice(nextAmount, "MYR")
+												: "—"}
 										</TableCell>
 									)}
 									<TableCell className="px-5 py-4 text-sm">
-										{formatDate(row.nextDueDate)}
+										{row.nextDueDate ? formatDate(row.nextDueDate) : "—"}
 									</TableCell>
 									<TableCell className="px-5 py-4">
 										<div className="flex flex-wrap items-center gap-1.5">
 											<StatusBadge instance={row} />
-											{(row as { allowCreditOverdraft?: boolean }).allowCreditOverdraft && (
+											{(row as { allowCreditOverdraft?: boolean })
+												.allowCreditOverdraft && (
 												<span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
 													Overdraft
 												</span>

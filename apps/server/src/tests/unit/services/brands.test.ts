@@ -120,7 +120,10 @@ describe("createBrand", () => {
 		const fakeBrand = { id: "b2", name: "Adidas", description: "Sportswear" };
 		mockReturning.mockResolvedValueOnce([fakeBrand]);
 
-		const result = await createBrand(mockTenantDb, { name: "Adidas", description: "Sportswear" });
+		const result = await createBrand(mockTenantDb, {
+			name: "Adidas",
+			description: "Sportswear",
+		});
 
 		expect(result as any).toEqual(fakeBrand);
 		const valuesArg = ((mockValues as any).mock.calls[0] ?? [])[0]! as any;
@@ -130,7 +133,9 @@ describe("createBrand", () => {
 	test("throws 'Failed to create brand' when insert returns empty", async () => {
 		mockReturning.mockResolvedValueOnce([]);
 
-		await expect(createBrand(mockTenantDb, { name: "Nike" })).rejects.toThrow("Failed to create brand");
+		await expect(createBrand(mockTenantDb, { name: "Nike" })).rejects.toThrow(
+			"Failed to create brand",
+		);
 	});
 });
 
@@ -144,7 +149,9 @@ describe("updateBrand", () => {
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		const result = await updateBrand(mockTenantDb, "b1", { name: "Nike Updated" });
+		const result = await updateBrand(mockTenantDb, "b1", {
+			name: "Nike Updated",
+		});
 
 		expect(result as any).toEqual(updatedBrand);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
@@ -156,7 +163,9 @@ describe("updateBrand", () => {
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		await expect(updateBrand(mockTenantDb, "nonexistent", { name: "X" })).rejects.toThrow("Brand not found");
+		await expect(
+			updateBrand(mockTenantDb, "nonexistent", { name: "X" }),
+		).rejects.toThrow("Brand not found");
 	});
 });
 

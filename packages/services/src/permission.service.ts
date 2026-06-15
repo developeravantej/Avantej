@@ -25,14 +25,11 @@ export type Resource =
 	| "hierarchy_management"
 	| "user_management"
 	| "role_management"
-	| "users"
-	| "roles"
-	| "branches"
 	// Services & appointments
+	// (canonical `*_management` form only — bare nouns `users`, `roles`, `branches`,
+	//  `services`, `appointments` were removed in the pre-launch hardening pass)
 	| "service_management"
 	| "appointment_management"
-	| "appointments"
-	| "services"
 	| "class_slot_management"
 	// Sales & payments
 	| "sales"
@@ -50,12 +47,16 @@ export type Resource =
 	| "commission_management"
 	| "trainer_tier_management"
 	| "category_commission_management"
+	| "commission_track_management"
 	| "commission_payout"
+	| "commission_review"
 	// Communication
 	| "announcement_management"
 	// Customers
 	| "customer_management"
 	| "walk_in_customer_management"
+	// Org configuration
+	| "organization_settings"
 	// Reporting
 	| "reports"
 	// Audit log
@@ -65,7 +66,9 @@ export type Resource =
 	// Point of Sale (tracking-pages P4)
 	| "pos"
 	// Refunds Ledger (tracking-pages P5)
-	| "refund_management";
+	| "refund_management"
+	// Installment / financing management
+	| "installment_management";
 export type Action =
 	| "create"
 	| "read"
@@ -73,6 +76,7 @@ export type Action =
 	| "delete"
 	| "approve"
 	| "reject"
+	| "resolve"
 	| "process"
 	| "export"
 	| "import";
@@ -102,8 +106,8 @@ export async function hasPermission(
 	// legacy text-role path if roleId is null OR the referenced role no longer exists.
 	let role = member.roleId
 		? await tenantDb.query.roles.findFirst({
-			where: (roles, { eq }) => eq(roles.id, member.roleId as string),
-		})
+				where: (roles, { eq }) => eq(roles.id, member.roleId as string),
+			})
 		: undefined;
 
 	if (!role) {
@@ -174,6 +178,19 @@ export async function checkHierarchyPermission(
  * @param action - Action name
  * @throws Error if permission is denied
  */
+export class PermissionDeniedError extends Error {
+	constructor(
+		public readonly resource: Resource,
+		public readonly action: Action,
+		public readonly role: string,
+	) {
+		super(
+			`Permission denied: ${role} role does not have ${resource}:${action} permission`,
+		);
+		this.name = "PermissionDeniedError";
+	}
+}
+
 export async function requirePermission(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	member: Member,
@@ -182,8 +199,6 @@ export async function requirePermission(
 ): Promise<void> {
 	const hasPerm = await hasPermission(tenantDb, member, resource, action);
 	if (!hasPerm) {
-		throw new Error(
-			`Permission denied: ${member.role} role does not have ${resource}:${action} permission`,
-		);
+		throw new PermissionDeniedError(resource, action, member.role);
 	}
 }

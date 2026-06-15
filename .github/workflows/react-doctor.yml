@@ -1,0 +1,56 @@
+name: React Doctor
+
+on:
+  pull_request:
+    branches: [main, dev]
+    paths:
+      - "apps/web/**"
+      - "apps/native/**"
+      - "packages/**"
+      - "react-doctor.config.json"
+      - ".github/workflows/react-doctor.yml"
+  push:
+    branches: [main, dev]
+    paths:
+      - "apps/web/**"
+      - "apps/native/**"
+      - "packages/**"
+      - "react-doctor.config.json"
+
+permissions:
+  contents: read
+  pull-requests: write
+  # The action publishes a score commit status; without this it warns
+  # "Resource not accessible by integration".
+  statuses: write
+
+jobs:
+  react-doctor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - name: web
+            directory: apps/web
+          - name: native
+            directory: apps/native
+    name: scan (${{ matrix.target.name }})
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      # Pinned to v2 — @main is unstable (its default project="*" glob-expands
+      # inside the wrapper and crashes the CLI with "too many arguments", which
+      # published a red "Scan could not complete" commit status). The action's
+      # input schema also changed across majors (diff/github-token/fail-on/
+      # verbose were removed). Advisory scan: report findings, never block the
+      # PR — the action still propagates the CLI exit code on pull_request
+      # events even with blocking:false, so continue-on-error keeps the job
+      # green.
+      - uses: millionco/react-doctor@v2
+        continue-on-error: true
+        with:
+          directory: ${{ matrix.target.directory }}
+          blocking: false

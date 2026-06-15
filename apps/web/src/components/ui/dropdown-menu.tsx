@@ -12,6 +12,7 @@ function DropdownMenu({
 	return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
 }
 
+// react-doctor-disable-next-line eslint/no-unused-vars -- shadcn UI primitive — kept as public API surface for future composition
 function DropdownMenuPortal({
 	...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Portal>) {
@@ -240,18 +241,11 @@ function DropdownMenuSubContent({
 
 export {
 	DropdownMenu,
-	DropdownMenuPortal,
 	DropdownMenuTrigger,
 	DropdownMenuContent,
 	DropdownMenuGroup,
 	DropdownMenuLabel,
 	DropdownMenuItem,
-	DropdownMenuCheckboxItem,
-	DropdownMenuRadioGroup,
-	DropdownMenuRadioItem,
 	DropdownMenuSeparator,
 	DropdownMenuShortcut,
-	DropdownMenuSub,
-	DropdownMenuSubTrigger,
-	DropdownMenuSubContent,
 };

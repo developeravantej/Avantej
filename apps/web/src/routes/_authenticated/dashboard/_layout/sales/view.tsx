@@ -1,19 +1,25 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { CheckCircle2, Plus, ShoppingCart, TrendingUp, XCircle } from "lucide-react";
+import { requirePermission } from "@/lib/route-guards";
+import { Download, Plus } from "lucide-react";
 import { z } from "zod";
-import { columns as salesColumns, type SalesRow } from "@/components/tables/sales/view/columns";
-import SalesDataTable from "@/components/tables/sales/view/data-table";
-import { FilterToolbar } from "@/components/tables/sales/view/filter-toolbar";
-import { columns as paymentColumns, type PaymentRow } from "@/components/tables/payment/view/columns";
-import PaymentDataTable from "@/components/tables/payment/view/data-table";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { type SalesRow } from "@/components/tables/sales/view/columns";
+import { type PaymentRow } from "@/components/tables/payment/view/columns";
+import { RefundsTab } from "@/components/refunds/refunds-tab";
 import { useUserContext } from "@/hooks/useUserContext";
-import { formatPrice } from "@/lib/money";
 import { getPeriodDates, type Period } from "@/lib/period";
-import { client } from "@/utils/orpc";
+import { cn } from "@/lib/utils";
+import { client, orpc } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import type { KpiSummary } from "@/features/sales/sales-view.types";
+import { KpiStrip } from "@/features/sales/components/KpiStrip";
+import { SalesTab } from "@/features/sales/components/SalesTab";
+import { PaymentsTab } from "@/features/sales/components/PaymentsTab";
+import { CancelledSalesTab } from "@/features/sales/components/CancelledSalesTab";
+import {
+	InstallmentsTab,
+	type InstallmentStatusFilter,
+} from "@/features/sales/components/InstallmentsTab";
 
 // ─── Route search schema ───────────────────────────────────────────────────────
 
@@ -22,228 +28,166 @@ const salesSearchSchema = z.object({
 	to: z.string().default(""),
 	status: z.string().default(""),
 	branchId: z.string().default(""),
-	page: z.number().int().min(1).default(1),
 	period: z.string().optional(),
+	kpiPeriod: z.enum(["today", "week", "month"]).default("month"),
+	refundStatus: z
+		.enum(["all", "none", "pending", "partial", "processed"])
+		.default("all"),
+	tab: z
+		.enum(["sales", "installments", "payments", "cancelled", "refunds"])
+		.default("sales"),
+	instStatus: z.enum(["due_soon", "overdue", "all"]).default("due_soon"),
+	search: z.string().default(""),
 });
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/sales/view",
 )({
+	beforeLoad: async () => {
+		await requirePermission("sales:read");
+	},
 	component: RouteComponent,
 	validateSearch: salesSearchSchema,
 });
 
-// ─── Sub-components ────────────────────────────────────────────────────────────
-
-function ErrorCard({ error, refetch }: { error: unknown; refetch: () => void }) {
-	return (
-		<div className="flex flex-col items-center justify-center py-12">
-			<p className="font-medium text-destructive text-lg">Failed to load data</p>
-			<p className="mb-4 text-muted-foreground text-sm">
-				{error instanceof Error ? error.message : "An unexpected error occurred"}
-			</p>
-			<Button variant="outline" onClick={refetch}>
-				Try Again
-			</Button>
-		</div>
-	);
-}
-
-interface SalesTabProps {
-	data: SalesRow[];
-	total: number;
-	page: number;
-	onPageChange: (page: number) => void;
-	isLoading: boolean;
-	isError: boolean;
-	error: unknown;
-	refetch: () => void;
-	// Filter props
-	from: string;
-	to: string;
-	status: string;
-	branchId: string;
-	onFromChange: (v: string) => void;
-	onToChange: (v: string) => void;
-	onStatusChange: (v: string) => void;
-	onBranchChange: (v: string) => void;
-	onClear: () => void;
-}
-
-function SalesTab({
-	data,
-	total,
-	page,
-	onPageChange,
-	isLoading,
-	isError,
-	error,
-	refetch,
-	from,
-	to,
-	status,
-	branchId,
-	onFromChange,
-	onToChange,
-	onStatusChange,
-	onBranchChange,
-	onClear,
-}: SalesTabProps) {
-	const navigate = useNavigate();
-	if (isError) return <ErrorCard error={error} refetch={refetch} />;
-
-	const totalRevenue = data
-		.filter((row) => row.status !== "cancelled")
-		.reduce((sum, row) => sum + (row.total_sales ?? 0), 0);
-	const completedCount = data.filter((row) => row.status === "completed").length;
-	const cancelledCount = data.filter((row) => row.status === "cancelled").length;
-
-	return (
-		<div className="flex h-full flex-col">
-			{/* Stats cards */}
-			<div className="grid shrink-0 grid-cols-2 gap-3 border-b border-border/40 px-6 py-4 lg:grid-cols-4">
-				<div className="flex items-start justify-between rounded-2xl border border-border/50 bg-muted/30 p-4">
-					<div>
-						<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Orders</p>
-						<p className="mt-1 text-2xl font-bold">{isLoading ? "—" : total}</p>
-					</div>
-					<div className="rounded-lg bg-muted p-2">
-						<ShoppingCart className="h-4 w-4 text-muted-foreground" />
-					</div>
-				</div>
-				<div className="flex items-start justify-between rounded-2xl border border-border/50 bg-muted/30 p-4">
-					<div>
-						<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Revenue</p>
-						<p className="mt-1 text-xl font-bold">{formatPrice(totalRevenue, "MYR")}</p>
-					</div>
-					<div className="rounded-lg bg-muted p-2">
-						<TrendingUp className="h-4 w-4 text-muted-foreground" />
-					</div>
-				</div>
-				<div className="flex items-start justify-between rounded-2xl border border-border/50 bg-muted/30 p-4">
-					<div>
-						<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Completed</p>
-						<p className="mt-1 text-2xl font-bold">{completedCount}</p>
-					</div>
-					<div className="rounded-lg bg-muted p-2">
-						<CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-					</div>
-				</div>
-				<div className="flex items-start justify-between rounded-2xl border border-border/50 bg-muted/30 p-4">
-					<div>
-						<p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cancelled</p>
-						<p className="mt-1 text-2xl font-bold">{cancelledCount}</p>
-					</div>
-					<div className="rounded-lg bg-muted p-2">
-						<XCircle className="h-4 w-4 text-muted-foreground" />
-					</div>
-				</div>
-			</div>
-
-			{/* Filter toolbar */}
-			<FilterToolbar
-				from={from}
-				to={to}
-				status={status}
-				branchId={branchId}
-				onFromChange={onFromChange}
-				onToChange={onToChange}
-				onStatusChange={onStatusChange}
-				onBranchChange={onBranchChange}
-				onClear={onClear}
-			/>
-
-			{/* Table */}
-			<div className="min-h-0 flex-1 overflow-hidden">
-				{isLoading ? (
-					<PageLoader />
-				) : (
-					<SalesDataTable<SalesRow, unknown>
-						columns={salesColumns}
-						data={data}
-						total={total}
-						page={page}
-						onPageChange={onPageChange}
-						isLoading={isLoading}
-						emptyTitle="No sales found"
-						emptyAction={{ label: "New Sale", onClick: () => navigate({ to: "/dashboard/sales/create" }) }}
-					/>
-				)}
-			</div>
-		</div>
-	);
-}
-
-interface PaymentsTabProps {
-	data: PaymentRow[];
-	isLoading: boolean;
-	isError: boolean;
-	error: unknown;
-	refetch: () => void;
-}
-
-function PaymentsTab({ data, isLoading, isError, error, refetch }: PaymentsTabProps) {
-	if (isLoading) return <PageLoader />;
-	if (isError) return <ErrorCard error={error} refetch={refetch} />;
-
-	return (
-		<div className="h-full overflow-hidden">
-			<PaymentDataTable<PaymentRow, unknown> columns={paymentColumns} data={data} emptyTitle="No payments found" />
-		</div>
-	);
-}
-
 // ─── Route component ───────────────────────────────────────────────────────────
 
 function RouteComponent() {
-	const { data: userContext } = useUserContext();
+	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 
-	const { from, to, status, branchId, page, period } = Route.useSearch();
+	const currentOrg = userContext?.organizations.find(
+		(o) => o.id === userContext.currentOrganizationId,
+	);
+	const allNodes = currentOrg?.hierarchy?.nodes ?? [];
+	const branchNodes = allNodes.filter((n) => n.type === "branch");
+	const nodeOptions = branchNodes.length > 0 ? branchNodes : allNodes;
+
+	const {
+		from,
+		to,
+		status,
+		branchId,
+		period,
+		kpiPeriod,
+		refundStatus,
+		tab,
+		instStatus,
+		search,
+	} = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
 
-	// Derive filters from period param (e.g. when navigating from Dashboard KPI card)
+	// Derive date filters from legacy `period` param (from Dashboard KPI card)
 	const derivedFilters =
-		period && !from && !to
-			? getPeriodDates(period as Period)
-			: { from, to };
+		period && !from && !to ? getPeriodDates(period as Period) : { from, to };
 
 	// ── Handlers ────────────────────────────────────────────────────────────
 
-	function handleFilterChange(updates: Partial<z.infer<typeof salesSearchSchema>>) {
-		navigate({ search: (prev) => ({ ...prev, ...updates, page: 1 }) });
+	function handleFilterChange(
+		updates: Partial<z.infer<typeof salesSearchSchema>>,
+	) {
+		navigate({ search: (prev) => ({ ...prev, ...updates }) });
 	}
 
 	function handleClear() {
-		navigate({ search: { from: "", to: "", status: "", branchId: "", period: undefined, page: 1 } });
+		navigate({
+			search: {
+				from: "",
+				to: "",
+				status: "",
+				branchId: "",
+				period: undefined,
+				kpiPeriod,
+				refundStatus: "all",
+				tab,
+				instStatus: "due_soon",
+				search: "",
+			},
+		});
 	}
 
-	function handlePageChange(newPage: number) {
-		navigate({ search: (prev) => ({ ...prev, page: newPage }) });
+	function handleKpiPeriodChange(v: "today" | "week" | "month") {
+		navigate({ search: (prev) => ({ ...prev, kpiPeriod: v }) });
+	}
+
+	function handleTabChange(v: string) {
+		navigate({
+			search: (prev) => ({
+				...prev,
+				tab: v as
+					| "sales"
+					| "installments"
+					| "payments"
+					| "cancelled"
+					| "refunds",
+			}),
+		});
+	}
+
+	function handleInstStatusChange(v: InstallmentStatusFilter) {
+		navigate({ search: (prev) => ({ ...prev, instStatus: v }) });
+	}
+
+	function handleRefundStatusChange(
+		v: "all" | "none" | "pending" | "partial" | "processed",
+	) {
+		navigate({ search: (prev) => ({ ...prev, refundStatus: v }) });
 	}
 
 	// ── Queries ─────────────────────────────────────────────────────────────
 
 	const {
-		data: salesApiResponse,
+		data: salesInfiniteData,
 		isLoading: salesLoading,
 		isError: salesError,
 		error: salesErrorObj,
 		refetch: salesRefetch,
-	} = useQuery({
-		queryKey: ["salesOrders", organizationId, derivedFilters.from, derivedFilters.to, status, branchId, page],
-		queryFn: () =>
+		fetchNextPage: salesFetchNextPage,
+		hasNextPage: salesHasNextPage,
+		isFetchingNextPage: salesIsFetchingNextPage,
+	} = useInfiniteQuery({
+		queryKey: [
+			"salesOrders",
+			organizationId,
+			derivedFilters.from,
+			derivedFilters.to,
+			status,
+			branchId,
+			refundStatus,
+			search,
+		],
+		queryFn: ({ pageParam }) =>
 			client.salesOrders.list({
 				organizationId: organizationId!,
-				from: derivedFilters.from ? `${derivedFilters.from}T00:00:00.000Z` : undefined,
-				to: derivedFilters.to ? `${derivedFilters.to}T23:59:59.999Z` : undefined,
-				status: (["draft", "confirmed", "completed", "cancelled"].includes(status)
+				from: derivedFilters.from
+					? `${derivedFilters.from}T00:00:00.000Z`
+					: undefined,
+				to: derivedFilters.to
+					? `${derivedFilters.to}T23:59:59.999Z`
+					: undefined,
+				status: (["draft", "confirmed", "completed", "cancelled"].includes(
+					status,
+				)
 					? status
-					: undefined) as "draft" | "confirmed" | "completed" | "cancelled" | undefined,
+					: undefined) as
+					| "draft"
+					| "confirmed"
+					| "completed"
+					| "cancelled"
+					| undefined,
+				refundStatus:
+					refundStatus !== "all"
+						? (refundStatus as "none" | "pending" | "partial" | "processed")
+						: undefined,
 				branchId: branchId || undefined,
 				limit: 50,
-				offset: (page - 1) * 50,
+				offset: pageParam,
 			}),
+		initialPageParam: 0,
+		getNextPageParam: (lastPage, allPages) => {
+			const loaded = allPages.reduce((sum, p) => sum + p.rows.length, 0);
+			return loaded < lastPage.total ? loaded : undefined;
+		},
 		enabled: !!organizationId,
 	});
 
@@ -254,123 +198,256 @@ function RouteComponent() {
 		error: invoicesErrorObj,
 		refetch: invoicesRefetch,
 	} = useQuery({
-		queryKey: ["invoices", organizationId],
-		queryFn: () => client.invoices.list({ organizationId: organizationId! }),
+		...orpc.invoices.list.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 	});
 
+	const canSeeInstallments = hasPermission("service_management:read");
+
+	const { data: dueSoonData } = useQuery({
+		queryKey: ["sales-installments-due-soon-count", organizationId, branchId],
+		queryFn: () =>
+			client.installments.listUpcoming({
+				organizationId: organizationId!,
+				window: "due_soon",
+				branchId: branchId || undefined,
+				limit: 1,
+				offset: 0,
+			}),
+		enabled: !!organizationId && canSeeInstallments,
+		retry: false,
+	});
+
+	const {
+		data: kpiData,
+		isLoading: kpiLoading,
+		isError: kpiIsError,
+	} = useQuery({
+		...orpc.salesOrders.kpiSummary.queryOptions({
+			input: { organizationId: organizationId!, period: kpiPeriod },
+		}),
+		enabled: !!organizationId,
+		retry: false,
+	});
+
+	if (kpiIsError) {
+		console.warn(
+			"[sales/view] salesOrders.kpiSummary unavailable — KPI strip will show blanks.",
+		);
+	}
+
 	// ── Data mapping ─────────────────────────────────────────────────────────
 
-	const salesApiRows = salesApiResponse?.rows ?? [];
-	const total = salesApiResponse?.total ?? 0;
+	const salesApiRows = salesInfiniteData?.pages.flatMap((p) => p.rows) ?? [];
+	const total = salesInfiniteData?.pages[0]?.total ?? 0;
 
-	const salesData: SalesRow[] = salesApiRows.map((item) => ({
-		id: item.id,
-		date: item.date ? item.date.toISOString() : null,
-		sales_order: item.salesOrderNumber,
-		total_sales: item.totalAmount,
-		customer_name: item.customerName,
-		created_by: item.createdBy,
-		status: item.status,
-		customerId: item.customerId ?? null,
-	}));
+	const nodeNameMap = new Map(allNodes.map((n) => [n.id, n.name]));
 
-	const paymentsData: PaymentRow[] = invoicesApiData.map((item) => ({
-		date: item.date ? item.date.toISOString() : null,
-		invoice: item.invoiceNumber,
-		sales_order: item.salesOrderId ?? null,
-		mode: item.paymentMode ?? null,
-		total_paid: item.totalAmount,
-		customer_name: item.customerName,
-		created_by: item.createdBy,
-		e_invoice_status: item.eInvoiceStatus ?? null,
-	}));
+	const salesData: SalesRow[] = salesApiRows.map((item) => {
+		const row = item as typeof item & {
+			createdByName?: string | null;
+			firstItemDescription?: string | null;
+		};
+		return {
+			id: item.id,
+			date: item.date ? item.date.toISOString() : null,
+			sales_order: item.salesOrderNumber,
+			total_sales: item.totalAmount,
+			customer_name: item.customerName,
+			service_name: row.firstItemDescription ?? null,
+			branch_name: nodeNameMap.get(item.branchId) ?? null,
+			created_by: row.createdByName ?? item.createdBy,
+			status: item.status,
+			refund_status: item.refundStatus ?? null,
+			customerId: item.customerId ?? null,
+		};
+	});
+
+	const paymentsData: PaymentRow[] = invoicesApiData.map((item) => {
+		const row = item as typeof item & { createdByName?: string | null };
+		return {
+			date: item.date ? item.date.toISOString() : null,
+			invoice: item.invoiceNumber,
+			sales_order: item.salesOrderId ?? null,
+			payment_id: item.paymentId ?? null,
+			mode: item.paymentMode ?? null,
+			total_paid: item.totalAmount,
+			customer_name: item.customerName,
+			created_by: row.createdByName ?? item.createdBy,
+			e_invoice_status: item.eInvoiceStatus ?? null,
+		};
+	});
 
 	const salesCount = salesLoading ? null : total;
 	const paymentsCount = invoicesLoading ? null : paymentsData.length;
 
 	return (
-		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
-			{/* Fixed header */}
-			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
-				<div>
-					<h1 className="text-xl font-semibold">Sales & Payments</h1>
-					<p className="mt-0.5 text-sm text-muted-foreground">
-						{salesCount !== null && paymentsCount !== null
-							? `${salesCount} orders · ${paymentsCount} invoices`
-							: "Loading..."}
-					</p>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Sales</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Orders</span>
 				</div>
-				<Link to="/dashboard/sales/create">
-					<Button size="sm">
-						<Plus className="mr-2 h-4 w-4" />
-						New Sale
-					</Button>
-				</Link>
-			</div>
+				<div className="ml-auto flex items-center gap-2">
+					<button
+						type="button"
+						className="flex items-center gap-2 rounded-lg border border-[#e5e5e5] bg-white px-4 py-2 text-xs font-semibold transition hover:bg-[#f3f3f3]"
+					>
+						<Download className="h-3.5 w-3.5" />
+						Export CSV
+					</button>
+					<div className="mx-1 h-6 w-px bg-[#e5e5e5]" />
+					<Link to="/dashboard/sales/create">
+						<button
+							type="button"
+							className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626]"
+						>
+							<Plus className="h-3.5 w-3.5" />
+							New Sale
+						</button>
+					</Link>
+				</div>
+			</header>
+			<div className="flex flex-col gap-5 px-6 py-6">
+				{/* ── Main card ───────────────────────────────────────────────────── */}
+				<div className="border border-[#e5e5e5] bg-white flex flex-col">
+					{/* ── KPI strip — always visible ──────────────────────────────────── */}
+					<KpiStrip
+						kpiSummary={kpiIsError ? undefined : kpiData}
+						kpiLoading={kpiLoading}
+						kpiPeriod={kpiPeriod}
+						onPeriodChange={handleKpiPeriodChange}
+					/>
 
-			{organizationId ? (
-				<Tabs defaultValue="orders" className="flex min-h-0 flex-1 flex-col overflow-hidden">
-					<div className="shrink-0 border-b border-border/40 px-6">
-						<TabsList className="h-10 rounded-none bg-transparent p-0">
-							<TabsTrigger
-								value="orders"
-								className="rounded-none border-0 border-b-2 border-b-transparent px-4 pb-2 pt-0 data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-							>
-								Sales Orders
-								{salesCount !== null && (
-									<span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-										{salesCount}
-									</span>
+					{/* ── Pill tabs ────────────────────────────────────────────────────── */}
+					{organizationId ? (
+						<>
+							<div className="flex shrink-0 items-center gap-2 border-b border-[#e5e5e5] px-6 py-3">
+								{[
+									{ value: "sales", label: "Sales Orders", count: salesCount },
+									...(canSeeInstallments
+										? [
+												{
+													value: "installments",
+													label: "Installments",
+													count: dueSoonData?.total ?? null,
+												},
+											]
+										: []),
+									{
+										value: "payments",
+										label: "Payments",
+										count: paymentsCount,
+									},
+									{ value: "cancelled", label: "Cancelled", count: null },
+									...(hasPermission("refund_management:read")
+										? [{ value: "refunds", label: "Refunds", count: null }]
+										: []),
+								].map((t) => (
+									<button
+										key={t.value}
+										type="button"
+										data-testid={`sales-tab-${t.value}`}
+										onClick={() => handleTabChange(t.value)}
+										className={cn(
+											"rounded-full px-3.5 py-1.5 text-[13px] transition-colors",
+											tab === t.value
+												? "bg-[#0a0a0a] text-white font-semibold"
+												: "border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] font-medium",
+										)}
+									>
+										{t.label}
+										{t.count !== null && (
+											<span
+												className={cn(
+													"ml-1.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold",
+													tab === t.value
+														? "bg-white/20"
+														: "bg-[#f3f3f3] text-[#737373]",
+												)}
+											>
+												{t.count}
+											</span>
+										)}
+									</button>
+								))}
+							</div>
+
+							{tab === "sales" && (
+								<SalesTab
+									data={salesData}
+									total={total}
+									hasNextPage={salesHasNextPage ?? false}
+									isFetchingNextPage={salesIsFetchingNextPage}
+									onLoadMore={salesFetchNextPage}
+									isLoading={salesLoading}
+									isError={salesError}
+									error={salesErrorObj}
+									refetch={salesRefetch}
+									search={search}
+									from={derivedFilters.from}
+									to={derivedFilters.to}
+									status={status}
+									branchId={branchId}
+									refundStatus={refundStatus}
+									onSearchChange={(v) => handleFilterChange({ search: v })}
+									onFromChange={(v) => handleFilterChange({ from: v })}
+									onToChange={(v) => handleFilterChange({ to: v })}
+									onStatusChange={(v) => handleFilterChange({ status: v })}
+									onBranchChange={(v) => handleFilterChange({ branchId: v })}
+									onRefundStatusChange={handleRefundStatusChange}
+									onClear={handleClear}
+									nodeOptions={nodeOptions}
+								/>
+							)}
+							{tab === "installments" && canSeeInstallments && (
+								<InstallmentsTab
+									organizationId={organizationId}
+									status={instStatus}
+									onStatusChange={handleInstStatusChange}
+									branchId={branchId}
+									onBranchChange={(v) => handleFilterChange({ branchId: v })}
+									nodeOptions={nodeOptions}
+									canCollect={hasPermission("service_management:update")}
+								/>
+							)}
+							{tab === "payments" && (
+								<PaymentsTab
+									data={paymentsData}
+									isLoading={invoicesLoading}
+									isError={invoicesError}
+									error={invoicesErrorObj}
+									refetch={invoicesRefetch}
+									onSelectPayment={(id) => {
+										// No-op: history dialog lives in payment/view.tsx; sales page is list-only
+										console.info("[sales/payments] payment selected:", id);
+									}}
+								/>
+							)}
+							{tab === "cancelled" && organizationId && (
+								<CancelledSalesTab
+									organizationId={organizationId}
+									from={derivedFilters.from}
+									to={derivedFilters.to}
+									onFromChange={(v) => handleFilterChange({ from: v })}
+									onToChange={(v) => handleFilterChange({ to: v })}
+									onClearDates={() => handleFilterChange({ from: "", to: "" })}
+								/>
+							)}
+							{tab === "refunds" &&
+								organizationId &&
+								hasPermission("refund_management:read") && (
+									<RefundsTab organizationId={organizationId} />
 								)}
-							</TabsTrigger>
-							<TabsTrigger
-								value="payments"
-								className="rounded-none border-0 border-b-2 border-b-transparent px-4 pb-2 pt-0 data-[state=active]:border-b-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-							>
-								Payments
-								{paymentsCount !== null && (
-									<span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-										{paymentsCount}
-									</span>
-								)}
-							</TabsTrigger>
-						</TabsList>
-					</div>
-					<TabsContent value="orders" className="mt-0 min-h-0 flex-1 overflow-hidden">
-						<SalesTab
-							data={salesData}
-							total={total}
-							page={page}
-							onPageChange={handlePageChange}
-							isLoading={salesLoading}
-							isError={salesError}
-							error={salesErrorObj}
-							refetch={salesRefetch}
-							from={derivedFilters.from}
-							to={derivedFilters.to}
-							status={status}
-							branchId={branchId}
-							onFromChange={(v) => handleFilterChange({ from: v })}
-							onToChange={(v) => handleFilterChange({ to: v })}
-							onStatusChange={(v) => handleFilterChange({ status: v })}
-							onBranchChange={(v) => handleFilterChange({ branchId: v })}
-							onClear={handleClear}
-						/>
-					</TabsContent>
-					<TabsContent value="payments" className="mt-0 min-h-0 flex-1 overflow-hidden">
-						<PaymentsTab
-							data={paymentsData}
-							isLoading={invoicesLoading}
-							isError={invoicesError}
-							error={invoicesErrorObj}
-							refetch={invoicesRefetch}
-						/>
-					</TabsContent>
-				</Tabs>
-			) : (
-				<PageLoader />
-			)}
+						</>
+					) : (
+						<PageLoader />
+					)}
+				</div>
+			</div>
 		</div>
 	);
 }

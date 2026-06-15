@@ -1,4 +1,12 @@
 import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 
 interface DeleteConfirmDialogProps {
 	entityName: string;
@@ -16,24 +24,38 @@ export function DeleteConfirmDialog({
 	onConfirm,
 }: DeleteConfirmDialogProps) {
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-primary-1/50">
-			<div className="mx-4 w-full max-w-md rounded-lg bg-white p-6">
-				<h3 className="mb-4 text-lg font-semibold text-brand-primary-1">
-					Delete {entityName}
-				</h3>
-				<p className="mb-6 text-brand-secondary-1">
-					Are you sure you want to delete the {entityName.toLowerCase()} "
-					{itemLabel}"? This action cannot be undone.
-				</p>
-				<div className="flex justify-end space-x-3">
+		<Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						CONFIRM DELETE
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Delete {entityName}
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
+						Are you sure you want to delete the {entityName.toLowerCase()}{" "}
+						&ldquo;
+						{itemLabel}&rdquo;? This action cannot be undone.
+					</DialogDescription>
+				</DialogHeader>
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 					<Button variant="outline" onClick={onCancel}>
 						Cancel
 					</Button>
-					<Button variant="destructive" disabled={isMutating} onClick={onConfirm}>
+					<Button
+						variant="destructive"
+						className="bg-red-600 hover:bg-red-700 text-white"
+						disabled={isMutating}
+						onClick={onConfirm}
+					>
 						Delete
 					</Button>
-				</div>
-			</div>
-		</div>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }

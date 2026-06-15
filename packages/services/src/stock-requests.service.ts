@@ -24,7 +24,7 @@ function formatDateYYYYMMDD(date: Date): string {
 
 async function generateRequestNumber(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	date: Date
+	date: Date,
 ): Promise<string> {
 	const datePart = formatDateYYYYMMDD(date);
 	const prefix = `SR-${datePart}-`;
@@ -38,7 +38,7 @@ async function generateRequestNumber(
 	return `${prefix}${String(seq).padStart(4, "0")}`;
 }
 
-export type StockRequestWithItems = (typeof stockRequests.$inferSelect) & {
+export type StockRequestWithItems = typeof stockRequests.$inferSelect & {
 	items: (typeof stockRequestItems.$inferSelect)[];
 };
 
@@ -49,7 +49,7 @@ export async function listStockRequests(
 		fromBranchId?: string;
 		toBranchId?: string;
 		accessibleNodeIds?: string[];
-	} = {}
+	} = {},
 ): Promise<(typeof stockRequests.$inferSelect)[]> {
 	const { status, fromBranchId, toBranchId, accessibleNodeIds } = params;
 
@@ -78,7 +78,7 @@ export async function listStockRequests(
 
 export async function getStockRequestById(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
+	id: string,
 ): Promise<StockRequestWithItems | null> {
 	const row = await tenantDb.query.stockRequests.findFirst({
 		where: eq(stockRequests.id, id),
@@ -97,9 +97,12 @@ export async function getStockRequestById(
 
 export async function createStockRequest(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: CreateStockRequestParams
+	params: CreateStockRequestParams,
 ): Promise<StockRequestWithItems> {
-	const requestNumber = await generateRequestNumber(tenantDb, params.dateIssued);
+	const requestNumber = await generateRequestNumber(
+		tenantDb,
+		params.dateIssued,
+	);
 
 	return tenantDb.transaction(async (tx) => {
 		const [header] = await tx
@@ -129,7 +132,7 @@ export async function createStockRequest(
 					quantityRequested: item.quantityRequested,
 					quantityFulfilled: 0,
 					notes: item.notes ?? null,
-				}))
+				})),
 			)
 			.returning();
 
@@ -139,7 +142,7 @@ export async function createStockRequest(
 
 export async function approveStockRequest(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
+	id: string,
 ): Promise<typeof stockRequests.$inferSelect> {
 	const [row] = await tenantDb
 		.update(stockRequests)
@@ -156,7 +159,7 @@ export async function approveStockRequest(
 export async function fulfillStockRequest(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	id: string,
-	items: { itemId: string; quantityFulfilled: number }[]
+	items: { itemId: string; quantityFulfilled: number }[],
 ): Promise<typeof stockRequests.$inferSelect> {
 	const request = await getStockRequestById(tenantDb, id);
 	if (!request) {
@@ -176,15 +179,30 @@ export async function fulfillStockRequest(
 			for (const item of items) {
 				const requestItem = request.items.find((i) => i.id === item.itemId);
 				if (requestItem) {
-					await adjustStock(tx as unknown as NeonDatabase<typeof tenantSchema>, requestItem.productId, request.fromBranchId!, -item.quantityFulfilled);
-					await adjustStock(tx as unknown as NeonDatabase<typeof tenantSchema>, requestItem.productId, request.toBranchId, item.quantityFulfilled);
+					await adjustStock(
+						tx as unknown as NeonDatabase<typeof tenantSchema>,
+						requestItem.productId,
+						request.fromBranchId!,
+						-item.quantityFulfilled,
+					);
+					await adjustStock(
+						tx as unknown as NeonDatabase<typeof tenantSchema>,
+						requestItem.productId,
+						request.toBranchId,
+						item.quantityFulfilled,
+					);
 				}
 			}
 		} else {
 			for (const item of items) {
 				const requestItem = request.items.find((i) => i.id === item.itemId);
 				if (requestItem) {
-					await adjustStock(tx as unknown as NeonDatabase<typeof tenantSchema>, requestItem.productId, request.toBranchId, item.quantityFulfilled);
+					await adjustStock(
+						tx as unknown as NeonDatabase<typeof tenantSchema>,
+						requestItem.productId,
+						request.toBranchId,
+						item.quantityFulfilled,
+					);
 				}
 			}
 		}
@@ -204,7 +222,7 @@ export async function fulfillStockRequest(
 
 export async function rejectStockRequest(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
+	id: string,
 ): Promise<typeof stockRequests.$inferSelect> {
 	const [row] = await tenantDb
 		.update(stockRequests)

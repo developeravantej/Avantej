@@ -43,6 +43,8 @@ interface ItemsStepProps {
 	onAddItem: (item: CartItem) => void;
 	onUpdateItem: (id: string, patch: Partial<CartItem>) => void;
 	onRemoveItem: (id: string) => void;
+	/** Walk-ins can't buy packages, and picking a service becomes a package — hide it. */
+	isWalkIn?: boolean;
 }
 
 // ─── Row component ─────────────────────────────────────────────────────────────
@@ -56,9 +58,16 @@ interface RowProps {
 	onRemove: () => void;
 }
 
-function ItemRow({ item, services, organizationId, selectedCustomer, onUpdate, onRemove }: RowProps) {
+function ItemRow({
+	item,
+	services,
+	organizationId,
+	selectedCustomer,
+	onUpdate,
+	onRemove,
+}: RowProps) {
 	const priceRm = centsToRm(item.unitPriceCents);
-	const isLookup = item.type === "service";
+	const isLookup = item.type === "service" || item.type === "package";
 
 	const [isPriceLoading, setIsPriceLoading] = useState(false);
 	const [noPriceWarning, setNoPriceWarning] = useState(false);
@@ -73,6 +82,7 @@ function ItemRow({ item, services, organizationId, selectedCustomer, onUpdate, o
 		setNoPriceWarning(false);
 
 		onUpdate({
+			type: "package",
 			refId: svc.id,
 			description: svc.name,
 			unitPriceCents: 0,
@@ -100,11 +110,18 @@ function ItemRow({ item, services, organizationId, selectedCustomer, onUpdate, o
 	}
 
 	return (
-		<div className="grid grid-cols-12 items-start gap-2 rounded-md border bg-muted/30 p-3">
+		<div
+			className="grid grid-cols-12 items-start gap-2 rounded-md border bg-muted/30 p-3"
+			data-testid="pos-catalog-item"
+		>
 			{/* Type badge */}
 			<div className="col-span-12 sm:col-span-2">
 				<span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary text-xs">
-					{item.type === "service" ? "Service" : "Custom"}
+					{item.type === "package"
+						? "Package"
+						: item.type === "service"
+							? "Service"
+							: "Custom"}
 				</span>
 			</div>
 
@@ -149,7 +166,7 @@ function ItemRow({ item, services, organizationId, selectedCustomer, onUpdate, o
 					type="button"
 					variant="outline"
 					size="icon"
-					className="h-8 w-8 shrink-0"
+					className="size-8 shrink-0"
 					onClick={() => onUpdate({ quantity: Math.max(1, item.quantity - 1) })}
 					disabled={item.quantity <= 1}
 				>
@@ -162,7 +179,7 @@ function ItemRow({ item, services, organizationId, selectedCustomer, onUpdate, o
 					type="button"
 					variant="outline"
 					size="icon"
-					className="h-8 w-8 shrink-0"
+					className="size-8 shrink-0"
 					onClick={() => onUpdate({ quantity: item.quantity + 1 })}
 				>
 					+
@@ -177,7 +194,7 @@ function ItemRow({ item, services, organizationId, selectedCustomer, onUpdate, o
 					</span>
 					{isPriceLoading ? (
 						<div className="flex h-9 items-center pl-9">
-							<Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+							<Loader2 className="size-4 animate-spin text-muted-foreground" />
 						</div>
 					) : (
 						<Input
@@ -206,11 +223,11 @@ function ItemRow({ item, services, organizationId, selectedCustomer, onUpdate, o
 					type="button"
 					variant="ghost"
 					size="icon"
-					className="h-8 w-8 text-destructive hover:bg-destructive/10"
+					className="size-8 text-destructive hover:bg-destructive/10"
 					onClick={onRemove}
 					aria-label="Remove item"
 				>
-					<Trash2 className="h-4 w-4" />
+					<Trash2 className="size-4" />
 				</Button>
 			</div>
 		</div>
@@ -226,6 +243,7 @@ export function ItemsStep({
 	onAddItem,
 	onUpdateItem,
 	onRemoveItem,
+	isWalkIn = false,
 }: ItemsStepProps) {
 	const addSelectId = useId();
 
@@ -293,8 +311,15 @@ export function ItemsStep({
 						variant="outline"
 						size="sm"
 						onClick={() => addItem("service")}
+						data-testid="pos-add-service-button"
+						disabled={isWalkIn}
+						title={
+							isWalkIn
+								? "Walk-in customers can't purchase packages — use a Custom line or register the customer."
+								: undefined
+						}
 					>
-						<Plus className="mr-1 h-3.5 w-3.5" />
+						<Plus className="mr-1 size-3.5" />
 						Service
 					</Button>
 					<Button
@@ -302,8 +327,9 @@ export function ItemsStep({
 						variant="outline"
 						size="sm"
 						onClick={() => addItem("custom")}
+						data-testid="pos-add-product-button"
 					>
-						<Plus className="mr-1 h-3.5 w-3.5" />
+						<Plus className="mr-1 size-3.5" />
 						Custom
 					</Button>
 				</div>
@@ -311,7 +337,8 @@ export function ItemsStep({
 
 			{items.length === 0 && (
 				<p className="py-4 text-center text-muted-foreground text-sm">
-					No items added. Use the buttons above to add a service or custom line item.
+					No items added. Use the buttons above to add a service or custom line
+					item.
 				</p>
 			)}
 		</div>

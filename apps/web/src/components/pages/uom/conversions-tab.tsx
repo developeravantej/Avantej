@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ArrowLeftRight } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import DataTable from "@/components/tables/uom-conversions/view/data-table";
 import { columns } from "@/components/tables/uom-conversions/view/columns";
 
@@ -23,10 +24,16 @@ export function UomConversionsTabPage() {
 		conversionFactor: string;
 	} | null>(null);
 
-	const { data: allUoms = [], isLoading, isError, error, refetch } = useQuery({
-		queryKey: ["unitsOfMeasure", organizationId],
-		queryFn: () =>
-			client.unitsOfMeasure.list({ organizationId: organizationId! }),
+	const {
+		data: allUoms = [],
+		isLoading,
+		isError,
+		error,
+		refetch,
+	} = useQuery({
+		...orpc.unitsOfMeasure.list.queryOptions({
+			input: { organizationId: organizationId ?? "" },
+		}),
 		enabled: !!organizationId,
 	});
 
@@ -53,7 +60,7 @@ export function UomConversionsTabPage() {
 		successMessage: "Conversion created",
 		errorMessage: (error) =>
 			`Failed to create conversion: ${error.message || "An unexpected error occurred"}`,
-		invalidate: [["unitsOfMeasure", organizationId]],
+		invalidate: [orpc.unitsOfMeasure.list.key()],
 		onSuccess: () => setIsAddDialogOpen(false),
 	});
 
@@ -72,7 +79,7 @@ export function UomConversionsTabPage() {
 		successMessage: "Conversion updated",
 		errorMessage: (error) =>
 			`Failed to update conversion: ${error.message || "An unexpected error occurred"}`,
-		invalidate: [["unitsOfMeasure", organizationId]],
+		invalidate: [orpc.unitsOfMeasure.list.key()],
 		onSuccess: () => setEditTarget(null),
 	});
 
@@ -85,7 +92,7 @@ export function UomConversionsTabPage() {
 		successMessage: "Conversion deleted",
 		errorMessage: (error) =>
 			`Failed to delete conversion: ${error.message || "An unexpected error occurred"}`,
-		invalidate: [["unitsOfMeasure", organizationId]],
+		invalidate: [orpc.unitsOfMeasure.list.key()],
 	});
 
 	if (!organizationId) {
@@ -96,16 +103,16 @@ export function UomConversionsTabPage() {
 		);
 	}
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
 	if (isError) {
 		return (
 			<div className="flex flex-col items-center justify-center py-12">
-				<p className="text-lg font-medium text-destructive">Failed to load data</p>
+				<p className="text-lg font-medium text-destructive">
+					Failed to load data
+				</p>
 				<p className="text-sm text-muted-foreground mb-4">
-					{error instanceof Error ? error.message : "An unexpected error occurred"}
+					{error instanceof Error
+						? error.message
+						: "An unexpected error occurred"}
 				</p>
 				<Button variant="outline" onClick={() => refetch()}>
 					Try Again
@@ -115,30 +122,36 @@ export function UomConversionsTabPage() {
 	}
 
 	return (
-		<>
-			{conversions.length === 0 && (
-				<EmptyState
-					title="No UoM conversions"
-					description="Add a conversion to relate units of measure."
-					icon={ArrowLeftRight}
+		<Skeleton
+			name="uom-conversions-tab"
+			loading={isLoading}
+			fallback={<PageLoader />}
+		>
+			<>
+				{conversions.length === 0 && (
+					<EmptyState
+						title="No UoM conversions"
+						description="Add a conversion to relate units of measure."
+						icon={ArrowLeftRight}
+					/>
+				)}
+				<DataTable
+					columns={columns}
+					data={conversions}
+					uomMap={uomMap}
+					baseUoms={baseUoms}
+					isAddDialogOpen={isAddDialogOpen}
+					onAddDialogOpenChange={setIsAddDialogOpen}
+					editTarget={editTarget}
+					onEditTargetChange={setEditTarget}
+					onCreate={(vars) => createMutation.mutate(vars)}
+					onUpdate={(vars) => updateMutation.mutate(vars)}
+					onDelete={(id) => deleteMutation.mutate(id)}
+					isCreating={createMutation.isPending}
+					isUpdating={updateMutation.isPending}
+					isDeleting={deleteMutation.isPending}
 				/>
-			)}
-			<DataTable
-				columns={columns}
-				data={conversions}
-				uomMap={uomMap}
-				baseUoms={baseUoms}
-				isAddDialogOpen={isAddDialogOpen}
-				onAddDialogOpenChange={setIsAddDialogOpen}
-				editTarget={editTarget}
-				onEditTargetChange={setEditTarget}
-				onCreate={(vars) => createMutation.mutate(vars)}
-				onUpdate={(vars) => updateMutation.mutate(vars)}
-				onDelete={(id) => deleteMutation.mutate(id)}
-				isCreating={createMutation.isPending}
-				isUpdating={updateMutation.isPending}
-				isDeleting={deleteMutation.isPending}
-			/>
-		</>
+			</>
+		</Skeleton>
 	);
 }

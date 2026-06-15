@@ -1,0 +1,7 @@
+{
+  "settings/installment-plans-duplicate-code.rule.spec.ts::rule: duplicate installment plan code is rejected (409)": [
+    "Create an installment plan with a unique code",
+    "Register teardown to deactivate the plan",
+    "Attempt installmentPlans/create with the same code and assert 409"
+  ]
+}

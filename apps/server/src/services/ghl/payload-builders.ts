@@ -19,7 +19,9 @@ export interface AvantejUser {
 
 export interface AvantejCustomerProfile {
 	id: string;
-	userId: string;
+	// Nullable since Phase 4 — dependents in an account_group have no
+	// control-panel user. GHL sync callers must early-return when this is null.
+	userId: string | null;
 	phone: string | null;
 	dateOfBirth: Date | null;
 	gender: string | null;
@@ -63,13 +65,13 @@ export interface BuildContactArgs {
 	branchOptionLabel?: string | null;
 }
 
-export function buildContactPayload(
-	args: BuildContactArgs,
-): GhlContactPayload {
+export function buildContactPayload(args: BuildContactArgs): GhlContactPayload {
 	const { locationId, user, profile, memberStatus, customFieldIds } = args;
 
 	const tags: string[] = [];
-	tags.push(memberStatus === "active" ? "customer:active" : "customer:inactive");
+	tags.push(
+		memberStatus === "active" ? "customer:active" : "customer:inactive",
+	);
 	if (profile.fitnessGoals) {
 		for (const g of profile.fitnessGoals) tags.push(`goal:${g}`);
 	}
@@ -189,14 +191,11 @@ export function buildUserPayload(args: BuildUserArgs): GhlUserPayload {
 		base.phone = user.phone;
 	}
 
-	if (args.branchCountryFieldId && args.branchOptionLabel) {
-		base.customFields = [
-			{
-				id: args.branchCountryFieldId,
-				value: args.branchOptionLabel,
-			},
-		];
-	}
+	// GHL POST/PUT /users/ does NOT accept `customFields` (returns 422
+	// "property customFields should not exist"). Branch tagging on users is
+	// not supported by the GHL Users API; the locationId on the user already
+	// pins them to the sub-account, which is sufficient for org-shared mode.
+	// branchCountryFieldId / branchOptionLabel are intentionally unused here.
 
 	if (memberRole === "admin") {
 		return base;

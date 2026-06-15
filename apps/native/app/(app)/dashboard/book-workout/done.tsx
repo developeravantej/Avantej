@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Image } from "expo-image";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { useBookingFlow } from "@/contexts/booking-flow-context";
@@ -40,15 +41,12 @@ export default function DoneScreen() {
 
 	const handleBackToHome = () => {
 		reset();
-		router.dismissAll();
+		router.replace("/dashboard");
 	};
 
 	const handleViewBookings = () => {
 		reset();
-		router.dismissAll();
-		setTimeout(() => {
-			router.push("/dashboard/bookings" as never);
-		}, 100);
+		router.replace("/dashboard/bookings");
 	};
 
 	return (
@@ -57,12 +55,12 @@ export default function DoneScreen() {
 				{/* Header with Title */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
-						<TouchableOpacity
+						<Pressable
 							onPress={handleBackToHome}
-							className="mr-3 h-10 w-10 items-center justify-center"
+							className="mr-3 size-10 items-center justify-center"
 						>
 							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
-						</TouchableOpacity>
+						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-primary-1">
 							Book Workout
 						</Text>
@@ -76,7 +74,7 @@ export default function DoneScreen() {
 							uri: "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=800",
 						}}
 						className="h-full w-full"
-						resizeMode="cover"
+						contentFit="cover"
 					/>
 				</View>
 
@@ -109,13 +107,12 @@ export default function DoneScreen() {
 						{/* Step Navigation */}
 						<View className="relative" style={{ height: 50 }}>
 							<View
-								className="absolute rounded-full"
+								className="absolute h-px"
 								style={{
 									left: "15%",
 									right: "14%",
-									top: "24%",
-									height: 2,
-									backgroundColor: colors.secondary[2],
+									top: "27%",
+									backgroundColor: colors.secondary[3],
 									zIndex: 0,
 								}}
 							/>
@@ -133,7 +130,7 @@ export default function DoneScreen() {
 											{isCompleted ? (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-7 w-7 items-center justify-center rounded-full"
+														className="size-6 items-center justify-center rounded-full"
 														style={{
 															backgroundColor: colors.primary[1],
 															zIndex: 2,
@@ -149,7 +146,7 @@ export default function DoneScreen() {
 											) : isActive ? (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-7 w-7 items-center justify-center rounded-full"
+														className="size-6 items-center justify-center rounded-full"
 														style={{
 															backgroundColor: colors.primary[1],
 															zIndex: 2,
@@ -165,10 +162,20 @@ export default function DoneScreen() {
 											) : (
 												<View className="mb-1 items-center justify-center">
 													<View
-														className="h-7 w-7 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
-														style={{ zIndex: 2 }}
+														style={{
+															backgroundColor: colors.primary[2],
+															borderRadius: 10,
+															width: 20,
+															height: 20,
+															alignItems: "center",
+															justifyContent: "center",
+															zIndex: 2,
+														}}
 													>
-														<Text className="font-semibold text-primary-1 text-xs">
+														<Text
+															className="text-xs"
+															style={{ color: colors.secondary[1] }}
+														>
 															{step.number}
 														</Text>
 													</View>
@@ -176,7 +183,7 @@ export default function DoneScreen() {
 											)}
 											<Text
 												className={`mt-1 text-center text-xs ${
-													isActive ? "font-bold" : "font-medium"
+													isActive ? "font-bold" : ""
 												}`}
 												style={{
 													color:
@@ -196,7 +203,7 @@ export default function DoneScreen() {
 
 					{/* Success Section */}
 					<View className="mb-4 items-center">
-						<View className="mb-4 h-20 w-20 items-center justify-center rounded-full bg-primary-1">
+						<View className="mb-4 size-20 items-center justify-center rounded-full bg-primary-1">
 							<Ionicons name="checkmark" size={40} color={colors.primary[2]} />
 						</View>
 
@@ -265,7 +272,7 @@ export default function DoneScreen() {
 									className="font-semibold text-base"
 									style={{ color: colors.primary[1] }}
 								>
-									{state.trainerName ?? "—"}
+									{state.trainerName ?? "Auto-assign"}
 								</Text>
 							</View>
 
@@ -295,24 +302,24 @@ export default function DoneScreen() {
 				edges={["bottom"]}
 				className="border-secondary-3 border-t bg-primary-2"
 			>
-				<View className="px-4 py-4">
-					<TouchableOpacity
+				<View className="p-4">
+					<Pressable
 						onPress={handleBackToHome}
 						className="mb-3 items-center justify-center rounded-xl bg-primary-1 py-4"
 					>
 						<Text className="font-semibold text-base text-primary-2">
 							Back to Home
 						</Text>
-					</TouchableOpacity>
+					</Pressable>
 
-					<TouchableOpacity
+					<Pressable
 						onPress={handleViewBookings}
 						className="items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 py-4"
 					>
 						<Text className="font-semibold text-base text-primary-1">
 							View My Bookings
 						</Text>
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 			</SafeAreaView>
 		</Container>

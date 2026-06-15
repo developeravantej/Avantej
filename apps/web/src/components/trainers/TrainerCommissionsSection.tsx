@@ -3,9 +3,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { formatPrice } from "@/lib/money";
-import { StatusBadge, type CanonicalStatus } from "@/components/ui/status-badge";
+import {
+	StatusBadge,
+	type CanonicalStatus,
+} from "@/components/ui/status-badge";
 import { Separator } from "@/components/ui/separator";
 import {
 	Collapsible,
@@ -45,14 +48,14 @@ export function TrainerCommissionsSection({
 	onOpenChange,
 }: Props) {
 	const { data: commissionsData, isLoading } = useQuery({
-		queryKey: ["trainerCommissions", organizationId, trainerUserId],
-		queryFn: () =>
-			client.commissionSplits.listLedger({
+		...orpc.commissionSplits.listLedger.queryOptions({
+			input: {
 				organizationId,
 				staffId: trainerUserId!,
 				limit: 20,
 				offset: 0,
-			}),
+			},
+		}),
 		enabled: !!trainerUserId && isOpen,
 	});
 
@@ -62,7 +65,10 @@ export function TrainerCommissionsSection({
 	return (
 		<Collapsible open={isOpen} onOpenChange={onOpenChange}>
 			<CollapsibleTrigger asChild>
-				<button type="button" className="flex w-full items-center justify-between pt-1">
+				<button
+					type="button"
+					className="flex w-full items-center justify-between pt-1"
+				>
 					<div className="space-y-0.5 text-left">
 						<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
 							Commissions
@@ -71,7 +77,7 @@ export function TrainerCommissionsSection({
 					</div>
 					<ChevronDown
 						className={cn(
-							"h-4 w-4 text-muted-foreground transition-transform duration-200",
+							"size-4 text-muted-foreground transition-transform duration-200",
 							isOpen && "rotate-180",
 						)}
 					/>
@@ -79,7 +85,9 @@ export function TrainerCommissionsSection({
 			</CollapsibleTrigger>
 			<CollapsibleContent className="pt-3">
 				{isLoading ? (
-					<p className="text-sm text-muted-foreground py-2">Loading commissions…</p>
+					<p className="text-sm text-muted-foreground py-2">
+						Loading commissions…
+					</p>
 				) : commissions.length === 0 ? (
 					<p className="text-sm text-muted-foreground py-2">
 						No commission records found.

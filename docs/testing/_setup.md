@@ -13,7 +13,7 @@
 Start the full stack (web + server) from the repo root:
 
 ```bash
-bun dev          # web :3001, server :3000
+bun dev          # web :3021, server :3020 (avantej.localhost)
 # or individually:
 bun dev:web
 bun dev:server
@@ -22,8 +22,8 @@ bun dev:server
 Sanity-check before any protocol:
 
 ```bash
-curl -I http://localhost:3001          # expect HTTP/1.1 200 OK
-curl http://localhost:3000/ping        # expect "pong" (or 200)
+curl -I http://avantej.localhost:3021          # expect HTTP/1.1 200 OK
+curl http://avantej.localhost:3020/health      # expect 200
 ```
 
 If either fails, stop — the protocol cannot run. Fix the stack first.
@@ -276,8 +276,8 @@ If any box is unchecked, fix it before executing a protocol. A partial setup gua
 
 ## Appendix B — Cross-references
 
-- Auth and cookie model: `zhub/shared/auth-flow.md`
-- Page inventory: `zhub/index.md`
+- Auth and cookie model: `CLAUDE.md`
+- Page inventory: `graphify-out/GRAPH_REPORT.md`
 - Buffer-cascade reference: `docs/BUFFER_TIME_TESTING.md`
 - Installment reference: `docs/INSTALLMENT_TESTING.md`
 - Master plan: `zplan/17-04_13-00_admin-flow-test-coverage/plan.md`

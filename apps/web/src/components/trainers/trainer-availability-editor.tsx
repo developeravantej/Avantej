@@ -3,9 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus, X, Save } from "lucide-react";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
 	Select,
 	SelectContent,
@@ -74,13 +73,14 @@ export function TrainerAvailabilityEditor({
 	// ── Fetch existing availability ──────────────────────────────────────────
 
 	const { data: availabilityData, isLoading } = useQuery({
-		queryKey: ["trainer-availability", trainerId],
-		queryFn: () =>
-			client.trainerAvailability.list({ organizationId, trainerId }),
+		...orpc.trainerAvailability.list.queryOptions({
+			input: { organizationId, trainerId },
+		}),
 		enabled: !!organizationId && !!trainerId,
 	});
 
 	// Populate local state from fetched data
+	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- prop-driven hydration: populates local state from fetched availabilityData
 	useEffect(() => {
 		if (availabilityData) {
 			setShifts(
@@ -115,7 +115,11 @@ export function TrainerAvailabilityEditor({
 			}),
 		successMessage: "Availability saved successfully.",
 		errorMessage: (err) => err.message || "Failed to save availability.",
-		invalidate: [["trainer-availability", trainerId]],
+		invalidate: [
+			orpc.trainerAvailability.list.queryOptions({
+				input: { organizationId, trainerId },
+			}).queryKey,
+		],
 		onSuccess: () => {
 			onSaved?.();
 		},
@@ -134,7 +138,11 @@ export function TrainerAvailabilityEditor({
 		setShifts((prev) => prev.filter((_, i) => i !== index));
 	}
 
-	function updateShift(index: number, field: "startTime" | "endTime", value: string) {
+	function updateShift(
+		index: number,
+		field: "startTime" | "endTime",
+		value: string,
+	) {
 		setShifts((prev) =>
 			prev.map((shift, i) =>
 				i === index ? { ...shift, [field]: value } : shift,
@@ -148,7 +156,7 @@ export function TrainerAvailabilityEditor({
 		return (
 			<div className="flex items-center gap-2 py-4 text-sm text-brand-secondary-1">
 				<LoadingSpinner size="sm" />
-				Loading availability...
+				Loading availability…
 			</div>
 		);
 	}
@@ -158,14 +166,19 @@ export function TrainerAvailabilityEditor({
 	return (
 		<div className="space-y-4">
 			{DAYS.map((day) => {
-				const dayShifts = shifts
-					.map((shift, originalIndex) => ({ shift, originalIndex }))
-					.filter(({ shift }) => shift.dayOfWeek === day);
+				const dayShifts = shifts.flatMap((shift, originalIndex) =>
+					shift.dayOfWeek === day ? [{ shift, originalIndex }] : [],
+				);
 
 				return (
-					<div key={day} className="bg-white border border-brand-secondary-3 rounded-md p-4 space-y-2">
+					<div
+						key={day}
+						className="bg-white border border-brand-secondary-3 rounded-md p-4 space-y-2"
+					>
 						<div className="flex items-center justify-between">
-							<span className="text-sm font-medium text-brand-primary-1">{DAY_LABELS[day]}</span>
+							<span className="text-sm font-medium text-brand-primary-1">
+								{DAY_LABELS[day]}
+							</span>
 							<Button
 								type="button"
 								variant="ghost"
@@ -173,24 +186,25 @@ export function TrainerAvailabilityEditor({
 								className="h-7 px-2 text-xs text-brand-secondary-1 hover:text-brand-primary-1"
 								onClick={() => addShift(day)}
 							>
-								<Plus className="h-3 w-3 mr-1" />
+								<Plus className="size-3 mr-1" />
 								Add Shift
 							</Button>
 						</div>
 
 						{dayShifts.length === 0 ? (
-							<p className="text-xs text-brand-secondary-1 pl-1">No shifts — day off</p>
+							<p className="text-xs text-brand-secondary-1 pl-1">
+								No shifts, day off
+							</p>
 						) : (
 							<div className="space-y-1.5 pl-1">
 								{dayShifts.map(({ shift, originalIndex }) => (
-									<div
-										key={originalIndex}
-										className="flex items-center gap-2"
-									>
+									<div key={originalIndex} className="flex items-center gap-2">
 										{/* Start time */}
 										<Select
 											value={shift.startTime}
-											onValueChange={(v) => updateShift(originalIndex, "startTime", v)}
+											onValueChange={(v) =>
+												updateShift(originalIndex, "startTime", v)
+											}
 										>
 											<SelectTrigger className="h-8 w-28 text-xs border-brand-secondary-3 focus:border-black focus:ring-black">
 												<SelectValue />
@@ -209,7 +223,9 @@ export function TrainerAvailabilityEditor({
 										{/* End time */}
 										<Select
 											value={shift.endTime}
-											onValueChange={(v) => updateShift(originalIndex, "endTime", v)}
+											onValueChange={(v) =>
+												updateShift(originalIndex, "endTime", v)
+											}
 										>
 											<SelectTrigger className="h-8 w-28 text-xs border-brand-secondary-3 focus:border-black focus:ring-black">
 												<SelectValue />
@@ -228,11 +244,11 @@ export function TrainerAvailabilityEditor({
 											type="button"
 											variant="ghost"
 											size="sm"
-											className="h-7 w-7 p-0 text-brand-secondary-1 hover:text-red-600"
+											className="size-7 p-0 text-brand-secondary-1 hover:text-red-600"
 											onClick={() => removeShift(originalIndex)}
 											aria-label={`Remove ${DAY_LABELS[day]} shift`}
 										>
-											<X className="h-3.5 w-3.5" />
+											<X className="size-3.5" />
 										</Button>
 									</div>
 								))}
@@ -248,9 +264,9 @@ export function TrainerAvailabilityEditor({
 					type="button"
 					onClick={() => saveMutation.mutate()}
 					disabled={saveMutation.isPending}
-					className="inline-flex justify-center rounded-md border border-transparent bg-black px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+					className="inline-flex justify-center rounded-md border border-transparent bg-zinc-950 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
 				>
-					<Save className="h-4 w-4 mr-2" />
+					<Save className="size-4 mr-2" />
 					{saveMutation.isPending ? "Saving..." : "Save Availability"}
 				</button>
 			</div>

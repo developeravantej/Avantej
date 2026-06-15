@@ -1,6 +1,12 @@
 import React from "react";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 
 type Trainer = {
 	id: string;
@@ -48,7 +54,11 @@ export function StaffPicker({
 	const isRoomMissing = disableWhenNoRoom && !roomId;
 
 	return (
-		<div className={commissionSlots.length > 1 ? "space-y-3 md:col-span-2" : "space-y-2"}>
+		<div
+			className={
+				commissionSlots.length > 1 ? "space-y-3 md:col-span-2" : "space-y-2"
+			}
+		>
 			<Label className="text-sm font-medium text-brand-primary-1">
 				{commissionSlots.length > 1 ? "Staff Slots" : "Trainer"}
 			</Label>
@@ -59,7 +69,7 @@ export function StaffPicker({
 			)}
 			{trainerFilterFallback && (
 				<p className="text-xs text-amber-600">
-					No trainers assigned to this service — showing all trainers.
+					No trainers assigned to this service, showing all trainers.
 				</p>
 			)}
 
@@ -68,11 +78,17 @@ export function StaffPicker({
 				commissionSlots.map((slot, idx) => (
 					<div key={slot.slotIndex} className="space-y-1">
 						<div className="flex items-center gap-2 text-xs">
-							<span className="font-medium text-brand-primary-1">{slot.label}</span>
-							<span className="text-muted-foreground">({(slot.weightageBasisPoints / 100).toFixed(0)}%)</span>
+							<span className="font-medium text-brand-primary-1">
+								{slot.label}
+							</span>
+							<span className="text-muted-foreground">
+								({(slot.weightageBasisPoints / 100).toFixed(0)}%)
+							</span>
 						</div>
 						<Select
-							value={idx === 0 ? employeeId : (additionalSlotTrainers[idx - 1] ?? "")}
+							value={
+								idx === 0 ? employeeId : (additionalSlotTrainers[idx - 1] ?? "")
+							}
 							onValueChange={(value) => {
 								if (idx === 0) {
 									onChangeEmployeeId(value);
@@ -99,7 +115,8 @@ export function StaffPicker({
 				<>
 					{commissionSlots.length === 1 && (
 						<div className="text-xs text-muted-foreground mb-1">
-							{commissionSlots[0].label} ({(commissionSlots[0].weightageBasisPoints / 100).toFixed(0)}%)
+							{commissionSlots[0].label} (
+							{(commissionSlots[0].weightageBasisPoints / 100).toFixed(0)}%)
 						</div>
 					)}
 					<Select

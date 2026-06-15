@@ -51,7 +51,10 @@ export function isVirtualId(id: string): boolean {
  * Parse a virtual id back into its constituent parts.
  * Caller must ensure id is actually virtual (call isVirtualId first).
  */
-export function parseVirtualId(id: string): { parentId: string; isoDate: string } {
+export function parseVirtualId(id: string): {
+	parentId: string;
+	isoDate: string;
+} {
 	const parts = id.split("__", 3);
 	return { parentId: parts[1] ?? "", isoDate: parts[2] ?? "" };
 }
@@ -83,7 +86,12 @@ function toIsoDateStr(d: Date): string {
  * Find the Nth weekday (0=Sun..6=Sat) of the month containing the given year/month.
  * weekOfMonth: 1 = first, 2 = second, etc. -1 = last.
  */
-function nthWeekdayOfMonth(year: number, month: number, weekday: number, weekOfMonth: number): Date {
+function nthWeekdayOfMonth(
+	year: number,
+	month: number,
+	weekday: number,
+	weekOfMonth: number,
+): Date {
 	if (weekOfMonth === -1) {
 		// Last occurrence: start from end of month
 		const lastDay = new Date(Date.UTC(year, month + 1, 0));
@@ -96,7 +104,9 @@ function nthWeekdayOfMonth(year: number, month: number, weekday: number, weekOfM
 	const firstDow = firstDay.getUTCDay();
 	const diff = (weekday - firstDow + 7) % 7;
 	const firstOccurrence = 1 + diff;
-	return new Date(Date.UTC(year, month, firstOccurrence + (weekOfMonth - 1) * 7));
+	return new Date(
+		Date.UTC(year, month, firstOccurrence + (weekOfMonth - 1) * 7),
+	);
 }
 
 // ─── Core expansion function ──────────────────────────────────────────────────
@@ -141,12 +151,14 @@ export function expandRecurrenceRule(
 	const tryPush = (candidate: Date): boolean => {
 		// Check absolute end conditions
 		if (candidate > windowEnd) return false;
-		if (endsType === "on_date" && endsOn !== null && candidate > endsOn) return false;
+		if (endsType === "on_date" && endsOn !== null && candidate > endsOn)
+			return false;
 		if (
 			endsType === "after_occurrences" &&
 			endsAfterOccurrences !== null &&
 			occurrenceCount >= endsAfterOccurrences
-		) return false;
+		)
+			return false;
 
 		// Only collect dates within the window
 		if (candidate >= windowStart) {
@@ -173,7 +185,8 @@ export function expandRecurrenceRule(
 			cursor = addDays(cursor, frequencyValue);
 		}
 	} else if (timeUnit === "week") {
-		const repeatDays = Array.isArray(repeatOn) && repeatOn.length > 0 ? repeatOn : null;
+		const repeatDays =
+			Array.isArray(repeatOn) && repeatOn.length > 0 ? repeatOn : null;
 
 		if (!repeatDays) {
 			// No repeatOn — repeat same weekday every N weeks
@@ -248,7 +261,13 @@ export function expandRecurrenceRule(
 				if (!tryPush(candidate)) break;
 
 				// Advance cursor to the 1st of next N months
-				cursor = new Date(Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth() + frequencyValue, 1));
+				cursor = new Date(
+					Date.UTC(
+						cursor.getUTCFullYear(),
+						cursor.getUTCMonth() + frequencyValue,
+						1,
+					),
+				);
 			}
 		}
 	}
@@ -380,7 +399,8 @@ export async function listAppointmentsWithRecurrence(
 
 		for (const occDate of occurrenceDates) {
 			const dateStr = toIsoDateStr(occDate);
-			const alreadyMaterialized = materializedDates.get(parent.id)?.has(dateStr) ?? false;
+			const alreadyMaterialized =
+				materializedDates.get(parent.id)?.has(dateStr) ?? false;
 
 			if (!alreadyMaterialized) {
 				const syntheticId = makeVirtualId(parent.id, dateStr);
@@ -402,18 +422,25 @@ export async function listAppointmentsWithRecurrence(
 	}
 
 	// ── Step 6: Combine all rows ──────────────────────────────────────────────
-	const standaloneWithMeta: AppointmentWithOccurrence[] = standaloneRows.map((r) => ({
-		...r,
-		isVirtual: false,
-	}));
+	const standaloneWithMeta: AppointmentWithOccurrence[] = standaloneRows.map(
+		(r) => ({
+			...r,
+			isVirtual: false,
+		}),
+	);
 
-	const childrenWithMeta: AppointmentWithOccurrence[] = materializedChildren.map((r) => ({
-		...r,
-		isVirtual: false,
-		parentId: r.recurringParentId ?? undefined,
-	}));
+	const childrenWithMeta: AppointmentWithOccurrence[] =
+		materializedChildren.map((r) => ({
+			...r,
+			isVirtual: false,
+			parentId: r.recurringParentId ?? undefined,
+		}));
 
-	const combined = [...standaloneWithMeta, ...virtualOccurrences, ...childrenWithMeta];
+	const combined = [
+		...standaloneWithMeta,
+		...virtualOccurrences,
+		...childrenWithMeta,
+	];
 
 	// Sort by startTime ascending
 	combined.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());

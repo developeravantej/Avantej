@@ -8,7 +8,7 @@ import {
 import type {
 	PermissionResource,
 	Role,
-} from "@/components/access-control/permission-matrix/PermissionMatrix";
+} from "@/components/access-control/permission-matrix/permission-matrix.types";
 import {
 	formatActionName,
 	formatResourceName,
@@ -50,9 +50,7 @@ export function CompactView({
 									<div className="flex items-center gap-2">
 										<span className="font-medium">{role.name}</span>
 										{groupBadge && (
-											<Badge
-												className={cn("text-xs", groupBadge.config.color)}
-											>
+											<Badge className={cn("text-xs", groupBadge.config.color)}>
 												{groupBadge.config.label}
 											</Badge>
 										)}
@@ -80,7 +78,7 @@ export function CompactView({
 								return (
 									<div key={resource.id} className="bg-muted/30 rounded p-3">
 										<div className="flex items-center gap-2 mb-2">
-											{Icon && <Icon className="w-4 h-4" />}
+											{Icon && <Icon className="size-4" />}
 											<span className="font-medium text-sm">
 												{formatResourceName(resource.name)}
 											</span>

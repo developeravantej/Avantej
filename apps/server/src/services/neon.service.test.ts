@@ -66,12 +66,12 @@ describe("Neon Service - createTenantProject", () => {
 				slug: "test-org",
 				region: "aws-ap-southeast-1",
 			},
-			{ NEON_API_KEY: "test-api-key-12345" }
+			{ NEON_API_KEY: "test-api-key-12345" },
 		);
 
 		expect(result.projectId).toBe("test-project-id-123");
 		expect(result.connectionString).toBe(
-			"postgresql://user:pass@ep-xxx.neon.tech/neondb"
+			"postgresql://user:pass@ep-xxx.neon.tech/neondb",
 		);
 
 		// Verify fetch was called (project creation + branches API)
@@ -79,7 +79,9 @@ describe("Neon Service - createTenantProject", () => {
 		expect(fetchCalls.length).toBeGreaterThanOrEqual(1);
 		expect(fetchCalls[0][0]).toBe("https://console.neon.tech/api/v2/projects");
 		expect(fetchCalls[0][1].method).toBe("POST");
-		expect(fetchCalls[0][1].headers.Authorization).toBe("Bearer test-api-key-12345");
+		expect(fetchCalls[0][1].headers.Authorization).toBe(
+			"Bearer test-api-key-12345",
+		);
 		expect(fetchCalls[0][1].headers["Content-Type"]).toBe("application/json");
 
 		const body = JSON.parse(fetchCalls[0][1].body);
@@ -105,14 +107,14 @@ describe("Neon Service - createTenantProject", () => {
 				ok: true,
 				status: 201,
 				json: async () => mockResponse,
-			} as Response)
+			} as Response),
 		);
 
 		await createTenantProject(
 			{
 				slug: "test-org",
 			},
-			{ NEON_API_KEY: "test-api-key-12345" }
+			{ NEON_API_KEY: "test-api-key-12345" },
 		);
 
 		const fetchCalls = (globalThis.fetch as any).mock.calls;
@@ -124,7 +126,7 @@ describe("Neon Service - createTenantProject", () => {
 		await expect(
 			createTenantProject({
 				slug: "test-org",
-			})
+			}),
 		).rejects.toThrow("NEON_API_KEY environment variable is not set");
 	});
 
@@ -137,7 +139,7 @@ describe("Neon Service - createTenantProject", () => {
 				json: async () => ({
 					error: "Invalid project name",
 				}),
-			} as Response)
+			} as Response),
 		);
 
 		await expect(
@@ -145,8 +147,8 @@ describe("Neon Service - createTenantProject", () => {
 				{
 					slug: "test-org",
 				},
-				{ NEON_API_KEY: "test-api-key-12345" }
-			)
+				{ NEON_API_KEY: "test-api-key-12345" },
+			),
 		).rejects.toThrow("Failed to create Neon project: 400 Bad Request");
 	});
 
@@ -167,7 +169,7 @@ describe("Neon Service - createTenantProject", () => {
 				ok: true,
 				status: 201,
 				json: async () => mockResponse,
-			} as Response)
+			} as Response),
 		);
 
 		await expect(
@@ -175,8 +177,8 @@ describe("Neon Service - createTenantProject", () => {
 				{
 					slug: "test-org",
 				},
-				{ NEON_API_KEY: "test-api-key-12345" }
-			)
+				{ NEON_API_KEY: "test-api-key-12345" },
+			),
 		).rejects.toThrow("Neon API response missing project ID");
 	});
 
@@ -215,8 +217,8 @@ describe("Neon Service - createTenantProject", () => {
 				{
 					slug: "test-org",
 				},
-				{ NEON_API_KEY: "test-api-key-12345" }
-			)
+				{ NEON_API_KEY: "test-api-key-12345" },
+			),
 		).rejects.toThrow("connection string could not be retrieved");
 	});
 
@@ -255,21 +257,23 @@ describe("Neon Service - createTenantProject", () => {
 				{
 					slug: "test-org",
 				},
-				{ NEON_API_KEY: "test-api-key-12345" }
-			)
+				{ NEON_API_KEY: "test-api-key-12345" },
+			),
 		).rejects.toThrow("connection string could not be retrieved");
 	});
 
 	test("handles network errors gracefully", async () => {
-		(globalThis as any).fetch = mock(() => Promise.reject(new Error("Network error")));
+		(globalThis as any).fetch = mock(() =>
+			Promise.reject(new Error("Network error")),
+		);
 
 		await expect(
 			createTenantProject(
 				{
 					slug: "test-org",
 				},
-				{ NEON_API_KEY: "test-api-key-12345" }
-			)
+				{ NEON_API_KEY: "test-api-key-12345" },
+			),
 		).rejects.toThrow("Failed to create Neon project: Network error");
 	});
 
@@ -282,7 +286,7 @@ describe("Neon Service - createTenantProject", () => {
 				json: async () => {
 					throw new Error("Invalid JSON");
 				},
-			} as unknown as Response)
+			} as unknown as Response),
 		);
 
 		await expect(
@@ -290,9 +294,11 @@ describe("Neon Service - createTenantProject", () => {
 				{
 					slug: "test-org",
 				},
-				{ NEON_API_KEY: "test-api-key-12345" }
-			)
-		).rejects.toThrow("Failed to create Neon project: 500 Internal Server Error");
+				{ NEON_API_KEY: "test-api-key-12345" },
+			),
+		).rejects.toThrow(
+			"Failed to create Neon project: 500 Internal Server Error",
+		);
 	});
 
 	test("generates correct project name from slug", async () => {
@@ -312,14 +318,14 @@ describe("Neon Service - createTenantProject", () => {
 				ok: true,
 				status: 201,
 				json: async () => mockResponse,
-			} as Response)
+			} as Response),
 		);
 
 		await createTenantProject(
 			{
 				slug: "my-fitness-studio",
 			},
-			{ NEON_API_KEY: "test-api-key-12345" }
+			{ NEON_API_KEY: "test-api-key-12345" },
 		);
 
 		const fetchCalls = (globalThis.fetch as any).mock.calls;
@@ -327,4 +333,3 @@ describe("Neon Service - createTenantProject", () => {
 		expect(body.project.name).toBe("tenant-my-fitness-studio");
 	});
 });
-

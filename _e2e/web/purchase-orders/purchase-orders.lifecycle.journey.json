@@ -1,0 +1,15 @@
+{
+	"purchase-orders/purchase-orders.lifecycle.spec.ts::PO lifecycle — create(draft) -> approve -> cancel (API-verified)": [
+		"Creates throwaway uom, product, and supplier as dependencies",
+		"Creates a purchase order with one line item and asserts status is 'draft'",
+		"Approves the draft PO and re-queries getById to assert status is 'approved'",
+		"Cancels the approved PO and re-queries getById to assert status is 'cancelled'",
+		"Tears down PO (cancel), supplier (deactivate), product (discontinue), uom (delete) in reverse order"
+	],
+	"purchase-orders/purchase-orders.lifecycle.spec.ts::PO rule — approving a non-draft PO is rejected (400)": [
+		"Creates dependency uom, product, supplier and a draft PO",
+		"Approves once (draft -> approved)",
+		"Asserts a second approve on the approved PO is rejected with 400 (BAD_REQUEST: 'Only draft purchase orders can be approved')",
+		"Cleans up all created rows in reverse order"
+	]
+}

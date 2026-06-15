@@ -1,0 +1,6 @@
+{
+  "route": "/dashboard/sales/view",
+  "module": "sales",
+  "timedOut": true,
+  "findings": []
+}

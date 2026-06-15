@@ -1,0 +1,1165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Services Page — 5 Design Directions · Avantej</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'system-ui', 'sans-serif'],
+          mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+        },
+        colors: {
+          ink:   { DEFAULT: '#0a0a0a', soft: '#262626', 2: '#404040', 3: '#737373', 4: '#a3a3a3' },
+          paper: '#f3f3f3',
+          line:  '#e5e5e5',
+          warm:  '#d6cdb1',
+          card:  '#ffffff',
+        },
+      },
+    },
+  };
+</script>
+<style>
+  body { background:#f3f3f3; color:#0a0a0a; font-family:'Inter',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  .mono { font-family:'JetBrains Mono',ui-monospace,monospace; font-variant-numeric:tabular-nums; }
+  .label { font-size:10px; letter-spacing:.14em; text-transform:uppercase; font-weight:700; }
+  /* custom checkbox */
+  .ck { appearance:none; width:14px; height:14px; border:1.5px solid #a3a3a3; border-radius:3px; cursor:pointer; flex-shrink:0; }
+  .ck:checked { background:#0a0a0a; border-color:#0a0a0a;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='white'%3E%3Cpath d='M13.485 4.515a.75.75 0 0 0-1.06-1.06L6.5 9.379 3.575 6.455a.75.75 0 1 0-1.06 1.06l3.485 3.486a.75.75 0 0 0 1.061 0z'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:center; background-size:14px; }
+  /* toggle */
+  .tog { position:relative; display:inline-flex; width:28px; height:16px; cursor:pointer; }
+  .tog input { opacity:0; width:0; height:0; }
+  .tog-track { position:absolute; inset:0; background:#e5e5e5; border-radius:999px; transition:120ms; }
+  .tog input:checked ~ .tog-track { background:#0a0a0a; }
+  .tog-thumb { position:absolute; top:2px; left:2px; width:12px; height:12px; background:white; border-radius:999px; transition:120ms; }
+  .tog input:checked ~ .tog-track .tog-thumb { transform:translateX(12px); }
+  /* pill badges */
+  .badge { display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:2px 8px; border-radius:999px; }
+  .badge-pt  { background:#eff6ff; color:#1d4ed8; }
+  .badge-gc  { background:#f0fdf4; color:#15803d; }
+  .badge-as  { background:#faf5ff; color:#7e22ce; }
+  .badge-rc  { background:#fff7ed; color:#c2410c; }
+  .badge-nc  { background:#fef9c3; color:#a16207; }
+  .badge-on  { background:#f0fdf4; color:#15803d; }
+  .badge-off { background:#f5f5f5; color:#737373; }
+  /* section divider */
+  .design-sep { border-top:6px solid #e5e5e5; }
+  /* search bar */
+  .search-bar { display:flex; align-items:center; gap:8px; background:white; border:1px solid #e5e5e5; border-radius:12px; padding:8px 12px; }
+  .search-bar input { flex:1; background:transparent; outline:none; font-size:13px; color:#0a0a0a; }
+  .search-bar input::placeholder { color:#a3a3a3; }
+  /* filter chip */
+  .chip { display:inline-flex; align-items:center; gap:4px; padding:5px 12px; border-radius:999px; font-size:12px; font-weight:500; border:1.5px solid #e5e5e5; background:white; color:#737373; cursor:pointer; white-space:nowrap; }
+  .chip.active { background:#0a0a0a; color:white; border-color:#0a0a0a; }
+  /* bar spark */
+  .sparkbar { display:flex; align-items:flex-end; gap:2px; height:24px; }
+  .sparkbar span { width:4px; background:#d6cdb1; border-radius:2px 2px 0 0; flex-shrink:0; }
+</style>
+</head>
+<body class="antialiased">
+
+<!-- ═══════════════ TOP NAV ═══════════════ -->
+<nav class="sticky top-0 z-50 border-b border-line bg-white/95 backdrop-blur">
+  <div class="mx-auto flex h-12 max-w-[1360px] items-center gap-1 px-6 text-xs">
+    <span class="mr-5 label text-ink-3">Services · 5 designs</span>
+    <a href="#d1" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper">1 · Pricing Table</a>
+    <a href="#d2" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper">2 · Card Catalog</a>
+    <a href="#d3" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper">3 · Inline Edit List</a>
+    <a href="#d4" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper">4 · Master-Detail</a>
+    <a href="#d5" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper">5 · Bento Grid</a>
+    <span class="ml-auto text-ink-4">design-only · no logic</span>
+  </div>
+</nav>
+
+<!-- seed data as comments — 15 services across 5 categories
+  Personal Training: 1-on-1 Session 60m RM180 15% comm | 1-on-1 Session 90m RM250 15% | Duo PT 60m RM130pp 12% | Virtual PT 45m RM100 10%
+  Group Class: HIIT Boot Camp 45m RM35 8% | Yoga Flow 60m RM40 8% | Spin Cycle 50m RM45 8% | Pilates Core 55m RM42 8%
+  Assessment: Fitness Assessment 90m RM120 10% | Body Composition 30m RM80 8% | Postural Screen 45m RM90 10%
+  Recovery: Sports Massage 60m RM150 12% | Cryotherapy 30m RM200 0% | Infrared Sauna 45m RM120 0%
+  Nutrition: Initial Consult 60m RM180 10% | Follow-up 30m RM90 10%
+-->
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 1 — DENSE PRICING TABLE                                          -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d1" class="design-sep">
+<div class="mx-auto max-w-[1360px] px-7 py-10">
+
+  <!-- heading -->
+  <div class="mb-1 flex items-baseline gap-3">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 1 — Dense Pricing Table</h2>
+  </div>
+  <p class="mb-7 text-sm text-ink-3">Spreadsheet-style data density. Every column sortable. Bulk-toggle active/inactive via header checkbox. Ideal for power users managing large catalogs.</p>
+
+  <!-- page header -->
+  <div class="mb-5 flex flex-wrap items-center gap-3">
+    <div>
+      <h1 class="text-xl font-bold tracking-tight">Services</h1>
+      <p class="text-xs text-ink-3">15 services · 12 active</p>
+    </div>
+    <div class="ml-auto flex items-center gap-2">
+      <div class="search-bar w-56">
+        <svg class="size-4 text-ink-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
+        <input placeholder="Search services…" />
+      </div>
+      <select class="rounded-xl border border-line bg-white px-3 py-2 text-xs font-medium text-ink-2 outline-none cursor-pointer">
+        <option>All categories</option>
+        <option>Personal Training</option>
+        <option>Group Class</option>
+        <option>Assessment</option>
+        <option>Recovery</option>
+        <option>Nutrition Consult</option>
+      </select>
+      <select class="rounded-xl border border-line bg-white px-3 py-2 text-xs font-medium text-ink-2 outline-none cursor-pointer">
+        <option>Sort: Bookings ↓</option>
+        <option>Sort: Price ↓</option>
+        <option>Sort: Name A–Z</option>
+        <option>Sort: Duration</option>
+      </select>
+      <button class="flex items-center gap-1.5 rounded-xl bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-ink-soft">
+        <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        New service
+      </button>
+    </div>
+  </div>
+
+  <!-- bulk action bar (shown when rows selected) -->
+  <div class="mb-3 flex items-center gap-3 rounded-xl border border-line bg-white px-4 py-2.5">
+    <input type="checkbox" class="ck" checked />
+    <span class="text-xs font-semibold text-ink">4 selected</span>
+    <div class="h-4 w-px bg-line mx-1"></div>
+    <button class="chip active text-[11px] py-1">Enable selected</button>
+    <button class="chip text-[11px] py-1">Disable selected</button>
+    <button class="chip text-[11px] py-1 text-rose-600 border-rose-200 hover:bg-rose-50">Delete</button>
+    <span class="ml-auto text-[11px] text-ink-4">Bulk actions</span>
+  </div>
+
+  <!-- table -->
+  <div class="overflow-hidden rounded-2xl border border-line bg-white">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-line bg-paper">
+          <th class="py-3 pl-4 pr-2 w-8"><input type="checkbox" class="ck" /></th>
+          <th class="py-3 px-3 text-left label text-ink-3 font-bold cursor-pointer hover:text-ink">Service <span class="text-ink-4">↕</span></th>
+          <th class="py-3 px-3 text-left label text-ink-3 font-bold">Category</th>
+          <th class="py-3 px-3 text-right label text-ink-3 font-bold cursor-pointer hover:text-ink">Duration <span class="text-ink-4">↕</span></th>
+          <th class="py-3 px-3 text-right label text-ink-3 font-bold cursor-pointer hover:text-ink">Price <span class="text-ink-4">↕</span></th>
+          <th class="py-3 px-3 text-right label text-ink-3 font-bold">Commission</th>
+          <th class="py-3 px-3 text-right label text-ink-3 font-bold cursor-pointer hover:text-ink">Bookings/mo <span class="text-ink-4 normal-case">↓</span></th>
+          <th class="py-3 px-3 text-center label text-ink-3 font-bold">Active</th>
+          <th class="py-3 pl-3 pr-4 text-left label text-ink-3 font-bold">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- row macro: name, cat-class, cat-label, dur, price, comm, bookings, active -->
+        <!-- PT rows -->
+        <tr class="border-b border-line hover:bg-paper/60 group">
+          <td class="py-3 pl-4 pr-2"><input type="checkbox" class="ck" checked /></td>
+          <td class="py-3 px-3">
+            <div class="font-semibold text-[13px]">1-on-1 Session</div>
+            <div class="text-[11px] text-ink-4">Personal Training</div>
+          </td>
+          <td class="py-3 px-3"><span class="badge badge-pt">PT</span></td>
+          <td class="py-3 px-3 text-right mono text-[13px]">60m</td>
+          <td class="py-3 px-3 text-right mono font-semibold">RM 180</td>
+          <td class="py-3 px-3 text-right mono text-[13px] text-ink-3">15%</td>
+          <td class="py-3 px-3 text-right">
+            <span class="mono font-bold text-[13px]">84</span>
+            <div class="sparkbar justify-end mt-0.5">
+              <span style="height:8px"></span><span style="height:10px"></span><span style="height:14px"></span><span style="height:18px"></span><span style="height:20px"></span><span style="height:24px"></span>
+            </div>
+          </td>
+          <td class="py-3 px-3 text-center">
+            <label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label>
+          </td>
+          <td class="py-3 pl-3 pr-4">
+            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+              <button class="rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium hover:bg-paper">Edit</button>
+              <button class="rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium hover:bg-paper">Dupe</button>
+            </div>
+          </td>
+        </tr>
+        <tr class="border-b border-line hover:bg-paper/60 group">
+          <td class="py-3 pl-4 pr-2"><input type="checkbox" class="ck" checked /></td>
+          <td class="py-3 px-3">
+            <div class="font-semibold text-[13px]">1-on-1 Session 90m</div>
+            <div class="text-[11px] text-ink-4">Personal Training</div>
+          </td>
+          <td class="py-3 px-3"><span class="badge badge-pt">PT</span></td>
+          <td class="py-3 px-3 text-right mono text-[13px]">90m</td>
+          <td class="py-3 px-3 text-right mono font-semibold">RM 250</td>
+          <td class="py-3 px-3 text-right mono text-[13px] text-ink-3">15%</td>
+          <td class="py-3 px-3 text-right">
+            <span class="mono font-bold text-[13px]">51</span>
+            <div class="sparkbar justify-end mt-0.5">
+              <span style="height:10px"></span><span style="height:12px"></span><span style="height:14px"></span><span style="height:16px"></span><span style="height:18px"></span><span style="height:18px"></span>
+            </div>
+          </td>
+          <td class="py-3 px-3 text-center"><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></td>
+          <td class="py-3 pl-3 pr-4"><div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition"><button class="rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium hover:bg-paper">Edit</button><button class="rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium hover:bg-paper">Dupe</button></div></td>
+        </tr>
+        <tr class="border-b border-line hover:bg-paper/60 group">
+          <td class="py-3 pl-4 pr-2"><input type="checkbox" class="ck" /></td>
+          <td class="py-3 px-3">
+            <div class="font-semibold text-[13px]">Duo PT Session</div>
+            <div class="text-[11px] text-ink-4">Personal Training</div>
+          </td>
+          <td class="py-3 px-3"><span class="badge badge-pt">PT</span></td>
+          <td class="py-3 px-3 text-right mono text-[13px]">60m</td>
+          <td class="py-3 px-3 text-right mono font-semibold">RM 130</td>
+          <td class="py-3 px-3 text-right mono text-[13px] text-ink-3">12%</td>
+          <td class="py-3 px-3 text-right"><span class="mono font-bold text-[13px]">38</span><div class="sparkbar justify-end mt-0.5"><span style="height:6px"></span><span style="height:8px"></span><span style="height:10px"></span><span style="height:12px"></span><span style="height:14px"></span><span style="height:13px"></span></div></td>
+          <td class="py-3 px-3 text-center"><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></td>
+          <td class="py-3 pl-3 pr-4"><div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition"><button class="rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium hover:bg-paper">Edit</button><button class="rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium hover:bg-paper">Dupe</button></div></td>
+        </tr>
+        <!-- Group class rows -->
+        <tr class="border-b border-line hover:bg-paper/60 group">
+          <td class="py-3 pl-4 pr-2"><input type="checkbox" class="ck" checked /></td>
+          <td class="py-3 px-3"><div class="font-semibold text-[13px]">HIIT Boot Camp</div><div class="text-[11px] text-ink-4">Group Class</div></td>
+          <td class="py-3 px-3"><span class="badge badge-gc">Group</span></td>
+          <td class="py-3 px-3 text-right mono text-[13px]">45m</td>
+          <td class="py-3 px-3 text-right mono font-semibold">RM 35</td>
+          <td class="py-3 px-3 text-right mono text-[13px] text-ink-3">8%</td>
+          <td class="py-3 px-3 text-right"><span class="mono font-bold text-[13px]">210</span><div class="sparkbar justify-end mt-0.5"><span style="height:14px"></span><span style="height:18px"></span><span style="height:20px"></span><span style="height:22px"></span><span style="height:24px"></span><span style="height:24px"></span></div></td>
+          <td class="py-3 px-3 text-center"><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></td>
+          <td class="py-3 pl-3 pr-4"><div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition"><button class="rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium hover:bg-paper">Edit</button><button class="rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium hover:bg-paper">Dupe</button></div></td>
+        </tr>
+        <tr class="border-b border-line hover:bg-paper/60 group">
+          <td class="py-3 pl-4 pr-2"><input type="checkbox" class="ck" /></td>
+          <td class="py-3 px-3"><div class="font-semibold text-[13px]">Yoga Flow</div><div class="text-[11px] text-ink-4">Group Class</div></td>
+          <td class="py-3 px-3"><span class="badge badge-gc">Group</span></td>
+          <td class="py-3 px-3 text-right mono text-[13px]">60m</td>
+          <td class="py-3 px-3 text-right mono font-semibold">RM 40</td>
+          <td class="py-3 px-3 text-right mono text-[13px] text-ink-3">8%</td>
+          <td class="py-3 px-3 text-right"><span class="mono font-bold text-[13px]">165</span><div class="sparkbar justify-end mt-0.5"><span style="height:12px"></span><span style="height:16px"></span><span style="height:18px"></span><span style="height:20px"></span><span style="height:22px"></span><span style="height:20px"></span></div></td>
+          <td class="py-3 px-3 text-center"><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></td>
+          <td class="py-3 pl-3 pr-4"><div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition"><button class="rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium hover:bg-paper">Edit</button><button class="rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium hover:bg-paper">Dupe</button></div></td>
+        </tr>
+        <tr class="border-b border-line hover:bg-paper/60 group">
+          <td class="py-3 pl-4 pr-2"><input type="checkbox" class="ck" /></td>
+          <td class="py-3 px-3"><div class="font-semibold text-[13px]">Spin Cycle</div><div class="text-[11px] text-ink-4">Group Class</div></td>
+          <td class="py-3 px-3"><span class="badge badge-gc">Group</span></td>
+          <td class="py-3 px-3 text-right mono text-[13px]">50m</td>
+          <td class="py-3 px-3 text-right mono font-semibold">RM 45</td>
+          <td class="py-3 px-3 text-right mono text-[13px] text-ink-3">8%</td>
+          <td class="py-3 px-3 text-right"><span class="mono font-bold text-[13px]">142</span><div class="sparkbar justify-end mt-0.5"><span style="height:10px"></span><span style="height:14px"></span><span style="height:16px"></span><span style="height:18px"></span><span style="height:20px"></span><span style="height:18px"></span></div></td>
+          <td class="py-3 px-3 text-center"><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></td>
+          <td class="py-3 pl-3 pr-4"><div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition"><button class="rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium hover:bg-paper">Edit</button><button class="rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium hover:bg-paper">Dupe</button></div></td>
+        </tr>
+        <!-- Assessment -->
+        <tr class="border-b border-line hover:bg-paper/60 group">
+          <td class="py-3 pl-4 pr-2"><input type="checkbox" class="ck" /></td>
+          <td class="py-3 px-3"><div class="font-semibold text-[13px]">Fitness Assessment</div><div class="text-[11px] text-ink-4">Assessment</div></td>
+          <td class="py-3 px-3"><span class="badge badge-as">Assess</span></td>
+          <td class="py-3 px-3 text-right mono text-[13px]">90m</td>
+          <td class="py-3 px-3 text-right mono font-semibold">RM 120</td>
+          <td class="py-3 px-3 text-right mono text-[13px] text-ink-3">10%</td>
+          <td class="py-3 px-3 text-right"><span class="mono font-bold text-[13px]">29</span><div class="sparkbar justify-end mt-0.5"><span style="height:10px"></span><span style="height:8px"></span><span style="height:12px"></span><span style="height:14px"></span><span style="height:12px"></span><span style="height:10px"></span></div></td>
+          <td class="py-3 px-3 text-center"><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></td>
+          <td class="py-3 pl-3 pr-4"><div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition"><button class="rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium hover:bg-paper">Edit</button><button class="rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium hover:bg-paper">Dupe</button></div></td>
+        </tr>
+        <!-- Recovery (inactive) -->
+        <tr class="border-b border-line hover:bg-paper/60 group opacity-60">
+          <td class="py-3 pl-4 pr-2"><input type="checkbox" class="ck" /></td>
+          <td class="py-3 px-3"><div class="font-semibold text-[13px]">Cryotherapy</div><div class="text-[11px] text-ink-4">Recovery</div></td>
+          <td class="py-3 px-3"><span class="badge badge-rc">Recovery</span></td>
+          <td class="py-3 px-3 text-right mono text-[13px]">30m</td>
+          <td class="py-3 px-3 text-right mono font-semibold">RM 200</td>
+          <td class="py-3 px-3 text-right mono text-[13px] text-ink-3">0%</td>
+          <td class="py-3 px-3 text-right"><span class="mono font-bold text-[13px]">0</span><div class="sparkbar justify-end mt-0.5"><span style="height:4px"></span><span style="height:4px"></span><span style="height:4px"></span><span style="height:4px"></span><span style="height:4px"></span><span style="height:4px"></span></div></td>
+          <td class="py-3 px-3 text-center"><label class="tog"><input type="checkbox" /><span class="tog-track"><span class="tog-thumb"></span></span></label></td>
+          <td class="py-3 pl-3 pr-4"><div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition"><button class="rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium hover:bg-paper">Edit</button><button class="rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium hover:bg-paper">Dupe</button></div></td>
+        </tr>
+        <!-- Nutrition -->
+        <tr class="hover:bg-paper/60 group">
+          <td class="py-3 pl-4 pr-2"><input type="checkbox" class="ck" /></td>
+          <td class="py-3 px-3"><div class="font-semibold text-[13px]">Nutrition Initial Consult</div><div class="text-[11px] text-ink-4">Nutrition Consult</div></td>
+          <td class="py-3 px-3"><span class="badge badge-nc">Nutrition</span></td>
+          <td class="py-3 px-3 text-right mono text-[13px]">60m</td>
+          <td class="py-3 px-3 text-right mono font-semibold">RM 180</td>
+          <td class="py-3 px-3 text-right mono text-[13px] text-ink-3">10%</td>
+          <td class="py-3 px-3 text-right"><span class="mono font-bold text-[13px]">17</span><div class="sparkbar justify-end mt-0.5"><span style="height:6px"></span><span style="height:8px"></span><span style="height:8px"></span><span style="height:10px"></span><span style="height:12px"></span><span style="height:10px"></span></div></td>
+          <td class="py-3 px-3 text-center"><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></td>
+          <td class="py-3 pl-3 pr-4"><div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition"><button class="rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium hover:bg-paper">Edit</button><button class="rounded-lg border border-line px-2.5 py-1 text-[11px] font-medium hover:bg-paper">Dupe</button></div></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="flex items-center justify-between border-t border-line bg-paper/50 px-4 py-2.5">
+      <span class="text-[11px] text-ink-4">Showing 9 of 15 services</span>
+      <div class="flex items-center gap-1">
+        <button class="rounded-lg border border-line bg-white px-3 py-1.5 text-[11px] font-medium hover:bg-paper">Prev</button>
+        <button class="rounded-lg bg-ink px-3 py-1.5 text-[11px] font-semibold text-white">1</button>
+        <button class="rounded-lg border border-line bg-white px-3 py-1.5 text-[11px] font-medium hover:bg-paper">2</button>
+        <button class="rounded-lg border border-line bg-white px-3 py-1.5 text-[11px] font-medium hover:bg-paper">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 2 — CARD CATALOG GROUPED BY CATEGORY                             -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d2" class="design-sep">
+<div class="mx-auto max-w-[1360px] px-7 py-10">
+
+  <div class="mb-1 flex items-baseline gap-3">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 2 — Card Catalog by Category</h2>
+  </div>
+  <p class="mb-7 text-sm text-ink-3">Visual card grid grouped under collapsible category headers. Quick scan of the catalog; category-level stats in headers. Best for onboarding and catalog review.</p>
+
+  <!-- page header -->
+  <div class="mb-5 flex flex-wrap items-center gap-3">
+    <div>
+      <h1 class="text-xl font-bold tracking-tight">Services</h1>
+      <p class="text-xs text-ink-3">15 services · 5 categories</p>
+    </div>
+    <div class="ml-auto flex items-center gap-2 flex-wrap">
+      <div class="search-bar w-56">
+        <svg class="size-4 text-ink-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
+        <input placeholder="Search services…" />
+      </div>
+      <select class="rounded-xl border border-line bg-white px-3 py-2 text-xs font-medium text-ink-2 outline-none">
+        <option>Sort: Popularity</option><option>Sort: Price</option><option>Sort: A–Z</option>
+      </select>
+      <div class="flex items-center gap-1 rounded-xl border border-line bg-white p-1">
+        <button class="chip active text-[11px] py-1 border-0 bg-transparent">All</button>
+        <button class="chip text-[11px] py-1 border-0 bg-transparent hover:bg-paper">Active</button>
+        <button class="chip text-[11px] py-1 border-0 bg-transparent hover:bg-paper">Inactive</button>
+      </div>
+      <button class="flex items-center gap-1.5 rounded-xl bg-ink px-4 py-2 text-xs font-semibold text-white hover:bg-ink-soft">
+        <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        New service
+      </button>
+    </div>
+  </div>
+
+  <!-- category: Personal Training -->
+  <div class="mb-6">
+    <div class="mb-3 flex items-center gap-3">
+      <div class="flex items-center gap-2">
+        <span class="badge badge-pt">PT</span>
+        <h3 class="font-bold text-base">Personal Training</h3>
+      </div>
+      <span class="text-xs text-ink-4">4 services</span>
+      <div class="flex-1 h-px bg-line"></div>
+      <span class="text-[11px] text-ink-4 mono">224 bookings/mo</span>
+      <span class="text-[11px] text-ink-4">·</span>
+      <span class="text-[11px] text-ink-4 mono">Avg RM 190</span>
+    </div>
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <!-- card -->
+      <div class="group relative overflow-hidden rounded-2xl border border-line bg-white p-4 transition hover:shadow-md hover:-translate-y-0.5">
+        <div class="mb-3 flex items-start justify-between">
+          <span class="badge badge-on">Active</span>
+          <label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label>
+        </div>
+        <div class="font-bold text-[15px] leading-snug mb-0.5">1-on-1 Session</div>
+        <div class="text-xs text-ink-3 mb-4">60 min · Personal Training</div>
+        <div class="flex items-baseline gap-2 mb-3">
+          <span class="mono text-2xl font-extrabold tracking-tight">RM 180</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-[11px]">
+          <div class="rounded-lg bg-paper p-2">
+            <div class="label text-ink-4 mb-0.5">Commission</div>
+            <div class="mono font-bold">15%</div>
+          </div>
+          <div class="rounded-lg bg-paper p-2">
+            <div class="label text-ink-4 mb-0.5">Bookings/mo</div>
+            <div class="mono font-bold">84</div>
+          </div>
+        </div>
+        <div class="mt-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition">
+          <button class="flex-1 rounded-lg border border-line py-1.5 text-[11px] font-semibold hover:bg-paper">Edit</button>
+          <button class="flex-1 rounded-lg border border-line py-1.5 text-[11px] font-semibold hover:bg-paper">Dupe</button>
+        </div>
+      </div>
+      <div class="group relative overflow-hidden rounded-2xl border border-line bg-white p-4 transition hover:shadow-md hover:-translate-y-0.5">
+        <div class="mb-3 flex items-start justify-between">
+          <span class="badge badge-on">Active</span>
+          <label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label>
+        </div>
+        <div class="font-bold text-[15px] leading-snug mb-0.5">1-on-1 Session 90m</div>
+        <div class="text-xs text-ink-3 mb-4">90 min · Personal Training</div>
+        <div class="flex items-baseline gap-2 mb-3"><span class="mono text-2xl font-extrabold tracking-tight">RM 250</span></div>
+        <div class="grid grid-cols-2 gap-2 text-[11px]">
+          <div class="rounded-lg bg-paper p-2"><div class="label text-ink-4 mb-0.5">Commission</div><div class="mono font-bold">15%</div></div>
+          <div class="rounded-lg bg-paper p-2"><div class="label text-ink-4 mb-0.5">Bookings/mo</div><div class="mono font-bold">51</div></div>
+        </div>
+        <div class="mt-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition"><button class="flex-1 rounded-lg border border-line py-1.5 text-[11px] font-semibold hover:bg-paper">Edit</button><button class="flex-1 rounded-lg border border-line py-1.5 text-[11px] font-semibold hover:bg-paper">Dupe</button></div>
+      </div>
+      <div class="group relative overflow-hidden rounded-2xl border border-line bg-white p-4 transition hover:shadow-md hover:-translate-y-0.5">
+        <div class="mb-3 flex items-start justify-between">
+          <span class="badge badge-on">Active</span>
+          <label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label>
+        </div>
+        <div class="font-bold text-[15px] leading-snug mb-0.5">Duo PT Session</div>
+        <div class="text-xs text-ink-3 mb-4">60 min · Personal Training</div>
+        <div class="flex items-baseline gap-2 mb-3"><span class="mono text-2xl font-extrabold tracking-tight">RM 130</span><span class="text-[11px] text-ink-4">pp</span></div>
+        <div class="grid grid-cols-2 gap-2 text-[11px]">
+          <div class="rounded-lg bg-paper p-2"><div class="label text-ink-4 mb-0.5">Commission</div><div class="mono font-bold">12%</div></div>
+          <div class="rounded-lg bg-paper p-2"><div class="label text-ink-4 mb-0.5">Bookings/mo</div><div class="mono font-bold">38</div></div>
+        </div>
+        <div class="mt-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition"><button class="flex-1 rounded-lg border border-line py-1.5 text-[11px] font-semibold hover:bg-paper">Edit</button><button class="flex-1 rounded-lg border border-line py-1.5 text-[11px] font-semibold hover:bg-paper">Dupe</button></div>
+      </div>
+      <div class="group relative overflow-hidden rounded-2xl border border-line bg-white p-4 transition hover:shadow-md hover:-translate-y-0.5 opacity-60">
+        <div class="mb-3 flex items-start justify-between">
+          <span class="badge badge-off">Inactive</span>
+          <label class="tog"><input type="checkbox" /><span class="tog-track"><span class="tog-thumb"></span></span></label>
+        </div>
+        <div class="font-bold text-[15px] leading-snug mb-0.5">Virtual PT</div>
+        <div class="text-xs text-ink-3 mb-4">45 min · Personal Training</div>
+        <div class="flex items-baseline gap-2 mb-3"><span class="mono text-2xl font-extrabold tracking-tight">RM 100</span></div>
+        <div class="grid grid-cols-2 gap-2 text-[11px]">
+          <div class="rounded-lg bg-paper p-2"><div class="label text-ink-4 mb-0.5">Commission</div><div class="mono font-bold">10%</div></div>
+          <div class="rounded-lg bg-paper p-2"><div class="label text-ink-4 mb-0.5">Bookings/mo</div><div class="mono font-bold">0</div></div>
+        </div>
+        <div class="mt-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition"><button class="flex-1 rounded-lg border border-line py-1.5 text-[11px] font-semibold hover:bg-paper">Edit</button><button class="flex-1 rounded-lg border border-line py-1.5 text-[11px] font-semibold hover:bg-paper">Dupe</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- category: Group Class -->
+  <div class="mb-6">
+    <div class="mb-3 flex items-center gap-3">
+      <span class="badge badge-gc">Group</span>
+      <h3 class="font-bold text-base">Group Class</h3>
+      <span class="text-xs text-ink-4">4 services</span>
+      <div class="flex-1 h-px bg-line"></div>
+      <span class="text-[11px] text-ink-4 mono">560 bookings/mo</span>
+      <span class="text-[11px] text-ink-4">·</span>
+      <span class="text-[11px] text-ink-4 mono">Avg RM 41</span>
+    </div>
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div class="group relative overflow-hidden rounded-2xl border border-line bg-white p-4 transition hover:shadow-md hover:-translate-y-0.5">
+        <div class="mb-3 flex items-start justify-between"><span class="badge badge-on">Active</span><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+        <div class="font-bold text-[15px] leading-snug mb-0.5">HIIT Boot Camp</div>
+        <div class="text-xs text-ink-3 mb-4">45 min · Group Class</div>
+        <div class="flex items-baseline gap-2 mb-3"><span class="mono text-2xl font-extrabold tracking-tight">RM 35</span></div>
+        <div class="grid grid-cols-2 gap-2 text-[11px]">
+          <div class="rounded-lg bg-paper p-2"><div class="label text-ink-4 mb-0.5">Commission</div><div class="mono font-bold">8%</div></div>
+          <div class="rounded-lg bg-paper p-2"><div class="label text-ink-4 mb-0.5">Bookings/mo</div><div class="mono font-bold text-emerald-600">210 🔥</div></div>
+        </div>
+        <div class="mt-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition"><button class="flex-1 rounded-lg border border-line py-1.5 text-[11px] font-semibold hover:bg-paper">Edit</button><button class="flex-1 rounded-lg border border-line py-1.5 text-[11px] font-semibold hover:bg-paper">Dupe</button></div>
+      </div>
+      <div class="group relative overflow-hidden rounded-2xl border border-line bg-white p-4 transition hover:shadow-md hover:-translate-y-0.5">
+        <div class="mb-3 flex items-start justify-between"><span class="badge badge-on">Active</span><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+        <div class="font-bold text-[15px] leading-snug mb-0.5">Yoga Flow</div>
+        <div class="text-xs text-ink-3 mb-4">60 min · Group Class</div>
+        <div class="flex items-baseline gap-2 mb-3"><span class="mono text-2xl font-extrabold tracking-tight">RM 40</span></div>
+        <div class="grid grid-cols-2 gap-2 text-[11px]">
+          <div class="rounded-lg bg-paper p-2"><div class="label text-ink-4 mb-0.5">Commission</div><div class="mono font-bold">8%</div></div>
+          <div class="rounded-lg bg-paper p-2"><div class="label text-ink-4 mb-0.5">Bookings/mo</div><div class="mono font-bold">165</div></div>
+        </div>
+        <div class="mt-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition"><button class="flex-1 rounded-lg border border-line py-1.5 text-[11px] font-semibold hover:bg-paper">Edit</button><button class="flex-1 rounded-lg border border-line py-1.5 text-[11px] font-semibold hover:bg-paper">Dupe</button></div>
+      </div>
+      <div class="group relative overflow-hidden rounded-2xl border border-line bg-white p-4 transition hover:shadow-md hover:-translate-y-0.5">
+        <div class="mb-3 flex items-start justify-between"><span class="badge badge-on">Active</span><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+        <div class="font-bold text-[15px] leading-snug mb-0.5">Spin Cycle</div>
+        <div class="text-xs text-ink-3 mb-4">50 min · Group Class</div>
+        <div class="flex items-baseline gap-2 mb-3"><span class="mono text-2xl font-extrabold tracking-tight">RM 45</span></div>
+        <div class="grid grid-cols-2 gap-2 text-[11px]">
+          <div class="rounded-lg bg-paper p-2"><div class="label text-ink-4 mb-0.5">Commission</div><div class="mono font-bold">8%</div></div>
+          <div class="rounded-lg bg-paper p-2"><div class="label text-ink-4 mb-0.5">Bookings/mo</div><div class="mono font-bold">142</div></div>
+        </div>
+        <div class="mt-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition"><button class="flex-1 rounded-lg border border-line py-1.5 text-[11px] font-semibold hover:bg-paper">Edit</button><button class="flex-1 rounded-lg border border-line py-1.5 text-[11px] font-semibold hover:bg-paper">Dupe</button></div>
+      </div>
+      <div class="group relative overflow-hidden rounded-2xl border border-line bg-white p-4 transition hover:shadow-md hover:-translate-y-0.5">
+        <div class="mb-3 flex items-start justify-between"><span class="badge badge-on">Active</span><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+        <div class="font-bold text-[15px] leading-snug mb-0.5">Pilates Core</div>
+        <div class="text-xs text-ink-3 mb-4">55 min · Group Class</div>
+        <div class="flex items-baseline gap-2 mb-3"><span class="mono text-2xl font-extrabold tracking-tight">RM 42</span></div>
+        <div class="grid grid-cols-2 gap-2 text-[11px]">
+          <div class="rounded-lg bg-paper p-2"><div class="label text-ink-4 mb-0.5">Commission</div><div class="mono font-bold">8%</div></div>
+          <div class="rounded-lg bg-paper p-2"><div class="label text-ink-4 mb-0.5">Bookings/mo</div><div class="mono font-bold">98</div></div>
+        </div>
+        <div class="mt-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition"><button class="flex-1 rounded-lg border border-line py-1.5 text-[11px] font-semibold hover:bg-paper">Edit</button><button class="flex-1 rounded-lg border border-line py-1.5 text-[11px] font-semibold hover:bg-paper">Dupe</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- category: Assessment (collapsed preview) -->
+  <div class="mb-3">
+    <div class="flex items-center gap-3 cursor-pointer select-none">
+      <span class="badge badge-as">Assess</span>
+      <h3 class="font-bold text-base">Assessment</h3>
+      <span class="text-xs text-ink-4">3 services</span>
+      <div class="flex-1 h-px bg-line"></div>
+      <span class="text-[11px] text-ink-4 mono">72 bookings/mo</span>
+      <span class="text-[11px] text-ink-4">·</span>
+      <button class="text-[11px] text-ink-3 font-medium hover:text-ink">▲ Collapse</button>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 3 — LIST WITH INLINE EDITING                                     -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d3" class="design-sep">
+<div class="mx-auto max-w-[1360px] px-7 py-10">
+
+  <div class="mb-1 flex items-baseline gap-3">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 3 — List with Inline Editing</h2>
+  </div>
+  <p class="mb-7 text-sm text-ink-3">Click any field to edit it in-place without leaving the page. Ideal for rapid pricing adjustments. Row expands to show full edit form on double-click. Keyboard-navigable.</p>
+
+  <!-- stats bar -->
+  <div class="mb-5 grid grid-cols-4 gap-3">
+    <div class="rounded-2xl border border-line bg-white px-5 py-3.5">
+      <div class="label text-ink-4 mb-1">Total services</div>
+      <div class="mono text-2xl font-extrabold">15</div>
+    </div>
+    <div class="rounded-2xl border border-line bg-white px-5 py-3.5">
+      <div class="label text-ink-4 mb-1">Active</div>
+      <div class="mono text-2xl font-extrabold text-emerald-600">12</div>
+    </div>
+    <div class="rounded-2xl border border-line bg-white px-5 py-3.5">
+      <div class="label text-ink-4 mb-1">Bookings this month</div>
+      <div class="mono text-2xl font-extrabold">896</div>
+    </div>
+    <div class="rounded-2xl border border-line bg-white px-5 py-3.5">
+      <div class="label text-ink-4 mb-1">Revenue potential</div>
+      <div class="mono text-2xl font-extrabold">RM 47.2k</div>
+    </div>
+  </div>
+
+  <!-- toolbar -->
+  <div class="mb-3 flex items-center gap-2 flex-wrap">
+    <div class="search-bar w-64">
+      <svg class="size-4 text-ink-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
+      <input placeholder="Search…" />
+    </div>
+    <div class="flex gap-1 flex-wrap">
+      <button class="chip active">All</button>
+      <button class="chip">PT</button>
+      <button class="chip">Group</button>
+      <button class="chip">Assess</button>
+      <button class="chip">Recovery</button>
+      <button class="chip">Nutrition</button>
+    </div>
+    <div class="ml-auto flex items-center gap-2">
+      <select class="rounded-xl border border-line bg-white px-3 py-2 text-xs font-medium outline-none">
+        <option>Sort: Bookings</option><option>Sort: Price</option><option>Sort: A–Z</option>
+      </select>
+      <button class="flex items-center gap-1.5 rounded-xl bg-ink px-4 py-2 text-xs font-semibold text-white hover:bg-ink-soft">
+        <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        New service
+      </button>
+    </div>
+  </div>
+
+  <!-- inline-edit list -->
+  <div class="rounded-2xl border border-line bg-white overflow-hidden">
+    <!-- column headers -->
+    <div class="grid border-b border-line bg-paper px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-ink-4"
+         style="grid-template-columns:2fr 120px 100px 90px 90px 90px 80px 36px;">
+      <span>Service / Category</span>
+      <span class="text-right">Duration</span>
+      <span class="text-right">Price</span>
+      <span class="text-right">Commission</span>
+      <span class="text-right">Bookings</span>
+      <span class="text-right">Revenue/mo</span>
+      <span class="text-center">Active</span>
+      <span></span>
+    </div>
+
+    <!-- normal row -->
+    <div class="group grid items-center border-b border-line px-4 py-2.5 hover:bg-blue-50/40 transition"
+         style="grid-template-columns:2fr 120px 100px 90px 90px 90px 80px 36px;">
+      <div>
+        <div class="font-semibold text-[13px]">1-on-1 Session <span class="badge badge-pt ml-1">PT</span></div>
+      </div>
+      <div class="text-right"><span class="mono text-sm cursor-text rounded px-1.5 py-0.5 hover:bg-blue-100 hover:ring-1 hover:ring-blue-300 transition">60m</span></div>
+      <div class="text-right"><span class="mono text-sm font-semibold cursor-text rounded px-1.5 py-0.5 hover:bg-blue-100 hover:ring-1 hover:ring-blue-300 transition">RM 180</span></div>
+      <div class="text-right"><span class="mono text-sm cursor-text rounded px-1.5 py-0.5 hover:bg-blue-100 hover:ring-1 hover:ring-blue-300 transition text-ink-3">15%</span></div>
+      <div class="text-right mono text-sm font-bold text-emerald-700">84</div>
+      <div class="text-right mono text-sm text-ink-3">RM 15.1k</div>
+      <div class="text-center"><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+      <div class="text-center">
+        <button class="rounded-lg border border-line p-1 opacity-0 group-hover:opacity-100 transition hover:bg-paper">
+          <svg class="size-3.5 text-ink-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- EXPANDED row (edit mode) — shown for "HIIT Boot Camp" -->
+    <div class="border-b border-blue-200 bg-blue-50/60">
+      <div class="grid items-center px-4 py-2.5"
+           style="grid-template-columns:2fr 120px 100px 90px 90px 90px 80px 36px;">
+        <div>
+          <div class="font-semibold text-[13px] text-blue-700">HIIT Boot Camp <span class="badge badge-gc ml-1">Group</span></div>
+          <div class="text-[10px] text-blue-500 font-semibold uppercase tracking-widest">Editing — click outside to save</div>
+        </div>
+        <div class="text-right">
+          <input class="w-16 rounded-lg border border-blue-300 bg-white px-2 py-1 text-right text-sm mono font-semibold text-blue-700 outline-none focus:ring-2 focus:ring-blue-400" value="45m" />
+        </div>
+        <div class="text-right">
+          <input class="w-20 rounded-lg border border-blue-300 bg-white px-2 py-1 text-right text-sm mono font-bold text-blue-700 outline-none focus:ring-2 focus:ring-blue-400" value="35" />
+        </div>
+        <div class="text-right">
+          <input class="w-14 rounded-lg border border-blue-300 bg-white px-2 py-1 text-right text-sm mono text-blue-700 outline-none focus:ring-2 focus:ring-blue-400" value="8%" />
+        </div>
+        <div class="text-right mono text-sm font-bold text-emerald-700">210</div>
+        <div class="text-right mono text-sm text-ink-3">RM 7.4k</div>
+        <div class="text-center"><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+        <div class="text-center">
+          <button class="rounded-lg bg-blue-600 p-1 hover:bg-blue-700">
+            <svg class="size-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- more normal rows -->
+    <div class="group grid items-center border-b border-line px-4 py-2.5 hover:bg-blue-50/40 transition"
+         style="grid-template-columns:2fr 120px 100px 90px 90px 90px 80px 36px;">
+      <div><div class="font-semibold text-[13px]">Yoga Flow <span class="badge badge-gc ml-1">Group</span></div></div>
+      <div class="text-right"><span class="mono text-sm cursor-text rounded px-1.5 py-0.5 hover:bg-blue-100 hover:ring-1 hover:ring-blue-300 transition">60m</span></div>
+      <div class="text-right"><span class="mono text-sm font-semibold cursor-text rounded px-1.5 py-0.5 hover:bg-blue-100 hover:ring-1 hover:ring-blue-300 transition">RM 40</span></div>
+      <div class="text-right"><span class="mono text-sm cursor-text rounded px-1.5 py-0.5 hover:bg-blue-100 hover:ring-1 hover:ring-blue-300 transition text-ink-3">8%</span></div>
+      <div class="text-right mono text-sm font-bold">165</div>
+      <div class="text-right mono text-sm text-ink-3">RM 6.6k</div>
+      <div class="text-center"><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+      <div class="text-center"><button class="rounded-lg border border-line p-1 opacity-0 group-hover:opacity-100 transition hover:bg-paper"><svg class="size-3.5 text-ink-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg></button></div>
+    </div>
+    <div class="group grid items-center border-b border-line px-4 py-2.5 hover:bg-blue-50/40 transition"
+         style="grid-template-columns:2fr 120px 100px 90px 90px 90px 80px 36px;">
+      <div><div class="font-semibold text-[13px]">Fitness Assessment <span class="badge badge-as ml-1">Assess</span></div></div>
+      <div class="text-right"><span class="mono text-sm cursor-text rounded px-1.5 py-0.5 hover:bg-blue-100 hover:ring-1 hover:ring-blue-300 transition">90m</span></div>
+      <div class="text-right"><span class="mono text-sm font-semibold cursor-text rounded px-1.5 py-0.5 hover:bg-blue-100 hover:ring-1 hover:ring-blue-300 transition">RM 120</span></div>
+      <div class="text-right"><span class="mono text-sm cursor-text rounded px-1.5 py-0.5 hover:bg-blue-100 hover:ring-1 hover:ring-blue-300 transition text-ink-3">10%</span></div>
+      <div class="text-right mono text-sm font-bold">29</div>
+      <div class="text-right mono text-sm text-ink-3">RM 3.5k</div>
+      <div class="text-center"><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+      <div class="text-center"><button class="rounded-lg border border-line p-1 opacity-0 group-hover:opacity-100 transition hover:bg-paper"><svg class="size-3.5 text-ink-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg></button></div>
+    </div>
+    <div class="group grid items-center border-b border-line px-4 py-2.5 hover:bg-blue-50/40 transition opacity-60"
+         style="grid-template-columns:2fr 120px 100px 90px 90px 90px 80px 36px;">
+      <div><div class="font-semibold text-[13px]">Sports Massage <span class="badge badge-rc ml-1">Recovery</span></div></div>
+      <div class="text-right"><span class="mono text-sm">60m</span></div>
+      <div class="text-right"><span class="mono text-sm font-semibold">RM 150</span></div>
+      <div class="text-right"><span class="mono text-sm text-ink-3">12%</span></div>
+      <div class="text-right mono text-sm font-bold">0</div>
+      <div class="text-right mono text-sm text-ink-3">—</div>
+      <div class="text-center"><label class="tog"><input type="checkbox" /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+      <div class="text-center"><button class="rounded-lg border border-line p-1 opacity-0 group-hover:opacity-100 transition hover:bg-paper"><svg class="size-3.5 text-ink-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg></button></div>
+    </div>
+    <div class="group grid items-center px-4 py-2.5 hover:bg-blue-50/40 transition"
+         style="grid-template-columns:2fr 120px 100px 90px 90px 90px 80px 36px;">
+      <div><div class="font-semibold text-[13px]">Nutrition Initial Consult <span class="badge badge-nc ml-1">Nutrition</span></div></div>
+      <div class="text-right"><span class="mono text-sm cursor-text rounded px-1.5 py-0.5 hover:bg-blue-100 hover:ring-1 hover:ring-blue-300 transition">60m</span></div>
+      <div class="text-right"><span class="mono text-sm font-semibold cursor-text rounded px-1.5 py-0.5 hover:bg-blue-100 hover:ring-1 hover:ring-blue-300 transition">RM 180</span></div>
+      <div class="text-right"><span class="mono text-sm cursor-text rounded px-1.5 py-0.5 hover:bg-blue-100 hover:ring-1 hover:ring-blue-300 transition text-ink-3">10%</span></div>
+      <div class="text-right mono text-sm font-bold">17</div>
+      <div class="text-right mono text-sm text-ink-3">RM 3.1k</div>
+      <div class="text-center"><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+      <div class="text-center"><button class="rounded-lg border border-line p-1 opacity-0 group-hover:opacity-100 transition hover:bg-paper"><svg class="size-3.5 text-ink-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg></button></div>
+    </div>
+
+    <div class="border-t border-line bg-paper/50 px-4 py-2.5 flex items-center justify-between">
+      <span class="text-[11px] text-ink-4">Showing 6 of 15 · Click any price, duration, or commission to edit inline</span>
+      <button class="text-[11px] font-semibold text-ink-3 hover:text-ink">Show all →</button>
+    </div>
+  </div>
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 4 — TWO-COLUMN MASTER-DETAIL                                     -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d4" class="design-sep">
+<div class="mx-auto max-w-[1360px] px-7 py-10">
+
+  <div class="mb-1 flex items-baseline gap-3">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 4 — Two-Column Master-Detail</h2>
+  </div>
+  <p class="mb-7 text-sm text-ink-3">Left panel: scrollable service list. Right panel: full service details, booking history, commission breakdown, and edit form. No page navigation required.</p>
+
+  <div class="flex gap-4" style="height:680px;">
+    <!-- LEFT: master list -->
+    <div class="w-72 shrink-0 rounded-2xl border border-line bg-white overflow-hidden flex flex-col">
+      <div class="p-4 border-b border-line">
+        <div class="search-bar">
+          <svg class="size-4 text-ink-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
+          <input placeholder="Search services…" />
+        </div>
+        <div class="mt-2.5 flex gap-1 flex-wrap">
+          <button class="chip active text-[11px] py-0.5">All</button>
+          <button class="chip text-[11px] py-0.5">PT</button>
+          <button class="chip text-[11px] py-0.5">Group</button>
+          <button class="chip text-[11px] py-0.5">More</button>
+        </div>
+      </div>
+      <div class="flex-1 overflow-y-auto">
+        <!-- list items -->
+        <button class="w-full text-left px-4 py-3 border-b border-line bg-ink text-white">
+          <div class="flex items-center justify-between mb-0.5">
+            <span class="font-semibold text-[13px]">1-on-1 Session</span>
+            <span class="badge" style="background:rgba(255,255,255,.15);color:white;font-size:9px;">PT</span>
+          </div>
+          <div class="flex items-center justify-between text-[11px] text-white/70">
+            <span>60m · RM 180</span>
+            <span class="mono font-bold text-white">84 bk</span>
+          </div>
+        </button>
+        <button class="w-full text-left px-4 py-3 border-b border-line hover:bg-paper transition">
+          <div class="flex items-center justify-between mb-0.5"><span class="font-semibold text-[13px]">1-on-1 Session 90m</span><span class="badge badge-pt" style="font-size:9px;">PT</span></div>
+          <div class="flex items-center justify-between text-[11px] text-ink-4"><span>90m · RM 250</span><span class="mono font-bold text-ink">51 bk</span></div>
+        </button>
+        <button class="w-full text-left px-4 py-3 border-b border-line hover:bg-paper transition">
+          <div class="flex items-center justify-between mb-0.5"><span class="font-semibold text-[13px]">HIIT Boot Camp</span><span class="badge badge-gc" style="font-size:9px;">Group</span></div>
+          <div class="flex items-center justify-between text-[11px] text-ink-4"><span>45m · RM 35</span><span class="mono font-bold text-emerald-600">210 bk</span></div>
+        </button>
+        <button class="w-full text-left px-4 py-3 border-b border-line hover:bg-paper transition">
+          <div class="flex items-center justify-between mb-0.5"><span class="font-semibold text-[13px]">Yoga Flow</span><span class="badge badge-gc" style="font-size:9px;">Group</span></div>
+          <div class="flex items-center justify-between text-[11px] text-ink-4"><span>60m · RM 40</span><span class="mono font-bold text-ink">165 bk</span></div>
+        </button>
+        <button class="w-full text-left px-4 py-3 border-b border-line hover:bg-paper transition">
+          <div class="flex items-center justify-between mb-0.5"><span class="font-semibold text-[13px]">Spin Cycle</span><span class="badge badge-gc" style="font-size:9px;">Group</span></div>
+          <div class="flex items-center justify-between text-[11px] text-ink-4"><span>50m · RM 45</span><span class="mono font-bold text-ink">142 bk</span></div>
+        </button>
+        <button class="w-full text-left px-4 py-3 border-b border-line hover:bg-paper transition">
+          <div class="flex items-center justify-between mb-0.5"><span class="font-semibold text-[13px]">Pilates Core</span><span class="badge badge-gc" style="font-size:9px;">Group</span></div>
+          <div class="flex items-center justify-between text-[11px] text-ink-4"><span>55m · RM 42</span><span class="mono font-bold text-ink">98 bk</span></div>
+        </button>
+        <button class="w-full text-left px-4 py-3 border-b border-line hover:bg-paper transition">
+          <div class="flex items-center justify-between mb-0.5"><span class="font-semibold text-[13px]">Fitness Assessment</span><span class="badge badge-as" style="font-size:9px;">Assess</span></div>
+          <div class="flex items-center justify-between text-[11px] text-ink-4"><span>90m · RM 120</span><span class="mono font-bold text-ink">29 bk</span></div>
+        </button>
+        <button class="w-full text-left px-4 py-3 border-b border-line hover:bg-paper transition opacity-60">
+          <div class="flex items-center justify-between mb-0.5">
+            <span class="font-semibold text-[13px]">Sports Massage</span>
+            <div class="flex items-center gap-1"><span class="badge badge-off" style="font-size:9px;">Off</span><span class="badge badge-rc" style="font-size:9px;">Recovery</span></div>
+          </div>
+          <div class="flex items-center justify-between text-[11px] text-ink-4"><span>60m · RM 150</span><span class="mono font-bold text-ink">0 bk</span></div>
+        </button>
+        <button class="w-full text-left px-4 py-3 border-b border-line hover:bg-paper transition">
+          <div class="flex items-center justify-between mb-0.5"><span class="font-semibold text-[13px]">Infrared Sauna</span><span class="badge badge-rc" style="font-size:9px;">Recovery</span></div>
+          <div class="flex items-center justify-between text-[11px] text-ink-4"><span>45m · RM 120</span><span class="mono font-bold text-ink">44 bk</span></div>
+        </button>
+        <button class="w-full text-left px-4 py-3 hover:bg-paper transition">
+          <div class="flex items-center justify-between mb-0.5"><span class="font-semibold text-[13px]">Nutrition Initial Consult</span><span class="badge badge-nc" style="font-size:9px;">Nutrition</span></div>
+          <div class="flex items-center justify-between text-[11px] text-ink-4"><span>60m · RM 180</span><span class="mono font-bold text-ink">17 bk</span></div>
+        </button>
+      </div>
+      <div class="border-t border-line p-3">
+        <button class="flex w-full items-center justify-center gap-1.5 rounded-xl bg-ink py-2 text-xs font-semibold text-white hover:bg-ink-soft">
+          <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          New service
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT: detail panel -->
+    <div class="flex-1 rounded-2xl border border-line bg-white overflow-hidden flex flex-col">
+      <!-- detail header -->
+      <div class="border-b border-line px-6 py-4 flex items-start justify-between">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <h3 class="text-lg font-bold">1-on-1 Session</h3>
+            <span class="badge badge-pt">PT</span>
+            <span class="badge badge-on">Active</span>
+          </div>
+          <p class="text-xs text-ink-3">Created 12 Jan 2026 · Last edited 2 days ago</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label>
+          <button class="rounded-xl border border-line px-3.5 py-1.5 text-[12px] font-semibold hover:bg-paper">Edit</button>
+          <button class="rounded-xl bg-ink px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-ink-soft">Save changes</button>
+        </div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto">
+        <!-- KPI strip -->
+        <div class="grid grid-cols-4 gap-px bg-line border-b border-line">
+          <div class="bg-white px-5 py-3.5">
+            <div class="label text-ink-4 mb-1">Price</div>
+            <div class="mono text-xl font-extrabold">RM 180</div>
+          </div>
+          <div class="bg-white px-5 py-3.5">
+            <div class="label text-ink-4 mb-1">Duration</div>
+            <div class="mono text-xl font-extrabold">60 min</div>
+          </div>
+          <div class="bg-white px-5 py-3.5">
+            <div class="label text-ink-4 mb-1">Commission</div>
+            <div class="mono text-xl font-extrabold">15%</div>
+            <div class="text-[11px] text-ink-4">= RM 27/session</div>
+          </div>
+          <div class="bg-white px-5 py-3.5">
+            <div class="label text-ink-4 mb-1">Bookings this month</div>
+            <div class="mono text-xl font-extrabold text-emerald-600">84</div>
+            <div class="text-[11px] text-ink-4">↑ 12 vs last mo</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-5 p-6">
+          <!-- edit fields -->
+          <div>
+            <h4 class="font-bold text-sm mb-3">Service details</h4>
+            <div class="space-y-3">
+              <div>
+                <label class="label text-ink-4 block mb-1">Name</label>
+                <input class="w-full rounded-xl border border-line px-3 py-2 text-sm outline-none focus:border-ink-3 focus:ring-1 focus:ring-ink-3" value="1-on-1 Session" />
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="label text-ink-4 block mb-1">Price (RM)</label>
+                  <input class="w-full rounded-xl border border-line px-3 py-2 text-sm mono font-semibold outline-none focus:border-ink-3" value="180" />
+                </div>
+                <div>
+                  <label class="label text-ink-4 block mb-1">Duration (min)</label>
+                  <input class="w-full rounded-xl border border-line px-3 py-2 text-sm mono outline-none focus:border-ink-3" value="60" />
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="label text-ink-4 block mb-1">Commission %</label>
+                  <input class="w-full rounded-xl border border-line px-3 py-2 text-sm mono outline-none focus:border-ink-3" value="15" />
+                </div>
+                <div>
+                  <label class="label text-ink-4 block mb-1">Category</label>
+                  <select class="w-full rounded-xl border border-line px-3 py-2 text-sm outline-none focus:border-ink-3">
+                    <option selected>Personal Training</option>
+                    <option>Group Class</option>
+                    <option>Assessment</option>
+                    <option>Recovery</option>
+                    <option>Nutrition Consult</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="label text-ink-4 block mb-1">Description</label>
+                <textarea class="w-full rounded-xl border border-line px-3 py-2 text-sm outline-none focus:border-ink-3 resize-none" rows="2">One-hour private training session tailored to individual fitness goals.</textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- booking breakdown -->
+          <div>
+            <h4 class="font-bold text-sm mb-3">Booking history (last 6 months)</h4>
+            <div class="space-y-1.5">
+              <div class="flex items-center gap-3 text-[12px]">
+                <span class="w-10 mono text-right text-ink-4">Nov</span>
+                <div class="flex-1 h-6 rounded-md bg-paper overflow-hidden">
+                  <div class="h-full rounded-md bg-warm" style="width:52%"></div>
+                </div>
+                <span class="w-6 mono font-bold text-right">44</span>
+              </div>
+              <div class="flex items-center gap-3 text-[12px]">
+                <span class="w-10 mono text-right text-ink-4">Dec</span>
+                <div class="flex-1 h-6 rounded-md bg-paper overflow-hidden"><div class="h-full rounded-md bg-warm" style="width:60%"></div></div>
+                <span class="w-6 mono font-bold text-right">51</span>
+              </div>
+              <div class="flex items-center gap-3 text-[12px]">
+                <span class="w-10 mono text-right text-ink-4">Jan</span>
+                <div class="flex-1 h-6 rounded-md bg-paper overflow-hidden"><div class="h-full rounded-md bg-warm" style="width:68%"></div></div>
+                <span class="w-6 mono font-bold text-right">58</span>
+              </div>
+              <div class="flex items-center gap-3 text-[12px]">
+                <span class="w-10 mono text-right text-ink-4">Feb</span>
+                <div class="flex-1 h-6 rounded-md bg-paper overflow-hidden"><div class="h-full rounded-md bg-warm" style="width:74%"></div></div>
+                <span class="w-6 mono font-bold text-right">63</span>
+              </div>
+              <div class="flex items-center gap-3 text-[12px]">
+                <span class="w-10 mono text-right text-ink-4">Mar</span>
+                <div class="flex-1 h-6 rounded-md bg-paper overflow-hidden"><div class="h-full rounded-md bg-warm" style="width:83%"></div></div>
+                <span class="w-6 mono font-bold text-right">71</span>
+              </div>
+              <div class="flex items-center gap-3 text-[12px]">
+                <span class="w-10 mono text-right text-ink-4">Apr</span>
+                <div class="flex-1 h-6 rounded-md bg-paper overflow-hidden"><div class="h-full rounded-md bg-ink" style="width:99%"></div></div>
+                <span class="w-6 mono font-bold text-right">84</span>
+              </div>
+            </div>
+
+            <div class="mt-4 rounded-xl bg-paper p-4">
+              <div class="label text-ink-4 mb-2">Commission breakdown · May</div>
+              <div class="space-y-1.5 text-[12px]">
+                <div class="flex justify-between"><span class="text-ink-3">Sessions × RM 180</span><span class="mono font-semibold">84 × RM 180 = RM 15,120</span></div>
+                <div class="flex justify-between"><span class="text-ink-3">Staff commission (15%)</span><span class="mono font-semibold text-amber-700">− RM 2,268</span></div>
+                <div class="h-px bg-line my-1.5"></div>
+                <div class="flex justify-between font-bold"><span>Net to gym</span><span class="mono text-emerald-700">RM 12,852</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 5 — BENTO GRID WITH FEATURED SERVICES                            -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d5" class="design-sep pb-16">
+<div class="mx-auto max-w-[1360px] px-7 py-10">
+
+  <div class="mb-1 flex items-baseline gap-3">
+    <h2 class="text-2xl font-extrabold tracking-tight">Design 5 — Bento Grid with Featured Services</h2>
+  </div>
+  <p class="mb-7 text-sm text-ink-3">Magazine-style bento grid. Top-row heroes surface most popular services with rich stats. Lower rows show remaining catalog compactly. Filters collapse to a single chip bar.</p>
+
+  <!-- page header -->
+  <div class="mb-5 flex flex-wrap items-center gap-3">
+    <div>
+      <h1 class="text-xl font-bold tracking-tight">Services catalog</h1>
+      <p class="text-xs text-ink-3">15 services · 896 bookings this month · RM 47.2k revenue potential</p>
+    </div>
+    <div class="ml-auto flex items-center gap-2">
+      <div class="search-bar w-52">
+        <svg class="size-4 text-ink-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
+        <input placeholder="Search…" />
+      </div>
+      <button class="flex items-center gap-1.5 rounded-xl bg-ink px-4 py-2 text-xs font-semibold text-white hover:bg-ink-soft">
+        <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        New service
+      </button>
+    </div>
+  </div>
+
+  <!-- filter chip bar -->
+  <div class="mb-5 flex items-center gap-1.5 flex-wrap">
+    <button class="chip active">All categories</button>
+    <button class="chip">Personal Training</button>
+    <button class="chip">Group Class</button>
+    <button class="chip">Assessment</button>
+    <button class="chip">Recovery</button>
+    <button class="chip">Nutrition Consult</button>
+    <div class="h-5 w-px bg-line mx-1"></div>
+    <button class="chip">Active only</button>
+    <button class="chip">Sort: Popularity ↓</button>
+  </div>
+
+  <!-- BENTO GRID -->
+  <!-- Row 1: 3 featured heroes -->
+  <div class="grid grid-cols-3 gap-3 mb-3">
+
+    <!-- HERO 1: HIIT Boot Camp — large, dark -->
+    <div class="col-span-1 relative rounded-3xl bg-ink text-white p-6 overflow-hidden" style="min-height:260px;">
+      <div class="absolute inset-0 opacity-10" style="background:radial-gradient(circle at 80% 20%, #d6cdb1 0%, transparent 60%);"></div>
+      <div class="relative z-10 h-full flex flex-col">
+        <div class="flex items-start justify-between mb-auto">
+          <span class="badge" style="background:rgba(255,255,255,.15);color:white;letter-spacing:.06em;">Group Class</span>
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] text-white/60 font-medium">#1 most booked</span>
+            <label class="tog"><input type="checkbox" checked /><span class="tog-track" style="background:rgba(255,255,255,.3);"><span class="tog-thumb"></span></span></label>
+          </div>
+        </div>
+        <div class="mt-auto">
+          <div class="text-2xl font-extrabold leading-tight mb-1">HIIT Boot Camp</div>
+          <div class="text-sm text-white/60 mb-4">45 min · 8% commission</div>
+          <div class="flex items-end justify-between">
+            <div>
+              <div class="label" style="color:rgba(255,255,255,.5);">Bookings / mo</div>
+              <div class="mono text-4xl font-extrabold tracking-tight">210</div>
+            </div>
+            <div class="text-right">
+              <div class="label" style="color:rgba(255,255,255,.5);">Price</div>
+              <div class="mono text-2xl font-extrabold">RM 35</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="absolute bottom-4 right-4 rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur hover:bg-white/20 transition">Edit →</button>
+    </div>
+
+    <!-- HERO 2: 1-on-1 Session — warm bone -->
+    <div class="col-span-1 relative rounded-3xl p-6 overflow-hidden" style="min-height:260px; background:#d6cdb1;">
+      <div class="relative z-10 h-full flex flex-col">
+        <div class="flex items-start justify-between mb-auto">
+          <span class="badge" style="background:rgba(0,0,0,.12);color:#0a0a0a;">Personal Training</span>
+          <label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label>
+        </div>
+        <div class="mt-auto">
+          <div class="text-2xl font-extrabold leading-tight mb-1 text-ink">1-on-1 Session</div>
+          <div class="text-sm text-ink/60 mb-4">60 min · 15% commission</div>
+          <div class="flex items-end justify-between">
+            <div>
+              <div class="label text-ink/50">Bookings / mo</div>
+              <div class="mono text-4xl font-extrabold tracking-tight text-ink">84</div>
+            </div>
+            <div class="text-right">
+              <div class="label text-ink/50">Price</div>
+              <div class="mono text-2xl font-extrabold text-ink">RM 180</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="absolute bottom-4 right-4 rounded-xl border border-ink/20 bg-ink/10 px-3 py-1.5 text-[11px] font-semibold text-ink hover:bg-ink/20 transition">Edit →</button>
+    </div>
+
+    <!-- HERO 3: Yoga Flow — white with accent border -->
+    <div class="col-span-1 relative rounded-3xl border-2 border-line bg-white p-6 overflow-hidden" style="min-height:260px;">
+      <div class="relative z-10 h-full flex flex-col">
+        <div class="flex items-start justify-between mb-auto">
+          <span class="badge badge-gc">Group Class</span>
+          <label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label>
+        </div>
+        <div class="mt-auto">
+          <div class="text-2xl font-extrabold leading-tight mb-1">Yoga Flow</div>
+          <div class="text-sm text-ink-3 mb-4">60 min · 8% commission</div>
+          <!-- mini trend -->
+          <div class="mb-3 flex items-end gap-1 h-10">
+            <div class="flex-1 rounded-sm bg-paper" style="height:40%"></div>
+            <div class="flex-1 rounded-sm bg-paper" style="height:55%"></div>
+            <div class="flex-1 rounded-sm bg-warm" style="height:65%"></div>
+            <div class="flex-1 rounded-sm bg-warm" style="height:72%"></div>
+            <div class="flex-1 rounded-sm bg-warm" style="height:88%"></div>
+            <div class="flex-1 rounded-sm bg-ink" style="height:100%"></div>
+          </div>
+          <div class="flex items-end justify-between">
+            <div>
+              <div class="label text-ink-4">Bookings / mo</div>
+              <div class="mono text-4xl font-extrabold tracking-tight">165</div>
+            </div>
+            <div class="text-right">
+              <div class="label text-ink-4">Price</div>
+              <div class="mono text-2xl font-extrabold">RM 40</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="absolute bottom-4 right-4 rounded-xl border border-line px-3 py-1.5 text-[11px] font-semibold hover:bg-paper transition">Edit →</button>
+    </div>
+  </div>
+
+  <!-- Row 2: compact cards grid -->
+  <div class="grid grid-cols-4 gap-3 mb-3">
+    <!-- Spin Cycle -->
+    <div class="group rounded-2xl border border-line bg-white p-4 hover:shadow-md transition hover:-translate-y-0.5">
+      <div class="flex items-start justify-between mb-2"><span class="badge badge-gc">Group</span><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+      <div class="font-bold mb-0.5">Spin Cycle</div>
+      <div class="text-[11px] text-ink-4 mb-3">50m</div>
+      <div class="flex items-baseline justify-between">
+        <span class="mono font-extrabold text-lg">RM 45</span>
+        <span class="mono text-sm font-bold text-ink-3">142 bk</span>
+      </div>
+      <div class="mt-2 text-[11px] text-ink-4">8% comm · RM 6.4k/mo</div>
+    </div>
+    <!-- Pilates Core -->
+    <div class="group rounded-2xl border border-line bg-white p-4 hover:shadow-md transition hover:-translate-y-0.5">
+      <div class="flex items-start justify-between mb-2"><span class="badge badge-gc">Group</span><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+      <div class="font-bold mb-0.5">Pilates Core</div>
+      <div class="text-[11px] text-ink-4 mb-3">55m</div>
+      <div class="flex items-baseline justify-between">
+        <span class="mono font-extrabold text-lg">RM 42</span>
+        <span class="mono text-sm font-bold text-ink-3">98 bk</span>
+      </div>
+      <div class="mt-2 text-[11px] text-ink-4">8% comm · RM 4.1k/mo</div>
+    </div>
+    <!-- 1-on-1 90m -->
+    <div class="group rounded-2xl border border-line bg-white p-4 hover:shadow-md transition hover:-translate-y-0.5">
+      <div class="flex items-start justify-between mb-2"><span class="badge badge-pt">PT</span><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+      <div class="font-bold mb-0.5">1-on-1 Session 90m</div>
+      <div class="text-[11px] text-ink-4 mb-3">90m</div>
+      <div class="flex items-baseline justify-between">
+        <span class="mono font-extrabold text-lg">RM 250</span>
+        <span class="mono text-sm font-bold text-ink-3">51 bk</span>
+      </div>
+      <div class="mt-2 text-[11px] text-ink-4">15% comm · RM 12.8k/mo</div>
+    </div>
+    <!-- Infrared Sauna -->
+    <div class="group rounded-2xl border border-line bg-white p-4 hover:shadow-md transition hover:-translate-y-0.5">
+      <div class="flex items-start justify-between mb-2"><span class="badge badge-rc">Recovery</span><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+      <div class="font-bold mb-0.5">Infrared Sauna</div>
+      <div class="text-[11px] text-ink-4 mb-3">45m</div>
+      <div class="flex items-baseline justify-between">
+        <span class="mono font-extrabold text-lg">RM 120</span>
+        <span class="mono text-sm font-bold text-ink-3">44 bk</span>
+      </div>
+      <div class="mt-2 text-[11px] text-ink-4">0% comm · RM 5.3k/mo</div>
+    </div>
+  </div>
+
+  <!-- Row 3: smaller compact + inactive muted -->
+  <div class="grid grid-cols-6 gap-3">
+    <div class="group rounded-2xl border border-line bg-white p-3.5 hover:shadow-sm transition">
+      <div class="flex items-center justify-between mb-1.5"><span class="badge badge-pt" style="font-size:9px;">PT</span><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+      <div class="font-semibold text-[13px] mb-0.5">Duo PT Session</div>
+      <div class="flex items-baseline justify-between mt-2">
+        <span class="mono font-bold">RM 130</span>
+        <span class="mono text-[11px] text-ink-4">38 bk</span>
+      </div>
+      <div class="text-[10px] text-ink-4 mt-1">60m · 12%</div>
+    </div>
+    <div class="group rounded-2xl border border-line bg-white p-3.5 hover:shadow-sm transition">
+      <div class="flex items-center justify-between mb-1.5"><span class="badge badge-as" style="font-size:9px;">Assess</span><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+      <div class="font-semibold text-[13px] mb-0.5">Fitness Assessment</div>
+      <div class="flex items-baseline justify-between mt-2">
+        <span class="mono font-bold">RM 120</span>
+        <span class="mono text-[11px] text-ink-4">29 bk</span>
+      </div>
+      <div class="text-[10px] text-ink-4 mt-1">90m · 10%</div>
+    </div>
+    <div class="group rounded-2xl border border-line bg-white p-3.5 hover:shadow-sm transition">
+      <div class="flex items-center justify-between mb-1.5"><span class="badge badge-as" style="font-size:9px;">Assess</span><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+      <div class="font-semibold text-[13px] mb-0.5">Body Composition</div>
+      <div class="flex items-baseline justify-between mt-2">
+        <span class="mono font-bold">RM 80</span>
+        <span class="mono text-[11px] text-ink-4">22 bk</span>
+      </div>
+      <div class="text-[10px] text-ink-4 mt-1">30m · 8%</div>
+    </div>
+    <div class="group rounded-2xl border border-line bg-white p-3.5 hover:shadow-sm transition">
+      <div class="flex items-center justify-between mb-1.5"><span class="badge badge-nc" style="font-size:9px;">Nutrition</span><label class="tog"><input type="checkbox" checked /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+      <div class="font-semibold text-[13px] mb-0.5">Nutrition Consult</div>
+      <div class="flex items-baseline justify-between mt-2">
+        <span class="mono font-bold">RM 180</span>
+        <span class="mono text-[11px] text-ink-4">17 bk</span>
+      </div>
+      <div class="text-[10px] text-ink-4 mt-1">60m · 10%</div>
+    </div>
+    <!-- inactive -->
+    <div class="group rounded-2xl border border-line bg-white p-3.5 opacity-50 hover:shadow-sm transition">
+      <div class="flex items-center justify-between mb-1.5"><span class="badge badge-rc" style="font-size:9px;">Recovery</span><label class="tog"><input type="checkbox" /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+      <div class="font-semibold text-[13px] mb-0.5">Sports Massage</div>
+      <div class="flex items-baseline justify-between mt-2">
+        <span class="mono font-bold">RM 150</span>
+        <span class="mono text-[11px] text-ink-4">0 bk</span>
+      </div>
+      <div class="text-[10px] text-ink-4 mt-1">60m · 12% · <span class="text-rose-500">Inactive</span></div>
+    </div>
+    <div class="group rounded-2xl border border-line bg-white p-3.5 opacity-50 hover:shadow-sm transition">
+      <div class="flex items-center justify-between mb-1.5"><span class="badge badge-pt" style="font-size:9px;">PT</span><label class="tog"><input type="checkbox" /><span class="tog-track"><span class="tog-thumb"></span></span></label></div>
+      <div class="font-semibold text-[13px] mb-0.5">Virtual PT</div>
+      <div class="flex items-baseline justify-between mt-2">
+        <span class="mono font-bold">RM 100</span>
+        <span class="mono text-[11px] text-ink-4">0 bk</span>
+      </div>
+      <div class="text-[10px] text-ink-4 mt-1">45m · 10% · <span class="text-rose-500">Inactive</span></div>
+    </div>
+  </div>
+
+  <!-- bulk action footer -->
+  <div class="mt-5 flex items-center gap-3 rounded-2xl border border-line bg-white px-5 py-3">
+    <input type="checkbox" class="ck" />
+    <span class="text-xs text-ink-3">Select all for bulk actions</span>
+    <div class="h-4 w-px bg-line mx-1"></div>
+    <button class="chip text-[11px] py-1">Enable selected</button>
+    <button class="chip text-[11px] py-1">Disable selected</button>
+    <span class="ml-auto text-[11px] text-ink-4">15 services total · 12 active · 3 inactive</span>
+  </div>
+
+</div>
+</section>
+
+</body>
+</html>

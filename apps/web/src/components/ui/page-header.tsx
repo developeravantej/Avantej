@@ -19,24 +19,21 @@ export function PageHeader({
 	className,
 }: PageHeaderProps) {
 	return (
-		<div
-			className={cn(
-				"flex flex-wrap items-center gap-3",
-				className,
-			)}
-		>
+		<div className={cn("flex flex-wrap items-center gap-3", className)}>
 			{Icon && (
-				<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-					<Icon className="h-5 w-5 text-primary" />
+				<div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
+					<Icon className="size-5 text-primary" />
 				</div>
 			)}
 			<div className="min-w-0">
-				<h1 className="text-2xl font-bold font-heading">{title}</h1>
+				<h1 className="text-2xl font-semibold font-heading">{title}</h1>
 				{description && (
 					<p className="text-sm text-muted-foreground">{description}</p>
 				)}
 			</div>
-			{actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
+			{actions && (
+				<div className="ml-auto flex items-center gap-2">{actions}</div>
+			)}
 		</div>
 	);
 }

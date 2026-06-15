@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ChevronDown } from "lucide-react";
@@ -9,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import {
 	Select,
 	SelectContent,
@@ -77,6 +74,16 @@ function trainerToForm(trainer: TrainerRow): FormState {
 	};
 }
 
+// ─── Section header (replaces Separator pattern) ──────────────────────────────
+
+function SectionHeading({ label }: { label: string }) {
+	return (
+		<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] pb-2 border-b border-[#e5e5e5]">
+			{label}
+		</p>
+	);
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 type Props = {
@@ -100,6 +107,7 @@ export function TrainerFormDialog({
 	hierarchyNodes,
 	onSubmit,
 	isMutating,
+	// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }: Props) {
 	const isEditing = trainer !== null;
 
@@ -111,7 +119,8 @@ export function TrainerFormDialog({
 	const [servicesSectionOpen, setServicesSectionOpen] = useState(false);
 	const [commissionsSectionOpen, setCommissionsSectionOpen] = useState(false);
 
-	// Seed form when trainer prop changes (e.g. switching from create to edit)
+	// Seed form when trainer prop changes
+	// react-doctor-disable-next-line react-doctor/no-cascading-set-state -- 4 cohesive setState calls reseeding form + collapse panels on trainer prop change
 	useEffect(() => {
 		setForm(trainer ? trainerToForm(trainer) : EMPTY_FORM);
 		setProfileSectionOpen(true);
@@ -141,48 +150,58 @@ export function TrainerFormDialog({
 				if (!isOpen) onClose();
 			}}
 		>
-			<DialogContent className="sm:max-w-lg overflow-y-auto">
-				<DialogHeader>
-					<DialogTitle>{isEditing ? "Edit Trainer" : "Add Trainer"}</DialogTitle>
-					<DialogDescription>
+			<DialogContent
+				hideCloseButton
+				className="sm:max-w-lg p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden flex flex-col max-h-[90vh]"
+			>
+				{/* ── Header ──────────────────────────────────────────────────── */}
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5] shrink-0">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						TRAINER DIRECTORY
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						{isEditing ? "Edit Trainer" : "Add Trainer"}
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
 						{isEditing
 							? "Update this trainer's profile information."
-							: "Add an existing user as a trainer in this organization."}
+							: "Add an existing user as a trainer in this organisation."}
 					</DialogDescription>
 				</DialogHeader>
 
-				<form onSubmit={handleSubmit} className="flex flex-col gap-5 px-4 py-4">
-					{/* ── Member Info (create only) ─────────────────────────── */}
+				{/* ── Scrollable form body ─────────────────────────────────────── */}
+				<form
+					onSubmit={handleSubmit}
+					className="flex flex-col gap-5 px-6 pt-4 pb-2 overflow-y-auto flex-1"
+				>
+					{/* ── Account (create only) ─────────────────────────────────── */}
 					{!isEditing && (
 						<>
-							<div className="space-y-1">
-								<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-									Account
-								</p>
-								<Separator />
-							</div>
+							<SectionHeading label="Account" />
 
 							<div className="flex flex-col gap-1.5">
 								<Label htmlFor="trainer-email">
-									Email <span className="text-destructive">*</span>
+									Email <span className="text-rose-600">*</span>
 								</Label>
 								<Input
 									id="trainer-email"
 									type="email"
 									placeholder="trainer@example.com"
 									value={form.email}
-									onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+									onChange={(e) =>
+										setForm((f) => ({ ...f, email: e.target.value }))
+									}
 									required
 									autoComplete="off"
 								/>
-								<p className="text-xs text-muted-foreground">
+								<p className="text-xs text-[#737373]">
 									The user must already be registered in the system.
 								</p>
 							</div>
 
 							<div className="flex flex-col gap-1.5">
 								<Label htmlFor="trainer-scope">
-									Hierarchy Scope <span className="text-destructive">*</span>
+									Hierarchy Scope <span className="text-rose-600">*</span>
 								</Label>
 								<Select
 									value={form.hierarchyScopeId}
@@ -203,7 +222,7 @@ export function TrainerFormDialog({
 												<SelectItem key={node.id} value={node.id}>
 													<span style={{ paddingLeft: `${node.depth * 12}px` }}>
 														{node.name}
-														<span className="ml-1 text-xs text-muted-foreground capitalize">
+														<span className="ml-1 text-xs text-[#737373] capitalize">
 															({node.type})
 														</span>
 													</span>
@@ -216,20 +235,24 @@ export function TrainerFormDialog({
 						</>
 					)}
 
-					{/* ── Profile ──────────────────────────────────────────── */}
-					<Collapsible open={profileSectionOpen} onOpenChange={setProfileSectionOpen}>
+					{/* ── Profile ──────────────────────────────────────────────── */}
+					<Collapsible
+						open={profileSectionOpen}
+						onOpenChange={setProfileSectionOpen}
+					>
 						<CollapsibleTrigger asChild>
-							<button type="button" className="flex w-full items-center justify-between pt-1">
-								<div className="space-y-0.5 text-left">
-									<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-										Profile
-									</p>
-									<Separator />
-								</div>
+							<button
+								type="button"
+								className="flex w-full items-center justify-between"
+							>
+								<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] pb-2 border-b border-[#e5e5e5] flex-1 text-left">
+									Profile
+								</p>
 								<ChevronDown
-									className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
-										profileSectionOpen ? "rotate-180" : ""
-									}`}
+									className={cn(
+										"size-4 text-[#737373] transition-transform duration-200 ml-2 shrink-0",
+										profileSectionOpen && "rotate-180",
+									)}
 								/>
 							</button>
 						</CollapsibleTrigger>
@@ -278,7 +301,9 @@ export function TrainerFormDialog({
 									placeholder="A short description of the trainer..."
 									rows={3}
 									value={form.bio}
-									onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
+									onChange={(e) =>
+										setForm((f) => ({ ...f, bio: e.target.value }))
+									}
 								/>
 							</div>
 
@@ -292,30 +317,30 @@ export function TrainerFormDialog({
 										setForm((f) => ({ ...f, certifications: e.target.value }))
 									}
 								/>
-								<p className="text-xs text-muted-foreground">
+								<p className="text-xs text-[#737373]">
 									Separate multiple certifications with commas.
 								</p>
 							</div>
 						</CollapsibleContent>
 					</Collapsible>
 
-					{/* ── Availability (edit only) ─────────────────────────── */}
+					{/* ── Availability (edit only) ─────────────────────────────── */}
 					{isEditing && (
 						<Collapsible
 							open={availabilitySectionOpen}
 							onOpenChange={setAvailabilitySectionOpen}
 						>
 							<CollapsibleTrigger asChild>
-								<button type="button" className="flex w-full items-center justify-between pt-1">
-									<div className="space-y-0.5 text-left">
-										<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-											Weekly Availability
-										</p>
-										<Separator />
-									</div>
+								<button
+									type="button"
+									className="flex w-full items-center justify-between"
+								>
+									<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] pb-2 border-b border-[#e5e5e5] flex-1 text-left">
+										Weekly Availability
+									</p>
 									<ChevronDown
 										className={cn(
-											"h-4 w-4 text-muted-foreground transition-transform duration-200",
+											"size-4 text-[#737373] transition-transform duration-200 ml-2 shrink-0",
 											availabilitySectionOpen && "rotate-180",
 										)}
 									/>
@@ -331,7 +356,7 @@ export function TrainerFormDialog({
 						</Collapsible>
 					)}
 
-					{/* ── Services (edit only) ─────────────────────────────── */}
+					{/* ── Services (edit only) ─────────────────────────────────── */}
 					{isEditing && (
 						<TrainerServicesSection
 							organizationId={organizationId}
@@ -341,7 +366,7 @@ export function TrainerFormDialog({
 						/>
 					)}
 
-					{/* ── Commissions (edit only, read-only) ───────────────── */}
+					{/* ── Commissions (edit only) ──────────────────────────────── */}
 					{isEditing && (
 						<TrainerCommissionsSection
 							organizationId={organizationId}
@@ -351,21 +376,33 @@ export function TrainerFormDialog({
 						/>
 					)}
 
-					{/* ── Footer ───────────────────────────────────────────── */}
-					<DialogFooter className="px-0 pt-4">
-						<Button
-							type="button"
-							variant="outline"
-							onClick={onClose}
-							disabled={isMutating}
-						>
-							Cancel
-						</Button>
-						<Button type="submit" disabled={isMutating}>
-							{isMutating ? "Saving..." : isEditing ? "Save Changes" : "Add Trainer"}
-						</Button>
-					</DialogFooter>
+					{/* spacer so content doesn't sit flush against footer */}
+					<div className="pb-2" />
 				</form>
+
+				{/* ── Sticky footer ────────────────────────────────────────────── */}
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2 shrink-0">
+					<Button
+						type="button"
+						variant="outline"
+						onClick={onClose}
+						disabled={isMutating}
+					>
+						Cancel
+					</Button>
+					<Button
+						type="button"
+						onClick={handleSubmit}
+						disabled={isMutating}
+						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+					>
+						{isMutating
+							? "Saving…"
+							: isEditing
+								? "Save Changes"
+								: "Add Trainer"}
+					</Button>
+				</DialogFooter>
 			</DialogContent>
 		</Dialog>
 	);

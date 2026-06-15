@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/money";
 import { client } from "@/utils/orpc";
-import type { Installment, InstallmentOverviewItem } from "./installment-types";
+import type { Installment } from "./installment-types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -48,11 +48,7 @@ export function InstallmentTimeline({
 	onConfirmPayment,
 }: InstallmentTimelineProps) {
 	const { data: installments = [] } = useQuery({
-		queryKey: [
-			"installments-by-instance",
-			organizationId,
-			packageInstanceId,
-		],
+		queryKey: ["installments-by-instance", organizationId, packageInstanceId],
 		queryFn: async (): Promise<Installment[]> => {
 			if (!organizationId || !packageInstanceId) return [];
 			return client.installments.listByPackageInstance({
@@ -132,6 +128,3 @@ export function InstallmentTimeline({
 		</div>
 	);
 }
-
-// Re-export type so callers that import from this file can use it
-export type { Installment, InstallmentOverviewItem };

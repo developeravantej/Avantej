@@ -22,14 +22,3 @@ export function formatMoney(cents: number | null | undefined): string {
 	const value = (cents ?? 0) / 100;
 	return `${CURRENCY_SYMBOL} ${value.toFixed(2)}`;
 }
-
-/**
- * Format an already-divided dollar/RM value (NOT cents). Use this only when
- * you have a dollar amount that wasn't loaded from the API in cents.
- *   formatMoneyFromDollars(80) → "RM 80.00"
- */
-export function formatMoneyFromDollars(value: number | null | undefined): string {
-	return `${CURRENCY_SYMBOL} ${(value ?? 0).toFixed(2)}`;
-}
-
-export { CURRENCY_SYMBOL };

@@ -31,6 +31,7 @@ import { Plus, Search } from "lucide-react";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 	DialogFooter,
@@ -91,6 +92,7 @@ interface DataTableProps<TData, TValue> {
 	emptyAction?: { label: string; onClick: () => void };
 }
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
 function DataTable<TData extends UomConversionRow, TValue>({
 	columns,
 	data,
@@ -110,6 +112,7 @@ function DataTable<TData extends UomConversionRow, TValue>({
 	emptyTitle,
 	emptyDescription,
 	emptyAction,
+	// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }: DataTableProps<TData, TValue>) {
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [globalFilter, setGlobalFilter] = useState("");
@@ -126,6 +129,8 @@ function DataTable<TData extends UomConversionRow, TValue>({
 	const [editBaseUomId, setEditBaseUomId] = useState("");
 	const [editFactor, setEditFactor] = useState("1");
 
+	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- prop-driven hydration: seeds inline edit form from editTarget prop
+	// react-doctor-disable-next-line react-doctor/no-cascading-set-state -- 4 cohesive setState calls seeding edit-row inline form from editTarget prop
 	useEffect(() => {
 		if (editTarget) {
 			setEditName(editTarget.name);
@@ -220,7 +225,7 @@ function DataTable<TData extends UomConversionRow, TValue>({
 		<div className="flex h-full flex-col">
 			<div className="flex shrink-0 items-center border-b border-border/40 px-6 py-3">
 				<div className="relative w-64">
-					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
 						placeholder="Search conversions..."
 						value={globalFilter ?? ""}
@@ -234,7 +239,7 @@ function DataTable<TData extends UomConversionRow, TValue>({
 						size="sm"
 						type="button"
 					>
-						<Plus className="mr-2 h-4 w-4" />
+						<Plus className="mr-2 size-4" />
 						Add Conversion
 					</Button>
 				</div>
@@ -245,7 +250,9 @@ function DataTable<TData extends UomConversionRow, TValue>({
 					<StatusCallout
 						variant="error"
 						title="Couldn't load data"
-						message={error instanceof Error ? error.message : "An error occurred"}
+						message={
+							error instanceof Error ? error.message : "An error occurred"
+						}
 						onRetry={onRetry}
 					/>
 				</div>
@@ -312,7 +319,7 @@ function DataTable<TData extends UomConversionRow, TValue>({
 				</div>
 			)}
 
-			<div className="flex shrink-0 items-center justify-end space-x-2 border-t border-border/40 px-6 py-3">
+			<div className="flex shrink-0 items-center justify-end gap-x-2 border-t border-border/40 px-6 py-3">
 				<div className="flex-1 text-sm text-muted-foreground">
 					{table.getFilteredRowModel().rows.length} of{" "}
 					{table.getCoreRowModel().rows.length} row(s) total.
@@ -339,14 +346,25 @@ function DataTable<TData extends UomConversionRow, TValue>({
 
 			{/* Create Dialog */}
 			<Dialog open={isAddDialogOpen} onOpenChange={onAddDialogOpenChange}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>Add UoM Conversion</DialogTitle>
+				<DialogContent
+					hideCloseButton
+					className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							UNITS OF MEASURE
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Add UoM Conversion
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
+							Create a new unit of measure conversion.
+						</DialogDescription>
 					</DialogHeader>
-					<div className="flex flex-col gap-4 py-2">
+					<div className="px-6 pt-4 pb-2 flex flex-col gap-4">
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="c-name">
-								Name <span className="text-destructive">*</span>
+								Name <span className="text-rose-600">*</span>
 							</Label>
 							<Input
 								id="c-name"
@@ -357,15 +375,15 @@ function DataTable<TData extends UomConversionRow, TValue>({
 						</div>
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="c-base">
-								Base UoM <span className="text-destructive">*</span>
+								Base UoM <span className="text-rose-600">*</span>
 							</Label>
 							<select
 								id="c-base"
 								value={createBaseUomId}
 								onChange={(e) => setCreateBaseUomId(e.target.value)}
-								className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+								className="flex h-9 w-full rounded-md border border-[#e5e5e5] bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
 							>
-								<option value="">Select base UoM...</option>
+								<option value="">Select base UoM…</option>
 								{baseUoms.map((u) => (
 									<option key={u.id} value={u.id}>
 										{u.name}
@@ -375,7 +393,7 @@ function DataTable<TData extends UomConversionRow, TValue>({
 						</div>
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="c-factor">
-								Conversion Factor <span className="text-destructive">*</span>
+								Conversion Factor <span className="text-rose-600">*</span>
 							</Label>
 							<Input
 								id="c-factor"
@@ -398,7 +416,7 @@ function DataTable<TData extends UomConversionRow, TValue>({
 							/>
 						</div>
 					</div>
-					<DialogFooter>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button
 							variant="outline"
 							onClick={() => onAddDialogOpenChange(false)}
@@ -406,7 +424,11 @@ function DataTable<TData extends UomConversionRow, TValue>({
 						>
 							Cancel
 						</Button>
-						<Button onClick={handleCreate} disabled={isCreating}>
+						<Button
+							onClick={handleCreate}
+							disabled={isCreating}
+							className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+						>
 							{isCreating ? "Adding..." : "Add Conversion"}
 						</Button>
 					</DialogFooter>
@@ -423,6 +445,9 @@ function DataTable<TData extends UomConversionRow, TValue>({
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
 						<DialogTitle>Edit UoM Conversion</DialogTitle>
+						<DialogDescription>
+							Update the details of this unit of measure conversion.
+						</DialogDescription>
 					</DialogHeader>
 					<div className="flex flex-col gap-4 py-2">
 						<div className="flex flex-col gap-1.5">
@@ -446,7 +471,7 @@ function DataTable<TData extends UomConversionRow, TValue>({
 								onChange={(e) => setEditBaseUomId(e.target.value)}
 								className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
 							>
-								<option value="">Select base UoM...</option>
+								<option value="">Select base UoM…</option>
 								{baseUoms.map((u) => (
 									<option key={u.id} value={u.id}>
 										{u.name}

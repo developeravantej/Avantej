@@ -81,7 +81,10 @@ export async function assignPackageInstanceStaff(
 			assignedAt: new Date(),
 		})
 		.onConflictDoUpdate({
-			target: [packageInstanceStaff.packageInstanceId, packageInstanceStaff.slotIndex],
+			target: [
+				packageInstanceStaff.packageInstanceId,
+				packageInstanceStaff.slotIndex,
+			],
 			set: {
 				staffId: params.staffId,
 				role: params.role ?? "trainer",
@@ -141,7 +144,9 @@ export async function replacePackageInstanceStaff(
 		// Delete all existing assignments
 		await tx
 			.delete(packageInstanceStaff)
-			.where(eq(packageInstanceStaff.packageInstanceId, params.packageInstanceId));
+			.where(
+				eq(packageInstanceStaff.packageInstanceId, params.packageInstanceId),
+			);
 
 		if (params.assignments.length === 0) {
 			return [];

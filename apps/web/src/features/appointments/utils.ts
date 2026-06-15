@@ -17,16 +17,38 @@ export const PX_PER_MIN = PX_PER_HOUR / 60;
 export function statusStyle(status: Appointment["status"]) {
 	switch (status) {
 		case "confirmed":
-			return { border: "border-l-green-500", bg: "bg-green-50", text: "text-green-900", badge: "bg-green-100 text-green-800", label: "Came" };
+			return {
+				border: "border-l-green-500",
+				bg: "bg-green-50",
+				text: "text-green-900",
+				badge: "bg-green-100 text-green-800",
+				label: "Came",
+			};
 		case "pending":
-			return { border: "border-l-yellow-500", bg: "bg-yellow-50", text: "text-yellow-900", badge: "bg-yellow-100 text-yellow-800", label: "Upcoming" };
+			return {
+				border: "border-l-yellow-500",
+				bg: "bg-yellow-50",
+				text: "text-yellow-900",
+				badge: "bg-yellow-100 text-yellow-800",
+				label: "Upcoming",
+			};
 		case "cancelled":
-			return { border: "border-l-red-500", bg: "bg-red-50", text: "text-red-900", badge: "bg-red-100 text-red-800", label: "No-show" };
+			return {
+				border: "border-l-red-500",
+				bg: "bg-red-50",
+				text: "text-red-900",
+				badge: "bg-red-100 text-red-800",
+				label: "No-show",
+			};
 	}
 }
 
-export function assignColumns(appts: Appointment[]): Array<{ appt: Appointment; col: number; totalCols: number }> {
-	const sorted = [...appts].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+export function assignColumns(
+	appts: Appointment[],
+): Array<{ appt: Appointment; col: number; totalCols: number }> {
+	const sorted = [...appts].sort(
+		(a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
+	);
 	const colEnds: Date[] = [];
 
 	const assigned = sorted.map((appt) => {
@@ -67,10 +89,17 @@ export const STATUS = {
 		stripe: "bg-rose-400",
 		dot: "bg-rose-400",
 	},
-} satisfies Record<CalendarAppointment["status"], { label: string | null; badge: string; stripe: string; dot: string }>;
+} satisfies Record<
+	CalendarAppointment["status"],
+	{ label: string | null; badge: string; stripe: string; dot: string }
+>;
 
 export function formatTime(date: Date) {
-	return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+	return date.toLocaleTimeString("en-US", {
+		hour: "numeric",
+		minute: "2-digit",
+		hour12: true,
+	});
 }
 
 export function formatDuration(start: Date, end: Date) {
@@ -93,27 +122,59 @@ export function getInitials(name: string) {
 
 export function isToday(date: Date) {
 	const t = new Date();
-	return date.getDate() === t.getDate() && date.getMonth() === t.getMonth() && date.getFullYear() === t.getFullYear();
+	return (
+		date.getDate() === t.getDate() &&
+		date.getMonth() === t.getMonth() &&
+		date.getFullYear() === t.getFullYear()
+	);
 }
 
-export function isTomorrow(date: Date) {
+function isTomorrow(date: Date) {
 	const t = new Date();
 	t.setDate(t.getDate() + 1);
-	return date.getDate() === t.getDate() && date.getMonth() === t.getMonth() && date.getFullYear() === t.getFullYear();
+	return (
+		date.getDate() === t.getDate() &&
+		date.getMonth() === t.getMonth() &&
+		date.getFullYear() === t.getFullYear()
+	);
 }
 
 export function formatDateHeader(date: Date) {
-	if (isToday(date)) return { label: "Today", sub: date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }) };
-	if (isTomorrow(date)) return { label: "Tomorrow", sub: date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }) };
+	if (isToday(date))
+		return {
+			label: "Today",
+			sub: date.toLocaleDateString("en-US", {
+				weekday: "long",
+				month: "long",
+				day: "numeric",
+			}),
+		};
+	if (isTomorrow(date))
+		return {
+			label: "Tomorrow",
+			sub: date.toLocaleDateString("en-US", {
+				weekday: "long",
+				month: "long",
+				day: "numeric",
+			}),
+		};
 	return {
 		label: date.toLocaleDateString("en-US", { weekday: "long" }),
-		sub: date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
+		sub: date.toLocaleDateString("en-US", {
+			month: "long",
+			day: "numeric",
+			year: "numeric",
+		}),
 	};
 }
 
-export function groupByDate(appointments: CalendarAppointment[]): Map<string, CalendarAppointment[]> {
+export function groupByDate(
+	appointments: CalendarAppointment[],
+): Map<string, CalendarAppointment[]> {
 	const map = new Map<string, CalendarAppointment[]>();
-	const sorted = [...appointments].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+	const sorted = [...appointments].sort(
+		(a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
+	);
 	for (const appt of sorted) {
 		const d = new Date(appt.start);
 		const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -141,8 +202,15 @@ type RecurrenceParams = {
  * Converts the UI-layer OnSubmitPayload recurrence shape into the API-layer
  * RecurrenceParams. Returns undefined when no custom recurrence is set.
  */
-export function buildRecurrenceParams(appointment: OnSubmitPayload): RecurrenceParams | undefined {
-	if (!appointment.recurrence || appointment.recurrence === "none" || !appointment.customRecurrence) return undefined;
+export function buildRecurrenceParams(
+	appointment: OnSubmitPayload,
+): RecurrenceParams | undefined {
+	if (
+		!appointment.recurrence ||
+		appointment.recurrence === "none" ||
+		!appointment.customRecurrence
+	)
+		return undefined;
 	if (appointment.recurrence !== "custom") return undefined;
 
 	const cr = appointment.customRecurrence as {
@@ -154,20 +222,43 @@ export function buildRecurrenceParams(appointment: OnSubmitPayload): RecurrenceP
 		endsOccurrences?: number;
 		monthlyType?: string;
 	};
-	const DAYS_MAP: Record<string, number> = { SU: 0, M: 1, T: 2, W: 3, TH: 4, F: 5, S: 6 };
-	const endsType = cr.endsType === "on" ? "on_date" : cr.endsType === "after" ? "after_occurrences" : "never";
-	const monthlyType = cr.timeUnit === "month" ? (cr.monthlyType === "week" ? "day_of_week" : "day_of_month") : undefined;
+	const DAYS_MAP: Record<string, number> = {
+		SU: 0,
+		M: 1,
+		T: 2,
+		W: 3,
+		TH: 4,
+		F: 5,
+		S: 6,
+	};
+	const endsType =
+		cr.endsType === "on"
+			? "on_date"
+			: cr.endsType === "after"
+				? "after_occurrences"
+				: "never";
+	const monthlyType =
+		cr.timeUnit === "month"
+			? cr.monthlyType === "week"
+				? "day_of_week"
+				: "day_of_month"
+			: undefined;
 	return {
 		frequencyValue: cr.frequency ?? 1,
 		timeUnit: (cr.timeUnit ?? "week") as "day" | "week" | "month",
-		repeatOn: cr.timeUnit === "week" && cr.repeatOn?.length > 0
-			? cr.repeatOn.map((d: string) => DAYS_MAP[d] ?? 0)
-			: undefined,
+		repeatOn:
+			cr.timeUnit === "week" && cr.repeatOn?.length > 0
+				? cr.repeatOn.map((d: string) => DAYS_MAP[d] ?? 0)
+				: undefined,
 		monthlyType,
 		endsType: endsType as "never" | "on_date" | "after_occurrences",
-		endsAfterOccurrences: endsType === "after_occurrences" ? (cr.endsOccurrences ?? undefined) : undefined,
-		endsOn: endsType === "on_date" && cr.endsDate
-			? new Date(cr.endsDate + "T23:59:59.999Z").toISOString()
-			: undefined,
+		endsAfterOccurrences:
+			endsType === "after_occurrences"
+				? (cr.endsOccurrences ?? undefined)
+				: undefined,
+		endsOn:
+			endsType === "on_date" && cr.endsDate
+				? new Date(cr.endsDate + "T23:59:59.999Z").toISOString()
+				: undefined,
 	};
 }

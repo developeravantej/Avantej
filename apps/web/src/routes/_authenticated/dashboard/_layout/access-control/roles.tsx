@@ -1,8 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { RolesTabPage } from "@/components/pages/access-control/roles-tab";
+import {
+	RolesTabPage,
+	type RolesViewMode,
+} from "@/components/pages/access-control/roles-tab";
 import { PermissionsTabPage } from "@/components/pages/access-control/permissions-tab";
 import { requirePermission } from "@/lib/route-guards";
-import { Shield } from "lucide-react";
+
+import { z } from "zod";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/access-control/roles",
@@ -13,63 +17,58 @@ export const Route = createFileRoute(
 			"/dashboard",
 		);
 	},
-	validateSearch: (search: Record<string, unknown>) => ({
-		tab: (search.tab as string | undefined) ?? "roles",
+	validateSearch: z.object({
+		tab: z.string().catch("roles"),
+		view: z.enum(["matrix", "cards", "enhanced", "wizard"]).catch("matrix"),
 	}),
 	component: RolesPage,
 });
 
 const TABS = [
-	{ id: "roles", label: "Roles" },
-	{ id: "permissions", label: "Permissions" },
+	{ id: "roles", label: "Roles & Permissions" },
+	{ id: "permissions", label: "Permission Definitions" },
 ];
 
 function RolesPage() {
-	const { tab } = Route.useSearch();
+	const { tab, view } = Route.useSearch();
 	const navigate = Route.useNavigate();
 
 	const content =
-		tab === "permissions" ? <PermissionsTabPage /> : <RolesTabPage />;
+		tab === "permissions" ? (
+			<PermissionsTabPage />
+		) : (
+			<RolesTabPage
+				view={view}
+				onViewChange={(mode) => navigate({ search: { tab, view: mode } })}
+			/>
+		);
 
 	return (
-		<div className="flex h-[calc(100vh-48px)] flex-col rounded-2xl border border-border/40 bg-white shadow-sm">
-			{/* Fixed header */}
-			<div className="flex shrink-0 items-center justify-between px-6 pt-6 pb-4">
-				<div className="flex items-center gap-3">
-					<div className="p-2 rounded-lg bg-primary/10">
-						<Shield className="h-6 w-6 text-primary" />
-					</div>
-					<div>
-						<h1 className="text-xl font-semibold">Roles</h1>
-						<p className="mt-0.5 text-sm text-muted-foreground">
-							Define roles and the permissions assigned to them
-						</p>
-					</div>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Settings</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Access Control</span>
 				</div>
-			</div>
-
-			{/* Tab band */}
-			<div className="shrink-0 border-b border-border/40 px-6">
-				<div className="flex h-10 items-end gap-0">
+				<div className="ml-8 flex items-center gap-1 rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-1">
 					{TABS.map((t) => (
 						<button
 							key={t.id}
 							type="button"
-							onClick={() => navigate({ search: { tab: t.id } })}
-							className={`px-4 pb-2 pt-0 text-sm font-medium border-b-2 transition-colors ${
-								tab === t.id
-									? "border-foreground text-foreground"
-									: "border-transparent text-muted-foreground hover:text-foreground"
-							}`}
+							onClick={() => navigate({ search: { tab: t.id, view } })}
+							className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${tab === t.id ? "bg-[#0a0a0a] text-white" : "text-muted-foreground hover:text-foreground"}`}
 						>
 							{t.label}
 						</button>
 					))}
 				</div>
-			</div>
+			</header>
 
-			{/* Scroll region */}
-			<div className="min-h-0 flex-1 overflow-hidden">{content}</div>
+			{/* ── Content card — fills remaining height ─────────────────── */}
+			<div className="mx-6 my-6 flex-1 overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
+				<div className="flex h-full min-h-0 overflow-hidden">{content}</div>
+			</div>
 		</div>
 	);
 }

@@ -1,0 +1,25 @@
+agent: claude
+
+commands:
+  lint: "bun run doctor:diff"
+  test: "cd apps/server && bun test"
+  format: "bun run check"
+
+ignore_patterns:
+  - "**/*.gen.ts"
+  - "**/routeTree.gen.ts"
+  - "**/node_modules/**"
+  - "**/.next/**"
+  - "**/dist/**"
+  - "**/.expo/**"
+  - "**/build/**"
+  - "**/.turbo/**"
+  - "packages/db/src/migrations/**"
+  - "apps/native/ios/**"
+  - "apps/native/android/**"
+
+auto_fix:
+  lint: 5
+  review: 2
+  test: 3
+  document: 3

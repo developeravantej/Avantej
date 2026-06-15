@@ -6,9 +6,9 @@ import {
 	ActivityIndicator,
 	KeyboardAvoidingView,
 	Platform,
+	Pressable,
 	Text,
 	TextInput,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -43,18 +43,18 @@ export default function ForgotPasswordScreen() {
 					<Text className="mb-3 font-bold text-2xl text-black">
 						Check Your Email
 					</Text>
-					<Text className="mb-8 text-center text-base text-gray-600">
+					<Text className="mb-8 text-center text-base text-zinc-600">
 						If an account exists with that email, we've sent password reset
 						instructions.
 					</Text>
-					<TouchableOpacity
+					<Pressable
 						onPress={() => router.replace("/(auth)/login")}
-						className="h-14 w-full flex-row items-center justify-center rounded-xl bg-black"
+						className="h-14 w-full flex-row items-center justify-center rounded-xl bg-zinc-950"
 					>
 						<Text className="font-medium text-base text-white">
 							Back to Sign In
 						</Text>
-					</TouchableOpacity>
+					</Pressable>
 				</View>
 			</SafeAreaView>
 		);
@@ -69,9 +69,9 @@ export default function ForgotPasswordScreen() {
 				<View className="flex-1 items-center justify-center px-6">
 					{/* Back Button */}
 					<View className="absolute left-6 top-4">
-						<TouchableOpacity onPress={() => router.back()}>
+						<Pressable onPress={() => router.back()}>
 							<Ionicons name="arrow-back" size={24} color="#000" />
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 
 					<View className="mb-6">
@@ -81,7 +81,7 @@ export default function ForgotPasswordScreen() {
 					<Text className="mb-3 font-bold text-2xl text-black">
 						Forgot Password?
 					</Text>
-					<Text className="mb-8 text-center text-base text-gray-600">
+					<Text className="mb-8 text-center text-base text-zinc-600">
 						Enter your email and we'll send you instructions to reset your
 						password.
 					</Text>
@@ -92,7 +92,7 @@ export default function ForgotPasswordScreen() {
 								Email
 							</Text>
 							<TextInput
-								className="mb-6 h-14 w-full rounded-xl border border-gray-200 bg-white px-4 text-base text-black"
+								className="mb-6 h-14 w-full rounded-xl border border-zinc-200 bg-white px-4 text-base text-black"
 								placeholder="Enter your email"
 								placeholderTextColor="#9CA3AF"
 								value={email}
@@ -102,10 +102,10 @@ export default function ForgotPasswordScreen() {
 								autoCorrect={false}
 							/>
 
-							<TouchableOpacity
+							<Pressable
 								onPress={handleSubmit}
 								disabled={isLoading || !email.trim()}
-								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-black"
+								className="h-14 w-full flex-row items-center justify-center rounded-xl bg-zinc-950"
 								style={{
 									opacity: isLoading || !email.trim() ? 0.6 : 1,
 								}}
@@ -117,7 +117,7 @@ export default function ForgotPasswordScreen() {
 										Send Reset Link
 									</Text>
 								)}
-							</TouchableOpacity>
+							</Pressable>
 						</View>
 					</View>
 				</View>

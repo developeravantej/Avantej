@@ -5,7 +5,8 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { PageLoader } from "@/components/ui/loading-spinner";
-import { client } from "@/utils/orpc";
+import { Skeleton } from "boneyard-js/react";
+import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,13 @@ import {
 } from "@/components/ui/dialog";
 import DataTable from "@/components/tables/sales/view/data-table";
 import { CopyableCell } from "@/components/tables/copyable-cell";
-import { ArrowUpDown, CheckCircle, XCircle, PackageCheck, Plus } from "lucide-react";
+import {
+	ArrowUpDown,
+	CheckCircle,
+	XCircle,
+	PackageCheck,
+	Plus,
+} from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { CanonicalStatus } from "@/components/ui/status-badge";
 
@@ -72,6 +79,8 @@ const STATUS_TABS: { value: string | undefined; label: string }[] = [
 // Page component
 // ---------------------------------------------------------------------------
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
+// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 export function StockRequestsTabPage() {
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
@@ -87,10 +96,18 @@ export function StockRequestsTabPage() {
 		},
 		enabled: !!organizationId,
 	});
-	const branches = ((nodesData?.nodes ?? []) as Array<{ id: string; type: string; name: string }>).filter((n) => n.type === "branch");
+	const branches = (
+		(nodesData?.nodes ?? []) as Array<{
+			id: string;
+			type: string;
+			name: string;
+		}>
+	).filter((n) => n.type === "branch");
 
 	// ---- Filter state ----
-	const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+	const [statusFilter, setStatusFilter] = useState<string | undefined>(
+		undefined,
+	);
 
 	// ---- Create sheet state ----
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -104,20 +121,27 @@ export function StockRequestsTabPage() {
 	const [formItemNotes, setFormItemNotes] = useState("");
 
 	// ---- Fulfill dialog state ----
-	const [fulfillTarget, setFulfillTarget] = useState<StockRequestRow | null>(null);
-	const [fulfillQuantities, setFulfillQuantities] = useState<Record<string, string>>({});
+	const [fulfillTarget, setFulfillTarget] = useState<StockRequestRow | null>(
+		null,
+	);
+	const [fulfillQuantities, setFulfillQuantities] = useState<
+		Record<string, string>
+	>({});
 	const [isFetchingFulfillItems, setIsFetchingFulfillItems] = useState(false);
 
 	// ---- Query ----
-	const { data: apiData = [], isLoading, isError, refetch } = useQuery({
-		queryKey: ["stockRequests", organizationId, statusFilter],
-		queryFn: async () => {
-			if (!organizationId) return [];
-			return client.stockRequests.list({
-				organizationId,
+	const {
+		data: apiData = [],
+		isLoading,
+		isError,
+		refetch,
+	} = useQuery({
+		...orpc.stockRequests.list.queryOptions({
+			input: {
+				organizationId: organizationId ?? "",
 				status: statusFilter,
-			});
-		},
+			},
+		}),
 		enabled: !!organizationId,
 	});
 
@@ -151,7 +175,7 @@ export function StockRequestsTabPage() {
 		successMessage: "Stock request created",
 		errorMessage: (error) =>
 			`Failed to create stock request: ${error.message || "An unexpected error occurred"}`,
-		invalidate: [["stockRequests", organizationId]],
+		invalidate: [orpc.stockRequests.list.key()],
 		onSuccess: () => {
 			setIsCreateOpen(false);
 			resetCreateForm();
@@ -164,7 +188,7 @@ export function StockRequestsTabPage() {
 		successMessage: "Stock request approved",
 		errorMessage: (error) =>
 			`Failed to approve stock request: ${error.message || "An unexpected error occurred"}`,
-		invalidate: [["stockRequests", organizationId]],
+		invalidate: [orpc.stockRequests.list.key()],
 	});
 
 	const rejectMutation = useApiMutation({
@@ -173,11 +197,14 @@ export function StockRequestsTabPage() {
 		successMessage: "Stock request rejected",
 		errorMessage: (error) =>
 			`Failed to reject stock request: ${error.message || "An unexpected error occurred"}`,
-		invalidate: [["stockRequests", organizationId]],
+		invalidate: [orpc.stockRequests.list.key()],
 	});
 
 	const fulfillMutation = useApiMutation({
-		mutationFn: (vars: { id: string; items: { itemId: string; quantityFulfilled: number }[] }) =>
+		mutationFn: (vars: {
+			id: string;
+			items: { itemId: string; quantityFulfilled: number }[];
+		}) =>
 			client.stockRequests.fulfill({
 				organizationId: organizationId!,
 				id: vars.id,
@@ -186,7 +213,7 @@ export function StockRequestsTabPage() {
 		successMessage: "Stock request fulfilled",
 		errorMessage: (error) =>
 			`Failed to fulfill stock request: ${error.message || "An unexpected error occurred"}`,
-		invalidate: [["stockRequests", organizationId]],
+		invalidate: [orpc.stockRequests.list.key()],
 		onSuccess: () => {
 			setFulfillTarget(null);
 			setFulfillQuantities({});
@@ -264,7 +291,9 @@ export function StockRequestsTabPage() {
 			}
 			setFulfillQuantities(initial);
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Failed to load request items");
+			toast.error(
+				err instanceof Error ? err.message : "Failed to load request items",
+			);
 		} finally {
 			setIsFetchingFulfillItems(false);
 		}
@@ -274,7 +303,9 @@ export function StockRequestsTabPage() {
 	const data: StockRequestRow[] = apiData.map((item) => ({
 		id: item.id,
 		requestNumber: item.requestNumber,
-		dateIssued: item.dateIssued ? new Date(item.dateIssued).toLocaleDateString() : "",
+		dateIssued: item.dateIssued
+			? new Date(item.dateIssued).toLocaleDateString()
+			: "",
 		issuedByMemberId: item.issuedByMemberId,
 		fromBranchId: item.fromBranchId ?? null,
 		toBranchId: item.toBranchId,
@@ -296,7 +327,7 @@ export function StockRequestsTabPage() {
 					className="-ml-3"
 				>
 					Request #
-					<ArrowUpDown className="ml-2 h-4 w-4" />
+					<ArrowUpDown className="ml-2 size-4" />
 				</Button>
 			),
 			cell: ({ getValue }) => <CopyableCell value={getValue<string>()} />,
@@ -304,7 +335,9 @@ export function StockRequestsTabPage() {
 		{
 			accessorKey: "dateIssued",
 			header: "Date Issued",
-			cell: ({ getValue }) => <span className="text-sm">{getValue<string>()}</span>,
+			cell: ({ getValue }) => (
+				<span className="text-sm">{getValue<string>()}</span>
+			),
 		},
 		{
 			accessorKey: "issuedByMemberId",
@@ -323,7 +356,11 @@ export function StockRequestsTabPage() {
 		{
 			accessorKey: "status",
 			header: "Status",
-			cell: ({ getValue }) => <StatusBadge status={getValue<StockRequestStatus>() as CanonicalStatus} />,
+			cell: ({ getValue }) => (
+				<StatusBadge
+					status={getValue<StockRequestStatus>() as CanonicalStatus}
+				/>
+			),
 		},
 		{
 			id: "actions",
@@ -333,7 +370,7 @@ export function StockRequestsTabPage() {
 			cell: ({ row }) => {
 				const { id, status } = row.original;
 				if (!canUpdate) {
-					return <span className="text-muted-foreground text-xs">—</span>;
+					return <span className="text-muted-foreground text-xs">-</span>;
 				}
 				if (status === "pending") {
 					return (
@@ -345,7 +382,7 @@ export function StockRequestsTabPage() {
 								onClick={() => approveMutation.mutate(id)}
 								disabled={approveMutation.isPending}
 							>
-								<CheckCircle className="h-3.5 w-3.5" />
+								<CheckCircle className="size-3.5" />
 								Approve
 							</Button>
 							<Button
@@ -355,7 +392,7 @@ export function StockRequestsTabPage() {
 								onClick={() => rejectMutation.mutate(id)}
 								disabled={rejectMutation.isPending}
 							>
-								<XCircle className="h-3.5 w-3.5" />
+								<XCircle className="size-3.5" />
 								Reject
 							</Button>
 						</div>
@@ -370,23 +407,26 @@ export function StockRequestsTabPage() {
 							onClick={() => openFulfillDialog(row.original)}
 							disabled={isFetchingFulfillItems}
 						>
-							<PackageCheck className="h-3.5 w-3.5" />
+							<PackageCheck className="size-3.5" />
 							{isFetchingFulfillItems ? "Loading…" : "Fulfill"}
 						</Button>
 					);
 				}
-				return <span className="text-muted-foreground text-xs">—</span>;
+				return <span className="text-muted-foreground text-xs">-</span>;
 			},
 		},
 	];
 
 	// ---- Branch combobox ----
+	// react-doctor-disable-next-line react-doctor/no-nested-component-definition -- closes over `branches` query result; lifting requires threading branches + filtering state through props
 	function BranchCombobox({
+		id,
 		value,
 		onChange,
 		placeholder,
 		required: _required,
 	}: {
+		id?: string;
 		value: string;
 		onChange: (id: string) => void;
 		placeholder: string;
@@ -405,6 +445,7 @@ export function StockRequestsTabPage() {
 		return (
 			<div className="relative" ref={containerRef}>
 				<Input
+					id={id}
 					placeholder={placeholder}
 					value={displayValue}
 					onChange={(e) => {
@@ -457,260 +498,296 @@ export function StockRequestsTabPage() {
 		);
 	}
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
 	if (isError) {
 		return (
 			<div className="p-6">
-				<StatusCallout variant="error" title="Couldn't load stock requests" onRetry={() => refetch()} />
+				<StatusCallout
+					variant="error"
+					title="Couldn't load stock requests"
+					onRetry={() => refetch()}
+				/>
 			</div>
 		);
 	}
 
 	// ---- Render ----
 	return (
-		<div className="p-6 space-y-6">
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div>
-					<h1 className="text-2xl font-bold font-heading">Stock Requests</h1>
-					<p className="text-sm text-brand-secondary-1">
-						Manage inventory stock requests between branches
-					</p>
-				</div>
-				{canCreate && (
-					<Button
-						onClick={() => {
-							resetCreateForm();
-							setIsCreateOpen(true);
-						}}
-						className="gap-2"
-					>
-						<Plus className="h-4 w-4" />
-						New Request
-					</Button>
-				)}
-			</div>
-
-			{/* Status filter tabs */}
-			<div className="flex items-center gap-1 border-b">
-				{STATUS_TABS.map((tab) => {
-					const isActive = statusFilter === tab.value;
-					return (
-						<button
-							key={tab.label}
-							type="button"
-							onClick={() => setStatusFilter(tab.value)}
-							className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-								isActive
-									? "border-primary text-primary"
-									: "border-transparent text-muted-foreground hover:text-foreground hover:border-muted"
-							}`}
-						>
-							{tab.label}
-						</button>
-					);
-				})}
-			</div>
-
-			{/* Table */}
-			<DataTable<StockRequestRow, unknown>
-				columns={columns}
-				data={data}
-				emptyTitle="No stock requests"
-				emptyDescription="Create a new request to move inventory between branches."
-			/>
-
-			{/* ------------------------------------------------------------------ */}
-			{/* Create Stock Request Sheet                                          */}
-			{/* ------------------------------------------------------------------ */}
-			<Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-				<DialogContent className="sm:max-w-md overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle>New Stock Request</DialogTitle>
-						<DialogDescription>
-							Request stock items from another branch or warehouse.
-						</DialogDescription>
-					</DialogHeader>
-
-					<div className="flex flex-col gap-4 px-4 py-2">
-						<div className="flex flex-col gap-1.5">
-							<label className="text-sm font-medium">
-								To Branch <span className="text-destructive">*</span>
-							</label>
-							<BranchCombobox
-								value={formToBranchId}
-								onChange={setFormToBranchId}
-								placeholder="Search destination branch..."
-								required
-							/>
-						</div>
-
-						<div className="flex flex-col gap-1.5">
-							<label className="text-sm font-medium">
-								From Branch{" "}
-								<span className="text-muted-foreground text-xs">(optional)</span>
-							</label>
-							<BranchCombobox
-								value={formFromBranchId}
-								onChange={setFormFromBranchId}
-								placeholder="Search source branch..."
-							/>
-						</div>
-
-						<div className="flex flex-col gap-1.5">
-							<label className="text-sm font-medium">
-								Destination Label{" "}
-								<span className="text-muted-foreground text-xs">(optional)</span>
-							</label>
-							<Input
-								placeholder="e.g. Main Warehouse"
-								value={formDestinationLabel}
-								onChange={(e) => setFormDestinationLabel(e.target.value)}
-							/>
-						</div>
-
-						<div className="flex flex-col gap-1.5">
-							<label className="text-sm font-medium">
-								Notes{" "}
-								<span className="text-muted-foreground text-xs">(optional)</span>
-							</label>
-							<Textarea
-								placeholder="Additional notes..."
-								value={formNotes}
-								onChange={(e) => setFormNotes(e.target.value)}
-								rows={2}
-							/>
-						</div>
-
-						<div className="border-t pt-4">
-							<p className="text-sm font-semibold mb-3">Item</p>
-
-							<div className="flex flex-col gap-3">
-								<div className="flex flex-col gap-1.5">
-									<label className="text-sm font-medium">
-										Product ID <span className="text-destructive">*</span>
-									</label>
-									<Input
-										placeholder="UUID of product"
-										value={formProductId}
-										onChange={(e) => setFormProductId(e.target.value)}
-									/>
-								</div>
-
-								<div className="flex flex-col gap-1.5">
-									<label className="text-sm font-medium">
-										Quantity <span className="text-destructive">*</span>
-									</label>
-									<Input
-										type="number"
-										min="1"
-										placeholder="1"
-										value={formQuantity}
-										onChange={(e) => setFormQuantity(e.target.value)}
-									/>
-								</div>
-
-								<div className="flex flex-col gap-1.5">
-									<label className="text-sm font-medium">
-										Item Notes{" "}
-										<span className="text-muted-foreground text-xs">(optional)</span>
-									</label>
-									<Input
-										placeholder="Notes for this item"
-										value={formItemNotes}
-										onChange={(e) => setFormItemNotes(e.target.value)}
-									/>
-								</div>
-							</div>
-						</div>
+		<Skeleton
+			name="stock-requests-tab"
+			loading={isLoading}
+			fallback={<PageLoader />}
+		>
+			<div className="p-6 space-y-6">
+				{/* Header */}
+				<div className="flex items-center justify-between">
+					<div>
+						<h1 className="text-2xl font-semibold font-heading">
+							Stock Requests
+						</h1>
+						<p className="text-sm text-brand-secondary-1">
+							Manage inventory stock requests between branches
+						</p>
 					</div>
-
-					<DialogFooter className="px-4">
+					{canCreate && (
 						<Button
-							variant="outline"
-							onClick={() => setIsCreateOpen(false)}
-							disabled={createMutation.isPending}
+							onClick={() => {
+								resetCreateForm();
+								setIsCreateOpen(true);
+							}}
+							className="gap-2"
 						>
-							Cancel
+							<Plus className="size-4" />
+							New Request
 						</Button>
-						<Button
-							onClick={handleCreateSubmit}
-							disabled={createMutation.isPending}
-						>
-							{createMutation.isPending ? "Creating…" : "Create"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+					)}
+				</div>
 
-			{/* ------------------------------------------------------------------ */}
-			{/* Fulfill Dialog                                                      */}
-			{/* ------------------------------------------------------------------ */}
-			<Dialog
-				open={fulfillTarget !== null}
-				onOpenChange={(open) => {
-					if (!open) {
-						setFulfillTarget(null);
-						setFulfillQuantities({});
-					}
-				}}
-			>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>Fulfill Stock Request</DialogTitle>
-						<DialogDescription>
-							Enter the quantity fulfilled for each item.
-						</DialogDescription>
-					</DialogHeader>
+				{/* Status filter tabs */}
+				<div className="flex items-center gap-1 border-b">
+					{STATUS_TABS.map((tab) => {
+						const isActive = statusFilter === tab.value;
+						return (
+							<button
+								key={tab.label}
+								type="button"
+								onClick={() => setStatusFilter(tab.value)}
+								className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+									isActive
+										? "border-primary text-primary"
+										: "border-transparent text-muted-foreground hover:text-foreground hover:border-muted"
+								}`}
+							>
+								{tab.label}
+							</button>
+						);
+					})}
+				</div>
 
-					<div className="flex flex-col gap-3 py-2">
-						{(fulfillTarget?.items ?? []).map((item) => (
-							<div key={item.id} className="flex items-center gap-3">
-								<div className="flex-1 text-sm text-muted-foreground truncate">
-									<span className="font-medium text-foreground">Product:</span>{" "}
-									{item.productId}
-									<br />
-									<span className="text-xs">Requested: {item.quantityRequested}</span>
-								</div>
-								<Input
-									type="number"
-									min="0"
-									className="w-24"
-									value={fulfillQuantities[item.id] ?? String(item.quantityRequested)}
-									onChange={(e) =>
-										setFulfillQuantities((prev) => ({
-											...prev,
-											[item.id]: e.target.value,
-										}))
-									}
+				{/* Table */}
+				<DataTable<StockRequestRow, unknown>
+					columns={columns}
+					data={data}
+					emptyTitle="No stock requests"
+					emptyDescription="Create a new request to move inventory between branches."
+				/>
+
+				{/* ------------------------------------------------------------------ */}
+				{/* Create Stock Request Sheet                                          */}
+				{/* ------------------------------------------------------------------ */}
+				<Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+					<DialogContent
+						hideCloseButton
+						className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					>
+						<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+							<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+								STOCK REQUESTS
+							</p>
+							<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+								New Stock Request
+							</DialogTitle>
+							<DialogDescription className="text-sm text-[#737373]">
+								Request stock items from another branch or warehouse.
+							</DialogDescription>
+						</DialogHeader>
+
+						<div className="flex flex-col gap-4 px-6 pt-4 pb-2 overflow-y-auto max-h-[65vh]">
+							<div className="flex flex-col gap-1.5">
+								<label
+									htmlFor="stock-req-to-branch"
+									className="text-sm font-medium"
+								>
+									To Branch <span className="text-rose-600">*</span>
+								</label>
+								<BranchCombobox
+									id="stock-req-to-branch"
+									value={formToBranchId}
+									onChange={setFormToBranchId}
+									placeholder="Search destination branch..."
+									required
 								/>
 							</div>
-						))}
-					</div>
 
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => {
-								setFulfillTarget(null);
-								setFulfillQuantities({});
-							}}
-							disabled={fulfillMutation.isPending}
-						>
-							Cancel
-						</Button>
-						<Button
-							onClick={handleFulfillConfirm}
-							disabled={fulfillMutation.isPending}
-						>
-							{fulfillMutation.isPending ? "Fulfilling…" : "Confirm Fulfill"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-		</div>
+							<div className="flex flex-col gap-1.5">
+								<label className="text-sm font-medium">
+									From Branch{" "}
+									<span className="text-[#737373] text-xs">(optional)</span>
+								</label>
+								<BranchCombobox
+									value={formFromBranchId}
+									onChange={setFormFromBranchId}
+									placeholder="Search source branch..."
+								/>
+							</div>
+
+							<div className="flex flex-col gap-1.5">
+								<label className="text-sm font-medium">
+									Destination Label{" "}
+									<span className="text-[#737373] text-xs">(optional)</span>
+								</label>
+								<Input
+									placeholder="e.g. Main Warehouse"
+									value={formDestinationLabel}
+									onChange={(e) => setFormDestinationLabel(e.target.value)}
+								/>
+							</div>
+
+							<div className="flex flex-col gap-1.5">
+								<label className="text-sm font-medium">
+									Notes{" "}
+									<span className="text-[#737373] text-xs">(optional)</span>
+								</label>
+								<Textarea
+									placeholder="Additional notes..."
+									value={formNotes}
+									onChange={(e) => setFormNotes(e.target.value)}
+									rows={2}
+								/>
+							</div>
+
+							<div className="border-t border-[#e5e5e5] pt-4">
+								<p className="text-sm font-semibold mb-3">Item</p>
+
+								<div className="flex flex-col gap-3">
+									<div className="flex flex-col gap-1.5">
+										<label
+											htmlFor="stock-req-product-id"
+											className="text-sm font-medium"
+										>
+											Product ID <span className="text-rose-600">*</span>
+										</label>
+										<Input
+											id="stock-req-product-id"
+											placeholder="UUID of product"
+											value={formProductId}
+											onChange={(e) => setFormProductId(e.target.value)}
+										/>
+									</div>
+
+									<div className="flex flex-col gap-1.5">
+										<label
+											htmlFor="stock-req-qty"
+											className="text-sm font-medium"
+										>
+											Quantity <span className="text-rose-600">*</span>
+										</label>
+										<Input
+											id="stock-req-qty"
+											type="number"
+											min="1"
+											placeholder="1"
+											value={formQuantity}
+											onChange={(e) => setFormQuantity(e.target.value)}
+										/>
+									</div>
+
+									<div className="flex flex-col gap-1.5">
+										<label className="text-sm font-medium">
+											Item Notes{" "}
+											<span className="text-[#737373] text-xs">(optional)</span>
+										</label>
+										<Input
+											placeholder="Notes for this item"
+											value={formItemNotes}
+											onChange={(e) => setFormItemNotes(e.target.value)}
+										/>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+							<Button
+								variant="outline"
+								onClick={() => setIsCreateOpen(false)}
+								disabled={createMutation.isPending}
+							>
+								Cancel
+							</Button>
+							<Button
+								onClick={handleCreateSubmit}
+								disabled={createMutation.isPending}
+								className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+							>
+								{createMutation.isPending ? "Creating…" : "Create"}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+
+				{/* ------------------------------------------------------------------ */}
+				{/* Fulfill Dialog                                                      */}
+				{/* ------------------------------------------------------------------ */}
+				<Dialog
+					open={fulfillTarget !== null}
+					onOpenChange={(open) => {
+						if (!open) {
+							setFulfillTarget(null);
+							setFulfillQuantities({});
+						}
+					}}
+				>
+					<DialogContent className="sm:max-w-md">
+						<DialogHeader>
+							<DialogTitle>Fulfill Stock Request</DialogTitle>
+							<DialogDescription>
+								Enter the quantity fulfilled for each item.
+							</DialogDescription>
+						</DialogHeader>
+
+						<div className="flex flex-col gap-3 py-2">
+							{(fulfillTarget?.items ?? []).map((item) => (
+								<div key={item.id} className="flex items-center gap-3">
+									<div className="flex-1 text-sm text-muted-foreground truncate">
+										<span className="font-medium text-foreground">
+											Product:
+										</span>{" "}
+										{item.productId}
+										<br />
+										<span className="text-xs">
+											Requested: {item.quantityRequested}
+										</span>
+									</div>
+									<Input
+										type="number"
+										min="0"
+										className="w-24"
+										value={
+											fulfillQuantities[item.id] ??
+											String(item.quantityRequested)
+										}
+										onChange={(e) =>
+											setFulfillQuantities((prev) => ({
+												...prev,
+												[item.id]: e.target.value,
+											}))
+										}
+									/>
+								</div>
+							))}
+						</div>
+
+						<DialogFooter>
+							<Button
+								variant="outline"
+								onClick={() => {
+									setFulfillTarget(null);
+									setFulfillQuantities({});
+								}}
+								disabled={fulfillMutation.isPending}
+							>
+								Cancel
+							</Button>
+							<Button
+								onClick={handleFulfillConfirm}
+								disabled={fulfillMutation.isPending}
+							>
+								{fulfillMutation.isPending ? "Fulfilling…" : "Confirm Fulfill"}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+			</div>
+		</Skeleton>
 	);
 }

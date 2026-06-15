@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -18,23 +19,14 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { client, orpc } from "@/utils/orpc";
 import { useApiMutation } from "@/hooks/useApiMutation";
 
-export const Route = createFileRoute("/_authenticated/go-highlevel-integration")({
+export const Route = createFileRoute(
+	"/_authenticated/go-highlevel-integration",
+)({
 	beforeLoad: async () => {
 		await requirePermission("user_management:update");
 	},
 	component: GoHighLevelIntegrationPage,
 });
-
-type BranchLink = {
-	id: string;
-	tenantBranchId: string;
-	ghlLocationId: string;
-	existingBranchCustomFieldId: string | null;
-	isActive: boolean;
-	createdAt: Date;
-	updatedAt: Date;
-	errorCount: number;
-};
 
 type HierarchyNode = {
 	id: string;
@@ -46,6 +38,8 @@ type HierarchyNode = {
 	updatedAt: Date | null;
 };
 
+// react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
+// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 function GoHighLevelIntegrationPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
@@ -64,11 +58,9 @@ function GoHighLevelIntegrationPage() {
 	});
 
 	const { data: branchLinks = [], isLoading: linksLoading } = useQuery({
-		queryKey: ["ghlBranchLinks", organizationId],
-		queryFn: async () => {
-			if (!organizationId) return [] as BranchLink[];
-			return client.ghl.listBranchLinks({ organizationId }) as Promise<BranchLink[]>;
-		},
+		...orpc.ghl.listBranchLinks.queryOptions({
+			input: { organizationId: organizationId ?? "" },
+		}),
 		enabled: !!organizationId,
 	});
 
@@ -77,12 +69,18 @@ function GoHighLevelIntegrationPage() {
 	const [orgApiKey, setOrgApiKey] = useState("");
 
 	const { data: orgShared, isLoading: orgSharedLoading } = useQuery({
-		queryKey: ["ghlOrgShared", organizationId],
-		queryFn: async () => {
-			if (!organizationId) return null;
-			return client.ghl.getOrgShared({ organizationId });
-		},
+		...orpc.ghl.getOrgShared.queryOptions({
+			input: { organizationId: organizationId ?? "" },
+		}),
 		enabled: !!organizationId,
+	});
+
+	const { data: syncEvents } = useQuery({
+		queryKey: ["ghlSync", "events", organizationId],
+		queryFn: () =>
+			client.ghlSync.listEvents({ organizationId: organizationId!, limit: 25 }),
+		enabled: !!organizationId,
+		staleTime: 30_000,
 	});
 
 	const orgConnectMutation = useApiMutation({
@@ -95,7 +93,7 @@ function GoHighLevelIntegrationPage() {
 			});
 		},
 		successMessage: "Connected to GHL (organization-wide)",
-		invalidate: [["ghlOrgShared", organizationId]],
+		invalidate: [orpc.ghl.getOrgShared.key()],
 		onSuccess: () => {
 			setOrgLocationId("");
 			setOrgApiKey("");
@@ -108,7 +106,7 @@ function GoHighLevelIntegrationPage() {
 			return client.ghl.disconnectOrgShared({ organizationId });
 		},
 		successMessage: "Disconnected organization-wide GHL link",
-		invalidate: [["ghlOrgShared", organizationId]],
+		invalidate: [orpc.ghl.getOrgShared.key()],
 	});
 
 	const branchNodes: HierarchyNode[] = (hierarchyData?.nodes ?? []).filter(
@@ -132,7 +130,7 @@ function GoHighLevelIntegrationPage() {
 			});
 		},
 		successMessage: "GHL connected for branch",
-		invalidate: [["ghlBranchLinks", organizationId]],
+		invalidate: [orpc.ghl.listBranchLinks.key()],
 		onSuccess: () => {
 			setConnectBranchId(null);
 			setLocationId("");
@@ -150,7 +148,7 @@ function GoHighLevelIntegrationPage() {
 			});
 		},
 		successMessage: "GHL disconnected for branch",
-		invalidate: [["ghlBranchLinks", organizationId]],
+		invalidate: [orpc.ghl.listBranchLinks.key()],
 	});
 
 	const retryMutation = useApiMutation({
@@ -167,7 +165,7 @@ function GoHighLevelIntegrationPage() {
 			stillFailing: number;
 		}) =>
 			`Retried ${result.attempted}: ${result.recovered} recovered, ${result.stillFailing} still failing`,
-		invalidate: [["ghlBranchLinks", organizationId]],
+		invalidate: [orpc.ghl.listBranchLinks.key()],
 	});
 
 	const isLoading = nodesLoading || linksLoading;
@@ -179,7 +177,8 @@ function GoHighLevelIntegrationPage() {
 			tenantBranchId: connectBranchId,
 			ghlLocationId: locationId.trim(),
 			ghlApiKey: apiKey.trim(),
-			existingBranchCustomFieldId: trimmedFieldId.length > 0 ? trimmedFieldId : null,
+			existingBranchCustomFieldId:
+				trimmedFieldId.length > 0 ? trimmedFieldId : null,
 		});
 	};
 
@@ -195,7 +194,9 @@ function GoHighLevelIntegrationPage() {
 	return (
 		<div className="space-y-6">
 			<div>
-				<h1 className="text-3xl font-bold tracking-tight">GoHighLevel Integration</h1>
+				<h1 className="text-3xl font-semibold tracking-tight">
+					GoHighLevel Integration
+				</h1>
 				<p className="text-muted-foreground">
 					Connect each branch to its GoHighLevel sub-account location.
 				</p>
@@ -213,7 +214,8 @@ function GoHighLevelIntegrationPage() {
 				<CardContent>
 					{orgSharedLoading ? (
 						<p className="text-sm text-muted-foreground py-4">Loading…</p>
-					) : orgShared?.ghlSyncModel === "org-shared" && orgShared.ghlLocationId ? (
+					) : orgShared?.ghlSyncModel === "org-shared" &&
+						orgShared.ghlLocationId ? (
 						<div className="space-y-3">
 							<div className="flex items-center gap-2">
 								<Badge className="bg-green-100 text-green-800 hover:bg-green-100">
@@ -247,7 +249,9 @@ function GoHighLevelIntegrationPage() {
 								}}
 								disabled={orgDisconnectMutation.isPending}
 							>
-								{orgDisconnectMutation.isPending ? "Disconnecting…" : "Disconnect"}
+								{orgDisconnectMutation.isPending
+									? "Disconnecting…"
+									: "Disconnect"}
 							</Button>
 						</div>
 					) : (
@@ -301,7 +305,7 @@ function GoHighLevelIntegrationPage() {
 
 			<div>
 				<p className="text-xs text-muted-foreground italic">
-					Legacy per-branch connection (Option X) — use only if your franchise
+					Legacy per-branch connection (Option X). Use only if your franchise
 					model requires separate GHL locations per branch.
 				</p>
 			</div>
@@ -357,7 +361,7 @@ function GoHighLevelIntegrationPage() {
 															{errorCount} failed
 														</Badge>
 													) : (
-														<span className="text-muted-foreground">—</span>
+														<span className="text-muted-foreground">-</span>
 													)}
 												</td>
 												<td className="py-3">
@@ -370,7 +374,9 @@ function GoHighLevelIntegrationPage() {
 																onClick={() => handleRetry(branch.id)}
 																disabled={retryMutation.isPending}
 															>
-																{retryMutation.isPending ? "Retrying…" : "Retry"}
+																{retryMutation.isPending
+																	? "Retrying…"
+																	: "Retry"}
 															</Button>
 														)}
 														{connected ? (
@@ -410,6 +416,58 @@ function GoHighLevelIntegrationPage() {
 				</CardContent>
 			</Card>
 
+			<Card>
+				<CardHeader>
+					<CardTitle>Sync Events</CardTitle>
+				</CardHeader>
+				<CardContent className="space-y-2">
+					{!syncEvents || syncEvents.length === 0 ? (
+						<p className="py-4 text-center text-muted-foreground text-sm">
+							No sync events yet.
+						</p>
+					) : (
+						syncEvents.map((e) => (
+							<details
+								key={e.id}
+								className="rounded-md border px-3 py-2 text-sm"
+							>
+								<summary className="flex cursor-pointer flex-wrap items-center gap-2">
+									<Badge
+										variant={
+											e.status === "processed"
+												? "default"
+												: e.status === "failed"
+													? "destructive"
+													: "secondary"
+										}
+									>
+										{e.status}
+									</Badge>
+									<span className="font-medium">{e.eventType}</span>
+									<span className="text-muted-foreground">
+										{e.email ?? "—"}
+									</span>
+									<span className="text-muted-foreground text-xs">
+										{new Date(e.createdAt)
+											.toISOString()
+											.slice(0, 19)
+											.replace("T", " ")}
+									</span>
+									{e.errorMessage && (
+										<span className="text-red-600 text-xs">
+											{e.errorMessage}
+										</span>
+									)}
+								</summary>
+								<pre className="mt-2 overflow-x-auto rounded bg-muted p-2 text-xs">
+									{JSON.stringify(e.rawPayload, null, 2)}
+								</pre>
+							</details>
+						))
+					)}
+				</CardContent>
+			</Card>
+
 			<Dialog
 				open={connectBranchId !== null}
 				onOpenChange={(open) => {
@@ -424,9 +482,12 @@ function GoHighLevelIntegrationPage() {
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
 						<DialogTitle>
-							Connect GHL —{" "}
+							Connect GHL:{" "}
 							{branchNodes.find((b) => b.id === connectBranchId)?.name ?? ""}
 						</DialogTitle>
+						<DialogDescription>
+							Enter your GoHighLevel API key to connect this branch.
+						</DialogDescription>
 					</DialogHeader>
 					<div className="grid gap-4 py-4">
 						<div>
@@ -457,15 +518,13 @@ function GoHighLevelIntegrationPage() {
 							<Input
 								id="ghlExistingBranchCustomFieldId"
 								value={existingBranchCustomFieldId}
-								onChange={(e) =>
-									setExistingBranchCustomFieldId(e.target.value)
-								}
+								onChange={(e) => setExistingBranchCustomFieldId(e.target.value)}
 								placeholder="e.g. abc123CustomFieldId"
 								className="mt-1"
 							/>
 							<p className="mt-1 text-xs text-muted-foreground">
-								GHL custom field ID to receive the new branch name when a
-								staff member is reassigned. Leave blank to skip.
+								GHL custom field ID to receive the new branch name when a staff
+								member is reassigned. Leave blank to skip.
 							</p>
 						</div>
 					</div>

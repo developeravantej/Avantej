@@ -30,6 +30,13 @@ import { appointments } from "./appointments";
 import { salesOrders } from "./sales-orders";
 import { packageInstances } from "./package-instances";
 import { categoryCommissionConfigVersions } from "./category-commission-config-versions";
+import { commissionTracks } from "./commission-tracks";
+import { commissionTrackVersions } from "./commission-track-versions";
+
+// Local type alias — canonical definition in @avantej-core/types.
+// Exported so service-layer filters can cast user-supplied roleType strings
+// when comparing against the typed column.
+export type CommissionRoleType = "trainer" | "sales" | "marketing" | "referrer";
 
 export const commissionSplits = pgTable(
 	"commission_splits",
@@ -99,6 +106,28 @@ export const commissionSplits = pgTable(
 		// Use earnedAt (not createdAt) for payroll period filtering
 		earnedAt: timestamp("earned_at", { withTimezone: true }).notNull(),
 
+		// Phase 1 (sales-pipeline-fixes): why this split was earned
+		// "completion" | "cancellation" | "pos_product" | "manual"
+		// nullable for historical rows pre-migration 0051
+		earnReason: text("earn_reason"),
+
+		// Actor who created this split (for manual adjustments / Review tab "created by").
+		// Plain text; no FK — cross-DB user reference.
+		createdByUserId: text("created_by_user_id"),
+
+		// Migration 0083 — commission tracks columns (nullable; NULL for pre-migration rows)
+		// trackId:        which CommissionTrack produced this split
+		// roleType:       CommissionRoleType snapshot at split-creation time
+		// trackVersionId: which CommissionTrackVersion was active at creation
+		trackId: uuid("track_id").references(() => commissionTracks.id, {
+			onDelete: "set null",
+		}),
+		roleType: text("role_type").$type<CommissionRoleType>(),
+		trackVersionId: uuid("track_version_id").references(
+			() => commissionTrackVersions.id,
+			{ onDelete: "set null" },
+		),
+
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at").defaultNow().notNull(),
 	},
@@ -130,5 +159,10 @@ export const commissionSplits = pgTable(
 			table.status,
 			table.earnedAt,
 		),
+		// Migration 0083 — track lookups
+		trackIdx: index("commission_splits_track_idx").on(table.trackId),
+		// NOTE: The partial unique indexes for (sales_order_id, track_id, staff_id)
+		// and (appointment_id, track_id, staff_id) are managed in raw SQL (migration
+		// 0083 §4) — Drizzle uniqueIndex() cannot express WHERE clauses.
 	}),
 );

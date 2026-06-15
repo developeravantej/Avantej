@@ -24,13 +24,13 @@ export function GreetingBanner() {
 	return (
 		<div className="flex items-center justify-between rounded-2xl border border-brand-secondary-3 bg-card p-6">
 			<div className="flex items-center gap-4">
-				<div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-secondary-2">
+				<div className="flex size-14 items-center justify-center rounded-full bg-brand-secondary-2">
 					<span className="font-heading text-xl font-bold text-brand-primary-1">
 						{name[0]?.toUpperCase()}
 					</span>
 				</div>
 				<div>
-					<h1 className="font-heading text-3xl font-bold text-brand-primary-1">
+					<h1 className="font-heading text-3xl font-semibold text-brand-primary-1">
 						{getGreeting()}, {name}
 					</h1>
 					<p className="text-sm text-brand-secondary-1">{formatDate()}</p>
@@ -41,7 +41,7 @@ export function GreetingBanner() {
 				className="relative rounded-full p-2 transition-colors hover:bg-brand-secondary-3"
 				aria-label="Notifications"
 			>
-				<Bell className="h-6 w-6 text-brand-primary-1" />
+				<Bell className="size-6 text-brand-primary-1" />
 			</Link>
 		</div>
 	);

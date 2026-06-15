@@ -8,7 +8,6 @@
  * accessibleNodeIds (defense-in-depth beyond the permission check).
  */
 
-import { requirePermission } from "@avantej-core/services";
 import {
 	deleteCheckIn,
 	listCheckIns,
@@ -17,10 +16,16 @@ import {
 	recordCheckIn,
 } from "@avantej-core/services/check-ins.service";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
+import { appointmentClients } from "@avantej-core/db/schema/tenant/appointment-clients";
 import { ORPCError } from "@orpc/server";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../guards";
 import { getControlPanelDb } from "../lib/context-helpers";
 
 export const checkInsRouter = {
@@ -29,7 +34,7 @@ export const checkInsRouter = {
 	 *
 	 * Throws ALREADY_CHECKED_IN (mapped to CONFLICT) for duplicate drop-ins within 30 min.
 	 */
-	recordCheckIn: protectedProcedure
+	recordCheckIn: tenantProcedure
 		.input(
 			z
 				.object({
@@ -56,29 +61,32 @@ export const checkInsRouter = {
 				}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
-
-			await requirePermission(
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
 				"attendance_management",
 				"create",
 			);
 
-			const accessibleNodeIds = context.accessibleNodeIds ?? [];
-			if (!accessibleNodeIds.includes(input.branchId)) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Branch is outside your accessible scope",
-				});
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+
+			if (input.appointmentClientId) {
+				const apptClient =
+					await context.tenantDb.query.appointmentClients.findFirst({
+						where: eq(appointmentClients.id, input.appointmentClientId),
+					});
+				if (!apptClient) {
+					throw new ORPCError("BAD_REQUEST", {
+						message: "appointmentClientId not found",
+					});
+				}
+				if (input.clientId && apptClient.clientId !== input.clientId) {
+					throw new ORPCError("BAD_REQUEST", {
+						message:
+							"appointmentClientId does not belong to the specified client",
+					});
+				}
 			}
 
 			try {
@@ -118,7 +126,7 @@ export const checkInsRouter = {
 	/**
 	 * List today's booked appointments for a branch, annotated with check-in status.
 	 */
-	listTodaysBookings: protectedProcedure
+	listTodaysBookings: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -127,44 +135,29 @@ export const checkInsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
-
-			await requirePermission(
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
 				"attendance_management",
 				"read",
 			);
 
-			const accessibleNodeIds = context.accessibleNodeIds ?? [];
-			if (!accessibleNodeIds.includes(input.branchId)) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Branch is outside your accessible scope",
-				});
-			}
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 
 			const controlPanelDb = getControlPanelDb(context);
 
 			return listTodaysBookings(context.tenantDb, controlPanelDb, {
 				branchId: input.branchId,
 				date: new Date(input.date),
-				accessibleNodeIds,
+				accessibleNodeIds: context.accessibleNodeIds ?? [],
 			});
 		}),
 
 	/**
 	 * List check-ins with optional filters and RBAC scoping.
 	 */
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -173,11 +166,17 @@ export const checkInsRouter = {
 				// Service calls new Date() which parses both.
 				from: z
 					.string()
-					.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected ISO datetime")
+					.regex(
+						/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/,
+						"Expected ISO datetime",
+					)
 					.optional(),
 				to: z
 					.string()
-					.regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/, "Expected ISO datetime")
+					.regex(
+						/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/,
+						"Expected ISO datetime",
+					)
 					.optional(),
 				clientId: z.string().optional(),
 				clientType: z.enum(["member", "walk_in"]).optional(),
@@ -187,18 +186,11 @@ export const checkInsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
-
-			await requirePermission(
+			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
 				"attendance_management",
@@ -225,7 +217,7 @@ export const checkInsRouter = {
 	 * Record check-ins for multiple bookings in a single call.
 	 * Processes up to 100 bookings; already-checked-in bookings are skipped (not errored).
 	 */
-	recordBulkCheckIn: protectedProcedure
+	recordBulkCheckIn: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -234,26 +226,14 @@ export const checkInsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
-			}
-			await requirePermission(
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
 				"attendance_management",
 				"create",
 			);
-			const accessibleNodeIds = context.accessibleNodeIds ?? [];
-			if (!accessibleNodeIds.includes(input.branchId)) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Branch is outside your accessible scope",
-				});
-			}
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			return recordBulkCheckIn(context.tenantDb, {
 				bookingIds: input.bookingIds,
 				branchId: input.branchId,
@@ -269,7 +249,7 @@ export const checkInsRouter = {
 	 * Get the earliest-expiring active package instance for a given member (clientId).
 	 * Returns null when no active package with credits remaining exists.
 	 */
-	getActivePackageForMember: protectedProcedure
+	getActivePackageForMember: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -277,15 +257,8 @@ export const checkInsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", { message: "Member context required" });
-			}
-			await requirePermission(
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
 				"attendance_management",
@@ -319,7 +292,7 @@ export const checkInsRouter = {
 	 * Delete a check-in record (mistake correction).
 	 * Reverts appointment_clients.attended and package credit consumption.
 	 */
-	deleteCheckIn: protectedProcedure
+	deleteCheckIn: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -327,18 +300,8 @@ export const checkInsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
-
-			await requirePermission(
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
 				"attendance_management",

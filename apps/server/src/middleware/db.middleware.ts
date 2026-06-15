@@ -103,7 +103,7 @@ export const dbMiddleware = createMiddleware(async (c, next) => {
 	if (!databaseUrl) {
 		return c.json(
 			{ error: "DATABASE_URL environment variable is required" },
-			500
+			500,
 		);
 	}
 
@@ -181,6 +181,3 @@ export const dbMiddleware = createMiddleware(async (c, next) => {
 		tenantPools.clear();
 	}
 });
-
-
-

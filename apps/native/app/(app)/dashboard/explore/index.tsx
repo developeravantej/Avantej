@@ -2,209 +2,47 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
-import {
-	ActivityIndicator,
-	Image,
-	ScrollView,
-	Text,
-	TextInput,
-	TouchableOpacity,
-	View,
-} from "react-native";
+import { Image } from "expo-image";
+import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { TabContainer, useTabBarHeight } from "@/components/container";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
-import { fonts } from "@/lib/font";
 import { formatMoney } from "@/lib/money";
 import { orpc } from "@/utils/orpc";
 
 const DEFAULT_IMAGE =
 	"https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&h=300&fit=crop";
 
-function typeLabel(type: string | undefined | null): string {
-	if (type === "class_slot" || type === "class-slot") return "Class Slot";
-	if (type === "appointment") return "Appointment";
-	return type ?? "Service";
-}
-
-// ─── Skeleton ────────────────────────────────────────────────────
-
-function SkeletonBox({ className }: { className?: string }) {
+function SkeletonCard() {
 	return (
-		<View
-			className={`animate-pulse rounded-lg bg-secondary-3 ${className}`}
-		/>
-	);
-}
-
-function ServiceRowSkeleton() {
-	return (
-		<View
-			className="flex-row items-center px-4 py-3"
-			style={{ minHeight: 76, gap: 14 }}
-		>
-			<SkeletonBox className="h-16 w-16 rounded-[10px]" />
-			<View className="flex-1">
-				<SkeletonBox className="mb-1.5 h-4 w-32" />
-				<SkeletonBox className="mb-1.5 h-3 w-20" />
-				<SkeletonBox className="h-5 w-16 rounded-md" />
-			</View>
-			<View className="items-end">
-				<SkeletonBox className="mb-1 h-4 w-16" />
-				<SkeletonBox className="h-3 w-14" />
+		<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
+			<View className="flex-row">
+				<View
+					className="mr-4 size-24 rounded-xl"
+					style={{ backgroundColor: colors.secondary[3] }}
+				/>
+				<View className="flex-1">
+					<View
+						className="mb-2 h-5 w-3/4 rounded"
+						style={{ backgroundColor: colors.secondary[3] }}
+					/>
+					<View
+						className="mb-2 h-4 w-full rounded"
+						style={{ backgroundColor: colors.secondary[3] }}
+					/>
+					<View
+						className="h-4 w-1/3 rounded"
+						style={{ backgroundColor: colors.secondary[3] }}
+					/>
+				</View>
 			</View>
 		</View>
 	);
 }
 
-// ─── Service Row ─────────────────────────────────────────────────
-
-function ServiceRow({
-	service,
-	isLast,
-}: {
-	service: any;
-	isLast: boolean;
-}) {
-	return (
-		<TouchableOpacity
-			activeOpacity={0.7}
-			onPress={() =>
-				router.push({
-					pathname: "/dashboard/explore/[id]" as never,
-					params: { id: service.id },
-				})
-			}
-			className="flex-row items-center px-4 py-3"
-			style={{ minHeight: 76, gap: 14 }}
-		>
-			{/* Thumbnail */}
-			<Image
-				source={{ uri: service.imageUrl ?? DEFAULT_IMAGE }}
-				className="h-16 w-16 rounded-[10px]"
-				resizeMode="cover"
-				style={{ backgroundColor: colors.secondary[3] }}
-			/>
-
-			{/* Info */}
-			<View className="flex-1" style={{ minWidth: 0 }}>
-				<Text
-					numberOfLines={1}
-					style={{
-						fontFamily: fonts.heading,
-						fontSize: 15,
-						fontWeight: "700",
-						color: colors.primary[1],
-						letterSpacing: -0.3,
-						marginBottom: 3,
-					}}
-				>
-					{service.name}
-				</Text>
-				<View className="flex-row items-center" style={{ gap: 6 }}>
-					<Text
-						style={{
-							fontFamily: fonts.subheading,
-							fontSize: 11.5,
-							color: colors.secondary[1],
-						}}
-					>
-						{service.category?.name ?? "Service"}
-					</Text>
-					<View
-						className="rounded-full"
-						style={{
-							width: 3,
-							height: 3,
-							backgroundColor: colors.secondary[2],
-						}}
-					/>
-					<Text
-						style={{
-							fontFamily: fonts.body,
-							fontSize: 11.5,
-							color: colors.secondary[1],
-						}}
-					>
-						{typeLabel(service.schedulingType)}
-					</Text>
-				</View>
-				<View
-					className="mt-1 self-start rounded-md px-2 py-0.5"
-					style={{
-						backgroundColor: colors.secondary[3],
-						borderWidth: 1,
-						borderColor: colors.secondary[2],
-					}}
-				>
-					<Text
-						style={{
-							fontFamily: fonts.subheading,
-							fontSize: 10.5,
-							color: colors.secondary[1],
-						}}
-					>
-						{typeLabel(service.schedulingType)}
-					</Text>
-				</View>
-			</View>
-
-			{/* Price + Chevron */}
-			<View className="items-end" style={{ flexShrink: 0 }}>
-				<Text
-					style={{
-						fontFamily: fonts.heading,
-						fontSize: 14,
-						fontWeight: "700",
-						color: colors.primary[1],
-						letterSpacing: -0.4,
-					}}
-				>
-					{formatMoney(service.price)}
-				</Text>
-				<Text
-					style={{
-						fontFamily: fonts.body,
-						fontSize: 10.5,
-						color: colors.secondary[1],
-						marginTop: 2,
-					}}
-				>
-					{service.sessionCount
-						? `${service.sessionCount} sessions`
-						: service.priceUnit === "class"
-							? "per class"
-							: "per session"}
-				</Text>
-				<Ionicons
-					name="chevron-forward"
-					size={14}
-					color={colors.secondary[2]}
-					style={{ marginTop: 4 }}
-				/>
-			</View>
-
-			{/* Divider (rendered inside row, positioned at top for non-first rows) */}
-			{!isLast && (
-				<View
-					className="absolute bottom-0 right-4"
-					style={{
-						left: 94,
-						height: 1,
-						backgroundColor: colors.secondary[2],
-						opacity: 0.7,
-					}}
-				/>
-			)}
-		</TouchableOpacity>
-	);
-}
-
-// ─── Main ────────────────────────────────────────────────────────
-
 export default function ExploreScreen() {
-	const { organizationId, isLoading: orgLoading } = useOrganization();
+	const { organizationId } = useOrganization();
 	const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
 		null,
 	);
@@ -212,12 +50,14 @@ export default function ExploreScreen() {
 	const debouncedSearch = useDebounce(searchQuery, 300);
 	const tabBarHeight = useTabBarHeight();
 
+	// Fetch categories
 	const { data: categories } = useQuery(
 		orpc.serviceCategories.list.queryOptions({
 			input: { organizationId },
 		}),
 	);
 
+	// Build filter tabs
 	const filterTabs = useMemo(() => {
 		const tabs: Array<{ id: string | null; name: string }> = [
 			{ id: null, name: "All" },
@@ -228,6 +68,7 @@ export default function ExploreScreen() {
 		return tabs;
 	}, [categories]);
 
+	// Fetch services with optional category filter and search
 	const { data: services, isLoading: servicesLoading } = useQuery({
 		...orpc.services.list.queryOptions({
 			input: {
@@ -238,6 +79,7 @@ export default function ExploreScreen() {
 		}),
 	});
 
+	// Client-side search filter (until server-side search is implemented)
 	const filteredServices = useMemo(() => {
 		if (!services) return [];
 		if (!debouncedSearch) return services;
@@ -249,212 +91,246 @@ export default function ExploreScreen() {
 		);
 	}, [services, debouncedSearch]);
 
-	if (orgLoading) {
-		return (
-			<TabContainer>
-				<View className="flex-1 items-center justify-center bg-secondary-3">
-					<ActivityIndicator size="large" color={colors.primary[1]} />
-				</View>
-			</TabContainer>
-		);
-	}
+	// Recommended: first 4 services (MVP approach)
+	const recommended = filteredServices.slice(0, 4);
+	const browse = filteredServices;
 
 	return (
 		<TabContainer>
 			<ScrollView
 				className="flex-1 bg-secondary-3"
-				contentContainerStyle={{ paddingBottom: tabBarHeight + 8 }}
+				contentInset={{ bottom: tabBarHeight + 8 }}
 				showsVerticalScrollIndicator={false}
 			>
-				{/* Header */}
-				<View className="px-6 pt-5">
-					<Text
-						style={{
-							fontFamily: fonts.heading,
-							fontSize: 30,
-							fontWeight: "800",
-							color: colors.primary[1],
-							letterSpacing: -0.8,
-						}}
-					>
-						Explore
-					</Text>
-				</View>
-
-				{/* Search Bar */}
-				<View className="px-6 pt-3.5">
-					<View
-						className="flex-row items-center rounded-[14px] border bg-primary-2 px-4"
-						style={{
-							height: 48,
-							borderColor: colors.secondary[2],
-							gap: 10,
-							shadowColor: "#000",
-							shadowOffset: { width: 0, height: 1 },
-							shadowOpacity: 0.06,
-							shadowRadius: 4,
-						}}
-					>
-						<Ionicons
-							name="search-outline"
-							size={18}
-							color={colors.secondary[1]}
-						/>
-						<TextInput
-							placeholder="Search services..."
-							placeholderTextColor={colors.secondary[1]}
-							value={searchQuery}
-							onChangeText={setSearchQuery}
-							className="flex-1"
-							style={{
-								fontFamily: fonts.body,
-								fontSize: 15,
-								color: colors.primary[1],
-							}}
-						/>
-						{searchQuery.length > 0 && (
-							<TouchableOpacity onPress={() => setSearchQuery("")}>
-								<Ionicons
-									name="close-circle"
-									size={18}
-									color={colors.secondary[1]}
-								/>
-							</TouchableOpacity>
-						)}
-					</View>
-				</View>
-
-				{/* Category Pills */}
-				<ScrollView
-					horizontal
-					showsHorizontalScrollIndicator={false}
-					className="pt-3.5"
-					contentContainerStyle={{ paddingLeft: 24, paddingRight: 24, gap: 8 }}
-				>
-					{filterTabs.map((tab) => {
-						const isActive = tab.id === selectedCategoryId;
-						return (
-							<TouchableOpacity
-								key={tab.id ?? "all"}
-								onPress={() => setSelectedCategoryId(tab.id)}
-								activeOpacity={0.7}
-								style={{
-									height: 34,
-									paddingHorizontal: 14,
-									borderRadius: 100,
-									borderWidth: 1.5,
-									borderColor: isActive
-										? colors.primary[1]
-										: colors.secondary[2],
-									backgroundColor: isActive
-										? colors.primary[1]
-										: "transparent",
-									justifyContent: "center",
-									alignItems: "center",
-								}}
-							>
-								<Text
-									style={{
-										fontFamily: fonts.subheading,
-										fontSize: 13,
-										color: isActive
-											? colors.primary[2]
-											: colors.primary[1],
-										letterSpacing: -0.1,
-									}}
-								>
-									{tab.name}
-								</Text>
-							</TouchableOpacity>
-						);
-					})}
-				</ScrollView>
-
-				{/* Results Count */}
-				<View className="px-6 pt-3.5 pb-2.5">
-					<Text
-						style={{
-							fontFamily: fonts.body,
-							fontSize: 12.5,
-							color: colors.secondary[1],
-						}}
-					>
-						{servicesLoading
-							? "Loading..."
-							: `${filteredServices.length} service${filteredServices.length !== 1 ? "s" : ""} found`}
-					</Text>
-				</View>
-
-				{/* Service List Card */}
-				{servicesLoading ? (
-					<View
-						className="mx-4 overflow-hidden rounded-2xl bg-primary-2"
-						style={{
-							shadowColor: "#000",
-							shadowOffset: { width: 0, height: 4 },
-							shadowOpacity: 0.07,
-							shadowRadius: 24,
-							borderWidth: 1,
-							borderColor: colors.secondary[2],
-						}}
-					>
-						<ServiceRowSkeleton />
-						<ServiceRowSkeleton />
-						<ServiceRowSkeleton />
-						<ServiceRowSkeleton />
-					</View>
-				) : filteredServices.length === 0 ? (
-					<View className="mx-4 items-center rounded-2xl bg-primary-2 p-8">
-						<Ionicons
-							name="search-outline"
-							size={40}
-							color={colors.secondary[1]}
-						/>
-						<Text
-							style={{
-								fontFamily: fonts.heading,
-								fontSize: 16,
-								color: colors.primary[1],
-								marginTop: 12,
-							}}
-						>
-							No services found
-						</Text>
-						<Text
-							style={{
-								fontFamily: fonts.body,
-								fontSize: 13,
-								color: colors.secondary[1],
-								marginTop: 4,
-								textAlign: "center",
-							}}
-						>
-							{debouncedSearch
-								? "Try a different search term"
-								: "No services available in this category"}
-						</Text>
-					</View>
-				) : (
-					<View
-						className="mx-4 overflow-hidden rounded-2xl bg-primary-2"
-						style={{
-							shadowColor: "#000",
-							shadowOffset: { width: 0, height: 4 },
-							shadowOpacity: 0.07,
-							shadowRadius: 24,
-							borderWidth: 1,
-							borderColor: colors.secondary[2],
-						}}
-					>
-						{filteredServices.map((service: any, i: number) => (
-							<ServiceRow
-								key={service.id}
-								service={service}
-								isLast={i === filteredServices.length - 1}
+				<View className="px-4 pt-4">
+					{/* Search Bar and Filter */}
+					<View className="mb-4 flex-row items-center">
+						<View className="mr-3 flex-1 flex-row items-center rounded-xl border border-secondary-3 bg-primary-2 px-4 py-3">
+							<Ionicons
+								name="search-outline"
+								size={20}
+								color={colors.secondary[1]}
 							/>
-						))}
+							<TextInput
+								placeholder="Search workouts, trainers, or studios"
+								placeholderTextColor={colors.secondary[1]}
+								value={searchQuery}
+								onChangeText={setSearchQuery}
+								className="ml-2 flex-1"
+								style={{ color: colors.primary[1] }}
+							/>
+							{searchQuery.length > 0 && (
+								<Pressable onPress={() => setSearchQuery("")}>
+									<Ionicons
+										name="close-circle"
+										size={20}
+										color={colors.secondary[1]}
+									/>
+								</Pressable>
+							)}
+						</View>
+						<Pressable className="p-3">
+							<Ionicons
+								name="filter-outline"
+								size={24}
+								color={colors.primary[1]}
+							/>
+						</Pressable>
 					</View>
-				)}
+
+					{/* Category Filters */}
+					<ScrollView
+						horizontal
+						showsHorizontalScrollIndicator={false}
+						className="mb-6"
+					>
+						<View className="flex-row">
+							{filterTabs.map((tab) => {
+								const isSelected = tab.id === selectedCategoryId;
+								return (
+									<Pressable
+										key={tab.id ?? "all"}
+										onPress={() => setSelectedCategoryId(tab.id)}
+										className={`mr-2 rounded-full px-4 py-2 ${
+											isSelected ? "" : "border bg-white"
+										}`}
+										style={{
+											backgroundColor: isSelected
+												? colors.secondary[2]
+												: colors.primary[2],
+											borderColor: isSelected
+												? "transparent"
+												: colors.secondary[3],
+										}}
+									>
+										<Text
+											className="font-medium text-sm"
+											style={{ color: colors.primary[1] }}
+										>
+											{tab.name}
+										</Text>
+									</Pressable>
+								);
+							})}
+						</View>
+					</ScrollView>
+
+					{/* Loading State */}
+					{servicesLoading && (
+						<>
+							<SkeletonCard />
+							<SkeletonCard />
+							<SkeletonCard />
+						</>
+					)}
+
+					{/* Recommended For You Section */}
+					{!servicesLoading &&
+						!debouncedSearch &&
+						!selectedCategoryId &&
+						recommended.length > 0 && (
+							<View className="mb-6">
+								<Text className="mb-4 font-bold text-secondary-1 text-sm uppercase tracking-wide">
+									RECOMMENDED FOR YOU
+								</Text>
+
+								{recommended.map((service: any) => (
+									<Pressable
+										key={service.id}
+										onPress={() => {
+											router.push({
+												pathname: "/dashboard/explore/[id]" as never,
+												params: { id: service.id },
+											});
+										}}
+										className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
+									>
+										<View className="flex-row">
+											<Image
+												source={{
+													uri: service.imageUrl ?? DEFAULT_IMAGE,
+												}}
+												className="mr-4 size-24 rounded-xl"
+												contentFit="cover"
+											/>
+											<View className="flex-1">
+												<Text
+													className="mb-1 font-bold text-lg"
+													style={{ color: colors.primary[1] }}
+												>
+													{service.name}
+												</Text>
+												<Text
+													className="mb-2 text-sm"
+													style={{ color: colors.secondary[1] }}
+													numberOfLines={2}
+												>
+													{service.description}
+												</Text>
+												<View className="flex-row items-baseline">
+													<Text className="font-bold text-lg text-primary-1">
+														{formatMoney(service.price)}
+													</Text>
+													<Text
+														className="ml-1 text-sm"
+														style={{ color: colors.secondary[1] }}
+													>
+														/ {service.type === "private" ? "session" : "class"}
+													</Text>
+												</View>
+											</View>
+										</View>
+									</Pressable>
+								))}
+							</View>
+						)}
+
+					{/* Browse Workouts Section */}
+					{!servicesLoading && (
+						<View>
+							<Text className="mb-4 font-bold text-secondary-1 text-sm uppercase tracking-wide">
+								{debouncedSearch
+									? "SEARCH RESULTS"
+									: selectedCategoryId
+										? "SERVICES"
+										: "BROWSE WORKOUTS"}
+							</Text>
+
+							{browse.length === 0 ? (
+								<View className="items-center py-12">
+									<Ionicons
+										name="search-outline"
+										size={48}
+										color={colors.secondary[1]}
+									/>
+									<Text
+										className="mt-4 text-center font-semibold text-lg"
+										style={{ color: colors.primary[1] }}
+									>
+										No services found
+									</Text>
+									<Text
+										className="mt-1 text-center text-sm"
+										style={{ color: colors.secondary[1] }}
+									>
+										{debouncedSearch
+											? "Try a different search term"
+											: "No services available in this category"}
+									</Text>
+								</View>
+							) : (
+								browse.map((service: any) => (
+									<Pressable
+										key={service.id}
+										onPress={() => {
+											router.push({
+												pathname: "/dashboard/explore/[id]" as never,
+												params: { id: service.id },
+											});
+										}}
+										className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
+									>
+										<View className="flex-row">
+											<Image
+												source={{
+													uri: service.imageUrl ?? DEFAULT_IMAGE,
+												}}
+												className="mr-4 size-24 rounded-xl"
+												contentFit="cover"
+											/>
+											<View className="flex-1">
+												<Text
+													className="mb-1 font-bold text-lg"
+													style={{ color: colors.primary[1] }}
+												>
+													{service.name}
+												</Text>
+												<Text
+													className="mb-2 text-sm"
+													style={{ color: colors.secondary[1] }}
+													numberOfLines={2}
+												>
+													{service.description}
+												</Text>
+												<View className="flex-row items-baseline">
+													<Text className="font-bold text-lg text-primary-1">
+														{formatMoney(service.price)}
+													</Text>
+													<Text
+														className="ml-1 text-sm"
+														style={{ color: colors.secondary[1] }}
+													>
+														/ {service.type === "private" ? "session" : "class"}
+													</Text>
+												</View>
+											</View>
+										</View>
+									</Pressable>
+								))
+							)}
+						</View>
+					)}
+				</View>
 			</ScrollView>
 		</TabContainer>
 	);

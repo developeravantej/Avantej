@@ -45,7 +45,7 @@ export function GhlSyncBadge({
 	isRetrying,
 }: GhlSyncBadgeProps) {
 	if (!ghlSync) {
-		return <span className="text-xs text-muted-foreground">—</span>;
+		return <span className="text-xs text-muted-foreground">-</span>;
 	}
 
 	const status = ghlSync.syncStatus;
@@ -68,10 +68,7 @@ export function GhlSyncBadge({
 						: status;
 
 	const badge = (
-		<Badge
-			variant="outline"
-			className={cn("text-xs capitalize", variantClass)}
-		>
+		<Badge variant="outline" className={cn("text-xs capitalize", variantClass)}>
 			{label}
 		</Badge>
 	);
@@ -102,7 +99,7 @@ export function GhlSyncBadge({
 					aria-label="Retry GHL sync"
 				>
 					<RefreshCw
-						className={cn("w-3 h-3 mr-1", isRetrying && "animate-spin")}
+						className={cn("size-3 mr-1", isRetrying && "animate-spin")}
 					/>
 					{isRetrying ? "Retrying" : "Retry"}
 				</Button>

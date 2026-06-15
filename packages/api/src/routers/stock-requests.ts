@@ -1,8 +1,13 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
 import {
-	requirePermission,
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardInputBranchForContext,
+	resolveAccessibleNodeIds,
+} from "../guards";
+import {
 	listStockRequests,
 	getStockRequestById,
 	createStockRequest,
@@ -10,37 +15,54 @@ import {
 	fulfillStockRequest,
 	rejectStockRequest,
 } from "@avantej-core/services";
+import type { Context } from "../context";
+import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import type { members } from "@avantej-core/db/schema/tenant/members";
+
+type Member = typeof members.$inferSelect;
+type TenantDb = NeonDatabase<typeof tenantSchema>;
+
+/**
+ * IW-09: Guard that the caller has access to at least one of the stock request's
+ * branch nodes (fromBranchId or toBranchId). Callers who cannot access either
+ * branch receive FORBIDDEN.
+ */
+async function guardStockRequestBranchAccess(
+	context: Context & { tenantDb: TenantDb; member: Member },
+	request: { fromBranchId?: string | null; toBranchId: string },
+): Promise<void> {
+	const accessibleNodeIds = await resolveAccessibleNodeIds(context);
+
+	const hasToBranch = accessibleNodeIds.includes(request.toBranchId);
+	const hasFromBranch =
+		!request.fromBranchId || accessibleNodeIds.includes(request.fromBranchId);
+
+	if (!hasToBranch && !hasFromBranch) {
+		throw new ORPCError("FORBIDDEN", {
+			message: "You do not have access to any branch on this stock request",
+		});
+	}
+}
 
 export const stockRequestsRouter = {
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				status: z.string().optional(),
 				fromBranchId: z.string().uuid().optional(),
 				toBranchId: z.string().uuid().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(context.tenantDb, context.member, "stock_requests", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"stock_requests",
+				"read",
+			);
 
 			return listStockRequests(context.tenantDb, {
 				status: input.status,
@@ -50,33 +72,21 @@ export const stockRequestsRouter = {
 			});
 		}),
 
-	getById: protectedProcedure
+	getById: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(context.tenantDb, context.member, "stock_requests", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"stock_requests",
+				"read",
+			);
 
 			const request = await getStockRequestById(context.tenantDb, input.id);
 			if (!request) {
@@ -87,7 +97,7 @@ export const stockRequestsRouter = {
 			return request;
 		}),
 
-	create: protectedProcedure
+	create: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -102,29 +112,23 @@ export const stockRequestsRouter = {
 						productId: z.string().uuid(),
 						quantityRequested: z.number().int().min(1),
 						notes: z.string().optional(),
-					})
+					}),
 				),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"stock_requests",
+				"create",
+			);
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(context.tenantDb, context.member, "stock_requests", "create");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
+			// IW-09: Verify caller has RBAC access to both branch nodes
+			await guardInputBranchForContext(context, input.toBranchId);
+			if (input.fromBranchId) {
+				await guardInputBranchForContext(context, input.fromBranchId);
 			}
 
 			return createStockRequest(context.tenantDb, {
@@ -138,69 +142,63 @@ export const stockRequestsRouter = {
 			});
 		}),
 
-	approve: protectedProcedure
+	approve: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"stock_requests",
+				"approve",
+			);
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
+			// IW-09: Load request and verify caller can access at least one of its branch nodes
+			const request = await getStockRequestById(context.tenantDb, input.id);
+			if (!request) {
+				throw new ORPCError("NOT_FOUND", {
+					message: `Stock request not found: ${input.id}`,
 				});
 			}
-
-			try {
-				await requirePermission(context.tenantDb, context.member, "stock_requests", "approve");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await guardStockRequestBranchAccess(context, request);
 
 			return approveStockRequest(context.tenantDb, input.id);
 		}),
 
-	reject: protectedProcedure
+	reject: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"stock_requests",
+				"reject",
+			);
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
+			// IW-09: Load request and verify caller can access at least one of its branch nodes
+			const request = await getStockRequestById(context.tenantDb, input.id);
+			if (!request) {
+				throw new ORPCError("NOT_FOUND", {
+					message: `Stock request not found: ${input.id}`,
 				});
 			}
-
-			try {
-				await requirePermission(context.tenantDb, context.member, "stock_requests", "reject");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await guardStockRequestBranchAccess(context, request);
 
 			return rejectStockRequest(context.tenantDb, input.id);
 		}),
 
-	fulfill: protectedProcedure
+	fulfill: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -209,30 +207,27 @@ export const stockRequestsRouter = {
 					z.object({
 						itemId: z.string().uuid(),
 						quantityFulfilled: z.number().int().min(0),
-					})
+					}),
 				),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"stock_requests",
+				"update",
+			);
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
+			// IW-09: Load request and verify caller can access at least one of its branch nodes
+			const request = await getStockRequestById(context.tenantDb, input.id);
+			if (!request) {
+				throw new ORPCError("NOT_FOUND", {
+					message: `Stock request not found: ${input.id}`,
 				});
 			}
-
-			try {
-				await requirePermission(context.tenantDb, context.member, "stock_requests", "update");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await guardStockRequestBranchAccess(context, request);
 
 			return fulfillStockRequest(context.tenantDb, input.id, input.items);
 		}),

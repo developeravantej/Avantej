@@ -1,0 +1,55 @@
+{
+  "route": "/dashboard/settings/google-calendar",
+  "module": "settings",
+  "interactablesFound": {
+    "buttons": 11,
+    "links": 27,
+    "textboxes": 1,
+    "comboboxes": 0,
+    "checkboxes": 0,
+    "tabs": 0
+  },
+  "actionsTaken": 10,
+  "findings": [
+    {
+      "id": "dashboard_settings_google_calendar__network-5xx",
+      "route": "/dashboard/settings/google-calendar",
+      "module": "google-calendar",
+      "category": "network-5xx",
+      "severity": "blocker",
+      "title": "Google Calendar settings page fails with 500 (orgStatus + listConnectedCalendars)",
+      "observed": "500 POST http://localhost:3021/rpc/googleCalendar/orgStatus || 500 POST http://localhost:3021/rpc/googleCalendar/listConnectedCalendars || 500 POST http://localhost:3021/rpc/googleCalendar/orgStatus || 500 POST http://localhost:3021/rpc/googleCalendar/listConnectedCalendars || 500 POST http://localhost:3021/rpc/googleCalendar/orgStatus",
+      "evidence": {
+        "screenshot": "_e2e/loop/evidence/dashboard_settings_google_calendar/shot.png",
+        "console": "_e2e/loop/evidence/dashboard_settings_google_calendar/console.txt",
+        "network": "_e2e/loop/evidence/dashboard_settings_google_calendar/network.txt",
+        "trace": "_e2e/loop/evidence/dashboard_settings_google_calendar/trace.zip"
+      },
+      "recommendation": "Investigate googleCalendar.orgStatus / listConnectedCalendars handlers — likely missing tenant GHL/Google config throwing 500 instead of returning an empty/disconnected state. NOT APPLIED."
+    }
+  ],
+  "newLinks": [
+    "/dashboard",
+    "/dashboard/operations/approvals",
+    "/dashboard/customers/v2/view",
+    "/dashboard/appointment/view",
+    "/dashboard/appointment/class-slots/view",
+    "/dashboard/trainers/view",
+    "/dashboard/service/view",
+    "/dashboard/sales/create",
+    "/dashboard/reports/view",
+    "/dashboard/announcements/view",
+    "/dashboard/sales/view",
+    "/dashboard/commissions/view",
+    "/dashboard/settings/tax-rates",
+    "/dashboard/expenses/view",
+    "/dashboard/packages/view",
+    "/dashboard/commissions/view?tab=payouts",
+    "/dashboard/user/view",
+    "/dashboard/access-control/roles",
+    "/dashboard/access-control/user-assignment",
+    "/dashboard/branch/view"
+  ],
+  "authExpired": false,
+  "serverDown": false
+}

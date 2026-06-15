@@ -1,5 +1,5 @@
 import { useReducer, useMemo } from "react";
-import type { Role } from "@/components/access-control/permission-matrix/PermissionMatrix";
+import type { Role } from "@/components/access-control/permission-matrix/permission-matrix.types";
 
 // -----------------------------------------------------------------------------
 // Types
@@ -107,22 +107,23 @@ export function getPermissionScope(
  * Compute the next state for a toggle: no-access → own → team → organization → no-access.
  * Returns `{ enabled, scope }` to feed `onPermissionChange`.
  */
-export function cycleScope(
-	currentScope: PermissionScope | undefined,
-): { enabled: boolean; scope: PermissionScope | null } {
+export function cycleScope(currentScope: PermissionScope | undefined): {
+	enabled: boolean;
+	scope: PermissionScope | null;
+} {
 	if (currentScope === undefined) return { enabled: true, scope: "own" };
 	if (currentScope === "own") return { enabled: true, scope: "team" };
-	if (currentScope === "team")
-		return { enabled: true, scope: "organization" };
+	if (currentScope === "team") return { enabled: true, scope: "organization" };
 	if (currentScope === "organization") return { enabled: false, scope: null };
 	// Any higher-tier scope (country/region/area/branch) cycles off.
 	return { enabled: false, scope: null };
 }
 
 /** Convert the Select's raw string value to a typed scope ("null" → null). */
-export function parseScopeValue(
-	raw: string,
-): { enabled: boolean; scope: PermissionScope | null } {
+export function parseScopeValue(raw: string): {
+	enabled: boolean;
+	scope: PermissionScope | null;
+} {
 	if (raw === "null") return { enabled: false, scope: null };
 	return { enabled: true, scope: raw as PermissionScope };
 }

@@ -1,0 +1,6 @@
+{
+  "access-control/roles-priority-range.rule.spec.ts::rule: role priority outside 1-99 is rejected (400)": [
+    "Attempt roles/create with priority 0 (below min) and assert 400",
+    "Attempt roles/create with priority 100 (above max, reserved for admin) and assert 400"
+  ]
+}

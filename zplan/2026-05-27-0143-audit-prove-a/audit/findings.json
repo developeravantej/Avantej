@@ -1,0 +1,52 @@
+{
+  "$generatedBy": "audit-prove-a Phase 1 — 2026-05-27",
+  "session": "zplan/2026-05-27-0143-audit-prove-a",
+  "branch": "audit-prove/remediation-services-tabs-20260525-1529",
+  "totals": { "P1": 19, "P2": 23, "P3": 11, "P4_low": 4, "all": 57 },
+  "sources": {
+    "current_session_agents": 41,
+    "preserved_external_findings_json": 26,
+    "deduplicated": 10
+  },
+  "domains": {
+    "inventory-warehouse": { "P1": 5, "P2": 4, "P3": 1, "all": 10 },
+    "access-control-rbac": { "P1": 4, "P2": 4, "P3": 2, "all": 10 },
+    "notifications-audit-platform": { "P1": 2, "P2": 5, "P3": 2, "all": 9 },
+    "commissions-payouts-refunds-changed": { "P1": 5, "P2": 5, "P3": 2, "all": 12 },
+    "external/customers-rbac": { "P1": 3, "P2": 1, "P3": 0, "P4": 2, "all": 6 },
+    "external/commissions-payouts-seeds": { "P1": 2, "P2": 2, "all": 4 },
+    "external/server-infra": { "P1": 2, "P2": 2, "P4": 1, "all": 5 },
+    "external/dashboard-ui": { "P2": 4, "P3": 1, "all": 5 },
+    "external/pos-sales": { "P2": 2, "P3": 2, "all": 4 }
+  },
+  "verified_by_orchestrator": ["CPR-01", "IW-03", "AC-A-04"],
+  "verified_by_self_in_external": ["CP-001", "DU-001", "SI-001", "SI-002", "SI-008", "SI-009", "CU-002", "CU-003", "CU-004", "CU-005", "CU-007", "CP-004"],
+  "$note": "findings.external.json contains the raw 26 pre-existing findings in different schema (severity strings: critical/high/medium/low). Pointer at file:line is reliable for all; verification tags preserved.",
+  "$priority_order_for_remediation": [
+    "SI-008", "SI-009",
+    "CP-001", "CP-002",
+    "CPR-01", "CPR-02", "CPR-05",
+    "AC-A-01", "AC-A-04",
+    "IW-03", "IW-04", "IW-05",
+    "DU-001",
+    "NAP-03", "NAP-04",
+    "CU-002", "CU-003", "CU-004",
+    "IW-01", "AC-A-02", "AC-A-03",
+    "CPR-03", "CPR-04",
+    "CU-005",
+    "NAP-01", "NAP-02", "NAP-05",
+    "CP-003",
+    "IW-06", "IW-07", "IW-08", "IW-09",
+    "AC-A-05", "AC-A-06", "AC-A-07", "AC-A-08",
+    "CPR-06", "CPR-07", "CPR-08", "CPR-09",
+    "NAP-06", "NAP-08",
+    "DU-002", "DU-003", "DU-004", "DU-005",
+    "PO-005", "PO-006",
+    "CU-006",
+    "CPR-10", "CPR-11", "CPR-12",
+    "NAP-07", "NAP-09",
+    "AC-A-09", "AC-A-10",
+    "IW-10",
+    "SI-010", "CU-007", "CU-008", "PO-007", "PO-008", "CP-004"
+  ]
+}

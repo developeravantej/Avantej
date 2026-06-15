@@ -87,6 +87,8 @@ export const walkInCustomers = pgTable(
 		emailIdx: index("walk_in_customers_email_idx").on(table.email),
 		branchIdx: index("walk_in_customers_branch_idx").on(table.branchId),
 		isActiveIdx: index("walk_in_customers_active_idx").on(table.isActive),
-		customerProfileIdx: index("walk_in_customers_customer_profile_idx").on(table.customerProfileId),
-	})
+		customerProfileIdx: index("walk_in_customers_customer_profile_idx").on(
+			table.customerProfileId,
+		),
+	}),
 );

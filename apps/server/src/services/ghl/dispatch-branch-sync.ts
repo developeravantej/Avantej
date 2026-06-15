@@ -78,8 +78,7 @@ async function readProvisionedOrg(
 		ok: true,
 		ghlLocationId: org.ghlLocationId,
 		ghlApiKey: decrypt(org.ghlApiKeyEncrypted),
-		countryFieldMap:
-			(org.ghlCountryFieldMap as CountryFieldMap | null) ?? {},
+		countryFieldMap: (org.ghlCountryFieldMap as CountryFieldMap | null) ?? {},
 	};
 }
 

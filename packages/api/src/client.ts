@@ -14,7 +14,14 @@ export interface CreateORPCClientConfig {
 }
 
 export function createORPCClientConfig(config: CreateORPCClientConfig) {
-	const { QueryClient, QueryCache, serverUrl, onError, getAuthHeaders, fetchOptions } = config;
+	const {
+		QueryClient,
+		QueryCache,
+		serverUrl,
+		onError,
+		getAuthHeaders,
+		fetchOptions,
+	} = config;
 
 	const queryClient = new QueryClient({
 		queryCache: new QueryCache({
@@ -35,4 +42,3 @@ export function createORPCClientConfig(config: CreateORPCClientConfig) {
 
 	return { queryClient, client, orpc };
 }
-

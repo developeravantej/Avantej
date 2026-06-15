@@ -1,15 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useCallback, useMemo } from "react";
+import { Image } from "expo-image";
 import {
 	ActivityIndicator,
-	Image,
+	Pressable,
 	RefreshControl,
 	ScrollView,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { TabContainer, useTabBarHeight } from "@/components/container";
@@ -18,6 +17,8 @@ import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
 import { fonts } from "@/lib/font";
 import { orpc } from "@/utils/orpc";
+
+// ─── Helpers ──────────────────────────────────────────────────────
 
 function formatDate(dateStr: string | Date): string {
 	const date = new Date(dateStr);
@@ -47,40 +48,15 @@ function getRelativeDay(dateStr: string | Date): string {
 	return date.toLocaleDateString("en-US", { weekday: "long" }).toUpperCase();
 }
 
-function getRelativeDate(dateStr: string | Date): string {
+function getRelativePast(dateStr: string | Date): string {
 	const date = new Date(dateStr);
 	const now = new Date();
-	const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-	const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-	const diffDays = Math.round(
-		(today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24),
-	);
+	const diffMs = now.getTime() - date.getTime();
+	const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-	if (diffDays === 0) return "Today";
-	if (diffDays === 1) return "Yesterday";
-	if (diffDays === -1) return "Tomorrow";
-	if (diffDays < 0) return formatDate(dateStr);
-	if (diffDays < 7) return `${diffDays} days ago`;
-	return formatDate(dateStr);
-}
-
-function getStatusLabel(status?: string): string {
-	switch (status) {
-		case "completed":
-			return "Completed";
-		case "cancelled":
-			return "Cancelled";
-		case "no-show":
-			return "No-show";
-		case "confirmed":
-			return "Confirmed";
-		case "pending":
-			return "Pending";
-		case "purchased":
-			return "Purchased";
-		default:
-			return "";
-	}
+	if (diffDays === 0) return "Completed today";
+	if (diffDays === 1) return "Completed yesterday";
+	return `${diffDays} days ago`;
 }
 
 function getActivityIcon(status?: string): string {
@@ -91,54 +67,15 @@ function getActivityIcon(status?: string): string {
 			return "close-circle";
 		case "no-show":
 			return "alert-circle";
-		case "confirmed":
-			return "calendar";
-		case "pending":
-			return "time";
-		case "purchased":
-			return "bag-check";
 		default:
 			return "ellipse";
 	}
 }
 
-function getActivityColor(status?: string): string {
-	switch (status) {
-		case "completed":
-			return "#16A34A";
-		case "confirmed":
-			return "#16A34A";
-		case "purchased":
-			return "#2563EB";
-		case "no-show":
-		case "pending":
-			return "#D97706";
-		case "cancelled":
-			return "#B91C1C";
-		default:
-			return colors.secondary[1];
-	}
-}
-
-function getActivityBg(status?: string): string {
-	switch (status) {
-		case "completed":
-		case "confirmed":
-			return "#DCFCE7";
-		case "purchased":
-			return "#DBEAFE";
-		case "no-show":
-		case "pending":
-			return "#FEF3C7";
-		case "cancelled":
-			return "#FEE2E2";
-		default:
-			return colors.secondary[3];
-	}
-}
-
 const DEFAULT_IMAGE =
 	"https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=400";
+
+// ─── Skeleton Components ──────────────────────────────────────────
 
 function SkeletonBox({ className }: { className: string }) {
 	return (
@@ -148,52 +85,53 @@ function SkeletonBox({ className }: { className: string }) {
 
 function PlanCardSkeleton() {
 	return (
-		<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-6">
-			<SkeletonBox className="mb-5 h-6 w-24" />
-			<SkeletonBox className="mb-2 h-14 w-40" />
-			<SkeletonBox className="mb-5 h-5 w-48" />
-			<SkeletonBox className="mb-2 h-1 w-full" />
-			<SkeletonBox className="h-4 w-36" />
+		<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
+			<SkeletonBox className="mb-3 h-6 w-16" />
+			<SkeletonBox className="mb-2 h-7 w-40" />
+			<SkeletonBox className="mb-4 h-12 w-56" />
+			<SkeletonBox className="mb-3 h-4 w-48" />
+			<SkeletonBox className="mb-3 h-2 w-full" />
+			<SkeletonBox className="h-4 w-52" />
 		</View>
 	);
 }
 
 function UpcomingSkeleton() {
 	return (
-		<View className="mb-7">
-			<Text
-				className="mb-3 text-secondary-1"
-				style={{ fontSize: 11, letterSpacing: 1.5, fontFamily: fonts.body }}
-			>
+		<View className="mb-6">
+			<Text className="mb-3 text-secondary-1 text-xs uppercase tracking-wide">
 				UP NEXT
 			</Text>
-			<View className="overflow-hidden rounded-2xl border border-secondary-3 bg-primary-2">
-				<SkeletonBox className="h-24 w-full rounded-none" />
-				<View className="p-4">
-					<SkeletonBox className="mb-2 h-5 w-40" />
-					<SkeletonBox className="h-4 w-56" />
+			<View className="overflow-hidden rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
+				<View className="flex-row items-center">
+					<SkeletonBox className="mr-3 size-16 rounded-lg" />
+					<View className="flex-1">
+						<SkeletonBox className="mb-2 h-5 w-36" />
+						<SkeletonBox className="h-4 w-28" />
+					</View>
 				</View>
 			</View>
 		</View>
 	);
 }
 
+// ─── Main Component ───────────────────────────────────────────────
+
+// react-doctor-disable-next-line react-doctor/no-giant-component -- dashboard home with fitness plan card, action buttons grid, upcoming session, recent activity sections; many interrelated query branches; needs further refactor PR
 export default function Home() {
 	const { user } = useAuth();
 	const { organizationId, isLoading: orgLoading } = useOrganization();
 	const queryClient = useQueryClient();
 	const userName =
-		(user as { firstName?: string } | null)?.firstName ||
-		user?.name ||
-		"there";
+		(user as { firstName?: string } | null)?.firstName || user?.name || "there";
 	const tabBarHeight = useTabBarHeight();
-	const currentDate = new Date()
-		.toLocaleDateString("en-US", {
-			weekday: "long",
-			month: "long",
-			day: "numeric",
-		})
-		.toUpperCase();
+	const currentDate = new Date().toLocaleDateString("en-US", {
+		weekday: "long",
+		month: "long",
+		day: "numeric",
+	});
+
+	// ─── API Queries ──────────────────────────────────────────────
 
 	const {
 		data: activePackage,
@@ -238,18 +176,13 @@ export default function Home() {
 		...orpc.appointments.listForUser.queryOptions({
 			input: {
 				organizationId,
-				limit: 20,
+				limit: 5,
 			},
 		}),
 		enabled: !!organizationId,
 	});
 
-	const { data: recentPackages } = useQuery({
-		...orpc.packageInstances.listForClient.queryOptions({
-			input: { organizationId },
-		}),
-		enabled: !!organizationId,
-	});
+	// ─── Derived Data ─────────────────────────────────────────────
 
 	const unreadCount = (unreadData as number | undefined) ?? 0;
 
@@ -259,9 +192,7 @@ export default function Home() {
 		const creditsTotal = activePackage.creditsTotal ?? 0;
 		const progress =
 			creditsTotal > 0
-				? Math.round(
-						((creditsTotal - creditsRemaining) / creditsTotal) * 100,
-					)
+				? Math.round(((creditsTotal - creditsRemaining) / creditsTotal) * 100)
 				: 0;
 		const expiresAt = activePackage.expiresAt
 			? new Date(activePackage.expiresAt)
@@ -270,8 +201,7 @@ export default function Home() {
 			? Math.max(
 					1,
 					Math.ceil(
-						(expiresAt.getTime() - Date.now()) /
-							(7 * 24 * 60 * 60 * 1000),
+						(expiresAt.getTime() - Date.now()) / (7 * 24 * 60 * 60 * 1000),
 					),
 				)
 			: null;
@@ -292,53 +222,40 @@ export default function Home() {
 		if (!nextAppointment) return null;
 		return {
 			id: nextAppointment.id,
-			title: (nextAppointment as any).serviceName ?? "Appointment",
+			title: (nextAppointment as any).service?.name ?? "Appointment",
 			time: formatTime(nextAppointment.startTime),
 			duration: `${nextAppointment.duration} min`,
 			date: getRelativeDay(nextAppointment.startTime),
-			image: DEFAULT_IMAGE,
-			trainerName: null as string | null,
+			image: (nextAppointment as any).service?.imageUrl ?? DEFAULT_IMAGE,
 		};
 	}, [nextAppointment]);
 
 	const recentActivities = useMemo(() => {
-		const appointments = (recentAppointments ?? []).map((apt: any) => ({
+		return (recentAppointments ?? []).map((apt: any) => ({
 			id: apt.id,
-			name: apt.serviceName ?? "Session",
-			date: getRelativeDate(apt.createdAt ?? apt.startTime),
-			sortDate: new Date(apt.createdAt ?? apt.startTime).getTime(),
+			name: apt.service?.name ?? "Session",
+			date: getRelativePast(apt.startTime),
 			credits: apt.creditsUsed ? -apt.creditsUsed : 0,
 			icon: getActivityIcon(apt.status),
-			status: apt.status as string | undefined,
 		}));
+	}, [recentAppointments]);
 
-		const purchases = (recentPackages ?? []).map((pkg: any) => ({
-			id: `pkg-${pkg.id}`,
-			name: pkg.package?.name ?? "Package",
-			date: getRelativeDate(pkg.createdAt),
-			sortDate: new Date(pkg.createdAt).getTime(),
-			credits: pkg.creditsTotal ?? 0,
-			icon: getActivityIcon("purchased"),
-			status: "purchased" as string | undefined,
-		}));
-
-		return [...appointments, ...purchases]
-			.sort((a, b) => b.sortDate - a.sortDate)
-			.slice(0, 5);
-	}, [recentAppointments, recentPackages]);
+	// ─── Pull to Refresh ──────────────────────────────────────────
 
 	const onRefresh = useCallback(() => {
 		queryClient.invalidateQueries({
 			predicate: (query) => {
-				const keyStr = JSON.stringify(query.queryKey);
+				const key = query.queryKey[0];
 				return (
-					keyStr.includes("packageInstances") ||
-					keyStr.includes("appointments") ||
-					keyStr.includes("notifications")
+					key === "packageInstances" ||
+					key === "appointments" ||
+					key === "notifications"
 				);
 			},
 		});
 	}, [queryClient]);
+
+	// ─── Greeting ─────────────────────────────────────────────────
 
 	const getGreeting = () => {
 		const hour = new Date().getHours();
@@ -361,7 +278,7 @@ export default function Home() {
 		<TabContainer>
 			<ScrollView
 				className="flex-1 bg-secondary-3"
-				contentContainerStyle={{ paddingBottom: tabBarHeight + 8 }}
+				contentInset={{ bottom: tabBarHeight + 8 }}
 				refreshControl={
 					<RefreshControl
 						refreshing={false}
@@ -370,655 +287,425 @@ export default function Home() {
 					/>
 				}
 			>
-				<View className="px-5 pt-4 pb-6">
-					{/* ─── Header ─── */}
-					<View className="mb-7 flex-row items-center justify-between">
-						<View>
+				<View className="px-4 pt-4 pb-6">
+					{/* Header Section */}
+					<View className="mb-6 flex-row items-center rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
+						<View
+							className="mr-3 size-12 items-center justify-center overflow-hidden rounded-full"
+							style={{ backgroundColor: colors.secondary[2] }}
+						>
+							<Image
+								source={{ uri: "https://via.placeholder.com/48" }}
+								className="h-full w-full"
+								contentFit="cover"
+							/>
+						</View>
+						<View className="flex-1">
 							<Text
-								className="mb-1.5 text-secondary-1"
-								style={{
-									fontSize: 11,
-									letterSpacing: 1.5,
-									fontFamily: fonts.body,
-								}}
-							>
-								{currentDate}
-							</Text>
-							<Text
-								className="text-primary-1"
-								style={{
-									fontFamily: fonts.heading,
-									fontSize: 24,
-									lineHeight: 28,
-								}}
+								className="text-2xl text-primary-1"
+								style={{ fontFamily: fonts.heading }}
 							>
 								{getGreeting()}, {userName}
 							</Text>
+							<Text className="mt-1 text-secondary-1 text-sm">
+								{currentDate}
+							</Text>
 						</View>
-						<TouchableOpacity
-							onPress={() =>
-								router.push("/dashboard/notifications/" as never)
-							}
-							className="relative h-10 w-10 items-center justify-center rounded-full"
-							style={{ backgroundColor: colors.secondary[2] }}
+						<Pressable
+							onPress={() => router.push("/dashboard/notifications/" as never)}
+							className="relative size-10 items-center justify-center"
 						>
 							<Ionicons
 								name="notifications-outline"
-								size={20}
+								size={24}
 								color={colors.primary[1]}
 							/>
 							{unreadCount > 0 && (
-								<View
-									className="absolute -top-0.5 -right-0.5 h-4 w-4 items-center justify-center rounded-full bg-primary-1"
-									style={{
-										borderWidth: 2,
-										borderColor: colors.secondary[3],
-									}}
-								>
+								<View className="-right-1 -top-1 absolute size-5 items-center justify-center rounded-full bg-primary-1">
 									<Text
-										className="text-primary-2"
-										style={{
-											fontFamily: fonts.heading,
-											fontSize: 9,
-										}}
+										className="text-primary-2 text-xs"
+										style={{ fontFamily: fonts.heading }}
 									>
 										{unreadCount > 9 ? "9+" : unreadCount}
 									</Text>
 								</View>
 							)}
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 
-					{/* ─── Plan Card ─── */}
+					{/* Fitness Plan Card */}
 					{packageLoading ? (
 						<PlanCardSkeleton />
 					) : packageError ? (
-						<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-6">
-							<Text className="text-secondary-1 text-sm" style={{ fontFamily: fonts.body }}>
+						<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
+							<Text className="text-secondary-1 text-sm">
 								Unable to load plan details. Pull down to retry.
 							</Text>
 						</View>
 					) : planStats ? (
-						<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-6">
-							<View className="mb-5 flex-row items-center justify-between">
+						<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
+							<View className="mb-3 flex-row items-center">
 								<View className="rounded-full bg-secondary-3 px-3 py-1">
-									<Text
-										style={{
-											fontSize: 11,
-											letterSpacing: 1,
-											color: colors.primary[1],
-											fontFamily: fonts.body,
-										}}
-									>
-										ACTIVE PLAN
+									<Text className="font-semibold text-primary-1 text-xs">
+										ACTIVE
 									</Text>
 								</View>
 							</View>
 
-							<View className="mb-1 flex-row items-baseline">
-								<Text
-									className="text-primary-1"
-									style={{
-										fontFamily: fonts.heading,
-										fontSize: 56,
-										lineHeight: 56,
-										letterSpacing: -2,
-									}}
-								>
-									{planStats.creditsRemaining}
-								</Text>
-								<Text
-									className="ml-2 text-secondary-1"
-									style={{
-										fontFamily: fonts.heading,
-										fontSize: 24,
-										lineHeight: 28,
-									}}
-								>
-									workouts
-								</Text>
-							</View>
 							<Text
-								className="mb-5"
-								style={{
-									fontFamily: fonts.subheading,
-									fontSize: 16,
-									color: colors.secondary[1],
-								}}
+								className="mb-2 text-primary-1 text-xl"
+								style={{ fontFamily: fonts.heading }}
 							>
-								remaining of {planStats.creditsTotal} total
+								Fitness Plan
 							</Text>
 
-							<View
-								className="mb-2 overflow-hidden rounded-full"
-								style={{ height: 3, backgroundColor: colors.secondary[3] }}
-							>
-								<View
-									className="rounded-full bg-primary-1"
-									style={{
-										height: 3,
-										width: `${planStats.progress}%`,
-									}}
-								/>
-							</View>
-							<View className="flex-row justify-between">
+							<View className="mb-4">
 								<Text
-									className="text-secondary-1"
-									style={{ fontSize: 12, fontFamily: fonts.body }}
+									className="text-5xl text-primary-1"
+									style={{ fontFamily: fonts.heading }}
 								>
-									{planStats.progress}% complete
+									{planStats.creditsRemaining} workouts
 								</Text>
-								{planStats.renewalDate && (
-									<Text
-										className="text-secondary-1"
-										style={{ fontSize: 12, fontFamily: fonts.body }}
-									>
-										Renews {planStats.renewalDate}
-									</Text>
-								)}
+								<Text
+									className="text-5xl text-secondary-1"
+									style={{ fontFamily: fonts.heading }}
+								>
+									remaining
+								</Text>
 							</View>
+
+							<Text className="mb-3 text-lg text-secondary-1">
+								You're {planStats.progress}% through your plan
+							</Text>
+
+							<View className="mb-3">
+								<View className="h-2 overflow-hidden rounded-full bg-secondary-3">
+									<View
+										className="h-full rounded-full bg-primary-1"
+										style={{ width: `${planStats.progress}%` }}
+									/>
+								</View>
+								<View className="mt-1 flex-row justify-between">
+									<Text className="text-secondary-1 text-xs">Start</Text>
+									<Text className="text-secondary-1 text-xs">End</Text>
+								</View>
+							</View>
+
+							{planStats.weeksToFinish && (
+								<View className="mb-4 flex-row items-center">
+									<Ionicons
+										name="time-outline"
+										size={16}
+										color={colors.secondary[1]}
+									/>
+									<Text className="ml-2 text-secondary-1 text-sm">
+										At this pace, you'll finish in {planStats.weeksToFinish}{" "}
+										weeks
+									</Text>
+								</View>
+							)}
+
+							{planStats.renewalDate && (
+								<View className="flex-row items-center justify-between border-secondary-3 border-t pt-3">
+									<Text className="text-secondary-1 text-sm">
+										Renews on {planStats.renewalDate}
+									</Text>
+									<Pressable
+										onPress={() => router.push("/dashboard/packages" as never)}
+									>
+										<Text className="font-medium text-primary-1 text-sm">
+											Manage membership{" "}
+											<Ionicons
+												name="chevron-forward"
+												size={14}
+												color={colors.primary[1]}
+											/>
+										</Text>
+									</Pressable>
+								</View>
+							)}
 						</View>
 					) : (
-						<View className="mb-4 overflow-hidden rounded-2xl border border-secondary-3 bg-primary-2">
-							<View
-								className="relative"
-								style={{ height: 160 }}
+						<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
+							<Text
+								className="mb-2 text-primary-1 text-xl"
+								style={{ fontFamily: fonts.heading }}
 							>
-								<Image
-									source={{ uri: DEFAULT_IMAGE }}
-									className="h-full w-full"
-									resizeMode="cover"
-									style={{ opacity: 0.85 }}
-								/>
-								<LinearGradient
-									colors={[
-										"transparent",
-										"rgba(0,0,0,0.65)",
-									]}
-									style={{
-										position: "absolute",
-										top: 0,
-										left: 0,
-										right: 0,
-										bottom: 0,
-									}}
-								/>
-								<View className="absolute bottom-4 left-5 right-5">
-									<Text
-										className="text-primary-2"
-										style={{
-											fontFamily: fonts.heading,
-											fontSize: 24,
-											lineHeight: 28,
-											marginBottom: 4,
-										}}
-									>
-										Start Your{"\n"}Fitness Journey
-									</Text>
-									<Text
-										className="text-sm"
-										style={{
-											color: "rgba(255,255,255,0.7)",
-											fontFamily: fonts.body,
-										}}
-									>
-										Choose a package to begin training
-									</Text>
-								</View>
-							</View>
-							<View className="p-4">
-								<TouchableOpacity
-									onPress={() =>
-										router.push(
-											"/dashboard/buy-package/setup" as never,
-										)
-									}
-									className="items-center rounded-xl bg-primary-1 py-4"
-								>
-									<View className="flex-row items-center">
-										<Ionicons
-											name="cube-outline"
-											size={18}
-											color={colors.primary[2]}
-										/>
-										<Text
-											className="ml-2 text-primary-2"
-											style={{
-												fontFamily: fonts.heading,
-												fontSize: 15,
-											}}
-										>
-											Browse Packages
-										</Text>
-									</View>
-								</TouchableOpacity>
-							</View>
-						</View>
-					)}
-
-					{/* ─── Insight ─── */}
-					{planStats && (
-						<View className="mb-7 flex-row items-start rounded-2xl border border-secondary-3 bg-primary-2 px-4 py-3.5">
-							<Ionicons
-								name="bulb-outline"
-								size={16}
-								color={colors.secondary[1]}
-								style={{ marginTop: 2 }}
-							/>
-							<Text className="ml-3 flex-1 text-secondary-1 text-sm" style={{ fontFamily: fonts.body }}>
-								Book 2 sessions/week to finish on time
+								No Active Plan
 							</Text>
+							<Text className="mb-4 text-secondary-1 text-sm">
+								Get started with a fitness package to track your progress.
+							</Text>
+							<Pressable
+								onPress={() =>
+									router.push("/dashboard/buy-package/setup" as never)
+								}
+								className="items-center rounded-xl bg-primary-1 py-3"
+							>
+								<Text
+									className="font-medium text-primary-2 text-sm"
+									style={{ fontFamily: fonts.heading }}
+								>
+									Browse Packages
+								</Text>
+							</Pressable>
 						</View>
 					)}
 
-					{/* ─── Action Grid ─── */}
+					{/* Quick Insight Card */}
+					{planStats && (
+						<View className="mb-6 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
+							<View className="flex-row items-start">
+								<Ionicons
+									name="bulb-outline"
+									size={20}
+									color={colors.secondary[1]}
+								/>
+								<Text className="ml-3 flex-1 text-secondary-1 text-sm">
+									Quick insight: Most members book 2 workouts per week to finish
+									on time
+								</Text>
+							</View>
+						</View>
+					)}
+
+					{/* Action Buttons Grid */}
 					<View className="mb-8 flex-row justify-between">
-						<TouchableOpacity
+						<Pressable
 							onPress={() =>
 								router.push("/dashboard/book-workout/book-workout")
 							}
-							className="aspect-square w-[22%] items-center justify-center rounded-2xl bg-primary-1"
+							className="aspect-square w-[22%] items-center justify-center rounded-xl bg-primary-1 shadow-sm"
 						>
 							<Ionicons
 								name="calendar-outline"
-								size={22}
+								size={24}
 								color={colors.primary[2]}
 							/>
-							<Text
-								className="mt-1.5 text-center text-primary-2"
-								style={{
-									fontFamily: fonts.subheading,
-									fontSize: 10,
-									lineHeight: 13,
-								}}
-							>
+							<Text className="mt-2 text-center font-medium text-primary-2 text-xs">
 								Book{"\n"}Session
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 
-						<TouchableOpacity
-							onPress={() =>
-								router.push("/dashboard/calendar" as never)
-							}
-							className="aspect-square w-[22%] items-center justify-center rounded-2xl border border-secondary-3 bg-primary-2"
+						<Pressable
+							onPress={() => router.push("/dashboard/calendar" as never)}
+							className="aspect-square w-[22%] items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 shadow-sm"
 						>
-							<Ionicons
-								name="calendar"
-								size={22}
-								color={colors.secondary[1]}
-							/>
-							<Text
-								className="mt-1.5 text-primary-1"
-								style={{
-									fontFamily: fonts.subheading,
-									fontSize: 10,
-								}}
-							>
+							<Ionicons name="calendar" size={24} color={colors.secondary[1]} />
+							<Text className="mt-2 font-medium text-primary-1 text-xs">
 								Calendar
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 
-						<TouchableOpacity
+						<Pressable
 							onPress={() =>
 								router.push("/dashboard/buy-package/setup" as never)
 							}
-							className="aspect-square w-[22%] items-center justify-center rounded-2xl border border-secondary-3 bg-primary-2"
+							className="aspect-square w-[22%] items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 shadow-sm"
 						>
 							<Ionicons
 								name="cube-outline"
-								size={22}
+								size={24}
 								color={colors.secondary[1]}
 							/>
-							<Text
-								className="mt-1.5 text-center text-primary-1"
-								style={{
-									fontFamily: fonts.subheading,
-									fontSize: 10,
-									lineHeight: 13,
-								}}
-							>
+							<Text className="mt-2 text-center font-medium text-primary-1 text-xs">
 								Buy{"\n"}Package
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 
-						<TouchableOpacity
-							onPress={() =>
-								router.push("/dashboard/packages" as never)
-							}
-							className="aspect-square w-[22%] items-center justify-center rounded-2xl border border-secondary-3 bg-primary-2"
+						<Pressable
+							onPress={() => router.push("/dashboard/packages" as never)}
+							className="aspect-square w-[22%] items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 shadow-sm"
 						>
 							<Ionicons
 								name="star-outline"
-								size={22}
+								size={24}
 								color={colors.secondary[1]}
 							/>
-							<Text
-								className="mt-1.5 text-center text-primary-1"
-								style={{
-									fontFamily: fonts.subheading,
-									fontSize: 10,
-									lineHeight: 13,
-								}}
-							>
+							<Text className="mt-2 text-center font-medium text-primary-1 text-xs">
 								My{"\n"}Credits
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 
-					{/* ─── Up Next ─── */}
+					{/* UP NEXT Section */}
 					{upcomingLoading ? (
 						<UpcomingSkeleton />
 					) : upcomingError ? (
-						<View className="mb-7">
-							<Text
-								className="mb-3 text-secondary-1"
-								style={{ fontSize: 11, letterSpacing: 1.5, fontFamily: fonts.body }}
-							>
+						<View className="mb-6">
+							<Text className="mb-3 text-secondary-1 text-xs uppercase tracking-wide">
 								UP NEXT
 							</Text>
-							<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-4">
-								<Text className="text-secondary-1 text-sm" style={{ fontFamily: fonts.body }}>
+							<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
+								<Text className="text-secondary-1 text-sm">
 									Unable to load upcoming sessions.
 								</Text>
 							</View>
 						</View>
 					) : upcomingActivity ? (
-						<View className="mb-7">
-							<Text
-								className="mb-3 text-secondary-1"
-								style={{ fontSize: 11, letterSpacing: 1.5, fontFamily: fonts.body }}
-							>
+						<View className="mb-6">
+							<Text className="mb-3 text-secondary-1 text-xs uppercase tracking-wide">
 								UP NEXT
 							</Text>
-							<TouchableOpacity
+							<Pressable
 								onPress={() =>
 									router.push(
 										`/dashboard/bookings/${upcomingActivity.id}` as never,
 									)
 								}
-								className="overflow-hidden rounded-2xl border border-secondary-3"
+								className="overflow-hidden rounded-2xl border border-secondary-3 bg-primary-2 shadow-sm"
 							>
-								<View
-									className="relative"
-									style={{ height: 100 }}
-								>
-									<Image
-										source={{ uri: upcomingActivity.image }}
-										className="h-full w-full"
-										resizeMode="cover"
-										style={{ opacity: 0.85 }}
-									/>
-									<LinearGradient
-										colors={[
-											"transparent",
-											"rgba(0,0,0,0.6)",
-										]}
-										start={{ x: 0, y: 0.2 }}
-										end={{ x: 0, y: 1 }}
+								<View className="flex-row">
+									<View
+										className="relative w-24 self-stretch"
 										style={{
-											position: "absolute",
-											top: 0,
-											left: 0,
-											right: 0,
-											bottom: 0,
-										}}
-									/>
-									<View className="absolute bottom-2.5 left-3.5">
-										<Text
-											className="text-primary-2"
-											style={{
-												fontFamily: fonts.subheading,
-												fontSize: 15,
-											}}
-										>
-											{upcomingActivity.date} ·{" "}
-											{upcomingActivity.time}
-										</Text>
-									</View>
-									<View className="absolute top-2 right-2.5 rounded-full bg-primary-2 px-2.5 py-1">
-										<Text
-											style={{
-												fontSize: 10,
-												letterSpacing: 0.5,
-												color: colors.primary[1],
-												fontWeight: "700",
-											}}
-										>
-											{upcomingActivity.date}
-										</Text>
-									</View>
-								</View>
-								<View className="bg-primary-2 p-3.5">
-									<Text
-										className="text-primary-1"
-										style={{
-											fontFamily: fonts.heading,
-											fontSize: 20,
-											lineHeight: 24,
-											marginBottom: 4,
+											backgroundColor: colors.secondary[3],
 										}}
 									>
-										{upcomingActivity.title}
-									</Text>
-									<Text className="text-secondary-1 text-sm" style={{ fontFamily: fonts.body }}>
-										{upcomingActivity.duration}
-										{upcomingActivity.trainerName
-											? ` · ${upcomingActivity.trainerName}`
-											: ""}
-										{" · -1 credit"}
-									</Text>
+										<Image
+											source={{ uri: upcomingActivity.image }}
+											className="h-full w-full"
+											contentFit="cover"
+											style={{
+												position: "absolute",
+												top: 0,
+												left: 0,
+												right: 0,
+												bottom: 0,
+											}}
+										/>
+										<View className="absolute top-2 right-2 z-10 rounded-full bg-primary-1 px-2 py-1">
+											<Text className="font-semibold text-primary-2 text-xs">
+												{upcomingActivity.date}
+											</Text>
+										</View>
+									</View>
+									<View className="flex-1 justify-between p-4">
+										<View>
+											<Text
+												className="mb-2 text-lg text-primary-1"
+												style={{
+													fontFamily: fonts.heading,
+												}}
+											>
+												{upcomingActivity.title}
+											</Text>
+											<View className="mb-1 flex-row items-center">
+												<Ionicons
+													name="time-outline"
+													size={14}
+													color={colors.secondary[1]}
+												/>
+												<Text className="ml-1 text-secondary-1 text-sm">
+													{upcomingActivity.time} • {upcomingActivity.duration}
+												</Text>
+											</View>
+											<Text className="text-secondary-1 text-xs">
+												Tap to view details
+											</Text>
+										</View>
+										<Ionicons
+											name="chevron-forward"
+											size={20}
+											color={colors.secondary[1]}
+										/>
+									</View>
 								</View>
-							</TouchableOpacity>
+							</Pressable>
 						</View>
 					) : (
-						<View className="mb-7">
-							<Text
-								className="mb-3 text-secondary-1"
-								style={{ fontSize: 11, letterSpacing: 1.5, fontFamily: fonts.body }}
-							>
+						<View className="mb-6">
+							<Text className="mb-3 text-secondary-1 text-xs uppercase tracking-wide">
 								UP NEXT
 							</Text>
-							<View className="items-center rounded-2xl border border-secondary-3 bg-primary-2 px-5 py-7">
-								<View
-									className="mb-3.5 h-12 w-12 items-center justify-center rounded-full"
-									style={{
-										backgroundColor: colors.primary[3],
-									}}
-								>
-									<Ionicons
-										name="calendar-outline"
-										size={24}
-										color={colors.secondary[1]}
-									/>
-								</View>
+							<View className="items-center rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
+								<Ionicons
+									name="calendar-outline"
+									size={32}
+									color={colors.secondary[1]}
+								/>
 								<Text
-									className="mb-1.5 text-primary-1"
-									style={{
-										fontFamily: fonts.heading,
-										fontSize: 17,
-									}}
+									className="mt-2 text-primary-1 text-base"
+									style={{ fontFamily: fonts.heading }}
 								>
 									No upcoming sessions
 								</Text>
-								<Text className="mb-4 text-center text-secondary-1 text-sm" style={{ fontFamily: fonts.body }}>
-									Purchase a package to start{"\n"}booking your
-									workouts
+								<Text className="mt-1 mb-3 text-center text-secondary-1 text-sm">
+									Book a workout to get started
 								</Text>
-								<TouchableOpacity
+								<Pressable
 									onPress={() =>
-										router.push(
-											"/dashboard/book-workout/book-workout",
-										)
+										router.push("/dashboard/book-workout/book-workout")
 									}
-									className="rounded-xl border border-primary-1 px-5 py-2.5"
+									className="rounded-lg bg-primary-1 px-5 py-2"
 								>
-									<Text
-										className="text-primary-1"
-										style={{
-											fontFamily: fonts.subheading,
-											fontSize: 13,
-										}}
-									>
-										Get Started
+									<Text className="font-medium text-primary-2 text-sm">
+										Book Now
 									</Text>
-								</TouchableOpacity>
+								</Pressable>
 							</View>
 						</View>
 					)}
 
-					{/* ─── Recent Activity ─── */}
+					{/* RECENT ACTIVITY Section */}
 					<View>
-						<Text
-							className="mb-3 text-secondary-1"
-							style={{ fontSize: 11, letterSpacing: 1.5, fontFamily: fonts.body }}
-						>
+						<Text className="mb-3 text-secondary-1 text-xs uppercase tracking-wide">
 							RECENT ACTIVITY
 						</Text>
 						{recentLoading ? (
-							<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-4">
-								{[1, 2].map((i) => (
+							<>
+								{[1, 2].map((n) => (
 									<View
-										key={i}
-										className="flex-row items-center py-3.5"
-										style={
-											i < 2
-												? {
-														borderBottomWidth: 1,
-														borderBottomColor:
-															colors.secondary[3],
-													}
-												: undefined
-										}
+										key={`skel-${n}`}
+										className="mb-3 flex-row items-center rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
 									>
-										<SkeletonBox className="mr-3 h-8 w-8 rounded-full" />
+										<SkeletonBox className="mr-3 size-10 rounded-lg" />
 										<View className="flex-1">
 											<SkeletonBox className="mb-2 h-4 w-32" />
-											<SkeletonBox className="h-3 w-20" />
+											<SkeletonBox className="h-3 w-24" />
 										</View>
 									</View>
 								))}
-							</View>
+							</>
 						) : recentError ? (
-							<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-4">
-								<Text className="text-secondary-1 text-sm" style={{ fontFamily: fonts.body }}>
+							<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
+								<Text className="text-secondary-1 text-sm">
 									Unable to load recent activity.
 								</Text>
 							</View>
 						) : recentActivities.length > 0 ? (
-							<View className="overflow-hidden rounded-2xl border border-secondary-3 bg-primary-2">
-								{recentActivities.map((activity, idx) => (
-									<View
-										key={activity.id}
-										className="flex-row items-center px-4 py-3.5"
-										style={
-											idx < recentActivities.length - 1
-												? {
-														borderBottomWidth: 1,
-														borderBottomColor:
-															colors.secondary[3],
-													}
-												: undefined
-										}
-									>
-										<View
-											className="mr-3 h-9 w-9 items-center justify-center rounded-full"
-											style={{
-												backgroundColor: getActivityBg(
-													activity.status,
-												),
-											}}
-										>
-											<Ionicons
-												name={activity.icon as never}
-												size={16}
-												color={getActivityColor(
-													activity.status,
-												)}
-											/>
-										</View>
-										<View className="flex-1">
-											<Text
-												className="text-primary-1"
-												style={{
-													fontFamily:
-														fonts.subheading,
-													fontSize: 14,
-													marginBottom: 2,
-												}}
-											>
-												{activity.name}
-											</Text>
-											<View className="flex-row items-center">
-												<Text
-													style={{
-														fontSize: 11,
-														fontFamily: fonts.body,
-														color: getActivityColor(activity.status),
-													}}
-												>
-													{getStatusLabel(activity.status)}
-												</Text>
-												<Text
-													className="text-secondary-1"
-													style={{ fontSize: 11, fontFamily: fonts.body, marginHorizontal: 4 }}
-												>
-													·
-												</Text>
-												<Text
-													className="text-secondary-1"
-													style={{ fontSize: 11, fontFamily: fonts.body }}
-												>
-													{activity.date}
-												</Text>
-											</View>
-										</View>
-										{activity.credits !== 0 && (
-											<View className="items-end">
-												<Text
-													className="text-primary-1"
-													style={{
-														fontFamily: fonts.subheading,
-														fontSize: 13,
-													}}
-												>
-													{activity.credits > 0
-														? "+"
-														: ""}
-													{activity.credits} credit{Math.abs(activity.credits) !== 1 ? "s" : ""}
-												</Text>
-											</View>
-										)}
+							recentActivities.map((activity: any) => (
+								<Pressable
+									key={activity.id}
+									className="mb-3 flex-row items-center rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
+								>
+									<View className="mr-3 size-10 items-center justify-center rounded-lg bg-secondary-3">
+										<Ionicons
+											name={activity.icon as never}
+											size={20}
+											color={colors.secondary[1]}
+										/>
 									</View>
-								))}
-							</View>
+									<View className="flex-1">
+										<Text className="font-medium text-base text-primary-1">
+											{activity.name}
+										</Text>
+										<Text className="mt-1 text-secondary-1 text-sm">
+											{activity.date}
+										</Text>
+									</View>
+									{activity.credits !== 0 && (
+										<Text className="text-secondary-1 text-sm">
+											{activity.credits > 0 ? "+" : ""}
+											{activity.credits} credit
+										</Text>
+									)}
+								</Pressable>
+							))
 						) : (
-							<View className="items-center rounded-2xl border border-secondary-3 bg-primary-2 px-5 py-6">
-								<View
-									className="mb-3 h-10 w-10 items-center justify-center rounded-full"
-									style={{
-										backgroundColor: colors.primary[3],
-									}}
-								>
-									<Ionicons
-										name="time-outline"
-										size={20}
-										color={colors.secondary[1]}
-									/>
-								</View>
-								<Text
-									className="mb-1 text-primary-1"
-									style={{
-										fontFamily: fonts.subheading,
-										fontSize: 14,
-									}}
-								>
-									No activity yet
-								</Text>
-								<Text
-									className="text-secondary-1"
-									style={{ fontSize: 12, fontFamily: fonts.body }}
-								>
-									Your sessions will appear here
+							<View className="items-center rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
+								<Text className="text-secondary-1 text-sm">
+									No recent activity yet
 								</Text>
 							</View>
 						)}

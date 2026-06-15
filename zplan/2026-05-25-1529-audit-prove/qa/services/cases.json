@@ -1,0 +1,698 @@
+[
+  {
+    "id": "S-C01",
+    "title": "Golden: Create a new appointment-based service",
+    "type": "golden",
+    "steps": [
+      "Navigate to /dashboard/service/view?tab=services",
+      "Click 'New Service' button",
+      "Fill Name: 'PT Session 60'",
+      "Select Category: any UUID category from dropdown",
+      "Set Session Duration: 60",
+      "Set Max Attendees: 1",
+      "Leave Scheduling Type as 'Appointment-based'",
+      "Set Price: 200",
+      "Set Sessions: 10",
+      "Click 'Add Service'"
+    ],
+    "expected": "Dialog closes; toast 'Service created successfully'; new row appears in table with name 'PT Session 60', price 'RM 200.00', sessions 10",
+    "selectorHints": [
+      "getByRole('button', { name: 'New Service' })",
+      "getByLabelText('Service Name')",
+      "getByRole('button', { name: 'Add Service' })"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:444"
+  },
+  {
+    "id": "S-C02",
+    "title": "Golden: Edit an existing service",
+    "type": "golden",
+    "steps": [
+      "Hover over an existing service row",
+      "Click 'Edit' button",
+      "Change the Name field to a new value",
+      "Click 'Save Changes'"
+    ],
+    "expected": "Dialog closes; toast 'Service updated successfully'; row in table shows updated name",
+    "selectorHints": [
+      "getByRole('button', { name: 'Edit' })",
+      "getByLabelText('Service Name')",
+      "getByRole('button', { name: 'Save Changes' })"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:711"
+  },
+  {
+    "id": "S-C03",
+    "title": "Golden: View service detail dialog",
+    "type": "golden",
+    "steps": [
+      "Click anywhere on a service row (not checkbox/toggle/action buttons)",
+      "Wait for loading spinner to disappear"
+    ],
+    "expected": "ServiceDetailDialogA opens with two columns: Overview (status pill, type, recommended), Scheduling (type, duration, max attendees), Pricing (price, taxable, sessions, expiry), Timestamps",
+    "selectorHints": [
+      "getByRole('dialog')",
+      "getByText('Overview')",
+      "getByText('Pricing & Sessions')"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-detail-dialog-a.tsx:138"
+  },
+  {
+    "id": "S-C04",
+    "title": "Golden: Deactivate service from detail dialog",
+    "type": "golden",
+    "steps": [
+      "Open detail dialog for an active service",
+      "Click 'Deactivate' (red button in header)",
+      "Confirmation dialog appears with service name",
+      "Click 'Deactivate' in confirmation"
+    ],
+    "expected": "Confirmation dialog closes; detail dialog closes; toast 'Service deactivated'; row in table shows as inactive (opacity-60 styling)",
+    "selectorHints": [
+      "getByRole('button', { name: 'Deactivate' })",
+      "getByRole('dialog')",
+      "getByText(/Deactivate .* \\?/)"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-detail-dialog-a.tsx:165"
+  },
+  {
+    "id": "S-C05",
+    "title": "Golden: Toggle active inline (deactivate)",
+    "type": "golden",
+    "steps": [
+      "Locate an active service row",
+      "Click the toggle switch in the Active column"
+    ],
+    "expected": "Toggle visually moves to off; toast 'Service deactivated'; row becomes semi-transparent (opacity-60)",
+    "selectorHints": [
+      "getByRole('checkbox', { name: /active toggle/i })"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:93"
+  },
+  {
+    "id": "S-C06",
+    "title": "Golden: Duplicate a service",
+    "type": "golden",
+    "steps": [
+      "Hover an existing active service row",
+      "Click 'Dupe'"
+    ],
+    "expected": "Toast 'Service duplicated (inactive draft created)'; new row appears in table with name '{original} (Copy)', inactive state",
+    "selectorHints": [
+      "getByRole('button', { name: 'Dupe' })"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:314"
+  },
+  {
+    "id": "S-C07",
+    "title": "Golden: Search filters service list",
+    "type": "golden",
+    "steps": [
+      "Type a partial service name in the search input",
+      "Observe table content"
+    ],
+    "expected": "Table shows only rows where name or service_category_name contains the search string (case-insensitive); page resets to 1",
+    "selectorHints": [
+      "getByPlaceholderText('Search services…')"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:333"
+  },
+  {
+    "id": "S-C08",
+    "title": "Golden: Category pill filter",
+    "type": "golden",
+    "steps": [
+      "Click a category pill (not 'All')",
+      "Observe table"
+    ],
+    "expected": "Table shows only services in that category; page resets to 1; 'All' pill becomes inactive, selected pill becomes active (bg-[#0a0a0a])",
+    "selectorHints": [
+      "getByRole('button', { name: /^All$/ })"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:341"
+  },
+  {
+    "id": "S-C09",
+    "title": "Golden: Bulk enable selected services",
+    "type": "golden",
+    "steps": [
+      "Check 2+ service row checkboxes",
+      "Bulk bar appears with 'Enable selected'",
+      "Click 'Enable selected'"
+    ],
+    "expected": "All selected services toggled to active; toast 'Selected services enabled'; selection cleared; list refetched",
+    "selectorHints": [
+      "getByRole('button', { name: 'Enable selected' })"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:406"
+  },
+  {
+    "id": "S-C10",
+    "title": "Golden: Sort by name ascending then descending",
+    "type": "golden",
+    "steps": [
+      "Click 'Service' column header once",
+      "Observe table order",
+      "Click 'Service' column header again"
+    ],
+    "expected": "First click: rows sorted A→Z; second click: rows sorted Z→A; sort arrow indicator changes from ↓ to ↑",
+    "selectorHints": [
+      "getByRole('columnheader', { name: /Service/ })"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:344"
+  },
+  {
+    "id": "S-C11",
+    "title": "Empty state: no services exist",
+    "type": "edge",
+    "steps": [
+      "Navigate to the services tab with an org that has zero services"
+    ],
+    "expected": "Table renders with message 'No services yet. Create your first one.' in a full-width cell",
+    "selectorHints": [
+      "getByText('No services yet. Create your first one.')"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:595"
+  },
+  {
+    "id": "S-C12",
+    "title": "Empty state: filter matches no services",
+    "type": "edge",
+    "steps": [
+      "Type a search term that matches no service name or category",
+      "Observe table"
+    ],
+    "expected": "Table renders with message 'No services match this filter.'",
+    "selectorHints": [
+      "getByText('No services match this filter.')"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:597"
+  },
+  {
+    "id": "S-C13",
+    "title": "Empty state: no organization selected",
+    "type": "edge",
+    "steps": [
+      "Visit the tab when useUserContext returns no currentOrganizationId"
+    ],
+    "expected": "Page shows 'Select an organization to view services.' centered message; no table rendered",
+    "selectorHints": [
+      "getByText('Select an organization to view services.')"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:423"
+  },
+  {
+    "id": "S-C14",
+    "title": "Edge: Form submit with empty name",
+    "type": "edge",
+    "steps": [
+      "Open 'New Service' dialog",
+      "Leave Name blank",
+      "Click 'Add Service'"
+    ],
+    "expected": "Form does not submit; error message 'Service name is required' appears under Name field",
+    "selectorHints": [
+      "getByText('Service name is required')"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-form-a.tsx:33"
+  },
+  {
+    "id": "S-C15",
+    "title": "Edge: Form submit with name over 200 characters",
+    "type": "edge",
+    "steps": [
+      "Open 'New Service' dialog",
+      "Enter a name with 201 characters",
+      "Fill all other required fields",
+      "Click 'Add Service'"
+    ],
+    "expected": "Client-side validation fails with 'Name must be 200 characters or fewer'; form does not submit",
+    "selectorHints": [
+      "getByText('Name must be 200 characters or fewer')"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-form-a.tsx:35"
+  },
+  {
+    "id": "S-C16",
+    "title": "Edge: Form submit with categoryId not selected (empty string)",
+    "type": "edge",
+    "steps": [
+      "Open 'New Service' dialog",
+      "Leave Category at 'Select a category' default",
+      "Fill all other required fields",
+      "Click 'Add Service'"
+    ],
+    "expected": "Client-side Zod error 'Category is required' (uuid validation fails on empty string) under Category field",
+    "selectorHints": [
+      "getByText('Category is required')"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-form-a.tsx:49"
+  },
+  {
+    "id": "S-C17",
+    "title": "Edge: Form submit with Duration = 0",
+    "type": "edge",
+    "steps": [
+      "Open 'New Service' dialog",
+      "Set Session Duration (min) to 0",
+      "Fill all other required fields",
+      "Click 'Add Service'"
+    ],
+    "expected": "Client-side validation fails with 'Duration must be at least 1 minute'",
+    "selectorHints": [
+      "getByLabelText(/Session Duration/)",
+      "getByText('Duration must be at least 1 minute')"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-form-a.tsx:39"
+  },
+  {
+    "id": "S-C18",
+    "title": "Edge: Form submit with Max Attendees = 0",
+    "type": "edge",
+    "steps": [
+      "Open 'New Service' dialog",
+      "Set Max Attendees to 0",
+      "Fill all other required fields",
+      "Click 'Add Service'"
+    ],
+    "expected": "Client-side validation fails with 'Must have at least 1 attendee'",
+    "selectorHints": [
+      "getByLabelText(/Max Attendees/)",
+      "getByText('Must have at least 1 attendee')"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-form-a.tsx:41"
+  },
+  {
+    "id": "S-C19",
+    "title": "Edge: Taxable checked — Tax % field appears",
+    "type": "edge",
+    "steps": [
+      "Open 'New Service' dialog",
+      "Check 'Taxable' checkbox",
+      "Verify Tax % input appears",
+      "Enter Tax % = 150 (over max)"
+    ],
+    "expected": "Tax % field is visible; entering 150 should trigger Zod error (max=100) on submit",
+    "selectorHints": [
+      "getByLabelText(/Taxable/)",
+      "getByLabelText(/Tax %/)"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-form-a.tsx:48"
+  },
+  {
+    "id": "S-C20",
+    "title": "Edge: Expirable checked — duration/unit fields appear",
+    "type": "edge",
+    "steps": [
+      "Open 'New Service' dialog",
+      "Check 'Expirable' checkbox",
+      "Verify duration number + unit select appear",
+      "Set duration = 1, unit = month"
+    ],
+    "expected": "Fields appear; on submit expiryDays is derived as 1 × 30 = 30",
+    "selectorHints": [
+      "getByLabelText(/Expirable/)"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-form-a.tsx:792"
+  },
+  {
+    "id": "S-C21",
+    "title": "Edge: Time-preset scheduling requires at least one day",
+    "type": "edge",
+    "steps": [
+      "Open 'New Service' dialog",
+      "Select 'Time-preset (Fixed Schedule)' radio",
+      "Do NOT toggle any recurring day",
+      "Fill all other required fields",
+      "Click 'Add Service'"
+    ],
+    "expected": "Client-side error 'Pick at least one day' from timePresetConfigSchema; form does not submit",
+    "selectorHints": [
+      "getByRole('radio', { name: /Time-preset/ })",
+      "getByText('Pick at least one day')"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-form-a.tsx:27"
+  },
+  {
+    "id": "S-C22",
+    "title": "Edge: Installment plan selected — interval and grace period appear",
+    "type": "edge",
+    "steps": [
+      "Open 'New Service' dialog",
+      "Check a payment plan whose numInstallments > 1",
+      "Verify installment interval days and grace period fields appear",
+      "Set grace period to 90 (max)",
+      "Submit"
+    ],
+    "expected": "Fields visible; grace period 90 accepted; on submit installmentIntervalDays and gracePeriodDays sent to API",
+    "selectorHints": [
+      "getByLabelText(/Installment interval/)",
+      "getByLabelText(/Grace period/)"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-form-a.tsx:901"
+  },
+  {
+    "id": "S-C23",
+    "title": "Edge: Grace period > 90 rejected by server",
+    "type": "edge",
+    "steps": [
+      "Submit a create/update service with gracePeriodDays = 91 (bypass client max=90 via devtools)",
+      "Observe response"
+    ],
+    "expected": "Server returns BAD_REQUEST; toast shows server error message",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "packages/api/src/routers/services/crud.procedures.ts:122"
+  },
+  {
+    "id": "S-C24",
+    "title": "Edge: Detail dialog for non-existent service ID",
+    "type": "edge",
+    "steps": [
+      "Trigger detail dialog with a serviceId that does not exist in DB (e.g. by direct manipulation)",
+      "Wait for load"
+    ],
+    "expected": "StatusCallout with 'Service not found' error message is displayed in the dialog body",
+    "selectorHints": [
+      "getByRole('dialog')",
+      "getByText('Service not found')"
+    ],
+    "testable": true,
+    "sourceRef": "packages/api/src/routers/services/crud.procedures.ts:81"
+  },
+  {
+    "id": "S-C25",
+    "title": "Edge: Duplicate service that does not exist",
+    "type": "error",
+    "steps": [
+      "Click 'Dupe' for a service whose ID was just deleted by another session"
+    ],
+    "expected": "Toast error with 'Service not found'",
+    "selectorHints": [
+      "getByRole('button', { name: 'Dupe' })"
+    ],
+    "testable": true,
+    "sourceRef": "packages/api/src/routers/services/crud.procedures.ts:328"
+  },
+  {
+    "id": "S-C26",
+    "title": "Error: Create service rejected — server BAD_REQUEST",
+    "type": "error",
+    "steps": [
+      "Submit the create form with a valid payload",
+      "Server returns BAD_REQUEST (e.g. DB constraint)"
+    ],
+    "expected": "Toast error shows server message; dialog stays open (onSuccess not called)",
+    "selectorHints": [
+      "getByRole('dialog')"
+    ],
+    "testable": true,
+    "sourceRef": "packages/api/src/routers/services/crud.procedures.ts:184"
+  },
+  {
+    "id": "S-C27",
+    "title": "Error: Create with invalid installment plan code",
+    "type": "error",
+    "steps": [
+      "Submit create form with availablePaymentPlans containing a code that is inactive/nonexistent",
+      "Observe response"
+    ],
+    "expected": "Server returns BAD_REQUEST with message 'Unknown installment plan: {code}'; toast shows that message",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "packages/api/src/routers/services/installment-plan-validation.ts:18"
+  },
+  {
+    "id": "S-C28",
+    "title": "Error: Active toggle fails",
+    "type": "error",
+    "steps": [
+      "Click active toggle on a service",
+      "Server returns error (e.g. FORBIDDEN)"
+    ],
+    "expected": "Toast error with server message; toggle visually reverts to original state",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:105"
+  },
+  {
+    "id": "S-C29",
+    "title": "Error: User without service_management:create permission clicks 'New Service'",
+    "type": "error",
+    "steps": [
+      "Log in as a user who has service_management:read but NOT service_management:create",
+      "Click 'New Service'",
+      "Fill form and submit"
+    ],
+    "expected": "Form submits but server returns FORBIDDEN; toast error; dialog stays open",
+    "selectorHints": [
+      "getByRole('button', { name: 'New Service' })"
+    ],
+    "testable": true,
+    "sourceRef": "packages/api/src/routers/services/crud.procedures.ts:128"
+  },
+  {
+    "id": "S-C30",
+    "title": "Error: User without service_management:update clicks inline active toggle",
+    "type": "error",
+    "steps": [
+      "Log in as user with service_management:read only",
+      "Click active toggle"
+    ],
+    "expected": "Server returns FORBIDDEN; toast error message displayed",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "packages/api/src/routers/services/crud.procedures.ts:229"
+  },
+  {
+    "id": "S-C31",
+    "title": "RBAC: Route redirects user without service_management:read",
+    "type": "error",
+    "steps": [
+      "Log in as user without service_management:read permission",
+      "Navigate to /dashboard/service/view?tab=services"
+    ],
+    "expected": "User is redirected to /dashboard?unauthorized=true; services page never renders",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "apps/web/src/routes/_authenticated/dashboard/_layout/service/view.tsx:13"
+  },
+  {
+    "id": "S-C32",
+    "title": "Edge: Pagination — next page",
+    "type": "edge",
+    "steps": [
+      "Ensure more than 15 services exist (PAGE_SIZE=15)",
+      "Click 'Next' button"
+    ],
+    "expected": "Page 2 shown; 'Prev' button becomes enabled; table shows services 16-30",
+    "selectorHints": [
+      "getByRole('button', { name: 'Next' })",
+      "getByRole('button', { name: 'Prev' })"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:208"
+  },
+  {
+    "id": "S-C33",
+    "title": "Edge: Pagination — Prev disabled on first page",
+    "type": "edge",
+    "steps": [
+      "Land on page 1"
+    ],
+    "expected": "'Prev' button has disabled attribute and cursor-not-allowed styling",
+    "selectorHints": [
+      "getByRole('button', { name: 'Prev' })"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:745"
+  },
+  {
+    "id": "S-C34",
+    "title": "Edge: Deactivate confirmation — Cancel does not deactivate",
+    "type": "edge",
+    "steps": [
+      "Open detail dialog",
+      "Click 'Deactivate'",
+      "Click 'Cancel' in the confirmation dialog"
+    ],
+    "expected": "Confirmation dialog closes; service remains active; detail dialog remains open; no API call made",
+    "selectorHints": [
+      "getByRole('button', { name: 'Cancel' })"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-detail-dialog-a.tsx:404"
+  },
+  {
+    "id": "S-C35",
+    "title": "Edge: Tab navigation — unknown tab param coerces to services",
+    "type": "edge",
+    "steps": [
+      "Navigate to /dashboard/service/view?tab=unknownvalue"
+    ],
+    "expected": "ServicesPage renders (default tab); 'Services' pill is active",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "apps/web/src/routes/_authenticated/dashboard/_layout/service/view.tsx:16"
+  },
+  {
+    "id": "S-C36",
+    "title": "Edge: Header select-all then deselect on page change",
+    "type": "edge",
+    "steps": [
+      "Select all items on page 1 using the header checkbox",
+      "Navigate to page 2",
+      "Observe selection state"
+    ],
+    "expected": "Header checkbox on page 2 is unchecked; items selected on page 1 remain in the selected Set but are not on current page; bulk bar still shows page-1 selection count",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:377"
+  },
+  {
+    "id": "S-C37",
+    "title": "Gap: Bulk action partial failure not surfaced to user",
+    "type": "error",
+    "steps": [
+      "Select multiple services for bulk enable/disable",
+      "Arrange for 1 of N API calls to return FORBIDDEN",
+      "Click 'Enable selected'"
+    ],
+    "expected": "Toast 'Selected services enabled' is shown REGARDLESS of partial failure; the failed service remains unchanged — user has no indication of partial failure",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:407"
+  },
+  {
+    "id": "S-C38",
+    "title": "Gap: services.list query error shows as empty list",
+    "type": "error",
+    "steps": [
+      "Navigate to the services tab",
+      "Simulate a network error on the services.list API call (e.g. via devtools throttle)"
+    ],
+    "expected": "ACTUAL: TanStack Query puts the query in error state; the table shows 'No services yet. Create your first one.' (empty fallback rawServices=[]). DESIRED: an error state/message should be shown instead",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:220"
+  },
+  {
+    "id": "S-C39",
+    "title": "Gap: Edit form opens with blank defaults if getById fails",
+    "type": "error",
+    "steps": [
+      "Click 'Edit' on a service",
+      "Have the getById API call fail (e.g. FORBIDDEN or NOT_FOUND)"
+    ],
+    "expected": "ACTUAL: editInitialData is undefined; ServiceFormDialogA opens with blank defaults; no error is shown to user. DESIRED: error toast or closed dialog",
+    "selectorHints": [
+      "getByRole('button', { name: 'Edit' })"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:242"
+  },
+  {
+    "id": "S-C40",
+    "title": "Gap: Detail dialog stale after edit",
+    "type": "edge",
+    "steps": [
+      "Open detail dialog for service X",
+      "Close detail dialog",
+      "Click Edit on service X, change name, save",
+      "Immediately reopen detail dialog for service X"
+    ],
+    "expected": "Detail dialog re-fetches via imperative useEffect; new name is shown. BUT if edit dialog is closed and detail dialog was still open when edit saved, the detail dialog continues showing stale data until closed and reopened",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-detail-dialog-a.tsx:138"
+  },
+  {
+    "id": "S-C41",
+    "title": "Gap: Hub doc references TrainersTab but ServiceDetailDialogA has none",
+    "type": "edge",
+    "steps": [
+      "Open any service detail dialog",
+      "Look for a 'Trainers' tab"
+    ],
+    "expected": "No trainers tab exists in ServiceDetailDialogA; hub doc is stale on this point. serviceMembers.listForService and assign/remove are not called from this dialog",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/forms/service-detail-dialog-a.tsx:98"
+  },
+  {
+    "id": "S-C42",
+    "title": "Edge: Dupe button disabled while mutation pending",
+    "type": "edge",
+    "steps": [
+      "Click 'Dupe' on a service",
+      "While mutation is in-flight, observe button state"
+    ],
+    "expected": "Dupe button has disabled attribute and opacity-40 styling; clicking again has no effect",
+    "selectorHints": [
+      "getByRole('button', { name: 'Dupe' })"
+    ],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:719"
+  },
+  {
+    "id": "S-C43",
+    "title": "Edge: deleteBranchPrice requires service_management:delete not update",
+    "type": "error",
+    "steps": [
+      "Log in as user with service_management:update but NOT service_management:delete",
+      "Navigate to Pricing tab",
+      "Try to delete a price override"
+    ],
+    "expected": "Server returns FORBIDDEN; toast error; override not deleted",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "packages/api/src/routers/services/pricing.procedures.ts:167"
+  },
+  {
+    "id": "S-C44",
+    "title": "Edge: Service with no category — category filter does not include it",
+    "type": "edge",
+    "steps": [
+      "Have a service with no category (categoryId=null)",
+      "Observe category pills in toolbar"
+    ],
+    "expected": "No extra pill for 'no category'; the service appears only under 'All'. Clicking any specific category pill hides it",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:322"
+  },
+  {
+    "id": "S-C45",
+    "title": "Edge: Avg/month column shows dash for service with no sales",
+    "type": "edge",
+    "steps": [
+      "View a newly created service with no sales orders"
+    ],
+    "expected": "Avg/mo cell shows '—' in muted text (text-[#a3a3a3])",
+    "selectorHints": [],
+    "testable": true,
+    "sourceRef": "apps/web/src/components/pages/services/services-page.tsx:686"
+  }
+]

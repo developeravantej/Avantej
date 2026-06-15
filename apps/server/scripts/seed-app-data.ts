@@ -71,7 +71,8 @@ async function main() {
 
 	console.log("Starting extended app data seed...\n");
 
-	const { db: controlDb, pool: controlPool } = createControlPanelDb(databaseUrl);
+	const { db: controlDb, pool: controlPool } =
+		createControlPanelDb(databaseUrl);
 	let tenantPool: Pool | null = null;
 
 	try {
@@ -106,10 +107,30 @@ async function main() {
 		console.log("Seeding service categories...");
 
 		const categoryDefs = [
-			{ name: "Group Classes", description: "High-energy group workout sessions", displayOrder: 2 },
-			{ name: "Yoga & Mindfulness", description: "Flexibility, balance, and mental wellness", displayOrder: 3 },
-			{ name: "Recovery & Wellness", description: "Recovery, stretching, and rehabilitation", displayOrder: 4 },
-			{ name: "Cardio & Endurance", description: "Cardiovascular fitness and stamina building", displayOrder: 5 },
+			{
+				name: "Group Classes",
+				description: "High-energy group workout sessions",
+				displayOrder: 2,
+				schedulingType: "class_slot" as const,
+			},
+			{
+				name: "Yoga & Mindfulness",
+				description: "Flexibility, balance, and mental wellness",
+				displayOrder: 3,
+				schedulingType: "class_slot" as const,
+			},
+			{
+				name: "Recovery & Wellness",
+				description: "Recovery, stretching, and rehabilitation",
+				displayOrder: 4,
+				schedulingType: "appointment" as const,
+			},
+			{
+				name: "Cardio & Endurance",
+				description: "Cardiovascular fitness and stamina building",
+				displayOrder: 5,
+				schedulingType: "class_slot" as const,
+			},
 		];
 
 		const createdCategories: Record<string, string> = {};
@@ -149,7 +170,8 @@ async function main() {
 				type: "semi_private" as const,
 				price: 2500,
 				maxAttendees: 15,
-				description: "High-intensity interval training for maximum calorie burn",
+				description:
+					"High-intensity interval training for maximum calorie burn",
 				schedulingType: "class_slot" as const,
 			},
 			{
@@ -159,7 +181,8 @@ async function main() {
 				type: "semi_private" as const,
 				price: 2000,
 				maxAttendees: 20,
-				description: "Indoor cycling with energizing music and interval sprints",
+				description:
+					"Indoor cycling with energizing music and interval sprints",
 				schedulingType: "class_slot" as const,
 			},
 			{
@@ -211,7 +234,8 @@ async function main() {
 				type: "semi_private" as const,
 				price: 1500,
 				maxAttendees: 8,
-				description: "Guided stretching session for flexibility and injury prevention",
+				description:
+					"Guided stretching session for flexibility and injury prevention",
 				schedulingType: "class_slot" as const,
 			},
 			// Cardio
@@ -222,7 +246,8 @@ async function main() {
 				type: "semi_private" as const,
 				price: 1800,
 				maxAttendees: 10,
-				description: "Structured treadmill workout with varying speeds and inclines",
+				description:
+					"Structured treadmill workout with varying speeds and inclines",
 				schedulingType: "class_slot" as const,
 			},
 			// Additional Personal Training
@@ -233,7 +258,8 @@ async function main() {
 				type: "private" as const,
 				price: 10000,
 				maxAttendees: 1,
-				description: "Focused strength training with progressive overload programming",
+				description:
+					"Focused strength training with progressive overload programming",
 				schedulingType: "appointment" as const,
 			},
 		];
@@ -242,7 +268,9 @@ async function main() {
 		for (const svc of serviceDefs) {
 			const categoryId = createdCategories[svc.categoryName];
 			if (!categoryId) {
-				console.log(`  [skip] ${svc.name} - category "${svc.categoryName}" not found`);
+				console.log(
+					`  [skip] ${svc.name} - category "${svc.categoryName}" not found`,
+				);
 				continue;
 			}
 
@@ -271,7 +299,6 @@ async function main() {
 						taxable: false,
 						taxPercentage: 0,
 						isRecommended: false,
-						schedulingType: svc.schedulingType,
 						description: svc.description,
 					})
 					.returning();
@@ -326,7 +353,13 @@ async function main() {
 			},
 		];
 
-		const createdPackages: Array<{ id: string; name: string; sessionCount: number; price: number; expiryDays: number }> = [];
+		const createdPackages: Array<{
+			id: string;
+			name: string;
+			sessionCount: number;
+			price: number;
+			expiryDays: number;
+		}> = [];
 		for (const pkg of packageDefs) {
 			const existing = await tenantDb.query.services.findFirst({
 				where: (s, { eq: eqFn, and: andFn }) =>
@@ -357,7 +390,6 @@ async function main() {
 						isActive: true,
 						duration: 60,
 						durationUnitType: "minutes",
-						schedulingType: "appointment",
 						priceUnit: "session",
 						taxable: false,
 						taxPercentage: 0,
@@ -385,7 +417,9 @@ async function main() {
 			});
 
 			if (existingInstances.length >= 2) {
-				console.log(`  [skip] User ${userId.substring(0, 8)}... already has ${existingInstances.length} instances`);
+				console.log(
+					`  [skip] User ${userId.substring(0, 8)}... already has ${existingInstances.length} instances`,
+				);
 				continue;
 			}
 
@@ -394,8 +428,12 @@ async function main() {
 			// Active package
 			const activePkg = createdPackages[0];
 			if (activePkg) {
-				const expiresAt = new Date(now.getTime() + activePkg.expiryDays * 24 * 60 * 60 * 1000);
-				const creditsUsed = Math.floor(Math.random() * Math.floor(activePkg.sessionCount / 2));
+				const expiresAt = new Date(
+					now.getTime() + activePkg.expiryDays * 24 * 60 * 60 * 1000,
+				);
+				const creditsUsed = Math.floor(
+					Math.random() * Math.floor(activePkg.sessionCount / 2),
+				);
 
 				try {
 					await tenantDb.insert(packageInstances).values({
@@ -412,16 +450,22 @@ async function main() {
 						expiresAt,
 						status: "active",
 					});
-					console.log(`  [created] Active "${activePkg.name}" for user ${userId.substring(0, 8)}...`);
+					console.log(
+						`  [created] Active "${activePkg.name}" for user ${userId.substring(0, 8)}...`,
+					);
 				} catch {
-					console.log(`  [skip] Duplicate for user ${userId.substring(0, 8)}...`);
+					console.log(
+						`  [skip] Duplicate for user ${userId.substring(0, 8)}...`,
+					);
 				}
 			}
 
 			// Second package (different one)
 			const secondPkg = createdPackages[2] ?? createdPackages[1];
 			if (secondPkg && secondPkg.id !== activePkg?.id) {
-				const expiresAt = new Date(now.getTime() + secondPkg.expiryDays * 24 * 60 * 60 * 1000);
+				const expiresAt = new Date(
+					now.getTime() + secondPkg.expiryDays * 24 * 60 * 60 * 1000,
+				);
 
 				try {
 					await tenantDb.insert(packageInstances).values({
@@ -438,9 +482,13 @@ async function main() {
 						expiresAt,
 						status: "active",
 					});
-					console.log(`  [created] Active "${secondPkg.name}" for user ${userId.substring(0, 8)}...`);
+					console.log(
+						`  [created] Active "${secondPkg.name}" for user ${userId.substring(0, 8)}...`,
+					);
 				} catch {
-					console.log(`  [skip] Duplicate for user ${userId.substring(0, 8)}...`);
+					console.log(
+						`  [skip] Duplicate for user ${userId.substring(0, 8)}...`,
+					);
 				}
 			}
 		}
@@ -450,10 +498,29 @@ async function main() {
 
 		const now = new Date();
 		const notifDefs = [
-			{ type: "booking", title: "Booking Confirmed", message: "Your HIIT Bootcamp session on Monday at 10:00 AM has been confirmed" },
-			{ type: "reminder", title: "Upcoming Session", message: "You have a Vinyasa Flow class tomorrow at 9:00 AM" },
-			{ type: "promotion", title: "New Package Available", message: "Check out our new Unlimited Monthly package - only $90/month!" },
-			{ type: "system", title: "Welcome!", message: "Welcome to Avantej Fitness! Start exploring our services and book your first session." },
+			{
+				type: "booking",
+				title: "Booking Confirmed",
+				message:
+					"Your HIIT Bootcamp session on Monday at 10:00 AM has been confirmed",
+			},
+			{
+				type: "reminder",
+				title: "Upcoming Session",
+				message: "You have a Vinyasa Flow class tomorrow at 9:00 AM",
+			},
+			{
+				type: "promotion",
+				title: "New Package Available",
+				message:
+					"Check out our new Unlimited Monthly package - only $90/month!",
+			},
+			{
+				type: "system",
+				title: "Welcome!",
+				message:
+					"Welcome to Avantej Fitness! Start exploring our services and book your first session.",
+			},
 		];
 
 		for (const userId of userIds) {
@@ -462,7 +529,9 @@ async function main() {
 			});
 
 			if (existingNotifs.length > 0) {
-				console.log(`  [skip] User ${userId.substring(0, 8)}... already has ${existingNotifs.length} notifications`);
+				console.log(
+					`  [skip] User ${userId.substring(0, 8)}... already has ${existingNotifs.length} notifications`,
+				);
 				continue;
 			}
 
@@ -483,7 +552,9 @@ async function main() {
 					// Skip if table doesn't exist or constraint fails
 				}
 			}
-			console.log(`  [created] 4 notifications for user ${userId.substring(0, 8)}...`);
+			console.log(
+				`  [created] 4 notifications for user ${userId.substring(0, 8)}...`,
+			);
 		}
 
 		console.log("\n" + "=".repeat(60));

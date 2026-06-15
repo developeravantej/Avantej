@@ -1,14 +1,15 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import { hasPermission } from "@avantej-core/services/permission.service";
 import {
 	getCategoryCommissionConfig,
 	upsertCategoryCommissionConfig,
 	deleteCategoryCommissionConfig,
 } from "@avantej-core/services/category-commission.service";
-import { requirePermission } from "@avantej-core/services";
 
-const getByCategory = protectedProcedure
+const getByCategory = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -16,35 +17,18 @@ const getByCategory = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
-
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"category_commission_management",
-				"read",
-			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"category_commission_management",
+			"read",
+		);
 
 		return getCategoryCommissionConfig(context.tenantDb, input.categoryId);
 	});
 
-const upsert = protectedProcedure
+const upsert = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -87,28 +71,36 @@ const upsert = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
-
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-
-		try {
-			await requirePermission(
+		assertOrgContextMatch(context, input);
+		// Upsert authorizes EITHER `create` OR `update` — a user granted only one of the
+		// two actions should still be able to use the upsert endpoint (the operation may
+		// resolve to either an insert or an update at runtime). Check `create` first
+		// (the common case for first-time category setup) and fall back to `update`.
+		const canCreate = await hasPermission(
+			context.tenantDb,
+			context.member,
+			"category_commission_management",
+			"create",
+		);
+		if (!canCreate) {
+			// Reuse requirePermissionOrpc so the FORBIDDEN message + mapping path stays
+			// consistent with the rest of the codebase. If the user lacks `update` too,
+			// this throws the canonical ORPCError("FORBIDDEN").
+			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
 				"category_commission_management",
-				"create",
+				"update",
 			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
+		}
+
+		const totalBps = input.slots.reduce(
+			(sum, s) => sum + s.weightageBasisPoints,
+			0,
+		);
+		if (totalBps !== 10000) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Commission slot weightages must sum to 10000 basis points (100%). Got: ${totalBps}.`,
 			});
 		}
 
@@ -129,12 +121,15 @@ const upsert = protectedProcedure
 		} catch (error) {
 			if (error instanceof ORPCError) throw error;
 			throw new ORPCError("BAD_REQUEST", {
-				message: error instanceof Error ? error.message : "Failed to upsert commission config",
+				message:
+					error instanceof Error
+						? error.message
+						: "Failed to upsert commission config",
 			});
 		}
 	});
 
-const deleteConfig = protectedProcedure
+const deleteConfig = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -142,37 +137,31 @@ const deleteConfig = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
-
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"category_commission_management",
+			"delete",
+		);
 
 		try {
-			await requirePermission(
+			return await deleteCategoryCommissionConfig(
 				context.tenantDb,
-				context.member,
-				"category_commission_management",
-				"delete",
+				input.categoryId,
+				{
+					userId: context.member.userId,
+					id: context.member.id,
+					role: context.member.role,
+				},
 			);
-		} catch (error) {
-			throw new ORPCError("FORBIDDEN", {
-				message: error instanceof Error ? error.message : "Permission denied",
-			});
-		}
-
-		try {
-			return await deleteCategoryCommissionConfig(context.tenantDb, input.categoryId);
 		} catch (error) {
 			if (error instanceof ORPCError) throw error;
 			throw new ORPCError("BAD_REQUEST", {
-				message: error instanceof Error ? error.message : "Failed to delete commission config",
+				message:
+					error instanceof Error
+						? error.message
+						: "Failed to delete commission config",
 			});
 		}
 	});

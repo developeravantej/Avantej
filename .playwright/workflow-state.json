@@ -1,0 +1,48 @@
+{
+	"currentPhase": "REPORT",
+	"phases": {
+		"PLAN": {
+			"status": "complete",
+			"completedAt": "2026-05-12T09:55:00Z",
+			"artifactPath": ".playwright/test-plan.json",
+			"journeyCount": 20
+		},
+		"AUDIT": {
+			"status": "complete",
+			"completedAt": "2026-05-12T10:05:00Z",
+			"artifactPath": ".playwright/audit-report.md",
+			"coverageScore": 0.05,
+			"missingSelectorCount": 65
+		},
+		"EXECUTE": {
+			"status": "complete",
+			"completedAt": "2026-05-13T03:30:00Z",
+			"day1": { "status": "complete", "testidsAdded": 65, "filesTouched": 17 },
+			"day2": { "status": "complete", "specsWritten": 8, "testsListed": 10 },
+			"day3": {
+				"status": "complete",
+				"specsWritten": 9,
+				"helpersWritten": 2,
+				"newPasses": 7,
+				"backendBugsSurfaced": 1
+			},
+			"day4": { "status": "deferred", "note": "flake hunt — defer until tests show flake" }
+		},
+		"REPORT": {
+			"status": "complete",
+			"completedAt": "2026-05-12T11:30:00Z",
+			"artifactPath": ".playwright/reports/latest-run.md",
+			"liveRun": {
+				"executed": 10,
+				"passed": 6,
+				"skipped": 4,
+				"failed": 0,
+				"durationSec": 56.2,
+				"realBugsFixedDuringRun": 4,
+				"perm_seed_script": "apps/server/scripts/grant-sales-pipeline-permissions.ts"
+			}
+		}
+	},
+	"sourceSession": "zplan/05-12_17-10_sales-pipeline-fixes",
+	"focus": "Phase 0-7 sales pipeline work — cover the new mutations end-to-end"
+}

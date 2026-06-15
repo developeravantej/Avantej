@@ -47,8 +47,14 @@ export function FilterToolbar({
 		<div className="flex shrink-0 flex-wrap items-end gap-3 border-b border-border/40 px-6 py-3">
 			{/* From date */}
 			<div className="flex flex-col gap-1">
-				<label className="text-xs font-medium text-muted-foreground">From</label>
+				<label
+					htmlFor="sales-filter-from"
+					className="text-xs font-medium text-muted-foreground"
+				>
+					From
+				</label>
 				<Input
+					id="sales-filter-from"
 					type="date"
 					value={from}
 					onChange={(e) => onFromChange(e.target.value)}
@@ -58,8 +64,14 @@ export function FilterToolbar({
 
 			{/* To date */}
 			<div className="flex flex-col gap-1">
-				<label className="text-xs font-medium text-muted-foreground">To</label>
+				<label
+					htmlFor="sales-filter-to"
+					className="text-xs font-medium text-muted-foreground"
+				>
+					To
+				</label>
 				<Input
+					id="sales-filter-to"
 					type="date"
 					value={to}
 					onChange={(e) => onToChange(e.target.value)}
@@ -69,12 +81,17 @@ export function FilterToolbar({
 
 			{/* Status */}
 			<div className="flex flex-col gap-1">
-				<label className="text-xs font-medium text-muted-foreground">Status</label>
+				<label
+					htmlFor="sales-filter-status"
+					className="text-xs font-medium text-muted-foreground"
+				>
+					Status
+				</label>
 				<Select
 					value={status || "all"}
 					onValueChange={(v) => onStatusChange(v === "all" ? "" : v)}
 				>
-					<SelectTrigger className="h-8 w-36 text-sm">
+					<SelectTrigger id="sales-filter-status" className="h-8 w-36 text-sm">
 						<SelectValue placeholder="All statuses" />
 					</SelectTrigger>
 					<SelectContent>
@@ -90,12 +107,20 @@ export function FilterToolbar({
 			{/* Branch */}
 			{nodeOptions.length > 0 && (
 				<div className="flex flex-col gap-1">
-					<label className="text-xs font-medium text-muted-foreground">Branch</label>
+					<label
+						htmlFor="sales-filter-branch"
+						className="text-xs font-medium text-muted-foreground"
+					>
+						Branch
+					</label>
 					<Select
 						value={branchId || "all"}
 						onValueChange={(v) => onBranchChange(v === "all" ? "" : v)}
 					>
-						<SelectTrigger className="h-8 w-40 text-sm">
+						<SelectTrigger
+							id="sales-filter-branch"
+							className="h-8 w-40 text-sm"
+						>
 							<SelectValue placeholder="All branches" />
 						</SelectTrigger>
 						<SelectContent>

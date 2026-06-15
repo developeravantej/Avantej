@@ -1,0 +1,9 @@
+name: Playwright setup
+description: Install Chromium and system deps for Playwright E2E
+
+runs:
+  using: composite
+  steps:
+    - name: Install Playwright Chromium
+      run: bunx playwright install chromium --with-deps
+      shell: bash

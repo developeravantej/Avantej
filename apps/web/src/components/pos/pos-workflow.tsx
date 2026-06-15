@@ -1,17 +1,8 @@
-"use client";
-
 import { useQuery } from "@tanstack/react-query";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Check, ShoppingCart, UserX } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CartSummary } from "@/components/pos/cart-summary";
-import { CustomerStep } from "@/components/pos/customer-step";
-import { ItemsStep } from "@/components/pos/items-step";
-import { PaymentStep } from "@/components/pos/payment-step";
-import { PromoStep } from "@/components/pos/promo-step";
-import { TrainerPickerStep } from "@/components/pos/trainer-picker-step";
 import type {
 	AppliedPromo,
 	CartItem,
@@ -21,81 +12,22 @@ import type {
 	SelectedCustomer,
 	TaxRateOption,
 } from "@/components/pos/types";
-import {
-	Accordion,
-	AccordionContent,
-	AccordionItem,
-	AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { useUserContext } from "@/hooks/useUserContext";
 import { client } from "@/utils/orpc";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { calcTotals } from "./workflow/helpers";
+import { PosHeader } from "./workflow/PosHeader";
+import { CustomerStepCard } from "./workflow/CustomerStepCard";
+import { ItemsStepCard } from "./workflow/ItemsStepCard";
+import { PromoStepCard } from "./workflow/PromoStepCard";
+import { PaymentStepCard } from "./workflow/PaymentStepCard";
+import { ConfirmStepCard } from "./workflow/ConfirmStepCard";
+import { LiveOrderPanel } from "./workflow/LiveOrderPanel";
+import { ClearCartDialog } from "./workflow/ClearCartDialog";
+import { getInitials } from "./workflow/helpers";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function StepBadge({
-	n,
-	isComplete,
-	isLocked,
-}: {
-	n: number;
-	isComplete: boolean;
-	isLocked: boolean;
-}) {
-	if (isComplete) {
-		return (
-			<span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-500">
-				<Check className="h-3.5 w-3.5 text-white" />
-			</span>
-		);
-	}
-	if (isLocked) {
-		return (
-			<span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted font-bold text-muted-foreground text-xs">
-				{n}
-			</span>
-		);
-	}
-	return (
-		<span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground text-xs">
-			{n}
-		</span>
-	);
-}
-
-function calcTotals(
-	items: CartItem[],
-	discountCents: number,
-	taxRateBps: number,
-) {
-	const subtotalCents = items.reduce(
-		(acc, item) => acc + item.unitPriceCents * item.quantity,
-		0,
-	);
-	const taxBase = subtotalCents - discountCents;
-	const taxCents = Math.floor((taxBase * taxRateBps) / 10000);
-	const totalCents = taxBase + taxCents;
-	return { subtotalCents, taxCents, totalCents };
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
+// Logical step indices:
+// 0 = Customer, 1 = Items, 2 = Promo, 3 = Payment, 4 = Confirm
+type StepIndex = 0 | 1 | 2 | 3 | 4;
 
 export interface PosWorkflowProps {
 	/** When set, fetches this customer and prefills the customer step. */
@@ -121,10 +53,9 @@ export function PosWorkflow({
 	// RBAC — gate in-component
 	const canCreate = hasPermission("pos:create");
 
-	// ── Accordion state ────────────────────────────────────────────────────────
-	const [accordionValue, setAccordionValue] = useState<string>(
-		hideCustomerStep || prefillCustomerId ? "items" : "customer",
-	);
+	// ── Step state ─────────────────────────────────────────────────────────────
+	const initialStep: StepIndex = hideCustomerStep || prefillCustomerId ? 1 : 0;
+	const [currentStep, setCurrentStep] = useState<StepIndex>(initialStep);
 
 	// ── Customer type toggle ───────────────────────────────────────────────────
 	const [customerTypeMode, setCustomerTypeMode] =
@@ -134,7 +65,7 @@ export function PosWorkflow({
 	const [selectedCustomer, setSelectedCustomer] =
 		useState<SelectedCustomer | null>(null);
 
-	// ── Prefill customer (when prefillCustomerId provided) ────────────────────
+	// ── Prefill customer ──────────────────────────────────────────────────────
 	const prefillQuery = useQuery({
 		queryKey: ["pos-prefill-customer", organizationId, prefillCustomerId],
 		queryFn: () =>
@@ -158,7 +89,7 @@ export function PosWorkflow({
 			email: detail.user.email,
 			branchId: detail.member.hierarchyScopeId,
 		});
-		setAccordionValue("items");
+		setCurrentStep(1);
 	}, [prefillQuery.data, prefillCustomerId, selectedCustomer]);
 
 	// ── Items ──────────────────────────────────────────────────────────────────
@@ -225,20 +156,122 @@ export function PosWorkflow({
 	);
 	const [paymentReference, setPaymentReference] = useState("");
 	const [amountTenderedCents, setAmountTenderedCents] = useState(0);
+	const [tenderedTouched, setTenderedTouched] = useState(false);
 	const [selectedInstallmentPlanId, setSelectedInstallmentPlanId] = useState<
 		string | null
 	>(null);
-
-	// ── Notes ─────────────────────────────────────────────────────────────────
-	const [notes, setNotes] = useState("");
+	const [preferredTrainerId, setPreferredTrainerId] = useState<string | null>(
+		null,
+	);
 
 	// ── Trainer assignments ───────────────────────────────────────────────────
 	const [trainerAssignments, setTrainerAssignments] =
 		useState<ItemTrainerAssignments>({});
 
+	// ── Notes ─────────────────────────────────────────────────────────────────
+	const [notes, setNotes] = useState("");
+
+	// ── Origination attribution (Task #24) ────────────────────────────────────
+	// soldBy: the closer (defaults to logged-in user's id; clearable)
+	// leadSourceUserId: optional referrer (cross-DB user id)
+	const currentUserId = userContext?.user?.id ?? null;
+	const [soldBy, setSoldBy] = useState<string | null>(null);
+	const [leadSourceUserId, setLeadSourceUserId] = useState<string | null>(null);
+
+	// Fetch all active staff/members for the attribution selects
+	const { data: staffMembers = [] } = useQuery({
+		queryKey: ["members-staff-all", organizationId],
+		queryFn: () =>
+			client.members.list({
+				organizationId: organizationId!,
+				status: "active",
+			}),
+		enabled: !!organizationId,
+		staleTime: 5 * 60 * 1000,
+	});
+
+	// Default soldBy to current user id when it loads (only once)
+	useEffect(() => {
+		if (soldBy !== null) return;
+		if (!currentUserId) return;
+		setSoldBy(currentUserId);
+	}, [currentUserId, soldBy]);
+
+	// ── Last receipt (populated after a successful sale in this session) ───────
+	const [lastReceipt, setLastReceipt] = useState<{
+		orgName: string;
+		customerName: string;
+		items: CartItem[];
+		subtotalCents: number;
+		discountCents: number;
+		taxCents: number;
+		totalCents: number;
+		paymentMethod: PaymentMethod | null;
+		timestamp: Date;
+		// Stripe Payment Link for online sales — the customer pays here; webhook
+		// completes the order. Null for cash/card/transfer sales.
+		paymentLinkUrl: string | null;
+	} | null>(null);
+
+	// ── Seed lastReceipt from API on first mount (covers "first sale of session")
+	const latestSaleQuery = useQuery({
+		queryKey: ["pos-latest-sale", organizationId],
+		queryFn: () =>
+			client.salesOrders.getLatest({
+				organizationId: organizationId!,
+			}),
+		enabled: !!organizationId,
+		// Single fetch on mount — no background refetch needed for a seed value
+		staleTime: Number.POSITIVE_INFINITY,
+	});
+
+	useEffect(() => {
+		// Only seed once: skip if we already have an in-session receipt
+		if (lastReceipt) return;
+		const data = latestSaleQuery.data;
+		if (!data) return;
+
+		const { order, items: apiItems, paymentMethod: apiPaymentMethod } = data;
+
+		// Map salesOrderItems rows to CartItem shape
+		const cartItems: CartItem[] = apiItems.map((item) => ({
+			id: item.id,
+			type: item.serviceId ? "service" : "custom",
+			refId: item.serviceId ?? undefined,
+			description: item.description,
+			quantity: item.quantity,
+			unitPriceCents: item.unitPrice,
+		}));
+
+		const subtotalCents = cartItems.reduce(
+			(acc, item) => acc + item.unitPriceCents * item.quantity,
+			0,
+		);
+
+		setLastReceipt({
+			orgName:
+				userContext?.organizations.find((o) => o.id === organizationId)?.name ??
+				"—",
+			customerName: order.customerName,
+			items: cartItems,
+			subtotalCents,
+			// Discount and tax are not stored on the order row — show 0 for historical seed
+			discountCents: 0,
+			taxCents:
+				order.totalAmount - subtotalCents > 0
+					? order.totalAmount - subtotalCents
+					: 0,
+			totalCents: order.totalAmount,
+			paymentMethod: (apiPaymentMethod as PaymentMethod | null) ?? null,
+			timestamp: order.createdAt,
+			// getLatest only returns completed sales — no pending link to surface
+			paymentLinkUrl: null,
+		});
+	}, [latestSaleQuery.data, lastReceipt, organizationId, userContext]);
+
 	// ── Computed totals ────────────────────────────────────────────────────────
 	const discountCents = appliedPromo?.discountCents ?? 0;
-	const { subtotalCents, totalCents } = calcTotals(
+	const { subtotalCents, taxCents, totalCents } = calcTotals(
 		items,
 		discountCents,
 		taxRateBps,
@@ -247,20 +280,6 @@ export function PosWorkflow({
 	const hasServiceItems = items.some(
 		(item) => item.type === "service" && item.refId,
 	);
-
-	const promoStepN = hasServiceItems ? 4 : 3;
-	const taxStepN = hasServiceItems ? 5 : 4;
-	const paymentStepN = hasServiceItems ? 6 : 5;
-
-	// ── Submit readiness ───────────────────────────────────────────────────────
-	const hasCustomer =
-		customerTypeMode === "walk_in" || selectedCustomer !== null;
-	const hasItems = items.length > 0;
-	const hasPaymentMethod = paymentMethod !== null;
-	const cashOk =
-		paymentMethod !== "cash" ||
-		(amountTenderedCents >= totalCents && amountTenderedCents > 0);
-	const isReadyToSubmit = hasCustomer && hasItems && hasPaymentMethod && cashOk;
 
 	// ── Promo re-validation on items change ───────────────────────────────────
 	const prevSubtotalRef = useRef(subtotalCents);
@@ -295,7 +314,7 @@ export function PosWorkflow({
 			return;
 		}
 		setSelectedCustomer(customer);
-		setAccordionValue("items");
+		setCurrentStep(1);
 	}
 
 	function handleCustomerClear() {
@@ -312,6 +331,7 @@ export function PosWorkflow({
 		setItems([]);
 		setAppliedPromo(null);
 		setTrainerAssignments({});
+		setPreferredTrainerId(null);
 		if (pendingCustomerRef.current) {
 			setSelectedCustomer(pendingCustomerRef.current);
 			pendingCustomerRef.current = null;
@@ -348,11 +368,30 @@ export function PosWorkflow({
 			if (!organizationId) return [];
 			return client.installmentPlans.list({ organizationId, activeOnly: true });
 		},
-		enabled: !!organizationId && selectedInstallmentPlanId !== null,
+		enabled: !!organizationId,
 	});
 	const selectedPlan = installmentPlansQuery.data?.find(
 		(p) => p.id === selectedInstallmentPlanId,
 	);
+
+	// Amount the customer pays at POS (first instalment when a plan is selected)
+	// DOMAIN INVARIANT: dueNowCents is the installment amount, not the full price
+	const dueNowCents = selectedPlan
+		? Math.round(
+				(totalCents * (1 + (selectedPlan.pricePremiumBps ?? 0) / 10000)) /
+					selectedPlan.numInstallments,
+			)
+		: totalCents;
+
+	// ── Submit readiness ───────────────────────────────────────────────────────
+	const hasCustomer =
+		customerTypeMode === "walk_in" || selectedCustomer !== null;
+	const hasItems = items.length > 0;
+	const hasPaymentMethod = paymentMethod !== null;
+	const cashOk =
+		paymentMethod !== "cash" ||
+		(amountTenderedCents >= dueNowCents && amountTenderedCents > 0);
+	const isReadyToSubmit = hasCustomer && hasItems && hasPaymentMethod && cashOk;
 
 	const submitMutation = useApiMutation({
 		mutationFn: async () => {
@@ -379,23 +418,31 @@ export function PosWorkflow({
 
 			if (!resolvedBranchId) {
 				throw new Error(
-					"Branch could not be determined. Please select a customer.",
+					"Your account has no branch assigned. Please contact your administrator to assign your account to a branch.",
 				);
 			}
 
+			// FE-M6: assignments are keyed by item.id (string); server expects numeric array-index keys.
+			// Remap item-ID → current array index so the service layer can look up items[index].
 			const filteredAssignments = Object.fromEntries(
 				Object.entries(trainerAssignments)
-					.map(([k, arr]) => [
-						k,
-						arr.filter((a) => a.staffId !== "").map((a) => ({
-							staffId: a.staffId,
-							slotIndex: a.slotIndex,
-						})),
-					])
-					.filter(([, arr]) => (arr as unknown[]).length > 0),
+					.map(([itemId, arr]) => {
+						const arrayIndex = items.findIndex((i) => i.id === itemId);
+						if (arrayIndex === -1) return null;
+						const filtered = arr
+							.filter((a) => a.staffId !== "")
+							.map((a) => ({ staffId: a.staffId, slotIndex: a.slotIndex }));
+						return filtered.length > 0 ? [String(arrayIndex), filtered] : null;
+					})
+					.filter(
+						(
+							entry,
+						): entry is [string, { staffId: string; slotIndex: number }[]] =>
+							entry !== null,
+					),
 			);
 
-			return client.pos.recordSale({
+			const sale = await client.pos.recordSale({
 				organizationId,
 				customerType,
 				customerId,
@@ -415,17 +462,97 @@ export function PosWorkflow({
 				amountTenderedCents:
 					paymentMethod === "cash" ? amountTenderedCents : undefined,
 				installmentPlanCode: selectedPlan?.code,
+				// DOMAIN INVARIANT: preferredTrainerId carries commission to the specific trainer.
+				// When null, server routes commission via rotation queue.
+				preferredTrainerId: preferredTrainerId ?? undefined,
 				notes: notes || undefined,
 				itemTrainerAssignments:
 					Object.keys(filteredAssignments).length > 0
 						? filteredAssignments
 						: undefined,
+				// Origination attribution (Task #24) — both optional
+				soldBy: soldBy ?? undefined,
+				leadSourceUserId: leadSourceUserId ?? undefined,
 			});
+
+			// Plan B Phase 3c.1 — online (Stripe) sales: the sale itself is recorded
+			// in `pending`; create the real Stripe Payment Link on the org's connected
+			// account so the customer can pay. The payment_intent.succeeded webhook
+			// then flips order→completed / payment→succeeded / package→active.
+			// Link-creation failure must NOT fail the sale (it's already recorded) —
+			// staff can regenerate from the sale detail page.
+			let paymentLinkUrl: string | null = null;
+			let paymentLinkError: string | null = null;
+			if (paymentMethod === "stripe" || paymentMethod === "online") {
+				try {
+					const link = await client.payments.createSalesOrderPaymentLink({
+						organizationId,
+						salesOrderId: sale.salesOrderId,
+					});
+					paymentLinkUrl = link.paymentLinkUrl;
+				} catch (err) {
+					paymentLinkError =
+						err instanceof Error
+							? err.message
+							: "Failed to create payment link";
+				}
+			}
+
+			return { ...sale, paymentLinkUrl, paymentLinkError };
 		},
 		successMessage: "Sale recorded successfully!",
-		errorMessage: (err) =>
-			err.message || "Failed to record sale. Please try again.",
+		errorMessage: (err) => {
+			if (
+				(err as unknown as { data?: { cause?: string } }).data?.cause ===
+				"non_client_member"
+			) {
+				return "This customer is staff/admin and cannot be a sale target. Use a client account or walk-in mode.";
+			}
+			return err.message || "Failed to record sale. Please try again.";
+		},
 		onSuccess: (data) => {
+			// Online sale: link creation failed after the sale was recorded —
+			// surface a warning (the sale itself succeeded; staff can regenerate).
+			if (data.paymentLinkError) {
+				toast.warning(
+					`Sale recorded, but the Stripe payment link could not be created: ${data.paymentLinkError}`,
+				);
+			}
+
+			// Snapshot the receipt before state is reset
+			setLastReceipt({
+				orgName:
+					userContext?.organizations.find((o) => o.id === organizationId)
+						?.name ?? "—",
+				customerName: customerLabel ?? "Walk-in",
+				items: [...items],
+				subtotalCents,
+				discountCents,
+				taxCents,
+				totalCents,
+				paymentMethod,
+				timestamp: new Date(),
+				paymentLinkUrl: data.paymentLinkUrl,
+			});
+
+			// FE-C1: Reset all sale state after a completed sale
+			setItems([]);
+			setAppliedPromo(null);
+			setPaymentMethod(null);
+			setPaymentReference("");
+			setAmountTenderedCents(0);
+			setTenderedTouched(false);
+			setSelectedInstallmentPlanId(null);
+			setPreferredTrainerId(null);
+			setTrainerAssignments({});
+			setNotes("");
+			// Reset attribution — soldBy re-defaults to current member via the useEffect above
+			setSoldBy(null);
+			setLeadSourceUserId(null);
+			setCurrentStep(hideCustomerStep || prefillCustomerId ? 1 : 0);
+			// Keep selectedCustomer if customer is prefilled/locked
+			if (!hideCustomerStep && !prefillCustomerId) setSelectedCustomer(null);
+
 			if (onSaleCreated) {
 				onSaleCreated(data.salesOrderId);
 			} else {
@@ -441,7 +568,7 @@ export function PosWorkflow({
 
 	if (!organizationId) {
 		return (
-			<div className="flex min-h-96 items-center justify-center text-muted-foreground">
+			<div className="flex min-h-96 flex-1 items-center justify-center text-[#737373]">
 				Select an organization to record a sale.
 			</div>
 		);
@@ -449,436 +576,261 @@ export function PosWorkflow({
 
 	if (!canCreate) {
 		return (
-			<div className="flex min-h-96 items-center justify-center text-muted-foreground">
+			<div className="flex min-h-96 flex-1 items-center justify-center text-[#737373]">
 				<div className="space-y-2 text-center">
-					<p className="font-medium">Permission Denied</p>
+					<p className="font-medium text-[#0a0a0a]">Permission Denied</p>
 					<p className="text-sm">You don't have permission to record sales.</p>
 				</div>
 			</div>
 		);
 	}
 
-	// ── Render ─────────────────────────────────────────────────────────────────
+	// ── Step helpers ──────────────────────────────────────────────────────────
 
-	const stepNumberOffset = hideCustomerStep ? -1 : 0;
+	// Logical step → card state
+	// When hideCustomerStep, step 0 is skipped; we offset so step 1 appears as card index 0
+	function stepState(logical: StepIndex): "done" | "active" | "idle" {
+		if (logical < currentStep) return "done";
+		if (logical === currentStep) return "active";
+		return "idle";
+	}
+
+	// Step 0 → 1 needs customer
+	// Step 1 → 2 needs items
+	// Step 2 → 3 (promo is optional — always passable)
+	// Step 3 → 4 needs payment + cashOk
+	function canAdvanceFrom(step: StepIndex): boolean {
+		if (step === 0) return hasCustomer;
+		if (step === 1) return hasItems;
+		if (step === 2) return true; // promo optional
+		if (step === 3) return hasPaymentMethod && cashOk;
+		return false;
+	}
+
+	function handleNext() {
+		if (!canAdvanceFrom(currentStep as StepIndex)) return;
+		setCurrentStep((s) => Math.min(s + 1, 4) as StepIndex);
+	}
+
+	// ── Live clock ────────────────────────────────────────────────────────────
+	const [now, setNow] = useState(() => new Date());
+	useEffect(() => {
+		const id = setInterval(() => setNow(new Date()), 1000);
+		return () => clearInterval(id);
+	}, []);
+
+	// ── Derived display values ────────────────────────────────────────────────
+
+	const customerLabel =
+		customerTypeMode === "walk_in"
+			? "Walk-in"
+			: (selectedCustomer?.name ?? null);
+
+	const customerInitials =
+		customerTypeMode === "walk_in" ? "WI" : getInitials(customerLabel ?? "");
+
+	const today = now.toLocaleString("en-MY", {
+		weekday: "short",
+		day: "numeric",
+		month: "short",
+		year: "numeric",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+	});
+
+	const orgName = userContext?.organizations.find(
+		(o) => o.id === organizationId,
+	)?.name;
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// Render
+	// ─────────────────────────────────────────────────────────────────────────
 
 	return (
-		<div
-			className={
-				showHeader
-					? "space-y-6 p-6 bg-muted/30 -m-6 min-h-full"
-					: "space-y-6 p-6"
-			}
-		>
-			{showHeader && (
-				<div className="flex items-center gap-3">
-					<Link to="/dashboard/sales/view">
-						<Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-							<ArrowLeft className="h-4 w-4" />
-						</Button>
-					</Link>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-primary p-2.5 shadow-sm">
-							<ShoppingCart className="h-5 w-5 text-primary-foreground" />
-						</div>
-						<div>
-							<h1 className="font-bold font-heading text-xl leading-tight">
-								New Sale
-							</h1>
-							<p className="text-muted-foreground text-xs">Point of sale</p>
-						</div>
-					</div>
-				</div>
-			)}
+		<div className="flex flex-1 flex-col bg-[#f3f3f3] overflow-hidden">
+			{/* ── Page header ─────────────────────────────────────────────────── */}
+			{showHeader && <PosHeader today={today} />}
 
-			{hideCustomerStep && selectedCustomer && (
-				<div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm">
-					<span className="text-muted-foreground">Customer: </span>
-					<span className="font-medium">{selectedCustomer.name}</span>
-					{selectedCustomer.phone && (
-						<span className="text-muted-foreground">
-							{" "}
-							· {selectedCustomer.phone}
-						</span>
-					)}
-				</div>
-			)}
-
-			<div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
-				<div className="lg:col-span-2 space-y-4">
-					<div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-						<Accordion
-							type="single"
-							collapsible
-							value={accordionValue}
-							onValueChange={setAccordionValue}
-							className="w-full"
-						>
-							{/* Step 1: Customer (hidden when embedded with prefilled customer) */}
-							{!hideCustomerStep && (
-								<AccordionItem value="customer">
-									<AccordionTrigger className="px-5 font-semibold text-base hover:no-underline">
-										<span className="flex items-center gap-2">
-											<StepBadge n={1} isComplete={hasCustomer} isLocked={false} />
-											Customer
-											{customerTypeMode === "member" && selectedCustomer && (
-												<span className="ml-1 font-normal text-muted-foreground text-sm">
-													— {selectedCustomer.name}
-												</span>
-											)}
-											{customerTypeMode === "walk_in" && (
-												<span className="ml-1 font-normal text-muted-foreground text-sm">
-													— Walk-in
-												</span>
-											)}
-										</span>
-									</AccordionTrigger>
-									<AccordionContent className="px-5 pt-2 pb-6">
-										<div className="space-y-4">
-											<div className="flex gap-2">
-												<Button
-													type="button"
-													size="sm"
-													variant={
-														customerTypeMode === "member" ? "default" : "outline"
-													}
-													onClick={() => handleCustomerTypeModeChange("member")}
-													className="min-w-24"
-												>
-													Member
-												</Button>
-												<Button
-													type="button"
-													size="sm"
-													variant={
-														customerTypeMode === "walk_in" ? "default" : "outline"
-													}
-													onClick={() => handleCustomerTypeModeChange("walk_in")}
-													className="min-w-24"
-												>
-													Walk-in
-												</Button>
-											</div>
-
-											{customerTypeMode === "member" && (
-												<CustomerStep
-													organizationId={organizationId}
-													branchId={resolvedBranchId}
-													selected={selectedCustomer}
-													onSelect={handleCustomerSelect}
-													onClear={handleCustomerClear}
-												/>
-											)}
-
-											{customerTypeMode === "walk_in" && (
-												<div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
-													<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted">
-														<UserX className="h-4 w-4 text-muted-foreground" />
-													</div>
-													<div>
-														<p className="font-medium text-sm">
-															Anonymous Walk-in
-														</p>
-														<p className="text-muted-foreground text-xs">
-															No customer record will be saved for this sale.
-														</p>
-													</div>
-												</div>
-											)}
-										</div>
-									</AccordionContent>
-								</AccordionItem>
-							)}
-
-							{/* Step 2: Items */}
-							<AccordionItem value="items">
-								<AccordionTrigger
-									disabled={!hasCustomer}
-									className={`px-5 font-semibold text-base hover:no-underline ${!hasCustomer ? "cursor-not-allowed opacity-50" : ""}`}
-								>
-									<span className="flex items-center gap-2">
-										<StepBadge
-											n={2 + stepNumberOffset}
-											isComplete={hasItems}
-											isLocked={!hasCustomer}
-										/>
-										Items
-										{items.length > 0 && (
-											<span className="ml-1 font-normal text-muted-foreground text-sm">
-												— {items.length} item{items.length !== 1 ? "s" : ""}
-											</span>
-										)}
-									</span>
-								</AccordionTrigger>
-								<AccordionContent className="px-5 pt-2 pb-6">
-									{!hasCustomer ? (
-										<p className="text-muted-foreground text-sm">
-											Select a customer first before adding items.
-										</p>
-									) : (
-										<ItemsStep
-											organizationId={organizationId}
-											selectedCustomer={selectedCustomer}
-											items={items}
-											onAddItem={handleAddItem}
-											onUpdateItem={handleUpdateItem}
-											onRemoveItem={handleRemoveItem}
-										/>
-									)}
-								</AccordionContent>
-							</AccordionItem>
-
-							{hasServiceItems && (
-								<AccordionItem value="trainers">
-									<AccordionTrigger className="px-5 font-semibold text-base hover:no-underline">
-										<span className="flex items-center gap-2">
-											<StepBadge
-												n={3 + stepNumberOffset}
-												isComplete={false}
-												isLocked={!hasItems}
-											/>
-											Trainers
-											<span className="font-normal text-muted-foreground text-xs">
-												(optional)
-											</span>
-										</span>
-									</AccordionTrigger>
-									<AccordionContent className="px-5 pt-2 pb-6">
-										<TrainerPickerStep
-											items={items}
-											organizationId={organizationId}
-											assignments={trainerAssignments}
-											onChange={setTrainerAssignments}
-										/>
-										<Button
-											className="mt-4 w-full"
-											variant="outline"
-											onClick={() => setAccordionValue("promo")}
-											type="button"
-										>
-											Continue to Promotion
-										</Button>
-									</AccordionContent>
-								</AccordionItem>
-							)}
-
-							<AccordionItem value="promo">
-								<AccordionTrigger
-									disabled={!hasCustomer}
-									className={`px-5 font-semibold text-base hover:no-underline ${!hasCustomer ? "cursor-not-allowed opacity-50" : ""}`}
-								>
-									<span className="flex items-center gap-2">
-										<StepBadge
-											n={promoStepN + stepNumberOffset}
-											isComplete={appliedPromo !== null}
-											isLocked={!hasCustomer}
-										/>
-										Promotion
-										{appliedPromo && (
-											<span className="ml-1 font-normal text-green-600 text-sm">
-												— {appliedPromo.code}
-											</span>
-										)}
-										<span className="font-normal text-muted-foreground text-xs">
-											(optional)
-										</span>
-									</span>
-								</AccordionTrigger>
-								<AccordionContent className="px-5 pt-2 pb-6">
-									{!hasCustomer ? (
-										<p className="text-muted-foreground text-sm">
-											Select a customer first to apply a promo code.
-										</p>
-									) : (
-										<PromoStep
-											organizationId={organizationId}
-											customerId={
-												customerTypeMode === "member"
-													? (selectedCustomer?.id ?? "")
-													: "anonymous"
-											}
-											branchId={resolvedBranchId}
-											items={items}
-											applied={appliedPromo}
-											onApply={setAppliedPromo}
-											onRemove={() => setAppliedPromo(null)}
-										/>
-									)}
-								</AccordionContent>
-							</AccordionItem>
-
-							<AccordionItem value="tax">
-								<AccordionTrigger className="px-5 font-semibold text-base hover:no-underline">
-									<span className="flex items-center gap-2">
-										<StepBadge
-											n={taxStepN + stepNumberOffset}
-											isComplete={true}
-											isLocked={false}
-										/>
-										Tax
-										{selectedTaxRate && (
-											<span className="ml-1 font-normal text-muted-foreground text-sm">
-												— {selectedTaxRate.name} (
-												{(selectedTaxRate.rateInBasisPoints / 100).toFixed(0)}%)
-											</span>
-										)}
-									</span>
-								</AccordionTrigger>
-								<AccordionContent className="px-5 pt-2 pb-6">
-									<div className="space-y-1.5">
-										<Label htmlFor="tax-rate">Tax rate</Label>
-										<Select
-											value={selectedTaxRateId ?? "none"}
-											onValueChange={(v) =>
-												setSelectedTaxRateId(v === "none" ? null : v)
-											}
-										>
-											<SelectTrigger id="tax-rate" className="w-full max-w-xs">
-												<SelectValue placeholder="No tax" />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value="none">No tax</SelectItem>
-												{taxRates.map((rate) => (
-													<SelectItem key={rate.id} value={rate.id}>
-														{rate.name} (
-														{(rate.rateInBasisPoints / 100).toFixed(0)}%)
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-									</div>
-								</AccordionContent>
-							</AccordionItem>
-
-							<AccordionItem value="payment">
-								<AccordionTrigger className="px-5 font-semibold text-base hover:no-underline">
-									<span className="flex items-center gap-2">
-										<StepBadge
-											n={paymentStepN + stepNumberOffset}
-											isComplete={hasPaymentMethod && cashOk}
-											isLocked={false}
-										/>
-										Payment
-										{paymentMethod && (
-											<span className="ml-1 font-normal text-muted-foreground text-sm capitalize">
-												—{" "}
-												{paymentMethod === "bank_transfer"
-													? "Bank Transfer"
-													: paymentMethod.charAt(0).toUpperCase() +
-														paymentMethod.slice(1)}
-											</span>
-										)}
-									</span>
-								</AccordionTrigger>
-								<AccordionContent className="px-5 pt-2 pb-6">
-									<PaymentStep
-										organizationId={organizationId}
-										items={items}
-										discountCents={discountCents}
-										taxRateBps={taxRateBps}
-										method={paymentMethod}
-										paymentReference={paymentReference}
-										amountTenderedCents={amountTenderedCents}
-										selectedInstallmentPlanId={selectedInstallmentPlanId}
-										onMethodChange={setPaymentMethod}
-										onReferenceChange={setPaymentReference}
-										onAmountTenderedChange={setAmountTenderedCents}
-										onInstallmentPlanChange={setSelectedInstallmentPlanId}
-									/>
-								</AccordionContent>
-							</AccordionItem>
-						</Accordion>
-					</div>
-
-					<div className="rounded-xl border bg-card shadow-sm p-5 space-y-4">
-						<div className="space-y-1.5">
-							<Label htmlFor="sale-notes" className="text-sm font-medium">
-								Notes{" "}
-								<span className="font-normal text-muted-foreground">
-									(optional)
-								</span>
-							</Label>
-							<Textarea
-								id="sale-notes"
-								placeholder="Any special instructions or notes..."
-								value={notes}
-								onChange={(e) => setNotes(e.target.value)}
-								rows={2}
-								className="resize-none"
+			{/* ── Two-column layout ─────────────────────────────────────────── */}
+			<div className="flex flex-1 overflow-hidden">
+				<div className="flex w-full flex-1 gap-6 overflow-hidden px-6 py-6">
+					{/* ── LEFT: Step cards ──────────────────────────────────────────── */}
+					<div
+						className="flex flex-1 flex-col gap-4 overflow-y-auto [&::-webkit-scrollbar]:hidden"
+						style={{ scrollbarWidth: "none" }}
+					>
+						{/* ── STEP 0: Customer ─────────────────────────────────────── */}
+						{!hideCustomerStep && (
+							<CustomerStepCard
+								state={stepState(0)}
+								stepNumber={1}
+								stepLabel="Step 1"
+								customerTypeMode={customerTypeMode}
+								customerLabel={customerLabel}
+								customerInitials={customerInitials}
+								hasCustomer={hasCustomer}
+								selectedCustomer={selectedCustomer}
+								organizationId={organizationId}
+								resolvedBranchId={resolvedBranchId}
+								onEdit={() => setCurrentStep(0)}
+								onCustomerTypeModeChange={handleCustomerTypeModeChange}
+								onCustomerSelect={handleCustomerSelect}
+								onCustomerClear={handleCustomerClear}
+								onContinue={handleNext}
 							/>
-						</div>
+						)}
 
-						<div className="flex items-center justify-between gap-4 pt-1">
-							<div className="text-muted-foreground text-sm">
-								{!isReadyToSubmit && (
-									<span>
-										{!hasCustomer
-											? "Select a customer"
-											: !hasItems
-												? "Add at least one item"
-												: !hasPaymentMethod
-													? "Choose a payment method"
-													: !cashOk
-														? "Enter the tendered cash amount"
-														: ""}
-									</span>
-								)}
-							</div>
-							<Button
-								size="lg"
-								disabled={!isReadyToSubmit || submitMutation.isPending}
-								onClick={() => submitMutation.mutate()}
-								className="min-w-44 font-semibold"
-							>
-								{submitMutation.isPending ? (
-									<>
-										<LoadingSpinner size="sm" className="mr-2" />
-										Processing...
-									</>
-								) : (
-									"Charge & Confirm"
-								)}
-							</Button>
-						</div>
+						{/* ── STEP 1: Items ──────────────────────────────────────────── */}
+						<ItemsStepCard
+							state={stepState(1)}
+							stepNumber={hideCustomerStep ? 1 : 2}
+							stepLabel={hideCustomerStep ? "Step 1" : "Step 2"}
+							hideCustomerStep={hideCustomerStep}
+							customerLabel={customerLabel}
+							customerInitials={customerInitials}
+							customerTypeMode={customerTypeMode}
+							organizationId={organizationId}
+							selectedCustomer={selectedCustomer}
+							items={items}
+							hasServiceItems={hasServiceItems}
+							trainerAssignments={trainerAssignments}
+							taxRates={taxRates}
+							selectedTaxRateId={selectedTaxRateId}
+							notes={notes}
+							hasItems={hasItems}
+							onEdit={() => setCurrentStep(1)}
+							onGoToCustomer={() => setCurrentStep(0)}
+							onAddItem={handleAddItem}
+							onUpdateItem={handleUpdateItem}
+							onRemoveItem={handleRemoveItem}
+							onTrainerAssignmentsChange={setTrainerAssignments}
+							onTaxRateChange={setSelectedTaxRateId}
+							onNotesChange={setNotes}
+							onContinue={handleNext}
+						/>
+
+						{/* ── STEP 2: Promotions ─────────────────────────────────────── */}
+						<PromoStepCard
+							state={stepState(2)}
+							stepNumber={hideCustomerStep ? 2 : 3}
+							stepLabel={hideCustomerStep ? "Step 2" : "Step 3"}
+							organizationId={organizationId}
+							customerTypeMode={customerTypeMode}
+							selectedCustomerId={selectedCustomer?.id ?? null}
+							resolvedBranchId={resolvedBranchId}
+							items={items}
+							appliedPromo={appliedPromo}
+							discountCents={discountCents}
+							onEdit={() => setCurrentStep(2)}
+							onApply={setAppliedPromo}
+							onRemove={() => setAppliedPromo(null)}
+							onBack={() => setCurrentStep(1)}
+							onContinue={handleNext}
+						/>
+
+						{/* ── STEP 3: Payment ────────────────────────────────────────── */}
+						<PaymentStepCard
+							state={stepState(3)}
+							stepNumber={hideCustomerStep ? 3 : 4}
+							stepLabel={hideCustomerStep ? "Step 3" : "Step 4"}
+							organizationId={organizationId}
+							items={items}
+							discountCents={discountCents}
+							taxRateBps={taxRateBps}
+							dueNowCents={dueNowCents}
+							paymentMethod={paymentMethod}
+							paymentReference={paymentReference}
+							amountTenderedCents={amountTenderedCents}
+							tenderedTouched={tenderedTouched}
+							selectedInstallmentPlanId={selectedInstallmentPlanId}
+							preferredTrainerId={preferredTrainerId}
+							hasPaymentMethod={hasPaymentMethod}
+							cashOk={cashOk}
+							onEdit={() => setCurrentStep(3)}
+							onMethodChange={setPaymentMethod}
+							onReferenceChange={setPaymentReference}
+							onAmountTenderedChange={setAmountTenderedCents}
+							onTenderedTouched={() => setTenderedTouched(true)}
+							onInstallmentPlanChange={setSelectedInstallmentPlanId}
+							onPreferredTrainerChange={setPreferredTrainerId}
+							onBack={() => setCurrentStep(2)}
+							onContinue={handleNext}
+						/>
+
+						{/* ── STEP 4: Confirm ─────────────────────────────────────────── */}
+						<ConfirmStepCard
+							state={stepState(4)}
+							stepNumber={hideCustomerStep ? 4 : 5}
+							stepLabel={hideCustomerStep ? "Step 4" : "Step 5"}
+							customerLabel={customerLabel}
+							items={items}
+							paymentMethod={paymentMethod}
+							appliedPromo={appliedPromo}
+							discountCents={discountCents}
+							taxCents={taxCents}
+							taxRateBps={taxRateBps}
+							selectedTaxRate={selectedTaxRate}
+							selectedPlan={selectedPlan}
+							dueNowCents={dueNowCents}
+							totalCents={totalCents}
+							amountTenderedCents={amountTenderedCents}
+							notes={notes}
+							staffMembers={
+								staffMembers as Array<{
+									id: string;
+									userId?: string;
+									name?: string;
+									role?: string;
+								}>
+							}
+							soldBy={soldBy}
+							leadSourceUserId={leadSourceUserId}
+							isReadyToSubmit={isReadyToSubmit}
+							isPending={submitMutation.isPending}
+							onBack={() => setCurrentStep(3)}
+							onSoldByChange={setSoldBy}
+							onLeadSourceChange={setLeadSourceUserId}
+							onSubmit={() => submitMutation.mutate()}
+						/>
 					</div>
-				</div>
 
-				<div className="lg:sticky lg:top-6 lg:col-span-1">
-					<CartSummary
+					{/* ── RIGHT: Live order panel ───────────────────────────────────── */}
+					<LiveOrderPanel
+						hideCustomerStep={hideCustomerStep}
+						customerLabel={customerLabel}
+						customerTypeMode={customerTypeMode}
 						items={items}
-						discountCents={discountCents}
-						taxRateBps={taxRateBps}
+						appliedPromo={appliedPromo}
 						paymentMethod={paymentMethod}
-						amountTenderedCents={amountTenderedCents}
+						discountCents={discountCents}
+						taxCents={taxCents}
+						taxRateBps={taxRateBps}
+						selectedTaxRate={selectedTaxRate}
+						selectedPlan={selectedPlan}
+						dueNowCents={dueNowCents}
+						subtotalCents={subtotalCents}
+						totalCents={totalCents}
+						stepState={stepState}
+						now={now}
+						today={today}
+						lastReceipt={lastReceipt}
+						organizationId={organizationId}
+						orgName={orgName}
 					/>
 				</div>
 			</div>
 
-			<Dialog open={clearCartDialogOpen} onOpenChange={setClearCartDialogOpen}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>Clear cart?</DialogTitle>
-					</DialogHeader>
-					<p className="py-2 text-muted-foreground text-sm">
-						Changing the customer will clear all items from the cart. This
-						cannot be undone.
-					</p>
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => {
-								setClearCartDialogOpen(false);
-								pendingCustomerRef.current = null;
-							}}
-						>
-							Cancel
-						</Button>
-						<Button variant="destructive" onClick={confirmClearCart}>
-							Clear Cart & Continue
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+			{/* ── Clear cart dialog ──────────────────────────────────────────── */}
+			<ClearCartDialog
+				open={clearCartDialogOpen}
+				onOpenChange={setClearCartDialogOpen}
+				onCancel={() => {
+					setClearCartDialogOpen(false);
+					pendingCustomerRef.current = null;
+				}}
+				onConfirm={confirmClearCart}
+			/>
 		</div>
 	);
 }

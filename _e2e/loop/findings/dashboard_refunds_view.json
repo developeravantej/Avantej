@@ -1,0 +1,6 @@
+{
+  "route": "/dashboard/refunds/view",
+  "module": "refunds",
+  "timedOut": true,
+  "findings": []
+}

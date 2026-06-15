@@ -18,7 +18,8 @@ import { Badge } from "@/components/ui/badge";
 
 export function InvitationsPage() {
 	const { data: userContext } = useUserContext();
-	const organizationId = userContext?.currentOrganizationId || userContext?.organizations?.[0]?.id;
+	const organizationId =
+		userContext?.currentOrganizationId || userContext?.organizations?.[0]?.id;
 	const queryClient = useQueryClient();
 	const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 	const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -35,7 +36,10 @@ export function InvitationsPage() {
 
 			const result = await client.invitations.list({
 				organizationId,
-				status: statusFilter !== "all" ? (statusFilter as "pending" | "accepted" | "declined" | "expired") : undefined,
+				status:
+					statusFilter !== "all"
+						? (statusFilter as "pending" | "accepted" | "declined" | "expired")
+						: undefined,
 			});
 
 			return result.invitations;
@@ -48,22 +52,31 @@ export function InvitationsPage() {
 		status: string,
 		expiresAt: Date | string,
 	): Invitation["status"] => {
-		if (status === "pending" || status === "accepted" || status === "declined") {
+		if (
+			status === "pending" ||
+			status === "accepted" ||
+			status === "declined"
+		) {
 			return status;
 		}
 		const expiresDate = new Date(expiresAt);
 		return expiresDate < new Date() ? "expired" : "pending";
 	};
 
-	const invitations: Invitation[] = (invitationsData || []).map((invitation) => ({
-		id: invitation.id,
-		email: invitation.email,
-		role: invitation.role,
-		hierarchyScopeId: invitation.hierarchyScopeId,
-		status: normalizeInvitationStatus(invitation.status, invitation.expiresAt),
-		expiresAt: invitation.expiresAt,
-		createdAt: invitation.createdAt,
-	}));
+	const invitations: Invitation[] = (invitationsData || []).map(
+		(invitation) => ({
+			id: invitation.id,
+			email: invitation.email ?? "",
+			role: invitation.role,
+			hierarchyScopeId: invitation.hierarchyScopeId,
+			status: normalizeInvitationStatus(
+				invitation.status,
+				invitation.expiresAt,
+			),
+			expiresAt: invitation.expiresAt,
+			createdAt: invitation.createdAt,
+		}),
+	) as Invitation[];
 
 	// Revoke invitation mutation
 	const revokeMutation = useApiMutation({
@@ -92,7 +105,7 @@ export function InvitationsPage() {
 			await client.invitations.sendEmail({
 				invitation: {
 					token: result.invitation.token,
-					email: result.invitation.email,
+					email: result.invitation.email ?? "",
 					role: result.invitation.role,
 				},
 				organizationId,
@@ -110,7 +123,7 @@ export function InvitationsPage() {
 	const handleRevoke = async (invitationId: string) => {
 		if (
 			!confirm(
-				"Are you sure you want to revoke this invitation? This action cannot be undone."
+				"Are you sure you want to revoke this invitation? This action cannot be undone.",
 			)
 		) {
 			return;
@@ -133,11 +146,12 @@ export function InvitationsPage() {
 		return (
 			<div className="space-y-4">
 				<div className="flex items-center justify-between">
-					<h1 className="text-3xl font-bold">Invitations</h1>
+					<h1 className="text-3xl font-semibold">Invitations</h1>
 				</div>
 				<div className="rounded-lg border border-destructive bg-destructive/10 p-4">
 					<p className="text-destructive">
-						Failed to load invitations: {error instanceof Error ? error.message : "Unknown error"}
+						Failed to load invitations:{" "}
+						{error instanceof Error ? error.message : "Unknown error"}
 					</p>
 				</div>
 			</div>
@@ -149,7 +163,7 @@ export function InvitationsPage() {
 			{/* Header */}
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-3xl font-bold">Invitations</h1>
+					<h1 className="text-3xl font-semibold">Invitations</h1>
 					<p className="text-muted-foreground mt-1">
 						Manage invitations to join your organization
 					</p>
@@ -158,7 +172,7 @@ export function InvitationsPage() {
 					onClick={() => setIsCreateDialogOpen(true)}
 					disabled={!organizationId}
 				>
-					<Plus className="h-4 w-4 mr-2" />
+					<Plus className="size-4 mr-2" />
 					Invite Member
 				</Button>
 			</div>
@@ -181,7 +195,7 @@ export function InvitationsPage() {
 
 					<div className="flex items-center gap-2">
 						<Badge variant="outline" className="gap-1">
-							<Mail className="h-3 w-3" />
+							<Mail className="size-3" />
 							Pending: {statusCounts.pending}
 						</Badge>
 						<Badge variant="outline" className="gap-1 text-green-600">
@@ -197,7 +211,7 @@ export function InvitationsPage() {
 			{/* Invitations List */}
 			{isLoading ? (
 				<div className="flex items-center justify-center py-12">
-					<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+					<Loader2 className="size-6 animate-spin text-muted-foreground" />
 				</div>
 			) : (
 				<InvitationList

@@ -7,9 +7,15 @@ import {
 } from "@avantej-core/services";
 
 // Shared mocks
-const mockFindMany = mock((..._args: any[]): Promise<any[]> => Promise.resolve([]));
-const mockFindFirst = mock((..._args: any[]): Promise<any> => Promise.resolve(null));
-const mockReturning = mock((..._args: any[]): Promise<any[]> => Promise.resolve([]));
+const mockFindMany = mock(
+	(..._args: any[]): Promise<any[]> => Promise.resolve([]),
+);
+const mockFindFirst = mock(
+	(..._args: any[]): Promise<any> => Promise.resolve(null),
+);
+const mockReturning = mock(
+	(..._args: any[]): Promise<any[]> => Promise.resolve([]),
+);
 const mockValues = mock((..._args: any[]) => ({ returning: mockReturning }));
 const mockInsert = mock((..._args: any[]) => ({ values: mockValues }));
 
@@ -39,7 +45,9 @@ describe("listPackageInstancesForClient", () => {
 		];
 		mockFindMany.mockResolvedValueOnce(fakeInstances);
 
-		const result = await listPackageInstancesForClient(mockTenantDb, { clientId: "user-1" });
+		const result = await listPackageInstancesForClient(mockTenantDb, {
+			clientId: "user-1",
+		});
 
 		expect(result as any).toEqual(fakeInstances);
 		expect(mockFindMany).toHaveBeenCalledTimes(1);
@@ -193,7 +201,7 @@ describe("createPackageInstance", () => {
 		mockReturning.mockResolvedValueOnce([]);
 
 		await expect(
-			createPackageInstance(mockTenantDb, baseParams)
+			createPackageInstance(mockTenantDb, baseParams),
 		).rejects.toThrow("Failed to create package instance");
 	});
 
@@ -256,7 +264,10 @@ function makeTxMock(opts: {
 	selectedPkg: PackageRow | undefined;
 	returningResults: ReturningResult[];
 }) {
-	const updateCalls: Array<{ set: Record<string, unknown>; hasReturning: boolean }> = [];
+	const updateCalls: Array<{
+		set: Record<string, unknown>;
+		hasReturning: boolean;
+	}> = [];
 	let returningIdx = 0;
 
 	const tx = {
@@ -389,7 +400,10 @@ describe("togglePackagePin", () => {
 		});
 
 		await expect(
-			togglePackagePin(tenantDb, { packageInstanceId: "pkg-1", clientId: "user-1" }),
+			togglePackagePin(tenantDb, {
+				packageInstanceId: "pkg-1",
+				clientId: "user-1",
+			}),
 		).rejects.toThrow("Only active packages can be pinned");
 		expect(updateCalls.length).toBe(0);
 	});
@@ -408,7 +422,10 @@ describe("togglePackagePin", () => {
 		});
 
 		await expect(
-			togglePackagePin(tenantDb, { packageInstanceId: "pkg-1", clientId: "user-1" }),
+			togglePackagePin(tenantDb, {
+				packageInstanceId: "pkg-1",
+				clientId: "user-1",
+			}),
 		).rejects.toThrow("Only active packages can be pinned");
 		expect(updateCalls.length).toBe(0);
 	});
@@ -427,7 +444,10 @@ describe("togglePackagePin", () => {
 		});
 
 		await expect(
-			togglePackagePin(tenantDb, { packageInstanceId: "pkg-1", clientId: "user-1" }),
+			togglePackagePin(tenantDb, {
+				packageInstanceId: "pkg-1",
+				clientId: "user-1",
+			}),
 		).rejects.toThrow("Forbidden");
 		expect(updateCalls.length).toBe(0);
 	});
@@ -439,7 +459,10 @@ describe("togglePackagePin", () => {
 		});
 
 		await expect(
-			togglePackagePin(tenantDb, { packageInstanceId: "missing", clientId: "user-1" }),
+			togglePackagePin(tenantDb, {
+				packageInstanceId: "missing",
+				clientId: "user-1",
+			}),
 		).rejects.toThrow("Package not found");
 		expect(updateCalls.length).toBe(0);
 	});

@@ -1,0 +1,8 @@
+{
+  "tax-rates/tax-rates.lifecycle.spec.ts::Tax rate lifecycle — create, update, deactivate (API-verified)": [
+    "Create a tax rate via taxRates/create and assert an id is returned",
+    "Fetch taxRates/getById and assert name and rateInBasisPoints match",
+    "Update name and rateInBasisPoints and assert getById reflects the edit",
+    "Deactivate the tax rate and assert it is absent from the isActive:true list"
+  ]
+}

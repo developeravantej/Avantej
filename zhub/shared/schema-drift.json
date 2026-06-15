@@ -1,0 +1,17 @@
+{
+  "generated_at": "2026-06-12T11:13:01.208Z",
+  "tenant": {
+    "missing_in_live": [],
+    "extra_in_live": [],
+    "action_mismatches": [],
+    "orphan_tables": [],
+    "missing_tables": []
+  },
+  "controlPanel": {
+    "missing_in_live": [],
+    "extra_in_live": [],
+    "action_mismatches": [],
+    "orphan_tables": [],
+    "missing_tables": []
+  }
+}

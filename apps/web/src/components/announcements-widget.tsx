@@ -1,10 +1,12 @@
 import { ChevronsUpDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
-import { client } from "@/utils/orpc";
+import { orpc } from "@/utils/orpc";
 import { useUserContext } from "@/hooks/useUserContext";
 
-function formatAnnouncementDate(date: Date | string | null | undefined): string {
+function formatAnnouncementDate(
+	date: Date | string | null | undefined,
+): string {
 	if (!date) return "";
 	try {
 		return new Date(date).toLocaleDateString("en-US", {
@@ -22,11 +24,9 @@ export function AnnouncementsWidget() {
 	const organizationId = userContext?.currentOrganizationId ?? null;
 
 	const { data: announcements = [], isLoading } = useQuery({
-		queryKey: ["announcements-active", organizationId],
-		queryFn: async () => {
-			if (!organizationId) return [];
-			return client.announcements.listActive({ organizationId });
-		},
+		...orpc.announcements.listActive.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 		staleTime: 60 * 1000,
 	});
@@ -36,8 +36,10 @@ export function AnnouncementsWidget() {
 			<CardContent>
 				<div className="flex flex-col max-h-[280px] overflow-y-auto pr-4 -mr-4 scrollbar-warm">
 					<div className="flex justify-between items-center p-2">
-						<h1 className="font-heading font-bold text-2xl">Announcements</h1>
-						<ChevronsUpDown className="mr-3 h-4 w-4" />
+						<h1 className="font-heading font-semibold text-2xl">
+							Announcements
+						</h1>
+						<ChevronsUpDown className="mr-3 size-4" />
 					</div>
 
 					{!organizationId ? (

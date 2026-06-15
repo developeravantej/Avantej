@@ -7,7 +7,7 @@ import {
 	parseScopeValue,
 	type PermissionMatrixState,
 } from "@/hooks/usePermissionMatrixState";
-import type { Role } from "@/components/access-control/permission-matrix/PermissionMatrix";
+import type { Role } from "@/components/access-control/permission-matrix/permission-matrix.types";
 
 const EMPTY_STATE: PermissionMatrixState = {
 	viewMode: "matrix",

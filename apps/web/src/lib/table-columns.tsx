@@ -36,10 +36,10 @@ export function dateColumn<T>(cfg: {
 		accessorFn: cfg.accessor,
 		cell: ({ row }) => {
 			const raw = cfg.accessor(row.original);
-			if (raw == null) return <span className="text-muted-foreground">—</span>;
+			if (raw == null) return <span className="text-muted-foreground">-</span>;
 			const date = raw instanceof Date ? raw : new Date(raw);
 			if (Number.isNaN(date.getTime())) {
-				return <span className="text-muted-foreground">—</span>;
+				return <span className="text-muted-foreground">-</span>;
 			}
 			const opts: Intl.DateTimeFormatOptions =
 				cfg.format === "datetime"
@@ -89,7 +89,7 @@ export function actionsColumn<T>(cfg: {
 								disabled={isDisabled}
 								onClick={() => a.onClick(row.original)}
 							>
-								{Icon ? <Icon className="h-4 w-4" /> : null}
+								{Icon ? <Icon className="size-4" /> : null}
 								<span className={Icon ? "sr-only" : undefined}>{a.label}</span>
 							</Button>
 						);

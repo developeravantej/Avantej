@@ -2,20 +2,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
-import {
-	Alert,
-	Image,
-	ScrollView,
-	Text,
-	TouchableOpacity,
-	View,
-} from "react-native";
+import { Image } from "expo-image";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
+import { BookablePackageCard } from "./_components/bookable-package-card";
 import { useBookingFlow } from "@/contexts/booking-flow-context";
 import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
-import { formatMoney } from "@/lib/money";
 import { orpc } from "@/utils/orpc";
 
 type ServiceLite = {
@@ -67,6 +61,10 @@ export default function BookWorkoutScreen() {
 	const totalSteps = 4;
 	const progressPercentage = 25;
 
+	// Stable "now" snapshot per mount so expiry / diffDays calculations don't
+	// drift across re-renders.
+	const nowMs = useMemo(() => Date.now(), []);
+
 	// Fetch user's active package instances
 	const { data: packageInstances, isLoading: packagesLoading } = useQuery(
 		orpc.packageInstances.listForClient.queryOptions({
@@ -100,11 +98,6 @@ export default function BookWorkoutScreen() {
 		return null;
 	}, [services]);
 
-	const bookablePackages = useMemo(() => {
-		if (!packageInstances) return [];
-		return (packageInstances as any[]).filter((inst) => (inst.creditsRemaining ?? 0) > 0);
-	}, [packageInstances]);
-
 	const selectedPackage = useMemo(() => {
 		if (!selectedPackageInstanceId || !packageInstances) return null;
 		return (packageInstances as any[]).find(
@@ -131,18 +124,6 @@ export default function BookWorkoutScreen() {
 		const serviceType: "private" | "semi-private" =
 			svc?.type === "semi_private" ? "semi-private" : "private";
 
-		// Hydrate trainer from the package itself. Admin-assigned trainer takes
-		// precedence; fall back to the customer's preferred trainer captured at
-		// purchase time. Schedule step queries this trainer's availability.
-		const hydratedTrainerId =
-			selectedPackage?.assignedTrainerId ??
-			selectedPackage?.preferredTrainerId ??
-			null;
-		const hydratedTrainerName =
-			(selectedPackage?.assignedTrainerId
-				? selectedPackage?.assignedTrainerName
-				: selectedPackage?.preferredTrainerName) ?? null;
-
 		update({
 			packageInstanceId: selectedPackageInstanceId,
 			packageName: svc?.name ?? null,
@@ -155,13 +136,10 @@ export default function BookWorkoutScreen() {
 				svc?.schedulingType === "class_slot" ? "class_slot" : "appointment",
 			timePresetConfig: svc?.timePresetConfig ?? null,
 			serviceDuration: svc?.duration ?? 60,
-			trainerId: hydratedTrainerId,
-			trainerName: hydratedTrainerName,
+			// Provider is auto-assigned now; trainer step removed.
+			trainerId: null,
+			trainerName: "Auto-assign",
 			branchId: svc?.branchId ?? fallbackBranchId ?? null,
-			status: selectedPackage?.status ?? null,
-			expiresAt: selectedPackage?.expiresAt
-				? String(selectedPackage.expiresAt)
-				: null,
 		});
 		router.push("./schedule");
 	};
@@ -172,12 +150,12 @@ export default function BookWorkoutScreen() {
 				{/* Header with Title */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
-						<TouchableOpacity
+						<Pressable
 							onPress={() => router.back()}
-							className="mr-3 h-10 w-10 items-center justify-center"
+							className="mr-3 size-10 items-center justify-center"
 						>
 							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
-						</TouchableOpacity>
+						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-primary-1">
 							Book Workout
 						</Text>
@@ -191,7 +169,7 @@ export default function BookWorkoutScreen() {
 							uri: "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=800",
 						}}
 						className="h-full w-full"
-						resizeMode="cover"
+						contentFit="cover"
 					/>
 				</View>
 
@@ -247,14 +225,14 @@ export default function BookWorkoutScreen() {
 											<View className="mb-1 items-center justify-center">
 												{/* Active step: filled circle with white dot */}
 												<View
-													className="h-7 w-7 items-center justify-center rounded-full"
+													className="size-7 items-center justify-center rounded-full border-2 border-primary-1"
 													style={{
 														backgroundColor: colors.primary[1],
 														zIndex: 2,
 													}}
 												>
 													<View
-														className="h-2 w-2 rounded-full"
+														className="size-2 rounded-full"
 														style={{ backgroundColor: colors.primary[2] }}
 													/>
 												</View>
@@ -263,7 +241,7 @@ export default function BookWorkoutScreen() {
 											<View className="mb-1 items-center justify-center">
 												{/* Inactive step: bordered circle, dark number */}
 												<View
-													className="h-7 w-7 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
+													className="size-7 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
 													style={{ zIndex: 2 }}
 												>
 													<Text className="font-semibold text-primary-1 text-xs">
@@ -311,186 +289,25 @@ export default function BookWorkoutScreen() {
 								<SkeletonCard />
 								<SkeletonCard />
 							</>
-						) : bookablePackages.length === 0 ? (
+						) : !packageInstances || packageInstances.length === 0 ? (
 							<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">
 								<Text className="text-center text-secondary-1 text-sm">
-									No packages with available credits. Purchase a new package to book workouts.
+									No active packages found. Purchase a package to book workouts.
 								</Text>
 							</View>
 						) : (
-							bookablePackages.map((inst) => {
-								const svc = serviceById.get(inst.serviceId);
-								const total: number = inst.creditsTotal ?? 0;
-								const remaining: number = inst.creditsRemaining ?? 0;
-								const used = Math.max(total - remaining, 0);
-								const progressPercent =
-									total > 0 ? (used / total) * 100 : 0;
-
-								// Expiry text
-								let expiryText: string | null = null;
-								let expiryUrgent = false;
-								if (inst.expiresAt) {
-									const expiry = new Date(inst.expiresAt);
-									const diffDays = Math.ceil(
-										(expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-									);
-									if (diffDays < 0) expiryText = "Expired";
-									else if (diffDays === 0) expiryText = "Expires today";
-									else if (diffDays === 1) expiryText = "Expires tomorrow";
-									else expiryText = `Expires in ${diffDays} days`;
-									expiryUrgent = diffDays >= 0 && diffDays <= 14;
-								}
-
-								const typeLabel =
-									svc?.schedulingType === "class_slot"
-										? "Class Slot"
-										: "Appointment";
-
-								return (
-									<TouchableOpacity
-										key={inst.id}
-										onPress={() => {
-											setSelectedPackageInstanceId(inst.id);
-										}}
-										className={`mb-3 rounded-2xl border bg-primary-2 p-4 ${
-											selectedPackageInstanceId === inst.id
-												? "border-primary-1"
-												: "border-secondary-3"
-										} shadow-sm`}
-									>
-										<View className="mb-2 flex-row items-start justify-between">
-											<Text
-												className="flex-1 font-bold text-lg"
-												style={{ color: colors.primary[1] }}
-											>
-												{svc?.name ?? "Package"}
-											</Text>
-											<View
-												className="ml-2 rounded-full px-2 py-1"
-												style={{ backgroundColor: colors.secondary[3] }}
-											>
-												<Text
-													className="font-medium text-xs"
-													style={{ color: colors.primary[1] }}
-												>
-													{typeLabel}
-												</Text>
-											</View>
-										</View>
-
-										{/* Description (when available) */}
-										{svc?.description && (
-											<Text
-												className="mb-2 text-sm"
-												style={{ color: colors.secondary[1] }}
-											>
-												{svc.description}
-											</Text>
-										)}
-
-										{/* Credits row + progress bar */}
-										<View className="mb-2 flex-row items-center justify-between">
-											<View className="flex-row items-center">
-												<Ionicons
-													name="star-outline"
-													size={14}
-													color={colors.secondary[1]}
-												/>
-												<Text
-													className="ml-1 text-sm"
-													style={{ color: colors.secondary[1] }}
-												>
-													{remaining} of {total} credits remaining
-												</Text>
-											</View>
-											<Text
-												className="font-semibold text-xs"
-												style={{ color: colors.primary[1] }}
-											>
-												{used} used
-											</Text>
-										</View>
-										<View
-											className="mb-3 h-2 overflow-hidden rounded-full"
-											style={{ backgroundColor: colors.secondary[3] }}
-										>
-											<View
-												className="h-full rounded-full"
-												style={{
-													width: `${Math.min(progressPercent, 100)}%`,
-													backgroundColor: "#2563EB",
-												}}
-											/>
-										</View>
-
-										{/* Meta row: duration, price, expiry */}
-										<View className="flex-row flex-wrap items-center gap-3">
-											{svc?.duration != null && (
-												<View className="flex-row items-center">
-													<Ionicons
-														name="time-outline"
-														size={14}
-														color={colors.secondary[1]}
-													/>
-													<Text
-														className="ml-1 text-xs"
-														style={{ color: colors.secondary[1] }}
-													>
-														{svc.duration} min/session
-													</Text>
-												</View>
-											)}
-											{inst.totalPrice != null && (
-												<View className="flex-row items-center">
-													<Ionicons
-														name="cash-outline"
-														size={14}
-														color={colors.secondary[1]}
-													/>
-													<Text
-														className="ml-1 text-xs"
-														style={{ color: colors.primary[1] }}
-													>
-														{formatMoney(inst.totalPrice)}
-													</Text>
-												</View>
-											)}
-											{inst.expiresAt && (
-												<View className="flex-row items-center">
-													<Ionicons
-														name="calendar-outline"
-														size={14}
-														color={
-															expiryUrgent ? "#D97706" : colors.secondary[1]
-														}
-													/>
-													<Text
-														className="ml-1 text-xs"
-														style={{
-															color: expiryUrgent
-																? "#D97706"
-																: colors.secondary[1],
-														}}
-													>
-														{expiryText ??
-															new Date(inst.expiresAt).toLocaleDateString(
-																"en-US",
-																{
-																	month: "short",
-																	day: "numeric",
-																	year: "numeric",
-																},
-															)}
-													</Text>
-												</View>
-											)}
-										</View>
-									</TouchableOpacity>
-								);
-							})
+							(packageInstances as any[]).map((inst) => (
+								<BookablePackageCard
+									key={inst.id}
+									instance={inst}
+									service={serviceById.get(inst.serviceId)}
+									selected={selectedPackageInstanceId === inst.id}
+									nowMs={nowMs}
+									onSelect={setSelectedPackageInstanceId}
+								/>
+							))
 						)}
 					</View>
-
 				</View>
 			</ScrollView>
 
@@ -500,15 +317,15 @@ export default function BookWorkoutScreen() {
 					edges={["bottom"]}
 					className="border-secondary-3 border-t bg-primary-2"
 				>
-					<View className="px-4 py-4">
-						<TouchableOpacity
+					<View className="p-4">
+						<Pressable
 							onPress={handleContinue}
 							className="items-center justify-center rounded-xl bg-primary-1 py-4"
 						>
 							<Text className="font-semibold text-base text-primary-2">
 								Continue
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 				</SafeAreaView>
 			)}

@@ -21,8 +21,7 @@ export function useRoles(organizationId: string) {
 			description?: string;
 			priority: number;
 		}) => client.roles.create({ organizationId, ...input }),
-		onSuccess: () =>
-			qc.invalidateQueries({ queryKey: orpc.roles.list.key() }),
+		onSuccess: () => qc.invalidateQueries({ queryKey: orpc.roles.list.key() }),
 	});
 
 	const updateRole = useMutation({
@@ -32,15 +31,12 @@ export function useRoles(organizationId: string) {
 			description?: string | undefined;
 			priority?: number;
 		}) => client.roles.update({ organizationId, ...input }),
-		onSuccess: () =>
-			qc.invalidateQueries({ queryKey: orpc.roles.list.key() }),
+		onSuccess: () => qc.invalidateQueries({ queryKey: orpc.roles.list.key() }),
 	});
 
 	const deleteRole = useMutation({
-		mutationFn: (id: string) =>
-			client.roles.delete({ organizationId, id }),
-		onSuccess: () =>
-			qc.invalidateQueries({ queryKey: orpc.roles.list.key() }),
+		mutationFn: (id: string) => client.roles.delete({ organizationId, id }),
+		onSuccess: () => qc.invalidateQueries({ queryKey: orpc.roles.list.key() }),
 	});
 
 	const addPermission = useMutation({
@@ -75,7 +71,7 @@ export function useRoles(organizationId: string) {
  * @deprecated useRoleMatrix is no longer needed — use useRoles + usePermissions instead.
  * Kept as a stub to avoid import errors in existing consumer pages.
  */
-export function useRoleMatrix() {
+function useRoleMatrix() {
 	return {
 		matrix: null,
 		setMatrix: () => {},

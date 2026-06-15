@@ -1,12 +1,14 @@
 import { ShoppingCart } from "lucide-react";
 import { formatPrice } from "@/lib/money";
-import type { CartItem } from "./types";
+import type { CartItem, PaymentMethod } from "./types";
 
 interface CartSummaryProps {
 	items: CartItem[];
 	discountCents: number;
 	taxRateBps: number;
-	paymentMethod: "cash" | "card" | "bank_transfer" | null;
+	/** When an instalment plan is selected, pass the first-instalment amount so change-due is correct. */
+	dueNowCents?: number;
+	paymentMethod: PaymentMethod | null;
 	amountTenderedCents: number;
 }
 
@@ -29,6 +31,7 @@ export function CartSummary({
 	items,
 	discountCents,
 	taxRateBps,
+	dueNowCents,
 	paymentMethod,
 	amountTenderedCents,
 }: CartSummaryProps) {
@@ -37,9 +40,11 @@ export function CartSummary({
 		discountCents,
 		taxRateBps,
 	);
+	// FE-C2: use dueNowCents (instalment first payment) for change-due, fall back to full total
+	const effectiveDueCents = dueNowCents ?? totalCents;
 	const changeDueCents =
-		paymentMethod === "cash" && amountTenderedCents >= totalCents
-			? amountTenderedCents - totalCents
+		paymentMethod === "cash" && amountTenderedCents >= effectiveDueCents
+			? amountTenderedCents - effectiveDueCents
 			: null;
 
 	return (
@@ -55,7 +60,7 @@ export function CartSummary({
 			<div className="bg-zinc-900 px-5 pb-4 min-h-[140px]">
 				{items.length === 0 ? (
 					<div className="flex flex-col items-center justify-center gap-3 py-10 text-zinc-600">
-						<ShoppingCart className="h-9 w-9" />
+						<ShoppingCart className="size-9" />
 						<p className="text-sm">No items added yet</p>
 					</div>
 				) : (
@@ -113,7 +118,7 @@ export function CartSummary({
 			</div>
 
 			{/* Total */}
-			<div className="bg-zinc-950 px-5 py-5">
+			<div className="bg-zinc-950 p-5">
 				<div className="flex items-baseline justify-between">
 					<span className="font-medium text-zinc-400 text-sm">Total</span>
 					<span className="font-bold text-3xl text-white tabular-nums">

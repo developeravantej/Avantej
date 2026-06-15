@@ -2,17 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { useState } from "react";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Bell } from "lucide-react";
+import { Lock } from "lucide-react";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/settings/notifications",
@@ -99,30 +92,48 @@ const CONTENT_SETTINGS: ChannelSetting[] = [
 
 function SkeletonRow() {
 	return (
-		<div className="flex items-center justify-between py-4">
+		<div className="flex items-center justify-between py-4 border-b border-[#e5e5e5] last:border-0">
 			<div className="space-y-1.5">
-				<div className="h-4 w-40 rounded bg-muted animate-pulse" />
-				<div className="h-3 w-56 rounded bg-muted animate-pulse" />
+				<div className="h-4 w-40 rounded bg-[#e5e5e5] animate-pulse" />
+				<div className="h-3 w-56 rounded bg-[#e5e5e5] animate-pulse" />
 			</div>
-			<div className="h-6 w-11 rounded-full bg-muted animate-pulse" />
+			<div className="h-6 w-11 rounded-full bg-[#e5e5e5] animate-pulse" />
 		</div>
 	);
 }
 
-function SkeletonCard({ rows }: { rows: number }) {
+function SkeletonSection({ title, rows }: { title: string; rows: number }) {
 	return (
-		<Card>
-			<CardHeader>
-				<div className="h-5 w-44 rounded bg-muted animate-pulse" />
-				<div className="h-3 w-64 rounded bg-muted animate-pulse mt-1" />
-			</CardHeader>
-			<CardContent className="divide-y">
+		<div className="rounded-2xl border border-[#e5e5e5] bg-white p-5">
+			<div className="h-5 w-44 rounded bg-[#e5e5e5] animate-pulse mb-1" />
+			<div className="h-3 w-64 rounded bg-[#e5e5e5] animate-pulse mt-1 mb-4" />
+			<div>
 				{Array.from({ length: rows }).map((_, i) => (
 					// biome-ignore lint/suspicious/noArrayIndexKey: skeleton rows have no identity
 					<SkeletonRow key={i} />
 				))}
-			</CardContent>
-		</Card>
+			</div>
+		</div>
+	);
+}
+
+// ─── FormSection ──────────────────────────────────────────────────────────────
+
+function FormSection({
+	title,
+	helper,
+	children,
+}: {
+	title: string;
+	helper?: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<div className="rounded-2xl border border-[#e5e5e5] bg-white p-5">
+			<h2 className="text-base font-bold text-[#0a0a0a] mb-1">{title}</h2>
+			{helper && <p className="text-sm text-[#737373] mb-4">{helper}</p>}
+			<div className="divide-y divide-[#e5e5e5]">{children}</div>
+		</div>
 	);
 }
 
@@ -145,11 +156,11 @@ function SettingRow({
 			<div className="space-y-0.5">
 				<label
 					htmlFor={id}
-					className="text-sm font-medium text-brand-primary-1 cursor-pointer"
+					className="text-sm font-semibold text-[#0a0a0a] cursor-pointer"
 				>
 					{setting.label}
 				</label>
-				<p className="text-sm text-muted-foreground">{setting.description}</p>
+				<p className="text-sm text-[#737373]">{setting.description}</p>
 			</div>
 			<Switch
 				id={id}
@@ -172,11 +183,9 @@ function NotificationPreferencesPage() {
 	// ─── Query ───────────────────────────────────────────────────────────────
 
 	const { data: apiPrefs, isLoading } = useQuery({
-		queryKey: ["notificationPreferences", organizationId],
-		queryFn: () => {
-			if (!organizationId) return null;
-			return client.notificationPreferences.get({ organizationId });
-		},
+		...orpc.notificationPreferences.get.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 		staleTime: 60_000,
 	});
@@ -224,8 +233,25 @@ function NotificationPreferencesPage() {
 
 	if (!organizationId) {
 		return (
-			<div className="flex items-center justify-center min-h-96 text-muted-foreground">
-				Select an organization to manage notification preferences.
+			<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+				<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+					<div className="flex items-center gap-3 text-sm">
+						<span className="text-muted-foreground">Settings</span>
+						<span className="text-[#a3a3a3]">/</span>
+						<span className="font-semibold">Notifications</span>
+					</div>
+				</header>
+				<div className="flex flex-1 items-center justify-center">
+					<div className="flex flex-col items-center justify-center text-[#737373]">
+						<Lock className="h-8 w-8 mb-3 opacity-30" />
+						<p className="text-sm font-medium text-[#0a0a0a]">
+							No organization selected
+						</p>
+						<p className="text-xs mt-1">
+							Select an organization to manage notification preferences.
+						</p>
+					</div>
+				</div>
 			</div>
 		);
 	}
@@ -234,19 +260,14 @@ function NotificationPreferencesPage() {
 
 	if (isLoading) {
 		return (
-			<div className="p-6 space-y-6">
-				{/* Page header skeleton */}
-				<div className="flex items-center gap-3">
-					<div className="p-2 rounded-lg bg-brand-primary-1/10">
-						<Bell className="h-6 w-6 text-brand-primary-1" />
-					</div>
-					<div className="space-y-1">
-						<div className="h-6 w-52 rounded bg-muted animate-pulse" />
-						<div className="h-3 w-72 rounded bg-muted animate-pulse" />
-					</div>
+			<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+				<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+					<div className="h-4 w-40 rounded bg-[#e5e5e5] animate-pulse" />
+				</header>
+				<div className="flex flex-col gap-5 px-6 py-6 max-w-[720px]">
+					<SkeletonSection title="Notification Channels" rows={3} />
+					<SkeletonSection title="Notification Content" rows={4} />
 				</div>
-				<SkeletonCard rows={3} />
-				<SkeletonCard rows={4} />
 			</div>
 		);
 	}
@@ -254,53 +275,35 @@ function NotificationPreferencesPage() {
 	// ─── Render ───────────────────────────────────────────────────────────────
 
 	return (
-		<div className="p-6 space-y-6">
-			{/* Page header */}
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-3">
-					<div className="p-2 rounded-lg bg-brand-primary-1/10">
-						<Bell className="h-6 w-6 text-brand-primary-1" />
-					</div>
-					<div>
-						<h1 className="text-2xl font-bold font-heading text-brand-primary-1">
-							Notification Preferences
-						</h1>
-						<p className="text-brand-secondary-1 text-sm">
-							Control how and when you receive notifications.
-						</p>
-					</div>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Settings</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Notifications</span>
 				</div>
-
-				{/* Save state indicator */}
-				<div className="text-sm text-muted-foreground min-w-16 text-right">
+				<div className="ml-auto flex items-center gap-2">
 					{saveState === "saving" && (
-						<span className="flex items-center gap-1.5 justify-end">
-							{/* Activity indicator dot — approved exception per §2.5 (sub-6px dots paired with text are allowed) */}
+						<span className="flex items-center gap-1.5 text-sm text-[#737373]">
 							<span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
 							Saving…
 						</span>
 					)}
 					{saveState === "saved" && (
-						<span className="flex items-center gap-1.5 justify-end text-green-600">
-							{/* Activity indicator dot — approved exception per §2.5 (sub-6px dots paired with text are allowed) */}
-							<span className="h-2 w-2 rounded-full bg-green-500" />
+						<span className="flex items-center gap-1.5 text-sm text-emerald-700">
+							<span className="h-2 w-2 rounded-full bg-emerald-500" />
 							Saved
 						</span>
 					)}
 				</div>
-			</div>
+			</header>
 
-			{/* Notification Channels card */}
-			<Card>
-				<CardHeader>
-					<CardTitle className="text-base font-semibold text-brand-primary-1">
-						Notification Channels
-					</CardTitle>
-					<CardDescription>
-						Choose which channels you want to receive notifications through.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="divide-y">
+			<div className="flex flex-col gap-5 px-6 py-6 max-w-[720px]">
+				{/* Notification Channels */}
+				<FormSection
+					title="Notification Channels"
+					helper="Choose which channels you want to receive notifications through."
+				>
 					{CHANNEL_SETTINGS.map((setting) => (
 						<SettingRow
 							key={setting.key}
@@ -310,20 +313,13 @@ function NotificationPreferencesPage() {
 							onToggle={handleToggle}
 						/>
 					))}
-				</CardContent>
-			</Card>
+				</FormSection>
 
-			{/* Notification Content card */}
-			<Card>
-				<CardHeader>
-					<CardTitle className="text-base font-semibold text-brand-primary-1">
-						Notification Content
-					</CardTitle>
-					<CardDescription>
-						Select which types of notifications you want to receive.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="divide-y">
+				{/* Notification Content */}
+				<FormSection
+					title="Notification Content"
+					helper="Select which types of notifications you want to receive."
+				>
 					{CONTENT_SETTINGS.map((setting) => (
 						<SettingRow
 							key={setting.key}
@@ -333,8 +329,8 @@ function NotificationPreferencesPage() {
 							onToggle={handleToggle}
 						/>
 					))}
-				</CardContent>
-			</Card>
+				</FormSection>
+			</div>
 		</div>
 	);
 }

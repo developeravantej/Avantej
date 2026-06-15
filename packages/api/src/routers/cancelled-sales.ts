@@ -1,109 +1,65 @@
-import { eq, desc, and, gte, lte, inArray } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
-import { requirePermission } from "@avantej-core/services";
-import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
+import { tenantProcedure } from "../index";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {
+	listCancelledSales,
+	getCancelledSaleById,
+	exportCancelledSalesCsv,
+} from "@avantej-core/services";
 
 export const cancelledSalesRouter = {
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				customerId: z.string().optional(),
 				from: z.string().datetime().optional(),
 				to: z.string().datetime().optional(),
-			})
+				limit: z.number().int().min(1).max(200).default(50),
+				offset: z.number().int().min(0).default(0),
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"sales",
+				"read",
+			);
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(context.tenantDb, context.member, "sales", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
-
-			const conditions = [eq(salesOrders.status, "cancelled")];
-			if (input.customerId) {
-				conditions.push(eq(salesOrders.customerId, input.customerId));
-			}
-			if (input.from) {
-				conditions.push(gte(salesOrders.cancellationDate, new Date(input.from)));
-			}
-			if (input.to) {
-				conditions.push(lte(salesOrders.cancellationDate, new Date(input.to)));
-			}
-			if (context.accessibleNodeIds?.length) {
-				conditions.push(inArray(salesOrders.branchId, context.accessibleNodeIds));
-			}
-
-			const rows = await context.tenantDb
-				.select()
-				.from(salesOrders)
-				.where(and(...conditions))
-				.orderBy(desc(salesOrders.cancellationDate));
-
-			return rows.map((row: any) => ({
-				id: row.id,
-				cancellationNumber: row.cancellationNumber,
-				salesOrderId: row.id,
-				cancellationDate: row.cancellationDate,
-				cancelledAmount: row.cancelledAmount ?? row.totalAmount,
-				cancellationReason: row.cancellationReason,
-				cancelledBy: row.cancelledBy,
-				customerId: row.customerId,
-				customerName: row.customerName,
-				createdAt: row.createdAt,
-			}));
+			return listCancelledSales(context.tenantDb, {
+				customerId: input.customerId,
+				from: input.from ? new Date(input.from) : undefined,
+				to: input.to ? new Date(input.to) : undefined,
+				accessibleNodeIds: context.accessibleNodeIds,
+				limit: input.limit,
+				offset: input.offset,
+			});
 		}),
 
-	getById: protectedProcedure
+	getById: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"sales",
+				"read",
+			);
 
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(context.tenantDb, context.member, "sales", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
-
-			const row = await context.tenantDb.query.salesOrders.findFirst({
-				where: and(
-					eq(salesOrders.id, input.id),
-					eq(salesOrders.status, "cancelled")
-				),
-			});
+			const row = await getCancelledSaleById(
+				context.tenantDb,
+				input.id,
+				context.accessibleNodeIds,
+			);
 
 			if (!row) {
 				throw new ORPCError("NOT_FOUND", {
@@ -111,17 +67,32 @@ export const cancelledSalesRouter = {
 				});
 			}
 
-			return {
-				id: row.id,
-				cancellationNumber: row.cancellationNumber,
-				salesOrderId: row.id,
-				cancellationDate: row.cancellationDate,
-				cancelledAmount: row.cancelledAmount ?? row.totalAmount,
-				cancellationReason: row.cancellationReason,
-				cancelledBy: row.cancelledBy,
-				customerId: row.customerId,
-				customerName: row.customerName,
-				createdAt: row.createdAt,
-			};
+			return row;
+		}),
+
+	exportCsv: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				customerId: z.string().optional(),
+				from: z.string().datetime().optional(),
+				to: z.string().datetime().optional(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"sales",
+				"read",
+			);
+
+			return exportCancelledSalesCsv(context.tenantDb, {
+				customerId: input.customerId,
+				from: input.from ? new Date(input.from) : undefined,
+				to: input.to ? new Date(input.to) : undefined,
+				accessibleNodeIds: context.accessibleNodeIds,
+			});
 		}),
 };

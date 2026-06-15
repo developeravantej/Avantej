@@ -6,3 +6,5 @@
  */
 
 export * from "./better-auth";
+export * from "./commission";
+export * from "./tiers";

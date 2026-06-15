@@ -1,0 +1,29 @@
+{
+  "sources": [
+    {
+      "name": "react-doctor-web",
+      "cmd": "npx -y react-doctor@latest apps/web --json 2>/dev/null || true",
+      "format": "react-doctor",
+      "enabled": true
+    },
+    {
+      "name": "react-doctor-native",
+      "cmd": "npx -y react-doctor@latest apps/native --json 2>/dev/null || true",
+      "format": "react-doctor",
+      "enabled": true
+    },
+    {
+      "name": "tsc",
+      "cmd": "bun run check-types 2>&1",
+      "format": "tsc-text",
+      "enabled": true
+    },
+    {
+      "name": "no-mistakes",
+      "cmd": "no-mistakes runs --json --latest 2>/dev/null || true",
+      "format": "no-mistakes",
+      "enabled": false
+    }
+  ],
+  "default_severity_filter": "warning"
+}

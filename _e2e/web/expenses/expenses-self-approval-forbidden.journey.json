@@ -1,0 +1,8 @@
+{
+  "expenses/expenses-self-approval-forbidden.rule.spec.ts::rule: submitter cannot approve their own expense (403)": [
+    "Create an expense as the admin user via expenses/create",
+    "Register teardown to reject the expense (no delete API)",
+    "Attempt expenses/approve as the same user and assert 403",
+    "Fetch by id and assert the expense is still pending"
+  ]
+}

@@ -1,6 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
 	listTaxRates,
 	getTaxRateById,
@@ -10,10 +11,8 @@ import {
 	setDefaultTaxRate,
 	deactivateTaxRate,
 } from "@avantej-core/services/tax-rates.service";
-import { requirePermission } from "@avantej-core/services";
-
 export const taxRatesRouter = {
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -22,34 +21,15 @@ export const taxRatesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
+			assertOrgContextMatch(context, input);
 			// Clients can read tax rates (needed during purchase preview); staff need tax_configuration:read.
 			if (context.member.role !== "client") {
-				try {
-					await requirePermission(
-						context.tenantDb,
-						context.member,
-						"tax_configuration",
-						"read",
-					);
-				} catch (error) {
-					throw new ORPCError("FORBIDDEN", {
-						message:
-							error instanceof Error ? error.message : "Permission denied",
-					});
-				}
+				await requirePermissionOrpc(
+					context.tenantDb,
+					context.member,
+					"tax_configuration",
+					"read",
+				);
 			}
 
 			return listTaxRates(context.tenantDb, {
@@ -58,7 +38,7 @@ export const taxRatesRouter = {
 			});
 		}),
 
-	getById: protectedProcedure
+	getById: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -66,34 +46,15 @@ export const taxRatesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
+			assertOrgContextMatch(context, input);
 			// Clients can read tax rates (needed during purchase preview); staff need tax_configuration:read.
 			if (context.member.role !== "client") {
-				try {
-					await requirePermission(
-						context.tenantDb,
-						context.member,
-						"tax_configuration",
-						"read",
-					);
-				} catch (error) {
-					throw new ORPCError("FORBIDDEN", {
-						message:
-							error instanceof Error ? error.message : "Permission denied",
-					});
-				}
+				await requirePermissionOrpc(
+					context.tenantDb,
+					context.member,
+					"tax_configuration",
+					"read",
+				);
 			}
 
 			const taxRate = await getTaxRateById(context.tenantDb, input.id);
@@ -105,48 +66,28 @@ export const taxRatesRouter = {
 			return taxRate;
 		}),
 
-	getDefault: protectedProcedure
+	getDefault: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 			}),
 		)
 		.handler(async ({ context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
 			// Clients can read tax rates (needed during purchase preview); staff need tax_configuration:read.
 			if (context.member.role !== "client") {
-				try {
-					await requirePermission(
-						context.tenantDb,
-						context.member,
-						"tax_configuration",
-						"read",
-					);
-				} catch (error) {
-					throw new ORPCError("FORBIDDEN", {
-						message:
-							error instanceof Error ? error.message : "Permission denied",
-					});
-				}
+				await requirePermissionOrpc(
+					context.tenantDb,
+					context.member,
+					"tax_configuration",
+					"read",
+				);
 			}
 
 			const taxRate = await getDefaultTaxRate(context.tenantDb);
 			return taxRate ?? null;
 		}),
 
-	create: protectedProcedure
+	create: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -161,32 +102,13 @@ export const taxRatesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"tax_configuration",
-					"create",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"tax_configuration",
+				"create",
+			);
 
 			return createTaxRate(context.tenantDb, {
 				name: input.name,
@@ -202,7 +124,7 @@ export const taxRatesRouter = {
 			});
 		}),
 
-	update: protectedProcedure
+	update: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -217,32 +139,13 @@ export const taxRatesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"tax_configuration",
-					"update",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"tax_configuration",
+				"update",
+			);
 
 			const result = await updateTaxRate(context.tenantDb, input.id, {
 				name: input.name,
@@ -266,7 +169,7 @@ export const taxRatesRouter = {
 			return result;
 		}),
 
-	setDefault: protectedProcedure
+	setDefault: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -274,32 +177,13 @@ export const taxRatesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"tax_configuration",
-					"update",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"tax_configuration",
+				"update",
+			);
 
 			const actor = {
 				userId: context.session!.user.id,
@@ -310,7 +194,7 @@ export const taxRatesRouter = {
 			return setDefaultTaxRate(context.tenantDb, input.id, actor);
 		}),
 
-	deactivate: protectedProcedure
+	deactivate: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -318,32 +202,13 @@ export const taxRatesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"tax_configuration",
-					"delete",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"tax_configuration",
+				"delete",
+			);
 
 			return deactivateTaxRate(context.tenantDb, input.id);
 		}),

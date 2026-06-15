@@ -5,7 +5,7 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 export async function listProductCategories(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: { search?: string } = {}
+	params: { search?: string } = {},
 ): Promise<(typeof productCategories.$inferSelect)[]> {
 	const { search } = params;
 
@@ -23,8 +23,8 @@ export async function listProductCategories(
 
 export async function getProductCategoryById(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
-): Promise<(typeof productCategories.$inferSelect) | null> {
+	id: string,
+): Promise<typeof productCategories.$inferSelect | null> {
 	const row = await tenantDb.query.productCategories.findFirst({
 		where: eq(productCategories.id, id),
 	});
@@ -33,7 +33,12 @@ export async function getProductCategoryById(
 
 export async function createProductCategory(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: { name: string; externalCode?: string; description?: string; createdBy?: string | null }
+	params: {
+		name: string;
+		externalCode?: string;
+		description?: string;
+		createdBy?: string | null;
+	},
 ): Promise<typeof productCategories.$inferSelect> {
 	const [row] = await tenantDb
 		.insert(productCategories)
@@ -55,14 +60,23 @@ export async function createProductCategory(
 export async function updateProductCategory(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	id: string,
-	params: { name?: string; externalCode?: string; description?: string; updatedBy?: string | null }
+	params: {
+		name?: string;
+		externalCode?: string;
+		description?: string;
+		updatedBy?: string | null;
+	},
 ): Promise<typeof productCategories.$inferSelect> {
 	const [row] = await tenantDb
 		.update(productCategories)
 		.set({
 			...(params.name !== undefined && { name: params.name }),
-			...(params.externalCode !== undefined && { externalCode: params.externalCode }),
-			...(params.description !== undefined && { description: params.description }),
+			...(params.externalCode !== undefined && {
+				externalCode: params.externalCode,
+			}),
+			...(params.description !== undefined && {
+				description: params.description,
+			}),
 			...(params.updatedBy !== undefined && { updatedBy: params.updatedBy }),
 			updatedAt: new Date(),
 		})
@@ -77,7 +91,7 @@ export async function updateProductCategory(
 
 export async function deleteProductCategory(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
+	id: string,
 ): Promise<void> {
 	await tenantDb.delete(productCategories).where(eq(productCategories.id, id));
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
 	Select,
@@ -25,7 +24,12 @@ export type StatusFilter =
 	| "exhausted"
 	| "cancelled";
 
-export type InstallmentStatusFilter = "all" | "active" | "overdue" | "locked" | "due_soon";
+export type InstallmentStatusFilter =
+	| "all"
+	| "active"
+	| "overdue"
+	| "locked"
+	| "due_soon";
 
 export interface HierarchyNode {
 	id: string;
@@ -46,7 +50,11 @@ interface ChipGroupProps<T extends string> {
 	onChange: (v: T) => void;
 }
 
-function ChipGroup<T extends string>({ options, value, onChange }: ChipGroupProps<T>) {
+function ChipGroup<T extends string>({
+	options,
+	value,
+	onChange,
+}: ChipGroupProps<T>) {
 	return (
 		<div className="flex flex-wrap items-center gap-1.5">
 			{options.map((opt) => (
@@ -80,7 +88,10 @@ const STATUS_OPTIONS: Array<{ value: StatusFilter; label: string }> = [
 	{ value: "cancelled", label: "Cancelled" },
 ];
 
-const INSTALLMENT_STATUS_OPTIONS: Array<{ value: InstallmentStatusFilter; label: string }> = [
+const INSTALLMENT_STATUS_OPTIONS: Array<{
+	value: InstallmentStatusFilter;
+	label: string;
+}> = [
 	{ value: "all", label: "All" },
 	{ value: "active", label: "Active" },
 	{ value: "overdue", label: "Overdue" },
@@ -164,20 +175,27 @@ export function PackagesTabFilters({
 						checked={hasInstallmentToggle}
 						onCheckedChange={onInstallmentToggleChange}
 					/>
-					<Label htmlFor="installment-toggle" className="cursor-pointer text-sm whitespace-nowrap">
+					<Label
+						htmlFor="installment-toggle"
+						className="cursor-pointer text-sm whitespace-nowrap"
+					>
 						Has installment plan
 					</Label>
 				</div>
 			</div>
 
 			{/* Row 2: plan code select (when toggle on) + branch + search */}
-			{(hasInstallmentToggle || (!hideCustomerControls && branchOptions.length > 0) || !hideCustomerControls) && (
+			{(hasInstallmentToggle ||
+				(!hideCustomerControls && branchOptions.length > 0) ||
+				!hideCustomerControls) && (
 				<div className="flex flex-wrap items-center gap-3">
 					{/* Plan code select — only when toggle is on */}
 					{hasInstallmentToggle && (
 						<Select
 							value={planCode ?? "all"}
-							onValueChange={(v) => onPlanCodeChange(v === "all" ? undefined : v)}
+							onValueChange={(v) =>
+								onPlanCodeChange(v === "all" ? undefined : v)
+							}
 						>
 							<SelectTrigger className="w-52">
 								<SelectValue placeholder="All plans" />
@@ -197,7 +215,9 @@ export function PackagesTabFilters({
 					{!hideCustomerControls && branchOptions.length > 0 && (
 						<Select
 							value={branchId ?? "all"}
-							onValueChange={(v) => onBranchIdChange(v === "all" ? undefined : v)}
+							onValueChange={(v) =>
+								onBranchIdChange(v === "all" ? undefined : v)
+							}
 						>
 							<SelectTrigger className="w-48">
 								<SelectValue placeholder="All branches" />
@@ -216,7 +236,7 @@ export function PackagesTabFilters({
 					{/* Search — hidden when per-customer */}
 					{!hideCustomerControls && (
 						<div className="relative">
-							<Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+							<Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
 							<Input
 								placeholder="Search customer…"
 								value={search}

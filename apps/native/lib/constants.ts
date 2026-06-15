@@ -18,6 +18,3 @@ export const NAV_THEME = {
 		text: colors.primary[2], // #FFFFFF
 	},
 };
-
-// Re-export colors for global access
-export { colors } from "./colors";

@@ -1,0 +1,1385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Appointments Page — 5 Design Directions</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'system-ui', 'sans-serif'],
+          mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+        },
+        colors: {
+          ink: { DEFAULT: '#0a0a0a', soft: '#262626' },
+          paper: '#f3f3f3',
+          line: '#e5e5e5',
+          muted: { DEFAULT: '#737373', soft: '#a3a3a3' },
+          warm: '#d6cdb1',
+        },
+      },
+    },
+  };
+</script>
+<style>
+  body { background: #f3f3f3; color: #0a0a0a; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .lbl { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #737373; }
+
+  /* Status badges */
+  .s-confirmed  { background: #dcfce7; color: #15803d; }
+  .s-pending    { background: #fef9c3; color: #a16207; }
+  .s-completed  { background: #f3f4f6; color: #4b5563; }
+  .s-noshow     { background: #fee2e2; color: #b91c1c; }
+
+  /* Service type chips */
+  .t-pt         { background: #ede9fe; color: #6d28d9; }
+  .t-assess     { background: #dbeafe; color: #1d4ed8; }
+  .t-stretch    { background: #fce7f3; color: #9d174d; }
+
+  /* Conflict warning stripe */
+  .conflict { background: repeating-linear-gradient(45deg, #fef3c7, #fef3c7 4px, #fffbeb 4px, #fffbeb 10px); border: 1.5px solid #f59e0b; }
+
+  /* Time grid */
+  .time-col { width: 52px; flex-shrink: 0; }
+
+  /* Trainer swimlane colors */
+  .lane-a { border-left: 3px solid #6366f1; }
+  .lane-b { border-left: 3px solid #0ea5e9; }
+  .lane-c { border-left: 3px solid #10b981; }
+  .lane-d { border-left: 3px solid #f59e0b; }
+
+  .lane-bg-a { background: #eef2ff; border-color: #a5b4fc; }
+  .lane-bg-b { background: #e0f2fe; border-color: #7dd3fc; }
+  .lane-bg-c { background: #d1fae5; border-color: #6ee7b7; }
+  .lane-bg-d { background: #fef9c3; border-color: #fde68a; }
+
+  /* Pulse */
+  @keyframes ping { 75%,100% { transform: scale(2.2); opacity:0; } }
+  .pulse-dot::before { content:''; position:absolute; inset:0; border-radius:9999px; background:#10b981; opacity:.6; animation: ping 1.6s cubic-bezier(0,0,.2,1) infinite; }
+
+  /* Kanban column */
+  .kanban-card { border-radius: 12px; border: 1px solid #e5e5e5; background: white; }
+</style>
+</head>
+<body class="antialiased">
+
+<!-- ─── TOP NAV ─────────────────────────────────── -->
+<nav class="sticky top-0 z-50 border-b border-line bg-white/95 backdrop-blur">
+  <div class="mx-auto flex h-12 max-w-[1400px] items-center gap-1 px-6 text-xs">
+    <span class="mr-4 lbl">Appointments · 5 designs</span>
+    <a href="#d1" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper">1 · Day Calendar</a>
+    <a href="#d2" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper">2 · Week Grid</a>
+    <a href="#d3" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper">3 · List / Inbox</a>
+    <a href="#d4" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper">4 · Trainer Swimlanes</a>
+    <a href="#d5" class="rounded-md px-3 py-1.5 font-semibold transition hover:bg-paper">5 · Status Board</a>
+    <span class="ml-auto text-muted-soft text-muted">design-only · no logic</span>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 1 — DAY CALENDAR WITH TIME SLOTS                               -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d1" class="border-b-8 border-paper">
+  <div class="mx-auto max-w-[1400px] px-7 py-10">
+    <div class="mb-6 flex items-baseline gap-4">
+      <h2 class="text-2xl font-extrabold tracking-tight">Design 1 — Day Calendar</h2>
+      <span class="text-xs text-muted">Hourly time-slot grid · conflict warnings inline · click slot to book · trainer filter collapses columns</span>
+    </div>
+
+    <!-- Page header row -->
+    <div class="mb-6 flex items-center justify-between">
+      <div>
+        <div class="lbl mb-1">Appointments</div>
+        <h1 class="text-3xl font-extrabold tracking-tight">Thursday, 15 May 2026</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="rounded-xl border border-line bg-white px-3 py-2 text-xs font-medium hover:bg-paper transition">← Prev</button>
+        <button class="rounded-xl border border-line bg-white px-4 py-2 text-xs font-semibold hover:bg-paper transition">Today</button>
+        <button class="rounded-xl border border-line bg-white px-3 py-2 text-xs font-medium hover:bg-paper transition">Next →</button>
+        <div class="flex items-center gap-1 rounded-xl border border-line bg-white p-1 ml-2">
+          <button class="rounded-lg bg-ink px-3 py-1.5 text-xs font-semibold text-white">Day</button>
+          <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">Week</button>
+          <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-muted hover:text-ink">Month</button>
+        </div>
+        <button class="flex items-center gap-1.5 rounded-xl bg-ink px-4 py-2 text-xs font-semibold text-white hover:bg-ink-soft transition ml-2">
+          <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          New Appointment
+        </button>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="mb-5 flex items-center gap-2">
+      <div class="flex items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-xs">
+        <svg class="size-3.5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
+        <input class="w-40 bg-transparent outline-none placeholder:text-muted-soft text-xs" placeholder="Search customer…">
+      </div>
+      <div class="flex items-center gap-1 rounded-xl border border-line bg-white p-1 text-xs">
+        <button class="rounded-lg bg-ink px-3 py-1.5 font-semibold text-white">All trainers</button>
+        <button class="rounded-lg px-3 py-1.5 font-medium text-muted hover:text-ink">Aaron Lim</button>
+        <button class="rounded-lg px-3 py-1.5 font-medium text-muted hover:text-ink">Priya R.</button>
+        <button class="rounded-lg px-3 py-1.5 font-medium text-muted hover:text-ink">Jake W.</button>
+      </div>
+      <div class="flex items-center gap-1 rounded-xl border border-line bg-white p-1 text-xs">
+        <button class="rounded-lg bg-ink px-3 py-1.5 font-semibold text-white">All status</button>
+        <button class="rounded-lg px-3 py-1.5 font-medium text-muted hover:text-ink">Confirmed</button>
+        <button class="rounded-lg px-3 py-1.5 font-medium text-muted hover:text-ink">Pending</button>
+      </div>
+      <div class="ml-auto flex items-center gap-2 text-xs text-muted">
+        <span class="lbl">Day summary:</span>
+        <span class="mono font-semibold text-ink">9 sessions</span>
+        <span class="text-muted-soft">·</span>
+        <span class="mono font-semibold text-ink">RM 2,340</span>
+        <span class="text-muted-soft">·</span>
+        <span class="text-amber-600 font-semibold">1 conflict</span>
+      </div>
+    </div>
+
+    <!-- Conflict alert -->
+    <div class="mb-4 flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs">
+      <svg class="size-4 shrink-0 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
+      <span><span class="font-bold text-amber-800">Scheduling conflict detected:</span> <span class="text-amber-700">Aaron Lim has overlapping sessions at 11:00 AM (Danial Tan + Lim Wei Xian both booked). Resolve before confirming.</span></span>
+      <button class="ml-auto rounded-lg bg-amber-100 px-3 py-1.5 font-semibold text-amber-800 transition hover:bg-amber-200">Resolve →</button>
+    </div>
+
+    <!-- Time grid -->
+    <div class="overflow-hidden rounded-2xl border border-line bg-white">
+      <!-- Column headers -->
+      <div class="flex border-b border-line">
+        <div class="time-col border-r border-line"></div>
+        <div class="flex flex-1 divide-x divide-line">
+          <div class="flex-1 px-4 py-3">
+            <div class="lbl">Aaron Lim</div>
+            <div class="text-[11px] text-muted mt-0.5">4 sessions · RM 1,080</div>
+          </div>
+          <div class="flex-1 px-4 py-3">
+            <div class="lbl">Priya Ramasamy</div>
+            <div class="text-[11px] text-muted mt-0.5">3 sessions · RM 810</div>
+          </div>
+          <div class="flex-1 px-4 py-3">
+            <div class="lbl">Jake Whitfield</div>
+            <div class="text-[11px] text-muted mt-0.5">2 sessions · RM 450</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Time rows -->
+      <!-- 8 AM -->
+      <div class="flex border-b border-line" style="min-height:56px">
+        <div class="time-col flex items-start justify-end border-r border-line px-3 pt-2">
+          <span class="mono text-[10px] text-muted">8:00</span>
+        </div>
+        <div class="flex flex-1 divide-x divide-line">
+          <div class="flex-1 p-2">
+            <div class="h-full rounded-lg border s-confirmed p-2 text-[11px]">
+              <div class="font-bold">Siti Aisyah</div>
+              <div class="text-muted mt-0.5">Personal Training · 60 min</div>
+              <div class="mono font-semibold mt-1">RM 270</div>
+            </div>
+          </div>
+          <div class="flex-1 p-2"></div>
+          <div class="flex-1 p-2">
+            <div class="h-full rounded-lg border s-confirmed p-2 text-[11px]">
+              <div class="font-bold">Chen Yu Ming</div>
+              <div class="text-muted mt-0.5">Stretching · 45 min</div>
+              <div class="mono font-semibold mt-1">RM 150</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 9 AM -->
+      <div class="flex border-b border-line" style="min-height:56px">
+        <div class="time-col flex items-start justify-end border-r border-line px-3 pt-2">
+          <span class="mono text-[10px] text-muted">9:00</span>
+        </div>
+        <div class="flex flex-1 divide-x divide-line">
+          <div class="flex-1 p-2">
+            <div class="h-full rounded-lg border s-confirmed p-2 text-[11px]">
+              <div class="font-bold">Rajan Pillai</div>
+              <div class="text-muted mt-0.5">Assessment · 60 min</div>
+              <div class="mono font-semibold mt-1">RM 180</div>
+            </div>
+          </div>
+          <div class="flex-1 p-2">
+            <div class="h-full rounded-lg border s-confirmed p-2 text-[11px]">
+              <div class="font-bold">Nurul Ain</div>
+              <div class="text-muted mt-0.5">Personal Training · 60 min</div>
+              <div class="mono font-semibold mt-1">RM 270</div>
+            </div>
+          </div>
+          <div class="flex-1 p-2"></div>
+        </div>
+      </div>
+
+      <!-- 10 AM -->
+      <div class="flex border-b border-line" style="min-height:56px">
+        <div class="time-col flex items-start justify-end border-r border-line px-3 pt-2">
+          <span class="mono text-[10px] text-muted">10:00</span>
+        </div>
+        <div class="flex flex-1 divide-x divide-line">
+          <div class="flex-1 p-2">
+            <!-- Empty, clickable slot -->
+            <div class="h-full rounded-lg border border-dashed border-line p-2 text-[11px] text-muted flex items-center justify-center cursor-pointer hover:bg-paper hover:border-warm transition group">
+              <span class="group-hover:text-ink">+ Add session</span>
+            </div>
+          </div>
+          <div class="flex-1 p-2">
+            <div class="h-full rounded-lg border s-pending p-2 text-[11px]">
+              <div class="font-bold flex items-center gap-1.5">Marcus Tan
+                <span class="rounded-full bg-yellow-100 px-1.5 py-0.5 text-[9px] font-bold text-yellow-700">PENDING</span>
+              </div>
+              <div class="text-muted mt-0.5">Personal Training · 60 min</div>
+              <div class="mono font-semibold mt-1">RM 270</div>
+            </div>
+          </div>
+          <div class="flex-1 p-2"></div>
+        </div>
+      </div>
+
+      <!-- 11 AM — CONFLICT -->
+      <div class="flex border-b border-line" style="min-height:72px">
+        <div class="time-col flex items-start justify-end border-r border-line px-3 pt-2">
+          <span class="mono text-[10px] text-muted">11:00</span>
+        </div>
+        <div class="flex flex-1 divide-x divide-line">
+          <div class="flex-1 p-2 space-y-1">
+            <!-- Two overlapping = conflict -->
+            <div class="conflict rounded-lg p-2 text-[11px]">
+              <div class="font-bold flex items-center gap-1.5 text-amber-800">
+                <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75M12 15.75h.007v.008H12v-.008ZM10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                Danial Tan
+              </div>
+              <div class="text-amber-700 mt-0.5">Personal Training · 60 min</div>
+            </div>
+            <div class="conflict rounded-lg p-2 text-[11px]">
+              <div class="font-bold flex items-center gap-1.5 text-amber-800">
+                <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75M12 15.75h.007v.008H12v-.008ZM10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                Lim Wei Xian
+              </div>
+              <div class="text-amber-700 mt-0.5">Assessment · 60 min</div>
+            </div>
+          </div>
+          <div class="flex-1 p-2">
+            <div class="h-full rounded-lg border s-confirmed p-2 text-[11px]">
+              <div class="font-bold">Farah Zainal</div>
+              <div class="text-muted mt-0.5">Stretching · 45 min</div>
+              <div class="mono font-semibold mt-1">RM 150</div>
+            </div>
+          </div>
+          <div class="flex-1 p-2"></div>
+        </div>
+      </div>
+
+      <!-- 12 PM -->
+      <div class="flex border-b border-line" style="min-height:56px">
+        <div class="time-col flex items-start justify-end border-r border-line px-3 pt-2">
+          <span class="mono text-[10px] text-muted">12:00</span>
+        </div>
+        <div class="flex flex-1 divide-x divide-line">
+          <div class="flex-1 p-2"></div>
+          <div class="flex-1 p-2"></div>
+          <div class="flex-1 p-2">
+            <div class="h-full rounded-lg border s-confirmed p-2 text-[11px]">
+              <div class="font-bold">Kevin Ooi</div>
+              <div class="text-muted mt-0.5">Personal Training · 60 min</div>
+              <div class="mono font-semibold mt-1">RM 300</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Load more -->
+      <div class="flex items-center justify-center border-t border-line py-3 text-xs text-muted cursor-pointer hover:bg-paper transition">
+        Show 14:00 – 20:00 ↓
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 2 — WEEK GRID VIEW                                             -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d2" class="border-b-8 border-paper">
+  <div class="mx-auto max-w-[1400px] px-7 py-10">
+    <div class="mb-6 flex items-baseline gap-4">
+      <h2 class="text-2xl font-extrabold tracking-tight">Design 2 — Week Grid</h2>
+      <span class="text-xs text-muted">Mon–Sun at a glance · dense chip layout · click day to drill in · quick stats per column</span>
+    </div>
+
+    <!-- Page header -->
+    <div class="mb-6 flex items-center justify-between">
+      <div>
+        <div class="lbl mb-1">Appointments</div>
+        <h1 class="text-3xl font-extrabold tracking-tight">Week of 12–18 May 2026</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="rounded-xl border border-line bg-white px-3 py-2 text-xs font-medium hover:bg-paper transition">← Prev week</button>
+        <button class="rounded-xl border border-line bg-white px-4 py-2 text-xs font-semibold hover:bg-paper transition">This week</button>
+        <button class="rounded-xl border border-line bg-white px-3 py-2 text-xs font-medium hover:bg-paper transition">Next week →</button>
+        <button class="flex items-center gap-1.5 rounded-xl bg-ink px-4 py-2 text-xs font-semibold text-white hover:bg-ink-soft transition ml-2">
+          <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          New Appointment
+        </button>
+      </div>
+    </div>
+
+    <!-- Filters row -->
+    <div class="mb-5 flex items-center gap-2 flex-wrap">
+      <select class="rounded-xl border border-line bg-white px-3 py-2 text-xs outline-none text-ink font-medium">
+        <option>All trainers</option>
+        <option>Aaron Lim</option>
+        <option>Priya Ramasamy</option>
+        <option>Jake Whitfield</option>
+      </select>
+      <select class="rounded-xl border border-line bg-white px-3 py-2 text-xs outline-none text-ink font-medium">
+        <option>All services</option>
+        <option>Personal Training</option>
+        <option>Assessment</option>
+        <option>Stretching</option>
+      </select>
+      <div class="flex items-center gap-1 rounded-xl border border-line bg-white p-1 text-xs">
+        <button class="rounded-lg bg-ink px-3 py-1.5 font-semibold text-white">All</button>
+        <button class="rounded-lg px-3 py-1.5 font-medium text-muted hover:text-ink">Confirmed</button>
+        <button class="rounded-lg px-3 py-1.5 font-medium text-muted hover:text-ink">Pending</button>
+        <button class="rounded-lg px-3 py-1.5 font-medium text-muted hover:text-ink">No-show</button>
+      </div>
+      <div class="ml-auto flex gap-4 text-xs">
+        <div class="text-center"><div class="mono font-extrabold text-lg leading-none">32</div><div class="lbl mt-0.5">This week</div></div>
+        <div class="text-center"><div class="mono font-extrabold text-lg leading-none text-green-600">RM 8,640</div><div class="lbl mt-0.5">Revenue</div></div>
+        <div class="text-center"><div class="mono font-extrabold text-lg leading-none text-amber-600">2</div><div class="lbl mt-0.5">Conflicts</div></div>
+      </div>
+    </div>
+
+    <!-- Week grid -->
+    <div class="overflow-hidden rounded-2xl border border-line bg-white">
+      <!-- Day headers -->
+      <div class="grid grid-cols-7 border-b border-line divide-x divide-line">
+        <div class="p-3 text-center">
+          <div class="lbl">Mon</div>
+          <div class="mt-1 font-bold text-sm">12</div>
+          <div class="lbl mt-1 text-muted-soft">4 sessions</div>
+        </div>
+        <div class="p-3 text-center">
+          <div class="lbl">Tue</div>
+          <div class="mt-1 font-bold text-sm">13</div>
+          <div class="lbl mt-1 text-muted-soft">5 sessions</div>
+        </div>
+        <div class="p-3 text-center">
+          <div class="lbl">Wed</div>
+          <div class="mt-1 font-bold text-sm">14</div>
+          <div class="lbl mt-1 text-muted-soft">6 sessions</div>
+        </div>
+        <div class="p-3 text-center bg-warm/20 border-b-2 border-warm">
+          <div class="lbl text-ink">Thu <span class="rounded-full bg-ink text-white px-1.5 py-0.5 text-[8px] ml-1">Today</span></div>
+          <div class="mt-1 font-extrabold text-sm">15</div>
+          <div class="lbl mt-1">9 sessions</div>
+        </div>
+        <div class="p-3 text-center">
+          <div class="lbl">Fri</div>
+          <div class="mt-1 font-bold text-sm">16</div>
+          <div class="lbl mt-1 text-muted-soft">5 sessions</div>
+        </div>
+        <div class="p-3 text-center">
+          <div class="lbl">Sat</div>
+          <div class="mt-1 font-bold text-sm">17</div>
+          <div class="lbl mt-1 text-muted-soft">2 sessions</div>
+        </div>
+        <div class="p-3 text-center opacity-50">
+          <div class="lbl">Sun</div>
+          <div class="mt-1 font-bold text-sm">18</div>
+          <div class="lbl mt-1 text-muted-soft">1 session</div>
+        </div>
+      </div>
+
+      <!-- Appointment chips grid -->
+      <div class="grid grid-cols-7 divide-x divide-line min-h-[480px]">
+        <!-- Mon -->
+        <div class="p-2 space-y-1.5">
+          <div class="rounded-lg s-confirmed border border-green-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold">Ahmad Faiz</div>
+            <div class="text-[10px] text-muted">9:00 · PT · Aaron L.</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 270</div>
+          </div>
+          <div class="rounded-lg s-completed border border-gray-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold">Sarah Ng</div>
+            <div class="text-[10px] text-muted">11:00 · Assess · Priya</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 180</div>
+          </div>
+          <div class="rounded-lg s-confirmed border border-green-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold">Kevin Goh</div>
+            <div class="text-[10px] text-muted">14:00 · PT · Jake</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 300</div>
+          </div>
+          <div class="rounded-lg s-noshow border border-red-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold line-through opacity-60">Wei Lin</div>
+            <div class="text-[10px] text-red-500">16:00 · PT · Aaron L.</div>
+            <div class="mono text-[10px] font-semibold mt-0.5 text-red-500">No-show</div>
+          </div>
+        </div>
+        <!-- Tue -->
+        <div class="p-2 space-y-1.5">
+          <div class="rounded-lg s-confirmed border border-green-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold">Nurul Ain</div>
+            <div class="text-[10px] text-muted">8:00 · PT · Priya</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 270</div>
+          </div>
+          <div class="rounded-lg s-confirmed border border-green-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold">Marcus Tan</div>
+            <div class="text-[10px] text-muted">10:00 · Stretch · Jake</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 150</div>
+          </div>
+          <div class="rounded-lg s-pending border border-yellow-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold flex items-center gap-1">Yusuf M. <span class="rounded-full bg-yellow-100 px-1 text-[8px] font-bold text-yellow-700">?</span></div>
+            <div class="text-[10px] text-muted">13:00 · Assess · Aaron L.</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 180</div>
+          </div>
+          <div class="rounded-lg s-confirmed border border-green-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold">Li Mei</div>
+            <div class="text-[10px] text-muted">16:00 · PT · Priya</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 270</div>
+          </div>
+          <div class="rounded-lg s-completed border border-gray-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold">Zainal Abidin</div>
+            <div class="text-[10px] text-muted">18:00 · Stretch · Jake</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 150</div>
+          </div>
+        </div>
+        <!-- Wed -->
+        <div class="p-2 space-y-1.5">
+          <div class="rounded-lg s-confirmed border border-green-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold">Rajan Pillai</div>
+            <div class="text-[10px] text-muted">9:00 · PT · Aaron L.</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 270</div>
+          </div>
+          <div class="rounded-lg s-confirmed border border-green-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold">Chen Yu Ming</div>
+            <div class="text-[10px] text-muted">10:00 · Assess · Priya</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 180</div>
+          </div>
+          <!-- Conflict chip -->
+          <div class="conflict rounded-lg p-2 text-[11px] cursor-pointer transition">
+            <div class="font-bold text-amber-800 flex items-center gap-1">
+              <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75M12 15.75h.007v.008H12v-.008Z"/></svg>
+              Danial Tan
+            </div>
+            <div class="text-[10px] text-amber-700">11:00 · PT · Aaron L. ⚠ conflict</div>
+          </div>
+          <div class="rounded-lg s-pending border border-yellow-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold">Farah Zainal</div>
+            <div class="text-[10px] text-muted">14:00 · Stretch · Jake</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 150</div>
+          </div>
+          <div class="rounded-lg s-confirmed border border-green-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold">Kavita Suresh</div>
+            <div class="text-[10px] text-muted">16:00 · PT · Priya</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 270</div>
+          </div>
+          <div class="rounded-lg s-confirmed border border-green-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold">Jason Low</div>
+            <div class="text-[10px] text-muted">18:00 · Assess · Aaron L.</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 180</div>
+          </div>
+        </div>
+        <!-- Thu (today) -->
+        <div class="p-2 space-y-1.5 bg-warm/10">
+          <div class="rounded-lg s-confirmed border border-green-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold">Siti Aisyah</div>
+            <div class="text-[10px] text-muted">8:00 · PT · Aaron L.</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 270</div>
+          </div>
+          <div class="rounded-lg s-confirmed border border-green-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold">Rajan Pillai</div>
+            <div class="text-[10px] text-muted">9:00 · Assess · Aaron L.</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 180</div>
+          </div>
+          <div class="rounded-lg s-confirmed border border-green-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold">Nurul Ain</div>
+            <div class="text-[10px] text-muted">9:00 · PT · Priya</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 270</div>
+          </div>
+          <div class="rounded-lg s-pending border border-yellow-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold">Marcus Tan</div>
+            <div class="text-[10px] text-muted">10:00 · PT · Priya</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 270</div>
+          </div>
+          <div class="conflict rounded-lg p-2 text-[11px] cursor-pointer transition">
+            <div class="font-bold text-amber-800 flex items-center gap-1"><svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75M12 15.75h.007v.008H12v-.008Z"/></svg> Lim Wei Xian</div>
+            <div class="text-[10px] text-amber-700">11:00 · Assess · Aaron L. ⚠</div>
+          </div>
+          <div class="rounded-lg s-confirmed border border-green-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold">Farah Zainal</div>
+            <div class="text-[10px] text-muted">11:00 · Stretch · Priya</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 150</div>
+          </div>
+          <div class="rounded-lg s-confirmed border border-green-200 p-2 text-[11px] cursor-pointer hover:opacity-80 transition">
+            <div class="font-bold">Kevin Ooi</div>
+            <div class="text-[10px] text-muted">12:00 · PT · Jake</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 300</div>
+          </div>
+          <div class="text-center text-[10px] text-muted py-1 font-medium">+2 more today</div>
+        </div>
+        <!-- Fri -->
+        <div class="p-2 space-y-1.5">
+          <div class="rounded-lg s-confirmed border border-green-200 p-2 text-[11px]">
+            <div class="font-bold">Ahmad Faiz</div>
+            <div class="text-[10px] text-muted">9:00 · PT · Priya</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 270</div>
+          </div>
+          <div class="rounded-lg s-pending border border-yellow-200 p-2 text-[11px]">
+            <div class="font-bold">Siti Aisyah</div>
+            <div class="text-[10px] text-muted">11:00 · Stretch · Jake</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 150</div>
+          </div>
+          <div class="rounded-lg s-confirmed border border-green-200 p-2 text-[11px]">
+            <div class="font-bold">Yusuf M.</div>
+            <div class="text-[10px] text-muted">14:00 · Assess · Aaron L.</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 180</div>
+          </div>
+        </div>
+        <!-- Sat -->
+        <div class="p-2 space-y-1.5">
+          <div class="rounded-lg s-confirmed border border-green-200 p-2 text-[11px]">
+            <div class="font-bold">Kevin Goh</div>
+            <div class="text-[10px] text-muted">10:00 · PT · Jake</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 300</div>
+          </div>
+          <div class="rounded-lg s-confirmed border border-green-200 p-2 text-[11px]">
+            <div class="font-bold">Li Mei</div>
+            <div class="text-[10px] text-muted">13:00 · Stretch · Priya</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 150</div>
+          </div>
+        </div>
+        <!-- Sun -->
+        <div class="p-2 space-y-1.5 opacity-60">
+          <div class="rounded-lg s-confirmed border border-green-200 p-2 text-[11px]">
+            <div class="font-bold">Marcus Tan</div>
+            <div class="text-[10px] text-muted">11:00 · PT · Jake</div>
+            <div class="mono text-[10px] font-semibold mt-0.5">RM 300</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 3 — LIST / INBOX BY DATE                                       -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d3" class="border-b-8 border-paper">
+  <div class="mx-auto max-w-[1400px] px-7 py-10">
+    <div class="mb-6 flex items-baseline gap-4">
+      <h2 class="text-2xl font-extrabold tracking-tight">Design 3 — List / Inbox</h2>
+      <span class="text-xs text-muted">Chronological dense list · grouped by date · expandable rows · batch actions</span>
+    </div>
+
+    <!-- Header + CTA -->
+    <div class="mb-6 flex items-end justify-between">
+      <div>
+        <div class="lbl mb-1">Appointments</div>
+        <h1 class="text-3xl font-extrabold tracking-tight">All Sessions</h1>
+      </div>
+      <button class="flex items-center gap-1.5 rounded-xl bg-ink px-4 py-2.5 text-xs font-semibold text-white hover:bg-ink-soft transition">
+        <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        New Appointment
+      </button>
+    </div>
+
+    <!-- KPI strip -->
+    <div class="mb-5 grid grid-cols-4 gap-3">
+      <div class="rounded-2xl border border-line bg-white p-4">
+        <div class="lbl mb-2">Today's sessions</div>
+        <div class="mono text-2xl font-extrabold">9</div>
+        <div class="text-[11px] text-muted mt-1">3 remaining · RM 2,340 total</div>
+      </div>
+      <div class="rounded-2xl border border-line bg-white p-4">
+        <div class="lbl mb-2">This week</div>
+        <div class="mono text-2xl font-extrabold">32</div>
+        <div class="text-[11px] text-muted mt-1">RM 8,640 revenue</div>
+      </div>
+      <div class="rounded-2xl border border-line bg-white p-4">
+        <div class="lbl mb-2">Pending confirm</div>
+        <div class="mono text-2xl font-extrabold text-amber-600">5</div>
+        <div class="text-[11px] text-muted mt-1">Awaiting trainer response</div>
+      </div>
+      <div class="rounded-2xl border border-line bg-white p-4">
+        <div class="lbl mb-2">No-shows this week</div>
+        <div class="mono text-2xl font-extrabold text-red-600">2</div>
+        <div class="text-[11px] text-muted mt-1">6.25% no-show rate</div>
+      </div>
+    </div>
+
+    <!-- Filter bar -->
+    <div class="mb-4 flex items-center gap-2 flex-wrap">
+      <div class="flex flex-1 items-center gap-2 rounded-xl border border-line bg-white px-3 py-2">
+        <svg class="size-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
+        <input class="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-soft" placeholder="Search customer, trainer, service…">
+      </div>
+      <select class="rounded-xl border border-line bg-white px-3 py-2 text-xs outline-none font-medium">
+        <option>All trainers</option>
+        <option>Aaron Lim</option>
+        <option>Priya Ramasamy</option>
+        <option>Jake Whitfield</option>
+      </select>
+      <select class="rounded-xl border border-line bg-white px-3 py-2 text-xs outline-none font-medium">
+        <option>All status</option>
+        <option>Confirmed</option>
+        <option>Pending</option>
+        <option>Completed</option>
+        <option>No-show</option>
+      </select>
+      <select class="rounded-xl border border-line bg-white px-3 py-2 text-xs outline-none font-medium">
+        <option>All services</option>
+        <option>Personal Training</option>
+        <option>Assessment</option>
+        <option>Stretching</option>
+      </select>
+      <input type="date" class="rounded-xl border border-line bg-white px-3 py-2 text-xs outline-none font-medium" value="2026-05-15">
+    </div>
+
+    <!-- Bulk bar (2 selected) -->
+    <div class="mb-4 flex items-center justify-between rounded-xl border border-ink bg-ink p-3 text-white">
+      <div class="flex items-center gap-3 text-xs">
+        <span class="mono font-bold">2 selected</span>
+        <span class="text-white/40">·</span>
+        <span class="mono">RM 540 total</span>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <button class="rounded-lg bg-white px-3 py-1.5 font-semibold text-ink hover:bg-paper transition">Confirm 2</button>
+        <button class="rounded-lg border border-white/20 px-3 py-1.5 font-semibold hover:bg-white/10 transition">Reschedule…</button>
+        <button class="rounded-lg border border-white/20 px-3 py-1.5 font-semibold text-rose-300 hover:bg-rose-500/20 transition">Cancel…</button>
+        <span class="ml-2 cursor-pointer text-white/40 hover:text-white">✕</span>
+      </div>
+    </div>
+
+    <!-- List -->
+    <div class="overflow-hidden rounded-2xl border border-line bg-white">
+      <!-- Group: Today -->
+      <div class="border-b border-line bg-paper/70 px-5 py-2 flex items-center justify-between">
+        <span class="lbl">Today · 15 May 2026</span>
+        <span class="text-[10px] text-muted">9 sessions · RM 2,340</span>
+      </div>
+
+      <!-- Row: confirmed + selected -->
+      <div class="group flex items-center gap-4 border-b border-line px-5 py-3.5 bg-paper/30 hover:bg-paper transition cursor-pointer">
+        <input type="checkbox" class="shrink-0 h-3.5 w-3.5 rounded border-muted-soft accent-ink" checked>
+        <div class="mono text-xs text-muted w-12 shrink-0">08:00</div>
+        <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-warm/40 text-[11px] font-bold">SA</div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-sm">Siti Aisyah</span>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-pt">Personal Training</span>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold s-confirmed border border-green-200">Confirmed</span>
+          </div>
+          <div class="text-xs text-muted mt-0.5">Aaron Lim · 60 min · Sunway Pyramid</div>
+        </div>
+        <div class="mono text-sm font-bold">RM 270.00</div>
+        <button class="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[10px] font-semibold hover:bg-paper transition opacity-0 group-hover:opacity-100">View</button>
+      </div>
+
+      <!-- Row: confirmed + selected -->
+      <div class="group flex items-center gap-4 border-b border-line px-5 py-3.5 bg-paper/30 hover:bg-paper transition cursor-pointer">
+        <input type="checkbox" class="shrink-0 h-3.5 w-3.5 rounded border-muted-soft accent-ink" checked>
+        <div class="mono text-xs text-muted w-12 shrink-0">09:00</div>
+        <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-paper text-[11px] font-bold">RP</div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-sm">Rajan Pillai</span>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-assess">Assessment</span>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold s-confirmed border border-green-200">Confirmed</span>
+          </div>
+          <div class="text-xs text-muted mt-0.5">Aaron Lim · 60 min · Sunway Pyramid</div>
+        </div>
+        <div class="mono text-sm font-bold">RM 180.00</div>
+        <button class="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[10px] font-semibold hover:bg-paper transition opacity-0 group-hover:opacity-100">View</button>
+      </div>
+
+      <!-- Row: pending -->
+      <div class="group flex items-center gap-4 border-b border-line px-5 py-3.5 hover:bg-paper transition cursor-pointer">
+        <input type="checkbox" class="shrink-0 h-3.5 w-3.5 rounded border-muted-soft accent-ink">
+        <div class="mono text-xs text-muted w-12 shrink-0">10:00</div>
+        <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-paper text-[11px] font-bold">MT</div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-sm">Marcus Tan</span>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-pt">Personal Training</span>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold s-pending border border-yellow-200">Pending</span>
+          </div>
+          <div class="text-xs text-muted mt-0.5">Priya Ramasamy · 60 min · KL Eco City</div>
+        </div>
+        <div class="mono text-sm font-bold">RM 270.00</div>
+        <div class="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition">
+          <button class="rounded-lg bg-ink px-2.5 py-1.5 text-[10px] font-semibold text-white">Confirm</button>
+          <button class="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[10px] font-semibold hover:bg-paper">View</button>
+        </div>
+      </div>
+
+      <!-- Row: conflict warning -->
+      <div class="group flex items-center gap-4 border-b border-amber-200 bg-amber-50/50 px-5 py-3.5 hover:bg-amber-50 transition cursor-pointer">
+        <input type="checkbox" class="shrink-0 h-3.5 w-3.5 rounded border-muted-soft accent-ink">
+        <div class="mono text-xs text-amber-600 w-12 shrink-0 font-bold">11:00</div>
+        <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-[11px] font-bold text-amber-800">DT</div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-sm">Danial Tan</span>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-pt">Personal Training</span>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">Pending</span>
+            <span class="flex items-center gap-1 rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+              <svg class="size-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75M12 15.75h.007v.008H12v-.008Z"/></svg>
+              Conflict
+            </span>
+          </div>
+          <div class="text-xs text-amber-700 mt-0.5">Aaron Lim · 60 min · Aaron also has Lim Wei Xian at 11:00</div>
+        </div>
+        <div class="mono text-sm font-bold">RM 270.00</div>
+        <button class="rounded-lg bg-amber-100 px-2.5 py-1.5 text-[10px] font-semibold text-amber-800 hover:bg-amber-200 transition opacity-0 group-hover:opacity-100">Resolve</button>
+      </div>
+
+      <!-- Row: completed -->
+      <div class="group flex items-center gap-4 border-b border-line px-5 py-3.5 hover:bg-paper transition cursor-pointer opacity-70">
+        <input type="checkbox" class="shrink-0 h-3.5 w-3.5 rounded border-muted-soft accent-ink">
+        <div class="mono text-xs text-muted w-12 shrink-0">08:00</div>
+        <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-paper text-[11px] font-bold">FZ</div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-sm">Farah Zainal</span>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-stretch">Stretching</span>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold s-completed border border-gray-200">Completed</span>
+          </div>
+          <div class="text-xs text-muted mt-0.5">Priya Ramasamy · 45 min · Sunway Pyramid</div>
+        </div>
+        <div class="mono text-sm font-bold">RM 150.00</div>
+        <button class="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[10px] font-semibold hover:bg-paper transition opacity-0 group-hover:opacity-100">View</button>
+      </div>
+
+      <!-- Group: Yesterday -->
+      <div class="border-b border-t border-line bg-paper/70 px-5 py-2 flex items-center justify-between">
+        <span class="lbl">Yesterday · 14 May 2026</span>
+        <span class="text-[10px] text-muted">6 sessions · RM 1,530</span>
+      </div>
+
+      <div class="group flex items-center gap-4 border-b border-line px-5 py-3.5 hover:bg-paper transition cursor-pointer opacity-70">
+        <input type="checkbox" class="shrink-0 h-3.5 w-3.5 rounded border-muted-soft accent-ink">
+        <div class="mono text-xs text-muted w-12 shrink-0">09:00</div>
+        <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-paper text-[11px] font-bold">NA</div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-sm">Nurul Ain</span>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-pt">Personal Training</span>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold s-completed border border-gray-200">Completed</span>
+          </div>
+          <div class="text-xs text-muted mt-0.5">Aaron Lim · 60 min · KL Eco City</div>
+        </div>
+        <div class="mono text-sm font-bold">RM 270.00</div>
+        <button class="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[10px] font-semibold hover:bg-paper transition opacity-0 group-hover:opacity-100">View</button>
+      </div>
+
+      <div class="group flex items-center gap-4 border-b border-line px-5 py-3.5 hover:bg-paper transition cursor-pointer opacity-70">
+        <input type="checkbox" class="shrink-0 h-3.5 w-3.5 rounded border-muted-soft accent-ink">
+        <div class="mono text-xs text-muted w-12 shrink-0">14:00</div>
+        <div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-red-100 text-[11px] font-bold text-red-600">WL</div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-sm line-through opacity-60">Wei Lin</span>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-pt">Personal Training</span>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold s-noshow border border-red-200">No-show</span>
+          </div>
+          <div class="text-xs text-muted mt-0.5">Aaron Lim · 60 min · Sunway Pyramid · 2nd no-show this month</div>
+        </div>
+        <div class="mono text-sm font-bold text-red-400 line-through">RM 270.00</div>
+        <button class="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-[10px] font-semibold text-red-700 hover:bg-red-100 transition opacity-0 group-hover:opacity-100">Flag</button>
+      </div>
+
+      <div class="flex items-center justify-center border-t border-line py-3 text-xs text-muted cursor-pointer hover:bg-paper transition">
+        Load earlier appointments ↓
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 4 — TRAINER SWIMLANE TIMELINE                                  -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d4" class="border-b-8 border-paper">
+  <div class="mx-auto max-w-[1400px] px-7 py-10">
+    <div class="mb-6 flex items-baseline gap-4">
+      <h2 class="text-2xl font-extrabold tracking-tight">Design 4 — Trainer Swimlanes</h2>
+      <span class="text-xs text-muted">One horizontal lane per trainer · proportional time blocks · drag to reschedule (concept) · capacity bar per trainer</span>
+    </div>
+
+    <!-- Header -->
+    <div class="mb-6 flex items-center justify-between">
+      <div>
+        <div class="lbl mb-1">Appointments · Trainer View</div>
+        <h1 class="text-3xl font-extrabold tracking-tight">Thursday, 15 May 2026</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="rounded-xl border border-line bg-white px-3 py-2 text-xs font-medium hover:bg-paper transition">← Prev</button>
+        <button class="rounded-xl border border-line bg-white px-4 py-2 text-xs font-semibold hover:bg-paper transition">Today</button>
+        <button class="rounded-xl border border-line bg-white px-3 py-2 text-xs font-medium hover:bg-paper transition">Next →</button>
+        <button class="flex items-center gap-1.5 rounded-xl bg-ink px-4 py-2 text-xs font-semibold text-white hover:bg-ink-soft transition ml-2">
+          <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          New Appointment
+        </button>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="mb-5 flex items-center gap-5 text-xs">
+      <span class="lbl">Trainers:</span>
+      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-indigo-400"></span> Aaron Lim</span>
+      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-sky-400"></span> Priya Ramasamy</span>
+      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-emerald-400"></span> Jake Whitfield</span>
+      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-amber-300"></span> Dana Chen (contract)</span>
+      <span class="ml-auto flex items-center gap-3 text-muted">
+        <span class="flex items-center gap-1.5"><span class="inline-block w-4 border-t-2 border-dashed border-amber-500"></span> conflict</span>
+        <span class="flex items-center gap-1.5"><span class="inline-block w-4 border-t-2 border-gray-300"></span> available</span>
+      </span>
+    </div>
+
+    <!-- Timeline wrapper -->
+    <div class="overflow-hidden rounded-2xl border border-line bg-white">
+      <!-- Hour ruler -->
+      <div class="flex border-b border-line">
+        <div class="w-36 shrink-0 border-r border-line px-4 py-3">
+          <div class="lbl">Trainer</div>
+        </div>
+        <div class="flex-1 overflow-hidden">
+          <div class="flex">
+            <div class="flex-1 text-center py-3 border-r border-line text-[10px] text-muted font-mono">8:00</div>
+            <div class="flex-1 text-center py-3 border-r border-line text-[10px] text-muted font-mono">9:00</div>
+            <div class="flex-1 text-center py-3 border-r border-line text-[10px] text-muted font-mono">10:00</div>
+            <div class="flex-1 text-center py-3 border-r border-line text-[10px] text-muted font-mono">11:00</div>
+            <div class="flex-1 text-center py-3 border-r border-line text-[10px] text-muted font-mono">12:00</div>
+            <div class="flex-1 text-center py-3 border-r border-line text-[10px] text-muted font-mono">13:00</div>
+            <div class="flex-1 text-center py-3 border-r border-line text-[10px] text-muted font-mono">14:00</div>
+            <div class="flex-1 text-center py-3 border-r border-line text-[10px] text-muted font-mono">15:00</div>
+            <div class="flex-1 text-center py-3 text-[10px] text-muted font-mono">16:00</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Aaron Lim lane -->
+      <div class="flex border-b border-line" style="min-height: 88px;">
+        <div class="w-36 shrink-0 border-r border-line p-3">
+          <div class="flex items-center gap-2">
+            <div class="size-8 rounded-full bg-indigo-100 flex items-center justify-center text-[11px] font-bold text-indigo-700">AL</div>
+            <div>
+              <div class="text-xs font-bold">Aaron Lim</div>
+              <div class="text-[10px] text-muted">4 today</div>
+            </div>
+          </div>
+          <!-- Capacity bar -->
+          <div class="mt-2">
+            <div class="lbl text-[9px] mb-1">Capacity 80%</div>
+            <div class="h-1 rounded-full bg-line overflow-hidden">
+              <div class="h-full rounded-full bg-indigo-400" style="width:80%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="flex-1 relative overflow-hidden bg-indigo-50/30">
+          <!-- Grid lines -->
+          <div class="absolute inset-0 flex pointer-events-none">
+            <div class="flex-1 border-r border-line/60"></div>
+            <div class="flex-1 border-r border-line/60"></div>
+            <div class="flex-1 border-r border-line/60"></div>
+            <div class="flex-1 border-r border-amber-300 border-dashed"></div><!-- conflict hour -->
+            <div class="flex-1 border-r border-line/60"></div>
+            <div class="flex-1 border-r border-line/60"></div>
+            <div class="flex-1 border-r border-line/60"></div>
+            <div class="flex-1 border-r border-line/60"></div>
+            <div class="flex-1"></div>
+          </div>
+          <!-- Appointment blocks (proportional, 9-col = 8 hours, each ~11.11%) -->
+          <!-- 8:00 Siti Aisyah 60min = 1/8 = 12.5% -->
+          <div class="lane-bg-a absolute top-2 bottom-2 rounded-lg border text-[10px] px-2 py-1.5 overflow-hidden" style="left:0%; width:12.5%">
+            <div class="font-bold text-indigo-900 truncate">Siti Aisyah</div>
+            <div class="text-indigo-600 truncate">PT · 60m</div>
+          </div>
+          <!-- 9:00 Rajan Pillai 60min -->
+          <div class="lane-bg-a absolute top-2 bottom-2 rounded-lg border text-[10px] px-2 py-1.5 overflow-hidden" style="left:12.5%; width:12.5%">
+            <div class="font-bold text-indigo-900 truncate">Rajan Pillai</div>
+            <div class="text-indigo-600 truncate">Assess · 60m</div>
+          </div>
+          <!-- 11:00 CONFLICT -->
+          <div class="conflict absolute top-2 bottom-2 rounded-lg text-[10px] px-2 py-1.5 overflow-hidden" style="left:37.5%; width:12.5%">
+            <div class="font-bold text-amber-800 truncate flex items-center gap-0.5"><svg class="size-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75M12 15.75h.007v.008H12v-.008Z"/></svg>Conflict</div>
+            <div class="text-amber-700 truncate">Danial / Lim Wei</div>
+          </div>
+          <!-- 14:00 Nurul Ain 60min -->
+          <div class="lane-bg-a absolute top-2 bottom-2 rounded-lg border text-[10px] px-2 py-1.5 overflow-hidden" style="left:75%; width:12.5%">
+            <div class="font-bold text-indigo-900 truncate">Nurul Ain</div>
+            <div class="text-indigo-600 truncate">PT · 60m</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Priya Ramasamy lane -->
+      <div class="flex border-b border-line" style="min-height: 88px;">
+        <div class="w-36 shrink-0 border-r border-line p-3">
+          <div class="flex items-center gap-2">
+            <div class="size-8 rounded-full bg-sky-100 flex items-center justify-center text-[11px] font-bold text-sky-700">PR</div>
+            <div>
+              <div class="text-xs font-bold">Priya R.</div>
+              <div class="text-[10px] text-muted">3 today</div>
+            </div>
+          </div>
+          <div class="mt-2">
+            <div class="lbl text-[9px] mb-1">Capacity 60%</div>
+            <div class="h-1 rounded-full bg-line overflow-hidden">
+              <div class="h-full rounded-full bg-sky-400" style="width:60%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="flex-1 relative overflow-hidden bg-sky-50/20">
+          <div class="absolute inset-0 flex pointer-events-none">
+            <div class="flex-1 border-r border-line/60"></div><div class="flex-1 border-r border-line/60"></div><div class="flex-1 border-r border-line/60"></div><div class="flex-1 border-r border-line/60"></div><div class="flex-1 border-r border-line/60"></div><div class="flex-1 border-r border-line/60"></div><div class="flex-1 border-r border-line/60"></div><div class="flex-1 border-r border-line/60"></div><div class="flex-1"></div>
+          </div>
+          <!-- 9:00 Marcus Tan 60min -->
+          <div class="lane-bg-b absolute top-2 bottom-2 rounded-lg border text-[10px] px-2 py-1.5 overflow-hidden" style="left:12.5%; width:12.5%">
+            <div class="font-bold text-sky-900 truncate">Marcus Tan</div>
+            <div class="text-sky-600 truncate">PT · 60m</div>
+          </div>
+          <!-- 11:00 Farah Zainal 45min -->
+          <div class="lane-bg-b absolute top-2 bottom-2 rounded-lg border text-[10px] px-2 py-1.5 overflow-hidden" style="left:37.5%; width:9.4%">
+            <div class="font-bold text-sky-900 truncate">Farah Z.</div>
+            <div class="text-sky-600 truncate">Stretch</div>
+          </div>
+          <!-- 14:00 Kavita 60min -->
+          <div class="lane-bg-b absolute top-2 bottom-2 rounded-lg border text-[10px] px-2 py-1.5 overflow-hidden" style="left:75%; width:12.5%">
+            <div class="font-bold text-sky-900 truncate">Kavita S.</div>
+            <div class="text-sky-600 truncate">PT · 60m</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Jake Whitfield lane -->
+      <div class="flex border-b border-line" style="min-height: 88px;">
+        <div class="w-36 shrink-0 border-r border-line p-3">
+          <div class="flex items-center gap-2">
+            <div class="size-8 rounded-full bg-emerald-100 flex items-center justify-center text-[11px] font-bold text-emerald-700">JW</div>
+            <div>
+              <div class="text-xs font-bold">Jake W.</div>
+              <div class="text-[10px] text-muted">2 today</div>
+            </div>
+          </div>
+          <div class="mt-2">
+            <div class="lbl text-[9px] mb-1">Capacity 25%</div>
+            <div class="h-1 rounded-full bg-line overflow-hidden">
+              <div class="h-full rounded-full bg-emerald-400" style="width:25%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="flex-1 relative overflow-hidden bg-emerald-50/20">
+          <div class="absolute inset-0 flex pointer-events-none">
+            <div class="flex-1 border-r border-line/60"></div><div class="flex-1 border-r border-line/60"></div><div class="flex-1 border-r border-line/60"></div><div class="flex-1 border-r border-line/60"></div><div class="flex-1 border-r border-line/60"></div><div class="flex-1 border-r border-line/60"></div><div class="flex-1 border-r border-line/60"></div><div class="flex-1 border-r border-line/60"></div><div class="flex-1"></div>
+          </div>
+          <!-- 8:00 Chen Yu Ming 45min -->
+          <div class="lane-bg-c absolute top-2 bottom-2 rounded-lg border text-[10px] px-2 py-1.5 overflow-hidden" style="left:0%; width:9.4%">
+            <div class="font-bold text-emerald-900 truncate">Chen Yu</div>
+            <div class="text-emerald-600 truncate">Stretch</div>
+          </div>
+          <!-- 12:00 Kevin Ooi 60min -->
+          <div class="lane-bg-c absolute top-2 bottom-2 rounded-lg border text-[10px] px-2 py-1.5 overflow-hidden" style="left:50%; width:12.5%">
+            <div class="font-bold text-emerald-900 truncate">Kevin Ooi</div>
+            <div class="text-emerald-600 truncate">PT · 60m</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dana Chen lane -->
+      <div class="flex" style="min-height: 88px;">
+        <div class="w-36 shrink-0 border-r border-line p-3">
+          <div class="flex items-center gap-2">
+            <div class="size-8 rounded-full bg-amber-100 flex items-center justify-center text-[11px] font-bold text-amber-700">DC</div>
+            <div>
+              <div class="text-xs font-bold">Dana Chen</div>
+              <div class="text-[10px] text-muted text-amber-600">Contract · off today</div>
+            </div>
+          </div>
+          <div class="mt-2">
+            <div class="lbl text-[9px] mb-1">Capacity 0%</div>
+            <div class="h-1 rounded-full bg-line overflow-hidden">
+              <div class="h-full rounded-full bg-amber-300" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="flex-1 relative bg-paper/50 flex items-center justify-center">
+          <span class="text-xs text-muted italic">No sessions scheduled · click to add</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- DESIGN 5 — STATUS BOARD (KANBAN BY STATUS)                            -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<section id="d5">
+  <div class="mx-auto max-w-[1400px] px-7 py-10">
+    <div class="mb-6 flex items-baseline gap-4">
+      <h2 class="text-2xl font-extrabold tracking-tight">Design 5 — Status Board</h2>
+      <span class="text-xs text-muted">Kanban columns by status · drag card to change state · quick-confirm from Pending · no-show flagging · full session count + revenue per column</span>
+    </div>
+
+    <!-- Header -->
+    <div class="mb-6 flex items-center justify-between">
+      <div>
+        <div class="lbl mb-1">Appointments</div>
+        <h1 class="text-3xl font-extrabold tracking-tight">Status Board · Today</h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <input type="date" class="rounded-xl border border-line bg-white px-3 py-2 text-xs outline-none font-medium" value="2026-05-15">
+        <select class="rounded-xl border border-line bg-white px-3 py-2 text-xs outline-none font-medium">
+          <option>All trainers</option>
+          <option>Aaron Lim</option>
+          <option>Priya Ramasamy</option>
+          <option>Jake Whitfield</option>
+        </select>
+        <select class="rounded-xl border border-line bg-white px-3 py-2 text-xs outline-none font-medium">
+          <option>All services</option>
+          <option>Personal Training</option>
+          <option>Assessment</option>
+          <option>Stretching</option>
+        </select>
+        <button class="flex items-center gap-1.5 rounded-xl bg-ink px-4 py-2 text-xs font-semibold text-white hover:bg-ink-soft transition ml-1">
+          <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          New Appointment
+        </button>
+      </div>
+    </div>
+
+    <!-- Kanban board -->
+    <div class="grid grid-cols-4 gap-4">
+
+      <!-- Column: Pending -->
+      <div class="flex flex-col gap-3">
+        <!-- Column header -->
+        <div class="flex items-center justify-between rounded-xl bg-yellow-50 border border-yellow-200 px-4 py-3">
+          <div>
+            <div class="lbl text-yellow-700">Pending</div>
+            <div class="flex items-baseline gap-2 mt-0.5">
+              <span class="mono text-xl font-extrabold">5</span>
+              <span class="text-xs text-yellow-700">sessions</span>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="mono text-sm font-bold text-yellow-800">RM 1,350</div>
+            <div class="text-[10px] text-yellow-600">awaiting confirm</div>
+          </div>
+        </div>
+
+        <!-- Cards -->
+        <div class="kanban-card p-3 cursor-grab hover:shadow-md transition group">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="font-bold text-sm">Marcus Tan</div>
+              <div class="text-xs text-muted mt-0.5">10:00 · 60 min</div>
+            </div>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-pt">PT</span>
+          </div>
+          <div class="mt-2 flex items-center gap-2 text-xs text-muted">
+            <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
+            Priya Ramasamy
+          </div>
+          <div class="mono text-xs font-bold mt-2">RM 270.00</div>
+          <div class="mt-3 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+            <button class="flex-1 rounded-lg bg-ink py-1.5 text-[10px] font-bold text-white hover:bg-ink-soft transition">Confirm</button>
+            <button class="flex-1 rounded-lg border border-line py-1.5 text-[10px] font-medium hover:bg-paper transition">Reschedule</button>
+          </div>
+        </div>
+
+        <div class="kanban-card p-3 cursor-grab hover:shadow-md transition group">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="font-bold text-sm">Yusuf Mahmud</div>
+              <div class="text-xs text-muted mt-0.5">13:00 · 60 min</div>
+            </div>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-assess">Assess</span>
+          </div>
+          <div class="mt-2 flex items-center gap-2 text-xs text-muted">
+            <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
+            Aaron Lim
+          </div>
+          <div class="mono text-xs font-bold mt-2">RM 180.00</div>
+          <div class="mt-3 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+            <button class="flex-1 rounded-lg bg-ink py-1.5 text-[10px] font-bold text-white">Confirm</button>
+            <button class="flex-1 rounded-lg border border-line py-1.5 text-[10px] font-medium hover:bg-paper">Reschedule</button>
+          </div>
+        </div>
+
+        <!-- Conflict card -->
+        <div class="kanban-card p-3 cursor-grab border-amber-300 bg-amber-50/60 hover:shadow-md transition group">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="font-bold text-sm flex items-center gap-1.5">
+                <svg class="size-3.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75M12 15.75h.007v.008H12v-.008Z"/></svg>
+                Danial Tan
+              </div>
+              <div class="text-xs text-amber-700 mt-0.5">11:00 · conflict with Lim Wei</div>
+            </div>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-pt">PT</span>
+          </div>
+          <div class="mt-2 flex items-center gap-2 text-xs text-muted">
+            <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
+            Aaron Lim <span class="text-amber-600 font-semibold">(overbooked)</span>
+          </div>
+          <div class="mono text-xs font-bold mt-2">RM 270.00</div>
+          <div class="mt-3 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+            <button class="flex-1 rounded-lg bg-amber-500 py-1.5 text-[10px] font-bold text-white">Resolve →</button>
+          </div>
+        </div>
+
+        <div class="kanban-card p-3 cursor-grab hover:shadow-md transition group">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="font-bold text-sm">Farah Zainal</div>
+              <div class="text-xs text-muted mt-0.5">15:00 · 45 min</div>
+            </div>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-stretch">Stretch</span>
+          </div>
+          <div class="mt-2 flex items-center gap-2 text-xs text-muted">
+            <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
+            Priya Ramasamy
+          </div>
+          <div class="mono text-xs font-bold mt-2">RM 150.00</div>
+          <div class="mt-3 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+            <button class="flex-1 rounded-lg bg-ink py-1.5 text-[10px] font-bold text-white">Confirm</button>
+            <button class="flex-1 rounded-lg border border-line py-1.5 text-[10px] font-medium hover:bg-paper">Reschedule</button>
+          </div>
+        </div>
+
+        <button class="rounded-xl border border-dashed border-line py-3 text-xs text-muted hover:bg-white hover:text-ink transition font-medium">+ Add appointment</button>
+      </div>
+
+      <!-- Column: Confirmed -->
+      <div class="flex flex-col gap-3">
+        <div class="flex items-center justify-between rounded-xl bg-green-50 border border-green-200 px-4 py-3">
+          <div>
+            <div class="lbl text-green-700">Confirmed</div>
+            <div class="flex items-baseline gap-2 mt-0.5">
+              <span class="mono text-xl font-extrabold">6</span>
+              <span class="text-xs text-green-700">sessions</span>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="mono text-sm font-bold text-green-800">RM 1,620</div>
+            <div class="text-[10px] text-green-600">locked in</div>
+          </div>
+        </div>
+
+        <div class="kanban-card p-3 cursor-grab hover:shadow-md transition">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="font-bold text-sm">Siti Aisyah</div>
+              <div class="text-xs text-muted mt-0.5">08:00 · 60 min</div>
+            </div>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-pt">PT</span>
+          </div>
+          <div class="mt-2 text-xs text-muted flex items-center gap-1.5">
+            <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
+            Aaron Lim
+          </div>
+          <div class="mono text-xs font-bold mt-2">RM 270.00</div>
+        </div>
+
+        <div class="kanban-card p-3 cursor-grab hover:shadow-md transition">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="font-bold text-sm">Rajan Pillai</div>
+              <div class="text-xs text-muted mt-0.5">09:00 · 60 min</div>
+            </div>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-assess">Assess</span>
+          </div>
+          <div class="mt-2 text-xs text-muted flex items-center gap-1.5">
+            <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
+            Aaron Lim
+          </div>
+          <div class="mono text-xs font-bold mt-2">RM 180.00</div>
+        </div>
+
+        <div class="kanban-card p-3 cursor-grab hover:shadow-md transition">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="font-bold text-sm">Nurul Ain</div>
+              <div class="text-xs text-muted mt-0.5">09:00 · 60 min</div>
+            </div>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-pt">PT</span>
+          </div>
+          <div class="mt-2 text-xs text-muted flex items-center gap-1.5">
+            <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
+            Priya Ramasamy
+          </div>
+          <div class="mono text-xs font-bold mt-2">RM 270.00</div>
+        </div>
+
+        <div class="kanban-card p-3 cursor-grab hover:shadow-md transition">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="font-bold text-sm">Lim Wei Xian</div>
+              <div class="text-xs text-muted mt-0.5">11:00 · 60 min</div>
+            </div>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-assess">Assess</span>
+          </div>
+          <div class="mt-2 text-xs text-muted flex items-center gap-1.5">
+            <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
+            Aaron Lim <span class="text-amber-600 font-semibold ml-1">⚠ conflict</span>
+          </div>
+          <div class="mono text-xs font-bold mt-2">RM 180.00</div>
+        </div>
+
+        <div class="kanban-card p-3 cursor-grab hover:shadow-md transition">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="font-bold text-sm">Kevin Ooi</div>
+              <div class="text-xs text-muted mt-0.5">12:00 · 60 min</div>
+            </div>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-pt">PT</span>
+          </div>
+          <div class="mt-2 text-xs text-muted flex items-center gap-1.5">
+            <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
+            Jake Whitfield
+          </div>
+          <div class="mono text-xs font-bold mt-2">RM 300.00</div>
+        </div>
+
+        <div class="kanban-card p-3 cursor-grab hover:shadow-md transition">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="font-bold text-sm">Kavita Suresh</div>
+              <div class="text-xs text-muted mt-0.5">14:00 · 60 min</div>
+            </div>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-pt">PT</span>
+          </div>
+          <div class="mt-2 text-xs text-muted flex items-center gap-1.5">
+            <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"/></svg>
+            Priya Ramasamy
+          </div>
+          <div class="mono text-xs font-bold mt-2">RM 270.00</div>
+        </div>
+      </div>
+
+      <!-- Column: Completed -->
+      <div class="flex flex-col gap-3">
+        <div class="flex items-center justify-between rounded-xl bg-gray-100 border border-line px-4 py-3">
+          <div>
+            <div class="lbl">Completed</div>
+            <div class="flex items-baseline gap-2 mt-0.5">
+              <span class="mono text-xl font-extrabold">3</span>
+              <span class="text-xs text-muted">sessions</span>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="mono text-sm font-bold">RM 720</div>
+            <div class="text-[10px] text-muted">collected</div>
+          </div>
+        </div>
+
+        <div class="kanban-card p-3 opacity-75 hover:opacity-100 transition cursor-default">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="font-bold text-sm">Farah Zainal</div>
+              <div class="text-xs text-muted mt-0.5">08:00 · 45 min · done</div>
+            </div>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-stretch">Stretch</span>
+          </div>
+          <div class="mt-2 text-xs text-muted">Priya Ramasamy</div>
+          <div class="mono text-xs font-bold mt-2">RM 150.00</div>
+          <div class="mt-2 flex items-center gap-1 text-[10px] text-green-600 font-semibold">
+            <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+            Session notes added
+          </div>
+        </div>
+
+        <div class="kanban-card p-3 opacity-75 hover:opacity-100 transition cursor-default">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="font-bold text-sm">Chen Yu Ming</div>
+              <div class="text-xs text-muted mt-0.5">08:00 · 45 min · done</div>
+            </div>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-stretch">Stretch</span>
+          </div>
+          <div class="mt-2 text-xs text-muted">Jake Whitfield</div>
+          <div class="mono text-xs font-bold mt-2">RM 150.00</div>
+          <div class="mt-2 flex items-center gap-1 text-[10px] text-muted font-medium">
+            <svg class="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125"/></svg>
+            Add session notes
+          </div>
+        </div>
+
+        <div class="kanban-card p-3 opacity-75 hover:opacity-100 transition cursor-default">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="font-bold text-sm">Zainal Abidin</div>
+              <div class="text-xs text-muted mt-0.5">09:00 · 60 min · done</div>
+            </div>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-pt">PT</span>
+          </div>
+          <div class="mt-2 text-xs text-muted">Aaron Lim</div>
+          <div class="mono text-xs font-bold mt-2">RM 270.00 <span class="line-through text-muted text-[10px] ml-1">session 8/12</span></div>
+        </div>
+      </div>
+
+      <!-- Column: No-show -->
+      <div class="flex flex-col gap-3">
+        <div class="flex items-center justify-between rounded-xl bg-red-50 border border-red-200 px-4 py-3">
+          <div>
+            <div class="lbl text-red-700">No-show</div>
+            <div class="flex items-baseline gap-2 mt-0.5">
+              <span class="mono text-xl font-extrabold text-red-700">1</span>
+              <span class="text-xs text-red-600">this week: 2</span>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="mono text-sm font-bold text-red-700">RM 270</div>
+            <div class="text-[10px] text-red-500">forfeited</div>
+          </div>
+        </div>
+
+        <div class="kanban-card p-3 border-red-200 bg-red-50/40 cursor-default">
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="font-bold text-sm line-through opacity-60">Wei Lin</div>
+              <div class="text-xs text-red-500 mt-0.5">16:00 · 60 min · no-show</div>
+            </div>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-bold t-pt">PT</span>
+          </div>
+          <div class="mt-2 text-xs text-muted">Aaron Lim</div>
+          <div class="mono text-xs font-bold mt-2 text-red-400 line-through">RM 270.00</div>
+          <div class="mt-3 flex items-center justify-between">
+            <span class="text-[10px] text-red-600 font-semibold">2nd no-show this month</span>
+            <button class="rounded-lg bg-red-100 px-2.5 py-1 text-[10px] font-bold text-red-700 hover:bg-red-200 transition">Flag</button>
+          </div>
+        </div>
+
+        <!-- Policy reminder -->
+        <div class="rounded-xl border border-line bg-white p-4 text-xs">
+          <div class="lbl mb-2">No-show policy</div>
+          <div class="text-muted leading-relaxed">Members with 3+ no-shows within 30 days are flagged for review. Session credits are forfeited per package terms.</div>
+          <button class="mt-3 text-[10px] font-bold text-ink underline underline-offset-2">Review policy →</button>
+        </div>
+
+        <!-- Empty-state placeholder -->
+        <div class="flex flex-col items-center justify-center rounded-xl border border-dashed border-line bg-white p-8 text-center">
+          <div class="text-2xl mb-2">✓</div>
+          <div class="text-xs font-semibold text-ink">Low no-show rate</div>
+          <div class="text-[11px] text-muted mt-1">Only 1 today · 3.1% this month</div>
+        </div>
+      </div>
+
+    </div><!-- /grid -->
+
+    <!-- Bottom padding -->
+    <div class="h-16"></div>
+  </div>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,374 @@
+{
+  "config": {
+    "configFile": "C:\\Project\\Avantej\\gap-prove.config.ts",
+    "rootDir": "C:/Project/Avantej/e2e",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Project/Avantej/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "setup",
+        "name": "setup",
+        "testDir": "C:/Project/Avantej/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/auth\\.setup\\.ts/"
+        ],
+        "timeout": 600000
+      },
+      {
+        "outputDir": "C:/Project/Avantej/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "gap-prove",
+        "name": "gap-prove",
+        "testDir": "C:/Project/Avantej/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/gap-prove\\.spec\\.ts/"
+        ],
+        "timeout": 600000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "html",
+        {
+          "outputFolder": "zplan/2026-05-25-1313-audit-prove/test/html",
+          "open": "never"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "zplan/2026-05-25-1313-audit-prove/test/results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "auth.setup.ts",
+      "file": "auth.setup.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "authenticate",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 600000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4923,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-05-25T06:20:13.047Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Project\\Avantej\\test-results\\auth.setup.ts-authenticate-setup\\video.webm"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Project\\Avantej\\test-results\\auth.setup.ts-authenticate-setup\\trace.zip"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "17e3fe6f4d9d8bd79c6b-60f085b113a677673906",
+          "file": "auth.setup.ts",
+          "line": 13,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "gap-prove.spec.ts",
+      "file": "gap-prove.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "audit-prove 2026-05-25 — golden paths + finding regressions",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 600000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "gap-prove",
+              "projectName": "gap-prove",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 137930,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "steps": [
+                    {
+                      "title": "GP-01 — Dashboard Home loads with KPI cards",
+                      "duration": 1793
+                    },
+                    {
+                      "title": "GP-02 — Approvals page loads with pending package list",
+                      "duration": 6880
+                    },
+                    {
+                      "title": "GP-03 — Customers list loads",
+                      "duration": 2802
+                    },
+                    {
+                      "title": "GP-04 — Appointments calendar loads",
+                      "duration": 2784
+                    },
+                    {
+                      "title": "GP-05 — Class Slots view loads",
+                      "duration": 4319
+                    },
+                    {
+                      "title": "GP-06 — Trainer Availability view loads",
+                      "duration": 2938
+                    },
+                    {
+                      "title": "GP-07 — Services list loads",
+                      "duration": 3707
+                    },
+                    {
+                      "title": "GP-08 — POS walk-in checkout golden path",
+                      "duration": 10031
+                    },
+                    {
+                      "title": "GP-09 — Reports view loads",
+                      "duration": 2792
+                    },
+                    {
+                      "title": "GP-10 — Announcements view loads",
+                      "duration": 3010
+                    },
+                    {
+                      "title": "GP-11 — Sales & Payments list loads",
+                      "duration": 2517
+                    },
+                    {
+                      "title": "GP-12 — Payment History loads",
+                      "duration": 4881
+                    },
+                    {
+                      "title": "GP-13 — Cancelled Sales loads",
+                      "duration": 3237
+                    },
+                    {
+                      "title": "GP-14 — Payouts view loads",
+                      "duration": 3190
+                    },
+                    {
+                      "title": "GP-15 — Refunds view loads",
+                      "duration": 2944
+                    },
+                    {
+                      "title": "GP-16 — Commissions view loads",
+                      "duration": 3626
+                    },
+                    {
+                      "title": "GP-17 — Tax Rates settings loads",
+                      "duration": 2897
+                    },
+                    {
+                      "title": "GP-18 — Installment Plans view loads",
+                      "duration": 2997
+                    },
+                    {
+                      "title": "GP-19 — Expenses view loads",
+                      "duration": 4516
+                    },
+                    {
+                      "title": "GP-20 — Products list loads",
+                      "duration": 9069
+                    },
+                    {
+                      "title": "GP-21 — Packages/instances view loads",
+                      "duration": 3988
+                    },
+                    {
+                      "title": "GP-22 — Trainers list loads",
+                      "duration": 4270
+                    },
+                    {
+                      "title": "GP-23 — Employees list loads",
+                      "duration": 2842
+                    },
+                    {
+                      "title": "GP-24 — Attendance view loads",
+                      "duration": 2425
+                    },
+                    {
+                      "title": "GP-25 — Roles list loads",
+                      "duration": 3079
+                    },
+                    {
+                      "title": "GP-26 — Staff Access (user-assignment) loads",
+                      "duration": 3286
+                    },
+                    {
+                      "title": "GP-27 — Onboarding QR view loads with QR code",
+                      "duration": 2236
+                    },
+                    {
+                      "title": "F-HOME-05 — listPending: approvals page count matches badge (not truncated at 50)",
+                      "duration": 1830
+                    },
+                    {
+                      "title": "F-HOME-03 — scheduledReports.list: RBAC guard present (returns data or 403 — not unguarded)",
+                      "duration": 2025
+                    },
+                    {
+                      "title": "F-CUST-01 — no_show commission: mark appointment no-show via API, commission split created",
+                      "duration": 1774
+                    },
+                    {
+                      "title": "F-CUST-05 — series-cancel RBAC: procedure responds (not 403 for update-level user)",
+                      "duration": 1738
+                    },
+                    {
+                      "title": "F-CUST-02 — waitlist promote: promoted entry results in appointment",
+                      "duration": 1452
+                    },
+                    {
+                      "title": "F-HOME-01 — bulkApprove: package_instance_staff row created for each approved package",
+                      "duration": 4195
+                    },
+                    {
+                      "title": "F-HOME-02 — bulkReject: visual confirmation that rejection proceeds without error",
+                      "duration": 2824
+                    },
+                    {
+                      "title": "F-POS-03 — cancel sale: linked package_instance status becomes cancelled",
+                      "duration": 3438
+                    },
+                    {
+                      "title": "F-POS-04 — POS receipt Email button visible and not broken",
+                      "duration": 2122
+                    },
+                    {
+                      "title": "F-FIN-01 — processCommissionReversals: refund approval results in reversal visible in payouts",
+                      "duration": 1021
+                    },
+                    {
+                      "title": "F-FIN-02 — markPaidById paymentReference: reference survives round-trip",
+                      "duration": 935
+                    },
+                    {
+                      "title": "F-FIN-04 — rejectExpense: rejection persists status correctly",
+                      "duration": 591
+                    },
+                    {
+                      "title": "F-STAFF-02 — role deletion: no dangling members after role is deleted",
+                      "duration": 2501
+                    },
+                    {
+                      "title": "F-STAFF-04 — google-calendar: assertTenantAndMember guard works (no crash without context)",
+                      "duration": 1623
+                    },
+                    {
+                      "title": "F-CUST-03 — cancelEnrollment: package credits restored after class-slot cancel",
+                      "duration": 855
+                    },
+                    {
+                      "title": "F-CUST-04 — trainer availability exceptions: exception blocks slot in UI",
+                      "duration": 2762
+                    }
+                  ],
+                  "startTime": "2026-05-25T06:20:19.431Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "video",
+                      "contentType": "video/webm",
+                      "path": "C:\\Project\\Avantej\\test-results\\gap-prove-audit-prove-2026-262c7-n-paths-finding-regressions-gap-prove\\video.webm"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Project\\Avantej\\test-results\\gap-prove-audit-prove-2026-262c7-n-paths-finding-regressions-gap-prove\\trace.zip"
+                    }
+                  ]
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "dd3c5cbdefb9dd224d5c-c8d72f3f5d5bee1ebe49",
+          "file": "gap-prove.spec.ts",
+          "line": 23,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-05-25T06:20:11.729Z",
+    "duration": 148749.588,
+    "expected": 2,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

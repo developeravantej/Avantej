@@ -1,0 +1,6 @@
+{
+  "products/duplicate-sku.rule.spec.ts::creating a second product with the same sku is rejected": [
+    "Create a product with a unique sku",
+    "Attempt to create a second product reusing the same sku and assert the call is rejected (400/409/500)"
+  ]
+}

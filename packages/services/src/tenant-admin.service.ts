@@ -81,14 +81,16 @@ export async function assertTenantAdminCanImpersonate(
 	// Target must be staff — prevents tenant-admin → tenant-admin escalation
 	if (target.role !== "staff") {
 		throw new ORPCError("FORBIDDEN", {
-			message: "Can only impersonate staff members (not other admins or trainers).",
+			message:
+				"Can only impersonate staff members (not other admins or trainers).",
 		});
 	}
 
 	// Target must not be a platform admin — cross-privilege escalation guard
-	const targetPlatformAdmin = await controlPanelDb.query.platformAdmins.findFirst({
-		where: eq(platformAdmins.userId, target.userId),
-	});
+	const targetPlatformAdmin =
+		await controlPanelDb.query.platformAdmins.findFirst({
+			where: eq(platformAdmins.userId, target.userId),
+		});
 
 	if (targetPlatformAdmin) {
 		throw new ORPCError("FORBIDDEN", {

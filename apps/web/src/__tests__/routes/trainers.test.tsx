@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, beforeAll, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
 let TrainersViewPage: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
@@ -9,24 +9,21 @@ vi.mock("@tanstack/react-router", () => ({
 		TrainersViewPage = opts.component;
 		return {
 			component: opts.component,
-			useSearch: () => ({}),
-			useNavigate: () => () => {},
+			useSearch: vi.fn().mockReturnValue({ tab: "trainers" }),
+			useNavigate: vi.fn().mockReturnValue(vi.fn()),
 		};
 	},
 	Link: ({ children }: { children: React.ReactNode }) => children,
-	useNavigate: () => () => {},
-	useSearch: () => ({}),
+	useNavigate: vi.fn().mockReturnValue(vi.fn()),
 }));
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({ client: mockClient, orpc: mockOrpc }));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: {
 			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
 			organizations: [],
 		},
-		hasPermission: () => true,
-		hasAnyPermission: () => true,
-		hasRole: () => true,
+		hasPermission: vi.fn().mockReturnValue(true),
 	}),
 }));
 vi.mock("sonner", () => ({
@@ -46,14 +43,16 @@ describe("Trainers page", () => {
 	test("renders without crashing (empty state)", async () => {
 		renderWithProviders(<TrainersViewPage />);
 		await waitFor(() => {
-			expect(screen.getAllByText("Trainers")[0]).toBeInTheDocument();
+			expect(screen.getAllByText("Trainers").length).toBeGreaterThan(0);
 		});
 	});
 
-	test("renders Add Trainer button in header", async () => {
+	test("renders Invite Trainer button in header", async () => {
 		renderWithProviders(<TrainersViewPage />);
 		await waitFor(() => {
-			const buttons = screen.getAllByRole("button", { name: /add trainer/i });
+			const buttons = screen.getAllByRole("button", {
+				name: /invite trainer/i,
+			});
 			expect(buttons.length).toBeGreaterThan(0);
 		});
 	});
@@ -76,7 +75,7 @@ describe("Trainers page", () => {
 		renderWithProviders(<TrainersViewPage />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Alice Trainer")).toBeInTheDocument();
+			expect(screen.getAllByText("Alice Trainer").length).toBeGreaterThan(0);
 		});
 	});
 });

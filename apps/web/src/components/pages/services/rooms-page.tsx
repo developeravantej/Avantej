@@ -6,6 +6,7 @@ import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,12 +73,14 @@ export function RoomsPage() {
 	const [editingRoom, setEditingRoom] = useState<RoomRow | null>(null);
 	const [form, setForm] = useState<RoomFormState>(EMPTY_FORM);
 
-	const { data: nodesData } = useQuery({
-		queryKey: ["hierarchyNodes", organizationId],
-		queryFn: async () => {
-			if (!organizationId) return { nodes: [] };
-			return client.hierarchy.listNodes({ organizationId });
-		},
+	const {
+		data: nodesData,
+		isError: nodesError,
+		refetch: refetchNodes,
+	} = useQuery({
+		...orpc.hierarchy.listNodes.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 	});
 	const branches = useMemo(
@@ -258,23 +261,17 @@ export function RoomsPage() {
 
 	if (!organizationId) {
 		return (
-			<div className="flex min-h-96 items-center justify-center text-muted-foreground">
+			<div className="flex min-h-96 items-center justify-center text-[#737373]">
 				Select an organization to view rooms.
 			</div>
 		);
 	}
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
 	if (isError) {
 		return (
 			<div className="flex flex-col items-center justify-center py-12">
-				<p className="font-medium text-destructive text-lg">
-					Failed to load data
-				</p>
-				<p className="mb-4 text-muted-foreground text-sm">
+				<p className="font-medium text-rose-600 text-lg">Failed to load data</p>
+				<p className="mb-4 text-[#737373] text-sm">
 					{error instanceof Error
 						? error.message
 						: "An unexpected error occurred"}
@@ -287,197 +284,236 @@ export function RoomsPage() {
 	}
 
 	return (
-		<div className="flex h-full flex-col overflow-hidden">
-			{/* Action bar + filter tabs */}
-			<div className="flex shrink-0 items-center justify-between px-6 pt-4 pb-2">
-				<div className="flex items-end gap-0">
-					{ACTIVE_TABS.map((tab) => {
-						const isSelected = activeFilter === tab.value;
-						return (
-							<button
-								key={tab.label}
-								type="button"
-								onClick={() => setActiveFilter(tab.value)}
-								className={`px-3 pb-1.5 text-sm font-medium border-b-2 transition-colors ${
-									isSelected
-										? "border-foreground text-foreground"
-										: "border-transparent text-muted-foreground hover:text-foreground"
-								}`}
-							>
-								{tab.label}
-							</button>
-						);
-					})}
+		<Skeleton
+			name="services-rooms-page"
+			loading={isLoading}
+			fallback={<PageLoader />}
+		>
+			<div className="flex h-full flex-col overflow-hidden">
+				{/* Action bar + filter pills */}
+				<div className="flex shrink-0 items-center justify-between pt-2 pb-4">
+					<div className="flex items-center gap-2">
+						{ACTIVE_TABS.map((tab) => {
+							const isSelected = activeFilter === tab.value;
+							return (
+								<button
+									key={tab.label}
+									type="button"
+									onClick={() => setActiveFilter(tab.value)}
+									className={
+										isSelected
+											? "rounded-full bg-[#0a0a0a] text-white px-3.5 py-1.5 text-[13px] font-semibold transition"
+											: "rounded-full border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3] px-3.5 py-1.5 text-[13px] font-medium transition"
+									}
+								>
+									{tab.label}
+								</button>
+							);
+						})}
+					</div>
+					{canCreate && (
+						<button
+							type="button"
+							onClick={openCreate}
+							className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition"
+						>
+							<Plus className="h-4 w-4" />
+							Create Room
+						</button>
+					)}
 				</div>
-				{canCreate && (
-					<Button size="sm" onClick={openCreate}>
-						<Plus className="mr-2 h-4 w-4" />
-						Create Room
-					</Button>
-				)}
-			</div>
 
-			{/* Content */}
-			<div className="min-h-0 flex-1 overflow-hidden">
-				{tableData.length === 0 ? (
-					<div className="flex items-center justify-center min-h-96">
-						<EmptyState
-							title="No rooms found"
-							description="Create your first room to get started."
-							action={
-								canCreate
-									? { label: "Create Room", onClick: openCreate }
-									: undefined
-							}
+				{/* Content */}
+				<div className="min-h-0 flex-1 overflow-hidden">
+					{tableData.length === 0 ? (
+						<div className="flex items-center justify-center min-h-96">
+							<EmptyState
+								title="No rooms found"
+								description="Create your first room to get started."
+								action={
+									canCreate
+										? { label: "Create Room", onClick: openCreate }
+										: undefined
+								}
+							/>
+						</div>
+					) : (
+						<DataTable
+							data={tableData}
+							onEdit={canUpdate ? openEdit : () => {}}
+							onDeactivate={async (id) => {
+								await deactivateMutation.mutateAsync(id);
+							}}
+							onReactivate={async (id) => {
+								await reactivateMutation.mutateAsync(id);
+							}}
+							isDeactivating={deactivateMutation.isPending}
+							isReactivating={reactivateMutation.isPending}
 						/>
-					</div>
-				) : (
-					<DataTable
-						data={tableData}
-						onEdit={canUpdate ? openEdit : () => {}}
-						onDeactivate={async (id) => {
-							await deactivateMutation.mutateAsync(id);
-						}}
-						onReactivate={async (id) => {
-							await reactivateMutation.mutateAsync(id);
-						}}
-						isDeactivating={deactivateMutation.isPending}
-						isReactivating={reactivateMutation.isPending}
-					/>
-				)}
-			</div>
+					)}
+				</div>
 
-			{/* Create / Edit Dialog */}
-			<Dialog
-				open={isSheetOpen}
-				onOpenChange={(open) => {
-					if (!open) closeSheet();
-				}}
-			>
-				<DialogContent className="sm:max-w-md overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle>
-							{editingRoom ? "Edit Room" : "Create Room"}
-						</DialogTitle>
-						<DialogDescription>
-							{editingRoom
-								? "Update the room details below."
-								: "Fill in the details to create a new room."}
-						</DialogDescription>
-					</DialogHeader>
+				{/* Create / Edit Dialog */}
+				<Dialog
+					open={isSheetOpen}
+					onOpenChange={(open) => {
+						if (!open) closeSheet();
+					}}
+				>
+					<DialogContent
+						className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+						hideCloseButton
+					>
+						<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+							<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+								SERVICE CATALOG
+							</p>
+							<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+								{editingRoom ? "Edit Room" : "Create Room"}
+							</DialogTitle>
+							<DialogDescription className="text-sm text-[#737373]">
+								{editingRoom
+									? "Update the room details below."
+									: "Fill in the details to create a new room."}
+							</DialogDescription>
+						</DialogHeader>
 
-					<div className="flex flex-col gap-4 px-4 py-2">
-						<div className="flex flex-col gap-1.5">
-							<label htmlFor="room-name" className="text-sm font-medium">
-								Name <span className="text-destructive">*</span>
-							</label>
-							<Input
-								id="room-name"
-								value={form.name}
-								onChange={(e) =>
-									setForm((prev) => ({ ...prev, name: e.target.value }))
-								}
-								placeholder="e.g. Studio A"
-							/>
-						</div>
+						<div className="px-6 pt-4 pb-2 overflow-y-auto">
+							<div className="flex flex-col gap-4">
+								<div className="flex flex-col gap-1.5">
+									<label htmlFor="room-name" className="text-sm font-medium">
+										Name <span className="text-rose-600">*</span>
+									</label>
+									<Input
+										id="room-name"
+										value={form.name}
+										onChange={(e) =>
+											setForm((prev) => ({ ...prev, name: e.target.value }))
+										}
+										placeholder="e.g. Studio A"
+									/>
+								</div>
 
-						<div className="flex flex-col gap-1.5">
-							<label className="text-sm font-medium">
-								Type <span className="text-destructive">*</span>
-							</label>
-							<Select
-								value={form.type}
-								onValueChange={(val) =>
-									setForm((prev) => ({ ...prev, type: val as RoomType }))
-								}
-							>
-								<SelectTrigger>
-									<SelectValue placeholder="Select a type" />
-								</SelectTrigger>
-								<SelectContent>
-									{TYPE_OPTIONS.map((opt) => (
-										<SelectItem key={opt.value} value={opt.value}>
-											{opt.label}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
+								<div className="flex flex-col gap-1.5">
+									<label className="text-sm font-medium">
+										Type <span className="text-rose-600">*</span>
+									</label>
+									<Select
+										value={form.type}
+										onValueChange={(val) =>
+											setForm((prev) => ({ ...prev, type: val as RoomType }))
+										}
+									>
+										<SelectTrigger>
+											<SelectValue placeholder="Select a type" />
+										</SelectTrigger>
+										<SelectContent>
+											{TYPE_OPTIONS.map((opt) => (
+												<SelectItem key={opt.value} value={opt.value}>
+													{opt.label}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
 
-						<div className="flex flex-col gap-1.5">
-							<label htmlFor="room-capacity" className="text-sm font-medium">
-								Capacity <span className="text-destructive">*</span>
-							</label>
-							<Input
-								id="room-capacity"
-								type="number"
-								min={1}
-								value={form.capacity}
-								onChange={(e) =>
-									setForm((prev) => ({ ...prev, capacity: e.target.value }))
-								}
-								placeholder="e.g. 10"
-							/>
-						</div>
+								<div className="flex flex-col gap-1.5">
+									<label
+										htmlFor="room-capacity"
+										className="text-sm font-medium"
+									>
+										Capacity <span className="text-rose-600">*</span>
+									</label>
+									<Input
+										id="room-capacity"
+										type="number"
+										min={1}
+										value={form.capacity}
+										onChange={(e) =>
+											setForm((prev) => ({ ...prev, capacity: e.target.value }))
+										}
+										placeholder="e.g. 10"
+									/>
+								</div>
 
-						<div className="flex flex-col gap-1.5">
-							<label className="text-sm font-medium">
-								Branch <span className="text-destructive">*</span>
-							</label>
-							{branches.length === 0 ? (
-								<p className="text-sm text-muted-foreground border border-dashed rounded-md p-3">
-									No branches found. Create a branch first.
-								</p>
-							) : (
-								<BranchCombobox
-									value={form.branchId}
-									onChange={(id) =>
-										setForm((prev) => ({ ...prev, branchId: id }))
-									}
-									branches={branches}
-									placeholder="Search branch..."
-								/>
-							)}
-						</div>
+								<div className="flex flex-col gap-1.5">
+									<label className="text-sm font-medium">
+										Branch <span className="text-rose-600">*</span>
+									</label>
+									{nodesError ? (
+										<div className="text-xs text-red-600 border border-dashed rounded-md p-3">
+											Failed to load branches.{" "}
+											<button
+												type="button"
+												onClick={() => refetchNodes()}
+												className="underline"
+											>
+												Retry
+											</button>
+										</div>
+									) : branches.length === 0 ? (
+										<p className="text-sm text-[#737373] border border-dashed rounded-md p-3">
+											No branches found. Create a branch first.
+										</p>
+									) : (
+										<BranchCombobox
+											value={form.branchId}
+											onChange={(id) =>
+												setForm((prev) => ({ ...prev, branchId: id }))
+											}
+											branches={branches}
+											placeholder="Search branch..."
+										/>
+									)}
+								</div>
 
-						{editingRoom && (
-							<div className="flex items-center gap-3">
-								<input
-									id="room-active"
-									type="checkbox"
-									checked={form.isActive}
-									onChange={(e) =>
-										setForm((prev) => ({
-											...prev,
-											isActive: e.target.checked,
-										}))
-									}
-									className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
-								/>
-								<label htmlFor="room-active" className="text-sm font-medium">
-									Active
-								</label>
+								{editingRoom && (
+									<div className="flex items-center gap-3">
+										<input
+											id="room-active"
+											type="checkbox"
+											checked={form.isActive}
+											onChange={(e) =>
+												setForm((prev) => ({
+													...prev,
+													isActive: e.target.checked,
+												}))
+											}
+											className="h-4 w-4 rounded border-[#e5e5e5] text-[#0a0a0a] focus:ring-[#0a0a0a]"
+										/>
+										<label
+											htmlFor="room-active"
+											className="text-sm font-medium"
+										>
+											Active
+										</label>
+									</div>
+								)}
 							</div>
-						)}
-					</div>
+						</div>
 
-					<DialogFooter className="px-4">
-						<Button variant="outline" onClick={closeSheet} disabled={isBusy}>
-							Cancel
-						</Button>
-						<Button onClick={handleSubmit} disabled={isBusy}>
-							{isBusy
-								? editingRoom
-									? "Saving..."
-									: "Creating..."
-								: editingRoom
-									? "Save Changes"
-									: "Create Room"}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-		</div>
+						<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+							<Button variant="outline" onClick={closeSheet} disabled={isBusy}>
+								Cancel
+							</Button>
+							<Button
+								className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+								onClick={handleSubmit}
+								disabled={isBusy}
+							>
+								{isBusy
+									? editingRoom
+										? "Saving..."
+										: "Creating..."
+									: editingRoom
+										? "Save Changes"
+										: "Create Room"}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+			</div>
+		</Skeleton>
 	);
 }
 
@@ -524,10 +560,10 @@ function BranchCombobox({
 				onBlur={() => setTimeout(() => setOpen(false), 150)}
 			/>
 			{open && (
-				<div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+				<div className="absolute z-50 mt-1 w-full rounded-md border bg-white shadow-md">
 					<div className="max-h-48 overflow-y-auto p-1">
 						{filtered.length === 0 ? (
-							<div className="px-2 py-3 text-sm text-muted-foreground text-center">
+							<div className="px-2 py-3 text-sm text-[#737373] text-center">
 								No branches found
 							</div>
 						) : (
@@ -535,7 +571,7 @@ function BranchCombobox({
 								<button
 									key={b.id}
 									type="button"
-									className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+									className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-[#f3f3f3] hover:text-[#0a0a0a]"
 									onMouseDown={(e) => e.preventDefault()}
 									onClick={() => {
 										onChange(b.id);

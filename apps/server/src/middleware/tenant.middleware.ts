@@ -21,6 +21,7 @@ import { createMiddleware } from "hono/factory";
 import { eq } from "drizzle-orm";
 import { getControlPanelDb, getTenantDb } from "@/lib/db";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
+import { isAppBlocked } from "@/services/tenant-lifecycle.service";
 
 /**
  * Tenant middleware
@@ -78,6 +79,23 @@ export const tenantMiddleware = createMiddleware(async (c, next) => {
 			return c.json({ error: "Organization not found" }, 404);
 		}
 
+		// ─── ADR-0024 suspension/cancellation gate (Layer 1) ───────────────
+		// app-blocked tenants (suspended | cancelled — see isAppBlocked) are
+		// blocked at the app boundary. Platform-admin paths bypass so ops can
+		// resume / restore / inspect. Self-contained block; a later Layer-2
+		// read-only billing gate sits beside it.
+		const isPlatformAdminPath =
+			c.req.path.includes("/platformAdmin") || c.req.path.includes("/admin");
+		if (isAppBlocked(organization.paymentStatus) && !isPlatformAdminPath) {
+			return c.json(
+				{
+					error: `Tenant is ${organization.paymentStatus}`,
+					paymentStatus: organization.paymentStatus,
+				},
+				403,
+			);
+		}
+
 		// Get tenant database connection (use request-scoped pool with caching)
 		const tenantDb = await getTenantDb(organizationId, c);
 
@@ -96,8 +114,7 @@ export const tenantMiddleware = createMiddleware(async (c, next) => {
 						? error.message
 						: "Failed to initialize tenant context",
 			},
-			500
+			500,
 		);
 	}
 });
-

@@ -6,7 +6,7 @@
  *
  * Used by:
  *  - Drift detection script (`scripts/check-drift.ts`)
- *  - Integration tests (`apps/server/src/tests/integration/tenant-migrate.test.ts`)
+ *  - Integration tests (`apps/server/src/tests/integration/tenant-migrate.integration.test.ts`)
  *  - Future tenant provisioning gate (Node contexts only)
  *
  * Cloudflare Workers compatibility: NOT directly usable from Workers because
@@ -109,9 +109,9 @@ export async function ensureMigrationTable(pool: Pool): Promise<void> {
  * Read the set of already-applied migration hashes.
  */
 export async function getAppliedMigrations(pool: Pool): Promise<Set<string>> {
-	const result = (await pool.query(
-		"SELECT hash FROM drizzle_migrations",
-	)) as { rows: Array<{ hash: string }> };
+	const result = (await pool.query("SELECT hash FROM drizzle_migrations")) as {
+		rows: Array<{ hash: string }>;
+	};
 	return new Set(result.rows.map((r) => r.hash));
 }
 
@@ -159,7 +159,11 @@ export async function applyPending(
 	for (const file of files) {
 		// Special-case backward-compat for 0002_calm_martin_li
 		if (file.name === "0002_calm_martin_li") {
-			const backfilled = await backfillCalmMartinLi(pool, applied, file.checksum);
+			const backfilled = await backfillCalmMartinLi(
+				pool,
+				applied,
+				file.checksum,
+			);
 			if (backfilled) continue;
 		}
 

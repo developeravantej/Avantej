@@ -7,6 +7,22 @@
 
 // Analytics services
 export * from "./analytics.service";
+// Scheduled reports services
+export {
+	computeNextRunAt,
+	createScheduledReport,
+	type CreateScheduledReportParams,
+	deleteScheduledReport,
+	listDueScheduledReports,
+	listScheduledReports,
+	markScheduledReportFailed,
+	markScheduledReportSent,
+	type ScheduledReportFormat,
+	type ScheduledReportFrequency,
+	type ScheduledReportRow,
+	type ScheduledReportWindow,
+	toggleScheduledReportActive,
+} from "./scheduled-reports.service";
 // Category buffer override services
 export {
 	listCategoryBufferOverridesForMember,
@@ -43,11 +59,27 @@ export {
 // Audit log services
 export {
 	type AuditRowEnriched,
+	type AuditSeverity,
+	type ExportAuditCsvParams,
+	type ExportAuditCsvResult,
 	type ListAuditParams,
+	deriveSeverity,
+	exportAuditCsv,
+	getActionSeverity,
 	listAudit,
+	listCustomerLogs,
+	type CustomerLogEntry,
+	type ListCustomerLogsParams,
 	type WriteAuditParams,
 	writeAudit,
 } from "./audit-log.service";
+// Customer name snapshot services
+export {
+	propagateCustomerNameForward,
+	refreshTenantCustomerNameSnapshots,
+	runCustomerNameRefresh,
+	scrubCustomerNameSnapshots,
+} from "./customer-name-snapshot.service";
 // Brand services
 export * from "./brands.service";
 // Buffer time services
@@ -82,7 +114,31 @@ export * from "./class-slots.service";
 export {
 	calculateCommissionForAppointment,
 	calculateCommissionForPos,
+	calculateOriginationCommission,
+	type CalculateOriginationParams,
 } from "./commission-calculator.service";
+// Commission pipeline sub-modules (gather / plan / persist)
+export {
+	type CommissionContext,
+	type MemberSnapshot,
+	type RateTable,
+	type ConditionalRateTable,
+	type LoadCommissionContextInput,
+	loadCommissionContext,
+} from "./commission/context";
+export {
+	type PlanInput,
+	type PlannedSplit,
+	type SkipReason,
+	type SkipReasonCode,
+	type SplitPlan,
+	planSplits,
+} from "./commission/plan";
+export {
+	type PersistInput,
+	type CommissionSplitRow,
+	persistSplits,
+} from "./commission/persist";
 // Commission split services
 export {
 	approveCommissionSplits,
@@ -114,17 +170,39 @@ export {
 	getOrCreatePayoutBatch,
 	attachPayoutsToBatch,
 	type GetOrCreatePayoutBatchParams,
+	// Flaw #13 — pending review
+	listPendingReview,
+	resolvePendingReview,
 } from "./commission-splits.service";
 // Customer directory services
 export {
 	type CustomerDetail,
 	type CustomerDirectoryRow,
+	type CustomerDirectoryStats,
 	getCustomerDetail,
+	getCustomerStats,
 	listCustomerDirectory,
 } from "./customer-directory.service";
+// Lead attribution (GHL primary staff → commission slot 0)
+export {
+	enrichPosItemTrainerAssignments,
+	getLeadAttributionForCustomer,
+	mergeLeadAttributionIntoStaffAssignments,
+	resolveMemberUserId,
+	writePackageInstanceLeadStaff,
+	type LeadAttribution,
+	type StaffAssignment,
+} from "./lead-attribution.service";
 // Customer profile services
 export {
+	adjustCreditPoints,
+	applyCreditPointDeltaTx,
+	type CreditPointMutationParams,
+	type CreditPointMutationResult,
 	getCustomerProfile,
+	redeemCreditPoints,
+	restoreCustomerProfile,
+	softDeleteCustomerProfile,
 	type UpsertCustomerProfileParams,
 	upsertCustomerProfile,
 } from "./customer-profile.service";
@@ -151,7 +229,9 @@ export {
 	deleteHierarchyNode,
 	getAncestorNodeIds,
 	getDescendantNodeIds,
+	listNodesWithStats,
 	moveHierarchyNode,
+	type NodeWithStats,
 	updateHierarchyNode,
 } from "./hierarchy.service";
 // Hierarchy validation - for validating hierarchy rules
@@ -164,6 +244,12 @@ export {
 	validateHierarchyRules,
 	validateParentAccess,
 } from "./hierarchy-validation.service";
+export {
+	assertBranchAccessible,
+	BranchAccessDeniedError,
+	isBranchAccessDeniedError,
+	resolveBranchFilter,
+} from "./hierarchy-scope";
 // Installment service - for installment-based credit unlocking
 export {
 	type AdminInstallmentOverviewItem,
@@ -178,13 +264,20 @@ export {
 	DEFAULT_GRACE_PERIOD_DAYS,
 	evaluateAndLockIfOverdue,
 	getAdminInstallmentOverview,
+	listUpcomingInstallments,
+	type UpcomingInstallmentRow,
+	type UpcomingInstallmentsParams,
 	getGracePeriodDaysForPackage,
 	getInstallmentsByPackageInstance,
 	getSuggestedRefund,
 	adjustCredits,
 	type AdjustCreditsParams,
 	processRefund,
+	rescheduleInstallment,
 	setPackageOverdraft,
+	syncPackagePaymentStatus,
+	waiveInstallment,
+	resetCreditsOverride,
 	type SuggestedRefundInput,
 	type SuggestedRefundResult,
 	unlockPackage,
@@ -215,6 +308,12 @@ export {
 	getMembersByHierarchyScope,
 	updateMemberHierarchyScope,
 } from "./member.service";
+// Member stats services
+export {
+	getMembersNewToday,
+	type NewMemberEntry,
+	type NewTodayResult,
+} from "./member-stats.service";
 // Member profile services
 export * from "./member-profile.service";
 // Notification services
@@ -224,6 +323,7 @@ export {
 	listNotifications,
 	markAllNotificationsRead,
 	markNotificationRead,
+	notifyAdminsOfCancelledOrderPayment,
 } from "./notification.service";
 // Notification preference services
 export {
@@ -231,15 +331,6 @@ export {
 	type UpsertNotificationPreferencesParams,
 	upsertNotificationPreferences,
 } from "./notification-preference.service";
-// Push token services
-export {
-	getPushTokensForUser,
-	type RegisterPushTokenParams,
-	registerPushToken,
-	unregisterPushToken,
-} from "./push-token.service";
-// Push delivery service
-export { type SendPushParams, sendPushToUser } from "./push.service";
 // Organization settings service
 export {
 	getSetting,
@@ -247,14 +338,23 @@ export {
 } from "./organization-settings.service";
 // Package instance services
 export {
+	type CancelPackageInstanceParams,
+	cancelPackageInstance,
 	type CreatePackageInstanceParams,
 	createPackageInstance,
+	expireOverduePackageInstances,
+	type ExtendPackageInstanceParams,
+	extendPackageInstance,
+	type FreezePackageInstanceParams,
+	freezePackageInstance,
 	getPackageInstanceById,
 	getPackageInstanceStatusHistory,
 	type ListPackageInstancesForClientParams,
 	listPackageInstancesForClient,
+	markCompleteIfFinal,
 	type PackageInstanceHistoryQueryOpts,
-	togglePackagePin,
+	type UnfreezePackageInstanceParams,
+	unfreezePackageInstance,
 	type UpdatePackageInstanceParams,
 	updatePackageInstance,
 } from "./package-instance.service";
@@ -286,6 +386,17 @@ export {
 	type PreferredTimeInput,
 	upsertPreferredTimes,
 } from "./preferred-time.service";
+// Schedule proposal service
+export {
+	proposeSchedule,
+	coverageForPreferredTimes,
+	type ProposedSlot,
+	type ProposedSlotStatus,
+	type ProposeScheduleParams,
+	type ProposeScheduleResult,
+	type PreferredTimeCoverage,
+	type CoverageResult,
+} from "./schedule-proposal.service";
 // Product category services
 export * from "./product-categories.service";
 // Product services
@@ -295,6 +406,8 @@ export {
 	type PaymentHistoryQueryOpts,
 	getPaymentStatusHistory,
 } from "./payments.service";
+// Pure money arithmetic helpers (no DB) — discount / tax / premium
+export * from "./money-math";
 // Promotion services
 export * from "./promotions.service";
 // Purchase order services
@@ -303,6 +416,10 @@ export * from "./purchase-orders.service";
 export {
 	type ApproveRefundParams,
 	approveRefund,
+	// 1.6 — bulk approve
+	type BulkApproveItem,
+	type BulkApproveResult,
+	bulkApproveRefunds,
 	computeRemainingRefundable,
 	// Agent 2.8 — J5 partial-package refund
 	type CreatePartialRefundParams,
@@ -324,15 +441,34 @@ export {
 export * from "./rooms.service";
 // Sales order services
 export * from "./sales-order.service";
+// Cancelled sales services
+export {
+	type CancelledSaleRow,
+	type CancelledSaleCsvRow,
+	type ExportCancelledSalesCsvParams,
+	type LineItemRow,
+	type ListCancelledSalesParams,
+	listCancelledSales,
+	getCancelledSaleById,
+	exportCancelledSalesCsv,
+} from "./cancelled-sales.service";
 // Service services
 export {
 	type CreateServiceParams,
 	createService,
+	duplicateService,
 	getServiceById,
 	type ListServicesParams,
 	listServices,
+	type ServiceWithCategory,
+	type ServiceWithTrainerTiers,
 	type UpdateServiceParams,
 	updateService,
+	type RevenueShareByCategoryRow,
+	revenueShareByCategory,
+	type AvgSessionsSoldPerMonthResult,
+	avgSessionsSoldPerMonth,
+	listServicesWithTrainerTiers,
 } from "./service.service";
 // Service category services
 export {
@@ -367,15 +503,26 @@ export {
 } from "./coach-intake.service";
 // Trainer availability services
 export {
-	assertTrainerSlotAvailable,
+	type AddTrainerAvailabilityExceptionParams,
+	addTrainerAvailabilityException,
 	type AvailabilitySlot,
 	type ComputedDayAvailability,
 	computeAvailableSlots,
+	createTrainerAvailability,
+	deleteTrainerAvailabilityException,
 	deleteTrainerAvailabilitySlot,
-	listCoachIntakeAvailability,
+	getTrainerConflicts,
+	getTrainerUtilisation,
+	type ConflictEntry,
+	type ConflictReason,
+	type TrainerAvailabilityExceptionKind,
+	type TrainerAvailabilityKind,
+	type TrainerUtilisationEntry,
 	listTrainerAvailability,
 	listTrainerAvailabilityByBranch,
+	listTrainerAvailabilityExceptions,
 	type TrainerAvailabilityByBranchRow,
+	updateTrainerAvailability,
 	upsertTrainerAvailability,
 } from "./trainer-availability.service";
 // Trainer tier services
@@ -384,6 +531,7 @@ export {
 	type CreateTrainerTierResult,
 	createTrainerTier,
 	deactivateTrainerTier,
+	deleteTrainerTier,
 	getConfigsMissingRateForTier,
 	listTrainerTiers,
 	type MissingRateCategory,
@@ -434,3 +582,53 @@ export * from "./membership.service";
 export * from "./lib/pg-error";
 export * from "./lib/fk-guard";
 // #endregion
+
+// #region Plan F.1.5 (Agent H) — tenant health score + risk flags
+export {
+	computeHealthScore,
+	type HealthScoreInput,
+	type HealthScoreResult,
+	type RiskFlag,
+} from "./health-score";
+// #endregion
+
+// #region Phase 0 — branch QR onboarding (sales-pipeline-fixes)
+export {
+	type BranchInviteRow,
+	type BranchInviteValidationError,
+	type CreateBranchInviteParams,
+	type ValidateBranchInviteResult,
+	createBranchInvite,
+	incrementBranchInviteUses,
+	listBranchInvites,
+	revokeBranchInvite,
+	validateBranchInvite,
+} from "./branch-invite.service";
+export {
+	type GetInviteContextParams,
+	type InviteContextResult,
+	type RedeemInviteParams,
+	type RedeemInviteResult,
+	getInviteContext,
+	redeemBranchInvite,
+} from "./onboarding.service";
+// #endregion
+
+// Member context helper — shared member + accessibleNodeIds resolution
+export {
+	type MemberContextResult,
+	resolveMemberContext,
+} from "./member-context";
+
+// Commission tracks config service (Phase 3 — Task #23)
+export {
+	deactivateTrack,
+	type CommissionTrackWithDetails,
+	listTracksForCategory,
+	setCoachSlots,
+	type SetCoachSlotsInput,
+	setTrackRates,
+	type SetTrackRatesInput,
+	upsertTrack,
+	type UpsertTrackInput,
+} from "./commission-tracks.service";

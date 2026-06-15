@@ -1,0 +1,7 @@
+[install]
+linker = "hoisted"  # mirror root: avoids isolated-linker issues with the monorepo
+
+[test]
+# Drains leaked Neon WebSocket pools after the run so `bun test` exits on its
+# own instead of hanging after the last integration test. See src/tests/preload.ts.
+preload = ["./src/tests/preload.ts"]

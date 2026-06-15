@@ -3,10 +3,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useCallback, useState } from "react";
 import {
+	Pressable,
 	RefreshControl,
 	ScrollView,
 	Text,
-	TouchableOpacity,
 	View,
 } from "react-native";
 import { Container } from "@/components/container";
@@ -76,7 +76,7 @@ function SkeletonNotification() {
 		<View className="mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 			<View className="flex-row">
 				<View
-					className="mr-3 h-12 w-12 rounded-full"
+					className="mr-3 size-12 rounded-full"
 					style={{ backgroundColor: colors.secondary[3] }}
 				/>
 				<View className="flex-1">
@@ -126,7 +126,7 @@ export default function NotificationsScreen() {
 		referenceId: notif.relatedId ?? notif.referenceId,
 	}));
 
-	const unreadCount = notificationList.filter((n) => !n.read).length;
+	const unreadCount = notificationList.filter((n: any) => !n.read).length;
 
 	const onRefresh = useCallback(async () => {
 		setRefreshing(true);
@@ -154,7 +154,9 @@ export default function NotificationsScreen() {
 		}
 	};
 
-	const handleNotificationPress = (notification: (typeof notificationList)[0]) => {
+	const handleNotificationPress = (
+		notification: (typeof notificationList)[0],
+	) => {
 		if (!notification.read) {
 			handleMarkRead(notification.id);
 		}
@@ -208,16 +210,13 @@ export default function NotificationsScreen() {
 					{/* Header */}
 					<View className="mb-6 flex-row items-center justify-between">
 						<View className="flex-row items-center">
-							<TouchableOpacity
-								onPress={() => router.back()}
-								className="mr-4"
-							>
+							<Pressable onPress={() => router.back()} className="mr-4">
 								<Ionicons
 									name="arrow-back"
 									size={24}
 									color={colors.primary[1]}
 								/>
-							</TouchableOpacity>
+							</Pressable>
 							<Text className="font-bold text-2xl text-primary-1">
 								Notifications
 							</Text>
@@ -230,11 +229,11 @@ export default function NotificationsScreen() {
 							)}
 						</View>
 						{unreadCount > 0 && (
-							<TouchableOpacity onPress={handleMarkAllRead}>
+							<Pressable onPress={handleMarkAllRead}>
 								<Text className="font-medium text-primary-1 text-sm">
 									Mark all read
 								</Text>
-							</TouchableOpacity>
+							</Pressable>
 						)}
 					</View>
 
@@ -261,8 +260,8 @@ export default function NotificationsScreen() {
 						</View>
 					) : (
 						!isLoading &&
-						notificationList.map((notification) => (
-							<TouchableOpacity
+						notificationList.map((notification: any) => (
+							<Pressable
 								key={notification.id}
 								onPress={() => handleNotificationPress(notification)}
 								className={`mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm ${
@@ -278,7 +277,7 @@ export default function NotificationsScreen() {
 							>
 								<View className="flex-row">
 									{/* Icon */}
-									<View className="mr-3 h-12 w-12 items-center justify-center rounded-full bg-secondary-3">
+									<View className="mr-3 size-12 items-center justify-center rounded-full bg-secondary-3">
 										<Ionicons
 											name={notification.icon as never}
 											size={24}
@@ -293,7 +292,7 @@ export default function NotificationsScreen() {
 												{notification.title}
 											</Text>
 											{!notification.read && (
-												<View className="ml-2 h-2 w-2 rounded-full bg-primary-1" />
+												<View className="ml-2 size-2 rounded-full bg-primary-1" />
 											)}
 										</View>
 										<Text className="mb-2 text-secondary-1 text-sm">
@@ -304,7 +303,7 @@ export default function NotificationsScreen() {
 										</Text>
 									</View>
 								</View>
-							</TouchableOpacity>
+							</Pressable>
 						))
 					)}
 				</View>

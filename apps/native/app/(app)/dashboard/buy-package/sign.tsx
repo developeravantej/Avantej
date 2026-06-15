@@ -1,19 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useRef, useState } from "react";
-import {
-	Alert,
-	Dimensions,
-	Image,
-	Modal,
-	ScrollView,
-	Text,
-	TouchableOpacity,
-	View,
-} from "react-native";
+import * as ScreenOrientation from "expo-screen-orientation";
+import { useEffect, useRef, useState } from "react";
+import { Image } from "expo-image";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import SignatureCanvas from "react-native-signature-canvas";
 import { Container } from "@/components/container";
+import { SignatureModal } from "./_components/signature-modal";
 import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
 import { colors } from "@/lib/colors";
 
@@ -33,6 +26,130 @@ const TERMS_DOCUMENTS = [
 	{ id: "parq" as const, name: "Par-Q & You" },
 ] as const;
 
+type ProgressIndicatorProps = {
+	currentStep: number;
+	totalSteps: number;
+	progressPercentage: number;
+};
+
+function ProgressIndicator({
+	currentStep,
+	totalSteps,
+	progressPercentage,
+}: ProgressIndicatorProps) {
+	return (
+		<View className="mb-6">
+			<View className="mb-2 flex-row items-center justify-between">
+				<Text className="font-semibold text-primary-1 text-sm">
+					Step {currentStep} of {totalSteps}
+				</Text>
+				<Text className="font-semibold text-primary-1 text-sm">
+					{progressPercentage}%
+				</Text>
+			</View>
+
+			<View
+				className="mb-4 h-2 overflow-hidden rounded-full"
+				style={{ backgroundColor: colors.secondary[2] }}
+			>
+				<View
+					className="h-full rounded-full"
+					style={{
+						width: `${progressPercentage}%`,
+						backgroundColor: colors.primary[1],
+					}}
+				/>
+			</View>
+
+			<View className="relative" style={{ height: 50 }}>
+				<View
+					className="absolute rounded-full"
+					style={{
+						left: "10%",
+						right: "10%",
+						top: "24%",
+						height: 2,
+						backgroundColor: colors.secondary[2],
+						zIndex: 0,
+					}}
+				/>
+				<View className="absolute inset-0 flex-row items-center justify-between">
+					{steps.map((step) => {
+						const isCompleted = step.number < currentStep;
+						const isActive = step.active;
+
+						return (
+							<View
+								key={step.number}
+								className="items-center justify-center"
+								style={{ flex: 1, zIndex: 1 }}
+							>
+								{isCompleted ? (
+									<View className="mb-1 items-center justify-center">
+										<View
+											className="size-6 items-center justify-center rounded-full border-2 border-primary-1"
+											style={{
+												backgroundColor: colors.primary[1],
+												zIndex: 2,
+											}}
+										>
+											<Ionicons
+												name="checkmark"
+												size={12}
+												color={colors.primary[2]}
+											/>
+										</View>
+									</View>
+								) : isActive ? (
+									<View className="mb-1 items-center justify-center">
+										<View
+											className="size-6 items-center justify-center rounded-full border-2 border-primary-1"
+											style={{
+												backgroundColor: colors.primary[1],
+												zIndex: 2,
+											}}
+										>
+											<View
+												className="size-2 rounded-full"
+												style={{ backgroundColor: colors.primary[2] }}
+											/>
+										</View>
+									</View>
+								) : (
+									<View className="mb-1 items-center justify-center">
+										<View
+											className="size-6 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
+											style={{ zIndex: 2 }}
+										>
+											<Text className="font-semibold text-primary-1 text-xs">
+												{step.number}
+											</Text>
+										</View>
+									</View>
+								)}
+								<Text
+									className={`mt-1 text-center text-xs ${
+										isActive ? "font-bold" : "font-medium"
+									}`}
+									style={{
+										color:
+											isActive || isCompleted
+												? colors.primary[1]
+												: colors.secondary[1],
+									}}
+								>
+									{step.label}
+								</Text>
+							</View>
+						);
+					})}
+				</View>
+			</View>
+		</View>
+	);
+}
+
+// react-doctor-disable-next-line react-doctor/no-giant-component -- extracted SignatureModal; remaining body is signature/agreement state machine with orientation locking effects, terms-document viewing tracking, and signature canvas integration; needs further refactor PR
 export default function SignScreen() {
 	const { state, update } = usePurchaseFlow();
 
@@ -54,9 +171,10 @@ export default function SignScreen() {
 
 	const modalSignatureRef = useRef<any>(null);
 
-	const handleSignature = (signatureData: string) => {
+	const handleSignature = async (signatureData: string) => {
 		setSignature(signatureData);
 		setShowSignatureModal(false);
+		await ScreenOrientation.unlockAsync();
 	};
 
 	const handleClear = () => {
@@ -67,13 +185,33 @@ export default function SignScreen() {
 		modalSignatureRef.current?.readSignature();
 	};
 
-	const handleOpenSignatureModal = () => {
+	const handleOpenSignatureModal = async () => {
+		try {
+			await ScreenOrientation.lockAsync(
+				ScreenOrientation.OrientationLock.LANDSCAPE,
+			);
+		} catch (err) {
+			console.warn("[sign] failed to lock orientation", err);
+		}
 		setShowSignatureModal(true);
 	};
 
-	const handleCloseSignatureModal = () => {
+	const handleCloseSignatureModal = async () => {
 		setShowSignatureModal(false);
+		try {
+			await ScreenOrientation.unlockAsync();
+		} catch (err) {
+			console.warn("[sign] failed to unlock orientation", err);
+		}
 	};
+
+	useEffect(() => {
+		return () => {
+			ScreenOrientation.unlockAsync().catch(() => {
+				// Best-effort cleanup; ignore failures during unmount.
+			});
+		};
+	}, []);
 
 	const handleContinue = () => {
 		if (signature && agreedToTerms) {
@@ -111,16 +249,12 @@ export default function SignScreen() {
 				{/* Header */}
 				<View className="px-4 pt-4 pb-2">
 					<View className="mb-4 flex-row items-center">
-						<TouchableOpacity
+						<Pressable
 							onPress={() => router.back()}
-							className="mr-3 h-10 w-10 items-center justify-center"
+							className="mr-3 size-10 items-center justify-center"
 						>
-							<Ionicons
-								name="arrow-back"
-								size={24}
-								color={colors.primary[1]}
-							/>
-						</TouchableOpacity>
+							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
+						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-primary-1">
 							E-Signature
 						</Text>
@@ -134,121 +268,17 @@ export default function SignScreen() {
 							uri: "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=800",
 						}}
 						className="h-full w-full"
-						resizeMode="cover"
+						contentFit="cover"
 					/>
 				</View>
 
 				<View className="px-4 pb-6">
 					{/* Progress Indicator */}
-					<View className="mb-6">
-						<View className="mb-2 flex-row items-center justify-between">
-							<Text className="font-semibold text-primary-1 text-sm">
-								Step {currentStep} of {totalSteps}
-							</Text>
-							<Text className="font-semibold text-primary-1 text-sm">
-								{progressPercentage}%
-							</Text>
-						</View>
-
-						<View
-							className="mb-4 h-2 overflow-hidden rounded-full"
-							style={{ backgroundColor: colors.secondary[2] }}
-						>
-							<View
-								className="h-full rounded-full"
-								style={{
-									width: `${progressPercentage}%`,
-									backgroundColor: colors.primary[1],
-								}}
-							/>
-						</View>
-
-						{/* Step Navigation */}
-						<View className="relative" style={{ height: 50 }}>
-							<View
-								className="absolute rounded-full"
-								style={{
-									left: "10%",
-									right: "10%",
-									top: "24%",
-									height: 2,
-									backgroundColor: colors.secondary[2],
-									zIndex: 0,
-								}}
-							/>
-							<View className="absolute inset-0 flex-row items-center justify-between">
-								{steps.map((step) => {
-									const isCompleted = step.number < currentStep;
-									const isActive = step.active;
-
-									return (
-										<View
-											key={step.number}
-											className="items-center justify-center"
-											style={{ flex: 1, zIndex: 1 }}
-										>
-											{isCompleted ? (
-												<View className="mb-1 items-center justify-center">
-													<View
-														className="h-6 w-6 items-center justify-center rounded-full border-2 border-primary-1"
-														style={{
-															backgroundColor: colors.primary[1],
-															zIndex: 2,
-														}}
-													>
-														<Ionicons
-															name="checkmark"
-															size={12}
-															color={colors.primary[2]}
-														/>
-													</View>
-												</View>
-											) : isActive ? (
-												<View className="mb-1 items-center justify-center">
-													<View
-														className="h-6 w-6 items-center justify-center rounded-full border-2 border-primary-1"
-														style={{
-															backgroundColor: colors.primary[1],
-															zIndex: 2,
-														}}
-													>
-														<View
-															className="h-2 w-2 rounded-full"
-															style={{ backgroundColor: colors.primary[2] }}
-														/>
-													</View>
-												</View>
-											) : (
-												<View className="mb-1 items-center justify-center">
-													<View
-														className="h-6 w-6 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
-														style={{ zIndex: 2 }}
-													>
-														<Text className="font-semibold text-primary-1 text-xs">
-															{step.number}
-														</Text>
-													</View>
-												</View>
-											)}
-											<Text
-												className={`mt-1 text-center text-xs ${
-													isActive ? "font-bold" : "font-medium"
-												}`}
-												style={{
-													color:
-														isActive || isCompleted
-															? colors.primary[1]
-															: colors.secondary[1],
-												}}
-											>
-												{step.label}
-											</Text>
-										</View>
-									);
-								})}
-							</View>
-						</View>
-					</View>
+					<ProgressIndicator
+						currentStep={currentStep}
+						totalSteps={totalSteps}
+						progressPercentage={progressPercentage}
+					/>
 
 					{/* E-Signature Section */}
 					<View className="mb-4">
@@ -271,7 +301,7 @@ export default function SignScreen() {
 								{TERMS_DOCUMENTS.map((doc) => {
 									const viewed = viewedDocs[doc.id];
 									return (
-										<TouchableOpacity
+										<Pressable
 											key={doc.id}
 											onPress={() => handleOpenTermsSection(doc.id)}
 											className="mb-1 flex-row items-center"
@@ -302,20 +332,19 @@ export default function SignScreen() {
 													style={{ marginLeft: 4 }}
 												/>
 											)}
-										</TouchableOpacity>
+										</Pressable>
 									);
 								})}
 							</View>
 						</View>
 
 						{/* Agreement Checkbox */}
-						<TouchableOpacity
+						<Pressable
 							onPress={handleAgreementPress}
-							activeOpacity={0.7}
 							className="mb-4 flex-row items-start rounded-xl border border-secondary-3 bg-primary-2 p-4"
 						>
 							<View
-								className={`mr-3 h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 ${
+								className={`mr-3 size-6 shrink-0 items-center justify-center rounded-md border-2 ${
 									agreedToTerms
 										? "border-primary-1 bg-primary-1"
 										: "border-secondary-2 bg-primary-2"
@@ -335,16 +364,15 @@ export default function SignScreen() {
 									information provided is accurate
 								</Text>
 							</View>
-						</TouchableOpacity>
+						</Pressable>
 
 						{/* Signature area */}
 						<View className="mb-4">
 							<Text className="mb-2 font-semibold text-primary-1 text-sm">
 								Sign Below
 							</Text>
-							<TouchableOpacity
+							<Pressable
 								onPress={handleOpenSignatureModal}
-								activeOpacity={0.8}
 								className="mb-2 overflow-hidden rounded-xl border-2 border-secondary-2 bg-primary-2"
 								style={{
 									height: 200,
@@ -358,10 +386,10 @@ export default function SignScreen() {
 									<View className="h-full w-full items-center justify-center bg-primary-3">
 										<Image
 											source={{ uri: signature }}
+											contentFit="contain"
 											style={{
 												width: "100%",
 												height: "100%",
-												resizeMode: "contain",
 											}}
 										/>
 									</View>
@@ -376,13 +404,13 @@ export default function SignScreen() {
 											Tap to sign
 										</Text>
 										<Text className="mt-1 text-secondary-1 text-xs">
-											Opens full screen for signing
+											Opens in landscape for easier signing
 										</Text>
 									</View>
 								)}
-							</TouchableOpacity>
+							</Pressable>
 							{signature && (
-								<TouchableOpacity
+								<Pressable
 									onPress={() => {
 										setSignature("");
 										handleOpenSignatureModal();
@@ -392,7 +420,7 @@ export default function SignScreen() {
 									<Text className="font-medium text-primary-1 text-sm">
 										Re-sign
 									</Text>
-								</TouchableOpacity>
+								</Pressable>
 							)}
 							<Text
 								className="mt-2 text-xs"
@@ -402,164 +430,15 @@ export default function SignScreen() {
 							</Text>
 						</View>
 
-						{/* Full Screen Signature Modal — rotated 90° to simulate landscape */}
-						<Modal
+						{/* Full Screen Signature Modal */}
+						<SignatureModal
 							visible={showSignatureModal}
-							animationType="slide"
-							presentationStyle="fullScreen"
-							onRequestClose={handleCloseSignatureModal}
-						>
-							{(() => {
-								const { width: screenW, height: screenH } = Dimensions.get("window");
-								return (
-									<View
-										style={{
-											width: screenW,
-											height: screenH,
-											backgroundColor: "#ffffff",
-										}}
-									>
-										<View
-											style={{
-												width: screenH,
-												height: screenW,
-												transform: [
-													{ rotate: "90deg" },
-													{ translateX: (screenH - screenW) / 2 },
-													{ translateY: (screenH - screenW) / 2 },
-												],
-												backgroundColor: "#ffffff",
-											}}
-										>
-											{/* Header */}
-											<View
-												style={{
-													flexDirection: "row",
-													alignItems: "center",
-													justifyContent: "space-between",
-													paddingHorizontal: 20,
-													paddingVertical: 14,
-													borderBottomWidth: 1,
-													borderBottomColor: colors.secondary[3],
-												}}
-											>
-												<View style={{ flexDirection: "row", alignItems: "center" }}>
-													<Ionicons
-														name="create-outline"
-														size={20}
-														color={colors.primary[1]}
-														style={{ marginRight: 8 }}
-													/>
-													<Text
-														style={{
-															fontSize: 18,
-															fontWeight: "bold",
-															color: colors.primary[1],
-														}}
-													>
-														Sign Here
-													</Text>
-												</View>
-												<TouchableOpacity onPress={handleCloseSignatureModal}>
-													<Ionicons
-														name="close"
-														size={28}
-														color={colors.primary[1]}
-													/>
-												</TouchableOpacity>
-											</View>
-
-											{/* Signature Canvas */}
-											<View style={{ flex: 1 }}>
-												<SignatureCanvas
-													ref={modalSignatureRef}
-													onOK={handleSignature}
-													descriptionText=""
-													clearText=""
-													confirmText=""
-													webStyle={`
-														.m-signature-pad {
-															box-shadow: none;
-															border: none;
-															width: 100%;
-															height: 100%;
-														}
-														.m-signature-pad--body {
-															border: none;
-															height: 100%;
-															width: 100%;
-														}
-														.m-signature-pad--body canvas {
-															border-radius: 0;
-															width: 100%;
-															height: 100%;
-															touch-action: none;
-														}
-														.m-signature-pad--footer {
-															display: none;
-														}
-													`}
-													style={{ flex: 1 }}
-												/>
-											</View>
-
-											{/* Footer Buttons */}
-											<View
-												style={{
-													flexDirection: "row",
-													justifyContent: "flex-end",
-													gap: 12,
-													paddingHorizontal: 20,
-													paddingVertical: 14,
-													borderTopWidth: 1,
-													borderTopColor: colors.secondary[3],
-												}}
-											>
-												<TouchableOpacity
-													onPress={handleClear}
-													style={{
-														paddingHorizontal: 28,
-														paddingVertical: 12,
-														borderRadius: 8,
-														borderWidth: 2,
-														borderColor: colors.secondary[3],
-													}}
-												>
-													<Text
-														style={{
-															fontSize: 16,
-															fontWeight: "600",
-															color: colors.primary[1],
-														}}
-													>
-														Clear
-													</Text>
-												</TouchableOpacity>
-												<TouchableOpacity
-													onPress={handleConfirm}
-													style={{
-														paddingHorizontal: 28,
-														paddingVertical: 12,
-														borderRadius: 8,
-														backgroundColor: colors.primary[1],
-													}}
-												>
-													<Text
-														style={{
-															fontSize: 16,
-															fontWeight: "600",
-															color: colors.primary[2],
-														}}
-													>
-														Confirm
-													</Text>
-												</TouchableOpacity>
-											</View>
-										</View>
-									</View>
-								);
-							})()}
-						</Modal>
+							canvasRef={modalSignatureRef}
+							onSignatureOK={handleSignature}
+							onClose={handleCloseSignatureModal}
+							onClear={handleClear}
+							onConfirm={handleConfirm}
+						/>
 					</View>
 				</View>
 			</ScrollView>
@@ -570,15 +449,15 @@ export default function SignScreen() {
 					edges={["bottom"]}
 					className="border-secondary-3 border-t bg-primary-2"
 				>
-					<View className="px-4 py-4">
-						<TouchableOpacity
+					<View className="p-4">
+						<Pressable
 							onPress={handleContinue}
 							className="items-center justify-center rounded-xl bg-primary-1 py-4"
 						>
 							<Text className="font-semibold text-base text-primary-2">
 								Proceed to Payment
 							</Text>
-						</TouchableOpacity>
+						</Pressable>
 					</View>
 				</SafeAreaView>
 			)}

@@ -10,13 +10,7 @@
  */
 
 import { sql } from "drizzle-orm";
-import {
-	check,
-	index,
-	integer,
-	pgTable,
-	uuid,
-} from "drizzle-orm/pg-core";
+import { check, index, integer, pgTable, uuid } from "drizzle-orm/pg-core";
 import { packageInstances } from "./package-instances";
 import { refunds } from "./refunds";
 import { salesOrderItems } from "./sales-order-items";

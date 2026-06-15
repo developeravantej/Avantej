@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { Tag, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,11 +41,17 @@ export function PromoStep({
 	const [code, setCode] = useState(applied?.code ?? "");
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-	const subtotalCents = calcSubtotalCents(items);
-	const serviceIds = items
-		.filter((i) => i.refId && (i.type === "service" || i.type === "package"))
-		.map((i) => i.refId as string);
+	// FE-M3: sync local code input when applied promo is cleared externally (e.g. cart change)
+	useEffect(() => {
+		setCode(applied?.code ?? "");
+	}, [applied]);
 
+	const subtotalCents = calcSubtotalCents(items);
+	const serviceIds = items.flatMap((i) =>
+		i.refId && (i.type === "service" || i.type === "package") ? [i.refId] : [],
+	);
+
+	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- validation-only mutation: validates promo code, does not mutate server state; nothing to invalidate
 	const validateMutation = useMutation({
 		mutationFn: async (promoCode: string) => {
 			return client.promotions.validate({
@@ -93,7 +99,7 @@ export function PromoStep({
 	if (applied) {
 		return (
 			<div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-3">
-				<Tag className="h-4 w-4 shrink-0 text-green-600" />
+				<Tag className="size-4 shrink-0 text-green-600" />
 				<div className="min-w-0 flex-1">
 					<p className="font-medium font-mono text-green-800 text-sm">
 						{applied.code}
@@ -104,11 +110,11 @@ export function PromoStep({
 					type="button"
 					variant="ghost"
 					size="icon"
-					className="h-7 w-7 shrink-0 text-green-700 hover:text-green-900"
+					className="size-7 shrink-0 text-green-700 hover:text-green-900"
 					onClick={handleRemove}
 					aria-label="Remove promo code"
 				>
-					<X className="h-4 w-4" />
+					<X className="size-4" />
 				</Button>
 			</div>
 		);

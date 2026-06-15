@@ -6,6 +6,14 @@ import {
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { writeAudit } from "./audit-log.service";
+import { calculatePromoDiscount } from "./money-math";
+
+export class PromoValidationError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "PromoValidationError";
+	}
+}
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 
@@ -72,38 +80,44 @@ export async function validatePromoCode(
 	tenantDb: TenantDb,
 	code: string,
 	params: {
-		customerId: string;
+		customerId?: string;
 		orderAmount: number;
 		productIds?: string[];
 		serviceIds?: string[];
 		branchId?: string;
 	},
 ) {
-	// 1. Find promotion by code (case-insensitive)
-	const [promotion] = await tenantDb
+	// 1. Find promotion by code with a row-level lock to prevent concurrent
+	//    usage-count races (BE-C2). .for("update") is a no-op outside a
+	//    transaction so non-transactional callers are unaffected.
+	const lockedPromotion = await tenantDb
 		.select()
 		.from(promotions)
-		.where(sql`lower(${promotions.code}) = lower(${code})`);
+		.where(sql`lower(${promotions.code}) = lower(${code})`)
+		.for("update")
+		.then((rows) => rows[0] ?? null);
 
-	if (!promotion) {
-		throw new Error("Promotion code not found");
+	if (!lockedPromotion) {
+		throw new PromoValidationError("Promotion code not found.");
 	}
+
+	const promotion = lockedPromotion;
 
 	// 2. Check isActive
 	if (!promotion.isActive) {
-		throw new Error("Promotion is not active");
+		throw new PromoValidationError("Promotion is not active.");
 	}
 
 	const now = new Date();
 
 	// 3. Check validFrom
 	if (promotion.validFrom > now) {
-		throw new Error("Promotion not yet valid");
+		throw new PromoValidationError("Promotion not yet valid.");
 	}
 
 	// 4. Check validUntil
 	if (promotion.validUntil && promotion.validUntil < now) {
-		throw new Error("Promotion has expired");
+		throw new PromoValidationError("Promotion has expired.");
 	}
 
 	// 5. Check global usage limit
@@ -111,48 +125,71 @@ export async function validatePromoCode(
 		promotion.usageLimit !== null &&
 		promotion.usageCount >= promotion.usageLimit
 	) {
-		throw new Error("Promotion usage limit reached");
+		throw new PromoValidationError("Promotion usage limit reached.");
 	}
 
-	// 6. Check per-customer limit
-	const [customerUsage] = await tenantDb
-		.select({ usageCount: count() })
-		.from(promotionUsages)
-		.where(
-			and(
-				eq(promotionUsages.promotionId, promotion.id),
-				eq(promotionUsages.customerId, params.customerId),
-			),
-		);
+	// 6. Check per-customer limit — skipped when customerId is not provided (BE-M2)
+	if (params.customerId) {
+		const [customerUsage] = await tenantDb
+			.select({ usageCount: count() })
+			.from(promotionUsages)
+			.where(
+				and(
+					eq(promotionUsages.promotionId, promotion.id),
+					eq(promotionUsages.customerId, params.customerId),
+				),
+			);
 
-	const perCustomerLimit = promotion.perCustomerLimit ?? 1;
-	if (customerUsage && customerUsage.usageCount >= perCustomerLimit) {
-		throw new Error("You have already used this promotion");
+		const perCustomerLimit = promotion.perCustomerLimit ?? 1;
+		if (customerUsage && customerUsage.usageCount >= perCustomerLimit) {
+			throw new PromoValidationError("You have already used this promotion.");
+		}
 	}
 
 	// 7. Check minimum order amount
 	if (params.orderAmount < (promotion.minimumOrderAmount ?? 0)) {
-		throw new Error("Order amount too low for this promotion");
+		throw new PromoValidationError("Order amount too low for this promotion.");
 	}
 
-	// 8. Calculate discount amount
-	let discountAmount: number;
+	// 7a. Check branch scope (F-CRM-06). A null promotion.branchId is org-wide
+	//     and applies to any branch; a non-null branchId must match exactly.
+	if (promotion.branchId !== null && params.branchId !== promotion.branchId) {
+		throw new PromoValidationError("Promotion is not valid for this branch.");
+	}
 
-	if (promotion.type === "percentage") {
-		discountAmount = Math.floor(
-			(params.orderAmount * promotion.value) / 10000,
-		);
-		if (
-			promotion.maximumDiscount !== null &&
-			discountAmount > promotion.maximumDiscount
-		) {
-			discountAmount = promotion.maximumDiscount;
+	// 7b. Check applicable product/service scope (F-CRM-03). When either
+	//     applicable list is non-empty, the order must contain at least one item
+	//     from the matching set. Empty/null lists = applies to everything.
+	const applicableProductIds = promotion.applicableProductIds ?? [];
+	const applicableServiceIds = promotion.applicableServiceIds ?? [];
+	const isProductScoped = applicableProductIds.length > 0;
+	const isServiceScoped = applicableServiceIds.length > 0;
+
+	if (isProductScoped || isServiceScoped) {
+		const orderProductIds = params.productIds ?? [];
+		const orderServiceIds = params.serviceIds ?? [];
+
+		const productMatch =
+			isProductScoped &&
+			orderProductIds.some((id) => applicableProductIds.includes(id));
+		const serviceMatch =
+			isServiceScoped &&
+			orderServiceIds.some((id) => applicableServiceIds.includes(id));
+
+		if (!productMatch && !serviceMatch) {
+			throw new PromoValidationError(
+				"Promotion does not apply to any item in this order.",
+			);
 		}
-	} else if (promotion.type === "fixed_amount") {
-		discountAmount = Math.min(promotion.value, params.orderAmount);
-	} else {
-		discountAmount = promotion.value;
 	}
+
+	// 8. Calculate discount amount (pure helper — see money-math.ts / .test.ts)
+	const discountAmount = calculatePromoDiscount({
+		type: promotion.type,
+		value: promotion.value,
+		orderAmount: params.orderAmount,
+		maximumDiscount: promotion.maximumDiscount,
+	});
 
 	// 9. Return result
 	return { promotion, discountAmount };
@@ -168,20 +205,49 @@ export async function applyPromotion(
 	},
 ) {
 	return tenantDb.transaction(async (tx) => {
+		// Re-validate isActive inside the transaction to close the TOCTOU window
+		// between an earlier validatePromoCode call and this apply step (SP-03).
+		const [current] = await tx
+			.select({ isActive: promotions.isActive })
+			.from(promotions)
+			.where(eq(promotions.id, promotionId))
+			.for("update");
+
+		if (!current) {
+			throw new Error("PROMO_NOT_FOUND: Promotion not found");
+		}
+
+		if (!current.isActive) {
+			throw new Error("PROMO_INACTIVE: Promotion code is no longer active");
+		}
+
+		// Atomic check-and-increment of the global usage limit (F-CRM-04). The
+		// conditional WHERE makes the limit enforcement concurrency-safe: only one
+		// of N racing transactions can take the final slot. 0 rows affected means
+		// the limit was already reached, so we reject before recording usage.
+		const [updated] = await tx
+			.update(promotions)
+			.set({
+				usageCount: sql`${promotions.usageCount} + 1`,
+			})
+			.where(
+				and(
+					eq(promotions.id, promotionId),
+					sql`(${promotions.usageLimit} IS NULL OR ${promotions.usageCount} < ${promotions.usageLimit})`,
+				),
+			)
+			.returning();
+
+		if (!updated) {
+			throw new Error("PROMO_LIMIT_REACHED: Promotion usage limit reached");
+		}
+
 		await tx.insert(promotionUsages).values({
 			promotionId,
 			customerId: data.customerId,
 			salesOrderId: data.salesOrderId,
 			discountAmount: data.discountAmount,
 		});
-
-		const [updated] = await tx
-			.update(promotions)
-			.set({
-				usageCount: sql`${promotions.usageCount} + 1`,
-			})
-			.where(eq(promotions.id, promotionId))
-			.returning();
 
 		return updated;
 	});
@@ -229,7 +295,12 @@ export async function createPromotion(
 			entityId: row.id,
 			branchId: data.branchId,
 			summary: `Created promotion "${data.name}" (code: ${data.code})`,
-			changes: { code: data.code, name: data.name, type: data.type, value: data.value },
+			changes: {
+				code: data.code,
+				name: data.name,
+				type: data.type,
+				value: data.value,
+			},
 		});
 
 		return row;

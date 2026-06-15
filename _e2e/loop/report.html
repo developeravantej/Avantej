@@ -1,0 +1,110 @@
+<!doctype html><html><head><meta charset="utf-8"><title>E2E Loop report</title><style>
+ body{font:14px/1.5 system-ui,sans-serif;color:#111;max-width:1000px;margin:24px auto;padding:0 16px;background:#fafafa}
+ h1{margin:0 0 2px} .sub{color:#6b7280;margin:0 0 14px} .muted{color:#9ca3af;font-weight:400}
+ .summary{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+ .pill{padding:4px 10px;border-radius:999px;color:#fff;font-weight:700;font-size:12px}
+ .cov{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 14px;margin:0 0 18px;font-size:13px;color:#374151}
+ h2{margin:22px 0 8px;border-bottom:1px solid #e5e7eb;padding-bottom:4px}
+ .card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin:0 0 12px}
+ .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+ .tag{color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;text-transform:uppercase}
+ .badge{color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;text-transform:uppercase}
+ .cat{color:#9ca3af;font-size:12px} .blast{margin-left:auto;color:#374151;font-size:12px;font-weight:600}
+ .routes{margin:6px 0;font-size:12px} .routes code{background:#f1f5f9;color:#2563eb;padding:1px 5px;border-radius:4px;margin-right:4px}
+ .observed{background:#0f172a;color:#fca5a5;padding:8px 10px;border-radius:6px;overflow:auto;font-size:12px;margin:8px 0}
+ .repro{margin:8px 0;color:#374151} .shot{max-width:100%;border:1px solid #e5e7eb;border-radius:6px;margin:8px 0;display:block}
+ .links a{margin-right:10px;font-size:12px} .rec{color:#6b7280;font-size:13px;margin:8px 0 0}
+ .resolved{color:#16a34a} .empty{color:#16a34a;font-weight:600}
+</style></head><body>
+<h1>E2E Loop — findings</h1>
+<p class="sub">Exploratory, report-only. Clustered by root cause; diffed against the last run. Recommendations NOT applied.</p>
+<div class="summary">
+  <span class="pill" style="background:#dc2626">5 new</span>
+  <span class="pill" style="background:#b45309">0 regressed</span>
+  <span class="pill" style="background:#6b7280">0 recurring</span>
+  <span class="pill" style="background:#16a34a">0 resolved</span>
+</div>
+<div class="cov"><strong>Coverage:</strong> 56 explored, 0 skipped, 0 not reached (of 56). 5 root-cause clusters from 14 raw findings.</div>
+<h2>🔴 New <span class="muted">(5)</span></h2>
+  <div class="card">
+    <div class="row">
+      <span class="tag" style="background:#dc2626">new</span>
+      <span class="badge" style="background:#7f1d1d">blocker</span>
+      <strong>Google Calendar settings page fails with 500 (orgStatus + listConnectedCalendars)</strong>
+      <span class="cat">network-5xx</span>
+      <span class="blast">1 route</span>
+    </div>
+    <div class="routes"><code>/dashboard/settings/google-calendar</code></div>
+    <pre class="observed">500 POST http://localhost:3021/rpc/googleCalendar/orgStatus || 500 POST http://localhost:3021/rpc/googleCalendar/listConnectedCalendars || 500 POST http://localhost:3021/rpc/googleCalendar/orgStatus || 500 POST http://localhost:3021/rpc/googleCalendar/listConnectedCalendars || 500 POST http://localhost:3021/rpc/googleCalendar/orgStatus</pre>
+    
+    <a href="evidence/dashboard_settings_google_calendar/shot.png" target="_blank"><img class="shot" src="evidence/dashboard_settings_google_calendar/shot.png" loading="lazy"></a>
+    <div class="links"><a href="evidence/dashboard_settings_google_calendar/console.txt" target="_blank">console</a><a href="evidence/dashboard_settings_google_calendar/network.txt" target="_blank">network</a><a href="evidence/dashboard_settings_google_calendar/trace.zip" target="_blank">trace</a></div>
+    
+  </div>
+  <div class="card">
+    <div class="row">
+      <span class="tag" style="background:#dc2626">new</span>
+      <span class="badge" style="background:#dc2626">high</span>
+      <strong>Route shows a persistent spinner and never renders its content (direct navigation)</strong>
+      <span class="cat">infinite-spinner</span>
+      <span class="blast">9 routes</span>
+    </div>
+    <div class="routes"><code>/dashboard/brands/view</code> <code>/dashboard/categories/view</code> <code>/dashboard/payment/view</code> <code>/dashboard/settings/installment-plans</code> <code>/dashboard/stock-requests/view</code> <code>/dashboard/suppliers/view</code> <code>/dashboard/transfer-orders/view</code> <code>/dashboard/uom-conversions/view</code> <code>/dashboard/uom/view</code></div>
+    <pre class="observed">Loading spinner remains visible after networkidle + 3s; main content (list/table) never appears; no failing network request — a stuck client-side load.</pre>
+    
+    <a href="evidence/dashboard_brands_view/shot.png" target="_blank"><img class="shot" src="evidence/dashboard_brands_view/shot.png" loading="lazy"></a>
+    <div class="links"><a href="evidence/dashboard_brands_view/console.txt" target="_blank">console</a><a href="evidence/dashboard_brands_view/network.txt" target="_blank">network</a><a href="evidence/dashboard_brands_view/trace.zip" target="_blank">trace</a></div>
+    
+  </div>
+  <div class="card">
+    <div class="row">
+      <span class="tag" style="background:#dc2626">new</span>
+      <span class="badge" style="background:#dc2626">high</span>
+      <strong>inventory-options throws an undefined page error and content never renders</strong>
+      <span class="cat">unhandled-exception</span>
+      <span class="blast">1 route</span>
+    </div>
+    <div class="routes"><code>/dashboard/inventory-options</code></div>
+    <pre class="observed">[pageerror] undefined</pre>
+    
+    <a href="evidence/dashboard_inventory_options/shot.png" target="_blank"><img class="shot" src="evidence/dashboard_inventory_options/shot.png" loading="lazy"></a>
+    <div class="links"><a href="evidence/dashboard_inventory_options/console.txt" target="_blank">console</a><a href="evidence/dashboard_inventory_options/network.txt" target="_blank">network</a><a href="evidence/dashboard_inventory_options/trace.zip" target="_blank">trace</a></div>
+    
+  </div>
+  <div class="card">
+    <div class="row">
+      <span class="tag" style="background:#dc2626">new</span>
+      <span class="badge" style="background:#2563eb">low</span>
+      <strong>Radix DialogContent missing a DialogTitle (screen-reader a11y)</strong>
+      <span class="cat">console-error</span>
+      <span class="blast">2 routes</span>
+    </div>
+    <div class="routes"><code>/dashboard/memberships/view</code> <code>/dashboard/packages/view</code></div>
+    <pre class="observed">`DialogContent` requires a `DialogTitle` for the component to be accessible for screen reader users.</pre>
+    
+    <a href="evidence/dashboard_memberships_view/shot.png" target="_blank"><img class="shot" src="evidence/dashboard_memberships_view/shot.png" loading="lazy"></a>
+    <div class="links"><a href="evidence/dashboard_memberships_view/console.txt" target="_blank">console</a><a href="evidence/dashboard_memberships_view/network.txt" target="_blank">network</a><a href="evidence/dashboard_memberships_view/trace.zip" target="_blank">trace</a></div>
+    
+  </div>
+  <div class="card">
+    <div class="row">
+      <span class="tag" style="background:#dc2626">new</span>
+      <span class="badge" style="background:#2563eb">low</span>
+      <strong>React duplicate/missing key warning in CancelledSalesTab</strong>
+      <span class="cat">console-error</span>
+      <span class="blast">1 route</span>
+    </div>
+    <div class="routes"><code>/dashboard/cancelled-sales/view</code></div>
+    <pre class="observed">[error] Each child in a list should have a unique &quot;key&quot; prop.%s%s See https://react.dev/link/warning-keys for more information. 
+
+Check the render method of `CancelledSalesTab`. </pre>
+    
+    <a href="evidence/dashboard_cancelled_sales_view/shot.png" target="_blank"><img class="shot" src="evidence/dashboard_cancelled_sales_view/shot.png" loading="lazy"></a>
+    <div class="links"><a href="evidence/dashboard_cancelled_sales_view/console.txt" target="_blank">console</a><a href="evidence/dashboard_cancelled_sales_view/network.txt" target="_blank">network</a><a href="evidence/dashboard_cancelled_sales_view/trace.zip" target="_blank">trace</a></div>
+    
+  </div>
+
+
+
+
+</body></html>

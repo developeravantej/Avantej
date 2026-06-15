@@ -5,6 +5,7 @@ import {
 } from "@avantej-core/db/schema/tenant/purchase-orders";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { writeAudit } from "./audit-log.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 
@@ -181,37 +182,64 @@ export async function createPurchaseOrder(
 	});
 }
 
+export interface PurchaseOrderActor {
+	userId: string;
+	memberId: string;
+	role: string;
+	branchId?: string;
+}
+
 export async function approvePurchaseOrder(
 	tenantDb: TenantDb,
 	id: string,
-	approvedBy: string,
+	actor: PurchaseOrderActor,
 ) {
-	const existing = await tenantDb
-		.select()
-		.from(purchaseOrders)
-		.where(eq(purchaseOrders.id, id))
-		.then((rows) => rows[0]);
+	// Phase 8.4 audit wiring — same shape as refunds: wrap mutation + audit
+	// write in a single transaction so the audit row rolls back if the
+	// status change fails. Row lock prevents concurrent re-approval.
+	return tenantDb.transaction(async (tx) => {
+		const [existing] = await tx
+			.select()
+			.from(purchaseOrders)
+			.where(eq(purchaseOrders.id, id))
+			.for("update");
 
-	if (!existing) {
-		throw new Error("Purchase order not found");
-	}
+		if (!existing) {
+			throw new Error("Purchase order not found");
+		}
 
-	if (existing.status !== "draft") {
-		throw new Error("Only draft purchase orders can be approved");
-	}
+		if (existing.status !== "draft") {
+			throw new Error("Only draft purchase orders can be approved");
+		}
 
-	const [updated] = await tenantDb
-		.update(purchaseOrders)
-		.set({
-			status: "approved",
-			approvedBy,
-			approvedAt: new Date(),
-			updatedAt: new Date(),
-		})
-		.where(eq(purchaseOrders.id, id))
-		.returning();
+		const [updated] = await tx
+			.update(purchaseOrders)
+			.set({
+				status: "approved",
+				approvedBy: actor.userId,
+				approvedAt: new Date(),
+				updatedAt: new Date(),
+			})
+			.where(eq(purchaseOrders.id, id))
+			.returning();
 
-	return updated;
+		await writeAudit(tx, {
+			actorUserId: actor.userId,
+			actorMemberId: actor.memberId,
+			actorRole: actor.role,
+			action: "purchase_order.approve",
+			entityType: "purchase_order",
+			entityId: id,
+			branchId: actor.branchId,
+			summary: `Approved purchase order ${existing.purchaseOrderNumber} — ${(existing.totalAmount / 100).toFixed(2)} MYR`,
+			changes: {
+				from: { status: existing.status },
+				to: { status: "approved" },
+			},
+		});
+
+		return updated;
+	});
 }
 
 export async function receiveItems(
@@ -219,25 +247,84 @@ export async function receiveItems(
 	purchaseOrderId: string,
 	receivedItems: Array<{ itemId: string; receivedQty: number }>,
 ) {
+	if (receivedItems.length === 0) {
+		throw new Error("receivedItems must not be empty");
+	}
+
 	return tenantDb.transaction(async (tx) => {
-		for (const item of receivedItems) {
-			await tx
-				.update(purchaseOrderItems)
-				.set({
-					receivedQty: sql`${purchaseOrderItems.receivedQty} + ${item.receivedQty}`,
-				})
-				.where(eq(purchaseOrderItems.id, item.itemId));
+		// IW-06 (mirrors IW-05 createReceipt precondition pattern):
+		// 1. Row-lock the PO to prevent concurrent receipt races.
+		const [po] = await tx
+			.select()
+			.from(purchaseOrders)
+			.where(eq(purchaseOrders.id, purchaseOrderId))
+			.for("update");
+
+		if (!po) {
+			throw new Error(`Purchase order ${purchaseOrderId} not found`);
 		}
 
-		const allItems = await tx
+		// 2. Status guard: only receive items on approved / ordered / partially-received POs.
+		const allowedStatuses = ["approved", "ordered", "partially_received"];
+		if (!allowedStatuses.includes(po.status)) {
+			throw new Error(
+				`Cannot receive items on a purchase order with status "${po.status}". ` +
+					`Allowed statuses: ${allowedStatuses.join(", ")}.`,
+			);
+		}
+
+		// 3. Fetch all PO items and build an allowed-item set for scope validation.
+		const existingItems = await tx
 			.select()
 			.from(purchaseOrderItems)
 			.where(eq(purchaseOrderItems.purchaseOrderId, purchaseOrderId));
 
-		const allFullyReceived = allItems.every(
+		const legalItemIds = new Set(existingItems.map((i) => i.id));
+
+		// Validate every input item belongs to this PO (reject cross-PO mixing).
+		for (const item of receivedItems) {
+			if (!legalItemIds.has(item.itemId)) {
+				throw new Error(
+					`Item ${item.itemId} does not belong to purchase order ${purchaseOrderId}`,
+				);
+			}
+		}
+
+		// 4. Apply over-receipt clamp and update receivedQty with scoped WHERE clause.
+		const itemMap = new Map(existingItems.map((i) => [i.id, i]));
+
+		for (const item of receivedItems) {
+			const existing = itemMap.get(item.itemId)!;
+			const remaining = existing.orderedQty - existing.receivedQty;
+			const clampedQty = Math.min(item.receivedQty, remaining);
+
+			if (clampedQty <= 0) {
+				// Already fully received — skip silently (idempotent).
+				continue;
+			}
+
+			// Scope the UPDATE to both id AND purchaseOrderId for safety.
+			await tx
+				.update(purchaseOrderItems)
+				.set({
+					receivedQty: sql`${purchaseOrderItems.receivedQty} + ${clampedQty}`,
+				})
+				.where(
+					and(
+						eq(purchaseOrderItems.id, item.itemId),
+						eq(purchaseOrderItems.purchaseOrderId, purchaseOrderId),
+					),
+				);
+
+			// Sync the in-memory map so status rollup below is accurate.
+			existing.receivedQty += clampedQty;
+		}
+
+		// 5. Roll PO status based on updated totals (re-read from memory map after clamp).
+		const allFullyReceived = existingItems.every(
 			(item) => item.receivedQty >= item.orderedQty,
 		);
-		const anyReceived = allItems.some((item) => item.receivedQty > 0);
+		const anyReceived = existingItems.some((item) => item.receivedQty > 0);
 
 		const updateData: Record<string, unknown> = {
 			updatedAt: new Date(),
@@ -260,31 +347,53 @@ export async function receiveItems(
 	});
 }
 
-export async function cancelPurchaseOrder(tenantDb: TenantDb, id: string) {
-	const existing = await tenantDb
-		.select()
-		.from(purchaseOrders)
-		.where(eq(purchaseOrders.id, id))
-		.then((rows) => rows[0]);
+export async function cancelPurchaseOrder(
+	tenantDb: TenantDb,
+	id: string,
+	actor: PurchaseOrderActor,
+) {
+	// Phase 8.9 added the transaction + row lock; 8.4 adds the audit write.
+	return tenantDb.transaction(async (tx) => {
+		const [existing] = await tx
+			.select()
+			.from(purchaseOrders)
+			.where(eq(purchaseOrders.id, id))
+			.for("update");
 
-	if (!existing) {
-		throw new Error("Purchase order not found");
-	}
+		if (!existing) {
+			throw new Error("Purchase order not found");
+		}
 
-	if (!["draft", "approved"].includes(existing.status)) {
-		throw new Error(
-			"Only draft or approved purchase orders can be cancelled",
-		);
-	}
+		if (!["draft", "approved"].includes(existing.status)) {
+			throw new Error(
+				"Only draft or approved purchase orders can be cancelled",
+			);
+		}
 
-	const [updated] = await tenantDb
-		.update(purchaseOrders)
-		.set({
-			status: "cancelled",
-			updatedAt: new Date(),
-		})
-		.where(eq(purchaseOrders.id, id))
-		.returning();
+		const [updated] = await tx
+			.update(purchaseOrders)
+			.set({
+				status: "cancelled",
+				updatedAt: new Date(),
+			})
+			.where(eq(purchaseOrders.id, id))
+			.returning();
 
-	return updated;
+		await writeAudit(tx, {
+			actorUserId: actor.userId,
+			actorMemberId: actor.memberId,
+			actorRole: actor.role,
+			action: "purchase_order.cancel",
+			entityType: "purchase_order",
+			entityId: id,
+			branchId: actor.branchId,
+			summary: `Cancelled purchase order ${existing.purchaseOrderNumber} — ${(existing.totalAmount / 100).toFixed(2)} MYR`,
+			changes: {
+				from: { status: existing.status },
+				to: { status: "cancelled" },
+			},
+		});
+
+		return updated;
+	});
 }

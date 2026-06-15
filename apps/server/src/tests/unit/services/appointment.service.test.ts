@@ -91,7 +91,7 @@ function buildMockDb(lockedPkg: ReturnType<typeof makeLockedPkg>) {
 	const innerPkg = {
 		...lockedPkg,
 		nextDueDate: null, // → evaluateAndLockIfOverdue returns early because "No due date set"
-		isLocked: false,   // must be false so it doesn't hit the "already locked" early-return
+		isLocked: false, // must be false so it doesn't hit the "already locked" early-return
 		paymentPlanType: "half",
 		installmentsPaid: 0,
 		installmentsTotal: 2,
@@ -300,7 +300,9 @@ function buildMockDb(lockedPkg: ReturnType<typeof makeLockedPkg>) {
 	// So the inner transaction starts at count 1, which maps to gracePeriodDays → correct
 	// Then count 2 → innerPkg (FOR UPDATE) → correct
 	// Then after the inner tx returns, A.1.3 select happens at count 3 → lockedPkg → correct
-	(tx as any).transaction = mock((cb: (innerTx: unknown) => Promise<unknown>) => cb(tx));
+	(tx as any).transaction = mock((cb: (innerTx: unknown) => Promise<unknown>) =>
+		cb(tx),
+	);
 
 	const db = {
 		transaction: mock((cb: (txArg: unknown) => Promise<unknown>) => cb(tx)),
@@ -349,9 +351,7 @@ describe("appointment.service.ts — lock-check gate (A.1.5)", () => {
 		const pkg = makeLockedPkg({ isLocked: true, allowCreditOverdraft: false });
 		const db = buildMockDb(pkg);
 
-		await expect(
-			createAppointment(db, makeParams(pkg.id)),
-		).rejects.toThrow(
+		await expect(createAppointment(db, makeParams(pkg.id))).rejects.toThrow(
 			"Package is locked due to unpaid installment. Please complete your payment to continue booking.",
 		);
 	});

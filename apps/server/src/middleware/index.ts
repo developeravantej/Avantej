@@ -17,4 +17,3 @@ export { authMiddleware } from "./auth.middleware";
 export { tenantMiddleware } from "./tenant.middleware";
 export { hierarchyMiddleware } from "./hierarchy.middleware";
 export { adminMiddleware, superAdminMiddleware } from "./admin.middleware";
-

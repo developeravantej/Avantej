@@ -87,7 +87,7 @@ export const purchaseOrders = pgTable(
 	},
 	(table) => ({
 		purchaseOrderNumberIdx: uniqueIndex("po_number_idx").on(
-			table.purchaseOrderNumber
+			table.purchaseOrderNumber,
 		),
 		supplierIdx: index("po_supplier_idx").on(table.supplierId),
 		branchIdx: index("po_branch_idx").on(table.branchId),
@@ -96,9 +96,9 @@ export const purchaseOrders = pgTable(
 		createdByIdx: index("po_created_by_idx").on(table.createdBy),
 		supplierStatusIdx: index("po_supplier_status_idx").on(
 			table.supplierId,
-			table.status
+			table.status,
 		),
-	})
+	}),
 );
 
 export const purchaseOrderItems = pgTable(
@@ -137,5 +137,5 @@ export const purchaseOrderItems = pgTable(
 	(table) => ({
 		poIdIdx: index("po_items_po_id_idx").on(table.purchaseOrderId),
 		productIdx: index("po_items_product_idx").on(table.productId),
-	})
+	}),
 );

@@ -851,7 +851,7 @@ Shows "Please try again" but no retry button. Add a `<Button onClick={refetch}>T
 ### MINOR
 
 #### 14.7 Wrong permission label in hub doc
-**File**: `zhub/pages/web-dashboard-memberships-view.md:6`
+**File**: previously documented in zhub (memberships view page doc, now retired)
 
 Code and API agree on `service_management:read` but hub doc says `customer_management:read`.
 
@@ -992,7 +992,7 @@ No Package button in `ItemsStep`, so the installment plan UI is permanently dead
 - Product items (backend accepts "product" type but no UI)
 - Phone number search for members
 - Cash quick-fill buttons (RM10, RM50, RM100 denominations)
-- No hub page for POS: `zhub/pages/` has no `pos.md` entry
+- No dedicated POS doc page (previously tracked in zhub, now retired)
 
 ---
 

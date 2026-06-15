@@ -20,6 +20,7 @@ import {
 	shouldSkipIntegration,
 	createTenantDb,
 	makeIntegrationAdminContext,
+	TEST_USER_ID,
 } from "../helpers/integration-setup";
 import { setPackageOverdraft } from "@avantej-core/services";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
@@ -56,175 +57,173 @@ afterAll(async () => {
 });
 
 describe("installments.setOverdraft integration", () => {
-	test(
-		"admin sets overdraft=true → returns updated row and audit_log row",
-		async () => {
-			if (shouldSkipIntegration()) return;
+	test("admin sets overdraft=true → returns updated row and audit_log row", async () => {
+		if (shouldSkipIntegration()) return;
 
-			// Find any active service to satisfy the FK constraint
-			const [service] = await tenantDb
-				.select({ id: services.id })
-				.from(services)
-				.limit(1);
+		// Find any active service to satisfy the FK constraint
+		const [service] = await tenantDb
+			.select({ id: services.id })
+			.from(services)
+			.limit(1);
 
-			if (!service) {
-				console.warn("[integration] No services found in dev tenant DB — skipping test");
-				return;
-			}
+		if (!service) {
+			console.warn(
+				"[integration] No services found in dev tenant DB — skipping test",
+			);
+			return;
+		}
 
-			// Insert a minimal locked package instance
-			const now = new Date();
-			const expiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // +90 days
+		// Insert a minimal locked package instance
+		const now = new Date();
+		const expiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // +90 days
 
-			const [inserted] = await tenantDb
-				.insert(packageInstances)
-				.values({
-					serviceId: service.id,
-					source: "assigned",
-					paymentStatus: "pending",
-					creditsTotal: 4,
-					creditsUsed: 0,
-					paymentPlanType: "half",
-					installmentsTotal: 2,
-					installmentsPaid: 0,
-					isLocked: true,
-					lockedAt: now,
-					lockedReason: "non_payment",
-					allowCreditOverdraft: false,
-					status: "active",
-					startsAt: now,
-					expiresAt,
-				})
-				.returning();
+		const [inserted] = await tenantDb
+			.insert(packageInstances)
+			.values({
+				serviceId: service.id,
+				clientId: TEST_USER_ID,
+				source: "assigned",
+				paymentStatus: "pending",
+				creditsTotal: 4,
+				creditsUsed: 0,
+				paymentPlanType: "half",
+				installmentsTotal: 2,
+				installmentsPaid: 0,
+				isLocked: true,
+				lockedAt: now,
+				lockedReason: "non_payment",
+				allowCreditOverdraft: false,
+				status: "active",
+				startsAt: now,
+				expiresAt,
+			})
+			.returning();
 
-			if (!inserted) throw new Error("Failed to insert test packageInstance");
-			createdPackageInstanceIds.push(inserted.id);
+		if (!inserted) throw new Error("Failed to insert test packageInstance");
+		createdPackageInstanceIds.push(inserted.id);
 
-			// Call the service function directly (mirrors what the router procedure does)
-			const ctx = makeIntegrationAdminContext(tenantDb);
-			const actor = {
-				userId: ctx.session.user.id,
-				memberId: ctx.member.id,
-				role: ctx.member.role,
-			};
+		// Call the service function directly (mirrors what the router procedure does)
+		const ctx = makeIntegrationAdminContext(tenantDb);
+		const actor = {
+			userId: ctx.session.user.id,
+			memberId: ctx.member.id,
+			role: ctx.member.role,
+		};
 
-			const result = await setPackageOverdraft(
-				tenantDb,
-				inserted.id,
-				true,
-				"Integration test: VIP customer override",
-				actor,
+		const result = await setPackageOverdraft(
+			tenantDb,
+			inserted.id,
+			true,
+			"Integration test: VIP customer override",
+			actor,
+		);
+
+		// Assert returned row
+		expect(result.id).toBe(inserted.id);
+		expect(result.allowCreditOverdraft).toBe(true);
+
+		// Assert audit_log row exists
+		const auditRows = await tenantDb
+			.select()
+			.from(auditLogs)
+			.where(
+				and(
+					eq(auditLogs.entityType, "package_instance"),
+					eq(auditLogs.entityId as any, inserted.id),
+					eq(auditLogs.action, "package.overdraft_enabled"),
+				),
 			);
 
-			// Assert returned row
-			expect(result.id).toBe(inserted.id);
-			expect(result.allowCreditOverdraft).toBe(true);
+		expect(auditRows.length).toBeGreaterThanOrEqual(1);
+		expect(auditRows[0]?.actorUserId).toBe(actor.userId);
 
-			// Assert audit_log row exists
-			const auditRows = await tenantDb
-				.select()
-				.from(auditLogs)
-				.where(
-					and(
-						eq(auditLogs.entityType, "package_instance"),
-						eq(auditLogs.entityId as any, inserted.id),
-						eq(auditLogs.action, "package.overdraft_enabled"),
-					),
-				);
-
-			expect(auditRows.length).toBeGreaterThanOrEqual(1);
-			expect(auditRows[0]?.actorUserId).toBe(actor.userId);
-
-			// Assert installment_events row exists
-			const eventRows = await tenantDb
-				.select()
-				.from(installmentEvents)
-				.where(
-					and(
-						eq(installmentEvents.packageInstanceId, inserted.id),
-						eq(installmentEvents.eventType, "overdraft_enabled"),
-					),
-				);
-
-			expect(eventRows.length).toBeGreaterThanOrEqual(1);
-		},
-		30000,
-	);
-
-	test(
-		"setOverdraft is idempotent — calling enabled=true again returns same row with no new audit row",
-		async () => {
-			if (shouldSkipIntegration()) return;
-
-			const [service] = await tenantDb
-				.select({ id: services.id })
-				.from(services)
-				.limit(1);
-
-			if (!service) {
-				console.warn("[integration] No services found in dev tenant DB — skipping test");
-				return;
-			}
-
-			const now = new Date();
-			const expiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
-
-			// Insert with allowCreditOverdraft already true
-			const [inserted] = await tenantDb
-				.insert(packageInstances)
-				.values({
-					serviceId: service.id,
-					source: "assigned",
-					paymentStatus: "pending",
-					creditsTotal: 4,
-					creditsUsed: 0,
-					paymentPlanType: "half",
-					installmentsTotal: 2,
-					installmentsPaid: 0,
-					isLocked: true,
-					lockedAt: now,
-					lockedReason: "non_payment",
-					allowCreditOverdraft: true, // already enabled
-					status: "active",
-					startsAt: now,
-					expiresAt,
-				})
-				.returning();
-
-			if (!inserted) throw new Error("Failed to insert test packageInstance");
-			createdPackageInstanceIds.push(inserted.id);
-
-			const ctx = makeIntegrationAdminContext(tenantDb);
-			const actor = {
-				userId: ctx.session.user.id,
-				memberId: ctx.member.id,
-				role: ctx.member.role,
-			};
-
-			// Call with enabled=true (same as current state — no-op)
-			const result = await setPackageOverdraft(
-				tenantDb,
-				inserted.id,
-				true,
-				"Should be no-op",
-				actor,
+		// Assert installment_events row exists
+		const eventRows = await tenantDb
+			.select()
+			.from(installmentEvents)
+			.where(
+				and(
+					eq(installmentEvents.packageInstanceId, inserted.id),
+					eq(installmentEvents.eventType, "overdraft_enabled"),
+				),
 			);
 
-			expect(result.allowCreditOverdraft).toBe(true);
+		expect(eventRows.length).toBeGreaterThanOrEqual(1);
+	}, 30000);
 
-			// No audit row should have been written
-			const auditRows = await tenantDb
-				.select()
-				.from(auditLogs)
-				.where(
-					and(
-						eq(auditLogs.entityType, "package_instance"),
-						eq(auditLogs.entityId as any, inserted.id),
-					),
-				);
+	test("setOverdraft is idempotent — calling enabled=true again returns same row with no new audit row", async () => {
+		if (shouldSkipIntegration()) return;
 
-			expect(auditRows).toHaveLength(0);
-		},
-		30000,
-	);
+		const [service] = await tenantDb
+			.select({ id: services.id })
+			.from(services)
+			.limit(1);
+
+		if (!service) {
+			console.warn(
+				"[integration] No services found in dev tenant DB — skipping test",
+			);
+			return;
+		}
+
+		const now = new Date();
+		const expiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+
+		// Insert with allowCreditOverdraft already true
+		const [inserted] = await tenantDb
+			.insert(packageInstances)
+			.values({
+				serviceId: service.id,
+				clientId: TEST_USER_ID,
+				source: "assigned",
+				paymentStatus: "pending",
+				creditsTotal: 4,
+				creditsUsed: 0,
+				paymentPlanType: "half",
+				installmentsTotal: 2,
+				installmentsPaid: 0,
+				isLocked: true,
+				lockedAt: now,
+				lockedReason: "non_payment",
+				allowCreditOverdraft: true, // already enabled
+				status: "active",
+				startsAt: now,
+				expiresAt,
+			})
+			.returning();
+
+		if (!inserted) throw new Error("Failed to insert test packageInstance");
+		createdPackageInstanceIds.push(inserted.id);
+
+		const ctx = makeIntegrationAdminContext(tenantDb);
+		const actor = {
+			userId: ctx.session.user.id,
+			memberId: ctx.member.id,
+			role: ctx.member.role,
+		};
+
+		// Call with enabled=true (same as current state — no-op)
+		const result = await setPackageOverdraft(
+			tenantDb,
+			inserted.id,
+			true,
+			"Should be no-op",
+			actor,
+		);
+
+		expect(result.allowCreditOverdraft).toBe(true);
+
+		// No audit row should have been written
+		const auditRows = await tenantDb
+			.select()
+			.from(auditLogs)
+			.where(
+				and(
+					eq(auditLogs.entityType, "package_instance"),
+					eq(auditLogs.entityId as any, inserted.id),
+				),
+			);
+
+		expect(auditRows).toHaveLength(0);
+	}, 30000);
 });

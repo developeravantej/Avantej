@@ -87,7 +87,7 @@ export function CustomerStep({
 		const initials = getInitials(selected.name);
 		return (
 			<div className="flex items-center gap-3 rounded-xl border-2 border-primary/20 bg-primary/5 p-3.5">
-				<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary font-semibold text-primary-foreground text-sm">
+				<div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary font-semibold text-primary-foreground text-sm">
 					{initials}
 				</div>
 				<div className="min-w-0 flex-1">
@@ -105,12 +105,12 @@ export function CustomerStep({
 				<Button
 					variant="ghost"
 					size="icon"
-					className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+					className="size-7 shrink-0 text-muted-foreground hover:text-foreground"
 					onClick={onClear}
 					type="button"
 					aria-label="Clear customer selection"
 				>
-					<X className="h-4 w-4" />
+					<X className="size-4" />
 				</Button>
 			</div>
 		);
@@ -118,12 +118,14 @@ export function CustomerStep({
 
 	// ── Render: list + search ─────────────────────────────────────────────────
 
-	const filtered = query.trim()
+	// FE-M5: use debouncedQuery (same value server filtered by) to avoid double-filtering
+	// that causes a flashing empty state between keystroke and debounce settling.
+	const filtered = debouncedQuery.trim()
 		? results.filter(
 				(r) =>
-					r.name.toLowerCase().includes(query.toLowerCase()) ||
-					r.email?.toLowerCase().includes(query.toLowerCase()) ||
-					r.phone?.includes(query),
+					r.name.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
+					r.email?.toLowerCase().includes(debouncedQuery.toLowerCase()) ||
+					r.phone?.includes(debouncedQuery),
 			)
 		: results;
 
@@ -131,17 +133,18 @@ export function CustomerStep({
 		<div className="space-y-3">
 			{/* Search input */}
 			<div className="relative">
-				<Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+				<Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
 				<Input
 					placeholder="Search by name, email or phone..."
 					value={query}
 					onChange={(e) => setQuery(e.target.value)}
 					className="pl-9 pr-9"
 					autoComplete="off"
+					data-testid="pos-member-search-input"
 				/>
 				{isFetching && (
 					<div className="absolute top-1/2 right-3 -translate-y-1/2">
-						<div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-r-transparent" />
+						<div className="size-4 animate-spin rounded-full border-2 border-primary border-r-transparent" />
 					</div>
 				)}
 			</div>
@@ -152,8 +155,12 @@ export function CustomerStep({
 					<div className="space-y-1 p-2">
 						{[...Array(3)].map((_, i) => (
 							// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton
-							<div key={i} className="flex items-center gap-3 rounded-lg px-3 py-2.5">
-								<div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-muted" />
+							// react-doctor-disable-next-line react-doctor/no-array-index-as-key -- position-as-identity: 3-row static loading skeleton
+							<div
+								key={i}
+								className="flex items-center gap-3 rounded-lg px-3 py-2.5"
+							>
+								<div className="size-8 shrink-0 animate-pulse rounded-full bg-muted" />
 								<div className="flex-1 space-y-1.5">
 									<div className="h-3 w-32 animate-pulse rounded bg-muted" />
 									<div className="h-2.5 w-24 animate-pulse rounded bg-muted" />
@@ -177,12 +184,14 @@ export function CustomerStep({
 									className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
 									onClick={() => handleSelect(r)}
 								>
-									<div className={cn(
-										"flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-semibold text-xs",
-										r.type === "walk_in"
-											? "bg-brand-secondary-2 text-brand-primary-1"
-											: "bg-primary text-primary-foreground"
-									)}>
+									<div
+										className={cn(
+											"flex size-8 shrink-0 items-center justify-center rounded-full font-semibold text-xs",
+											r.type === "walk_in"
+												? "bg-brand-secondary-2 text-brand-primary-1"
+												: "bg-primary text-primary-foreground",
+										)}
+									>
 										{getInitials(r.name)}
 									</div>
 									<div className="min-w-0 flex-1">
