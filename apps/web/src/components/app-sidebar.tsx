@@ -612,7 +612,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 				organizationId: organizationId!,
 				limit: 200,
 			}),
-		enabled: !!organizationId,
+		// listPending is role-gated server-side (admin/trainer only) — firing it
+		// for a staff user 403s. Gate the badge query to match.
+		enabled: !!organizationId && hasRole(["admin", "trainer"]),
 		staleTime: 60_000,
 	});
 	const pendingCount = pendingApprovalsQuery.data?.length ?? 0;

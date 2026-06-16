@@ -37,6 +37,12 @@ export function useTrainerSchedule({
 		? sidebarSelectedId
 		: (memberId ?? null);
 
+	// A non-admin/staff user must resolve to their own memberId before we query.
+	// Without this guard, a trainer whose memberId is missing from context would
+	// query with trainerId=undefined and pull EVERY trainer's appointments —
+	// the client intent is self-only. Fail closed: don't fire the query.
+	const selfScopeReady = canViewAllTrainers || !!memberId;
+
 	const { startFrom, startTo } = getAppointmentQueryRange();
 
 	const {
@@ -53,7 +59,7 @@ export function useTrainerSchedule({
 				limit: 200,
 			},
 		}),
-		enabled: !!organizationId && enabled,
+		enabled: !!organizationId && enabled && selfScopeReady,
 		staleTime: 60_000,
 	});
 

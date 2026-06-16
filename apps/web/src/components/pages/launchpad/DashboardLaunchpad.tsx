@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useUserContext } from "@/hooks/useUserContext";
 import { cn } from "@/lib/utils";
@@ -50,6 +50,17 @@ export function DashboardLaunchpad() {
 	);
 	// If the visible set changes (permissions load in), keep the active card valid.
 	const active = visibleCards.find((c) => c.id === activeId) ?? visibleCards[0];
+
+	// Keep-alive: once a panel has been opened it stays mounted (hidden when
+	// inactive) so in-progress work — most importantly a half-built POS sale —
+	// survives switching cards. Panels are mounted lazily on first visit.
+	const [visited, setVisited] = useState<Set<LaunchpadCardId>>(new Set());
+	useEffect(() => {
+		if (!active) return;
+		setVisited((prev) =>
+			prev.has(active.id) ? prev : new Set(prev).add(active.id),
+		);
+	}, [active]);
 
 	// ── Today's glance ──
 	// These org-scoped queries are permission-gated: the front-desk cashier
@@ -193,10 +204,22 @@ export function DashboardLaunchpad() {
 					})}
 				</div>
 
-				{/* Right: detail panel */}
-				<div className="min-h-[460px] rounded-2xl border border-[#e8ebf0] bg-white p-6 shadow-sm">
+				{/* Right: detail panel (keep-alive — visited panels stay mounted) */}
+				<div className="flex min-h-[460px] flex-col rounded-2xl border border-[#e8ebf0] bg-white p-6 shadow-sm">
 					{active ? (
-						<LaunchpadPanel id={active.id} organizationId={organizationId} />
+						visibleCards
+							.filter((c) => visited.has(c.id))
+							.map((c) => (
+								<div
+									key={c.id}
+									className={cn(
+										"flex-1 min-h-0",
+										c.id !== active.id && "hidden",
+									)}
+								>
+									<LaunchpadPanel id={c.id} organizationId={organizationId} />
+								</div>
+							))
 					) : (
 						<div className="flex h-full items-center justify-center text-sm text-muted-foreground">
 							No tasks available for your role.

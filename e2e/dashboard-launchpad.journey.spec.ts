@@ -117,6 +117,34 @@ test.describe("Dashboard launchpad", () => {
 		});
 	});
 
+	test("Keep-alive: New Sale state survives switching cards", {
+		tag: ["@p1"],
+	}, async ({ page }) => {
+		const posSearch = page.getByPlaceholder(
+			"Search by name, email or phone...",
+		);
+		await expect(posSearch).toBeVisible({ timeout: 15_000 });
+		await posSearch.fill("keepalive-probe");
+
+		// Switch away to another panel, then back to New Sale.
+		await page
+			.getByRole("button", { name: /View Customers/ })
+			.first()
+			.click();
+		await expect(page.getByPlaceholder("Search customers…")).toBeVisible({
+			timeout: 15_000,
+		});
+		await page
+			.getByRole("button", { name: /New Sale/ })
+			.first()
+			.click();
+
+		// The POS panel stayed mounted, so the typed value is preserved.
+		await expect(
+			page.getByPlaceholder("Search by name, email or phone..."),
+		).toHaveValue("keepalive-probe", { timeout: 15_000 });
+	});
+
 	test("Analytics dashboard now lives at /dashboard/overview", {
 		tag: ["@p1"],
 	}, async ({ page }) => {
