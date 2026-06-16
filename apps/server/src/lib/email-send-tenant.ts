@@ -16,6 +16,7 @@ import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-
 import {
 	getVerifiedEmailDomainForOrg,
 	recordEmailLog,
+	resolveAliasLocalPart,
 } from "@avantej-core/services/email-domain.service";
 import { getResendClient, recordEmailCapture } from "./email";
 
@@ -29,9 +30,18 @@ export interface SendTenantEmailParams {
 	text?: string;
 	/**
 	 * Local-part of the sender address (e.g. "support"). Combined with the
-	 * org's verified domain → "support@<domain>". Default: "support".
+	 * org's verified domain → "<localPart>@<domain>". Resolution order:
+	 * `params.localPart` > alias resolved from `params.aliasLabel` >
+	 * `email_domains.defaultLocalPart` > "support".
 	 */
 	localPart?: string;
+	/**
+	 * Curated alias label to resolve into a local-part via the
+	 * `email_domain_aliases` table. Useful for keeping send sites label-driven
+	 * ("billing", "support") instead of stringly-typed local-parts. Ignored
+	 * when `localPart` is also set.
+	 */
+	aliasLabel?: string;
 	/**
 	 * Override the from-name on this send. Otherwise uses the row's
 	 * email_domains.fromName, or the platform default.
@@ -76,7 +86,8 @@ export async function sendTenantEmail(
 		subject,
 		html,
 		text,
-		localPart = "support",
+		localPart,
+		aliasLabel,
 		fromName,
 		allowPlatformFallback = true,
 	} = params;
@@ -93,7 +104,16 @@ export async function sendTenantEmail(
 	let usedFallback = false;
 
 	if (verified) {
-		fromEmail = `${localPart}@${verified.domain}`;
+		let resolvedLocalPart = localPart;
+		if (!resolvedLocalPart && aliasLabel) {
+			resolvedLocalPart =
+				(await resolveAliasLocalPart(controlPanelDb, {
+					emailDomainId: verified.id,
+					label: aliasLabel,
+				})) ?? undefined;
+		}
+		resolvedLocalPart = resolvedLocalPart ?? verified.defaultLocalPart ?? "support";
+		fromEmail = `${resolvedLocalPart}@${verified.domain}`;
 		const name = fromName ?? verified.fromName;
 		fromAddress = `${name} <${fromEmail}>`;
 		emailDomainId = verified.id;
@@ -117,36 +137,58 @@ export async function sendTenantEmail(
 	const textBody = text ?? html.replace(/<[^>]*>/g, "");
 
 	const resend = getResendClient();
-	const result = await resend.emails.send({
-		from: fromAddress,
-		to: recipients,
-		subject,
-		html,
-		text: textBody,
-		tags: [{ name: "organization_id", value: organizationId }],
-	});
+
+	let result: Awaited<ReturnType<typeof resend.emails.send>>;
+	try {
+		result = await resend.emails.send({
+			from: fromAddress,
+			to: recipients,
+			subject,
+			html,
+			text: textBody,
+			tags: [{ name: "organization_id", value: organizationId }],
+		});
+	} catch (err) {
+		const errMessage = err instanceof Error ? err.message : String(err);
+		await safeWriteLog(controlPanelDb, {
+			organizationId,
+			emailDomainId,
+			resendMessageId: syntheticFailedId(),
+			fromAddress,
+			toAddress: recipients.join(", "),
+			subject,
+			status: "failed",
+			errorMessage: errMessage,
+		});
+		throw err;
+	}
 
 	if (result.error || !result.data?.id) {
-		throw new Error(
-			`Resend API error: ${result.error?.message ?? "missing message id"}`,
-		);
+		const errMessage = result.error?.message ?? "missing message id";
+		await safeWriteLog(controlPanelDb, {
+			organizationId,
+			emailDomainId,
+			resendMessageId: result.data?.id ?? syntheticFailedId(),
+			fromAddress,
+			toAddress: recipients.join(", "),
+			subject,
+			status: "failed",
+			errorMessage: errMessage,
+		});
+		throw new Error(`Resend API error: ${errMessage}`);
 	}
 
 	const messageId = result.data.id;
 
-	try {
-		await recordEmailLog(controlPanelDb, {
-			organizationId,
-			emailDomainId,
-			resendMessageId: messageId,
-			fromAddress,
-			toAddress: recipients.join(", "),
-			subject,
-			status: "sent",
-		});
-	} catch (e) {
-		console.error("Failed to write email_logs row", { messageId, error: e });
-	}
+	await safeWriteLog(controlPanelDb, {
+		organizationId,
+		emailDomainId,
+		resendMessageId: messageId,
+		fromAddress,
+		toAddress: recipients.join(", "),
+		subject,
+		status: "sent",
+	});
 
 	recordEmailCapture({
 		type: "generic",
@@ -162,4 +204,22 @@ export async function sendTenantEmail(
 	});
 
 	return { messageId, fromAddress, usedFallback };
+}
+
+function syntheticFailedId(): string {
+	return `failed:${crypto.randomUUID()}`;
+}
+
+async function safeWriteLog(
+	controlPanelDb: ControlPanelDb,
+	params: Parameters<typeof recordEmailLog>[1],
+): Promise<void> {
+	try {
+		await recordEmailLog(controlPanelDb, params);
+	} catch (e) {
+		console.error("Failed to write email_logs row", {
+			resendMessageId: params.resendMessageId,
+			error: e,
+		});
+	}
 }

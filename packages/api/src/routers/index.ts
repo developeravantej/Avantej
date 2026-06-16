@@ -2795,6 +2795,7 @@ interface EmailDomainRow {
 	resendDomainId: string;
 	domain: string;
 	fromName: string;
+	defaultLocalPart: string | null;
 	status: string;
 	dnsRecords: unknown;
 	verifiedAt: Date | null;
@@ -2816,7 +2817,20 @@ export const emailDomainsRouterType = {
 				organizationId: z.string().uuid(),
 				domain: z.string().min(3).max(253),
 				fromName: z.string().min(1).max(100),
+				defaultLocalPart: z.string().optional(),
 				region: z.enum(RESEND_REGIONS_TYPE).optional(),
+			}),
+		)
+		.handler((): EmailDomainRow => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	update: protectedProcedure
+		.input(
+			z.object({
+				id: z.string().uuid(),
+				organizationId: z.string().uuid(),
+				fromName: z.string().min(1).max(100).optional(),
+				defaultLocalPart: z.string().nullable().optional(),
 			}),
 		)
 		.handler((): EmailDomainRow => {
@@ -2846,6 +2860,67 @@ export const emailDomainsRouterType = {
 			}),
 		)
 		.handler((): EmailDomainRow => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	delete: protectedProcedure
+		.input(
+			z.object({
+				id: z.string().uuid(),
+				organizationId: z.string().uuid(),
+			}),
+		)
+		.handler((): { deleted: true; id: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	listAliases: protectedProcedure
+		.input(
+			z.object({
+				emailDomainId: z.string().uuid(),
+				organizationId: z.string().uuid(),
+			}),
+		)
+		.handler(
+			(): Array<{
+				id: string;
+				emailDomainId: string;
+				localPart: string;
+				label: string | null;
+				createdAt: Date;
+				updatedAt: Date;
+			}> => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	addAlias: protectedProcedure
+		.input(
+			z.object({
+				emailDomainId: z.string().uuid(),
+				organizationId: z.string().uuid(),
+				localPart: z.string(),
+				label: z.string().optional(),
+			}),
+		)
+		.handler(
+			(): {
+				id: string;
+				emailDomainId: string;
+				localPart: string;
+				label: string | null;
+				createdAt: Date;
+				updatedAt: Date;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	removeAlias: protectedProcedure
+		.input(
+			z.object({
+				id: z.string().uuid(),
+				emailDomainId: z.string().uuid(),
+				organizationId: z.string().uuid(),
+			}),
+		)
+		.handler((): { deleted: true; id: string } => {
 			throw new Error("Not implemented - this is only for type inference");
 		}),
 };

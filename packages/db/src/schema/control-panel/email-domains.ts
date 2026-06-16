@@ -26,6 +26,10 @@ export const emailDomains = pgTable("email_domains", {
 	domain: text("domain").notNull(),
 	// Default from-name used when building "<fromName> <support@domain>".
 	fromName: text("from_name").notNull(),
+	// Default local-part for the sender address (e.g. "support", "noreply").
+	// Nullable on purpose — null means "fall through to the platform default
+	// 'support'", which is distinct from an admin explicitly typing 'support'.
+	defaultLocalPart: text("default_local_part"),
 	// pending: row created, DNS not yet seen.
 	// verifying: verify triggered, waiting for Resend ack.
 	// verified: Resend reports SPF/DKIM/DMARC pass; safe to send.

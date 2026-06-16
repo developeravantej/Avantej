@@ -3,7 +3,8 @@
  *
  * Per-tenant Resend sending-domain management. Lets an org admin register a
  * sending subdomain (e.g. mail.movefitness.com), view the DNS records that
- * must be added at their DNS provider, and trigger verification.
+ * must be added at their DNS provider, edit sender settings (from-name,
+ * default local-part), delete a domain, and trigger verification.
  *
  * Sends are gated server-side on a verified email_domains row; this UI only
  * provisions the row + surfaces status.
@@ -12,7 +13,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useForm } from "@tanstack/react-form";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { z } from "zod";
 import { client } from "@/utils/orpc";
 import { useApiMutation } from "@/hooks/useApiMutation";
@@ -34,9 +35,18 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+	DialogFooter,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
+import { DeleteConfirmDialog } from "@/components/tables/shared/delete-confirm-dialog";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/settings/email",
@@ -50,6 +60,7 @@ type EmailDomainRow = {
 	resendDomainId: string;
 	domain: string;
 	fromName: string;
+	defaultLocalPart: string | null;
 	status: string;
 	dnsRecords: unknown;
 	verifiedAt: string | Date | null;
@@ -66,6 +77,8 @@ type DnsRecord = {
 	value: string;
 	priority?: number;
 };
+
+const LOCAL_PART_REGEX = /^[a-z0-9._-]{1,64}$/i;
 
 function statusBadgeVariant(status: string): "default" | "secondary" | "destructive" | "outline" {
 	switch (status) {
@@ -136,6 +149,8 @@ function DomainListCard({
 	});
 
 	const [expandedId, setExpandedId] = useState<string | null>(null);
+	const [rowToDelete, setRowToDelete] = useState<EmailDomainRow | null>(null);
+	const [rowToEdit, setRowToEdit] = useState<EmailDomainRow | null>(null);
 
 	const verifyMutation = useApiMutation({
 		mutationFn: (id: string) =>
@@ -145,6 +160,14 @@ function DomainListCard({
 				? "Domain verified."
 				: "Verification re-checked.",
 		errorMessage: (err) => err.message || "Verification failed.",
+		invalidate: [queryKey],
+	});
+
+	const deleteMutation = useApiMutation({
+		mutationFn: (id: string) =>
+			client.emailDomains.delete({ id, organizationId }),
+		successMessage: "Sending domain removed.",
+		errorMessage: (err) => err.message || "Failed to delete domain.",
 		invalidate: [queryKey],
 	});
 
@@ -171,7 +194,7 @@ function DomainListCard({
 						<TableHeader>
 							<TableRow>
 								<TableHead>Domain</TableHead>
-								<TableHead>From name</TableHead>
+								<TableHead>Sender</TableHead>
 								<TableHead>Status</TableHead>
 								<TableHead>Verified at</TableHead>
 								<TableHead className="text-right">Actions</TableHead>
@@ -179,51 +202,111 @@ function DomainListCard({
 						</TableHeader>
 						<TableBody>
 							{(data as EmailDomainRow[]).map((row) => (
-								<>
-									<TableRow key={row.id}>
+								<Fragment key={row.id}>
+									<TableRow>
 										<TableCell className="font-mono">{row.domain}</TableCell>
-										<TableCell>{row.fromName}</TableCell>
+										<TableCell>
+											<div className="font-medium">{row.fromName}</div>
+											<div className="text-xs text-muted-foreground font-mono">
+												{`${row.defaultLocalPart ?? "support"}@${row.domain}`}
+											</div>
+										</TableCell>
 										<TableCell>
 											<Badge variant={statusBadgeVariant(row.status)}>
 												{row.status}
 											</Badge>
 										</TableCell>
 										<TableCell>{fmt(row.verifiedAt)}</TableCell>
-										<TableCell className="space-x-2 text-right">
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() =>
-													setExpandedId(expandedId === row.id ? null : row.id)
-												}
-											>
-												{expandedId === row.id ? "Hide DNS" : "DNS records"}
-											</Button>
-											<Button
-												size="sm"
-												disabled={!isAdmin || verifyMutation.isPending}
-												onClick={() => verifyMutation.mutate(row.id)}
-											>
-												{verifyMutation.isPending &&
-												verifyMutation.variables === row.id
-													? "Verifying…"
-													: "Verify now"}
-											</Button>
+										<TableCell>
+											<div className="flex justify-end gap-2">
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() =>
+														setExpandedId(
+															expandedId === row.id ? null : row.id,
+														)
+													}
+												>
+													{expandedId === row.id ? "Hide DNS" : "DNS records"}
+												</Button>
+												<Button
+													variant="outline"
+													size="sm"
+													disabled={!isAdmin}
+													onClick={() => setRowToEdit(row)}
+												>
+													Edit sender
+												</Button>
+												<Button
+													size="sm"
+													disabled={!isAdmin || verifyMutation.isPending}
+													onClick={() => verifyMutation.mutate(row.id)}
+												>
+													{verifyMutation.isPending &&
+													verifyMutation.variables === row.id
+														? "Verifying…"
+														: "Verify now"}
+												</Button>
+												<Button
+													variant="destructive"
+													size="sm"
+													disabled={
+														!isAdmin ||
+														row.status === "verifying" ||
+														(deleteMutation.isPending &&
+															deleteMutation.variables === row.id)
+													}
+													onClick={() => setRowToDelete(row)}
+												>
+													Delete
+												</Button>
+											</div>
 										</TableCell>
 									</TableRow>
 									{expandedId === row.id ? (
-										<TableRow key={`${row.id}-dns`}>
+										<TableRow>
 											<TableCell colSpan={5} className="bg-muted/30">
-												<DnsRecordsList records={row.dnsRecords} />
+												<div className="space-y-6">
+													<DnsRecordsList records={row.dnsRecords} />
+													<AliasesPanel
+														emailDomainId={row.id}
+														organizationId={organizationId}
+														domain={row.domain}
+														defaultLocalPart={row.defaultLocalPart}
+														isAdmin={isAdmin}
+													/>
+												</div>
 											</TableCell>
 										</TableRow>
 									) : null}
-								</>
+								</Fragment>
 							))}
 						</TableBody>
 					</Table>
 				)}
 			</CardContent>
+			{rowToDelete ? (
+				<DeleteConfirmDialog
+					entityName="Sending domain"
+					itemLabel={rowToDelete.domain}
+					isMutating={deleteMutation.isPending}
+					onCancel={() => setRowToDelete(null)}
+					onConfirm={() => {
+						const id = rowToDelete.id;
+						setRowToDelete(null);
+						deleteMutation.mutate(id);
+					}}
+				/>
+			) : null}
+			{rowToEdit ? (
+				<EditSenderDialog
+					row={rowToEdit}
+					organizationId={organizationId}
+					queryKey={queryKey}
+					onClose={() => setRowToEdit(null)}
+				/>
+			) : null}
 		</Card>
 	);
 }
@@ -268,6 +351,363 @@ function DnsRecordsList({ records }: { records: unknown }) {
 	);
 }
 
+type AliasRow = {
+	id: string;
+	emailDomainId: string;
+	localPart: string;
+	label: string | null;
+	createdAt: string | Date;
+	updatedAt: string | Date;
+};
+
+const ALIASES_QUERY_KEY_PREFIX = "emailDomainAliases" as const;
+
+const aliasAddSchema = z.object({
+	localPart: z
+		.string()
+		.regex(LOCAL_PART_REGEX, "Letters, numbers, . _ -"),
+	label: z.string().max(100).or(z.literal("")),
+});
+
+function AliasesPanel({
+	emailDomainId,
+	organizationId,
+	domain,
+	defaultLocalPart,
+	isAdmin,
+}: {
+	emailDomainId: string;
+	organizationId: string;
+	domain: string;
+	defaultLocalPart: string | null;
+	isAdmin: boolean;
+}) {
+	const queryKey = [ALIASES_QUERY_KEY_PREFIX, emailDomainId];
+	const { data, isLoading } = useQuery({
+		queryKey,
+		queryFn: () =>
+			client.emailDomains.listAliases({ emailDomainId, organizationId }),
+		staleTime: 30_000,
+	});
+
+	const addMutation = useApiMutation({
+		mutationFn: (values: { localPart: string; label?: string }) =>
+			client.emailDomains.addAlias({
+				emailDomainId,
+				organizationId,
+				localPart: values.localPart,
+				label: values.label,
+			}),
+		successMessage: "Alias added.",
+		errorMessage: (err) => err.message || "Failed to add alias.",
+		invalidate: [queryKey],
+	});
+
+	const removeMutation = useApiMutation({
+		mutationFn: (id: string) =>
+			client.emailDomains.removeAlias({
+				id,
+				emailDomainId,
+				organizationId,
+			}),
+		successMessage: "Alias removed.",
+		errorMessage: (err) => err.message || "Failed to remove alias.",
+		invalidate: [queryKey],
+	});
+
+	const form = useForm({
+		defaultValues: { localPart: "", label: "" },
+		onSubmit: async ({ value }) => {
+			const localPart = value.localPart.trim().toLowerCase();
+			const label = value.label.trim();
+			await addMutation.mutateAsync({
+				localPart,
+				label: label === "" ? undefined : label,
+			});
+			form.reset();
+		},
+		validators: { onSubmit: aliasAddSchema },
+	});
+
+	const aliases = (data as AliasRow[] | undefined) ?? [];
+	const fallback = defaultLocalPart ?? "support";
+
+	return (
+		<div className="space-y-3">
+			<div>
+				<p className="text-sm font-medium">Sending-address aliases</p>
+				<p className="text-xs text-muted-foreground">
+					Curated local-parts code paths can pick by label. The default
+					(when no alias is selected) is{" "}
+					<code className="font-mono">{fallback}@{domain}</code>.
+				</p>
+			</div>
+			{isLoading ? (
+				<p className="text-sm text-muted-foreground">Loading…</p>
+			) : aliases.length === 0 ? (
+				<p className="text-sm text-muted-foreground">
+					No aliases yet. Sends use the default unless a caller overrides
+					per-send.
+				</p>
+			) : (
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Local-part</TableHead>
+							<TableHead>Label</TableHead>
+							<TableHead>Address</TableHead>
+							<TableHead className="text-right">Actions</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{aliases.map((a) => (
+							<TableRow key={a.id}>
+								<TableCell className="font-mono">{a.localPart}</TableCell>
+								<TableCell>{a.label ?? "—"}</TableCell>
+								<TableCell className="font-mono">
+									{`${a.localPart}@${domain}`}
+								</TableCell>
+								<TableCell className="text-right">
+									<Button
+										variant="destructive"
+										size="sm"
+										disabled={
+											!isAdmin ||
+											(removeMutation.isPending &&
+												removeMutation.variables === a.id)
+										}
+										onClick={() => removeMutation.mutate(a.id)}
+									>
+										Remove
+									</Button>
+								</TableCell>
+							</TableRow>
+						))}
+					</TableBody>
+				</Table>
+			)}
+			<form
+				onSubmit={(e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					form.handleSubmit();
+				}}
+				className="flex flex-wrap items-end gap-2 border-t border-border pt-3"
+			>
+				<form.Field name="localPart">
+					{(field) => (
+						<div className="space-y-1">
+							<label htmlFor={field.name} className="text-xs font-medium">
+								Local-part
+							</label>
+							<Input
+								id={field.name}
+								name={field.name}
+								value={field.state.value}
+								onBlur={field.handleBlur}
+								onChange={(e) => field.handleChange(e.target.value)}
+								placeholder="billing"
+								disabled={!isAdmin || addMutation.isPending}
+								className="w-40"
+							/>
+							{field.state.meta.errors[0] ? (
+								<p className="text-xs text-destructive">
+									{String(field.state.meta.errors[0])}
+								</p>
+							) : null}
+						</div>
+					)}
+				</form.Field>
+				<form.Field name="label">
+					{(field) => (
+						<div className="space-y-1">
+							<label htmlFor={field.name} className="text-xs font-medium">
+								Label (optional)
+							</label>
+							<Input
+								id={field.name}
+								name={field.name}
+								value={field.state.value}
+								onBlur={field.handleBlur}
+								onChange={(e) => field.handleChange(e.target.value)}
+								placeholder="Billing emails"
+								disabled={!isAdmin || addMutation.isPending}
+								className="w-56"
+							/>
+						</div>
+					)}
+				</form.Field>
+				<form.Subscribe>
+					{(state) => (
+						<Button
+							type="submit"
+							size="sm"
+							disabled={
+								!isAdmin ||
+								!state.canSubmit ||
+								state.isSubmitting ||
+								addMutation.isPending
+							}
+						>
+							{addMutation.isPending ? "Adding…" : "Add alias"}
+						</Button>
+					)}
+				</form.Subscribe>
+			</form>
+		</div>
+	);
+}
+
+const editSenderSchema = z.object({
+	fromName: z.string().min(1).max(100),
+	defaultLocalPart: z
+		.string()
+		.regex(LOCAL_PART_REGEX, "Letters, numbers, . _ -")
+		.or(z.literal("")),
+});
+
+function EditSenderDialog({
+	row,
+	organizationId,
+	queryKey,
+	onClose,
+}: {
+	row: EmailDomainRow;
+	organizationId: string;
+	queryKey: ReadonlyArray<unknown>;
+	onClose: () => void;
+}) {
+	const updateMutation = useApiMutation({
+		mutationFn: (values: { fromName: string; defaultLocalPart: string | null }) =>
+			client.emailDomains.update({
+				id: row.id,
+				organizationId,
+				fromName: values.fromName,
+				defaultLocalPart: values.defaultLocalPart,
+			}),
+		successMessage: "Sender settings saved.",
+		errorMessage: (err) => err.message || "Failed to update sender.",
+		invalidate: [queryKey],
+		onSuccess: () => onClose(),
+	});
+
+	const form = useForm({
+		defaultValues: {
+			fromName: row.fromName,
+			defaultLocalPart: row.defaultLocalPart ?? "",
+		},
+		onSubmit: async ({ value }) => {
+			await updateMutation.mutateAsync({
+				fromName: value.fromName.trim(),
+				defaultLocalPart:
+					value.defaultLocalPart.trim() === ""
+						? null
+						: value.defaultLocalPart.trim().toLowerCase(),
+			});
+		},
+		validators: { onSubmit: editSenderSchema },
+	});
+
+	return (
+		<Dialog open onOpenChange={(open) => (!open ? onClose() : undefined)}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Edit sender for {row.domain}</DialogTitle>
+					<DialogDescription>
+						Customize the from-name and local-part used when sending email from
+						this domain.
+					</DialogDescription>
+				</DialogHeader>
+				<form
+					onSubmit={(e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						form.handleSubmit();
+					}}
+					className="space-y-4"
+				>
+					<form.Field name="fromName">
+						{(field) => (
+							<div className="space-y-1">
+								<label htmlFor={field.name} className="text-sm font-medium">
+									From name
+								</label>
+								<Input
+									id={field.name}
+									name={field.name}
+									value={field.state.value}
+									onBlur={field.handleBlur}
+									onChange={(e) => field.handleChange(e.target.value)}
+									disabled={updateMutation.isPending}
+								/>
+								{field.state.meta.errors[0] ? (
+									<p className="text-xs text-destructive">
+										{String(field.state.meta.errors[0])}
+									</p>
+								) : null}
+							</div>
+						)}
+					</form.Field>
+					<form.Field name="defaultLocalPart">
+						{(field) => {
+							const preview = field.state.value.trim() || "support";
+							return (
+								<div className="space-y-1">
+									<label htmlFor={field.name} className="text-sm font-medium">
+										Local-part (leave blank for "support")
+									</label>
+									<Input
+										id={field.name}
+										name={field.name}
+										value={field.state.value}
+										onBlur={field.handleBlur}
+										onChange={(e) => field.handleChange(e.target.value)}
+										placeholder="support"
+										disabled={updateMutation.isPending}
+									/>
+									<p className="text-xs text-muted-foreground font-mono">
+										Will send as: {form.state.values.fromName} &lt;
+										{preview}@{row.domain}&gt;
+									</p>
+									{field.state.meta.errors[0] ? (
+										<p className="text-xs text-destructive">
+											{String(field.state.meta.errors[0])}
+										</p>
+									) : null}
+								</div>
+							);
+						}}
+					</form.Field>
+					<DialogFooter>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={onClose}
+							disabled={updateMutation.isPending}
+						>
+							Cancel
+						</Button>
+						<form.Subscribe>
+							{(state) => (
+								<Button
+									type="submit"
+									disabled={
+										!state.canSubmit ||
+										state.isSubmitting ||
+										updateMutation.isPending
+									}
+								>
+									{updateMutation.isPending ? "Saving…" : "Save"}
+								</Button>
+							)}
+						</form.Subscribe>
+					</DialogFooter>
+				</form>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
 const createSchema = z.object({
 	domain: z
 		.string()
@@ -275,6 +715,10 @@ const createSchema = z.object({
 		.max(253)
 		.regex(/^[a-z0-9.-]+\.[a-z]{2,}$/i, "Enter a valid domain"),
 	fromName: z.string().min(1).max(100),
+	defaultLocalPart: z
+		.string()
+		.regex(LOCAL_PART_REGEX, "Letters, numbers, . _ -")
+		.or(z.literal("")),
 });
 
 function CreateDomainCard({
@@ -287,11 +731,16 @@ function CreateDomainCard({
 	const queryKey = [DOMAINS_QUERY_KEY_PREFIX, organizationId];
 
 	const createMutation = useApiMutation({
-		mutationFn: (values: { domain: string; fromName: string }) =>
+		mutationFn: (values: {
+			domain: string;
+			fromName: string;
+			defaultLocalPart?: string;
+		}) =>
 			client.emailDomains.create({
 				organizationId,
-				domain: values.domain.trim().toLowerCase(),
-				fromName: values.fromName.trim(),
+				domain: values.domain,
+				fromName: values.fromName,
+				defaultLocalPart: values.defaultLocalPart,
 			}),
 		successMessage: "Domain registered. Add the DNS records and verify.",
 		errorMessage: (err) => err.message || "Failed to register domain.",
@@ -299,9 +748,14 @@ function CreateDomainCard({
 	});
 
 	const form = useForm({
-		defaultValues: { domain: "", fromName: "" },
+		defaultValues: { domain: "", fromName: "", defaultLocalPart: "" },
 		onSubmit: async ({ value }) => {
-			await createMutation.mutateAsync(value);
+			const trimmedLocal = value.defaultLocalPart.trim();
+			await createMutation.mutateAsync({
+				domain: value.domain.trim().toLowerCase(),
+				fromName: value.fromName.trim(),
+				defaultLocalPart: trimmedLocal === "" ? undefined : trimmedLocal.toLowerCase(),
+			});
 			form.reset();
 		},
 		validators: { onSubmit: createSchema },
@@ -363,6 +817,33 @@ function CreateDomainCard({
 									placeholder="Example Support"
 									disabled={!isAdmin || createMutation.isPending}
 								/>
+								{field.state.meta.errors[0] ? (
+									<p className="text-xs text-destructive">
+										{String(field.state.meta.errors[0])}
+									</p>
+								) : null}
+							</div>
+						)}
+					</form.Field>
+					<form.Field name="defaultLocalPart">
+						{(field) => (
+							<div className="space-y-1">
+								<label htmlFor={field.name} className="text-sm font-medium">
+									Default local-part (optional)
+								</label>
+								<Input
+									id={field.name}
+									name={field.name}
+									value={field.state.value}
+									onBlur={field.handleBlur}
+									onChange={(e) => field.handleChange(e.target.value)}
+									placeholder="support"
+									disabled={!isAdmin || createMutation.isPending}
+								/>
+								<p className="text-xs text-muted-foreground">
+									Used as the part before @ in the sender address. Defaults to{" "}
+									<code>support</code> if blank.
+								</p>
 								{field.state.meta.errors[0] ? (
 									<p className="text-xs text-destructive">
 										{String(field.state.meta.errors[0])}

@@ -50,7 +50,7 @@ import { Webhook as SvixWebhook } from "svix";
 import {
 	getEmailDomainByResendId,
 	updateEmailDomainStatus,
-	updateEmailLogFromWebhook,
+	upsertEmailLogFromWebhook,
 	type EmailLogStatus,
 } from "@avantej-core/services/email-domain.service";
 
@@ -845,7 +845,7 @@ function getResendWebhookSecret(): string | undefined {
 	return process.env.RESEND_WEBHOOK_SECRET;
 }
 
-function mapResendEventToLogStatus(eventType: string): EmailLogStatus | null {
+export function mapResendEventToLogStatus(eventType: string): EmailLogStatus | null {
 	switch (eventType) {
 		case "email.sent":
 			return "sent";
@@ -868,7 +868,7 @@ function mapResendEventToLogStatus(eventType: string): EmailLogStatus | null {
 	}
 }
 
-function mapResendDomainStatus(
+export function mapResendDomainStatus(
 	resendStatus: string | undefined,
 ): "pending" | "verifying" | "verified" | "failed" | null {
 	if (!resendStatus) return null;
@@ -920,6 +920,22 @@ webhookRoutes.post("/resend", async (c) => {
 	const cpDb = getControlPanelDb(c);
 	const eventAt = event.created_at ? new Date(event.created_at) : new Date();
 
+	// Dedup by svix-id (envelope id, NOT data.email_id — message id repeats
+	// across delivered/bounced/opened events for the same email and would
+	// silently collapse status tracking).
+	const claim = await claimWebhookEvent(
+		{
+			eventId: svixId,
+			eventType: event.type,
+			source: "resend",
+			stripeAccount: null,
+		},
+		cpDb,
+	);
+	if (claim.status === "already_processed") {
+		return c.json({ received: true, svixId, deduped: true }, 200);
+	}
+
 	try {
 		if (event.type.startsWith("email.")) {
 			const data = event.data as {
@@ -927,19 +943,26 @@ webhookRoutes.post("/resend", async (c) => {
 				to?: string | string[];
 				from?: string;
 				subject?: string;
+				tags?: Array<{ name: string; value: string }>;
 				bounce?: { message?: string };
 				click?: unknown;
 			};
 			const messageId = data.email_id;
 			const mapped = mapResendEventToLogStatus(event.type);
+			const orgIdTag = data.tags?.find((t) => t.name === "organization_id")?.value;
+			const toAddr = Array.isArray(data.to) ? data.to.join(", ") : data.to;
 			if (messageId && mapped) {
-				await updateEmailLogFromWebhook(cpDb, {
+				await upsertEmailLogFromWebhook(cpDb, {
 					resendMessageId: messageId,
 					status: mapped,
 					eventType: event.type,
 					eventAt,
 					errorMessage: data.bounce?.message ?? null,
 					payload: event,
+					organizationId: orgIdTag ?? null,
+					fromAddress: data.from ?? null,
+					toAddress: toAddr ?? null,
+					subject: data.subject ?? null,
 				});
 			}
 		} else if (event.type.startsWith("domain.")) {
@@ -963,9 +986,12 @@ webhookRoutes.post("/resend", async (c) => {
 				}
 			}
 		}
+		await markEventProcessed(svixId, cpDb);
 		// Always 200 — Resend retries forever on non-2xx.
 		return c.json({ received: true, svixId }, 200);
 	} catch (e) {
+		const msg = e instanceof Error ? e.message : String(e);
+		await markEventFailed(svixId, msg, cpDb);
 		console.error(`[resend webhook] handler failed for ${event.type}:`, e);
 		// Still 200 — let our own monitoring catch failures.
 		return c.json({ received: true, svixId, handler_error: true }, 200);

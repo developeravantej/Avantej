@@ -17,16 +17,24 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
 import {
+	addAlias,
 	createEmailDomain,
+	deleteEmailDomain,
 	getEmailDomainById,
+	listAliasesForDomain,
 	listEmailDomainsForOrg,
+	removeAlias,
+	updateEmailDomainSettings,
 	updateEmailDomainStatus,
 } from "@avantej-core/services/email-domain.service";
 import {
 	createResendDomain,
 	getResendDomain,
+	removeResendDomain,
 	verifyResendDomain,
 } from "@/lib/resend-domains";
+
+const LOCAL_PART_REGEX = /^[a-z0-9._-]{1,64}$/i;
 
 type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
 
@@ -101,6 +109,10 @@ export const emailDomainsRouter = {
 					.max(253)
 					.regex(/^[a-z0-9.-]+\.[a-z]{2,}$/i, "Invalid domain"),
 				fromName: z.string().min(1).max(100),
+				defaultLocalPart: z
+					.string()
+					.regex(LOCAL_PART_REGEX, "Letters, numbers, . _ -")
+					.optional(),
 				region: z.enum(RESEND_REGIONS).optional(),
 			}),
 		)
@@ -121,10 +133,98 @@ export const emailDomainsRouter = {
 				resendDomainId: resendDomain.id,
 				domain: input.domain,
 				fromName: input.fromName,
+				defaultLocalPart: input.defaultLocalPart ?? null,
 				dnsRecords: resendDomain.records,
 			});
 
 			return row;
+		}),
+
+	/**
+	 * Update tenant-facing sender settings (from-name, default local-part).
+	 * Does not touch verification status (use `verify` for that).
+	 */
+	update: protectedProcedure
+		.input(
+			z.object({
+				id: z.string().uuid(),
+				organizationId: z.string().uuid(),
+				fromName: z.string().min(1).max(100).optional(),
+				defaultLocalPart: z
+					.string()
+					.regex(LOCAL_PART_REGEX, "Letters, numbers, . _ -")
+					.nullable()
+					.optional(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.session?.user) {
+				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+			}
+			const cpDb = getControlPanelDb(context);
+			await requireOrgAdmin(cpDb, context.session.user.id, input.organizationId);
+
+			const row = await getEmailDomainById(cpDb, {
+				id: input.id,
+				organizationId: input.organizationId,
+			});
+			if (!row) {
+				throw new ORPCError("NOT_FOUND", { message: "Email domain not found" });
+			}
+
+			const updated = await updateEmailDomainSettings(cpDb, {
+				id: input.id,
+				organizationId: input.organizationId,
+				fromName: input.fromName,
+				defaultLocalPart: input.defaultLocalPart,
+			});
+			return updated ?? row;
+		}),
+
+	/**
+	 * Delete a sending domain. Removes from Resend first (so we can retry on
+	 * Resend failure without losing the resendDomainId), then deletes the row.
+	 */
+	delete: protectedProcedure
+		.input(
+			z.object({
+				id: z.string().uuid(),
+				organizationId: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.session?.user) {
+				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+			}
+			const cpDb = getControlPanelDb(context);
+			await requireOrgAdmin(cpDb, context.session.user.id, input.organizationId);
+
+			const row = await getEmailDomainById(cpDb, {
+				id: input.id,
+				organizationId: input.organizationId,
+			});
+			if (!row) {
+				throw new ORPCError("NOT_FOUND", { message: "Email domain not found" });
+			}
+
+			try {
+				await removeResendDomain(row.resendDomainId);
+			} catch (e) {
+				console.error("Failed to remove domain at Resend", {
+					resendDomainId: row.resendDomainId,
+					error: e,
+				});
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: "Failed to delete domain at Resend; please retry.",
+				});
+			}
+
+			await deleteEmailDomain(cpDb, {
+				id: input.id,
+				organizationId: input.organizationId,
+			});
+
+			return { deleted: true as const, id: input.id };
 		}),
 
 	/**
@@ -216,5 +316,112 @@ export const emailDomainsRouter = {
 				dnsRecords: live.records ?? row.dnsRecords,
 			});
 			return updated ?? row;
+		}),
+
+	/**
+	 * List aliases for a domain.
+	 */
+	listAliases: protectedProcedure
+		.input(
+			z.object({
+				emailDomainId: z.string().uuid(),
+				organizationId: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.session?.user) {
+				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+			}
+			const cpDb = getControlPanelDb(context);
+			await requireOrgAdmin(cpDb, context.session.user.id, input.organizationId);
+
+			const domain = await getEmailDomainById(cpDb, {
+				id: input.emailDomainId,
+				organizationId: input.organizationId,
+			});
+			if (!domain) {
+				throw new ORPCError("NOT_FOUND", { message: "Email domain not found" });
+			}
+			return listAliasesForDomain(cpDb, input.emailDomainId);
+		}),
+
+	/**
+	 * Add a new alias on a domain.
+	 */
+	addAlias: protectedProcedure
+		.input(
+			z.object({
+				emailDomainId: z.string().uuid(),
+				organizationId: z.string().uuid(),
+				localPart: z.string().regex(LOCAL_PART_REGEX, "Letters, numbers, . _ -"),
+				label: z.string().min(1).max(100).optional(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.session?.user) {
+				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+			}
+			const cpDb = getControlPanelDb(context);
+			await requireOrgAdmin(cpDb, context.session.user.id, input.organizationId);
+
+			const domain = await getEmailDomainById(cpDb, {
+				id: input.emailDomainId,
+				organizationId: input.organizationId,
+			});
+			if (!domain) {
+				throw new ORPCError("NOT_FOUND", { message: "Email domain not found" });
+			}
+
+			try {
+				return await addAlias(cpDb, {
+					emailDomainId: input.emailDomainId,
+					localPart: input.localPart.toLowerCase(),
+					label: input.label,
+				});
+			} catch (e) {
+				const msg = e instanceof Error ? e.message : String(e);
+				if (msg.includes("duplicate key") || msg.includes("unique")) {
+					throw new ORPCError("CONFLICT", {
+						message: "Alias already exists for this local-part",
+					});
+				}
+				throw e;
+			}
+		}),
+
+	/**
+	 * Remove an alias.
+	 */
+	removeAlias: protectedProcedure
+		.input(
+			z.object({
+				id: z.string().uuid(),
+				emailDomainId: z.string().uuid(),
+				organizationId: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			if (!context.session?.user) {
+				throw new ORPCError("UNAUTHORIZED", { message: "Authentication required" });
+			}
+			const cpDb = getControlPanelDb(context);
+			await requireOrgAdmin(cpDb, context.session.user.id, input.organizationId);
+
+			const domain = await getEmailDomainById(cpDb, {
+				id: input.emailDomainId,
+				organizationId: input.organizationId,
+			});
+			if (!domain) {
+				throw new ORPCError("NOT_FOUND", { message: "Email domain not found" });
+			}
+
+			const removed = await removeAlias(cpDb, {
+				id: input.id,
+				emailDomainId: input.emailDomainId,
+			});
+			if (!removed) {
+				throw new ORPCError("NOT_FOUND", { message: "Alias not found" });
+			}
+			return { deleted: true as const, id: input.id };
 		}),
 };

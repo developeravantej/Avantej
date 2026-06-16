@@ -87,12 +87,29 @@ export async function verifyResendDomain(resendDomainId: string): Promise<void> 
 }
 
 /**
- * Delete the domain at Resend (used when an org un-registers a sending domain).
+ * Remove the domain at Resend (used when an org un-registers a sending
+ * domain). A "not found" / unknown-id response is treated as success — the
+ * row is already gone, which is what we want. Resend's error payload uses
+ * either name="not_found" or name="validation_error" with a message like
+ * "Domain not found" / "Could not find domain..." for unknown ids; both
+ * are swallowed.
  */
-export async function deleteResendDomain(resendDomainId: string): Promise<void> {
+export async function removeResendDomain(resendDomainId: string): Promise<void> {
 	const resend = getResendClient();
 	const result = await resend.domains.remove(resendDomainId);
 	if (result.error) {
+		const err = result.error as { message?: string; name?: string };
+		const msg = err.message?.toLowerCase() ?? "";
+		const name = err.name ?? "";
+		const looksLikeMissing =
+			name === "not_found" ||
+			msg.includes("not found") ||
+			msg.includes("could not find") ||
+			msg.includes("does not exist") ||
+			(name === "validation_error" && msg.includes("domain"));
+		if (looksLikeMissing) {
+			return;
+		}
 		return throwOnResendError("domains.remove", result.error);
 	}
 }

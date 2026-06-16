@@ -1,0 +1,16 @@
+{
+	"title": "Settings → Email: register a new sending domain",
+	"module": "settings",
+	"prodMutationClass": "create-uniquely-prefixed",
+	"journey": [
+		"Open the web app at http://localhost:3021",
+		"Sign in as franchisee@gmail.com (admin of Test Fitness Franchise)",
+		"Navigate to /dashboard/settings/email",
+		"In the Add a sending domain card, enter a unique e2e-test subdomain (e.g. mail-e2e-<ts>.example.com)",
+		"Enter 'E2E Test Sender' as the From name",
+		"Enter 'noreply' as the Default local-part",
+		"Click Register domain",
+		"Wait for the success toast 'Domain registered. Add the DNS records and verify.'",
+		"Confirm the new row appears in the Sending domains table with status 'pending' and sender 'noreply@<domain>'"
+	]
+}

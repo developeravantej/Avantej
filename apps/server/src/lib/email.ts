@@ -402,13 +402,17 @@ If you didn't request a password reset, you can safely ignore this email. Your p
  * @param inviterName - Name of person who sent the invitation (optional)
  * @param role - Role being invited to (optional)
  */
-export async function sendInvitationEmail(
-	to: string,
+/**
+ * Build the invitation email subject/html/text. Pure — no IO. Used both by
+ * `sendInvitationEmail` (platform sender) and by the tenant-aware path in
+ * Better-Auth so both renders match exactly.
+ */
+export function renderInvitationEmail(
 	invitationLink: string,
 	organizationName: string,
 	inviterName?: string,
-	role?: string
-): Promise<void> {
+	role?: string,
+): { subject: string; html: string; text: string } {
 	const subject = `You've been invited to join ${organizationName}`;
 	const html = `
 		<!DOCTYPE html>
@@ -436,7 +440,6 @@ export async function sendInvitationEmail(
 		</body>
 		</html>
 	`;
-
 	const text = `
 You've Been Invited!
 
@@ -454,6 +457,22 @@ If you don't want to join this organization, you can safely ignore this email.
 
 © ${new Date().getFullYear()} Avantej Core. All rights reserved.
 	`.trim();
+	return { subject, html, text };
+}
+
+export async function sendInvitationEmail(
+	to: string,
+	invitationLink: string,
+	organizationName: string,
+	inviterName?: string,
+	role?: string
+): Promise<void> {
+	const { subject, html, text } = renderInvitationEmail(
+		invitationLink,
+		organizationName,
+		inviterName,
+		role,
+	);
 
 	await sendEmail({
 		to,

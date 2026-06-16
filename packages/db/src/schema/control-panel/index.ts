@@ -28,3 +28,4 @@ export * from "./comms-templates";
 export * from "./tenant-feature-overrides";
 export * from "./email-domains";
 export * from "./email-logs";
+export * from "./email-domain-aliases";

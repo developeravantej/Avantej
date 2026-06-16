@@ -43,7 +43,11 @@ import {
   sendPasswordResetEmail as sendPasswordResetEmailResend,
   sendInvitationEmail as sendInvitationEmailResend,
   sendMagicLinkEmail as sendMagicLinkEmailResend,
+  renderInvitationEmail,
 } from "@/lib/email";
+import { sendTenantEmail } from "@/lib/email-send-tenant";
+import { emailDomains } from "@avantej-core/db/schema/control-panel/email-domains";
+import { emailLogs } from "@avantej-core/db/schema/control-panel/email-logs";
 import { dispatchProfileSync } from "@/services/ghl/dispatch-staff-sync";
 import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
@@ -370,17 +374,24 @@ function createBetterAuth(c?: Context) {
         const baseURL = getEnvVar("BETTER_AUTH_URL") || "http://localhost:3000";
         const invitationLink = `${baseURL}/accept-invitation?id=${invitation.id}`;
 
-        // Fetch organization name from database
-        // Note: This callback doesn't have access to Hono context,
-        // so we create a temporary pool for this operation (Cloudflare Workers requirement)
+        const inviterName = inviter?.name || undefined;
+        const role = invitation.role;
+
+        // No Hono context in this callback (Cloudflare Workers I/O isolation
+        // forbids reusing singleton pools across requests), so we build a
+        // temp Pool/drizzle client with the columns we need: organizations
+        // for the org name, plus emailDomains + emailLogs for sendTenantEmail.
         let organizationName = "an organization";
-        try {
-          // Create a temporary pool for this read operation
-          // Cannot use singleton pool in Cloudflare Workers due to I/O isolation
-          const databaseUrl = getEnvVar("DATABASE_URL");
-          if (databaseUrl) {
-            const tempPool = new Pool({ connectionString: databaseUrl });
-            const tempDb = drizzle({ client: tempPool, schema: { organizations } });
+        let sentViaTenantPath = false;
+        const databaseUrl = getEnvVar("DATABASE_URL");
+
+        if (databaseUrl) {
+          const tempPool = new Pool({ connectionString: databaseUrl });
+          const tempDb = drizzle({
+            client: tempPool,
+            schema: { organizations, emailDomains, emailLogs },
+          });
+          try {
             try {
               const org = await tempDb.query.organizations.findFirst({
                 where: eq(organizations.id, invitation.organizationId),
@@ -388,28 +399,52 @@ function createBetterAuth(c?: Context) {
               if (org) {
                 organizationName = org.name;
               }
-            } finally {
-              await tempPool.end();
+            } catch (error) {
+              console.error(
+                "Failed to fetch organization name for invitation email:",
+                error,
+              );
             }
+
+            const { subject, html, text } = renderInvitationEmail(
+              invitationLink,
+              organizationName,
+              inviterName,
+              role,
+            );
+
+            try {
+              await sendTenantEmail(tempDb as never, {
+                organizationId: invitation.organizationId,
+                to: email,
+                subject,
+                html,
+                text,
+                allowPlatformFallback: true,
+              });
+              sentViaTenantPath = true;
+            } catch (error) {
+              // Tenant-path send failed; fall through to legacy platform
+              // sender so the invite is never silently dropped.
+              console.error(
+                "Tenant invitation send failed; falling back to platform sender:",
+                error,
+              );
+            }
+          } finally {
+            await tempPool.end();
           }
-        } catch (error) {
-          console.error(
-            "Failed to fetch organization name for invitation email:",
-            error
-          );
-          // Fall back to default name
         }
 
-        const inviterName = inviter?.name || undefined;
-        const role = invitation.role;
-
-        await sendInvitationEmailResend(
-          email,
-          invitationLink,
-          organizationName,
-          inviterName,
-          role
-        );
+        if (!sentViaTenantPath) {
+          await sendInvitationEmailResend(
+            email,
+            invitationLink,
+            organizationName,
+            inviterName,
+            role,
+          );
+        }
       },
     }),
     admin({

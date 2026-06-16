@@ -8,10 +8,11 @@
  * this module only handles persistence + lookup logic.
  */
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { emailDomains } from "@avantej-core/db/schema/control-panel/email-domains";
+import { emailDomainAliases } from "@avantej-core/db/schema/control-panel/email-domain-aliases";
 import { emailLogs } from "@avantej-core/db/schema/control-panel/email-logs";
 
 export type EmailDomainStatus = "pending" | "verifying" | "verified" | "failed";
@@ -27,6 +28,7 @@ export type EmailLogStatus =
 
 export type EmailDomainRow = typeof emailDomains.$inferSelect;
 export type EmailLogRow = typeof emailLogs.$inferSelect;
+export type EmailDomainAliasRow = typeof emailDomainAliases.$inferSelect;
 
 type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
 
@@ -36,6 +38,11 @@ export interface CreateEmailDomainParams {
 	domain: string;
 	fromName: string;
 	dnsRecords: unknown;
+	/**
+	 * Tenant-chosen default local-part (e.g. "support", "noreply"). Optional;
+	 * when null, the send helper falls through to the hardcoded "support".
+	 */
+	defaultLocalPart?: string | null;
 }
 
 export async function createEmailDomain(
@@ -49,6 +56,7 @@ export async function createEmailDomain(
 			resendDomainId: params.resendDomainId,
 			domain: params.domain,
 			fromName: params.fromName,
+			defaultLocalPart: params.defaultLocalPart ?? null,
 			dnsRecords: params.dnsRecords as never,
 			status: "pending",
 		})
@@ -57,6 +65,128 @@ export async function createEmailDomain(
 		throw new Error("Failed to insert email_domains row");
 	}
 	return row;
+}
+
+export interface UpdateEmailDomainSettingsParams {
+	id: string;
+	organizationId: string;
+	fromName?: string;
+	defaultLocalPart?: string | null;
+}
+
+/**
+ * Update tenant-facing settings (from-name, default local-part) on a domain
+ * row. Kept separate from `updateEmailDomainStatus`, which is driven by
+ * Resend's verification state.
+ */
+export async function updateEmailDomainSettings(
+	controlPanelDb: ControlPanelDb,
+	params: UpdateEmailDomainSettingsParams,
+): Promise<EmailDomainRow | null> {
+	const setValues: Partial<typeof emailDomains.$inferInsert> = {
+		updatedAt: new Date(),
+	};
+	if (params.fromName !== undefined) {
+		setValues.fromName = params.fromName;
+	}
+	if (params.defaultLocalPart !== undefined) {
+		setValues.defaultLocalPart = params.defaultLocalPart;
+	}
+	const [row] = await controlPanelDb
+		.update(emailDomains)
+		.set(setValues)
+		.where(
+			and(
+				eq(emailDomains.id, params.id),
+				eq(emailDomains.organizationId, params.organizationId),
+			),
+		)
+		.returning();
+	return row ?? null;
+}
+
+export async function deleteEmailDomain(
+	controlPanelDb: ControlPanelDb,
+	params: { id: string; organizationId: string },
+): Promise<EmailDomainRow | null> {
+	const [row] = await controlPanelDb
+		.delete(emailDomains)
+		.where(
+			and(
+				eq(emailDomains.id, params.id),
+				eq(emailDomains.organizationId, params.organizationId),
+			),
+		)
+		.returning();
+	return row ?? null;
+}
+
+// ─── Aliases ─────────────────────────────────────────────────────────────────
+
+export async function listAliasesForDomain(
+	controlPanelDb: ControlPanelDb,
+	emailDomainId: string,
+): Promise<EmailDomainAliasRow[]> {
+	return controlPanelDb
+		.select()
+		.from(emailDomainAliases)
+		.where(eq(emailDomainAliases.emailDomainId, emailDomainId))
+		.orderBy(asc(emailDomainAliases.localPart));
+}
+
+export async function addAlias(
+	controlPanelDb: ControlPanelDb,
+	params: { emailDomainId: string; localPart: string; label?: string | null },
+): Promise<EmailDomainAliasRow> {
+	const [row] = await controlPanelDb
+		.insert(emailDomainAliases)
+		.values({
+			emailDomainId: params.emailDomainId,
+			localPart: params.localPart,
+			label: params.label ?? null,
+		})
+		.returning();
+	if (!row) {
+		throw new Error("Failed to insert email_domain_aliases row");
+	}
+	return row;
+}
+
+export async function removeAlias(
+	controlPanelDb: ControlPanelDb,
+	params: { id: string; emailDomainId: string },
+): Promise<EmailDomainAliasRow | null> {
+	const [row] = await controlPanelDb
+		.delete(emailDomainAliases)
+		.where(
+			and(
+				eq(emailDomainAliases.id, params.id),
+				eq(emailDomainAliases.emailDomainId, params.emailDomainId),
+			),
+		)
+		.returning();
+	return row ?? null;
+}
+
+/**
+ * Resolve an alias label to its local-part for a given verified domain.
+ * Used by sendTenantEmail when caller passes `aliasLabel`.
+ */
+export async function resolveAliasLocalPart(
+	controlPanelDb: ControlPanelDb,
+	params: { emailDomainId: string; label: string },
+): Promise<string | null> {
+	const [row] = await controlPanelDb
+		.select({ localPart: emailDomainAliases.localPart })
+		.from(emailDomainAliases)
+		.where(
+			and(
+				eq(emailDomainAliases.emailDomainId, params.emailDomainId),
+				eq(emailDomainAliases.label, params.label),
+			),
+		)
+		.limit(1);
+	return row?.localPart ?? null;
 }
 
 export async function getEmailDomainById(
@@ -146,11 +276,19 @@ export async function updateEmailDomainStatus(
 export interface RecordEmailLogParams {
 	organizationId: string;
 	emailDomainId: string | null;
+	/**
+	 * Resend message id for successful sends, or a synthetic id (e.g.
+	 * `failed:<uuid>`) for failures — needed because the column has a unique
+	 * constraint for webhook idempotency and we don't want failed sends to
+	 * collide with each other.
+	 */
 	resendMessageId: string;
 	fromAddress: string;
 	toAddress: string;
 	subject: string;
+	/** Pass `"failed"` alongside `errorMessage` for a failed send. */
 	status?: EmailLogStatus;
+	errorMessage?: string | null;
 }
 
 export async function recordEmailLog(
@@ -167,6 +305,7 @@ export async function recordEmailLog(
 			toAddress: params.toAddress,
 			subject: params.subject,
 			status: params.status ?? "queued",
+			errorMessage: params.errorMessage ?? null,
 		})
 		.returning();
 	if (!row) {
@@ -182,28 +321,83 @@ export interface UpdateEmailLogFromWebhookParams {
 	eventAt: Date;
 	errorMessage?: string | null;
 	payload: unknown;
+	/**
+	 * Org id (from Resend payload's `tags`). Required to insert a brand-new
+	 * row if the webhook arrives before the original sendTenantEmail log write
+	 * commits — we can't insert without it because of the NOT NULL FK.
+	 */
+	organizationId?: string | null;
+	fromAddress?: string | null;
+	toAddress?: string | null;
+	subject?: string | null;
 }
 
 /**
- * Update an existing log row from a Resend webhook event. Returns null if the
- * row doesn't exist yet (race vs the original send write); callers should treat
- * that as success and rely on idempotent retries.
+ * Upsert a log row from a Resend webhook event. Updates the row if it exists
+ * (matched by resendMessageId), or inserts a new row when the webhook arrives
+ * before the original send write commits (only if `organizationId` is set —
+ * required for the FK).
+ *
+ * Returns the row, or null if the row didn't exist AND no `organizationId`
+ * was supplied (caller should log + drop the event).
  */
-export async function updateEmailLogFromWebhook(
+export async function upsertEmailLogFromWebhook(
 	controlPanelDb: ControlPanelDb,
 	params: UpdateEmailLogFromWebhookParams,
 ): Promise<EmailLogRow | null> {
+	if (!params.organizationId) {
+		const [row] = await controlPanelDb
+			.update(emailLogs)
+			.set({
+				status: params.status,
+				lastEventType: params.eventType,
+				lastEventAt: params.eventAt,
+				errorMessage: params.errorMessage ?? null,
+				lastEventPayload: params.payload as never,
+				updatedAt: new Date(),
+			})
+			.where(eq(emailLogs.resendMessageId, params.resendMessageId))
+			.returning();
+		return row ?? null;
+	}
+
 	const [row] = await controlPanelDb
-		.update(emailLogs)
-		.set({
+		.insert(emailLogs)
+		.values({
+			organizationId: params.organizationId,
+			emailDomainId: null,
+			resendMessageId: params.resendMessageId,
+			fromAddress: params.fromAddress ?? "",
+			toAddress: params.toAddress ?? "",
+			subject: params.subject ?? "",
 			status: params.status,
 			lastEventType: params.eventType,
 			lastEventAt: params.eventAt,
 			errorMessage: params.errorMessage ?? null,
 			lastEventPayload: params.payload as never,
-			updatedAt: new Date(),
 		})
-		.where(eq(emailLogs.resendMessageId, params.resendMessageId))
+		.onConflictDoUpdate({
+			target: emailLogs.resendMessageId,
+			set: {
+				status: params.status,
+				lastEventType: params.eventType,
+				lastEventAt: params.eventAt,
+				errorMessage: params.errorMessage ?? null,
+				lastEventPayload: params.payload as never,
+				updatedAt: new Date(),
+			},
+		})
 		.returning();
 	return row ?? null;
+}
+
+/**
+ * @deprecated Use `upsertEmailLogFromWebhook` instead. Kept for back-compat
+ * with existing callers — forwards to the upsert path.
+ */
+export async function updateEmailLogFromWebhook(
+	controlPanelDb: ControlPanelDb,
+	params: UpdateEmailLogFromWebhookParams,
+): Promise<EmailLogRow | null> {
+	return upsertEmailLogFromWebhook(controlPanelDb, params);
 }
