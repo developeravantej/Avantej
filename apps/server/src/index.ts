@@ -367,6 +367,18 @@ export default {
         // Phase 4 installments — daily installment sweep (merged from PR #23).
         // TODO: merged from main — wire real multi-tenant sweep service.
         console.log("[scheduled] installment sweep trigger received (stub)");
+      } else if (cron === "*/15 * * * *") {
+        // Email — refresh stale sending-domain verification status. Re-polls
+        // Resend for rows still pending/verifying so DNS propagation flips the
+        // DB row to verified without the tenant clicking "Verify now".
+        const { runEmailDomainRefresh } = await import(
+          "@/services/email-domain-refresh.service"
+        );
+        ctx.waitUntil(
+          runEmailDomainRefresh({ controlPanelDb: cpDb })
+            .then((r) => console.log(`[scheduled] email-domain-refresh done: ${JSON.stringify(r)}`))
+            .catch((e) => console.error(`[scheduled] email-domain-refresh failed:`, e)),
+        );
       } else {
         console.warn(`[scheduled] unknown cron='${cron}' — no handler`);
       }

@@ -23,6 +23,7 @@
 	//   - daily 02:00 UTC: installment sweep (Phase 4 installments)
 	//   - daily 03:00 UTC: hard-delete sweeper for overdue tenants (Plan E E.8)
 	//   - daily 09:00 UTC: onboarding-stuck alert (Plan C C.6)
+	//   - every 15 min: refresh stale sending-domain verification status (email)
 	"triggers": {
 		"crons": [
 			"0 * * * *",
@@ -30,7 +31,8 @@
 			"0 2 * * *",
 			"30 2 * * *",
 			"0 3 * * *",
-			"0 9 * * *"
+			"0 9 * * *",
+			"*/15 * * * *"
 		]
 	}
 }

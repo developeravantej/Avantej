@@ -8,7 +8,7 @@
  * this module only handles persistence + lookup logic.
  */
 
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { emailDomains } from "@avantej-core/db/schema/control-panel/email-domains";
@@ -245,6 +245,27 @@ export async function listEmailDomainsForOrg(
 		.from(emailDomains)
 		.where(eq(emailDomains.organizationId, organizationId))
 		.orderBy(desc(emailDomains.createdAt));
+}
+
+/**
+ * List sending-domain rows across ALL orgs that are still mid-verification
+ * (status in `pending`/`verifying`). Used by the background refresh cron to
+ * re-poll Resend for DNS-propagation progress. Oldest-updated first so a
+ * bounded batch always drains the most stale rows; `limit` caps the per-run
+ * Resend API fan-out.
+ */
+export async function listStaleEmailDomains(
+	controlPanelDb: ControlPanelDb,
+	params?: { statuses?: EmailDomainStatus[]; limit?: number },
+): Promise<EmailDomainRow[]> {
+	const statuses = params?.statuses ?? ["pending", "verifying"];
+	const limit = params?.limit ?? 50;
+	return controlPanelDb
+		.select()
+		.from(emailDomains)
+		.where(inArray(emailDomains.status, statuses))
+		.orderBy(asc(emailDomains.updatedAt))
+		.limit(limit);
 }
 
 export async function updateEmailDomainStatus(
