@@ -125,7 +125,11 @@ function EmailSettingsPage() {
 				description="Send transactional email from your own domain via Resend."
 			/>
 			<div className="mt-6 space-y-6">
-				<DomainListCard organizationId={organizationId} isAdmin={isAdmin} />
+				<DomainListCard
+					organizationId={organizationId}
+					isAdmin={isAdmin}
+					userEmail={userContext?.user?.email ?? ""}
+				/>
 				<CreateDomainCard organizationId={organizationId} isAdmin={isAdmin} />
 			</div>
 		</div>
@@ -137,9 +141,11 @@ const DOMAINS_QUERY_KEY_PREFIX = "emailDomains" as const;
 function DomainListCard({
 	organizationId,
 	isAdmin,
+	userEmail,
 }: {
 	organizationId: string;
 	isAdmin: boolean;
+	userEmail: string;
 }) {
 	const queryKey = [DOMAINS_QUERY_KEY_PREFIX, organizationId];
 	const { data, isLoading } = useQuery({
@@ -151,6 +157,7 @@ function DomainListCard({
 	const [expandedId, setExpandedId] = useState<string | null>(null);
 	const [rowToDelete, setRowToDelete] = useState<EmailDomainRow | null>(null);
 	const [rowToEdit, setRowToEdit] = useState<EmailDomainRow | null>(null);
+	const [rowToTest, setRowToTest] = useState<EmailDomainRow | null>(null);
 
 	const verifyMutation = useApiMutation({
 		mutationFn: (id: string) =>
@@ -249,6 +256,19 @@ function DomainListCard({
 														: "Verify now"}
 												</Button>
 												<Button
+													variant="outline"
+													size="sm"
+													disabled={!isAdmin || row.status !== "verified"}
+													onClick={() => setRowToTest(row)}
+													title={
+														row.status !== "verified"
+															? "Verify the domain first"
+															: "Send a test email through this domain"
+													}
+												>
+													Send test
+												</Button>
+												<Button
 													variant="destructive"
 													size="sm"
 													disabled={
@@ -307,7 +327,154 @@ function DomainListCard({
 					onClose={() => setRowToEdit(null)}
 				/>
 			) : null}
+			{rowToTest ? (
+				<SendTestDialog
+					row={rowToTest}
+					organizationId={organizationId}
+					defaultRecipient={userEmail}
+					onClose={() => setRowToTest(null)}
+				/>
+			) : null}
 		</Card>
+	);
+}
+
+const sendTestSchema = z.object({
+	to: z.string().email("Enter a valid email"),
+	aliasLabel: z.string().max(100).or(z.literal("")),
+});
+
+function SendTestDialog({
+	row,
+	organizationId,
+	defaultRecipient,
+	onClose,
+}: {
+	row: EmailDomainRow;
+	organizationId: string;
+	defaultRecipient: string;
+	onClose: () => void;
+}) {
+	const sendMutation = useApiMutation({
+		mutationFn: (values: { to: string; aliasLabel?: string }) =>
+			client.emailDomains.sendTest({
+				id: row.id,
+				organizationId,
+				to: values.to,
+				aliasLabel: values.aliasLabel,
+			}),
+		successMessage: (data) =>
+			`Test email sent from ${data.fromAddress} to ${data.to}.`,
+		errorMessage: (err) => err.message || "Test send failed.",
+		onSuccess: () => onClose(),
+	});
+
+	const form = useForm({
+		defaultValues: { to: defaultRecipient, aliasLabel: "" },
+		onSubmit: async ({ value }) => {
+			const aliasLabel = value.aliasLabel.trim();
+			await sendMutation.mutateAsync({
+				to: value.to.trim(),
+				aliasLabel: aliasLabel === "" ? undefined : aliasLabel,
+			});
+		},
+		validators: { onSubmit: sendTestSchema },
+	});
+
+	const localPartPreview = row.defaultLocalPart ?? "support";
+
+	return (
+		<Dialog open onOpenChange={(open) => (!open ? onClose() : undefined)}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Send test email — {row.domain}</DialogTitle>
+					<DialogDescription>
+						Sends a small confirmation email through this verified domain so
+						you can prove the DNS records + Resend delivery path are working
+						before wiring real flows.
+					</DialogDescription>
+				</DialogHeader>
+				<form
+					onSubmit={(e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						form.handleSubmit();
+					}}
+					className="space-y-4"
+				>
+					<form.Field name="to">
+						{(field) => (
+							<div className="space-y-1">
+								<label htmlFor={field.name} className="text-sm font-medium">
+									Recipient
+								</label>
+								<Input
+									id={field.name}
+									name={field.name}
+									type="email"
+									value={field.state.value}
+									onBlur={field.handleBlur}
+									onChange={(e) => field.handleChange(e.target.value)}
+									placeholder="you@example.com"
+									disabled={sendMutation.isPending}
+								/>
+								{field.state.meta.errors[0] ? (
+									<p className="text-xs text-destructive">
+										{String(field.state.meta.errors[0])}
+									</p>
+								) : null}
+							</div>
+						)}
+					</form.Field>
+					<form.Field name="aliasLabel">
+						{(field) => (
+							<div className="space-y-1">
+								<label htmlFor={field.name} className="text-sm font-medium">
+									Alias label (optional)
+								</label>
+								<Input
+									id={field.name}
+									name={field.name}
+									value={field.state.value}
+									onBlur={field.handleBlur}
+									onChange={(e) => field.handleChange(e.target.value)}
+									placeholder="e.g. Billing emails"
+									disabled={sendMutation.isPending}
+								/>
+								<p className="text-xs text-muted-foreground font-mono">
+									Without an alias: sends as {row.fromName} &lt;
+									{localPartPreview}@{row.domain}&gt;
+								</p>
+							</div>
+						)}
+					</form.Field>
+					<DialogFooter>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={onClose}
+							disabled={sendMutation.isPending}
+						>
+							Cancel
+						</Button>
+						<form.Subscribe>
+							{(state) => (
+								<Button
+									type="submit"
+									disabled={
+										!state.canSubmit ||
+										state.isSubmitting ||
+										sendMutation.isPending
+									}
+								>
+									{sendMutation.isPending ? "Sending…" : "Send test email"}
+								</Button>
+							)}
+						</form.Subscribe>
+					</DialogFooter>
+				</form>
+			</DialogContent>
+		</Dialog>
 	);
 }
 

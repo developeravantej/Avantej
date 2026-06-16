@@ -2872,6 +2872,25 @@ export const emailDomainsRouterType = {
 		.handler((): { deleted: true; id: string } => {
 			throw new Error("Not implemented - this is only for type inference");
 		}),
+	sendTest: protectedProcedure
+		.input(
+			z.object({
+				id: z.string().uuid(),
+				organizationId: z.string().uuid(),
+				to: z.string().email().optional(),
+				aliasLabel: z.string().optional(),
+			}),
+		)
+		.handler(
+			(): {
+				sent: true;
+				to: string;
+				fromAddress: string;
+				messageId: string;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 	listAliases: protectedProcedure
 		.input(
 			z.object({
