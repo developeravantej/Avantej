@@ -3,34 +3,10 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useUserContext } from "@/hooks/useUserContext";
 import { cn } from "@/lib/utils";
-import { formatPrice } from "@/lib/money";
 import { orpc } from "@/utils/orpc";
 
 import { LAUNCHPAD_CARDS, type LaunchpadCardId } from "./cards";
 import { LaunchpadPanel } from "./panels";
-
-function StatTile({
-	label,
-	value,
-	loading,
-	error,
-}: {
-	label: string;
-	value: string;
-	loading?: boolean;
-	error?: boolean;
-}) {
-	return (
-		<div className="min-w-[150px] rounded-xl border border-[#e8ebf0] bg-white px-4 py-3 shadow-sm">
-			<div className="text-xs text-muted-foreground">{label}</div>
-			<div className="mt-1 text-xl font-bold tracking-tight">
-				{/* Distinguish a failed load ("—") from a genuine zero, so staff
-				    aren't misled into thinking there's no work. */}
-				{loading ? "…" : error ? "—" : value}
-			</div>
-		</div>
-	);
-}
 
 export function DashboardLaunchpad() {
 	const { data: userContext, hasPermission, isLoading } = useUserContext();
@@ -62,24 +38,15 @@ export function DashboardLaunchpad() {
 		);
 	}, [active]);
 
-	// ── Today's glance ──
-	// These org-scoped queries are permission-gated: the front-desk cashier
-	// persona may lack reports:read / user_management:read, and firing them
-	// unconditionally would 403. Tiles render only when the user can read them.
+	// Appointment count feeds the schedule card badge. Permission-gated: the
+	// front-desk cashier persona may lack reports:read, and firing it
+	// unconditionally would 403.
 	const canReadKpis = hasPermission("reports:read");
-	const canReadMembers = hasPermission("user_management:read");
 	const todayKpisQuery = useQuery({
 		...orpc.analytics.getDashboardKpis.queryOptions({
 			input: { organizationId: organizationId!, period: "today" },
 		}),
 		enabled: !!organizationId && canReadKpis,
-		staleTime: 30_000,
-	});
-	const newTodayQuery = useQuery({
-		...orpc.members.newToday.queryOptions({
-			input: { organizationId: organizationId! },
-		}),
-		enabled: !!organizationId && canReadMembers,
 		staleTime: 30_000,
 	});
 
@@ -98,10 +65,30 @@ export function DashboardLaunchpad() {
 		enabled: !!organizationId && hasPermission("commission_payout:read"),
 		staleTime: 60_000,
 	});
+	// Memberships expiring within 7 days — the renewals worklist count.
+	// listExpiring is reports:read-gated (the schedule KPI badge is too), so the
+	// badge only appears for users with reports access even though the card
+	// itself is gated on service_management:read.
+	const renewalsDueQuery = useQuery({
+		...orpc.packageInstances.listExpiring.queryOptions({
+			input: { organizationId: organizationId!, within: 7 },
+		}),
+		enabled: !!organizationId && hasPermission("reports:read"),
+		staleTime: 60_000,
+	});
+	const refundsPendingQuery = useQuery({
+		...orpc.refunds.list.queryOptions({
+			input: { organizationId: organizationId!, status: "pending", limit: 1 },
+		}),
+		enabled: !!organizationId && hasPermission("refund_management:read"),
+		staleTime: 60_000,
+	});
 
 	// Badge value per card (undefined → no badge shown).
 	const badges: Partial<Record<LaunchpadCardId, number>> = {
+		renewals: renewalsDueQuery.data?.total ?? undefined,
 		installments: installmentsDueQuery.data?.total ?? undefined,
+		refunds: refundsPendingQuery.data?.total ?? undefined,
 		payouts: payoutsPendingQuery.data?.length ?? undefined,
 		schedule: todayKpisQuery.data?.totalAppointments ?? undefined,
 	};
@@ -127,36 +114,6 @@ export function DashboardLaunchpad() {
 
 	return (
 		<div className="-m-6 flex min-h-screen flex-col bg-[#f6f7f9]">
-			{/* ── Today's glance (only tiles the user has permission to read) ── */}
-			{(canReadKpis || canReadMembers) && (
-				<div className="flex flex-wrap gap-3 px-7 pt-6">
-					{canReadKpis && (
-						<StatTile
-							label="Today's sales"
-							value={formatPrice(todayKpisQuery.data?.totalSales ?? 0)}
-							loading={todayKpisQuery.isLoading}
-							error={todayKpisQuery.isError}
-						/>
-					)}
-					{canReadMembers && (
-						<StatTile
-							label="New customers today"
-							value={String(newTodayQuery.data?.count ?? 0)}
-							loading={newTodayQuery.isLoading}
-							error={newTodayQuery.isError}
-						/>
-					)}
-					{canReadKpis && (
-						<StatTile
-							label="Appointments today"
-							value={String(todayKpisQuery.data?.totalAppointments ?? 0)}
-							loading={todayKpisQuery.isLoading}
-							error={todayKpisQuery.isError}
-						/>
-					)}
-				</div>
-			)}
-
 			{/* ── Master / detail ── */}
 			<div className="grid flex-1 grid-cols-1 gap-4 px-7 py-5 lg:grid-cols-[300px_1fr]">
 				{/* Left: card rail */}
