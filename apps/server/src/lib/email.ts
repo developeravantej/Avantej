@@ -222,19 +222,15 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
 }
 
 /**
- * Send email verification email
- *
- * @param to - Recipient email address
- * @param verificationLink - Verification link URL
- * @param userName - User's name (optional)
+ * Build verification email subject/html/text + rewritten user-facing link.
+ * Pure (no IO). Used by `sendVerificationEmail` and the tenant-aware
+ * dispatcher in Better-Auth so both renders match exactly.
  */
-export async function sendVerificationEmail(
-	to: string,
+export function renderVerificationEmail(
 	verificationLink: string,
-	userName?: string
-): Promise<void> {
+	userName?: string,
+): { subject: string; html: string; text: string; verificationLinkForUser: string; token?: string } {
 	// Send users to the frontend UI instead of the backend `/api/auth/verify-email` URL.
-	// The frontend page will call our API (`POST /auth/verify-email`) and then redirect.
 	const frontendURL =
 		getEnvVar("CORS_ORIGIN") || getEnvVar("FRONTEND_URL") || "http://localhost:3001";
 	const tokenFromLink = extractTokenFromLink(verificationLink);
@@ -246,10 +242,9 @@ export async function sendVerificationEmail(
 			return "/login";
 		}
 	})();
-	const verificationLinkForUser =
-		tokenFromLink
-			? `${frontendURL}/verify-email?token=${encodeURIComponent(tokenFromLink)}&callbackURL=${encodeURIComponent(callbackURLFromLink)}`
-			: verificationLink;
+	const verificationLinkForUser = tokenFromLink
+		? `${frontendURL}/verify-email?token=${encodeURIComponent(tokenFromLink)}&callbackURL=${encodeURIComponent(callbackURLFromLink)}`
+		: verificationLink;
 
 	const subject = "Verify Your Email Address - Avantej Core";
 	const html = `
@@ -295,6 +290,27 @@ If you didn't create an account, you can safely ignore this email.
 © ${new Date().getFullYear()} Avantej Core. All rights reserved.
 	`.trim();
 
+	const token = extractTokenFromLink(verificationLinkForUser);
+	return { subject, html, text, verificationLinkForUser, token };
+}
+
+/**
+ * Send email verification email
+ *
+ * @param to - Recipient email address
+ * @param verificationLink - Verification link URL
+ * @param userName - User's name (optional)
+ */
+export async function sendVerificationEmail(
+	to: string,
+	verificationLink: string,
+	userName?: string
+): Promise<void> {
+	const { subject, html, text, verificationLinkForUser, token } = renderVerificationEmail(
+		verificationLink,
+		userName,
+	);
+
 	await sendEmail({
 		to,
 		subject,
@@ -302,7 +318,6 @@ If you didn't create an account, you can safely ignore this email.
 		text,
 	});
 
-	const token = extractTokenFromLink(verificationLinkForUser);
 	recordEmailCapture({
 		type: "verification",
 		to,
@@ -317,17 +332,12 @@ If you didn't create an account, you can safely ignore this email.
 }
 
 /**
- * Send password reset email
- *
- * @param to - Recipient email address
- * @param resetLink - Password reset link URL
- * @param userName - User's name (optional)
+ * Build password reset email subject/html/text. Pure (no IO).
  */
-export async function sendPasswordResetEmail(
-	to: string,
+export function renderPasswordResetEmail(
 	resetLink: string,
-	userName?: string
-): Promise<void> {
+	userName?: string,
+): { subject: string; html: string; text: string; token?: string } {
 	const subject = "Reset Your Password - Avantej Core";
 	const html = `
 		<!DOCTYPE html>
@@ -372,6 +382,24 @@ If you didn't request a password reset, you can safely ignore this email. Your p
 © ${new Date().getFullYear()} Avantej Core. All rights reserved.
 	`.trim();
 
+	const token = extractTokenFromLink(resetLink);
+	return { subject, html, text, token };
+}
+
+/**
+ * Send password reset email
+ *
+ * @param to - Recipient email address
+ * @param resetLink - Password reset link URL
+ * @param userName - User's name (optional)
+ */
+export async function sendPasswordResetEmail(
+	to: string,
+	resetLink: string,
+	userName?: string
+): Promise<void> {
+	const { subject, html, text, token } = renderPasswordResetEmail(resetLink, userName);
+
 	await sendEmail({
 		to,
 		subject,
@@ -379,7 +407,6 @@ If you didn't request a password reset, you can safely ignore this email. Your p
 		text,
 	});
 
-	const token = extractTokenFromLink(resetLink);
 	recordEmailCapture({
 		type: "password-reset",
 		to,
@@ -503,12 +530,14 @@ export async function sendInvitationEmail(
  * @param userName - Recipient name (optional)
  * @param organizationName - Org name displayed in subject/body (optional)
  */
-export async function sendMagicLinkEmail(
-	to: string,
+/**
+ * Build magic-link email subject/html/text. Pure (no IO).
+ */
+export function renderMagicLinkEmail(
 	magicLink: string,
 	userName?: string,
 	organizationName?: string,
-): Promise<void> {
+): { subject: string; html: string; text: string } {
 	const orgPhrase = organizationName ? ` to ${organizationName}` : "";
 	const subject = `Sign in${orgPhrase}`;
 	const greeting = userName ? `Hi ${userName},` : "Hi there,";
@@ -551,6 +580,17 @@ If you did not request this email, you can safely ignore it.
 
 © ${new Date().getFullYear()} Avantej Core. All rights reserved.
 	`.trim();
+
+	return { subject, html, text };
+}
+
+export async function sendMagicLinkEmail(
+	to: string,
+	magicLink: string,
+	userName?: string,
+	organizationName?: string,
+): Promise<void> {
+	const { subject, html, text } = renderMagicLinkEmail(magicLink, userName, organizationName);
 
 	await sendEmail({
 		to,
