@@ -13,16 +13,20 @@ function StatTile({
 	label,
 	value,
 	loading,
+	error,
 }: {
 	label: string;
 	value: string;
 	loading?: boolean;
+	error?: boolean;
 }) {
 	return (
 		<div className="min-w-[150px] rounded-xl border border-[#e8ebf0] bg-white px-4 py-3 shadow-sm">
 			<div className="text-xs text-muted-foreground">{label}</div>
 			<div className="mt-1 text-xl font-bold tracking-tight">
-				{loading ? "…" : value}
+				{/* Distinguish a failed load ("—") from a genuine zero, so staff
+				    aren't misled into thinking there's no work. */}
+				{loading ? "…" : error ? "—" : value}
 			</div>
 		</div>
 	);
@@ -48,18 +52,23 @@ export function DashboardLaunchpad() {
 	const active = visibleCards.find((c) => c.id === activeId) ?? visibleCards[0];
 
 	// ── Today's glance ──
+	// These org-scoped queries are permission-gated: the front-desk cashier
+	// persona may lack reports:read / user_management:read, and firing them
+	// unconditionally would 403. Tiles render only when the user can read them.
+	const canReadKpis = hasPermission("reports:read");
+	const canReadMembers = hasPermission("user_management:read");
 	const todayKpisQuery = useQuery({
 		...orpc.analytics.getDashboardKpis.queryOptions({
 			input: { organizationId: organizationId!, period: "today" },
 		}),
-		enabled: !!organizationId,
+		enabled: !!organizationId && canReadKpis,
 		staleTime: 30_000,
 	});
 	const newTodayQuery = useQuery({
 		...orpc.members.newToday.queryOptions({
 			input: { organizationId: organizationId! },
 		}),
-		enabled: !!organizationId,
+		enabled: !!organizationId && canReadMembers,
 		staleTime: 30_000,
 	});
 
@@ -107,24 +116,35 @@ export function DashboardLaunchpad() {
 
 	return (
 		<div className="-m-6 flex min-h-screen flex-col bg-[#f6f7f9]">
-			{/* ── Today's glance ── */}
-			<div className="flex flex-wrap gap-3 px-7 pt-6">
-				<StatTile
-					label="Today's sales"
-					value={formatPrice(todayKpisQuery.data?.totalSales ?? 0)}
-					loading={todayKpisQuery.isLoading}
-				/>
-				<StatTile
-					label="New customers today"
-					value={String(newTodayQuery.data?.count ?? 0)}
-					loading={newTodayQuery.isLoading}
-				/>
-				<StatTile
-					label="Appointments today"
-					value={String(todayKpisQuery.data?.totalAppointments ?? 0)}
-					loading={todayKpisQuery.isLoading}
-				/>
-			</div>
+			{/* ── Today's glance (only tiles the user has permission to read) ── */}
+			{(canReadKpis || canReadMembers) && (
+				<div className="flex flex-wrap gap-3 px-7 pt-6">
+					{canReadKpis && (
+						<StatTile
+							label="Today's sales"
+							value={formatPrice(todayKpisQuery.data?.totalSales ?? 0)}
+							loading={todayKpisQuery.isLoading}
+							error={todayKpisQuery.isError}
+						/>
+					)}
+					{canReadMembers && (
+						<StatTile
+							label="New customers today"
+							value={String(newTodayQuery.data?.count ?? 0)}
+							loading={newTodayQuery.isLoading}
+							error={newTodayQuery.isError}
+						/>
+					)}
+					{canReadKpis && (
+						<StatTile
+							label="Appointments today"
+							value={String(todayKpisQuery.data?.totalAppointments ?? 0)}
+							loading={todayKpisQuery.isLoading}
+							error={todayKpisQuery.isError}
+						/>
+					)}
+				</div>
+			)}
 
 			{/* ── Master / detail ── */}
 			<div className="grid flex-1 grid-cols-1 gap-4 px-7 py-5 lg:grid-cols-[300px_1fr]">

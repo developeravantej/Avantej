@@ -57,7 +57,9 @@ export const LAUNCHPAD_CARDS: LaunchpadCard[] = [
 		label: "Installments",
 		sub: "Upcoming & status",
 		icon: CalendarClock,
-		permission: "package_management:read",
+		// Mirrors the badge query + PackageInstallmentsPage + server listUpcoming,
+		// which all require service_management:read (not package_management).
+		permission: "service_management:read",
 	},
 	{
 		id: "payouts",
