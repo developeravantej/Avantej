@@ -48,6 +48,22 @@ test.describe("Dashboard launchpad", () => {
 		}
 	});
 
+	test("Cards surface live count badges", { tag: ["@p1"] }, async ({
+		page,
+	}) => {
+		await expect(page.getByText("Daily tasks", { exact: true })).toBeVisible({
+			timeout: 15_000,
+		});
+		// At least one card shows a numeric badge (installments due / payouts
+		// pending / appointments today). Asserts presence, not a brittle value.
+		const badge = page
+			.locator("button")
+			.locator("span.rounded-full")
+			.filter({ hasText: /^\d/ })
+			.first();
+		await expect(badge).toBeVisible({ timeout: 15_000 });
+	});
+
 	test("New Sale panel embeds the POS workflow by default", {
 		tag: ["@p1"],
 	}, async ({ page }) => {
