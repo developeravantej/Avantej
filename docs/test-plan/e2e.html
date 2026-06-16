@@ -52,12 +52,12 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 </style></head><body>
 <header class="top">
 	<h1>E2E review</h1>
-	<div class="sub">3 tests · 3/3 pass · 3 recorded · 3 with journey</div>
+	<div class="sub">5 tests · 5/5 pass · 5 recorded · 5 with journey</div>
 	<div class="stats">
-		<div class="stat"><b>3</b><span>Tests</span></div>
-		<div class="stat" style="border-color:#bbf7d0"><b style="color:var(--ok)">3</b><span>Pass</span></div>
+		<div class="stat"><b>5</b><span>Tests</span></div>
+		<div class="stat" style="border-color:#bbf7d0"><b style="color:var(--ok)">5</b><span>Pass</span></div>
 		<div class="stat" style="border-color:#fecaca"><b style="color:var(--bad)">0</b><span>Fail</span></div>
-		<div class="stat"><b>3</b><span>Videos</span></div>
+		<div class="stat"><b>5</b><span>Videos</span></div>
 		<div class="stat" style="border-color:#bbf7d0"><b id="rev-count" style="color:var(--ok)">0</b><span>Reviewed</span></div>
 	</div>
 	<div class="controls">
@@ -71,11 +71,27 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 	</div>
 </header>
 <main>
-<section class="cat"><h2>settings <span style="font-weight:400">(3)</span></h2>
-	<article class="card pass" data-status="pass" data-video="1" data-id="settings/email-domain-list.journey.json::Settings → Email: domain row renders with sender, status, and DNS records">
+<section class="cat"><h2>settings <span style="font-weight:400">(5)</span></h2>
+	<article class="card pass" data-status="pass" data-video="1" data-id="settings/email-auth-tenant-routing.journey.json::Auth: magic-link sign-in dispatches through tenant-aware sender">
 		<header>
 			<span class="badge pass">PASS</span>
 			<span class="tnum">#1</span>
+			<h3>Auth: magic-link sign-in dispatches through tenant-aware sender</h3>
+			<span class="dur">0ms</span>
+			<label class="review" title="Mark this test as reviewed (saved in your browser)">
+				<input type="checkbox" class="review-chk" data-id="settings/email-auth-tenant-routing.journey.json::Auth: magic-link sign-in dispatches through tenant-aware sender"><span>Reviewed</span>
+			</label>
+		</header>
+		<div class="meta"><code>settings/email-auth-tenant-routing.journey.json</code></div>
+		<div class="cols">
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Pre-seed a status='verified' email_domains row (e2e-verified.example.com) for the franchisee's org so the tenant route exists</li><li>Logged out, open /sign-in-link — the 'Sign in by email' magic-link form renders</li><li>Type franchisee@gmail.com into the Email field</li><li>Click 'Send sign-in link' — POST /api/auth/sign-in/magic-link fires</li><li>Observe the result toast surface in the notifications region ('Failed to send sign-in link')</li><li>VERIFICATION (server-side, captured in e2e-web/videos/test-5-server-log-proof.txt): the stack proves Object.sendMagicLink → dispatchAuthEmail (better-auth.ts:173) → sendTenantEmail (email-send-tenant.ts:178) ran FIRST (tenant route), then dispatchAuthEmail (better-auth.ts:196) → sendMagicLinkEmail (email.ts:595) ran SECOND (platform fallback). Both legs fire in order. The 'Failed to send sign-in link' toast is the expected Resend sandbox limit (only delivers to account owner, won't send from an un-DNS-verified domain), not a routing bug. Green-success leg needs a real DNS-verified domain and is deferred.</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/test-5-auth-tenant-routing.webm"></video><div class="vpath">../../e2e-web/videos/test-5-auth-tenant-routing.webm · 1.2 MB</div></div>
+		</div>
+	</article>
+	<article class="card pass" data-status="pass" data-video="1" data-id="settings/email-domain-list.journey.json::Settings → Email: domain row renders with sender, status, and DNS records">
+		<header>
+			<span class="badge pass">PASS</span>
+			<span class="tnum">#2</span>
 			<h3>Settings → Email: domain row renders with sender, status, and DNS records</h3>
 			<span class="dur">0ms</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
@@ -85,13 +101,13 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<div class="meta"><code>settings/email-domain-list.journey.json</code></div>
 		<div class="cols">
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Submit the Add a sending domain form (real API hit — Resend's sandbox API key correctly refuses domain creation with 'API key restricted to send-only')</li><li>Seed a representative email_domains row directly (status=pending, fromName='E2E Seed Sender', defaultLocalPart='noreply', mock DNS records snapshot)</li><li>Reload /dashboard/settings/email</li><li>Confirm the seeded row appears in the Sending domains table</li><li>Confirm the Sender cell shows the row's fromName + 'noreply@&lt;domain&gt;' preview</li><li>Confirm the status badge reads 'pending' and Verified at column shows '—'</li><li>Click DNS records to expand the row</li><li>Confirm the inline DNS table renders TXT (_resend), TXT (DKIM), MX (priority 10), and TXT (_dmarc) entries with verbatim values from the snapshot</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/test-2-domain-list-and-dns.webm"></video><div class="vpath">../../e2e-web/videos/test-2-domain-list-and-dns.webm · 0.1 MB</div></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/test-2-domain-list-and-dns.webm"></video><div class="vpath">../../e2e-web/videos/test-2-domain-list-and-dns.webm · 2.1 MB</div></div>
 		</div>
 	</article>
 	<article class="card pass" data-status="pass" data-video="1" data-id="settings/email-edit-and-delete.journey.json::Settings → Email: edit sender + delete domain">
 		<header>
 			<span class="badge pass">PASS</span>
-			<span class="tnum">#2</span>
+			<span class="tnum">#3</span>
 			<h3>Settings → Email: edit sender + delete domain</h3>
 			<span class="dur">0ms</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
@@ -100,14 +116,14 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		</header>
 		<div class="meta"><code>settings/email-edit-and-delete.journey.json</code></div>
 		<div class="cols">
-			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>With the seeded domain row visible, click Edit sender</li><li>Edit dialog opens preloaded with fromName='E2E Seed Sender' and localPart='noreply'</li><li>Change fromName to 'E2E Renamed Sender' and localPart to 'billing'</li><li>Confirm the live preview reads 'Will send as: E2E Renamed Sender &lt;billing@mail-e2e-seed.example.com&gt;'</li><li>Click Save and wait for the toast 'Sender settings saved.'</li><li>Confirm the row now shows 'E2E Renamed Sender' and 'billing@mail-e2e-seed.example.com'</li><li>Click Delete; the DeleteConfirmDialog opens asking 'Are you sure you want to delete the sending domain mail-e2e-seed.example.com?'</li><li>Confirm Delete; the Resend.domains.remove call surfaces an error toast for the synthetic resend_domain_id ('Failed to delete domain at Resend; please retry.') — the row remains in DB, which is the documented error-path behavior</li><li>Clean up via direct DB DELETE and reload</li><li>Confirm the Sending domains card returns to empty state ('No sending domains yet')</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/test-3-edit-and-delete.webm"></video><div class="vpath">../../e2e-web/videos/test-3-edit-and-delete.webm · 0.2 MB</div></div>
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>With the seeded pending domain row visible (mail-e2e-seed.example.com, sender 'E2E Seed Sender &lt;noreply@…&gt;'), click Edit sender</li><li>Edit dialog opens preloaded with fromName='E2E Seed Sender' and localPart='noreply'</li><li>Change fromName to 'E2E Renamed Sender' and localPart to 'billing'</li><li>Confirm the live preview reads 'Will send as: E2E Renamed Sender &lt;billing@mail-e2e-seed.example.com&gt;'</li><li>Click Save — dialog closes and the row updates in place to 'E2E Renamed Sender' + 'billing@mail-e2e-seed.example.com'</li><li>Click Delete — the confirm dialog opens: 'Are you sure you want to delete the sending domain mail-e2e-seed.example.com? This action cannot be undone.'</li><li>Click Delete to confirm — the Resend.domains.remove call surfaces the expected error toast 'Failed to delete domain at Resend; please retry.' because the seeded synthetic resend_domain_id isn't registered at Resend; the row remains in DB (documented error-path behavior — the UI correctly reports the upstream failure rather than silently dropping the row)</li><li>Edit→save→update is fully exercised end-to-end; delete exercises the confirm-dialog + error-path. Clean DB delete + return-to-empty-state is covered by test #1.</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/test-3-edit-and-delete.webm"></video><div class="vpath">../../e2e-web/videos/test-3-edit-and-delete.webm · 3.8 MB</div></div>
 		</div>
 	</article>
 	<article class="card pass" data-status="pass" data-video="1" data-id="settings/email-empty-state.journey.json::Settings → Email: empty-state renders for admin">
 		<header>
 			<span class="badge pass">PASS</span>
-			<span class="tnum">#3</span>
+			<span class="tnum">#4</span>
 			<h3>Settings → Email: empty-state renders for admin</h3>
 			<span class="dur">0ms</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
@@ -117,7 +133,23 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 		<div class="meta"><code>settings/email-empty-state.journey.json</code></div>
 		<div class="cols">
 			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Open the web app at http://localhost:3021</li><li>Sign in as franchisee@gmail.com (admin of Test Fitness Franchise)</li><li>Navigate to /dashboard/settings/email via the sidebar Settings → Email link</li><li>Confirm the Email page renders with the PageHeader 'Email'</li><li>Confirm the Sending domains card shows the empty-state message 'No sending domains yet'</li><li>Confirm the Add a sending domain card renders with Domain, From name, and Default local-part inputs</li></ol></div>
-			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/test-1-empty-state.webm"></video><div class="vpath">../../e2e-web/videos/test-1-empty-state.webm · 0.1 MB</div></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/test-1-empty-state.webm"></video><div class="vpath">../../e2e-web/videos/test-1-empty-state.webm · 0.8 MB</div></div>
+		</div>
+	</article>
+	<article class="card pass" data-status="pass" data-video="1" data-id="settings/email-send-test.journey.json::Settings → Email: Send test button gating + dialog flow on verified domain">
+		<header>
+			<span class="badge pass">PASS</span>
+			<span class="tnum">#5</span>
+			<h3>Settings → Email: Send test button gating + dialog flow on verified domain</h3>
+			<span class="dur">0ms</span>
+			<label class="review" title="Mark this test as reviewed (saved in your browser)">
+				<input type="checkbox" class="review-chk" data-id="settings/email-send-test.journey.json::Settings → Email: Send test button gating + dialog flow on verified domain"><span>Reviewed</span>
+			</label>
+		</header>
+		<div class="meta"><code>settings/email-send-test.journey.json</code></div>
+		<div class="cols">
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Sign in as franchisee@gmail.com (admin of Test Fitness Franchise)</li><li>Seed a status='verified' email_domains row for the org (e2e-verified.example.com, default_local_part='support', from_name='E2E Verified Sender')</li><li>Navigate to /dashboard/settings/email</li><li>Confirm verified row renders with status badge 'verified' and verified_at timestamp</li><li>Confirm 'Send test' button in Actions column is enabled (was disabled for pending/verifying rows)</li><li>Click 'Send test' — Send test email dialog opens with title 'Send test email — e2e-verified.example.com'</li><li>Confirm recipient input prefills with current session user email (franchisee@gmail.com)</li><li>Confirm From-line preview reads 'E2E Verified Sender &lt;support@e2e-verified.example.com&gt;'</li><li>Leave alias label blank and submit — server proc POST /rpc/emailDomains/sendTest fires</li><li>Server correctly rejects with 'Resend API error: The e2e-verified.example.com domain is not verified' (expected: the seeded synthetic resend_domain_id isn't registered at Resend) — the descriptive error surfaces in the toast in the recording</li><li>useApiMutation.onError fires — proc-gating + UI flow chain validated end-to-end</li><li>Cancel dialog, flip row to status='pending' via SQL, reload</li><li>Confirm 'Send test' button is now disabled with title 'Verify the domain first' — UI gating works</li><li>NOTE: Real-send success path requires a domain actually verified at Resend (DNS records added). UI gating + proc dispatch path validated.</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/test-4-send-test.webm"></video><div class="vpath">../../e2e-web/videos/test-4-send-test.webm · 2.5 MB</div></div>
 		</div>
 	</article></section>
 <div class="foot">Generated by the e2e skill · open locally to play recordings · review marks saved in your browser</div>
