@@ -18,6 +18,7 @@ import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-
 import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
 import {
 	addAlias,
+	checkEmailDomainCreateAllowed,
 	createEmailDomain,
 	deleteEmailDomain,
 	getEmailDomainById,
@@ -168,6 +169,12 @@ export const emailDomainsRouter = {
 			}
 			const cpDb = getControlPanelDb(context);
 			await requireOrgAdmin(cpDb, context.session.user.id, input.organizationId);
+
+			// Rate-limit BEFORE the (paid) Resend call so abuse never costs money.
+			const limit = await checkEmailDomainCreateAllowed(cpDb, input.organizationId);
+			if (!limit.allowed) {
+				throw new ORPCError(limit.code, { message: limit.reason });
+			}
 
 			const resendDomain = await createResendDomain({
 				name: input.domain,

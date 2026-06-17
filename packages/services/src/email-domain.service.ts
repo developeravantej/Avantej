@@ -8,7 +8,7 @@
  * this module only handles persistence + lookup logic.
  */
 
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { emailDomains } from "@avantej-core/db/schema/control-panel/email-domains";
@@ -245,6 +245,73 @@ export async function listEmailDomainsForOrg(
 		.from(emailDomains)
 		.where(eq(emailDomains.organizationId, organizationId))
 		.orderBy(desc(emailDomains.createdAt));
+}
+
+/** Default ceilings for sending-domain registration (per org). Tunable. */
+export const MAX_TOTAL_DOMAINS = 10;
+export const MAX_CREATES_PER_HOUR = 5;
+
+export type EmailDomainCreateLimitResult =
+	| { allowed: true }
+	| {
+			allowed: false;
+			/** ORPCError code the router should throw. */
+			code: "BAD_REQUEST" | "TOO_MANY_REQUESTS";
+			reason: string;
+	  };
+
+/**
+ * Gate sending-domain registration per org BEFORE any Resend call (which
+ * costs money), with two tiers:
+ *  1. Total cap — bounds how many domains an org can accumulate.
+ *  2. Hourly rate — smooths burst/loop abuse.
+ *
+ * Both are plain indexed COUNTs over `email_domains`. Caveat: delete +
+ * recreate evades the hourly window (deleted rows lose their createdAt
+ * history) but the total cap still bounds it — acceptable for a cost guard.
+ */
+export async function checkEmailDomainCreateAllowed(
+	controlPanelDb: ControlPanelDb,
+	organizationId: string,
+	opts?: { maxTotal?: number; maxPerHour?: number; windowMs?: number },
+): Promise<EmailDomainCreateLimitResult> {
+	const maxTotal = opts?.maxTotal ?? MAX_TOTAL_DOMAINS;
+	const maxPerHour = opts?.maxPerHour ?? MAX_CREATES_PER_HOUR;
+	const windowMs = opts?.windowMs ?? 60 * 60 * 1000;
+
+	const [totalRow] = await controlPanelDb
+		.select({ n: count() })
+		.from(emailDomains)
+		.where(eq(emailDomains.organizationId, organizationId));
+	const total = Number(totalRow?.n ?? 0);
+	if (total >= maxTotal) {
+		return {
+			allowed: false,
+			code: "BAD_REQUEST",
+			reason: `Domain limit reached (${maxTotal}). Delete an unused domain before adding another.`,
+		};
+	}
+
+	const since = new Date(Date.now() - windowMs);
+	const [recentRow] = await controlPanelDb
+		.select({ n: count() })
+		.from(emailDomains)
+		.where(
+			and(
+				eq(emailDomains.organizationId, organizationId),
+				gte(emailDomains.createdAt, since),
+			),
+		);
+	const recent = Number(recentRow?.n ?? 0);
+	if (recent >= maxPerHour) {
+		return {
+			allowed: false,
+			code: "TOO_MANY_REQUESTS",
+			reason: `Too many domain registrations (${maxPerHour}/hour). Please try again later.`,
+		};
+	}
+
+	return { allowed: true };
 }
 
 /**
