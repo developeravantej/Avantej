@@ -1,6 +1,6 @@
 {
 	"name": "avantej-core-server",
-	"account_id": "72d7c14adb24ffc0b9fc1770c607bf65",
+	"account_id": "a9c786e2839df3157985b75b9195a5dd",
 	"main": "src/index.ts",
 	"compatibility_date": "2025-06-15",
 	"workers_dev": true,
