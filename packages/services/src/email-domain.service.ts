@@ -8,7 +8,7 @@
  * this module only handles persistence + lookup logic.
  */
 
-import { and, asc, count, desc, eq, gte, inArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lt, notInArray, or } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { emailDomains } from "@avantej-core/db/schema/control-panel/email-domains";
@@ -359,6 +359,91 @@ export async function updateEmailDomainStatus(
 		.where(eq(emailDomains.id, params.id))
 		.returning();
 	return row ?? null;
+}
+
+/**
+ * Statuses worth keeping longer — deliverability triage (bounces, spam
+ * complaints, hard failures) stays useful past the standard window.
+ */
+export const EMAIL_LOG_FAILURE_STATUSES: EmailLogStatus[] = [
+	"bounced",
+	"complained",
+	"failed",
+];
+
+export const EMAIL_LOG_RETENTION_STANDARD_DAYS = 90;
+export const EMAIL_LOG_RETENTION_FAILURE_DAYS = 180;
+
+export interface PurgeOldEmailLogsResult {
+	deleted: number;
+	batches: number;
+	capped: boolean;
+}
+
+/**
+ * Delete aged email_logs rows so the table doesn't grow unbounded. Two-tier:
+ * normal rows expire after `standardDays`, failure rows (bounced/complained/
+ * failed) after `failureDays`. Deletes in id-keyed batches so one run can't
+ * lock the table or blow Worker CPU; `capped` is true when maxBatches was hit
+ * (more remain for the next tick).
+ */
+export async function purgeOldEmailLogs(
+	controlPanelDb: ControlPanelDb,
+	opts?: {
+		standardDays?: number;
+		failureDays?: number;
+		batchLimit?: number;
+		maxBatches?: number;
+	},
+): Promise<PurgeOldEmailLogsResult> {
+	const standardDays = opts?.standardDays ?? EMAIL_LOG_RETENTION_STANDARD_DAYS;
+	const failureDays = opts?.failureDays ?? EMAIL_LOG_RETENTION_FAILURE_DAYS;
+	const batchLimit = opts?.batchLimit ?? 5000;
+	const maxBatches = opts?.maxBatches ?? 20;
+
+	const now = Date.now();
+	const standardCutoff = new Date(now - standardDays * 24 * 60 * 60 * 1000);
+	const failureCutoff = new Date(now - failureDays * 24 * 60 * 60 * 1000);
+
+	// A row is expired when:
+	//   it is a failure status AND older than failureCutoff, OR
+	//   it is NOT a failure status AND older than standardCutoff.
+	const expiredPredicate = or(
+		and(
+			inArray(emailLogs.status, EMAIL_LOG_FAILURE_STATUSES),
+			lt(emailLogs.createdAt, failureCutoff),
+		),
+		and(
+			notInArray(emailLogs.status, EMAIL_LOG_FAILURE_STATUSES),
+			lt(emailLogs.createdAt, standardCutoff),
+		),
+	);
+
+	let deleted = 0;
+	let batches = 0;
+	let capped = false;
+
+	for (;;) {
+		if (batches >= maxBatches) {
+			capped = true;
+			break;
+		}
+		const victims = await controlPanelDb
+			.select({ id: emailLogs.id })
+			.from(emailLogs)
+			.where(expiredPredicate)
+			.limit(batchLimit);
+		if (victims.length === 0) break;
+
+		const ids = victims.map((v) => v.id);
+		await controlPanelDb.delete(emailLogs).where(inArray(emailLogs.id, ids));
+		deleted += ids.length;
+		batches += 1;
+
+		if (victims.length < batchLimit) break;
+	}
+
+	return { deleted, batches, capped };
 }
 
 export interface RecordEmailLogParams {

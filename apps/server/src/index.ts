@@ -379,6 +379,17 @@ export default {
             .then((r) => console.log(`[scheduled] email-domain-refresh done: ${JSON.stringify(r)}`))
             .catch((e) => console.error(`[scheduled] email-domain-refresh failed:`, e)),
         );
+      } else if (cron === "0 4 * * *") {
+        // Email — purge aged email_logs rows (two-tier retention) so the
+        // table doesn't grow unbounded.
+        const { purgeOldEmailLogs } = await import(
+          "@avantej-core/services/email-domain.service"
+        );
+        ctx.waitUntil(
+          purgeOldEmailLogs(cpDb)
+            .then((r) => console.log(`[scheduled] email-log-purge done: ${JSON.stringify(r)}`))
+            .catch((e) => console.error(`[scheduled] email-log-purge failed:`, e)),
+        );
       } else {
         console.warn(`[scheduled] unknown cron='${cron}' — no handler`);
       }
