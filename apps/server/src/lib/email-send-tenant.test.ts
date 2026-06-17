@@ -37,7 +37,12 @@ mock.module("@avantej-core/services/email-domain.service", () => ({
 }));
 
 import { sendTenantEmail } from "./email-send-tenant";
-import { __resetResendClient } from "./email";
+import {
+	__resetResendClient,
+	__getCapturedEmails,
+	__clearEmailCaptures,
+	__setEmailCaptureEnabled,
+} from "./email";
 
 const ORG_ID = "11111111-1111-4111-8111-111111111111";
 const fakeDb = {} as never;
@@ -216,5 +221,37 @@ describe("sendTenantEmail — error_message on send failure", () => {
 		};
 		expect(logArgs.status).toBe("failed");
 		expect(logArgs.errorMessage).toBe("network down");
+	});
+
+	test("records an email capture with status=failed on send failure", async () => {
+		__setEmailCaptureEnabled(true);
+		__clearEmailCaptures();
+
+		mockGetVerified.mockReturnValueOnce(
+			Promise.resolve({
+				id: "dom_1",
+				domain: "mail.example.com",
+				fromName: "Example",
+				defaultLocalPart: null,
+			}) as never,
+		);
+		mockResendSend.mockReturnValueOnce(
+			Promise.resolve({ data: null, error: { message: "rate limited" } }) as never,
+		);
+
+		await expect(
+			sendTenantEmail(fakeDb, {
+				organizationId: ORG_ID,
+				to: "recipient@example.com",
+				subject: "Test",
+				html: "<p>Test</p>",
+			}),
+		).rejects.toThrow(/rate limited/);
+
+		const captures = __getCapturedEmails("generic");
+		const failed = captures.find((c) => c.metadata?.status === "failed");
+		expect(failed).toBeDefined();
+		expect(failed!.metadata?.error).toBe("rate limited");
+		expect(failed!.to).toBe("recipient@example.com");
 	});
 });

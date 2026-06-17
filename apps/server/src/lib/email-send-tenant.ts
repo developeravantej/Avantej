@@ -160,6 +160,7 @@ export async function sendTenantEmail(
 			status: "failed",
 			errorMessage: errMessage,
 		});
+		captureFailed({ recipients, subject, html, textBody, organizationId, usedFallback, errMessage });
 		throw err;
 	}
 
@@ -175,6 +176,7 @@ export async function sendTenantEmail(
 			status: "failed",
 			errorMessage: errMessage,
 		});
+		captureFailed({ recipients, subject, html, textBody, organizationId, usedFallback, errMessage });
 		throw new Error(`Resend API error: ${errMessage}`);
 	}
 
@@ -208,6 +210,35 @@ export async function sendTenantEmail(
 
 function syntheticFailedId(): string {
 	return `failed:${crypto.randomUUID()}`;
+}
+
+/**
+ * Mirror the success-path email capture for failed sends so test harnesses
+ * (and any capture consumer) see the attempt with `status=failed` + the error,
+ * instead of silently only recording successes.
+ */
+function captureFailed(args: {
+	recipients: string[];
+	subject: string;
+	html: string;
+	textBody: string;
+	organizationId: string;
+	usedFallback: boolean;
+	errMessage: string;
+}): void {
+	recordEmailCapture({
+		type: "generic",
+		to: args.recipients.join(", "),
+		subject: args.subject,
+		html: args.html,
+		text: args.textBody,
+		metadata: {
+			organizationId: args.organizationId,
+			status: "failed",
+			error: args.errMessage,
+			usedFallback: args.usedFallback ? "true" : "false",
+		},
+	});
 }
 
 async function safeWriteLog(
