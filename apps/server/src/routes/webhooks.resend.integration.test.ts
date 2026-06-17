@@ -153,6 +153,22 @@ describe("POST /webhooks/resend", () => {
 		expect(row[0]!.lastEventType).toBe("email.delivered");
 	});
 
+	test("rejects an oversized body with 413 before svix verify", async () => {
+		if (shouldSkipIntegration()) return;
+
+		// > 64 KB cap. No valid svix signature needed — the size guard runs first.
+		const body = JSON.stringify({
+			type: "email.delivered",
+			data: { email_id: TEST_RESEND_MESSAGE_ID, pad: "x".repeat(70 * 1024) },
+		});
+		const res = await app.request("/webhooks/resend", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body,
+		});
+		expect(res.status).toBe(413);
+	});
+
 	test("dedupes the same svix-id on replay", async () => {
 		if (shouldSkipIntegration()) return;
 

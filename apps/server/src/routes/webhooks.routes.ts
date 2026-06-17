@@ -886,8 +886,22 @@ export function mapResendDomainStatus(
 	}
 }
 
+// Resend svix webhook events are a few KB; cap well above that so a malicious
+// caller can't force us to buffer + svix-verify a huge body (CPU/memory DoS).
+const RESEND_WEBHOOK_MAX_BODY_BYTES = 64 * 1024;
+
 webhookRoutes.post("/resend", async (c) => {
+	// Cheap pre-read reject on declared size, before buffering the body.
+	const contentLength = c.req.header("content-length");
+	if (contentLength && Number(contentLength) > RESEND_WEBHOOK_MAX_BODY_BYTES) {
+		return c.json({ error: "Payload too large" }, 413);
+	}
+
 	const body = await c.req.text();
+	// Authoritative check — content-length may be absent or lie.
+	if (body.length > RESEND_WEBHOOK_MAX_BODY_BYTES) {
+		return c.json({ error: "Payload too large" }, 413);
+	}
 
 	const secret = getResendWebhookSecret();
 	if (!secret) {
