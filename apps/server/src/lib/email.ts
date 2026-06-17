@@ -221,6 +221,93 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Shared email template layout
+//
+// A single source for the chrome shared by every transactional email — the
+// HTML shell, the gray card, the CTA button, the raw-link fallback, and the
+// footer. Per-email copy (heading, greeting, body, button label/color) is
+// passed in, so adding/editing an email never re-duplicates the boilerplate
+// and branding stays consistent. (Authored as plain HTML helpers rather than
+// a React-Email dep so it renders with zero runtime cost on Cloudflare
+// Workers; a full @react-email migration is a separate, opt-in change.)
+// ---------------------------------------------------------------------------
+
+const EMAIL_BRAND = "Avantej Core";
+
+export const EMAIL_BUTTON_COLORS = {
+	verify: "#3498db",
+	reset: "#e74c3c",
+	invite: "#27ae60",
+	signin: "#2980b9",
+} as const;
+
+interface EmailLayoutParams {
+	/** <title> + used as the <h1> heading. */
+	title: string;
+	heading: string;
+	/** First line, e.g. "Hi John," or "Hi there,". */
+	greeting: string;
+	/** Intro paragraph before the CTA button. */
+	intro: string;
+	button: { label: string; href: string; color: string };
+	/** Paragraphs rendered after the raw-link fallback (expiry, ignore note). */
+	afterParagraphs: string[];
+}
+
+function buildEmailHtml(p: EmailLayoutParams): string {
+	const year = new Date().getFullYear();
+	const after = p.afterParagraphs.map((t) => `\t\t\t\t<p>${t}</p>`).join("\n");
+	return `
+		<!DOCTYPE html>
+		<html>
+		<head>
+			<meta charset="utf-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			<title>${p.title}</title>
+		</head>
+		<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+			<div style="background-color: #f4f4f4; padding: 20px; border-radius: 5px;">
+				<h1 style="color: #2c3e50;">${p.heading}</h1>
+				<p>${p.greeting}</p>
+				<p>${p.intro}</p>
+				<div style="text-align: center; margin: 30px 0;">
+					<a href="${p.button.href}" style="background-color: ${p.button.color}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">${p.button.label}</a>
+				</div>
+				<p>Or copy and paste this link into your browser:</p>
+				<p style="word-break: break-all; color: #7f8c8d;">${p.button.href}</p>
+${after}
+				<hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+				<p style="color: #7f8c8d; font-size: 12px;">© ${year} ${EMAIL_BRAND}. All rights reserved.</p>
+			</div>
+		</body>
+		</html>
+	`;
+}
+
+function buildEmailText(p: {
+	heading: string;
+	greeting: string;
+	intro: string;
+	link: string;
+	afterLines: string[];
+}): string {
+	const year = new Date().getFullYear();
+	return `
+${p.heading}
+
+${p.greeting}
+
+${p.intro}
+
+${p.link}
+
+${p.afterLines.join("\n\n")}
+
+© ${year} ${EMAIL_BRAND}. All rights reserved.
+	`.trim();
+}
+
 /**
  * Build verification email subject/html/text + rewritten user-facing link.
  * Pure (no IO). Used by `sendVerificationEmail` and the tenant-aware
@@ -247,48 +334,33 @@ export function renderVerificationEmail(
 		: verificationLink;
 
 	const subject = "Verify Your Email Address - Avantej Core";
-	const html = `
-		<!DOCTYPE html>
-		<html>
-		<head>
-			<meta charset="utf-8">
-			<meta name="viewport" content="width=device-width, initial-scale=1.0">
-			<title>Verify Your Email</title>
-		</head>
-		<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-			<div style="background-color: #f4f4f4; padding: 20px; border-radius: 5px;">
-				<h1 style="color: #2c3e50;">Verify Your Email Address</h1>
-				<p>${userName ? `Hi ${userName},` : "Hi there,"}</p>
-				<p>Thank you for signing up for Avantej Core! Please verify your email address by clicking the button below:</p>
-				<div style="text-align: center; margin: 30px 0;">
-					<a href="${verificationLinkForUser}" style="background-color: #3498db; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">Verify Email Address</a>
-				</div>
-				<p>Or copy and paste this link into your browser:</p>
-				<p style="word-break: break-all; color: #7f8c8d;">${verificationLinkForUser}</p>
-				<p>This link will expire in 24 hours.</p>
-				<p>If you didn't create an account, you can safely ignore this email.</p>
-				<hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-				<p style="color: #7f8c8d; font-size: 12px;">© ${new Date().getFullYear()} Avantej Core. All rights reserved.</p>
-			</div>
-		</body>
-		</html>
-	`;
+	const greeting = userName ? `Hi ${userName},` : "Hi there,";
+	const html = buildEmailHtml({
+		title: "Verify Your Email",
+		heading: "Verify Your Email Address",
+		greeting,
+		intro: "Thank you for signing up for Avantej Core! Please verify your email address by clicking the button below:",
+		button: {
+			label: "Verify Email Address",
+			href: verificationLinkForUser,
+			color: EMAIL_BUTTON_COLORS.verify,
+		},
+		afterParagraphs: [
+			"This link will expire in 24 hours.",
+			"If you didn't create an account, you can safely ignore this email.",
+		],
+	});
 
-	const text = `
-Verify Your Email Address
-
-${userName ? `Hi ${userName},` : "Hi there,"}
-
-Thank you for signing up for Avantej Core! Please verify your email address by visiting this link:
-
-${verificationLinkForUser}
-
-This link will expire in 24 hours.
-
-If you didn't create an account, you can safely ignore this email.
-
-© ${new Date().getFullYear()} Avantej Core. All rights reserved.
-	`.trim();
+	const text = buildEmailText({
+		heading: "Verify Your Email Address",
+		greeting,
+		intro: "Thank you for signing up for Avantej Core! Please verify your email address by visiting this link:",
+		link: verificationLinkForUser,
+		afterLines: [
+			"This link will expire in 24 hours.",
+			"If you didn't create an account, you can safely ignore this email.",
+		],
+	});
 
 	const token = extractTokenFromLink(verificationLinkForUser);
 	return { subject, html, text, verificationLinkForUser, token };
@@ -339,48 +411,33 @@ export function renderPasswordResetEmail(
 	userName?: string,
 ): { subject: string; html: string; text: string; token?: string } {
 	const subject = "Reset Your Password - Avantej Core";
-	const html = `
-		<!DOCTYPE html>
-		<html>
-		<head>
-			<meta charset="utf-8">
-			<meta name="viewport" content="width=device-width, initial-scale=1.0">
-			<title>Reset Your Password</title>
-		</head>
-		<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-			<div style="background-color: #f4f4f4; padding: 20px; border-radius: 5px;">
-				<h1 style="color: #2c3e50;">Reset Your Password</h1>
-				<p>${userName ? `Hi ${userName},` : "Hi there,"}</p>
-				<p>We received a request to reset your password. Click the button below to create a new password:</p>
-				<div style="text-align: center; margin: 30px 0;">
-					<a href="${resetLink}" style="background-color: #e74c3c; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">Reset Password</a>
-				</div>
-				<p>Or copy and paste this link into your browser:</p>
-				<p style="word-break: break-all; color: #7f8c8d;">${resetLink}</p>
-				<p>This link will expire in 1 hour.</p>
-				<p>If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.</p>
-				<hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-				<p style="color: #7f8c8d; font-size: 12px;">© ${new Date().getFullYear()} Avantej Core. All rights reserved.</p>
-			</div>
-		</body>
-		</html>
-	`;
+	const greeting = userName ? `Hi ${userName},` : "Hi there,";
+	const html = buildEmailHtml({
+		title: "Reset Your Password",
+		heading: "Reset Your Password",
+		greeting,
+		intro: "We received a request to reset your password. Click the button below to create a new password:",
+		button: {
+			label: "Reset Password",
+			href: resetLink,
+			color: EMAIL_BUTTON_COLORS.reset,
+		},
+		afterParagraphs: [
+			"This link will expire in 1 hour.",
+			"If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.",
+		],
+	});
 
-	const text = `
-Reset Your Password
-
-${userName ? `Hi ${userName},` : "Hi there,"}
-
-We received a request to reset your password. Visit this link to create a new password:
-
-${resetLink}
-
-This link will expire in 1 hour.
-
-If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
-
-© ${new Date().getFullYear()} Avantej Core. All rights reserved.
-	`.trim();
+	const text = buildEmailText({
+		heading: "Reset Your Password",
+		greeting,
+		intro: "We received a request to reset your password. Visit this link to create a new password:",
+		link: resetLink,
+		afterLines: [
+			"This link will expire in 1 hour.",
+			"If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.",
+		],
+	});
 
 	const token = extractTokenFromLink(resetLink);
 	return { subject, html, text, token };
@@ -441,49 +498,33 @@ export function renderInvitationEmail(
 	role?: string,
 ): { subject: string; html: string; text: string } {
 	const subject = `You've been invited to join ${organizationName}`;
-	const html = `
-		<!DOCTYPE html>
-		<html>
-		<head>
-			<meta charset="utf-8">
-			<meta name="viewport" content="width=device-width, initial-scale=1.0">
-			<title>You've Been Invited</title>
-		</head>
-		<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-			<div style="background-color: #f4f4f4; padding: 20px; border-radius: 5px;">
-				<h1 style="color: #2c3e50;">You've Been Invited!</h1>
-				<p>Hi there,</p>
-				<p>${inviterName ? `${inviterName} has` : "You have been"} invited you to join <strong>${organizationName}</strong>${role ? ` as a ${role}` : ""}.</p>
-				<div style="text-align: center; margin: 30px 0;">
-					<a href="${invitationLink}" style="background-color: #27ae60; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">Accept Invitation</a>
-				</div>
-				<p>Or copy and paste this link into your browser:</p>
-				<p style="word-break: break-all; color: #7f8c8d;">${invitationLink}</p>
-				<p>This invitation will expire in 7 days.</p>
-				<p>If you don't want to join this organization, you can safely ignore this email.</p>
-				<hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-				<p style="color: #7f8c8d; font-size: 12px;">© ${new Date().getFullYear()} Avantej Core. All rights reserved.</p>
-			</div>
-		</body>
-		</html>
-	`;
-	const text = `
-You've Been Invited!
-
-Hi there,
-
-${inviterName ? `${inviterName} has` : "You have been"} invited you to join ${organizationName}${role ? ` as a ${role}` : ""}.
-
-Accept the invitation by visiting this link:
-
-${invitationLink}
-
-This invitation will expire in 7 days.
-
-If you don't want to join this organization, you can safely ignore this email.
-
-© ${new Date().getFullYear()} Avantej Core. All rights reserved.
-	`.trim();
+	const invitePhrase = `${inviterName ? `${inviterName} has` : "You have been"} invited you to join`;
+	const roleSuffix = role ? ` as a ${role}` : "";
+	const html = buildEmailHtml({
+		title: "You've Been Invited",
+		heading: "You've Been Invited!",
+		greeting: "Hi there,",
+		intro: `${invitePhrase} <strong>${organizationName}</strong>${roleSuffix}.`,
+		button: {
+			label: "Accept Invitation",
+			href: invitationLink,
+			color: EMAIL_BUTTON_COLORS.invite,
+		},
+		afterParagraphs: [
+			"This invitation will expire in 7 days.",
+			"If you don't want to join this organization, you can safely ignore this email.",
+		],
+	});
+	const text = buildEmailText({
+		heading: "You've Been Invited!",
+		greeting: "Hi there,",
+		intro: `${invitePhrase} ${organizationName}${roleSuffix}.\n\nAccept the invitation by visiting this link:`,
+		link: invitationLink,
+		afterLines: [
+			"This invitation will expire in 7 days.",
+			"If you don't want to join this organization, you can safely ignore this email.",
+		],
+	});
 	return { subject, html, text };
 }
 
@@ -541,45 +582,26 @@ export function renderMagicLinkEmail(
 	const orgPhrase = organizationName ? ` to ${organizationName}` : "";
 	const subject = `Sign in${orgPhrase}`;
 	const greeting = userName ? `Hi ${userName},` : "Hi there,";
-	const html = `
-		<!DOCTYPE html>
-		<html>
-		<head>
-			<meta charset="utf-8">
-			<meta name="viewport" content="width=device-width, initial-scale=1.0">
-			<title>Sign in to Avantej</title>
-		</head>
-		<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-			<div style="background-color: #f4f4f4; padding: 20px; border-radius: 5px;">
-				<h1 style="color: #2c3e50;">Sign in${orgPhrase}</h1>
-				<p>${greeting}</p>
-				<p>Click the button below to sign in. This link is single-use and expires shortly.</p>
-				<div style="text-align: center; margin: 30px 0;">
-					<a href="${magicLink}" style="background-color: #2980b9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">Sign in</a>
-				</div>
-				<p>Or copy and paste this link into your browser:</p>
-				<p style="word-break: break-all; color: #7f8c8d;">${magicLink}</p>
-				<p>If you did not request this email, you can safely ignore it.</p>
-				<hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-				<p style="color: #7f8c8d; font-size: 12px;">© ${new Date().getFullYear()} Avantej Core. All rights reserved.</p>
-			</div>
-		</body>
-		</html>
-	`;
+	const html = buildEmailHtml({
+		title: "Sign in to Avantej",
+		heading: `Sign in${orgPhrase}`,
+		greeting,
+		intro: "Click the button below to sign in. This link is single-use and expires shortly.",
+		button: {
+			label: "Sign in",
+			href: magicLink,
+			color: EMAIL_BUTTON_COLORS.signin,
+		},
+		afterParagraphs: ["If you did not request this email, you can safely ignore it."],
+	});
 
-	const text = `
-Sign in${orgPhrase}
-
-${greeting}
-
-Click the link below to sign in. This link is single-use and expires shortly.
-
-${magicLink}
-
-If you did not request this email, you can safely ignore it.
-
-© ${new Date().getFullYear()} Avantej Core. All rights reserved.
-	`.trim();
+	const text = buildEmailText({
+		heading: `Sign in${orgPhrase}`,
+		greeting,
+		intro: "Click the link below to sign in. This link is single-use and expires shortly.",
+		link: magicLink,
+		afterLines: ["If you did not request this email, you can safely ignore it."],
+	});
 
 	return { subject, html, text };
 }
