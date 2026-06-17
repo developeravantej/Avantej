@@ -18,6 +18,7 @@ import { z } from "zod";
 import { client } from "@/utils/orpc";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { useUserContext } from "@/hooks/useUserContext";
+import { DMARC_STEPS, parseDmarcPolicy } from "@/lib/email-dmarc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -514,6 +515,64 @@ function DnsRecordsList({ records }: { records: unknown }) {
 					))}
 				</TableBody>
 			</Table>
+			<DmarcProgression records={arr} />
+		</div>
+	);
+}
+
+/**
+ * Shows where the domain sits on the DMARC hardening path (none →
+ * quarantine → reject) so an admin knows the safe next step instead of
+ * guessing. Derived from the _dmarc TXT record's p= value.
+ */
+function DmarcProgression({ records }: { records: DnsRecord[] }) {
+	const current = parseDmarcPolicy(records);
+	const currentIdx = current ? DMARC_STEPS.findIndex((s) => s.policy === current) : -1;
+	const next =
+		currentIdx >= 0 && currentIdx < DMARC_STEPS.length - 1
+			? DMARC_STEPS[currentIdx + 1]
+			: null;
+
+	return (
+		<div className="mt-4 space-y-2 rounded-md border p-3">
+			<p className="text-sm font-medium">DMARC policy</p>
+			{current === null ? (
+				<p className="text-sm text-muted-foreground">
+					No DMARC policy detected. Add the <span className="font-mono">_dmarc</span> TXT
+					record above (starting at <span className="font-mono">p=none</span>) to begin
+					monitoring, then harden over time.
+				</p>
+			) : (
+				<>
+					<div className="flex items-center gap-1">
+						{DMARC_STEPS.map((step, i) => (
+							<Fragment key={step.policy}>
+								<span
+									className={
+										i === currentIdx
+											? "rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-primary-foreground"
+											: i < currentIdx
+												? "rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground"
+												: "rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground"
+									}
+									title={step.blurb}
+								>
+									{step.label}
+								</span>
+								{i < DMARC_STEPS.length - 1 && (
+									<span className="text-muted-foreground">→</span>
+								)}
+							</Fragment>
+						))}
+					</div>
+					<p className="text-sm text-muted-foreground">
+						{DMARC_STEPS[currentIdx]!.blurb}
+						{next
+							? ` Once reports look clean, move to p=${next.policy}.`
+							: " You're at the strongest policy."}
+					</p>
+				</>
+			)}
 		</div>
 	);
 }
