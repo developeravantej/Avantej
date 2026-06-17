@@ -27,6 +27,7 @@ import {
 	updateEmailDomainSettings,
 	updateEmailDomainStatus,
 } from "@avantej-core/services/email-domain.service";
+import { writeAudit } from "@avantej-core/services/audit-log.service";
 import {
 	createResendDomain,
 	getResendDomain,
@@ -75,6 +76,50 @@ async function requireOrgAdmin(
 	}
 	if (m.role !== "admin") {
 		throw new ORPCError("FORBIDDEN", { message: "Admin role required" });
+	}
+}
+
+/**
+ * Best-effort tenant audit-log write for a sending-domain change. Audit is
+ * secondary to provisioning — a missing tenantDb/member (edge cases) or a
+ * write failure must never fail the underlying create/delete, so this never
+ * throws. Writes to the tenant `audit_logs` so the change shows up in the
+ * org's Audit Log page alongside other admin actions.
+ */
+export async function auditEmailDomainChange(
+	context: {
+		tenantDb?: unknown;
+		member?: { id: string; role?: string } | null;
+		session?: { user: { id: string } } | null;
+	},
+	params: {
+		action: "email_domain.registered" | "email_domain.deleted";
+		entityId: string;
+		summary: string;
+		changes: Record<string, unknown>;
+	},
+): Promise<void> {
+	try {
+		const tenantDb = context.tenantDb as Parameters<typeof writeAudit>[0] | undefined;
+		const userId = context.session?.user?.id;
+		if (!tenantDb || !context.member || !userId) {
+			console.warn(
+				`[email-domains] skipped audit '${params.action}' — missing tenantDb/member/session`,
+			);
+			return;
+		}
+		await writeAudit(tenantDb, {
+			actorUserId: userId,
+			actorMemberId: context.member.id,
+			actorRole: context.member.role,
+			action: params.action,
+			entityType: "email_domain",
+			entityId: params.entityId,
+			summary: params.summary,
+			changes: params.changes,
+		});
+	} catch (e) {
+		console.error(`[email-domains] audit '${params.action}' failed:`, e);
 	}
 }
 
@@ -136,6 +181,19 @@ export const emailDomainsRouter = {
 				fromName: input.fromName,
 				defaultLocalPart: input.defaultLocalPart ?? null,
 				dnsRecords: resendDomain.records,
+			});
+
+			await auditEmailDomainChange(context, {
+				action: "email_domain.registered",
+				entityId: row.id,
+				summary: `Registered sending domain "${input.domain}"`,
+				changes: {
+					domain: input.domain,
+					fromName: input.fromName,
+					defaultLocalPart: input.defaultLocalPart ?? null,
+					region: input.region ?? null,
+					resendDomainId: resendDomain.id,
+				},
 			});
 
 			return row;
@@ -223,6 +281,16 @@ export const emailDomainsRouter = {
 			await deleteEmailDomain(cpDb, {
 				id: input.id,
 				organizationId: input.organizationId,
+			});
+
+			await auditEmailDomainChange(context, {
+				action: "email_domain.deleted",
+				entityId: input.id,
+				summary: `Deleted sending domain "${row.domain}"`,
+				changes: {
+					domain: row.domain,
+					resendDomainId: row.resendDomainId,
+				},
 			});
 
 			return { deleted: true as const, id: input.id };
