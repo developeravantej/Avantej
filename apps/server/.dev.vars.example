@@ -1,0 +1,69 @@
+# Cloudflare Workers local dev secrets (loaded by `wrangler dev`).
+# Copy to `.dev.vars` and fill in real values. NEVER commit real secrets.
+#   cp .dev.vars.example .dev.vars
+# In prod, set these with `wrangler secret put <NAME>` (not in this file).
+
+# Control Panel Database (platform metadata, routing)
+# Get this from your Neon console: https://console.neon.tech
+DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+
+# Tenant Database (for integration tests)
+TENANT_DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+
+# Better-Auth Configuration
+# Generate a secret key (minimum 32 characters): openssl rand -base64 32
+BETTER_AUTH_SECRET=your-secret-key-min-32-chars
+BETTER_AUTH_URL=http://localhost:3020
+
+# CORS Configuration — frontend URL that will access the API
+CORS_ORIGIN=http://localhost:3021
+
+# Encryption Key (for tenant connection string encryption)
+# Generate with: openssl rand -hex 32  (must be exactly 64 hex chars / 32 bytes)
+ENCRYPTION_KEY=your-64-char-hex-encryption-key
+
+# Neon API (for creating tenant projects)
+# Get from: https://console.neon.tech/app/settings/api-keys
+NEON_API_KEY=your-neon-api-key
+
+# Stripe (platform account, dev-shared sandbox per ADR-0012)
+# Get from: https://dashboard.stripe.com/test/apikeys
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+
+# Stripe webhook secrets (from `stripe listen` CLI output)
+STRIPE_PLATFORM_WEBHOOK_SECRET=whsec_...   # /webhooks/stripe/platform
+STRIPE_CONNECT_WEBHOOK_SECRET=whsec_...     # /webhooks/stripe/connect
+
+# Stripe SaaS Price IDs (from `bun stripe:seed` against the dev-shared sandbox)
+STRIPE_PRICE_BASIC=price_...
+STRIPE_PRICE_PROFESSIONAL=price_...
+STRIPE_PRICE_ENTERPRISE=price_...
+
+# Web app URL — Stripe Checkout success/cancel + billing portal return
+WEB_APP_URL=http://localhost:3021
+
+# Stripe Connect OAuth (Standard accounts per ADR-0001 update)
+STRIPE_CONNECT_CLIENT_ID=ca_...
+
+# Resend (email sending)
+# Get from: https://resend.com/api-keys
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL=onboarding@resend.dev
+RESEND_FROM_NAME=Avantej Core
+TEST_EMAIL_RECIPIENT=your-email@example.com
+# Resend webhook signing secret (svix). Resend dashboard → Webhooks → your
+# endpoint. Required for /webhooks/resend signature verification.
+RESEND_WEBHOOK_SECRET=whsec_...
+
+# Google Calendar OAuth
+# Get from: https://console.cloud.google.com/apis/credentials
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3020/auth/google-calendar/callback
+
+# GoHighLevel agency id (companyId for the GHL /users/ API)
+GHL_AGENCY_ID=your-ghl-agency-id
+
+# Installment system flags
+INSTALLMENTS_LOCK_ON_OPEN=true
