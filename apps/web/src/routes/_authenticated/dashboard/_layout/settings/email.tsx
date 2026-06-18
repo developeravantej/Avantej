@@ -1228,12 +1228,6 @@ function NotificationRoutingRow({
 		},
 	});
 
-	const selectedAliasId = form.state.values.aliasId;
-	const selectedAlias = aliases.find((a) => a.id === selectedAliasId);
-	const effectiveLocalPart =
-		selectedAlias?.localPart ?? verifiedDomain?.defaultLocalPart ?? "support";
-	const effectiveFromName =
-		form.state.values.fromNameOverride.trim() || verifiedDomain?.fromName || "Avantej Core";
 	const previewDomain = verifiedDomain?.domain ?? "(no verified domain)";
 
 	return (
@@ -1309,10 +1303,21 @@ function NotificationRoutingRow({
 					</Button>
 				) : null}
 			</div>
-			<p className="font-mono text-xs text-muted-foreground">
-				Will send as: {effectiveFromName} &lt;{effectiveLocalPart}@{previewDomain}&gt;
-				{!selectedAlias && verifiedDomain ? " (falls back to default sender)" : ""}
-			</p>
+			<form.Subscribe selector={(state) => state.values}>
+				{(values) => {
+					const selectedAlias = aliases.find((a) => a.id === values.aliasId);
+					const effectiveLocalPart =
+						selectedAlias?.localPart ?? verifiedDomain?.defaultLocalPart ?? "support";
+					const effectiveFromName =
+						values.fromNameOverride.trim() || verifiedDomain?.fromName || "Avantej Core";
+					return (
+						<p className="font-mono text-xs text-muted-foreground">
+							Will send as: {effectiveFromName} &lt;{effectiveLocalPart}@{previewDomain}&gt;
+							{!selectedAlias && verifiedDomain ? " (falls back to default sender)" : ""}
+						</p>
+					);
+				}}
+			</form.Subscribe>
 			{meta.tokens.length > 0 ? (
 				<p className="text-xs text-muted-foreground">
 					Subject tokens: {meta.tokens.map((t) => `{${t}}`).join(", ")}
