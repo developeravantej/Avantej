@@ -22,14 +22,13 @@
 			"durMs": 0,
 			"video": "videos/test-2-domain-list-and-dns.webm",
 			"steps": [
-				"Submit the Add a sending domain form (real API hit — Resend's sandbox API key correctly refuses domain creation with 'API key restricted to send-only')",
-				"Seed a representative email_domains row directly (status=pending, fromName='E2E Seed Sender', defaultLocalPart='noreply', mock DNS records snapshot)",
-				"Reload /dashboard/settings/email",
-				"Confirm the seeded row appears in the Sending domains table",
-				"Confirm the Sender cell shows the row's fromName + 'noreply@<domain>' preview",
-				"Confirm the status badge reads 'pending' and Verified at column shows '—'",
-				"Click DNS records to expand the row",
-				"Confirm the inline DNS table renders TXT (_resend), TXT (DKIM), MX (priority 10), and TXT (_dmarc) entries with verbatim values from the snapshot"
+				"Setup (off-camera): a pending email_domains row is seeded (mail-e2e-seed.example.com, sender 'E2E Seed Sender', default local-part 'noreply', a representative DNS-records snapshot)",
+				"Open /dashboard/settings/email — the seeded row renders in the Sending domains table",
+				"Confirm the Sender cell shows 'E2E Seed Sender' + 'noreply@mail-e2e-seed.example.com'",
+				"Confirm the Status badge reads 'pending' and the Verified at column shows '—'",
+				"Click 'DNS records' to expand the row",
+				"The inline DNS table renders all four records: TXT (_resend verification), TXT (DKIM resend._domainkey), MX (send… priority 10, feedback-smtp.ap-southeast-1.amazonses.com), TXT (_dmarc)",
+				"The DMARC policy panel + Sending-address aliases panel render below the table — confirms the full expanded-row view an admin sees after registering"
 			]
 		},
 		{
@@ -85,6 +84,71 @@
 				"Click 'Send sign-in link' — POST /api/auth/sign-in/magic-link fires",
 				"Observe the result toast surface in the notifications region ('Failed to send sign-in link')",
 				"VERIFICATION (server-side, captured in e2e-web/videos/test-5-server-log-proof.txt): the stack proves Object.sendMagicLink → dispatchAuthEmail (better-auth.ts:173) → sendTenantEmail (email-send-tenant.ts:178) ran FIRST (tenant route), then dispatchAuthEmail (better-auth.ts:196) → sendMagicLinkEmail (email.ts:595) ran SECOND (platform fallback). Both legs fire in order. The 'Failed to send sign-in link' toast is the expected Resend sandbox limit (only delivers to account owner, won't send from an un-DNS-verified domain), not a routing bug. Green-success leg needs a real DNS-verified domain and is deferred."
+			]
+		},
+		{
+			"relpath": "settings/email-aliases.journey.json",
+			"title": "Settings → Email: add and remove a sending-address alias",
+			"status": "pass",
+			"durMs": 0,
+			"video": "videos/test-6-aliases.webm",
+			"steps": [
+				"Sign in as franchisee@gmail.com; seed a sending-domain row with DNS records",
+				"Navigate to /dashboard/settings/email and click 'DNS records' to expand the row",
+				"In the Sending-address aliases panel, confirm it starts at 'No aliases yet'",
+				"Type local-part 'billing' and label 'Billing dept', click Add alias",
+				"Toast 'Alias added.' appears; the alias table row shows billing · Billing dept · billing@mail-e2e-seed.example.com",
+				"Click Remove on the billing alias",
+				"Toast 'Alias removed.' appears and the panel returns to 'No aliases yet' — add + remove round-trip verified"
+			]
+		},
+		{
+			"relpath": "settings/email-dmarc-progression.journey.json",
+			"title": "Settings → Email: DMARC progression reflects the _dmarc policy",
+			"status": "pass",
+			"durMs": 0,
+			"video": "videos/test-7-dmarc-progression.webm",
+			"steps": [
+				"Seed a sending-domain row whose _dmarc TXT record is 'v=DMARC1; p=none;'",
+				"Open /dashboard/settings/email and expand DNS records",
+				"DMARC policy panel highlights 'Monitor' (p=none) with guidance 'Once reports look clean, move to p=quarantine'",
+				"Update the _dmarc record to p=quarantine (DNS-provider change, simulated via DB) and reload",
+				"Re-expand DNS: the stepper now highlights 'Quarantine' with blurb 'p=quarantine — failing mail goes to spam.' and guidance 'move to p=reject'",
+				"Confirms the panel parses p= live and advances the none → quarantine → reject stepper correctly"
+			]
+		},
+		{
+			"relpath": "settings/email-real-resend-register.journey.json",
+			"title": "Settings → Email: real domain registration hits the live Resend API",
+			"status": "pass",
+			"durMs": 0,
+			"video": "videos/test-8-real-resend-register.webm",
+			"steps": [
+				"[on camera] Open /dashboard/settings/email — empty state ('No sending domains yet')",
+				"[on camera] Fill Add a sending domain: domain e2e-demo.zhiyuantech.ai, from name 'Zhiyuan E2E Demo', default local-part 'noreply'",
+				"[on camera] Click Register domain — the create proc calls resend.domains.create against the LIVE Resend API; toast 'Domain registered.' + the row appears (status pending)",
+				"[on camera] Click DNS records — the table shows the REAL Resend-returned records: DKIM TXT (resend._domainkey, p=MIGf…), MX feedback-smtp.us-east-1.amazonses.com (pri 10), SPF (v=spf1 include:amazonses.com ~all)",
+				"[on camera] Click Delete → confirm dialog → Delete — the delete proc calls resend.domains.remove (live API); toast 'Sending domain removed.' and the page returns to 'No sending domains yet'",
+				"VERIFIED via Resend API (off camera): pre-run GET /domains = 0; after register = 1 (e2e-demo.zhiyuantech.ai, real id, region us-east-1) with the SAME id stored in the DB row; after delete = 0 + DB count 0 — the full register→dashboard→delete round-trip ran against live Resend",
+				"NOTE: domain stays 'not_started' / never verifies because the DNS records aren't added to the real zhiyuantech.ai zone — that DNS step is the only remaining real-domain action."
+			]
+		},
+		{
+			"relpath": "settings/email-notification-routing.journey.json",
+			"title": "Settings → Email: bind a notification type to an alias + from-name + subject override",
+			"status": "pass",
+			"durMs": 0,
+			"video": "videos/test-9-notification-routing.webm",
+			"steps": [
+				"Sign in as franchisee@gmail.com (admin of Test Fitness Franchise — verified domain e2e-demo.zhiyuantech.ai + a 'billing' alias)",
+				"Open /dashboard/settings/email — the new 'Notification routing' card renders 5 rows (Member invitation, Payment receipt, Email verification, Password reset, Magic-link sign-in), each with an alias dropdown, From name + Subject override inputs, Save, a live 'Will send as' preview, and a subject-token hint",
+				"In the Payment receipt row, open the alias dropdown — lists 'Use domain default' + 'billing · Billing Department'",
+				"Select 'billing · Billing Department' — preview updates live to 'Will send as: Zhiyuan Mail <billing@e2e-demo.zhiyuantech.ai>' (fallback note disappears)",
+				"Type From name 'Acme Billing' + Subject override 'Receipt {amount}' — preview from-name updates live to 'Acme Billing'",
+				"Click Save — toast 'Routing saved.'; VERIFIED via DB: email_notification_routes row payment_receipt → billing alias, from_name_override 'Acme Billing', subject_override 'Receipt {amount}'",
+				"Reload — the row rehydrates with billing + 'Acme Billing' + 'Receipt {amount}' + the preview 'Acme Billing <billing@e2e-demo.zhiyuantech.ai>', and a Reset button now appears (shown only for bound rows)",
+				"Click Reset — toast 'Routing reset.'; the row reverts to 'Use domain default', empty inputs, Reset button gone, preview back to 'Zhiyuan Mail <noreply@e2e-demo.zhiyuantech.ai> (falls back to default sender)'. VERIFIED via DB: 0 route rows remain",
+				"NOTE: a live-preview reactivity bug (read form.state.values directly → never re-rendered) was found WHILE recording and fixed (moved into <form.Subscribe>) before this final take — the video shows the corrected, live-updating preview."
 			]
 		}
 	]

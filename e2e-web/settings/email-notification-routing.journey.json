@@ -1,0 +1,17 @@
+{
+	"title": "Settings → Email: bind a notification type to an alias + from-name + subject override",
+	"module": "settings",
+	"prodMutationClass": "create-update-delete-test-row",
+	"journey": [
+		"Sign in as franchisee@gmail.com (admin of Test Fitness Franchise, which has a verified domain e2e-demo.zhiyuantech.ai + a 'billing' alias)",
+		"Navigate to /dashboard/settings/email — the new 'Notification routing' card renders below Sending domains + Add a sending domain",
+		"Confirm the card shows one row per tenant-facing notification type: Member invitation, Payment receipt, Email verification, Password reset, Magic-link sign-in — each with an alias dropdown, From name + Subject override inputs, a Save button, a live 'Will send as' preview, and a per-type subject-token hint",
+		"In the Payment receipt row, open the alias dropdown — it lists 'Use domain default' + the org's curated alias 'billing · Billing Department'",
+		"Select 'billing · Billing Department' — the live preview updates to 'Will send as: Zhiyuan Mail <billing@e2e-demo.zhiyuantech.ai>' (the '(falls back to default sender)' note disappears)",
+		"Type From name 'Acme Billing' and Subject override 'Receipt {amount}' — the preview from-name updates live to 'Acme Billing'",
+		"Click Save — the upsertNotificationRoute proc persists the route (toast 'Routing saved.'). VERIFIED via DB: email_notification_routes row payment_receipt → alias billing, from_name_override 'Acme Billing', subject_override 'Receipt {amount}'",
+		"Reload the page — the Payment receipt row rehydrates with billing selected, 'Acme Billing', 'Receipt {amount}', the preview 'Acme Billing <billing@e2e-demo.zhiyuantech.ai>', and a Reset button now appears (shown only for bound rows)",
+		"Click Reset — the deleteNotificationRoute proc clears the route (toast 'Routing reset.'); the row reverts to 'Use domain default', empty inputs, the Reset button disappears, and the preview returns to 'Zhiyuan Mail <noreply@e2e-demo.zhiyuantech.ai> (falls back to default sender)'. VERIFIED via DB: 0 route rows remain",
+		"NOTE: a reactivity bug found while recording — the live preview read form.state.values directly (non-reactive) so it never updated on change — was fixed (moved into a <form.Subscribe>) before this final recording. The video shows the corrected, live-updating preview."
+	]
+}
