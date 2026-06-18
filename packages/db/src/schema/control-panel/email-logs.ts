@@ -29,6 +29,9 @@ export const emailLogs = pgTable("email_logs", {
 	fromAddress: text("from_address").notNull(),
 	toAddress: text("to_address").notNull(),
 	subject: text("subject").notNull(),
+	// Notification type that produced this send (member_invitation,
+	// payment_receipt, auth_*). Null for diagnostic/test sends + legacy rows.
+	notificationType: text("notification_type"),
 	// queued | sent | delivered | bounced | complained | opened | clicked | failed
 	status: text("status").notNull().default("queued"),
 	lastEventType: text("last_event_type"),
