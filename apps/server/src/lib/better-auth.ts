@@ -54,6 +54,8 @@ import {
 import { sendTenantEmail } from "@/lib/email-send-tenant";
 import { emailDomains } from "@avantej-core/db/schema/control-panel/email-domains";
 import { emailLogs } from "@avantej-core/db/schema/control-panel/email-logs";
+import { emailDomainAliases } from "@avantej-core/db/schema/control-panel/email-domain-aliases";
+import { emailNotificationRoutes } from "@avantej-core/db/schema/control-panel/email-notification-routes";
 import { dispatchProfileSync } from "@/services/ghl/dispatch-staff-sync";
 import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
@@ -549,7 +551,13 @@ function createBetterAuth(c?: Context) {
           const tempPool = new Pool({ connectionString: databaseUrl });
           const tempDb = drizzle({
             client: tempPool,
-            schema: { organizations, emailDomains, emailLogs },
+            schema: {
+              organizations,
+              emailDomains,
+              emailLogs,
+              emailDomainAliases,
+              emailNotificationRoutes,
+            },
           });
           try {
             try {

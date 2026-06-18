@@ -2942,6 +2942,79 @@ export const emailDomainsRouterType = {
 		.handler((): { deleted: true; id: string } => {
 			throw new Error("Not implemented - this is only for type inference");
 		}),
+	getNotificationRouting: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): {
+				routes: Array<{
+					id: string;
+					organizationId: string;
+					notificationType: string;
+					aliasId: string | null;
+					fromNameOverride: string | null;
+					subjectOverride: string | null;
+					createdAt: Date;
+					updatedAt: Date;
+					aliasLocalPart: string | null;
+					aliasLabel: string | null;
+				}>;
+				aliases: Array<{ id: string; localPart: string; label: string | null }>;
+				verifiedDomain: {
+					id: string;
+					domain: string;
+					fromName: string;
+					defaultLocalPart: string | null;
+				} | null;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	upsertNotificationRoute: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				notificationType: z.enum([
+					"member_invitation",
+					"payment_receipt",
+					"auth_verification",
+					"auth_password_reset",
+					"auth_magic_link",
+				]),
+				aliasId: z.string().uuid().nullable().optional(),
+				fromNameOverride: z.string().nullable().optional(),
+				subjectOverride: z.string().nullable().optional(),
+			}),
+		)
+		.handler(
+			(): {
+				id: string;
+				organizationId: string;
+				notificationType: string;
+				aliasId: string | null;
+				fromNameOverride: string | null;
+				subjectOverride: string | null;
+				createdAt: Date;
+				updatedAt: Date;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	deleteNotificationRoute: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				notificationType: z.enum([
+					"member_invitation",
+					"payment_receipt",
+					"auth_verification",
+					"auth_password_reset",
+					"auth_magic_link",
+				]),
+			}),
+		)
+		.handler((): { deleted: true; notificationType: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
 };
 
 // Full appRouter with auth and server-specific procedures for type inference on the client

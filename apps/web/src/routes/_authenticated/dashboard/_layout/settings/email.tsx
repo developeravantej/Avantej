@@ -48,6 +48,13 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DeleteConfirmDialog } from "@/components/tables/shared/delete-confirm-dialog";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/settings/email",
@@ -132,12 +139,27 @@ function EmailSettingsPage() {
 					userEmail={userContext?.user?.email ?? ""}
 				/>
 				<CreateDomainCard organizationId={organizationId} isAdmin={isAdmin} />
+				<NotificationRoutingCard organizationId={organizationId} isAdmin={isAdmin} />
 			</div>
 		</div>
 	);
 }
 
 const DOMAINS_QUERY_KEY_PREFIX = "emailDomains" as const;
+
+const NOTIFICATION_ROUTES_QUERY_KEY_PREFIX = "emailNotificationRoutes" as const;
+
+const NOTIFICATION_TYPE_META: Array<{
+	type: "member_invitation" | "payment_receipt" | "auth_verification" | "auth_password_reset" | "auth_magic_link";
+	label: string;
+	tokens: string[];
+}> = [
+	{ type: "member_invitation", label: "Member invitation", tokens: ["organizationName", "role", "inviterName"] },
+	{ type: "payment_receipt", label: "Payment receipt", tokens: ["amount", "appointmentId"] },
+	{ type: "auth_verification", label: "Email verification", tokens: ["appName"] },
+	{ type: "auth_password_reset", label: "Password reset", tokens: ["appName"] },
+	{ type: "auth_magic_link", label: "Magic-link sign-in", tokens: ["appName"] },
+];
 
 function DomainListCard({
 	organizationId,
@@ -1102,5 +1124,200 @@ function CreateDomainCard({
 				</form>
 			</CardContent>
 		</Card>
+	);
+}
+
+function NotificationRoutingCard({
+	organizationId,
+	isAdmin,
+}: {
+	organizationId: string;
+	isAdmin: boolean;
+}) {
+	const { data, isLoading, isError } = useQuery({
+		queryKey: [NOTIFICATION_ROUTES_QUERY_KEY_PREFIX, organizationId],
+		queryFn: () => client.emailDomains.getNotificationRouting({ organizationId }),
+		staleTime: 30_000,
+	});
+
+	return (
+		<Card>
+			<CardHeader>
+				<CardTitle>Notification routing</CardTitle>
+				<CardDescription>
+					Choose which sending address, name, and subject each notification uses.
+					Unset rows fall back to your domain's default sender.
+				</CardDescription>
+			</CardHeader>
+			<CardContent className="space-y-4">
+				{isError ? (
+					<p className="text-sm text-destructive">
+						Couldn't load notification routing. Please refresh and try again.
+					</p>
+				) : isLoading ? (
+					<p className="text-sm text-muted-foreground">Loading…</p>
+				) : (
+					NOTIFICATION_TYPE_META.map((meta) => (
+						<NotificationRoutingRow
+							key={meta.type}
+							meta={meta}
+							organizationId={organizationId}
+							isAdmin={isAdmin}
+							route={data?.routes.find((r) => r.notificationType === meta.type) ?? null}
+							aliases={data?.aliases ?? []}
+							verifiedDomain={data?.verifiedDomain ?? null}
+						/>
+					))
+				)}
+			</CardContent>
+		</Card>
+	);
+}
+
+function NotificationRoutingRow({
+	meta,
+	organizationId,
+	isAdmin,
+	route,
+	aliases,
+	verifiedDomain,
+}: {
+	meta: (typeof NOTIFICATION_TYPE_META)[number];
+	organizationId: string;
+	isAdmin: boolean;
+	route: { aliasId: string | null; fromNameOverride: string | null; subjectOverride: string | null } | null;
+	aliases: Array<{ id: string; localPart: string; label: string | null }>;
+	verifiedDomain: { domain: string; fromName: string; defaultLocalPart: string | null } | null;
+}) {
+	const saveMutation = useApiMutation({
+		mutationFn: (vars: {
+			aliasId: string | null;
+			fromNameOverride: string | null;
+			subjectOverride: string | null;
+		}) =>
+			client.emailDomains.upsertNotificationRoute({
+				organizationId,
+				notificationType: meta.type,
+				...vars,
+			}),
+		successMessage: "Routing saved.",
+		errorMessage: (err: Error) => err.message || "Failed to save routing.",
+		invalidate: [[NOTIFICATION_ROUTES_QUERY_KEY_PREFIX, organizationId]],
+	});
+
+	const resetMutation = useApiMutation({
+		mutationFn: () =>
+			client.emailDomains.deleteNotificationRoute({ organizationId, notificationType: meta.type }),
+		successMessage: "Routing reset.",
+		errorMessage: (err: Error) => err.message || "Failed to reset routing.",
+		invalidate: [[NOTIFICATION_ROUTES_QUERY_KEY_PREFIX, organizationId]],
+	});
+
+	const form = useForm({
+		defaultValues: {
+			aliasId: route?.aliasId ?? "",
+			fromNameOverride: route?.fromNameOverride ?? "",
+			subjectOverride: route?.subjectOverride ?? "",
+		},
+		onSubmit: async ({ value }) => {
+			await saveMutation.mutateAsync({
+				aliasId: value.aliasId || null,
+				fromNameOverride: value.fromNameOverride.trim() || null,
+				subjectOverride: value.subjectOverride.trim() || null,
+			});
+		},
+	});
+
+	const selectedAliasId = form.state.values.aliasId;
+	const selectedAlias = aliases.find((a) => a.id === selectedAliasId);
+	const effectiveLocalPart =
+		selectedAlias?.localPart ?? verifiedDomain?.defaultLocalPart ?? "support";
+	const effectiveFromName =
+		form.state.values.fromNameOverride.trim() || verifiedDomain?.fromName || "Avantej Core";
+	const previewDomain = verifiedDomain?.domain ?? "(no verified domain)";
+
+	return (
+		<form
+			className="space-y-2 border-b border-border pb-4 last:border-b-0 last:pb-0"
+			onSubmit={(e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				form.handleSubmit();
+			}}
+		>
+			<p className="text-sm font-medium">{meta.label}</p>
+			<div className="flex flex-wrap items-end gap-2">
+				<form.Field name="aliasId">
+					{(field) => (
+						<div className="w-44">
+							<Select
+								value={field.state.value || "__default__"}
+								onValueChange={(v) => field.handleChange(v === "__default__" ? "" : v)}
+								disabled={!isAdmin || !verifiedDomain}
+							>
+								<SelectTrigger>
+									<SelectValue placeholder="Default sender" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="__default__">Use domain default</SelectItem>
+									{aliases.map((a) => (
+										<SelectItem key={a.id} value={a.id}>
+											{a.localPart}
+											{a.label ? ` · ${a.label}` : ""}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+					)}
+				</form.Field>
+				<form.Field name="fromNameOverride">
+					{(field) => (
+						<Input
+							className="w-40"
+							placeholder="From name (optional)"
+							value={field.state.value}
+							onBlur={field.handleBlur}
+							onChange={(e) => field.handleChange(e.target.value)}
+							disabled={!isAdmin}
+						/>
+					)}
+				</form.Field>
+				<form.Field name="subjectOverride">
+					{(field) => (
+						<Input
+							className="w-56"
+							placeholder="Subject override (optional)"
+							value={field.state.value}
+							onBlur={field.handleBlur}
+							onChange={(e) => field.handleChange(e.target.value)}
+							disabled={!isAdmin}
+						/>
+					)}
+				</form.Field>
+				<Button type="submit" disabled={!isAdmin || saveMutation.isPending}>
+					Save
+				</Button>
+				{route ? (
+					<Button
+						type="button"
+						variant="ghost"
+						disabled={!isAdmin || resetMutation.isPending}
+						onClick={() => resetMutation.mutate(undefined)}
+					>
+						Reset
+					</Button>
+				) : null}
+			</div>
+			<p className="font-mono text-xs text-muted-foreground">
+				Will send as: {effectiveFromName} &lt;{effectiveLocalPart}@{previewDomain}&gt;
+				{!selectedAlias && verifiedDomain ? " (falls back to default sender)" : ""}
+			</p>
+			{meta.tokens.length > 0 ? (
+				<p className="text-xs text-muted-foreground">
+					Subject tokens: {meta.tokens.map((t) => `{${t}}`).join(", ")}
+				</p>
+			) : null}
+		</form>
 	);
 }
