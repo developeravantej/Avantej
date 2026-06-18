@@ -459,6 +459,8 @@ export interface RecordEmailLogParams {
 	fromAddress: string;
 	toAddress: string;
 	subject: string;
+	/** Notification type that produced the send (null for diagnostic sends). */
+	notificationType?: string | null;
 	/** Pass `"failed"` alongside `errorMessage` for a failed send. */
 	status?: EmailLogStatus;
 	errorMessage?: string | null;
@@ -477,6 +479,7 @@ export async function recordEmailLog(
 			fromAddress: params.fromAddress,
 			toAddress: params.toAddress,
 			subject: params.subject,
+			notificationType: params.notificationType ?? null,
 			status: params.status ?? "queued",
 			errorMessage: params.errorMessage ?? null,
 		})

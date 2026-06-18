@@ -36,6 +36,11 @@ mock.module("@avantej-core/services/email-domain.service", () => ({
 	recordEmailLog: mockRecordLog,
 }));
 
+const mockResolveRoute = mock(async (..._args: unknown[]): Promise<unknown> => null);
+mock.module("@avantej-core/services/notification-route.service", () => ({
+	resolveNotificationRoute: mockResolveRoute,
+}));
+
 import { sendTenantEmail } from "./email-send-tenant";
 import {
 	__resetResendClient,
@@ -52,6 +57,7 @@ beforeEach(() => {
 	mockResendSend.mockClear();
 	mockGetVerified.mockClear();
 	mockRecordLog.mockClear();
+	mockResolveRoute.mockClear();
 });
 
 describe("sendTenantEmail — guard + fallback", () => {
@@ -253,5 +259,153 @@ describe("sendTenantEmail — error_message on send failure", () => {
 		expect(failed).toBeDefined();
 		expect(failed!.metadata?.error).toBe("rate limited");
 		expect(failed!.to).toBe("recipient@example.com");
+	});
+});
+
+describe("sendTenantEmail — notification route resolution", () => {
+	test("applies the route's alias local-part, from-name and subject override on a verified domain", async () => {
+		mockGetVerified.mockReturnValueOnce(
+			Promise.resolve({
+				id: "dom_1",
+				domain: "mail.example.com",
+				fromName: "Default Name",
+				defaultLocalPart: "support",
+			}) as never,
+		);
+		mockResolveRoute.mockReturnValueOnce(
+			Promise.resolve({
+				aliasId: "alias_1",
+				aliasLocalPart: "billing",
+				fromNameOverride: "Acme Billing",
+				subjectOverride: "Receipt for {amount}",
+			}) as never,
+		);
+
+		const result = await sendTenantEmail(fakeDb, {
+			organizationId: ORG_ID,
+			to: "customer@example.com",
+			subject: "fallback subject",
+			html: "<p>hi</p>",
+			notificationType: "payment_receipt",
+			subjectVars: { amount: "MYR 50.00" },
+		});
+
+		expect(result.fromAddress).toBe("Acme Billing <billing@mail.example.com>");
+		const call = mockResendSend.mock.calls[0]![0] as { subject: string; tags: unknown };
+		expect(call.subject).toBe("Receipt for MYR 50.00");
+		expect(call.tags).toEqual([
+			{ name: "organization_id", value: ORG_ID },
+			{ name: "notification_type", value: "payment_receipt" },
+		]);
+	});
+
+	test("on platform fallback (no verified domain) still applies from-name + subject override but not alias", async () => {
+		mockGetVerified.mockReturnValueOnce(Promise.resolve(null) as never);
+		mockResolveRoute.mockReturnValueOnce(
+			Promise.resolve({
+				aliasId: "alias_1",
+				aliasLocalPart: "billing",
+				fromNameOverride: "Acme Billing",
+				subjectOverride: "Receipt {amount}",
+			}) as never,
+		);
+
+		const result = await sendTenantEmail(fakeDb, {
+			organizationId: ORG_ID,
+			to: "customer@example.com",
+			subject: "fallback subject",
+			html: "<p>hi</p>",
+			notificationType: "payment_receipt",
+			subjectVars: { amount: "MYR 9.00" },
+		});
+
+		expect(result.usedFallback).toBe(true);
+		expect(result.fromAddress).toBe("Acme Billing <platform@example.com>");
+		const call = mockResendSend.mock.calls[0]![0] as { subject: string; from: string };
+		expect(call.subject).toBe("Receipt MYR 9.00");
+	});
+
+	test("sanitizes CRLF injected via a subject token value", async () => {
+		mockGetVerified.mockReturnValueOnce(
+			Promise.resolve({
+				id: "dom_1",
+				domain: "mail.example.com",
+				fromName: "N",
+				defaultLocalPart: "support",
+			}) as never,
+		);
+		mockResolveRoute.mockReturnValueOnce(
+			Promise.resolve({
+				aliasId: null,
+				aliasLocalPart: null,
+				fromNameOverride: null,
+				subjectOverride: "Hi {name}",
+			}) as never,
+		);
+
+		await sendTenantEmail(fakeDb, {
+			organizationId: ORG_ID,
+			to: "x@example.com",
+			subject: "fallback",
+			html: "<p>hi</p>",
+			notificationType: "member_invitation",
+			subjectVars: { name: "Bob\r\nBcc: evil@x.com" },
+		});
+
+		const call = mockResendSend.mock.calls[0]![0] as { subject: string };
+		expect(call.subject).toBe("Hi Bob Bcc: evil@x.com");
+	});
+
+	test("without notificationType, behaves exactly as before (no route lookup)", async () => {
+		mockGetVerified.mockReturnValueOnce(
+			Promise.resolve({
+				id: "dom_1",
+				domain: "mail.example.com",
+				fromName: "N",
+				defaultLocalPart: "support",
+			}) as never,
+		);
+		await sendTenantEmail(fakeDb, {
+			organizationId: ORG_ID,
+			to: "x@example.com",
+			subject: "plain",
+			html: "<p>hi</p>",
+		});
+		expect(mockResolveRoute).not.toHaveBeenCalled();
+		const call = mockResendSend.mock.calls[0]![0] as { subject: string; tags: unknown };
+		expect(call.subject).toBe("plain");
+		expect(call.tags).toEqual([{ name: "organization_id", value: ORG_ID }]);
+	});
+
+	test("records notificationType on a FAILED log row (data consistency)", async () => {
+		mockGetVerified.mockReturnValueOnce(
+			Promise.resolve({
+				id: "dom_1",
+				domain: "mail.example.com",
+				fromName: "N",
+				defaultLocalPart: "support",
+			}) as never,
+		);
+		mockResolveRoute.mockReturnValueOnce(Promise.resolve(null) as never);
+		mockResendSend.mockReturnValueOnce(
+			Promise.resolve({ data: null, error: { message: "rate limited" } }) as never,
+		);
+
+		await expect(
+			sendTenantEmail(fakeDb, {
+				organizationId: ORG_ID,
+				to: "x@example.com",
+				subject: "Test",
+				html: "<p>Test</p>",
+				notificationType: "payment_receipt",
+			}),
+		).rejects.toThrow(/rate limited/);
+
+		const logArgs = mockRecordLog.mock.calls[0]![1] as {
+			status: string;
+			notificationType: string | null;
+		};
+		expect(logArgs.status).toBe("failed");
+		expect(logArgs.notificationType).toBe("payment_receipt");
 	});
 });
