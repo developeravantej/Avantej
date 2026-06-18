@@ -1240,16 +1240,16 @@ function NotificationRoutingRow({
 			}}
 		>
 			<p className="text-sm font-medium">{meta.label}</p>
-			<div className="flex flex-wrap items-end gap-2">
+			<div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
 				<form.Field name="aliasId">
 					{(field) => (
-						<div className="w-44">
+						<div className="w-full sm:w-44">
 							<Select
 								value={field.state.value || "__default__"}
 								onValueChange={(v) => field.handleChange(v === "__default__" ? "" : v)}
 								disabled={!isAdmin || !verifiedDomain}
 							>
-								<SelectTrigger>
+								<SelectTrigger className="w-full">
 									<SelectValue placeholder="Default sender" />
 								</SelectTrigger>
 								<SelectContent>
@@ -1268,7 +1268,7 @@ function NotificationRoutingRow({
 				<form.Field name="fromNameOverride">
 					{(field) => (
 						<Input
-							className="w-40"
+							className="w-full sm:w-40"
 							placeholder="From name (optional)"
 							value={field.state.value}
 							onBlur={field.handleBlur}
@@ -1280,7 +1280,7 @@ function NotificationRoutingRow({
 				<form.Field name="subjectOverride">
 					{(field) => (
 						<Input
-							className="w-56"
+							className="w-full sm:w-56"
 							placeholder="Subject override (optional)"
 							value={field.state.value}
 							onBlur={field.handleBlur}
@@ -1289,19 +1289,26 @@ function NotificationRoutingRow({
 						/>
 					)}
 				</form.Field>
-				<Button type="submit" disabled={!isAdmin || saveMutation.isPending}>
-					Save
-				</Button>
-				{route ? (
+				<div className="flex gap-2">
 					<Button
-						type="button"
-						variant="ghost"
-						disabled={!isAdmin || resetMutation.isPending}
-						onClick={() => resetMutation.mutate(undefined)}
+						className="flex-1 sm:flex-none"
+						type="submit"
+						disabled={!isAdmin || saveMutation.isPending}
 					>
-						Reset
+						Save
 					</Button>
-				) : null}
+					{route ? (
+						<Button
+							className="flex-1 sm:flex-none"
+							type="button"
+							variant="ghost"
+							disabled={!isAdmin || resetMutation.isPending}
+							onClick={() => resetMutation.mutate(undefined)}
+						>
+							Reset
+						</Button>
+					) : null}
+				</div>
 			</div>
 			<form.Subscribe selector={(state) => state.values}>
 				{(values) => {
@@ -1311,7 +1318,7 @@ function NotificationRoutingRow({
 					const effectiveFromName =
 						values.fromNameOverride.trim() || verifiedDomain?.fromName || "Avantej Core";
 					return (
-						<p className="font-mono text-xs text-muted-foreground">
+						<p className="break-all font-mono text-xs text-muted-foreground">
 							Will send as: {effectiveFromName} &lt;{effectiveLocalPart}@{previewDomain}&gt;
 							{!selectedAlias && verifiedDomain ? " (falls back to default sender)" : ""}
 						</p>

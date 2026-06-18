@@ -14,7 +14,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     >
       <div className="flex min-h-screen w-full">
         <AppSidebar className="border-r" />
-        <main className="flex-1 p-6 bg-background">{children}</main>
+        <main className="min-w-0 flex-1 p-6 bg-background">{children}</main>
       </div>
     </SidebarProvider>
   );
