@@ -40,11 +40,18 @@ describe("AppointmentList", () => {
 	});
 
 	it("renders an appointment row when given one appointment", () => {
+		// The component defaults to "day" view, which filters appointments down to
+		// the currently-viewed day (today). Anchor the fixture to today's local
+		// calendar day so the agenda renders the row instead of the empty state.
+		const start = new Date();
+		start.setHours(9, 0, 0, 0);
+		const end = new Date(start);
+		end.setHours(10, 0, 0, 0);
 		const appt = {
 			id: "appt-1",
 			title: "Session with Alice",
-			start: new Date("2026-05-10T09:00:00Z"),
-			end: new Date("2026-05-10T10:00:00Z"),
+			start,
+			end,
 			status: "pending" as const,
 			clientName: "Alice",
 			service: "Personal Training",

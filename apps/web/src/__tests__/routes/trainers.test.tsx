@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, beforeAll, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
 import { mockClient } from "../helpers/mock-client";
 
@@ -38,6 +38,23 @@ describe("Trainers page", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockClient.members.list.mockResolvedValue([]);
+		// Queries the trainers page fires regardless of member data. The shared
+		// mock-client resolves every leaf to `undefined` by default, and
+		// React-Query v5 throws "Query data cannot be undefined" for those — so
+		// each query must be stubbed with its real return shape.
+		mockClient.trainerTiers.list.mockResolvedValue([]);
+		mockClient.trainers.weeklyStatsBatch.mockResolvedValue({});
+		mockClient.trainers.weeklyStats.mockResolvedValue({
+			memberId: "user-1",
+			sessionsThisWeek: 0,
+			utilizationPct: 0,
+			commissionYtd: 0,
+			revenueGenerated: 0,
+		});
+		mockClient.trainers.weeklySchedule.mockResolvedValue({
+			memberId: "user-1",
+			entries: [],
+		});
 	});
 
 	test("renders without crashing (empty state)", async () => {
@@ -50,7 +67,10 @@ describe("Trainers page", () => {
 	test("renders Add Trainer button in header", async () => {
 		renderWithProviders(<TrainersViewPage />);
 		await waitFor(() => {
-			const buttons = screen.getAllByRole("button", { name: /add trainer/i });
+			// The create-trainer entry point was renamed "Add Trainer" -> "Invite Trainer".
+			const buttons = screen.getAllByRole("button", {
+				name: /invite trainer/i,
+			});
 			expect(buttons.length).toBeGreaterThan(0);
 		});
 	});
@@ -72,8 +92,12 @@ describe("Trainers page", () => {
 
 		renderWithProviders(<TrainersViewPage />);
 
+		// "Alice Trainer" renders in two places at once: the left-hand directory
+		// list row AND the auto-selected detail panel header. Scope to the list
+		// row button to match the intended element (the trainer's entry in the list).
 		await waitFor(() => {
-			expect(screen.getByText("Alice Trainer")).toBeInTheDocument();
+			const listRow = screen.getByRole("button", { name: /alice trainer/i });
+			expect(within(listRow).getByText("Alice Trainer")).toBeInTheDocument();
 		});
 	});
 });
