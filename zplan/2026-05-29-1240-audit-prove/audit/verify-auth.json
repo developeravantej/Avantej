@@ -1,0 +1,93 @@
+[
+  {
+    "id": "F-AUTH-01",
+    "verdict": "false",
+    "isBug": false,
+    "fixComplexity": "n/a",
+    "evidence": "packages/api/src/routers/members/create.procedures.ts:97-106 — createMember is called, which internally (via MembershipService.createMember at packages/db/src/services/membership.service.ts:75-139) does not create or queue notifications. However, GHL staff sync IS dispatched at line 131-147 (dispatchStaffSync with operation='create'). The finding conflates notification queueing with GHL sync dispatch, which are separate systems. No notification queue function is called, but this is not a defect — notification queueing is optional feature work, not a bug."
+  },
+  {
+    "id": "F-AUTH-02",
+    "verdict": "by-design",
+    "isBug": false,
+    "fixComplexity": "medium",
+    "evidence": "packages/api/src/routers/members/role.procedures.ts:89-105 — The finding is KNOWN: lines 118-121 document this explicitly: 'DEVIATION from §4.8: MembershipService does a dual-write (controlPanel + tenant) and does not expose a tx hook. Audit is written after the fact on a separate query. Rare orphan window: if process dies between role update and this write, the audit row is missing but the role change succeeded.' This is documented design choice, not a hidden bug."
+  },
+  {
+    "id": "F-AUTH-03",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "small",
+    "evidence": "packages/api/src/routers/invitations/public.procedures.ts:95-110 (base accept) does NOT create customer_profiles stub. However, apps/server/src/routers/invitations.ts:108-221 (server override of accept) DOES create the stub at lines 189-193 for client role. The base handler shipped to clients without the server does not provision GHL contacts for client members at invitation acceptance."
+  },
+  {
+    "id": "F-AUTH-04",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "small",
+    "evidence": "packages/api/src/routers/members/removal.procedures.ts:20-102 — remove calls MembershipService.removeMember but does not revoke/update pending invitations. No code path updates invitations.status or deletes pending invitations rows for the removed member. A stale invitation token could be used for rejoin after member removal."
+  },
+  {
+    "id": "F-AUTH-05",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "small",
+    "evidence": "packages/api/src/routers/hierarchy/delete.procedures.ts:88-110 — deleteHierarchyNode calls deleteHierarchyNode(tenantDb, input.nodeId, deleteOptions) which reassigns members (implied by autoReassignMembers default=true), but the procedure does not dispatch any notification after reassignment. Members are silently reassigned to parent/root without audit or notification of the change."
+  },
+  {
+    "id": "F-AUTH-06",
+    "verdict": "by-design",
+    "isBug": false,
+    "fixComplexity": "n/a",
+    "evidence": "apps/server/src/routers/auth.ts:349-372 — The try-catch at lines 349-372 catches hierarchyError and continues with empty hierarchy (line 369-371 logs error and returns empty nodes array). This is DOCUMENTED DESIGN (lines 345-348): 'Hierarchy load — best-effort. Failures here MUST NOT block permission loading below, otherwise dev/staging schema drift on hierarchy_nodes... blocks every page that gates on a permission.' Intentional graceful degradation."
+  },
+  {
+    "id": "F-AUTH-07",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "small",
+    "evidence": "packages/api/src/routers/invitations/manage.procedures.ts:107-153 — resend handler calls resendInvitation service (line 131-134) with no rate limiting checks. No RateLimit middleware, no per-user/per-invitation throttle, no cooldown window enforced. A caller can resend invitations repeatedly without delay."
+  },
+  {
+    "id": "F-AUTH-08",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "small",
+    "evidence": "packages/api/src/routers/members/status.procedures.ts:20-122 — suspend (line 80-84) and reactivate (line 189-194) call MembershipService methods but do NOT dispatch GHL sync. Compare: packages/api/src/routers/members/archive.procedures.ts:54-85 (deactivate) DOES dispatch dispatchStaffSync with operation='delete'. suspend/reactivate have no GHL sync dispatch, unlike deactivate."
+  },
+  {
+    "id": "F-AUTH-09",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "trivial",
+    "evidence": "packages/api/src/routers/hierarchy/read.procedures.ts:14-21 — listNodes handler does NOT call requirePermissionOrpc. Lines 21-40 check tenantDb, member existence, and accessibleNodeIds, but never validate that the user has 'hierarchy_management:read' permission. Compare listNodesWithStats at line 293-321 which DOES call requirePermissionOrpc (line 308)."
+  },
+  {
+    "id": "F-AUTH-10",
+    "verdict": "false",
+    "isBug": false,
+    "fixComplexity": "n/a",
+    "evidence": "packages/api/src/routers/members/read.procedures.ts:19-105 — getById returns member at lines 94-104 without roleId in the object (fields: id, userId, role, hierarchyScopeId, status, joinedAt). Finding claims roleId is omitted. However, this is consistent design: the response intentionally excludes roleId (Wave 3a feature not fully rolled out). list endpoint is in a different file/context. Not a bug — intentional API design choice for getById."
+  },
+  {
+    "id": "F-AUTH-11",
+    "verdict": "by-design",
+    "isBug": false,
+    "fixComplexity": "n/a",
+    "evidence": "packages/services/src/invitation.service.ts:268-285 — markExpiredInvitations() is exported but has no in-codebase callers (grep found only the service file itself and graphify references). However, this is INTENTIONAL: the function is a cron/scheduled task helper meant to be called by a background job external to this codebase (documented in the JSDoc as 'typically called by a cron job or scheduled task'). Not an orphan — it's exported for external scheduled execution."
+  },
+  {
+    "id": "F-AUTH-12",
+    "verdict": "false",
+    "isBug": false,
+    "fixComplexity": "n/a",
+    "evidence": "packages/services/src/audit-log.service.ts:136-200 — listAudit and getActionSeverity ARE called: (1) getActionSeverity is called internally at line 338 in listAudit, and (2) listAudit IS called via the endpoint at packages/api/src/routers/audit-logs.ts:23-52 (list procedure). Both functions are actively used, not orphaned."
+  },
+  {
+    "id": "F-AUTH-13",
+    "verdict": "false",
+    "isBug": false,
+    "fixComplexity": "n/a",
+    "evidence": "packages/services/src/notification.service.ts:32-95 — listNotifications (line 32-51) and markNotificationRead (line 70-81) ARE called via endpoint at packages/api/src/routers/notifications.ts:19-95. list procedure calls listNotifications (line 39), markRead procedure calls markNotificationRead (line 84). Both functions have active endpoint callers."
+  }
+]

@@ -5,4 +5,7 @@
  * server-side code (`apps/server/src/...`).
  */
 
-export { mapPgError, withPgErrorMapping } from "@avantej-core/api/lib/orpc-error-mapper";
+export {
+	mapPgError,
+	withPgErrorMapping,
+} from "@avantej-core/api/lib/orpc-error-mapper";

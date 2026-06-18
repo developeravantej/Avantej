@@ -48,11 +48,7 @@ export function InstallmentTimeline({
 	onConfirmPayment,
 }: InstallmentTimelineProps) {
 	const { data: installments = [] } = useQuery({
-		queryKey: [
-			"installments-by-instance",
-			organizationId,
-			packageInstanceId,
-		],
+		queryKey: ["installments-by-instance", organizationId, packageInstanceId],
 		queryFn: async (): Promise<Installment[]> => {
 			if (!organizationId || !packageInstanceId) return [];
 			return client.installments.listByPackageInstance({
@@ -132,4 +128,3 @@ export function InstallmentTimeline({
 		</div>
 	);
 }
-

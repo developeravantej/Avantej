@@ -42,7 +42,6 @@ const formatDate = (dateString: string | null | undefined): string => {
 	}
 };
 
-
 export const columns: ColumnDef<PayoutRow>[] = [
 	{
 		accessorKey: "id",

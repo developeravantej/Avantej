@@ -50,7 +50,8 @@ function getEnvVar(key: string): string | undefined {
 	} catch {
 		// Not in Cloudflare Workers runtime.
 	}
-	const globalEnv = (globalThis as { env?: Record<string, string | undefined> }).env;
+	const globalEnv = (globalThis as { env?: Record<string, string | undefined> })
+		.env;
 	if (globalEnv?.[key] !== undefined) return globalEnv[key];
 	return process.env[key];
 }
@@ -76,7 +77,8 @@ function toBase64Url(s: string): string {
 }
 
 function fromBase64Url(s: string): string {
-	const padded = s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4);
+	const padded =
+		s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4);
 	return typeof atob === "function"
 		? atob(padded)
 		: Buffer.from(padded, "base64").toString("binary");
@@ -90,7 +92,11 @@ async function hmacSha256Hex(message: string, secret: string): Promise<string> {
 		false,
 		["sign"],
 	);
-	const sig = await crypto.subtle.sign("HMAC", key, textEncoder.encode(message));
+	const sig = await crypto.subtle.sign(
+		"HMAC",
+		key,
+		textEncoder.encode(message),
+	);
 	return toHex(sig);
 }
 
@@ -178,7 +184,9 @@ export async function verifyOAuthState(
 	}
 }
 
-export function createStripeConnectRouter(_stripeClientOverride?: StripeClientLike) {
+export function createStripeConnectRouter(
+	_stripeClientOverride?: StripeClientLike,
+) {
 	// Phase 4.5: getAccountStatus / listCountryAccounts read straight from
 	// the DB; createOnboardingUrl builds a URL without an SDK call. No
 	// Stripe SDK use remains in this router. The override param is kept
@@ -208,14 +216,18 @@ export function createStripeConnectRouter(_stripeClientOverride?: StripeClientLi
 					});
 				}
 
-				const controlPanelDb = getControlPanelDb(context as unknown as Parameters<typeof getControlPanelDb>[0]);
+				const controlPanelDb = getControlPanelDb(
+					context as unknown as Parameters<typeof getControlPanelDb>[0],
+				);
 				const [org] = await controlPanelDb
 					.select()
 					.from(organizations)
 					.where(eq(organizations.id, orgId))
 					.limit(1);
 				if (!org) {
-					throw new ORPCError("NOT_FOUND", { message: "Organization not found" });
+					throw new ORPCError("NOT_FOUND", {
+						message: "Organization not found",
+					});
 				}
 
 				const clientId = getEnvVar("STRIPE_CONNECT_CLIENT_ID");
@@ -231,8 +243,9 @@ export function createStripeConnectRouter(_stripeClientOverride?: StripeClientLi
 					});
 				}
 
-				const userEmail = (context as { session?: { user?: { email?: string } } })
-					.session?.user?.email;
+				const userEmail = (
+					context as { session?: { user?: { email?: string } } }
+				).session?.user?.email;
 				const targetCountry = input.countryCode?.toUpperCase();
 				const state = await signOAuthState(orgId, secret, targetCountry);
 
@@ -264,10 +277,14 @@ export function createStripeConnectRouter(_stripeClientOverride?: StripeClientLi
 					(context as { organizationId?: string }).organizationId ??
 					input.organizationId;
 				if (!orgId) {
-					throw new ORPCError("BAD_REQUEST", { message: "No organization context" });
+					throw new ORPCError("BAD_REQUEST", {
+						message: "No organization context",
+					});
 				}
 
-				const controlPanelDb = getControlPanelDb(context as unknown as Parameters<typeof getControlPanelDb>[0]);
+				const controlPanelDb = getControlPanelDb(
+					context as unknown as Parameters<typeof getControlPanelDb>[0],
+				);
 				const rows = await controlPanelDb
 					.select()
 					.from(orgCountryStripeAccounts)
@@ -284,7 +301,8 @@ export function createStripeConnectRouter(_stripeClientOverride?: StripeClientLi
 					};
 				}
 
-				const row = rows.find((r) => r.stripeAccountId && r.chargesEnabled) ?? rows[0]!;
+				const row =
+					rows.find((r) => r.stripeAccountId && r.chargesEnabled) ?? rows[0]!;
 				return {
 					connected: !!row.stripeAccountId,
 					accountId: row.stripeAccountId,
@@ -306,7 +324,9 @@ export function createStripeConnectRouter(_stripeClientOverride?: StripeClientLi
 					(context as { organizationId?: string }).organizationId ??
 					input.organizationId;
 				if (!orgId) {
-					throw new ORPCError("BAD_REQUEST", { message: "No organization context" });
+					throw new ORPCError("BAD_REQUEST", {
+						message: "No organization context",
+					});
 				}
 
 				const controlPanelDb = getControlPanelDb(

@@ -1,0 +1,17 @@
+appId: ${APP_ID}
+---
+# Test: Home screen pull-to-refresh
+- runFlow: helpers/login.yaml
+
+# Pull to refresh
+- swipe:
+    start: "50%, 40%"
+    end: "50%, 80%"
+    duration: 500
+- waitForAnimationToEnd
+
+# Verify content still visible after refresh
+- extendedWaitUntil:
+    visible:
+      text: ".*Book.*Session.*"
+    timeout: 10000

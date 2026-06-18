@@ -2,7 +2,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+	Alert,
+	Image,
+	ScrollView,
+	Text,
+	TouchableOpacity,
+	View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
@@ -83,18 +90,19 @@ export default function PayScreen() {
 				preferredTrainerId: state.preferredTrainerId ?? undefined,
 			});
 
-			// Save preferred times if any
+			// Save preferred times if any. We surface failures so they're not
+			// silently dropped — the approvals dashboard relies on these.
 			if (state.preferredTimes.length > 0 && instance?.id) {
-				try {
-					type DayOfWeek =
-						| "monday"
-						| "tuesday"
-						| "wednesday"
-						| "thursday"
-						| "friday"
-						| "saturday"
-						| "sunday";
+				type DayOfWeek =
+					| "monday"
+					| "tuesday"
+					| "wednesday"
+					| "thursday"
+					| "friday"
+					| "saturday"
+					| "sunday";
 
+				try {
 					await client.preferredTimes.upsert({
 						organizationId,
 						packageInstanceId: instance.id,
@@ -104,8 +112,14 @@ export default function PayScreen() {
 							priority: index + 1,
 						})),
 					});
-				} catch {
-					// Preferred times saving is non-critical
+				} catch (err: any) {
+					console.warn("preferredTimes.upsert failed:", err);
+					Alert.alert(
+						"Schedule Not Saved",
+						`Order submitted, but preferred times couldn't be saved: ${
+							err?.message ?? "Unknown error"
+						}. Please contact your branch with your preferred days/times.`,
+					);
 				}
 			}
 
@@ -118,6 +132,8 @@ export default function PayScreen() {
 				paymentMethod: "pending",
 				packageInstanceId: instance?.id ?? null,
 				packageInstanceStatus: (instance as any)?.status ?? null,
+				finalTotal: total,
+				finalTaxAmount: taxAmount,
 			});
 
 			router.push("./done");
@@ -141,14 +157,10 @@ export default function PayScreen() {
 							onPress={() => router.back()}
 							className="mr-3 h-10 w-10 items-center justify-center"
 						>
-							<Ionicons
-								name="arrow-back"
-								size={24}
-								color={colors.primary[1]}
-							/>
+							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 						</TouchableOpacity>
 						<Text className="flex-1 font-bold text-2xl text-black">
-							Payment
+							Review &amp; Submit
 						</Text>
 					</View>
 				</View>
@@ -344,17 +356,21 @@ export default function PayScreen() {
 									className="text-sm"
 									style={{ color: colors.secondary[1] }}
 								>
-									{state.selectedInstallmentPlanLabel ?? state.paymentPlanType} (
-									{state.selectedInstallmentPlanNumInstallments}
+									{state.selectedInstallmentPlanLabel ?? state.paymentPlanType}{" "}
+									({state.selectedInstallmentPlanNumInstallments}
 									{"\u00d7"})
 								</Text>
 								{(() => {
-									const numInstallments = state.selectedInstallmentPlanNumInstallments;
-									const pricePremiumBps = state.selectedInstallmentPlanPricePremiumBps;
+									const numInstallments =
+										state.selectedInstallmentPlanNumInstallments;
+									const pricePremiumBps =
+										state.selectedInstallmentPlanPricePremiumBps;
 									const priceWithSurcharge = Math.round(
-										subtotal * (10000 + pricePremiumBps) / 10000,
+										(subtotal * (10000 + pricePremiumBps)) / 10000,
 									);
-									const installmentAmount = Math.ceil(priceWithSurcharge / numInstallments);
+									const installmentAmount = Math.ceil(
+										priceWithSurcharge / numInstallments,
+									);
 									const intervalDays = state.installmentIntervalDays;
 									const surchargePercent = pricePremiumBps / 100;
 
@@ -377,7 +393,11 @@ export default function PayScreen() {
 													className="mt-1 text-xs"
 													style={{ color: colors.secondary[1] }}
 												>
-													+{surchargePercent.toFixed(surchargePercent % 1 === 0 ? 0 : 1)}% surcharge applied
+													+
+													{surchargePercent.toFixed(
+														surchargePercent % 1 === 0 ? 0 : 1,
+													)}
+													% surcharge applied
 												</Text>
 											)}
 										</>
@@ -395,10 +415,7 @@ export default function PayScreen() {
 								>
 									Subtotal
 								</Text>
-								<Text
-									className="text-sm"
-									style={{ color: colors.primary[1] }}
-								>
+								<Text className="text-sm" style={{ color: colors.primary[1] }}>
 									{fmt(subtotal)}
 								</Text>
 							</View>
@@ -409,10 +426,7 @@ export default function PayScreen() {
 								>
 									Tax{taxRatePercent > 0 ? ` (${taxRatePercent}%)` : ""}
 								</Text>
-								<Text
-									className="text-sm"
-									style={{ color: colors.primary[1] }}
-								>
+								<Text className="text-sm" style={{ color: colors.primary[1] }}>
 									{fmt(taxAmount)}
 								</Text>
 							</View>
@@ -433,21 +447,109 @@ export default function PayScreen() {
 						</View>
 					</View>
 
-					{/* Payment Methods - disabled until Stripe integration */}
-					<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm opacity-50">
+					{/* Offline payment instructions */}
+					<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
+						<View className="mb-3 flex-row items-center">
+							<Ionicons
+								name="information-circle"
+								size={20}
+								color={colors.primary[1]}
+							/>
+							<Text
+								className="ml-2 font-bold text-sm uppercase tracking-wide"
+								style={{ color: colors.primary[1] }}
+							>
+								OFFLINE PAYMENT REQUIRED
+							</Text>
+						</View>
 						<Text
-							className="mb-2 font-bold text-sm uppercase tracking-wide"
-							style={{ color: colors.secondary[1] }}
+							className="mb-3 text-sm leading-5"
+							style={{ color: colors.primary[1] }}
 						>
-							PAYMENT METHOD
+							In-app payment is not available yet. Your order will be submitted
+							as <Text className="font-bold">pending</Text>, and you can settle
+							payment offline.
 						</Text>
+
 						<Text
-							className="text-sm"
-							style={{ color: colors.secondary[1] }}
+							className="mb-2 font-semibold text-sm"
+							style={{ color: colors.primary[1] }}
 						>
-							Payment processing will be available soon. Tap the button
-							below to complete your purchase.
+							How to pay:
 						</Text>
+						<View className="mb-3 gap-2">
+							<View className="flex-row">
+								<Text
+									className="mr-2 font-bold text-sm"
+									style={{ color: colors.primary[1] }}
+								>
+									1.
+								</Text>
+								<Text
+									className="flex-1 text-sm leading-5"
+									style={{ color: colors.secondary[1] }}
+								>
+									Tap "Submit Order" below to reserve this package.
+								</Text>
+							</View>
+							<View className="flex-row">
+								<Text
+									className="mr-2 font-bold text-sm"
+									style={{ color: colors.primary[1] }}
+								>
+									2.
+								</Text>
+								<Text
+									className="flex-1 text-sm leading-5"
+									style={{ color: colors.secondary[1] }}
+								>
+									Pay via bank transfer or visit the branch in person (cash /
+									card).
+								</Text>
+							</View>
+							<View className="flex-row">
+								<Text
+									className="mr-2 font-bold text-sm"
+									style={{ color: colors.primary[1] }}
+								>
+									3.
+								</Text>
+								<Text
+									className="flex-1 text-sm leading-5"
+									style={{ color: colors.secondary[1] }}
+								>
+									Send the payment receipt to your branch / trainer for
+									confirmation.
+								</Text>
+							</View>
+							<View className="flex-row">
+								<Text
+									className="mr-2 font-bold text-sm"
+									style={{ color: colors.primary[1] }}
+								>
+									4.
+								</Text>
+								<Text
+									className="flex-1 text-sm leading-5"
+									style={{ color: colors.secondary[1] }}
+								>
+									Staff will mark your package as paid — credits become usable
+									for bookings.
+								</Text>
+							</View>
+						</View>
+
+						<View
+							className="rounded-xl p-3"
+							style={{ backgroundColor: colors.secondary[3] }}
+						>
+							<Text
+								className="text-xs leading-4"
+								style={{ color: colors.secondary[1] }}
+							>
+								Need bank details or help? Contact your branch directly.
+							</Text>
+						</View>
 					</View>
 				</View>
 			</ScrollView>
@@ -468,11 +570,11 @@ export default function PayScreen() {
 					>
 						{isProcessing ? (
 							<Text className="font-semibold text-base text-primary-2">
-								Processing...
+								Submitting...
 							</Text>
 						) : (
 							<Text className="font-semibold text-base text-primary-2">
-								Pay {fmt(total)}
+								Submit Order · {fmt(total)}
 							</Text>
 						)}
 					</TouchableOpacity>

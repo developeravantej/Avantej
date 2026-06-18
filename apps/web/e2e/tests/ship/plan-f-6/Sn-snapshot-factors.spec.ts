@@ -33,7 +33,7 @@ test.use({ video: "on" });
 
 const ENV_SUPER_ADMIN_EMAIL = process.env.E2E_SUPER_ADMIN_EMAIL;
 const ENV_SUPER_ADMIN_PASSWORD = process.env.E2E_SUPER_ADMIN_PASSWORD;
-const WEB_ORIGIN = process.env.E2E_WEB_BASE_URL ?? "http://localhost:3001";
+const WEB_ORIGIN = process.env.E2E_WEB_BASE_URL ?? "http://localhost:3021";
 
 async function rpc(
 	request: APIRequestContext,
@@ -152,17 +152,17 @@ test.describe("@ship-f-6 Plan F.6 — Agent Sn snapshot factor expansion", () =>
 		`)) as unknown as { rows: Array<{ id: string }> };
 		const anyOrg = orgRows.rows[0];
 		if (!anyOrg) {
-			console.log("[scenario-2] no v4 organization in DB — skipping");
-			test.skip();
+			test.skip(
+				true,
+				"No RFC4122 organization in control-panel DB — seed dev data first",
+			);
 			return;
 		}
 		const orgId = anyOrg.id;
 
 		// ── Scenario 2: Schema round-trip — insert all 3 new fields, read back. ─
 		const today = isoDate(new Date());
-		const fifteenDaysAgo = new Date(
-			Date.now() - 15 * 24 * 60 * 60 * 1000,
-		);
+		const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000);
 		// Wipe today's snapshot (idempotency).
 		await cp
 			.delete(tenantUsageSnapshots)
@@ -200,8 +200,7 @@ test.describe("@ship-f-6 Plan F.6 — Agent Sn snapshot factor expansion", () =>
 			.select({
 				lastAdminLoginAt: tenantUsageSnapshots.lastAdminLoginAt,
 				failedWebhooks7d: tenantUsageSnapshots.failedWebhooks7d,
-				dailyActiveMembers30dAvg:
-					tenantUsageSnapshots.dailyActiveMembers30dAvg,
+				dailyActiveMembers30dAvg: tenantUsageSnapshots.dailyActiveMembers30dAvg,
 			})
 			.from(tenantUsageSnapshots)
 			.where(eq(tenantUsageSnapshots.organizationId, orgId))

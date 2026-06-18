@@ -214,10 +214,7 @@ export function WeeklyTimetable({
 										const endMin = hhmmToMinutes(slot.endTime);
 										const durationMin = Math.max(endMin - startMin, 15);
 										const left = pxFromMinutes(startMin);
-										const width = Math.max(
-											(durationMin / 60) * hourWidth,
-											48,
-										);
+										const width = Math.max((durationMin / 60) * hourWidth, 48);
 
 										return (
 											<View

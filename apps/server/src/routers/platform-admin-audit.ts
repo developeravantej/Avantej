@@ -8,30 +8,19 @@
 
 import { z } from "zod";
 import { and, count, desc, eq, gte, lte, sql } from "drizzle-orm";
-import { ORPCError } from "@orpc/server";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { platformAdminProcedure as adminProcedure } from "@avantej-core/api";
+import { adminProcedure } from "@/lib/admin-procedure";
 import { adminSessionActions } from "@avantej-core/db/schema/control-panel/admin-session-actions";
 import { adminSessions } from "@avantej-core/db/schema/control-panel/admin-sessions";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { users } from "@avantej-core/db/schema/control-panel/users";
-
-function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
-		"controlPanelDb",
-	) as NeonDatabase<typeof controlPanelSchema> | undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 // The actor for an action is either the direct admin_user_id (Plan E E.3
 // path) or the admin who owns the impersonation session (legacy path).
 // We left-join both and COALESCE.
-const actorIdExpr = sql<string | null>`COALESCE(${adminSessionActions.adminUserId}, ${adminSessions.adminUserId})`;
+const actorIdExpr = sql<
+	string | null
+>`COALESCE(${adminSessionActions.adminUserId}, ${adminSessions.adminUserId})`;
 
 export const platformAdminAuditRouter = {
 	listAdminActions: adminProcedure
@@ -47,7 +36,7 @@ export const platformAdminAuditRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const offset = (input.page - 1) * input.limit;
 
 			const filters: any[] = [];
@@ -55,11 +44,16 @@ export const platformAdminAuditRouter = {
 				filters.push(eq(adminSessionActions.actionType, input.actionType));
 			}
 			if (input.adminUserId) {
-				filters.push(sql`COALESCE(${adminSessionActions.adminUserId}, ${adminSessions.adminUserId}) = ${input.adminUserId}`);
+				filters.push(
+					sql`COALESCE(${adminSessionActions.adminUserId}, ${adminSessions.adminUserId}) = ${input.adminUserId}`,
+				);
 			}
 			if (input.targetOrganizationId) {
 				filters.push(
-					eq(adminSessionActions.targetOrganizationId, input.targetOrganizationId),
+					eq(
+						adminSessionActions.targetOrganizationId,
+						input.targetOrganizationId,
+					),
 				);
 			}
 			if (input.since) {
@@ -99,7 +93,10 @@ export const platformAdminAuditRouter = {
 					adminSessions,
 					eq(adminSessions.id, adminSessionActions.adminSessionId),
 				)
-				.leftJoin(users, sql`${users.id} = COALESCE(${adminSessionActions.adminUserId}, ${adminSessions.adminUserId})`)
+				.leftJoin(
+					users,
+					sql`${users.id} = COALESCE(${adminSessionActions.adminUserId}, ${adminSessions.adminUserId})`,
+				)
 				.leftJoin(
 					organizations,
 					eq(organizations.id, adminSessionActions.targetOrganizationId),
@@ -118,7 +115,7 @@ export const platformAdminAuditRouter = {
 		}),
 
 	listActionTypes: adminProcedure.handler(async ({ context }) => {
-		const cpDb = cpDbFrom(context);
+		const cpDb = getControlPanelDb(context);
 		const rows = await cpDb
 			.selectDistinct({ actionType: adminSessionActions.actionType })
 			.from(adminSessionActions)

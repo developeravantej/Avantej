@@ -14,12 +14,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Webhook } from "lucide-react";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -138,9 +133,7 @@ function PlatformAdminWebhooksPage() {
 					disabled={overviewQ.isFetching || listQ.isFetching}
 					data-testid="webhooks-refresh-btn"
 				>
-					{overviewQ.isFetching || listQ.isFetching
-						? "Refreshing…"
-						: "Refresh"}
+					{overviewQ.isFetching || listQ.isFetching ? "Refreshing…" : "Refresh"}
 				</Button>
 			</header>
 
@@ -214,10 +207,7 @@ function PlatformAdminWebhooksPage() {
 									const max = overviewQ.data!.byEventType[0]!.count || 1;
 									const pct = Math.max(2, Math.round((row.count / max) * 100));
 									return (
-										<li
-											key={row.eventType}
-											className="flex items-center gap-2"
-										>
+										<li key={row.eventType} className="flex items-center gap-2">
 											<div className="w-56 truncate">{row.eventType}</div>
 											<div className="flex-1 h-3 rounded bg-muted/60 overflow-hidden">
 												<div
@@ -259,9 +249,7 @@ function PlatformAdminWebhooksPage() {
 										className="flex items-center justify-between gap-3 py-1.5"
 									>
 										<div className="flex-1 min-w-0">
-											<div className="truncate font-medium">
-												{r.eventType}
-											</div>
+											<div className="truncate font-medium">{r.eventType}</div>
 											<div className="text-xs text-muted-foreground truncate">
 												{r.eventId} · {r.source} · {r.status}
 											</div>

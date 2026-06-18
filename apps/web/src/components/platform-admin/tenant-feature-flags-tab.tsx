@@ -12,13 +12,7 @@
 import { useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-	Workflow,
-	CalendarDays,
-	Split,
-	BadgeCheck,
-	Cable,
-} from "lucide-react";
+import { Workflow, CalendarDays, Split, BadgeCheck, Cable } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -196,7 +190,8 @@ export function TenantFeatureFlagsTab({
 									className="border-amber-500/60 text-amber-700 dark:text-amber-400"
 									data-testid="feature-flags-overrides-count"
 								>
-									{overrideCount} override{overrideCount === 1 ? "" : "s"} active
+									{overrideCount} override{overrideCount === 1 ? "" : "s"}{" "}
+									active
 								</Badge>
 							) : null}
 						</div>
@@ -205,8 +200,7 @@ export function TenantFeatureFlagsTab({
 				<CardContent>
 					<p className="text-xs text-muted-foreground">
 						Effective feature set = tier defaults merged with per-tenant
-						overrides. Source:{" "}
-						<span className="font-mono">{data.source}</span>.
+						overrides. Source: <span className="font-mono">{data.source}</span>.
 						{isSuperAdmin
 							? " Toggle any card to override; reset to revert to tier default."
 							: " Only super-admins can change overrides."}
@@ -270,11 +264,17 @@ export function TenantFeatureFlagsTab({
 				</CardHeader>
 				<CardContent>
 					<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-						<LimitBadge label="Organizations" value={fmtNumber(limits.organizations)} />
+						<LimitBadge
+							label="Organizations"
+							value={fmtNumber(limits.organizations)}
+						/>
 						<LimitBadge label="Locations" value={fmtNumber(limits.locations)} />
 						<LimitBadge label="Members" value={fmtNumber(limits.members)} />
 						<LimitBadge label="Customers" value={fmtNumber(limits.customers)} />
-						<LimitBadge label="Monthly txns" value={fmtNumber(limits.monthlyTxns)} />
+						<LimitBadge
+							label="Monthly txns"
+							value={fmtNumber(limits.monthlyTxns)}
+						/>
 						<LimitBadge
 							label="App fee"
 							value={`${(limits.appFeeBps / 100).toFixed(2)}%`}
@@ -289,8 +289,8 @@ export function TenantFeatureFlagsTab({
 				className="text-xs text-muted-foreground"
 				data-testid="feature-flags-footer-note"
 			>
-				To change tier and unlock different features, use the Billing tab →
-				Tier change. Per-tenant overrides are concessions on top of the tier.
+				To change tier and unlock different features, use the Billing tab → Tier
+				change. Per-tenant overrides are concessions on top of the tier.
 			</p>
 
 			<Dialog
@@ -306,9 +306,7 @@ export function TenantFeatureFlagsTab({
 					<DialogHeader>
 						<DialogTitle>
 							Override{" "}
-							{pendingToggle
-								? FEATURE_META[pendingToggle.featureKey].name
-								: ""}{" "}
+							{pendingToggle ? FEATURE_META[pendingToggle.featureKey].name : ""}{" "}
 							to {pendingToggle?.nextEnabled ? "ENABLED" : "DISABLED"}?
 						</DialogTitle>
 						<DialogDescription>

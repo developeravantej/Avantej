@@ -1,0 +1,6 @@
+{
+  "route": "/dashboard/promotions/view",
+  "module": "promotions",
+  "timedOut": true,
+  "findings": []
+}

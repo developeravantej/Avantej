@@ -80,9 +80,7 @@ export function CouponApplyCard({
 			onChanged?.();
 		},
 		onError: (e: unknown) =>
-			toast.error(
-				`Apply failed: ${(e as Error)?.message ?? "unknown"}`,
-			),
+			toast.error(`Apply failed: ${(e as Error)?.message ?? "unknown"}`),
 	});
 
 	const removeMutation = useMutation({
@@ -94,15 +92,11 @@ export function CouponApplyCard({
 			onChanged?.();
 		},
 		onError: (e: unknown) =>
-			toast.error(
-				`Remove failed: ${(e as Error)?.message ?? "unknown"}`,
-			),
+			toast.error(`Remove failed: ${(e as Error)?.message ?? "unknown"}`),
 	});
 
 	const attached = current.data?.coupon ?? null;
-	const availableCoupons = (catalog.data?.coupons ?? []).filter(
-		(c) => c.valid,
-	);
+	const availableCoupons = (catalog.data?.coupons ?? []).filter((c) => c.valid);
 
 	return (
 		<Card data-testid="coupon-apply-card">
@@ -189,9 +183,7 @@ export function CouponApplyCard({
 								</div>
 								<Button
 									type="button"
-									disabled={
-										!pendingCouponId || applyMutation.isPending
-									}
+									disabled={!pendingCouponId || applyMutation.isPending}
 									onClick={() => applyMutation.mutate(pendingCouponId)}
 									data-testid="coupon-apply-btn"
 								>

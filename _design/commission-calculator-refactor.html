@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Commission Calculator — Refactor Design</title>
+<style>
+  :root {
+    --ink: #0a0a0a;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --bg: #f7f7f6;
+    --card: #ffffff;
+    --accent: #0a0a0a;
+    --green: #059669;
+    --green-bg: #ecfdf5;
+    --amber: #b45309;
+    --amber-bg: #fffbeb;
+    --red: #dc2626;
+    --red-bg: #fef2f2;
+    --blue: #2563eb;
+    --blue-bg: #eff6ff;
+    --purple: #7c3aed;
+    --purple-bg: #f5f3ff;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 48px 32px 96px; }
+  header.page {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 24px;
+    margin-bottom: 40px;
+  }
+  .eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  h1 { font-size: 30px; margin: 8px 0 6px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 15px; max-width: 720px; }
+  h2 {
+    font-size: 13px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted);
+    margin: 56px 0 20px; padding-bottom: 8px; border-bottom: 1px solid var(--line);
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 20px 22px;
+  }
+  .mono { font-family: var(--mono); }
+  code {
+    font-family: var(--mono); font-size: 12.5px;
+    background: #f1f1ef; padding: 1px 5px; border-radius: 5px;
+  }
+
+  /* ── Current state ───────────────────────── */
+  .current {
+    border-color: #f0d9d9; background: linear-gradient(180deg, #fffafa, #fff);
+  }
+  .blob {
+    border: 1px dashed #e6b8b8; border-radius: 12px; padding: 16px 18px;
+    background: var(--red-bg);
+  }
+  .blob h3 { margin: 0 0 4px; font-size: 14px; font-family: var(--mono); }
+  .blob .meta { font-size: 12px; color: var(--red); font-weight: 600; }
+  .resp-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px; margin-top: 14px;
+  }
+  .resp {
+    font-size: 11.5px; background: #fff; border: 1px solid #f0d9d9;
+    border-radius: 7px; padding: 7px 9px; color: #7a2e2e;
+  }
+  .resp b { color: var(--red); font-family: var(--mono); font-size: 10px; }
+
+  .dupe-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; }
+  @media (max-width: 720px) { .dupe-row { grid-template-columns: 1fr; } .resp-grid { grid-template-columns: 1fr 1fr; } }
+  .fn-box {
+    border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff;
+  }
+  .fn-box .hd {
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    padding: 9px 12px; background: #fafafa; border-bottom: 1px solid var(--line);
+  }
+  .fn-box ul { margin: 0; padding: 10px 12px 12px 28px; font-size: 12.5px; color: var(--muted); }
+  .fn-box li { margin: 3px 0; }
+  .dupe-tag {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
+    color: var(--amber); background: var(--amber-bg); border: 1px solid #f0e0b8;
+    padding: 2px 7px; border-radius: 20px; margin-left: 6px;
+  }
+
+  /* ── Pipeline ────────────────────────────── */
+  .pipe { display: flex; flex-direction: column; gap: 0; }
+  .phase {
+    display: grid; grid-template-columns: 52px 1fr; gap: 18px; align-items: stretch;
+  }
+  .rail { display: flex; flex-direction: column; align-items: center; }
+  .dot {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-weight: 700; font-size: 14px; color: #fff;
+  }
+  .dot.gather { background: var(--blue); }
+  .dot.plan { background: var(--green); }
+  .dot.persist { background: var(--purple); }
+  .stem { width: 2px; flex: 1; background: var(--line); margin: 4px 0; min-height: 18px; }
+  .phase:last-child .stem { display: none; }
+  .pcard {
+    border: 1px solid var(--line); border-radius: 14px; background: #fff;
+    padding: 18px 20px; margin-bottom: 18px; flex: 1;
+  }
+  .pcard.gather { border-left: 4px solid var(--blue); }
+  .pcard.plan { border-left: 4px solid var(--green); }
+  .pcard.persist { border-left: 4px solid var(--purple); }
+  .pcard h3 { margin: 0 0 2px; font-size: 16px; }
+  .pcard .sig { font-family: var(--mono); font-size: 12.5px; color: var(--muted); margin-bottom: 12px; }
+  .tag-purity {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+    padding: 2px 8px; border-radius: 20px; margin-left: 8px; vertical-align: middle;
+  }
+  .tag-io { color: var(--blue); background: var(--blue-bg); border: 1px solid #cfe0fb; }
+  .tag-pure { color: var(--green); background: var(--green-bg); border: 1px solid #b8e6d2; }
+  .tag-writes { color: var(--purple); background: var(--purple-bg); border: 1px solid #ddd0f7; }
+  .does { font-size: 13px; }
+  .does b { font-weight: 600; }
+  .does ul { margin: 8px 0 0; padding-left: 18px; }
+  .does li { margin: 4px 0; color: #374151; }
+
+  /* arrows / data shapes */
+  .flow-shape {
+    font-family: var(--mono); font-size: 11.5px; color: var(--muted);
+    background: #fafafa; border: 1px dashed var(--line); border-radius: 8px;
+    padding: 8px 12px; margin-top: 12px;
+  }
+  .flow-shape b { color: var(--ink); }
+
+  /* ── Types ───────────────────────────────── */
+  pre {
+    margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.65;
+    background: #0d1117; color: #e6edf3; border-radius: 12px; padding: 20px 22px;
+    overflow-x: auto;
+  }
+  pre .k { color: #ff7b72; }   /* keyword */
+  pre .t { color: #79c0ff; }   /* type */
+  pre .s { color: #a5d6ff; }   /* string */
+  pre .c { color: #8b949e; font-style: italic; } /* comment */
+  pre .p { color: #d2a8ff; }   /* prop */
+
+  /* ── Wins ────────────────────────────────── */
+  .wins { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .wins { grid-template-columns: 1fr; } }
+  .win { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; }
+  .win .ic {
+    width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0; color: #fff;
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;
+    background: var(--green);
+  }
+  .win .ti { font-weight: 600; font-size: 14px; margin-bottom: 1px; }
+  .win .de { font-size: 12.5px; color: var(--muted); }
+
+  .preserve {
+    background: var(--amber-bg); border: 1px solid #f0e0b8; border-radius: 12px;
+    padding: 16px 18px; display: flex; gap: 12px; align-items: flex-start;
+  }
+  .preserve .ic { font-size: 18px; }
+  .preserve .ti { font-weight: 700; font-size: 13px; color: var(--amber); margin-bottom: 4px; letter-spacing: 0.03em; text-transform: uppercase; }
+  .preserve ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: #5c4108; }
+  .preserve li { margin: 3px 0; }
+
+  .note {
+    font-size: 12px; color: var(--muted); margin-top: 10px;
+  }
+  .footer {
+    margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--line);
+    font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 8px; }
+  .legend span { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <div class="eyebrow">Avantej · Commission System</div>
+    <h1>Commission Calculator — Refactor Design</h1>
+    <p class="sub">
+      Restructuring <code>commission-calculator.service.ts</code> from one 400-line
+      side-effecting function into a three-phase pipeline:
+      <b>gather → plan (pure) → persist</b>. The arithmetic in
+      <code>commission-math.ts</code> stays untouched — this targets only the orchestration
+      that's hard to reason about. Behavior is identical; it's a pure structural change.
+    </p>
+  </header>
+
+  <!-- ════════════ CURRENT ════════════ -->
+  <h2>① Where we are today</h2>
+  <div class="card current">
+    <div class="blob">
+      <h3>_buildSplits( )</h3>
+      <span class="meta">one function · ~400 lines · 11 responsibilities · DB + audit + math interleaved</span>
+      <div class="resp-grid">
+        <div class="resp"><b>READ</b><br/>fetch all coach slots</div>
+        <div class="resp"><b>PURE</b><br/>assert sum = 10000bp</div>
+        <div class="resp"><b>PURE</b><br/>dedupe by slotIndex</div>
+        <div class="resp"><b>PURE</b><br/>filter valid slots</div>
+        <div class="resp"><b>READ</b><br/>batch-fetch members</div>
+        <div class="resp"><b>READ+WRITE</b><br/>filter eligible + audit</div>
+        <div class="resp"><b>READ</b><br/>comp-order guard</div>
+        <div class="resp"><b>PURE</b><br/>redistribute weightage</div>
+        <div class="resp"><b>READ</b><br/>resolve config version</div>
+        <div class="resp"><b>READ</b><br/>re-lookup member (loop)</div>
+        <div class="resp"><b>PURE</b><br/>resolve rate + amount</div>
+        <div class="resp"><b>WRITE</b><br/>cap + insert + audit (loop)</div>
+      </div>
+    </div>
+
+    <div class="dupe-row">
+      <div class="fn-box">
+        <div class="hd">calculateCommissionForAppointment()<span class="dupe-tag">~90% identical ↓</span></div>
+        <ul>
+          <li>service → categoryId</li>
+          <li>active config lookup</li>
+          <li>rate lookup — match by <code>attendeeCount</code> (lt/lte/gt/gte/eq/between)</li>
+          <li>→ _buildSplits (quantity = 1, requireTrainerRole = <b>true</b>)</li>
+        </ul>
+      </div>
+      <div class="fn-box">
+        <div class="hd">calculateCommissionForPos()<span class="dupe-tag">~90% identical ↑</span></div>
+        <ul>
+          <li>service → categoryId</li>
+          <li>active config lookup</li>
+          <li>rate lookup — match by <code>quantity</code> (minQuantity desc)</li>
+          <li>→ _buildSplits (quantity = N, requireTrainerRole = <b>false</b>)</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="note">
+      <b>Symptoms:</b> two near-duplicate entry points · validation runs twice (pre-pass + in-loop
+      "safety net") · 8+ scattered <code>console.warn(JSON.stringify(…))</code> sites ·
+      cannot test the decision without a live DB.
+    </p>
+  </div>
+
+  <!-- ════════════ PROPOSED ════════════ -->
+  <h2>② Proposed — three-phase pipeline</h2>
+
+  <div class="legend">
+    <span><i class="swatch" style="background:var(--blue)"></i> I/O — reads only</span>
+    <span><i class="swatch" style="background:var(--green)"></i> Pure — no DB, no audit, fully testable</span>
+    <span><i class="swatch" style="background:var(--purple)"></i> I/O — writes only</span>
+  </div>
+
+  <div class="pipe">
+
+    <!-- GATHER -->
+    <div class="phase">
+      <div class="rail"><div class="dot gather">1</div><div class="stem"></div></div>
+      <div class="pcard gather">
+        <h3>loadCommissionContext <span class="tag-purity tag-io">READS</span></h3>
+        <div class="sig">(db, serviceId) → CommissionContext | null</div>
+        <div class="does">
+          All reads happen here, <b>once</b>, shared by both entry points.
+          <ul>
+            <li>service → categoryId → active <code>categoryCommissionConfig</code></li>
+            <li>all <code>commissionCoachSlots</code> for the config</li>
+            <li>rate table — tier rates, or every condition + its condition-rates</li>
+            <li>latest <code>configVersionId</code> (for the cap aggregate join)</li>
+          </ul>
+        </div>
+        <div class="flow-shape">returns <b>CommissionContext</b> — a typed, immutable snapshot. No decisions made yet.</div>
+      </div>
+    </div>
+
+    <!-- PLAN -->
+    <div class="phase">
+      <div class="rail"><div class="dot plan">2</div><div class="stem"></div></div>
+      <div class="pcard plan">
+        <h3>planSplits <span class="tag-purity tag-pure">PURE</span></h3>
+        <div class="sig">(context, input) → { splits: PlannedSplit[]; skipped: SkipReason[] }</div>
+        <div class="does">
+          The whole decision, as <b>one pure function</b>. No DB, no audit, no console.
+          This is the part that was hard to reason about — now unit-testable in isolation.
+          <ul>
+            <li>dedupe assignments by slotIndex (fix&nbsp;#3)</li>
+            <li>match the condition by a single numeric value — <code>attendeeCount</code> or <code>quantity</code></li>
+            <li>filter eligibility <b>once</b> → emit <code>SkipReason</code> instead of logging</li>
+            <li>redistribute unclaimed weightage (calls existing <code>commission-math</code>)</li>
+            <li>resolve rate → baseAmount → finalAmount (multiply-then-floor, fix&nbsp;#1)</li>
+            <li>compute splitPercentage</li>
+          </ul>
+        </div>
+        <div class="flow-shape">
+          returns <b>PlannedSplit[]</b> (what to write) + <b>SkipReason[]</b>
+          (why each staff was dropped) — caps NOT yet applied.
+        </div>
+      </div>
+    </div>
+
+    <!-- PERSIST -->
+    <div class="phase">
+      <div class="rail"><div class="dot persist">3</div><div class="stem"></div></div>
+      <div class="pcard persist">
+        <h3>persistSplits <span class="tag-purity tag-writes">WRITES</span></h3>
+        <div class="sig">(db, plan, { actor, earnedAt }) → CommissionSplit[]</div>
+        <div class="does">
+          The <b>only</b> impure phase. Every write lives here, applied uniformly.
+          <ul>
+            <li>apply per-cycle cap (<code>applyCommissionCaps</code>) to each planned split</li>
+            <li>insert into <code>commission_splits</code> — with the 23505 race-skip handling</li>
+            <li><code>writeAudit</code> per created split + one batched audit for all skips</li>
+          </ul>
+        </div>
+        <div class="flow-shape">returns the inserted <b>CommissionSplit[]</b> — same shape callers get today.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- entry points -->
+  <div class="card" style="margin-top:8px;">
+    <div style="font-size:13px; color:#374151;">
+      <b>The two entry points collapse to ~15 lines each</b> — they only differ in how they
+      feed phase 2:
+    </div>
+    <div class="dupe-row">
+      <div class="fn-box">
+        <div class="hd" style="color:var(--green)">calculateCommissionForAppointment()</div>
+        <ul>
+          <li>ctx = loadCommissionContext(db, serviceId)</li>
+          <li>plan = planSplits(ctx, { matchValue: <b>attendeeCount</b>, mode: "operator", quantity: 1, requireTrainerRole: true })</li>
+          <li>return persistSplits(db, plan, { actor, earnReason })</li>
+        </ul>
+      </div>
+      <div class="fn-box">
+        <div class="hd" style="color:var(--green)">calculateCommissionForPos()</div>
+        <ul>
+          <li>ctx = loadCommissionContext(db, serviceId)</li>
+          <li>plan = planSplits(ctx, { matchValue: <b>quantity</b>, mode: "threshold", quantity: N, requireTrainerRole: false })</li>
+          <li>return persistSplits(db, plan, { actor, earnReason })</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ TYPES ════════════ -->
+  <h2>③ The new types</h2>
+  <pre><span class="c">// commission-calculator.types.ts — the contracts between phases</span>
+
+<span class="k">interface</span> <span class="t">CommissionContext</span> {        <span class="c">// phase 1 output — immutable snapshot</span>
+  <span class="p">config</span>: <span class="t">CategoryCommissionConfig</span>;
+  <span class="p">slots</span>: <span class="t">SlotConfig</span>[];           <span class="c">// all coach slots (filled + absent)</span>
+  <span class="p">rates</span>: <span class="t">RateTable</span>;               <span class="c">// tier rates OR conditions+condition-rates</span>
+  <span class="p">configVersionId</span>: <span class="t">string</span> | <span class="k">undefined</span>;
+}
+
+<span class="k">interface</span> <span class="t">PlanInput</span> {
+  <span class="p">assignments</span>: <span class="t">StaffAssignment</span>[];
+  <span class="p">members</span>: <span class="t">Map</span>&lt;<span class="t">string</span>, <span class="t">MemberSnapshot</span>&gt;;  <span class="c">// pre-fetched by loader</span>
+  <span class="p">unitPriceCents</span>: <span class="t">number</span>;
+  <span class="p">quantity</span>: <span class="t">number</span>;
+  <span class="p">matchValue</span>: <span class="t">number</span>;             <span class="c">// attendeeCount | quantity</span>
+  <span class="p">mode</span>: <span class="s">"operator"</span> | <span class="s">"threshold"</span>; <span class="c">// unifies the two matchers</span>
+  <span class="p">requireTrainerRole</span>: <span class="t">boolean</span>;
+}
+
+<span class="k">interface</span> <span class="t">PlannedSplit</span> {           <span class="c">// phase 2 output — ready to insert, pre-cap</span>
+  <span class="p">staffId</span>: <span class="t">string</span>;
+  <span class="p">slotIndex</span>: <span class="t">number</span>;
+  <span class="p">trainerTierId</span>: <span class="t">string</span>;
+  <span class="p">effectiveWeightageBp</span>: <span class="t">number</span>;
+  <span class="p">baseAmountCents</span>: <span class="t">number</span>;
+  <span class="p">finalAmountCents</span>: <span class="t">number</span>;     <span class="c">// pre-cap; persist applies the cap</span>
+  <span class="p">splitPercentage</span>: <span class="t">number</span>;
+  <span class="p">conditionId</span>: <span class="t">string</span> | <span class="k">null</span>;
+}
+
+<span class="k">interface</span> <span class="t">SkipReason</span> {              <span class="c">// replaces scattered console.warn calls</span>
+  <span class="p">staffId</span>: <span class="t">string</span>;
+  <span class="p">reason</span>: <span class="s">"no_coach_slot"</span> | <span class="s">"member_not_found"</span> | <span class="s">"role_mismatch"</span>
+        | <span class="s">"no_tier"</span> | <span class="s">"no_tier_rate"</span> | <span class="s">"no_condition_rate"</span>;
+}</pre>
+
+  <!-- ════════════ WINS ════════════ -->
+  <h2>④ What it buys you</h2>
+  <div class="wins">
+    <div class="card win"><div class="ic">✓</div><div><div class="ti">Decision is testable without a DB</div><div class="de">planSplits is pure — feed a context, assert the splits + skips. No mocks, no transactions.</div></div></div>
+    <div class="card win"><div class="ic">✓</div><div><div class="ti">One validation path</div><div class="de">Eligibility checked once in the planner. The in-loop "safety net" re-check disappears.</div></div></div>
+    <div class="card win"><div class="ic">✓</div><div><div class="ti">Duplication gone</div><div class="de">~220 lines of near-identical entry-point code collapses to two thin wrappers over one pipeline.</div></div></div>
+    <div class="card win"><div class="ic">✓</div><div><div class="ti">Skip-reasons centralized</div><div class="de">SkipReason[] replaces 8+ scattered log sites; persist logs/audits them uniformly in one place.</div></div></div>
+    <div class="card win"><div class="ic">✓</div><div><div class="ti">Reads batched up front</div><div class="de">All queries in phase 1; the per-staff loop no longer does N+1 member re-lookups.</div></div></div>
+    <div class="card win"><div class="ic">✓</div><div><div class="ti">Side effects at the edge</div><div class="de">Every write lives in persistSplits — easy to wrap in one transaction, easy to audit.</div></div></div>
+  </div>
+
+  <!-- ════════════ PRESERVE ════════════ -->
+  <h2>⑤ What must NOT change</h2>
+  <div class="preserve">
+    <div class="ic">🔒</div>
+    <div>
+      <div class="ti">Behavior-preserving guarantee</div>
+      <div style="font-size:13px; color:#5c4108;">The math module is reused as-is. These invariants are carried over verbatim and asserted by a diff-test on real splits:</div>
+      <ul>
+        <li><b>Fix&nbsp;#1</b> — multiply amount × weightage × quantity, then floor once</li>
+        <li><b>Fix&nbsp;#2</b> — coach-slot weightages must sum to exactly 10000bp</li>
+        <li><b>Fix&nbsp;#3</b> — dedupe assignments by slotIndex before any math</li>
+        <li>Per-cycle cap logic + <code>configVersionId</code> anchoring (F-COM-B)</li>
+        <li>23505 concurrent-cancel race handling on insert</li>
+        <li>comp-order / commission-excluded guard</li>
+      </ul>
+      <div style="font-size:12px; color:var(--amber); margin-top:8px;">
+        ⚠ One semantic call needs sign-off: merging the appointment <code>operator</code> matcher and
+        POS <code>threshold</code> matcher behind a single <code>mode</code> flag.
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>Design doc · commission-calculator refactor · proposal only — no code changed</span>
+    <span>Avantej · 2026-05-30</span>
+  </div>
+
+</div>
+</body>
+</html>

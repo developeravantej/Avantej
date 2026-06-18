@@ -28,9 +28,18 @@ import {
 	purchaseOrders,
 	purchaseOrderItems,
 	productStock,
+	stockMovements,
 } from "@avantej-core/db/schema/tenant-schema";
+import { writeAudit } from "./audit-log.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
+
+export type ReceiptActor = {
+	userId: string;
+	memberId: string;
+	role: string;
+	branchId?: string;
+};
 
 // Default tolerance for 3-way match (1% of PO total) measured in cents.
 export const DEFAULT_MATCH_TOLERANCE_CENTS = 100;
@@ -82,7 +91,9 @@ export async function createReceipt(
 	}
 
 	return tenantDb.transaction(async (tx) => {
-		const receiptNumber = await generateReceiptNumber(tx as unknown as TenantDb);
+		const receiptNumber = await generateReceiptNumber(
+			tx as unknown as TenantDb,
+		);
 
 		const [receipt] = await tx
 			.insert(goodsReceipts)
@@ -111,10 +122,12 @@ export async function createReceipt(
 		);
 
 		// Stock write-through. Damaged units do NOT enter sellable stock.
+		// Each mutation also appends a stock_movements audit row (F-INV-06)
+		// inside this same transaction so they commit atomically.
 		for (const it of params.items) {
 			const sellable = it.quantityReceived - (it.quantityDamaged ?? 0);
 			if (sellable <= 0) continue;
-			await tx
+			const [stockRow] = await tx
 				.insert(productStock)
 				.values({
 					productId: it.productId,
@@ -127,7 +140,18 @@ export async function createReceipt(
 						quantity: sql`${productStock.quantity} + ${sellable}`,
 						updatedAt: new Date(),
 					},
-				});
+				})
+				.returning();
+			await tx.insert(stockMovements).values({
+				productId: it.productId,
+				branchId: params.branchId,
+				delta: sellable,
+				quantityAfter: stockRow?.quantity ?? null,
+				reason: "goods_receipt",
+				sourceType: "goods_receipt",
+				sourceId: receipt.id,
+				actorUserId: params.receivedBy,
+			});
 		}
 
 		// Bump PO item received_qty (keep legacy receiveItems path in sync).
@@ -169,7 +193,11 @@ export async function createReceipt(
  * Cancel a posted receipt. Reverses stock and PO receivedQty in a single
  * transaction. Only allowed from 'posted'.
  */
-export async function cancelReceipt(tenantDb: TenantDb, receiptId: string) {
+export async function cancelReceipt(
+	tenantDb: TenantDb,
+	receiptId: string,
+	actor: ReceiptActor,
+) {
 	return tenantDb.transaction(async (tx) => {
 		const receipt = await tx
 			.select()
@@ -181,16 +209,24 @@ export async function cancelReceipt(tenantDb: TenantDb, receiptId: string) {
 			throw new Error("Only posted receipts can be cancelled");
 		}
 
+		// Capture the PO status before reversal for the audit trail.
+		const poBefore = await tx
+			.select({ status: purchaseOrders.status })
+			.from(purchaseOrders)
+			.where(eq(purchaseOrders.id, receipt.purchaseOrderId))
+			.then((r) => r[0]);
+
 		const items = await tx
 			.select()
 			.from(goodsReceiptItems)
 			.where(eq(goodsReceiptItems.goodsReceiptId, receiptId));
 
-		// Reverse stock.
+		// Reverse stock. Each reversal appends a stock_movements audit row
+		// (F-INV-06) inside this same transaction so they commit atomically.
 		for (const it of items) {
 			const sellable = it.quantityReceived - it.quantityDamaged;
 			if (sellable <= 0) continue;
-			await tx
+			const [stockRow] = await tx
 				.update(productStock)
 				.set({
 					quantity: sql`${productStock.quantity} - ${sellable}`,
@@ -201,7 +237,18 @@ export async function cancelReceipt(tenantDb: TenantDb, receiptId: string) {
 						eq(productStock.productId, it.productId),
 						eq(productStock.branchId, receipt.branchId),
 					),
-				);
+				)
+				.returning();
+			await tx.insert(stockMovements).values({
+				productId: it.productId,
+				branchId: receipt.branchId,
+				delta: -sellable,
+				quantityAfter: stockRow?.quantity ?? null,
+				reason: "goods_receipt_cancel",
+				sourceType: "goods_receipt_cancel",
+				sourceId: receiptId,
+				actorUserId: actor.userId,
+			});
 		}
 
 		// Roll back PO item received_qty.
@@ -240,6 +287,33 @@ export async function cancelReceipt(tenantDb: TenantDb, receiptId: string) {
 			.set({ status: "cancelled" })
 			.where(eq(goodsReceipts.id, receiptId))
 			.returning();
+
+		// Total sellable units removed from stock by this reversal.
+		const stockReversed = items.reduce(
+			(sum, it) => sum + Math.max(it.quantityReceived - it.quantityDamaged, 0),
+			0,
+		);
+
+		await writeAudit(tx, {
+			actorUserId: actor.userId,
+			actorMemberId: actor.memberId,
+			actorRole: actor.role,
+			action: "goods_receipt.cancel",
+			entityType: "goods_receipt",
+			entityId: receiptId,
+			branchId: actor.branchId ?? receipt.branchId,
+			summary: `Cancelled goods receipt ${receipt.receiptNumber} — reversed ${stockReversed} unit(s) from stock`,
+			changes: {
+				from: { status: "posted" },
+				to: { status: "cancelled" },
+				purchaseOrderId: receipt.purchaseOrderId,
+				poStatus: {
+					from: poBefore?.status ?? null,
+					to: poUpdate.status ?? poBefore?.status ?? null,
+				},
+				stockReversed,
+			},
+		});
 
 		return updated;
 	});
@@ -369,7 +443,10 @@ export async function markInvoiceMatched(
 		)
 		.returning();
 
-	if (!updated) throw new Error("Invoice status changed by another user (concurrent update)");
+	if (!updated)
+		throw new Error(
+			"Invoice status changed by another user (concurrent update)",
+		);
 	return updated;
 }
 
@@ -405,6 +482,69 @@ export async function createSupplierInvoice(
 	return row;
 }
 
+export type UpdateSupplierInvoiceParams = {
+	invoiceId: string;
+	invoiceNumber?: string;
+	totalCents?: number;
+	taxCents?: number;
+	invoiceDate?: Date;
+};
+
+/**
+ * F-INV-04: edit a supplier invoice's core fields. Only permitted while the
+ * invoice is in `pending` or `disputed` status — once an invoice is `matched`
+ * or `paid` its figures are locked (they back a completed 3-way match / a
+ * settled payable), so edits are rejected with a clear error.
+ *
+ * Editable columns mirror the supplierInvoices schema: invoiceNumber,
+ * totalCents, taxCents, invoiceDate. (The table has no notes column.)
+ */
+export async function updateSupplierInvoice(
+	tenantDb: TenantDb,
+	params: UpdateSupplierInvoiceParams,
+) {
+	const invoice = await tenantDb
+		.select()
+		.from(supplierInvoices)
+		.where(eq(supplierInvoices.id, params.invoiceId))
+		.then((r) => r[0]);
+	if (!invoice) throw new Error("Supplier invoice not found");
+	if (!["pending", "disputed"].includes(invoice.status)) {
+		throw new Error(
+			`Cannot edit a ${invoice.status} invoice — only pending or disputed invoices are editable`,
+		);
+	}
+
+	const updates: Partial<typeof supplierInvoices.$inferInsert> = {};
+	if (params.invoiceNumber !== undefined)
+		updates.invoiceNumber = params.invoiceNumber;
+	if (params.totalCents !== undefined) updates.totalCents = params.totalCents;
+	if (params.taxCents !== undefined) updates.taxCents = params.taxCents;
+	if (params.invoiceDate !== undefined)
+		updates.invoiceDate = params.invoiceDate;
+
+	if (Object.keys(updates).length === 0) return invoice;
+
+	// Guard the status in the WHERE clause to defend against a concurrent
+	// transition (e.g. another user matching/paying) between read and write.
+	const [updated] = await tenantDb
+		.update(supplierInvoices)
+		.set(updates)
+		.where(
+			and(
+				eq(supplierInvoices.id, params.invoiceId),
+				inArray(supplierInvoices.status, ["pending", "disputed"]),
+			),
+		)
+		.returning();
+
+	if (!updated)
+		throw new Error(
+			"Invoice status changed by another user (concurrent update)",
+		);
+	return updated;
+}
+
 export async function listSupplierInvoices(
 	tenantDb: TenantDb,
 	filters: {
@@ -421,12 +561,17 @@ export async function listSupplierInvoices(
 	if (filters.status)
 		conditions.push(eq(supplierInvoices.status, filters.status));
 	if (filters.purchaseOrderId)
-		conditions.push(eq(supplierInvoices.purchaseOrderId, filters.purchaseOrderId));
+		conditions.push(
+			eq(supplierInvoices.purchaseOrderId, filters.purchaseOrderId),
+		);
 	const limit = Math.min(filters.limit ?? 50, 200);
 	const offset = filters.offset ?? 0;
 	const q = tenantDb.select().from(supplierInvoices);
 	const withWhere = conditions.length ? q.where(and(...conditions)) : q;
-	return withWhere.orderBy(desc(supplierInvoices.createdAt)).limit(limit).offset(offset);
+	return withWhere
+		.orderBy(desc(supplierInvoices.createdAt))
+		.limit(limit)
+		.offset(offset);
 }
 
 export type DisputeInvoiceParams = {
@@ -463,7 +608,10 @@ export async function disputeInvoice(
 		)
 		.returning();
 
-	if (!updated) throw new Error("Invoice status changed by another user (concurrent update) or invalid status");
+	if (!updated)
+		throw new Error(
+			"Invoice status changed by another user (concurrent update) or invalid status",
+		);
 	return updated;
 }
 
@@ -491,10 +639,18 @@ export async function markInvoicePaid(
 			paidBy,
 			paymentReference: paymentReference ?? null,
 		})
-		.where(and(eq(supplierInvoices.id, invoiceId), eq(supplierInvoices.status, "matched")))
+		.where(
+			and(
+				eq(supplierInvoices.id, invoiceId),
+				eq(supplierInvoices.status, "matched"),
+			),
+		)
 		.returning();
 
-	if (!updated) throw new Error("Invoice was already marked paid by another user (concurrent update)");
+	if (!updated)
+		throw new Error(
+			"Invoice was already marked paid by another user (concurrent update)",
+		);
 	return updated;
 }
 
@@ -531,7 +687,10 @@ export async function getInvoicePreview(
 	}
 
 	if (invoice.goodsReceiptId) {
-		receiptTotalCents = await computeReceiptTotalCents(tenantDb, invoice.goodsReceiptId);
+		receiptTotalCents = await computeReceiptTotalCents(
+			tenantDb,
+			invoice.goodsReceiptId,
+		);
 	}
 
 	const tol = Math.max(
@@ -546,21 +705,31 @@ export async function getInvoicePreview(
 
 	if (poTotalCents !== null && receiptTotalCents !== null) {
 		if (!within(poTotalCents, receiptTotalCents)) {
-			mismatches.push(`PO (${poTotalCents}¢) vs Receipt (${receiptTotalCents}¢) differ by ${Math.abs(poTotalCents - receiptTotalCents)}¢`);
+			mismatches.push(
+				`PO (${poTotalCents}¢) vs Receipt (${receiptTotalCents}¢) differ by ${Math.abs(poTotalCents - receiptTotalCents)}¢`,
+			);
 		}
 		if (!within(poTotalCents, invoice.totalCents)) {
-			mismatches.push(`PO (${poTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(poTotalCents - invoice.totalCents)}¢`);
+			mismatches.push(
+				`PO (${poTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(poTotalCents - invoice.totalCents)}¢`,
+			);
 		}
 		if (!within(receiptTotalCents, invoice.totalCents)) {
-			mismatches.push(`Receipt (${receiptTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(receiptTotalCents - invoice.totalCents)}¢`);
+			mismatches.push(
+				`Receipt (${receiptTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(receiptTotalCents - invoice.totalCents)}¢`,
+			);
 		}
 	} else if (poTotalCents !== null) {
 		if (!within(poTotalCents, invoice.totalCents)) {
-			mismatches.push(`PO (${poTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(poTotalCents - invoice.totalCents)}¢`);
+			mismatches.push(
+				`PO (${poTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(poTotalCents - invoice.totalCents)}¢`,
+			);
 		}
 	} else if (receiptTotalCents !== null) {
 		if (!within(receiptTotalCents, invoice.totalCents)) {
-			mismatches.push(`Receipt (${receiptTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(receiptTotalCents - invoice.totalCents)}¢`);
+			mismatches.push(
+				`Receipt (${receiptTotalCents}¢) vs Invoice (${invoice.totalCents}¢) differ by ${Math.abs(receiptTotalCents - invoice.totalCents)}¢`,
+			);
 		}
 	}
 

@@ -182,9 +182,7 @@ test.describe("@ship-f-2-5 Plan F.2.5 — Agent C /comms", () => {
 			includeArchived: true,
 		});
 		const listAllJson = listAll.body?.json ?? listAll.body;
-		const archivedRow = listAllJson.templates.find(
-			(t: any) => t.id === tplId,
-		);
+		const archivedRow = listAllJson.templates.find((t: any) => t.id === tplId);
 		expect(archivedRow).toBeTruthy();
 		expect(archivedRow.archivedAt).toBeTruthy();
 
@@ -215,7 +213,11 @@ test.describe("@ship-f-2-5 Plan F.2.5 — Agent C /comms", () => {
 		}
 
 		const supportPage = await supportCtxRequest.newPage();
-		await loginAsAdmin(supportPage, supportSigned.email, supportSigned.password);
+		await loginAsAdmin(
+			supportPage,
+			supportSigned.email,
+			supportSigned.password,
+		);
 		const supportApi = supportCtxRequest.request;
 
 		const denied = await rpc(supportApi, "platformAdminComms/createTemplate", {

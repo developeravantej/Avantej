@@ -1,7 +1,10 @@
-import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
-import { requirePermission } from "@avantej-core/services";
+import { tenantProcedure } from "../index";
+import {
+	assertOrgContextMatch,
+	guardBranchAccessible,
+	requirePermissionOrpc,
+} from "../guards";
 import {
 	getDashboardKpis,
 	getStaffPerformance,
@@ -12,7 +15,7 @@ import {
 	getClassFillRateSeries,
 } from "@avantej-core/services/analytics.service";
 
-const getDashboardKpisHandler = protectedProcedure
+const getDashboardKpisHandler = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -29,31 +32,14 @@ const getDashboardKpisHandler = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message:
-					"Tenant database not available. Ensure organization context is set.",
-			});
-		}
-
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"reports",
-				"read",
-			);
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
-			});
-		}
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"reports",
+			"read",
+		);
+		guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 
 		return getDashboardKpis(context.tenantDb, {
 			period: input.period,
@@ -64,7 +50,7 @@ const getDashboardKpisHandler = protectedProcedure
 		});
 	});
 
-const getStaffPerformanceHandler = protectedProcedure
+const getStaffPerformanceHandler = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -73,31 +59,14 @@ const getStaffPerformanceHandler = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message:
-					"Tenant database not available. Ensure organization context is set.",
-			});
-		}
-
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"reports",
-				"read",
-			);
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
-			});
-		}
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"reports",
+			"read",
+		);
+		guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 
 		return getStaffPerformance(context.tenantDb, {
 			period: input.period,
@@ -106,7 +75,7 @@ const getStaffPerformanceHandler = protectedProcedure
 		});
 	});
 
-const getRevenueSeriesHandler = protectedProcedure
+const getRevenueSeriesHandler = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
@@ -115,31 +84,14 @@ const getRevenueSeriesHandler = protectedProcedure
 		}),
 	)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message:
-					"Tenant database not available. Ensure organization context is set.",
-			});
-		}
-
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-
-		try {
-			await requirePermission(
-				context.tenantDb,
-				context.member,
-				"reports",
-				"read",
-			);
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
-			});
-		}
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"reports",
+			"read",
+		);
+		guardBranchAccessible(input.branchId, context.accessibleNodeIds);
 
 		return getRevenueSeries(context.tenantDb, {
 			days: input.days,
@@ -148,119 +100,69 @@ const getRevenueSeriesHandler = protectedProcedure
 		});
 	});
 
-// ── Series input schema (reused across all 4 series procedures) ───────────────
-
 const seriesInput = z.object({
 	organizationId: z.string().uuid(),
 	days: z.union([z.literal(7), z.literal(30), z.literal(90)]),
 });
 
-// ── getMemberCountSeries ──────────────────────────────────────────────────────
-
-const getMemberCountSeriesHandler = protectedProcedure
+const getMemberCountSeriesHandler = tenantProcedure
 	.input(seriesInput)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-		try {
-			await requirePermission(context.tenantDb, context.member, "reports", "read");
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
-			});
-		}
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"reports",
+			"read",
+		);
 		return getMemberCountSeries(context.tenantDb, {
 			days: input.days,
 			accessibleNodeIds: context.accessibleNodeIds ?? [],
 		});
 	});
 
-// ── getChurnSeries ────────────────────────────────────────────────────────────
-
-const getChurnSeriesHandler = protectedProcedure
+const getChurnSeriesHandler = tenantProcedure
 	.input(seriesInput)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-		try {
-			await requirePermission(context.tenantDb, context.member, "reports", "read");
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
-			});
-		}
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"reports",
+			"read",
+		);
 		return getChurnSeries(context.tenantDb, {
 			days: input.days,
 			accessibleNodeIds: context.accessibleNodeIds ?? [],
 		});
 	});
 
-// ── getLtvSeries ──────────────────────────────────────────────────────────────
-
-const getLtvSeriesHandler = protectedProcedure
+const getLtvSeriesHandler = tenantProcedure
 	.input(seriesInput)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-		try {
-			await requirePermission(context.tenantDb, context.member, "reports", "read");
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
-			});
-		}
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"reports",
+			"read",
+		);
 		return getLtvSeries(context.tenantDb, {
 			days: input.days,
 			accessibleNodeIds: context.accessibleNodeIds ?? [],
 		});
 	});
 
-// ── getClassFillRateSeries ────────────────────────────────────────────────────
-
-const getClassFillRateSeriesHandler = protectedProcedure
+const getClassFillRateSeriesHandler = tenantProcedure
 	.input(seriesInput)
 	.handler(async ({ input, context }) => {
-		if (!context.tenantDb) {
-			throw new ORPCError("INTERNAL_SERVER_ERROR", {
-				message: "Tenant database not available. Ensure organization context is set.",
-			});
-		}
-		if (!context.member) {
-			throw new ORPCError("FORBIDDEN", {
-				message: "User is not a member of this organization",
-			});
-		}
-		try {
-			await requirePermission(context.tenantDb, context.member, "reports", "read");
-		} catch (e) {
-			throw new ORPCError("FORBIDDEN", {
-				message: e instanceof Error ? e.message : "Permission denied",
-			});
-		}
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"reports",
+			"read",
+		);
 		return getClassFillRateSeries(context.tenantDb, {
 			days: input.days,
 			accessibleNodeIds: context.accessibleNodeIds ?? [],

@@ -20,8 +20,7 @@ export const branchInviteKeys = {
 export function useBranchInvites(organizationId: string, branchId: string) {
 	return useQuery({
 		queryKey: branchInviteKeys.byBranch(organizationId, branchId),
-		queryFn: () =>
-			client.branchInvites.list({ organizationId, branchId }),
+		queryFn: () => client.branchInvites.list({ organizationId, branchId }),
 		enabled: !!organizationId && !!branchId,
 	});
 }
@@ -81,7 +80,8 @@ export function useRegenerateBranchInvite(
 export function useAllBranchInvites(organizationId: string | null | undefined) {
 	return useQuery({
 		queryKey: branchInviteKeys.allIndex(organizationId ?? ""),
-		queryFn: () => client.branchInvites.listAll({ organizationId: organizationId ?? "" }),
+		queryFn: () =>
+			client.branchInvites.listAll({ organizationId: organizationId ?? "" }),
 		enabled: !!organizationId,
 	});
 }

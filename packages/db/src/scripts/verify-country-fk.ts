@@ -15,7 +15,9 @@ async function main() {
 	);
 	await cpPool.end();
 
-	console.log(`\nVerifying country_node_id backfill across ${orgs.rows.length} tenants:\n`);
+	console.log(
+		`\nVerifying country_node_id backfill across ${orgs.rows.length} tenants:\n`,
+	);
 	let totalMisses = 0;
 
 	for (const org of orgs.rows) {
@@ -41,7 +43,9 @@ async function main() {
 				totalMisses += miss.rows.length;
 			}
 		} catch (err) {
-			console.log(`  ${org.name.padEnd(35)} ERROR: ${err instanceof Error ? err.message : err}`);
+			console.log(
+				`  ${org.name.padEnd(35)} ERROR: ${err instanceof Error ? err.message : err}`,
+			);
 		} finally {
 			await pool.end();
 		}

@@ -56,11 +56,14 @@ export interface InviteContextResult {
  * Validates: invite exists, isActive, kind='branch_self_signup', not expired, uses not exhausted.
  */
 export async function getInviteContext(
-	params: GetInviteContextParams
+	params: GetInviteContextParams,
 ): Promise<InviteContextResult> {
 	const { token, tenantDb, controlPanelDb, organizationId } = params;
 
-	const { isValid, invite, error } = await validateBranchInvite(tenantDb, token);
+	const { isValid, invite, error } = await validateBranchInvite(
+		tenantDb,
+		token,
+	);
 
 	if (!isValid || !invite) {
 		const httpCode = error === "NOT_FOUND" ? "NOT_FOUND" : "GONE";
@@ -123,14 +126,27 @@ export interface RedeemInviteResult {
  * 5. Sync org membership to control panel (non-fatal on failure).
  */
 export async function redeemBranchInvite(
-	params: RedeemInviteParams
+	params: RedeemInviteParams,
 ): Promise<RedeemInviteResult> {
 	// phone is accepted in the input type for forward-compat but the members table
 	// has no phone column yet; callers can store it via member_profiles.
-	const { token, organizationId, email, password, fullName, tenantDb, controlPanelDb, betterAuthBaseUrl, rawRequest } = params;
+	const {
+		token,
+		organizationId,
+		email,
+		password,
+		fullName,
+		tenantDb,
+		controlPanelDb,
+		betterAuthBaseUrl,
+		rawRequest,
+	} = params;
 
 	// 1. Validate invite
-	const { isValid, invite, error } = await validateBranchInvite(tenantDb, token);
+	const { isValid, invite, error } = await validateBranchInvite(
+		tenantDb,
+		token,
+	);
 
 	if (!isValid || !invite) {
 		const httpCode = error === "NOT_FOUND" ? "NOT_FOUND" : "GONE";
@@ -158,7 +174,7 @@ export async function redeemBranchInvite(
 				betterAuthBaseUrl,
 				rawRequest,
 				normalizedEmail,
-				password
+				password,
 			);
 
 			return {
@@ -181,7 +197,7 @@ export async function redeemBranchInvite(
 			betterAuthBaseUrl,
 			rawRequest,
 			normalizedEmail,
-			password
+			password,
 		);
 	} else {
 		// Fully new user — create via Better-Auth sign-up
@@ -190,7 +206,7 @@ export async function redeemBranchInvite(
 			rawRequest,
 			normalizedEmail,
 			password,
-			fullName
+			fullName,
 		);
 		userId = result.userId;
 		sessionToken = result.sessionToken;
@@ -292,7 +308,7 @@ async function signUpViaBetterAuth(
 	rawRequest: Request,
 	email: string,
 	password: string,
-	name: string
+	name: string,
 ): Promise<BetterAuthSignUpResult> {
 	const response = await fetch(`${baseUrl}/api/auth/sign-up/email`, {
 		method: "POST",
@@ -319,7 +335,7 @@ async function signUpViaBetterAuth(
 
 	if (!userId || !sessionToken) {
 		throw new Error(
-			"Better-Auth sign-up returned incomplete user/session data"
+			"Better-Auth sign-up returned incomplete user/session data",
 		);
 	}
 
@@ -330,7 +346,7 @@ async function signInViaBetterAuth(
 	baseUrl: string,
 	rawRequest: Request,
 	email: string,
-	password: string
+	password: string,
 ): Promise<string> {
 	const response = await fetch(`${baseUrl}/api/auth/sign-in/email`, {
 		method: "POST",

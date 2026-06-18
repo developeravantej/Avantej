@@ -69,8 +69,12 @@ async function ensureMigration0027(cp: ReturnType<typeof getControlPanelDb>) {
 			CONSTRAINT tenant_tags_org_label_unique UNIQUE (organization_id, label)
 		);
 	`);
-	await cp.execute(sql`CREATE INDEX IF NOT EXISTS tenant_tags_label_idx ON tenant_tags (label);`);
-	await cp.execute(sql`CREATE INDEX IF NOT EXISTS tenant_tags_org_idx ON tenant_tags (organization_id);`);
+	await cp.execute(
+		sql`CREATE INDEX IF NOT EXISTS tenant_tags_label_idx ON tenant_tags (label);`,
+	);
+	await cp.execute(
+		sql`CREATE INDEX IF NOT EXISTS tenant_tags_org_idx ON tenant_tags (organization_id);`,
+	);
 }
 
 test.describe("@ship-f-1 Plan F.1 — Tenant Tags + Bulk Ops", () => {
@@ -136,7 +140,9 @@ test.describe("@ship-f-1 Plan F.1 — Tenant Tags + Bulk Ops", () => {
 		if (orgRows.length === 0)
 			throw new Error("No organizations seeded in control-panel DB");
 		const organizationId = orgRows[0]!.id;
-		const bulkTargets = orgRows.slice(0, Math.min(3, orgRows.length)).map((r) => r.id);
+		const bulkTargets = orgRows
+			.slice(0, Math.min(3, orgRows.length))
+			.map((r) => r.id);
 
 		// Snapshot baseline audit ids.
 		const auditBefore = await cp
@@ -171,9 +177,13 @@ test.describe("@ship-f-1 Plan F.1 — Tenant Tags + Bulk Ops", () => {
 		if (stripVisible) {
 			// Select-all checkbox in header (always present even on empty rows).
 			const selectAll = page.getByTestId("tenants-select-all");
-			await expect(selectAll).toBeVisible({ timeout: 5_000 }).catch(() => {
-				console.warn("[plan-f-1] select-all not visible (list query likely failed)");
-			});
+			await expect(selectAll)
+				.toBeVisible({ timeout: 5_000 })
+				.catch(() => {
+					console.warn(
+						"[plan-f-1] select-all not visible (list query likely failed)",
+					);
+				});
 		} else {
 			console.warn(
 				"[plan-f-1] tag filter strip not visible — list render blocked (pre-existing listTenants issue?)",
@@ -203,7 +213,9 @@ test.describe("@ship-f-1 Plan F.1 — Tenant Tags + Bulk Ops", () => {
 		const listRes = await rpc(apiCtx, "platformAdminTenants/tags/list", {});
 		expect(listRes.status).toBe(200);
 		const labels: string[] = (
-			listRes.body?.json?.tags ?? listRes.body?.tags ?? []
+			listRes.body?.json?.tags ??
+			listRes.body?.tags ??
+			[]
 		).map((t: { label: string }) => t.label);
 		expect(labels).toContain(goldenLabel);
 
@@ -269,13 +281,21 @@ test.describe("@ship-f-1 Plan F.1 — Tenant Tags + Bulk Ops", () => {
 		// New context for the support persona so cookies don't collide.
 		const supportCtx = await page.context().browser()!.newContext();
 		const supportPage = await supportCtx.newPage();
-		await loginAsAdmin(supportPage, supportSigned.email, supportSigned.password);
+		await loginAsAdmin(
+			supportPage,
+			supportSigned.email,
+			supportSigned.password,
+		);
 		const supportApi = supportCtx.request;
 
-		const suspendRes = await rpc(supportApi, "platformAdminTenants/tags/bulkSuspend", {
-			organizationIds: [organizationId],
-			reason: "test from support role — should be forbidden",
-		});
+		const suspendRes = await rpc(
+			supportApi,
+			"platformAdminTenants/tags/bulkSuspend",
+			{
+				organizationIds: [organizationId],
+				reason: "test from support role — should be forbidden",
+			},
+		);
 		expect(suspendRes.status).toBeGreaterThanOrEqual(400);
 		const errStr = JSON.stringify(suspendRes.body).toLowerCase();
 		expect(

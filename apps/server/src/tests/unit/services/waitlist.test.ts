@@ -1,5 +1,8 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
-import { createMockTenantDb } from "../../helpers/db-mock.factory";
+import {
+	createMockTenantDb,
+	selectChainResolving,
+} from "../../helpers/db-mock.factory";
 import { makeWaitlistEntry, makeClassSlot } from "../../helpers/fixtures";
 
 import {
@@ -54,14 +57,15 @@ describe("addToWaitlist", () => {
 		const slot = makeClassSlot({ isFull: true });
 		const entry = makeWaitlistEntry({ position: 1 });
 
-		// Check slot exists + is full
-		mockDb.query.classSlots.findFirst.mockResolvedValueOnce(slot);
-		// No existing waitlist entry
+		// addToWaitlist runs entirely inside a transaction; the mock passes the
+		// SAME mockDb instance to the callback, so configure mockDb directly.
+		// 1st select(): lock slot row FOR UPDATE → resolves [slot]
+		// 2nd select(): count existing waiting entries → resolves [{ value: 0 }]
+		mockDb.select
+			.mockReturnValueOnce(selectChainResolving([slot]))
+			.mockReturnValueOnce(selectChainResolving([{ value: 0 }]));
+		// No existing waitlist entry for this member
 		mockDb.query.waitlistEntries.findFirst.mockResolvedValueOnce(undefined);
-		// Count existing entries
-		const countChain = mockDb.select();
-		countChain.then = (resolve: (v: unknown) => unknown) =>
-			Promise.resolve([{ value: 0 }]).then(resolve);
 
 		// Insert waitlist entry
 		const insertValues = {
@@ -81,7 +85,8 @@ describe("addToWaitlist", () => {
 	});
 
 	test("throws when class slot not found", async () => {
-		mockDb.query.classSlots.findFirst.mockResolvedValueOnce(undefined);
+		// Slot lock select resolves to empty → slot not found
+		mockDb.select.mockReturnValueOnce(selectChainResolving([]));
 
 		await expect(
 			addToWaitlist(mockDb, {
@@ -94,7 +99,7 @@ describe("addToWaitlist", () => {
 
 	test("throws when class slot is not full", async () => {
 		const slot = makeClassSlot({ isFull: false });
-		mockDb.query.classSlots.findFirst.mockResolvedValueOnce(slot);
+		mockDb.select.mockReturnValueOnce(selectChainResolving([slot]));
 
 		await expect(
 			addToWaitlist(mockDb, {
@@ -110,7 +115,7 @@ describe("addToWaitlist", () => {
 	test("throws when member is already on the waitlist", async () => {
 		const slot = makeClassSlot({ isFull: true });
 		const existing = makeWaitlistEntry({ status: "waiting" });
-		mockDb.query.classSlots.findFirst.mockResolvedValueOnce(slot);
+		mockDb.select.mockReturnValueOnce(selectChainResolving([slot]));
 		mockDb.query.waitlistEntries.findFirst.mockResolvedValueOnce(existing);
 
 		await expect(
@@ -119,9 +124,7 @@ describe("addToWaitlist", () => {
 				memberId: "m1",
 				userId: "u1",
 			}),
-		).rejects.toThrow(
-			"Member is already on the waitlist for this class slot",
-		);
+		).rejects.toThrow("Member is already on the waitlist for this class slot");
 	});
 });
 
@@ -150,9 +153,9 @@ describe("removeFromWaitlist", () => {
 		};
 		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
 
-		await expect(
-			removeFromWaitlist(mockDb, "nonexistent"),
-		).rejects.toThrow("Waitlist entry not found");
+		await expect(removeFromWaitlist(mockDb, "nonexistent")).rejects.toThrow(
+			"Waitlist entry not found",
+		);
 	});
 });
 
@@ -162,22 +165,37 @@ describe("promoteFromWaitlist", () => {
 		const entry = makeWaitlistEntry({ status: "waiting", position: 1 });
 		const promoted = { ...entry, status: "promoted" };
 
-		// transaction callback receives tx (which is another mockDb)
-		// The transaction mock calls the callback with a new mockDb
+		// promoteFromWaitlist wraps promoteFromWaitlistInsideTx in a transaction.
+		// Inside the tx the service, in order:
+		//   1. finds the earliest "waiting" entry (query.waitlistEntries.findFirst)
+		//   2. update(classSlots) capacity claim → .returning({ id }) must be
+		//      non-empty to signal a spot was secured
+		//   3. update(waitlistEntries) promote → .returning() → [promoted]
+		//   4. query.classSlots.findFirst for slot (returns undefined here, so the
+		//      appointment-creation/notification block is skipped) → returns promoted
 		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
 			const tx = createMockTenantDb();
 			tx.query.waitlistEntries.findFirst.mockResolvedValueOnce(entry);
-			const setChain = {
+
+			// 1st update: classSlots capacity claim → returning({ id }) non-empty
+			const claimChain = {
+				where: mock(() => ({
+					returning: mock(() => Promise.resolve([{ id: "slot-id" }])),
+				})),
+			};
+			tx.update.mockReturnValueOnce({ set: mock(() => claimChain) });
+
+			// 2nd update: waitlistEntries promote → returning() → [promoted]
+			const promoteChain = {
 				where: mock(() => ({
 					returning: mock(() => Promise.resolve([promoted])),
 				})),
 			};
-			tx.update.mockReturnValueOnce({ set: mock(() => setChain) });
-			// Second update for classSlots
-			const setChain2 = {
-				where: mock(() => Promise.resolve()),
-			};
-			tx.update.mockReturnValueOnce({ set: mock(() => setChain2) });
+			tx.update.mockReturnValueOnce({ set: mock(() => promoteChain) });
+
+			// slot fetch returns undefined → skip appointment + notification block
+			tx.query.classSlots.findFirst.mockResolvedValueOnce(undefined);
+
 			return cb(tx);
 		});
 

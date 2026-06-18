@@ -1,0 +1,248 @@
+{
+	"verifiedTopN": 6,
+	"verified": [
+		{ "id": "F-04", "verdict": "verified", "evidence": "packages/services/src/commission-splits.service.ts:1246-1261 + 0034_commission_audit.sql:130-142 — INSERT omits packageInstanceId; CHECK requires exactly one of (appt|so|pkg)" },
+		{ "id": "F-05", "verdict": "verified", "evidence": "lifecycle.procedures.ts:218 passes payoutId:undefined; commission-splits.service.ts:753 writes only payoutId — paymentReference is dropped" },
+		{ "id": "F-01", "verdict": "verified", "evidence": "category-commission.service.ts:153-156 DELETE then 158-166 INSERT without isActive — reactivates deactivated rows silently" },
+		{ "id": "F-02", "verdict": "verified", "evidence": "category-commission.service.ts:26-29 select WHERE categoryId only; no isActive filter" },
+		{ "id": "F-03", "verdict": "verified", "evidence": "commission-splits.service.ts:297-301 UTC month bounds; getOrCreatePayoutBatch accepts arbitrary period — cycle cap mis-aligned" },
+		{ "id": "F-08", "verdict": "verified", "evidence": "getOrCreatePayoutBatch/attachPayoutsToBatch only called from commission-versioning.test.ts; runBatch in payouts.service.ts never creates a batch row" }
+	],
+	"findings": [
+		{
+			"id": "F-04",
+			"title": "createManualAdjustment violates commission_splits_must_target_one CHECK on pure bonus/clawback",
+			"file": "packages/services/src/commission-splits.service.ts",
+			"line": 1246,
+			"severity": "P1",
+			"status": "partial",
+			"testable": true,
+			"persistence": { "tenant": "ORG", "table": "commission_splits", "where": { "splitType": "manual", "staffId": "STAFF" }, "expect": { "status": "in (pending,pending_review)", "calculatedAmount": "INPUT_AMOUNT" } },
+			"writes": true,
+			"ownedFiles": [
+				"packages/api/src/routers/commission-splits/lifecycle.procedures.ts",
+				"packages/services/src/commission-splits.service.ts"
+			],
+			"fixHint": "Validate target XOR at API + service before INSERT; surface BAD_REQUEST not raw 23514"
+		},
+		{
+			"id": "F-05",
+			"title": "markPaidById.paymentReference silently discarded — not stored on row or audit",
+			"file": "packages/api/src/routers/commission-splits/lifecycle.procedures.ts",
+			"line": 218,
+			"severity": "P1",
+			"status": "partial",
+			"testable": true,
+			"persistence": { "tenant": "ORG", "table": "audit_log", "where": { "entityType": "commission_split", "action": "commission.mark_paid", "entityId": "SPLIT" }, "expect": { "changes->paymentReference": "REF_STRING" } },
+			"writes": true,
+			"ownedFiles": [
+				"packages/api/src/routers/commission-splits/lifecycle.procedures.ts",
+				"packages/services/src/commission-splits.service.ts"
+			],
+			"fixHint": "Pass paymentReference through to service; store on audit.changes; consider dedicated column"
+		},
+		{
+			"id": "F-06",
+			"title": "Refund→commission reversal leaves split status unchanged and reversals invisible to liability",
+			"file": "packages/services/src/commission-splits.service.ts",
+			"line": 1775,
+			"severity": "P1",
+			"status": "partial",
+			"testable": true,
+			"persistence": { "tenant": "ORG", "table": "commission_split_reversals", "where": { "refundId": "REF" }, "expect": { "amountCents": "negative" } },
+			"writes": true,
+			"ownedFiles": [
+				"packages/services/src/commission-splits.service.ts",
+				"packages/services/src/refunds.service.ts"
+			],
+			"fixHint": "When reversal hits 100% of split.calculatedAmount → flip status to 'void' or new 'reversed'; subtract reversal sums from liabilityByStaff / liabilitySummary"
+		},
+		{
+			"id": "F-01",
+			"title": "upsertCategoryCommissionConfig DELETE+INSERT reactivates deactivated configs",
+			"file": "packages/services/src/category-commission.service.ts",
+			"line": 153,
+			"severity": "P1",
+			"status": "partial",
+			"testable": true,
+			"persistence": { "tenant": "ORG", "table": "category_commission_configs", "where": { "categoryId": "CAT" }, "expect": { "isActive": true } },
+			"writes": true,
+			"ownedFiles": ["packages/services/src/category-commission.service.ts"],
+			"fixHint": "Preserve prior isActive; or convert to update-on-existing + insert-when-absent"
+		},
+		{
+			"id": "F-02",
+			"title": "getCategoryCommissionConfig has no isActive filter — returns inactive rows the calculator skips",
+			"file": "packages/services/src/category-commission.service.ts",
+			"line": 26,
+			"severity": "P1",
+			"status": "partial",
+			"testable": true,
+			"writes": false,
+			"ownedFiles": ["packages/services/src/category-commission.service.ts"],
+			"fixHint": "Add and(eq(categoryId, ...), eq(isActive, true)) or expose includeInactive flag"
+		},
+		{
+			"id": "F-11",
+			"title": "getMyCommissions filters createdAt instead of earnedAt (inconsistent with every other read)",
+			"file": "packages/services/src/commission-splits.service.ts",
+			"line": 176,
+			"severity": "P2",
+			"status": "partial",
+			"testable": true,
+			"writes": false,
+			"ownedFiles": ["packages/services/src/commission-splits.service.ts"],
+			"fixHint": "Switch filter column to earnedAt"
+		},
+		{
+			"id": "F-12",
+			"title": "liabilitySummary uses lte(earnedAt,to) causing boundary double-counting",
+			"file": "packages/services/src/commission-splits.service.ts",
+			"line": 988,
+			"severity": "P2",
+			"status": "partial",
+			"testable": true,
+			"writes": false,
+			"ownedFiles": ["packages/services/src/commission-splits.service.ts"],
+			"fixHint": "Switch to lt for exclusive upper bound consistent with applyCommissionCaps"
+		},
+		{
+			"id": "F-13",
+			"title": "POS conditional path returns [] with no warn/audit when no condition matches minQuantity",
+			"file": "packages/services/src/commission-calculator.service.ts",
+			"line": 244,
+			"severity": "P2",
+			"status": "partial",
+			"testable": true,
+			"writes": true,
+			"persistence": { "tenant": "ORG", "table": "audit_log", "where": { "entityType": "commission_split", "action": "commission.skip", "entityId": "SO" }, "expect": { "changes->reason": "no_matching_condition" } },
+			"ownedFiles": ["packages/services/src/commission-calculator.service.ts"],
+			"fixHint": "Mirror appointment path: console.warn + writeAudit({action:'commission.skip', reason})"
+		},
+		{
+			"id": "F-15",
+			"title": "payouts.list excludes reversal/clawback rows for non-admins (appointmentId-join filter)",
+			"file": "packages/api/src/routers/payouts.ts",
+			"line": 54,
+			"severity": "P2",
+			"status": "partial",
+			"testable": true,
+			"writes": false,
+			"ownedFiles": ["packages/api/src/routers/payouts.ts"],
+			"fixHint": "Switch RBAC filter to recipientId === viewer || hierarchy scope; OR include rows where recipientId matches viewer regardless of branch"
+		},
+		{
+			"id": "F-14",
+			"title": "categoryCommission.upsert hard-codes 'create' permission — users with update only are blocked",
+			"file": "packages/api/src/routers/category-commission.ts",
+			"line": 77,
+			"severity": "P2",
+			"status": "partial",
+			"testable": true,
+			"writes": false,
+			"ownedFiles": ["packages/api/src/routers/category-commission.ts"],
+			"fixHint": "Replace hardcoded 'create' with hasAnyPermission-style OR(create,update)"
+		},
+		{
+			"id": "F-19",
+			"title": "recipientSummary.avgPerCycle collapses same-day cycles + includes negative reversals",
+			"file": "packages/services/src/payouts.service.ts",
+			"line": 500,
+			"severity": "P2",
+			"status": "partial",
+			"testable": true,
+			"writes": false,
+			"ownedFiles": ["packages/services/src/payouts.service.ts"],
+			"fixHint": "Group by batchId when available; ignore negative-amount rows (reversal adjustments) for avg"
+		},
+		{
+			"id": "F-03",
+			"title": "Per-cycle commission cap uses UTC calendar month — mis-aligned with custom payout windows",
+			"file": "packages/services/src/commission-splits.service.ts",
+			"line": 297,
+			"severity": "P1",
+			"status": "partial",
+			"testable": false,
+			"writes": true,
+			"ownedFiles": ["packages/services/src/commission-splits.service.ts"],
+			"deferReason": "Requires payout-window config model + migration; cross-cutting change. Log as S-cycle-window-alignment.",
+			"fixHint": "Defer: needs payout_batches.window config + per-cycle resolution; loop will not auto-expand"
+		},
+		{
+			"id": "F-08",
+			"title": "payout_batches never populated by runBatch — table/columns orphan",
+			"file": "packages/services/src/payouts.service.ts",
+			"line": 367,
+			"severity": "P1",
+			"status": "partial",
+			"testable": true,
+			"writes": true,
+			"persistence": { "tenant": "ORG", "table": "payout_batches", "where": { "branchId": "BRANCH", "periodStart": "P_START", "periodEnd": "P_END" }, "expect": { "totalCents": "SUM_PAYOUTS" } },
+			"ownedFiles": ["packages/services/src/payouts.service.ts", "packages/api/src/routers/payouts.ts"],
+			"fixHint": "Call getOrCreatePayoutBatch at start of runBatch; pass batchId to inserted payout rows; recompute totalCents after"
+		},
+		{
+			"id": "F-09",
+			"title": "Stripe webhook handler missing for payout.*/transfer.* events — payout lifecycle pending→paid unreachable",
+			"file": "apps/server/src/routes/webhooks.routes.ts",
+			"line": 326,
+			"severity": "P1",
+			"status": "missing",
+			"testable": false,
+			"writes": true,
+			"ownedFiles": ["apps/server/src/routes/webhooks.routes.ts"],
+			"deferReason": "Requires Stripe Connect destinations to exist (F-10 blocker); log as S-stripe-payout-webhooks",
+			"fixHint": "Defer: blocked by partner_stripe_accounts orphan"
+		},
+		{
+			"id": "F-10",
+			"title": "partner_stripe_accounts table entirely orphan — no procedure onboards, reads, or writes it",
+			"file": "packages/db/src/schema/tenant/partner-stripe-accounts.ts",
+			"line": 18,
+			"severity": "P1",
+			"status": "missing",
+			"testable": false,
+			"writes": false,
+			"ownedFiles": [],
+			"deferReason": "Architectural: needs partner onboarding flow, OAuth callback, schema decisions. Log as S-partner-stripe-onboarding.",
+			"fixHint": "Defer"
+		},
+		{
+			"id": "F-16",
+			"title": "No procedure to mark individual pending payout as paid — pending state unreachable from real flow",
+			"file": "packages/api/src/routers/payouts.ts",
+			"line": 22,
+			"severity": "P2",
+			"status": "missing",
+			"testable": false,
+			"writes": true,
+			"ownedFiles": [],
+			"deferReason": "Pairs with F-08 + payout state machine work; log as S-payouts-state-machine",
+			"fixHint": "Defer"
+		},
+		{
+			"id": "F-17",
+			"title": "No retryPayout / cancelPayout — failed/canceled enum states unreachable",
+			"file": "packages/api/src/routers/payouts.ts",
+			"line": 22,
+			"severity": "P2",
+			"status": "missing",
+			"testable": false,
+			"deferReason": "Pairs with F-16",
+			"fixHint": "Defer"
+		},
+		{
+			"id": "F-07",
+			"title": "bulkApproveRefunds cap-cap race against concurrent approveRefund — double-approve possible",
+			"file": "packages/services/src/refunds.service.ts",
+			"line": 1356,
+			"severity": "P1",
+			"status": "partial",
+			"testable": false,
+			"writes": true,
+			"ownedFiles": ["packages/services/src/refunds.service.ts"],
+			"deferReason": "Concurrency test requires controlled interleaving — out of scope for the single-session proof; log as S-refund-row-lock.",
+			"fixHint": "Defer: add SELECT … FOR UPDATE on parent sales_orders.id at top of approveRefund"
+		}
+	]
+}

@@ -3,13 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { Image } from "expo-image";
-import {
-	Alert,
-	Pressable,
-	ScrollView,
-	Text,
-	View,
-} from "react-native";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { BookablePackageCard } from "./_components/bookable-package-card";
@@ -314,7 +308,6 @@ export default function BookWorkoutScreen() {
 							))
 						)}
 					</View>
-
 				</View>
 			</ScrollView>
 

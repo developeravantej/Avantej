@@ -80,7 +80,9 @@ export async function refreshAccessToken(params: {
 	return res.json() as Promise<{ access_token: string; expires_in: number }>;
 }
 
-export async function getGoogleUserInfo(accessToken: string): Promise<GoogleUserInfo> {
+export async function getGoogleUserInfo(
+	accessToken: string,
+): Promise<GoogleUserInfo> {
 	const res = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
 		headers: { Authorization: `Bearer ${accessToken}` },
 	});
@@ -152,7 +154,8 @@ export async function deleteCalendarEvent(
 		},
 	);
 	// 404 is OK — event may already be deleted
-	if (!res.ok && res.status !== 404) throw new Error(`Delete event failed: ${await res.text()}`);
+	if (!res.ok && res.status !== 404)
+		throw new Error(`Delete event failed: ${await res.text()}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -168,11 +171,17 @@ export interface GoogleCalendarListEntry {
 	backgroundColor?: string;
 }
 
-export async function listGoogleCalendars(accessToken: string): Promise<GoogleCalendarListEntry[]> {
-	const res = await fetch("https://www.googleapis.com/calendar/v3/users/me/calendarList", {
-		headers: { Authorization: `Bearer ${accessToken}` },
-	});
-	if (!res.ok) throw new Error(`Calendar list fetch failed: ${await res.text()}`);
+export async function listGoogleCalendars(
+	accessToken: string,
+): Promise<GoogleCalendarListEntry[]> {
+	const res = await fetch(
+		"https://www.googleapis.com/calendar/v3/users/me/calendarList",
+		{
+			headers: { Authorization: `Bearer ${accessToken}` },
+		},
+	);
+	if (!res.ok)
+		throw new Error(`Calendar list fetch failed: ${await res.text()}`);
 	const data = (await res.json()) as { items?: GoogleCalendarListEntry[] };
 	return (data.items ?? []).map((item) => ({
 		id: item.id,

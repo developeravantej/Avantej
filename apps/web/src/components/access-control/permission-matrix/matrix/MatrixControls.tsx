@@ -8,9 +8,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import {
-	ROLE_GROUPS,
-} from "./scope-style";
+import { ROLE_GROUPS } from "./scope-style";
 import type { RoleGroup, ViewMode } from "@/hooks/usePermissionMatrixState";
 
 export interface MatrixControlsProps {
@@ -37,8 +35,14 @@ export function MatrixControls({
 
 	return (
 		<>
-			<div className={isMobile ? "flex gap-2" : "flex items-center gap-4 flex-wrap"}>
-				<div className={isMobile ? "relative flex-1" : "relative flex-1 max-w-md"}>
+			<div
+				className={
+					isMobile ? "flex gap-2" : "flex items-center gap-4 flex-wrap"
+				}
+			>
+				<div
+					className={isMobile ? "relative flex-1" : "relative flex-1 max-w-md"}
+				>
 					<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground size-4" />
 					<Input
 						placeholder="Search roles..."

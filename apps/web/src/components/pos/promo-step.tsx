@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { Tag, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,11 +41,14 @@ export function PromoStep({
 	const [code, setCode] = useState(applied?.code ?? "");
 	const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+	// FE-M3: sync local code input when applied promo is cleared externally (e.g. cart change)
+	useEffect(() => {
+		setCode(applied?.code ?? "");
+	}, [applied]);
+
 	const subtotalCents = calcSubtotalCents(items);
 	const serviceIds = items.flatMap((i) =>
-		i.refId && (i.type === "service" || i.type === "package")
-			? [i.refId]
-			: [],
+		i.refId && (i.type === "service" || i.type === "package") ? [i.refId] : [],
 	);
 
 	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- validation-only mutation: validates promo code, does not mutate server state; nothing to invalidate

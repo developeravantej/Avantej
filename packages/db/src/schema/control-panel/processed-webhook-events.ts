@@ -23,7 +23,9 @@ export const processedWebhookEvents = pgTable(
 		error: text("error"),
 	},
 	(table) => ({
-		eventTypeIdx: index("processed_webhook_events_type_idx").on(table.eventType),
+		eventTypeIdx: index("processed_webhook_events_type_idx").on(
+			table.eventType,
+		),
 		sourceIdx: index("processed_webhook_events_source_idx").on(table.source),
 		receivedAtIdx: index("processed_webhook_events_received_idx").on(
 			table.receivedAt,

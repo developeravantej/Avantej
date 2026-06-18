@@ -34,11 +34,12 @@ import { sql } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { platformAdminProcedure as adminProcedure } from "@avantej-core/api";
+import { adminProcedure } from "@/lib/admin-procedure";
 import { controlPanelJournal, tenantJournal } from "@avantej-core/db/journals";
 import type { DrizzleJournal } from "@avantej-core/db/journals";
 import { CONTROL_PANEL_MIGRATIONS } from "@avantej-core/db/generated/control-panel-migrations.generated";
 import { TENANT_MIGRATIONS } from "@avantej-core/db/generated/tenant-migrations.generated";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 // Drizzle-kit's runtime tracking table row (control-panel uses `drizzle.__drizzle_migrations`).
 // Schema: { id serial PK, hash text, created_at bigint (epoch ms) }.
@@ -48,26 +49,12 @@ type CpAppliedRow = { id: number; hash: string; created_at: string | number };
 
 const TAG_REGEX = /^\d{4}_[a-z0-9_]+$/;
 
-function cpDbFrom(
-	context: unknown,
-): NeonDatabase<typeof controlPanelSchema> {
-	const db = (
-		context as { honoContext?: { get: (k: string) => unknown } }
-	).honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
-
 function toIsoFromEpochMs(v: unknown): string {
 	if (typeof v === "number") return new Date(v).toISOString();
 	if (typeof v === "string") {
 		const n = Number(v);
-		if (!Number.isNaN(n) && n > 1_000_000_000_000) return new Date(n).toISOString();
+		if (!Number.isNaN(n) && n > 1_000_000_000_000)
+			return new Date(n).toISOString();
 		return v;
 	}
 	if (v instanceof Date) return v.toISOString();
@@ -152,10 +139,12 @@ function migrationsBundleForSchema(
 	if (schema === "control-panel")
 		return CONTROL_PANEL_MIGRATIONS as readonly { tag: string; sql: string }[];
 	// Tenant bundle uses `hash` field (== tag) — adapt.
-	return (TENANT_MIGRATIONS as readonly { hash: string; sql: string }[]).map((m) => ({
-		tag: m.hash,
-		sql: m.sql,
-	}));
+	return (TENANT_MIGRATIONS as readonly { hash: string; sql: string }[]).map(
+		(m) => ({
+			tag: m.hash,
+			sql: m.sql,
+		}),
+	);
 }
 
 /**
@@ -192,13 +181,11 @@ export const platformAdminMigrationsRouter = {
 	listMigrations: adminProcedure
 		.input(
 			z.object({
-				schema: z
-					.enum(["control-panel", "tenant"])
-					.default("control-panel"),
+				schema: z.enum(["control-panel", "tenant"]).default("control-panel"),
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const journal = journalForSchema(input.schema);
 
 			let applied: Array<{

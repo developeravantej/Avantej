@@ -34,7 +34,9 @@ describe("syncStaffToGhl", () => {
 		const args = {
 			...baseArgs,
 			controlPanelDb: {
-				query: { ghlBranchLinks: { findFirst: mock(() => Promise.resolve(null)) } },
+				query: {
+					ghlBranchLinks: { findFirst: mock(() => Promise.resolve(null)) },
+				},
 			} as any,
 		};
 		const result = await syncStaffToGhl(args);
@@ -69,8 +71,12 @@ describe("syncStaffToGhl", () => {
 				},
 			} as any,
 			tenantDb: {
-				insert: () => ({ values: () => ({ onConflictDoUpdate: tenantInsert }) }),
-				query: { ghlUserLinks: { findFirst: mock(() => Promise.resolve(null)) } },
+				insert: () => ({
+					values: () => ({ onConflictDoUpdate: tenantInsert }),
+				}),
+				query: {
+					ghlUserLinks: { findFirst: mock(() => Promise.resolve(null)) },
+				},
 			} as any,
 		};
 		const result = await syncStaffToGhl(args);
@@ -102,8 +108,12 @@ describe("syncStaffToGhl", () => {
 				},
 			} as any,
 			tenantDb: {
-				insert: () => ({ values: () => ({ onConflictDoUpdate: tenantInsert }) }),
-				query: { ghlUserLinks: { findFirst: mock(() => Promise.resolve(null)) } },
+				insert: () => ({
+					values: () => ({ onConflictDoUpdate: tenantInsert }),
+				}),
+				query: {
+					ghlUserLinks: { findFirst: mock(() => Promise.resolve(null)) },
+				},
 			} as any,
 		};
 		const result = await syncStaffToGhl(args);

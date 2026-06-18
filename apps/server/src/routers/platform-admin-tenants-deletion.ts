@@ -24,34 +24,30 @@
 import { z } from "zod";
 import { and, desc, eq, isNull, count } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { superAdminProcedure } from "@avantej-core/api";
+import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
 import { tenantDeletions } from "@avantej-core/db/schema/control-panel/tenant-deletions";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
-function cpDbFromContext(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
-		"controlPanelDb",
-	) as NeonDatabase<typeof controlPanelSchema> | undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
+const superAdminProcedure = adminProcedure.use(
+	requirePlatformAdmin(["super_admin"]),
+);
 
 function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
 	const id = session?.user?.id;
 	if (!id) {
-		throw new ORPCError("UNAUTHORIZED", { message: "No admin user in session" });
+		throw new ORPCError("UNAUTHORIZED", {
+			message: "No admin user in session",
+		});
 	}
 	return id;
 }
 
 function envFromContext(context: unknown): Record<string, unknown> {
-	const honoCtx = (context as { honoContext?: { env?: Record<string, unknown> } }).honoContext;
+	const honoCtx = (
+		context as { honoContext?: { env?: Record<string, unknown> } }
+	).honoContext;
 	return honoCtx?.env ?? {};
 }
 
@@ -90,7 +86,7 @@ export const platformAdminTenantsDeletionRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFromContext(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 
 			let exportUrl: string | null = null;
@@ -130,7 +126,7 @@ export const platformAdminTenantsDeletionRouter = {
 	restoreTenantDeletion: superAdminProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFromContext(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 			const { restoreTenantDeletion } = await import(
 				"@/services/tenant-deletion.service"
@@ -153,7 +149,7 @@ export const platformAdminTenantsDeletionRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFromContext(context);
+			const cpDb = getControlPanelDb(context);
 			const offset = (input.page - 1) * input.limit;
 
 			const filters = [] as any[];
@@ -206,7 +202,7 @@ export const platformAdminTenantsDeletionRouter = {
 		}),
 
 	runHardDeleteSweeperNow: superAdminProcedure.handler(async ({ context }) => {
-		const cpDb = cpDbFromContext(context);
+		const cpDb = getControlPanelDb(context);
 		const env = envFromContext(context);
 		const { hardDeleteOverdueTenants } = await import(
 			"@/services/tenant-deletion.service"

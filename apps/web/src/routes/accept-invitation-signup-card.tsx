@@ -150,11 +150,7 @@ export function AcceptInvitationSignupCard({
 										minLength={8}
 									/>
 								</div>
-								<Button
-									type="submit"
-									className="w-full"
-									disabled={isPending}
-								>
+								<Button type="submit" className="w-full" disabled={isPending}>
 									{isPending
 										? "Setting up your account…"
 										: "Sign Up & Accept Invitation"}

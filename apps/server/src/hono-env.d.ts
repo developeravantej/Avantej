@@ -12,8 +12,8 @@
  */
 
 import type {
-  BetterAuthUser,
-  BetterAuthSession,
+	BetterAuthUser,
+	BetterAuthSession,
 } from "@avantej-core/types/better-auth";
 import type { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import type { members } from "@avantej-core/db/schema/tenant/members";
@@ -24,38 +24,40 @@ import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-
 import type { Pool } from "@neondatabase/serverless";
 
 declare module "hono" {
-  interface ContextVariableMap {
-    // Database middleware variables (request-scoped pools)
-    controlPanelPool: Pool;
-    controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
-    tenantPools: Map<string, Pool>;
-    getBetterAuth: () => ReturnType<typeof import("@/lib/better-auth").getBetterAuth>;
+	interface ContextVariableMap {
+		// Database middleware variables (request-scoped pools)
+		controlPanelPool: Pool;
+		controlPanelDb: NeonDatabase<typeof controlPanelSchema>;
+		tenantPools: Map<string, Pool>;
+		getBetterAuth: () => ReturnType<
+			typeof import("@/lib/better-auth").getBetterAuth
+		>;
 
-    // Auth middleware variables
-    user: BetterAuthUser;
-    session: BetterAuthSession;
+		// Auth middleware variables
+		user: BetterAuthUser;
+		session: BetterAuthSession;
 
-    // Tenant middleware variables
-    organization: typeof organizations.$inferSelect;
-    organizationId: string;
-    tenantDb: NeonDatabase<typeof tenantSchema>;
+		// Tenant middleware variables
+		organization: typeof organizations.$inferSelect;
+		organizationId: string;
+		tenantDb: NeonDatabase<typeof tenantSchema>;
 
-    // Hierarchy middleware variables
-    member: typeof members.$inferSelect;
-    hierarchyScopeId: string;
-    accessibleNodeIds: string[];
-    role: string;
+		// Hierarchy middleware variables
+		member: typeof members.$inferSelect;
+		hierarchyScopeId: string;
+		accessibleNodeIds: string[];
+		role: string;
 
-    // Admin middleware variables
-    adminRecord: typeof platformAdmins.$inferSelect;
-    adminRole: string;
+		// Admin middleware variables
+		adminRecord: typeof platformAdmins.$inferSelect;
+		adminRole: string;
 
-    // Installment system flags (threaded from env vars via orpcTenantMiddleware)
-    installmentLockOnOpen: boolean;
+		// Installment system flags (threaded from env vars via orpcTenantMiddleware)
+		installmentLockOnOpen: boolean;
 
-    // Impersonation cookie forwarding — set by impersonateUser / stopImpersonating,
-    // consumed by the /rpc/* Hono wrapper in index.ts to re-attach Set-Cookie headers
-    // that oRPC's RPCHandler would otherwise strip.
-    __impersonationSetCookie__: string[];
-  }
+		// Impersonation cookie forwarding — set by impersonateUser / stopImpersonating,
+		// consumed by the /rpc/* Hono wrapper in index.ts to re-attach Set-Cookie headers
+		// that oRPC's RPCHandler would otherwise strip.
+		__impersonationSetCookie__: string[];
+	}
 }

@@ -46,7 +46,10 @@ export interface Milestone {
 	reachedAt: Date | null;
 }
 
-export const MILESTONE_ORDER: ReadonlyArray<{ id: MilestoneId; label: string }> = [
+export const MILESTONE_ORDER: ReadonlyArray<{
+	id: MilestoneId;
+	label: string;
+}> = [
 	{ id: "email_verified", label: "Owner email verified" },
 	{ id: "hierarchy_seeded", label: "Hierarchy seeded" },
 	{ id: "first_member", label: "First member" },
@@ -115,25 +118,20 @@ export async function computeTenantFunnel(
 	}
 
 	// 2-7. Tenant DB lookups in parallel.
-	const [
-		hierarchyAt,
-		memberAt,
-		customerAt,
-		apptAt,
-		paymentAt,
-	] = await Promise.all([
-		minTimestamp(deps.tenantDb, hierarchyNodes, hierarchyNodes.createdAt),
-		minTimestamp(deps.tenantDb, members, members.joinedAt),
-		minTimestamp(deps.tenantDb, customerProfiles, customerProfiles.createdAt),
-		minTimestamp(deps.tenantDb, appointments, appointments.createdAt),
-		(async () => {
-			const [row] = (await deps.tenantDb
-				.select({ min: sql<Date | null>`MIN(${payments.createdAt})` })
-				.from(payments)
-				.where(eq(payments.status, "succeeded"))) as [{ min: Date | null }];
-			return row?.min ?? null;
-		})(),
-	]);
+	const [hierarchyAt, memberAt, customerAt, apptAt, paymentAt] =
+		await Promise.all([
+			minTimestamp(deps.tenantDb, hierarchyNodes, hierarchyNodes.createdAt),
+			minTimestamp(deps.tenantDb, members, members.joinedAt),
+			minTimestamp(deps.tenantDb, customerProfiles, customerProfiles.createdAt),
+			minTimestamp(deps.tenantDb, appointments, appointments.createdAt),
+			(async () => {
+				const [row] = (await deps.tenantDb
+					.select({ min: sql<Date | null>`MIN(${payments.createdAt})` })
+					.from(payments)
+					.where(eq(payments.status, "succeeded"))) as [{ min: Date | null }];
+				return row?.min ?? null;
+			})(),
+		]);
 
 	const milestonesMap: Record<MilestoneId, Date | null | boolean> = {
 		email_verified: emailVerifiedAt ?? emailVerified,
@@ -163,4 +161,3 @@ export async function computeTenantFunnel(
 		total: milestones.length,
 	};
 }
-

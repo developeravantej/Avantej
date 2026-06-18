@@ -203,9 +203,9 @@ describe("GoHighLevel Service", () => {
 	});
 
 	test("throws when contact id is missing", () => {
-		expect(() => extractGhlContactPayload({ email: "missing-id@example.com" })).toThrow(
-			"Missing required field: contact.id"
-		);
+		expect(() =>
+			extractGhlContactPayload({ email: "missing-id@example.com" }),
+		).toThrow("Missing required field: contact.id");
 	});
 
 	test("throws when both email and phone are missing", () => {
@@ -296,7 +296,7 @@ describe("GoHighLevel Service", () => {
 				headerSecret: undefined,
 				querySecret: undefined,
 				webhookSecret: "super-secret",
-			})
+			}),
 		).resolves.toBeUndefined();
 	});
 
@@ -309,7 +309,7 @@ describe("GoHighLevel Service", () => {
 				headerSecret: undefined,
 				querySecret: undefined,
 				webhookSecret: "super-secret",
-			})
+			}),
 		).resolves.toBeUndefined();
 	});
 
@@ -322,13 +322,15 @@ describe("GoHighLevel Service", () => {
 				headerSecret: undefined,
 				querySecret: undefined,
 				webhookSecret: "super-secret",
-			})
+			}),
 		).resolves.toBeUndefined();
 	});
 
 	test("accepts x-wh-signature when webhook secret is configured", async () => {
 		const rawBody = JSON.stringify({ id: "abc" });
-		const signature = createHash("sha256").update(`${"super-secret"}.${rawBody}`).digest("hex");
+		const signature = createHash("sha256")
+			.update(`${"super-secret"}.${rawBody}`)
+			.digest("hex");
 
 		await expect(
 			verifyGhlWebhookAuth({
@@ -338,7 +340,7 @@ describe("GoHighLevel Service", () => {
 				headerSecret: undefined,
 				querySecret: undefined,
 				webhookSecret: "super-secret",
-			})
+			}),
 		).resolves.toBeUndefined();
 	});
 
@@ -351,7 +353,7 @@ describe("GoHighLevel Service", () => {
 				headerSecret: undefined,
 				querySecret: undefined,
 				webhookSecret: "super-secret",
-			})
+			}),
 		).rejects.toThrow("Missing or invalid webhook authorization");
 	});
 });

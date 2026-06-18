@@ -78,9 +78,11 @@ export async function runTenantExport(
 ): Promise<TenantExportResult> {
 	const exportedAt = (deps.now ?? new Date()).toISOString();
 
-	const queryObj = (deps.tenantDb as unknown as {
-		query: Record<string, { findMany: () => Promise<unknown[]> }>;
-	}).query;
+	const queryObj = (
+		deps.tenantDb as unknown as {
+			query: Record<string, { findMany: () => Promise<unknown[]> }>;
+		}
+	).query;
 
 	const tableNames = Object.keys(queryObj).sort();
 	const tables: Record<string, unknown[]> = {};
@@ -93,7 +95,10 @@ export async function runTenantExport(
 			totalRows += rows.length;
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : String(err);
-			console.error(`[tenant-export] org=${deps.organizationId} table=${name} failed:`, msg);
+			console.error(
+				`[tenant-export] org=${deps.organizationId} table=${name} failed:`,
+				msg,
+			);
 			tables[name] = [{ __export_error__: msg }];
 		}
 	}

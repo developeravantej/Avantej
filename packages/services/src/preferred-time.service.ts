@@ -16,19 +16,19 @@ import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 export type PreferredTimeInput = {
-  dayOfWeek: string;
-  time: string;
-  priority: number;
+	dayOfWeek: string;
+	time: string;
+	priority: number;
 };
 
 const VALID_DAYS = [
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-  "sunday",
+	"monday",
+	"tuesday",
+	"wednesday",
+	"thursday",
+	"friday",
+	"saturday",
+	"sunday",
 ];
 const MAX_PREFERRED_TIMES = 4;
 
@@ -36,56 +36,58 @@ const MAX_PREFERRED_TIMES = 4;
  * List preferred times for a package instance.
  */
 export async function listPreferredTimes(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  packageInstanceId: string
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	packageInstanceId: string,
 ): Promise<(typeof preferredTimes.$inferSelect)[]> {
-  return tenantDb.query.preferredTimes.findMany({
-    where: eq(preferredTimes.packageInstanceId, packageInstanceId),
-    orderBy: [preferredTimes.priority],
-  });
+	return tenantDb.query.preferredTimes.findMany({
+		where: eq(preferredTimes.packageInstanceId, packageInstanceId),
+		orderBy: [preferredTimes.priority],
+	});
 }
 
 /**
  * Upsert preferred times for a package instance. Replaces existing; max 4.
  */
 export async function upsertPreferredTimes(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  packageInstanceId: string,
-  items: PreferredTimeInput[]
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	packageInstanceId: string,
+	items: PreferredTimeInput[],
 ): Promise<(typeof preferredTimes.$inferSelect)[]> {
-  if (items.length > MAX_PREFERRED_TIMES) {
-    throw new Error(`Maximum ${MAX_PREFERRED_TIMES} preferred times per instance`);
-  }
+	if (items.length > MAX_PREFERRED_TIMES) {
+		throw new Error(
+			`Maximum ${MAX_PREFERRED_TIMES} preferred times per instance`,
+		);
+	}
 
-  for (const item of items) {
-    const day = item.dayOfWeek.toLowerCase();
-    if (!VALID_DAYS.includes(day)) {
-      throw new Error(`Invalid dayOfWeek: ${item.dayOfWeek}`);
-    }
-    if (item.priority < 1 || item.priority > MAX_PREFERRED_TIMES) {
-      throw new Error(`Priority must be 1-${MAX_PREFERRED_TIMES}`);
-    }
-  }
+	for (const item of items) {
+		const day = item.dayOfWeek.toLowerCase();
+		if (!VALID_DAYS.includes(day)) {
+			throw new Error(`Invalid dayOfWeek: ${item.dayOfWeek}`);
+		}
+		if (item.priority < 1 || item.priority > MAX_PREFERRED_TIMES) {
+			throw new Error(`Priority must be 1-${MAX_PREFERRED_TIMES}`);
+		}
+	}
 
-  await tenantDb
-    .delete(preferredTimes)
-    .where(eq(preferredTimes.packageInstanceId, packageInstanceId));
+	await tenantDb
+		.delete(preferredTimes)
+		.where(eq(preferredTimes.packageInstanceId, packageInstanceId));
 
-  if (items.length === 0) {
-    return [];
-  }
+	if (items.length === 0) {
+		return [];
+	}
 
-  const rows = await tenantDb
-    .insert(preferredTimes)
-    .values(
-      items.map((item) => ({
-        packageInstanceId,
-        dayOfWeek: item.dayOfWeek.toLowerCase(),
-        time: item.time,
-        priority: item.priority,
-      }))
-    )
-    .returning();
+	const rows = await tenantDb
+		.insert(preferredTimes)
+		.values(
+			items.map((item) => ({
+				packageInstanceId,
+				dayOfWeek: item.dayOfWeek.toLowerCase(),
+				time: item.time,
+				priority: item.priority,
+			})),
+		)
+		.returning();
 
-  return rows;
+	return rows;
 }

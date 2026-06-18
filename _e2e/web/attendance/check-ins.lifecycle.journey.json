@@ -1,0 +1,12 @@
+{
+	"attendance/check-ins.lifecycle.spec.ts::Check-in rule — member check-in without clientId is rejected (400)": [
+		"Posts checkIns/recordCheckIn with clientType 'member' and no clientId",
+		"Asserts the zod superRefine rejects it with 400 ('clientId is required for member check-ins')"
+	],
+	"attendance/check-ins.lifecycle.spec.ts::Check-in rule — duplicate member drop-in within 30 min is rejected (409)": [
+		"Resolves the caller's own members.userId as the clientId (a real member)",
+		"Records a first member drop-in check-in (succeeds, returns id) and registers deleteCheckIn teardown",
+		"Asserts a second member drop-in for the same client within 30 min is rejected with 409 (ALREADY_CHECKED_IN)",
+		"Deletes the created check-in on teardown"
+	]
+}

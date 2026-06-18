@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -88,7 +89,9 @@ export function TemplateEditorDialog(props: TemplateEditorDialogProps) {
 			}
 			if (
 				props.template.targetAudience &&
-				(AUDIENCE_OPTS as readonly string[]).includes(props.template.targetAudience)
+				(AUDIENCE_OPTS as readonly string[]).includes(
+					props.template.targetAudience,
+				)
 			) {
 				setAudience(
 					props.template.targetAudience as "all" | "staff" | "clients",
@@ -131,14 +134,14 @@ export function TemplateEditorDialog(props: TemplateEditorDialogProps) {
 				if (!o) props.onClose();
 			}}
 		>
-			<DialogContent
-				className="max-w-3xl"
-				data-testid="template-editor-dialog"
-			>
+			<DialogContent className="max-w-3xl" data-testid="template-editor-dialog">
 				<DialogHeader>
-					<DialogTitle>
-						{isEdit ? "Edit template" : "New template"}
-					</DialogTitle>
+					<DialogTitle>{isEdit ? "Edit template" : "New template"}</DialogTitle>
+					<DialogDescription>
+						{isEdit
+							? "Update the content of this message template."
+							: "Create a new reusable message template."}
+					</DialogDescription>
 				</DialogHeader>
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 					<div className="space-y-3">

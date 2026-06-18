@@ -2,7 +2,9 @@ import type { InstallmentOverviewItem } from "./types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-export function formatDate(value: string | number | Date | null | undefined): string {
+export function formatDate(
+	value: string | number | Date | null | undefined,
+): string {
 	if (!value) return "—";
 	try {
 		return new Date(value).toLocaleDateString("en-MY");
@@ -12,7 +14,9 @@ export function formatDate(value: string | number | Date | null | undefined): st
 }
 
 export function daysFromNow(date: Date | string): number {
-	return Math.ceil((new Date(date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+	return Math.ceil(
+		(new Date(date).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+	);
 }
 
 export function getInstanceStatus(
@@ -21,6 +25,7 @@ export function getInstanceStatus(
 	if (instance.isLocked) return "Locked";
 	// Overdue if grace period started OR nextDueDate has passed (before cron sweeps it)
 	if (instance.gracePeriodEndsAt) return "Overdue";
-	if (instance.nextDueDate && new Date(instance.nextDueDate) < new Date()) return "Overdue";
+	if (instance.nextDueDate && new Date(instance.nextDueDate) < new Date())
+		return "Overdue";
 	return "Active";
 }

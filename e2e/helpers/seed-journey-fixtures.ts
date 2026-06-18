@@ -34,17 +34,29 @@ export interface JourneyFixtures {
 	installmentPlan: InstallmentPlanInfo | null;
 }
 
-export async function ensureJourneyFixtures(page: Page): Promise<JourneyFixtures> {
+export async function ensureJourneyFixtures(
+	page: Page,
+): Promise<JourneyFixtures> {
 	const [client, trainer, service, packageService] = await Promise.all([
 		pickFirstActiveClient(page),
 		pickFirstActiveTrainer(page),
 		pickFirstService(page),
 		pickFirstService(page, { isPackage: true, hasSessions: true }),
 	]);
-	const product = (await pickFirstProduct(page)) ?? (await ensureFirstProduct(page));
+	const product =
+		(await pickFirstProduct(page)) ?? (await ensureFirstProduct(page));
 	const branchId = await pickFirstBranchId(page);
 	const installmentPlan = await pickFirstInstallmentPlan(page);
-	return { orgId: TEST_ORG_ID, client, trainer, service, packageService, product, branchId, installmentPlan };
+	return {
+		orgId: TEST_ORG_ID,
+		client,
+		trainer,
+		service,
+		packageService,
+		product,
+		branchId,
+		installmentPlan,
+	};
 }
 
 /** Branch scope to use for a customer's POS sale / appointment. */

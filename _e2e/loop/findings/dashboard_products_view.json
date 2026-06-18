@@ -1,0 +1,6 @@
+{
+  "route": "/dashboard/products/view",
+  "module": "products",
+  "timedOut": true,
+  "findings": []
+}

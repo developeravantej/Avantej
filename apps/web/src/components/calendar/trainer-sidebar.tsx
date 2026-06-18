@@ -105,9 +105,7 @@ export function TrainerSidebar({
 					}}
 					className={cn(
 						"flex cursor-pointer items-center gap-3 border-b border-[#e5e5e5] px-5 py-3 transition-colors",
-						isAllSelected
-							? "bg-[#f3f3f3]"
-							: "hover:bg-[#f3f3f3]",
+						isAllSelected ? "bg-[#f3f3f3]" : "hover:bg-[#f3f3f3]",
 					)}
 				>
 					<div className="relative">

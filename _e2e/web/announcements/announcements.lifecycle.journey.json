@@ -1,0 +1,10 @@
+{
+  "announcements/announcements.lifecycle.spec.ts::Announcement lifecycle — create, update, delete (API-verified)": [
+    "Create an announcement via announcements/create",
+    "Register teardown to delete the announcement",
+    "List announcements and assert the title is present",
+    "Update the title and priority via announcements/update",
+    "Re-list and assert the updated title persisted",
+    "Delete the announcement and assert it is gone from the list"
+  ]
+}

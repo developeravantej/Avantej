@@ -7,6 +7,9 @@ import { waitlistEntries } from "@avantej-core/db/schema/tenant/waitlist-entries
 import { services } from "@avantej-core/db/schema/tenant/services";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { cancelAppointmentInsideTx } from "./appointment.service";
+import { promoteFromWaitlistInsideTx } from "./waitlist.service";
+import { writeAudit } from "./audit-log.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 
@@ -102,10 +105,7 @@ export async function listClassSlots(
 			pricePerSpotCents: sql<number>`COALESCE(MAX(${services.price}), 0)::int`,
 		})
 		.from(classSlots)
-		.leftJoin(
-			waitlistEntries,
-			eq(waitlistEntries.classSlotId, classSlots.id),
-		)
+		.leftJoin(waitlistEntries, eq(waitlistEntries.classSlotId, classSlots.id))
 		.leftJoin(services, eq(services.id, classSlots.serviceId))
 		.where(conditions.length > 0 ? and(...conditions) : undefined)
 		.groupBy(classSlots.id)
@@ -116,10 +116,7 @@ export async function listClassSlots(
 	return rows;
 }
 
-export async function getClassSlotById(
-	tenantDb: TenantDb,
-	id: string,
-) {
+export async function getClassSlotById(tenantDb: TenantDb, id: string) {
 	const row = await tenantDb.query.classSlots.findFirst({
 		where: eq(classSlots.id, id),
 	});
@@ -161,7 +158,12 @@ export async function updateClassSlot(
 	data: Partial<
 		Pick<
 			CreateClassSlotParams,
-			"date" | "startTime" | "endTime" | "capacity" | "instructorId" | "location"
+			| "date"
+			| "startTime"
+			| "endTime"
+			| "capacity"
+			| "instructorId"
+			| "location"
 		>
 	>,
 ) {
@@ -185,7 +187,9 @@ export async function updateClassSlot(
 				...(data.date !== undefined && { date: data.date }),
 				...(data.startTime !== undefined && { startTime: data.startTime }),
 				...(data.endTime !== undefined && { endTime: data.endTime }),
-				...(data.instructorId !== undefined && { instructorId: data.instructorId }),
+				...(data.instructorId !== undefined && {
+					instructorId: data.instructorId,
+				}),
 				...(data.location !== undefined && { location: data.location }),
 				capacity: newCapacity,
 				spotsAvailable: newSpotsAvailable,
@@ -208,7 +212,9 @@ export async function updateClassSlot(
 			...(data.date !== undefined && { date: data.date }),
 			...(data.startTime !== undefined && { startTime: data.startTime }),
 			...(data.endTime !== undefined && { endTime: data.endTime }),
-			...(data.instructorId !== undefined && { instructorId: data.instructorId }),
+			...(data.instructorId !== undefined && {
+				instructorId: data.instructorId,
+			}),
 			...(data.location !== undefined && { location: data.location }),
 			updatedAt: new Date(),
 		})
@@ -225,58 +231,123 @@ export async function cancelClassSlot(
 	tenantDb: TenantDb,
 	id: string,
 	cancellationReason?: string,
+	actor?: { userId: string; memberId: string; role: string },
 ) {
-	const [row] = await tenantDb
-		.update(classSlots)
-		.set({
-			isCancelled: true,
-			isAvailable: false,
-			cancellationReason: cancellationReason ?? null,
-			updatedAt: new Date(),
-		})
-		.where(eq(classSlots.id, id))
-		.returning();
+	return tenantDb.transaction(async (tx) => {
+		// 1. Mark the slot itself cancelled
+		const [row] = await tx
+			.update(classSlots)
+			.set({
+				isCancelled: true,
+				isAvailable: false,
+				cancellationReason: cancellationReason ?? null,
+				updatedAt: new Date(),
+			})
+			.where(eq(classSlots.id, id))
+			.returning();
 
-	if (!row) {
-		throw new Error("Class slot not found");
-	}
-	return row;
+		if (!row) {
+			throw new Error("Class slot not found");
+		}
+
+		// Audit: slot cancellation
+		if (actor) {
+			await writeAudit(tx, {
+				actorUserId: actor.userId,
+				actorMemberId: actor.memberId,
+				actorRole: actor.role,
+				action: "class_slot.cancel",
+				entityType: "class_slot",
+				entityId: id,
+				branchId: row.branchId,
+				summary: `Class slot cancelled${cancellationReason ? `: ${cancellationReason}` : ""}`,
+				changes: { cancellationReason: cancellationReason ?? null },
+			});
+		}
+
+		// 2. Cascade-cancel all enrolled (non-cancelled) appointments for this slot
+		const enrolledAppointments = await tx
+			.select()
+			.from(appointments)
+			.where(
+				and(
+					eq(appointments.classSlotId, id),
+					ne(appointments.status, "cancelled"),
+				),
+			);
+
+		const cascadeReason = cancellationReason
+			? `Class slot cancelled: ${cancellationReason}`
+			: "Class slot cancelled";
+
+		for (const appt of enrolledAppointments) {
+			await cancelAppointmentInsideTx(tx, appt, actor, cascadeReason);
+		}
+
+		// 3. Attempt to promote waiting entries into any freed capacity, then
+		//    notify the promoted member (notification is handled inside the
+		//    promotion helper). Bounded by the number of spots just freed so we
+		//    never over-promote, and stops as soon as there's nothing left to
+		//    promote or no capacity remains.
+		//
+		//    NOTE: when the *whole* slot is being cancelled (the common case for
+		//    this function), the promotion helper's `isCancelled = false` guard
+		//    means it returns "full" immediately and no booking is created — we
+		//    do not strand members in a dead slot. The loop still runs cheaply
+		//    and is correct for the (rare) caller that frees capacity without
+		//    tearing the slot down.
+		let promotedCount = 0;
+		for (let i = 0; i < enrolledAppointments.length; i++) {
+			const result = await promoteFromWaitlistInsideTx(tx, id);
+			if (result === null || result === "full") break;
+			promotedCount += 1;
+		}
+
+		return {
+			...row,
+			cancelledAppointmentCount: enrolledAppointments.length,
+			promotedFromWaitlistCount: promotedCount,
+		};
+	});
 }
 
-export async function incrementBooking(
-	tenantDb: TenantDb,
-	id: string,
-) {
-	const slot = await tenantDb.query.classSlots.findFirst({
-		where: eq(classSlots.id, id),
-	});
-	if (!slot) throw new Error("Class slot not found");
-	if (slot.isFull) throw new Error("Class slot is full");
-	if (slot.isCancelled) throw new Error("Class slot is cancelled");
-
-	const newSpotsBooked = slot.spotsBooked + 1;
-	const newSpotsAvailable = Math.max(0, slot.capacity - newSpotsBooked);
-	const newIsFull = newSpotsBooked >= slot.capacity;
-
+export async function incrementBooking(tenantDb: TenantDb, id: string) {
+	// Atomic check-and-increment: the conditional WHERE guarantees we only
+	// claim a spot when the slot is live and still below capacity. Two
+	// concurrent bookings can no longer both read a stale count and over-fill —
+	// at most one wins per free spot, and a full slot affects 0 rows. (F-SVC-09)
 	const [updated] = await tenantDb
 		.update(classSlots)
 		.set({
-			spotsBooked: newSpotsBooked,
-			spotsAvailable: newSpotsAvailable,
-			isFull: newIsFull,
-			isAvailable: !newIsFull && !slot.isCancelled,
+			spotsBooked: sql`${classSlots.spotsBooked} + 1`,
+			spotsAvailable: sql`GREATEST(${classSlots.capacity} - (${classSlots.spotsBooked} + 1), 0)`,
+			isFull: sql`(${classSlots.spotsBooked} + 1) >= ${classSlots.capacity}`,
+			isAvailable: sql`(${classSlots.spotsBooked} + 1) < ${classSlots.capacity}`,
 			updatedAt: new Date(),
 		})
-		.where(eq(classSlots.id, id))
+		.where(
+			and(
+				eq(classSlots.id, id),
+				eq(classSlots.isCancelled, false),
+				sql`${classSlots.spotsBooked} < ${classSlots.capacity}`,
+			),
+		)
 		.returning();
+
+	if (!updated) {
+		// Distinguish "not found / cancelled" from "full" for a useful message.
+		const slot = await tenantDb.query.classSlots.findFirst({
+			where: eq(classSlots.id, id),
+		});
+		if (!slot) throw new Error("Class slot not found");
+		if (slot.isCancelled) throw new Error("Class slot is cancelled");
+		throw new Error("Class slot is full");
+	}
 
 	return updated;
 }
 
-export async function decrementBooking(
-	tenantDb: TenantDb,
-	id: string,
-) {
+export async function decrementBooking(tenantDb: TenantDb, id: string) {
 	const slot = await tenantDb.query.classSlots.findFirst({
 		where: eq(classSlots.id, id),
 	});

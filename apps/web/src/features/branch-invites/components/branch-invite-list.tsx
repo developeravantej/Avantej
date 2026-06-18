@@ -48,9 +48,9 @@ export function BranchInviteList({
 	);
 
 	const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
-	const [confirmRegenerateId, setConfirmRegenerateId] = useState<
-		string | null
-	>(null);
+	const [confirmRegenerateId, setConfirmRegenerateId] = useState<string | null>(
+		null,
+	);
 
 	if (isLoading) {
 		return (
@@ -61,7 +61,8 @@ export function BranchInviteList({
 		);
 	}
 
-	const active = invites?.filter((i: { isActive: boolean }) => i.isActive) ?? [];
+	const active =
+		invites?.filter((i: { isActive: boolean }) => i.isActive) ?? [];
 
 	if (active.length === 0) {
 		return null;
@@ -70,7 +71,7 @@ export function BranchInviteList({
 	return (
 		<>
 			<div className="mt-4">
-				<p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+				<p className="text-xs font-medium text-[#737373] uppercase tracking-wide mb-2">
 					Active Invites
 				</p>
 				<div className="space-y-2">
@@ -84,17 +85,17 @@ export function BranchInviteList({
 						}) => (
 							<div
 								key={invite.id}
-								className="flex items-center justify-between rounded-lg border bg-card px-3 py-2.5 text-sm"
+								className="flex items-center justify-between rounded-lg border bg-white px-3 py-2.5 text-sm"
 							>
 								<div className="flex items-center gap-3">
 									<Badge
 										variant="outline"
-										className="text-xs font-normal text-muted-foreground"
+										className="text-xs font-normal text-[#737373]"
 									>
 										{invite.usesCount}
 										{invite.maxUses != null ? `/${invite.maxUses}` : ""} uses
 									</Badge>
-									<span className="text-xs text-muted-foreground">
+									<span className="text-xs text-[#737373]">
 										Created {relativeTime(invite.createdAt)}
 									</span>
 								</div>
@@ -102,7 +103,7 @@ export function BranchInviteList({
 									<Button
 										variant="ghost"
 										size="icon"
-										className="h-7 w-7 text-muted-foreground hover:text-foreground"
+										className="h-7 w-7 text-[#737373] hover:text-[#0a0a0a]"
 										onClick={() => setConfirmRegenerateId(invite.id)}
 										disabled={regenerateMutation.isPending}
 										title="Regenerate invite link"
@@ -112,7 +113,7 @@ export function BranchInviteList({
 									<Button
 										variant="ghost"
 										size="icon"
-										className="h-7 w-7 text-muted-foreground hover:text-destructive"
+										className="h-7 w-7 text-[#737373] hover:text-rose-600"
 										onClick={() => setConfirmRevokeId(invite.id)}
 										disabled={revokeMutation.isPending}
 										title="Revoke invite"
@@ -131,20 +132,28 @@ export function BranchInviteList({
 				open={confirmRevokeId !== null}
 				onOpenChange={(open) => !open && setConfirmRevokeId(null)}
 			>
-				<DialogContent className="sm:max-w-sm">
-					<DialogHeader>
-						<DialogTitle>Revoke invite?</DialogTitle>
-						<DialogDescription>
+				<DialogContent
+					className="sm:max-w-sm p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							BRANCH MANAGEMENT
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Revoke invite?
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
 							This QR code will stop working immediately. Customers who have
 							already signed up will not be affected.
 						</DialogDescription>
 					</DialogHeader>
-					<DialogFooter>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button variant="outline" onClick={() => setConfirmRevokeId(null)}>
 							Cancel
 						</Button>
 						<Button
-							variant="destructive"
+							className="bg-red-600 hover:bg-red-700 text-white"
 							disabled={revokeMutation.isPending}
 							onClick={() => {
 								if (confirmRevokeId) {
@@ -165,15 +174,23 @@ export function BranchInviteList({
 				open={confirmRegenerateId !== null}
 				onOpenChange={(open) => !open && setConfirmRegenerateId(null)}
 			>
-				<DialogContent className="sm:max-w-sm">
-					<DialogHeader>
-						<DialogTitle>Regenerate QR code?</DialogTitle>
-						<DialogDescription>
+				<DialogContent
+					className="sm:max-w-sm p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							BRANCH MANAGEMENT
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Regenerate QR code?
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
 							The current QR code will be revoked and a new one will be issued.
 							Print and distribute the new code after confirming.
 						</DialogDescription>
 					</DialogHeader>
-					<DialogFooter>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button
 							variant="outline"
 							onClick={() => setConfirmRegenerateId(null)}
@@ -181,6 +198,7 @@ export function BranchInviteList({
 							Cancel
 						</Button>
 						<Button
+							className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
 							disabled={regenerateMutation.isPending}
 							onClick={() => {
 								if (confirmRegenerateId) {

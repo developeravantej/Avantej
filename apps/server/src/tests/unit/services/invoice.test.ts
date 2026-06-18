@@ -6,9 +6,15 @@ import {
 	updateInvoice,
 } from "@avantej-core/services";
 
-const mockFindMany = mock((..._args: any[]): Promise<any[]> => Promise.resolve([]));
-const mockFindFirst = mock((..._args: any[]): Promise<any> => Promise.resolve(null));
-const mockReturning = mock((..._args: any[]): Promise<any[]> => Promise.resolve([]));
+const mockFindMany = mock(
+	(..._args: any[]): Promise<any[]> => Promise.resolve([]),
+);
+const mockFindFirst = mock(
+	(..._args: any[]): Promise<any> => Promise.resolve(null),
+);
+const mockReturning = mock(
+	(..._args: any[]): Promise<any[]> => Promise.resolve([]),
+);
 const mockValues = mock((..._args: any[]) => ({ returning: mockReturning }));
 const mockInsert = mock((..._args: any[]) => ({ values: mockValues }));
 const mockUpdate = mock((..._args: any[]) => ({
@@ -18,7 +24,9 @@ const mockUpdate = mock((..._args: any[]) => ({
 }));
 
 // execute mock for raw SQL: tenantDb.execute(sql`SELECT nextval(...)`) → { rows: [{ seq }] }
-const mockExecute = mock((..._args: any[]): Promise<any> => Promise.resolve({ rows: [{ seq: "1" }] }));
+const mockExecute = mock(
+	(..._args: any[]): Promise<any> => Promise.resolve({ rows: [{ seq: "1" }] }),
+);
 
 const mockTenantDb = {
 	insert: mockInsert,
@@ -210,20 +218,31 @@ describe("createInvoice", () => {
 				createdBy: "user-1",
 				totalAmount: 100,
 				status: "draft",
-			})
+			}),
 		).rejects.toThrow("Failed to create invoice");
 	});
 });
 
 describe("updateInvoice", () => {
 	test("updates and returns the invoice", async () => {
-		const updatedInvoice = { id: "inv1", invoiceNumber: "INV-20260227-0001", status: "paid" };
-		const mockReturningUpd = mock((..._args: any[]) => Promise.resolve([updatedInvoice]));
-		const mockWhereUpd = mock((..._args: any[]) => ({ returning: mockReturningUpd }));
+		const updatedInvoice = {
+			id: "inv1",
+			invoiceNumber: "INV-20260227-0001",
+			status: "paid",
+		};
+		const mockReturningUpd = mock((..._args: any[]) =>
+			Promise.resolve([updatedInvoice]),
+		);
+		const mockWhereUpd = mock((..._args: any[]) => ({
+			returning: mockReturningUpd,
+		}));
 		const mockSetUpd = mock((..._args: any[]) => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		const result = await updateInvoice(mockTenantDb, "inv1", { status: "paid", amountPaid: 100 });
+		const result = await updateInvoice(mockTenantDb, "inv1", {
+			status: "paid",
+			amountPaid: 100,
+		});
 
 		expect(result as any).toEqual(updatedInvoice);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
@@ -231,10 +250,14 @@ describe("updateInvoice", () => {
 
 	test("throws 'Invoice not found' when update returns empty", async () => {
 		const mockReturningUpd = mock((..._args: any[]) => Promise.resolve([]));
-		const mockWhereUpd = mock((..._args: any[]) => ({ returning: mockReturningUpd }));
+		const mockWhereUpd = mock((..._args: any[]) => ({
+			returning: mockReturningUpd,
+		}));
 		const mockSetUpd = mock((..._args: any[]) => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		await expect(updateInvoice(mockTenantDb, "nonexistent", { status: "paid" })).rejects.toThrow("Invoice not found");
+		await expect(
+			updateInvoice(mockTenantDb, "nonexistent", { status: "paid" }),
+		).rejects.toThrow("Invoice not found");
 	});
 });

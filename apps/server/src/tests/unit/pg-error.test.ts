@@ -1,7 +1,10 @@
 import { describe, test, expect } from "bun:test";
 import { handleDbError } from "@avantej-core/services/lib/pg-error";
 
-function makePgError(code: string, message = "db error"): Error & { code: string } {
+function makePgError(
+	code: string,
+	message = "db error",
+): Error & { code: string } {
 	const err = new Error(message) as Error & { code: string };
 	err.code = code;
 	return err;

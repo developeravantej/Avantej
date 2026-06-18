@@ -62,7 +62,9 @@ export function CommsOutboxList(props: CommsOutboxListProps) {
 			<div className="grid grid-cols-1 md:grid-cols-4 gap-3">
 				<Select
 					value={props.kindFilter}
-					onValueChange={(v) => props.onKindChange(v as typeof props.kindFilter)}
+					onValueChange={(v) =>
+						props.onKindChange(v as typeof props.kindFilter)
+					}
 				>
 					<SelectTrigger data-testid="outbox-kind-filter">
 						<SelectValue placeholder="Kind" />

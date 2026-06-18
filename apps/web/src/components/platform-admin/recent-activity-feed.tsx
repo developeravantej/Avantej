@@ -32,11 +32,7 @@ function relativeTime(iso: string): string {
 	return `${d}d ago`;
 }
 
-export function RecentActivityFeed({
-	actions,
-}: {
-	actions: RecentAction[];
-}) {
+export function RecentActivityFeed({ actions }: { actions: RecentAction[] }) {
 	return (
 		<Card data-testid="recent-activity-feed">
 			<CardHeader>

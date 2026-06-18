@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { useUserContext } from "@/hooks/useUserContext";
 import { AddAppointmentModal } from "@/components/calendar/add-appointment-modal";
@@ -23,6 +23,9 @@ import {
 } from "@/features/appointments/utils";
 import { AppointmentDetailDialog } from "@/features/appointments/components/AppointmentDetailDialog";
 import { AttendanceDialog } from "@/features/appointments/components/AttendanceDialog";
+import { RescheduleDialog } from "@/features/appointments/components/RescheduleDialog";
+import { NoShowFollowupDialog } from "@/features/appointments/components/NoShowFollowupDialog";
+import { ScheduleSessionsPanel } from "@/features/approvals/components/ScheduleSessionsPanel";
 import {
 	EditAppointmentDialog,
 	type EditForm,
@@ -61,7 +64,11 @@ function formatDayLabel(d: Date) {
 }
 
 function isSameDay(a: Date, b: Date) {
-	return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+	return (
+		a.getFullYear() === b.getFullYear() &&
+		a.getMonth() === b.getMonth() &&
+		a.getDate() === b.getDate()
+	);
 }
 
 // ── component ─────────────────────────────────────────────────────────────────
@@ -75,8 +82,14 @@ export function AppointmentList({
 	const [subView, setSubView] = useState<"list" | "card">("list");
 	const [showAddModal, setShowAddModal] = useState(false);
 	const [attendanceApptId, setAttendanceApptId] = useState<string | null>(null);
-	const [selectedAppt, setSelectedAppt] = useState<CalendarAppointment | null>(null);
+	const [selectedAppt, setSelectedAppt] = useState<CalendarAppointment | null>(
+		null,
+	);
 	const [editAppt, setEditAppt] = useState<CalendarAppointment | null>(null);
+	const [rescheduleAppt, setRescheduleAppt] =
+		useState<CalendarAppointment | null>(null);
+	const [noShowFollowupId, setNoShowFollowupId] = useState<string | null>(null);
+	const [replacementPkgId, setReplacementPkgId] = useState<string | null>(null);
 	const [editForm, setEditForm] = useState<EditForm | null>(null);
 
 	// Day mode: currently viewed date
@@ -118,21 +131,24 @@ export function AppointmentList({
 			if (msg.startsWith("Conflict:")) return msg;
 			return msg;
 		},
-		invalidate: [["appointments"]],
+		invalidate: [orpc.appointments.list.key()],
 		onSuccess: () => {
 			setShowAddModal(false);
 		},
 	});
 
 	const updateMutation = useApiMutation({
-		mutationFn: (params: { id: string; status: "confirmed" | "cancelled" }) =>
+		mutationFn: (params: {
+			id: string;
+			status: "confirmed" | "cancelled" | "no-show";
+		}) =>
 			client.appointments.update({
 				organizationId,
 				id: params.id,
 				status: params.status,
 			}),
 		errorMessage: (err) => err.message || "Failed to update appointment",
-		invalidate: [["appointments"]],
+		invalidate: [orpc.appointments.list.key()],
 	});
 
 	const editMutation = useApiMutation({
@@ -153,7 +169,7 @@ export function AppointmentList({
 			}),
 		successMessage: "Appointment updated",
 		errorMessage: (err) => err.message || "Failed to update appointment",
-		invalidate: [["appointments"]],
+		invalidate: [orpc.appointments.list.key()],
 		onSuccess: () => {
 			setEditAppt(null);
 			setEditForm(null);
@@ -267,9 +283,7 @@ export function AppointmentList({
 
 	// ── Toolbar label ─────────────────────────────────────────────────────────
 	const toolbarLabel =
-		viewMode === "day"
-			? formatDayLabel(currentDay)
-			: monthLabel;
+		viewMode === "day" ? formatDayLabel(currentDay) : monthLabel;
 
 	const toolbarSub =
 		viewMode === "day"
@@ -283,18 +297,14 @@ export function AppointmentList({
 		if (viewMode === "day") {
 			prevDay();
 		} else {
-			setCurrentMonth(
-				(m) => new Date(m.getFullYear(), m.getMonth() - 1),
-			);
+			setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1));
 		}
 	}
 	function handleNext() {
 		if (viewMode === "day") {
 			nextDay();
 		} else {
-			setCurrentMonth(
-				(m) => new Date(m.getFullYear(), m.getMonth() + 1),
-			);
+			setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1));
 		}
 	}
 	function handleToday() {
@@ -421,9 +431,14 @@ export function AppointmentList({
 						<div className="flex flex-col items-center justify-center py-20">
 							<CalendarDays className="h-8 w-8 mb-3 text-[#d1d1d1]" />
 							<p className="text-sm font-medium text-[#0a0a0a]">
-								No appointments {isCurrentDayToday ? "today" : `on ${formatDayLabel(currentDay)}`}
+								No appointments{" "}
+								{isCurrentDayToday
+									? "today"
+									: `on ${formatDayLabel(currentDay)}`}
 							</p>
-							<p className="text-xs mt-1 text-[#737373]">Schedule a new booking to get started.</p>
+							<p className="text-xs mt-1 text-[#737373]">
+								Schedule a new booking to get started.
+							</p>
 							<button
 								type="button"
 								onClick={() => setShowAddModal(true)}
@@ -440,86 +455,89 @@ export function AppointmentList({
 							onMarkAttendance={(id) => setAttendanceApptId(id)}
 						/>
 					)
+				) : /* ── Week / List ── */
+				dateKeys.length === 0 ? (
+					<div className="flex flex-col items-center justify-center py-20">
+						<CalendarDays className="h-8 w-8 mb-3 text-[#d1d1d1]" />
+						<p className="text-sm font-medium text-[#0a0a0a]">
+							No appointments in {monthLabel}
+						</p>
+						<p className="text-xs mt-1 text-[#737373]">
+							Try a different month or schedule a new booking.
+						</p>
+						<button
+							type="button"
+							onClick={() => setShowAddModal(true)}
+							className="mt-4 inline-flex items-center gap-1.5 rounded-[10px] bg-[#0a0a0a] px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-[#262626]"
+						>
+							<Plus className="h-3.5 w-3.5" />
+							New Booking
+						</button>
+					</div>
 				) : (
-					/* ── Week / List ── */
-					dateKeys.length === 0 ? (
-						<div className="flex flex-col items-center justify-center py-20">
-							<CalendarDays className="h-8 w-8 mb-3 text-[#d1d1d1]" />
-							<p className="text-sm font-medium text-[#0a0a0a]">
-								No appointments in {monthLabel}
-							</p>
-							<p className="text-xs mt-1 text-[#737373]">Try a different month or schedule a new booking.</p>
-							<button
-								type="button"
-								onClick={() => setShowAddModal(true)}
-								className="mt-4 inline-flex items-center gap-1.5 rounded-[10px] bg-[#0a0a0a] px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-[#262626]"
-							>
-								<Plus className="h-3.5 w-3.5" />
-								New Booking
-							</button>
-						</div>
-					) : (
-						<div className="space-y-10">
-							{dateKeys.map((key) => {
-								const dayAppts2 = grouped.get(key)!;
-								const dateObj = new Date(dayAppts2[0].start);
-								const { label, sub } = formatDateHeader(dateObj);
-								const todayDate = isToday(dateObj);
+					<div className="space-y-10">
+						{dateKeys.map((key) => {
+							const dayAppts2 = grouped.get(key)!;
+							const dateObj = new Date(dayAppts2[0].start);
+							const { label, sub } = formatDateHeader(dateObj);
+							const todayDate = isToday(dateObj);
 
-								return (
-									<Fragment key={key}>
-										{_insertBeforeKey === key && <div ref={todayRef} />}
-										<div ref={todayDate ? todayRef : undefined}>
-											{/* Date group header */}
-											<div className="flex items-center gap-3 mb-4">
-												<div
-													className={cn(
-														"flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-full text-center",
-														todayDate
-															? "bg-[#0a0a0a] text-white"
-															: "bg-[#f3f3f3] text-[#0a0a0a]",
-													)}
-												>
-													<span className="text-[10px] font-semibold leading-none tracking-wide">
-														{dateObj.toLocaleDateString("en-US", { month: "short" }).toUpperCase()}
-													</span>
-													<span className="font-mono tabular-nums text-lg font-bold leading-none mt-1">
-														{dateObj.getDate()}
-													</span>
-												</div>
-												<div>
-													<p className="text-sm font-semibold text-[#0a0a0a]">
-														{label}
-													</p>
-													<p className="text-xs text-[#737373]">{sub}</p>
-												</div>
-												<div className="flex-1 h-px bg-[#e5e5e5] ml-1" />
-												<span className="font-mono tabular-nums text-xs text-[#737373] shrink-0">
-													{dayAppts2.length} appointment{dayAppts2.length !== 1 ? "s" : ""}
+							return (
+								<Fragment key={key}>
+									{_insertBeforeKey === key && <div ref={todayRef} />}
+									<div ref={todayDate ? todayRef : undefined}>
+										{/* Date group header */}
+										<div className="flex items-center gap-3 mb-4">
+											<div
+												className={cn(
+													"flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-full text-center",
+													todayDate
+														? "bg-[#0a0a0a] text-white"
+														: "bg-[#f3f3f3] text-[#0a0a0a]",
+												)}
+											>
+												<span className="text-[10px] font-semibold leading-none tracking-wide">
+													{dateObj
+														.toLocaleDateString("en-US", { month: "short" })
+														.toUpperCase()}
+												</span>
+												<span className="font-mono tabular-nums text-lg font-bold leading-none mt-1">
+													{dateObj.getDate()}
 												</span>
 											</div>
-
-											{/* Sub-view rows */}
-											{viewMode !== "week" ? (
-												<DayListView
-													dayAppts={dayAppts2}
-													onSelectAppt={setSelectedAppt}
-													onMarkAttendance={(id) => setAttendanceApptId(id)}
-												/>
-											) : (
-												<DayCardView
-													dayAppts={dayAppts2}
-													onSelectAppt={setSelectedAppt}
-													onMarkAttendance={(id) => setAttendanceApptId(id)}
-												/>
-											)}
+											<div>
+												<p className="text-sm font-semibold text-[#0a0a0a]">
+													{label}
+												</p>
+												<p className="text-xs text-[#737373]">{sub}</p>
+											</div>
+											<div className="flex-1 h-px bg-[#e5e5e5] ml-1" />
+											<span className="font-mono tabular-nums text-xs text-[#737373] shrink-0">
+												{dayAppts2.length} appointment
+												{dayAppts2.length !== 1 ? "s" : ""}
+											</span>
 										</div>
-									</Fragment>
-								);
-							})}
-							{_anchorAtEnd && <div ref={todayRef} />}
-						</div>
-					)
+
+										{/* Sub-view rows */}
+										{viewMode !== "week" ? (
+											<DayListView
+												dayAppts={dayAppts2}
+												onSelectAppt={setSelectedAppt}
+												onMarkAttendance={(id) => setAttendanceApptId(id)}
+											/>
+										) : (
+											<DayCardView
+												dayAppts={dayAppts2}
+												onSelectAppt={setSelectedAppt}
+												onMarkAttendance={(id) => setAttendanceApptId(id)}
+											/>
+										)}
+									</div>
+								</Fragment>
+							);
+						})}
+						{_anchorAtEnd && <div ref={todayRef} />}
+					</div>
 				)}
 			</div>
 
@@ -530,6 +548,16 @@ export function AppointmentList({
 				onClose={() => setSelectedAppt(null)}
 				onEdit={openEdit}
 				onMarkAttendance={(id) => setAttendanceApptId(id)}
+				onReschedule={(appt) => {
+					setSelectedAppt(null);
+					setRescheduleAppt(appt);
+				}}
+			/>
+
+			<RescheduleDialog
+				appt={rescheduleAppt}
+				organizationId={organizationId}
+				onClose={() => setRescheduleAppt(null)}
 			/>
 
 			<AttendanceDialog
@@ -550,15 +578,35 @@ export function AppointmentList({
 				}}
 				onCancel={(id) => {
 					updateMutation.mutate(
-						{ id, status: "cancelled" },
+						{ id, status: "no-show" },
 						{
 							onSuccess: () => {
 								toast.success("Marked as No-show");
 								setAttendanceApptId(null);
+								// Journey D: offer to reinstate the credit + book a replacement.
+								setNoShowFollowupId(id);
 							},
 						},
 					);
 				}}
+			/>
+
+			<NoShowFollowupDialog
+				appointmentId={noShowFollowupId}
+				organizationId={organizationId}
+				onClose={() => setNoShowFollowupId(null)}
+				onReinstated={(packageInstanceId) => {
+					setNoShowFollowupId(null);
+					setReplacementPkgId(packageInstanceId);
+				}}
+			/>
+
+			<ScheduleSessionsPanel
+				open={replacementPkgId !== null}
+				onClose={() => setReplacementPkgId(null)}
+				organizationId={organizationId}
+				packageInstanceId={replacementPkgId}
+				mode="single"
 			/>
 
 			<EditAppointmentDialog

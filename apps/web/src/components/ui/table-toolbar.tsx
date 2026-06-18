@@ -41,7 +41,9 @@ export function TableToolbar({
 				</div>
 			)}
 			{filters && <div className="flex items-center gap-2">{filters}</div>}
-			{actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
+			{actions && (
+				<div className="ml-auto flex items-center gap-2">{actions}</div>
+			)}
 		</div>
 	);
 }

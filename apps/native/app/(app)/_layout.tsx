@@ -2,11 +2,13 @@ import RegistrationForm from "@/components/registration-form";
 import { OrganizationProvider } from "@/contexts/organization-context";
 import { useAuth } from "@/hooks/useAuth";
 import { colors } from "@/lib/colors";
-import { Redirect, Stack } from "expo-router";
+import { Redirect, Stack, useLocalSearchParams } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 
 export default function AppLayout() {
 	const { isAuthenticated, isPending, user } = useAuth();
+	// Invite token forwarded from the QR onboarding deep link (token param in URL).
+	const { token: inviteToken } = useLocalSearchParams<{ token?: string }>();
 	const userRole =
 		user && typeof user === "object" && "role" in user
 			? (user as Record<string, unknown>).role
@@ -34,7 +36,7 @@ export default function AppLayout() {
 	if (!userRole) {
 		return (
 			<View style={{ flex: 1, backgroundColor: colors.secondary[3] }}>
-				<RegistrationForm />
+				<RegistrationForm inviteToken={inviteToken ?? ""} />
 			</View>
 		);
 	}

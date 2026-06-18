@@ -14,29 +14,16 @@
 
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { superAdminProcedure } from "@avantej-core/api";
+import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
 import { provisionTenant } from "@/services/tenant-provisioning.service";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
-function cpDbFromContext(
-	context: unknown,
-): NeonDatabase<typeof controlPanelSchema> {
-	const db = (context as { honoContext?: { get: (k: string) => unknown } })
-		.honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| undefined;
-	if (!db) {
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	}
-	return db;
-}
+const superAdminProcedure = adminProcedure.use(
+	requirePlatformAdmin(["super_admin"]),
+);
 
 function adminUserIdFrom(context: unknown): string {
-	const session = (context as { session?: { user?: { id?: string } } })
-		.session;
+	const session = (context as { session?: { user?: { id?: string } } }).session;
 	const id = session?.user?.id;
 	if (!id) {
 		throw new ORPCError("UNAUTHORIZED", {
@@ -73,7 +60,7 @@ export const platformAdminTenantsProvisionRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFromContext(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 			const session = (
 				context as { session?: { user?: { name?: string | null } } }

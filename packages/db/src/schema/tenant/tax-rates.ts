@@ -52,7 +52,9 @@ export const taxRates = pgTable(
 		isDefault: boolean("is_default").notNull().default(false),
 
 		// The date range this rate is effective
-		effectiveFrom: timestamp("effective_from", { withTimezone: true }).notNull(),
+		effectiveFrom: timestamp("effective_from", {
+			withTimezone: true,
+		}).notNull(),
 		effectiveUntil: timestamp("effective_until", { withTimezone: true }), // null = still active
 
 		description: text("description"),
@@ -69,5 +71,5 @@ export const taxRates = pgTable(
 		isActiveIdx: index("tax_rates_active_idx").on(table.isActive),
 		isDefaultIdx: index("tax_rates_default_idx").on(table.isDefault),
 		categoryIdx: index("tax_rates_category_idx").on(table.category),
-	})
+	}),
 );

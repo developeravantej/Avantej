@@ -6,17 +6,17 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   type-check:
     name: Type Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - uses: ./.github/actions/bun-setup
       - name: Type check
         run: bun check-types
 
@@ -25,23 +25,90 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
+      - uses: ./.github/actions/bun-setup
       - name: Run web tests
-        run: bun --cwd apps/web test --run
+        # `bun run test` executes the package script (`vitest run`). Plain
+        # `bun test` would invoke Bun's native runner and sweep the Playwright
+        # e2e specs, which fail to load under it.
+        run: bun --cwd apps/web run test
+
+  server-unit-tests:
+    name: Server Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bun-setup
+      - name: Run server unit tests
+        # Per-file isolated runner: bun's process-global mock.module poisons
+        # cross-file barrel re-exports when the whole suite shares one process,
+        # so the combined `test:unit` script is unreliably red. The isolated
+        # runner spawns one process per file (the reliable green gate).
+        run: cd apps/server && bun run test:unit:isolated
+
+  package-tests:
+    name: Package Tests (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - packages/types
+          - packages/db
+          - packages/api
+          - packages/services
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bun-setup
+      - name: Run package tests
+        run: bun --cwd ${{ matrix.package }} test
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bun-setup
+      - name: Build
+        run: bun run build
 
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-      - name: Biome lint
+      - uses: ./.github/actions/bun-setup
+      - name: Oxlint
         run: bun check
+
+  tenant-perimeter:
+    name: Tenant API perimeter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bun-setup
+      - name: Check tenantProcedure rollout invariants
+        run: bun run ci:check-tenant-perimeter
+      - name: Check routers index LOC budget
+        run: bun run ci:check-router-index-loc
+      - name: Check router file LOC budget
+        run: bun run ci:check-router-file-loc
+
+  format:
+    name: Format (Biome)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bun-setup
+      - name: Check formatting
+        run: bunx biome format packages/api packages/services packages/db packages/types e2e scripts/ci
+
+  e2e-reconcile:
+    name: E2E suite drift guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Pure Node, no servers / no report.json (gitignored) — asserts the committed
+      # specs, journeys, and coverage ledger stay in sync, so a renamed/deleted
+      # spec can't silently drop a journey or claimed coverage. See _e2e/reconcile.mjs.
+      - name: Reconcile _e2e specs, journeys, and ledger
+        run: node _e2e/reconcile.mjs --static

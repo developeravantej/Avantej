@@ -1,10 +1,19 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CreditCard, Send, Loader2, Copy, ExternalLink, CheckCircle2, AlertCircle, Undo2 } from "lucide-react";
+import {
+	CreditCard,
+	Send,
+	Loader2,
+	Copy,
+	ExternalLink,
+	CheckCircle2,
+	AlertCircle,
+	Undo2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { client as orpcClient } from "@/utils/orpc";
+import { client as orpcClient, orpc } from "@/utils/orpc";
 import { ChargeDialog } from "./ChargeDialog";
 
 type PaymentStatus = {
@@ -32,12 +41,9 @@ export function PaymentSection({
 	const [awaitingRefund, setAwaitingRefund] = useState(false);
 
 	const statusQuery = useQuery({
-		queryKey: ["payment-status", organizationId, appointmentId],
-		queryFn: async () =>
-			(await orpcClient.payments.getPaymentStatus({
-				organizationId,
-				appointmentId,
-			})) as PaymentStatus,
+		...orpc.payments.getPaymentStatus.queryOptions({
+			input: { organizationId, appointmentId },
+		}),
 		enabled: !!organizationId && !!appointmentId,
 		refetchInterval: (q) => {
 			const s = q.state.data?.paymentStatus;
@@ -55,7 +61,12 @@ export function PaymentSection({
 				organizationId,
 				appointmentId,
 				regenerate,
-			})) as { paymentLinkUrl: string; amount: number; currency: string; applicationFeeAmount: number },
+			})) as {
+				paymentLinkUrl: string;
+				amount: number;
+				currency: string;
+				applicationFeeAmount: number;
+			},
 		onSuccess: async (data) => {
 			try {
 				await navigator.clipboard.writeText(data.paymentLinkUrl);
@@ -66,7 +77,9 @@ export function PaymentSection({
 			statusQuery.refetch();
 		},
 		onError: (err: unknown) => {
-			toast.error(err instanceof Error ? err.message : "Failed to generate link");
+			toast.error(
+				err instanceof Error ? err.message : "Failed to generate link",
+			);
 		},
 	});
 
@@ -76,7 +89,12 @@ export function PaymentSection({
 			(await orpcClient.payments.refund({
 				organizationId,
 				appointmentId,
-			})) as { refundId: string; status: string; amount: number; currency: string },
+			})) as {
+				refundId: string;
+				status: string;
+				amount: number;
+				currency: string;
+			},
 		onMutate: () => {
 			toast.loading("Refund requested…", { id: "refund-pending" });
 		},
@@ -100,6 +118,7 @@ export function PaymentSection({
 
 	const status = statusQuery.data;
 	const isPaid = status?.paymentStatus === "paid";
+	const isRefunded = status?.paymentStatus === "refunded";
 	const isFailed = status?.paymentStatus === "failed";
 	const hasLink = !!status?.paymentLinkUrl;
 
@@ -163,7 +182,7 @@ export function PaymentSection({
 					</p>
 				)}
 
-				{!isPaid && (
+				{!isPaid && !isRefunded && (
 					<div className="flex gap-2 pt-1">
 						<Button
 							size="sm"
@@ -191,11 +210,15 @@ export function PaymentSection({
 					</div>
 				)}
 
-				{hasLink && status?.paymentLinkUrl && (
+				{hasLink && status?.paymentLinkUrl && !isRefunded && (
 					<div className="rounded-md border border-zinc-200 p-2 space-y-1">
-						<p className="text-zinc-500 text-[10px] uppercase tracking-wide">Payment link</p>
+						<p className="text-zinc-500 text-[10px] uppercase tracking-wide">
+							Payment link
+						</p>
 						<div className="flex items-center gap-1.5">
-							<code className="flex-1 truncate text-xs">{status.paymentLinkUrl}</code>
+							<code className="flex-1 truncate text-xs">
+								{status.paymentLinkUrl}
+							</code>
 							<button
 								type="button"
 								className="text-zinc-500 hover:text-zinc-900"

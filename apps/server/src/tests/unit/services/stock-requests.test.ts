@@ -9,11 +9,21 @@ import {
 } from "@avantej-core/services";
 
 // Shared mocks
-const mockFindMany = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve([]));
-const mockFindFirst = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve(null));
-const mockReturning = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve([]));
-const mockValues = mock<(...args: any[]) => any>(() => ({ returning: mockReturning }));
-const mockInsert = mock<(...args: any[]) => any>(() => ({ values: mockValues }));
+const mockFindMany = mock<(...args: any[]) => Promise<any>>(() =>
+	Promise.resolve([]),
+);
+const mockFindFirst = mock<(...args: any[]) => Promise<any>>(() =>
+	Promise.resolve(null),
+);
+const mockReturning = mock<(...args: any[]) => Promise<any>>(() =>
+	Promise.resolve([]),
+);
+const mockValues = mock<(...args: any[]) => any>(() => ({
+	returning: mockReturning,
+}));
+const mockInsert = mock<(...args: any[]) => any>(() => ({
+	values: mockValues,
+}));
 const mockUpdate = mock<(...args: any[]) => any>(() => ({
 	set: mock(() => ({
 		where: mock(() => ({ returning: mockReturning })),
@@ -21,11 +31,19 @@ const mockUpdate = mock<(...args: any[]) => any>(() => ({
 }));
 
 // select chain for count queries
-const mockSelectWhere = mock<(...args: any[]) => Promise<any>>(() => Promise.resolve([{ total: 0 }]));
-const mockSelectFrom = mock<(...args: any[]) => any>(() => ({ where: mockSelectWhere }));
-const mockSelect = mock<(...args: any[]) => any>(() => ({ from: mockSelectFrom }));
+const mockSelectWhere = mock<(...args: any[]) => Promise<any>>(() =>
+	Promise.resolve([{ total: 0 }]),
+);
+const mockSelectFrom = mock<(...args: any[]) => any>(() => ({
+	where: mockSelectWhere,
+}));
+const mockSelect = mock<(...args: any[]) => any>(() => ({
+	from: mockSelectFrom,
+}));
 
-const mockTransaction = mock<(fn: any) => Promise<any>>(async (fn: any) => fn(mockTx));
+const mockTransaction = mock<(fn: any) => Promise<any>>(async (fn: any) =>
+	fn(mockTx),
+);
 const mockTx = {
 	insert: mockInsert,
 	update: mockUpdate,
@@ -64,7 +82,9 @@ beforeEach(() => {
 
 describe("listStockRequests", () => {
 	test("returns all requests with no filters", async () => {
-		const fakeRequests = [{ id: "sr1", requestNumber: "SR-20260227-0001", toBranchId: "br1" }];
+		const fakeRequests = [
+			{ id: "sr1", requestNumber: "SR-20260227-0001", toBranchId: "br1" },
+		];
 		mockFindMany.mockResolvedValueOnce(fakeRequests);
 
 		const result = await listStockRequests(mockTenantDb);
@@ -110,7 +130,9 @@ describe("listStockRequests", () => {
 		];
 		mockFindMany.mockResolvedValueOnce(allRequests);
 
-		const result = await listStockRequests(mockTenantDb, { accessibleNodeIds: ["br1", "br3"] });
+		const result = await listStockRequests(mockTenantDb, {
+			accessibleNodeIds: ["br1", "br3"],
+		});
 
 		expect(result).toHaveLength(2);
 		expect(result.map((r) => r.id)).toEqual(["sr1", "sr3"]);
@@ -128,10 +150,24 @@ describe("getStockRequestById", () => {
 	});
 
 	test("returns request with items when header found", async () => {
-		const fakeHeader = { id: "sr1", requestNumber: "SR-20260227-0001", toBranchId: "br1" };
+		const fakeHeader = {
+			id: "sr1",
+			requestNumber: "SR-20260227-0001",
+			toBranchId: "br1",
+		};
 		const fakeItems = [
-			{ id: "sri1", stockRequestId: "sr1", productId: "p1", quantityRequested: 10 },
-			{ id: "sri2", stockRequestId: "sr1", productId: "p2", quantityRequested: 5 },
+			{
+				id: "sri1",
+				stockRequestId: "sr1",
+				productId: "p1",
+				quantityRequested: 10,
+			},
+			{
+				id: "sri2",
+				stockRequestId: "sr1",
+				productId: "p2",
+				quantityRequested: 5,
+			},
 		];
 
 		// First call: findFirst for header
@@ -160,7 +196,13 @@ describe("createStockRequest", () => {
 			status: "pending",
 		};
 		const fakeItems = [
-			{ id: "sri1", stockRequestId: "sr1", productId: "p1", quantityRequested: 10, quantityFulfilled: 0 },
+			{
+				id: "sri1",
+				stockRequestId: "sr1",
+				productId: "p1",
+				quantityRequested: 10,
+				quantityFulfilled: 0,
+			},
 		];
 
 		// Mock transaction: runs callback with tx that has insert
@@ -199,7 +241,13 @@ describe("createStockRequest", () => {
 	test("includes fromBranchId when provided", async () => {
 		mockSelectWhere.mockResolvedValueOnce([{ total: 0 }]);
 
-		const fakeHeader = { id: "sr2", requestNumber: "SR-20260227-0001", fromBranchId: "br0", toBranchId: "br1", status: "pending" };
+		const fakeHeader = {
+			id: "sr2",
+			requestNumber: "SR-20260227-0001",
+			fromBranchId: "br0",
+			toBranchId: "br1",
+			status: "pending",
+		};
 		const txReturningHeader = mock(() => Promise.resolve([fakeHeader]));
 		const txValuesHeader = mock(() => ({ returning: txReturningHeader }));
 		const txReturningItems = mock(() => Promise.resolve([]));
@@ -208,10 +256,14 @@ describe("createStockRequest", () => {
 		let insertCallCount = 0;
 		const txInsert = mock(() => {
 			insertCallCount++;
-			return insertCallCount === 1 ? { values: txValuesHeader } : { values: txValuesItems };
+			return insertCallCount === 1
+				? { values: txValuesHeader }
+				: { values: txValuesItems };
 		});
 
-		mockTransaction.mockImplementationOnce(async (fn: any) => fn({ insert: txInsert }));
+		mockTransaction.mockImplementationOnce(async (fn: any) =>
+			fn({ insert: txInsert }),
+		);
 
 		await createStockRequest(mockTenantDb, {
 			dateIssued: new Date("2026-02-27"),
@@ -248,7 +300,9 @@ describe("approveStockRequest", () => {
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		await expect(approveStockRequest(mockTenantDb, "nonexistent")).rejects.toThrow("Stock request not found");
+		await expect(
+			approveStockRequest(mockTenantDb, "nonexistent"),
+		).rejects.toThrow("Stock request not found");
 	});
 });
 
@@ -273,7 +327,9 @@ describe("rejectStockRequest", () => {
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		await expect(rejectStockRequest(mockTenantDb, "nonexistent")).rejects.toThrow("Stock request not found");
+		await expect(
+			rejectStockRequest(mockTenantDb, "nonexistent"),
+		).rejects.toThrow("Stock request not found");
 	});
 });
 
@@ -286,16 +342,22 @@ describe("fulfillStockRequest", () => {
 		status: "approved",
 	};
 	const fakeItems = [
-		{ id: "sri1", stockRequestId: "sr1", productId: "p1", quantityRequested: 10, quantityFulfilled: 0 },
+		{
+			id: "sri1",
+			stockRequestId: "sr1",
+			productId: "p1",
+			quantityRequested: 10,
+			quantityFulfilled: 0,
+		},
 	];
 	const fulfillItems = [{ itemId: "sri1", quantityFulfilled: 8 }];
 
 	test("throws 'Stock request not found' when request does not exist", async () => {
 		mockFindFirst.mockResolvedValueOnce(undefined);
 
-		await expect(fulfillStockRequest(mockTenantDb, "nonexistent", fulfillItems)).rejects.toThrow(
-			"Stock request not found"
-		);
+		await expect(
+			fulfillStockRequest(mockTenantDb, "nonexistent", fulfillItems),
+		).rejects.toThrow("Stock request not found");
 	});
 
 	test("WITH fromBranchId: deducts from source AND adds to destination", async () => {
@@ -348,7 +410,9 @@ describe("fulfillStockRequest", () => {
 			return { set: statusUpd.set };
 		});
 
-		mockTransaction.mockImplementationOnce(async (fn: any) => fn({ update: txUpdate, insert: mockInsert }));
+		mockTransaction.mockImplementationOnce(async (fn: any) =>
+			fn({ update: txUpdate, insert: mockInsert }),
+		);
 
 		const result = await fulfillStockRequest(mockTenantDb, "sr1", fulfillItems);
 
@@ -386,7 +450,9 @@ describe("fulfillStockRequest", () => {
 			return { set: statusSet }; // final status
 		});
 
-		mockTransaction.mockImplementationOnce(async (fn: any) => fn({ update: txUpdate, insert: mockInsert }));
+		mockTransaction.mockImplementationOnce(async (fn: any) =>
+			fn({ update: txUpdate, insert: mockInsert }),
+		);
 
 		const result = await fulfillStockRequest(mockTenantDb, "sr1", fulfillItems);
 

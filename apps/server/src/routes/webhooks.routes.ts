@@ -9,7 +9,7 @@
 
 import { Hono } from "hono";
 import type { Context } from "hono";
-import { verifyWebhookSignature } from "@/lib/stripe";
+import { getStripeClient, verifyWebhookSignature } from "@/lib/stripe";
 import { onAppointmentPaid } from "@/services/payment-side-effects.service";
 import {
 	projectStripeEventToLedger,
@@ -76,17 +76,14 @@ async function getAccessibleLocationIds(c: Context) {
 		.where(
 			and(
 				eq(organizationMembers.userId, user.id),
-				eq(organizationMembers.status, "active")
-			)
+				eq(organizationMembers.status, "active"),
+			),
 		);
 
 	return memberships.map((item) => item.organizationId);
 }
 
-async function ensureLocationAccess(
-	c: Context,
-	locationId: string
-) {
+async function ensureLocationAccess(c: Context, locationId: string) {
 	const controlPanelDb = getControlPanelDb(c);
 	const [location] = await controlPanelDb
 		.select({
@@ -164,7 +161,9 @@ webhookRoutes.post("/stripe/platform", async (c) => {
 				const inv = event.data.object as Stripe.Invoice;
 				// Stripe API 2025-10-29.clover removed the typed `subscription` field from
 				// Stripe.Invoice; the property is still present on the wire payload.
-				const subRef = (inv as unknown as { subscription?: string | { id: string } }).subscription;
+				const subRef = (
+					inv as unknown as { subscription?: string | { id: string } }
+				).subscription;
 				if (subRef) {
 					const subId = typeof subRef === "string" ? subRef : subRef.id;
 					await markPastDue(subId, cpDb);
@@ -175,7 +174,9 @@ webhookRoutes.post("/stripe/platform", async (c) => {
 				const inv = event.data.object as Stripe.Invoice;
 				// Stripe API 2025-10-29.clover removed the typed `subscription` field from
 				// Stripe.Invoice; the property is still present on the wire payload.
-				const subRef = (inv as unknown as { subscription?: string | { id: string } }).subscription;
+				const subRef = (
+					inv as unknown as { subscription?: string | { id: string } }
+				).subscription;
 				if (subRef) {
 					const subId = typeof subRef === "string" ? subRef : subRef.id;
 					await markActive(subId, cpDb);
@@ -273,10 +274,14 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 		// Plan C C.7: platform_payment_ledger writes for Connect-side audit.
 		// Independent try/catch — ledger drift is fixable via reconciliation
 		// (Phase C.5), so a failed write here must not block the webhook ack.
-		if (event.type === "payment_intent.succeeded" || event.type === "charge.refunded") {
+		if (
+			event.type === "payment_intent.succeeded" ||
+			event.type === "charge.refunded"
+		) {
 			try {
 				const obj = event.data.object as Stripe.PaymentIntent | Stripe.Charge;
-				const metadata = (obj as { metadata?: Record<string, string> }).metadata ?? {};
+				const metadata =
+					(obj as { metadata?: Record<string, string> }).metadata ?? {};
 				const orgIdFromMeta = metadata.organizationId ?? null;
 				const projected = projectStripeEventToLedger(event);
 				if (projected) {
@@ -288,7 +293,10 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 					});
 				}
 			} catch (e) {
-				console.error(`[connect webhook] ledger write failed for ${event.id}:`, e);
+				console.error(
+					`[connect webhook] ledger write failed for ${event.id}:`,
+					e,
+				);
 			}
 		}
 
@@ -296,13 +304,17 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 		if (event.type === "application_fee.created") {
 			try {
 				const orgFromAcct = event.account
-					? (
+					? ((
 							await controlPanelDb
-								.select({ organizationId: orgCountryStripeAccounts.organizationId })
+								.select({
+									organizationId: orgCountryStripeAccounts.organizationId,
+								})
 								.from(orgCountryStripeAccounts)
-								.where(eq(orgCountryStripeAccounts.stripeAccountId, event.account))
+								.where(
+									eq(orgCountryStripeAccounts.stripeAccountId, event.account),
+								)
 								.limit(1)
-						)[0]?.organizationId ?? null
+						)[0]?.organizationId ?? null)
 					: null;
 				const projected = projectStripeEventToLedger(event);
 				if (projected) {
@@ -314,7 +326,10 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 					});
 				}
 			} catch (e) {
-				console.error(`[connect webhook] application_fee ledger write failed:`, e);
+				console.error(
+					`[connect webhook] application_fee ledger write failed:`,
+					e,
+				);
 			}
 		}
 
@@ -347,11 +362,22 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 				const country = (account.country ?? null) as string | null;
 				if (country) {
 					const COUNTRY_TO_CURRENCY: Record<string, string> = {
-						MY: "MYR", SG: "SGD", TH: "THB", ID: "IDR", PH: "PHP",
-						VN: "VND", HK: "HKD", AU: "AUD", NZ: "NZD", US: "USD",
-						GB: "GBP", JP: "JPY", CN: "CNY",
+						MY: "MYR",
+						SG: "SGD",
+						TH: "THB",
+						ID: "IDR",
+						PH: "PHP",
+						VN: "VND",
+						HK: "HKD",
+						AU: "AUD",
+						NZ: "NZD",
+						US: "USD",
+						GB: "GBP",
+						JP: "JPY",
+						CN: "CNY",
 					};
-					const currency = COUNTRY_TO_CURRENCY[country.toUpperCase()] ?? country.toUpperCase();
+					const currency =
+						COUNTRY_TO_CURRENCY[country.toUpperCase()] ?? country.toUpperCase();
 					await controlPanelDb
 						.insert(orgCountryStripeAccounts)
 						.values({
@@ -363,8 +389,9 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 							payoutsEnabled,
 							detailsSubmitted,
 							currency,
-							stripeConnectOnboardingCompletedAt:
-								detailsSubmitted ? new Date() : null,
+							stripeConnectOnboardingCompletedAt: detailsSubmitted
+								? new Date()
+								: null,
 							connectAccountUpdatedAt: new Date(),
 						})
 						.onConflictDoUpdate({
@@ -405,7 +432,7 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 			const paymentMethodId =
 				typeof si.payment_method === "string"
 					? si.payment_method
-					: si.payment_method?.id ?? null;
+					: (si.payment_method?.id ?? null);
 
 			if (!customerProfileId || !organizationId || !paymentMethodId) {
 				console.warn(
@@ -431,11 +458,13 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 			event.type === "charge.refunded"
 		) {
 			const pi = event.data.object as Stripe.PaymentIntent | Stripe.Charge;
-			const metadata = (pi as { metadata?: Record<string, string> }).metadata ?? {};
+			const metadata =
+				(pi as { metadata?: Record<string, string> }).metadata ?? {};
 			const appointmentId = metadata.appointmentId;
 			const organizationId = metadata.organizationId;
 			const packageInstanceId = metadata.packageInstanceId;
-			const isPackagePurchase = metadata.type === "package" && !!packageInstanceId;
+			const isPackagePurchase =
+				metadata.type === "package" && !!packageInstanceId;
 			const salesOrderId = metadata.salesOrderId;
 			const paymentRowId = metadata.paymentId;
 			const isSalesOrderPayment =
@@ -456,47 +485,285 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 						typeof latestCharge === "string"
 							? latestCharge
 							: latestCharge && typeof latestCharge === "object"
-								? (latestCharge as { id?: string }).id ?? null
+								? ((latestCharge as { id?: string }).id ?? null)
 								: null;
 
-					await tenantDb
-						.update(payments)
-						.set({
-							status: "succeeded",
-							stripePaymentIntentId: piObj.id,
-							...(chargeId ? { stripeChargeId: chargeId } : {}),
-							refundedAt: null,
-							updatedAt: new Date(),
+					// Same-PI replay guard (distinct from the event-id dedupe above:
+					// Stripe can re-send the same PI under a NEW event id). Without
+					// this, the installment confirmation below would advance to
+					// installment #2 on a replay.
+					const [payRow] = await tenantDb
+						.select({
+							status: payments.status,
+							stripePaymentIntentId: payments.stripePaymentIntentId,
+							stripePaymentLinkId: payments.stripePaymentLinkId,
+							stripeConnectAccountIdSnapshot:
+								payments.stripeConnectAccountIdSnapshot,
 						})
-						.where(eq(payments.id, paymentRowId));
+						.from(payments)
+						.where(eq(payments.id, paymentRowId))
+						.limit(1);
+					const isPiReplay =
+						payRow?.status === "succeeded" &&
+						payRow.stripePaymentIntentId === piObj.id;
 
-					// Set amountPaid = totalAmount via sql expression to avoid re-fetch.
-					await tenantDb
-						.update(invoices)
-						.set({
-							status: "paid",
-							amountPaid: sql`${invoices.totalAmount}`,
-							updatedAt: new Date(),
-						})
-						.where(eq(invoices.salesOrderId, salesOrderId));
+					// Second-payment guard: a DIFFERENT PI succeeded for a payment row
+					// that already succeeded — the customer paid twice (multi-use or
+					// stale regenerated link). Never reprocess (it would confirm
+					// installment #2 with installment #1's money); keep the original
+					// PI on the row and tell admins to refund the duplicate.
+					const isSecondPayment =
+						payRow?.status === "succeeded" &&
+						payRow.stripePaymentIntentId !== piObj.id;
 
-					await tenantDb
-						.update(salesOrders)
-						.set({ status: "completed", updatedAt: new Date() })
-						.where(eq(salesOrders.id, salesOrderId));
+					// Cancelled-order guard: the payment link is not always deactivated
+					// in time — a customer can pay AFTER staff cancelled the sale. Money
+					// moved, so record it on the payment row for reconciliation/refund,
+					// but never resurrect the cancelled order/invoice/package.
+					const [orderStatusRow] = await tenantDb
+						.select({ status: salesOrders.status })
+						.from(salesOrders)
+						.where(eq(salesOrders.id, salesOrderId))
+						.limit(1);
+					const isCancelledOrder = orderStatusRow?.status === "cancelled";
 
-					await tenantDb
-						.update(packageInstances)
-						.set({
-							paymentStatus: "paid",
-							status: "active",
-							updatedAt: new Date(),
-						})
-						.where(eq(packageInstances.paymentId, paymentRowId));
+					if (isPiReplay) {
+						console.log(
+							`[connect webhook] sales_order replay (same PI) ignored so=${salesOrderId} pi=${piObj.id}`,
+						);
+					} else if (isSecondPayment) {
+						console.error(
+							`[connect webhook] DUPLICATE payment for already-paid order so=${salesOrderId} pay=${paymentRowId} firstPi=${payRow?.stripePaymentIntentId} duplicatePi=${piObj.id} amount=${piObj.amount} — not reprocessed; refund required`,
+						);
+						try {
+							const { notifyAdminsOfCancelledOrderPayment } = await import(
+								"@avantej-core/services"
+							);
+							await notifyAdminsOfCancelledOrderPayment(tenantDb, {
+								salesOrderId,
+								amountCents: piObj.amount_received ?? piObj.amount ?? 0,
+								paymentIntentId: piObj.id,
+								kind: "duplicate_payment",
+							});
+						} catch (notifyErr) {
+							console.error(
+								`[connect webhook] duplicate-payment notification failed for so=${salesOrderId}:`,
+								notifyErr,
+							);
+						}
+					} else if (isCancelledOrder) {
+						await tenantDb
+							.update(payments)
+							.set({
+								status: "succeeded",
+								stripePaymentIntentId: piObj.id,
+								...(chargeId ? { stripeChargeId: chargeId } : {}),
+								refundedAt: null,
+								updatedAt: new Date(),
+							})
+							.where(eq(payments.id, paymentRowId));
+						console.error(
+							`[connect webhook] payment received for CANCELLED order so=${salesOrderId} pay=${paymentRowId} pi=${piObj.id} amount=${piObj.amount} — order NOT completed; refund required`,
+						);
+						// Surface to humans: fan out an in-app "refund_required"
+						// notification to every active org admin. Best-effort — the
+						// payment row + log above are the source of truth.
+						try {
+							const { notifyAdminsOfCancelledOrderPayment } = await import(
+								"@avantej-core/services"
+							);
+							await notifyAdminsOfCancelledOrderPayment(tenantDb, {
+								salesOrderId,
+								amountCents: piObj.amount_received ?? piObj.amount ?? 0,
+								paymentIntentId: piObj.id,
+							});
+						} catch (notifyErr) {
+							console.error(
+								`[connect webhook] refund_required notification failed for so=${salesOrderId}:`,
+								notifyErr,
+							);
+						}
+					} else {
+						await tenantDb
+							.update(payments)
+							.set({
+								status: "succeeded",
+								stripePaymentIntentId: piObj.id,
+								...(chargeId ? { stripeChargeId: chargeId } : {}),
+								refundedAt: null,
+								updatedAt: new Date(),
+							})
+							.where(eq(payments.id, paymentRowId));
 
-					console.log(
-						`[connect webhook] sales_order succeeded so=${salesOrderId} pay=${paymentRowId} pi=${piObj.id}`,
-					);
+						// Package instances on this payment. Installment-plan packages must
+						// NOT be blanket-marked "paid": the link only charged the first
+						// installment. They activate + confirm installment #1 instead.
+						const pkgRows = await tenantDb
+							.select({
+								id: packageInstances.id,
+								installmentsTotal: packageInstances.installmentsTotal,
+							})
+							.from(packageInstances)
+							.where(eq(packageInstances.paymentId, paymentRowId));
+						const hasInstallmentPkg = pkgRows.some(
+							(p) => (p.installmentsTotal ?? 1) > 1,
+						);
+
+						// Invoice: full payment → paid in full. Installment sale → the link
+						// charged only the due-now amount; record that and stay partial.
+						if (hasInstallmentPkg) {
+							const received = piObj.amount_received ?? piObj.amount ?? 0;
+							await tenantDb
+								.update(invoices)
+								.set({
+									status: "partially_paid",
+									amountPaid: sql`LEAST(${invoices.totalAmount}, ${received})`,
+									updatedAt: new Date(),
+								})
+								.where(eq(invoices.salesOrderId, salesOrderId));
+						} else {
+							// Set amountPaid = totalAmount via sql expression to avoid re-fetch.
+							await tenantDb
+								.update(invoices)
+								.set({
+									status: "paid",
+									amountPaid: sql`${invoices.totalAmount}`,
+									updatedAt: new Date(),
+								})
+								.where(eq(invoices.salesOrderId, salesOrderId));
+						}
+
+						await tenantDb
+							.update(salesOrders)
+							.set({ status: "completed", updatedAt: new Date() })
+							.where(eq(salesOrders.id, salesOrderId));
+
+						for (const pkg of pkgRows) {
+							if ((pkg.installmentsTotal ?? 1) > 1) {
+								// Activate; paymentStatus stays partially_paid (synced by
+								// confirmInstallmentPayment below).
+								await tenantDb
+									.update(packageInstances)
+									.set({ status: "active", updatedAt: new Date() })
+									.where(eq(packageInstances.id, pkg.id));
+
+								// Confirm installment #1 — the money for it just arrived.
+								// (recordPosSale skips the at-counter auto-confirm for
+								// online sales; this is its webhook-side counterpart.)
+								try {
+									const { confirmInstallmentPayment } = await import(
+										"@avantej-core/services"
+									);
+									// Include "overdue": installment #1 is due at purchase, so
+									// the lock evaluator may flag it before the payment lands.
+									const firstPending =
+										await tenantDb.query.installments.findFirst({
+											where: (
+												inst,
+												{ and: andFn, eq: eqFn, inArray: inArrayFn },
+											) =>
+												andFn(
+													eqFn(inst.packageInstanceId, pkg.id),
+													inArrayFn(inst.status, ["pending", "overdue"]),
+												),
+											orderBy: (inst, { asc: ascFn }) => [
+												ascFn(inst.installmentNumber),
+											],
+										});
+									if (firstPending) {
+										await confirmInstallmentPayment(tenantDb, {
+											installmentId: firstPending.id,
+											paymentMethod: "stripe",
+											confirmedBy: "system",
+											notes: `Stripe payment link — PI ${piObj.id}`,
+										});
+									}
+								} catch (instErr) {
+									// Best-effort — money is recorded on the payment row; a
+									// failed confirm is recoverable from the admin overview.
+									console.error(
+										`[connect webhook] installment #1 confirm failed for pkg=${pkg.id}:`,
+										instErr,
+									);
+								}
+							} else {
+								await tenantDb
+									.update(packageInstances)
+									.set({
+										paymentStatus: "paid",
+										status: "active",
+										updatedAt: new Date(),
+									})
+									.where(eq(packageInstances.id, pkg.id));
+							}
+						}
+
+						console.log(
+							`[connect webhook] sales_order succeeded so=${salesOrderId} pay=${paymentRowId} pi=${piObj.id}`,
+						);
+
+						// Phase 3 — Origination commission for Stripe-paid orders.
+						// Fired here (not at recordPosSale time) so unpaid online orders
+						// never pay origination. Idempotency: (sales_order_id, track_id, staff_id)
+						// unique index + 23505 skip ensures exactly one split per (order, track, staff).
+						try {
+							const { calculateOriginationCommission } = await import(
+								"@avantej-core/services"
+							);
+							// Load soldBy + leadSourceUserId from the order row to resolve attribution
+							const [orderRow] = await tenantDb
+								.select({
+									soldBy: salesOrders.soldBy,
+									leadSourceUserId: salesOrders.leadSourceUserId,
+								})
+								.from(salesOrders)
+								.where(eq(salesOrders.id, salesOrderId))
+								.limit(1);
+							if (orderRow && (orderRow.soldBy || orderRow.leadSourceUserId)) {
+								await calculateOriginationCommission(tenantDb, {
+									salesOrderId,
+									soldByUserId: orderRow.soldBy ?? null,
+									leadSourceUserId: orderRow.leadSourceUserId ?? null,
+									actor: {
+										userId: "system",
+										memberId: "system",
+										role: "system",
+									},
+								});
+							}
+						} catch (originationErr) {
+							// Best-effort — never let commission failure fail the webhook ack
+							console.error(
+								`[connect webhook] origination commission failed for so=${salesOrderId}:`,
+								originationErr,
+							);
+						}
+						// Belt-and-braces: deactivate the payment link now that it's paid.
+						// Links are created single-use (restrictions.completed_sessions),
+						// but links created before that change are multi-use — kill them.
+						if (payRow?.stripePaymentLinkId) {
+							try {
+								const stripe = getStripeClient();
+								await stripe.paymentLinks.update(
+									String(payRow.stripePaymentLinkId),
+									{ active: false },
+									{
+										stripeAccount:
+											(payRow.stripeConnectAccountIdSnapshot as
+												| string
+												| null) ??
+											event.account ??
+											undefined,
+									},
+								);
+							} catch (linkErr) {
+								console.error(
+									`[connect webhook] failed to deactivate paid link ${payRow.stripePaymentLinkId}:`,
+									linkErr,
+								);
+							}
+						}
+					} // end normal (non-replay, non-cancelled) processing
 				} else if (failed) {
 					const piObj = pi as Stripe.PaymentIntent;
 					const reason = piObj.last_payment_error?.message ?? "Payment failed";
@@ -592,7 +859,7 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 				// pi is a Charge with payment_intent property.
 				const intentId =
 					event.type === "charge.refunded"
-						? (pi as Stripe.Charge).payment_intent?.toString() ?? null
+						? ((pi as Stripe.Charge).payment_intent?.toString() ?? null)
 						: pi.id;
 				if (intentId) {
 					update.stripePaymentIntentId = intentId;
@@ -645,7 +912,9 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 				}
 			}
 		} else {
-			console.log(`[connect webhook] unhandled event ${event.type} acct=${event.account}`);
+			console.log(
+				`[connect webhook] unhandled event ${event.type} acct=${event.account}`,
+			);
 		}
 		await markEventProcessed(event.id, cpDb);
 		return c.json({ received: true }, 200);
@@ -668,8 +937,11 @@ webhookRoutes.post("/gohighlevel/:locationId", async (c) => {
 	const signature = c.req.header("x-wh-signature") || undefined;
 	const authorization = c.req.header("authorization") || undefined;
 	const headerSecret =
-		c.req.header("x-webhook-secret") || c.req.header("x-ghl-webhook-secret") || undefined;
-	const querySecret = c.req.query("token") || c.req.query("secret") || undefined;
+		c.req.header("x-webhook-secret") ||
+		c.req.header("x-ghl-webhook-secret") ||
+		undefined;
+	const querySecret =
+		c.req.query("token") || c.req.query("secret") || undefined;
 
 	let payload: Record<string, unknown>;
 	try {
@@ -678,29 +950,32 @@ webhookRoutes.post("/gohighlevel/:locationId", async (c) => {
 		return c.json({ error: "Invalid JSON payload" }, 400);
 	}
 
-		try {
-			const result = await processGhlWebhook({
-				c,
-				locationId,
+	try {
+		const result = await processGhlWebhook({
+			c,
+			locationId,
 			rawBody,
 			signature,
 			authorization,
 			headerSecret,
 			querySecret,
-				payload,
-			});
-			const { responseData, ...meta } = result;
+			payload,
+		});
+		const { responseData, ...meta } = result;
 
-			return c.json({
-				received: true,
-				locationId,
-				...meta,
-				...responseData,
-			});
-		} catch (error) {
-		const status = (
-			error instanceof GhlWebhookError ? error.status : 500
-		) as 400 | 401 | 403 | 404 | 500;
+		return c.json({
+			received: true,
+			locationId,
+			...meta,
+			...responseData,
+		});
+	} catch (error) {
+		const status = (error instanceof GhlWebhookError ? error.status : 500) as
+			| 400
+			| 401
+			| 403
+			| 404
+			| 500;
 		const code =
 			error instanceof GhlWebhookError ? error.code : "internal_error";
 		const message =
@@ -720,7 +995,7 @@ webhookRoutes.post("/gohighlevel/:locationId", async (c) => {
 				code,
 				locationId,
 			},
-			status
+			status,
 		);
 	}
 });
@@ -728,103 +1003,111 @@ webhookRoutes.post("/gohighlevel/:locationId", async (c) => {
 /**
  * Demo endpoint: list sync events for a location
  */
-webhookRoutes.get("/gohighlevel/:locationId/events", authMiddleware, async (c) => {
-	try {
-		const locationId = c.req.param("locationId");
-		const access = await ensureLocationAccess(c, locationId);
-		if ("error" in access) {
-			return c.json({ error: access.error }, access.status);
+webhookRoutes.get(
+	"/gohighlevel/:locationId/events",
+	authMiddleware,
+	async (c) => {
+		try {
+			const locationId = c.req.param("locationId");
+			const access = await ensureLocationAccess(c, locationId);
+			if ("error" in access) {
+				return c.json({ error: access.error }, access.status);
+			}
+
+			const limit = parseLimit(c.req.query("limit"), 25);
+			const tenantDb = await getTenantDb(access.location.organizationId, c);
+			const events = await tenantDb
+				.select({
+					id: ghlSyncEvents.id,
+					eventKey: ghlSyncEvents.eventKey,
+					eventType: ghlSyncEvents.eventType,
+					ghlContactId: ghlSyncEvents.ghlContactId,
+					email: ghlSyncEvents.email,
+					status: ghlSyncEvents.status,
+					errorMessage: ghlSyncEvents.errorMessage,
+					rawPayload: ghlSyncEvents.rawPayload,
+					createdAt: ghlSyncEvents.createdAt,
+				})
+				.from(ghlSyncEvents)
+				.orderBy(desc(ghlSyncEvents.createdAt))
+				.limit(limit);
+
+			return c.json({
+				locationId,
+				organizationId: access.location.organizationId,
+				events,
+			});
+		} catch (error) {
+			console.error("Failed to fetch GHL sync events:", error);
+			return c.json(
+				{
+					error:
+						error instanceof Error
+							? error.message
+							: "Failed to fetch GHL sync events",
+				},
+				500,
+			);
 		}
-
-		const limit = parseLimit(c.req.query("limit"), 25);
-		const tenantDb = await getTenantDb(access.location.organizationId, c);
-		const events = await tenantDb
-			.select({
-				id: ghlSyncEvents.id,
-				eventKey: ghlSyncEvents.eventKey,
-				eventType: ghlSyncEvents.eventType,
-				ghlContactId: ghlSyncEvents.ghlContactId,
-				email: ghlSyncEvents.email,
-				status: ghlSyncEvents.status,
-				errorMessage: ghlSyncEvents.errorMessage,
-				rawPayload: ghlSyncEvents.rawPayload,
-				createdAt: ghlSyncEvents.createdAt,
-			})
-			.from(ghlSyncEvents)
-			.orderBy(desc(ghlSyncEvents.createdAt))
-			.limit(limit);
-
-		return c.json({
-			locationId,
-			organizationId: access.location.organizationId,
-			events,
-		});
-	} catch (error) {
-		console.error("Failed to fetch GHL sync events:", error);
-		return c.json(
-			{
-				error:
-					error instanceof Error
-						? error.message
-						: "Failed to fetch GHL sync events",
-			},
-			500
-		);
-	}
-});
+	},
+);
 
 /**
  * Demo endpoint: list contact links for a location
  */
-webhookRoutes.get("/gohighlevel/:locationId/links", authMiddleware, async (c) => {
-	try {
-		const locationId = c.req.param("locationId");
-		const access = await ensureLocationAccess(c, locationId);
-		if ("error" in access) {
-			return c.json({ error: access.error }, access.status);
+webhookRoutes.get(
+	"/gohighlevel/:locationId/links",
+	authMiddleware,
+	async (c) => {
+		try {
+			const locationId = c.req.param("locationId");
+			const access = await ensureLocationAccess(c, locationId);
+			if ("error" in access) {
+				return c.json({ error: access.error }, access.status);
+			}
+
+			const limit = parseLimit(c.req.query("limit"), 50);
+			const tenantDb = await getTenantDb(access.location.organizationId, c);
+			const links = await tenantDb
+				.select({
+					id: ghlContactLinks.id,
+					ghlContactId: ghlContactLinks.ghlContactId,
+					userId: ghlContactLinks.userId,
+					customerProfileId: ghlContactLinks.customerProfileId,
+					syncStatus: ghlContactLinks.syncStatus,
+					lastSyncedAt: ghlContactLinks.lastSyncedAt,
+					createdAt: ghlContactLinks.createdAt,
+					updatedAt: ghlContactLinks.updatedAt,
+					profileIsDeleted: customerProfiles.isDeleted,
+					profileDeletedAt: customerProfiles.deletedAt,
+				})
+				.from(ghlContactLinks)
+				.leftJoin(
+					customerProfiles,
+					eq(customerProfiles.id, ghlContactLinks.customerProfileId),
+				)
+				.orderBy(desc(ghlContactLinks.updatedAt))
+				.limit(limit);
+
+			return c.json({
+				locationId,
+				organizationId: access.location.organizationId,
+				links,
+			});
+		} catch (error) {
+			console.error("Failed to fetch GHL contact links:", error);
+			return c.json(
+				{
+					error:
+						error instanceof Error
+							? error.message
+							: "Failed to fetch GHL contact links",
+				},
+				500,
+			);
 		}
-
-		const limit = parseLimit(c.req.query("limit"), 50);
-		const tenantDb = await getTenantDb(access.location.organizationId, c);
-		const links = await tenantDb
-			.select({
-				id: ghlContactLinks.id,
-				ghlContactId: ghlContactLinks.ghlContactId,
-				userId: ghlContactLinks.userId,
-				customerProfileId: ghlContactLinks.customerProfileId,
-				syncStatus: ghlContactLinks.syncStatus,
-				lastSyncedAt: ghlContactLinks.lastSyncedAt,
-				createdAt: ghlContactLinks.createdAt,
-				updatedAt: ghlContactLinks.updatedAt,
-				profileIsDeleted: customerProfiles.isDeleted,
-				profileDeletedAt: customerProfiles.deletedAt,
-			})
-			.from(ghlContactLinks)
-			.leftJoin(
-				customerProfiles,
-				eq(customerProfiles.id, ghlContactLinks.customerProfileId)
-			)
-			.orderBy(desc(ghlContactLinks.updatedAt))
-			.limit(limit);
-
-		return c.json({
-			locationId,
-			organizationId: access.location.organizationId,
-			links,
-		});
-	} catch (error) {
-		console.error("Failed to fetch GHL contact links:", error);
-		return c.json(
-			{
-				error:
-					error instanceof Error
-						? error.message
-						: "Failed to fetch GHL contact links",
-			},
-			500
-		);
-	}
-});
+	},
+);
 
 /**
  * POST /webhooks/resend

@@ -40,7 +40,9 @@ const org = await cp.query.organizations.findFirst({
 });
 if (!org) throw new Error("org not found");
 
-const tenantPool = new Pool({ connectionString: decrypt(org.connectionString) });
+const tenantPool = new Pool({
+	connectionString: decrypt(org.connectionString),
+});
 const tenantDb = drizzle({ client: tenantPool, schema: tenantSchema });
 
 const staff = await tenantDb
@@ -68,7 +70,10 @@ for (const s of staff) {
 const orgAfter = await cp.query.organizations.findFirst({
 	where: eq(organizations.id, org.id),
 });
-console.log("ghlPrimaryStaffFieldId:", orgAfter?.ghlPrimaryStaffFieldId ?? null);
+console.log(
+	"ghlPrimaryStaffFieldId:",
+	orgAfter?.ghlPrimaryStaffFieldId ?? null,
+);
 
 const links = await tenantDb
 	.select({
@@ -118,7 +123,9 @@ console.log("GHL options:", ghlOptions);
 console.log("DB labels:", dbLabels);
 
 const match = JSON.stringify(ghlOptions) === JSON.stringify(dbLabels);
-console.log(match ? "PASS: GHL picklistOptions match DB labels" : "FAIL: option mismatch");
+console.log(
+	match ? "PASS: GHL picklistOptions match DB labels" : "FAIL: option mismatch",
+);
 
 if (dbLabels.length > 0) {
 	const [resolved] = await tenantDb

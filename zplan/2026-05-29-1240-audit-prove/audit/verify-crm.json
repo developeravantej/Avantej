@@ -1,0 +1,72 @@
+[
+  {
+    "id": "F-CRM-01",
+    "verdict": "duplicate",
+    "isBug": false,
+    "fixComplexity": null,
+    "evidence": "Marked as duplicate of F-SVC-01 (waitlist promotion no notification) — skipping analysis per instructions."
+  },
+  {
+    "id": "F-CRM-02",
+    "verdict": "real",
+    "isBug": false,
+    "fixComplexity": "trivial",
+    "evidence": "packages/api/src/routers/customer-profiles.ts:100-101 accepts creditPoints, packages/services/src/customer-profile.service.ts:72 stores creditPoints, but no query/grep result shows any consume/deduct/spend logic in entire codebase. Field is write-only. This is a product-design gap rather than a functional bug — system accepts but never uses the value."
+  },
+  {
+    "id": "F-CRM-03",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "small",
+    "evidence": "packages/services/src/promotions.service.ts:78-174 validatePromoCode ignores applicableProductIds and applicableServiceIds entirely. Fields are written at lines 244, 298 (createPromotion/updatePromotion) but never read or enforced in validatePromoCode. Callers pass productIds/serviceIds in params.productIds/serviceIds (line 85) but function does not validate against promotion.applicableProductIds/applicableServiceIds. No enforcement during applyPromotion either (lines 176-219). Promo can be created for specific products but validation bypasses that constraint."
+  },
+  {
+    "id": "F-CRM-04",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "small",
+    "evidence": "packages/services/src/promotions.service.ts:176-219 applyPromotion re-checks isActive inside transaction (line 198) but does NOT re-check usageLimit against usageCount. validatePromoCode checks usageLimit at lines 123-128 but applyPromotion only updates usageCount atomically (line 212) without verifying the check-and-increment against the limit. Race window: multiple concurrent applyPromotion calls from different validatePromoCode instances can both pass validation and both increment usageCount, exceeding usageLimit."
+  },
+  {
+    "id": "F-CRM-05",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "medium",
+    "evidence": "packages/services/src/waitlist.service.ts:106-124 removeFromWaitlist only marks entry as cancelled but does NOT recompute positions for remaining waiting entries. After removal, remaining entries keep stale position values (e.g., positions [1,2,3,4] after removing position 2 stays [1,2,3,4] instead of [1,2,3]). This breaks position semantics for promotion (promoteFromWaitlist uses position at line 137 to find earliest, but position values are now out-of-order)."
+  },
+  {
+    "id": "F-CRM-06",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "small",
+    "evidence": "packages/services/src/promotions.service.ts:78-174 validatePromoCode accepts branchId in params.branchId (line 86) but never validates it against promotion.branchId. Field is written in createPromotion line 243 and updatePromotion line 296 but never read in validatePromoCode. A promotion created for branchId=X can be applied at any branch."
+  },
+  {
+    "id": "F-CRM-07",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "medium",
+    "evidence": "packages/services/src/customer-profile.service.ts:53-117 upsertCustomerProfile is not wrapped in a transaction. Lines 57 (getCustomerProfile check), 85-89 (update), 94-114 (insert) are three separate queries. Between the check and the update/insert, another process can insert/update the same userId, causing: duplicate key error on insert (if another process inserts first), or skipped insert/redundant update (if timing race). Solution: wrap entire logic in tenantDb.transaction()."
+  },
+  {
+    "id": "F-CRM-08",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "large",
+    "evidence": "packages/services/src/coach-intake.service.ts:136-205 computeOpenIntakeSlots only iterates recurring coachIntakeAvailability slots and subtracts coachIntakeExceptions (claimed slots). It does NOT check trainer's actual appointments (from appointments table). A trainer scheduled for an appointment at 2pm can still return 2pm as open in intake slots, leading to double-booking (trainer intake + existing appointment at same time)."
+  },
+  {
+    "id": "F-CRM-09",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "small",
+    "evidence": "packages/services/src/walk-in.service.ts:54-156 convertWalkInPaymentToPackage at line 89-92 fetches packageInstances but only checks existence, not clientId ownership. Does not verify walkIn.customerId or walkIn.userId matches packageInstances.clientId. Arbitrary user A could convert their walk-in payment into user B's package instance. Router at packages/api/src/routers/walk-in-customers.ts:44 calls convertWalkInPaymentToPackage with only walkInPaymentId and targetPackageInstanceId — no validation that both belong to same customer. Function IS actually called (endpoint exists and is not deprecated unlike other walk-in endpoints)."
+  },
+  {
+    "id": "F-CRM-10",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "small",
+    "evidence": "packages/services/src/waitlist.service.ts:45-104 addToWaitlist checks slot.isFull at line 58 (single non-transactional query). After this check returns true, another process can book the last slot, making isFull=true stale. When addToWaitlist proceeds to insert (line 90), slot capacity is already fully booked. Race window between read and write. Should lock slot row inside transaction before checking isFull."
+  }
+]

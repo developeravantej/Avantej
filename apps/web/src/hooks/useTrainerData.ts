@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { client } from "@/utils/orpc";
-import type { TrainerRow, TrainerTier } from "@/components/trainers/TrainerCard";
+import { client, orpc } from "@/utils/orpc";
+import type {
+	TrainerRow,
+	TrainerTier,
+} from "@/components/trainers/TrainerCard";
 
 type UseTrainerDataResult = {
 	trainers: TrainerRow[];
@@ -32,16 +35,18 @@ export function useTrainerData(
 		isError,
 		refetch,
 	} = useQuery({
-		queryKey: ["trainers", organizationId],
-		queryFn: async () => {
-			if (!organizationId) return [] as MemberListItem[];
-			return client.members.list({ organizationId, role: "trainer" });
-		},
+		...orpc.members.list.queryOptions({
+			input: { organizationId: organizationId!, role: "trainer" },
+		}),
 		enabled: !!organizationId,
 	});
 
 	const { data: profilesMap = {} } = useQuery({
-		queryKey: ["trainerProfiles", organizationId, membersData.map((m: MemberListItem) => m.id)],
+		queryKey: [
+			"trainerProfiles",
+			organizationId,
+			membersData.map((m: MemberListItem) => m.id),
+		],
 		queryFn: async () => {
 			if (!organizationId || membersData.length === 0) return {};
 			const results = await Promise.allSettled(
@@ -49,13 +54,16 @@ export function useTrainerData(
 					client.memberProfiles.get({ organizationId, memberId: m.id }),
 				),
 			);
-			const map: Record<string, {
-				displayName?: string | null;
-				specialization?: string | null;
-				phoneNumber?: string | null;
-				bio?: string | null;
-				certifications?: string[] | null;
-			}> = {};
+			const map: Record<
+				string,
+				{
+					displayName?: string | null;
+					specialization?: string | null;
+					phoneNumber?: string | null;
+					bio?: string | null;
+					certifications?: string[] | null;
+				}
+			> = {};
 			results.forEach((result, i) => {
 				if (result.status === "fulfilled" && result.value) {
 					map[membersData[i].id] = result.value;
@@ -67,9 +75,9 @@ export function useTrainerData(
 	});
 
 	const { data: trainerTiers = [] } = useQuery({
-		queryKey: ["trainerTiers", organizationId, "active"],
-		queryFn: () =>
-			client.trainerTiers.list({ organizationId: organizationId!, includeInactive: false }),
+		...orpc.trainerTiers.list.queryOptions({
+			input: { organizationId: organizationId!, includeInactive: false },
+		}),
 		enabled: !!organizationId,
 	});
 

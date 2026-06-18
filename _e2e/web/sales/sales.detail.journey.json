@@ -1,0 +1,9 @@
+{
+  "sales/sales.detail.spec.ts::Sale detail opens from the list and shows order content": [
+    "Start logged-in as the tenant admin.",
+    "Load the Sales list and wait for it to render.",
+    "Click the first sales row (skip the test if the dataset has no sales).",
+    "Assert no ErrorBoundary crash after opening the detail.",
+    "Assert the detail shows real order content (total / amount / invoice / payment)."
+  ]
+}

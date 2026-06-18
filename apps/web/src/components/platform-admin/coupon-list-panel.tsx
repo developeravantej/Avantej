@@ -104,10 +104,15 @@ export function CouponListPanel({
 							<CardHeader className="pb-2">
 								<CardTitle className="text-sm flex items-center justify-between gap-2">
 									<span className="truncate">
-										{c.name ?? <span className="font-mono text-xs">{c.id}</span>}
+										{c.name ?? (
+											<span className="font-mono text-xs">{c.id}</span>
+										)}
 									</span>
 									{c.valid ? (
-										<Badge variant="outline" className="text-emerald-600 border-emerald-600/50">
+										<Badge
+											variant="outline"
+											className="text-emerald-600 border-emerald-600/50"
+										>
 											valid
 										</Badge>
 									) : (

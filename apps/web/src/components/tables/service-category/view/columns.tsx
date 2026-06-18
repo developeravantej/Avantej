@@ -18,7 +18,9 @@ export const columns: ColumnDef<any>[] = [
 		accessorKey: "name",
 		header: "Name",
 		cell: ({ getValue }) => (
-			<span className="font-semibold text-[#0a0a0a]">{getValue<string>() || "N/A"}</span>
+			<span className="font-semibold text-[#0a0a0a]">
+				{getValue<string>() || "N/A"}
+			</span>
 		),
 		enableSorting: true,
 		enableHiding: false,
@@ -69,7 +71,9 @@ export const columns: ColumnDef<any>[] = [
 		accessorKey: "createdAt",
 		header: "Created",
 		cell: ({ getValue }) => (
-			<span className="text-[#737373]">{formatDate(getValue<Date | string>())}</span>
+			<span className="text-[#737373]">
+				{formatDate(getValue<Date | string>())}
+			</span>
 		),
 		enableSorting: true,
 		enableHiding: false,

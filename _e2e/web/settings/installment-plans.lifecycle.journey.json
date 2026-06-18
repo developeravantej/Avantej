@@ -1,0 +1,10 @@
+{
+  "settings/installment-plans.lifecycle.spec.ts::Installment plan lifecycle — create, update, deactivate (API-verified)": [
+    "Create an installment plan (3 installments, pricePremiumBps 500)",
+    "Register teardown to deactivate the plan",
+    "Fetch by id and assert code and numInstallments",
+    "Update name and numInstallments to 6",
+    "Re-fetch and assert the updates persisted",
+    "Deactivate and assert the plan is absent from the active-only list"
+  ]
+}

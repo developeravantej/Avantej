@@ -1,11 +1,5 @@
-import type { UseFormReturn } from "react-hook-form";
-import {
-	FormControl,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
-} from "@/components/ui/form";
+import type { AnyFieldApi } from "@tanstack/react-form";
+import { Label } from "@/components/ui/label";
 import {
 	Select,
 	SelectContent,
@@ -17,8 +11,16 @@ import {
 type Option = { id: string; name: string };
 type UomOption = { id: string; name: string; symbol?: string | null };
 
-type Props<T extends Record<string, unknown>> = {
-	form: UseFormReturn<T>;
+// See supplier-form-sections.tsx for explanation of the loose typing pattern.
+type FormShape = {
+	Field: (props: {
+		name: string;
+		children: (field: AnyFieldApi) => React.ReactNode;
+	}) => React.ReactNode;
+};
+
+type Props = {
+	form: FormShape;
 	mode: "create" | "edit";
 	brands: Option[];
 	categories: Option[];
@@ -26,37 +28,46 @@ type Props<T extends Record<string, unknown>> = {
 	uoms: UomOption[];
 };
 
-export function ProductCategoriesSection<T extends Record<string, unknown>>({
+function FieldError({ errors }: { errors: unknown[] }) {
+	if (errors.length === 0) return null;
+	return (
+		<>
+			{errors.map((error, i) => (
+				<p key={i} className="text-sm text-destructive">
+					{typeof error === "string"
+						? error
+						: (error as { message?: string })?.message || "Invalid value"}
+				</p>
+			))}
+		</>
+	);
+}
+
+export function ProductCategoriesSection({
 	form,
 	mode,
 	brands,
 	categories,
 	suppliers,
 	uoms,
-}: Props<T>) {
-	// biome-ignore lint/suspicious/noExplicitAny: generic form field name narrowing
-	const f = form as any;
+}: Props) {
 	return (
 		<div className="bg-white border border-brand-secondary-3 rounded-md p-4">
 			<h5 className="text-sm font-medium text-brand-primary-1 mb-3">
 				Categories &amp; Relationships
 			</h5>
 			<div className="grid grid-cols-2 gap-4">
-				<FormField
-					control={f.control}
-					name="brandId"
-					render={({ field }: { field: any }) => (
-						<FormItem>
-							<FormLabel>Brand</FormLabel>
+				<form.Field name="brandId">
+					{(field) => (
+						<div className="space-y-1">
+							<Label htmlFor={field.name}>Brand</Label>
 							<Select
-								value={field.value ?? ""}
-								onValueChange={(v) => field.onChange(v || null)}
+								value={(field.state.value as string) ?? ""}
+								onValueChange={(v) => field.handleChange(v || null)}
 							>
-								<FormControl>
-									<SelectTrigger>
-										<SelectValue placeholder="Select brand" />
-									</SelectTrigger>
-								</FormControl>
+								<SelectTrigger id={field.name}>
+									<SelectValue placeholder="Select brand" />
+								</SelectTrigger>
 								<SelectContent>
 									{brands.map((b) => (
 										<SelectItem key={b.id} value={b.id}>
@@ -65,26 +76,22 @@ export function ProductCategoriesSection<T extends Record<string, unknown>>({
 									))}
 								</SelectContent>
 							</Select>
-							<FormMessage />
-						</FormItem>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
+				</form.Field>
 
-				<FormField
-					control={f.control}
-					name="categoryId"
-					render={({ field }: { field: any }) => (
-						<FormItem>
-							<FormLabel>Category</FormLabel>
+				<form.Field name="categoryId">
+					{(field) => (
+						<div className="space-y-1">
+							<Label htmlFor={field.name}>Category</Label>
 							<Select
-								value={field.value ?? ""}
-								onValueChange={(v) => field.onChange(v || null)}
+								value={(field.state.value as string) ?? ""}
+								onValueChange={(v) => field.handleChange(v || null)}
 							>
-								<FormControl>
-									<SelectTrigger>
-										<SelectValue placeholder="Select category" />
-									</SelectTrigger>
-								</FormControl>
+								<SelectTrigger id={field.name}>
+									<SelectValue placeholder="Select category" />
+								</SelectTrigger>
 								<SelectContent>
 									{categories.map((c) => (
 										<SelectItem key={c.id} value={c.id}>
@@ -93,26 +100,22 @@ export function ProductCategoriesSection<T extends Record<string, unknown>>({
 									))}
 								</SelectContent>
 							</Select>
-							<FormMessage />
-						</FormItem>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
+				</form.Field>
 
-				<FormField
-					control={f.control}
-					name="supplierId"
-					render={({ field }: { field: any }) => (
-						<FormItem>
-							<FormLabel>Supplier</FormLabel>
+				<form.Field name="supplierId">
+					{(field) => (
+						<div className="space-y-1">
+							<Label htmlFor={field.name}>Supplier</Label>
 							<Select
-								value={field.value ?? ""}
-								onValueChange={(v) => field.onChange(v || null)}
+								value={(field.state.value as string) ?? ""}
+								onValueChange={(v) => field.handleChange(v || null)}
 							>
-								<FormControl>
-									<SelectTrigger>
-										<SelectValue placeholder="Select supplier" />
-									</SelectTrigger>
-								</FormControl>
+								<SelectTrigger id={field.name}>
+									<SelectValue placeholder="Select supplier" />
+								</SelectTrigger>
 								<SelectContent>
 									{suppliers.map((s) => (
 										<SelectItem key={s.id} value={s.id}>
@@ -121,31 +124,27 @@ export function ProductCategoriesSection<T extends Record<string, unknown>>({
 									))}
 								</SelectContent>
 							</Select>
-							<FormMessage />
-						</FormItem>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
+				</form.Field>
 
-				<FormField
-					control={f.control}
-					name="uomId"
-					render={({ field }: { field: any }) => (
-						<FormItem>
-							<FormLabel>
+				<form.Field name="uomId">
+					{(field) => (
+						<div className="space-y-1">
+							<Label htmlFor={field.name}>
 								Unit of Measure{" "}
 								{mode === "create" && (
 									<span className="text-destructive">*</span>
 								)}
-							</FormLabel>
+							</Label>
 							<Select
-								value={field.value ?? ""}
-								onValueChange={(v) => field.onChange(v)}
+								value={(field.state.value as string) ?? ""}
+								onValueChange={(v) => field.handleChange(v)}
 							>
-								<FormControl>
-									<SelectTrigger>
-										<SelectValue placeholder="Select unit" />
-									</SelectTrigger>
-								</FormControl>
+								<SelectTrigger id={field.name}>
+									<SelectValue placeholder="Select unit" />
+								</SelectTrigger>
 								<SelectContent>
 									{uoms.map((u) => (
 										<SelectItem key={u.id} value={u.id}>
@@ -155,10 +154,10 @@ export function ProductCategoriesSection<T extends Record<string, unknown>>({
 									))}
 								</SelectContent>
 							</Select>
-							<FormMessage />
-						</FormItem>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
+				</form.Field>
 			</div>
 		</div>
 	);

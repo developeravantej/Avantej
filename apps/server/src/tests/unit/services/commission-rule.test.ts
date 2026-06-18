@@ -18,7 +18,10 @@
  */
 
 import { describe, test, expect, mock } from "bun:test";
-import { createMockTenantDb } from "../../helpers/db-mock.factory";
+import {
+	createMockTenantDb,
+	selectChainResolving,
+} from "../../helpers/db-mock.factory";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -33,7 +36,6 @@ const SERVICE_ID = "svc-id-001";
 const CATEGORY_ID = "cat-id-001";
 const CONFIG_ID = "cfg-id-001";
 const SLOT_ID = "slot-id-001";
-const RATE_ID = "rate-id-001";
 const SPLIT_ID_1 = "split-id-001";
 const SPLIT_ID_2 = "split-id-002";
 
@@ -82,20 +84,6 @@ function _makeTestAppointment(overrides: Record<string, unknown> = {}) {
 	};
 }
 
-// Chainable select mock that resolves to the given value
-function selectChainResolving(value: unknown) {
-	const chain: Record<string, unknown> = {};
-	for (const m of [
-		"from", "where", "orderBy", "limit", "offset",
-		"leftJoin", "innerJoin", "groupBy", "having", "for",
-	]) {
-		chain[m] = mock(() => chain);
-	}
-	chain.then = (resolve: (v: unknown) => unknown) =>
-		Promise.resolve(value).then(resolve);
-	return chain;
-}
-
 // Insert chain that either resolves or throws
 function _insertChainWith(resolveValue: unknown) {
 	const valuesChain: Record<string, unknown> = {};
@@ -112,7 +100,9 @@ function _insertChainThrowing(error: unknown) {
 	valuesChain.onConflictDoUpdate = mock(() => valuesChain);
 	return mock(() => ({ values: mock(() => valuesChain) }));
 }
-void _makeTestAppointment; void _insertChainWith; void _insertChainThrowing;
+void _makeTestAppointment;
+void _insertChainWith;
+void _insertChainThrowing;
 
 // ---------------------------------------------------------------------------
 // Helpers: build a realistic mock db for calculateCommissionForAppointment
@@ -122,21 +112,21 @@ void _makeTestAppointment; void _insertChainWith; void _insertChainThrowing;
  * Build a mock db wired to let calculateCommissionForAppointment produce one
  * split for TRAINER_USER_ID with the given earnReason.
  *
- * Select-call order inside _buildSplits / calculateCommissionForAppointment:
- *   1. services (categoryId lookup)
- *   2. categoryCommissionConfigs (active config lookup)
- *   3. commissionTierRates (rate lookup — non-conditional path)
- *   4. commissionCoachSlots (slot weightage lookup)
- *   5. members (member role + tier lookup)
- *   6. categoryCommissionConfigs again (cap check: excludeIfDiscountAbovePct)
- *   7. commissionSplits (cycle cap sum)
- *   8. insert → commissionSplits (the actual split row)
- *   9. writeAudit → insert → auditLogs
+ * Select-call order (Task #16 track path + Task #18 track cap):
+ *   1. services → categoryId
+ *   2. commissionTracks (delivery track — roleType='trainer', trigger='on_completion')
+ *   3. categoryCommissionConfigs (backing config for isConditional/paymentType/id)
+ *   4. commissionTrackRates (rates by trackId)
+ *   5. commissionCoachSlots (slots by trackId)
+ *   6. members (batch: role + tier)
+ *   7. commissionTrackVersions (latest version for provenance)
+ *   8. categoryCommissionConfigVersions (legacy configVersionId, backward compat)
+ *   9. applyCommissionCaps: resolveCategoryIdForSplit (appointments+services)
+ *  10. applyCommissionCaps: commissionTracks cap config (maxPerCycleCents → null → early return)
  */
-function buildApptCommissionMockDb(opts: {
-	insertResult?: unknown[];
-	throwOnInsert?: { code: string };
-} = {}) {
+function buildApptCommissionMockDb(
+	opts: { insertResult?: unknown[]; throwOnInsert?: { code: string } } = {},
+) {
 	const { insertResult = [makeTestSplit()], throwOnInsert } = opts;
 
 	const db = createMockTenantDb();
@@ -147,46 +137,69 @@ function buildApptCommissionMockDb(opts: {
 		switch (selectCallCount) {
 			case 1: // services → categoryId
 				return selectChainResolving([{ categoryId: CATEGORY_ID }]);
-			case 2: // categoryCommissionConfigs → active config
-				return selectChainResolving([{
-					id: CONFIG_ID,
-					categoryId: CATEGORY_ID,
-					paymentType: "fixed",
-					isConditional: false,
-					isActive: true,
-					maxCoaches: 1,
-					maxPerCycleCents: null,
-					excludeIfDiscountAbovePct: null,
-				}]);
-			case 3: // commissionTierRates → rates
-				return selectChainResolving([{
-					id: RATE_ID,
-					configId: CONFIG_ID,
-					trainerTierId: TIER_ID,
-					amount: 5000, // RM 50 fixed
-				}]);
-			case 4: // commissionCoachSlots → all slots
-				return selectChainResolving([{
-					id: SLOT_ID,
-					configId: CONFIG_ID,
-					slotIndex: 0,
-					label: "Head Trainer",
-					weightageBasisPoints: 10000,
-				}]);
-			case 5: // members → role + tier
-				return selectChainResolving([{
-					id: TRAINER_MEMBER_ID,
-					userId: TRAINER_USER_ID,
-					role: "trainer",
-					trainerTierId: TIER_ID,
-				}]);
-			case 6: // applyCommissionCaps: config for excludeIfDiscountAbovePct
-				return selectChainResolving([{
-					maxPerCycleCents: null,
-					excludeIfDiscountAbovePct: null,
-				}]);
-			case 7: // applyCommissionCaps: cycle cap sum
-				return selectChainResolving([{ total: 0 }]);
+			case 2: // commissionTracks → delivery track
+				return selectChainResolving([
+					{
+						id: CONFIG_ID, // track id reuses same constant for simplicity
+						categoryId: CATEGORY_ID,
+						paymentType: "fixed",
+						isConditional: false,
+						isActive: true,
+						roleType: "trainer",
+						trigger: "on_completion",
+					},
+				]);
+			case 3: // categoryCommissionConfigs → backing config
+				return selectChainResolving([
+					{
+						id: CONFIG_ID,
+						categoryId: CATEGORY_ID,
+						paymentType: "fixed",
+						isConditional: false,
+						isActive: true,
+						maxCoaches: 1,
+						maxPerCycleCents: null,
+						excludeIfDiscountAbovePct: null,
+					},
+				]);
+			case 4: // commissionTrackRates → rates by trackId
+				return selectChainResolving([
+					{
+						trainerTierId: TIER_ID,
+						amount: 5000, // RM 50 fixed
+					},
+				]);
+			case 5: // commissionCoachSlots → slots by trackId
+				return selectChainResolving([
+					{
+						id: SLOT_ID,
+						slotIndex: 0,
+						label: "Head Trainer",
+						weightageBasisPoints: 10000,
+					},
+				]);
+			case 6: // members → batch role + tier
+				return selectChainResolving([
+					{
+						id: TRAINER_MEMBER_ID,
+						userId: TRAINER_USER_ID,
+						role: "trainer",
+						trainerTierId: TIER_ID,
+					},
+				]);
+			case 7: // commissionTrackVersions → latest track version (provenance)
+				return selectChainResolving([{ id: "track-ver-001" }]);
+			case 8: // categoryCommissionConfigVersions → legacy configVersionId
+				return selectChainResolving([{ id: "cfg-ver-001" }]);
+			case 9: // applyCommissionCaps: resolveCategoryIdForSplit
+				return selectChainResolving([{ categoryId: CATEGORY_ID }]);
+			case 10: // applyCommissionCaps: commissionTracks cap config (maxPerCycleCents=null → no cap)
+				return selectChainResolving([
+					{
+						maxPerCycleCents: null,
+						excludeIfDiscountAbovePct: null,
+					},
+				]);
 			default:
 				return selectChainResolving([]);
 		}
@@ -229,7 +242,10 @@ describe("runAppointmentCommission — completion", () => {
 			"@avantej-core/services/commission-calculator.service"
 		);
 
-		const expectedSplit = makeTestSplit({ earnReason: "completion", status: "pending" });
+		const expectedSplit = makeTestSplit({
+			earnReason: "completion",
+			status: "pending",
+		});
 		const db = buildApptCommissionMockDb({ insertResult: [expectedSplit] });
 
 		const splits = await calculateCommissionForAppointment(db, {
@@ -260,7 +276,10 @@ describe("runAppointmentCommission — cancellation", () => {
 			"@avantej-core/services/commission-calculator.service"
 		);
 
-		const expectedSplit = makeTestSplit({ earnReason: "cancellation", status: "pending" });
+		const expectedSplit = makeTestSplit({
+			earnReason: "cancellation",
+			status: "pending",
+		});
 		const db = buildApptCommissionMockDb({ insertResult: [expectedSplit] });
 
 		const splits = await calculateCommissionForAppointment(db, {
@@ -469,7 +488,9 @@ describe("voidCommissionSplitsForSalesOrder — delivered appointment guard", ()
 
 		// Wire insert for writeAudit
 		db.insert.mockImplementation(() => ({
-			values: mock(() => ({ returning: mock(() => Promise.resolve([{ id: "audit-id" }])) })),
+			values: mock(() => ({
+				returning: mock(() => Promise.resolve([{ id: "audit-id" }])),
+			})),
 		}));
 
 		const voided = await voidCommissionSplitsForSalesOrder(
@@ -512,7 +533,9 @@ describe("voidCommissionSplitsForSalesOrder — delivered appointment guard", ()
 		db.update.mockImplementation(() => ({ set: mock(() => setChain) }));
 
 		db.insert.mockImplementation(() => ({
-			values: mock(() => ({ returning: mock(() => Promise.resolve([{ id: "audit-id" }])) })),
+			values: mock(() => ({
+				returning: mock(() => Promise.resolve([{ id: "audit-id" }])),
+			})),
 		}));
 
 		const voided = await voidCommissionSplitsForSalesOrder(
@@ -548,16 +571,25 @@ describe("POS service-line — commissionDeferred flag and no immediate split", 
 			refId?: string | null;
 		}): boolean {
 			const isServiceItem =
-				(item.type === "service" || item.type === "package") && Boolean(item.refId);
+				(item.type === "service" || item.type === "package") &&
+				Boolean(item.refId);
 			const isProductItem = item.type === "product" && Boolean(item.refId);
 			return isServiceItem && !isProductItem;
 		}
 
-		expect(resolveCommissionDeferred({ type: "service", refId: SERVICE_ID })).toBe(true);
-		expect(resolveCommissionDeferred({ type: "package", refId: SERVICE_ID })).toBe(true);
-		expect(resolveCommissionDeferred({ type: "product", refId: "prod-id" })).toBe(false);
+		expect(
+			resolveCommissionDeferred({ type: "service", refId: SERVICE_ID }),
+		).toBe(true);
+		expect(
+			resolveCommissionDeferred({ type: "package", refId: SERVICE_ID }),
+		).toBe(true);
+		expect(
+			resolveCommissionDeferred({ type: "product", refId: "prod-id" }),
+		).toBe(false);
 		// No refId → not a service item
-		expect(resolveCommissionDeferred({ type: "service", refId: null })).toBe(false);
+		expect(resolveCommissionDeferred({ type: "service", refId: null })).toBe(
+			false,
+		);
 	});
 
 	test("TC-CR-U009: calculateCommissionForPos is not called for service items in the POS commission loop", async () => {
@@ -565,14 +597,24 @@ describe("POS service-line — commissionDeferred flag and no immediate split", 
 		// This mirrors pos.service.ts line ~713: `if (item.type !== 'product') continue`
 		const itemTypes = ["service", "package"];
 		for (const type of itemTypes) {
-			const item = { type, refId: SERVICE_ID, unitPriceCents: 5000, quantity: 1 };
+			const item = {
+				type,
+				refId: SERVICE_ID,
+				unitPriceCents: 5000,
+				quantity: 1,
+			};
 			// The POS commission loop guard
 			const shouldSkipCommission = item.type !== "product";
 			expect(shouldSkipCommission).toBe(true);
 		}
 
 		// Product items DO trigger commission
-		const productItem = { type: "product", refId: "prod-id", unitPriceCents: 5000, quantity: 1 };
+		const productItem = {
+			type: "product",
+			refId: "prod-id",
+			unitPriceCents: 5000,
+			quantity: 1,
+		};
 		expect(productItem.type !== "product").toBe(false);
 	});
 });
@@ -584,19 +626,30 @@ describe("POS service-line — commissionDeferred flag and no immediate split", 
 describe("POS product-line — earnReason='pos_product' split inserted", () => {
 	/**
 	 * Build a mock db wired for calculateCommissionForPos (product path).
-	 * Select order:
+	 * Select order (Task #16 track path):
 	 *   1. services → categoryId
-	 *   2. categoryCommissionConfigs → active config
-	 *   3. commissionTierRates → rates (non-conditional)
-	 *   4. commissionCoachSlots → slot weightages
-	 *   5. salesOrders → complimentaryReason guard
-	 *   6. salesOrderItems → commissionExcluded guard
-	 *   7. members → role + tier
-	 *   8. applyCommissionCaps: config for discount threshold
-	 *   9. applyCommissionCaps: cycle cap sum
+	 *   2. commissionTracks → delivery track
+	 *   3. categoryCommissionConfigs → backing config
+	 *   4. commissionTrackRates → rates by trackId
+	 *   5. commissionCoachSlots → slots by trackId (no members batch for POS)
+	 *   6. commissionTrackVersions → latest version
+	 *   7. categoryCommissionConfigVersions → legacy configVersionId
+	 *   8. salesOrders → complimentaryReason guard
+	 *   9. salesOrderItems → commissionExcluded guard
+	 *  10. members → role + tier (individual fetch, POS path)
+	 *  11. applyCommissionCaps: resolveCategoryIdForSplit (salesOrderItems+services)
+	 *  12. applyCommissionCaps: commissionTracks cap config (maxPerCycleCents=null → no cap)
 	 */
 	function buildPosProductMockDb(opts: { insertResult?: unknown[] } = {}) {
-		const { insertResult = [makeTestSplit({ earnReason: "pos_product", appointmentId: null, salesOrderId: SALES_ORDER_ID })] } = opts;
+		const {
+			insertResult = [
+				makeTestSplit({
+					earnReason: "pos_product",
+					appointmentId: null,
+					salesOrderId: SALES_ORDER_ID,
+				}),
+			],
+		} = opts;
 
 		const db = createMockTenantDb();
 
@@ -606,43 +659,69 @@ describe("POS product-line — earnReason='pos_product' split inserted", () => {
 			switch (selectCallCount) {
 				case 1: // services → categoryId
 					return selectChainResolving([{ categoryId: CATEGORY_ID }]);
-				case 2: // categoryCommissionConfigs → active config
-					return selectChainResolving([{
-						id: CONFIG_ID,
-						categoryId: CATEGORY_ID,
-						paymentType: "fixed",
-						isConditional: false,
-						isActive: true,
-						maxCoaches: 1,
-						maxPerCycleCents: null,
-						excludeIfDiscountAbovePct: null,
-					}]);
-				case 3: // commissionTierRates
-					return selectChainResolving([{
-						trainerTierId: TIER_ID,
-						amount: 5000,
-					}]);
-				case 4: // commissionCoachSlots
-					return selectChainResolving([{
-						slotIndex: 0,
-						weightageBasisPoints: 10000,
-					}]);
-				case 5: // salesOrders complimentaryReason guard
+				case 2: // commissionTracks → delivery track
+					return selectChainResolving([
+						{
+							id: CONFIG_ID,
+							categoryId: CATEGORY_ID,
+							paymentType: "fixed",
+							isConditional: false,
+							isActive: true,
+							roleType: "trainer",
+							trigger: "on_completion",
+						},
+					]);
+				case 3: // categoryCommissionConfigs → backing config
+					return selectChainResolving([
+						{
+							id: CONFIG_ID,
+							categoryId: CATEGORY_ID,
+							paymentType: "fixed",
+							isConditional: false,
+							isActive: true,
+							maxCoaches: 1,
+							maxPerCycleCents: null,
+							excludeIfDiscountAbovePct: null,
+						},
+					]);
+				case 4: // commissionTrackRates → rates by trackId
+					return selectChainResolving([
+						{
+							trainerTierId: TIER_ID,
+							amount: 5000,
+						},
+					]);
+				case 5: // commissionCoachSlots → slots by trackId (no members batch for POS)
+					return selectChainResolving([
+						{
+							slotIndex: 0,
+							weightageBasisPoints: 10000,
+						},
+					]);
+				case 6: // commissionTrackVersions → latest version (provenance)
+					return selectChainResolving([{ id: "track-ver-001" }]);
+				case 7: // categoryCommissionConfigVersions → legacy configVersionId
+					return selectChainResolving([{ id: "cfg-ver-001" }]);
+				case 8: // salesOrders → complimentaryReason guard
 					return selectChainResolving([{ complimentaryReason: null }]);
-				case 6: // salesOrderItems commissionExcluded guard
+				case 9: // salesOrderItems → commissionExcluded guard
 					return selectChainResolving([{ id: "soi-id" }]);
-				case 7: // members → role + tier
-					return selectChainResolving([{
-						role: "trainer",
-						trainerTierId: TIER_ID,
-					}]);
-				case 8: // applyCommissionCaps: config
-					return selectChainResolving([{
-						maxPerCycleCents: null,
-						excludeIfDiscountAbovePct: null,
-					}]);
-				case 9: // applyCommissionCaps: cycle sum
-					return selectChainResolving([{ total: 0 }]);
+				case 10: // members → role + tier (individual fetch, POS path)
+					return selectChainResolving([
+						{
+							role: "trainer",
+							trainerTierId: TIER_ID,
+						},
+					]);
+				case 11: // applyCommissionCaps: resolveCategoryIdForSplit
+					return selectChainResolving([{ categoryId: CATEGORY_ID }]);
+				case 12: // applyCommissionCaps: commissionTracks cap config (maxPerCycleCents=null → no cap)
+					return selectChainResolving([
+						{
+							maxPerCycleCents: null,
+							excludeIfDiscountAbovePct: null,
+						},
+					]);
 				default:
 					return selectChainResolving([]);
 			}

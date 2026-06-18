@@ -1,0 +1,55 @@
+{
+  "route": "/dashboard/uom-conversions/view",
+  "module": "uom-conversions",
+  "interactablesFound": {
+    "buttons": 12,
+    "links": 34,
+    "textboxes": 1,
+    "comboboxes": 0,
+    "checkboxes": 0,
+    "tabs": 0
+  },
+  "actionsTaken": 11,
+  "findings": [
+    {
+      "id": "dashboard_uom_conversions_view__infinite-spinner",
+      "route": "/dashboard/uom-conversions/view",
+      "module": "inventory-settings-load",
+      "category": "infinite-spinner",
+      "severity": "high",
+      "title": "Route shows a persistent spinner and never renders its content (direct navigation)",
+      "observed": "Loading spinner remains visible after networkidle + 3s; main content (list/table) never appears; no failing network request — a stuck client-side load.",
+      "evidence": {
+        "screenshot": "_e2e/loop/evidence/dashboard_uom_conversions_view/shot.png",
+        "console": "_e2e/loop/evidence/dashboard_uom_conversions_view/console.txt",
+        "network": "_e2e/loop/evidence/dashboard_uom_conversions_view/network.txt",
+        "trace": "_e2e/loop/evidence/dashboard_uom_conversions_view/trace.zip"
+      },
+      "recommendation": "Check the route loader / Suspense boundary / lazy chunk for these pages. NOT APPLIED."
+    }
+  ],
+  "newLinks": [
+    "/dashboard",
+    "/dashboard/operations/approvals",
+    "/dashboard/customers/v2/view",
+    "/dashboard/appointment/view",
+    "/dashboard/appointment/class-slots/view",
+    "/dashboard/trainers/view",
+    "/dashboard/service/view",
+    "/dashboard/sales/create",
+    "/dashboard/reports/view",
+    "/dashboard/announcements/view",
+    "/dashboard/sales/view",
+    "/dashboard/commissions/view",
+    "/dashboard/settings/tax-rates",
+    "/dashboard/expenses/view",
+    "/dashboard/packages/view",
+    "/dashboard/commissions/view?tab=payouts",
+    "/dashboard/user/view",
+    "/dashboard/access-control/roles",
+    "/dashboard/access-control/user-assignment",
+    "/dashboard/branch/view"
+  ],
+  "authExpired": false,
+  "serverDown": false
+}

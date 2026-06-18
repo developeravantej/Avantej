@@ -51,6 +51,11 @@ export interface PurchaseFlowState {
 	// Status the server actually wrote — may be "pending" if the org has the
 	// approval gate on (see PACKAGE_APPROVAL_REQUIRED_KEY in the server).
 	packageInstanceStatus: string | null;
+	// Final amounts written to the package instance (in cents). Captured at
+	// pay-time using the real org tax rate so the Done screen reflects the
+	// actual saved total instead of re-deriving it with a stale heuristic.
+	finalTotal: number | null;
+	finalTaxAmount: number | null;
 }
 
 const initialState: PurchaseFlowState = {
@@ -83,6 +88,8 @@ const initialState: PurchaseFlowState = {
 	paymentMethod: null,
 	packageInstanceId: null,
 	packageInstanceStatus: null,
+	finalTotal: null,
+	finalTaxAmount: null,
 };
 
 interface PurchaseFlowContextValue {
@@ -91,7 +98,9 @@ interface PurchaseFlowContextValue {
 	reset: () => void;
 }
 
-const PurchaseFlowContext = createContext<PurchaseFlowContextValue | null>(null);
+const PurchaseFlowContext = createContext<PurchaseFlowContextValue | null>(
+	null,
+);
 
 export function PurchaseFlowProvider({ children }: { children: ReactNode }) {
 	const [state, setState] = useState<PurchaseFlowState>(initialState);

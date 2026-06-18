@@ -1,0 +1,7 @@
+{
+  "access-control/role-permissions-system-role-immutable.rule.spec.ts::rule: removing a permission from a system role is rejected (400)": [
+    "List roles and find a system role (isSystem=true)",
+    "Pick an existing permission via permissions/list",
+    "Attempt rolePermissions/remove on the system role and assert 400"
+  ]
+}

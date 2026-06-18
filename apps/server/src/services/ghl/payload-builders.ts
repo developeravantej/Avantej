@@ -65,13 +65,13 @@ export interface BuildContactArgs {
 	branchOptionLabel?: string | null;
 }
 
-export function buildContactPayload(
-	args: BuildContactArgs,
-): GhlContactPayload {
+export function buildContactPayload(args: BuildContactArgs): GhlContactPayload {
 	const { locationId, user, profile, memberStatus, customFieldIds } = args;
 
 	const tags: string[] = [];
-	tags.push(memberStatus === "active" ? "customer:active" : "customer:inactive");
+	tags.push(
+		memberStatus === "active" ? "customer:active" : "customer:inactive",
+	);
 	if (profile.fitnessGoals) {
 		for (const g of profile.fitnessGoals) tags.push(`goal:${g}`);
 	}

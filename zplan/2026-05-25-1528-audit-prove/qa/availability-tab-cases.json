@@ -1,0 +1,316 @@
+[
+  {
+    "id": "AV-1",
+    "title": "Load availability tab — weekly grid renders with trainer rows and day columns",
+    "type": "golden",
+    "steps": [
+      "Log in as admin (franchisee@gmail.com)",
+      "Navigate to /dashboard/trainers/view?tab=availability",
+      "Wait for the page to finish loading"
+    ],
+    "expected": "WeeklyGrid renders with a header row ('Trainer', 'Mon'–'Sun') and one row per active trainer in the branch. Each day cell shows either time-window chips (green for available, red for blocked, amber for time-off) or an 'Off' chip. Utilisation bar and booked/avail hours appear in each trainer cell once the utilisation query resolves.",
+    "selectorHints": [
+      "[style*='grid-template-columns']",
+      "text='Off'",
+      "text='Mon'",
+      "text='Trainer'"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "notes": "Source: trainer-availability-tab.tsx lines 249–311 (WeeklyGrid), lines 412–443 (loading/error/empty/data branches)"
+  },
+  {
+    "id": "AV-2",
+    "title": "Click trainer row opens TrainerAvailabilitySheet with that trainer's schedule",
+    "type": "golden",
+    "steps": [
+      "Load the availability tab (AV-1)",
+      "Click on a trainer's name cell (leftmost 220px column)"
+    ],
+    "expected": "A right-side sheet slides in showing the trainer's name and email in the header. Each day of the week (Mon–Sun) has a card listing the trainer's time windows as color-coded chips. Sheet is read-only — no edit inputs or save button.",
+    "selectorHints": [
+      "role=dialog",
+      "[data-side='right']",
+      "text='Monday'",
+      "text='Tuesday'"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "notes": "Source: trainer-availability-tab.tsx lines 130–134 (button onClick → onOpenSheet), lines 445–452 (TrainerAvailabilitySheet mount). Sheet is READ-ONLY — no edit/save functionality (trainer-availability-sheet.tsx has no mutations). Hub doc described this as an editor; that is a regression."
+  },
+  {
+    "id": "AV-3",
+    "title": "'Block Time' button opens AddExceptionDialog with kind='blocked'",
+    "type": "golden",
+    "steps": [
+      "Load the availability tab as a non-trainer role (admin or staff)",
+      "Click the 'Block Time' button in the top-right action bar"
+    ],
+    "expected": "AddExceptionDialog opens. Title reads 'Block Time'. Kind radio defaults to 'blocked'. Trainer dropdown is shown (no pre-selection). Dialog description says 'Mark a specific date as blocked for a trainer'.",
+    "selectorHints": [
+      "button:has-text('Block Time')",
+      "role=dialog",
+      "text='Block Time'",
+      "input[value='blocked'][checked]"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "notes": "Source: trainer-availability-tab.tsx lines 388–397 (button onClick sets kind='blocked' then opens). add-exception-dialog.tsx lines 108, 46 (kind state init from defaultKind). Buttons hidden when isTrainerRole=true (line 385)."
+  },
+  {
+    "id": "AV-4",
+    "title": "'Add Exception' button opens AddExceptionDialog with kind='timeoff'",
+    "type": "golden",
+    "steps": [
+      "Load the availability tab as a non-trainer role",
+      "Click the 'Add Exception' button in the top-right action bar"
+    ],
+    "expected": "AddExceptionDialog opens. Title reads 'Add Exception Day'. Kind radio defaults to 'timeoff'. Trainer dropdown is shown. Description says 'Mark a specific date as time-off for a trainer'.",
+    "selectorHints": [
+      "button:has-text('Add Exception')",
+      "role=dialog",
+      "text='Add Exception Day'",
+      "input[value='timeoff'][checked]"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "notes": "Source: trainer-availability-tab.tsx lines 399–409 (button onClick sets kind='timeoff'). add-exception-dialog.tsx lines 112–115 (description branch on kind)."
+  },
+  {
+    "id": "AV-5",
+    "title": "Utilisation bar — trainer rows show utilisation percentage bar coloured by threshold",
+    "type": "golden",
+    "steps": [
+      "Load the availability tab",
+      "Wait for both the availability query and the utilisation query to resolve"
+    ],
+    "expected": "Each trainer cell shows a small horizontal bar (w-20, h-[4px]). Bar fill color: emerald-400 when pct < 60%, amber-400 when 60% ≤ pct ≤ 90%, red-400 when pct > 90%. Bar width = min(pct, 100)%. Below the bar: '{pct}%' label and '{bookedH}h booked / {availH}h avail'. If utilisation data is not yet loaded, shows '—%' with no bar fill.",
+    "selectorHints": [
+      ".bg-emerald-400",
+      ".bg-amber-400",
+      ".bg-red-400",
+      "text='% booked'",
+      "text='avail'"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "notes": "Source: trainer-availability-tab.tsx lines 70–74 (utilisationBarColor), lines 162–176 (bar render), lines 178–203 (booked/avail text). Utilisation query at lines 353–363."
+  },
+  {
+    "id": "AV-6",
+    "title": "Trainer role — Block Time and Add Exception buttons NOT shown; only own row visible",
+    "type": "edge",
+    "steps": [
+      "Log in as a user whose member.role === 'trainer'",
+      "Navigate to /dashboard/trainers/view?tab=availability"
+    ],
+    "expected": "The 'Block Time' and 'Add Exception' action buttons are not rendered. The grid shows only one row: the trainer's own row (matched by callerMemberId). If callerMemberId cannot be resolved from the userContext, the grid shows all rows (fallback behavior).",
+    "selectorHints": [
+      "button:has-text('Block Time') >> count=0",
+      "button:has-text('Add Exception') >> count=0"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "notes": "Source: trainer-availability-tab.tsx line 385 (!isTrainerRole guard), lines 365–371 (allRows filter). Risk: callerMemberId relies on MemberWithId cast (line 324) because member.id is not in the official UserContextResponse type — if id is missing, isTrainerRole is still true but the filter falls through and all rows are shown."
+  },
+  {
+    "id": "AV-7",
+    "title": "No trainers in branch — empty state shown with 'No active trainers found'",
+    "type": "edge",
+    "steps": [
+      "Log in as admin for an org with no members of role='trainer' (or no active trainers)",
+      "Navigate to /dashboard/trainers/view?tab=availability"
+    ],
+    "expected": "StatusCallout with variant='info', title='No trainers', message='No active trainers found in this branch.' is shown instead of the grid.",
+    "selectorHints": [
+      "text='No trainers'",
+      "text='No active trainers found in this branch.'"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "notes": "Source: trainer-availability-tab.tsx lines 420–430 (empty branch for allRows.length === 0, !isTrainerRole message)."
+  },
+  {
+    "id": "AV-8",
+    "title": "Trainer with no availability slots — 'Off' chip shown in all day cells",
+    "type": "edge",
+    "steps": [
+      "Ensure at least one trainer has no entries in trainer_availability",
+      "Load the availability tab"
+    ],
+    "expected": "That trainer's row appears in the grid. Every day cell shows an 'Off' chip (rounded-full, bg-[#f3f3f3], text-[#737373], font-mono text). Booked/avail hours show '—h booked / 0h avail' or '0h' depending on whether utilisation data resolved.",
+    "selectorHints": [
+      "text='Off'",
+      "span.font-mono:has-text('Off')"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "notes": "Source: trainer-availability-tab.tsx lines 216–219 (Off chip when slots.length === 0). totalAvailHours returns 0 for empty slots array (line 61)."
+  },
+  {
+    "id": "AV-9",
+    "title": "API error loading availability — error status callout with retry shown",
+    "type": "error",
+    "steps": [
+      "Intercept/block the /rpc/trainerAvailability/listByBranch request (or simulate network failure)",
+      "Navigate to /dashboard/trainers/view?tab=availability"
+    ],
+    "expected": "StatusCallout with variant='error', title='Couldn't load trainer availability' renders. A retry button is present and calls refetch() when clicked.",
+    "selectorHints": [
+      "text=\"Couldn't load trainer availability\"",
+      "button:has-text('Retry')"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "notes": "Source: trainer-availability-tab.tsx lines 413–419 (isError branch). The utilisation query does NOT have an error handler — if getUtilisation fails, utilisationData silently stays undefined and bars show '—%'."
+  },
+  {
+    "id": "AV-10",
+    "title": "Intake Availability sub-tab — coach-intake functionality not wired in the new tab",
+    "type": "edge",
+    "steps": [
+      "Navigate to /dashboard/trainers/view?tab=availability",
+      "Look for 'Intake Availability' tab or sub-tab UI"
+    ],
+    "expected": "N/A — this feature is MISSING from the new tab.",
+    "selectorHints": [
+      "text='Intake Availability' >> count=0",
+      "text='General Schedule' >> count=0"
+    ],
+    "testable": true,
+    "status": "missing",
+    "notes": "The hub doc describes two sub-tabs: 'General Schedule' and 'Intake Availability' with CoachIntakeEditor and CoachIntakeClaimDialog. The new TrainerAvailabilityTab (trainer-availability-tab.tsx) has NO TanStack Tabs component, NO coachIntake query, and NO CoachIntakeEditor or CoachIntakeClaimDialog. The components exist at apps/web/src/components/trainers/coach-intake-editor.tsx and coach-intake-claim-dialog.tsx, and the router exists at packages/api/src/routers/coach-intake.ts — but none are imported or used in the tab. Entire intake feature is dropped from the refactored tab."
+  },
+  {
+    "id": "AV-11",
+    "title": "Old /dashboard/trainers/availability URL redirects to ?tab=availability",
+    "type": "edge",
+    "steps": [
+      "Navigate directly to /dashboard/trainers/availability"
+    ],
+    "expected": "Browser is redirected to /dashboard/trainers/view?tab=availability before any component renders. The Availability tab content is shown.",
+    "selectorHints": [
+      "url=/dashboard/trainers/view\\?tab=availability"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "notes": "Source: availability.tsx lines 6–10 (beforeLoad throws redirect). Redirect is a TanStack Router redirect (thrown exception), so it happens before any render. component: () => null is a safety net."
+  },
+  {
+    "id": "AV-12",
+    "title": "TrainerAvailabilitySheet is read-only — no edit capability for weekly schedule",
+    "type": "edge",
+    "steps": [
+      "Click a trainer row to open the sheet",
+      "Look for any edit button, input field, or save button"
+    ],
+    "expected": "Sheet shows trainer name, email, and day-by-day time windows as display chips. No inputs, no 'Edit' or 'Save' buttons. The sheet cannot be used to modify the trainer's schedule.",
+    "selectorHints": [
+      "role=dialog button:has-text('Save') >> count=0",
+      "role=dialog input >> count=0"
+    ],
+    "testable": true,
+    "status": "partial",
+    "notes": "Sheet is present and opens (status=implemented for display), but hub doc described it as an editor. Edit/save capability is absent. The trainerAvailability.upsert and .create/.update/.delete procedures exist in the API router (trainer-availability.ts lines 91–244) but no UI in the sheet calls them. Source: trainer-availability-sheet.tsx — entire file has no mutation calls."
+  },
+  {
+    "id": "AV-13",
+    "title": "Duplicate exception rejected — submitting AddExceptionDialog for an already-blocked date",
+    "type": "error",
+    "steps": [
+      "Open AddExceptionDialog",
+      "Select a trainer + date that already has an exception in trainer_availability_exceptions",
+      "Click 'Block Time' or 'Add Exception'"
+    ],
+    "expected": "Server returns a CONFLICT error. An error toast is shown to the user. The dialog remains open.",
+    "selectorHints": [
+      "role=alert",
+      "text='already exists'"
+    ],
+    "testable": true,
+    "status": "partial",
+    "notes": "Server handles the conflict correctly (trainer-availability.ts lines 296–301: unique-index check). However, AddExceptionDialog does not distinguish CONFLICT from other errors — useApiMutation shows the server message as a generic error toast (add-exception-dialog.tsx line 74). The message 'An exception already exists for this trainer on this date.' will appear in the toast but there is no specific UI affordance."
+  },
+  {
+    "id": "AV-14",
+    "title": "AddExceptionDialog — submit disabled until both trainer and date are selected",
+    "type": "edge",
+    "steps": [
+      "Open AddExceptionDialog (no pre-selected trainer)",
+      "Leave trainer and/or date empty",
+      "Observe submit button state"
+    ],
+    "expected": "Submit button is disabled (grayed out) when trainer or date is empty. It becomes enabled only when both are filled.",
+    "selectorHints": [
+      "button:has-text('Block Time')[disabled]",
+      "button:has-text('Add Exception')[disabled]"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "notes": "Source: add-exception-dialog.tsx line 101: canSubmit = !!effectiveTrainerId && !!date. Button disabled when !canSubmit || mutation.isPending (line 218)."
+  },
+  {
+    "id": "AV-15",
+    "title": "Utilisation query failure — bars silently show '—%' without error messaging",
+    "type": "error",
+    "steps": [
+      "Block only the /rpc/trainerAvailability/getUtilisation request",
+      "Allow listByBranch to succeed",
+      "Load the availability tab"
+    ],
+    "expected": "Grid renders with trainer rows. Each trainer's utilisation bar shows no fill and '—%' label. No error message is shown for the failed utilisation query — it degrades silently.",
+    "selectorHints": [
+      "text='—%'"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "notes": "Source: trainer-availability-tab.tsx lines 353–363 (utilisation query has no isError handling). WeeklyGridRow line 106: util = utilisation[row.trainerId] ?? null fallback; line 163: util check before rendering bar. Silent degradation is intentional but not documented."
+  },
+  {
+    "id": "AV-16",
+    "title": "No organization selected — info callout shown before queries run",
+    "type": "edge",
+    "steps": [
+      "Access the tab in a state where userContext.currentOrganizationId is null"
+    ],
+    "expected": "StatusCallout with variant='info', title='No organization', message='Select an organization to view trainer availability.' Both queries are disabled (enabled: !!organizationId = false).",
+    "selectorHints": [
+      "text='No organization'",
+      "text='Select an organization to view trainer availability.'"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "notes": "Source: trainer-availability-tab.tsx lines 373–381 (organizationId null guard). Query enabled flags at lines 350, 362."
+  },
+  {
+    "id": "AV-17",
+    "title": "Trainer role with unresolvable callerMemberId — all rows shown instead of own row",
+    "type": "edge",
+    "steps": [
+      "Log in as a trainer whose member record does not expose 'id' in the userContext hierarchy shape",
+      "Load the availability tab"
+    ],
+    "expected": "All trainer rows are shown (fallback). Buttons are still hidden. This is a data-shape regression risk.",
+    "selectorHints": [],
+    "testable": false,
+    "status": "partial",
+    "notes": "Source: trainer-availability-tab.tsx lines 324–329 (MemberWithId cast; id?: string — optional). Line 367: filter only applied when callerMemberId is truthy. If id is absent from the context shape, callerMemberId = null and all rows are returned. The MemberWithId workaround is the same pattern as the old page (noted in hub doc line 152)."
+  },
+  {
+    "id": "AV-18",
+    "title": "Slot pill tooltip — blocked/timeoff pills show a tooltip on hover",
+    "type": "edge",
+    "steps": [
+      "Load the tab with trainers who have blocked or timeoff slots",
+      "Hover over a red (blocked) or amber (timeoff) pill in a day cell"
+    ],
+    "expected": "A native browser tooltip appears: 'Blocked' for blocked slots, 'Time Off' for timeoff slots. No tooltip for available slots.",
+    "selectorHints": [
+      "div[title='Blocked']",
+      "div[title='Time Off']"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "notes": "Source: trainer-availability-tab.tsx lines 225–230 (title attribute set on pill div when kind !== 'available')."
+  }
+]

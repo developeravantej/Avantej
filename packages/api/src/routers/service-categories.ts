@@ -6,334 +6,225 @@
  */
 
 import {
-  listServiceCategories,
-  getServiceCategoryById,
-  createServiceCategory,
-  updateServiceCategory,
-  getDescendantNodeIds,
-  requirePermission,
+	listServiceCategories,
+	getServiceCategoryById,
+	createServiceCategory,
+	updateServiceCategory,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardInputBranchForContext,
+	guardStoredBranchForContext,
+	resolveAccessibleNodeIds,
+} from "../guards";
+
+const schedulingTypeSchema = z.enum(["appointment", "class_slot"]);
 
 export const serviceCategoriesRouter = {
-  list: protectedProcedure
-    .input(
-      z.object({
-        organizationId: z.string().uuid(),
-        branchId: z.string().uuid().nullable().optional(),
-        isActive: z.boolean().optional(),
-      })
-    )
-    .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+	list: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				branchId: z.string().uuid().nullable().optional(),
+				isActive: z.boolean().optional(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			if (context.member.role !== "client") {
+				await requirePermissionOrpc(
+					context.tenantDb,
+					context.member,
+					"service_management",
+					"read",
+				);
+			}
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+			const accessibleNodeIds = await resolveAccessibleNodeIds(context);
 
-      // Clients can read service categories in their tenant; staff need service_management:read.
-      if (context.member.role !== "client") {
-        try {
-          await requirePermission(
-            context.tenantDb,
-            context.member,
-            "service_management",
-            "read"
-          );
-        } catch (error) {
-          throw new ORPCError("FORBIDDEN", {
-            message: error instanceof Error ? error.message : "Permission denied",
-          });
-        }
-      }
+			const categories = await listServiceCategories(context.tenantDb, {
+				branchId: input.branchId ?? undefined,
+				isActive: input.isActive,
+				accessibleNodeIds,
+			});
 
-      const accessibleNodeIds =
-        context.accessibleNodeIds ??
-        (context.member
-          ? await getDescendantNodeIds(
-              context.tenantDb,
-              context.member.hierarchyScopeId
-            )
-          : []);
+			return categories.map((c) => ({
+				id: c.id,
+				name: c.name,
+				description: c.description,
+				displayOrder: c.displayOrder,
+				branchId: c.branchId,
+				isActive: c.isActive,
+				schedulingType: c.schedulingType,
+				createdAt: c.createdAt,
+				updatedAt: c.updatedAt,
+			}));
+		}),
 
-      const categories = await listServiceCategories(context.tenantDb, {
-        branchId: input.branchId ?? undefined,
-        isActive: input.isActive,
-        accessibleNodeIds,
-      });
+	getById: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				id: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			if (context.member.role !== "client") {
+				await requirePermissionOrpc(
+					context.tenantDb,
+					context.member,
+					"service_management",
+					"read",
+				);
+			}
 
-      return categories.map((c) => ({
-        id: c.id,
-        name: c.name,
-        description: c.description,
-        displayOrder: c.displayOrder,
-        branchId: c.branchId,
-        isActive: c.isActive,
-        createdAt: c.createdAt,
-        updatedAt: c.updatedAt,
-      }));
-    }),
+			const category = await getServiceCategoryById(context.tenantDb, input.id);
+			if (!category) {
+				throw new ORPCError("NOT_FOUND", {
+					message: "Service category not found",
+				});
+			}
 
-  getById: protectedProcedure
-    .input(
-      z.object({
-        organizationId: z.string().uuid(),
-        id: z.string().uuid(),
-      })
-    )
-    .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+			// Stored value: null = org-wide category (viewable by any member with
+			// service_management:read, enforced above); branch-pinned = RBAC check.
+			await guardStoredBranchForContext(context, category.branchId);
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+			return {
+				id: category.id,
+				name: category.name,
+				description: category.description,
+				displayOrder: category.displayOrder,
+				branchId: category.branchId,
+				isActive: category.isActive,
+				schedulingType: category.schedulingType,
+				createdAt: category.createdAt,
+				updatedAt: category.updatedAt,
+			};
+		}),
 
-      // Clients can read service categories in their tenant; staff need service_management:read.
-      if (context.member.role !== "client") {
-        try {
-          await requirePermission(
-            context.tenantDb,
-            context.member,
-            "service_management",
-            "read"
-          );
-        } catch (error) {
-          throw new ORPCError("FORBIDDEN", {
-            message: error instanceof Error ? error.message : "Permission denied",
-          });
-        }
-      }
+	create: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				name: z.string().min(1),
+				description: z.string().nullable().optional(),
+				displayOrder: z.number().int().min(0).optional(),
+				branchId: z.string().uuid().nullable().optional(),
+				isActive: z.boolean().optional(),
+				schedulingType: schedulingTypeSchema.optional(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"service_management",
+				"create",
+			);
 
-      const category = await getServiceCategoryById(context.tenantDb, input.id);
-      if (!category) {
-        throw new ORPCError("NOT_FOUND", {
-          message: "Service category not found",
-        });
-      }
+			await guardInputBranchForContext(context, input.branchId);
 
-      const accessibleNodeIds =
-        context.accessibleNodeIds ??
-        (context.member
-          ? await getDescendantNodeIds(
-              context.tenantDb,
-              context.member.hierarchyScopeId
-            )
-          : []);
-      if (
-        category.branchId &&
-        !accessibleNodeIds.includes(category.branchId)
-      ) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User does not have access to this category",
-        });
-      }
+			try {
+				const category = await createServiceCategory(context.tenantDb, {
+					name: input.name,
+					description: input.description ?? null,
+					displayOrder: input.displayOrder,
+					branchId: input.branchId ?? null,
+					isActive: input.isActive,
+					schedulingType: input.schedulingType,
+					createdBy: context.session?.user?.id ?? null,
+				});
+				return {
+					id: category.id,
+					name: category.name,
+					description: category.description,
+					displayOrder: category.displayOrder,
+					branchId: category.branchId,
+					isActive: category.isActive,
+					schedulingType: category.schedulingType,
+					createdAt: category.createdAt,
+					updatedAt: category.updatedAt,
+				};
+			} catch (error) {
+				throw new ORPCError("BAD_REQUEST", {
+					message:
+						error instanceof Error
+							? error.message
+							: "Failed to create category",
+				});
+			}
+		}),
 
-      return {
-        id: category.id,
-        name: category.name,
-        description: category.description,
-        displayOrder: category.displayOrder,
-        branchId: category.branchId,
-        isActive: category.isActive,
-        createdAt: category.createdAt,
-        updatedAt: category.updatedAt,
-      };
-    }),
+	update: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				id: z.string().uuid(),
+				name: z.string().min(1).optional(),
+				description: z.string().nullable().optional(),
+				displayOrder: z.number().int().min(0).optional(),
+				branchId: z.string().uuid().nullable().optional(),
+				isActive: z.boolean().optional(),
+				schedulingType: schedulingTypeSchema.optional(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"service_management",
+				"update",
+			);
 
-  create: protectedProcedure
-    .input(
-      z.object({
-        organizationId: z.string().uuid(),
-        name: z.string().min(1),
-        description: z.string().nullable().optional(),
-        displayOrder: z.number().int().min(0).optional(),
-        branchId: z.string().uuid().nullable().optional(),
-        isActive: z.boolean().optional(),
-      })
-    )
-    .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+			const existing = await getServiceCategoryById(context.tenantDb, input.id);
+			if (!existing) {
+				throw new ORPCError("NOT_FOUND", {
+					message: "Service category not found",
+				});
+			}
 
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
+			await guardStoredBranchForContext(context, existing.branchId);
+			await guardInputBranchForContext(context, input.branchId);
 
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "service_management",
-          "create"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
-
-      if (input.branchId) {
-        const accessibleNodeIds =
-          context.accessibleNodeIds ??
-          (context.member
-            ? await getDescendantNodeIds(
-                context.tenantDb,
-                context.member.hierarchyScopeId
-              )
-            : []);
-        if (!accessibleNodeIds.includes(input.branchId)) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "User does not have access to this branch",
-          });
-        }
-      }
-
-      try {
-        const category = await createServiceCategory(context.tenantDb, {
-          name: input.name,
-          description: input.description ?? null,
-          displayOrder: input.displayOrder,
-          branchId: input.branchId ?? null,
-          isActive: input.isActive,
-          createdBy: context.session?.user?.id ?? null,
-        });
-        return {
-          id: category.id,
-          name: category.name,
-          description: category.description,
-          displayOrder: category.displayOrder,
-          branchId: category.branchId,
-          isActive: category.isActive,
-          createdAt: category.createdAt,
-          updatedAt: category.updatedAt,
-        };
-      } catch (error) {
-        throw new ORPCError("BAD_REQUEST", {
-          message: error instanceof Error ? error.message : "Failed to create category",
-        });
-      }
-    }),
-
-  update: protectedProcedure
-    .input(
-      z.object({
-        organizationId: z.string().uuid(),
-        id: z.string().uuid(),
-        name: z.string().min(1).optional(),
-        description: z.string().nullable().optional(),
-        displayOrder: z.number().int().min(0).optional(),
-        branchId: z.string().uuid().nullable().optional(),
-        isActive: z.boolean().optional(),
-      })
-    )
-    .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
-
-      if (!context.member) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User is not a member of this organization",
-        });
-      }
-
-      try {
-        await requirePermission(
-          context.tenantDb,
-          context.member,
-          "service_management",
-          "update"
-        );
-      } catch (error) {
-        throw new ORPCError("FORBIDDEN", {
-          message: error instanceof Error ? error.message : "Permission denied",
-        });
-      }
-
-      const existing = await getServiceCategoryById(context.tenantDb, input.id);
-      if (!existing) {
-        throw new ORPCError("NOT_FOUND", {
-          message: "Service category not found",
-        });
-      }
-
-      const accessibleNodeIds =
-        context.accessibleNodeIds ??
-        (context.member
-          ? await getDescendantNodeIds(
-              context.tenantDb,
-              context.member.hierarchyScopeId
-            )
-          : []);
-      if (
-        existing.branchId &&
-        !accessibleNodeIds.includes(existing.branchId)
-      ) {
-        throw new ORPCError("FORBIDDEN", {
-          message: "User does not have access to this category",
-        });
-      }
-
-      if (input.branchId !== undefined && input.branchId !== null) {
-        if (!accessibleNodeIds.includes(input.branchId)) {
-          throw new ORPCError("FORBIDDEN", {
-            message: "User does not have access to target branch",
-          });
-        }
-      }
-
-      try {
-        const category = await updateServiceCategory(
-          context.tenantDb,
-          input.id,
-          {
-            name: input.name,
-            description: input.description,
-            displayOrder: input.displayOrder,
-            branchId: input.branchId,
-            isActive: input.isActive,
-            updatedBy: context.session?.user?.id ?? null,
-          }
-        );
-        return {
-          id: category.id,
-          name: category.name,
-          description: category.description,
-          displayOrder: category.displayOrder,
-          branchId: category.branchId,
-          isActive: category.isActive,
-          createdAt: category.createdAt,
-          updatedAt: category.updatedAt,
-        };
-      } catch (error) {
-        throw new ORPCError("BAD_REQUEST", {
-          message: error instanceof Error ? error.message : "Failed to update category",
-        });
-      }
-    }),
+			try {
+				const category = await updateServiceCategory(
+					context.tenantDb,
+					input.id,
+					{
+						name: input.name,
+						description: input.description,
+						displayOrder: input.displayOrder,
+						branchId: input.branchId,
+						isActive: input.isActive,
+						schedulingType: input.schedulingType,
+						updatedBy: context.session?.user?.id ?? null,
+					},
+				);
+				return {
+					id: category.id,
+					name: category.name,
+					description: category.description,
+					displayOrder: category.displayOrder,
+					branchId: category.branchId,
+					isActive: category.isActive,
+					schedulingType: category.schedulingType,
+					createdAt: category.createdAt,
+					updatedAt: category.updatedAt,
+				};
+			} catch (error) {
+				throw new ORPCError("BAD_REQUEST", {
+					message:
+						error instanceof Error
+							? error.message
+							: "Failed to update category",
+				});
+			}
+		}),
 };

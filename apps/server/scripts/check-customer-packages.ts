@@ -59,7 +59,10 @@ async function main() {
 	const { packageInstances, payments, services } = tenantSchema;
 
 	const controlPool = new Pool({ connectionString: databaseUrl });
-	const controlDb = drizzle({ client: controlPool, schema: controlPanelSchema });
+	const controlDb = drizzle({
+		client: controlPool,
+		schema: controlPanelSchema,
+	});
 	let tenantPool: Pool | null = null;
 
 	try {
@@ -72,7 +75,11 @@ async function main() {
 
 		// Find user by name (control panel)
 		const matchingUsers = await controlDb
-			.select({ id: userTable.id, name: userTable.name, email: userTable.email })
+			.select({
+				id: userTable.id,
+				name: userTable.name,
+				email: userTable.email,
+			})
 			.from(userTable)
 			.where(ilike(userTable.name, `%${nameFragment}%`))
 			.limit(5);
@@ -127,12 +134,19 @@ async function main() {
 				console.log("      ❌ None found");
 				// Try querying by member.id to check if the ID was stored wrong
 				const pkgsByMemberId = await tenantDb
-					.select({ id: packageInstances.id, clientId: packageInstances.clientId })
+					.select({
+						id: packageInstances.id,
+						clientId: packageInstances.clientId,
+					})
 					.from(packageInstances)
 					.where(eq(packageInstances.clientId, member.id));
 				if (pkgsByMemberId.length > 0) {
-					console.log(`      ⚠️  BUT found ${pkgsByMemberId.length} package(s) with clientId = members.id ("${member.id}")`);
-					console.log("         → Packages were stored with the wrong ID (member.id instead of member.userId)");
+					console.log(
+						`      ⚠️  BUT found ${pkgsByMemberId.length} package(s) with clientId = members.id ("${member.id}")`,
+					);
+					console.log(
+						"         → Packages were stored with the wrong ID (member.id instead of member.userId)",
+					);
 					for (const p of pkgsByMemberId) {
 						console.log(`         id=${p.id}, clientId=${p.clientId}`);
 					}
@@ -140,8 +154,12 @@ async function main() {
 			} else {
 				for (const p of pkgs) {
 					console.log(`      ✅ id=${p.id}`);
-					console.log(`         service=${p.serviceName ?? "(no service name)"}, status=${p.status}`);
-					console.log(`         credits=${p.creditsUsed}/${p.creditsTotal}, expires=${p.expiresAt}`);
+					console.log(
+						`         service=${p.serviceName ?? "(no service name)"}, status=${p.status}`,
+					);
+					console.log(
+						`         credits=${p.creditsUsed}/${p.creditsTotal}, expires=${p.expiresAt}`,
+					);
 				}
 			}
 
@@ -158,7 +176,9 @@ async function main() {
 				.where(eq(payments.customerId, u.id))
 				.limit(10);
 
-			console.log(`\n   💳 Payments (queried by customerId = userId "${u.id}"):`);
+			console.log(
+				`\n   💳 Payments (queried by customerId = userId "${u.id}"):`,
+			);
 			if (pmts.length === 0) {
 				console.log("      ❌ None found");
 				// Try querying by member.id
@@ -168,12 +188,18 @@ async function main() {
 					.where(eq(payments.customerId, member.id))
 					.limit(5);
 				if (pmtsByMemberId.length > 0) {
-					console.log(`      ⚠️  BUT found ${pmtsByMemberId.length} payment(s) with customerId = members.id ("${member.id}")`);
-					console.log("         → Payments were stored with the wrong ID (member.id instead of member.userId)");
+					console.log(
+						`      ⚠️  BUT found ${pmtsByMemberId.length} payment(s) with customerId = members.id ("${member.id}")`,
+					);
+					console.log(
+						"         → Payments were stored with the wrong ID (member.id instead of member.userId)",
+					);
 				}
 			} else {
 				for (const p of pmts) {
-					console.log(`      ✅ id=${p.id}, status=${p.status}, amount=${p.totalAmount}, created=${p.createdAt}`);
+					console.log(
+						`      ✅ id=${p.id}, status=${p.status}, amount=${p.totalAmount}, created=${p.createdAt}`,
+					);
 				}
 			}
 

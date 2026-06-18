@@ -105,9 +105,9 @@ interface AssignedPackagesTableProps {
 export function AssignedPackagesTable({
 	organizationId,
 }: AssignedPackagesTableProps) {
-	const [statusFilter, setStatusFilter] = useState<
-		"all" | "active" | "frozen"
-	>("all");
+	const [statusFilter, setStatusFilter] = useState<"all" | "active" | "frozen">(
+		"all",
+	);
 	const [selectedPkg, setSelectedPkg] = useState<AssignedPackage | null>(null);
 
 	const query = useAssignedPackages(

@@ -1,13 +1,14 @@
 import { DataTableColumnHeader } from "@/components/tables/data-column-header";
 import { CopyableCell } from "@/components/tables/copyable-cell";
-import { StatusBadge, type CanonicalStatus } from "@/components/ui/status-badge";
-import { Button } from "@/components/ui/button";
+import {
+	StatusBadge,
+	type CanonicalStatus,
+} from "@/components/ui/status-badge";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Eye } from "lucide-react";
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatPrice } from "@/lib/money";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 
 export interface SalesRow {
 	id: string;
@@ -32,40 +33,35 @@ const formatDate = (dateString: string | null | undefined): string => {
 	}
 };
 
-const REFUND_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-	pending: { label: "Refund Pending", className: "bg-amber-50 text-amber-700 border-amber-200" },
-	partial:  { label: "Partial Refund", className: "bg-orange-50 text-orange-700 border-orange-200" },
-	processed: { label: "Refunded", className: "bg-green-50 text-green-700 border-green-200" },
+const REFUND_STATUS_CONFIG: Record<
+	string,
+	{ label: string; className: string }
+> = {
+	pending: {
+		label: "Refund Pending",
+		className: "bg-amber-50 text-amber-700 border-amber-200",
+	},
+	partial: {
+		label: "Partial Refund",
+		className: "bg-orange-50 text-orange-700 border-orange-200",
+	},
+	processed: {
+		label: "Refunded",
+		className: "bg-green-50 text-green-700 border-green-200",
+	},
 };
 
 function RefundStatusBadge({ status }: { status: string | null | undefined }) {
-	if (!status || status === "none") return <span className="text-[#737373] text-sm">—</span>;
+	if (!status || status === "none")
+		return <span className="text-[#737373] text-sm">—</span>;
 	const cfg = REFUND_STATUS_CONFIG[status];
 	if (!cfg) return <span className="text-sm text-[#737373]">{status}</span>;
 	return (
-		<span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${cfg.className}`}>
+		<span
+			className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${cfg.className}`}
+		>
 			{cfg.label}
 		</span>
-	);
-}
-
-function SalesActionCell({ row }: { row: import("@tanstack/react-table").Row<SalesRow> }) {
-	const navigate = useNavigate();
-	return (
-		<div className="flex items-center gap-2">
-			<Button
-				variant="ghost"
-				size="sm"
-				onClick={() =>
-					navigate({
-						to: "/dashboard/sales/$id",
-						params: { id: row.original.id },
-					})
-				}
-			>
-				<Eye className="h-4 w-4 mr-1" /> View
-			</Button>
-		</div>
 	);
 }
 
@@ -106,7 +102,7 @@ export const columns: ColumnDef<SalesRow>[] = [
 				return (
 					<Link
 						to="/dashboard/customers/v2/view"
-						search={{ tab: "customers", customer: customerId, showDeleted: undefined }}
+						search={{ customer: customerId, showDeleted: undefined }}
 						className="text-primary underline-offset-4 hover:underline"
 					>
 						{name || "N/A"}
@@ -175,7 +171,11 @@ export const columns: ColumnDef<SalesRow>[] = [
 		),
 		cell: ({ getValue }) => {
 			const status = getValue<string>();
-			return status ? <StatusBadge status={status as CanonicalStatus} /> : "N/A";
+			return status ? (
+				<StatusBadge status={status as CanonicalStatus} />
+			) : (
+				"N/A"
+			);
 		},
 		enableSorting: true,
 		enableHiding: false,
@@ -212,15 +212,5 @@ export const columns: ColumnDef<SalesRow>[] = [
 		},
 		enableSorting: true,
 		enableHiding: true,
-	},
-	// 10. Action
-	{
-		id: "actions",
-		header: ({ column }) => (
-			<DataTableColumnHeader column={column} title="Action" />
-		),
-		cell: ({ row }) => <SalesActionCell row={row} />,
-		enableSorting: false,
-		enableHiding: false,
 	},
 ];

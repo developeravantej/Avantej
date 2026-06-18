@@ -1,0 +1,149 @@
+[
+  {
+    "id": "AC-01",
+    "status": "fixed",
+    "evidence_file": "packages/api/src/routers/households.ts",
+    "evidence_line": 269,
+    "justification": "Non-admin with empty accessibleNodeIds falls through to `[]` and the length===0 guard at line 280 returns []; only admins get scopeNodeIds=null (unrestricted), which is the intended bypass."
+  },
+  {
+    "id": "AC-02",
+    "status": "open",
+    "evidence_file": "packages/api/src/routers/walk-in-customers.ts",
+    "evidence_line": 18,
+    "justification": "list still returns `{items:[], total:0}` rather than using the deprecated() throw pattern applied to the other procedures."
+  },
+  {
+    "id": "AC-04",
+    "status": "fixed",
+    "evidence_file": "packages/api/src/routers/members/role.procedures.ts",
+    "evidence_line": 122,
+    "justification": "writeAudit() is called after the role update with action 'member.role_change' and changes payload."
+  },
+  {
+    "id": "SP-01",
+    "status": "fixed",
+    "evidence_file": "packages/api/src/routers/pos.ts",
+    "evidence_line": 94,
+    "justification": "recordSale now checks orgCountryStripeAccounts.chargesEnabled when paymentMethod==='stripe' and throws BAD_REQUEST if absent."
+  },
+  {
+    "id": "SP-02",
+    "status": "open",
+    "evidence_file": "packages/services/src/installment.service.ts",
+    "evidence_line": 881,
+    "justification": "rescheduleInstallment updates installment status to 'pending' and updates nextDueDate but never calls evaluateOverdueLock to recompute the package overdue/lock state."
+  },
+  {
+    "id": "SP-03",
+    "status": "fixed",
+    "evidence_file": "packages/services/src/pos.service.ts",
+    "evidence_line": 340,
+    "justification": "recordPosSale re-calls validatePromoCode inside the transaction before applying the discount, so deactivated promos are rejected server-side."
+  },
+  {
+    "id": "SP-04",
+    "status": "fixed",
+    "evidence_file": "packages/api/src/routers/pos.ts",
+    "evidence_line": 138,
+    "justification": "pos.recordSale catches a NO_TAX_RATE sentinel thrown by pos.service.ts and remaps it to a BAD_REQUEST; tax rate is no longer silently 0."
+  },
+  {
+    "id": "AP-01",
+    "status": "fixed",
+    "evidence_file": "packages/services/src/waitlist.service.ts",
+    "evidence_line": 172,
+    "justification": "Class slot UPDATE now includes `spotsBooked < capacity` predicate and throws CLASS_FULL when affected rows === 0."
+  },
+  {
+    "id": "AP-02",
+    "status": "fixed",
+    "evidence_file": "packages/api/src/routers/appointments/list.procedures.ts",
+    "evidence_line": 210,
+    "justification": "listForUser now calls listAppointmentsWithRecurrence and post-filters by userId, so virtual recurrences are included."
+  },
+  {
+    "id": "AP-03",
+    "status": "partial",
+    "evidence_file": "packages/api/src/routers/check-ins.ts",
+    "evidence_line": 69,
+    "justification": "appointmentClientId is now fetched and BAD_REQUEST is thrown if missing, but no validation that it belongs to the specified clientId (note explicitly asks for this)."
+  },
+  {
+    "id": "AP-04",
+    "status": "fixed",
+    "evidence_file": "packages/api/src/routers/class-slots/crud.procedures.ts",
+    "evidence_line": 74,
+    "justification": "update handler now fetches current spotsBooked and throws BAD_REQUEST if new capacity < spotsBooked."
+  },
+  {
+    "id": "AP-05",
+    "status": "open",
+    "evidence_file": "packages/services/src/appointment.service.ts",
+    "evidence_line": 489,
+    "justification": "updateAppointment performs buffer-time conflict checks but does not call any checkTrainerAvailabilityExceptions — grep for that symbol returns 0 matches in appointment.service.ts."
+  },
+  {
+    "id": "PS-01",
+    "status": "open",
+    "evidence_file": "packages/api/src/routers/package-instances/approve.procedures.ts",
+    "evidence_line": 317,
+    "justification": "bulkApprove still auto-confirms the first installment with hardcoded paymentMethod 'manual_transfer' without requiring firstInstallmentPaymentMethod in the input."
+  },
+  {
+    "id": "PS-02",
+    "status": "fixed",
+    "evidence_file": "packages/api/src/guards.ts",
+    "evidence_line": 92,
+    "justification": "guardInputBranchForContext now explicitly throws FORBIDDEN when branchId === null (block undefined-vs-null divergence)."
+  },
+  {
+    "id": "PS-03",
+    "status": "fixed",
+    "evidence_file": "packages/services/src/trainer-tier.service.ts",
+    "evidence_line": 86,
+    "justification": "createTrainerTier inserts zero-amount commission_tier_rates rows for every active non-conditional category_commission_configs after creating the tier."
+  },
+  {
+    "id": "OF-01",
+    "status": "fixed",
+    "evidence_file": "packages/services/src/goods-receipt.service.ts",
+    "evidence_line": 149,
+    "justification": "createReceipt computes allFull/anyReceived from purchase_order_items.receivedQty and sets PO status to 'received' or 'partially_received'."
+  },
+  {
+    "id": "OF-02",
+    "status": "fixed",
+    "evidence_file": "packages/services/src/payouts.service.ts",
+    "evidence_line": 319,
+    "justification": "runBatch SELECT for commission splits is filtered by `eq(commissionSplits.status, 'approved')`."
+  },
+  {
+    "id": "OF-03",
+    "status": "fixed",
+    "evidence_file": "packages/services/src/category-commission.service.ts",
+    "evidence_line": 120,
+    "justification": "upsertCategoryCommissionConfig validates `slotSum === 10000` and throws an error if not."
+  },
+  {
+    "id": "OF-04",
+    "status": "open",
+    "evidence_file": "packages/api/src/routers/products.ts",
+    "evidence_line": 246,
+    "justification": "setBranchPrice input schema accepts effectiveFrom and effectiveUntil but has no .refine() requiring effectiveUntil > effectiveFrom."
+  },
+  {
+    "id": "ST-01",
+    "status": "open",
+    "evidence_file": "packages/services/src/announcements.service.ts",
+    "evidence_line": 199,
+    "justification": "createAnnouncement inserts announcements + announcement_scopes but does not insert any notification rows; grep for 'notification' in this service returns 0 matches."
+  },
+  {
+    "id": "ST-04",
+    "status": "fixed",
+    "evidence_file": "packages/api/src/routers/hierarchy/members.procedures.ts",
+    "evidence_line": 92,
+    "justification": "reassignMember checks `!accessibleNodeIds.includes(input.newHierarchyScopeId) && member.role !== 'admin'` and throws FORBIDDEN."
+  }
+]

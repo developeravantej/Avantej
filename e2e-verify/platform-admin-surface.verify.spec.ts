@@ -48,13 +48,19 @@ test("Platform Admin surface — sidebar lean + Billing tabs (post-simplificatio
 	});
 
 	await test.step("Tenants surface loads", async () => {
-		await page.getByRole("link", { name: "Tenants", exact: true }).first().click();
+		await page
+			.getByRole("link", { name: "Tenants", exact: true })
+			.first()
+			.click();
 		await page.waitForURL("**/platform-admin/tenants**", { timeout: 20_000 });
 		await expect(page.locator("body")).toContainText(/tenant/i);
 	});
 
 	await test.step("Billing money-hub tabs render and navigate", async () => {
-		await page.getByRole("link", { name: "Billing", exact: true }).first().click();
+		await page
+			.getByRole("link", { name: "Billing", exact: true })
+			.first()
+			.click();
 		await page.waitForURL("**/platform-admin/billing**", { timeout: 20_000 });
 		await expect(page.getByTestId("money-hub-tabs")).toBeVisible();
 		await page.getByTestId("money-hub-tab-revenue").click();

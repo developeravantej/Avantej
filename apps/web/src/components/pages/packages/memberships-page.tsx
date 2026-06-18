@@ -1,5 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { BadgeCheck, Clock, CreditCard, Lock, MoreHorizontal, Search } from "lucide-react";
+import {
+	BadgeCheck,
+	Clock,
+	CreditCard,
+	Lock,
+	MoreHorizontal,
+	Search,
+} from "lucide-react";
 import { useState } from "react";
 import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
 import { Badge } from "@/components/ui/badge";
@@ -84,7 +91,8 @@ function formatDate(value: Date | string | null | undefined): string {
 
 function expiryLabel(days: number | null): { text: string; className: string } {
 	if (days === null) return { text: "No expiry", className: "text-[#737373]" };
-	if (days <= 0) return { text: "Expired", className: "text-red-600 font-medium" };
+	if (days <= 0)
+		return { text: "Expired", className: "text-red-600 font-medium" };
 	if (days <= 7)
 		return {
 			text: `in ${days} day${days !== 1 ? "s" : ""}`,
@@ -153,7 +161,8 @@ const TABS: Array<{ value: MembershipFilter; label: string }> = [
 
 const PAGE_LIMIT = 100;
 
-const TH = "px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]";
+const TH =
+	"px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]";
 const TD = "px-4 py-3 text-sm text-[#0a0a0a]";
 
 export function MembershipsPage() {
@@ -176,7 +185,8 @@ export function MembershipsPage() {
 	const [extendOpen, setExtendOpen] = useState(false);
 	const [unfreezeOpen, setUnfreezeOpen] = useState(false);
 
-	const canManage = hasPermission("package_management:manage") ||
+	const canManage =
+		hasPermission("package_management:manage") ||
 		hasPermission("package_management:update");
 
 	const unfreezeMutation = useUnfreezePackageInstance(organizationId ?? "");
@@ -200,13 +210,7 @@ export function MembershipsPage() {
 		isLoading,
 		error,
 	} = useQuery({
-		queryKey: [
-			"memberships",
-			organizationId,
-			filter,
-			branchId,
-			offset,
-		],
+		queryKey: ["memberships", organizationId, filter, branchId, offset],
 		queryFn: async () => {
 			if (!organizationId) return { rows: [], total: 0 };
 			const result = await (
@@ -231,11 +235,16 @@ export function MembershipsPage() {
 		enabled: !!organizationId && canRead,
 	});
 
-	const rows: MembershipRow[] = (listData as { rows?: MembershipRow[] } | undefined)?.rows ?? [];
-	const total: number = (listData as { total?: number } | undefined)?.total ?? 0;
+	const rows: MembershipRow[] =
+		(listData as { rows?: MembershipRow[] } | undefined)?.rows ?? [];
+	const total: number =
+		(listData as { total?: number } | undefined)?.total ?? 0;
 
 	const expiringSoonCount = rows.filter(
-		(r) => r.daysUntilExpiry !== null && r.daysUntilExpiry > 0 && r.daysUntilExpiry <= 7,
+		(r) =>
+			r.daysUntilExpiry !== null &&
+			r.daysUntilExpiry > 0 &&
+			r.daysUntilExpiry <= 7,
 	).length;
 
 	const frozenCount = rows.filter((r) => r.isLocked).length;
@@ -297,247 +306,283 @@ export function MembershipsPage() {
 	return (
 		<>
 			{/* Header */}
-				<div className="flex flex-wrap items-center gap-3 border-b border-[#e5e5e5] px-5 py-4">
-					<div className="mr-auto">
-						<h2 className="text-base font-bold text-[#0a0a0a] tracking-tight">Memberships</h2>
-						<p className="text-xs text-[#737373]">
-							{isLoading ? "—" : `${total} membership${total !== 1 ? "s" : ""}`}
+			<div className="flex flex-wrap items-center gap-3 border-b border-[#e5e5e5] px-5 py-4">
+				<div className="mr-auto">
+					<h2 className="text-base font-bold text-[#0a0a0a] tracking-tight">
+						Memberships
+					</h2>
+					<p className="text-xs text-[#737373]">
+						{isLoading ? "—" : `${total} membership${total !== 1 ? "s" : ""}`}
+					</p>
+				</div>
+				{/* Search */}
+				<div className="relative w-60">
+					<Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#737373]" />
+					<Input
+						placeholder="Search customer…"
+						value={search}
+						onChange={(e) => setSearch(e.target.value)}
+						className="pl-8 text-sm"
+					/>
+				</div>
+				{/* Branch filter */}
+				{branchOptions.length > 0 && (
+					<Select
+						value={branchId || "all"}
+						onValueChange={(v) => {
+							setBranchId(v === "all" ? "" : v);
+							setOffset(0);
+						}}
+					>
+						<SelectTrigger className="w-48">
+							<SelectValue placeholder="All branches" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="all">All branches</SelectItem>
+							{branchOptions.map((node) => (
+								<SelectItem key={node.id} value={node.id}>
+									{node.name}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				)}
+			</div>
+
+			{/* Stat cards */}
+			<div className="grid grid-cols-2 gap-3 border-b border-[#e5e5e5] px-5 py-4 lg:grid-cols-4">
+				<div className="flex items-start justify-between rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-4">
+					<div>
+						<p className="text-xs font-medium uppercase tracking-wide text-[#737373]">
+							Total
+						</p>
+						<p className="mt-1 text-2xl font-bold font-mono tabular-nums text-[#0a0a0a]">
+							{total}
 						</p>
 					</div>
-					{/* Search */}
-					<div className="relative w-60">
-						<Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#737373]" />
-						<Input
-							placeholder="Search customer…"
-							value={search}
-							onChange={(e) => setSearch(e.target.value)}
-							className="pl-8 text-sm"
-						/>
+					<div className="rounded-lg bg-[#e5e5e5] p-2">
+						<BadgeCheck className="h-4 w-4 text-[#737373]" />
 					</div>
-					{/* Branch filter */}
-					{branchOptions.length > 0 && (
-						<Select
-							value={branchId || "all"}
-							onValueChange={(v) => {
-								setBranchId(v === "all" ? "" : v);
-								setOffset(0);
-							}}
+				</div>
+				<div className="flex items-start justify-between rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-4">
+					<div>
+						<p className="text-xs font-medium uppercase tracking-wide text-[#737373]">
+							Expiring Soon
+						</p>
+						<p
+							className={`mt-1 text-2xl font-bold font-mono tabular-nums text-[#0a0a0a] ${expiringSoonCount > 0 ? "text-red-600" : ""}`}
 						>
-							<SelectTrigger className="w-48">
-								<SelectValue placeholder="All branches" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">All branches</SelectItem>
-								{branchOptions.map((node) => (
-									<SelectItem key={node.id} value={node.id}>
-										{node.name}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					)}
-				</div>
-
-				{/* Stat cards */}
-				<div className="grid grid-cols-2 gap-3 border-b border-[#e5e5e5] px-5 py-4 lg:grid-cols-4">
-					<div className="flex items-start justify-between rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-4">
-						<div>
-							<p className="text-xs font-medium uppercase tracking-wide text-[#737373]">Total</p>
-							<p className="mt-1 text-2xl font-bold font-mono tabular-nums text-[#0a0a0a]">{total}</p>
-						</div>
-						<div className="rounded-lg bg-[#e5e5e5] p-2">
-							<BadgeCheck className="h-4 w-4 text-[#737373]" />
-						</div>
+							{expiringSoonCount}
+						</p>
 					</div>
-					<div className="flex items-start justify-between rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-4">
-						<div>
-							<p className="text-xs font-medium uppercase tracking-wide text-[#737373]">Expiring Soon</p>
-							<p className={`mt-1 text-2xl font-bold font-mono tabular-nums text-[#0a0a0a] ${expiringSoonCount > 0 ? "text-red-600" : ""}`}>
-								{expiringSoonCount}
-							</p>
-						</div>
-						<div className="rounded-lg bg-[#e5e5e5] p-2">
-							<Clock className="h-4 w-4 text-[#737373]" />
-						</div>
-					</div>
-					<div className="flex items-start justify-between rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-4">
-						<div>
-							<p className="text-xs font-medium uppercase tracking-wide text-[#737373]">Frozen</p>
-							<p className="mt-1 text-2xl font-bold font-mono tabular-nums text-[#0a0a0a]">{frozenCount}</p>
-						</div>
-						<div className="rounded-lg bg-[#e5e5e5] p-2">
-							<Lock className="h-4 w-4 text-[#737373]" />
-						</div>
-					</div>
-					<div className="flex items-start justify-between rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-4">
-						<div>
-							<p className="text-xs font-medium uppercase tracking-wide text-[#737373]">Outstanding</p>
-							<p className={`mt-1 text-2xl font-bold font-mono tabular-nums text-[#0a0a0a] ${outstandingBalanceSum > 0 ? "text-red-600" : ""}`}>
-								{formatPrice(outstandingBalanceSum, "MYR")}
-							</p>
-						</div>
-						<div className="rounded-lg bg-[#e5e5e5] p-2">
-							<CreditCard className="h-4 w-4 text-[#737373]" />
-						</div>
+					<div className="rounded-lg bg-[#e5e5e5] p-2">
+						<Clock className="h-4 w-4 text-[#737373]" />
 					</div>
 				</div>
-
-				{/* Filter tabs */}
-				<div className="flex items-center gap-1.5 overflow-x-auto border-b border-[#e5e5e5] px-5 py-3">
-					{TABS.map((tab) => (
-						<button
-							key={tab.value}
-							type="button"
-							onClick={() => {
-								setFilter(tab.value);
-								setOffset(0);
-							}}
-							className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-all ${
-								filter === tab.value
-									? "bg-[#0a0a0a] text-white font-semibold"
-									: "border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3]"
-							}`}
+				<div className="flex items-start justify-between rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-4">
+					<div>
+						<p className="text-xs font-medium uppercase tracking-wide text-[#737373]">
+							Frozen
+						</p>
+						<p className="mt-1 text-2xl font-bold font-mono tabular-nums text-[#0a0a0a]">
+							{frozenCount}
+						</p>
+					</div>
+					<div className="rounded-lg bg-[#e5e5e5] p-2">
+						<Lock className="h-4 w-4 text-[#737373]" />
+					</div>
+				</div>
+				<div className="flex items-start justify-between rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-4">
+					<div>
+						<p className="text-xs font-medium uppercase tracking-wide text-[#737373]">
+							Outstanding
+						</p>
+						<p
+							className={`mt-1 text-2xl font-bold font-mono tabular-nums text-[#0a0a0a] ${outstandingBalanceSum > 0 ? "text-red-600" : ""}`}
 						>
-							{tab.label}
-						</button>
-					))}
+							{formatPrice(outstandingBalanceSum, "MYR")}
+						</p>
+					</div>
+					<div className="rounded-lg bg-[#e5e5e5] p-2">
+						<CreditCard className="h-4 w-4 text-[#737373]" />
+					</div>
 				</div>
+			</div>
 
-				{/* Table */}
-				<Table>
-					<TableHeader className="bg-[#f3f3f3]">
-						<TableRow className="border-b border-[#e5e5e5] hover:bg-transparent">
-							<TableHead className={TH}>Customer</TableHead>
-							<TableHead className={TH}>Package</TableHead>
-							<TableHead className={TH}>Credits</TableHead>
-							<TableHead className={TH}>Expires</TableHead>
-							<TableHead className={TH}>Outstanding</TableHead>
-							<TableHead className={TH}>Status</TableHead>
-							{canManage && <TableHead className={TH} />}
+			{/* Filter tabs */}
+			<div className="flex items-center gap-1.5 overflow-x-auto border-b border-[#e5e5e5] px-5 py-3">
+				{TABS.map((tab) => (
+					<button
+						key={tab.value}
+						type="button"
+						onClick={() => {
+							setFilter(tab.value);
+							setOffset(0);
+						}}
+						className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-all ${
+							filter === tab.value
+								? "bg-[#0a0a0a] text-white font-semibold"
+								: "border border-[#e5e5e5] bg-white text-[#737373] hover:text-[#0a0a0a] hover:bg-[#f3f3f3]"
+						}`}
+					>
+						{tab.label}
+					</button>
+				))}
+			</div>
+
+			{/* Table */}
+			<Table>
+				<TableHeader className="bg-[#f3f3f3]">
+					<TableRow className="border-b border-[#e5e5e5] hover:bg-transparent">
+						<TableHead className={TH}>Customer</TableHead>
+						<TableHead className={TH}>Package</TableHead>
+						<TableHead className={TH}>Credits</TableHead>
+						<TableHead className={TH}>Expires</TableHead>
+						<TableHead className={TH}>Outstanding</TableHead>
+						<TableHead className={TH}>Status</TableHead>
+						{canManage && <TableHead className={TH} />}
+					</TableRow>
+				</TableHeader>
+				<TableBody>
+					{isLoading ? (
+						Array.from({ length: 6 }).map((_, i) => (
+							<TableRow key={i} className="hover:bg-[#fafafa]">
+								<TableCell className={TD}>
+									<div className="flex items-center gap-3.5">
+										<Skeleton className="size-9 shrink-0 rounded-full" />
+										<div className="space-y-1.5">
+											<Skeleton className="h-3.5 w-28" />
+											<Skeleton className="h-3 w-20" />
+										</div>
+									</div>
+								</TableCell>
+								<TableCell className={TD}>
+									<Skeleton className="h-3.5 w-20" />
+								</TableCell>
+								<TableCell className={TD}>
+									<Skeleton className="h-3.5 w-20" />
+								</TableCell>
+								<TableCell className={TD}>
+									<Skeleton className="h-3.5 w-20" />
+								</TableCell>
+								<TableCell className={TD}>
+									<Skeleton className="h-3.5 w-20" />
+								</TableCell>
+								<TableCell className={TD}>
+									<Skeleton className="h-3.5 w-20" />
+								</TableCell>
+								{canManage && <TableCell className={TD} />}
+							</TableRow>
+						))
+					) : rows.length === 0 ? (
+						<TableRow>
+							<TableCell colSpan={canManage ? 7 : 6} className="h-60">
+								<div className="flex flex-col items-center justify-center gap-3 text-center">
+									<div className="flex size-14 items-center justify-center rounded-full bg-[#f3f3f3]">
+										<BadgeCheck className="h-6 w-6 text-[#737373]" />
+									</div>
+									<p className="text-sm font-medium">No memberships found</p>
+									<p className="text-xs text-[#737373]">
+										Try adjusting your filters.
+									</p>
+								</div>
+							</TableCell>
 						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{isLoading ? (
-							Array.from({ length: 6 }).map((_, i) => (
-								<TableRow key={i} className="hover:bg-[#fafafa]">
+					) : (
+						rows.map((row) => {
+							const name = row.clientName || "Unknown member";
+							const initials = getInitials(name);
+							const dateStr = formatDate(row.expiresAt);
+							const expiry = expiryLabel(row.daysUntilExpiry);
+							const variant = membershipStatusVariant(row.status, row.isLocked);
+							const label = membershipStatusLabel(row.status, row.isLocked);
+
+							return (
+								<TableRow
+									key={row.packageInstanceId}
+									className="hover:bg-[#fafafa]"
+								>
+									{/* Customer */}
 									<TableCell className={TD}>
-										<div className="flex items-center gap-3.5">
-											<Skeleton className="size-9 shrink-0 rounded-full" />
-											<div className="space-y-1.5">
-												<Skeleton className="h-3.5 w-28" />
-												<Skeleton className="h-3 w-20" />
+										<button
+											type="button"
+											className="flex items-center gap-3.5 text-left hover:underline focus:outline-none"
+											onClick={() => {
+												setSelectedMemberId(row.memberId || null);
+												setSheetOpen(true);
+											}}
+										>
+											<span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#d6cdb1]/30 font-bold text-[#0a0a0a] text-xs">
+												{initials}
+											</span>
+											<span className="font-medium">{name}</span>
+										</button>
+									</TableCell>
+
+									{/* Package */}
+									<TableCell className={TD}>
+										<span className="font-medium">{row.serviceName}</span>
+									</TableCell>
+
+									{/* Credits */}
+									<TableCell className={TD}>
+										<div className="flex flex-col gap-1">
+											<span className="tabular-nums text-sm">
+												{row.creditsRemaining} / {row.creditsTotal}
+											</span>
+											<div className="h-1.5 w-20 overflow-hidden rounded-full bg-[#e5e5e5]">
+												<div
+													className="h-full rounded-full bg-[#0a0a0a] transition-all"
+													style={{
+														width: `${Math.round((row.creditsRemaining / Math.max(row.creditsTotal, 1)) * 100)}%`,
+													}}
+												/>
 											</div>
 										</div>
 									</TableCell>
-									<TableCell className={TD}><Skeleton className="h-3.5 w-20" /></TableCell>
-									<TableCell className={TD}><Skeleton className="h-3.5 w-20" /></TableCell>
-									<TableCell className={TD}><Skeleton className="h-3.5 w-20" /></TableCell>
-									<TableCell className={TD}><Skeleton className="h-3.5 w-20" /></TableCell>
-									<TableCell className={TD}><Skeleton className="h-3.5 w-20" /></TableCell>
-									{canManage && <TableCell className={TD} />}
-								</TableRow>
-							))
-						) : rows.length === 0 ? (
-							<TableRow>
-								<TableCell colSpan={canManage ? 7 : 6} className="h-60">
-									<div className="flex flex-col items-center justify-center gap-3 text-center">
-										<div className="flex size-14 items-center justify-center rounded-full bg-[#f3f3f3]">
-											<BadgeCheck className="h-6 w-6 text-[#737373]" />
-										</div>
-										<p className="text-sm font-medium">No memberships found</p>
-										<p className="text-xs text-[#737373]">Try adjusting your filters.</p>
-									</div>
-								</TableCell>
-							</TableRow>
-						) : (
-							rows.map((row) => {
-								const name = row.clientName || "Unknown member";
-								const initials = getInitials(name);
-								const dateStr = formatDate(row.expiresAt);
-								const expiry = expiryLabel(row.daysUntilExpiry);
-								const variant = membershipStatusVariant(row.status, row.isLocked);
-								const label = membershipStatusLabel(row.status, row.isLocked);
 
-								return (
-									<TableRow key={row.packageInstanceId} className="hover:bg-[#fafafa]">
-										{/* Customer */}
-										<TableCell className={TD}>
-											<button
-												type="button"
-												className="flex items-center gap-3.5 text-left hover:underline focus:outline-none"
-												onClick={() => {
-													setSelectedMemberId(row.memberId || null);
-													setSheetOpen(true);
-												}}
-											>
-												<span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#d6cdb1]/30 font-bold text-[#0a0a0a] text-xs">
-													{initials}
-												</span>
-												<span className="font-medium">{name}</span>
-											</button>
-										</TableCell>
-
-										{/* Package */}
-										<TableCell className={TD}>
-											<span className="font-medium">{row.serviceName}</span>
-										</TableCell>
-
-										{/* Credits */}
-										<TableCell className={TD}>
-											<div className="flex flex-col gap-1">
-												<span className="tabular-nums text-sm">
-													{row.creditsRemaining} / {row.creditsTotal}
-												</span>
-												<div className="h-1.5 w-20 overflow-hidden rounded-full bg-[#e5e5e5]">
-													<div
-														className="h-full rounded-full bg-[#0a0a0a] transition-all"
-														style={{
-															width: `${Math.round((row.creditsRemaining / Math.max(row.creditsTotal, 1)) * 100)}%`,
-														}}
-													/>
-												</div>
-											</div>
-										</TableCell>
-
-										{/* Expires */}
-										<TableCell className={TD}>
-											<div className="flex flex-col gap-0.5">
-												<span className="text-sm">{dateStr}</span>
-												<span className={`text-xs ${expiry.className}`}>{expiry.text}</span>
-											</div>
-										</TableCell>
-
-										{/* Outstanding */}
-										<TableCell className={TD}>
-											<span
-												className={`tabular-nums ${row.outstandingBalanceCents > 0 ? "font-medium text-red-600" : "text-[#737373]"}`}
-											>
-												{formatPrice(row.outstandingBalanceCents, "MYR")}
+									{/* Expires */}
+									<TableCell className={TD}>
+										<div className="flex flex-col gap-0.5">
+											<span className="text-sm">{dateStr}</span>
+											<span className={`text-xs ${expiry.className}`}>
+												{expiry.text}
 											</span>
-										</TableCell>
+										</div>
+									</TableCell>
 
-										{/* Status */}
-										<TableCell className={TD}>
-											{row.isLocked && row.lockedReason ? (
-												<TooltipProvider>
-													<Tooltip>
-														<TooltipTrigger asChild>
-															<span>
-																<Badge variant={variant}>{label}</Badge>
-															</span>
-														</TooltipTrigger>
-														<TooltipContent>
-															<p>{row.lockedReason}</p>
-														</TooltipContent>
-													</Tooltip>
-												</TooltipProvider>
-											) : (
-												<Badge variant={variant}>{label}</Badge>
-											)}
-										</TableCell>
+									{/* Outstanding */}
+									<TableCell className={TD}>
+										<span
+											className={`tabular-nums ${row.outstandingBalanceCents > 0 ? "font-medium text-red-600" : "text-[#737373]"}`}
+										>
+											{formatPrice(row.outstandingBalanceCents, "MYR")}
+										</span>
+									</TableCell>
 
-										{/* Actions */}
-										{canManage && (() => {
+									{/* Status */}
+									<TableCell className={TD}>
+										{row.isLocked && row.lockedReason ? (
+											<TooltipProvider>
+												<Tooltip>
+													<TooltipTrigger asChild>
+														<span>
+															<Badge variant={variant}>{label}</Badge>
+														</span>
+													</TooltipTrigger>
+													<TooltipContent>
+														<p>{row.lockedReason}</p>
+													</TooltipContent>
+												</Tooltip>
+											</TooltipProvider>
+										) : (
+											<Badge variant={variant}>{label}</Badge>
+										)}
+									</TableCell>
+
+									{/* Actions */}
+									{canManage &&
+										(() => {
 											const isActionable =
 												row.status === "active" ||
 												row.status === "frozen" ||
@@ -545,9 +590,13 @@ export function MembershipsPage() {
 											if (!isActionable) {
 												return <TableCell className={TD} />;
 											}
-											const isEffectivelyFrozen = row.isLocked || row.status === "frozen";
+											const isEffectivelyFrozen =
+												row.isLocked || row.status === "frozen";
 											return (
-												<TableCell className={TD} onClick={(e) => e.stopPropagation()}>
+												<TableCell
+													className={TD}
+													onClick={(e) => e.stopPropagation()}
+												>
 													<DropdownMenu>
 														<DropdownMenuTrigger asChild>
 															<Button
@@ -603,39 +652,40 @@ export function MembershipsPage() {
 												</TableCell>
 											);
 										})()}
-									</TableRow>
-								);
-							})
-						)}
-					</TableBody>
-				</Table>
+								</TableRow>
+							);
+						})
+					)}
+				</TableBody>
+			</Table>
 
-				{/* Pagination */}
-				{total > PAGE_LIMIT && (
-					<div className="flex items-center justify-between border-t border-[#e5e5e5] bg-[#f3f3f3]/50 px-4 py-2.5 text-[13px]">
-						<span>
-							Showing {offset + 1}–{Math.min(offset + PAGE_LIMIT, total)} of {total}
-						</span>
-						<div className="flex gap-2">
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => setOffset(Math.max(0, offset - PAGE_LIMIT))}
-								disabled={offset === 0}
-							>
-								Previous
-							</Button>
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => setOffset(offset + PAGE_LIMIT)}
-								disabled={offset + PAGE_LIMIT >= total}
-							>
-								Next
-							</Button>
-						</div>
+			{/* Pagination */}
+			{total > PAGE_LIMIT && (
+				<div className="flex items-center justify-between border-t border-[#e5e5e5] bg-[#f3f3f3]/50 px-4 py-2.5 text-[13px]">
+					<span>
+						Showing {offset + 1}–{Math.min(offset + PAGE_LIMIT, total)} of{" "}
+						{total}
+					</span>
+					<div className="flex gap-2">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => setOffset(Math.max(0, offset - PAGE_LIMIT))}
+							disabled={offset === 0}
+						>
+							Previous
+						</Button>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => setOffset(offset + PAGE_LIMIT)}
+							disabled={offset + PAGE_LIMIT >= total}
+						>
+							Next
+						</Button>
 					</div>
-				)}
+				</div>
+			)}
 
 			{selectedMemberId && organizationId && (
 				<CustomerDetailSheet
@@ -681,7 +731,9 @@ export function MembershipsPage() {
 						instanceId={actionRow.packageInstanceId}
 						organizationId={organizationId}
 						instanceLabel={actionRow.serviceName}
-						currentExpiresAt={actionRow.expiresAt ? String(actionRow.expiresAt) : null}
+						currentExpiresAt={
+							actionRow.expiresAt ? String(actionRow.expiresAt) : null
+						}
 					/>
 					<Dialog
 						open={unfreezeOpen}
@@ -690,27 +742,44 @@ export function MembershipsPage() {
 							if (!v) setActionRow(null);
 						}}
 					>
-						<DialogContent className="sm:max-w-sm">
-							<DialogHeader>
-								<DialogTitle>Unfreeze Package?</DialogTitle>
-								<DialogDescription>
-									"{actionRow.serviceName}" will be reactivated and the customer can
-									book sessions again.
+						<DialogContent
+							className="sm:max-w-sm p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+							hideCloseButton
+						>
+							<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+								<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+									PACKAGE LIFECYCLE
+								</p>
+								<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+									Unfreeze Package?
+								</DialogTitle>
+								<DialogDescription className="text-sm text-[#737373]">
+									"{actionRow.serviceName}" will be reactivated and the customer
+									can book sessions again.
 								</DialogDescription>
 							</DialogHeader>
-							<DialogFooter>
+							<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 								<Button
 									variant="outline"
-									onClick={() => { setUnfreezeOpen(false); setActionRow(null); }}
+									onClick={() => {
+										setUnfreezeOpen(false);
+										setActionRow(null);
+									}}
 									disabled={unfreezeMutation.isPending}
 								>
 									Cancel
 								</Button>
 								<Button
+									className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
 									onClick={() => {
 										unfreezeMutation.mutate(
 											{ organizationId, id: actionRow.packageInstanceId },
-											{ onSuccess: () => { setUnfreezeOpen(false); setActionRow(null); } },
+											{
+												onSuccess: () => {
+													setUnfreezeOpen(false);
+													setActionRow(null);
+												},
+											},
 										);
 									}}
 									disabled={unfreezeMutation.isPending}

@@ -31,7 +31,11 @@ async function main() {
 
 	const cpPool = new Pool({ connectionString: dbUrl });
 	const cpDb = drizzle({ client: cpPool });
-	const [org] = await cpDb.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+	const [org] = await cpDb
+		.select()
+		.from(organizations)
+		.where(eq(organizations.id, orgId))
+		.limit(1);
 	if (!org) {
 		console.error("Org not found:", orgId);
 		process.exit(1);

@@ -104,7 +104,11 @@ export async function runReconciliation(
 			if (!acct.stripeAccountId) continue;
 			report.acctsScanned++;
 
-			for (const resourceType of ["charge", "refund", "application_fee"] as ResourceType[]) {
+			for (const resourceType of [
+				"charge",
+				"refund",
+				"application_fee",
+			] as ResourceType[]) {
 				try {
 					await reconcileResource(
 						stripe,
@@ -178,11 +182,19 @@ async function reconcileResource(
 	const createdGte = Math.floor(scanSince.getTime() / 1000);
 
 	// 2. Fetch Stripe resources.
-	const stripeRows = await fetchStripeResource(stripe, resourceType, stripeAccount, createdGte);
+	const stripeRows = await fetchStripeResource(
+		stripe,
+		resourceType,
+		stripeAccount,
+		createdGte,
+	);
 	report.resourcesExamined += stripeRows.length;
 
 	// 3. Map ledger event kinds for cross-check.
-	const ledgerKindFor: Record<ResourceType, "pi_succeeded" | "pi_refunded" | "application_fee_collected"> = {
+	const ledgerKindFor: Record<
+		ResourceType,
+		"pi_succeeded" | "pi_refunded" | "application_fee_collected"
+	> = {
 		charge: "pi_succeeded",
 		refund: "pi_refunded",
 		application_fee: "application_fee_collected",
@@ -262,21 +274,21 @@ interface StripeResourceLike {
 function computeDrift(
 	resourceType: ResourceType,
 	stripeRow: StripeResourceLike,
-	ledger:
-		| {
-				stripeObjectId: string;
-				eventKind: string;
-				amount: number;
-				currency: string;
-		  }
-		| null,
+	ledger: {
+		stripeObjectId: string;
+		eventKind: string;
+		amount: number;
+		currency: string;
+	} | null,
 	now: Date,
 ): DriftFinding | null {
 	// Charges with non-succeeded status are excluded from reconciliation —
 	// we only ledger pi.succeeded events, so unsucceeded charges are
 	// expected to be absent.
-	if (resourceType === "charge" && stripeRow.status !== "succeeded") return null;
-	if (resourceType === "refund" && stripeRow.status !== "succeeded") return null;
+	if (resourceType === "charge" && stripeRow.status !== "succeeded")
+		return null;
+	if (resourceType === "refund" && stripeRow.status !== "succeeded")
+		return null;
 
 	const stripeAmount =
 		resourceType === "refund"
@@ -291,7 +303,13 @@ function computeDrift(
 		return {
 			severity,
 			kind: "missing_in_db",
-			stripeValue: { id: stripeRow.id, amount: stripeAmount, currency: stripeCurrency, status: stripeRow.status, created: stripeRow.created },
+			stripeValue: {
+				id: stripeRow.id,
+				amount: stripeAmount,
+				currency: stripeCurrency,
+				status: stripeRow.status,
+				created: stripeRow.created,
+			},
 			dbValue: null,
 		};
 	}

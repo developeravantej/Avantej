@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, beforeAll, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
 let PurchaseOrdersPage: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
@@ -13,7 +13,16 @@ vi.mock("@tanstack/react-router", () => ({
 	Link: ({ children }: { children: React.ReactNode }) => children,
 	useNavigate: vi.fn().mockReturnValue(vi.fn()),
 }));
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({
+	client: mockClient,
+	orpc: mockOrpc,
+	queryClient: {
+		invalidateQueries: () => Promise.resolve(),
+		setQueryData: () => {},
+		getQueryData: () => undefined,
+		clear: () => {},
+	},
+}));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: {
@@ -42,7 +51,9 @@ describe("Purchase Orders page", () => {
 		renderWithProviders(<PurchaseOrdersPage />);
 
 		await waitFor(() => {
-			expect(screen.getByRole("heading", { name: "Purchase Orders" })).toBeInTheDocument();
+			expect(
+				screen.getByRole("heading", { name: "Purchase Orders" }),
+			).toBeInTheDocument();
 		});
 	});
 

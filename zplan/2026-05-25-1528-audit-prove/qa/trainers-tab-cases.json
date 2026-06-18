@@ -1,0 +1,446 @@
+[
+  {
+    "id": "T-1",
+    "title": "Load the trainers list — master-detail layout renders",
+    "type": "golden",
+    "steps": [
+      "Navigate to /dashboard/trainers/view?tab=trainers with a valid org session",
+      "Wait for the page to finish loading (PageLoader disappears)"
+    ],
+    "expected": "Left panel shows trainer rows (avatar, name, tier badge, session count). Right panel auto-selects the first trainer and shows their KPI tiles and schedule preview. Tier filter pills render above the list.",
+    "selectorHints": [
+      "button.flex.items-center.gap-3.px-4.py-3",
+      "[class*='trainerWeeklyStats']",
+      "div.grid.grid-cols-4.divide-x"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "source": "trainers-list-page.tsx:563, useTrainerData.ts:13"
+  },
+  {
+    "id": "T-2",
+    "title": "Search/filter — typing filters trainer list client-side with 300ms debounce",
+    "type": "golden",
+    "steps": [
+      "Load the trainers tab with at least 2 trainers",
+      "Type part of one trainer's displayName or email into the search input",
+      "Wait 300 ms"
+    ],
+    "expected": "Only matching trainers appear in the left panel list. Non-matching trainers are hidden. Clearing the search restores all trainers.",
+    "selectorHints": [
+      "input[placeholder='Search…']",
+      "button[class*='TrainerListRow'], button.flex.items-center.gap-3.px-4.py-3"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "source": "trainers-list-page.tsx:576, useTrainerData.ts:95-104 (filter on name, email, displayName, specialization)"
+  },
+  {
+    "id": "T-3",
+    "title": "Open create-trainer dialog — 'Invite Trainer' button opens the form",
+    "type": "golden",
+    "steps": [
+      "Click the 'Invite Trainer' button at the bottom of the left list panel"
+    ],
+    "expected": "A Dialog opens with title 'Add Trainer', showing email input and hierarchy scope Select in addition to the profile collapsible. Availability/Services/Commissions sections are NOT shown (edit-only). Submit button reads 'Add Trainer'.",
+    "selectorHints": [
+      "button:has(svg.lucide-plus)",
+      "[role='dialog']",
+      "h2:contains('Add Trainer')",
+      "input#trainer-email",
+      "button[id='trainer-scope']"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "source": "trainers-list-page.tsx:738-750, TrainerFormDialog.tsx:158-219"
+  },
+  {
+    "id": "T-4",
+    "title": "Create a trainer — fill email + hierarchy node, submit; trainer appears in list",
+    "type": "golden",
+    "steps": [
+      "Open the 'Add Trainer' dialog",
+      "Enter a valid email for an existing system user",
+      "Select a hierarchy node from the dropdown",
+      "Optionally fill displayName, specialization",
+      "Click 'Add Trainer'"
+    ],
+    "expected": "Dialog closes. Toast shows 'Trainer added successfully.'. The new trainer row appears in the left list. trainers query is invalidated.",
+    "selectorHints": [
+      "input#trainer-email",
+      "[role='listbox'] [role='option']",
+      "button[type='submit']:contains('Add Trainer')"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "persistence": "members table (tenant): role='trainer', hierarchyScopeId, userId, status='active'; member_profiles table (tenant): memberId, displayName",
+    "source": "useTrainerActions.ts:25-58, members/create.procedures.ts:20"
+  },
+  {
+    "id": "T-5",
+    "title": "Edit trainer profile — open edit dialog, change displayName, save; right panel updates",
+    "type": "golden",
+    "steps": [
+      "Select a trainer in the left list",
+      "Click 'Edit Trainer' (via the detail panel — note: 'Change Tier' and 'Assign Branch' both open the same edit form)",
+      "Wait for the Dialog with title 'Edit Trainer' to open",
+      "Modify the displayName field",
+      "Click 'Save Changes'"
+    ],
+    "expected": "Dialog closes. Toast shows 'Trainer profile updated.'. trainerProfiles cache is invalidated. Right detail panel shows the new displayName.",
+    "selectorHints": [
+      "button:contains('Change Tier')",
+      "[role='dialog'] h2:contains('Edit Trainer')",
+      "input#trainer-display-name",
+      "button[type='submit']:contains('Save Changes')"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "persistence": "member_profiles table (tenant): displayName, specialization, bio, phoneNumber, certifications",
+    "source": "useTrainerActions.ts:60-86, TrainerFormDialog.tsx:95, trainers-list-page.tsx:619-625"
+  },
+  {
+    "id": "T-6",
+    "title": "Assign tier — tier assignment is broken; 'Change Tier' button does NOT call assignTier",
+    "type": "golden",
+    "steps": [
+      "Select a trainer in the left list",
+      "Click 'Change Tier' in the detail panel header",
+      "Observe the dialog that opens"
+    ],
+    "expected": "A dedicated tier selector should appear, allowing the user to pick a tier and call trainerTiers.assignToMember.",
+    "selectorHints": [
+      "button:contains('Change Tier')"
+    ],
+    "testable": false,
+    "status": "missing",
+    "source": "trainers-list-page.tsx:412-419 — onEdit(trainer) is called; TrainerFormDialog.tsx has NO tier field; useTrainerActions.ts:102 — assignTier mutation is declared but never invoked anywhere in the page"
+  },
+  {
+    "id": "T-7",
+    "title": "Open edit dialog when no member_profiles record exists — form shows empty fields",
+    "type": "edge",
+    "steps": [
+      "Ensure a trainer exists with no member_profiles row (new trainer, profile never saved)",
+      "Select the trainer in the left list",
+      "Open the edit dialog via 'Change Tier' or 'Assign Branch'"
+    ],
+    "expected": "Dialog opens with all profile fields empty (not blocked). Submitting with empty fields should succeed — upsert with empty values is valid.",
+    "selectorHints": [
+      "[role='dialog'] h2:contains('Edit Trainer')",
+      "input#trainer-display-name"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "source": "useTrainerData.ts:47 (Promise.allSettled — unfulfilled profile => null); TrainerFormDialog.tsx:68 (trainerToForm maps null to empty string)"
+  },
+  {
+    "id": "T-8",
+    "title": "Buffer time input — set buffer for a service, save, value persists",
+    "type": "edge",
+    "steps": [
+      "Open the edit dialog for a trainer who has at least one assigned service",
+      "Expand the 'Services' collapsible section",
+      "Click the edit (pencil) icon next to a service's buffer display",
+      "Enter a number (e.g. 15) in the buffer input",
+      "Click 'Save'"
+    ],
+    "expected": "Toast shows 'Buffer time updated.' The buffer display for that service now reads '15 min'. Entering empty string sets buffer to null ('Using default').",
+    "selectorHints": [
+      "button[aria-label*='Services'], [data-state='open']",
+      "input[type='number'][placeholder='min']",
+      "button:contains('Save')"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "persistence": "member_service_buffer_overrides table (tenant): memberId, serviceId, bufferTimeMinutes (null = deleted = use category default)",
+    "source": "TrainerServicesSection.tsx:281-311, service-members.ts:258-336"
+  },
+  {
+    "id": "T-9",
+    "title": "Suspend a trainer — status badge changes to Inactive; reactivate restores Active",
+    "type": "edge",
+    "steps": [
+      "Select an active trainer",
+      "Click 'Suspend' in the detail panel header",
+      "Observe status badge and list row opacity",
+      "Click 'Reactivate'"
+    ],
+    "expected": "After suspend: trainer row has opacity-70, detail panel shows red 'Inactive' badge. After reactivate: row shows full opacity, badge shows green 'Active'.",
+    "selectorHints": [
+      "button:contains('Suspend')",
+      "span:contains('Inactive')",
+      "button:contains('Reactivate')",
+      "span:contains('Active')"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "persistence": "members.status='suspended'/'active' (tenant); organization_members.status (control panel); audit_log (tenant)",
+    "source": "trainers-list-page.tsx:427-445, useTrainerActions.ts:88-99, members/status.procedures.ts:20"
+  },
+  {
+    "id": "T-10",
+    "title": "No organization selected — guard message shown instead of list",
+    "type": "error",
+    "steps": [
+      "Simulate or navigate to the trainers tab when userContext.currentOrganizationId is null (e.g. during org switching)"
+    ],
+    "expected": "Page shows 'Select an organization to manage trainers.' centered in the content area. No list, no error callout.",
+    "selectorHints": [
+      "div.flex.items-center.justify-center:contains('Select an organization')"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "source": "trainers-list-page.tsx:627-633"
+  },
+  {
+    "id": "T-11",
+    "title": "Create trainer — email not found in system returns NOT_FOUND toast",
+    "type": "error",
+    "steps": [
+      "Open 'Add Trainer' dialog",
+      "Enter an email that does NOT exist in the system (e.g. nonexistent@example.com)",
+      "Select a hierarchy node",
+      "Click 'Add Trainer'"
+    ],
+    "expected": "Dialog stays open (or closes — depends on useApiMutation). Error toast shows the server message: 'User with email nonexistent@example.com not found. User must be registered first.'",
+    "selectorHints": [
+      "input#trainer-email",
+      "[data-sonner-toast][data-type='error']"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "source": "members/create.procedures.ts:79-83 (ORPCError NOT_FOUND)"
+  },
+  {
+    "id": "T-12",
+    "title": "Create trainer — email already a member returns CONFLICT toast",
+    "type": "error",
+    "steps": [
+      "Open 'Add Trainer' dialog",
+      "Enter an email for a user already a member of this org",
+      "Click 'Add Trainer'"
+    ],
+    "expected": "Error toast: 'User is already a member of this organization'",
+    "selectorHints": [
+      "input#trainer-email",
+      "[data-sonner-toast][data-type='error']"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "source": "members/create.procedures.ts:86-93 (ORPCError CONFLICT)"
+  },
+  {
+    "id": "T-13",
+    "title": "Create trainer — submit with empty email shows toast validation error",
+    "type": "edge",
+    "steps": [
+      "Open 'Add Trainer' dialog",
+      "Leave the email field blank",
+      "Select a hierarchy node",
+      "Click 'Add Trainer'"
+    ],
+    "expected": "Toast fires 'Email is required.' Form is NOT submitted to the server.",
+    "selectorHints": [
+      "button[type='submit']:contains('Add Trainer')",
+      "[data-sonner-toast][data-type='error']"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "source": "TrainerFormDialog.tsx:126-129"
+  },
+  {
+    "id": "T-14",
+    "title": "Create trainer — submit with no hierarchy node selected shows toast validation error",
+    "type": "edge",
+    "steps": [
+      "Open 'Add Trainer' dialog",
+      "Enter a valid email",
+      "Leave the hierarchy scope unselected",
+      "Click 'Add Trainer'"
+    ],
+    "expected": "Toast fires 'Hierarchy scope is required.' Form is NOT submitted.",
+    "selectorHints": [
+      "[id='trainer-scope']",
+      "[data-sonner-toast][data-type='error']"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "source": "TrainerFormDialog.tsx:130-133"
+  },
+  {
+    "id": "T-15",
+    "title": "Tier filter pill — filter list by tier ID client-side",
+    "type": "edge",
+    "steps": [
+      "Load the trainers tab when at least 2 active tiers exist with trainers assigned",
+      "Click a tier name pill (e.g. 'Senior')",
+      "Observe the left list"
+    ],
+    "expected": "List shows only trainers whose trainerTierId matches the selected tier. 'All' pill is no longer active. Clicking 'All' restores the full list.",
+    "selectorHints": [
+      "button.rounded-full:contains('All')",
+      "button.rounded-full[class*='bg-\\[#0a0a0a\\]']"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "source": "trainers-list-page.tsx:608-612 (tierFilter client-side filter)"
+  },
+  {
+    "id": "T-16",
+    "title": "weeklyStatsBatch fails for staff-role users — session counts show '…' for all trainers",
+    "type": "error",
+    "steps": [
+      "Log in as a staff-role member (not admin)",
+      "Navigate to the trainers tab"
+    ],
+    "expected": "Session counts in the left list panel show '…' indefinitely because trainers.weeklyStatsBatch requires user_management:approve which staff do not have. No error toast is shown (query fails silently).",
+    "selectorHints": [
+      "div.text-xs.font-mono.font-semibold:contains('…')"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "source": "trainers.ts:134-144 (user_management:approve gate); trainers-list-page.tsx:721 (batchStats?.[trainer.userId]?.sessionsThisWeek)"
+  },
+  {
+    "id": "T-17",
+    "title": "Availability editor — save with endTime <= startTime is rejected by server",
+    "type": "error",
+    "steps": [
+      "Open the edit dialog for a trainer",
+      "Expand 'Weekly Availability'",
+      "Add a Monday shift",
+      "Set endTime equal to or earlier than startTime (e.g. start=10:00, end=09:00)",
+      "Click 'Save Availability'"
+    ],
+    "expected": "Server returns BAD_REQUEST. Toast shows the error message about invalid time range.",
+    "selectorHints": [
+      "button:contains('Save Availability')",
+      "[data-sonner-toast][data-type='error']"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "source": "trainer-availability.service.ts:78-80 (validation: endTime <= startTime throws); trainerAvailabilityRouter.upsert wraps in BAD_REQUEST"
+  },
+  {
+    "id": "T-18",
+    "title": "Availability upsert silently resets 'blocked'/'timeoff' slots to 'available'",
+    "type": "edge",
+    "steps": [
+      "Manually create trainer_availability rows with kind='blocked' or kind='timeoff' in the DB",
+      "Open the edit dialog and expand Weekly Availability",
+      "Click 'Save Availability' without changes"
+    ],
+    "expected": "BUG: all slots are re-saved with kind='available' because TrainerAvailabilityEditor does not track or send the kind field. The server schema defaults kind to 'available'.",
+    "selectorHints": [],
+    "testable": true,
+    "status": "partial",
+    "source": "trainer-availability-editor.tsx:100-115 (slots map omits kind); trainer-availability.ts:96-108 (kind: kindSchema.default('available'))"
+  },
+  {
+    "id": "T-19",
+    "title": "Assign Branch button is a no-op — branch cannot be changed from the UI",
+    "type": "error",
+    "steps": [
+      "Select a trainer",
+      "Click 'Assign Branch' in the detail panel"
+    ],
+    "expected": "BUG: 'Assign Branch' opens the profile edit dialog (same as 'Change Tier'), which has no hierarchyScopeId field in edit mode. Branch reassignment is impossible from this page.",
+    "selectorHints": [
+      "button:contains('Assign Branch')"
+    ],
+    "testable": true,
+    "status": "missing",
+    "source": "trainers-list-page.tsx:420-430 (onClick calls onEdit); TrainerFormDialog.tsx:158 (!isEditing guard hides email+scope fields)"
+  },
+  {
+    "id": "T-20",
+    "title": "API error loading trainers — error callout with retry button shown",
+    "type": "error",
+    "steps": [
+      "Simulate a network/server error on the members.list call (e.g. revoke permission or kill server)",
+      "Navigate to the trainers tab"
+    ],
+    "expected": "StatusCallout with variant='error' and title 'Couldn't load trainers' is rendered with a retry button. Clicking retry re-issues the query.",
+    "selectorHints": [
+      "[data-variant='error']",
+      "button:contains('Retry'), button:contains('Try again')"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "source": "trainers-list-page.tsx:637-646 (isError branch renders StatusCallout with onRetry)"
+  },
+  {
+    "id": "T-21",
+    "title": "Services section — assign and remove a service with checkbox",
+    "type": "golden",
+    "steps": [
+      "Open the edit dialog for a trainer",
+      "Expand the 'Services' section",
+      "Check a service checkbox to assign it",
+      "Uncheck it to remove it"
+    ],
+    "expected": "Assign: no toast but query re-fetches and service appears checked. Remove: service clears and buffer override is also deleted.",
+    "selectorHints": [
+      "[role='checkbox']",
+      "span:contains('Buffer:')"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "persistence": "service_members (tenant): memberId, serviceId; member_service_buffer_overrides (tenant): deleted on remove",
+    "source": "TrainerServicesSection.tsx:71-101, service-members.ts:213-250, 342-390"
+  },
+  {
+    "id": "T-22",
+    "title": "Commissions section — lazy-loads last 20 commission rows on open",
+    "type": "golden",
+    "steps": [
+      "Open the edit dialog for a trainer who has commission records",
+      "Expand the 'Commissions' section"
+    ],
+    "expected": "Table renders with Date, Source, Amount, Status columns. Up to 20 rows shown. No pagination control. A trainer with no commissions shows 'No commission records found.'",
+    "selectorHints": [
+      "th:contains('Date')",
+      "th:contains('Source')",
+      "th:contains('Amount')",
+      "th:contains('Status')"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "source": "TrainerCommissionsSection.tsx:47-57 (enabled: isOpen; limit: 20, offset: 0)"
+  },
+  {
+    "id": "T-23",
+    "title": "Category buffer defaults — visible in Services section when category overrides exist",
+    "type": "edge",
+    "steps": [
+      "Ensure a trainer has services assigned and category buffer overrides configured",
+      "Open the edit dialog and expand Services"
+    ],
+    "expected": "A 'Category Buffer Defaults' subsection appears with CategoryBufferRow components per category. Editing and saving a category buffer updates the category_buffer_overrides table.",
+    "selectorHints": [
+      "p:contains('Category Buffer Defaults')"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "persistence": "category_buffer_overrides (tenant): memberId, categoryId, bufferTimeMinutes",
+    "source": "TrainerServicesSection.tsx:358-384, category-buffer-overrides.ts"
+  },
+  {
+    "id": "T-24",
+    "title": "Empty state — no trainers in org shows empty state with 'Invite Trainer' CTA",
+    "type": "edge",
+    "steps": [
+      "Navigate to trainers tab in an org with zero trainer-role members"
+    ],
+    "expected": "Left panel shows a Users icon, 'No trainers yet' heading, and 'Invite a trainer to get started.' subtext. Right panel shows 'No trainer selected' placeholder.",
+    "selectorHints": [
+      "p.text-sm.font-medium:contains('No trainers yet')",
+      "p.text-xs:contains('Invite a trainer')",
+      "p.text-sm.font-medium:contains('No trainer selected')"
+    ],
+    "testable": true,
+    "status": "implemented",
+    "source": "trainers-list-page.tsx:704-713, 770-778"
+  }
+]

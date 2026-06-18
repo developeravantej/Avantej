@@ -1,0 +1,65 @@
+[
+  {
+    "id": "F-SALE-01",
+    "verdict": "by-design",
+    "isBug": false,
+    "fixComplexity": "na",
+    "evidence": "packages/services/src/refunds.service.ts:873-875 explicitly documents 'Card reversals and bank transfers do NOT move money — the operator must manually issue the reversal and enter the reference here. Out of scope for v1.' No Stripe API call is intentional; manual reversal workflow is the design."
+  },
+  {
+    "id": "F-SALE-02",
+    "verdict": "false",
+    "isBug": false,
+    "fixComplexity": "na",
+    "evidence": "packages/services/src/membership.service.ts:62-120 (freezeMembership takes startDate/endDate), :257-285 (runAutoResumeHolds implemented), apps/server/src/cron/auto-resume-holds.ts (cron handler exists). Auto-resume is wired: listExpiredActiveHolds queries holds where status='active' AND end_date <= NOW, then calls resumeMembership for each."
+  },
+  {
+    "id": "F-SALE-03",
+    "verdict": "false",
+    "isBug": false,
+    "fixComplexity": "na",
+    "evidence": "apps/server/src/services/installment-sweep.service.ts:39 imports evaluateAndLockIfOverdue; lines 64+ call it for each candidate. Scheduled in apps/server/wrangler.jsonc line 33: '0 2 * * *' (02:00 UTC daily). Both functions are properly wired."
+  },
+  {
+    "id": "F-SALE-04",
+    "verdict": "overstated",
+    "isBug": false,
+    "fixComplexity": "na",
+    "evidence": "No completeSalesOrder function found in sales-order.service.ts. The 'completed' status exists but no public API to transition to it was discovered. Claim assumes a feature exists that may not be implemented yet — cannot confirm as a defect without identifying the completion path."
+  },
+  {
+    "id": "F-SALE-05",
+    "verdict": "false",
+    "isBug": false,
+    "fixComplexity": "na",
+    "evidence": "packages/services/src/sales-order.service.ts:313-326 (cancelSalesOrder) explicitly updates package_instances: .update(packageInstances).set({status: 'cancelled', ...}).where(and(eq(packageInstances.salesOrderId, id), ne(packageInstances.status, 'cancelled'))). Cascade IS implemented."
+  },
+  {
+    "id": "F-SALE-06",
+    "verdict": "false",
+    "isBug": false,
+    "fixComplexity": "na",
+    "evidence": "packages/services/src/refunds.service.ts:1034-1042 (processRefund): 'if (newStatus !== payment.status) { await appendPaymentStatusHistory(...) }'. History is written when payment status changes. Line 1036 explicitly calls appendPaymentStatusHistory."
+  },
+  {
+    "id": "F-SALE-07",
+    "verdict": "false",
+    "isBug": false,
+    "fixComplexity": "na",
+    "evidence": "packages/services/src/refunds.service.ts:1360-1367 (createPartialRefund): cap is correctly derived as 'creditsUnlocked ?? creditsTotal', and validation 'if (newCreditsUsed > cap)' throws BAD_REQUEST. The constraint creditsUsed - refunded >= 0 is enforced."
+  },
+  {
+    "id": "F-SALE-08",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "medium",
+    "evidence": "packages/services/src/package-instance.service.ts: schema supports status='expired' (line 202, line 246) but no cron or scheduled handler was found to auto-transition active packages to expired based on expiresAt. Grep for 'expired.*transition' and 'expir.*cron' in apps/server/src/services returned no results. The expiry logic is missing."
+  },
+  {
+    "id": "F-SALE-09",
+    "verdict": "real",
+    "isBug": true,
+    "fixComplexity": "small",
+    "evidence": "packages/services/src/sales-order.service.ts:62-82 (generateCancellationNumber): uses COUNT()+1 without database sequence. Code comment (line 66-71) explicitly acknowledges: 'No dedicated sequence exists... Under high concurrent cancellation volume this could produce duplicates... To fix: create migration CREATE SEQUENCE IF NOT EXISTS tenant_cancellation_seq and switch to nextval()'. This is documented race condition."
+  }
+]

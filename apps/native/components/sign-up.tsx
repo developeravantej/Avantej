@@ -42,7 +42,7 @@ export function SignUp() {
 						Alert.alert(
 							"Account Created",
 							"Please check your email to verify your account before signing in.",
-							[{ text: "OK" }]
+							[{ text: "OK" }],
 						);
 					},
 					onFinished: () => {

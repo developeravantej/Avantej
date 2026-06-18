@@ -21,27 +21,10 @@
 import { z } from "zod";
 import { and, asc, eq, gte, inArray, isNotNull, lte } from "drizzle-orm";
 import { getTierPriceUsdCents, type Tier } from "@avantej-core/types";
-import { ORPCError } from "@orpc/server";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { platformAdminProcedure as adminProcedure } from "@avantej-core/api";
+import { adminProcedure } from "@/lib/admin-procedure";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
-
-function cpDbFrom(
-	context: unknown,
-): NeonDatabase<typeof controlPanelSchema> {
-	const db = (
-		context as { honoContext?: { get: (k: string) => unknown } }
-	).honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 /**
  * Compute the start of the ISO week (Monday 00:00 UTC) for a given date.
@@ -88,7 +71,7 @@ export const platformAdminRenewalsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 
 			const now = new Date();
 			const windowEnd = addDaysUtc(now, input.daysAhead);

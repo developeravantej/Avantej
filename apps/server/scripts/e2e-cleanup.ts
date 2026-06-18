@@ -28,7 +28,10 @@
 import { neonConfig, Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { users, organizationMembers } from "@avantej-core/db/schema/control-panel/index";
+import {
+	users,
+	organizationMembers,
+} from "@avantej-core/db/schema/control-panel/index";
 import { inArray } from "drizzle-orm";
 import { readFileSync } from "fs";
 import { dirname, join } from "path";
@@ -60,7 +63,11 @@ function loadDevVars(): void {
 	}
 }
 
-function parseArgs(): { emailPrefix: string; apply: boolean; tenantId: string | null } {
+function parseArgs(): {
+	emailPrefix: string;
+	apply: boolean;
+	tenantId: string | null;
+} {
 	const args = process.argv.slice(2);
 	let emailPrefix = "testuser+";
 	let apply = false;
@@ -118,7 +125,9 @@ async function deleteTenantMembers(
 			);
 			console.log(`  [tenant ${orgId}] Deleted ${count} member row(s)`);
 		} else if (count > 0) {
-			console.log(`  [tenant ${orgId}] Would delete ${count} member row(s) (dry-run)`);
+			console.log(
+				`  [tenant ${orgId}] Would delete ${count} member row(s) (dry-run)`,
+			);
 		}
 		return count;
 	} finally {
@@ -173,21 +182,32 @@ async function main() {
 			? [tenantId]
 			: [...new Set(memberRows.map((m) => m.organizationId))];
 
-		console.log(`Organization memberships (control panel): ${memberRows.length} row(s) across ${orgIds.length} org(s)`);
+		console.log(
+			`Organization memberships (control panel): ${memberRows.length} row(s) across ${orgIds.length} org(s)`,
+		);
 
 		// ── 3. Delete tenant members rows ───────────────────────────────────────
 		let totalTenantDeleted = 0;
 		for (const orgId of orgIds) {
 			const connString = await getTenantConnString(db, orgId);
 			if (!connString) {
-				console.log(`  [tenant ${orgId}] No tenantDbUrl found — skipping tenant cleanup`);
+				console.log(
+					`  [tenant ${orgId}] No tenantDbUrl found — skipping tenant cleanup`,
+				);
 				continue;
 			}
 			try {
-				const deleted = await deleteTenantMembers(connString, userIds, apply, orgId);
+				const deleted = await deleteTenantMembers(
+					connString,
+					userIds,
+					apply,
+					orgId,
+				);
 				totalTenantDeleted += deleted;
 			} catch (err) {
-				console.warn(`  [tenant ${orgId}] Failed to connect to tenant DB: ${String(err)}`);
+				console.warn(
+					`  [tenant ${orgId}] Failed to connect to tenant DB: ${String(err)}`,
+				);
 			}
 		}
 
@@ -195,24 +215,36 @@ async function main() {
 		const cpMemberCount = memberRows.length;
 		if (cpMemberCount > 0) {
 			if (apply) {
-				await db.delete(organizationMembers).where(inArray(organizationMembers.userId, userIds));
-				console.log(`Deleted ${cpMemberCount} organization_members row(s) from control panel`);
+				await db
+					.delete(organizationMembers)
+					.where(inArray(organizationMembers.userId, userIds));
+				console.log(
+					`Deleted ${cpMemberCount} organization_members row(s) from control panel`,
+				);
 			} else {
-				console.log(`Would delete ${cpMemberCount} organization_members row(s) from control panel (dry-run)`);
+				console.log(
+					`Would delete ${cpMemberCount} organization_members row(s) from control panel (dry-run)`,
+				);
 			}
 		}
 
 		// ── 5. Delete control-panel users (cascade handles sessions, accounts) ──
 		if (apply) {
 			await db.delete(users).where(inArray(users.id, userIds));
-			console.log(`Deleted ${userIds.length} user(s) from control panel (auth cascade removes accounts/sessions)`);
+			console.log(
+				`Deleted ${userIds.length} user(s) from control panel (auth cascade removes accounts/sessions)`,
+			);
 		} else {
-			console.log(`Would delete ${userIds.length} user(s) from control panel (dry-run)`);
+			console.log(
+				`Would delete ${userIds.length} user(s) from control panel (dry-run)`,
+			);
 		}
 
 		console.log("");
 		if (apply) {
-			console.log(`Done. Removed ${userIds.length} user(s), ${cpMemberCount} CP member(s), ${totalTenantDeleted} tenant member(s).`);
+			console.log(
+				`Done. Removed ${userIds.length} user(s), ${cpMemberCount} CP member(s), ${totalTenantDeleted} tenant member(s).`,
+			);
 		} else {
 			console.log(`Dry-run complete. Pass --apply to execute deletions.`);
 		}

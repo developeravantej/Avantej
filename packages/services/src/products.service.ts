@@ -1,6 +1,8 @@
+import { ORPCError } from "@orpc/server";
 import { eq, and, asc, or, ilike, sql } from "drizzle-orm";
 import { products } from "@avantej-core/db/schema/tenant/products";
 import { productStock } from "@avantej-core/db/schema/tenant/product-stock";
+import { stockMovements } from "@avantej-core/db/schema/tenant/stock-movements";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
@@ -31,7 +33,7 @@ export async function listProducts(
 		supplierId?: string;
 		status?: string;
 		search?: string;
-	} = {}
+	} = {},
 ): Promise<(typeof products.$inferSelect)[]> {
 	const { brandId, categoryId, supplierId, status, search } = params;
 
@@ -53,8 +55,8 @@ export async function listProducts(
 			or(
 				ilike(products.sku, `%${search}%`),
 				ilike(products.name, `%${search}%`),
-				ilike(products.barcode, `%${search}%`)
-			)
+				ilike(products.barcode, `%${search}%`),
+			),
 		);
 	}
 
@@ -66,8 +68,8 @@ export async function listProducts(
 
 export async function getProductById(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
-): Promise<(typeof products.$inferSelect) | null> {
+	id: string,
+): Promise<typeof products.$inferSelect | null> {
 	const row = await tenantDb.query.products.findFirst({
 		where: eq(products.id, id),
 	});
@@ -76,7 +78,7 @@ export async function getProductById(
 
 export async function createProduct(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: CreateProductParams
+	params: CreateProductParams,
 ): Promise<typeof products.$inferSelect> {
 	const [row] = await tenantDb
 		.insert(products)
@@ -106,7 +108,7 @@ export async function createProduct(
 export async function updateProduct(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	id: string,
-	params: UpdateProductParams
+	params: UpdateProductParams,
 ): Promise<typeof products.$inferSelect> {
 	const [row] = await tenantDb
 		.update(products)
@@ -119,7 +121,9 @@ export async function updateProduct(
 			...(params.categoryId !== undefined && { categoryId: params.categoryId }),
 			...(params.supplierId !== undefined && { supplierId: params.supplierId }),
 			...(params.uomId !== undefined && { uomId: params.uomId }),
-			...(params.conversionFactor !== undefined && { conversionFactor: params.conversionFactor }),
+			...(params.conversionFactor !== undefined && {
+				conversionFactor: params.conversionFactor,
+			}),
 			...(params.price !== undefined && { price: params.price }),
 			...(params.status !== undefined && { status: params.status }),
 			...(params.updatedBy !== undefined && { updatedBy: params.updatedBy }),
@@ -137,12 +141,12 @@ export async function updateProduct(
 export async function getProductStock(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	productId: string,
-	branchId: string
-): Promise<(typeof productStock.$inferSelect) | null> {
+	branchId: string,
+): Promise<typeof productStock.$inferSelect | null> {
 	const row = await tenantDb.query.productStock.findFirst({
 		where: and(
 			eq(productStock.productId, productId),
-			eq(productStock.branchId, branchId)
+			eq(productStock.branchId, branchId),
 		),
 	});
 	return row ?? null;
@@ -152,7 +156,7 @@ export async function upsertProductStock(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	productId: string,
 	branchId: string,
-	quantity: number
+	quantity: number,
 ): Promise<typeof productStock.$inferSelect> {
 	const [row] = await tenantDb
 		.insert(productStock)
@@ -176,13 +180,29 @@ export async function upsertProductStock(
 	return row;
 }
 
+/**
+ * Optional audit metadata for a stock movement (F-INV-06). When provided,
+ * `adjustStock` appends a row to `stock_movements` recording the signed delta,
+ * resulting quantity, a human reason, and the source document. All fields are
+ * optional so existing callers remain backward-compatible — a default reason
+ * of "adjustment" is used when none is supplied.
+ */
+export type StockMovementMeta = {
+	reason?: string;
+	sourceType?: string;
+	sourceId?: string;
+	actorUserId?: string;
+};
+
 export async function adjustStock(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	productId: string,
 	branchId: string,
-	delta: number
+	delta: number,
+	meta: StockMovementMeta = {},
 ): Promise<typeof productStock.$inferSelect> {
-	// Try atomic update first
+	// Try atomic update first.
+	// For negative deltas, gate the UPDATE so quantity cannot go below zero.
 	const [updated] = await tenantDb
 		.update(productStock)
 		.set({
@@ -192,16 +212,33 @@ export async function adjustStock(
 		.where(
 			and(
 				eq(productStock.productId, productId),
-				eq(productStock.branchId, branchId)
-			)
+				eq(productStock.branchId, branchId),
+				...(delta < 0 ? [sql`${productStock.quantity} + ${delta} >= 0`] : []),
+			),
 		)
 		.returning();
 
 	if (updated) {
+		await recordStockMovement(tenantDb, {
+			productId,
+			branchId,
+			delta,
+			quantityAfter: updated.quantity,
+			meta,
+		});
 		return updated;
 	}
 
-	// No existing record - insert with delta as initial quantity
+	// No row was updated. Distinguish two cases:
+	// 1. Negative delta — either no row existed (no stock to deduct) or the
+	//    constraint prevented going below zero (insufficient stock).
+	if (delta < 0) {
+		throw new ORPCError("BAD_REQUEST", {
+			message: `Insufficient stock for product ${productId} at branch ${branchId}`,
+		});
+	}
+
+	// 2. Positive delta with no existing row — insert with delta as initial quantity.
 	const [row] = await tenantDb
 		.insert(productStock)
 		.values({
@@ -214,5 +251,40 @@ export async function adjustStock(
 	if (!row) {
 		throw new Error("Failed to adjust stock");
 	}
+
+	await recordStockMovement(tenantDb, {
+		productId,
+		branchId,
+		delta,
+		quantityAfter: row.quantity,
+		meta,
+	});
 	return row;
+}
+
+/**
+ * Append an append-only audit row to `stock_movements`. Runs on whatever
+ * client (tx or pool) the caller passed to `adjustStock`, so it commits in the
+ * SAME transaction as the stock mutation.
+ */
+async function recordStockMovement(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	args: {
+		productId: string;
+		branchId: string;
+		delta: number;
+		quantityAfter: number;
+		meta: StockMovementMeta;
+	},
+): Promise<void> {
+	await tenantDb.insert(stockMovements).values({
+		productId: args.productId,
+		branchId: args.branchId,
+		delta: args.delta,
+		quantityAfter: args.quantityAfter,
+		reason: args.meta.reason ?? "adjustment",
+		sourceType: args.meta.sourceType ?? null,
+		sourceId: args.meta.sourceId ?? null,
+		actorUserId: args.meta.actorUserId ?? null,
+	});
 }

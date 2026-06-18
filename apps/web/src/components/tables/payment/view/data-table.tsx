@@ -81,7 +81,9 @@ export default function DataTable<TData, TValue>({
 					<StatusCallout
 						variant="error"
 						title="Couldn't load data"
-						message={error instanceof Error ? error.message : "An error occurred"}
+						message={
+							error instanceof Error ? error.message : "An error occurred"
+						}
 						onRetry={onRetry}
 					/>
 				</div>

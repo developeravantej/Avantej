@@ -165,10 +165,7 @@ export async function writePackageInstanceLeadStaff(
 			role: "lead",
 		});
 	}
-	if (
-		preferredUserId &&
-		preferredUserId !== attribution.primaryStaffUserId
-	) {
+	if (preferredUserId && preferredUserId !== attribution.primaryStaffUserId) {
 		rows.push({
 			staffId: preferredUserId,
 			slotIndex: rows.length > 0 ? 1 : 0,

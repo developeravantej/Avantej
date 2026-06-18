@@ -58,7 +58,7 @@ export interface BranchInviteRow {
  */
 export async function createBranchInvite(
 	tenantDb: TenantDb,
-	params: CreateBranchInviteParams
+	params: CreateBranchInviteParams,
 ): Promise<Invitation> {
 	const { branchId, invitedBy, maxUses } = params;
 
@@ -97,13 +97,13 @@ export async function createBranchInvite(
  */
 export async function listBranchInvites(
 	tenantDb: TenantDb,
-	branchId: string
+	branchId: string,
 ): Promise<Invitation[]> {
 	return tenantDb.query.invitations.findMany({
 		where: and(
 			eq(invitations.kind, "branch_self_signup"),
 			eq(invitations.hierarchyScopeId, branchId),
-			eq(invitations.isActive, true)
+			eq(invitations.isActive, true),
 		),
 		orderBy: (t, { desc }) => [desc(t.createdAt)],
 	});
@@ -137,9 +137,18 @@ export async function listAllBranchInvites(
 
 	// Branches the caller can see
 	const branches = await tenantDb
-		.select({ id: hierarchyNodes.id, name: hierarchyNodes.name, type: hierarchyNodes.type })
+		.select({
+			id: hierarchyNodes.id,
+			name: hierarchyNodes.name,
+			type: hierarchyNodes.type,
+		})
 		.from(hierarchyNodes)
-		.where(and(eq(hierarchyNodes.type, "branch"), inArray(hierarchyNodes.id, accessibleNodeIds)));
+		.where(
+			and(
+				eq(hierarchyNodes.type, "branch"),
+				inArray(hierarchyNodes.id, accessibleNodeIds),
+			),
+		);
 
 	if (branches.length === 0) return [];
 
@@ -157,11 +166,13 @@ export async function listAllBranchInvites(
 			createdAt: invitations.createdAt,
 		})
 		.from(invitations)
-		.where(and(
-			eq(invitations.kind, "branch_self_signup"),
-			eq(invitations.isActive, true),
-			inArray(invitations.hierarchyScopeId, branchIds),
-		))
+		.where(
+			and(
+				eq(invitations.kind, "branch_self_signup"),
+				eq(invitations.isActive, true),
+				inArray(invitations.hierarchyScopeId, branchIds),
+			),
+		)
 		.orderBy(desc(invitations.createdAt));
 
 	// Keep only the latest invite per branch
@@ -179,15 +190,15 @@ export async function listAllBranchInvites(
 			branchName: b.name,
 			invite: inv
 				? {
-					id: inv.id,
-					token: inv.token,
-					url: `${webBaseUrl}/onboarding/${inv.token}`,
-					usesCount: inv.usesCount ?? 0,
-					maxUses: inv.maxUses ?? null,
-					isActive: inv.isActive ?? true,
-					expiresAt: inv.expiresAt,
-					createdAt: inv.createdAt,
-				}
+						id: inv.id,
+						token: inv.token,
+						url: `${webBaseUrl}/onboarding/${inv.token}`,
+						usesCount: inv.usesCount ?? 0,
+						maxUses: inv.maxUses ?? null,
+						isActive: inv.isActive ?? true,
+						expiresAt: inv.expiresAt,
+						createdAt: inv.createdAt,
+					}
 				: null,
 		};
 	});
@@ -199,7 +210,7 @@ export async function listAllBranchInvites(
  */
 export async function revokeBranchInvite(
 	tenantDb: TenantDb,
-	inviteId: string
+	inviteId: string,
 ): Promise<Invitation> {
 	const [updated] = await tenantDb
 		.update(invitations)
@@ -207,8 +218,8 @@ export async function revokeBranchInvite(
 		.where(
 			and(
 				eq(invitations.id, inviteId),
-				eq(invitations.kind, "branch_self_signup")
-			)
+				eq(invitations.kind, "branch_self_signup"),
+			),
 		)
 		.returning();
 
@@ -237,17 +248,21 @@ export interface ValidateBranchInviteResult {
 
 export async function validateBranchInvite(
 	tenantDb: TenantDb,
-	token: string
+	token: string,
 ): Promise<ValidateBranchInviteResult> {
 	const invite = await tenantDb.query.invitations.findFirst({
 		where: and(
 			eq(invitations.token, token),
-			eq(invitations.kind, "branch_self_signup")
+			eq(invitations.kind, "branch_self_signup"),
 		),
 	});
 
 	if (!invite) {
-		return { invite: null as unknown as Invitation, isValid: false, error: "NOT_FOUND" };
+		return {
+			invite: null as unknown as Invitation,
+			isValid: false,
+			error: "NOT_FOUND",
+		};
 	}
 
 	if (!invite.isActive) {
@@ -271,7 +286,7 @@ export async function validateBranchInvite(
  */
 export async function incrementBranchInviteUses(
 	tenantDb: TenantDb,
-	inviteId: string
+	inviteId: string,
 ): Promise<void> {
 	await tenantDb
 		.update(invitations)

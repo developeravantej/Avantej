@@ -1,17 +1,52 @@
 import {
 	listCategoryBufferOverridesForMember,
 	upsertCategoryBufferOverride,
-	requirePermission,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import { eq, and } from "drizzle-orm";
 import { serviceMembers } from "@avantej-core/db/schema/tenant/service-members";
 import { services } from "@avantej-core/db/schema/tenant/services";
 
+async function requireUserOrServiceManagementRead(
+	tenantDb: Parameters<typeof requirePermissionOrpc>[0],
+	member: Parameters<typeof requirePermissionOrpc>[1],
+): Promise<void> {
+	for (const resource of ["user_management", "service_management"] as const) {
+		try {
+			await requirePermissionOrpc(tenantDb, member, resource, "read");
+			return;
+		} catch {
+			/* try next */
+		}
+	}
+	throw new ORPCError("FORBIDDEN", {
+		message: "Requires user_management or service_management read permission.",
+	});
+}
+
+async function requireUserOrServiceManagementUpdate(
+	tenantDb: Parameters<typeof requirePermissionOrpc>[0],
+	member: Parameters<typeof requirePermissionOrpc>[1],
+): Promise<void> {
+	for (const resource of ["user_management", "service_management"] as const) {
+		try {
+			await requirePermissionOrpc(tenantDb, member, resource, "update");
+			return;
+		} catch {
+			/* try next */
+		}
+	}
+	throw new ORPCError("FORBIDDEN", {
+		message:
+			"Requires user_management or service_management update permission.",
+	});
+}
+
 export const categoryBufferOverridesRouter = {
-	listForMember: protectedProcedure
+	listForMember: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -19,27 +54,18 @@ export const categoryBufferOverridesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb || !context.member) throw new ORPCError("FORBIDDEN");
-
-			let hasPermission = false;
-			for (const resource of ["user_management", "service_management"] as const) {
-				try {
-					await requirePermission(context.tenantDb, context.member, resource, "read");
-					hasPermission = true;
-					break;
-				} catch {
-					/* try next */
-				}
-			}
-			if (!hasPermission)
-				throw new ORPCError("FORBIDDEN", {
-					message: "Requires user_management or service_management read permission.",
-				});
-
-			return listCategoryBufferOverridesForMember(context.tenantDb, input.memberId);
+			assertOrgContextMatch(context, input);
+			await requireUserOrServiceManagementRead(
+				context.tenantDb,
+				context.member,
+			);
+			return listCategoryBufferOverridesForMember(
+				context.tenantDb,
+				input.memberId,
+			);
 		}),
 
-	upsert: protectedProcedure
+	upsert: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -49,23 +75,11 @@ export const categoryBufferOverridesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb || !context.member) throw new ORPCError("FORBIDDEN");
-
-			let hasPermission = false;
-			for (const resource of ["user_management", "service_management"] as const) {
-				try {
-					await requirePermission(context.tenantDb, context.member, resource, "update");
-					hasPermission = true;
-					break;
-				} catch {
-					/* try next */
-				}
-			}
-			if (!hasPermission)
-				throw new ORPCError("FORBIDDEN", {
-					message: "Requires user_management or service_management update permission.",
-				});
-
+			assertOrgContextMatch(context, input);
+			await requireUserOrServiceManagementUpdate(
+				context.tenantDb,
+				context.member,
+			);
 			return upsertCategoryBufferOverride(
 				context.tenantDb,
 				input.memberId,
@@ -74,14 +88,16 @@ export const categoryBufferOverridesRouter = {
 			);
 		}),
 
-	listMine: protectedProcedure
+	listMine: tenantProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context }) => {
-			if (!context.tenantDb || !context.member) throw new ORPCError("FORBIDDEN");
-			return listCategoryBufferOverridesForMember(context.tenantDb, context.member.id);
+			return listCategoryBufferOverridesForMember(
+				context.tenantDb,
+				context.member.id,
+			);
 		}),
 
-	updateMine: protectedProcedure
+	updateMine: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -90,9 +106,7 @@ export const categoryBufferOverridesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb || !context.member) throw new ORPCError("FORBIDDEN");
-
-			// Verify the category has assigned services for this member
+			assertOrgContextMatch(context, input);
 			const hasAssignment = await context.tenantDb
 				.select({ id: serviceMembers.id })
 				.from(serviceMembers)

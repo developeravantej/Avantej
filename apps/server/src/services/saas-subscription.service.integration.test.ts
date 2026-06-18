@@ -42,7 +42,10 @@ describe("computeTierFromPriceId", () => {
 	});
 });
 
-function buildFakeSub(priceId: string, overrides: Partial<Record<string, unknown>> = {}) {
+function buildFakeSub(
+	priceId: string,
+	overrides: Partial<Record<string, unknown>> = {},
+) {
 	return {
 		id: TEST_SUB_ID,
 		customer: "cus_test_001",

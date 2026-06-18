@@ -1,0 +1,46 @@
+{
+	"verifyTopN": 6,
+	"domains": [
+		{
+			"id": "01-commission-engine",
+			"name": "Commission Rule Engine & Calculation",
+			"routers": [
+				"packages/api/src/routers/category-commission.ts",
+				"packages/api/src/routers/commission-splits/read.procedures.ts",
+				"packages/api/src/routers/commission-splits/analytics.procedures.ts"
+			],
+			"services": [
+				"packages/services/src/commission-math.ts",
+				"packages/services/src/commission-calculator.service.ts",
+				"packages/services/src/commission-splits.service.ts",
+				"packages/services/src/category-commission.service.ts",
+				"packages/services/src/trainer-tier.service.ts"
+			]
+		},
+		{
+			"id": "02-commission-lifecycle",
+			"name": "Commission Lifecycle (split creation, review/approve, void, reversal)",
+			"routers": [
+				"packages/api/src/routers/commission-splits/index.ts",
+				"packages/api/src/routers/commission-splits/lifecycle.procedures.ts",
+				"packages/api/src/routers/commission-splits/review.procedures.ts"
+			],
+			"services": [
+				"packages/services/src/refunds.service.ts",
+				"apps/server/src/services/payment-side-effects.service.ts",
+				"apps/server/src/services/reconciler.service.ts"
+			]
+		},
+		{
+			"id": "03-payouts",
+			"name": "Payouts (batches, KPIs, mark-paid, Stripe Connect)",
+			"routers": [
+				"packages/api/src/routers/payouts.ts",
+				"apps/server/src/routers/stripe-connect.ts"
+			],
+			"services": [
+				"packages/services/src/payouts.service.ts"
+			]
+		}
+	]
+}

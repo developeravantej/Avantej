@@ -1,2716 +1,2622 @@
 {
-  "id": "11febde0-74a6-4ccb-90a6-25d649457e9e",
-  "prevId": "479917bd-658d-4637-a62f-23737fa93395",
-  "version": "7",
-  "dialect": "postgresql",
-  "tables": {
-    "public.hierarchy_nodes": {
-      "name": "hierarchy_nodes",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "parent_id": {
-          "name": "parent_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "depth": {
-          "name": "depth",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "hierarchy_parent_idx": {
-          "name": "hierarchy_parent_idx",
-          "columns": [
-            {
-              "expression": "parent_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "hierarchy_type_idx": {
-          "name": "hierarchy_type_idx",
-          "columns": [
-            {
-              "expression": "type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "hierarchy_depth_idx": {
-          "name": "hierarchy_depth_idx",
-          "columns": [
-            {
-              "expression": "depth",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "hierarchy_nodes_parent_id_hierarchy_nodes_id_fk": {
-          "name": "hierarchy_nodes_parent_id_hierarchy_nodes_id_fk",
-          "tableFrom": "hierarchy_nodes",
-          "tableTo": "hierarchy_nodes",
-          "columnsFrom": [
-            "parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.members": {
-      "name": "members",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "role": {
-          "name": "role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "hierarchy_scope_id": {
-          "name": "hierarchy_scope_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "joined_at": {
-          "name": "joined_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "members_user_idx": {
-          "name": "members_user_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "members_hierarchy_idx": {
-          "name": "members_hierarchy_idx",
-          "columns": [
-            {
-              "expression": "hierarchy_scope_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "members_role_idx": {
-          "name": "members_role_idx",
-          "columns": [
-            {
-              "expression": "role",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "members_status_idx": {
-          "name": "members_status_idx",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "members_hierarchy_scope_id_hierarchy_nodes_id_fk": {
-          "name": "members_hierarchy_scope_id_hierarchy_nodes_id_fk",
-          "tableFrom": "members",
-          "tableTo": "hierarchy_nodes",
-          "columnsFrom": [
-            "hierarchy_scope_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.invitations": {
-      "name": "invitations",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "email": {
-          "name": "email",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "invited_by": {
-          "name": "invited_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "role": {
-          "name": "role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "hierarchy_scope_id": {
-          "name": "hierarchy_scope_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "token": {
-          "name": "token",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "invitations_email_status_idx": {
-          "name": "invitations_email_status_idx",
-          "columns": [
-            {
-              "expression": "email",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "invitations_expires_idx": {
-          "name": "invitations_expires_idx",
-          "columns": [
-            {
-              "expression": "expires_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "invitations_invited_by_idx": {
-          "name": "invitations_invited_by_idx",
-          "columns": [
-            {
-              "expression": "invited_by",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "invitations_hierarchy_scope_id_hierarchy_nodes_id_fk": {
-          "name": "invitations_hierarchy_scope_id_hierarchy_nodes_id_fk",
-          "tableFrom": "invitations",
-          "tableTo": "hierarchy_nodes",
-          "columnsFrom": [
-            "hierarchy_scope_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "invitations_token_unique": {
-          "name": "invitations_token_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.service_categories": {
-      "name": "service_categories",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "display_order": {
-          "name": "display_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "branch_id": {
-          "name": "branch_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "service_categories_branch_idx": {
-          "name": "service_categories_branch_idx",
-          "columns": [
-            {
-              "expression": "branch_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "service_categories_active_idx": {
-          "name": "service_categories_active_idx",
-          "columns": [
-            {
-              "expression": "is_active",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "service_categories_order_idx": {
-          "name": "service_categories_order_idx",
-          "columns": [
-            {
-              "expression": "display_order",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "service_categories_branch_id_hierarchy_nodes_id_fk": {
-          "name": "service_categories_branch_id_hierarchy_nodes_id_fk",
-          "tableFrom": "service_categories",
-          "tableTo": "hierarchy_nodes",
-          "columnsFrom": [
-            "branch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.services": {
-      "name": "services",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "category_id": {
-          "name": "category_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "duration": {
-          "name": "duration",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "duration_unit_type": {
-          "name": "duration_unit_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'minutes'"
-        },
-        "max_attendees": {
-          "name": "max_attendees",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "attendance_threshold": {
-          "name": "attendance_threshold",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "stripe_product_id": {
-          "name": "stripe_product_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "stripe_price_id": {
-          "name": "stripe_price_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "stripe_sync_status": {
-          "name": "stripe_sync_status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "stripe_last_synced_at": {
-          "name": "stripe_last_synced_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "branch_id": {
-          "name": "branch_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "services_category_idx": {
-          "name": "services_category_idx",
-          "columns": [
-            {
-              "expression": "category_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "services_branch_idx": {
-          "name": "services_branch_idx",
-          "columns": [
-            {
-              "expression": "branch_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "services_stripe_product_idx": {
-          "name": "services_stripe_product_idx",
-          "columns": [
-            {
-              "expression": "stripe_product_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "services_stripe_sync_status_idx": {
-          "name": "services_stripe_sync_status_idx",
-          "columns": [
-            {
-              "expression": "stripe_sync_status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "services_active_idx": {
-          "name": "services_active_idx",
-          "columns": [
-            {
-              "expression": "is_active",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "services_category_id_service_categories_id_fk": {
-          "name": "services_category_id_service_categories_id_fk",
-          "tableFrom": "services",
-          "tableTo": "service_categories",
-          "columnsFrom": [
-            "category_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "services_branch_id_hierarchy_nodes_id_fk": {
-          "name": "services_branch_id_hierarchy_nodes_id_fk",
-          "tableFrom": "services",
-          "tableTo": "hierarchy_nodes",
-          "columnsFrom": [
-            "branch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.service_commission_config": {
-      "name": "service_commission_config",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "service_id": {
-          "name": "service_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "commission_type": {
-          "name": "commission_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "fixed_amounts": {
-          "name": "fixed_amounts",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "staff_pool_percentage": {
-          "name": "staff_pool_percentage",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 100
-        },
-        "position_weightage": {
-          "name": "position_weightage",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "max_staff": {
-          "name": "max_staff",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 1
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "service_commission_config_service_idx": {
-          "name": "service_commission_config_service_idx",
-          "columns": [
-            {
-              "expression": "service_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "service_commission_config_service_id_services_id_fk": {
-          "name": "service_commission_config_service_id_services_id_fk",
-          "tableFrom": "service_commission_config",
-          "tableTo": "services",
-          "columnsFrom": [
-            "service_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "service_commission_config_service_id_unique": {
-          "name": "service_commission_config_service_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "service_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.service_rules": {
-      "name": "service_rules",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "service_id": {
-          "name": "service_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "require_advance_booking": {
-          "name": "require_advance_booking",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "min_advance_booking_duration": {
-          "name": "min_advance_booking_duration",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "min_advance_booking_unit_type": {
-          "name": "min_advance_booking_unit_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'hours'"
-        },
-        "enable_cancellation_window": {
-          "name": "enable_cancellation_window",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "cancellation_cutoff_duration": {
-          "name": "cancellation_cutoff_duration",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cancellation_cutoff_unit_type": {
-          "name": "cancellation_cutoff_unit_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'hours'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "service_rules_service_idx": {
-          "name": "service_rules_service_idx",
-          "columns": [
-            {
-              "expression": "service_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "service_rules_service_id_services_id_fk": {
-          "name": "service_rules_service_id_services_id_fk",
-          "tableFrom": "service_rules",
-          "tableTo": "services",
-          "columnsFrom": [
-            "service_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "service_rules_service_id_unique": {
-          "name": "service_rules_service_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "service_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.packages": {
-      "name": "packages",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "appointment_type": {
-          "name": "appointment_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cross_usage_enabled": {
-          "name": "cross_usage_enabled",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "session_count": {
-          "name": "session_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "price_per_session": {
-          "name": "price_per_session",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "max_clients_per_session": {
-          "name": "max_clients_per_session",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expiry_days": {
-          "name": "expiry_days",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "expiry_date": {
-          "name": "expiry_date",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "auto_generate_invoice": {
-          "name": "auto_generate_invoice",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "branch_id": {
-          "name": "branch_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "allowed_service_ids": {
-          "name": "allowed_service_ids",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_archived": {
-          "name": "is_archived",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "packages_branch_idx": {
-          "name": "packages_branch_idx",
-          "columns": [
-            {
-              "expression": "branch_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "packages_appointment_type_idx": {
-          "name": "packages_appointment_type_idx",
-          "columns": [
-            {
-              "expression": "appointment_type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "packages_archived_idx": {
-          "name": "packages_archived_idx",
-          "columns": [
-            {
-              "expression": "is_archived",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "packages_branch_id_hierarchy_nodes_id_fk": {
-          "name": "packages_branch_id_hierarchy_nodes_id_fk",
-          "tableFrom": "packages",
-          "tableTo": "hierarchy_nodes",
-          "columnsFrom": [
-            "branch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.package_assignments": {
-      "name": "package_assignments",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "package_id": {
-          "name": "package_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "client_id": {
-          "name": "client_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "assigned_by": {
-          "name": "assigned_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sessions_remaining": {
-          "name": "sessions_remaining",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sessions_used": {
-          "name": "sessions_used",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "expiry_date": {
-          "name": "expiry_date",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "payment_confirmed": {
-          "name": "payment_confirmed",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "package_assignments_package_idx": {
-          "name": "package_assignments_package_idx",
-          "columns": [
-            {
-              "expression": "package_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "package_assignments_client_idx": {
-          "name": "package_assignments_client_idx",
-          "columns": [
-            {
-              "expression": "client_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "package_assignments_expiry_idx": {
-          "name": "package_assignments_expiry_idx",
-          "columns": [
-            {
-              "expression": "expiry_date",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "package_assignments_client_expiry_idx": {
-          "name": "package_assignments_client_expiry_idx",
-          "columns": [
-            {
-              "expression": "client_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "expiry_date",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "package_assignments_package_id_packages_id_fk": {
-          "name": "package_assignments_package_id_packages_id_fk",
-          "tableFrom": "package_assignments",
-          "tableTo": "packages",
-          "columnsFrom": [
-            "package_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.appointments": {
-      "name": "appointments",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "start_time": {
-          "name": "start_time",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "duration": {
-          "name": "duration",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "end_time": {
-          "name": "end_time",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "service_id": {
-          "name": "service_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "branch_id": {
-          "name": "branch_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "session_total": {
-          "name": "session_total",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "price_per_client": {
-          "name": "price_per_client",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "is_recurring": {
-          "name": "is_recurring",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "recurring_parent_id": {
-          "name": "recurring_parent_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "recurring_frequency": {
-          "name": "recurring_frequency",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "recurring_end_date": {
-          "name": "recurring_end_date",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "conflict_resolved": {
-          "name": "conflict_resolved",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "conflict_reason": {
-          "name": "conflict_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "payment_status": {
-          "name": "payment_status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "stripe_payment_intent_id": {
-          "name": "stripe_payment_intent_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "notes": {
-          "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_by": {
-          "name": "created_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "appointments_branch_idx": {
-          "name": "appointments_branch_idx",
-          "columns": [
-            {
-              "expression": "branch_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "appointments_service_idx": {
-          "name": "appointments_service_idx",
-          "columns": [
-            {
-              "expression": "service_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "appointments_start_time_idx": {
-          "name": "appointments_start_time_idx",
-          "columns": [
-            {
-              "expression": "start_time",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "appointments_status_idx": {
-          "name": "appointments_status_idx",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "appointments_type_idx": {
-          "name": "appointments_type_idx",
-          "columns": [
-            {
-              "expression": "type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "appointments_recurring_idx": {
-          "name": "appointments_recurring_idx",
-          "columns": [
-            {
-              "expression": "recurring_parent_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "appointments_stripe_payment_idx": {
-          "name": "appointments_stripe_payment_idx",
-          "columns": [
-            {
-              "expression": "stripe_payment_intent_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "appointments_start_time_status_idx": {
-          "name": "appointments_start_time_status_idx",
-          "columns": [
-            {
-              "expression": "start_time",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "appointments_service_id_services_id_fk": {
-          "name": "appointments_service_id_services_id_fk",
-          "tableFrom": "appointments",
-          "tableTo": "services",
-          "columnsFrom": [
-            "service_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "appointments_branch_id_hierarchy_nodes_id_fk": {
-          "name": "appointments_branch_id_hierarchy_nodes_id_fk",
-          "tableFrom": "appointments",
-          "tableTo": "hierarchy_nodes",
-          "columnsFrom": [
-            "branch_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "appointments_recurring_parent_id_appointments_id_fk": {
-          "name": "appointments_recurring_parent_id_appointments_id_fk",
-          "tableFrom": "appointments",
-          "tableTo": "appointments",
-          "columnsFrom": [
-            "recurring_parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.appointment_clients": {
-      "name": "appointment_clients",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "appointment_id": {
-          "name": "appointment_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "client_id": {
-          "name": "client_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "package_assignment_id": {
-          "name": "package_assignment_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "price_paid": {
-          "name": "price_paid",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "attended": {
-          "name": "attended",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "notes": {
-          "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "appointment_clients_unique_idx": {
-          "name": "appointment_clients_unique_idx",
-          "columns": [
-            {
-              "expression": "appointment_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "client_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "appointment_clients_appointment_idx": {
-          "name": "appointment_clients_appointment_idx",
-          "columns": [
-            {
-              "expression": "appointment_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "appointment_clients_client_idx": {
-          "name": "appointment_clients_client_idx",
-          "columns": [
-            {
-              "expression": "client_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "appointment_clients_package_idx": {
-          "name": "appointment_clients_package_idx",
-          "columns": [
-            {
-              "expression": "package_assignment_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "appointment_clients_appointment_id_appointments_id_fk": {
-          "name": "appointment_clients_appointment_id_appointments_id_fk",
-          "tableFrom": "appointment_clients",
-          "tableTo": "appointments",
-          "columnsFrom": [
-            "appointment_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "appointment_clients_package_assignment_id_package_assignments_id_fk": {
-          "name": "appointment_clients_package_assignment_id_package_assignments_id_fk",
-          "tableFrom": "appointment_clients",
-          "tableTo": "package_assignments",
-          "columnsFrom": [
-            "package_assignment_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.appointment_staff": {
-      "name": "appointment_staff",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "appointment_id": {
-          "name": "appointment_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "staff_id": {
-          "name": "staff_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "appointment_staff_unique_idx": {
-          "name": "appointment_staff_unique_idx",
-          "columns": [
-            {
-              "expression": "appointment_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "staff_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "appointment_staff_appointment_idx": {
-          "name": "appointment_staff_appointment_idx",
-          "columns": [
-            {
-              "expression": "appointment_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "appointment_staff_staff_idx": {
-          "name": "appointment_staff_staff_idx",
-          "columns": [
-            {
-              "expression": "staff_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "appointment_staff_appointment_id_appointments_id_fk": {
-          "name": "appointment_staff_appointment_id_appointments_id_fk",
-          "tableFrom": "appointment_staff",
-          "tableTo": "appointments",
-          "columnsFrom": [
-            "appointment_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.commission_splits": {
-      "name": "commission_splits",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "appointment_id": {
-          "name": "appointment_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "staff_id": {
-          "name": "staff_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "split_percentage": {
-          "name": "split_percentage",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "calculated_amount": {
-          "name": "calculated_amount",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "notes": {
-          "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "commission_splits_unique_idx": {
-          "name": "commission_splits_unique_idx",
-          "columns": [
-            {
-              "expression": "appointment_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "staff_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "commission_splits_appointment_idx": {
-          "name": "commission_splits_appointment_idx",
-          "columns": [
-            {
-              "expression": "appointment_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "commission_splits_staff_idx": {
-          "name": "commission_splits_staff_idx",
-          "columns": [
-            {
-              "expression": "staff_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "commission_splits_appointment_id_appointments_id_fk": {
-          "name": "commission_splits_appointment_id_appointments_id_fk",
-          "tableFrom": "commission_splits",
-          "tableTo": "appointments",
-          "columnsFrom": [
-            "appointment_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.payments": {
-      "name": "payments",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "stripe_payment_intent_id": {
-          "name": "stripe_payment_intent_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "stripe_charge_id": {
-          "name": "stripe_charge_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "customer_id": {
-          "name": "customer_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "stripe_customer_id": {
-          "name": "stripe_customer_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "amount": {
-          "name": "amount",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tax_amount": {
-          "name": "tax_amount",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "total_amount": {
-          "name": "total_amount",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "currency": {
-          "name": "currency",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'usd'"
-        },
-        "platform_fee_amount": {
-          "name": "platform_fee_amount",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "platform_fee_percentage": {
-          "name": "platform_fee_percentage",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "franchiser_amount": {
-          "name": "franchiser_amount",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "appointment_id": {
-          "name": "appointment_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "metadata": {
-          "name": "metadata",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "payments_stripe_pi_idx": {
-          "name": "payments_stripe_pi_idx",
-          "columns": [
-            {
-              "expression": "stripe_payment_intent_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "payments_stripe_charge_idx": {
-          "name": "payments_stripe_charge_idx",
-          "columns": [
-            {
-              "expression": "stripe_charge_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "payments_customer_idx": {
-          "name": "payments_customer_idx",
-          "columns": [
-            {
-              "expression": "customer_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "payments_appointment_idx": {
-          "name": "payments_appointment_idx",
-          "columns": [
-            {
-              "expression": "appointment_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "payments_status_idx": {
-          "name": "payments_status_idx",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "payments_customer_status_idx": {
-          "name": "payments_customer_status_idx",
-          "columns": [
-            {
-              "expression": "customer_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "payments_appointment_id_appointments_id_fk": {
-          "name": "payments_appointment_id_appointments_id_fk",
-          "tableFrom": "payments",
-          "tableTo": "appointments",
-          "columnsFrom": [
-            "appointment_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "payments_stripe_payment_intent_id_unique": {
-          "name": "payments_stripe_payment_intent_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "stripe_payment_intent_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.partner_stripe_accounts": {
-      "name": "partner_stripe_accounts",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "partner_id": {
-          "name": "partner_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "stripe_connect_account_id": {
-          "name": "stripe_connect_account_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "stripe_connect_status": {
-          "name": "stripe_connect_status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'pending'"
-        },
-        "stripe_connect_account_type": {
-          "name": "stripe_connect_account_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'partner'"
-        },
-        "onboarding_url": {
-          "name": "onboarding_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "onboarding_completed_at": {
-          "name": "onboarding_completed_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bank_account_last_4": {
-          "name": "bank_account_last_4",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bank_account_type": {
-          "name": "bank_account_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "account_type": {
-          "name": "account_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'express'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "partner_stripe_accounts_partner_idx": {
-          "name": "partner_stripe_accounts_partner_idx",
-          "columns": [
-            {
-              "expression": "partner_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "partner_stripe_accounts_stripe_idx": {
-          "name": "partner_stripe_accounts_stripe_idx",
-          "columns": [
-            {
-              "expression": "stripe_connect_account_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "partner_stripe_accounts_status_idx": {
-          "name": "partner_stripe_accounts_status_idx",
-          "columns": [
-            {
-              "expression": "stripe_connect_status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "partner_stripe_accounts_partner_unique_idx": {
-          "name": "partner_stripe_accounts_partner_unique_idx",
-          "columns": [
-            {
-              "expression": "partner_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "partner_stripe_accounts_partner_id_members_user_id_fk": {
-          "name": "partner_stripe_accounts_partner_id_members_user_id_fk",
-          "tableFrom": "partner_stripe_accounts",
-          "tableTo": "members",
-          "columnsFrom": [
-            "partner_id"
-          ],
-          "columnsTo": [
-            "user_id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "partner_stripe_accounts_stripe_connect_account_id_unique": {
-          "name": "partner_stripe_accounts_stripe_connect_account_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "stripe_connect_account_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.payouts": {
-      "name": "payouts",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "stripe_transfer_id": {
-          "name": "stripe_transfer_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "stripe_payout_id": {
-          "name": "stripe_payout_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "recipient_id": {
-          "name": "recipient_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "stripe_connect_account_id": {
-          "name": "stripe_connect_account_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "appointment_id": {
-          "name": "appointment_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "commission_split_id": {
-          "name": "commission_split_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "amount": {
-          "name": "amount",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "currency": {
-          "name": "currency",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'usd'"
-        },
-        "payout_method": {
-          "name": "payout_method",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bank_account_last_4": {
-          "name": "bank_account_last_4",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "manual_payout_confirmed_at": {
-          "name": "manual_payout_confirmed_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "manual_payout_confirmed_by": {
-          "name": "manual_payout_confirmed_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "scheduled_at": {
-          "name": "scheduled_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "paid_at": {
-          "name": "paid_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "notes": {
-          "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "payouts_recipient_idx": {
-          "name": "payouts_recipient_idx",
-          "columns": [
-            {
-              "expression": "recipient_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "payouts_appointment_idx": {
-          "name": "payouts_appointment_idx",
-          "columns": [
-            {
-              "expression": "appointment_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "payouts_commission_split_idx": {
-          "name": "payouts_commission_split_idx",
-          "columns": [
-            {
-              "expression": "commission_split_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "payouts_stripe_transfer_idx": {
-          "name": "payouts_stripe_transfer_idx",
-          "columns": [
-            {
-              "expression": "stripe_transfer_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "payouts_stripe_payout_idx": {
-          "name": "payouts_stripe_payout_idx",
-          "columns": [
-            {
-              "expression": "stripe_payout_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "payouts_status_idx": {
-          "name": "payouts_status_idx",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "payouts_payout_method_idx": {
-          "name": "payouts_payout_method_idx",
-          "columns": [
-            {
-              "expression": "payout_method",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "payouts_recipient_status_idx": {
-          "name": "payouts_recipient_status_idx",
-          "columns": [
-            {
-              "expression": "recipient_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "payouts_appointment_id_appointments_id_fk": {
-          "name": "payouts_appointment_id_appointments_id_fk",
-          "tableFrom": "payouts",
-          "tableTo": "appointments",
-          "columnsFrom": [
-            "appointment_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "payouts_commission_split_id_commission_splits_id_fk": {
-          "name": "payouts_commission_split_id_commission_splits_id_fk",
-          "tableFrom": "payouts",
-          "tableTo": "commission_splits",
-          "columnsFrom": [
-            "commission_split_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    }
-  },
-  "enums": {},
-  "schemas": {},
-  "sequences": {},
-  "roles": {},
-  "policies": {},
-  "views": {},
-  "_meta": {
-    "columns": {},
-    "schemas": {},
-    "tables": {}
-  }
+	"id": "11febde0-74a6-4ccb-90a6-25d649457e9e",
+	"prevId": "479917bd-658d-4637-a62f-23737fa93395",
+	"version": "7",
+	"dialect": "postgresql",
+	"tables": {
+		"public.hierarchy_nodes": {
+			"name": "hierarchy_nodes",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"name": {
+					"name": "name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"type": {
+					"name": "type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"parent_id": {
+					"name": "parent_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"depth": {
+					"name": "depth",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"hierarchy_parent_idx": {
+					"name": "hierarchy_parent_idx",
+					"columns": [
+						{
+							"expression": "parent_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"hierarchy_type_idx": {
+					"name": "hierarchy_type_idx",
+					"columns": [
+						{
+							"expression": "type",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"hierarchy_depth_idx": {
+					"name": "hierarchy_depth_idx",
+					"columns": [
+						{
+							"expression": "depth",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"hierarchy_nodes_parent_id_hierarchy_nodes_id_fk": {
+					"name": "hierarchy_nodes_parent_id_hierarchy_nodes_id_fk",
+					"tableFrom": "hierarchy_nodes",
+					"tableTo": "hierarchy_nodes",
+					"columnsFrom": ["parent_id"],
+					"columnsTo": ["id"],
+					"onDelete": "restrict",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.members": {
+			"name": "members",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"user_id": {
+					"name": "user_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"role": {
+					"name": "role",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"hierarchy_scope_id": {
+					"name": "hierarchy_scope_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"status": {
+					"name": "status",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"joined_at": {
+					"name": "joined_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"members_user_idx": {
+					"name": "members_user_idx",
+					"columns": [
+						{
+							"expression": "user_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"members_hierarchy_idx": {
+					"name": "members_hierarchy_idx",
+					"columns": [
+						{
+							"expression": "hierarchy_scope_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"members_role_idx": {
+					"name": "members_role_idx",
+					"columns": [
+						{
+							"expression": "role",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"members_status_idx": {
+					"name": "members_status_idx",
+					"columns": [
+						{
+							"expression": "status",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"members_hierarchy_scope_id_hierarchy_nodes_id_fk": {
+					"name": "members_hierarchy_scope_id_hierarchy_nodes_id_fk",
+					"tableFrom": "members",
+					"tableTo": "hierarchy_nodes",
+					"columnsFrom": ["hierarchy_scope_id"],
+					"columnsTo": ["id"],
+					"onDelete": "restrict",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.invitations": {
+			"name": "invitations",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"email": {
+					"name": "email",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"invited_by": {
+					"name": "invited_by",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"role": {
+					"name": "role",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"hierarchy_scope_id": {
+					"name": "hierarchy_scope_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"token": {
+					"name": "token",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"status": {
+					"name": "status",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"expires_at": {
+					"name": "expires_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"invitations_email_status_idx": {
+					"name": "invitations_email_status_idx",
+					"columns": [
+						{
+							"expression": "email",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "status",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"invitations_expires_idx": {
+					"name": "invitations_expires_idx",
+					"columns": [
+						{
+							"expression": "expires_at",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"invitations_invited_by_idx": {
+					"name": "invitations_invited_by_idx",
+					"columns": [
+						{
+							"expression": "invited_by",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"invitations_hierarchy_scope_id_hierarchy_nodes_id_fk": {
+					"name": "invitations_hierarchy_scope_id_hierarchy_nodes_id_fk",
+					"tableFrom": "invitations",
+					"tableTo": "hierarchy_nodes",
+					"columnsFrom": ["hierarchy_scope_id"],
+					"columnsTo": ["id"],
+					"onDelete": "restrict",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {
+				"invitations_token_unique": {
+					"name": "invitations_token_unique",
+					"nullsNotDistinct": false,
+					"columns": ["token"]
+				}
+			},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.service_categories": {
+			"name": "service_categories",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"name": {
+					"name": "name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"display_order": {
+					"name": "display_order",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"branch_id": {
+					"name": "branch_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"is_active": {
+					"name": "is_active",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": true
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"service_categories_branch_idx": {
+					"name": "service_categories_branch_idx",
+					"columns": [
+						{
+							"expression": "branch_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"service_categories_active_idx": {
+					"name": "service_categories_active_idx",
+					"columns": [
+						{
+							"expression": "is_active",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"service_categories_order_idx": {
+					"name": "service_categories_order_idx",
+					"columns": [
+						{
+							"expression": "display_order",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"service_categories_branch_id_hierarchy_nodes_id_fk": {
+					"name": "service_categories_branch_id_hierarchy_nodes_id_fk",
+					"tableFrom": "service_categories",
+					"tableTo": "hierarchy_nodes",
+					"columnsFrom": ["branch_id"],
+					"columnsTo": ["id"],
+					"onDelete": "restrict",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.services": {
+			"name": "services",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"name": {
+					"name": "name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"category_id": {
+					"name": "category_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"duration": {
+					"name": "duration",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"duration_unit_type": {
+					"name": "duration_unit_type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'minutes'"
+				},
+				"max_attendees": {
+					"name": "max_attendees",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"attendance_threshold": {
+					"name": "attendance_threshold",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"stripe_product_id": {
+					"name": "stripe_product_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"stripe_price_id": {
+					"name": "stripe_price_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"stripe_sync_status": {
+					"name": "stripe_sync_status",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'pending'"
+				},
+				"stripe_last_synced_at": {
+					"name": "stripe_last_synced_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"branch_id": {
+					"name": "branch_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"is_active": {
+					"name": "is_active",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": true
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"services_category_idx": {
+					"name": "services_category_idx",
+					"columns": [
+						{
+							"expression": "category_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"services_branch_idx": {
+					"name": "services_branch_idx",
+					"columns": [
+						{
+							"expression": "branch_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"services_stripe_product_idx": {
+					"name": "services_stripe_product_idx",
+					"columns": [
+						{
+							"expression": "stripe_product_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"services_stripe_sync_status_idx": {
+					"name": "services_stripe_sync_status_idx",
+					"columns": [
+						{
+							"expression": "stripe_sync_status",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"services_active_idx": {
+					"name": "services_active_idx",
+					"columns": [
+						{
+							"expression": "is_active",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"services_category_id_service_categories_id_fk": {
+					"name": "services_category_id_service_categories_id_fk",
+					"tableFrom": "services",
+					"tableTo": "service_categories",
+					"columnsFrom": ["category_id"],
+					"columnsTo": ["id"],
+					"onDelete": "restrict",
+					"onUpdate": "no action"
+				},
+				"services_branch_id_hierarchy_nodes_id_fk": {
+					"name": "services_branch_id_hierarchy_nodes_id_fk",
+					"tableFrom": "services",
+					"tableTo": "hierarchy_nodes",
+					"columnsFrom": ["branch_id"],
+					"columnsTo": ["id"],
+					"onDelete": "restrict",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.service_commission_config": {
+			"name": "service_commission_config",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"service_id": {
+					"name": "service_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"commission_type": {
+					"name": "commission_type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"fixed_amounts": {
+					"name": "fixed_amounts",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"staff_pool_percentage": {
+					"name": "staff_pool_percentage",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 100
+				},
+				"position_weightage": {
+					"name": "position_weightage",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"max_staff": {
+					"name": "max_staff",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 1
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"service_commission_config_service_idx": {
+					"name": "service_commission_config_service_idx",
+					"columns": [
+						{
+							"expression": "service_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"service_commission_config_service_id_services_id_fk": {
+					"name": "service_commission_config_service_id_services_id_fk",
+					"tableFrom": "service_commission_config",
+					"tableTo": "services",
+					"columnsFrom": ["service_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {
+				"service_commission_config_service_id_unique": {
+					"name": "service_commission_config_service_id_unique",
+					"nullsNotDistinct": false,
+					"columns": ["service_id"]
+				}
+			},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.service_rules": {
+			"name": "service_rules",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"service_id": {
+					"name": "service_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"require_advance_booking": {
+					"name": "require_advance_booking",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": false
+				},
+				"min_advance_booking_duration": {
+					"name": "min_advance_booking_duration",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"min_advance_booking_unit_type": {
+					"name": "min_advance_booking_unit_type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"default": "'hours'"
+				},
+				"enable_cancellation_window": {
+					"name": "enable_cancellation_window",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": false
+				},
+				"cancellation_cutoff_duration": {
+					"name": "cancellation_cutoff_duration",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"cancellation_cutoff_unit_type": {
+					"name": "cancellation_cutoff_unit_type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"default": "'hours'"
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"service_rules_service_idx": {
+					"name": "service_rules_service_idx",
+					"columns": [
+						{
+							"expression": "service_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"service_rules_service_id_services_id_fk": {
+					"name": "service_rules_service_id_services_id_fk",
+					"tableFrom": "service_rules",
+					"tableTo": "services",
+					"columnsFrom": ["service_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {
+				"service_rules_service_id_unique": {
+					"name": "service_rules_service_id_unique",
+					"nullsNotDistinct": false,
+					"columns": ["service_id"]
+				}
+			},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.packages": {
+			"name": "packages",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"name": {
+					"name": "name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"appointment_type": {
+					"name": "appointment_type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"cross_usage_enabled": {
+					"name": "cross_usage_enabled",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": false
+				},
+				"session_count": {
+					"name": "session_count",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"price_per_session": {
+					"name": "price_per_session",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"max_clients_per_session": {
+					"name": "max_clients_per_session",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"expiry_days": {
+					"name": "expiry_days",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"expiry_date": {
+					"name": "expiry_date",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"auto_generate_invoice": {
+					"name": "auto_generate_invoice",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": false
+				},
+				"branch_id": {
+					"name": "branch_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"allowed_service_ids": {
+					"name": "allowed_service_ids",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"is_archived": {
+					"name": "is_archived",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"packages_branch_idx": {
+					"name": "packages_branch_idx",
+					"columns": [
+						{
+							"expression": "branch_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"packages_appointment_type_idx": {
+					"name": "packages_appointment_type_idx",
+					"columns": [
+						{
+							"expression": "appointment_type",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"packages_archived_idx": {
+					"name": "packages_archived_idx",
+					"columns": [
+						{
+							"expression": "is_archived",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"packages_branch_id_hierarchy_nodes_id_fk": {
+					"name": "packages_branch_id_hierarchy_nodes_id_fk",
+					"tableFrom": "packages",
+					"tableTo": "hierarchy_nodes",
+					"columnsFrom": ["branch_id"],
+					"columnsTo": ["id"],
+					"onDelete": "restrict",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.package_assignments": {
+			"name": "package_assignments",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"package_id": {
+					"name": "package_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"client_id": {
+					"name": "client_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"assigned_by": {
+					"name": "assigned_by",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"sessions_remaining": {
+					"name": "sessions_remaining",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"sessions_used": {
+					"name": "sessions_used",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"expiry_date": {
+					"name": "expiry_date",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"payment_confirmed": {
+					"name": "payment_confirmed",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"package_assignments_package_idx": {
+					"name": "package_assignments_package_idx",
+					"columns": [
+						{
+							"expression": "package_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"package_assignments_client_idx": {
+					"name": "package_assignments_client_idx",
+					"columns": [
+						{
+							"expression": "client_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"package_assignments_expiry_idx": {
+					"name": "package_assignments_expiry_idx",
+					"columns": [
+						{
+							"expression": "expiry_date",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"package_assignments_client_expiry_idx": {
+					"name": "package_assignments_client_expiry_idx",
+					"columns": [
+						{
+							"expression": "client_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "expiry_date",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"package_assignments_package_id_packages_id_fk": {
+					"name": "package_assignments_package_id_packages_id_fk",
+					"tableFrom": "package_assignments",
+					"tableTo": "packages",
+					"columnsFrom": ["package_id"],
+					"columnsTo": ["id"],
+					"onDelete": "restrict",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.appointments": {
+			"name": "appointments",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"type": {
+					"name": "type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"start_time": {
+					"name": "start_time",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"duration": {
+					"name": "duration",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"end_time": {
+					"name": "end_time",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"service_id": {
+					"name": "service_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"branch_id": {
+					"name": "branch_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"status": {
+					"name": "status",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"session_total": {
+					"name": "session_total",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"price_per_client": {
+					"name": "price_per_client",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"is_recurring": {
+					"name": "is_recurring",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": false
+				},
+				"recurring_parent_id": {
+					"name": "recurring_parent_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"recurring_frequency": {
+					"name": "recurring_frequency",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"recurring_end_date": {
+					"name": "recurring_end_date",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"conflict_resolved": {
+					"name": "conflict_resolved",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": false
+				},
+				"conflict_reason": {
+					"name": "conflict_reason",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"payment_status": {
+					"name": "payment_status",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'pending'"
+				},
+				"stripe_payment_intent_id": {
+					"name": "stripe_payment_intent_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"notes": {
+					"name": "notes",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_by": {
+					"name": "created_by",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"appointments_branch_idx": {
+					"name": "appointments_branch_idx",
+					"columns": [
+						{
+							"expression": "branch_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"appointments_service_idx": {
+					"name": "appointments_service_idx",
+					"columns": [
+						{
+							"expression": "service_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"appointments_start_time_idx": {
+					"name": "appointments_start_time_idx",
+					"columns": [
+						{
+							"expression": "start_time",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"appointments_status_idx": {
+					"name": "appointments_status_idx",
+					"columns": [
+						{
+							"expression": "status",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"appointments_type_idx": {
+					"name": "appointments_type_idx",
+					"columns": [
+						{
+							"expression": "type",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"appointments_recurring_idx": {
+					"name": "appointments_recurring_idx",
+					"columns": [
+						{
+							"expression": "recurring_parent_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"appointments_stripe_payment_idx": {
+					"name": "appointments_stripe_payment_idx",
+					"columns": [
+						{
+							"expression": "stripe_payment_intent_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"appointments_start_time_status_idx": {
+					"name": "appointments_start_time_status_idx",
+					"columns": [
+						{
+							"expression": "start_time",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "status",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"appointments_service_id_services_id_fk": {
+					"name": "appointments_service_id_services_id_fk",
+					"tableFrom": "appointments",
+					"tableTo": "services",
+					"columnsFrom": ["service_id"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				},
+				"appointments_branch_id_hierarchy_nodes_id_fk": {
+					"name": "appointments_branch_id_hierarchy_nodes_id_fk",
+					"tableFrom": "appointments",
+					"tableTo": "hierarchy_nodes",
+					"columnsFrom": ["branch_id"],
+					"columnsTo": ["id"],
+					"onDelete": "restrict",
+					"onUpdate": "no action"
+				},
+				"appointments_recurring_parent_id_appointments_id_fk": {
+					"name": "appointments_recurring_parent_id_appointments_id_fk",
+					"tableFrom": "appointments",
+					"tableTo": "appointments",
+					"columnsFrom": ["recurring_parent_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.appointment_clients": {
+			"name": "appointment_clients",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"appointment_id": {
+					"name": "appointment_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"client_id": {
+					"name": "client_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"package_assignment_id": {
+					"name": "package_assignment_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"price_paid": {
+					"name": "price_paid",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"attended": {
+					"name": "attended",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"notes": {
+					"name": "notes",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"appointment_clients_unique_idx": {
+					"name": "appointment_clients_unique_idx",
+					"columns": [
+						{
+							"expression": "appointment_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "client_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"appointment_clients_appointment_idx": {
+					"name": "appointment_clients_appointment_idx",
+					"columns": [
+						{
+							"expression": "appointment_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"appointment_clients_client_idx": {
+					"name": "appointment_clients_client_idx",
+					"columns": [
+						{
+							"expression": "client_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"appointment_clients_package_idx": {
+					"name": "appointment_clients_package_idx",
+					"columns": [
+						{
+							"expression": "package_assignment_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"appointment_clients_appointment_id_appointments_id_fk": {
+					"name": "appointment_clients_appointment_id_appointments_id_fk",
+					"tableFrom": "appointment_clients",
+					"tableTo": "appointments",
+					"columnsFrom": ["appointment_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				},
+				"appointment_clients_package_assignment_id_package_assignments_id_fk": {
+					"name": "appointment_clients_package_assignment_id_package_assignments_id_fk",
+					"tableFrom": "appointment_clients",
+					"tableTo": "package_assignments",
+					"columnsFrom": ["package_assignment_id"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.appointment_staff": {
+			"name": "appointment_staff",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"appointment_id": {
+					"name": "appointment_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"staff_id": {
+					"name": "staff_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"appointment_staff_unique_idx": {
+					"name": "appointment_staff_unique_idx",
+					"columns": [
+						{
+							"expression": "appointment_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "staff_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"appointment_staff_appointment_idx": {
+					"name": "appointment_staff_appointment_idx",
+					"columns": [
+						{
+							"expression": "appointment_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"appointment_staff_staff_idx": {
+					"name": "appointment_staff_staff_idx",
+					"columns": [
+						{
+							"expression": "staff_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"appointment_staff_appointment_id_appointments_id_fk": {
+					"name": "appointment_staff_appointment_id_appointments_id_fk",
+					"tableFrom": "appointment_staff",
+					"tableTo": "appointments",
+					"columnsFrom": ["appointment_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.commission_splits": {
+			"name": "commission_splits",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"appointment_id": {
+					"name": "appointment_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"staff_id": {
+					"name": "staff_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"split_percentage": {
+					"name": "split_percentage",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"calculated_amount": {
+					"name": "calculated_amount",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"notes": {
+					"name": "notes",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"commission_splits_unique_idx": {
+					"name": "commission_splits_unique_idx",
+					"columns": [
+						{
+							"expression": "appointment_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "staff_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"commission_splits_appointment_idx": {
+					"name": "commission_splits_appointment_idx",
+					"columns": [
+						{
+							"expression": "appointment_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"commission_splits_staff_idx": {
+					"name": "commission_splits_staff_idx",
+					"columns": [
+						{
+							"expression": "staff_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"commission_splits_appointment_id_appointments_id_fk": {
+					"name": "commission_splits_appointment_id_appointments_id_fk",
+					"tableFrom": "commission_splits",
+					"tableTo": "appointments",
+					"columnsFrom": ["appointment_id"],
+					"columnsTo": ["id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.payments": {
+			"name": "payments",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"stripe_payment_intent_id": {
+					"name": "stripe_payment_intent_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"stripe_charge_id": {
+					"name": "stripe_charge_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"customer_id": {
+					"name": "customer_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"stripe_customer_id": {
+					"name": "stripe_customer_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"amount": {
+					"name": "amount",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"tax_amount": {
+					"name": "tax_amount",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"total_amount": {
+					"name": "total_amount",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"currency": {
+					"name": "currency",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'usd'"
+				},
+				"platform_fee_amount": {
+					"name": "platform_fee_amount",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"platform_fee_percentage": {
+					"name": "platform_fee_percentage",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 0
+				},
+				"franchiser_amount": {
+					"name": "franchiser_amount",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"status": {
+					"name": "status",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"appointment_id": {
+					"name": "appointment_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"description": {
+					"name": "description",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"metadata": {
+					"name": "metadata",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"payments_stripe_pi_idx": {
+					"name": "payments_stripe_pi_idx",
+					"columns": [
+						{
+							"expression": "stripe_payment_intent_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"payments_stripe_charge_idx": {
+					"name": "payments_stripe_charge_idx",
+					"columns": [
+						{
+							"expression": "stripe_charge_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"payments_customer_idx": {
+					"name": "payments_customer_idx",
+					"columns": [
+						{
+							"expression": "customer_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"payments_appointment_idx": {
+					"name": "payments_appointment_idx",
+					"columns": [
+						{
+							"expression": "appointment_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"payments_status_idx": {
+					"name": "payments_status_idx",
+					"columns": [
+						{
+							"expression": "status",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"payments_customer_status_idx": {
+					"name": "payments_customer_status_idx",
+					"columns": [
+						{
+							"expression": "customer_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "status",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"payments_appointment_id_appointments_id_fk": {
+					"name": "payments_appointment_id_appointments_id_fk",
+					"tableFrom": "payments",
+					"tableTo": "appointments",
+					"columnsFrom": ["appointment_id"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {
+				"payments_stripe_payment_intent_id_unique": {
+					"name": "payments_stripe_payment_intent_id_unique",
+					"nullsNotDistinct": false,
+					"columns": ["stripe_payment_intent_id"]
+				}
+			},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.partner_stripe_accounts": {
+			"name": "partner_stripe_accounts",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"partner_id": {
+					"name": "partner_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"stripe_connect_account_id": {
+					"name": "stripe_connect_account_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"stripe_connect_status": {
+					"name": "stripe_connect_status",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'pending'"
+				},
+				"stripe_connect_account_type": {
+					"name": "stripe_connect_account_type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'partner'"
+				},
+				"onboarding_url": {
+					"name": "onboarding_url",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"onboarding_completed_at": {
+					"name": "onboarding_completed_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"bank_account_last_4": {
+					"name": "bank_account_last_4",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"bank_account_type": {
+					"name": "bank_account_type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"account_type": {
+					"name": "account_type",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'express'"
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"partner_stripe_accounts_partner_idx": {
+					"name": "partner_stripe_accounts_partner_idx",
+					"columns": [
+						{
+							"expression": "partner_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"partner_stripe_accounts_stripe_idx": {
+					"name": "partner_stripe_accounts_stripe_idx",
+					"columns": [
+						{
+							"expression": "stripe_connect_account_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"partner_stripe_accounts_status_idx": {
+					"name": "partner_stripe_accounts_status_idx",
+					"columns": [
+						{
+							"expression": "stripe_connect_status",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"partner_stripe_accounts_partner_unique_idx": {
+					"name": "partner_stripe_accounts_partner_unique_idx",
+					"columns": [
+						{
+							"expression": "partner_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": true,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"partner_stripe_accounts_partner_id_members_user_id_fk": {
+					"name": "partner_stripe_accounts_partner_id_members_user_id_fk",
+					"tableFrom": "partner_stripe_accounts",
+					"tableTo": "members",
+					"columnsFrom": ["partner_id"],
+					"columnsTo": ["user_id"],
+					"onDelete": "cascade",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {
+				"partner_stripe_accounts_stripe_connect_account_id_unique": {
+					"name": "partner_stripe_accounts_stripe_connect_account_id_unique",
+					"nullsNotDistinct": false,
+					"columns": ["stripe_connect_account_id"]
+				}
+			},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		},
+		"public.payouts": {
+			"name": "payouts",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "uuid",
+					"primaryKey": true,
+					"notNull": true,
+					"default": "gen_random_uuid()"
+				},
+				"stripe_transfer_id": {
+					"name": "stripe_transfer_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"stripe_payout_id": {
+					"name": "stripe_payout_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"recipient_id": {
+					"name": "recipient_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"stripe_connect_account_id": {
+					"name": "stripe_connect_account_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"appointment_id": {
+					"name": "appointment_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"commission_split_id": {
+					"name": "commission_split_id",
+					"type": "uuid",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"amount": {
+					"name": "amount",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"currency": {
+					"name": "currency",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'usd'"
+				},
+				"payout_method": {
+					"name": "payout_method",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"bank_account_last_4": {
+					"name": "bank_account_last_4",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"manual_payout_confirmed_at": {
+					"name": "manual_payout_confirmed_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"manual_payout_confirmed_by": {
+					"name": "manual_payout_confirmed_by",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"status": {
+					"name": "status",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"scheduled_at": {
+					"name": "scheduled_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"paid_at": {
+					"name": "paid_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"description": {
+					"name": "description",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"notes": {
+					"name": "notes",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {
+				"payouts_recipient_idx": {
+					"name": "payouts_recipient_idx",
+					"columns": [
+						{
+							"expression": "recipient_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"payouts_appointment_idx": {
+					"name": "payouts_appointment_idx",
+					"columns": [
+						{
+							"expression": "appointment_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"payouts_commission_split_idx": {
+					"name": "payouts_commission_split_idx",
+					"columns": [
+						{
+							"expression": "commission_split_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"payouts_stripe_transfer_idx": {
+					"name": "payouts_stripe_transfer_idx",
+					"columns": [
+						{
+							"expression": "stripe_transfer_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"payouts_stripe_payout_idx": {
+					"name": "payouts_stripe_payout_idx",
+					"columns": [
+						{
+							"expression": "stripe_payout_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"payouts_status_idx": {
+					"name": "payouts_status_idx",
+					"columns": [
+						{
+							"expression": "status",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"payouts_payout_method_idx": {
+					"name": "payouts_payout_method_idx",
+					"columns": [
+						{
+							"expression": "payout_method",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				},
+				"payouts_recipient_status_idx": {
+					"name": "payouts_recipient_status_idx",
+					"columns": [
+						{
+							"expression": "recipient_id",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						},
+						{
+							"expression": "status",
+							"isExpression": false,
+							"asc": true,
+							"nulls": "last"
+						}
+					],
+					"isUnique": false,
+					"concurrently": false,
+					"method": "btree",
+					"with": {}
+				}
+			},
+			"foreignKeys": {
+				"payouts_appointment_id_appointments_id_fk": {
+					"name": "payouts_appointment_id_appointments_id_fk",
+					"tableFrom": "payouts",
+					"tableTo": "appointments",
+					"columnsFrom": ["appointment_id"],
+					"columnsTo": ["id"],
+					"onDelete": "restrict",
+					"onUpdate": "no action"
+				},
+				"payouts_commission_split_id_commission_splits_id_fk": {
+					"name": "payouts_commission_split_id_commission_splits_id_fk",
+					"tableFrom": "payouts",
+					"tableTo": "commission_splits",
+					"columnsFrom": ["commission_split_id"],
+					"columnsTo": ["id"],
+					"onDelete": "set null",
+					"onUpdate": "no action"
+				}
+			},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
+		}
+	},
+	"enums": {},
+	"schemas": {},
+	"sequences": {},
+	"roles": {},
+	"policies": {},
+	"views": {},
+	"_meta": {
+		"columns": {},
+		"schemas": {},
+		"tables": {}
+	}
 }

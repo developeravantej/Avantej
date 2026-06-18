@@ -1,30 +1,44 @@
-import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	useNavigate,
+	useSearch,
+} from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
 import { AcceptInvitationSignupCard } from "./accept-invitation-signup-card";
 
+import { z } from "zod";
+
 export const Route = createFileRoute("/accept-invitation")({
 	component: AcceptInvitationPage,
-	validateSearch: (search: Record<string, unknown>) => {
-		return {
-			token: (search.token as string) || "",
-			orgId: (search.orgId as string) || "",
-		};
-	},
+	validateSearch: z.object({
+		token: z.string().catch(""),
+		orgId: z.string().catch(""),
+	}),
 });
 
 // react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 function AcceptInvitationPage() {
 	const { token, orgId } = useSearch({ from: "/accept-invitation" });
 	const navigate = useNavigate();
-	const { data: session, isPending: isSessionLoading, refetch: _refetchSession } = authClient.useSession();
+	const {
+		data: session,
+		isPending: isSessionLoading,
+		refetch: _refetchSession,
+	} = authClient.useSession();
 
 	// Fetch invitation details
 	const {
@@ -80,8 +94,14 @@ function AcceptInvitationPage() {
 			if (error.message.includes("UNAUTHORIZED")) {
 				return "Please sign up or log in to accept this invitation";
 			}
-			if (error.message.includes("different email address") || error.message.includes("sent to")) {
-				return error.message || "This invitation was sent to a different email address";
+			if (
+				error.message.includes("different email address") ||
+				error.message.includes("sent to")
+			) {
+				return (
+					error.message ||
+					"This invitation was sent to a different email address"
+				);
 			}
 			return `Failed to accept invitation: ${error.message}`;
 		},
@@ -125,7 +145,7 @@ function AcceptInvitationPage() {
 				// Email mismatch — show a user-facing warning instead of silently ignoring
 				toast.warning(
 					`This invitation was sent to ${invitation?.email}. You're signed in as ${session.user.email}. Please sign out and use the correct email.`,
-					{ duration: 10000 }
+					{ duration: 10000 },
 				);
 			}
 		}
@@ -231,7 +251,9 @@ function AcceptInvitationPage() {
 				setConfirmPassword={setConfirmPassword}
 				onSubmit={handleSubmitSignup}
 				isPending={acceptWithSignupMutation.isPending}
-				onLoginInstead={() => navigate({ to: "/login", search: { invitationToken: token, orgId } })}
+				onLoginInstead={() =>
+					navigate({ to: "/login", search: { invitationToken: token, orgId } })
+				}
 			/>
 		);
 	}

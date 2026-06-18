@@ -1,0 +1,6 @@
+{
+  "route": "/dashboard/settings/organization",
+  "module": "settings",
+  "timedOut": true,
+  "findings": []
+}

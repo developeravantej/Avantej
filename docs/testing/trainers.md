@@ -89,7 +89,7 @@ Switch to the seeded `trainer.deterministic@test.com` trainer (already has Mon�
 
 ## §4 — Category Buffer Times (per-service) overrides (T4, T5)
 
-Uses admin → `serviceMembers.updateBuffer` path. The "Category Buffer Times" section is actually **per-service** (heading is a misnomer — see `zhub/pages/web-dashboard-trainers-view.md`). Overrides set here are reversed in §6 Cleanup.
+Uses admin → `serviceMembers.updateBuffer` path. The "Category Buffer Times" section is actually **per-service** (heading is a misnomer — see the trainers view route source under `apps/web/src/routes/`). Overrides set here are reversed in §6 Cleanup.
 
 Target service: `E2E Test Session` (resolved as `serviceId`). Target member: `trainer.deterministic@test.com` (resolved as `trainerMemberId`).
 

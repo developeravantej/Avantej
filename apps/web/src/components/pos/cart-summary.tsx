@@ -1,12 +1,14 @@
 import { ShoppingCart } from "lucide-react";
 import { formatPrice } from "@/lib/money";
-import type { CartItem } from "./types";
+import type { CartItem, PaymentMethod } from "./types";
 
 interface CartSummaryProps {
 	items: CartItem[];
 	discountCents: number;
 	taxRateBps: number;
-	paymentMethod: "cash" | "card" | "bank_transfer" | "online" | null;
+	/** When an instalment plan is selected, pass the first-instalment amount so change-due is correct. */
+	dueNowCents?: number;
+	paymentMethod: PaymentMethod | null;
 	amountTenderedCents: number;
 }
 
@@ -29,6 +31,7 @@ export function CartSummary({
 	items,
 	discountCents,
 	taxRateBps,
+	dueNowCents,
 	paymentMethod,
 	amountTenderedCents,
 }: CartSummaryProps) {
@@ -37,9 +40,11 @@ export function CartSummary({
 		discountCents,
 		taxRateBps,
 	);
+	// FE-C2: use dueNowCents (instalment first payment) for change-due, fall back to full total
+	const effectiveDueCents = dueNowCents ?? totalCents;
 	const changeDueCents =
-		paymentMethod === "cash" && amountTenderedCents >= totalCents
-			? amountTenderedCents - totalCents
+		paymentMethod === "cash" && amountTenderedCents >= effectiveDueCents
+			? amountTenderedCents - effectiveDueCents
 			: null;
 
 	return (

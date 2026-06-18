@@ -1,0 +1,6 @@
+{
+  "route": "/dashboard/settings/notifications",
+  "module": "settings",
+  "timedOut": true,
+  "findings": []
+}

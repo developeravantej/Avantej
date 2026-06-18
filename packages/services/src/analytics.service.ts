@@ -8,6 +8,7 @@ import { commissionSplits } from "@avantej-core/db/schema/tenant/commission-spli
 import { classSlots } from "@avantej-core/db/schema/tenant/class-slots";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { resolveBranchFilter } from "./hierarchy-scope";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 
@@ -39,9 +40,9 @@ export interface DashboardKpisResult {
 	activeMembersCount: number;
 	revenueByBranch: RevenueByBranch[];
 	// ── New scalars ─────────────────────────────────────────────
-	churnRatePct: number;       // % of active members who lapsed during the period
-	avgLtvCents: number;        // running avg cumulative spend per customer up to period end
-	classFillRatePct: number;   // spotsBooked / capacity * 100 for the period
+	churnRatePct: number; // % of active members who lapsed during the period
+	avgLtvCents: number; // running avg cumulative spend per customer up to period end
+	classFillRatePct: number; // spotsBooked / capacity * 100 for the period
 }
 
 export interface RevenueSeriesParams {
@@ -62,11 +63,11 @@ export interface StaffPerformanceParams {
 }
 
 export interface StaffPerformanceRow {
-	staffId: string;          // members.userId (text)
-	memberId: string;         // members.id (uuid)
+	staffId: string; // members.userId (text)
+	memberId: string; // members.id (uuid)
 	staffName: string | null; // resolved from member_profiles.display_name; null if no profile row
 	appointmentsCompleted: number;
-	totalCommission: number;  // cents
+	totalCommission: number; // cents
 }
 
 // Helper to compute from/to dates for a period
@@ -112,11 +113,9 @@ function getPeriodDates(
 	}
 	// custom — use provided dates or fallback to this_month
 	return {
-		from:
-			from ?? new Date(now.getFullYear(), now.getMonth(), 1),
+		from: from ?? new Date(now.getFullYear(), now.getMonth(), 1),
 		to:
-			to ??
-			new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999),
+			to ?? new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999),
 	};
 }
 
@@ -126,10 +125,7 @@ export async function getDashboardKpis(
 ): Promise<DashboardKpisResult> {
 	const { from, to } = getPeriodDates(params.period, params.from, params.to);
 	const nodeIds = params.accessibleNodeIds;
-
-	// If branchId specified and in accessible nodes — use just that branch
-	// Else use all accessible nodes
-	const branchFilter = params.branchId ? [params.branchId] : nodeIds;
+	const branchFilter = resolveBranchFilter(params.branchId, nodeIds);
 
 	// 1. Sales metrics
 	const salesResult = await tenantDb
@@ -201,9 +197,7 @@ export async function getDashboardKpis(
 
 	// 3. Active members count (scoped to hierarchy nodes)
 	const memberFilter =
-		nodeIds.length > 0
-			? inArray(members.hierarchyScopeId, nodeIds)
-			: undefined;
+		nodeIds.length > 0 ? inArray(members.hierarchyScopeId, nodeIds) : undefined;
 
 	const membersResult = await tenantDb
 		.select({ activeCount: count() })
@@ -214,6 +208,18 @@ export async function getDashboardKpis(
 	// "lapsed" = a customer_profile that had at least one active package that expired in [from, to]
 	//            AND has no active package starting on or after the expiry date.
 	// active_at_start = customer_profiles with an active package that started before `from`.
+	// NAP-03: scope customer_profiles to those with at least one sales_order in accessible branches.
+	const churnBranchClause =
+		nodeIds.length > 0
+			? sql`AND cp.user_id IN (
+				SELECT DISTINCT so.customer_id FROM sales_orders so
+				WHERE so.branch_id = ANY(ARRAY[${sql.join(
+					nodeIds.map((id) => sql`${id}::uuid`),
+					sql`, `,
+				)}])
+			  )`
+			: sql``;
+
 	const churnResult = await tenantDb.execute<{ churn_pct: string }>(sql`
 		WITH active_at_start AS (
 			SELECT DISTINCT cp.id AS customer_id
@@ -221,6 +227,7 @@ export async function getDashboardKpis(
 			JOIN package_instances pi ON pi.client_id = cp.user_id
 			WHERE pi.status = 'active'
 			  AND pi.starts_at < ${from}
+			  ${churnBranchClause}
 		),
 		lapsed AS (
 			SELECT DISTINCT cp.id AS customer_id
@@ -234,6 +241,7 @@ export async function getDashboardKpis(
 			        AND pi2.status = 'active'
 			        AND pi2.starts_at >= pi.expires_at
 			  )
+			  ${churnBranchClause}
 		)
 		SELECT
 			CASE WHEN COUNT(a.customer_id) = 0 THEN 0
@@ -245,6 +253,15 @@ export async function getDashboardKpis(
 	const churnRatePct = Number(churnResult.rows[0]?.churn_pct ?? 0);
 
 	// 3c. Avg LTV — average cumulative spend per customer with at least one order on/before `to`
+	// NAP-03: scope to accessible branches via sales_orders.branch_id filter.
+	const ltvBranchClause =
+		nodeIds.length > 0
+			? sql`AND branch_id = ANY(ARRAY[${sql.join(
+					nodeIds.map((id) => sql`${id}::uuid`),
+					sql`, `,
+				)}])`
+			: sql``;
+
 	const ltvResult = await tenantDb.execute<{ avg_ltv: string }>(sql`
 		SELECT ROUND(AVG(customer_total)::numeric, 0) AS avg_ltv
 		FROM (
@@ -252,6 +269,7 @@ export async function getDashboardKpis(
 			FROM sales_orders
 			WHERE date <= ${to}
 			  AND status IN ('confirmed', 'completed')
+			  ${ltvBranchClause}
 			GROUP BY customer_id
 		) t
 	`);
@@ -277,9 +295,7 @@ export async function getDashboardKpis(
 	const totalBooked = Number(fillDrizzle[0]?.spotsBooked ?? 0);
 	const totalCap = Number(fillDrizzle[0]?.capacity ?? 0);
 	const classFillRatePct =
-		totalCap > 0
-			? Math.round((totalBooked / totalCap) * 1000) / 10
-			: 0;
+		totalCap > 0 ? Math.round((totalBooked / totalCap) * 1000) / 10 : 0;
 
 	// 4. Revenue by branch (join with hierarchyNodes for branch names)
 	const revByBranch = await tenantDb
@@ -332,7 +348,7 @@ export async function getStaffPerformance(
 ): Promise<StaffPerformanceRow[]> {
 	const { from, to } = getPeriodDates(params.period);
 	const nodeIds = params.accessibleNodeIds;
-	const branchFilter = params.branchId ? [params.branchId] : nodeIds;
+	const branchFilter = resolveBranchFilter(params.branchId, nodeIds);
 
 	// Get completed appointments with commissions
 	// commissionSplits.staffId = members.userId (text reference, no FK)
@@ -408,7 +424,7 @@ export async function getRevenueSeries(
 ): Promise<RevenueSeriesPoint[]> {
 	const days = Math.max(1, Math.min(params.days, 365));
 	const nodeIds = params.accessibleNodeIds;
-	const branchFilter = params.branchId ? [params.branchId] : nodeIds;
+	const branchFilter = resolveBranchFilter(params.branchId, nodeIds);
 
 	const now = new Date();
 	const to = new Date(now);
@@ -508,9 +524,26 @@ export async function getMemberCountSeries(
 	params: TimeSeriesParams,
 ): Promise<MemberCountPoint[]> {
 	const { from, to } = buildDateSpine(params.days);
+	const nodeIds = params.accessibleNodeIds;
+
+	// NAP-03: when scoped, restrict to customers who have at least one sales_order
+	// in an accessible branch. Admin (empty nodeIds) sees org-wide.
+	const memberCountBranchClause =
+		nodeIds.length > 0
+			? sql`AND cp.user_id IN (
+				SELECT DISTINCT so.customer_id FROM sales_orders so
+				WHERE so.branch_id = ANY(ARRAY[${sql.join(
+					nodeIds.map((id) => sql`${id}::uuid`),
+					sql`, `,
+				)}])
+			  )`
+			: sql``;
 
 	// Single SQL: generate_series date spine + correlated count
-	const rows = await tenantDb.execute<{ day: string; active_members: string }>(sql`
+	const rows = await tenantDb.execute<{
+		day: string;
+		active_members: string;
+	}>(sql`
 		WITH spine AS (
 			SELECT generate_series(
 				${from}::timestamptz,
@@ -529,6 +562,7 @@ export async function getMemberCountSeries(
 		LEFT JOIN customer_profiles cp
 			ON  cp.user_id = pi.client_id
 			AND cp.is_deleted = false
+			${memberCountBranchClause}
 		GROUP BY s.day
 		ORDER BY s.day
 	`);
@@ -549,6 +583,19 @@ export async function getChurnSeries(
 	params: TimeSeriesParams,
 ): Promise<ChurnSeriesPoint[]> {
 	const { from, to } = buildDateSpine(params.days);
+	const nodeIds = params.accessibleNodeIds;
+
+	// NAP-03: scope to customers associated with accessible branches.
+	const churnSeriesBranchFilter =
+		nodeIds.length > 0
+			? sql`AND pi.client_id IN (
+				SELECT DISTINCT so.customer_id FROM sales_orders so
+				WHERE so.branch_id = ANY(ARRAY[${sql.join(
+					nodeIds.map((id) => sql`${id}::uuid`),
+					sql`, `,
+				)}])
+			  )`
+			: sql``;
 
 	const rows = await tenantDb.execute<{ day: string; churn_pct: string }>(sql`
 		WITH spine AS (
@@ -568,6 +615,7 @@ export async function getChurnSeries(
 				ON  pi.status = 'active'
 				AND pi.starts_at::date < s.day
 				AND pi.expires_at::date >= s.day
+			${churnSeriesBranchFilter}
 			GROUP BY s.day
 		),
 		-- For each day: how many customers lapsed (last package expired that day, no renewal)
@@ -584,6 +632,7 @@ export async function getChurnSeries(
 				  AND pi2.status = 'active'
 				  AND pi2.starts_at::date >= pi.expires_at::date
 			)
+			${churnSeriesBranchFilter}
 			GROUP BY s.day
 		)
 		SELECT
@@ -613,8 +662,21 @@ export async function getLtvSeries(
 	params: TimeSeriesParams,
 ): Promise<LtvSeriesPoint[]> {
 	const { from, to } = buildDateSpine(params.days);
+	const nodeIds = params.accessibleNodeIds;
 
-	const rows = await tenantDb.execute<{ day: string; avg_ltv_cents: string }>(sql`
+	// NAP-03: scope sales_orders to accessible branches.
+	const ltvSeriesBranchClause =
+		nodeIds.length > 0
+			? sql`AND so.branch_id = ANY(ARRAY[${sql.join(
+					nodeIds.map((id) => sql`${id}::uuid`),
+					sql`, `,
+				)}])`
+			: sql``;
+
+	const rows = await tenantDb.execute<{
+		day: string;
+		avg_ltv_cents: string;
+	}>(sql`
 		WITH spine AS (
 			SELECT generate_series(
 				${from}::timestamptz,
@@ -632,6 +694,7 @@ export async function getLtvSeries(
 			JOIN sales_orders so
 				ON  so.date::date <= s.day
 				AND so.status IN ('confirmed', 'completed')
+				${ltvSeriesBranchClause}
 			GROUP BY s.day, so.customer_id
 		)
 		SELECT
@@ -659,6 +722,9 @@ export async function getClassFillRateSeries(
 ): Promise<FillRateSeriesPoint[]> {
 	const { from, to } = buildDateSpine(params.days);
 	const keys = spineKeys(from, params.days);
+	const nodeIds = params.accessibleNodeIds;
+	// NAP-03: apply branch filter from accessibleNodeIds (was missing from this function).
+	const fillSeriesBranchFilter = resolveBranchFilter(undefined, nodeIds);
 
 	const dayExpr = sql<string>`to_char(date_trunc('day', ${classSlots.date}), 'YYYY-MM-DD')`;
 
@@ -674,6 +740,9 @@ export async function getClassFillRateSeries(
 				gte(classSlots.date, from),
 				lte(classSlots.date, to),
 				eq(classSlots.isCancelled, false),
+				fillSeriesBranchFilter.length > 0
+					? inArray(classSlots.branchId, fillSeriesBranchFilter)
+					: undefined,
 			),
 		)
 		.groupBy(dayExpr);

@@ -36,7 +36,9 @@ export const tenantDeletions = pgTable(
 		exportUrl: text("export_url"),
 	},
 	(t) => ({
-		hardAfterIdx: index("tenant_deletions_hard_after_idx").on(t.hardDeleteAfter),
+		hardAfterIdx: index("tenant_deletions_hard_after_idx").on(
+			t.hardDeleteAfter,
+		),
 		orgIdx: index("tenant_deletions_org_idx").on(t.organizationId),
 	}),
 );

@@ -1,5 +1,8 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
-import { createMockTenantDb } from "../../helpers/db-mock.factory";
+import {
+	createMockTenantDb,
+	selectChainResolving,
+} from "../../helpers/db-mock.factory";
 
 import {
 	listTrainerTiers,
@@ -25,6 +28,7 @@ function makeTier(overrides: Partial<Record<string, unknown>> = {}) {
 		description: null,
 		rank: 1,
 		isActive: true,
+		roleType: "trainer" as const,
 		createdAt: new Date(),
 		updatedAt: new Date(),
 		...overrides,
@@ -44,30 +48,6 @@ function makeMember(overrides: Partial<Record<string, unknown>> = {}) {
 		updatedAt: new Date(),
 		...overrides,
 	};
-}
-
-/**
- * A chainable select mock that resolves to `value` when awaited.
- * All Drizzle builder methods are mock'd to return the same chain.
- */
-function selectChainResolving(value: unknown) {
-	const chain: Record<string, unknown> = {};
-	for (const m of [
-		"from",
-		"where",
-		"orderBy",
-		"limit",
-		"offset",
-		"leftJoin",
-		"innerJoin",
-		"groupBy",
-		"having",
-	]) {
-		chain[m] = mock(() => chain);
-	}
-	chain.then = (resolve: (v: unknown) => unknown) =>
-		Promise.resolve(value).then(resolve);
-	return chain;
 }
 
 /**
@@ -151,16 +131,14 @@ describe("createTrainerTier", () => {
 
 	test("throws when a tier with the same name already exists (case-insensitive check)", async () => {
 		// Duplicate found
-		mockDb.select.mockReturnValueOnce(
-			selectChainResolving([{ id: TIER_ID }]),
-		);
+		mockDb.select.mockReturnValueOnce(selectChainResolving([{ id: TIER_ID }]));
 
-		await expect(
-			createTrainerTier(mockDb, { name: "gold" }),
-		).rejects.toThrow("A tier with this name already exists");
+		await expect(createTrainerTier(mockDb, { name: "gold" })).rejects.toThrow(
+			"A tier with this name already exists",
+		);
 	});
 
-	test("returns missingRateCategories for non-conditional config without a rate for the new tier", async () => {
+	test("scaffolds zero-amount stub rates so a non-conditional config is NOT reported missing for the new tier", async () => {
 		const tier = makeTier();
 		const config = {
 			id: CONFIG_ID,
@@ -170,21 +148,21 @@ describe("createTrainerTier", () => {
 
 		// 1st select: duplicate-name check → empty
 		mockDb.select.mockReturnValueOnce(selectChainResolving([]));
-		// insert returns the new tier
+		// insert returns the new tier (also reused for the scaffolded stub-rate insert)
 		mockDb.insert = insertChainReturning([tier]) as any;
+		// 2nd select: active non-conditional configs → one config (triggers stub-rate scaffolding)
+		mockDb.select.mockReturnValueOnce(
+			selectChainResolving([{ id: CONFIG_ID }]),
+		);
 		// getConfigsMissingRateForTier:
-		// 2nd select: configs (one non-conditional config)
+		// 3rd select: configs (one non-conditional config)
 		mockDb.select.mockReturnValueOnce(selectChainResolving([config]));
-		// 3rd select: rate check for this config → no rate found
-		mockDb.select.mockReturnValueOnce(selectChainResolving([]));
+		// 4th select: rate check for this config → rate now EXISTS (scaffolded above)
+		mockDb.select.mockReturnValueOnce(selectChainResolving([{ id: "rate-1" }]));
 
 		const result = await createTrainerTier(mockDb, { name: "Gold" });
 
-		expect(result.missingRateCategories).toHaveLength(1);
-		expect(result.missingRateCategories[0]).toEqual({
-			categoryId: CATEGORY_ID,
-			configId: CONFIG_ID,
-		});
+		expect(result.missingRateCategories).toEqual([]);
 	});
 
 	test("returns empty missingRateCategories when no commission configs exist", async () => {
@@ -263,7 +241,9 @@ describe("deactivateTrainerTier", () => {
 	});
 
 	test("does not hard-delete (calls update, not delete)", async () => {
-		mockDb.update = updateChainReturning([makeTier({ isActive: false })]) as any;
+		mockDb.update = updateChainReturning([
+			makeTier({ isActive: false }),
+		]) as any;
 
 		await deactivateTrainerTier(mockDb, TIER_ID);
 
@@ -274,9 +254,9 @@ describe("deactivateTrainerTier", () => {
 		// update returns empty → not found
 		mockDb.update = updateChainReturning([]) as any;
 
-		await expect(deactivateTrainerTier(mockDb, "nonexistent-id")).rejects.toThrow(
-			"Trainer tier not found",
-		);
+		await expect(
+			deactivateTrainerTier(mockDb, "nonexistent-id"),
+		).rejects.toThrow("Trainer tier not found");
 	});
 });
 
@@ -304,7 +284,11 @@ describe("reactivateTrainerTier", () => {
 
 	test("returns missingRateCategories populated from configs", async () => {
 		const tier = makeTier({ isActive: true });
-		const config = { id: CONFIG_ID, categoryId: CATEGORY_ID, isConditional: false };
+		const config = {
+			id: CONFIG_ID,
+			categoryId: CATEGORY_ID,
+			isConditional: false,
+		};
 
 		mockDb.update = updateChainReturning([tier]) as any;
 		// configs select
@@ -392,9 +376,13 @@ describe("getConfigsMissingRateForTier", () => {
 	});
 
 	test("marks non-conditional config as missing when no rate found for the tier", async () => {
-		const config = { id: CONFIG_ID, categoryId: CATEGORY_ID, isConditional: false };
+		const config = {
+			id: CONFIG_ID,
+			categoryId: CATEGORY_ID,
+			isConditional: false,
+		};
 		mockDb.select.mockReturnValueOnce(selectChainResolving([config])); // configs
-		mockDb.select.mockReturnValueOnce(selectChainResolving([]));       // rate check → missing
+		mockDb.select.mockReturnValueOnce(selectChainResolving([])); // rate check → missing
 
 		const result = await getConfigsMissingRateForTier(mockDb, TIER_ID);
 
@@ -403,7 +391,11 @@ describe("getConfigsMissingRateForTier", () => {
 	});
 
 	test("does NOT mark non-conditional config as missing when rate exists", async () => {
-		const config = { id: CONFIG_ID, categoryId: CATEGORY_ID, isConditional: false };
+		const config = {
+			id: CONFIG_ID,
+			categoryId: CATEGORY_ID,
+			isConditional: false,
+		};
 		mockDb.select.mockReturnValueOnce(selectChainResolving([config])); // configs
 		mockDb.select.mockReturnValueOnce(selectChainResolving([{ id: "rate-1" }])); // rate found
 
@@ -413,9 +405,13 @@ describe("getConfigsMissingRateForTier", () => {
 	});
 
 	test("marks conditional config as missing when it has no conditions at all", async () => {
-		const config = { id: CONFIG_ID, categoryId: CATEGORY_ID, isConditional: true };
-		mockDb.select.mockReturnValueOnce(selectChainResolving([config]));  // configs
-		mockDb.select.mockReturnValueOnce(selectChainResolving([]));         // conditions → none
+		const config = {
+			id: CONFIG_ID,
+			categoryId: CATEGORY_ID,
+			isConditional: true,
+		};
+		mockDb.select.mockReturnValueOnce(selectChainResolving([config])); // configs
+		mockDb.select.mockReturnValueOnce(selectChainResolving([])); // conditions → none
 
 		const result = await getConfigsMissingRateForTier(mockDb, TIER_ID);
 
@@ -424,12 +420,16 @@ describe("getConfigsMissingRateForTier", () => {
 	});
 
 	test("marks conditional config as missing when no condition has a rate for the tier", async () => {
-		const config = { id: CONFIG_ID, categoryId: CATEGORY_ID, isConditional: true };
+		const config = {
+			id: CONFIG_ID,
+			categoryId: CATEGORY_ID,
+			isConditional: true,
+		};
 		const condition = { id: CONDITION_ID };
 
-		mockDb.select.mockReturnValueOnce(selectChainResolving([config]));       // configs
-		mockDb.select.mockReturnValueOnce(selectChainResolving([condition]));    // conditions
-		mockDb.select.mockReturnValueOnce(selectChainResolving([]));             // condition rate → missing
+		mockDb.select.mockReturnValueOnce(selectChainResolving([config])); // configs
+		mockDb.select.mockReturnValueOnce(selectChainResolving([condition])); // conditions
+		mockDb.select.mockReturnValueOnce(selectChainResolving([])); // condition rate → missing
 
 		const result = await getConfigsMissingRateForTier(mockDb, TIER_ID);
 
@@ -437,11 +437,15 @@ describe("getConfigsMissingRateForTier", () => {
 	});
 
 	test("does NOT mark conditional config as missing when at least one condition has a rate", async () => {
-		const config = { id: CONFIG_ID, categoryId: CATEGORY_ID, isConditional: true };
+		const config = {
+			id: CONFIG_ID,
+			categoryId: CATEGORY_ID,
+			isConditional: true,
+		};
 		const condition = { id: CONDITION_ID };
 
-		mockDb.select.mockReturnValueOnce(selectChainResolving([config]));       // configs
-		mockDb.select.mockReturnValueOnce(selectChainResolving([condition]));    // conditions
+		mockDb.select.mockReturnValueOnce(selectChainResolving([config])); // configs
+		mockDb.select.mockReturnValueOnce(selectChainResolving([condition])); // conditions
 		mockDb.select.mockReturnValueOnce(selectChainResolving([{ id: "cr-1" }])); // rate found → not missing
 
 		const result = await getConfigsMissingRateForTier(mockDb, TIER_ID);
@@ -455,7 +459,7 @@ describe("getConfigsMissingRateForTier", () => {
 
 		mockDb.select.mockReturnValueOnce(selectChainResolving([configA, configB])); // configs
 		mockDb.select.mockReturnValueOnce(selectChainResolving([{ id: "rate-A" }])); // configA has rate
-		mockDb.select.mockReturnValueOnce(selectChainResolving([]));                  // configB missing
+		mockDb.select.mockReturnValueOnce(selectChainResolving([])); // configB missing
 
 		const result = await getConfigsMissingRateForTier(mockDb, TIER_ID);
 

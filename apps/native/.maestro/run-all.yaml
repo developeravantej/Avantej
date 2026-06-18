@@ -1,0 +1,34 @@
+appId: ${APP_ID}
+---
+# Master flow — runs all tests sequentially
+# Order: login → logged-in tests → logout → auth-screen tests → login again
+
+# Phase 1: Login and verify home
+- runFlow: 01-login.yaml
+
+# Phase 2: Logged-in screen tests
+- runFlow: 05-home-dashboard.yaml
+- runFlow: 06-home-pull-refresh.yaml
+- runFlow: 07-tab-navigation.yaml
+- runFlow: 08-explore-services.yaml
+- runFlow: 09-calendar.yaml
+- runFlow: 10-bookings-list.yaml
+- runFlow: 11-booking-detail.yaml
+- runFlow: 12-packages-list.yaml
+- runFlow: 13-package-detail.yaml
+- runFlow: 14-profile.yaml
+- runFlow: 15-profile-activity.yaml
+- runFlow: 16-notifications.yaml
+- runFlow: 17-change-password.yaml
+
+# Phase 3: E2E flows (logged in)
+- runFlow: buy-package.yaml
+- runFlow: book-workout.yaml
+
+# Phase 4: Logout → lands on login screen
+- runFlow: 18-logout.yaml
+
+# Phase 5: Auth screen tests (requires login screen)
+- runFlow: 02-login-invalid.yaml
+- runFlow: 03-signup.yaml
+- runFlow: 04-forgot-password.yaml

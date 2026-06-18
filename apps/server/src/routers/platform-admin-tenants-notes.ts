@@ -21,35 +21,31 @@ import { and, eq, isNull, desc, sql } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { platformAdminProcedure as adminProcedure } from "@avantej-core/api";
+import { adminProcedure } from "@/lib/admin-procedure";
 import { recordAdminAction } from "@/services/admin-audit.service";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { users } from "@avantej-core/db/schema/control-panel/users";
 import { tenantNotes } from "@avantej-core/db/schema/control-panel/tenant-notes";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 const EDIT_WINDOW_MS = 60 * 60 * 1000;
-
-function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
-		"controlPanelDb",
-	) as NeonDatabase<typeof controlPanelSchema> | undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
 
 function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
 	const id = session?.user?.id;
-	if (!id) throw new ORPCError("UNAUTHORIZED", { message: "No admin user in session" });
+	if (!id)
+		throw new ORPCError("UNAUTHORIZED", {
+			message: "No admin user in session",
+		});
 	return id;
 }
 
-function adminRoleFrom(context: unknown): "super_admin" | "support" | "billing" {
+function adminRoleFrom(
+	context: unknown,
+): "super_admin" | "support" | "billing" {
 	const role = (context as { adminRole?: string }).adminRole;
-	if (!role) throw new ORPCError("FORBIDDEN", { message: "No admin role in context" });
+	if (!role)
+		throw new ORPCError("FORBIDDEN", { message: "No admin role in context" });
 	return role as "super_admin" | "support" | "billing";
 }
 
@@ -68,7 +64,7 @@ export const platformAdminTenantsNotesRouter = {
 	list: adminProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			await assertOrgExists(cpDb, input.organizationId);
 
 			const rows = await cpDb
@@ -106,7 +102,7 @@ export const platformAdminTenantsNotesRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 			await assertOrgExists(cpDb, input.organizationId);
 
@@ -143,7 +139,7 @@ export const platformAdminTenantsNotesRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 
 			const [existing] = await cpDb
@@ -181,7 +177,10 @@ export const platformAdminTenantsNotesRouter = {
 			if (input.body !== undefined) patch.body = input.body;
 			if (input.isPinned !== undefined) patch.isPinned = input.isPinned;
 
-			await cpDb.update(tenantNotes).set(patch).where(eq(tenantNotes.id, input.id));
+			await cpDb
+				.update(tenantNotes)
+				.set(patch)
+				.where(eq(tenantNotes.id, input.id));
 
 			await recordAdminAction(cpDb, {
 				adminUserId,
@@ -203,7 +202,7 @@ export const platformAdminTenantsNotesRouter = {
 	delete: adminProcedure
 		.input(z.object({ id: z.string().uuid() }))
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 			const role = adminRoleFrom(context);
 

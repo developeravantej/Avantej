@@ -1,0 +1,31 @@
+{
+	"iteration": 2,
+	"exitReason": "converged",
+	"branch": "audit-prove/remediation-services-tabs-20260525-1529 (preserved from prior session; commission fixes layered on top)",
+	"video": "zplan/2026-05-27-0231-audit-prove-commission/video/full-run.webm",
+	"buildErrorTargets": [
+		{ "id": "B-01", "file": "apps/server/src/middleware/auth.middleware.test.ts:109", "fix": "Optional-chain on consoleErrorCalls[0]?.[0]", "status": "fixed" },
+		{ "id": "B-02", "file": "apps/web/src/routes/_authenticated/dashboard/_layout/payment/view.tsx:40,48", "fix": "Date→ISO string; removed non-existent createdByName field", "status": "fixed" }
+	],
+	"targets": [
+		{ "id": "F-04", "status": "fixed", "attempts": 1, "note": "router validates XOR before insert; clean BAD_REQUEST; service has defense-in-depth; packageInstanceId added to input" },
+		{ "id": "F-05", "status": "fixed-code-data-gap", "attempts": 1, "note": "paymentReference plumbed through to service + per-row notes append + audit changes payload; runtime test path gated on absent seed (data gap, not code regression)" },
+		{ "id": "F-06", "status": "fixed-code-data-gap", "attempts": 1, "note": "reverseForRefund flips fully-reversed splits to void; liabilityByStaff + liabilitySummary now LEFT-JOIN pre-aggregated reversals (no N+1); runtime test path gated on absent seed" },
+		{ "id": "F-01", "status": "fixed", "attempts": 1, "note": "SELECT-before-DELETE of prior isActive inside the txn; preserved across re-insert" },
+		{ "id": "F-02", "status": "fixed", "attempts": 1, "note": "isActive already in payload (full select); added optional includeInactive=true flag" },
+		{ "id": "F-11", "status": "fixed", "attempts": 1, "note": "createdAt → earnedAt filter" },
+		{ "id": "F-12", "status": "fixed", "attempts": 1, "note": "lte → lt upper bound" },
+		{ "id": "F-13", "status": "fixed", "attempts": 1, "note": "POS conditional fallthrough now logs commission.skip audit + console.warn" },
+		{ "id": "F-14", "status": "fixed", "attempts": 1, "note": "hasPermission(create) || requirePermissionOrpc(update) fallback" },
+		{ "id": "F-15", "status": "fixed", "attempts": 1, "note": "RBAC predicate widened to recipientId == viewer OR branchId in scope" },
+		{ "id": "F-19", "status": "fixed", "attempts": 1, "note": "group avgPerCycle by batchId (fallback paidAt::date); exclude negative reversals" },
+		{ "id": "F-08", "status": "fixed", "attempts": 1, "note": "getOrCreatePayoutBatch wired into runBatch tx; batchId stamped on each payout; totalCents recomputed via GROUP BY; optional branchId on procedure input" }
+	],
+	"deferred": [
+		{ "id": "S-cycle-window-alignment", "from": "F-03", "reason": "Replace UTC calendar month cycle bounds with payout-window-aware bounds; needs config model + migration; cross-cutting" },
+		{ "id": "S-stripe-payout-webhooks", "from": "F-09", "reason": "Add payout.* / transfer.* webhook handlers; blocked by S-partner-stripe-onboarding" },
+		{ "id": "S-partner-stripe-onboarding", "from": "F-10", "reason": "Partner Stripe Connect OAuth flow + UI; architectural" },
+		{ "id": "S-payouts-state-machine", "from": "F-16,F-17", "reason": "pending→processing→paid plus retry/cancel surface; needs procedure surface + UI" },
+		{ "id": "S-refund-row-lock", "from": "F-07", "reason": "SELECT … FOR UPDATE on sales_orders inside approveRefund to prevent double-approve; concurrency repro out-of-scope for single-session video" }
+	]
+}

@@ -74,9 +74,14 @@ export function AssignTrainerDrawer({
 
 	const trainers = useMemo(() => {
 		return members.filter(
-			(m: { role: string; status: string; id: string; userId: string; name: string }) =>
-				(m.role === "trainer" || m.role === "admin") &&
-				m.status === "active",
+			(m: {
+				role: string;
+				status: string;
+				id: string;
+				userId: string;
+				name: string;
+			}) =>
+				(m.role === "trainer" || m.role === "admin") && m.status === "active",
 		);
 	}, [members]);
 
@@ -92,12 +97,8 @@ export function AssignTrainerDrawer({
 			});
 		},
 		successMessage: "Trainer assigned. Package is now active.",
-		errorMessage: (err) =>
-			err?.message ?? "Failed to assign trainer.",
-		invalidate: [
-			["packageInstances"],
-			["notifications"],
-		],
+		errorMessage: (err) => err?.message ?? "Failed to assign trainer.",
+		invalidate: [["packageInstances"], ["notifications"]],
 		onSuccess: () => {
 			onAssigned?.();
 			onOpenChange(false);
@@ -153,7 +154,15 @@ export function AssignTrainerDrawer({
 											No active trainers in this branch
 										</div>
 									)}
-									{(trainers as { role: string; status: string; id: string; userId: string; name: string }[]).map((t) => (
+									{(
+										trainers as {
+											role: string;
+											status: string;
+											id: string;
+											userId: string;
+											name: string;
+										}[]
+									).map((t) => (
 										<SelectItem key={t.id} value={t.id}>
 											{t.name ?? t.userId}
 											<span className="ml-2 text-muted-foreground text-xs">

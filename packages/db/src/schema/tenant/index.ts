@@ -22,6 +22,7 @@ export * from "./check-ins";
 export * from "./coach-intake-availability";
 export * from "./coach-intake-exceptions";
 export * from "./class-slots";
+export * from "./commission-cycle-configs";
 export * from "./commission-splits";
 export * from "./customer-profiles";
 export * from "./dashboard-snapshots";
@@ -44,10 +45,10 @@ export * from "./member-sessions";
 export * from "./members";
 export * from "./notification-preferences";
 export * from "./notifications";
+export * from "./push-tokens";
 export * from "./organization-settings";
 export * from "./package-instances";
 export * from "./package-instance-staff";
-export * from "./partner-stripe-accounts";
 export * from "./payment-items";
 export * from "./payments";
 export * from "./payouts";
@@ -56,7 +57,10 @@ export * from "./preferred-times";
 export * from "./product-categories";
 export * from "./product-stock";
 export * from "./products";
+export * from "./credit-point-ledger";
+export * from "./stock-movements";
 export * from "./promotions";
+export * from "./push-tokens";
 export * from "./purchase-orders";
 export * from "./recurrence-rules";
 export * from "./refunds";
@@ -67,6 +71,7 @@ export * from "./sales-order-items";
 export * from "./sales-orders";
 export * from "./service-categories";
 export * from "./service-category-config";
+export * from "./scheduled-reports";
 export * from "./service-members";
 export * from "./services";
 export * from "./stock-request-items";
@@ -131,4 +136,11 @@ export * from "./households";
 
 // #region Design-backfill — branch stats cache (Migration 0059)
 export * from "./branch-stats-cache";
+// #endregion
+
+// #region Agent C — Commission Tracks (Migration 0083)
+export * from "./commission-tracks";
+export * from "./commission-track-rates";
+export * from "./commission-track-versions";
+export * from "./earner-tiers";
 // #endregion

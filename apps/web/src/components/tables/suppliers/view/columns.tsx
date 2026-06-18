@@ -114,10 +114,7 @@ export function createColumns(meta: ColumnMeta): ColumnDef<SupplierRow>[] {
 				const email = row.original.email;
 				if (!email) return <span className="text-brand-secondary-2">N/A</span>;
 				return (
-					<a
-						href={`mailto:${email}`}
-						className="text-blue-600 hover:underline"
-					>
+					<a href={`mailto:${email}`} className="text-blue-600 hover:underline">
 						{email}
 					</a>
 				);
@@ -128,7 +125,8 @@ export function createColumns(meta: ColumnMeta): ColumnDef<SupplierRow>[] {
 			header: "Website",
 			cell: ({ row }) => {
 				const website = row.original.website;
-				if (!website) return <span className="text-brand-secondary-2">N/A</span>;
+				if (!website)
+					return <span className="text-brand-secondary-2">N/A</span>;
 				return (
 					<a
 						href={website}
@@ -166,16 +164,12 @@ export function createColumns(meta: ColumnMeta): ColumnDef<SupplierRow>[] {
 						<DropdownMenuContent align="end">
 							<DropdownMenuLabel>Actions</DropdownMenuLabel>
 							<DropdownMenuItem
-								onClick={() =>
-									navigator.clipboard.writeText(supplier.name)
-								}
+								onClick={() => navigator.clipboard.writeText(supplier.name)}
 							>
 								Copy supplier name
 							</DropdownMenuItem>
 							<DropdownMenuSeparator />
-							<DropdownMenuItem
-								onClick={() => meta.onViewDetails(supplier)}
-							>
+							<DropdownMenuItem onClick={() => meta.onViewDetails(supplier)}>
 								View details
 							</DropdownMenuItem>
 							<DropdownMenuItem onClick={() => meta.onEdit(supplier)}>

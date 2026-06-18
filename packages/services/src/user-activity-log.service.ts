@@ -16,28 +16,31 @@ import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 export type ListUserActivityLogParams = {
-  userId: string;
-  activityType?: string;
-  limit?: number;
+	userId: string;
+	activityType?: string;
+	limit?: number;
 };
 
 /**
  * List activity log entries for a user.
  */
 export async function listUserActivityLog(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  params: ListUserActivityLogParams
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	params: ListUserActivityLogParams,
 ): Promise<(typeof userActivityLog.$inferSelect)[]> {
-  const { userId, activityType, limit = 20 } = params;
+	const { userId, activityType, limit = 20 } = params;
 
-  const conditions = [eq(userActivityLog.userId, userId)];
-  if (activityType) {
-    conditions.push(eq(userActivityLog.activityType, activityType));
-  }
+	const conditions = [eq(userActivityLog.userId, userId)];
+	if (activityType) {
+		conditions.push(eq(userActivityLog.activityType, activityType));
+	}
 
-  return tenantDb.query.userActivityLog.findMany({
-    where: conditions.length > 1 ? and(...conditions) : eq(userActivityLog.userId, userId),
-    orderBy: [desc(userActivityLog.createdAt)],
-    limit: Math.min(limit, 100),
-  });
+	return tenantDb.query.userActivityLog.findMany({
+		where:
+			conditions.length > 1
+				? and(...conditions)
+				: eq(userActivityLog.userId, userId),
+		orderBy: [desc(userActivityLog.createdAt)],
+		limit: Math.min(limit, 100),
+	});
 }

@@ -1,0 +1,8 @@
+{
+  "tax-rates/default-uniqueness.rule.spec.ts::creating a second default clears the prior default": [
+    "Capture the pre-existing default to restore later",
+    "Create tax rate A with isDefault:true and assert getDefault returns A",
+    "Create tax rate B with isDefault:true and assert getDefault now returns B",
+    "Assert A.isDefault is now false (the new default stole the flag)"
+  ]
+}

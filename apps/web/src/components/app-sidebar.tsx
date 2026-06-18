@@ -1,13 +1,12 @@
 "use client";
 
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { client } from "@/utils/orpc";
 import {
 	Activity,
 	ArrowLeftRight,
 	BadgeDollarSign,
-	Ban,
 	Bell,
 	Briefcase,
 	Building2,
@@ -15,13 +14,10 @@ import {
 	CalendarRange,
 	ChevronRight,
 	ClipboardCheck,
-	ClipboardList,
 	CreditCard,
 	Database,
-	DollarSign,
 	FileChartColumnIncreasing,
 	Grid3x3,
-	History,
 	Home,
 	LayoutDashboard,
 	LogOut,
@@ -42,7 +38,6 @@ import {
 	Store,
 	Tag,
 	TrendingUp,
-	Undo2,
 	User,
 	UserPlus,
 	Users,
@@ -74,7 +69,6 @@ import {
 	SidebarRail,
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { useAuth } from "@/hooks/useAuth";
 import { usePlatformAdminRole } from "@/hooks/usePlatformAdminRole";
 import { useUserContext } from "@/hooks/useUserContext";
 import { authClient } from "@/lib/auth-client";
@@ -129,9 +123,10 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				permission: "appointment_management:read",
 			},
 			{
-				title: "Trainer Availability",
-				url: "/dashboard/trainers/availability",
+				title: "Trainers",
+				url: "/dashboard/trainers/view",
 				icon: CalendarRange,
+				permission: "user_management:read",
 			},
 			{
 				title: "Services",
@@ -157,15 +152,10 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 	{
 		label: "Finance",
 		items: [
-			{ title: "Sales & Payments", url: "/dashboard/sales/view", icon: BadgeDollarSign },
-			{ title: "Payment History", url: "/dashboard/payment/view", icon: History },
-			{ title: "Cancelled Sales", url: "/dashboard/cancelled-sales/view", icon: Ban, testId: "sidebar-cancelled-sales" },
-			{ title: "Payouts", url: "/dashboard/payouts/view", icon: DollarSign },
 			{
-				title: "Refunds",
-				url: "/dashboard/refunds/view",
-				icon: Undo2,
-				permission: "refund_management:read",
+				title: "Sales & Payments",
+				url: "/dashboard/sales/view",
+				icon: BadgeDollarSign,
 			},
 			{
 				title: "Commissions",
@@ -173,14 +163,21 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				icon: TrendingUp,
 			},
 			{ title: "Tax Rates", url: "/dashboard/settings/tax-rates", icon: Tag },
-			{
-				title: "Installment Plans",
-				url: "/dashboard/settings/installment-plans",
-				icon: CreditCard,
-			},
 			{ title: "Expenses", url: "/dashboard/expenses/view", icon: Receipt },
-			{ title: "Products", url: "/dashboard/products/view", icon: Package },
-			{ title: "Packages", url: "/dashboard/packages/view", icon: Package, permission: "service_management:read" },
+			// DU-005: guard Packages with its own permission (not service_management:read)
+			{
+				title: "Packages",
+				url: "/dashboard/packages/view",
+				icon: Package,
+				permission: "package_management:read",
+			},
+			// CP-004: dedicated Payouts nav item — active check relies on query-string-aware isActive logic in NavGroup
+			{
+				title: "Payouts",
+				url: "/dashboard/commissions/view?tab=payouts",
+				icon: BadgeDollarSign,
+				permission: "commission_payout:read",
+			},
 		],
 	},
 
@@ -188,16 +185,10 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 	{
 		label: "Staff & Access",
 		items: [
-			{
-				title: "Trainers",
-				url: "/dashboard/trainers/view",
-				icon: Users,
-				permission: "user_management:read",
-			},
 			{ title: "Employees", url: "/dashboard/user/view", icon: Users },
 			{
 				title: "Attendance",
-				url: "/dashboard/attendance/view",
+				url: "/dashboard/appointment/view",
 				icon: ClipboardCheck,
 				permission: "attendance_management:read",
 			},
@@ -213,8 +204,18 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				icon: UserPlus,
 				permission: "user_management:read",
 			},
-			{ title: "Branches", url: "/dashboard/branch/view", icon: Store, permission: "hierarchy_management:read" },
-			{ title: "Onboarding QR", url: "/dashboard/onboarding/view", icon: QrCode, permission: "hierarchy_management:read" },
+			{
+				title: "Branches",
+				url: "/dashboard/branch/view",
+				icon: Store,
+				permission: "hierarchy_management:read",
+			},
+			{
+				title: "Onboarding QR",
+				url: "/dashboard/onboarding/view",
+				icon: QrCode,
+				permission: "hierarchy_management:read",
+			},
 		],
 	},
 
@@ -259,16 +260,6 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 		defaultOpen: false,
 		items: [
 			{
-				title: "Notifications",
-				url: "/dashboard/notifications/view",
-				icon: Bell,
-			},
-			{
-				title: "Purchase Orders",
-				url: "/dashboard/purchase-orders/view",
-				icon: ClipboardList,
-			},
-			{
 				title: "Inventory Options",
 				url: "/dashboard/inventory-options",
 				icon: Warehouse,
@@ -287,11 +278,14 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 
 function SidebarUserFooter() {
 	const { data: session } = authClient.useSession();
-	const { logout } = useAuth();
+	const navigate = useNavigate();
 	const [loggingOut, setLoggingOut] = useState(false);
 
 	// Better-Auth inferAdditionalFields adds firstName/lastName at runtime; the client type doesn't reflect it.
-	const sessionUser = session?.user as (typeof session & Record<string, unknown> extends null | undefined ? undefined : { firstName?: string; lastName?: string; name?: string; email?: string });
+	const sessionUser = session?.user as typeof session &
+		Record<string, unknown> extends null | undefined
+		? undefined
+		: { firstName?: string; lastName?: string; name?: string; email?: string };
 	const displayName =
 		`${sessionUser?.firstName || ""} ${sessionUser?.lastName || ""}`.trim() ||
 		sessionUser?.name ||
@@ -302,8 +296,17 @@ function SidebarUserFooter() {
 	const handleLogout = async () => {
 		setLoggingOut(true);
 		try {
-			await logout();
+			await authClient.signOut();
+			// Clear cached org + hierarchy data so a subsequent login starts clean.
+			localStorage.removeItem("user_organizations");
+			localStorage.removeItem("current_organization_id");
+			for (const key of Object.keys(localStorage)) {
+				if (key.startsWith("org_") && key.endsWith("_hierarchy")) {
+					localStorage.removeItem(key);
+				}
+			}
 			toast.success("Logged out successfully");
+			navigate({ to: "/login", search: {} });
 		} catch {
 			toast.error("Logout failed");
 		} finally {
@@ -339,7 +342,9 @@ function SidebarUserFooter() {
 				<DropdownMenuLabel className="font-normal">
 					<div className="flex flex-col space-y-1">
 						<p className="text-sm font-medium leading-none">{displayName}</p>
-						<p className="text-xs leading-none text-brand-secondary-1">{email}</p>
+						<p className="text-xs leading-none text-brand-secondary-1">
+							{email}
+						</p>
 					</div>
 				</DropdownMenuLabel>
 				<DropdownMenuSeparator />
@@ -350,7 +355,10 @@ function SidebarUserFooter() {
 					</Link>
 				</DropdownMenuItem>
 				<DropdownMenuItem asChild>
-					<Link to="/dashboard/settings/organization" className="flex items-center gap-2">
+					<Link
+						to="/dashboard/settings/organization"
+						className="flex items-center gap-2"
+					>
 						<Settings className="size-4" />
 						<span>Settings</span>
 					</Link>
@@ -396,10 +404,19 @@ function NavGroup({
 	const renderItems = () => (
 		<SidebarMenu>
 			{visibleItems.map((item) => {
+				// CP-004: handle items whose url contains a query string (e.g. ?tab=payouts)
+				// pathname never contains "?", so we must split before comparing.
+				const [itemPath, itemQs] = item.url.split("?");
 				const isActive =
 					item.url === "/dashboard"
 						? pathname === "/dashboard"
-						: pathname.startsWith(item.url);
+						: itemQs
+							? pathname.startsWith(itemPath) &&
+								// TanStack Router's location.search is a typed object;
+								// use window.location.search for the raw query string.
+								new URLSearchParams(window.location.search).get("tab") ===
+									new URLSearchParams(itemQs).get("tab")
+							: pathname.startsWith(itemPath);
 				const badge = badges?.[item.url];
 
 				return (
@@ -475,8 +492,27 @@ const PLATFORM_ADMIN_PRIMARY: PlatformAdminNavItem[] = [
 		icon: LayoutDashboard,
 		exact: true,
 	},
-	{ title: "Tenants", url: "/dashboard/platform-admin/tenants", icon: Building2 },
+	{
+		title: "Tenants",
+		url: "/dashboard/platform-admin/tenants",
+		icon: Building2,
+	},
 	{ title: "Billing", url: "/dashboard/platform-admin/billing", icon: Receipt },
+	{
+		title: "Revenue",
+		url: "/dashboard/platform-admin/revenue",
+		icon: TrendingUp,
+	},
+	{
+		title: "Renewals",
+		url: "/dashboard/platform-admin/renewals",
+		icon: CalendarRange,
+	},
+	{
+		title: "Payments",
+		url: "/dashboard/platform-admin/payments",
+		icon: CreditCard,
+	},
 ];
 
 // Secondary + infrequent surfaces — collapsed into the "System" group by
@@ -484,8 +520,16 @@ const PLATFORM_ADMIN_PRIMARY: PlatformAdminNavItem[] = [
 // list stays the three core ops objects (Mission Control / Tenants / Billing).
 const PLATFORM_ADMIN_SYSTEM: PlatformAdminNavItem[] = [
 	{ title: "Health", url: "/dashboard/platform-admin/health", icon: Activity },
-	{ title: "Comms", url: "/dashboard/platform-admin/comms", icon: MessageSquare },
-	{ title: "Webhooks", url: "/dashboard/platform-admin/webhooks", icon: Webhook },
+	{
+		title: "Comms",
+		url: "/dashboard/platform-admin/comms",
+		icon: MessageSquare,
+	},
+	{
+		title: "Webhooks",
+		url: "/dashboard/platform-admin/webhooks",
+		icon: Webhook,
+	},
 	{ title: "Audit", url: "/dashboard/platform-admin/audit", icon: ScrollText },
 	{ title: "Users", url: "/dashboard/platform-admin/users", icon: Users },
 	{
@@ -558,7 +602,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
 	// Live pending-approvals count → chip on the Approvals nav item
 	const pendingApprovalsQuery = useQuery({
-		queryKey: ["packageInstances", "listPending", organizationId, "sidebarBadge"],
+		queryKey: [
+			"packageInstances",
+			"listPending",
+			organizationId,
+			"sidebarBadge",
+		],
 		queryFn: () =>
 			client.packageInstances.listPending({
 				organizationId: organizationId!,

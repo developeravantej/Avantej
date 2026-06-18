@@ -253,11 +253,7 @@ export default function SignScreen() {
 							onPress={() => router.back()}
 							className="mr-3 size-10 items-center justify-center"
 						>
-							<Ionicons
-								name="arrow-back"
-								size={24}
-								color={colors.primary[1]}
-							/>
+							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-primary-1">
 							E-Signature
@@ -349,10 +345,10 @@ export default function SignScreen() {
 						>
 							<View
 								className={`mr-3 size-6 shrink-0 items-center justify-center rounded-md border-2 ${
- agreedToTerms
- ? "border-primary-1 bg-primary-1"
- : "border-secondary-2 bg-primary-2"
- }`}
+									agreedToTerms
+										? "border-primary-1 bg-primary-1"
+										: "border-secondary-2 bg-primary-2"
+								}`}
 							>
 								{agreedToTerms && (
 									<Ionicons

@@ -4,7 +4,11 @@ import type { InstallmentOverviewItem } from "../types";
 
 // ── Status badges ─────────────────────────────────────────────────────────────
 
-export function StatusBadge({ instance }: { instance: InstallmentOverviewItem }) {
+export function StatusBadge({
+	instance,
+}: {
+	instance: InstallmentOverviewItem;
+}) {
 	const status = getInstanceStatus(instance);
 	if (status === "Locked") {
 		return <Badge variant="destructive">Locked</Badge>;

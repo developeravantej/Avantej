@@ -41,7 +41,9 @@ export function OverdraftDialog({
 	onClose,
 	setOverdraftMutation,
 }: OverdraftDialogProps) {
-	const currentOverdraft = !!(selectedInstance as { allowCreditOverdraft?: boolean } | null)?.allowCreditOverdraft;
+	const currentOverdraft = !!(
+		selectedInstance as { allowCreditOverdraft?: boolean } | null
+	)?.allowCreditOverdraft;
 
 	return (
 		<Dialog
@@ -50,37 +52,49 @@ export function OverdraftDialog({
 				if (!o) onClose();
 			}}
 		>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>
-						{selectedInstance && (selectedInstance as { allowCreditOverdraft?: boolean }).allowCreditOverdraft
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						INSTALLMENT PLANS
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						{selectedInstance &&
+						(selectedInstance as { allowCreditOverdraft?: boolean })
+							.allowCreditOverdraft
 							? "Disable Overdraft"
 							: "Allow Overdraft"}
 					</DialogTitle>
-					<DialogDescription>
-						{selectedInstance && (selectedInstance as { allowCreditOverdraft?: boolean }).allowCreditOverdraft
+					<DialogDescription className="text-sm text-[#737373]">
+						{selectedInstance &&
+						(selectedInstance as { allowCreditOverdraft?: boolean })
+							.allowCreditOverdraft
 							? "Disabling overdraft will prevent credit consumption when the package is locked."
-							: "Allowing overdraft lets the customer continue booking even when the package is locked due to a missed installment."}
-						{" "}A reason is required for audit purposes.
+							: "Allowing overdraft lets the customer continue booking even when the package is locked due to a missed installment."}{" "}
+						A reason is required for audit purposes.
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="flex flex-col gap-4 py-2">
-					<div className="flex flex-col gap-1.5">
-						<Label htmlFor="overdraft-reason">
-							Reason <span className="text-destructive">*</span>
-						</Label>
-						<Textarea
-							id="overdraft-reason"
-							placeholder="Provide a reason…"
-							rows={3}
-							value={overdraftReason}
-							onChange={(e) => setOverdraftReason(e.target.value)}
-						/>
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					<div className="flex flex-col gap-4 py-2">
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="overdraft-reason">
+								Reason <span className="text-rose-600">*</span>
+							</Label>
+							<Textarea
+								id="overdraft-reason"
+								placeholder="Provide a reason…"
+								rows={3}
+								value={overdraftReason}
+								onChange={(e) => setOverdraftReason(e.target.value)}
+							/>
+						</div>
 					</div>
 				</div>
 
-				<DialogFooter>
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 					<Button
 						variant="outline"
 						onClick={onClose}
@@ -89,6 +103,7 @@ export function OverdraftDialog({
 						Cancel
 					</Button>
 					<Button
+						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
 						onClick={() => {
 							if (!selectedInstance || !overdraftReason.trim()) {
 								toast.error("A reason is required.");

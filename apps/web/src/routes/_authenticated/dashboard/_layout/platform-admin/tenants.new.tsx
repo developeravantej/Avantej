@@ -94,7 +94,9 @@ function PlatformAdminTenantsNewPage() {
 	return (
 		<div className="max-w-2xl space-y-6 p-6">
 			<div>
-				<p className="text-sm text-muted-foreground">Platform Admin · Tenants</p>
+				<p className="text-sm text-muted-foreground">
+					Platform Admin · Tenants
+				</p>
 				<h1 className="text-2xl font-semibold">New Tenant</h1>
 				<p className="mt-1 text-sm text-muted-foreground">
 					Spins up a Neon project, seeds RBAC, and emails the owner an admin

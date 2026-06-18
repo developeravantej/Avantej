@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Lock } from "lucide-react";
@@ -183,11 +183,9 @@ function NotificationPreferencesPage() {
 	// ─── Query ───────────────────────────────────────────────────────────────
 
 	const { data: apiPrefs, isLoading } = useQuery({
-		queryKey: ["notificationPreferences", organizationId],
-		queryFn: () => {
-			if (!organizationId) return null;
-			return client.notificationPreferences.get({ organizationId });
-		},
+		...orpc.notificationPreferences.get.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 		staleTime: 60_000,
 	});
@@ -235,11 +233,24 @@ function NotificationPreferencesPage() {
 
 	if (!organizationId) {
 		return (
-			<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6 flex items-center justify-center">
-				<div className="flex flex-col items-center justify-center text-[#737373]">
-					<Lock className="h-8 w-8 mb-3 opacity-30" />
-					<p className="text-sm font-medium text-[#0a0a0a]">No organization selected</p>
-					<p className="text-xs mt-1">Select an organization to manage notification preferences.</p>
+			<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+				<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+					<div className="flex items-center gap-3 text-sm">
+						<span className="text-muted-foreground">Settings</span>
+						<span className="text-[#a3a3a3]">/</span>
+						<span className="font-semibold">Notifications</span>
+					</div>
+				</header>
+				<div className="flex flex-1 items-center justify-center">
+					<div className="flex flex-col items-center justify-center text-[#737373]">
+						<Lock className="h-8 w-8 mb-3 opacity-30" />
+						<p className="text-sm font-medium text-[#0a0a0a]">
+							No organization selected
+						</p>
+						<p className="text-xs mt-1">
+							Select an organization to manage notification preferences.
+						</p>
+					</div>
 				</div>
 			</div>
 		);
@@ -249,16 +260,11 @@ function NotificationPreferencesPage() {
 
 	if (isLoading) {
 		return (
-			<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6">
-				{/* Page header skeleton */}
-				<div className="mb-5 flex items-end justify-between">
-					<div>
-						<div className="h-3 w-28 rounded bg-[#e5e5e5] animate-pulse mb-2" />
-						<div className="h-7 w-56 rounded bg-[#e5e5e5] animate-pulse" />
-						<div className="h-4 w-72 rounded bg-[#e5e5e5] animate-pulse mt-2" />
-					</div>
-				</div>
-				<div className="max-w-[720px] space-y-5">
+			<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+				<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+					<div className="h-4 w-40 rounded bg-[#e5e5e5] animate-pulse" />
+				</header>
+				<div className="flex flex-col gap-5 px-6 py-6 max-w-[720px]">
 					<SkeletonSection title="Notification Channels" rows={3} />
 					<SkeletonSection title="Notification Content" rows={4} />
 				</div>
@@ -269,39 +275,30 @@ function NotificationPreferencesPage() {
 	// ─── Render ───────────────────────────────────────────────────────────────
 
 	return (
-		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6">
-			{/* Page header */}
-			<div className="mb-5 flex items-end justify-between">
-				<div>
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
-						NOTIFICATIONS
-					</p>
-					<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-						Notification Preferences
-					</h1>
-					<p className="mt-1 text-sm text-[#737373]">
-						Control how and when you receive notifications.
-					</p>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Settings</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Notifications</span>
 				</div>
-
-				{/* Save state indicator */}
-				<div className="text-sm text-[#737373] min-w-16 text-right">
+				<div className="ml-auto flex items-center gap-2">
 					{saveState === "saving" && (
-						<span className="flex items-center gap-1.5 justify-end">
+						<span className="flex items-center gap-1.5 text-sm text-[#737373]">
 							<span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
 							Saving…
 						</span>
 					)}
 					{saveState === "saved" && (
-						<span className="flex items-center gap-1.5 justify-end text-emerald-700">
+						<span className="flex items-center gap-1.5 text-sm text-emerald-700">
 							<span className="h-2 w-2 rounded-full bg-emerald-500" />
 							Saved
 						</span>
 					)}
 				</div>
-			</div>
+			</header>
 
-			<div className="max-w-[720px] space-y-5">
+			<div className="flex flex-col gap-5 px-6 py-6 max-w-[720px]">
 				{/* Notification Channels */}
 				<FormSection
 					title="Notification Channels"
@@ -334,7 +331,6 @@ function NotificationPreferencesPage() {
 					))}
 				</FormSection>
 			</div>
-
 		</div>
 	);
 }

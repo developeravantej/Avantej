@@ -77,8 +77,8 @@ export interface TodaysBookingRow {
 	attendanceStatus: "pending" | "checked_in" | "no_show";
 	checkInId: string | null;
 	// Phase 2 additions: capacity, credits, active package
-	capacity: number | null;              // from class_slots; null for 1:1 appointments
-	creditsRemaining: number | null;      // null for walk-ins or no-active-package
+	capacity: number | null; // from class_slots; null for 1:1 appointments
+	creditsRemaining: number | null; // null for walk-ins or no-active-package
 	activePackageInstanceId: string | null;
 }
 
@@ -181,8 +181,7 @@ async function batchResolveDisplayNames(
 			pairs
 				.filter(
 					(p) =>
-						p.clientType === "walk_in" &&
-						!nameMap.has(`walk_in:${p.clientId}`),
+						p.clientType === "walk_in" && !nameMap.has(`walk_in:${p.clientId}`),
 				)
 				.map((p) => p.clientId),
 		),
@@ -225,7 +224,10 @@ async function batchResolveDisplayNames(
 	for (const p of pairs) {
 		const key = `${p.clientType}:${p.clientId}`;
 		if (!nameMap.has(key)) {
-			nameMap.set(key, p.clientType === "walk_in" ? "Walk-in" : "Unknown client");
+			nameMap.set(
+				key,
+				p.clientType === "walk_in" ? "Walk-in" : "Unknown client",
+			);
 		}
 	}
 
@@ -325,7 +327,7 @@ export async function recordCheckIn(
 					checkedInBy: input.actor.userId,
 					clientDisplayName:
 						input.clientType === "walk_in"
-							? (input.clientDisplayName?.trim() || null)
+							? input.clientDisplayName?.trim() || null
 							: null,
 				})
 				.returning();
@@ -393,7 +395,11 @@ export async function recordCheckIn(
 
 	// Post-transaction: attempt auto-completion if credits were consumed.
 	// Idempotent — safe to call even when conditions aren't fully met yet.
-	if (input.packageInstanceId && input.creditsConsumed && input.creditsConsumed > 0) {
+	if (
+		input.packageInstanceId &&
+		input.creditsConsumed &&
+		input.creditsConsumed > 0
+	) {
 		await markCompleteIfFinal(tenantDb, input.packageInstanceId);
 	}
 
@@ -464,27 +470,31 @@ export async function listTodaysBookings(
 
 	// Batch-resolve active package instances for all member clientIds
 	const memberClientIds = [...new Set(rows.map((r) => r.clientId))];
-	const activePackages = memberClientIds.length > 0
-		? await tenantDb
-			.select({
-				clientId: packageInstances.clientId,
-				id: packageInstances.id,
-				creditsRemaining: packageInstances.creditsRemaining,
-				expiresAt: packageInstances.expiresAt,
-			})
-			.from(packageInstances)
-			.where(
-				and(
-					inArray(packageInstances.clientId, memberClientIds),
-					eq(packageInstances.status, "active"),
-					sql`${packageInstances.creditsRemaining} > 0`,
-				),
-			)
-			.orderBy(packageInstances.expiresAt)
-		: [];
+	const activePackages =
+		memberClientIds.length > 0
+			? await tenantDb
+					.select({
+						clientId: packageInstances.clientId,
+						id: packageInstances.id,
+						creditsRemaining: packageInstances.creditsRemaining,
+						expiresAt: packageInstances.expiresAt,
+					})
+					.from(packageInstances)
+					.where(
+						and(
+							inArray(packageInstances.clientId, memberClientIds),
+							eq(packageInstances.status, "active"),
+							sql`${packageInstances.creditsRemaining} > 0`,
+						),
+					)
+					.orderBy(packageInstances.expiresAt)
+			: [];
 
 	// Pick earliest-expiring package per clientId (already ordered by expiresAt)
-	const packageByClient = new Map<string, { id: string; creditsRemaining: number }>();
+	const packageByClient = new Map<
+		string,
+		{ id: string; creditsRemaining: number }
+	>();
 	for (const pkg of activePackages) {
 		if (pkg.clientId && !packageByClient.has(pkg.clientId)) {
 			packageByClient.set(pkg.clientId, {
@@ -547,7 +557,8 @@ export async function listTodaysBookings(
 			attendanceStatus,
 			checkInId: existingCheckIn?.id ?? null,
 			capacity: r.capacity ?? null,
-			creditsRemaining: packageByClient.get(r.clientId)?.creditsRemaining ?? null,
+			creditsRemaining:
+				packageByClient.get(r.clientId)?.creditsRemaining ?? null,
 			activePackageInstanceId: packageByClient.get(r.clientId)?.id ?? null,
 		};
 	});
@@ -610,7 +621,10 @@ export async function recordBulkCheckIn(
 			branchId: appointments.branchId,
 		})
 		.from(appointmentClients)
-		.innerJoin(appointments, eq(appointmentClients.appointmentId, appointments.id))
+		.innerJoin(
+			appointments,
+			eq(appointmentClients.appointmentId, appointments.id),
+		)
 		.where(inArray(appointmentClients.id, bookingIds));
 
 	const bookingMap = new Map(bookings.map((b) => [b.id, b]));

@@ -32,7 +32,13 @@ const ORG_PROVISIONED = "f0000000-0000-4000-8000-0000000000a5";
 const SUB_ACTIVE = "f0000000-0000-4000-8000-0000000000b1";
 const SUB_LAPSED = "f0000000-0000-4000-8000-0000000000b2";
 
-const ALL_ORGS = [ORG_SUSPENDED, ORG_CANCELLED, ORG_ACTIVE, ORG_LAPSED, ORG_PROVISIONED];
+const ALL_ORGS = [
+	ORG_SUSPENDED,
+	ORG_CANCELLED,
+	ORG_ACTIVE,
+	ORG_LAPSED,
+	ORG_PROVISIONED,
+];
 const ALL_SUBS = [SUB_ACTIVE, SUB_LAPSED];
 
 function buildApp() {
@@ -149,6 +155,8 @@ describe("tenant access gates (orpcTenantMiddleware)", () => {
 	});
 
 	it("B4: admin-provisioned tenant (active, no subscription) is NOT write-locked", async () => {
-		expect(await callRpc("/rpc/salesOrders/create", ORG_PROVISIONED)).not.toBe(403);
+		expect(await callRpc("/rpc/salesOrders/create", ORG_PROVISIONED)).not.toBe(
+			403,
+		);
 	});
 });

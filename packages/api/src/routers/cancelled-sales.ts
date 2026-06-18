@@ -1,28 +1,15 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
-	requirePermission,
 	listCancelledSales,
 	getCancelledSaleById,
 	exportCancelledSalesCsv,
 } from "@avantej-core/services";
 
-function requireTenantMember(context: { tenantDb?: unknown; member?: unknown }) {
-	if (!context.tenantDb) {
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Tenant database not available. Ensure organization context is set.",
-		});
-	}
-	if (!context.member) {
-		throw new ORPCError("FORBIDDEN", {
-			message: "User is not a member of this organization",
-		});
-	}
-}
-
 export const cancelledSalesRouter = {
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -31,20 +18,18 @@ export const cancelledSalesRouter = {
 				to: z.string().datetime().optional(),
 				limit: z.number().int().min(1).max(200).default(50),
 				offset: z.number().int().min(0).default(0),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			requireTenantMember(context);
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"sales",
+				"read",
+			);
 
-			try {
-				await requirePermission(context.tenantDb!, context.member!, "sales", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
-
-			return listCancelledSales(context.tenantDb!, {
+			return listCancelledSales(context.tenantDb, {
 				customerId: input.customerId,
 				from: input.from ? new Date(input.from) : undefined,
 				to: input.to ? new Date(input.to) : undefined,
@@ -54,26 +39,24 @@ export const cancelledSalesRouter = {
 			});
 		}),
 
-	getById: protectedProcedure
+	getById: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			requireTenantMember(context);
-
-			try {
-				await requirePermission(context.tenantDb!, context.member!, "sales", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"sales",
+				"read",
+			);
 
 			const row = await getCancelledSaleById(
-				context.tenantDb!,
+				context.tenantDb,
 				input.id,
 				context.accessibleNodeIds,
 			);
@@ -87,27 +70,25 @@ export const cancelledSalesRouter = {
 			return row;
 		}),
 
-	exportCsv: protectedProcedure
+	exportCsv: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				customerId: z.string().optional(),
 				from: z.string().datetime().optional(),
 				to: z.string().datetime().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			requireTenantMember(context);
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"sales",
+				"read",
+			);
 
-			try {
-				await requirePermission(context.tenantDb!, context.member!, "sales", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
-
-			return exportCancelledSalesCsv(context.tenantDb!, {
+			return exportCancelledSalesCsv(context.tenantDb, {
 				customerId: input.customerId,
 				from: input.from ? new Date(input.from) : undefined,
 				to: input.to ? new Date(input.to) : undefined,

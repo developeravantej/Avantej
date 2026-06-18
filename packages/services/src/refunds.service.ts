@@ -13,6 +13,7 @@
 
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
+import { installments } from "@avantej-core/db/schema/tenant/installments";
 import { invoices } from "@avantej-core/db/schema/tenant/invoices";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { payments } from "@avantej-core/db/schema/tenant/payments";
@@ -36,7 +37,10 @@ import {
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { writeAudit } from "./audit-log.service";
 import { reverseForRefund } from "./commission-splits.service";
-import { appendPaymentStatusHistory } from "./status-history.helper";
+import {
+	appendPackageInstanceStatusHistory,
+	appendPaymentStatusHistory,
+} from "./status-history.helper";
 
 // ---------------------------------------------------------------------------
 // Internal type aliases
@@ -62,9 +66,11 @@ export interface RequestRefundInput {
 	taxAmountCents?: number;
 	reason: string;
 	notes?: string;
-	// Customer + branch — service auto-pulls from target if not provided.
-	// Pull priority: salesOrderId > paymentId > packageInstanceId
-	customerId?: string;
+	// Customer + branch — service DERIVES these from the target record.
+	// Pull priority: salesOrderId > paymentId > packageInstanceId.
+	// CPR-08: customerId must NOT be supplied by callers; it is always derived
+	// server-side. customerName and branchId are accepted as hints only when
+	// they cannot be auto-derived (e.g. payment/packageInstance targets).
 	customerName?: string;
 	branchId?: string;
 	// Optional line-item breakdown for the refund (Phase 3 Task 3.2)
@@ -356,9 +362,12 @@ export async function requestRefund(
 		const now = new Date();
 
 		// ------------------------------------------------------------------
-		// Auto-fill customer / branch from target (priority: SO > payment > pkg)
+		// CPR-08: Derive customer from the refund target — NEVER trust caller input.
+		// Priority: salesOrderId > paymentId > packageInstanceId.
+		// customerId is always authoritative from the target record so a malicious
+		// caller cannot attribute a refund to the wrong customer.
 		// ------------------------------------------------------------------
-		let customerId = input.customerId;
+		let derivedCustomerId: string | undefined;
 		let customerName = input.customerName;
 		let branchId = input.branchId;
 
@@ -371,7 +380,7 @@ export async function requestRefund(
 					code: "NOT_FOUND",
 					message: `Sales order ${input.salesOrderId} not found`,
 				};
-			customerId = customerId ?? order.customerId ?? "";
+			derivedCustomerId = order.customerId ?? undefined;
 			customerName = customerName ?? order.customerName;
 			branchId = branchId ?? order.branchId;
 		} else if (input.paymentId) {
@@ -383,8 +392,8 @@ export async function requestRefund(
 					code: "NOT_FOUND",
 					message: `Payment ${input.paymentId} not found`,
 				};
-			customerId = customerId ?? payment.customerId;
-			customerName = customerName ?? payment.customerId; // no name on payments; use ID as fallback
+			derivedCustomerId = payment.customerId ?? undefined;
+			customerName = customerName ?? payment.customerId ?? undefined; // no name on payments; use ID as fallback
 		} else if (input.packageInstanceId) {
 			const instance = await tx.query.packageInstances.findFirst({
 				where: (pi, { eq: eqFn }) =>
@@ -395,9 +404,12 @@ export async function requestRefund(
 					code: "NOT_FOUND",
 					message: `Package instance ${input.packageInstanceId} not found`,
 				};
-			customerId = customerId ?? instance.clientId ?? undefined;
+			derivedCustomerId = instance.clientId ?? undefined;
 			customerName = customerName ?? instance.clientId ?? undefined; // no name on package_instances; use ID as fallback
 		}
+
+		// Authoritative customer is derived; ignore any caller-supplied customerId entirely.
+		const customerId = derivedCustomerId;
 
 		if (!customerId || !customerName) {
 			throw {
@@ -559,6 +571,59 @@ export async function approveRefund(
 			};
 		}
 
+		// F-07 — Lock the PARENT target row (sales_order, payment, or package_instance)
+		// BEFORE reading remaining-refundable, so concurrent approveRefund calls against
+		// the same target serialize on the cap check. Without this lock, two TXs can
+		// both read SUM(refunds.amountCents) before either commits, both compute the
+		// same `remainingCents`, and both pass the cap → over-approval. The parent
+		// row is held until COMMIT, which forces the second TX to re-read post-commit.
+		//
+		// The cap re-validation that follows now ALWAYS runs (was previously partial-only),
+		// closing the symmetrical hole where a full-approve path skipped the check
+		// entirely. A full-approve whose `existing.amountCents` exceeds the now-current
+		// remaining is rejected with BAD_REQUEST.
+		if (existing.salesOrderId) {
+			await tx
+				.select({ id: salesOrders.id })
+				.from(salesOrders)
+				.where(eq(salesOrders.id, existing.salesOrderId))
+				.for("update");
+		} else if (existing.paymentId) {
+			await tx
+				.select({ id: payments.id })
+				.from(payments)
+				.where(eq(payments.id, existing.paymentId))
+				.for("update");
+		} else if (existing.packageInstanceId) {
+			await tx
+				.select({ id: packageInstances.id })
+				.from(packageInstances)
+				.where(eq(packageInstances.id, existing.packageInstanceId))
+				.for("update");
+		}
+
+		// Compute remaining-refundable on the target (now under the parent lock).
+		// `existing.amountCents` is added back because computeRemaining* counts this
+		// pending refund in its SUM — the cap should reflect previously-settled
+		// refunds only.
+		let remainingCents = existing.amountCents;
+		if (existing.salesOrderId) {
+			const info = await computeRemainingBySalesOrder(
+				tx,
+				existing.salesOrderId,
+			);
+			remainingCents = info.remainingCents + existing.amountCents;
+		} else if (existing.paymentId) {
+			const info = await computeRemainingByPayment(tx, existing.paymentId);
+			remainingCents = info.remainingCents + existing.amountCents;
+		} else if (existing.packageInstanceId) {
+			const info = await computeRemainingByPackageInstance(
+				tx,
+				existing.packageInstanceId,
+			);
+			remainingCents = info.remainingCents + existing.amountCents;
+		}
+
 		// 1.5 — Validate partial-approve amount when provided
 		let effectiveAmountCents = existing.amountCents;
 		let isPartial = false;
@@ -580,38 +645,25 @@ export async function approveRefund(
 				};
 			}
 
-			// Validate against remaining-refundable on the target
-			let remainingCents = existing.amountCents; // default: requested is the cap
-
-			if (existing.salesOrderId) {
-				const info = await computeRemainingBySalesOrder(tx, existing.salesOrderId);
-				// remaining excludes this pending refund (counted in computeRemainingBySalesOrder);
-				// add back this row's requested amount so the cap reflects only previously-settled refunds
-				remainingCents = info.remainingCents + existing.amountCents;
-			} else if (existing.paymentId) {
-				const info = await computeRemainingByPayment(tx, existing.paymentId);
-				remainingCents = info.remainingCents + existing.amountCents;
-			} else if (existing.packageInstanceId) {
-				const info = await computeRemainingByPackageInstance(
-					tx,
-					existing.packageInstanceId,
-				);
-				remainingCents = info.remainingCents + existing.amountCents;
-			}
-
-			if (approve > remainingCents) {
-				throw {
-					code: "BAD_REQUEST",
-					message: `approveAmountCents (${approve}) exceeds remaining refundable amount (${remainingCents})`,
-				};
-			}
-
 			effectiveAmountCents = approve;
 			isPartial = approve < existing.amountCents;
 		}
 
+		// Always validate the effective amount against the now-current remaining cap.
+		// This catches both partial-approve and full-approve over-cap scenarios,
+		// including the race where two concurrent requestRefund inserts each
+		// passed their own (unlocked) cap check.
+		if (effectiveAmountCents > remainingCents) {
+			throw {
+				code: "BAD_REQUEST",
+				message: `Refund amount (${effectiveAmountCents}) exceeds remaining refundable amount (${remainingCents})`,
+			};
+		}
+
 		const now = new Date();
-		const auditAction = isPartial ? "refund.approve.partial" : "refund.approve.full";
+		const auditAction = isPartial
+			? "refund.approve.partial"
+			: "refund.approve.full";
 
 		const [updated] = await tx
 			.update(refunds)
@@ -646,6 +698,80 @@ export async function approveRefund(
 			initiatedBy: params.actor.userId,
 			actor: params.actor,
 		});
+
+		// CPR-05: when a full refund is approved against a package instance, cancel the
+		// instance and zero its credits within this same transaction so the customer
+		// cannot continue consuming a fully-refunded package.
+		if (existing.packageInstanceId) {
+			const [pkgInstance] = await tx
+				.select()
+				.from(packageInstances)
+				.where(eq(packageInstances.id, existing.packageInstanceId))
+				.for("update");
+
+			if (pkgInstance) {
+				const totalPrice = pkgInstance.totalPrice ?? 0;
+				const isFullRefund =
+					totalPrice > 0 && effectiveAmountCents >= totalPrice;
+
+				if (isFullRefund && pkgInstance.status !== "cancelled") {
+					const now = new Date();
+					const previousStatus = pkgInstance.status;
+
+					// Cancel outstanding instalment rows before marking package cancelled
+					await tx
+						.update(installments)
+						.set({ status: "cancelled", updatedAt: now })
+						.where(
+							and(
+								eq(installments.packageInstanceId, existing.packageInstanceId),
+								inArray(installments.status, ["pending", "overdue"]),
+							),
+						);
+
+					// Zero out remaining credits and cancel the instance
+					await tx
+						.update(packageInstances)
+						.set({
+							status: "cancelled",
+							creditsUsed: pkgInstance.creditsTotal ?? pkgInstance.creditsUsed,
+							cancellationReason: `Full refund approved: ${existing.refundNumber}`,
+							cancelledBy: params.actor.userId,
+							updatedAt: now,
+						})
+						.where(eq(packageInstances.id, existing.packageInstanceId));
+
+					await appendPackageInstanceStatusHistory(
+						tx,
+						existing.packageInstanceId,
+						{
+							fromStatus: previousStatus,
+							toStatus: "cancelled",
+							changedBy: params.actor.userId,
+							reason: `Full refund approved: ${existing.refundNumber}`,
+						},
+					);
+
+					await writeAudit(tx, {
+						actorUserId: params.actor.userId,
+						actorMemberId: params.actor.memberId,
+						actorRole: params.actor.role,
+						action: "package.cancelled",
+						entityType: "package_instance",
+						entityId: existing.packageInstanceId,
+						branchId: existing.branchId ?? undefined,
+						summary: `Package instance ${existing.packageInstanceId} cancelled due to full refund ${existing.refundNumber}`,
+						changes: {
+							previousStatus,
+							refundId: id,
+							refundNumber: existing.refundNumber,
+							effectiveAmountCents,
+							totalPrice,
+						},
+					});
+				}
+			}
+		}
 
 		await writeAudit(tx, {
 			actorUserId: params.actor.userId,
@@ -810,7 +936,10 @@ export async function processRefund(
 
 			if (order) {
 				if (order.status === "cancelled") {
-					throw { code: "BAD_REQUEST", message: "Sale is already fully refunded" };
+					throw {
+						code: "BAD_REQUEST",
+						message: "Sale is already fully refunded",
+					};
 				}
 
 				const newCancelledAmount =
@@ -1191,7 +1320,10 @@ export async function createPartialRefund(
 	tenantDb: TenantDb,
 	params: CreatePartialRefundParams,
 ): Promise<CreatePartialRefundResult> {
-	if (params.creditsRefunded <= 0 || !Number.isInteger(params.creditsRefunded)) {
+	if (
+		params.creditsRefunded <= 0 ||
+		!Number.isInteger(params.creditsRefunded)
+	) {
 		throw {
 			code: "BAD_REQUEST",
 			message: "creditsRefunded must be a positive integer",

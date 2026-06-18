@@ -6,12 +6,14 @@ import {
 } from "@react-navigation/native";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
-import { Slot } from "expo-router";
+import { Slot, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "../global.css";
 import React, { useRef } from "react";
-import { Platform } from "react-native";
+import { LogBox, Platform } from "react-native";
+
+LogBox.ignoreLogs(["expo-notifications"]);
 import { setAndroidNavigationBar } from "@/lib/android-navigation-bar";
 import { NAV_THEME } from "@/lib/constants";
 import { useColorScheme } from "@/lib/use-color-scheme";
@@ -30,6 +32,11 @@ export default function RootLayout() {
 	const hasMounted = useRef(false);
 	const { colorScheme, isDarkColorScheme } = useColorScheme();
 	const [isColorSchemeLoaded, setIsColorSchemeLoaded] = React.useState(false);
+	const pathname = usePathname();
+
+	React.useEffect(() => {
+		console.log("[NAV]", pathname);
+	}, [pathname]);
 
 	const [fontsLoaded] = useFonts({
 		Nordeco: require("../assets/fonts/Nordeco-Bold.otf"),

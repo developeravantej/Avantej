@@ -17,17 +17,29 @@ import { Pool } from "@neondatabase/serverless";
 import { eq } from "drizzle-orm";
 
 const args = process.argv.slice(2);
-const slugArg = args.find((a) => a.startsWith("--slug=")) ?? "--slug=test-fitness-franchise";
-const slug = slugArg.split("=")[1] ?? "test-fitness-franchise";
+const slug =
+	(
+		args.find((a) => a.startsWith("--slug=")) ?? "--slug=test-fitness-franchise"
+	).split("=")[1] ?? "test-fitness-franchise";
 const doFix = args.includes("--fix");
 
-const TABLES = ["services", "appointments", "package_instances", "sales_orders", "installments"];
+const TABLES = [
+	"services",
+	"appointments",
+	"package_instances",
+	"sales_orders",
+	"installments",
+];
 
 async function main() {
 	const cp = getControlPanelDb();
-	const org = await cp.query.organizations.findFirst({ where: eq(organizations.slug, slug) });
+	const org = await cp.query.organizations.findFirst({
+		where: eq(organizations.slug, slug),
+	});
 	if (!org) throw new Error(`org not found for slug=${slug}`);
-	console.log(`Org: ${org.name} (${org.id})  schemaVersion=${org.schemaVersion}`);
+	console.log(
+		`Org: ${org.name} (${org.id})  schemaVersion=${org.schemaVersion}`,
+	);
 
 	const connectionString = decrypt(org.connectionString as string);
 	const pool = new Pool({ connectionString });
@@ -38,7 +50,9 @@ async function main() {
 				`SELECT column_name FROM information_schema.columns WHERE table_name = $1 ORDER BY column_name`,
 				[t],
 			);
-			console.log(`\n[${t}] ${rows.length} cols: ${rows.map((r: { column_name: string }) => r.column_name).join(", ")}`);
+			console.log(
+				`\n[${t}] ${rows.length} cols: ${rows.map((r: { column_name: string }) => r.column_name).join(", ")}`,
+			);
 		}
 
 		if (doFix) {
@@ -79,4 +93,9 @@ async function main() {
 	}
 }
 
-main().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });
+main()
+	.then(() => process.exit(0))
+	.catch((e) => {
+		console.error(e);
+		process.exit(1);
+	});

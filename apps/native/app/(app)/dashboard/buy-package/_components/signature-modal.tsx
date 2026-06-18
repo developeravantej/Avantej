@@ -52,11 +52,7 @@ export function SignatureModal({
 								</Text>
 							</View>
 							<Pressable onPress={onClose} className="absolute right-6">
-								<Ionicons
-									name="close"
-									size={28}
-									color={colors.primary[1]}
-								/>
+								<Ionicons name="close" size={28} color={colors.primary[1]} />
 							</Pressable>
 						</View>
 						<View className="mt-2 flex-row items-center justify-center">

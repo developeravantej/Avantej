@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import type { HouseholdProfileShape } from "../types";
 import {
 	AttachHouseholdDialog,
@@ -14,7 +14,7 @@ export function HouseholdSection(props: {
 	organizationId: string;
 	profile: HouseholdProfileShape;
 	canEdit: boolean;
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
+	// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }) {
 	const { organizationId, profile, canEdit } = props;
 	const queryClient = useQueryClient();
@@ -33,20 +33,16 @@ export function HouseholdSection(props: {
 
 	// Current household + its members (only fetched when this profile is in one).
 	const { data: household } = useQuery({
-		queryKey: ["households", "get", organizationId, householdId],
-		queryFn: () =>
-			client.households.get({
-				organizationId,
-				householdId: householdId!,
-			}),
+		...orpc.households.get.queryOptions({
+			input: { organizationId, householdId: householdId ?? "" },
+		}),
 		enabled: !!organizationId && !!householdId,
 		staleTime: 60_000,
 	});
 
 	// All households in the org (for the attach picker).
 	const { data: allHouseholds = [] } = useQuery({
-		queryKey: ["households", "list", organizationId],
-		queryFn: () => client.households.list({ organizationId }),
+		...orpc.households.list.queryOptions({ input: { organizationId } }),
 		enabled: !!organizationId && canEdit,
 		staleTime: 60_000,
 	});
@@ -67,8 +63,7 @@ export function HouseholdSection(props: {
 			client.households.create({
 				organizationId,
 				name: newName.trim(),
-				primaryContactProfileId:
-					makePrimary && profileId ? profileId : null,
+				primaryContactProfileId: makePrimary && profileId ? profileId : null,
 				notes: newNotes.trim() || null,
 			}),
 		onSuccess: async (created) => {
@@ -230,28 +225,36 @@ export function HouseholdSection(props: {
 									<p className="text-muted-foreground">No members yet.</p>
 								) : (
 									<ul className="mt-1 space-y-1">
-										{household.members.map((m: { id: string; userId: string; phone?: string | null }) => {
-											const isPrimary =
-												household.primaryContactProfileId === m.id;
-											const isThis = m.id === profileId;
-											return (
-												<li
-													key={m.id}
-													className="flex items-center justify-between rounded-md border px-3 py-2"
-												>
-													<span className="font-mono text-xs">
-														{m.userId.slice(0, 8)}
-														{m.phone ? ` · ${m.phone}` : ""}
-													</span>
-													<span className="flex gap-1.5">
-														{isPrimary && (
-															<Badge variant="default">Primary</Badge>
-														)}
-														{isThis && <Badge variant="outline">This customer</Badge>}
-													</span>
-												</li>
-											);
-										})}
+										{household.members.map(
+											(m: {
+												id: string;
+												userId: string;
+												phone?: string | null;
+											}) => {
+												const isPrimary =
+													household.primaryContactProfileId === m.id;
+												const isThis = m.id === profileId;
+												return (
+													<li
+														key={m.id}
+														className="flex items-center justify-between rounded-md border px-3 py-2"
+													>
+														<span className="font-mono text-xs">
+															{m.userId.slice(0, 8)}
+															{m.phone ? ` · ${m.phone}` : ""}
+														</span>
+														<span className="flex gap-1.5">
+															{isPrimary && (
+																<Badge variant="default">Primary</Badge>
+															)}
+															{isThis && (
+																<Badge variant="outline">This customer</Badge>
+															)}
+														</span>
+													</li>
+												);
+											},
+										)}
 									</ul>
 								)}
 							</div>

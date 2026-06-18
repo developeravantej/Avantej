@@ -1,8 +1,23 @@
-"use client";
-
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+	DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { client } from "@/utils/orpc";
 
@@ -63,8 +78,9 @@ export function AssignPackageModal({
 	// ── Mutation ──────────────────────────────────────────────────────────────
 
 	const mutation = useApiMutation({
-		mutationFn: (vars: Parameters<typeof client.packageInstances.bulkAssign>[0]) =>
-			client.packageInstances.bulkAssign(vars),
+		mutationFn: (
+			vars: Parameters<typeof client.packageInstances.bulkAssign>[0],
+		) => client.packageInstances.bulkAssign(vars),
 		successMessage: false, // handled manually below for partial results
 		errorMessage: (err) => err.message,
 		invalidate: [
@@ -76,11 +92,15 @@ export function AssignPackageModal({
 			if (failedCount === 0) {
 				// All succeeded
 				import("sonner").then(({ toast }) =>
-					toast.success(`Package assigned to ${succeededCount} customer${succeededCount !== 1 ? "s" : ""}.`),
+					toast.success(
+						`Package assigned to ${succeededCount} customer${succeededCount !== 1 ? "s" : ""}.`,
+					),
 				);
 			} else if (succeededCount === 0) {
 				import("sonner").then(({ toast }) =>
-					toast.error(`Failed to assign package to all ${failedCount} customer${failedCount !== 1 ? "s" : ""}.`),
+					toast.error(
+						`Failed to assign package to all ${failedCount} customer${failedCount !== 1 ? "s" : ""}.`,
+					),
 				);
 			} else {
 				import("sonner").then(({ toast }) =>
@@ -123,123 +143,161 @@ export function AssignPackageModal({
 	// ── Render ────────────────────────────────────────────────────────────────
 
 	return (
-		<Dialog open={open} onOpenChange={(v) => { if (!mutation.isPending) { onOpenChange(v); if (!v) resetForm(); } }}>
-			<DialogContent className="sm:max-w-[480px]">
-				<DialogHeader>
-					<DialogTitle className="text-base font-semibold text-[#0a0a0a]">
+		<Dialog
+			open={open}
+			onOpenChange={(v) => {
+				if (!mutation.isPending) {
+					onOpenChange(v);
+					if (!v) resetForm();
+				}
+			}}
+		>
+			<DialogContent
+				className="sm:max-w-[480px] p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						PACKAGE CATALOG
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
 						Assign package
 						<span className="ml-2 text-xs font-normal text-[#737373]">
-							to {customerIds.length} customer{customerIds.length !== 1 ? "s" : ""}
+							to {customerIds.length} customer
+							{customerIds.length !== 1 ? "s" : ""}
 						</span>
 					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
+						Select a package to assign to the selected customer
+						{customerIds.length !== 1 ? "s" : ""}.
+					</DialogDescription>
 				</DialogHeader>
 
-				<form onSubmit={handleSubmit} className="mt-2 space-y-4">
-					{/* Package selector */}
-					<div className="space-y-1.5">
-						<label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
-							Package <span className="text-rose-500">*</span>
-						</label>
-						{isLoading ? (
-							<div className="h-9 rounded-lg bg-[#e5e5e5] animate-pulse" />
-						) : (
-							<select
+				<form onSubmit={handleSubmit}>
+					<div className="px-6 pt-4 pb-2 overflow-y-auto space-y-4">
+						{/* Package selector */}
+						<div className="space-y-1.5">
+							<Label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
+								Package <span className="text-rose-500">*</span>
+							</Label>
+							{isLoading ? (
+								<div className="h-9 rounded-lg bg-[#e5e5e5] animate-pulse" />
+							) : (
+								<Select required value={packageId} onValueChange={setPackageId}>
+									<SelectTrigger>
+										<SelectValue placeholder="Select a package…" />
+									</SelectTrigger>
+									<SelectContent>
+										{packages.map((pkg) => (
+											<SelectItem key={pkg.id} value={pkg.id}>
+												{pkg.name}
+												{pkg.sessionCount
+													? ` (${pkg.sessionCount} sessions)`
+													: ""}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							)}
+						</div>
+
+						{/* Branch selector */}
+						<div className="space-y-1.5">
+							<Label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
+								Branch <span className="text-rose-500">*</span>
+							</Label>
+							{isLoading ? (
+								<div className="h-9 rounded-lg bg-[#e5e5e5] animate-pulse" />
+							) : (
+								<Select required value={branchId} onValueChange={setBranchId}>
+									<SelectTrigger>
+										<SelectValue placeholder="Select a branch…" />
+									</SelectTrigger>
+									<SelectContent>
+										{branches.map((branch) => (
+											<SelectItem key={branch.id} value={branch.id}>
+												{branch.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							)}
+						</div>
+
+						{/* Trainer selector (optional) */}
+						<div className="space-y-1.5">
+							<Label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
+								Trainer{" "}
+								<span className="text-[#a3a3a3] font-normal normal-case">
+									(optional)
+								</span>
+							</Label>
+							{isLoading ? (
+								<div className="h-9 rounded-lg bg-[#e5e5e5] animate-pulse" />
+							) : (
+								<Select
+									value={trainerMemberId}
+									onValueChange={setTrainerMemberId}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="No trainer assigned" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="">No trainer assigned</SelectItem>
+										{trainers.map(
+											(trainer: {
+												id: string;
+												name: string;
+												email: string;
+											}) => (
+												<SelectItem key={trainer.id} value={trainer.id}>
+													{trainer.name ?? trainer.email ?? trainer.id}
+												</SelectItem>
+											),
+										)}
+									</SelectContent>
+								</Select>
+							)}
+						</div>
+
+						{/* Start date */}
+						<div className="space-y-1.5">
+							<Label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
+								Start date <span className="text-rose-500">*</span>
+							</Label>
+							<Input
+								type="date"
 								required
-								value={packageId}
-								onChange={(e) => setPackageId(e.target.value)}
-								className="w-full rounded-lg border border-[#e5e5e5] bg-white px-3 py-2 text-sm text-[#0a0a0a] outline-none focus:border-[#0a0a0a] focus:ring-1 focus:ring-[#0a0a0a]"
-							>
-								<option value="">Select a package…</option>
-								{packages.map((pkg) => (
-									<option key={pkg.id} value={pkg.id}>
-										{pkg.name}
-										{pkg.sessionCount ? ` (${pkg.sessionCount} sessions)` : ""}
-									</option>
-								))}
-							</select>
-						)}
+								value={startDate}
+								onChange={(e) => setStartDate(e.target.value)}
+							/>
+						</div>
+
+						{/* Notes */}
+						<div className="space-y-1.5">
+							<Label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
+								Notes{" "}
+								<span className="text-[#a3a3a3] font-normal normal-case">
+									(optional)
+								</span>
+							</Label>
+							<Textarea
+								value={notes}
+								onChange={(e) => setNotes(e.target.value)}
+								rows={2}
+								maxLength={500}
+								placeholder="Any remarks for this assignment…"
+							/>
+						</div>
 					</div>
 
-					{/* Branch selector */}
-					<div className="space-y-1.5">
-						<label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
-							Branch <span className="text-rose-500">*</span>
-						</label>
-						{isLoading ? (
-							<div className="h-9 rounded-lg bg-[#e5e5e5] animate-pulse" />
-						) : (
-							<select
-								required
-								value={branchId}
-								onChange={(e) => setBranchId(e.target.value)}
-								className="w-full rounded-lg border border-[#e5e5e5] bg-white px-3 py-2 text-sm text-[#0a0a0a] outline-none focus:border-[#0a0a0a] focus:ring-1 focus:ring-[#0a0a0a]"
-							>
-								<option value="">Select a branch…</option>
-								{branches.map((branch) => (
-									<option key={branch.id} value={branch.id}>
-										{branch.name}
-									</option>
-								))}
-							</select>
-						)}
-					</div>
-
-					{/* Trainer selector (optional) */}
-					<div className="space-y-1.5">
-						<label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
-							Trainer <span className="text-[#a3a3a3] font-normal normal-case">(optional)</span>
-						</label>
-						{isLoading ? (
-							<div className="h-9 rounded-lg bg-[#e5e5e5] animate-pulse" />
-						) : (
-							<select
-								value={trainerMemberId}
-								onChange={(e) => setTrainerMemberId(e.target.value)}
-								className="w-full rounded-lg border border-[#e5e5e5] bg-white px-3 py-2 text-sm text-[#0a0a0a] outline-none focus:border-[#0a0a0a] focus:ring-1 focus:ring-[#0a0a0a]"
-							>
-								<option value="">No trainer assigned</option>
-								{trainers.map((trainer: { id: string; name: string; email: string }) => (
-									<option key={trainer.id} value={trainer.id}>
-										{trainer.name ?? trainer.email ?? trainer.id}
-									</option>
-								))}
-							</select>
-						)}
-					</div>
-
-					{/* Start date */}
-					<div className="space-y-1.5">
-						<label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
-							Start date <span className="text-rose-500">*</span>
-						</label>
-						<input
-							type="date"
-							required
-							value={startDate}
-							onChange={(e) => setStartDate(e.target.value)}
-							className="w-full rounded-lg border border-[#e5e5e5] bg-white px-3 py-2 text-sm text-[#0a0a0a] outline-none focus:border-[#0a0a0a] focus:ring-1 focus:ring-[#0a0a0a]"
-						/>
-					</div>
-
-					{/* Notes */}
-					<div className="space-y-1.5">
-						<label className="text-xs font-semibold text-[#0a0a0a] uppercase tracking-wide">
-							Notes <span className="text-[#a3a3a3] font-normal normal-case">(optional)</span>
-						</label>
-						<textarea
-							value={notes}
-							onChange={(e) => setNotes(e.target.value)}
-							rows={2}
-							maxLength={500}
-							placeholder="Any remarks for this assignment…"
-							className="w-full rounded-lg border border-[#e5e5e5] bg-white px-3 py-2 text-sm text-[#0a0a0a] outline-none focus:border-[#0a0a0a] focus:ring-1 focus:ring-[#0a0a0a] resize-none"
-						/>
-					</div>
-
-					<DialogFooter className="pt-2">
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<button
 							type="button"
-							onClick={() => { onOpenChange(false); resetForm(); }}
+							onClick={() => {
+								onOpenChange(false);
+								resetForm();
+							}}
 							disabled={mutation.isPending}
 							className="rounded-lg border border-[#e5e5e5] px-4 py-2 text-sm font-medium text-[#0a0a0a] hover:bg-[#f3f3f3] disabled:opacity-40"
 						>

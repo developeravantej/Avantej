@@ -1,0 +1,7 @@
+{
+  "my-services/update-my-buffer-unassigned.rule.spec.ts::updateMyBuffer rejects a service the caller is not assigned to (404)": [
+    "Call serviceMembers/updateMyBuffer with a random serviceId the caller is not assigned to",
+    "Assert the server rejects with 404 NOT_FOUND",
+    "Confirm no buffer override row is written"
+  ]
+}

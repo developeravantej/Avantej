@@ -61,13 +61,11 @@ function PlatformAdminMissionControlPage() {
 		<div className="p-6 space-y-6" data-testid="mission-control-page">
 			<div className="flex items-start justify-between gap-3">
 				<div>
-					<div className="text-xs text-muted-foreground">
-						Platform admin
-					</div>
+					<div className="text-xs text-muted-foreground">Platform admin</div>
 					<h1 className="text-2xl font-semibold">Mission Control</h1>
 					<p className="text-sm text-muted-foreground mt-1">
-						What needs attention right now. Counts, recent activity, and
-						at-risk tenants — refreshed on every load.
+						What needs attention right now. Counts, recent activity, and at-risk
+						tenants — refreshed on every load.
 					</p>
 				</div>
 				<Button
@@ -116,8 +114,7 @@ function PlatformAdminMissionControlPage() {
 							value={data.counts.total}
 							subLabel={
 								<span>
-									{data.counts.active} active · {data.counts.trialing}{" "}
-									trialing
+									{data.counts.active} active · {data.counts.trialing} trialing
 								</span>
 							}
 							testId="kpi-total-tenants"
@@ -125,9 +122,7 @@ function PlatformAdminMissionControlPage() {
 						<BigNumberCard
 							title="Active subscriptions"
 							value={data.subs.activeCount}
-							subLabel={
-								<span>{data.subs.trialingCount} on trial</span>
-							}
+							subLabel={<span>{data.subs.trialingCount} on trial</span>}
 							testId="kpi-active-subs"
 						/>
 						<BigNumberCard
@@ -145,8 +140,7 @@ function PlatformAdminMissionControlPage() {
 							value={data.counts.cancelled}
 							subLabel={
 								<span>
-									{data.counts.pastDue} past-due · {data.counts.unpaid}{" "}
-									unpaid
+									{data.counts.pastDue} past-due · {data.counts.unpaid} unpaid
 								</span>
 							}
 							band={data.counts.cancelled > 0 ? "red" : "neutral"}

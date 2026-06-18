@@ -10,7 +10,8 @@ const shotB64 = readFileSync(join(dir, "final-screen.png")).toString("base64");
 
 const TESTS = [
 	{
-		title: "Platform Admin surface — sidebar lean + Billing tabs (post-simplification)",
+		title:
+			"Platform Admin surface — sidebar lean + Billing tabs (post-simplification)",
 		status: "passed",
 		durationMs: 6690,
 		steps: [
@@ -74,4 +75,8 @@ ${TESTS.map(testHtml).join("")}
 </div></body></html>`;
 
 writeFileSync(join(dir, "review.html"), html);
-console.log("wrote", join(dir, "review.html"), `(${(html.length / 1024).toFixed(0)} KB)`);
+console.log(
+	"wrote",
+	join(dir, "review.html"),
+	`(${(html.length / 1024).toFixed(0)} KB)`,
+);

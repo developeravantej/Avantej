@@ -39,9 +39,15 @@ export type TrainerAssignment = {
 	slotIndex: number;
 };
 
-export type ItemTrainerAssignments = Record<number, TrainerAssignment[]>;
+export type ItemTrainerAssignments = Record<string, TrainerAssignment[]>;
 
-export type PaymentMethod = "cash" | "card" | "manual_transfer" | "fpx" | "stripe";
+export type PaymentMethod =
+	| "cash"
+	| "card"
+	| "manual_transfer"
+	| "fpx"
+	| "stripe"
+	| "online";
 
 export interface TaxRateOption {
 	id: string;
@@ -54,4 +60,5 @@ export interface InstallmentPlanOption {
 	code: string;
 	name: string;
 	numInstallments: number;
+	pricePremiumBps: number;
 }

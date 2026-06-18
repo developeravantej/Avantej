@@ -142,10 +142,7 @@ export function WebhooksLogTable({
 										{r.source}
 									</TableCell>
 									<TableCell className="px-6 py-4 text-sm whitespace-nowrap">
-										<Badge
-											variant="outline"
-											className={statusClass(r.status)}
-										>
+										<Badge variant="outline" className={statusClass(r.status)}>
 											{r.status}
 										</Badge>
 										{r.error ? (

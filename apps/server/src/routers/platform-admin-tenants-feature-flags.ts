@@ -36,32 +36,30 @@ import { eq, and, desc } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import {
-	platformAdminProcedure as adminProcedure,
-	superAdminProcedure,
-} from "@avantej-core/api";
+import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 import { tenantFeatureOverrides } from "@avantej-core/db/schema/control-panel/tenant-feature-overrides";
 import { user as userTable } from "@avantej-core/db/schema/auth";
-import { getTierLimits, resolveEffectiveTier, type Tier } from "@avantej-core/types";
+import {
+	getTierLimits,
+	resolveEffectiveTier,
+	type Tier,
+} from "@avantej-core/types";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 import { recordAdminAction } from "@/services/admin-audit.service";
 
-function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
-		"controlPanelDb",
-	) as NeonDatabase<typeof controlPanelSchema> | undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
+const superAdminProcedure = adminProcedure.use(
+	requirePlatformAdmin(["super_admin"]),
+);
 
 function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
 	const id = session?.user?.id;
-	if (!id) throw new ORPCError("UNAUTHORIZED", { message: "No admin user in session" });
+	if (!id)
+		throw new ORPCError("UNAUTHORIZED", {
+			message: "No admin user in session",
+		});
 	return id;
 }
 
@@ -149,7 +147,7 @@ export const platformAdminTenantsFeatureFlagsRouter = {
 	get: adminProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context, input }): Promise<TenantFeatureFlagsView> => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 
 			const org = await cpDb.query.organizations.findFirst({
 				where: eq(organizations.id, input.organizationId),
@@ -210,7 +208,7 @@ export const platformAdminTenantsFeatureFlagsRouter = {
 	listOverrides: adminProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const rows = await fetchOverrides(cpDb, input.organizationId);
 			return {
 				overrides: rows.map((r) => ({
@@ -235,7 +233,7 @@ export const platformAdminTenantsFeatureFlagsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 
 			const org = await cpDb.query.organizations.findFirst({
@@ -303,7 +301,7 @@ export const platformAdminTenantsFeatureFlagsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 
 			// Idempotent: no error if row missing.

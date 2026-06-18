@@ -1,7 +1,8 @@
-import { cloudflare } from '@cloudflare/vite-plugin';
+import { cloudflare } from "@cloudflare/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
+import { boneyardPlugin } from "boneyard-js/vite";
 import path from "node:path";
 import { defineConfig, loadEnv } from "vite";
 
@@ -9,13 +10,26 @@ export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, process.cwd(), "");
 	// Override server port via SERVER_PORT env (used by E2E to avoid worktree port conflicts).
 	const serverUrl =
-		env.VITE_SERVER_URL ?? `http://localhost:${process.env.SERVER_PORT ?? 3020}`;
+		env.VITE_SERVER_URL ??
+		`http://localhost:${process.env.SERVER_PORT ?? 3020}`;
 
 	return {
 		plugins: [
 			tailwindcss(),
 			tanstackRouter({}),
 			react(),
+			boneyardPlugin({
+				framework: "react",
+				routes: [
+					"/dashboard/trainers/view",
+					"/dashboard/service/view",
+					"/dashboard/sales/view",
+					"/dashboard/customers/v2/view",
+					"/dashboard/reports/view",
+				],
+				wait: 1500,
+				skipInitial: true,
+			}),
 			...(process.env.CF_DEPLOY === "true" ? [cloudflare()] : []),
 		],
 		resolve: {
@@ -50,12 +64,16 @@ export default defineConfig(({ mode }) => {
 							"@radix-ui/react-tooltip",
 						],
 						"vendor-ui": ["lucide-react", "sonner"],
-						"vendor-forms": ["react-hook-form", "@hookform/resolvers", "zod"],
+						"vendor-forms": ["@tanstack/react-form", "zod"],
 					},
 				},
 			},
 		},
 		server: {
+			// Allow *.localhost hostnames so cookie-scoped dev sessions don't collide with
+			// other projects running on localhost (browsers scope cookies by domain, not port).
+			// Navigate to http://avantej.localhost:3021 instead of http://localhost:3021.
+			allowedHosts: ["avantej.localhost", "localhost"],
 			// In local dev the API (Wrangler) runs on :3020 while the web app runs on :3021.
 			// Proxy API calls so the frontend can use relative URLs like /rpc/* and /api/*.
 			proxy: {

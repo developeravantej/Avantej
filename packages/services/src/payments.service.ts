@@ -32,6 +32,9 @@ export async function getPaymentStatusHistory(
 					: undefined,
 			),
 		)
-		.orderBy(desc(paymentStatusHistory.changedAt), desc(paymentStatusHistory.id))
+		.orderBy(
+			desc(paymentStatusHistory.changedAt),
+			desc(paymentStatusHistory.id),
+		)
 		.limit(limit + 1);
 }

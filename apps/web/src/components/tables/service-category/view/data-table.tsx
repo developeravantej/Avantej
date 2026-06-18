@@ -43,10 +43,15 @@ export default function DataTable<TData, TValue>({
 	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 	const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-	const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+	const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
+		null,
+	);
 	const [editCategoryId, setEditCategoryId] = useState<string | null>(null);
-	const [commissionCategoryId, setCommissionCategoryId] = useState<string | null>(null);
-	const [commissionCategoryName, setCommissionCategoryName] = useState<string>("");
+	const [commissionCategoryId, setCommissionCategoryId] = useState<
+		string | null
+	>(null);
+	const [commissionCategoryName, setCommissionCategoryName] =
+		useState<string>("");
 	const [isCommissionSheetOpen, setIsCommissionSheetOpen] = useState(false);
 	const qc = useQueryClient();
 
@@ -66,8 +71,13 @@ export default function DataTable<TData, TValue>({
 		queryFn: async () => {
 			if (!editCategoryId || !organizationId) return null;
 			const [category, config] = await Promise.all([
-				client.serviceCategories.getById({ organizationId, id: editCategoryId }),
-				client.serviceCategoryConfig.getByCategoryId({ organizationId, categoryId: editCategoryId }).catch(() => null),
+				client.serviceCategories.getById({
+					organizationId,
+					id: editCategoryId,
+				}),
+				client.serviceCategoryConfig
+					.getByCategoryId({ organizationId, categoryId: editCategoryId })
+					.catch(() => null),
 			]);
 			return { category, config };
 		},
@@ -81,22 +91,22 @@ export default function DataTable<TData, TValue>({
 				duration: editCategoryData.config?.defaultDuration ?? 60,
 				maxAttendees: editCategoryData.config?.defaultMaxAttendees ?? undefined,
 				rules: {
-					requireAdvanceBooking: editCategoryData.config?.requireAdvanceBooking ?? false,
+					requireAdvanceBooking:
+						editCategoryData.config?.requireAdvanceBooking ?? false,
 					minAdvanceHours: editCategoryData.config?.minAdvanceHours ?? 0,
-					enableCancellationWindow: editCategoryData.config?.enableCancellationWindow ?? false,
-					cancellationCutoffHours: editCategoryData.config?.cancellationCutoffHours ?? 0,
+					enableCancellationWindow:
+						editCategoryData.config?.enableCancellationWindow ?? false,
+					cancellationCutoffHours:
+						editCategoryData.config?.cancellationCutoffHours ?? 0,
 					bufferTimeMinutes: editCategoryData.config?.bufferTimeMinutes ?? 0,
 				},
 			}
 		: undefined;
 
-	const handleEditCategory = useCallback(
-		(categoryId: string) => {
-			setEditCategoryId(categoryId);
-			setIsEditDialogOpen(true);
-		},
-		[]
-	);
+	const handleEditCategory = useCallback((categoryId: string) => {
+		setEditCategoryId(categoryId);
+		setIsEditDialogOpen(true);
+	}, []);
 
 	const handleDeleteCategory = useCallback(
 		async (categoryId: string) => {
@@ -109,12 +119,13 @@ export default function DataTable<TData, TValue>({
 				toast.success("Category deactivated");
 				qc.invalidateQueries({ queryKey: orpc.serviceCategories.list.key() });
 			} catch (err: unknown) {
-				const message = err instanceof Error ? err.message : "Failed to deactivate category";
+				const message =
+					err instanceof Error ? err.message : "Failed to deactivate category";
 				toast.error(message);
 				throw err;
 			}
 		},
-		[organizationId, qc]
+		[organizationId, qc],
 	);
 
 	return (
@@ -145,7 +156,10 @@ export default function DataTable<TData, TValue>({
 				<table className="w-full">
 					<thead>
 						{table.getHeaderGroups().map((headerGroup) => (
-							<tr key={headerGroup.id} className="border-b border-[#e5e5e5] bg-[#f3f3f3]">
+							<tr
+								key={headerGroup.id}
+								className="border-b border-[#e5e5e5] bg-[#f3f3f3]"
+							>
 								{headerGroup.headers.map((header) => (
 									<th
 										key={header.id}
@@ -155,7 +169,7 @@ export default function DataTable<TData, TValue>({
 											? null
 											: flexRender(
 													header.column.columnDef.header,
-													header.getContext()
+													header.getContext(),
 												)}
 									</th>
 								))}
@@ -186,7 +200,7 @@ export default function DataTable<TData, TValue>({
 										>
 											{flexRender(
 												cell.column.columnDef.cell,
-												cell.getContext()
+												cell.getContext(),
 											)}
 										</td>
 									))}
@@ -195,8 +209,10 @@ export default function DataTable<TData, TValue>({
 											type="button"
 											onClick={(e) => {
 												e.stopPropagation();
-												const categoryId = (row.original as { id?: string }).id ?? "";
-												const categoryName = (row.original as { name?: string }).name ?? "";
+												const categoryId =
+													(row.original as { id?: string }).id ?? "";
+												const categoryName =
+													(row.original as { name?: string }).name ?? "";
 												setCommissionCategoryId(categoryId);
 												setCommissionCategoryName(categoryName);
 												setIsCommissionSheetOpen(true);

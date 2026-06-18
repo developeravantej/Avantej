@@ -1,8 +1,10 @@
 // Valid status transitions for appointments
 const VALID_TRANSITIONS: Record<string, string[]> = {
-	pending: ["confirmed", "cancelled", "no-show"],
-	confirmed: ["completed", "cancelled", "no-show"],
-	completed: [], // terminal
+	pending: ["confirmed", "cancelled", "no-show", "rescheduled"],
+	confirmed: ["completed", "cancelled", "no-show", "rescheduled"],
+	rescheduled: ["confirmed", "completed", "cancelled", "no-show"],
+	completed: ["disputed"],
+	disputed: [], // terminal
 	cancelled: [], // terminal
 	"no-show": [], // terminal
 };

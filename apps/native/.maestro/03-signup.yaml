@@ -1,0 +1,26 @@
+appId: ${APP_ID}
+---
+# Test: Sign Up screen navigation and form visibility
+# Assumes we're on login screen (run after logout)
+- runFlow:
+    when:
+      platform: Android
+    file: helpers/reset-android.yaml
+- runFlow:
+    when:
+      platform: iOS
+    file: helpers/reset-ios.yaml
+- extendedWaitUntil:
+    visible: "Sign In"
+    timeout: 30000
+
+# Navigate to sign up
+- tapOn:
+    text: ".*Sign Up.*|.*Create.*Account.*"
+- waitForAnimationToEnd
+
+# Verify sign up form fields
+- assertVisible: "Create Account"
+- assertVisible: "First Name"
+- assertVisible: "Email"
+- assertVisible: "Password"

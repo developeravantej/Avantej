@@ -43,6 +43,8 @@ interface ItemsStepProps {
 	onAddItem: (item: CartItem) => void;
 	onUpdateItem: (id: string, patch: Partial<CartItem>) => void;
 	onRemoveItem: (id: string) => void;
+	/** Walk-ins can't buy packages, and picking a service becomes a package — hide it. */
+	isWalkIn?: boolean;
 }
 
 // ─── Row component ─────────────────────────────────────────────────────────────
@@ -56,7 +58,14 @@ interface RowProps {
 	onRemove: () => void;
 }
 
-function ItemRow({ item, services, organizationId, selectedCustomer, onUpdate, onRemove }: RowProps) {
+function ItemRow({
+	item,
+	services,
+	organizationId,
+	selectedCustomer,
+	onUpdate,
+	onRemove,
+}: RowProps) {
 	const priceRm = centsToRm(item.unitPriceCents);
 	const isLookup = item.type === "service" || item.type === "package";
 
@@ -101,11 +110,18 @@ function ItemRow({ item, services, organizationId, selectedCustomer, onUpdate, o
 	}
 
 	return (
-		<div className="grid grid-cols-12 items-start gap-2 rounded-md border bg-muted/30 p-3" data-testid="pos-catalog-item">
+		<div
+			className="grid grid-cols-12 items-start gap-2 rounded-md border bg-muted/30 p-3"
+			data-testid="pos-catalog-item"
+		>
 			{/* Type badge */}
 			<div className="col-span-12 sm:col-span-2">
 				<span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary text-xs">
-					{item.type === "package" ? "Package" : item.type === "service" ? "Service" : "Custom"}
+					{item.type === "package"
+						? "Package"
+						: item.type === "service"
+							? "Service"
+							: "Custom"}
 				</span>
 			</div>
 
@@ -227,6 +243,7 @@ export function ItemsStep({
 	onAddItem,
 	onUpdateItem,
 	onRemoveItem,
+	isWalkIn = false,
 }: ItemsStepProps) {
 	const addSelectId = useId();
 
@@ -238,7 +255,7 @@ export function ItemsStep({
 		enabled: !!organizationId,
 	});
 
-	const services: ServiceOption[] = rawServices.map((s: any) => ({
+	const services: ServiceOption[] = rawServices.map((s) => ({
 		id: s.id,
 		name: s.name,
 		price: typeof s.price === "number" ? s.price : null,
@@ -295,6 +312,12 @@ export function ItemsStep({
 						size="sm"
 						onClick={() => addItem("service")}
 						data-testid="pos-add-service-button"
+						disabled={isWalkIn}
+						title={
+							isWalkIn
+								? "Walk-in customers can't purchase packages — use a Custom line or register the customer."
+								: undefined
+						}
 					>
 						<Plus className="mr-1 size-3.5" />
 						Service
@@ -314,7 +337,8 @@ export function ItemsStep({
 
 			{items.length === 0 && (
 				<p className="py-4 text-center text-muted-foreground text-sm">
-					No items added. Use the buttons above to add a service or custom line item.
+					No items added. Use the buttons above to add a service or custom line
+					item.
 				</p>
 			)}
 		</div>

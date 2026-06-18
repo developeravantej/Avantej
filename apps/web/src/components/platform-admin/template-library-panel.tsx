@@ -55,7 +55,9 @@ export function TemplateLibraryPanel(props: TemplateLibraryPanelProps) {
 				<div className="flex items-center gap-3">
 					<Select
 						value={props.kindFilter}
-						onValueChange={(v) => props.onKindChange(v as typeof props.kindFilter)}
+						onValueChange={(v) =>
+							props.onKindChange(v as typeof props.kindFilter)
+						}
 					>
 						<SelectTrigger className="w-48" data-testid="template-kind-filter">
 							<SelectValue placeholder="Kind" />
@@ -93,9 +95,7 @@ export function TemplateLibraryPanel(props: TemplateLibraryPanelProps) {
 						icon={FileText}
 						title="No templates yet"
 						description={
-							props.isSuperAdmin
-								? "Create one to get started."
-								: undefined
+							props.isSuperAdmin ? "Create one to get started." : undefined
 						}
 						action={
 							props.isSuperAdmin
@@ -122,7 +122,9 @@ export function TemplateLibraryPanel(props: TemplateLibraryPanelProps) {
 										{t.priority && (
 											<Badge
 												variant={
-													t.priority === "critical" ? "destructive" : "secondary"
+													t.priority === "critical"
+														? "destructive"
+														: "secondary"
 												}
 												className="text-xs"
 											>
@@ -140,7 +142,10 @@ export function TemplateLibraryPanel(props: TemplateLibraryPanelProps) {
 							<CardContent className="space-y-3">
 								<div>
 									<div className="text-xs text-muted-foreground">Subject</div>
-									<div className="text-sm font-medium truncate" title={t.subject}>
+									<div
+										className="text-sm font-medium truncate"
+										title={t.subject}
+									>
 										{t.subject}
 									</div>
 								</div>
@@ -157,7 +162,10 @@ export function TemplateLibraryPanel(props: TemplateLibraryPanelProps) {
 										data-testid={`template-use-${t.id}`}
 										// Agent B will wire this to the bulk composer.
 										onClick={() => {
-											console.info("[template-use] stub — wired by Agent B", t.id);
+											console.info(
+												"[template-use] stub — wired by Agent B",
+												t.id,
+											);
 										}}
 									>
 										Use

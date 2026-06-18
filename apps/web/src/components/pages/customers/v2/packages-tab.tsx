@@ -140,7 +140,8 @@ function fromInstanceRow(
 	const installment: PackageRowVM["installment"] = hasInstallment
 		? {
 				paymentPlanType: row.paymentPlanType as string,
-				paymentPlanName: plansMap.get(row.paymentPlanType as string)?.name ?? null,
+				paymentPlanName:
+					plansMap.get(row.paymentPlanType as string)?.name ?? null,
 				installmentsPaid: row.installmentsPaid ?? 0,
 				installmentsTotal: row.installmentsTotal ?? 0,
 				nextDueDate: row.nextDueDate ?? null,
@@ -231,7 +232,10 @@ function statusVariant(
 	}
 }
 
-function statusLabel(status: PackageRowVM["status"], isLocked: boolean): string {
+function statusLabel(
+	status: PackageRowVM["status"],
+	isLocked: boolean,
+): string {
 	if (isLocked) return "Frozen";
 	switch (status) {
 		case "active":
@@ -249,7 +253,8 @@ function statusLabel(status: PackageRowVM["status"], isLocked: boolean): string 
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const TH = "px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground";
+const TH =
+	"px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground";
 const TD = "px-5 py-4";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -268,7 +273,7 @@ export function PackagesTab({
 	organizationId,
 	clientUserId,
 	accessibleNodeIds,
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
+	// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }: PackagesTabProps) {
 	const { data: userContext } = useUserContext();
 
@@ -311,7 +316,10 @@ export function PackagesTab({
 	const plansMap = useMemo(
 		() =>
 			new Map<string, PlanInfo>(
-				plans.map((p) => [p.code, { code: p.code, name: p.name, numInstallments: p.numInstallments }]),
+				plans.map((p) => [
+					p.code,
+					{ code: p.code, name: p.name, numInstallments: p.numInstallments },
+				]),
 			),
 		[plans],
 	);
@@ -369,14 +377,20 @@ export function PackagesTab({
 					organizationId,
 					status:
 						installmentStatusFilter !== "all"
-							? (installmentStatusFilter as "active" | "overdue" | "locked" | "due_soon")
+							? (installmentStatusFilter as
+									| "active"
+									| "overdue"
+									| "locked"
+									| "due_soon")
 							: undefined,
 					paymentPlanCode: planCode,
 					search: debouncedSearch || undefined,
 					limit: 50,
 					offset: 0,
 				});
-				return result.items.map((item: any) => fromInstallmentOverview(item, plansMap));
+				return result.items.map((item) =>
+					fromInstallmentOverview(item, plansMap),
+				);
 			}
 
 			if (isMembershipFilter) {
@@ -412,7 +426,9 @@ export function PackagesTab({
 				clientId: clientUserId,
 				limit: 100,
 			});
-			return listAllRows.map((r: PackageInstanceListAllRow) => fromInstanceRow(r, plansMap));
+			return listAllRows.map((r: PackageInstanceListAllRow) =>
+				fromInstanceRow(r, plansMap),
+			);
 		},
 		enabled: !!organizationId,
 		staleTime: 5 * 60_000,
@@ -441,7 +457,9 @@ export function PackagesTab({
 				<div className="flex min-h-60 items-center justify-center text-muted-foreground">
 					<div className="space-y-2 text-center">
 						<p className="font-medium">Permission Denied</p>
-						<p className="text-sm">You don't have permission to view packages.</p>
+						<p className="text-sm">
+							You don't have permission to view packages.
+						</p>
 					</div>
 				</div>
 			);
@@ -501,11 +519,21 @@ export function PackagesTab({
 										</div>
 									</TableCell>
 								)}
-								<TableCell className={TD}><Skeleton className="h-3.5 w-20" /></TableCell>
-								<TableCell className={TD}><Skeleton className="h-3.5 w-20" /></TableCell>
-								<TableCell className={TD}><Skeleton className="h-3.5 w-20" /></TableCell>
-								<TableCell className={TD}><Skeleton className="h-3.5 w-16" /></TableCell>
-								<TableCell className={TD}><Skeleton className="h-3.5 w-16" /></TableCell>
+								<TableCell className={TD}>
+									<Skeleton className="h-3.5 w-20" />
+								</TableCell>
+								<TableCell className={TD}>
+									<Skeleton className="h-3.5 w-20" />
+								</TableCell>
+								<TableCell className={TD}>
+									<Skeleton className="h-3.5 w-20" />
+								</TableCell>
+								<TableCell className={TD}>
+									<Skeleton className="h-3.5 w-16" />
+								</TableCell>
+								<TableCell className={TD}>
+									<Skeleton className="h-3.5 w-16" />
+								</TableCell>
 							</TableRow>
 						))
 					) : rows.length === 0 ? (

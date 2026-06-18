@@ -9,7 +9,15 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { Mail, RefreshCw, X, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import {
+	Mail,
+	RefreshCw,
+	X,
+	Clock,
+	CheckCircle,
+	XCircle,
+	AlertCircle,
+} from "lucide-react";
 
 // Simple date formatting utility
 function formatDistanceToNow(
@@ -92,7 +100,10 @@ export function InvitationList({
 				);
 			case "accepted":
 				return (
-					<Badge variant="outline" className="gap-1 text-green-600 border-green-200">
+					<Badge
+						variant="outline"
+						className="gap-1 text-green-600 border-green-200"
+					>
 						<CheckCircle className="size-3" />
 						Accepted
 					</Badge>
@@ -159,7 +170,8 @@ export function InvitationList({
 				<TableBody>
 					{invitations.map((invitation) => {
 						const expiresDate = new Date(invitation.expiresAt);
-						const isExpired = expiresDate < now && invitation.status === "pending";
+						const isExpired =
+							expiresDate < now && invitation.status === "pending";
 						const canResend = invitation.status === "pending" && isExpired;
 						const canRevoke = invitation.status === "pending" && !isExpired;
 

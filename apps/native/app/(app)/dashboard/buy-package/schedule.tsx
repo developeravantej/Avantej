@@ -141,7 +141,10 @@ const AndroidTimePicker = ({
 			{/* Hour Picker */}
 			<View style={{ flex: 1, height: itemHeight * 3, position: "relative" }}>
 				<View
-					style={[pickerStyles.indicator, { top: itemHeight, height: itemHeight }]}
+					style={[
+						pickerStyles.indicator,
+						{ top: itemHeight, height: itemHeight },
+					]}
 				/>
 				<ScrollView
 					ref={hourRef}
@@ -195,7 +198,10 @@ const AndroidTimePicker = ({
 			{/* Minute Picker */}
 			<View style={{ flex: 1, height: itemHeight * 3, position: "relative" }}>
 				<View
-					style={[pickerStyles.indicator, { top: itemHeight, height: itemHeight }]}
+					style={[
+						pickerStyles.indicator,
+						{ top: itemHeight, height: itemHeight },
+					]}
 				/>
 				<ScrollView
 					ref={minuteRef}
@@ -243,7 +249,10 @@ const AndroidTimePicker = ({
 			{/* AM/PM Picker */}
 			<View style={{ flex: 0.8, height: itemHeight * 3, position: "relative" }}>
 				<View
-					style={[pickerStyles.indicator, { top: itemHeight, height: itemHeight }]}
+					style={[
+						pickerStyles.indicator,
+						{ top: itemHeight, height: itemHeight },
+					]}
 				/>
 				<ScrollView
 					showsVerticalScrollIndicator={false}
@@ -339,7 +348,11 @@ const slotCardStyles = StyleSheet.create({
 	},
 });
 
-type TrainerLike = { trainerId: string; trainerName: string; trainerEmail?: string | null };
+type TrainerLike = {
+	trainerId: string;
+	trainerName: string;
+	trainerEmail?: string | null;
+};
 
 const TrainerRow = memo(function TrainerRow({
 	item,
@@ -411,16 +424,19 @@ export default function ScheduleScreen() {
 		}),
 	);
 
-	const trainers = (trainersQuery.data as Array<{
-		trainerId: string;
-		trainerName: string;
-		trainerEmail: string;
-		slots: Array<{
-			dayOfWeek: string;
-			startTime: string;
-			endTime: string;
-		}>;
-	}> | undefined) ?? [];
+	const trainers =
+		(trainersQuery.data as
+			| Array<{
+					trainerId: string;
+					trainerName: string;
+					trainerEmail: string;
+					slots: Array<{
+						dayOfWeek: string;
+						startTime: string;
+						endTime: string;
+					}>;
+			  }>
+			| undefined) ?? [];
 
 	const selectedTrainer = trainers.find(
 		(t) => t.trainerId === selectedTrainerId,
@@ -482,11 +498,7 @@ export default function ScheduleScreen() {
 							onPress={() => router.back()}
 							className="mr-3 size-10 items-center justify-center"
 						>
-							<Ionicons
-								name="arrow-back"
-								size={24}
-								color={colors.primary[1]}
-							/>
+							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-primary-1">
 							Select Schedule
@@ -618,111 +630,112 @@ export default function ScheduleScreen() {
 					</View>
 
 					{isAppointment && (
-					<>
-					{/* Trainer Selection */}
-					<View className="mb-4">
-						<Text
-							className="mb-2 font-bold text-sm uppercase tracking-wide"
-							style={{ color: colors.primary[1] }}
-						>
-							CHOOSE YOUR TRAINER
-						</Text>
-						<Text
-							className="mb-4 text-base"
-							style={{ color: colors.primary[1] }}
-						>
-							Select a trainer to view their intake availability for new clients.
-						</Text>
-
-						{trainersQuery.isLoading ? (
-							<View className="h-12 rounded-xl bg-secondary-3" />
-						) : (
-							<Pressable
-								onPress={() => setTrainerDropdownOpen(true)}
-								className="flex-row items-center justify-between rounded-xl border border-secondary-3 bg-primary-2 px-4 py-3"
-							>
+						<>
+							{/* Trainer Selection */}
+							<View className="mb-4">
 								<Text
-									style={{
-										color: selectedTrainerId
-											? colors.primary[1]
-											: colors.secondary[1],
-									}}
-								>
-									{selectedTrainer?.trainerName ?? "Select a trainer..."}
-								</Text>
-								<Ionicons
-									name="chevron-down"
-									size={16}
-									color={colors.secondary[1]}
-								/>
-							</Pressable>
-						)}
-					</View>
-
-					{/* Trainer Availability Preview */}
-					{selectedTrainerId && (
-						<View className="mb-6">
-							<Text
-								className="mb-3 font-bold text-sm uppercase tracking-wide"
-								style={{ color: colors.primary[1] }}
-							>
-								Trainer Availability
-							</Text>
-							{(selectedTrainer?.slots ?? []).length === 0 ? (
-								<View className="items-center rounded-2xl border border-secondary-3 bg-card py-8">
-									<Ionicons
-										name="calendar-outline"
-										size={32}
-										color={colors.secondary[1]}
-									/>
-									<Text
-										className="mt-2 text-sm italic"
-										style={{ color: colors.secondary[1] }}
-									>
-										No intake slots this week
-									</Text>
-								</View>
-							) : (
-								<View className="rounded-2xl border border-secondary-3 bg-card overflow-hidden">
-									<WeeklyTimetable slots={selectedTrainer?.slots ?? []} />
-								</View>
-							)}
-						</View>
-					)}
-
-					{/* Trainer Dropdown Modal */}
-					<Modal
-						visible={trainerDropdownOpen}
-						transparent
-						animationType="fade"
-						onRequestClose={() => setTrainerDropdownOpen(false)}
-					>
-						<Pressable
-							style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}
-							onPress={() => setTrainerDropdownOpen(false)}
-						>
-							<View className="mx-4 mt-32 rounded-2xl bg-primary-2 p-4">
-								<Text
-									className="mb-3 font-bold text-base"
+									className="mb-2 font-bold text-sm uppercase tracking-wide"
 									style={{ color: colors.primary[1] }}
 								>
-									Select a Trainer
+									CHOOSE YOUR TRAINER
 								</Text>
-								<FlatList
-									data={trainers}
-									keyExtractor={(item) => item.trainerId}
-									renderItem={renderTrainerItem}
-								/>
-								<Pressable
-									onPress={() => setTrainerDropdownOpen(false)}
-									className="mt-3 items-center py-3"
+								<Text
+									className="mb-4 text-base"
+									style={{ color: colors.primary[1] }}
 								>
-									<Text style={{ color: colors.secondary[1] }}>Cancel</Text>
-								</Pressable>
+									Select a trainer to view their intake availability for new
+									clients.
+								</Text>
+
+								{trainersQuery.isLoading ? (
+									<View className="h-12 rounded-xl bg-secondary-3" />
+								) : (
+									<Pressable
+										onPress={() => setTrainerDropdownOpen(true)}
+										className="flex-row items-center justify-between rounded-xl border border-secondary-3 bg-primary-2 px-4 py-3"
+									>
+										<Text
+											style={{
+												color: selectedTrainerId
+													? colors.primary[1]
+													: colors.secondary[1],
+											}}
+										>
+											{selectedTrainer?.trainerName ?? "Select a trainer..."}
+										</Text>
+										<Ionicons
+											name="chevron-down"
+											size={16}
+											color={colors.secondary[1]}
+										/>
+									</Pressable>
+								)}
 							</View>
-						</Pressable>
-					</Modal>
-					</>
+
+							{/* Trainer Availability Preview */}
+							{selectedTrainerId && (
+								<View className="mb-6">
+									<Text
+										className="mb-3 font-bold text-sm uppercase tracking-wide"
+										style={{ color: colors.primary[1] }}
+									>
+										Trainer Availability
+									</Text>
+									{(selectedTrainer?.slots ?? []).length === 0 ? (
+										<View className="items-center rounded-2xl border border-secondary-3 bg-card py-8">
+											<Ionicons
+												name="calendar-outline"
+												size={32}
+												color={colors.secondary[1]}
+											/>
+											<Text
+												className="mt-2 text-sm italic"
+												style={{ color: colors.secondary[1] }}
+											>
+												No intake slots this week
+											</Text>
+										</View>
+									) : (
+										<View className="rounded-2xl border border-secondary-3 bg-card overflow-hidden">
+											<WeeklyTimetable slots={selectedTrainer?.slots ?? []} />
+										</View>
+									)}
+								</View>
+							)}
+
+							{/* Trainer Dropdown Modal */}
+							<Modal
+								visible={trainerDropdownOpen}
+								transparent
+								animationType="fade"
+								onRequestClose={() => setTrainerDropdownOpen(false)}
+							>
+								<Pressable
+									style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}
+									onPress={() => setTrainerDropdownOpen(false)}
+								>
+									<View className="mx-4 mt-32 rounded-2xl bg-primary-2 p-4">
+										<Text
+											className="mb-3 font-bold text-base"
+											style={{ color: colors.primary[1] }}
+										>
+											Select a Trainer
+										</Text>
+										<FlatList
+											data={trainers}
+											keyExtractor={(item) => item.trainerId}
+											renderItem={renderTrainerItem}
+										/>
+										<Pressable
+											onPress={() => setTrainerDropdownOpen(false)}
+											className="mt-3 items-center py-3"
+										>
+											<Text style={{ color: colors.secondary[1] }}>Cancel</Text>
+										</Pressable>
+									</View>
+								</Pressable>
+							</Modal>
+						</>
 					)}
 
 					{/* Schedule Selection */}
@@ -875,7 +888,6 @@ export default function ScheduleScreen() {
 									);
 								})}
 							</View>
-
 						</View>
 					) : (
 						/* Class slot: read-only display of the preset time slots */
@@ -981,10 +993,7 @@ export default function ScheduleScreen() {
 				onRequestClose={() => setPickerOpen(false)}
 			>
 				<View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}>
-					<Pressable
-						style={{ flex: 1 }}
-						onPress={() => setPickerOpen(false)}
-					/>
+					<Pressable style={{ flex: 1 }} onPress={() => setPickerOpen(false)} />
 					<View
 						style={{
 							backgroundColor: colors.primary[2],
@@ -1015,8 +1024,7 @@ export default function ScheduleScreen() {
 									letterSpacing: 1.4,
 								}}
 							>
-								Add slot{" "}
-								{String(preferredTimes.length + 1).padStart(2, "0")}
+								Add slot {String(preferredTimes.length + 1).padStart(2, "0")}
 							</Text>
 							<Pressable
 								onPress={() => setPickerOpen(false)}
@@ -1029,11 +1037,7 @@ export default function ScheduleScreen() {
 									backgroundColor: colors.secondary[3],
 								}}
 							>
-								<Ionicons
-									name="close"
-									size={18}
-									color={colors.primary[1]}
-								/>
+								<Ionicons name="close" size={18} color={colors.primary[1]} />
 							</Pressable>
 						</View>
 
@@ -1072,9 +1076,7 @@ export default function ScheduleScreen() {
 											<Text
 												className="font-semibold text-sm"
 												style={{
-													color: active
-														? colors.primary[2]
-														: colors.primary[1],
+													color: active ? colors.primary[2] : colors.primary[1],
 												}}
 											>
 												{day.substring(0, 3)}

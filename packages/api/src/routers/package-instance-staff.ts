@@ -10,11 +10,11 @@ import {
 	assignPackageInstanceStaff,
 	removePackageInstanceStaff,
 	replacePackageInstanceStaff,
-	requirePermission,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 
 const staffAssignmentSchema = z.object({
 	staffId: z.string().uuid(),
@@ -26,7 +26,7 @@ export const packageInstanceStaffRouter = {
 	/**
 	 * List all staff assignments for a package instance.
 	 */
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -34,29 +34,24 @@ export const packageInstanceStaffRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available.",
-				});
-			}
-			await requirePermission(
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
 				context.tenantDb,
-				context.member!,
+				context.member,
 				"package_management",
 				"read",
-			).catch(() => {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Permission denied: package_management:read required",
-				});
-			});
+			);
 
-			return listPackageInstanceStaff(context.tenantDb, input.packageInstanceId);
+			return listPackageInstanceStaff(
+				context.tenantDb,
+				input.packageInstanceId,
+			);
 		}),
 
 	/**
 	 * Assign (or update via UPSERT) a staff member to a slot on a package instance.
 	 */
-	assign: protectedProcedure
+	assign: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -67,21 +62,13 @@ export const packageInstanceStaffRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available.",
-				});
-			}
-			await requirePermission(
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
 				context.tenantDb,
-				context.member!,
+				context.member,
 				"package_management",
 				"update",
-			).catch(() => {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Permission denied: package_management:update required",
-				});
-			});
+			);
 
 			try {
 				return await assignPackageInstanceStaff(context.tenantDb, {
@@ -104,7 +91,7 @@ export const packageInstanceStaffRouter = {
 	/**
 	 * Remove a staff member from a package instance by staffId.
 	 */
-	remove: protectedProcedure
+	remove: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -113,21 +100,13 @@ export const packageInstanceStaffRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available.",
-				});
-			}
-			await requirePermission(
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
 				context.tenantDb,
-				context.member!,
+				context.member,
 				"package_management",
 				"update",
-			).catch(() => {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Permission denied: package_management:update required",
-				});
-			});
+			);
 
 			await removePackageInstanceStaff(
 				context.tenantDb,
@@ -141,7 +120,7 @@ export const packageInstanceStaffRouter = {
 	/**
 	 * Replace ALL staff assignments for a package instance atomically.
 	 */
-	replace: protectedProcedure
+	replace: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -150,21 +129,13 @@ export const packageInstanceStaffRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available.",
-				});
-			}
-			await requirePermission(
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
 				context.tenantDb,
-				context.member!,
+				context.member,
 				"package_management",
 				"update",
-			).catch(() => {
-				throw new ORPCError("FORBIDDEN", {
-					message: "Permission denied: package_management:update required",
-				});
-			});
+			);
 
 			try {
 				return await replacePackageInstanceStaff(context.tenantDb, {

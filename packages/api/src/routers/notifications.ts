@@ -5,129 +5,104 @@
  */
 
 import {
-  listNotifications,
-  getUnreadCount,
-  markNotificationRead,
-  markAllNotificationsRead,
+	listNotifications,
+	getUnreadCount,
+	markNotificationRead,
+	markAllNotificationsRead,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import { assertOrgContextMatch } from "../guards";
 
 export const notificationsRouter = {
-  list: protectedProcedure
-    .input(
-      z.object({
-        organizationId: z.string().uuid(),
-        isRead: z.boolean().optional(),
-        type: z.string().optional(),
-        limit: z.number().int().min(1).max(200).optional(),
-      })
-    )
-    .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+	list: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				isRead: z.boolean().optional(),
+				type: z.string().optional(),
+				limit: z.number().int().min(1).max(200).optional(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			const userId = context.session?.user?.id;
+			if (!userId) {
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "User session required",
+				});
+			}
 
-      const userId = context.session?.user?.id;
-      if (!userId) {
-        throw new ORPCError("UNAUTHORIZED", {
-          message: "User session required",
-        });
-      }
+			return listNotifications(context.tenantDb, {
+				userId,
+				isRead: input.isRead,
+				type: input.type,
+				limit: input.limit,
+			});
+		}),
 
-      return listNotifications(context.tenantDb, {
-        userId,
-        isRead: input.isRead,
-        type: input.type,
-        limit: input.limit,
-      });
-    }),
+	getUnreadCount: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ context }) => {
+			const userId = context.session?.user?.id;
+			if (!userId) {
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "User session required",
+				});
+			}
 
-  getUnreadCount: protectedProcedure
-    .input(
-      z.object({
-        organizationId: z.string().uuid(),
-      })
-    )
-    .handler(async ({ context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+			return getUnreadCount(context.tenantDb, userId);
+		}),
 
-      const userId = context.session?.user?.id;
-      if (!userId) {
-        throw new ORPCError("UNAUTHORIZED", {
-          message: "User session required",
-        });
-      }
+	markRead: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				id: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			const userId = context.session?.user?.id;
+			if (!userId) {
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "User session required",
+				});
+			}
 
-      return getUnreadCount(context.tenantDb, userId);
-    }),
+			const row = await markNotificationRead(
+				context.tenantDb,
+				input.id,
+				userId,
+			);
+			if (!row) {
+				throw new ORPCError("NOT_FOUND", {
+					message: "Notification not found",
+				});
+			}
+			return row;
+		}),
 
-  markRead: protectedProcedure
-    .input(
-      z.object({
-        organizationId: z.string().uuid(),
-        id: z.string().uuid(),
-      })
-    )
-    .handler(async ({ input, context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
+	markAllRead: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ context }) => {
+			const userId = context.session?.user?.id;
+			if (!userId) {
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "User session required",
+				});
+			}
 
-      const userId = context.session?.user?.id;
-      if (!userId) {
-        throw new ORPCError("UNAUTHORIZED", {
-          message: "User session required",
-        });
-      }
-
-      const row = await markNotificationRead(
-        context.tenantDb,
-        input.id,
-        userId
-      );
-      if (!row) {
-        throw new ORPCError("NOT_FOUND", {
-          message: "Notification not found",
-        });
-      }
-      return row;
-    }),
-
-  markAllRead: protectedProcedure
-    .input(
-      z.object({
-        organizationId: z.string().uuid(),
-      })
-    )
-    .handler(async ({ context }) => {
-      if (!context.tenantDb) {
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message:
-            "Tenant database not available. Ensure organization context is set.",
-        });
-      }
-
-      const userId = context.session?.user?.id;
-      if (!userId) {
-        throw new ORPCError("UNAUTHORIZED", {
-          message: "User session required",
-        });
-      }
-
-      const count = await markAllNotificationsRead(context.tenantDb, userId);
-      return { count };
-    }),
+			const count = await markAllNotificationsRead(context.tenantDb, userId);
+			return { count };
+		}),
 };

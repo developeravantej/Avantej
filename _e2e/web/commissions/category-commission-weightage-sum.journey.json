@@ -1,0 +1,9 @@
+{
+  "commissions/category-commission-weightage-sum.rule.spec.ts::rule: slot weightages must sum to 10000 (reject otherwise; exact sum succeeds)": [
+    "Create a throwaway service category to attach the config to",
+    "Register teardown to delete the commission config and deactivate the category",
+    "Upsert with slots summing to 9000 and assert 400",
+    "Upsert with slots summing to exactly 10000 and assert success",
+    "Read the config back and assert slot weightages total 10000"
+  ]
+}

@@ -1,0 +1,18 @@
+name: Bun setup
+description: Install Bun 1.2.22, cache install, and run frozen lockfile install
+
+runs:
+  using: composite
+  steps:
+    - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: "1.2.22"
+    - uses: actions/cache@v4
+      with:
+        path: ~/.bun/install/cache
+        key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+        restore-keys: |
+          bun-${{ runner.os }}-
+    - name: Install dependencies
+      run: bun install --frozen-lockfile
+      shell: bash

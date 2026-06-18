@@ -63,10 +63,7 @@ export function ServiceOptionCard({ service, selected, onSelect }: Props) {
 				</View>
 			</View>
 			{service.description && (
-				<Text
-					className="mb-2 text-sm"
-					style={{ color: colors.secondary[1] }}
-				>
+				<Text className="mb-2 text-sm" style={{ color: colors.secondary[1] }}>
 					{service.description}
 				</Text>
 			)}
@@ -78,10 +75,7 @@ export function ServiceOptionCard({ service, selected, onSelect }: Props) {
 					{service.price != null ? formatMoney(service.price) : "—"}
 				</Text>
 				{service.expiryDays && (
-					<Text
-						className="text-xs"
-						style={{ color: colors.secondary[1] }}
-					>
+					<Text className="text-xs" style={{ color: colors.secondary[1] }}>
 						Valid for {service.expiryDays} days
 					</Text>
 				)}

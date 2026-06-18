@@ -51,7 +51,9 @@ function getEnvVar(key: string): string | undefined {
 	try {
 		// Try to access Cloudflare Workers env (only available in Workers runtime)
 		// Using dynamic require to avoid TypeScript errors in Node.js/test environments
-		const cloudflareWorkers = require("cloudflare:workers") as { env?: Record<string, string> };
+		const cloudflareWorkers = require("cloudflare:workers") as {
+			env?: Record<string, string>;
+		};
 		if (cloudflareWorkers?.env?.[key]) {
 			return cloudflareWorkers.env[key];
 		}
@@ -70,7 +72,7 @@ function getDatabaseUrl(): string {
 
 	if (!databaseUrl) {
 		throw new Error(
-			"DATABASE_URL environment variable is required for control panel database"
+			"DATABASE_URL environment variable is required for control panel database",
 		);
 	}
 
@@ -106,7 +108,7 @@ function getControlPanelPool(): Pool {
  * @returns Drizzle client for control panel database
  */
 export function getControlPanelDb(
-	c?: Context
+	c?: Context,
 ): NeonDatabase<typeof controlPanelSchema> {
 	// If context is provided, use request-scoped pool from context
 	if (c) {
@@ -114,7 +116,7 @@ export function getControlPanelDb(
 		if (contextDb) {
 			return contextDb;
 		}
-		
+
 		// Fallback: try to get pool from context and create client
 		const controlPanelPool = c.get("controlPanelPool");
 		if (controlPanelPool) {
@@ -123,10 +125,12 @@ export function getControlPanelDb(
 				schema: controlPanelSchema,
 			});
 		}
-		
+
 		// If we have context but no pool, something is wrong with middleware setup
 		// In Cloudflare Workers, we should never reach here
-		console.warn("getControlPanelDb called with context but no pool found. dbMiddleware may not be running.");
+		console.warn(
+			"getControlPanelDb called with context but no pool found. dbMiddleware may not be running.",
+		);
 	}
 
 	// Fall back to singleton pool (for tests, scripts, etc.)
@@ -147,18 +151,24 @@ export function getControlPanelDb(
  * Implemented as a lazy proxy so the pool is not created at module load time,
  * which would fail Cloudflare Workers script validation when DATABASE_URL is unavailable.
  */
-let _controlPanelDbInstance: NeonDatabase<typeof controlPanelSchema> | null = null;
-export const controlPanelDb = new Proxy({} as NeonDatabase<typeof controlPanelSchema>, {
-	get(_target, prop: string | symbol) {
-		if (!_controlPanelDbInstance) {
-			_controlPanelDbInstance = drizzle({
-				client: getControlPanelPool(),
-				schema: controlPanelSchema,
-			});
-		}
-		return (_controlPanelDbInstance as unknown as Record<string | symbol, unknown>)[prop];
+let _controlPanelDbInstance: NeonDatabase<typeof controlPanelSchema> | null =
+	null;
+export const controlPanelDb = new Proxy(
+	{} as NeonDatabase<typeof controlPanelSchema>,
+	{
+		get(_target, prop: string | symbol) {
+			if (!_controlPanelDbInstance) {
+				_controlPanelDbInstance = drizzle({
+					client: getControlPanelPool(),
+					schema: controlPanelSchema,
+				});
+			}
+			return (
+				_controlPanelDbInstance as unknown as Record<string | symbol, unknown>
+			)[prop];
+		},
 	},
-});
+);
 
 /**
  * Tenant Database Connection Router
@@ -196,7 +206,7 @@ export const controlPanelDb = new Proxy({} as NeonDatabase<typeof controlPanelSc
  */
 export async function getTenantDb(
 	organizationId: string,
-	c?: Context
+	c?: Context,
 ): Promise<NeonDatabase<typeof tenantSchema>> {
 	// Get control panel database (prefer request-scoped)
 	const controlPanelDb = getControlPanelDb(c);
@@ -216,7 +226,7 @@ export async function getTenantDb(
 		connectionString = decrypt(organization.connectionString);
 	} catch (error) {
 		throw new Error(
-			`Failed to decrypt connection string for organization ${organizationId}: ${error instanceof Error ? error.message : "Unknown error"}`
+			`Failed to decrypt connection string for organization ${organizationId}: ${error instanceof Error ? error.message : "Unknown error"}`,
 		);
 	}
 
@@ -240,7 +250,10 @@ export async function getTenantDb(
 		} else {
 			// tenantPools not initialized - create a temporary pool
 			// This shouldn't happen if dbMiddleware runs first, but handle it gracefully
-			console.warn("tenantPools not found in context, creating temporary pool for organization:", organizationId);
+			console.warn(
+				"tenantPools not found in context, creating temporary pool for organization:",
+				organizationId,
+			);
 			const tenantPool = new Pool({ connectionString });
 			return drizzle({
 				client: tenantPool,

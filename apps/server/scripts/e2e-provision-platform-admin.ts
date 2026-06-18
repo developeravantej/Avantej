@@ -32,7 +32,8 @@ const __dirname = dirname(__filename);
 	const c = readFileSync(p, "utf-8");
 	for (const line of c.split("\n")) {
 		const m = line.trim().match(/^([^=]+)=(.*)$/);
-		if (m?.[1] && m[2] !== undefined && !process.env[m[1]]) process.env[m[1]] = m[2];
+		if (m?.[1] && m[2] !== undefined && !process.env[m[1]])
+			process.env[m[1]] = m[2];
 	}
 })();
 
@@ -46,7 +47,9 @@ const db = drizzle({ client: pool, schema });
 const now = new Date();
 
 // 1. user
-let u = await db.query.users.findFirst({ where: (t, { eq: e }) => e(t.email, EMAIL) });
+let u = await db.query.users.findFirst({
+	where: (t, { eq: e }) => e(t.email, EMAIL),
+});
 if (!u) {
 	const id = randomUUID();
 	await db.insert(user).values({
@@ -60,10 +63,15 @@ if (!u) {
 		createdAt: now,
 		updatedAt: now,
 	} as typeof user.$inferInsert);
-	u = await db.query.users.findFirst({ where: (t, { eq: e }) => e(t.email, EMAIL) });
+	u = await db.query.users.findFirst({
+		where: (t, { eq: e }) => e(t.email, EMAIL),
+	});
 	console.log(`created user ${EMAIL} (${id})`);
 } else {
-	await db.update(user).set({ role: "admin", emailVerified: true, updatedAt: now }).where(eq(user.id, u.id));
+	await db
+		.update(user)
+		.set({ role: "admin", emailVerified: true, updatedAt: now })
+		.where(eq(user.id, u.id));
 	console.log(`user ${EMAIL} exists (${u.id}) — ensured role=admin`);
 }
 const userId = u!.id;
@@ -71,7 +79,8 @@ const userId = u!.id;
 // 2. credential account
 const hash = await hashPassword(PASSWORD);
 const existingAcct = await db.query.account.findMany({
-	where: (a, { eq: e, and }) => and(e(a.userId, userId), e(a.providerId, "credential")),
+	where: (a, { eq: e, and }) =>
+		and(e(a.userId, userId), e(a.providerId, "credential")),
 });
 if (existingAcct.length === 0) {
 	await db.insert(account).values({
@@ -85,14 +94,25 @@ if (existingAcct.length === 0) {
 	} as typeof account.$inferInsert);
 	console.log(`created credential account (scrypt hash len ${hash.length})`);
 } else {
-	await db.update(account).set({ password: hash, updatedAt: now }).where(eq(account.id, existingAcct[0]!.id));
+	await db
+		.update(account)
+		.set({ password: hash, updatedAt: now })
+		.where(eq(account.id, existingAcct[0]!.id));
 	console.log(`credential account exists — password reset to '${PASSWORD}'`);
 }
 
 // 3. platform_admins super_admin
-const existingPa = await db.query.platformAdmins?.findFirst?.({ where: (p: any, { eq: e }: any) => e(p.userId, userId) }).catch(() => null);
+const existingPa = await db.query.platformAdmins
+	?.findFirst?.({ where: (p: any, { eq: e }: any) => e(p.userId, userId) })
+	.catch(() => null);
 if (!existingPa) {
-	await db.insert(platformAdmins).values({ userId, role: "super_admin" } as typeof platformAdmins.$inferInsert).onConflictDoNothing();
+	await db
+		.insert(platformAdmins)
+		.values({
+			userId,
+			role: "super_admin",
+		} as typeof platformAdmins.$inferInsert)
+		.onConflictDoNothing();
 	console.log(`granted super_admin`);
 } else {
 	console.log(`already a platform admin (${existingPa.role})`);

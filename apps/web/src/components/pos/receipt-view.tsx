@@ -60,10 +60,7 @@ function formatDate(d: Date | string): string {
 	});
 }
 
-export function ReceiptView({
-	data,
-	onlinePaymentLinkUrl,
-}: ReceiptViewProps) {
+export function ReceiptView({ data, onlinePaymentLinkUrl }: ReceiptViewProps) {
 	return (
 		<div
 			className="receipt-view mx-auto max-w-sm space-y-4 bg-white p-6 font-mono text-foreground text-sm print:mx-0 print:max-w-none print:p-4 print:text-xs"

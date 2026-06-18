@@ -54,7 +54,7 @@ export function DataTable({
 	isDeactivating = false,
 	error,
 	onRetry,
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
+	// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }: DataTableProps) {
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [globalFilter, setGlobalFilter] = useState("");
@@ -173,7 +173,7 @@ export function DataTable({
 												: flexRender(
 														header.column.columnDef.header,
 														header.getContext(),
-												  )}
+													)}
 										</TableHead>
 									))}
 								</TableRow>
@@ -281,16 +281,24 @@ export function DataTable({
 				open={isDeactivateDialogOpen}
 				onOpenChange={setIsDeactivateDialogOpen}
 			>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>Deactivate Supplier</DialogTitle>
-						<DialogDescription>
+				<DialogContent
+					className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							SUPPLIERS
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Deactivate Supplier
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
 							Are you sure you want to deactivate{" "}
 							<strong>{supplierToDeactivate?.name}</strong>? The supplier will
 							be marked as inactive and hidden from active lists.
 						</DialogDescription>
 					</DialogHeader>
-					<DialogFooter>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button
 							variant="outline"
 							onClick={() => {
@@ -305,6 +313,7 @@ export function DataTable({
 							variant="destructive"
 							onClick={handleDeactivateConfirm}
 							disabled={isDeactivating}
+							className="bg-red-600 hover:bg-red-700 text-white"
 						>
 							{isDeactivating ? "Deactivating..." : "Deactivate"}
 						</Button>

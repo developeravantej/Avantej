@@ -124,7 +124,9 @@ const LEGAL_TO_FROM: Record<string, readonly string[] | null> = {
  * formula in `@avantej-core/services` grades suspended and cancelled as
  * distinct factors per ADR-0030 and must NOT collapse them via this boolean.)
  */
-export function isAppBlocked(paymentStatus: string | null | undefined): boolean {
+export function isAppBlocked(
+	paymentStatus: string | null | undefined,
+): boolean {
 	return paymentStatus === "suspended" || paymentStatus === "cancelled";
 }
 
@@ -137,8 +139,7 @@ export function assertTransition(from: string, to: string): void {
 	// source is legal (suspended / cancelled). An array ⇒ enumerated sources.
 	const legalFrom = LEGAL_TO_FROM[to];
 	const isLegal =
-		legalFrom === null ||
-		(legalFrom !== undefined && legalFrom.includes(from));
+		legalFrom === null || (legalFrom !== undefined && legalFrom.includes(from));
 	if (!isLegal) {
 		throw new ORPCError("PRECONDITION_FAILED", {
 			message: `Illegal tenant lifecycle transition: ${from} → ${to}`,
@@ -206,7 +207,11 @@ export async function transitionTenant(
 
 	// ── Side-effect: force-cancel halts Stripe billing immediately. ──────────
 	let stripeSubCanceled: string | null = null;
-	if (input.to === "cancelled" && input.cancelStripeSubscription && org.subscriptionId) {
+	if (
+		input.to === "cancelled" &&
+		input.cancelStripeSubscription &&
+		org.subscriptionId
+	) {
 		const [sub] = await cpDb
 			.select({ stripeSubscriptionId: subscriptions.stripeSubscriptionId })
 			.from(subscriptions)

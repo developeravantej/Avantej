@@ -15,7 +15,12 @@
 
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../guards";
 import {
 	createBranchInvite,
 	listAllBranchInvites,
@@ -37,41 +42,24 @@ export const branchInvitesRouter = {
 	 * Create a new branch self-signup invite.
 	 * Returns the invite record and the full QR-code URL.
 	 */
-	create: protectedProcedure
+	create: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				branchId: z.string().uuid(),
 				maxUses: z.number().int().positive().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization.",
-				});
-			}
-
+			assertOrgContextMatch(context, input);
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			// Permission: hierarchy_management (existing resource for branch admin actions)
-			try {
-				const { requirePermission } = await import("@avantej-core/services");
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"hierarchy_management",
-					"create"
-				);
-			} catch {
-				throw new ORPCError("FORBIDDEN", {
-					message: "You do not have permission to create branch invites.",
-				});
-			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"hierarchy_management",
+				"create",
+			);
 
 			const invite = await createBranchInvite(context.tenantDb, {
 				branchId: input.branchId,
@@ -99,69 +87,60 @@ export const branchInvitesRouter = {
 	 * List one row per accessible branch with its most recent active invite.
 	 * Used by the Onboarding index page.
 	 */
-	listAll: protectedProcedure
+	listAll: tenantProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant database not available." });
-			}
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", { message: "User is not a member of this organization." });
-			}
-			try {
-				const { requirePermission } = await import("@avantej-core/services");
-				await requirePermission(context.tenantDb, context.member, "hierarchy_management", "read");
-			} catch {
-				throw new ORPCError("FORBIDDEN", { message: "You do not have permission to read branch invites." });
-			}
-			return listAllBranchInvites(context.tenantDb, context.accessibleNodeIds ?? [], getWebUrl());
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"hierarchy_management",
+				"read",
+			);
+			const rows = await listAllBranchInvites(
+				context.tenantDb,
+				context.accessibleNodeIds ?? [],
+				getWebUrl(),
+			);
+			// AC-A-06: strip token from list responses — only expose it on create/regenerate
+			return rows.map((row) => ({
+				...row,
+				invite: row.invite
+					? (({ token: _stripped, ...rest }) => rest)(row.invite)
+					: null,
+			}));
 		}),
 
 	/**
 	 * List active branch self-signup invites scoped to a specific branch.
 	 */
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				branchId: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization.",
-				});
-			}
-
+			assertOrgContextMatch(context, input);
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			// Permission: hierarchy_management read
-			try {
-				const { requirePermission } = await import("@avantej-core/services");
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"hierarchy_management",
-					"read"
-				);
-			} catch {
-				throw new ORPCError("FORBIDDEN", {
-					message: "You do not have permission to view branch invites.",
-				});
-			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"hierarchy_management",
+				"read",
+			);
 
 			const invites = await listBranchInvites(context.tenantDb, input.branchId);
 
 			const webUrl = getWebUrl();
 
+			// AC-A-06: token is not returned in list responses to limit plaintext
+			// token exposure. The raw token is only returned on create/regenerate
+			// (one-time exposure). The QR URL still allows scanning without the token
+			// being echoed back in bulk list responses.
 			return invites.map((invite) => ({
 				id: invite.id,
-				token: invite.token,
 				url: `${webUrl}/onboarding/${invite.token}?org=${input.organizationId}`,
 				hierarchyScopeId: invite.hierarchyScopeId,
 				usesCount: invite.usesCount,
@@ -175,51 +154,49 @@ export const branchInvitesRouter = {
 	/**
 	 * Revoke a branch invite (soft delete via isActive=false).
 	 */
-	revoke: protectedProcedure
+	revoke: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization.",
-				});
-			}
-
+			assertOrgContextMatch(context, input);
 			// Permission: hierarchy_management delete
-			try {
-				const { requirePermission } = await import("@avantej-core/services");
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"hierarchy_management",
-					"delete"
-				);
-			} catch {
-				throw new ORPCError("FORBIDDEN", {
-					message: "You do not have permission to revoke branch invites.",
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"hierarchy_management",
+				"delete",
+			);
+
+			// Load invite first to validate branch access before mutating
+			const { invitations: invitationsTable } = await import(
+				"@avantej-core/db/schema/tenant/invitations"
+			);
+			const { eq: eqRevoke, and: andRevoke } = await import("drizzle-orm");
+			const existingInvite = await context.tenantDb.query.invitations.findFirst(
+				{
+					where: andRevoke(
+						eqRevoke(invitationsTable.id, input.id),
+						eqRevoke(invitationsTable.kind, "branch_self_signup"),
+					),
+				},
+			);
+
+			if (!existingInvite) {
+				throw new ORPCError("NOT_FOUND", {
+					message: "Branch invite not found.",
 				});
 			}
 
-			const updated = await revokeBranchInvite(context.tenantDb, input.id).catch(
-				(err: unknown) => {
-					if (err instanceof Error && err.message.includes("not found")) {
-						throw new ORPCError("NOT_FOUND", {
-							message: "Branch invite not found.",
-						});
-					}
-					throw err;
-				}
+			guardBranchAccessible(
+				existingInvite.hierarchyScopeId,
+				context.accessibleNodeIds ?? [],
 			);
+
+			const updated = await revokeBranchInvite(context.tenantDb, input.id);
 
 			return {
 				id: updated.id,
@@ -233,41 +210,23 @@ export const branchInvitesRouter = {
 	 * Atomic at the application level (sequential revoke + create in the same handler).
 	 * Returns the new invite URL.
 	 */
-	regenerate: protectedProcedure
+	regenerate: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
 				maxUses: z.number().int().positive().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization.",
-				});
-			}
-
+			assertOrgContextMatch(context, input);
 			// Permission: hierarchy_management create (creating a replacement)
-			try {
-				const { requirePermission } = await import("@avantej-core/services");
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"hierarchy_management",
-					"create"
-				);
-			} catch {
-				throw new ORPCError("FORBIDDEN", {
-					message: "You do not have permission to regenerate branch invites.",
-				});
-			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"hierarchy_management",
+				"create",
+			);
 
 			// Look up old invite to get branchId
 			const { invitations } = await import(
@@ -277,7 +236,7 @@ export const branchInvitesRouter = {
 			const oldInvite = await context.tenantDb.query.invitations.findFirst({
 				where: and(
 					eq(invitations.id, input.id),
-					eq(invitations.kind, "branch_self_signup")
+					eq(invitations.kind, "branch_self_signup"),
 				),
 			});
 
@@ -286,6 +245,12 @@ export const branchInvitesRouter = {
 					message: "Branch invite not found.",
 				});
 			}
+
+			// Guard: caller must have access to this invite's branch
+			guardBranchAccessible(
+				oldInvite.hierarchyScopeId,
+				context.accessibleNodeIds ?? [],
+			);
 
 			// Revoke old
 			await revokeBranchInvite(context.tenantDb, input.id);

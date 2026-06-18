@@ -78,7 +78,9 @@ test("11 — Phase 4: placeholder backfill + magic-link resend on Customer 360",
 		// ── Step 5: Fill the backfill form + submit ────────────────────────
 		const emailInput = page.locator("#placeholder-backfill-email");
 		await emailInput.fill(VERIFIED_RECIPIENT);
-		await page.getByRole("button", { name: /Add email \+ send sign-in/i }).click();
+		await page
+			.getByRole("button", { name: /Add email \+ send sign-in/i })
+			.click();
 
 		// Toast contains the recipient address on success.
 		await expect(page.getByText(VERIFIED_RECIPIENT)).toBeVisible({
@@ -97,7 +99,9 @@ test("11 — Phase 4: placeholder backfill + magic-link resend on Customer 360",
 		const tokens = await cp
 			.select()
 			.from(verification)
-			.where(eq(verification.value, `{"email":"${VERIFIED_RECIPIENT}","attempt":0}`));
+			.where(
+				eq(verification.value, `{"email":"${VERIFIED_RECIPIENT}","attempt":0}`),
+			);
 		expect(tokens.length).toBeGreaterThan(0);
 
 		// ── Step 8: After backfill the placeholder UI unmounts; the Resend
@@ -118,7 +122,9 @@ test("11 — Phase 4: placeholder backfill + magic-link resend on Customer 360",
 		const cp = getControlPanelDb();
 		await cp
 			.delete(verification)
-			.where(eq(verification.value, `{"email":"${VERIFIED_RECIPIENT}","attempt":0}`));
+			.where(
+				eq(verification.value, `{"email":"${VERIFIED_RECIPIENT}","attempt":0}`),
+			);
 		await teardownE2EFixture(fx);
 	}
 });

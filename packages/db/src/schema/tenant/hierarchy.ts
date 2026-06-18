@@ -19,7 +19,15 @@
  *   into the `branch_details` table.
  */
 
-import { pgEnum, pgTable, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
+import {
+	pgEnum,
+	pgTable,
+	uuid,
+	text,
+	integer,
+	timestamp,
+	index,
+} from "drizzle-orm/pg-core";
 
 export const hierarchyNodeType = pgEnum("hierarchy_node_type", [
 	"organization",
@@ -42,9 +50,12 @@ export const hierarchyNodes = pgTable(
 		// Denormalized FK to country ancestor (Phase G0).
 		// NULL for organization + country rows. Populated for state + branch.
 		// Maintained by createHierarchyNode + moveNode service helpers.
-		countryNodeId: uuid("country_node_id").references((): any => hierarchyNodes.id, {
-			onDelete: "restrict",
-		}),
+		countryNodeId: uuid("country_node_id").references(
+			(): any => hierarchyNodes.id,
+			{
+				onDelete: "restrict",
+			},
+		),
 		// Branch-specific columns moved to branch_details table in Phase H2.
 		// Soft archive (Phase G0). NULL = active.
 		archivedAt: timestamp("archived_at"),

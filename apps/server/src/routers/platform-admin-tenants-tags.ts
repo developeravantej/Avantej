@@ -17,10 +17,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import {
-	platformAdminProcedure as adminProcedure,
-	superAdminProcedure,
-} from "@avantej-core/api";
+import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
 import {
 	recordAdminAction,
 	recordAdminActions,
@@ -29,24 +26,21 @@ import {
 import { writeTenantPaymentStatus } from "@/services/tenant-lifecycle.service";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { tenantTags } from "@avantej-core/db/schema/control-panel/tenant-tags";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 const BULK_CAP = 100;
 
-function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
-		"controlPanelDb",
-	) as NeonDatabase<typeof controlPanelSchema> | undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
+const superAdminProcedure = adminProcedure.use(
+	requirePlatformAdmin(["super_admin"]),
+);
 
 function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
 	const id = session?.user?.id;
-	if (!id) throw new ORPCError("UNAUTHORIZED", { message: "No admin user in session" });
+	if (!id)
+		throw new ORPCError("UNAUTHORIZED", {
+			message: "No admin user in session",
+		});
 	return id;
 }
 
@@ -63,10 +57,14 @@ async function assertOrgExists(
 
 function assertBulkSize(ids: string[]) {
 	if (ids.length === 0) {
-		throw new ORPCError("BAD_REQUEST", { message: "At least one tenant required" });
+		throw new ORPCError("BAD_REQUEST", {
+			message: "At least one tenant required",
+		});
 	}
 	if (ids.length > BULK_CAP) {
-		throw new ORPCError("BAD_REQUEST", { message: "Max 100 tenants per bulk op" });
+		throw new ORPCError("BAD_REQUEST", {
+			message: "Max 100 tenants per bulk op",
+		});
 	}
 }
 
@@ -78,7 +76,7 @@ export const platformAdminTenantsTagsRouter = {
 	list: adminProcedure
 		.input(z.object({ search: z.string().trim().optional() }).default({}))
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const where = input.search
 				? sql`label ILIKE ${"%" + input.search + "%"}`
 				: sql`1=1`;
@@ -93,9 +91,17 @@ export const platformAdminTenantsTagsRouter = {
 			`);
 			const items = (rows as any).rows ?? rows;
 			return {
-				tags: (items as Array<{ label: string; color: string | null; org_count: number }>).map(
-					(r) => ({ label: r.label, color: r.color, orgCount: Number(r.org_count) }),
-				),
+				tags: (
+					items as Array<{
+						label: string;
+						color: string | null;
+						org_count: number;
+					}>
+				).map((r) => ({
+					label: r.label,
+					color: r.color,
+					orgCount: Number(r.org_count),
+				})),
 			};
 		}),
 
@@ -105,7 +111,7 @@ export const platformAdminTenantsTagsRouter = {
 	listForOrg: adminProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			await assertOrgExists(cpDb, input.organizationId);
 			const rows = await cpDb
 				.select({
@@ -129,7 +135,7 @@ export const platformAdminTenantsTagsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 			await assertOrgExists(cpDb, input.organizationId);
 
@@ -176,7 +182,7 @@ export const platformAdminTenantsTagsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 			await assertOrgExists(cpDb, input.organizationId);
 
@@ -209,7 +215,7 @@ export const platformAdminTenantsTagsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 			assertBulkSize(input.organizationIds);
 
@@ -266,7 +272,7 @@ export const platformAdminTenantsTagsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 			assertBulkSize(input.organizationIds);
 
@@ -307,7 +313,7 @@ export const platformAdminTenantsTagsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 			assertBulkSize(input.organizationIds);
 
@@ -368,4 +374,3 @@ export const platformAdminTenantsTagsRouter = {
 			};
 		}),
 };
-

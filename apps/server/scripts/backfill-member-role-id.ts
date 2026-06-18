@@ -57,7 +57,10 @@ async function backfillMemberRoleId() {
 
 	// Connect to control panel DB to get all organizations
 	const controlPanelPool = new Pool({ connectionString: databaseUrl });
-	const controlPanelDb = drizzle({ client: controlPanelPool, schema: controlPanelSchema });
+	const controlPanelDb = drizzle({
+		client: controlPanelPool,
+		schema: controlPanelSchema,
+	});
 
 	const allOrgs = await controlPanelDb.query.organizations.findMany();
 	console.log(`Found ${allOrgs.length} organization(s)\n`);
@@ -89,7 +92,8 @@ async function backfillMemberRoleId() {
 				  AND ${members}.role_id IS NULL
 			`);
 
-			const rowCount = (result as unknown as { rowCount: number }).rowCount ?? 0;
+			const rowCount =
+				(result as unknown as { rowCount: number }).rowCount ?? 0;
 			console.log(`  Updated ${rowCount} member(s)`);
 			grandTotal += rowCount;
 

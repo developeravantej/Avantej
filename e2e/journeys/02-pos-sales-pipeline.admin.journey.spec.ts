@@ -7,11 +7,16 @@
  * detail) so the recorded video demonstrates the end-user-visible result.
  */
 import { test, expect } from "@playwright/test";
-import { ensureJourneyFixtures, branchForClient } from "../helpers/seed-journey-fixtures";
+import {
+	ensureJourneyFixtures,
+	branchForClient,
+} from "../helpers/seed-journey-fixtures";
 import { recordPosSale, TEST_ORG_ID } from "../helpers/seed-data";
 import { orpcCall } from "../helpers/orpc-client";
 
-test("POS product sale appears in the Sales ledger with correct total", { tag: ["@p0"] }, async ({ page }) => {
+test("POS product sale appears in the Sales ledger with correct total", {
+	tag: ["@p0"],
+}, async ({ page }) => {
 	let salesOrderId = "";
 
 	await test.step("Resolve tenant fixtures (client, product, branch)", async () => {
@@ -35,24 +40,36 @@ test("POS product sale appears in the Sales ledger with correct total", { tag: [
 				],
 				paymentMethod: "cash",
 			});
-			expect(salesOrderId, "recordSale must return a salesOrderId").toBeTruthy();
+			expect(
+				salesOrderId,
+				"recordSale must return a salesOrderId",
+			).toBeTruthy();
 		});
 	});
 
 	await test.step("Open the Sales ledger — the new order is listed", async () => {
 		await page.goto("/dashboard/sales/view");
-		await expect(page.getByRole("heading", { name: /sales/i }).first()).toBeVisible();
+		await expect(
+			page.getByRole("heading", { name: /sales/i }).first(),
+		).toBeVisible();
 		// Table or rows render (seeded order guarantees non-empty).
 		await page.waitForTimeout(1200);
-		await expect(page.locator("body")).not.toContainText(/something went wrong/i);
+		await expect(page.locator("body")).not.toContainText(
+			/something went wrong/i,
+		);
 	});
 
 	await test.step("Verify the order via sales-orders.getById (status + total)", async () => {
 		type Order = { id: string; status?: string; totalAmount?: number };
-		const order = await orpcCall<object, Order>(page, "salesOrders", "getById", {
-			organizationId: TEST_ORG_ID,
-			id: salesOrderId,
-		});
+		const order = await orpcCall<object, Order>(
+			page,
+			"salesOrders",
+			"getById",
+			{
+				organizationId: TEST_ORG_ID,
+				id: salesOrderId,
+			},
+		);
 		expect(order.id).toBe(salesOrderId);
 	});
 

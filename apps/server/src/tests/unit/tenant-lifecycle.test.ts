@@ -41,7 +41,13 @@ describe("assertTransition (ADR-0024 legal-transition table)", () => {
 	});
 
 	test("force-cancel is legal from any non-deleted state", () => {
-		for (const from of ["trial", "active", "past_due", "suspended", "cancelled"]) {
+		for (const from of [
+			"trial",
+			"active",
+			"past_due",
+			"suspended",
+			"cancelled",
+		]) {
 			expect(() => assertTransition(from, "cancelled")).not.toThrow();
 		}
 	});

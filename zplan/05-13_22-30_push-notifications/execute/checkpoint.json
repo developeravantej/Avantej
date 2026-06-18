@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "sessionPath": "/Users/voo/Developement/Work2/avantej-core/zplan/05-13_22-30_push-notifications",
+  "planPath": "/Users/voo/Developement/Work2/avantej-core/zplan/05-13_22-30_push-notifications/plan/plan.md",
+  "updatedAt": "2026-05-14T00:20:00Z",
+  "status": "complete",
+  "gitHeadAtStart": "7c53bc0ba1cd9e33dc4a7e1350909194f67563bb",
+  "lastCompletedPhase": 3,
+  "currentPhase": null,
+  "totalPhases": 3,
+  "pendingPhases": [],
+  "phaseAgents": {
+    "1": [{ "role": "Agent A (backend)", "logWritten": true }],
+    "2": [{ "role": "Agent B (backend)", "logWritten": true }],
+    "3": [{ "role": "Agent C (mobile)", "logWritten": true }]
+  },
+  "taskCoverage": {
+    "1": { "total": 9, "done": 9, "missed": 0 },
+    "2": { "total": 5, "done": 5, "missed": 0 },
+    "3": { "total": 5, "done": 5, "missed": 0 }
+  },
+  "missedTasks": [],
+  "resolvedDecisions": [
+    { "id": "OQ1", "title": "Backfill push-guard", "decision": "skipPush flag", "reason": "Safest + reusable" },
+    { "id": "OQ2", "title": "Scope wording", "decision": "Package events only v1", "reason": "No booking notify fns" },
+    { "id": "OQ3", "title": "Profile UX", "decision": "Inline 3 toggles", "reason": "Reuse existing handler" }
+  ],
+  "openQuestions": [],
+  "nextActions": ["Manual device test (see Step 6 testing brief)"],
+  "subagentRetryLog": [
+    { "phase": 1, "agentRole": "Agent A (backend)", "attempt": 1, "outcome": "model_error_400", "fallback": "general-purpose" }
+  ]
+}

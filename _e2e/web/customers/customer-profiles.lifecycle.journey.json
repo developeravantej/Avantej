@@ -1,0 +1,10 @@
+{
+  "customers/customer-profiles.lifecycle.spec.ts::Self profile upsert — update a field then restore (API-verified)": [
+    "Read the caller's own customer profile via customerProfiles/get (captures original notes)",
+    "Upsert a unique E2E marker into the notes field via customerProfiles/upsert",
+    "Assert the upsert response returns the marker notes",
+    "Re-query customerProfiles/get and assert the marker persisted",
+    "Restore the original notes value (withRestored)",
+    "Assert the marker is no longer present after restore"
+  ]
+}

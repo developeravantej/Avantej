@@ -1,8 +1,8 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
-	requirePermission,
 	listSuppliers,
 	getSupplierById,
 	createSupplier,
@@ -11,34 +11,22 @@ import {
 } from "@avantej-core/services";
 
 export const suppliersRouter = {
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				isActive: z.boolean().optional(),
 				search: z.string().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"read",
+			);
 
 			return listSuppliers(context.tenantDb, {
 				isActive: input.isActive,
@@ -46,33 +34,21 @@ export const suppliersRouter = {
 			});
 		}),
 
-	getById: protectedProcedure
+	getById: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"read",
+			);
 
 			const supplier = await getSupplierById(context.tenantDb, input.id);
 			if (!supplier) {
@@ -83,7 +59,7 @@ export const suppliersRouter = {
 			return supplier;
 		}),
 
-	create: protectedProcedure
+	create: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -98,28 +74,16 @@ export const suppliersRouter = {
 				website: z.string().optional(),
 				barcode: z.string().optional(),
 				isActive: z.boolean().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "create");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"create",
+			);
 
 			return createSupplier(context.tenantDb, {
 				name: input.name,
@@ -136,7 +100,7 @@ export const suppliersRouter = {
 			});
 		}),
 
-	update: protectedProcedure
+	update: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -152,28 +116,16 @@ export const suppliersRouter = {
 				website: z.string().optional(),
 				barcode: z.string().optional(),
 				isActive: z.boolean().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "update");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"update",
+			);
 
 			return updateSupplier(context.tenantDb, input.id, {
 				name: input.name,
@@ -190,33 +142,21 @@ export const suppliersRouter = {
 			});
 		}),
 
-	deactivate: protectedProcedure
+	deactivate: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(context.tenantDb, context.member, "inventory", "update");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"inventory",
+				"update",
+			);
 
 			return deactivateSupplier(context.tenantDb, input.id);
 		}),

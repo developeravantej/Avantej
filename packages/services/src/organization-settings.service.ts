@@ -54,4 +54,3 @@ export async function upsertSetting(
 	if (!row) throw new Error("Failed to upsert setting");
 	return { key: row.key, value: row.value };
 }
-

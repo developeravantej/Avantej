@@ -850,4 +850,4 @@ For every value currently rendered as a number, ask: "Is this real, or fabricate
 
 ### When you're done
 
-Update `zhub/` for this page (`/hub-update`) so the hub reflects the redesigned structure. Then push the PR.
+Run `/graphify . --update` to refresh the knowledge graph so it reflects the redesigned structure. Then push the PR.

@@ -65,9 +65,7 @@ export function TierChangeCard({
 			onChanged?.();
 		},
 		onError: (e: unknown) => {
-			toast.error(
-				`Tier change failed: ${(e as Error)?.message ?? "unknown"}`,
-			);
+			toast.error(`Tier change failed: ${(e as Error)?.message ?? "unknown"}`);
 		},
 	});
 

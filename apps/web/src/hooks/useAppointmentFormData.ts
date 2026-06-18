@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { orpc, client } from "@/utils/orpc";
+import { orpc } from "@/utils/orpc";
 import { useUserContext } from "@/hooks/useUserContext";
 
 // ─── Raw API item types ────────────────────────────────────────────────────────
@@ -84,24 +84,28 @@ export function useAppointmentFormData(): UseAppointmentFormDataResult {
 	const organizationId = userCtx?.currentOrganizationId ?? "";
 
 	const { data: clientMembers = [], isLoading: isLoadingClients } = useQuery({
-		...orpc.members.list.queryOptions({ input: { organizationId, role: "client", status: "active" } }),
+		...orpc.members.list.queryOptions({
+			input: { organizationId, role: "client", status: "active" },
+		}),
 		enabled: !!organizationId,
 	});
 
 	const { data: servicesData = [], isLoading: isLoadingServices } = useQuery({
-		...orpc.services.list.queryOptions({ input: { organizationId, isActive: true } }),
+		...orpc.services.list.queryOptions({
+			input: { organizationId, isActive: true },
+		}),
 		enabled: !!organizationId,
 	});
 
 	const { data: roomsData = [], isLoading: isLoadingRooms } = useQuery({
-		queryKey: ["rooms", organizationId],
-		queryFn: () => client.rooms.list({ organizationId }),
+		...orpc.rooms.list.queryOptions({ input: { organizationId } }),
 		enabled: !!organizationId,
 	});
 
 	const { data: trainersData = [], isLoading: isLoadingTrainers } = useQuery({
-		queryKey: ["members", organizationId, "trainer"],
-		queryFn: () => client.members.list({ organizationId, role: "trainer", status: "active" }),
+		...orpc.members.list.queryOptions({
+			input: { organizationId, role: "trainer", status: "active" },
+		}),
 		enabled: !!organizationId,
 	});
 
@@ -132,16 +136,29 @@ export function useAppointmentFormData(): UseAppointmentFormDataResult {
 		type: r.roomType ?? "",
 	}));
 
-	const trainers: TrainerRow[] = (trainersData as MemberListItem[]).map((m) => ({
-		id: m.id,
-		userId: m.userId,
-		name: m.name ?? m.email ?? m.userId,
-		role: m.role ?? "",
-		department: "",
-	}));
+	const trainers: TrainerRow[] = (trainersData as MemberListItem[]).map(
+		(m) => ({
+			id: m.id,
+			userId: m.userId,
+			name: m.name ?? m.email ?? m.userId,
+			role: m.role ?? "",
+			department: "",
+		}),
+	);
 
 	const isLoading =
-		isLoadingClients || isLoadingServices || isLoadingRooms || isLoadingTrainers;
+		isLoadingClients ||
+		isLoadingServices ||
+		isLoadingRooms ||
+		isLoadingTrainers;
 
-	return { clients, services, rawServices, rooms, trainers, rawClientMembers, isLoading };
+	return {
+		clients,
+		services,
+		rawServices,
+		rooms,
+		trainers,
+		rawClientMembers,
+		isLoading,
+	};
 }

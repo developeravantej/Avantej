@@ -1,0 +1,6 @@
+{
+  "route": "/dashboard/customers/v2/view",
+  "module": "customers",
+  "timedOut": true,
+  "findings": []
+}

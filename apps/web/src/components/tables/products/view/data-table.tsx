@@ -26,10 +26,23 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { TableToolbar } from "@/components/ui/table-toolbar";
 
-interface Brand { id: string; name: string }
-interface Category { id: string; name: string }
-interface Supplier { id: string; name: string }
-interface Uom { id: string; name: string; symbol?: string }
+interface Brand {
+	id: string;
+	name: string;
+}
+interface Category {
+	id: string;
+	name: string;
+}
+interface Supplier {
+	id: string;
+	name: string;
+}
+interface Uom {
+	id: string;
+	name: string;
+	symbol?: string;
+}
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
@@ -101,7 +114,9 @@ export default function DataTable<TData extends ProductRow, TValue>({
 					<StatusCallout
 						variant="error"
 						title="Couldn't load data"
-						message={error instanceof Error ? error.message : "An error occurred"}
+						message={
+							error instanceof Error ? error.message : "An error occurred"
+						}
 						onRetry={onRetry}
 					/>
 				</div>
@@ -121,7 +136,10 @@ export default function DataTable<TData extends ProductRow, TValue>({
 										>
 											{header.isPlaceholder
 												? null
-												: flexRender(header.column.columnDef.header, header.getContext())}
+												: flexRender(
+														header.column.columnDef.header,
+														header.getContext(),
+													)}
 										</TableHead>
 									))}
 								</TableRow>
@@ -136,8 +154,14 @@ export default function DataTable<TData extends ProductRow, TValue>({
 										onClick={() => setEditTarget(row.original)}
 									>
 										{row.getVisibleCells().map((cell) => (
-											<TableCell key={cell.id} className="whitespace-nowrap px-6 py-4 text-sm">
-												{flexRender(cell.column.columnDef.cell, cell.getContext())}
+											<TableCell
+												key={cell.id}
+												className="whitespace-nowrap px-6 py-4 text-sm"
+											>
+												{flexRender(
+													cell.column.columnDef.cell,
+													cell.getContext(),
+												)}
 											</TableCell>
 										))}
 									</TableRow>

@@ -5,7 +5,12 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 export type CreateRoomParams = {
 	name: string;
-	type: "consultation" | "group_session" | "private" | "training" | "individual";
+	type:
+		| "consultation"
+		| "group_session"
+		| "private"
+		| "training"
+		| "individual";
 	capacity: number;
 	branchId: string;
 	isActive?: boolean;
@@ -15,7 +20,11 @@ export type UpdateRoomParams = Partial<CreateRoomParams>;
 
 export async function listRooms(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: { branchId?: string; isActive?: boolean; accessibleNodeIds?: string[] } = {}
+	params: {
+		branchId?: string;
+		isActive?: boolean;
+		accessibleNodeIds?: string[];
+	} = {},
 ): Promise<(typeof rooms.$inferSelect)[]> {
 	const { branchId, isActive, accessibleNodeIds } = params;
 
@@ -41,8 +50,8 @@ export async function listRooms(
 
 export async function getRoomById(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
-): Promise<(typeof rooms.$inferSelect) | null> {
+	id: string,
+): Promise<typeof rooms.$inferSelect | null> {
 	const row = await tenantDb.query.rooms.findFirst({
 		where: eq(rooms.id, id),
 	});
@@ -51,7 +60,7 @@ export async function getRoomById(
 
 export async function createRoom(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: CreateRoomParams
+	params: CreateRoomParams,
 ): Promise<typeof rooms.$inferSelect> {
 	const [row] = await tenantDb
 		.insert(rooms)
@@ -73,7 +82,7 @@ export async function createRoom(
 export async function updateRoom(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	id: string,
-	params: UpdateRoomParams
+	params: UpdateRoomParams,
 ): Promise<typeof rooms.$inferSelect> {
 	const [row] = await tenantDb
 		.update(rooms)
@@ -96,7 +105,7 @@ export async function updateRoom(
 
 export async function deleteRoom(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
+	id: string,
 ): Promise<typeof rooms.$inferSelect> {
 	const [row] = await tenantDb
 		.update(rooms)

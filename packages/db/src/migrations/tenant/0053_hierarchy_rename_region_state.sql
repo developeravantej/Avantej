@@ -9,11 +9,11 @@
 -- with `invalid input value for enum hierarchy_node_type: "region"` (22P02)
 -- before any row is examined. Casting the column to text sidesteps the enum cast
 -- so this migration is a true no-op when those values are already gone.
-
--- Safety: hard-fail if area rows still exist
 DO $$
 DECLARE area_count int;
 BEGIN
+  -- Safety: hard-fail if area rows still exist. type::text so the check is a
+  -- no-op (not an enum-cast error) on a tenant where the enum no longer has 'area'.
   SELECT count(*) INTO area_count FROM hierarchy_nodes WHERE type::text = 'area';
   IF area_count > 0 THEN
     RAISE EXCEPTION 'Migration blocked: % area row(s) exist. Run flatten-areas.ts first.', area_count;

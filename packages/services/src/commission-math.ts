@@ -107,7 +107,5 @@ export function computeFinalAmountCents(
 	quantity: number,
 ): number {
 	if (quantity <= 0) return 0;
-	return Math.floor(
-		(baseAmountCents * effectiveWeightage * quantity) / 10000,
-	);
+	return Math.floor((baseAmountCents * effectiveWeightage * quantity) / 10000);
 }

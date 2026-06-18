@@ -1,9 +1,9 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { inArray } from "drizzle-orm";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
-	requirePermission,
 	listInvoices,
 	getInvoiceById,
 	createInvoice,
@@ -14,10 +14,17 @@ import { user as cpUsers } from "@avantej-core/db/schema/auth";
 import { getControlPanelDb } from "../lib/context-helpers";
 import { encodeCursor, parseCursor } from "../lib/cursor";
 
-const invoiceStatusEnum = z.enum(["draft", "sent", "paid", "partially_paid", "overdue", "cancelled"]);
+const invoiceStatusEnum = z.enum([
+	"draft",
+	"sent",
+	"paid",
+	"partially_paid",
+	"overdue",
+	"cancelled",
+]);
 
 export const invoicesRouter = {
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -26,28 +33,16 @@ export const invoicesRouter = {
 				salesOrderId: z.string().uuid().optional(),
 				from: z.string().datetime().optional(),
 				to: z.string().datetime().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(context.tenantDb, context.member, "payments", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"payments",
+				"read",
+			);
 
 			const invoiceRows = await listInvoices(context.tenantDb, {
 				status: input.status,
@@ -62,17 +57,27 @@ export const invoicesRouter = {
 
 			// Batch-resolve createdBy IDs → display names
 			const createdByIds = [
-				...new Set(invoiceRows.map((r) => r.createdBy).filter((id): id is string => !!id)),
+				...new Set(
+					invoiceRows
+						.map((r) => r.createdBy)
+						.filter((id): id is string => !!id),
+				),
 			];
 			const cpDb = getControlPanelDb(context);
 			const userRecords =
 				createdByIds.length > 0
 					? await cpDb
-							.select({ id: cpUsers.id, name: cpUsers.name, email: cpUsers.email })
+							.select({
+								id: cpUsers.id,
+								name: cpUsers.name,
+								email: cpUsers.email,
+							})
 							.from(cpUsers)
 							.where(inArray(cpUsers.id, createdByIds))
 					: [];
-			const nameMap = new Map(userRecords.map((u) => [u.id, u.name ?? u.email ?? "Unknown"]));
+			const nameMap = new Map(
+				userRecords.map((u) => [u.id, u.name ?? u.email ?? "Unknown"]),
+			);
 
 			return invoiceRows.map((r) => ({
 				...r,
@@ -80,33 +85,21 @@ export const invoicesRouter = {
 			}));
 		}),
 
-	getById: protectedProcedure
+	getById: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				id: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(context.tenantDb, context.member, "payments", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"payments",
+				"read",
+			);
 
 			const invoice = await getInvoiceById(context.tenantDb, input.id);
 			if (!invoice) {
@@ -117,7 +110,7 @@ export const invoicesRouter = {
 			return invoice;
 		}),
 
-	create: protectedProcedure
+	create: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -134,28 +127,16 @@ export const invoicesRouter = {
 				status: invoiceStatusEnum,
 				eInvoiceStatus: z.string().optional(),
 				eInvoiceId: z.string().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(context.tenantDb, context.member, "payments", "create");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"payments",
+				"create",
+			);
 
 			return createInvoice(context.tenantDb, {
 				salesOrderId: input.salesOrderId,
@@ -174,7 +155,7 @@ export const invoicesRouter = {
 			});
 		}),
 
-	update: protectedProcedure
+	update: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -191,28 +172,16 @@ export const invoicesRouter = {
 				status: invoiceStatusEnum.optional(),
 				eInvoiceStatus: z.string().optional(),
 				eInvoiceId: z.string().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(context.tenantDb, context.member, "payments", "update");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"payments",
+				"update",
+			);
 
 			return updateInvoice(context.tenantDb, input.id, {
 				salesOrderId: input.salesOrderId,
@@ -230,43 +199,35 @@ export const invoicesRouter = {
 			});
 		}),
 
-	paymentStatusHistory: protectedProcedure
+	paymentStatusHistory: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				paymentId: z.string().uuid(),
 				cursor: z.string().optional(),
 				limit: z.number().int().min(1).max(100).default(50),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(context.tenantDb, context.member, "payments", "read");
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message: error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"payments",
+				"read",
+			);
 
 			const limit = input.limit ?? 50;
 			const parsedCursor = input.cursor ? parseCursor(input.cursor) : null;
 
-			const rawRows = await getPaymentStatusHistory(context.tenantDb, input.paymentId, {
-				parsedCursor,
-				limit,
-			});
+			const rawRows = await getPaymentStatusHistory(
+				context.tenantDb,
+				input.paymentId,
+				{
+					parsedCursor,
+					limit,
+				},
+			);
 
 			const hasMore = rawRows.length > limit;
 			const pageRows = hasMore ? rawRows.slice(0, limit) : rawRows;
@@ -275,13 +236,19 @@ export const invoicesRouter = {
 				hasMore && lastRow ? encodeCursor(lastRow.changedAt, lastRow.id) : null;
 
 			const userIds = [
-				...new Set(pageRows.map((r) => r.changedBy).filter((id) => id !== "system")),
+				...new Set(
+					pageRows.map((r) => r.changedBy).filter((id) => id !== "system"),
+				),
 			];
 			const cpDb = getControlPanelDb(context);
 			const userRecords =
 				userIds.length > 0
 					? await cpDb
-							.select({ id: cpUsers.id, name: cpUsers.name, email: cpUsers.email })
+							.select({
+								id: cpUsers.id,
+								name: cpUsers.name,
+								email: cpUsers.email,
+							})
 							.from(cpUsers)
 							.where(inArray(cpUsers.id, userIds))
 					: [];

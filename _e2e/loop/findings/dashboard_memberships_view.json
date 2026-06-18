@@ -1,0 +1,55 @@
+{
+  "route": "/dashboard/memberships/view",
+  "module": "memberships",
+  "interactablesFound": {
+    "buttons": 217,
+    "links": 27,
+    "textboxes": 2,
+    "comboboxes": 1,
+    "checkboxes": 0,
+    "tabs": 0
+  },
+  "actionsTaken": 30,
+  "findings": [
+    {
+      "id": "dashboard_memberships_view__console-error",
+      "route": "/dashboard/memberships/view",
+      "module": "dialog-a11y",
+      "category": "console-error",
+      "severity": "low",
+      "title": "Radix DialogContent missing a DialogTitle (screen-reader a11y)",
+      "observed": "`DialogContent` requires a `DialogTitle` for the component to be accessible for screen reader users.",
+      "evidence": {
+        "screenshot": "_e2e/loop/evidence/dashboard_memberships_view/shot.png",
+        "console": "_e2e/loop/evidence/dashboard_memberships_view/console.txt",
+        "network": "_e2e/loop/evidence/dashboard_memberships_view/network.txt",
+        "trace": "_e2e/loop/evidence/dashboard_memberships_view/trace.zip"
+      },
+      "recommendation": "Add a (optionally VisuallyHidden) DialogTitle to the dialog. NOT APPLIED."
+    }
+  ],
+  "newLinks": [
+    "/dashboard",
+    "/dashboard/operations/approvals",
+    "/dashboard/customers/v2/view",
+    "/dashboard/appointment/view",
+    "/dashboard/appointment/class-slots/view",
+    "/dashboard/trainers/view",
+    "/dashboard/service/view",
+    "/dashboard/sales/create",
+    "/dashboard/reports/view",
+    "/dashboard/announcements/view",
+    "/dashboard/sales/view",
+    "/dashboard/commissions/view",
+    "/dashboard/settings/tax-rates",
+    "/dashboard/expenses/view",
+    "/dashboard/packages/view",
+    "/dashboard/commissions/view?tab=payouts",
+    "/dashboard/user/view",
+    "/dashboard/access-control/roles",
+    "/dashboard/access-control/user-assignment",
+    "/dashboard/branch/view"
+  ],
+  "authExpired": false,
+  "serverDown": false
+}

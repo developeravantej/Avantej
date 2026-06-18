@@ -1,14 +1,6 @@
 import { useState, useMemo } from "react";
 import { AlertCircle, ChevronDown, Check } from "lucide-react";
-import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetDescription,
-	SheetFooter,
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -31,7 +23,6 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatPrice } from "@/lib/money";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -91,43 +82,49 @@ function StaffMultiSelect({
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
-				<Button
-					variant="outline"
+				<button
+					type="button"
 					role="combobox"
 					aria-expanded={open}
-					className="w-full justify-between font-normal h-auto min-h-9 py-1.5"
+					className="flex w-full items-center justify-between gap-2 rounded-xl border border-[#e5e5e5] bg-white px-3 py-2 text-left transition hover:bg-[#f3f3f3]"
 					data-testid="batch-staff-combobox"
 				>
-					<span className="flex flex-wrap gap-1 text-left">
+					<span className="flex flex-1 flex-wrap gap-1">
 						{selectedLabels.length === 0 ? (
-							<span className="text-muted-foreground text-sm">
-								Select staff members...
+							<span className="text-sm text-[#737373]">
+								Select staff members…
 							</span>
 						) : selectedLabels.length <= 3 ? (
 							selectedLabels.map((name) => (
-								<Badge key={name} variant="secondary" className="text-xs">
+								<span
+									key={name}
+									className="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-[11px] font-semibold text-purple-700"
+								>
 									{name}
-								</Badge>
+								</span>
 							))
 						) : (
 							<>
 								{selectedLabels.slice(0, 2).map((name) => (
-									<Badge key={name} variant="secondary" className="text-xs">
+									<span
+										key={name}
+										className="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-[11px] font-semibold text-purple-700"
+									>
 										{name}
-									</Badge>
+									</span>
 								))}
-								<Badge variant="secondary" className="text-xs">
+								<span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
 									+{selectedLabels.length - 2} more
-								</Badge>
+								</span>
 							</>
 						)}
 					</span>
-					<ChevronDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
-				</Button>
+					<ChevronDown className="h-4 w-4 shrink-0 text-[#737373]" />
+				</button>
 			</PopoverTrigger>
 			<PopoverContent className="w-[320px] p-0" align="start">
 				<Command>
-					<CommandInput placeholder="Search staff..." />
+					<CommandInput placeholder="Search staff…" />
 					<CommandList>
 						<CommandEmpty>No staff found.</CommandEmpty>
 						<CommandGroup>
@@ -140,9 +137,7 @@ function StaffMultiSelect({
 									<Check
 										className={cn(
 											"mr-2 h-4 w-4",
-											selectedSet.has(opt.id)
-												? "opacity-100"
-												: "opacity-0",
+											selectedSet.has(opt.id) ? "opacity-100" : "opacity-0",
 										)}
 									/>
 									{opt.name}
@@ -182,10 +177,10 @@ function PreviewPanel({
 }) {
 	if (isLoading) {
 		return (
-			<div className="rounded-lg border bg-muted/30 p-4">
-				<div className="flex items-center gap-2 text-sm text-muted-foreground">
-					<div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-					Calculating preview...
+			<div className="rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-4">
+				<div className="flex items-center gap-2 text-sm text-[#737373]">
+					<div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#0a0a0a] border-t-transparent" />
+					Calculating preview…
 				</div>
 			</div>
 		);
@@ -193,8 +188,8 @@ function PreviewPanel({
 
 	if (error) {
 		return (
-			<div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4">
-				<div className="flex items-center gap-2 text-sm text-destructive">
+			<div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
+				<div className="flex items-center gap-2 text-sm text-rose-600">
 					<AlertCircle className="h-4 w-4 shrink-0" />
 					{error.message ?? "Failed to load preview."}
 				</div>
@@ -204,8 +199,8 @@ function PreviewPanel({
 
 	if (count === 0) {
 		return (
-			<div className="rounded-lg border bg-muted/30 p-4">
-				<p className="text-sm text-muted-foreground text-center">
+			<div className="rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-4">
+				<p className="text-center text-sm text-[#737373]">
 					No approved splits found for the selected staff and date range.
 				</p>
 			</div>
@@ -213,30 +208,38 @@ function PreviewPanel({
 	}
 
 	return (
-		<div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+		<div className="space-y-3 rounded-2xl border border-[#e5e5e5] bg-white p-5">
 			<div className="flex items-center justify-between">
-				<p className="text-sm font-medium">Batch Preview</p>
-				<p className="text-sm font-semibold tabular-nums">
-					{formatPrice(totalAmountCents, "MYR")} total
+				<p className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+					Batch Preview
+				</p>
+				<p className="font-mono text-2xl font-bold tabular-nums text-[#0a0a0a]">
+					{formatPrice(totalAmountCents, "MYR")}
 				</p>
 			</div>
 
-			<div className="text-xs text-muted-foreground" data-testid="batch-preview-count">
-				{count} approved split{count !== 1 ? "s" : ""} across {byStaff.length}{" "}
+			<div className="text-xs text-[#737373]" data-testid="batch-preview-count">
+				<span className="font-mono tabular-nums text-[#0a0a0a]">{count}</span>{" "}
+				approved split{count !== 1 ? "s" : ""} across{" "}
+				<span className="font-mono tabular-nums text-[#0a0a0a]">
+					{byStaff.length}
+				</span>{" "}
 				staff member{byStaff.length !== 1 ? "s" : ""}
 			</div>
 
 			{byStaff.length > 0 && (
-				<div className="space-y-1.5 max-h-40 overflow-y-auto">
+				<div className="max-h-40 space-y-px overflow-y-auto rounded-xl border border-[#e5e5e5] bg-white">
 					{byStaff.map((s) => (
 						<div
 							key={s.staffId}
-							className="flex items-center justify-between text-xs"
+							className="flex items-center justify-between px-3 py-2 text-xs hover:bg-[#fafafa]"
 						>
-							<span className="truncate text-foreground">{s.staffName}</span>
-							<span className="ml-2 shrink-0 tabular-nums text-muted-foreground">
+							<span className="truncate text-[#0a0a0a]">{s.staffName}</span>
+							<span className="ml-2 shrink-0 font-mono tabular-nums text-[#737373]">
 								{s.count} split{s.count !== 1 ? "s" : ""} ·{" "}
-								{formatPrice(s.totalCents, "MYR")}
+								<span className="text-[#0a0a0a]">
+									{formatPrice(s.totalCents, "MYR")}
+								</span>
 							</span>
 						</div>
 					))}
@@ -244,7 +247,8 @@ function PreviewPanel({
 			)}
 
 			{truncated && (
-				<p className="text-xs text-amber-600">
+				<p className="flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+					<AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
 					Showing first 500 splits — narrow the date range to confirm the full
 					count before confirming.
 				</p>
@@ -312,7 +316,8 @@ export function RunBatchDrawer({
 	const preview = previewRaw as PreviewBatchResult | undefined;
 
 	// ── Run batch mutation ──────────────────────────────────────────────────────
-	const { mutate: runBatch, isPending: isRunning } = useRunBatch(organizationId);
+	const { mutate: runBatch, isPending: isRunning } =
+		useRunBatch(organizationId);
 
 	function handleConfirm() {
 		runBatch(
@@ -348,123 +353,138 @@ export function RunBatchDrawer({
 
 	return (
 		<Sheet open={open} onOpenChange={onOpenChange}>
-			<SheetContent side="right" className="w-full sm:max-w-lg flex flex-col" data-testid="run-batch-drawer">
-				<SheetHeader className="pb-2">
-					<SheetTitle>Run Payout Batch</SheetTitle>
-					<SheetDescription>
-						Select staff and date range to batch-pay approved commission splits.
-					</SheetDescription>
-				</SheetHeader>
+			<SheetContent
+				side="right"
+				className="w-full border-l border-[#e5e5e5] bg-white p-0 sm:max-w-[460px]"
+				data-testid="run-batch-drawer"
+			>
+				<div className="flex h-full flex-col">
+					{/* Header */}
+					<div className="border-b border-[#e5e5e5] px-6 pb-4 pt-6">
+						<p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+							Commission Payouts
+						</p>
+						<h2 className="text-lg font-bold text-[#0a0a0a]">
+							Run Payout Batch
+						</h2>
+						<p className="mt-1 text-sm text-[#737373]">
+							Batch-pay approved commission splits for selected staff and date
+							range.
+						</p>
+					</div>
 
-				{/* Scrollable body */}
-				<div className="flex-1 overflow-y-auto px-4 space-y-5">
-					{/* Staff selection */}
-					<div className="space-y-1.5">
-						<Label className="text-sm">Staff Members</Label>
-						<StaffMultiSelect
-							options={staffOptions}
-							selected={selectedStaffIds}
-							onChange={setSelectedStaffIds}
-						/>
-						{selectedStaffIds.length === 0 && (
-							<p className="text-xs text-muted-foreground">
-								Select at least one staff member to continue.
-							</p>
+					{/* Scrollable body */}
+					<div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
+						{/* Staff selection */}
+						<div className="flex flex-col gap-1.5">
+							<Label className="text-sm text-[#0a0a0a]">
+								Staff Members <span className="text-rose-600">*</span>
+							</Label>
+							<StaffMultiSelect
+								options={staffOptions}
+								selected={selectedStaffIds}
+								onChange={setSelectedStaffIds}
+							/>
+							{selectedStaffIds.length === 0 && (
+								<p className="text-xs text-[#737373]">
+									Select at least one staff member to continue.
+								</p>
+							)}
+						</div>
+
+						{/* Date range */}
+						<div className="grid grid-cols-2 gap-3">
+							<div className="flex flex-col gap-1.5">
+								<Label className="text-sm text-[#0a0a0a]">Period Start</Label>
+								<Input
+									type="date"
+									value={periodStart}
+									onChange={(e) => setPeriodStart(e.target.value)}
+									className="h-9 font-mono tabular-nums"
+									data-testid="batch-period-start"
+								/>
+							</div>
+							<div className="flex flex-col gap-1.5">
+								<Label className="text-sm text-[#0a0a0a]">Period End</Label>
+								<Input
+									type="date"
+									value={periodEnd}
+									onChange={(e) => setPeriodEnd(e.target.value)}
+									className="h-9 font-mono tabular-nums"
+									data-testid="batch-period-end"
+								/>
+							</div>
+						</div>
+
+						{/* Payment method */}
+						<div className="flex flex-col gap-1.5">
+							<Label className="text-sm text-[#0a0a0a]">Payment Method</Label>
+							<Select
+								value={paymentMethod}
+								onValueChange={(v) =>
+									setPaymentMethod(v as RunBatchParams["paymentMethod"])
+								}
+							>
+								<SelectTrigger className="h-9">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+									<SelectItem value="cash">Cash</SelectItem>
+									<SelectItem value="check">Cheque</SelectItem>
+									<SelectItem value="other">Other</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+
+						{/* Reference (optional) */}
+						<div className="flex flex-col gap-1.5">
+							<Label className="text-sm text-[#0a0a0a]">
+								Reference{" "}
+								<span className="font-normal text-[#737373]">(optional)</span>
+							</Label>
+							<Input
+								placeholder="e.g. May 2026 payroll, cheque #1234"
+								value={reference}
+								onChange={(e) => setReference(e.target.value)}
+								className="h-9"
+							/>
+						</div>
+
+						{/* Preview panel */}
+						{previewEnabled && (
+							<PreviewPanel
+								count={preview?.count ?? 0}
+								totalAmountCents={preview?.totalAmountCents ?? 0}
+								byStaff={preview?.byStaff ?? []}
+								truncated={preview?.truncated}
+								isLoading={isPreviewLoading}
+								error={previewError}
+							/>
 						)}
 					</div>
 
-					{/* Date range */}
-					<div className="grid grid-cols-2 gap-3">
-						<div className="space-y-1.5">
-							<Label className="text-sm">Period Start</Label>
-							<Input
-								type="date"
-								value={periodStart}
-								onChange={(e) => setPeriodStart(e.target.value)}
-								className="h-9"
-								data-testid="batch-period-start"
-							/>
-						</div>
-						<div className="space-y-1.5">
-							<Label className="text-sm">Period End</Label>
-							<Input
-								type="date"
-								value={periodEnd}
-								onChange={(e) => setPeriodEnd(e.target.value)}
-								className="h-9"
-								data-testid="batch-period-end"
-							/>
-						</div>
-					</div>
-
-					{/* Payment method */}
-					<div className="space-y-1.5">
-						<Label className="text-sm">Payment Method</Label>
-						<Select
-							value={paymentMethod}
-							onValueChange={(v) =>
-								setPaymentMethod(v as RunBatchParams["paymentMethod"])
-							}
+					{/* Sticky footer */}
+					<div className="flex justify-end gap-2 border-t border-[#e5e5e5] bg-[#fafafa] px-6 py-4">
+						<button
+							type="button"
+							onClick={() => onOpenChange(false)}
+							disabled={isRunning}
+							className="inline-flex items-center gap-1.5 rounded-[10px] border border-[#e5e5e5] bg-white px-3.5 py-2 text-[13px] font-medium text-[#0a0a0a] transition hover:bg-[#f3f3f3] disabled:opacity-50"
 						>
-							<SelectTrigger className="h-9">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-								<SelectItem value="cash">Cash</SelectItem>
-								<SelectItem value="check">Cheque</SelectItem>
-								<SelectItem value="other">Other</SelectItem>
-							</SelectContent>
-						</Select>
+							Cancel
+						</button>
+						<button
+							type="button"
+							onClick={handleConfirm}
+							disabled={!canConfirm}
+							className="inline-flex items-center gap-1.5 rounded-[10px] bg-[#0a0a0a] px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-[#262626] disabled:cursor-not-allowed disabled:opacity-50"
+							data-testid="batch-confirm-button"
+						>
+							{isRunning ? "Processing…" : "Confirm Payout"}
+						</button>
 					</div>
-
-					{/* Reference (optional) */}
-					<div className="space-y-1.5">
-						<Label className="text-sm">
-							Reference{" "}
-							<span className="text-muted-foreground font-normal">
-								(optional)
-							</span>
-						</Label>
-						<Input
-							placeholder="e.g. May 2026 payroll, cheque #1234"
-							value={reference}
-							onChange={(e) => setReference(e.target.value)}
-							className="h-9"
-						/>
-					</div>
-
-					{/* Preview panel */}
-					{previewEnabled && (
-						<PreviewPanel
-							count={preview?.count ?? 0}
-							totalAmountCents={preview?.totalAmountCents ?? 0}
-							byStaff={preview?.byStaff ?? []}
-							truncated={preview?.truncated}
-							isLoading={isPreviewLoading}
-							error={previewError}
-						/>
-					)}
 				</div>
-
-				<SheetFooter className="border-t pt-4 gap-2">
-					<Button
-						variant="outline"
-						onClick={() => onOpenChange(false)}
-						disabled={isRunning}
-						className="flex-1 sm:flex-none"
-					>
-						Cancel
-					</Button>
-					<Button
-						onClick={handleConfirm}
-						disabled={!canConfirm}
-						className="flex-1 sm:flex-none"
-						data-testid="batch-confirm-button"
-					>
-						{isRunning ? "Processing..." : "Confirm Payout"}
-					</Button>
-				</SheetFooter>
 			</SheetContent>
 		</Sheet>
 	);

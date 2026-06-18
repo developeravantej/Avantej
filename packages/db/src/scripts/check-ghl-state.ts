@@ -16,9 +16,7 @@ const orgs = await cp.query(
 );
 
 console.log("\n=== Control panel: GHL config per org ===\n");
-console.log(
-	`${"Org".padEnd(35)} model       location    provisioned`,
-);
+console.log(`${"Org".padEnd(35)} model       location    provisioned`);
 console.log("-".repeat(80));
 for (const o of orgs.rows) {
 	const model = (o.ghl_sync_model ?? "null").padEnd(11);
@@ -30,9 +28,7 @@ for (const o of orgs.rows) {
 console.log(
 	"\n=== Per-tenant link counts (ghl_branch_links / ghl_contact_links / ghl_user_links) ===\n",
 );
-console.log(
-	`${"Org".padEnd(35)} branch_links  contact_links  user_links`,
-);
+console.log(`${"Org".padEnd(35)} branch_links  contact_links  user_links`);
 console.log("-".repeat(80));
 for (const o of orgs.rows) {
 	let conn: string;
@@ -50,9 +46,7 @@ for (const o of orgs.rows) {
 		const c = await tp.query(
 			"SELECT count(*)::int AS n FROM ghl_contact_links",
 		);
-		const u = await tp.query(
-			"SELECT count(*)::int AS n FROM ghl_user_links",
-		);
+		const u = await tp.query("SELECT count(*)::int AS n FROM ghl_user_links");
 		console.log(
 			`${o.name.padEnd(35)} ${`${cpLinks.rows[0].n} (${cpLinks.rows[0].active} act)`.padEnd(13)} ${String(c.rows[0].n).padEnd(14)} ${u.rows[0].n}`,
 		);

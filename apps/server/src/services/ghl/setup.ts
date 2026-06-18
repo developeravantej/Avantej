@@ -22,8 +22,7 @@ export async function validateGhlApiKey(
 		});
 		// GHL wraps in { location: { id, ... } }; accept bare too for safety.
 		const loc =
-			(raw as { location?: GhlLocation }).location ??
-			(raw as GhlLocation);
+			(raw as { location?: GhlLocation }).location ?? (raw as GhlLocation);
 		return loc?.id === locationId;
 	} catch (error) {
 		if (error instanceof GhlApiError) return false;

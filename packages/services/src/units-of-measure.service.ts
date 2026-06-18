@@ -5,7 +5,7 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 export async function listUnitsOfMeasure(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: { search?: string } = {}
+	params: { search?: string } = {},
 ): Promise<(typeof unitsOfMeasure.$inferSelect)[]> {
 	const { search } = params;
 
@@ -23,8 +23,8 @@ export async function listUnitsOfMeasure(
 
 export async function getUomById(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
-): Promise<(typeof unitsOfMeasure.$inferSelect) | null> {
+	id: string,
+): Promise<typeof unitsOfMeasure.$inferSelect | null> {
 	const row = await tenantDb.query.unitsOfMeasure.findFirst({
 		where: eq(unitsOfMeasure.id, id),
 	});
@@ -33,7 +33,12 @@ export async function getUomById(
 
 export async function createUom(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: { name: string; description?: string; baseUomId?: string; conversionFactor?: string }
+	params: {
+		name: string;
+		description?: string;
+		baseUomId?: string;
+		conversionFactor?: string;
+	},
 ): Promise<typeof unitsOfMeasure.$inferSelect> {
 	const [row] = await tenantDb
 		.insert(unitsOfMeasure)
@@ -54,15 +59,24 @@ export async function createUom(
 export async function updateUom(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	id: string,
-	params: { name?: string; description?: string; baseUomId?: string; conversionFactor?: string }
+	params: {
+		name?: string;
+		description?: string;
+		baseUomId?: string;
+		conversionFactor?: string;
+	},
 ): Promise<typeof unitsOfMeasure.$inferSelect> {
 	const [row] = await tenantDb
 		.update(unitsOfMeasure)
 		.set({
 			...(params.name !== undefined && { name: params.name }),
-			...(params.description !== undefined && { description: params.description }),
+			...(params.description !== undefined && {
+				description: params.description,
+			}),
 			...(params.baseUomId !== undefined && { baseUomId: params.baseUomId }),
-			...(params.conversionFactor !== undefined && { conversionFactor: params.conversionFactor }),
+			...(params.conversionFactor !== undefined && {
+				conversionFactor: params.conversionFactor,
+			}),
 			updatedAt: new Date(),
 		})
 		.where(eq(unitsOfMeasure.id, id))
@@ -76,7 +90,7 @@ export async function updateUom(
 
 export async function deleteUom(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
+	id: string,
 ): Promise<void> {
 	await tenantDb.delete(unitsOfMeasure).where(eq(unitsOfMeasure.id, id));
 }

@@ -33,7 +33,10 @@ export default defineConfig({
 	fullyParallel: false,
 	workers: 1, // sequential — shared tenant DB state
 	retries: 0,
-	reporter: [["list"], ["json", { outputFile: "e2e/journeys/.results/report.json" }]],
+	reporter: [
+		["list"],
+		["json", { outputFile: "e2e/journeys/.results/report.json" }],
+	],
 	outputDir: "e2e/journeys/.results/artifacts",
 	use: {
 		baseURL: "http://localhost:3001",
@@ -46,7 +49,11 @@ export default defineConfig({
 		// ── Setup projects: produce storageState per role ──────────────────────────
 		{ name: "setup-admin", testMatch: /_auth\.admin\.setup\.ts/ },
 		{ name: "setup-platform", testMatch: /_auth\.platform\.setup\.ts/ },
-		{ name: "setup-staff", testMatch: /_auth\.staff\.setup\.ts/, dependencies: ["setup-admin"] },
+		{
+			name: "setup-staff",
+			testMatch: /_auth\.staff\.setup\.ts/,
+			dependencies: ["setup-admin"],
+		},
 
 		// ── Tenant-admin journeys (the bulk of the suite) ──────────────────────────
 		{

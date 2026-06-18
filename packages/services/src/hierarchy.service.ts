@@ -22,11 +22,14 @@ import { sql, eq, inArray } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import * as branchStatsCacheService from "./branch-stats-cache.service";
 import type {
-  CreateHierarchyNodeParams,
-  UpdateHierarchyNodeParams,
-  HierarchyNodeType,
+	CreateHierarchyNodeParams,
+	UpdateHierarchyNodeParams,
+	HierarchyNodeType,
 } from "./hierarchy-validation.service";
-import { getDepthForType, getParentTypeForType } from "./hierarchy-validation.service";
+import {
+	getDepthForType,
+	getParentTypeForType,
+} from "./hierarchy-validation.service";
 
 /**
  * Get all descendant node IDs (including the node itself) using recursive CTE
@@ -47,17 +50,17 @@ import { getDepthForType, getParentTypeForType } from "./hierarchy-validation.se
  * ```
  */
 export async function getDescendantNodeIds(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  nodeId: string
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	nodeId: string,
 ): Promise<string[]> {
-  if (!nodeId) {
-    throw new Error("Node ID is required");
-  }
+	if (!nodeId) {
+		throw new Error("Node ID is required");
+	}
 
-  try {
-    // PostgreSQL recursive CTE to get all descendants
-    // Starting with the node itself, then recursively finding all children
-    const result = await tenantDb.execute(sql`
+	try {
+		// PostgreSQL recursive CTE to get all descendants
+		// Starting with the node itself, then recursively finding all children
+		const result = await tenantDb.execute(sql`
       WITH RECURSIVE descendants AS (
         -- Base case: start with the specified node
         SELECT id FROM hierarchy_nodes WHERE id = ${nodeId}
@@ -70,29 +73,29 @@ export async function getDescendantNodeIds(
       SELECT id FROM descendants
     `);
 
-    // Extract IDs from result rows
-    // Neon HTTP returns results as array of objects
-    const ids = result.rows.map((row) => {
-      const id = row.id;
-      if (typeof id !== "string") {
-        throw new Error(`Unexpected ID type: ${typeof id}`);
-      }
-      return id;
-    });
+		// Extract IDs from result rows
+		// Neon HTTP returns results as array of objects
+		const ids = result.rows.map((row) => {
+			const id = row.id;
+			if (typeof id !== "string") {
+				throw new Error(`Unexpected ID type: ${typeof id}`);
+			}
+			return id;
+		});
 
-    return ids;
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes("relation") &&
-      error.message.includes("does not exist")
-    ) {
-      throw new Error(`Node not found: ${nodeId}`);
-    }
-    throw new Error(
-      `Failed to get descendant nodes: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-  }
+		return ids;
+	} catch (error) {
+		if (
+			error instanceof Error &&
+			error.message.includes("relation") &&
+			error.message.includes("does not exist")
+		) {
+			throw new Error(`Node not found: ${nodeId}`);
+		}
+		throw new Error(
+			`Failed to get descendant nodes: ${error instanceof Error ? error.message : "Unknown error"}`,
+		);
+	}
 }
 
 /**
@@ -114,17 +117,17 @@ export async function getDescendantNodeIds(
  * ```
  */
 export async function getAncestorNodeIds(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  nodeId: string
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	nodeId: string,
 ): Promise<string[]> {
-  if (!nodeId) {
-    throw new Error("Node ID is required");
-  }
+	if (!nodeId) {
+		throw new Error("Node ID is required");
+	}
 
-  try {
-    // PostgreSQL recursive CTE to get all ancestors
-    // Starting with the node itself, then recursively finding all parents
-    const result = await tenantDb.execute(sql`
+	try {
+		// PostgreSQL recursive CTE to get all ancestors
+		// Starting with the node itself, then recursively finding all parents
+		const result = await tenantDb.execute(sql`
       WITH RECURSIVE ancestors AS (
         -- Base case: start with the specified node
         SELECT id, parent_id FROM hierarchy_nodes WHERE id = ${nodeId}
@@ -137,28 +140,28 @@ export async function getAncestorNodeIds(
       SELECT id FROM ancestors
     `);
 
-    // Extract IDs from result rows
-    const ids = result.rows.map((row) => {
-      const id = row.id;
-      if (typeof id !== "string") {
-        throw new Error(`Unexpected ID type: ${typeof id}`);
-      }
-      return id;
-    });
+		// Extract IDs from result rows
+		const ids = result.rows.map((row) => {
+			const id = row.id;
+			if (typeof id !== "string") {
+				throw new Error(`Unexpected ID type: ${typeof id}`);
+			}
+			return id;
+		});
 
-    return ids;
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes("relation") &&
-      error.message.includes("does not exist")
-    ) {
-      throw new Error(`Node not found: ${nodeId}`);
-    }
-    throw new Error(
-      `Failed to get ancestor nodes: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-  }
+		return ids;
+	} catch (error) {
+		if (
+			error instanceof Error &&
+			error.message.includes("relation") &&
+			error.message.includes("does not exist")
+		) {
+			throw new Error(`Node not found: ${nodeId}`);
+		}
+		throw new Error(
+			`Failed to get ancestor nodes: ${error instanceof Error ? error.message : "Unknown error"}`,
+		);
+	}
 }
 
 /**
@@ -182,77 +185,77 @@ export async function getAncestorNodeIds(
  * ```
  */
 export async function createHierarchyNode(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  params: CreateHierarchyNodeParams
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	params: CreateHierarchyNodeParams,
 ) {
-  const { type, name, parentId, address, picUserId } = params;
-  const depth = getDepthForType(type);
+	const { type, name, parentId, address, picUserId } = params;
+	const depth = getDepthForType(type);
 
-  // Resolve country_node_id (Phase G0 denorm).
-  // organization + country rows: NULL.
-  // state row: parent is the country itself.
-  // branch row: parent is a state; inherit country_node_id from parent.
-  let countryNodeId: string | null = null;
-  if (parentId && (type === "state" || type === "branch")) {
-    const parent = await tenantDb.query.hierarchyNodes.findFirst({
-      where: eq(hierarchyNodes.id, parentId),
-    });
-    if (!parent) {
-      throw new Error(`Parent node not found: ${parentId}`);
-    }
-    if (parent.type === "country") {
-      countryNodeId = parent.id;
-    } else {
-      countryNodeId = parent.countryNodeId ?? null;
-    }
-  }
+	// Resolve country_node_id (Phase G0 denorm).
+	// organization + country rows: NULL.
+	// state row: parent is the country itself.
+	// branch row: parent is a state; inherit country_node_id from parent.
+	let countryNodeId: string | null = null;
+	if (parentId && (type === "state" || type === "branch")) {
+		const parent = await tenantDb.query.hierarchyNodes.findFirst({
+			where: eq(hierarchyNodes.id, parentId),
+		});
+		if (!parent) {
+			throw new Error(`Parent node not found: ${parentId}`);
+		}
+		if (parent.type === "country") {
+			countryNodeId = parent.id;
+		} else {
+			countryNodeId = parent.countryNodeId ?? null;
+		}
+	}
 
-  // Phase H2: auto-generate slug from name. Same algorithm as the SQL
-  // backfill in migration 0058 (no diacritic stripping at this layer —
-  // matches the DB constraint).
-  const slug = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
+	// Phase H2: auto-generate slug from name. Same algorithm as the SQL
+	// backfill in migration 0058 (no diacritic stripping at this layer —
+	// matches the DB constraint).
+	const slug = name
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "_")
+		.replace(/^_+|_+$/g, "");
 
-  try {
-    const [node] = await tenantDb
-      .insert(hierarchyNodes)
-      .values({
-        name,
-        slug,
-        type,
-        parentId: parentId || null,
-        depth,
-        countryNodeId,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .returning();
+	try {
+		const [node] = await tenantDb
+			.insert(hierarchyNodes)
+			.values({
+				name,
+				slug,
+				type,
+				parentId: parentId || null,
+				depth,
+				countryNodeId,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			})
+			.returning();
 
-    if (!node) {
-      throw new Error("Failed to create hierarchy node");
-    }
+		if (!node) {
+			throw new Error("Failed to create hierarchy node");
+		}
 
-    // Phase H2: branch-specific data lives in branch_details (split off
-    // hierarchy_nodes). Insert lazily — only when at least one branch
-    // attribute was supplied.
-    if (type === "branch" && (address || picUserId)) {
-      await tenantDb.insert(branchDetails).values({
-        nodeId: node.id,
-        address: address || null,
-        picUserId: picUserId || null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-    }
+		// Phase H2: branch-specific data lives in branch_details (split off
+		// hierarchy_nodes). Insert lazily — only when at least one branch
+		// attribute was supplied.
+		if (type === "branch" && (address || picUserId)) {
+			await tenantDb.insert(branchDetails).values({
+				nodeId: node.id,
+				address: address || null,
+				picUserId: picUserId || null,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+			});
+		}
 
-    return node;
-  } catch (error) {
-    throw new Error(
-      `Failed to create hierarchy node: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-  }
+		return node;
+	} catch (error) {
+		throw new Error(
+			`Failed to create hierarchy node: ${error instanceof Error ? error.message : "Unknown error"}`,
+		);
+	}
 }
 
 /**
@@ -277,174 +280,178 @@ export async function createHierarchyNode(
  * ```
  */
 export async function updateHierarchyNode(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  nodeId: string,
-  params: UpdateHierarchyNodeParams
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	nodeId: string,
+	params: UpdateHierarchyNodeParams,
 ) {
-  if (!nodeId) {
-    throw new Error("Node ID is required");
-  }
+	if (!nodeId) {
+		throw new Error("Node ID is required");
+	}
 
-  const { name, address, picUserId } = params;
+	const { name, address, picUserId } = params;
 
-  // At least one field must be provided
-  if (name === undefined && address === undefined && picUserId === undefined) {
-    throw new Error("At least one field (name, address, picUserId) must be provided");
-  }
+	// At least one field must be provided
+	if (name === undefined && address === undefined && picUserId === undefined) {
+		throw new Error(
+			"At least one field (name, address, picUserId) must be provided",
+		);
+	}
 
-  // Validate name if provided
-  if (name !== undefined && name.trim().length === 0) {
-    throw new Error("Node name cannot be empty");
-  }
+	// Validate name if provided
+	if (name !== undefined && name.trim().length === 0) {
+		throw new Error("Node name cannot be empty");
+	}
 
-  try {
-    // First, get the node to check it exists and get its parentId
-    const node = await tenantDb.query.hierarchyNodes.findFirst({
-      where: eq(hierarchyNodes.id, nodeId),
-    });
+	try {
+		// First, get the node to check it exists and get its parentId
+		const node = await tenantDb.query.hierarchyNodes.findFirst({
+			where: eq(hierarchyNodes.id, nodeId),
+		});
 
-    if (!node) {
-      throw new Error(`Node not found: ${nodeId}`);
-    }
+		if (!node) {
+			throw new Error(`Node not found: ${nodeId}`);
+		}
 
-    // Check for duplicate name (if name is being updated)
-    if (name !== undefined && name !== node.name) {
-      if (node.type === "branch") {
-        // For branches: check global uniqueness
-        const existingBranch = await tenantDb.query.hierarchyNodes.findFirst({
-          where: (nodes, { and, eq, ne }) =>
-            and(
-              eq(nodes.name, name),
-              eq(nodes.type, "branch"),
-              ne(nodes.id, nodeId)
-            ),
-        });
+		// Check for duplicate name (if name is being updated)
+		if (name !== undefined && name !== node.name) {
+			if (node.type === "branch") {
+				// For branches: check global uniqueness
+				const existingBranch = await tenantDb.query.hierarchyNodes.findFirst({
+					where: (nodes, { and, eq, ne }) =>
+						and(
+							eq(nodes.name, name),
+							eq(nodes.type, "branch"),
+							ne(nodes.id, nodeId),
+						),
+				});
 
-        if (existingBranch) {
-          throw new Error(
-            `Branch name "${name}" already exists. Branch names must be unique across your organization.`
-          );
-        }
-      } else if (node.parentId) {
-        // For other node types: check uniqueness within parent scope
-        const existingSibling = await tenantDb.query.hierarchyNodes.findFirst({
-          where: (nodes, { and, eq, ne }) =>
-            and(
-              eq(nodes.name, name),
-              eq(nodes.parentId, node.parentId!),
-              eq(nodes.type, node.type),
-              ne(nodes.id, nodeId)
-            ),
-        });
+				if (existingBranch) {
+					throw new Error(
+						`Branch name "${name}" already exists. Branch names must be unique across your organization.`,
+					);
+				}
+			} else if (node.parentId) {
+				// For other node types: check uniqueness within parent scope
+				const existingSibling = await tenantDb.query.hierarchyNodes.findFirst({
+					where: (nodes, { and, eq, ne }) =>
+						and(
+							eq(nodes.name, name),
+							eq(nodes.parentId, node.parentId!),
+							eq(nodes.type, node.type),
+							ne(nodes.id, nodeId),
+						),
+				});
 
-        if (existingSibling) {
-          throw new Error(
-            `A ${node.type} with the name "${name}" already exists under the same parent`
-          );
-        }
-      } else {
-        // For organization nodes, check if name already exists
-        const existingOrg = await tenantDb.query.hierarchyNodes.findFirst({
-          where: (nodes, { and, eq, ne }) =>
-            and(
-              eq(nodes.name, name),
-              eq(nodes.type, "organization"),
-              ne(nodes.id, nodeId)
-            ),
-        });
+				if (existingSibling) {
+					throw new Error(
+						`A ${node.type} with the name "${name}" already exists under the same parent`,
+					);
+				}
+			} else {
+				// For organization nodes, check if name already exists
+				const existingOrg = await tenantDb.query.hierarchyNodes.findFirst({
+					where: (nodes, { and, eq, ne }) =>
+						and(
+							eq(nodes.name, name),
+							eq(nodes.type, "organization"),
+							ne(nodes.id, nodeId),
+						),
+				});
 
-        if (existingOrg) {
-          throw new Error(`An organization with the name "${name}" already exists`);
-        }
-      }
-    }
+				if (existingOrg) {
+					throw new Error(
+						`An organization with the name "${name}" already exists`,
+					);
+				}
+			}
+		}
 
-    // Build update object for hierarchy_nodes (name only — branch-specific
-    // columns now live in branch_details, Phase H2).
-    const updateData: {
-      name?: string;
-      slug?: string;
-      updatedAt: Date;
-    } = {
-      updatedAt: new Date(),
-    };
+		// Build update object for hierarchy_nodes (name only — branch-specific
+		// columns now live in branch_details, Phase H2).
+		const updateData: {
+			name?: string;
+			slug?: string;
+			updatedAt: Date;
+		} = {
+			updatedAt: new Date(),
+		};
 
-    if (name !== undefined) {
-      const trimmed = name.trim();
-      updateData.name = trimmed;
-      // Phase H2: keep slug in sync with name on rename.
-      updateData.slug = trimmed
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "");
-    }
+		if (name !== undefined) {
+			const trimmed = name.trim();
+			updateData.name = trimmed;
+			// Phase H2: keep slug in sync with name on rename.
+			updateData.slug = trimmed
+				.toLowerCase()
+				.replace(/[^a-z0-9]+/g, "_")
+				.replace(/^_+|_+$/g, "");
+		}
 
-    const [updatedNode] = await tenantDb
-      .update(hierarchyNodes)
-      .set(updateData)
-      .where(eq(hierarchyNodes.id, nodeId))
-      .returning();
+		const [updatedNode] = await tenantDb
+			.update(hierarchyNodes)
+			.set(updateData)
+			.where(eq(hierarchyNodes.id, nodeId))
+			.returning();
 
-    if (!updatedNode) {
-      throw new Error("Failed to update hierarchy node");
-    }
+		if (!updatedNode) {
+			throw new Error("Failed to update hierarchy node");
+		}
 
-    // Phase H2: branch-specific updates routed to branch_details.
-    if (address !== undefined || picUserId !== undefined) {
-      if (node.type !== "branch") {
-        throw new Error(
-          `Cannot set address or picUserId on a ${node.type} node — only branches have those fields.`,
-        );
-      }
-      const detailsUpdate: {
-        address?: string | null;
-        picUserId?: string | null;
-        updatedAt: Date;
-      } = { updatedAt: new Date() };
-      if (address !== undefined) {
-        detailsUpdate.address = address?.trim() || null;
-      }
-      if (picUserId !== undefined) {
-        detailsUpdate.picUserId = picUserId?.trim() || null;
-      }
-      // Upsert: insert if no row yet, update otherwise.
-      await tenantDb
-        .insert(branchDetails)
-        .values({
-          nodeId,
-          address: detailsUpdate.address ?? null,
-          picUserId: detailsUpdate.picUserId ?? null,
-          createdAt: new Date(),
-          updatedAt: detailsUpdate.updatedAt,
-        })
-        .onConflictDoUpdate({
-          target: branchDetails.nodeId,
-          set: detailsUpdate,
-        });
-    }
+		// Phase H2: branch-specific updates routed to branch_details.
+		if (address !== undefined || picUserId !== undefined) {
+			if (node.type !== "branch") {
+				throw new Error(
+					`Cannot set address or picUserId on a ${node.type} node — only branches have those fields.`,
+				);
+			}
+			const detailsUpdate: {
+				address?: string | null;
+				picUserId?: string | null;
+				updatedAt: Date;
+			} = { updatedAt: new Date() };
+			if (address !== undefined) {
+				detailsUpdate.address = address?.trim() || null;
+			}
+			if (picUserId !== undefined) {
+				detailsUpdate.picUserId = picUserId?.trim() || null;
+			}
+			// Upsert: insert if no row yet, update otherwise.
+			await tenantDb
+				.insert(branchDetails)
+				.values({
+					nodeId,
+					address: detailsUpdate.address ?? null,
+					picUserId: detailsUpdate.picUserId ?? null,
+					createdAt: new Date(),
+					updatedAt: detailsUpdate.updatedAt,
+				})
+				.onConflictDoUpdate({
+					target: branchDetails.nodeId,
+					set: detailsUpdate,
+				});
+		}
 
-    return updatedNode;
-  } catch (error) {
-    throw new Error(
-      `Failed to update hierarchy node: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-  }
+		return updatedNode;
+	} catch (error) {
+		throw new Error(
+			`Failed to update hierarchy node: ${error instanceof Error ? error.message : "Unknown error"}`,
+		);
+	}
 }
 
 /**
  * Options for deleting a hierarchy node
  */
 export interface DeleteHierarchyNodeOptions {
-  /**
-   * Automatically hard-delete all child nodes recursively
-   * @default true
-   */
-  autoDeleteChildren?: boolean;
-  /**
-   * Automatically reassign members to parent node (or org root if no parent)
-   * @default true
-   */
-  autoReassignMembers?: boolean;
+	/**
+	 * Automatically hard-delete all child nodes recursively
+	 * @default true
+	 */
+	autoDeleteChildren?: boolean;
+	/**
+	 * Automatically reassign members to parent node (or org root if no parent)
+	 * @default true
+	 */
+	autoReassignMembers?: boolean;
 }
 
 /**
@@ -460,44 +467,41 @@ export interface DeleteHierarchyNodeOptions {
  * @returns UUID of the target node for reassignment, or null if not found
  */
 async function findReassignTarget(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  nodeId: string
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	nodeId: string,
 ): Promise<string | null> {
-  // Get the node being deleted
-  const node = await tenantDb.query.hierarchyNodes.findFirst({
-    where: eq(hierarchyNodes.id, nodeId),
-  });
+	// Get the node being deleted
+	const node = await tenantDb.query.hierarchyNodes.findFirst({
+		where: eq(hierarchyNodes.id, nodeId),
+	});
 
-  if (!node) {
-    return null;
-  }
+	if (!node) {
+		return null;
+	}
 
-  // Priority 1: Try parent node (if exists)
-  if (node.parentId) {
-    const parent = await tenantDb.query.hierarchyNodes.findFirst({
-      where: eq(hierarchyNodes.id, node.parentId!),
-    });
+	// Priority 1: Try parent node (if exists)
+	if (node.parentId) {
+		const parent = await tenantDb.query.hierarchyNodes.findFirst({
+			where: eq(hierarchyNodes.id, node.parentId!),
+		});
 
-    if (parent) {
-      return parent.id;
-    }
-  }
+		if (parent) {
+			return parent.id;
+		}
+	}
 
-  // Priority 2: Find organization root (depth = 0, type = "organization")
-  const orgRoot = await tenantDb.query.hierarchyNodes.findFirst({
-    where: (nodes, { and, eq }) =>
-      and(
-        eq(nodes.depth, 0),
-        eq(nodes.type, "organization")
-      ),
-  });
+	// Priority 2: Find organization root (depth = 0, type = "organization")
+	const orgRoot = await tenantDb.query.hierarchyNodes.findFirst({
+		where: (nodes, { and, eq }) =>
+			and(eq(nodes.depth, 0), eq(nodes.type, "organization")),
+	});
 
-  if (orgRoot) {
-    return orgRoot.id;
-  }
+	if (orgRoot) {
+		return orgRoot.id;
+	}
 
-  // No valid target found
-  return null;
+	// No valid target found
+	return null;
 }
 
 /**
@@ -509,23 +513,23 @@ async function findReassignTarget(
  * @param parentId - UUID of the parent node
  */
 async function recursivelyDeleteChildren(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  parentId: string
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	parentId: string,
 ): Promise<void> {
-  // Get all direct children
-  const children = await tenantDb.query.hierarchyNodes.findMany({
-    where: eq(hierarchyNodes.parentId, parentId),
-  });
+	// Get all direct children
+	const children = await tenantDb.query.hierarchyNodes.findMany({
+		where: eq(hierarchyNodes.parentId, parentId),
+	});
 
-  // Recursively delete each child's children first
-  for (const child of children) {
-    await recursivelyDeleteChildren(tenantDb, child.id);
-  }
+	// Recursively delete each child's children first
+	for (const child of children) {
+		await recursivelyDeleteChildren(tenantDb, child.id);
+	}
 
-  // Then hard delete all children
-  await tenantDb
-    .delete(hierarchyNodes)
-    .where(eq(hierarchyNodes.parentId, parentId));
+	// Then hard delete all children
+	await tenantDb
+		.delete(hierarchyNodes)
+		.where(eq(hierarchyNodes.parentId, parentId));
 }
 
 /**
@@ -567,90 +571,85 @@ async function recursivelyDeleteChildren(
  * ```
  */
 export async function deleteHierarchyNode(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  nodeId: string,
-  options: DeleteHierarchyNodeOptions = {}
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	nodeId: string,
+	options: DeleteHierarchyNodeOptions = {},
 ) {
-  if (!nodeId) {
-    throw new Error("Node ID is required");
-  }
+	if (!nodeId) {
+		throw new Error("Node ID is required");
+	}
 
-  const {
-    autoDeleteChildren = true,
-    autoReassignMembers = true,
-  } = options;
+	const { autoDeleteChildren = true, autoReassignMembers = true } = options;
 
-  try {
-    // Check if node exists
-    const node = await tenantDb.query.hierarchyNodes.findFirst({
-      where: eq(hierarchyNodes.id, nodeId),
-    });
+	try {
+		// Check if node exists
+		const node = await tenantDb.query.hierarchyNodes.findFirst({
+			where: eq(hierarchyNodes.id, nodeId),
+		});
 
-    if (!node) {
-      throw new Error(`Node not found: ${nodeId}`);
-    }
+		if (!node) {
+			throw new Error(`Node not found: ${nodeId}`);
+		}
 
-    // Check if node has child nodes
-    const activeChildNodes = await tenantDb.query.hierarchyNodes.findMany({
-      where: eq(hierarchyNodes.parentId, nodeId),
-    });
+		// Check if node has child nodes
+		const activeChildNodes = await tenantDb.query.hierarchyNodes.findMany({
+			where: eq(hierarchyNodes.parentId, nodeId),
+		});
 
-    // Handle children based on options
-    if (activeChildNodes.length > 0) {
-      if (autoDeleteChildren) {
-        // Recursively hard-delete all children
-        await recursivelyDeleteChildren(tenantDb, nodeId);
-      } else {
-        // Throw error if auto-delete is disabled
-        throw new Error(
-          `Cannot delete node "${node.name}" because it has ${activeChildNodes.length} active child node(s). Please delete or move the child nodes first.`
-        );
-      }
-    }
+		// Handle children based on options
+		if (activeChildNodes.length > 0) {
+			if (autoDeleteChildren) {
+				// Recursively hard-delete all children
+				await recursivelyDeleteChildren(tenantDb, nodeId);
+			} else {
+				// Throw error if auto-delete is disabled
+				throw new Error(
+					`Cannot delete node "${node.name}" because it has ${activeChildNodes.length} active child node(s). Please delete or move the child nodes first.`,
+				);
+			}
+		}
 
-    // Check if node has assigned members
-    const assignedMembers = await tenantDb.query.members.findMany({
-      where: eq(members.hierarchyScopeId, nodeId),
-    });
+		// Check if node has assigned members
+		const assignedMembers = await tenantDb.query.members.findMany({
+			where: eq(members.hierarchyScopeId, nodeId),
+		});
 
-    // Handle members based on options
-    if (assignedMembers.length > 0) {
-      if (autoReassignMembers) {
-        // Find target node for reassignment
-        const targetNodeId = await findReassignTarget(tenantDb, nodeId);
+		// Handle members based on options
+		if (assignedMembers.length > 0) {
+			if (autoReassignMembers) {
+				// Find target node for reassignment
+				const targetNodeId = await findReassignTarget(tenantDb, nodeId);
 
-        if (!targetNodeId) {
-          throw new Error(
-            `Cannot delete node "${node.name}" because it has ${assignedMembers.length} assigned member(s) and no valid target node found for reassignment.`
-          );
-        }
+				if (!targetNodeId) {
+					throw new Error(
+						`Cannot delete node "${node.name}" because it has ${assignedMembers.length} assigned member(s) and no valid target node found for reassignment.`,
+					);
+				}
 
-        // Reassign all members to target node
-        await tenantDb
-          .update(members)
-          .set({
-            hierarchyScopeId: targetNodeId,
-          })
-          .where(eq(members.hierarchyScopeId, nodeId));
-      } else {
-        // Throw error if auto-reassign is disabled
-        throw new Error(
-          `Cannot delete node "${node.name}" because it has ${assignedMembers.length} assigned member(s). Please reassign or remove the members first.`
-        );
-      }
-    }
+				// Reassign all members to target node
+				await tenantDb
+					.update(members)
+					.set({
+						hierarchyScopeId: targetNodeId,
+					})
+					.where(eq(members.hierarchyScopeId, nodeId));
+			} else {
+				// Throw error if auto-reassign is disabled
+				throw new Error(
+					`Cannot delete node "${node.name}" because it has ${assignedMembers.length} assigned member(s). Please reassign or remove the members first.`,
+				);
+			}
+		}
 
-    // Hard delete: Actually delete the record
-    await tenantDb
-      .delete(hierarchyNodes)
-      .where(eq(hierarchyNodes.id, nodeId));
+		// Hard delete: Actually delete the record
+		await tenantDb.delete(hierarchyNodes).where(eq(hierarchyNodes.id, nodeId));
 
-    return node; // Return the deleted node info
-  } catch (error) {
-    throw new Error(
-      `Failed to delete hierarchy node: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-  }
+		return node; // Return the deleted node info
+	} catch (error) {
+		throw new Error(
+			`Failed to delete hierarchy node: ${error instanceof Error ? error.message : "Unknown error"}`,
+		);
+	}
 }
 
 /**
@@ -673,134 +672,136 @@ export async function deleteHierarchyNode(
  * ```
  */
 export async function moveHierarchyNode(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  nodeId: string,
-  newParentId: string
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	nodeId: string,
+	newParentId: string,
 ) {
-  if (!nodeId || !newParentId) {
-    throw new Error("Node ID and new parent ID are required");
-  }
+	if (!nodeId || !newParentId) {
+		throw new Error("Node ID and new parent ID are required");
+	}
 
-  try {
-    // Get the node to move
-    const node = await tenantDb.query.hierarchyNodes.findFirst({
-      where: eq(hierarchyNodes.id, nodeId),
-    });
+	try {
+		// Get the node to move
+		const node = await tenantDb.query.hierarchyNodes.findFirst({
+			where: eq(hierarchyNodes.id, nodeId),
+		});
 
-    if (!node) {
-      throw new Error(`Node not found: ${nodeId}`);
-    }
+		if (!node) {
+			throw new Error(`Node not found: ${nodeId}`);
+		}
 
-    // Get the new parent node
-    const newParent = await tenantDb.query.hierarchyNodes.findFirst({
-      where: eq(hierarchyNodes.id, newParentId),
-    });
+		// Get the new parent node
+		const newParent = await tenantDb.query.hierarchyNodes.findFirst({
+			where: eq(hierarchyNodes.id, newParentId),
+		});
 
-    if (!newParent) {
-      throw new Error(`New parent node not found: ${newParentId}`);
-    }
+		if (!newParent) {
+			throw new Error(`New parent node not found: ${newParentId}`);
+		}
 
-    // Validate parent type matches expected type for this node
-    const expectedParentType = getParentTypeForType(node.type as HierarchyNodeType);
-    if (!expectedParentType) {
-      throw new Error(`Cannot move ${node.type} node: it cannot have a parent`);
-    }
+		// Validate parent type matches expected type for this node
+		const expectedParentType = getParentTypeForType(
+			node.type as HierarchyNodeType,
+		);
+		if (!expectedParentType) {
+			throw new Error(`Cannot move ${node.type} node: it cannot have a parent`);
+		}
 
-    if (newParent.type !== expectedParentType) {
-      throw new Error(
-        `Invalid parent type: ${node.type} must be under ${expectedParentType}, but parent is ${newParent.type}`
-      );
-    }
+		if (newParent.type !== expectedParentType) {
+			throw new Error(
+				`Invalid parent type: ${node.type} must be under ${expectedParentType}, but parent is ${newParent.type}`,
+			);
+		}
 
-    // Validate depth constraint
-    const expectedParentDepth = getDepthForType(expectedParentType);
-    if (newParent.depth !== expectedParentDepth) {
-      throw new Error(
-        `Parent depth mismatch: expected ${expectedParentDepth}, got ${newParent.depth}`
-      );
-    }
+		// Validate depth constraint
+		const expectedParentDepth = getDepthForType(expectedParentType);
+		if (newParent.depth !== expectedParentDepth) {
+			throw new Error(
+				`Parent depth mismatch: expected ${expectedParentDepth}, got ${newParent.depth}`,
+			);
+		}
 
-    // Check for circular reference: new parent cannot be a descendant of this node
-    const descendantIds = await getDescendantNodeIds(tenantDb, nodeId);
-    if (descendantIds.includes(newParentId)) {
-      throw new Error("Cannot move node: would create circular reference");
-    }
+		// Check for circular reference: new parent cannot be a descendant of this node
+		const descendantIds = await getDescendantNodeIds(tenantDb, nodeId);
+		if (descendantIds.includes(newParentId)) {
+			throw new Error("Cannot move node: would create circular reference");
+		}
 
-    // Check for duplicate name
-    if (node.type === "branch") {
-      // For branches: check global uniqueness
-      const existingBranch = await tenantDb.query.hierarchyNodes.findFirst({
-        where: (nodes, { and, eq, ne }) =>
-          and(
-            eq(nodes.name, node.name),
-            eq(nodes.type, "branch"),
-            ne(nodes.id, nodeId)
-          ),
-      });
+		// Check for duplicate name
+		if (node.type === "branch") {
+			// For branches: check global uniqueness
+			const existingBranch = await tenantDb.query.hierarchyNodes.findFirst({
+				where: (nodes, { and, eq, ne }) =>
+					and(
+						eq(nodes.name, node.name),
+						eq(nodes.type, "branch"),
+						ne(nodes.id, nodeId),
+					),
+			});
 
-      if (existingBranch) {
-        throw new Error(
-          `Branch name "${node.name}" already exists. Branch names must be unique across your organization.`
-        );
-      }
-    } else {
-      // For other types: check within new parent scope
-      const existingSibling = await tenantDb.query.hierarchyNodes.findFirst({
-        where: (nodes, { and, eq, ne }) =>
-          and(
-            eq(nodes.name, node.name),
-            eq(nodes.parentId, newParentId),
-            eq(nodes.type, node.type),
-            ne(nodes.id, nodeId)
-          ),
-      });
+			if (existingBranch) {
+				throw new Error(
+					`Branch name "${node.name}" already exists. Branch names must be unique across your organization.`,
+				);
+			}
+		} else {
+			// For other types: check within new parent scope
+			const existingSibling = await tenantDb.query.hierarchyNodes.findFirst({
+				where: (nodes, { and, eq, ne }) =>
+					and(
+						eq(nodes.name, node.name),
+						eq(nodes.parentId, newParentId),
+						eq(nodes.type, node.type),
+						ne(nodes.id, nodeId),
+					),
+			});
 
-      if (existingSibling) {
-        throw new Error(
-          `A ${node.type} with the name "${node.name}" already exists under the new parent`
-        );
-      }
-    }
+			if (existingSibling) {
+				throw new Error(
+					`A ${node.type} with the name "${node.name}" already exists under the new parent`,
+				);
+			}
+		}
 
-    // Resolve new country_node_id (Phase G0 denorm).
-    // state moving: new parent is country itself → countryNodeId = newParent.id
-    // branch moving: new parent is state → inherit newParent.countryNodeId
-    const newCountryNodeId =
-      node.type === "state"
-        ? newParent.id
-        : node.type === "branch"
-          ? (newParent.countryNodeId ?? null)
-          : null;
+		// Resolve new country_node_id (Phase G0 denorm).
+		// state moving: new parent is country itself → countryNodeId = newParent.id
+		// branch moving: new parent is state → inherit newParent.countryNodeId
+		const newCountryNodeId =
+			node.type === "state"
+				? newParent.id
+				: node.type === "branch"
+					? (newParent.countryNodeId ?? null)
+					: null;
 
-    // Update the node's parentId + countryNodeId
-    const [updatedNode] = await tenantDb
-      .update(hierarchyNodes)
-      .set({
-        parentId: newParentId,
-        countryNodeId: newCountryNodeId,
-        updatedAt: new Date(),
-      })
-      .where(eq(hierarchyNodes.id, nodeId))
-      .returning();
+		// Update the node's parentId + countryNodeId
+		const [updatedNode] = await tenantDb
+			.update(hierarchyNodes)
+			.set({
+				parentId: newParentId,
+				countryNodeId: newCountryNodeId,
+				updatedAt: new Date(),
+			})
+			.where(eq(hierarchyNodes.id, nodeId))
+			.returning();
 
-    if (!updatedNode) {
-      throw new Error("Failed to move hierarchy node");
-    }
+		if (!updatedNode) {
+			throw new Error("Failed to move hierarchy node");
+		}
 
-    // If a state moved across countries, cascade country_node_id update to all branches under it
-    if (node.type === "state" && node.countryNodeId !== newCountryNodeId) {
-      await tenantDb
-        .update(hierarchyNodes)
-        .set({ countryNodeId: newCountryNodeId, updatedAt: new Date() })
-        .where(eq(hierarchyNodes.parentId, nodeId));
-    }
+		// If a state moved across countries, cascade country_node_id update to all branches under it
+		if (node.type === "state" && node.countryNodeId !== newCountryNodeId) {
+			await tenantDb
+				.update(hierarchyNodes)
+				.set({ countryNodeId: newCountryNodeId, updatedAt: new Date() })
+				.where(eq(hierarchyNodes.parentId, nodeId));
+		}
 
-    return updatedNode;
-  } catch (error) {
-    throw new Error(
-      `Failed to move hierarchy node: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-  }
+		return updatedNode;
+	} catch (error) {
+		throw new Error(
+			`Failed to move hierarchy node: ${error instanceof Error ? error.message : "Unknown error"}`,
+		);
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -808,17 +809,17 @@ export async function moveHierarchyNode(
 // ---------------------------------------------------------------------------
 
 export interface NodeWithStats {
-  id: string;
-  name: string;
-  type: string;
-  depth: number;
-  parentId: string | null;
-  address: string | null;
-  openingHours: unknown | null;
-  membersCount: number | null;
-  staffCount: number | null;
-  monthRevenueCents: number | null;
-  stale: boolean;
+	id: string;
+	name: string;
+	type: string;
+	depth: number;
+	parentId: string | null;
+	address: string | null;
+	openingHours: unknown | null;
+	membersCount: number | null;
+	staffCount: number | null;
+	monthRevenueCents: number | null;
+	stale: boolean;
 }
 
 /**
@@ -831,77 +832,77 @@ export interface NodeWithStats {
  * RBAC: caller must hold `hierarchy_management:read`.
  */
 export async function listNodesWithStats(
-  tenantDb: NeonDatabase<typeof tenantSchema>,
-  options: {
-    accessibleNodeIds: string[];
-    isAdmin: boolean;
-  },
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	options: {
+		accessibleNodeIds: string[];
+		isAdmin: boolean;
+	},
 ): Promise<NodeWithStats[]> {
-  // 1. Fetch all (or scoped) hierarchy nodes
-  const allNodes = await tenantDb
-    .select()
-    .from(hierarchyNodes)
-    .orderBy(hierarchyNodes.depth, hierarchyNodes.name);
+	// 1. Fetch all (or scoped) hierarchy nodes
+	const allNodes = await tenantDb
+		.select()
+		.from(hierarchyNodes)
+		.orderBy(hierarchyNodes.depth, hierarchyNodes.name);
 
-  const scopedNodes = options.isAdmin
-    ? allNodes
-    : allNodes.filter((n) => options.accessibleNodeIds.includes(n.id));
+	const scopedNodes = options.isAdmin
+		? allNodes
+		: allNodes.filter((n) => options.accessibleNodeIds.includes(n.id));
 
-  if (scopedNodes.length === 0) return [];
+	if (scopedNodes.length === 0) return [];
 
-  // 2. Fetch all cached stats rows for these nodes in one query
-  const nodeIds = scopedNodes.map((n) => n.id);
-  const cacheRows =
-    nodeIds.length > 0
-      ? await tenantDb
-          .select()
-          .from(branchStatsCache)
-          .where(inArray(branchStatsCache.hierarchyNodeId, nodeIds))
-      : [];
+	// 2. Fetch all cached stats rows for these nodes in one query
+	const nodeIds = scopedNodes.map((n) => n.id);
+	const cacheRows =
+		nodeIds.length > 0
+			? await tenantDb
+					.select()
+					.from(branchStatsCache)
+					.where(inArray(branchStatsCache.hierarchyNodeId, nodeIds))
+			: [];
 
-  const cacheMap = new Map(cacheRows.map((r) => [r.hierarchyNodeId, r]));
+	const cacheMap = new Map(cacheRows.map((r) => [r.hierarchyNodeId, r]));
 
-  // 3. Merge and enqueue refresh for cache misses
-  return scopedNodes.map((node) => {
-    const cached = cacheMap.get(node.id);
+	// 3. Merge and enqueue refresh for cache misses
+	return scopedNodes.map((node) => {
+		const cached = cacheMap.get(node.id);
 
-    if (!cached) {
-      // Cache miss — enqueue debounced refresh for all three kinds
-      branchStatsCacheService.refresh(tenantDb, node.id, "members");
-      branchStatsCacheService.refresh(tenantDb, node.id, "staff");
-      branchStatsCacheService.refresh(tenantDb, node.id, "revenue");
+		if (!cached) {
+			// Cache miss — enqueue debounced refresh for all three kinds
+			branchStatsCacheService.refresh(tenantDb, node.id, "members");
+			branchStatsCacheService.refresh(tenantDb, node.id, "staff");
+			branchStatsCacheService.refresh(tenantDb, node.id, "revenue");
 
-      return {
-        id: node.id,
-        name: node.name,
-        type: node.type,
-        depth: node.depth,
-        parentId: node.parentId ?? null,
-        address: null,
-        openingHours: null,
-        membersCount: null,
-        staffCount: null,
-        monthRevenueCents: null,
-        stale: true,
-      };
-    }
+			return {
+				id: node.id,
+				name: node.name,
+				type: node.type,
+				depth: node.depth,
+				parentId: node.parentId ?? null,
+				address: null,
+				openingHours: null,
+				membersCount: null,
+				staffCount: null,
+				monthRevenueCents: null,
+				stale: true,
+			};
+		}
 
-    // Staleness: data older than 5 minutes is considered stale
-    const staleness =
-      Date.now() - new Date(cached.computedAt).getTime() > 5 * 60 * 1000;
+		// Staleness: data older than 5 minutes is considered stale
+		const staleness =
+			Date.now() - new Date(cached.computedAt).getTime() > 5 * 60 * 1000;
 
-    return {
-      id: node.id,
-      name: node.name,
-      type: node.type,
-      depth: node.depth,
-      parentId: node.parentId ?? null,
-      address: null,
-      openingHours: null,
-      membersCount: cached.membersCount,
-      staffCount: cached.staffCount,
-      monthRevenueCents: cached.monthRevenueCents,
-      stale: staleness,
-    };
-  });
+		return {
+			id: node.id,
+			name: node.name,
+			type: node.type,
+			depth: node.depth,
+			parentId: node.parentId ?? null,
+			address: null,
+			openingHours: null,
+			membersCount: cached.membersCount,
+			staffCount: cached.staffCount,
+			monthRevenueCents: cached.monthRevenueCents,
+			stale: staleness,
+		};
+	});
 }

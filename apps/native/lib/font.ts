@@ -33,4 +33,3 @@ export const fonts = {
 	 */
 	body: "Plus Jakarta Sans",
 } as const;
-

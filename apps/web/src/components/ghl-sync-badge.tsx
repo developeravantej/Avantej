@@ -68,10 +68,7 @@ export function GhlSyncBadge({
 						: status;
 
 	const badge = (
-		<Badge
-			variant="outline"
-			className={cn("text-xs capitalize", variantClass)}
-		>
+		<Badge variant="outline" className={cn("text-xs capitalize", variantClass)}>
 			{label}
 		</Badge>
 	);

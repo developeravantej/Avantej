@@ -4,7 +4,10 @@ async function login(page: import("@playwright/test").Page) {
 	await page.goto("/login");
 	await page.getByLabel("Email").fill("franchisee@gmail.com");
 	await page.locator("#password").fill("password123");
-	await page.getByRole("button", { name: /sign in|login/i }).first().click();
+	await page
+		.getByRole("button", { name: /sign in|login/i })
+		.first()
+		.click();
 	await page.waitForURL("**/dashboard**", { timeout: 15_000 });
 }
 
@@ -38,7 +41,11 @@ test.describe("Payment View (/dashboard/payment/view)", () => {
 			timeout: 15_000,
 		});
 		// Table or loading/empty state should be present in the DOM
-		const tableOrState = page.locator("table, [data-testid='loading'], [data-testid='empty-state'], [role='table']").first();
+		const tableOrState = page
+			.locator(
+				"table, [data-testid='loading'], [data-testid='empty-state'], [role='table']",
+			)
+			.first();
 		await expect(tableOrState).toBeVisible({ timeout: 8_000 });
 	});
 
@@ -119,7 +126,9 @@ test.describe("Brands View — redirect (/dashboard/brands/view)", () => {
 		page,
 	}) => {
 		await page.goto("/dashboard/brands/view");
-		await page.waitForURL("**/dashboard/inventory-options**", { timeout: 15_000 });
+		await page.waitForURL("**/dashboard/inventory-options**", {
+			timeout: 15_000,
+		});
 		expect(page.url()).toContain("tab=brands");
 		await expect(page.locator("body")).not.toBeEmpty();
 	});
@@ -137,7 +146,9 @@ test.describe("Categories View — redirect (/dashboard/categories/view)", () =>
 		page,
 	}) => {
 		await page.goto("/dashboard/categories/view");
-		await page.waitForURL("**/dashboard/inventory-options**", { timeout: 15_000 });
+		await page.waitForURL("**/dashboard/inventory-options**", {
+			timeout: 15_000,
+		});
 		expect(page.url()).toContain("tab=categories");
 		await expect(page.locator("body")).not.toBeEmpty();
 	});
@@ -155,7 +166,9 @@ test.describe("Suppliers View — redirect (/dashboard/suppliers/view)", () => {
 		page,
 	}) => {
 		await page.goto("/dashboard/suppliers/view");
-		await page.waitForURL("**/dashboard/inventory-options**", { timeout: 15_000 });
+		await page.waitForURL("**/dashboard/inventory-options**", {
+			timeout: 15_000,
+		});
 		expect(page.url()).toContain("tab=suppliers");
 		await expect(page.locator("body")).not.toBeEmpty();
 	});
@@ -173,7 +186,9 @@ test.describe("Transfer Orders View — redirect (/dashboard/transfer-orders/vie
 		page,
 	}) => {
 		await page.goto("/dashboard/transfer-orders/view");
-		await page.waitForURL("**/dashboard/stock-requests/view**", { timeout: 15_000 });
+		await page.waitForURL("**/dashboard/stock-requests/view**", {
+			timeout: 15_000,
+		});
 		expect(page.url()).toContain("tab=transfers");
 		await expect(page.locator("body")).not.toBeEmpty();
 	});

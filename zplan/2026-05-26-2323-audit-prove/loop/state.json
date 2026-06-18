@@ -1,0 +1,27 @@
+{
+  "iteration": 1,
+  "exitReason": "converged",
+  "targets": [
+    { "id": "AC-01", "kind": "partial", "title": "Households.list privilege escalation", "status": "fixed", "attempts": 1, "fixedIn": "households.ts:264-282 — staff path now returns [] for empty accessibleNodeIds; admin path explicitly null=unrestricted" },
+    { "id": "AC-02", "kind": "partial", "title": "walk-in-customers.list deprecated", "status": "fixed", "attempts": 1, "fixedIn": "walk-in-customers.ts — uses deprecated() helper, throws BAD_REQUEST" },
+    { "id": "AC-04", "kind": "partial", "title": "updateRole audit log", "status": "fixed", "attempts": 0, "fixedIn": "prior session" },
+    { "id": "SP-01", "kind": "missing", "title": "POS stripe org validation", "status": "fixed", "attempts": 0, "fixedIn": "pos.ts:93-108 — checks orgCountryStripeAccounts.chargesEnabled" },
+    { "id": "SP-02", "kind": "partial", "title": "Installment reschedule overdue lock", "status": "fixed", "attempts": 1, "fixedIn": "installment.service.ts — evaluateOverdueLock helper called inside reschedule + waive" },
+    { "id": "SP-03", "kind": "partial", "title": "Promo re-validation in recordPosSale", "status": "fixed", "attempts": 0, "fixedIn": "prior session — validatePromoCode now called inside recordPosSale" },
+    { "id": "SP-04", "kind": "partial", "title": "Tax rate silent zero default", "status": "fixed", "attempts": 0, "fixedIn": "pos.service.ts — NO_TAX_RATE sentinel thrown" },
+    { "id": "AP-01", "kind": "partial", "title": "Waitlist race", "status": "fixed", "attempts": 0, "fixedIn": "waitlist.service.ts:163 — atomic CAS via WHERE spotsBooked<capacity + throw on 0 affected" },
+    { "id": "AP-02", "kind": "partial", "title": "listForUser virtual recurrences", "status": "fixed", "attempts": 0, "fixedIn": "prior session — uses listAppointmentsWithRecurrence" },
+    { "id": "AP-03", "kind": "partial", "title": "Check-in appointmentClientId linkage", "status": "fixed", "attempts": 1, "fixedIn": "check-ins.ts — clientId linkage assertion added" },
+    { "id": "AP-04", "kind": "missing", "title": "Class slot capacity reduction guard", "status": "fixed", "attempts": 0, "fixedIn": "prior session — capacity >= spotsBooked check added" },
+    { "id": "AP-05", "kind": "partial", "title": "Reschedule trainer availability exceptions", "status": "fixed", "attempts": 1, "fixedIn": "appointment.service.ts — listTrainerAvailabilityExceptions called in updateAppointment" },
+    { "id": "PS-01", "kind": "partial", "title": "bulkApprove auto-confirms manual_transfer", "status": "fixed", "attempts": 1, "fixedIn": "approve.procedures.ts — auto-confirm block removed; first installment must be confirmed explicitly" },
+    { "id": "PS-02", "kind": "missing", "title": "setBranchPrice null bypass", "status": "fixed", "attempts": 0, "fixedIn": "guards.ts:90 — null branchId throws FORBIDDEN" },
+    { "id": "PS-03", "kind": "partial", "title": "createTrainerTier scaffold rates", "status": "fixed", "attempts": 0, "fixedIn": "trainer-tier.service.ts — commission_tier_rates scaffolded" },
+    { "id": "OF-01", "kind": "partial", "title": "Goods receipt PO status advance", "status": "fixed", "attempts": 0, "fixedIn": "prior session — PO status roll-up implemented" },
+    { "id": "OF-02", "kind": "partial", "title": "Payout batch approved splits", "status": "fixed", "attempts": 0, "fixedIn": "prior session — splits filtered to status='approved'" },
+    { "id": "OF-03", "kind": "partial", "title": "Category commission 10000bps sum", "status": "fixed", "attempts": 0, "fixedIn": "prior session — sum validation at upsert" },
+    { "id": "OF-04", "kind": "partial", "title": "Product price effective dates", "status": "fixed", "attempts": 1, "fixedIn": "products.ts — Zod refine on setBranchPrice input" },
+    { "id": "ST-01", "kind": "partial", "title": "Announcement notifications", "status": "fixed", "attempts": 1, "fixedIn": "announcements.service.ts — fan-out via recursive CTE on hierarchy + targetAudience filter, atomic with announcement insert" },
+    { "id": "ST-04", "kind": "partial", "title": "Hierarchy reassign out-of-scope", "status": "fixed", "attempts": 0, "fixedIn": "prior session — newHierarchyScopeId validated against accessibleNodeIds" }
+  ]
+}

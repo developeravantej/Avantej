@@ -23,13 +23,13 @@ neonConfig.webSocketConstructor = ws;
 
 // Migration definitions
 const MIGRATIONS: Record<string, { name: string; sql: string }> = {
-  "add-unique-branch-names": {
-    name: "Add unique constraint for branch names",
-    sql: `CREATE UNIQUE INDEX "hierarchy_nodes_branch_name_unique" ON "hierarchy_nodes"("name") WHERE "type" = 'branch';`,
-  },
-  "ghl-per-branch-sync": {
-    name: "Add GHL per-branch sync columns + ghl_user_links table (idempotent, nullable-first)",
-    sql: `CREATE TABLE IF NOT EXISTS "ghl_user_links" (
+	"add-unique-branch-names": {
+		name: "Add unique constraint for branch names",
+		sql: `CREATE UNIQUE INDEX "hierarchy_nodes_branch_name_unique" ON "hierarchy_nodes"("name") WHERE "type" = 'branch';`,
+	},
+	"ghl-per-branch-sync": {
+		name: "Add GHL per-branch sync columns + ghl_user_links table (idempotent, nullable-first)",
+		sql: `CREATE TABLE IF NOT EXISTS "ghl_user_links" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"ghl_user_id" text NOT NULL,
 	"user_id" text NOT NULL,
@@ -58,16 +58,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS "ghl_contact_links_customer_branch_unique" ON 
 CREATE INDEX IF NOT EXISTS "ghl_contact_links_branch_idx" ON "ghl_contact_links" USING btree ("branch_node_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "ghl_contact_links_ghl_location_idx" ON "ghl_contact_links" USING btree ("ghl_location_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "ghl_contact_links_sync_status_idx" ON "ghl_contact_links" USING btree ("sync_status","last_synced_at");`,
-  },
-  "add-members-deleted-at": {
-    name: "Add deleted_at column for staff member soft-delete",
-    sql: `ALTER TABLE "members" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp;
+	},
+	"add-members-deleted-at": {
+		name: "Add deleted_at column for staff member soft-delete",
+		sql: `ALTER TABLE "members" ADD COLUMN IF NOT EXISTS "deleted_at" timestamp;
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "members_deleted_at_idx" ON "members" ("deleted_at");`,
-  },
-  "hierarchy-rename-region-state": {
-    name: "Phase H1: rename hierarchy 'region' → 'state', shift branch depth 4 → 3 (requires zero 'area' rows)",
-    sql: `DO $$
+	},
+	"hierarchy-rename-region-state": {
+		name: "Phase H1: rename hierarchy 'region' → 'state', shift branch depth 4 → 3 (requires zero 'area' rows)",
+		sql: `DO $$
 DECLARE area_count int;
 BEGIN
   SELECT count(*) INTO area_count FROM hierarchy_nodes WHERE type = 'area';
@@ -79,10 +79,10 @@ END $$;
 UPDATE hierarchy_nodes SET type = 'state', updated_at = now() WHERE type = 'region';
 --> statement-breakpoint
 UPDATE hierarchy_nodes SET depth = 3, updated_at = now() WHERE type = 'branch' AND depth = 4;`,
-  },
-  "hierarchy-country-fk-archived-at": {
-    name: "Phase G0: add country_node_id denorm FK + archived_at soft archive on hierarchy_nodes",
-    sql: `ALTER TABLE "hierarchy_nodes" ADD COLUMN IF NOT EXISTS "country_node_id" uuid REFERENCES "hierarchy_nodes"("id") ON DELETE RESTRICT;
+	},
+	"hierarchy-country-fk-archived-at": {
+		name: "Phase G0: add country_node_id denorm FK + archived_at soft archive on hierarchy_nodes",
+		sql: `ALTER TABLE "hierarchy_nodes" ADD COLUMN IF NOT EXISTS "country_node_id" uuid REFERENCES "hierarchy_nodes"("id") ON DELETE RESTRICT;
 --> statement-breakpoint
 ALTER TABLE "hierarchy_nodes" ADD COLUMN IF NOT EXISTS "archived_at" timestamp;
 --> statement-breakpoint
@@ -99,10 +99,10 @@ WITH RECURSIVE ancestors AS (
 UPDATE hierarchy_nodes h SET country_node_id = a.country_id, updated_at = now()
 FROM ancestors a
 WHERE h.id = a.id AND h.type IN ('state', 'branch') AND h.country_node_id IS NULL;`,
-  },
-  "ghl-links-single-entity-unique": {
-    name: "Phase G: flip ghl_contact_links + ghl_user_links unique from (entity, branch) → (entity)",
-    sql: `-- Phase G: flip ghl_contact_links and ghl_user_links unique constraints from
+	},
+	"ghl-links-single-entity-unique": {
+		name: "Phase G: flip ghl_contact_links + ghl_user_links unique from (entity, branch) → (entity)",
+		sql: `-- Phase G: flip ghl_contact_links and ghl_user_links unique constraints from
 -- (entity, branch) → (entity). Reflects org-shared GHL model: one customer
 -- maps to ONE GHL contact per org; one member maps to ONE GHL user per org.
 
@@ -148,10 +148,10 @@ DROP INDEX IF EXISTS "ghl_user_links_member_branch_unique";
 CREATE UNIQUE INDEX IF NOT EXISTS "ghl_contact_links_customer_unique" ON "ghl_contact_links" ("customer_profile_id");
 --> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "ghl_user_links_member_unique" ON "ghl_user_links" ("member_id");`,
-  },
-  "hierarchy-name-uniqueness": {
-    name: "Phase H-hygiene: partial unique on country names + (parent, state name) — blocks if dupes exist",
-    sql: `-- Phase H-hygiene: prevent duplicate sibling rows by enforcing uniqueness
+	},
+	"hierarchy-name-uniqueness": {
+		name: "Phase H-hygiene: partial unique on country names + (parent, state name) — blocks if dupes exist",
+		sql: `-- Phase H-hygiene: prevent duplicate sibling rows by enforcing uniqueness
 -- on the (parent_id, name) key per type. App layer already validates this
 -- on insert (hierarchy_validation.service.ts), but the DB-level constraint
 -- catches programmatic inserts that bypass the service.
@@ -199,10 +199,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_country_name_unique"
 CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_state_sibling_name_unique"
   ON "hierarchy_nodes" ("parent_id", "name")
   WHERE "type" = 'state' AND "archived_at" IS NULL;`,
-  },
-  "hierarchy-type-enum": {
-    name: "Phase H2: convert hierarchy_nodes.type text → Postgres enum (drop+recreate partial indexes referencing type)",
-    sql: `DO $$
+	},
+	"hierarchy-type-enum": {
+		name: "Phase H2: convert hierarchy_nodes.type text → Postgres enum (drop+recreate partial indexes referencing type)",
+		sql: `DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'hierarchy_node_type') THEN
     CREATE TYPE hierarchy_node_type AS ENUM ('organization', 'country', 'state', 'branch');
@@ -253,10 +253,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_country_name_unique"
 CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_state_sibling_name_unique"
   ON "hierarchy_nodes" ("parent_id", "name")
   WHERE "type" = 'state' AND "archived_at" IS NULL;`,
-  },
-  "hierarchy-slug": {
-    name: "Phase H2: add slug column to hierarchy_nodes + backfill + sibling-unique",
-    sql: `ALTER TABLE hierarchy_nodes ADD COLUMN IF NOT EXISTS slug text;
+	},
+	"hierarchy-slug": {
+		name: "Phase H2: add slug column to hierarchy_nodes + backfill + sibling-unique",
+		sql: `ALTER TABLE hierarchy_nodes ADD COLUMN IF NOT EXISTS slug text;
 --> statement-breakpoint
 UPDATE hierarchy_nodes
 SET slug = trim(both '_' from lower(regexp_replace(name, '[^a-zA-Z0-9]+', '_', 'g'))),
@@ -277,10 +277,10 @@ ALTER TABLE hierarchy_nodes ALTER COLUMN slug SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS "hierarchy_sibling_slug_unique"
   ON "hierarchy_nodes" ("parent_id", "slug")
   WHERE "archived_at" IS NULL;`,
-  },
-  "branch-details-split": {
-    name: "Phase H2: split branch-specific columns (address, pic_user_id) into branch_details table",
-    sql: `CREATE TABLE IF NOT EXISTS "branch_details" (
+	},
+	"branch-details-split": {
+		name: "Phase H2: split branch-specific columns (address, pic_user_id) into branch_details table",
+		sql: `CREATE TABLE IF NOT EXISTS "branch_details" (
   "node_id" uuid PRIMARY KEY REFERENCES "hierarchy_nodes"("id") ON DELETE CASCADE,
   "address" text,
   "pic_user_id" text,
@@ -301,193 +301,199 @@ ALTER TABLE "hierarchy_nodes" DROP COLUMN IF EXISTS "address";
 ALTER TABLE "hierarchy_nodes" DROP COLUMN IF EXISTS "pic_user_id";
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "branch_details_pic_user_idx" ON "branch_details" ("pic_user_id");`,
-  },
-  // Add more migrations here as needed:
-  // "migration-name": {
-  //   name: "Description of what this does",
-  //   sql: "SQL statement(s) here"
-  // }
+	},
+	// Add more migrations here as needed:
+	// "migration-name": {
+	//   name: "Description of what this does",
+	//   sql: "SQL statement(s) here"
+	// }
 };
 
 interface Organization {
-  id: string;
-  name: string;
-  connectionString: string;
-  neonProjectId: string;
+	id: string;
+	name: string;
+	connectionString: string;
+	neonProjectId: string;
 }
 
 /**
  * Decrypt connection string using AES-256-GCM
  */
 function decryptConnectionString(encrypted: string): string {
-  try {
-    return decrypt(encrypted);
-  } catch (error) {
-    // If decryption fails, assume it's not encrypted (for backwards compatibility)
-    console.warn(`Failed to decrypt connection string, assuming plaintext: ${error instanceof Error ? error.message : "Unknown error"}`);
-    return encrypted;
-  }
+	try {
+		return decrypt(encrypted);
+	} catch (error) {
+		// If decryption fails, assume it's not encrypted (for backwards compatibility)
+		console.warn(
+			`Failed to decrypt connection string, assuming plaintext: ${error instanceof Error ? error.message : "Unknown error"}`,
+		);
+		return encrypted;
+	}
 }
 
 /**
  * Get all organizations from control panel database
  */
-async function getOrganizations(controlPanelUrl: string): Promise<Organization[]> {
-  const pool = new Pool({ connectionString: controlPanelUrl });
+async function getOrganizations(
+	controlPanelUrl: string,
+): Promise<Organization[]> {
+	const pool = new Pool({ connectionString: controlPanelUrl });
 
-  try {
-    const result = await pool.query(
-      `SELECT id, name, connection_string, neon_project_id FROM organizations ORDER BY name ASC`
-    );
+	try {
+		const result = await pool.query(
+			`SELECT id, name, connection_string, neon_project_id FROM organizations ORDER BY name ASC`,
+		);
 
-    return result.rows.map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      connectionString: decryptConnectionString(row.connection_string),
-      neonProjectId: row.neon_project_id,
-    }));
-  } catch (error) {
-    throw new Error(
-      `Failed to fetch organizations: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-  } finally {
-    await pool.end();
-  }
+		return result.rows.map((row: any) => ({
+			id: row.id,
+			name: row.name,
+			connectionString: decryptConnectionString(row.connection_string),
+			neonProjectId: row.neon_project_id,
+		}));
+	} catch (error) {
+		throw new Error(
+			`Failed to fetch organizations: ${error instanceof Error ? error.message : "Unknown error"}`,
+		);
+	} finally {
+		await pool.end();
+	}
 }
 
 /**
  * Apply migration to a single tenant database
  */
 async function applyMigrationToTenant(
-  tenantUrl: string,
-  migrationSql: string,
-  organizationName: string,
-  dryRun: boolean = false
+	tenantUrl: string,
+	migrationSql: string,
+	organizationName: string,
+	dryRun: boolean = false,
 ): Promise<boolean> {
-  const pool = new Pool({ connectionString: tenantUrl });
+	const pool = new Pool({ connectionString: tenantUrl });
 
-  try {
-    if (dryRun) {
-      console.log(`  [DRY RUN] Would execute:`);
-      console.log(`    ${migrationSql}`);
-      return true;
-    }
+	try {
+		if (dryRun) {
+			console.log(`  [DRY RUN] Would execute:`);
+			console.log(`    ${migrationSql}`);
+			return true;
+		}
 
-    await pool.query(migrationSql);
-    console.log(`  ✓ Migration applied successfully`);
-    return true;
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : "Unknown error";
+		await pool.query(migrationSql);
+		console.log(`  ✓ Migration applied successfully`);
+		return true;
+	} catch (error) {
+		const errorMsg = error instanceof Error ? error.message : "Unknown error";
 
-    // Check if constraint already exists (idempotent)
-    if (errorMsg.includes("already exists")) {
-      console.log(`  ℹ Constraint already exists (skipped)`);
-      return true;
-    }
+		// Check if constraint already exists (idempotent)
+		if (errorMsg.includes("already exists")) {
+			console.log(`  ℹ Constraint already exists (skipped)`);
+			return true;
+		}
 
-    console.error(`  ✗ Failed: ${errorMsg}`);
-    return false;
-  } finally {
-    await pool.end();
-  }
+		console.error(`  ✗ Failed: ${errorMsg}`);
+		return false;
+	} finally {
+		await pool.end();
+	}
 }
 
 /**
  * List available migrations
  */
 function listMigrations(): void {
-  console.log("\n📋 Available Migrations:\n");
-  Object.entries(MIGRATIONS).forEach(([key, migration]) => {
-    console.log(`  ${key}`);
-    console.log(`    Description: ${migration.name}`);
-    console.log(`    SQL: ${migration.sql.substring(0, 60)}...`);
-    console.log();
-  });
+	console.log("\n📋 Available Migrations:\n");
+	Object.entries(MIGRATIONS).forEach(([key, migration]) => {
+		console.log(`  ${key}`);
+		console.log(`    Description: ${migration.name}`);
+		console.log(`    SQL: ${migration.sql.substring(0, 60)}...`);
+		console.log();
+	});
 }
 
 /**
  * Main migration runner
  */
 async function runMigration(
-  migrationName: string,
-  dryRun: boolean = false
+	migrationName: string,
+	dryRun: boolean = false,
 ): Promise<void> {
-  // Validate migration exists
-  const migration = MIGRATIONS[migrationName];
-  if (!migration) {
-    console.error(`❌ Migration not found: ${migrationName}`);
-    console.log(`\nAvailable migrations:`);
-    Object.keys(MIGRATIONS).forEach((key) => console.log(`  - ${key}`));
-    process.exit(1);
-  }
+	// Validate migration exists
+	const migration = MIGRATIONS[migrationName];
+	if (!migration) {
+		console.error(`❌ Migration not found: ${migrationName}`);
+		console.log(`\nAvailable migrations:`);
+		Object.keys(MIGRATIONS).forEach((key) => console.log(`  - ${key}`));
+		process.exit(1);
+	}
 
-  console.log(`\n${dryRun ? "🔍 DRY RUN:" : "🚀"} Running migration: ${migration.name}`);
-  console.log(`Migration: ${migrationName}\n`);
+	console.log(
+		`\n${dryRun ? "🔍 DRY RUN:" : "🚀"} Running migration: ${migration.name}`,
+	);
+	console.log(`Migration: ${migrationName}\n`);
 
-  // Get control panel database URL
-  const controlPanelUrl = process.env.DATABASE_URL;
-  if (!controlPanelUrl) {
-    throw new Error("DATABASE_URL environment variable not set");
-  }
+	// Get control panel database URL
+	const controlPanelUrl = process.env.DATABASE_URL;
+	if (!controlPanelUrl) {
+		throw new Error("DATABASE_URL environment variable not set");
+	}
 
-  // Fetch organizations
-  console.log("📦 Fetching organizations from control panel...");
-  const organizations = await getOrganizations(controlPanelUrl);
+	// Fetch organizations
+	console.log("📦 Fetching organizations from control panel...");
+	const organizations = await getOrganizations(controlPanelUrl);
 
-  if (organizations.length === 0) {
-    console.log("⚠️  No organizations found");
-    return;
-  }
+	if (organizations.length === 0) {
+		console.log("⚠️  No organizations found");
+		return;
+	}
 
-  console.log(`Found ${organizations.length} organization(s)\n`);
+	console.log(`Found ${organizations.length} organization(s)\n`);
 
-  // Apply migration to each tenant
-  let successful = 0;
-  let failed = 0;
+	// Apply migration to each tenant
+	let successful = 0;
+	let failed = 0;
 
-  for (const org of organizations) {
-    process.stdout.write(`${org.name}... `);
+	for (const org of organizations) {
+		process.stdout.write(`${org.name}... `);
 
-    try {
-      const success = await applyMigrationToTenant(
-        org.connectionString,
-        migration.sql,
-        org.name,
-        dryRun
-      );
+		try {
+			const success = await applyMigrationToTenant(
+				org.connectionString,
+				migration.sql,
+				org.name,
+				dryRun,
+			);
 
-      if (success) {
-        successful++;
-      } else {
-        failed++;
-      }
-    } catch (error) {
-      console.error(
-        `✗ Error: ${error instanceof Error ? error.message : "Unknown error"}`
-      );
-      failed++;
-    }
-  }
+			if (success) {
+				successful++;
+			} else {
+				failed++;
+			}
+		} catch (error) {
+			console.error(
+				`✗ Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+			);
+			failed++;
+		}
+	}
 
-  // Summary
-  console.log(`\n${"=".repeat(50)}`);
-  console.log(`Summary:`);
-  console.log(`  ✓ Successful: ${successful}`);
-  console.log(`  ✗ Failed: ${failed}`);
-  console.log(`  Total: ${organizations.length}`);
-  console.log(`${"=".repeat(50)}\n`);
+	// Summary
+	console.log(`\n${"=".repeat(50)}`);
+	console.log(`Summary:`);
+	console.log(`  ✓ Successful: ${successful}`);
+	console.log(`  ✗ Failed: ${failed}`);
+	console.log(`  Total: ${organizations.length}`);
+	console.log(`${"=".repeat(50)}\n`);
 
-  if (failed > 0) {
-    process.exit(1);
-  }
+	if (failed > 0) {
+		process.exit(1);
+	}
 }
 
 // CLI argument parsing
 async function main() {
-  const args = process.argv.slice(2);
+	const args = process.argv.slice(2);
 
-  if (args.length === 0 || args.includes("--help")) {
-    console.log(`
+	if (args.length === 0 || args.includes("--help")) {
+		console.log(`
 Multi-Tenant Database Migration Tool
 
 Usage:
@@ -503,28 +509,30 @@ Examples:
   bun run migrate-all-tenants.ts --dry-run add-unique-branch-names
   bun run migrate-all-tenants.ts add-unique-branch-names
     `);
-    return;
-  }
+		return;
+	}
 
-  if (args.includes("--list")) {
-    listMigrations();
-    return;
-  }
+	if (args.includes("--list")) {
+		listMigrations();
+		return;
+	}
 
-  const dryRun = args.includes("--dry-run");
-  const migrationName = args.find((arg) => !arg.startsWith("--"));
+	const dryRun = args.includes("--dry-run");
+	const migrationName = args.find((arg) => !arg.startsWith("--"));
 
-  if (!migrationName) {
-    console.error("❌ Migration name required");
-    process.exit(1);
-  }
+	if (!migrationName) {
+		console.error("❌ Migration name required");
+		process.exit(1);
+	}
 
-  try {
-    await runMigration(migrationName, dryRun);
-  } catch (error) {
-    console.error(`\n❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`);
-    process.exit(1);
-  }
+	try {
+		await runMigration(migrationName, dryRun);
+	} catch (error) {
+		console.error(
+			`\n❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+		);
+		process.exit(1);
+	}
 }
 
 main();

@@ -2,7 +2,7 @@
 
 **Page:** `/dashboard/packages/installments/view`
 **Covers:** I1, I2, I3, I4, I5, I6, I7 (from `zplan/17-04_13-00_admin-flow-test-coverage/plan.md` §4.9)
-**Authoring reference:** `zhub/pages/web-dashboard-packages-installments-view.md`
+**Authoring reference:** the route's source under `apps/web/src/routes/` (`/dashboard/packages/installments/view`)
 
 > Setup, login, MCP cheat sheet, seed fixtures, cleanup rules, results-file naming, and the runtime-UUID resolver (`js` snippet) all live in `docs/testing/_setup.md`. This protocol DOES NOT duplicate them — every `<fixture>.id` placeholder below is resolved via `_setup.md` §1.2.
 
@@ -173,7 +173,7 @@ Because §4 confirms the seeded pending installment (irreversible via API) and �
 
 ## Notes
 
-- All `installments.*` API calls in the UI use `(client as any)` because the router is not yet in the generated oRPC type surface (see `zhub/pages/web-dashboard-packages-installments-view.md` §6). When asserting requests, search by URL path, not by typed-client shape.
+- All `installments.*` API calls in the UI use `(client as any)` because the router is not yet in the generated oRPC type surface (see the route's source under `apps/web/src/routes/`). When asserting requests, search by URL path, not by typed-client shape.
 - `installments.suggestRefund` and `installments.manualUnlock` require `role === "admin"` (router-enforced at `packages/api/src/routers/installments.ts:141` and `:303`). The admin login in `_setup.md` §2.1 satisfies this — staff login does NOT.
 - `getAdminInstallmentOverview` paginates at `limit: 50` (the UI passes no higher). If a dev DB has more than 50 installment-plan packages, the seeded row may fall off page 1 — filter by the `search` box with the client's UUID prefix to guarantee it stays visible.
 - `dueBefore` / `dueAfter` filter on `package_instances.next_due_date`, NOT on individual installment due dates. A fully-paid instance with `nextDueDate === null` is filtered out by ANY `dueBefore` / `dueAfter` value (NULL comparisons return false in SQL). If a past cleanup forgot to re-seed, the table will look empty unexpectedly — use the fail-fast snippet first.

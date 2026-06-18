@@ -24,7 +24,7 @@ Dark-mode token definitions exist in `index.css` (the `.dark {}` block) but the 
 ### Enforcement
 - **Biome / ESLint:** reject `text-gray-*`, `bg-gray-*`, `text-zinc-*` class usage (use brand tokens instead). Reject `console.log` in committed source.
 - **PR checklist:** any new page or component must confirm: (1) page anatomy followed, (2) no new hardcoded hex values, (3) icon uniqueness in sidebar preserved, (4) `tooltip` prop on every sidebar button, (5) empty-state and error-state both handled.
-- **Quarterly design audit:** run `/hub-update` then audit 5 random pages against this doc.
+- **Quarterly design audit:** run `/graphify . --update` to refresh the knowledge graph then audit 5 random pages against this doc.
 
 ---
 

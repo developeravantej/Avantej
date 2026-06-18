@@ -230,11 +230,10 @@ test.describe("@ship-f-4 Plan F.4 — Agent Mi /migrations viewer", () => {
 		const r7 = await rpc(apiCtx, "platformAdminMigrations/listMigrations", {});
 		console.log(`[scenario-7] support-role list status=${r7.status}`);
 		expect(r7.status).toBe(200);
-		const r7b = await rpc(
-			apiCtx,
-			"platformAdminMigrations/getMigrationFile",
-			{ schema: "control-panel", tag: "0000_far_luminals" },
-		);
+		const r7b = await rpc(apiCtx, "platformAdminMigrations/getMigrationFile", {
+			schema: "control-panel",
+			tag: "0000_far_luminals",
+		});
 		expect(r7b.status).toBe(200);
 		await cp
 			.update(platformAdmins)

@@ -1,0 +1,33 @@
+appId: ${APP_ID}
+---
+# Test: Explore services list and detail view
+- runFlow: helpers/login.yaml
+
+# Navigate to Explore
+- tapOn:
+    text: ".*Explore.*"
+- waitForAnimationToEnd
+
+# Wait for services to load
+- extendedWaitUntil:
+    visible:
+      text: ".*Explore.*"
+    timeout: 5000
+- waitForAnimationToEnd
+
+# Tap first service card
+- tapOn:
+    index: 0
+    below:
+      text: ".*Explore.*"
+- waitForAnimationToEnd
+
+# Verify service detail loaded
+- extendedWaitUntil:
+    visible:
+      text: ".*Book.*|.*Buy.*|.*credits.*|.*session.*"
+    timeout: 5000
+
+# Go back to explore list
+- back
+- waitForAnimationToEnd

@@ -1,0 +1,90 @@
+appId: ${APP_ID}
+---
+# Book Workout E2E flow
+# Login
+- runFlow: helpers/login.yaml
+
+# Navigate to Book Workout from home
+- tapOn:
+    text: ".*Book.*Session.*"
+- waitForAnimationToEnd
+
+# ── Step 1: Setup — select a package ──
+- assertVisible: "Book Workout"
+- assertVisible: "SELECT PACKAGE"
+- extendedWaitUntil:
+    visible: "Choose a package to book from"
+    timeout: 5000
+
+# Wait for packages to load, tap first available package
+- waitForAnimationToEnd
+- tapOn:
+    text: ".*Private 10-Session Pack.*"
+    index: 0
+- waitForAnimationToEnd
+
+# Tap Continue
+- scrollUntilVisible:
+    element: "Continue"
+    direction: DOWN
+- tapOn: "Continue"
+- waitForAnimationToEnd
+
+# ── Step 2: Schedule — select date & time ──
+- assertVisible: "Book Workout"
+- waitForAnimationToEnd
+
+# Wait for schedule content to load
+- extendedWaitUntil:
+    visible:
+      text: ".*SELECT.*"
+    timeout: 10000
+- waitForAnimationToEnd
+
+# Select Monday (4th date card — trainer available on weekdays)
+- tapOn:
+    text: "Mon"
+- waitForAnimationToEnd
+
+# Wait for time slots to load
+- extendedWaitUntil:
+    visible:
+      text: ".*AM.*|.*PM.*|.*:.*"
+    timeout: 8000
+- waitForAnimationToEnd
+
+# Select first available time slot
+- tapOn:
+    index: 0
+    below: "Select Time"
+- waitForAnimationToEnd
+
+# Continue
+- scrollUntilVisible:
+    element: "Continue"
+    direction: DOWN
+- tapOn: "Continue"
+- waitForAnimationToEnd
+
+# ── Step 3: Review — confirm booking ──
+- extendedWaitUntil:
+    visible: "Confirm Booking"
+    timeout: 5000
+- scrollUntilVisible:
+    element: "Confirm Booking"
+    direction: DOWN
+- tapOn: "Confirm Booking"
+- waitForAnimationToEnd
+
+# ── Step 4: Done ──
+- extendedWaitUntil:
+    visible: "Booking Confirmed!"
+    timeout: 10000
+- assertVisible: "Booking Details"
+
+# Return to home
+- scrollUntilVisible:
+    element: "Back to Home"
+    direction: DOWN
+- tapOn: "Back to Home"
+- waitForAnimationToEnd

@@ -100,7 +100,8 @@ async function seedBusinessData() {
 
 	console.log("Starting business data seed...\n");
 
-	const { db: controlDb, pool: controlPool } = createControlPanelDb(databaseUrl);
+	const { db: controlDb, pool: controlPool } =
+		createControlPanelDb(databaseUrl);
 
 	let tenantPool: Pool | null = null;
 
@@ -129,15 +130,15 @@ async function seedBusinessData() {
 		// ================================================================
 		console.log("\nStep 2: Discovering existing tenant data...");
 
-		// Find branch node (type = 'branch', depth = 4)
+		// Find branch node by type only. Branch depth shifted 4 → 3 after the H1
+		// hierarchy migration (0053 region→state rename), so don't filter on depth.
 		const branchNode = await tenantDb.query.hierarchyNodes.findFirst({
-			where: (nodes, { eq: eqFn, and: andFn }) =>
-				andFn(eqFn(nodes.type, "branch"), eqFn(nodes.depth, 4)),
+			where: (nodes, { eq: eqFn }) => eqFn(nodes.type, "branch"),
 		});
 
 		if (!branchNode) {
 			throw new Error(
-				"No branch node found (type=branch, depth=4). Run seed-franchise-owner.ts first.",
+				"No branch node found (type=branch). Run seed-franchise-owner.ts first.",
 			);
 		}
 		console.log(`   Branch node: ${branchNode.id} (${branchNode.name})`);
@@ -152,7 +153,9 @@ async function seedBusinessData() {
 				`Franchisee user not found in control panel: ${FRANCHISEE_EMAIL}`,
 			);
 		}
-		console.log(`   Franchisee user: ${franchiseeUser.id} (${franchiseeUser.email})`);
+		console.log(
+			`   Franchisee user: ${franchiseeUser.id} (${franchiseeUser.email})`,
+		);
 
 		const clientId = franchiseeUser.id;
 		const branchId = branchNode.id;
@@ -222,7 +225,6 @@ async function seedBusinessData() {
 					taxable: false,
 					taxPercentage: 0,
 					isRecommended: false,
-					schedulingType: "appointment",
 				})
 				.returning();
 
@@ -267,7 +269,6 @@ async function seedBusinessData() {
 					isActive: true,
 					duration: 60,
 					durationUnitType: "minutes",
-					schedulingType: "appointment",
 					priceUnit: "session",
 					taxable: false,
 					taxPercentage: 0,
@@ -277,7 +278,9 @@ async function seedBusinessData() {
 
 			if (!created) throw new Error("Failed to create package-style service 1");
 			packageService1 = created;
-			console.log(`   Created: ${packageService1.id} (${packageService1.name})`);
+			console.log(
+				`   Created: ${packageService1.id} (${packageService1.name})`,
+			);
 		}
 
 		// Service 2: Semi-Private 20-Session Pack
@@ -311,7 +314,6 @@ async function seedBusinessData() {
 					isActive: true,
 					duration: 60,
 					durationUnitType: "minutes",
-					schedulingType: "appointment",
 					priceUnit: "session",
 					taxable: false,
 					taxPercentage: 0,
@@ -321,7 +323,9 @@ async function seedBusinessData() {
 
 			if (!created) throw new Error("Failed to create package-style service 2");
 			packageService2 = created;
-			console.log(`   Created: ${packageService2.id} (${packageService2.name})`);
+			console.log(
+				`   Created: ${packageService2.id} (${packageService2.name})`,
+			);
 		}
 
 		// ================================================================
@@ -330,12 +334,12 @@ async function seedBusinessData() {
 		console.log("\nStep 6: Seeding package instance...");
 
 		let packageInstance: typeof packageInstances.$inferSelect;
+		// Idempotency: check by purchaseNumber — it carries the UNIQUE constraint
+		// (package_instances_purchase_number_unique). Checking (serviceId, clientId)
+		// misses when the resolved client changes between runs and the re-insert
+		// then collides on the fixed "TEST-PKG-001" number.
 		const existingInstance = await tenantDb.query.packageInstances.findFirst({
-			where: (pi, { eq: eqFn, and: andFn }) =>
-				andFn(
-					eqFn(pi.serviceId, packageService1.id),
-					eqFn(pi.clientId, clientId),
-				),
+			where: (pi, { eq: eqFn }) => eqFn(pi.purchaseNumber, "TEST-PKG-001"),
 		});
 
 		if (existingInstance) {
@@ -467,10 +471,14 @@ async function seedBusinessData() {
 		}
 
 		// 8c. Organization member (control panel registry)
-		const existingTrainerOrgMember = await controlDb.query.organizationMembers.findFirst({
-			where: (om, { eq: eqFn, and: andFn }) =>
-				andFn(eqFn(om.userId, trainerUserId), eqFn(om.organizationId, TARGET_ORG_ID)),
-		});
+		const existingTrainerOrgMember =
+			await controlDb.query.organizationMembers.findFirst({
+				where: (om, { eq: eqFn, and: andFn }) =>
+					andFn(
+						eqFn(om.userId, trainerUserId),
+						eqFn(om.organizationId, TARGET_ORG_ID),
+					),
+			});
 		if (existingTrainerOrgMember) {
 			console.log("   Trainer org member entry already exists");
 		} else {
@@ -489,7 +497,9 @@ async function seedBusinessData() {
 			where: (m, { eq: eqFn }) => eqFn(m.userId, trainerUserId),
 		});
 		if (existingTrainerMember) {
-			console.log(`   Trainer tenant member already exists: ${existingTrainerMember.id}`);
+			console.log(
+				`   Trainer tenant member already exists: ${existingTrainerMember.id}`,
+			);
 			trainerMemberId = existingTrainerMember.id;
 		} else {
 			const [createdMember] = await tenantDb
@@ -501,13 +511,20 @@ async function seedBusinessData() {
 					status: "active",
 				})
 				.returning();
-			if (!createdMember) throw new Error("Failed to create trainer tenant member");
+			if (!createdMember)
+				throw new Error("Failed to create trainer tenant member");
 			trainerMemberId = createdMember.id;
 			console.log(`   Created trainer tenant member: ${trainerMemberId}`);
 		}
 
 		// 8e. Weekly availability Mon–Fri 09:00–17:00
-		const AVAILABILITY_DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday"] as const;
+		const AVAILABILITY_DAYS = [
+			"monday",
+			"tuesday",
+			"wednesday",
+			"thursday",
+			"friday",
+		] as const;
 		for (const day of AVAILABILITY_DAYS) {
 			const existing = await tenantDb.query.trainerAvailability.findFirst({
 				where: (ta, { eq: eqFn, and: andFn }) =>
@@ -593,10 +610,14 @@ async function seedBusinessData() {
 		}
 
 		// 9c. Organization member (control panel registry)
-		const existingStaffOrgMember = await controlDb.query.organizationMembers.findFirst({
-			where: (om, { eq: eqFn, and: andFn }) =>
-				andFn(eqFn(om.userId, staffUserId), eqFn(om.organizationId, TARGET_ORG_ID)),
-		});
+		const existingStaffOrgMember =
+			await controlDb.query.organizationMembers.findFirst({
+				where: (om, { eq: eqFn, and: andFn }) =>
+					andFn(
+						eqFn(om.userId, staffUserId),
+						eqFn(om.organizationId, TARGET_ORG_ID),
+					),
+			});
 		if (existingStaffOrgMember) {
 			console.log("   Staff org member entry already exists");
 		} else {
@@ -615,7 +636,9 @@ async function seedBusinessData() {
 			where: (m, { eq: eqFn }) => eqFn(m.userId, staffUserId),
 		});
 		if (existingStaffMember) {
-			console.log(`   Staff tenant member already exists: ${existingStaffMember.id}`);
+			console.log(
+				`   Staff tenant member already exists: ${existingStaffMember.id}`,
+			);
 			staffMemberId = existingStaffMember.id;
 		} else {
 			const [createdMember] = await tenantDb
@@ -627,7 +650,8 @@ async function seedBusinessData() {
 					status: "active",
 				})
 				.returning();
-			if (!createdMember) throw new Error("Failed to create staff tenant member");
+			if (!createdMember)
+				throw new Error("Failed to create staff tenant member");
 			staffMemberId = createdMember.id;
 			console.log(`   Created staff tenant member: ${staffMemberId}`);
 		}
@@ -638,10 +662,11 @@ async function seedBusinessData() {
 		console.log("\nStep 10: Seeding E2E Category with buffer config...");
 
 		let e2eCategory: typeof serviceCategories.$inferSelect;
-		const existingE2ECategory = await tenantDb.query.serviceCategories.findFirst({
-			where: (sc, { eq: eqFn, and: andFn }) =>
-				andFn(eqFn(sc.name, "E2E Category"), eqFn(sc.branchId, branchId)),
-		});
+		const existingE2ECategory =
+			await tenantDb.query.serviceCategories.findFirst({
+				where: (sc, { eq: eqFn, and: andFn }) =>
+					andFn(eqFn(sc.name, "E2E Category"), eqFn(sc.branchId, branchId)),
+			});
 
 		if (existingE2ECategory) {
 			console.log(`   E2E category already exists: ${existingE2ECategory.id}`);
@@ -663,11 +688,14 @@ async function seedBusinessData() {
 		}
 
 		// Upsert service_category_config (bufferTimeMinutes: 15)
-		const existingCategoryConfig = await tenantDb.query.serviceCategoryConfig.findFirst({
-			where: (scc, { eq: eqFn }) => eqFn(scc.categoryId, e2eCategory.id),
-		});
+		const existingCategoryConfig =
+			await tenantDb.query.serviceCategoryConfig.findFirst({
+				where: (scc, { eq: eqFn }) => eqFn(scc.categoryId, e2eCategory.id),
+			});
 		if (existingCategoryConfig) {
-			console.log(`   Category config already exists: ${existingCategoryConfig.id}`);
+			console.log(
+				`   Category config already exists: ${existingCategoryConfig.id}`,
+			);
 		} else {
 			const [createdConfig] = await tenantDb
 				.insert(serviceCategoryConfig)
@@ -678,8 +706,11 @@ async function seedBusinessData() {
 					defaultMaxAttendees: 1,
 				})
 				.returning();
-			if (!createdConfig) throw new Error("Failed to create E2E category config");
-			console.log(`   Created category config: ${createdConfig.id} (bufferTimeMinutes: 15)`);
+			if (!createdConfig)
+				throw new Error("Failed to create E2E category config");
+			console.log(
+				`   Created category config: ${createdConfig.id} (bufferTimeMinutes: 15)`,
+			);
 		}
 
 		// ================================================================
@@ -712,7 +743,6 @@ async function seedBusinessData() {
 					taxable: false,
 					taxPercentage: 0,
 					isRecommended: false,
-					schedulingType: "appointment",
 					sessionCount: 10,
 					price: 50000, // RM 500.00 in cents
 					availablePaymentPlans: ["full", "half"],
@@ -722,13 +752,17 @@ async function seedBusinessData() {
 				.returning();
 			if (!created) throw new Error("Failed to create E2E service");
 			e2eService = created;
-			console.log(`   Created E2E service: ${e2eService.id} (price: RM 500.00)`);
+			console.log(
+				`   Created E2E service: ${e2eService.id} (price: RM 500.00)`,
+			);
 		}
 
 		// ================================================================
 		// STEP 12: E2E client user + package instance + installments
 		// ================================================================
-		console.log("\nStep 12: Seeding E2E client user, package instance, and installments...");
+		console.log(
+			"\nStep 12: Seeding E2E client user, package instance, and installments...",
+		);
 
 		const CLIENT_EMAIL = "e2e.client@test.com";
 		const CLIENT_PASSWORD = "password123";
@@ -795,12 +829,16 @@ async function seedBusinessData() {
 		// creditsUnlocked: 5 (half plan: credits unlocked after 1st installment paid)
 		// NOTE: creditsRemaining is a GENERATED column — do NOT insert it
 		let e2ePackageInstance: typeof packageInstances.$inferSelect;
-		const existingE2EInstance = await tenantDb.query.packageInstances.findFirst({
-			where: (pi, { eq: eqFn }) => eqFn(pi.purchaseNumber, "E2E-PKG-001"),
-		});
+		const existingE2EInstance = await tenantDb.query.packageInstances.findFirst(
+			{
+				where: (pi, { eq: eqFn }) => eqFn(pi.purchaseNumber, "E2E-PKG-001"),
+			},
+		);
 
 		if (existingE2EInstance) {
-			console.log(`   E2E package instance already exists: ${existingE2EInstance.id}`);
+			console.log(
+				`   E2E package instance already exists: ${existingE2EInstance.id}`,
+			);
 			e2ePackageInstance = existingE2EInstance;
 		} else {
 			const now = new Date();
@@ -896,6 +934,66 @@ async function seedBusinessData() {
 		}
 
 		// ================================================================
+		// STEP 13: Backfill control-panel users for orphan client members
+		// ================================================================
+		// Tenant `members` rows reference control-panel users by user_id (plain
+		// text — no cross-DB FK). Earlier seeds left some active client members
+		// with NO control-panel "user" row, so members.list resolves their name
+		// to `user?.name || "Unknown"` and the POS member search can't find them.
+		// Insert a minimal verified user row for each orphan, and name any
+		// existing-but-blank users (folded in from fix-first-client-name.ts).
+		console.log(
+			"\nStep 13: Backfilling control-panel users for orphan client members...",
+		);
+
+		const activeClients = await tenantDb.query.members.findMany({
+			where: (m, { eq: eqFn, and: andFn }) =>
+				andFn(eqFn(m.role, "client"), eqFn(m.status, "active")),
+		});
+		const clientUserIds = [
+			...new Set(activeClients.map((m) => m.userId).filter(Boolean)),
+		];
+
+		let orphanUsersCreated = 0;
+		let blankNamesFixed = 0;
+		if (clientUserIds.length > 0) {
+			const existingUsers = await controlDb.query.users.findMany({
+				where: (u, { inArray: inArrayFn }) => inArrayFn(u.id, clientUserIds),
+			});
+			const userById = new Map(existingUsers.map((u) => [u.id, u]));
+
+			for (const userId of clientUserIds) {
+				const existing = userById.get(userId);
+				const shortId = userId.slice(0, 8);
+				if (existing) {
+					if (!existing.name || existing.name.trim().length === 0) {
+						await controlDb
+							.update(users)
+							.set({ name: `Seed Client ${shortId}`, updatedAt: new Date() })
+							.where(eq(users.id, userId));
+						blankNamesFixed++;
+					}
+					continue;
+				}
+				await controlDb.insert(users).values({
+					id: userId,
+					// Deterministic per userId → idempotent across runs
+					email: `seed-client-${shortId}@test.local`,
+					name: `Seed Client ${shortId}`,
+					firstName: "Seed",
+					lastName: `Client ${shortId}`,
+					emailVerified: true,
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				});
+				orphanUsersCreated++;
+			}
+		}
+		console.log(
+			`   Active client members: ${activeClients.length} | orphan users created: ${orphanUsersCreated} | blank names fixed: ${blankNamesFixed}`,
+		);
+
+		// ================================================================
 		// SUMMARY
 		// ================================================================
 		const summaryData = {
@@ -962,7 +1060,9 @@ async function seedBusinessData() {
 		console.log(`E2E Category:      ${e2eCategory.id} (${e2eCategory.name})`);
 		console.log(`E2E Service:       ${e2eService.id} (${e2eService.name})`);
 		console.log(`E2E Client:        ${clientUserId} (${CLIENT_EMAIL})`);
-		console.log(`E2E Pkg Instance:  ${e2ePackageInstance.id} (E2E-PKG-001, half plan)`);
+		console.log(
+			`E2E Pkg Instance:  ${e2ePackageInstance.id} (E2E-PKG-001, half plan)`,
+		);
 		console.log("=".repeat(60));
 
 		return summaryData;

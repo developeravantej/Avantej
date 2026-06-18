@@ -1,5 +1,8 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
-import { createMockTenantDb } from "../../helpers/db-mock.factory";
+import {
+	createMockTenantDb,
+	selectChainResolving,
+} from "../../helpers/db-mock.factory";
 
 import {
 	getCategoryCommissionConfig,
@@ -40,6 +43,7 @@ function makeSlot(overrides: Partial<Record<string, unknown>> = {}) {
 	return {
 		id: SLOT_ID,
 		configId: CONFIG_ID,
+		trackId: null,
 		slotIndex: 0,
 		label: "Primary",
 		weightageBasisPoints: 10000,
@@ -89,29 +93,6 @@ function makeConditionRate(overrides: Partial<Record<string, unknown>> = {}) {
 }
 
 /**
- * Chainable select mock that resolves to `value` when awaited.
- */
-function selectChainResolving(value: unknown) {
-	const chain: Record<string, unknown> = {};
-	for (const m of [
-		"from",
-		"where",
-		"orderBy",
-		"limit",
-		"offset",
-		"leftJoin",
-		"innerJoin",
-		"groupBy",
-		"having",
-	]) {
-		chain[m] = mock(() => chain);
-	}
-	chain.then = (resolve: (v: unknown) => unknown) =>
-		Promise.resolve(value).then(resolve);
-	return chain;
-}
-
-/**
  * Insert chain that resolves `.returning()` to `value`.
  * Also supports `.values()` without a `.returning()` call (void inserts).
  */
@@ -125,7 +106,10 @@ function _insertChainReturning(value: unknown) {
 			Promise.resolve(undefined).then(resolve),
 	}));
 	// some inserts don't call .returning() — expose a chainable values mock
-	const insertMock = mock(() => ({ values: valuesMock, returning: mock(() => Promise.resolve(value)) }));
+	const insertMock = mock(() => ({
+		values: valuesMock,
+		returning: mock(() => Promise.resolve(value)),
+	}));
 	return { insertMock, valuesMock, returningMock, voidResolveMock };
 }
 void _insertChainReturning;
@@ -457,9 +441,7 @@ describe("upsertCategoryCommissionConfig — non-conditional save", () => {
 			txInsertCalls.push(call);
 			return {
 				values: mock(() => ({
-					returning: mock(() =>
-						Promise.resolve(call === 1 ? [config] : []),
-					),
+					returning: mock(() => Promise.resolve(call === 1 ? [config] : [])),
 					then: (resolve: (v: unknown) => unknown) =>
 						Promise.resolve(undefined).then(resolve),
 				})),

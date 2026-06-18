@@ -166,7 +166,8 @@ export async function syncCustomerToGhl(
 
 	// A 'deleted' link points at a GHL contact that's already gone — treat
 	// as no-existing so a follow-up update/create creates a fresh contact.
-	const effectiveExisting = existing?.syncStatus === "deleted" ? null : existing;
+	const effectiveExisting =
+		existing?.syncStatus === "deleted" ? null : existing;
 
 	// 3. Dispatch by operation
 	try {

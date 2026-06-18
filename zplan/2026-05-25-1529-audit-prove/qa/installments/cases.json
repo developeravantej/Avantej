@@ -1,0 +1,481 @@
+[
+  {
+    "id": "INS-C01",
+    "title": "Create plan — golden path with all fields",
+    "type": "golden",
+    "steps": [
+      "Navigate to /dashboard/service/view?tab=installments",
+      "Assert page renders with 'Installment Plans' tab active",
+      "Click 'New Plan' button",
+      "Assert Dialog opens with title 'Add Installment Plan'",
+      "Fill Code input with 'monthly_6'",
+      "Fill Name input with 'Monthly (6 payments)'",
+      "Clear Installments input and type '6'",
+      "Clear Interval (days) input and type '30'",
+      "Fill Price Premium (%) input with '5'",
+      "Fill Description textarea with 'Pay over 6 months'",
+      "Click 'Add Plan' submit button",
+      "Assert dialog closes",
+      "Assert toast 'Installment plan created.' appears",
+      "Assert new card 'Monthly (6 payments)' appears in grid"
+    ],
+    "expected": "New plan card visible in grid with code 'monthly_6', ×6 badge, Active badge, no Default badge",
+    "selectorHints": [
+      "getByRole('button', { name: 'New Plan' })",
+      "getByRole('dialog', { name: 'Add Installment Plan' })",
+      "getByLabelText('Code *')",
+      "getByLabelText('Name *')",
+      "getByLabelText('Installments *')",
+      "getByLabelText('Interval (days) *')",
+      "getByLabelText('Price Premium (%)')",
+      "getByRole('button', { name: 'Add Plan' })"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:385-329"
+  },
+  {
+    "id": "INS-C02",
+    "title": "Create plan — set as default on creation",
+    "type": "golden",
+    "steps": [
+      "Open 'New Plan' dialog",
+      "Fill required Code and Name fields",
+      "Check 'Set as default plan' checkbox",
+      "Click 'Add Plan'",
+      "Assert new card appears with amber 'Default' badge and star icon"
+    ],
+    "expected": "Plan card shows amber 'Default' badge. Previously-default plan (if any) loses the badge.",
+    "selectorHints": [
+      "getByLabelText('Set as default plan')",
+      "getByText('Default')"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:710-720, service:76-79"
+  },
+  {
+    "id": "INS-C03",
+    "title": "Edit plan — update name and premium",
+    "type": "golden",
+    "steps": [
+      "Click 'Edit' on an existing active plan card",
+      "Assert Dialog opens with title 'Edit Installment Plan'",
+      "Assert Code field is disabled",
+      "Assert 'Set as default plan' checkbox is NOT visible",
+      "Change Name to 'Updated Name'",
+      "Change Price Premium (%) to '10'",
+      "Click 'Save Changes'",
+      "Assert dialog closes",
+      "Assert toast 'Installment plan updated.' appears",
+      "Assert card now shows updated name"
+    ],
+    "expected": "Plan card updates in place with new name. Code unchanged.",
+    "selectorHints": [
+      "getByRole('button', { name: 'Edit' })",
+      "getByRole('dialog', { name: 'Edit Installment Plan' })",
+      "getByLabelText(/Code/)",
+      "getByRole('button', { name: 'Save Changes' })"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:391-402, 331-349"
+  },
+  {
+    "id": "INS-C04",
+    "title": "Set default — promotes non-default active plan",
+    "type": "golden",
+    "steps": [
+      "Ensure at least two active plans exist, one with 'Default' badge",
+      "Click 'Set default' button on a non-default active plan",
+      "Assert toast 'Default installment plan updated.' appears",
+      "Assert clicked plan now shows amber 'Default' badge",
+      "Assert former default plan no longer shows 'Default' badge"
+    ],
+    "expected": "Exactly one plan has the Default badge after mutation.",
+    "selectorHints": [
+      "getByRole('button', { name: 'Set default' })",
+      "getByText('Default')"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:587, api:197-213, service:144-165"
+  },
+  {
+    "id": "INS-C05",
+    "title": "Disable plan — no services using it",
+    "type": "golden",
+    "steps": [
+      "Click 'Disable' on an active plan that is not used by any active service",
+      "Assert deactivate confirmation dialog opens",
+      "Assert NO red warning box appears",
+      "Click 'Disable' button in dialog",
+      "Assert dialog closes",
+      "Assert toast 'Installment plan deactivated.' appears",
+      "Assert plan card now shows red 'Inactive' badge (if 'All' filter active) or disappears (if 'Active' filter)"
+    ],
+    "expected": "Plan is deactivated. With default 'active' filter, card disappears from grid.",
+    "selectorHints": [
+      "getByRole('button', { name: 'Disable' })",
+      "getByRole('dialog', { name: 'Disable Installment Plan' })",
+      "getByRole('button', { name: 'Disable' })"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:428-447, 749-806, api:215-231, service:168-195"
+  },
+  {
+    "id": "INS-C06",
+    "title": "Disable plan — shows service-usage warning",
+    "type": "golden",
+    "steps": [
+      "Ensure a plan with code 'monthly_6' is referenced by at least 1 active service's availablePaymentPlans",
+      "Click 'Disable' on that plan",
+      "Assert deactivate confirmation dialog opens",
+      "Assert red warning box appears with text matching 'This plan is enabled on N active service(s)...'",
+      "Click 'Disable' button to confirm",
+      "Assert plan is deactivated"
+    ],
+    "expected": "Warning box shows correct service count. Deactivation proceeds regardless of warning.",
+    "selectorHints": [
+      "getByRole('button', { name: 'Disable' })",
+      "getByText(/This plan is enabled on/)"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:428-447, services/crud.procedures.ts:27-59"
+  },
+  {
+    "id": "INS-C07",
+    "title": "Filter pills — switch between Active / Inactive / All",
+    "type": "golden",
+    "steps": [
+      "Assert default filter is 'Active' (pill has dark background)",
+      "Click 'Inactive' pill",
+      "Assert grid shows only inactive plans (red 'Inactive' badges)",
+      "Click 'All' pill",
+      "Assert grid shows all plans",
+      "Click 'Active' pill",
+      "Assert grid shows only active plans"
+    ],
+    "expected": "Filter updates immediately (client-side). No network request on filter change.",
+    "selectorHints": [
+      "getByRole('button', { name: /Active/ })",
+      "getByRole('button', { name: /Inactive/ })",
+      "getByRole('button', { name: /All/ })"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:279, 468-472, 492-511"
+  },
+  {
+    "id": "INS-C08",
+    "title": "Duplicate code rejection",
+    "type": "error",
+    "steps": [
+      "Note the code of an existing plan (e.g. 'full')",
+      "Click 'New Plan'",
+      "Enter the same code 'full' in the Code field",
+      "Fill all other required fields",
+      "Click 'Add Plan'",
+      "Assert an error toast appears",
+      "Assert dialog remains open"
+    ],
+    "expected": "Toast shows a raw Postgres error message (NOT a user-friendly BAD_REQUEST message — this is a gap: unique violation is not caught as BAD_REQUEST by the router). Dialog stays open.",
+    "selectorHints": [
+      "getByRole('button', { name: 'Add Plan' })"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:312-328, api:86-134, service:74-102, db:75"
+  },
+  {
+    "id": "INS-C09",
+    "title": "Form validation — empty name",
+    "type": "edge",
+    "steps": [
+      "Open 'New Plan' dialog",
+      "Fill Code with 'test_code'",
+      "Leave Name field empty",
+      "Click 'Add Plan'",
+      "Assert toast 'Name is required.' appears",
+      "Assert no API call is made",
+      "Assert dialog remains open"
+    ],
+    "expected": "Client-side guard fires toast. Form does not submit.",
+    "selectorHints": [
+      "getByRole('button', { name: 'Add Plan' })"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:413"
+  },
+  {
+    "id": "INS-C10",
+    "title": "Form validation — numInstallments = 0",
+    "type": "edge",
+    "steps": [
+      "Open 'New Plan' dialog",
+      "Fill Code and Name",
+      "Clear Installments field and type '0'",
+      "Click 'Add Plan'",
+      "Assert toast 'Installments must be ≥ 1.' appears",
+      "Assert no API call made"
+    ],
+    "expected": "Client-side guard fires toast. Browser min=1 HTML attribute also prevents submission on form submit if user uses arrow keys/stepper.",
+    "selectorHints": [
+      "getByLabelText('Installments *')",
+      "getByRole('button', { name: 'Add Plan' })"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:415-416, api:97, service:67-69"
+  },
+  {
+    "id": "INS-C11",
+    "title": "Form validation — numInstallments = NaN (empty field)",
+    "type": "edge",
+    "steps": [
+      "Open 'New Plan' dialog",
+      "Fill Code and Name",
+      "Clear Installments field entirely (empty string)",
+      "Click 'Add Plan'",
+      "Assert toast 'Installments must be ≥ 1.' appears"
+    ],
+    "expected": "parseInt('', 10) = NaN, triggering client guard.",
+    "selectorHints": [
+      "getByLabelText('Installments *')"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:415"
+  },
+  {
+    "id": "INS-C12",
+    "title": "Form validation — premium = 101",
+    "type": "edge",
+    "steps": [
+      "Open 'New Plan' dialog",
+      "Fill required fields",
+      "Set Price Premium (%) to '101'",
+      "Click 'Add Plan'",
+      "Assert toast 'Premium must be 0–100%.' appears",
+      "Assert no API call made"
+    ],
+    "expected": "Client-side guard catches p > 100. HTML max=100 also blocks native form submit (but not JS submit path since handleSubmit uses e.preventDefault).",
+    "selectorHints": [
+      "getByLabelText('Price Premium (%)')",
+      "getByRole('button', { name: 'Add Plan' })"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:419-420, api:97"
+  },
+  {
+    "id": "INS-C13",
+    "title": "Form validation — premium = -1",
+    "type": "edge",
+    "steps": [
+      "Open 'New Plan' dialog",
+      "Fill required fields",
+      "Set Price Premium (%) to '-1'",
+      "Click 'Add Plan'",
+      "Assert toast 'Premium must be 0–100%.' appears"
+    ],
+    "expected": "Client-side guard catches p < 0.",
+    "selectorHints": [
+      "getByLabelText('Price Premium (%)')"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:419-420"
+  },
+  {
+    "id": "INS-C14",
+    "title": "Empty state — inactive filter with no inactive plans",
+    "type": "edge",
+    "steps": [
+      "Ensure all plans are active (none inactive)",
+      "Click 'Inactive' filter pill",
+      "Assert EmptyState renders with description 'No inactive plans.'",
+      "Assert 'New Plan' action button is NOT shown in EmptyState"
+    ],
+    "expected": "EmptyState uses inactive-specific description. No create action offered.",
+    "selectorHints": [
+      "getByText('No inactive plans.')"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:558-575"
+  },
+  {
+    "id": "INS-C15",
+    "title": "Empty state — no plans exist (first-run)",
+    "type": "edge",
+    "steps": [
+      "On a tenant with no installment plans configured",
+      "Navigate to tab",
+      "Assert EmptyState renders with title 'No installment plans'",
+      "Assert description includes 'No installment plans configured yet'",
+      "Assert 'New Plan' action button is shown in EmptyState",
+      "Click EmptyState 'New Plan' button",
+      "Assert create dialog opens"
+    ],
+    "expected": "EmptyState create action works as an alternate entry point for first plan.",
+    "selectorHints": [
+      "getByText('No installment plans configured yet. Add one to get started.')",
+      "getByRole('button', { name: 'New Plan' })"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:558-575"
+  },
+  {
+    "id": "INS-C16",
+    "title": "Error state — API fetch failure",
+    "type": "error",
+    "steps": [
+      "Simulate or wait for a network error on the installmentPlans.list query",
+      "Assert StatusCallout with variant 'error' renders with 'Failed to load installment plans'",
+      "Assert 'Try again' (retry) button is present",
+      "Click retry button",
+      "Assert query refetches"
+    ],
+    "expected": "Error callout visible with retry. Grid and EmptyState are NOT shown (gated by !isError).",
+    "selectorHints": [
+      "getByText('Failed to load installment plans')",
+      "getByRole('button', { name: /retry|try again/i })"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:547-555"
+  },
+  {
+    "id": "INS-C17",
+    "title": "No organization guard — renders inline message",
+    "type": "edge",
+    "steps": [
+      "Simulate no currentOrganizationId in userContext",
+      "Assert component renders inline message 'Select an organization to manage installment plans.'",
+      "Assert no query is fired (enabled: !!organizationId)"
+    ],
+    "expected": "No API call, no loader, just the message div.",
+    "selectorHints": [
+      "getByText('Select an organization to manage installment plans.')"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:476-481"
+  },
+  {
+    "id": "INS-C18",
+    "title": "Disable default plan — default badge removed silently",
+    "type": "edge",
+    "steps": [
+      "Ensure a plan exists that has the amber 'Default' badge AND is active",
+      "Click 'Disable' on that plan",
+      "Confirm deactivation in dialog",
+      "Assert plan becomes inactive (or disappears from active filter)",
+      "Assert NO plan now has the 'Default' badge",
+      "Assert no error toast — service silently clears isDefault"
+    ],
+    "expected": "isDefault is silently cleared on deactivation. No UI warning about losing the default plan.",
+    "selectorHints": [
+      "getByText('Default')",
+      "getByRole('button', { name: 'Disable' })"
+    ],
+    "testable": true,
+    "sourceRef": "service:180-185"
+  },
+  {
+    "id": "INS-C19",
+    "title": "Edit dialog — code field is locked",
+    "type": "edge",
+    "steps": [
+      "Click 'Edit' on any existing plan",
+      "Assert Code input is disabled (cannot be typed in)",
+      "Assert helper text reads 'Cannot be changed after creation.'",
+      "Assert 'Set as default plan' checkbox is NOT rendered"
+    ],
+    "expected": "Code is immutable; isDefault not changeable via edit form.",
+    "selectorHints": [
+      "getByLabelText(/Code/)"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:623-628"
+  },
+  {
+    "id": "INS-C20",
+    "title": "Cancel deactivate dialog — state fully cleared",
+    "type": "edge",
+    "steps": [
+      "Click 'Disable' on an active plan",
+      "Assert deactivate dialog opens",
+      "Click 'Cancel' in dialog",
+      "Assert dialog closes",
+      "Assert plan still shows as Active in grid",
+      "Assert no toast appears"
+    ],
+    "expected": "deactivateTarget, deactivateWarning, deactivateDialogOpen all reset. No mutation fired.",
+    "selectorHints": [
+      "getByRole('dialog', { name: 'Disable Installment Plan' })",
+      "getByRole('button', { name: 'Cancel' })"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:781-792"
+  },
+  {
+    "id": "INS-C21",
+    "title": "Sample amount input — live preview updates",
+    "type": "edge",
+    "steps": [
+      "Assert sample amount defaults to RM 1,200",
+      "Click the sample amount input and clear it, type '600'",
+      "Assert all plan cards update their sample math block to reflect RM 600 total",
+      "Tab/blur out of the input",
+      "Assert input displays '600' (reformatted by toLocaleString)"
+    ],
+    "expected": "Math preview in all cards updates in real time. Blur reformats the displayed value.",
+    "selectorHints": [
+      "getByDisplayValue('1,200')"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:517-531"
+  },
+  {
+    "id": "INS-C22",
+    "title": "isMutating disables all action buttons",
+    "type": "edge",
+    "steps": [
+      "Trigger any mutation (e.g. setDefault) and intercept before completion",
+      "Assert 'Edit', 'Disable', 'Set default' buttons on all cards are disabled",
+      "Assert 'New Plan' button is disabled"
+    ],
+    "expected": "All interactive card buttons and the New Plan button are disabled while any mutation is in-flight.",
+    "selectorHints": [
+      "getByRole('button', { name: 'New Plan' })",
+      "getByRole('button', { name: 'Edit' })"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:377-381, 538-542"
+  },
+  {
+    "id": "INS-C23",
+    "title": "Tab switch resets filter to 'active'",
+    "type": "edge",
+    "steps": [
+      "Navigate to installments tab",
+      "Click 'Inactive' filter pill",
+      "Assert inactive plans are shown",
+      "Click 'Services' tab in the outer tab bar",
+      "Click 'Installment Plans' tab again",
+      "Assert filter has reset to 'Active' (not 'Inactive')"
+    ],
+    "expected": "Filter state is local useState — not persisted in URL. Tab unmount/remount resets to default 'active'. This is a regression from the old settings page which used route search params.",
+    "selectorHints": [
+      "getByRole('button', { name: 'Installment Plans' })",
+      "getByRole('button', { name: /Inactive/ })"
+    ],
+    "testable": true,
+    "sourceRef": "installment-plans-tab.tsx:279, view.tsx:22-88 (settings/installment-plans.tsx:312 vs tab)"
+  },
+  {
+    "id": "INS-C24",
+    "title": "Permission guard — service_management:read required for tab access",
+    "type": "edge",
+    "steps": [
+      "Log in as a user who does NOT have service_management:read permission",
+      "Attempt to navigate to /dashboard/service/view?tab=installments",
+      "Assert redirect to /dashboard with unauthorized signal"
+    ],
+    "expected": "Route beforeLoad calls requirePermission('service_management:read'). Users without this permission are redirected. NOTE: old settings page required 'payments:update' — any user with payments:update but not service_management:read is now blocked.",
+    "selectorHints": [
+      "page.url()"
+    ],
+    "testable": true,
+    "sourceRef": "view.tsx:13-15, settings/installment-plans.tsx:29-32"
+  }
+]

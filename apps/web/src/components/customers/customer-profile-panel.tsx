@@ -8,13 +8,28 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import {
+	ArrowLeft,
+	Calendar,
+	CreditCard,
+	Lock,
+	Package,
+	RotateCcw,
+	Trash2,
+	User,
+} from "lucide-react";
 import { useEffect, useState } from "react";
+import { MagicLinkActions } from "@/components/customers/customer-360/magic-link-actions";
 import { PackageRow } from "@/components/customers/customer-360/package-row";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -24,14 +39,14 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { useUserContext } from "@/hooks/useUserContext";
+import { LogsTab } from "@/features/customers-detail/components/LogsTab";
 import { normalizeGender } from "@/lib/gender";
 import { formatPrice } from "@/lib/money";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -93,92 +108,182 @@ function getInitials(name: string): string {
 		.join("");
 }
 
-function memberStatusVariant(
-	status: string,
-): "default" | "secondary" | "outline" | "destructive" {
-	switch (status) {
-		case "active":
-			return "default";
-		case "inactive":
-			return "secondary";
-		default:
-			return "outline";
-	}
+// ─── Status pills ──────────────────────────────────────────────────────────────
+
+function MemberStatusPill({ status }: { status: string }) {
+	const map: Record<string, { bg: string; text: string; dot: string }> = {
+		active: {
+			bg: "bg-emerald-50",
+			text: "text-emerald-700",
+			dot: "bg-emerald-500",
+		},
+		inactive: {
+			bg: "bg-slate-100",
+			text: "text-slate-500",
+			dot: "bg-slate-400",
+		},
+	};
+	const s = map[status] ?? {
+		bg: "bg-slate-100",
+		text: "text-slate-500",
+		dot: "bg-slate-400",
+	};
+	return (
+		<span
+			className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${s.bg} ${s.text}`}
+		>
+			<span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+			{status || "unknown"}
+		</span>
+	);
 }
 
-function appointmentStatusVariant(
-	status: string,
-): "default" | "secondary" | "outline" | "destructive" {
-	switch (status) {
-		case "confirmed":
-			return "default";
-		case "completed":
-			return "secondary";
-		case "pending":
-			return "outline";
-		case "cancelled":
-		case "no-show":
-			return "destructive";
-		default:
-			return "outline";
-	}
+function PaymentStatusPill({ status }: { status: string }) {
+	const map: Record<string, { bg: string; text: string; dot: string }> = {
+		succeeded: {
+			bg: "bg-emerald-50",
+			text: "text-emerald-700",
+			dot: "bg-emerald-500",
+		},
+		pending: { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500" },
+		failed: { bg: "bg-rose-50", text: "text-rose-600", dot: "bg-rose-500" },
+	};
+	const s = map[status] ?? {
+		bg: "bg-slate-100",
+		text: "text-slate-500",
+		dot: "bg-slate-400",
+	};
+	return (
+		<span
+			className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${s.bg} ${s.text}`}
+		>
+			<span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+			{status || "unknown"}
+		</span>
+	);
 }
 
-function paymentStatusVariant(
-	status: string,
-): "default" | "secondary" | "outline" | "destructive" {
-	switch (status) {
-		case "succeeded":
-			return "default";
-		case "pending":
-			return "secondary";
-		case "failed":
-			return "destructive";
-		default:
-			return "outline";
-	}
+function AppointmentStatusPill({ status }: { status: string }) {
+	const map: Record<string, { bg: string; text: string; dot: string }> = {
+		confirmed: {
+			bg: "bg-emerald-50",
+			text: "text-emerald-700",
+			dot: "bg-emerald-500",
+		},
+		completed: { bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500" },
+		pending: { bg: "bg-amber-50", text: "text-amber-700", dot: "bg-amber-500" },
+		cancelled: { bg: "bg-rose-50", text: "text-rose-600", dot: "bg-rose-500" },
+		"no-show": { bg: "bg-rose-50", text: "text-rose-600", dot: "bg-rose-500" },
+	};
+	const s = map[status] ?? {
+		bg: "bg-slate-100",
+		text: "text-slate-500",
+		dot: "bg-slate-400",
+	};
+	return (
+		<span
+			className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${s.bg} ${s.text}`}
+		>
+			<span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+			{status || "unknown"}
+		</span>
+	);
 }
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function PageSkeleton() {
 	return (
-		<div className="space-y-6 p-6">
-			<div className="flex items-center gap-3">
-				<Skeleton className="size-16 rounded-full" />
+		<div className="space-y-5 p-6">
+			{/* Header skeleton */}
+			<div className="flex items-center gap-4">
+				<div className="h-14 w-14 rounded-full bg-[#e5e5e5] animate-pulse" />
 				<div className="space-y-2">
-					<Skeleton className="h-6 w-48" />
-					<Skeleton className="h-4 w-64" />
+					<div className="h-6 w-44 rounded bg-[#e5e5e5] animate-pulse" />
+					<div className="h-4 w-56 rounded bg-[#e5e5e5] animate-pulse" />
 				</div>
 			</div>
-			<div className="grid grid-cols-4 gap-4">
+			{/* KPI skeleton */}
+			<div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
 				{[0, 1, 2, 3].map((i) => (
-					<Skeleton key={i} className="h-24 rounded-xl" />
+					<div
+						key={i}
+						className="rounded-2xl border border-[#e5e5e5] bg-white p-4 space-y-2"
+					>
+						<div className="h-3 w-20 rounded bg-[#e5e5e5] animate-pulse" />
+						<div className="h-7 w-24 rounded bg-[#e5e5e5] animate-pulse" />
+					</div>
 				))}
 			</div>
-			<Skeleton className="h-72 rounded-xl" />
+			{/* Content skeleton */}
+			<div className="h-72 rounded-2xl border border-[#e5e5e5] bg-white animate-pulse" />
 		</div>
 	);
 }
 
-interface KpiCardProps {
+// ─── KPI tile ─────────────────────────────────────────────────────────────────
+
+interface KpiTileProps {
 	label: string;
-	value: string | number;
-	valueClassName?: string;
+	value: string | number | null | undefined;
+	danger?: boolean;
 }
 
-function KpiCard({ label, value, valueClassName }: KpiCardProps) {
+function KpiTile({ label, value, danger }: KpiTileProps) {
+	const display =
+		value === null || value === undefined || value === "N/A" ? "—" : value;
 	return (
-		<Card>
-			<CardContent className="px-4 py-4">
-				<p className="text-muted-foreground text-xs">{label}</p>
-				<p
-					className={`mt-1 font-semibold text-xl tabular-nums ${valueClassName ?? ""}`}
-				>
-					{value}
-				</p>
-			</CardContent>
-		</Card>
+		<div className="rounded-2xl border border-[#e5e5e5] bg-white p-4">
+			<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">
+				{label}
+			</p>
+			<p
+				className={`mt-1 text-2xl font-bold font-mono tabular-nums ${danger && typeof value === "number" && value > 0 ? "text-rose-600" : "text-[#0a0a0a]"}`}
+			>
+				{display}
+			</p>
+		</div>
 	);
 }
+
+// ─── Section card wrapper ──────────────────────────────────────────────────────
+
+function SectionCard({
+	title,
+	children,
+}: {
+	title: string;
+	children: React.ReactNode;
+}) {
+	return (
+		<div className="rounded-2xl border border-[#e5e5e5] bg-white p-5">
+			<h2 className="text-base font-bold text-[#0a0a0a] mb-4">{title}</h2>
+			{children}
+		</div>
+	);
+}
+
+// ─── Empty state ──────────────────────────────────────────────────────────────
+
+function EmptyState({
+	icon: Icon,
+	heading,
+	helper,
+}: {
+	icon: React.ElementType;
+	heading: string;
+	helper: string;
+}) {
+	return (
+		<div className="flex flex-col items-center justify-center py-12 text-[#737373]">
+			<Icon className="h-8 w-8 mb-3 opacity-30" />
+			<p className="text-sm font-medium text-[#0a0a0a]">{heading}</p>
+			<p className="text-xs mt-1">{helper}</p>
+		</div>
+	);
+}
+
+// ─── Main UUID check ──────────────────────────────────────────────────────────
 
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -187,13 +292,16 @@ interface CustomerProfilePanelProps {
 	memberId: string;
 	/** Show a "Back to Customers" link above the header. Default true. */
 	showBackLink?: boolean;
+	/** Called after a successful soft-delete so the parent can clear the selection. */
+	onDeleted?: () => void;
 }
 
 export function CustomerProfilePanel({
 	memberId,
 	showBackLink = true,
+	onDeleted,
 }: CustomerProfilePanelProps) {
-	const { data: userContext, hasPermission } = useUserContext();
+	const { data: userContext, hasPermission, hasRole } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const canRead = hasPermission("customer_management:read");
 	const idIsValid = UUID_RE.test(memberId);
@@ -201,6 +309,11 @@ export function CustomerProfilePanel({
 	const [profileForm, setProfileForm] =
 		useState<ProfileFormState>(EMPTY_PROFILE_FORM);
 	const [formDirty, setFormDirty] = useState(false);
+	const [nameEdit, setNameEdit] = useState("");
+	const [nameEditDirty, setNameEditDirty] = useState(false);
+	const [emailEdit, setEmailEdit] = useState("");
+	const [emailEditDirty, setEmailEditDirty] = useState(false);
+	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
 	const {
 		data: detail,
@@ -252,9 +365,24 @@ export function CustomerProfilePanel({
 			notes: profile?.notes ?? "",
 		});
 		setFormDirty(false);
+		setNameEditDirty(false);
+		setEmailEditDirty(false);
 		// loadedProfileKey changes only on member switch or first data arrival.
+		// intentional: profile in deps would wipe unsaved form edits on every background refetch
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [loadedProfileKey]);
+
+	useEffect(() => {
+		if (!detail) return;
+		if (!nameEditDirty) setNameEdit(detail.user.name ?? "");
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [detail?.user?.name, memberId]);
+
+	useEffect(() => {
+		if (!detail) return;
+		if (!emailEditDirty) setEmailEdit(detail.user.email ?? "");
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [detail?.user?.email, memberId]);
 
 	const upsertMutation = useApiMutation({
 		mutationFn: () => {
@@ -282,9 +410,87 @@ export function CustomerProfilePanel({
 		errorMessage: (err) => err.message || "Failed to update profile.",
 		invalidate: [
 			["customerDirectory", "detail", organizationId, memberId],
-			["customerDirectory", organizationId],
+			orpc.customerDirectory.list.key(),
+			["customerLogs", organizationId, memberId],
 		],
 		onSuccess: () => setFormDirty(false),
+	});
+
+	const updateNameMutation = useApiMutation({
+		mutationFn: () => {
+			if (!detail) throw new Error("No customer data loaded");
+			return client.customerProfiles.updateName({
+				organizationId: organizationId!,
+				targetUserId: detail.member.userId,
+				newName: nameEdit.trim(),
+			});
+		},
+		successMessage: "Name updated.",
+		errorMessage: (err) => err.message || "Failed to update name.",
+		invalidate: [
+			["customerDirectory", "detail", organizationId, memberId],
+			orpc.customerDirectory.list.key(),
+			["customerLogs", organizationId, memberId],
+		],
+		onSuccess: () => setNameEditDirty(false),
+	});
+
+	const updateEmailMutation = useApiMutation({
+		mutationFn: () => {
+			if (!detail) throw new Error("No customer data loaded");
+			return client.customerProfiles.updateEmail({
+				organizationId: organizationId!,
+				targetUserId: detail.member.userId,
+				newEmail: emailEdit.trim(),
+			});
+		},
+		successMessage: (result) =>
+			(result as { verificationSent?: boolean })?.verificationSent
+				? "Email updated. A verification link was sent — the customer must confirm it before signing in."
+				: "Email updated.",
+		errorMessage: (err) => err.message || "Failed to update email.",
+		invalidate: [
+			["customerDirectory", "detail", organizationId, memberId],
+			orpc.customerDirectory.list.key(),
+			["customerLogs", organizationId, memberId],
+		],
+		onSuccess: () => setEmailEditDirty(false),
+	});
+
+	const deleteMutation = useApiMutation({
+		mutationFn: () => {
+			if (!detail) throw new Error("No customer data loaded");
+			return client.customerProfiles.softDelete({
+				organizationId: organizationId!,
+				targetUserId: detail.member.userId,
+			});
+		},
+		successMessage: "Customer deleted.",
+		errorMessage: (err) => err.message || "Failed to delete customer.",
+		invalidate: [
+			orpc.customerDirectory.list.key(),
+			["customerDirectory", "detail", organizationId, memberId],
+		],
+		onSuccess: () => {
+			setDeleteDialogOpen(false);
+			onDeleted?.();
+		},
+	});
+
+	const restoreMutation = useApiMutation({
+		mutationFn: () => {
+			if (!detail) throw new Error("No customer data loaded");
+			return client.customerProfiles.restore({
+				organizationId: organizationId!,
+				targetUserId: detail.member.userId,
+			});
+		},
+		successMessage: "Customer restored.",
+		errorMessage: (err) => err.message || "Failed to restore customer.",
+		invalidate: [
+			orpc.customerDirectory.list.key(),
+			["customerDirectory", "detail", organizationId, memberId],
+		],
 	});
 
 	const { data: upcomingAppts } = useQuery({
@@ -315,34 +521,46 @@ export function CustomerProfilePanel({
 		staleTime: 60_000,
 	});
 
+	// ── Guard states ────────────────────────────────────────────────────────────
+
 	if (!organizationId) {
 		return (
-			<div className="flex min-h-96 items-center justify-center p-6 text-muted-foreground">
-				Select an organization to view this customer.
+			<div className="flex min-h-96 flex-col items-center justify-center text-[#737373]">
+				<User className="h-8 w-8 mb-3 opacity-30" />
+				<p className="text-sm font-medium text-[#0a0a0a]">
+					No organisation selected
+				</p>
+				<p className="text-xs mt-1">
+					Select an organisation to view this customer.
+				</p>
 			</div>
 		);
 	}
 
 	if (!canRead) {
 		return (
-			<div className="flex min-h-96 items-center justify-center p-6">
-				<Alert variant="destructive" className="max-w-md">
-					<AlertDescription>
-						You don't have permission to view customer profiles.
-					</AlertDescription>
-				</Alert>
+			<div className="flex min-h-96 flex-col items-center justify-center text-[#737373]">
+				<Lock className="h-8 w-8 mb-3 opacity-30" />
+				<p className="text-sm font-medium text-[#0a0a0a]">
+					You don't have access
+				</p>
+				<p className="text-xs mt-1">
+					Ask an admin to grant customer_management:read.
+				</p>
 			</div>
 		);
 	}
 
 	if (!idIsValid) {
 		return (
-			<div className="flex min-h-96 flex-col items-center justify-center gap-4 p-6">
-				<Alert variant="destructive" className="max-w-md">
-					<AlertDescription>
-						Invalid customer link. This URL doesn't point to a valid customer.
-					</AlertDescription>
-				</Alert>
+			<div className="flex min-h-96 flex-col items-center justify-center text-[#737373]">
+				<User className="h-8 w-8 mb-3 opacity-30" />
+				<p className="text-sm font-medium text-[#0a0a0a]">
+					Invalid customer link
+				</p>
+				<p className="text-xs mt-1">
+					This URL doesn't point to a valid customer.
+				</p>
 			</div>
 		);
 	}
@@ -354,14 +572,16 @@ export function CustomerProfilePanel({
 			error instanceof Error &&
 			(error.message.includes("NOT_FOUND") || error.message.includes("404"));
 		return (
-			<div className="flex min-h-96 flex-col items-center justify-center gap-4 p-6">
-				<Alert variant="destructive" className="max-w-md">
-					<AlertDescription>
-						{isNotFound
-							? "Customer not found. They may have been removed."
-							: "Failed to load customer profile. Please try again."}
-					</AlertDescription>
-				</Alert>
+			<div className="flex min-h-96 flex-col items-center justify-center text-[#737373]">
+				<User className="h-8 w-8 mb-3 opacity-30" />
+				<p className="text-sm font-medium text-[#0a0a0a]">
+					{isNotFound ? "Customer not found" : "Failed to load customer"}
+				</p>
+				<p className="text-xs mt-1">
+					{isNotFound
+						? "They may have been removed."
+						: "Please try refreshing the page."}
+				</p>
 			</div>
 		);
 	}
@@ -381,108 +601,255 @@ export function CustomerProfilePanel({
 	const initials = getInitials(user.name ?? "?");
 
 	return (
-		<div className="space-y-6 p-6">
+		<div className="space-y-5 p-6">
+			{/* ── Back link ──────────────────────────────────────────────────── */}
 			{showBackLink && (
-				<Button variant="ghost" size="sm" asChild className="-ml-1">
-					<Link to="/dashboard/customers/v2/view" search={{} as any}>
-						<ArrowLeft className="mr-1 h-4 w-4" />
-						Customers
-					</Link>
-				</Button>
+				<Link
+					to="/dashboard/customers/v2/view"
+					search={(_prev) => ({ customer: undefined, showDeleted: undefined })}
+					className="inline-flex items-center gap-1 text-[10px] font-bold tracking-widest uppercase text-[#737373] hover:text-[#0a0a0a] mb-1"
+				>
+					<ArrowLeft className="h-3 w-3" />
+					Customers
+				</Link>
 			)}
 
+			{/* ── Header ─────────────────────────────────────────────────────── */}
 			<div className="flex items-start gap-4">
-				<span className="flex size-16 shrink-0 items-center justify-center rounded-full bg-primary/10 font-bold text-primary text-xl">
+				{/* Avatar */}
+				<span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#d6cdb1] font-bold text-[#0a0a0a] text-lg select-none">
 					{initials}
 				</span>
-				<div className="min-w-0 flex-1 space-y-1">
-					<div className="flex flex-wrap items-center gap-2">
-						<h1 className="font-bold text-2xl leading-tight">{user.name}</h1>
-						<Badge variant={memberStatusVariant(member.status ?? "")}>
-							{member.status ?? "unknown"}
-						</Badge>
+
+				<div className="min-w-0 flex-1">
+					<div className="flex flex-wrap items-center gap-2 mb-0.5">
+						<h1 className="text-[22px] font-extrabold tracking-tight leading-tight text-[#0a0a0a]">
+							{user.name}
+						</h1>
+						<MemberStatusPill status={member.status ?? "unknown"} />
 					</div>
-					<p className="text-muted-foreground text-sm">{user.email}</p>
+					<p className="text-sm text-[#737373]">{user.email}</p>
 					{profile?.phone && (
-						<p className="text-muted-foreground text-sm">{profile.phone}</p>
+						<p className="text-sm text-[#737373]">{profile.phone}</p>
 					)}
-					<p className="text-muted-foreground text-xs">
+					<p className="text-[10px] font-mono tabular-nums text-[#737373] mt-0.5">
 						Joined {formatDate(member.joinedAt)}
 					</p>
+					{organizationId && profile?.id && (
+						<div className="pt-2">
+							<MagicLinkActions
+								organizationId={organizationId}
+								customerProfileId={profile.id}
+								customerEmail={user.email}
+								isUnclaimed={profile.isUnclaimed ?? false}
+							/>
+						</div>
+					)}
 				</div>
 			</div>
 
-			<div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-				<KpiCard
-					label="LTV"
-					value="N/A"
-					valueClassName="text-muted-foreground"
-				/>
-				<KpiCard
+			{/* ── KPI tiles ──────────────────────────────────────────────────── */}
+			<div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+				<KpiTile label="LTV" value={null} />
+				<KpiTile
 					label="Outstanding"
 					value={formatPrice(outstandingBalanceCents, "MYR")}
-					valueClassName={outstandingBalanceCents > 0 ? "text-red-600" : ""}
+					danger
 				/>
-				<KpiCard label="Active Packages" value={activePackageCount} />
-				<KpiCard label="Appointments" value={appointmentCount} />
+				<KpiTile label="Active Packages" value={activePackageCount} />
+				<KpiTile label="Appointments" value={appointmentCount} />
 			</div>
 
+			{/* ── Tabs ───────────────────────────────────────────────────────── */}
 			<Tabs defaultValue="overview">
-				<TabsList className="h-auto gap-2 bg-transparent p-0">
-					{(
-						[
-							{ value: "overview", label: "Overview" },
-							{
-								value: "packages",
-								label: (
-									<>
-										Packages
-										{packageInstances.length > 0 && (
-											<span className="ml-1.5 rounded-full bg-white/20 px-1.5 py-0.5 text-xs tabular-nums">
-												{packageInstances.length}
-											</span>
-										)}
-									</>
-								),
-							},
-							{ value: "payments", label: "Payments" },
-							{ value: "appointments", label: "Appointments" },
-						] as const
-					).map(({ value, label }) => (
-						<TabsTrigger
-							key={value}
-							value={value}
-							className="rounded-full border border-[#e5e5e5] bg-white px-3.5 py-1.5 text-[13px] font-medium text-[#737373] transition hover:bg-[#fafafa] hover:text-[#0a0a0a] data-[state=active]:border-[#0a0a0a] data-[state=active]:bg-[#0a0a0a] data-[state=active]:text-white data-[state=active]:shadow-none"
-						>
-							{label}
-						</TabsTrigger>
-					))}
-				</TabsList>
+				{/* Tab bar */}
+				<div className="flex flex-wrap items-center gap-2">
+					<TabsList className="h-auto gap-2 bg-transparent p-0 flex-wrap">
+						{(
+							[
+								{ value: "overview", label: "Overview" },
+								{
+									value: "packages",
+									label:
+										packageInstances.length > 0
+											? `Packages · ${packageInstances.length}`
+											: "Packages",
+								},
+								{ value: "payments", label: "Payments" },
+								{ value: "appointments", label: "Appointments" },
+								{ value: "logs", label: "Logs" },
+							] as const
+						).map(({ value, label }) => (
+							<TabsTrigger
+								key={value}
+								value={value}
+								className="rounded-full border border-[#e5e5e5] bg-white px-3.5 py-1.5 text-[13px] font-medium text-[#737373] transition hover:bg-[#f3f3f3] hover:text-[#0a0a0a] data-[state=active]:border-[#0a0a0a] data-[state=active]:bg-[#0a0a0a] data-[state=active]:text-white data-[state=active]:shadow-none"
+							>
+								{label}
+							</TabsTrigger>
+						))}
+					</TabsList>
 
+					{/* New Sale link — right of tabs */}
+					<Link
+						to="/dashboard/sales/create"
+						search={{ customer: memberId }}
+						className="inline-flex items-center rounded-full border border-[#e5e5e5] bg-white px-3.5 py-1.5 text-[13px] font-medium text-[#737373] transition hover:bg-[#f3f3f3] hover:text-[#0a0a0a]"
+					>
+						New Sale
+					</Link>
+
+					{/* Delete / Restore — far right */}
+					{(hasPermission("customer_management:delete") ||
+						hasRole(["admin"])) &&
+						(detail?.profile?.isDeleted ? (
+							<button
+								type="button"
+								onClick={() => restoreMutation.mutate()}
+								disabled={restoreMutation.isPending}
+								className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-[#bbf7d0] bg-white px-3.5 py-1.5 text-[13px] font-medium text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-50"
+							>
+								<RotateCcw className="h-3.5 w-3.5" />
+								{restoreMutation.isPending ? "Restoring…" : "Restore"}
+							</button>
+						) : (
+							<button
+								type="button"
+								onClick={() => setDeleteDialogOpen(true)}
+								className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-[#fecaca] bg-white px-3.5 py-1.5 text-[13px] font-medium text-rose-500 transition hover:bg-rose-50"
+							>
+								<Trash2 className="h-3.5 w-3.5" />
+								Delete
+							</button>
+						))}
+				</div>
+
+				{/* ── Delete confirmation ──────────────────────────────────── */}
+				<Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+					<DialogContent>
+						<DialogHeader>
+							<DialogTitle>Delete customer?</DialogTitle>
+							<DialogDescription>
+								This will soft-delete{" "}
+								<span className="font-semibold">
+									{detail?.user.name ?? "this customer"}
+								</span>
+								. They will no longer appear in the customer list. You can
+								restore them by enabling &quot;Show deleted&quot; in the
+								customers view.
+							</DialogDescription>
+						</DialogHeader>
+						<DialogFooter>
+							<Button
+								variant="outline"
+								onClick={() => setDeleteDialogOpen(false)}
+								disabled={deleteMutation.isPending}
+							>
+								Cancel
+							</Button>
+							<Button
+								variant="destructive"
+								onClick={() => deleteMutation.mutate()}
+								disabled={deleteMutation.isPending}
+							>
+								{deleteMutation.isPending ? "Deleting…" : "Delete"}
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
+
+				{/* ─────────────────────────────────────────────────────────── */}
+				{/* OVERVIEW TAB                                                */}
+				{/* ─────────────────────────────────────────────────────────── */}
 				<TabsContent value="overview" className="mt-4 space-y-4">
-					<Card>
-						<CardHeader className="pb-3">
-							<CardTitle className="text-base">Profile</CardTitle>
-						</CardHeader>
-						<CardContent className="space-y-4">
+					{/* Profile card */}
+					<SectionCard title="Profile">
+						<div className="space-y-4">
+							{/* Lead source / campaign attribution badges */}
 							{(profile?.leadAcquisitionType || profile?.campaignId) && (
 								<div className="flex flex-wrap items-center gap-2">
 									{profile?.leadAcquisitionType && (
-										<span className="flex items-center gap-1.5 text-muted-foreground text-xs">
+										<span className="flex items-center gap-1.5 text-[#737373] text-xs">
 											Lead source
-											<Badge variant="secondary">
+											<span className="inline-flex items-center rounded-full bg-[#f3f3f3] px-2 py-0.5 text-[11px] font-medium text-[#0a0a0a]">
 												{profile.leadAcquisitionType}
-											</Badge>
+											</span>
 										</span>
 									)}
 									{profile?.campaignId && (
-										<span className="flex items-center gap-1.5 text-muted-foreground text-xs">
+										<span className="flex items-center gap-1.5 text-[#737373] text-xs">
 											Campaign
-											<Badge variant="secondary">{profile.campaignId}</Badge>
+											<span className="inline-flex items-center rounded-full bg-[#f3f3f3] px-2 py-0.5 text-[11px] font-medium text-[#0a0a0a]">
+												{profile.campaignId}
+											</span>
 										</span>
 									)}
 								</div>
 							)}
+
+							{/* Name */}
+							<div className="flex flex-col gap-1.5">
+								<Label htmlFor="cd-name">Name</Label>
+								<div className="flex gap-2">
+									<Input
+										id="cd-name"
+										type="text"
+										placeholder="Full name"
+										value={nameEdit}
+										onChange={(e) => {
+											setNameEdit(e.target.value);
+											setNameEditDirty(
+												e.target.value.trim() !== (detail?.user.name ?? ""),
+											);
+										}}
+									/>
+									{nameEditDirty && (
+										<button
+											type="button"
+											disabled={
+												updateNameMutation.isPending || !nameEdit.trim()
+											}
+											onClick={() => updateNameMutation.mutate()}
+											className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition disabled:opacity-50"
+										>
+											{updateNameMutation.isPending ? "Saving…" : "Save"}
+										</button>
+									)}
+								</div>
+							</div>
+
+							{/* Email */}
+							<div className="flex flex-col gap-1.5">
+								<Label htmlFor="cd-email">Email</Label>
+								<div className="flex gap-2">
+									<Input
+										id="cd-email"
+										type="email"
+										placeholder="customer@example.com"
+										value={emailEdit}
+										onChange={(e) => {
+											setEmailEdit(e.target.value);
+											setEmailEditDirty(
+												e.target.value.trim() !== (detail?.user.email ?? ""),
+											);
+										}}
+									/>
+									{emailEditDirty && (
+										<button
+											type="button"
+											disabled={
+												updateEmailMutation.isPending || !emailEdit.trim()
+											}
+											onClick={() => updateEmailMutation.mutate()}
+											className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition disabled:opacity-50"
+										>
+											{updateEmailMutation.isPending ? "Saving…" : "Save"}
+										</button>
+									)}
+								</div>
+							</div>
+
+							{/* Phone + DOB */}
 							<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 								<div className="flex flex-col gap-1.5">
 									<Label htmlFor="cd-phone">Phone</Label>
@@ -514,6 +881,7 @@ export function CustomerProfilePanel({
 								</div>
 							</div>
 
+							{/* Gender */}
 							<div className="flex flex-col gap-1.5">
 								<Label htmlFor="cd-gender">Gender</Label>
 								<Select
@@ -541,6 +909,7 @@ export function CustomerProfilePanel({
 								</Select>
 							</div>
 
+							{/* Address */}
 							<div className="flex flex-col gap-1.5">
 								<Label htmlFor="cd-address">Address</Label>
 								<Textarea
@@ -555,6 +924,7 @@ export function CustomerProfilePanel({
 								/>
 							</div>
 
+							{/* Emergency contact */}
 							<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 								<div className="flex flex-col gap-1.5">
 									<Label htmlFor="cd-ec-name">Emergency Contact</Label>
@@ -589,6 +959,7 @@ export function CustomerProfilePanel({
 								</div>
 							</div>
 
+							{/* Medical notes */}
 							<div className="flex flex-col gap-1.5">
 								<Label htmlFor="cd-medical">Medical Notes</Label>
 								<Textarea
@@ -606,10 +977,11 @@ export function CustomerProfilePanel({
 								/>
 							</div>
 
+							{/* Fitness goals */}
 							<div className="flex flex-col gap-1.5">
 								<Label htmlFor="cd-goals">
 									Fitness Goals
-									<span className="ml-1 text-muted-foreground text-xs">
+									<span className="ml-1 text-[#737373] text-xs">
 										(comma-separated)
 									</span>
 								</Label>
@@ -627,6 +999,7 @@ export function CustomerProfilePanel({
 								/>
 							</div>
 
+							{/* Notes */}
 							<div className="flex flex-col gap-1.5">
 								<Label htmlFor="cd-notes">Notes</Label>
 								<Textarea
@@ -641,102 +1014,134 @@ export function CustomerProfilePanel({
 								/>
 							</div>
 
-							<div className="flex justify-end">
-								<Button
+							{/* Save button */}
+							<div className="flex justify-end pt-1">
+								<button
 									type="button"
 									onClick={() => upsertMutation.mutate()}
 									disabled={!formDirty || upsertMutation.isPending}
+									className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition disabled:opacity-40 disabled:cursor-not-allowed"
 								>
-									{upsertMutation.isPending ? "Saving..." : "Save Profile"}
-								</Button>
+									{upsertMutation.isPending ? "Saving…" : "Save Profile"}
+								</button>
 							</div>
-						</CardContent>
-					</Card>
+						</div>
+					</SectionCard>
 
-					<Card>
-						<CardHeader className="pb-3">
-							<CardTitle className="text-base">Recent Payments</CardTitle>
-						</CardHeader>
-						<CardContent>
-							{recentPayments.length === 0 ? (
-								<p className="py-4 text-center text-muted-foreground text-sm">
-									No payments on record.
-								</p>
-							) : (
-								<div className="space-y-2">
-									{recentPayments.slice(0, 5).map((payment) => (
-										<div
-											key={payment.id}
-											className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-										>
-											<div className="flex flex-col gap-0.5">
-												<span className="font-medium tabular-nums">
-													{formatPrice(payment.totalAmount ?? 0, "MYR")}
-												</span>
-												<span className="text-muted-foreground text-xs">
-													{formatDate(payment.createdAt)}
-													{payment.paymentMethod
-														? ` · ${payment.paymentMethod}`
-														: ""}
-												</span>
-											</div>
-											<Badge
-												variant={paymentStatusVariant(payment.status ?? "")}
+					{/* Recent Payments */}
+					<SectionCard title="Recent Payments">
+						{recentPayments.length === 0 ? (
+							<EmptyState
+								icon={CreditCard}
+								heading="No payments on record"
+								helper="Payments will appear here once a sale is completed."
+							/>
+						) : (
+							<div className="rounded-xl border border-[#e5e5e5] overflow-hidden">
+								<table className="w-full">
+									<thead className="bg-[#f3f3f3]">
+										<tr className="border-b border-[#e5e5e5]">
+											<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+												Date
+											</th>
+											<th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+												Amount
+											</th>
+											<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+												Method
+											</th>
+											<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+												Status
+											</th>
+										</tr>
+									</thead>
+									<tbody className="divide-y divide-[#e5e5e5]">
+										{recentPayments.slice(0, 5).map((payment) => (
+											<tr
+												key={payment.id}
+												className="hover:bg-[#fafafa] transition-colors"
 											>
-												{payment.status ?? "unknown"}
-											</Badge>
-										</div>
-									))}
-								</div>
-							)}
-						</CardContent>
-					</Card>
+												<td className="px-4 py-3 text-sm font-mono tabular-nums text-[#737373]">
+													{formatDate(payment.createdAt)}
+												</td>
+												<td className="px-4 py-3 text-sm font-mono tabular-nums text-right text-[#0a0a0a] font-medium">
+													{formatPrice(payment.totalAmount ?? 0, "MYR")}
+												</td>
+												<td className="px-4 py-3 text-sm text-[#737373]">
+													{payment.paymentMethod ?? "—"}
+												</td>
+												<td className="px-4 py-3">
+													<PaymentStatusPill status={payment.status ?? ""} />
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
+						)}
+					</SectionCard>
 
-					<Card>
-						<CardHeader className="pb-3">
-							<CardTitle className="text-base">Upcoming Appointments</CardTitle>
-						</CardHeader>
-						<CardContent>
-							{!upcomingAppts || upcomingAppts.length === 0 ? (
-								<p className="py-4 text-center text-muted-foreground text-sm">
-									No upcoming appointments.
-								</p>
-							) : (
-								<div className="space-y-2">
-									{upcomingAppts.map((appt) => (
-										<div
-											key={appt.id}
-											className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-										>
-											<div className="flex flex-col gap-0.5">
-												<span className="font-medium">
+					{/* Upcoming Appointments */}
+					<SectionCard title="Upcoming Appointments">
+						{!upcomingAppts || upcomingAppts.length === 0 ? (
+							<EmptyState
+								icon={Calendar}
+								heading="No upcoming appointments"
+								helper="Confirmed appointments will appear here."
+							/>
+						) : (
+							<div className="rounded-xl border border-[#e5e5e5] overflow-hidden">
+								<table className="w-full">
+									<thead className="bg-[#f3f3f3]">
+										<tr className="border-b border-[#e5e5e5]">
+											<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+												Service
+											</th>
+											<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+												Date & Time
+											</th>
+											<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+												Status
+											</th>
+										</tr>
+									</thead>
+									<tbody className="divide-y divide-[#e5e5e5]">
+										{upcomingAppts.map((appt) => (
+											<tr
+												key={appt.id}
+												className="hover:bg-[#fafafa] transition-colors"
+											>
+												<td className="px-4 py-3 text-sm font-medium text-[#0a0a0a]">
 													{(appt as { serviceName?: string | null })
 														.serviceName ?? "—"}
-												</span>
-												<span className="text-muted-foreground text-xs">
+												</td>
+												<td className="px-4 py-3 text-sm font-mono tabular-nums text-[#737373]">
 													{formatDateTime(appt.startTime)}
-												</span>
-											</div>
-											<Badge
-												variant={appointmentStatusVariant(appt.status ?? "")}
-											>
-												{appt.status ?? "unknown"}
-											</Badge>
-										</div>
-									))}
-								</div>
-							)}
-						</CardContent>
-					</Card>
+												</td>
+												<td className="px-4 py-3">
+													<AppointmentStatusPill status={appt.status ?? ""} />
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
+						)}
+					</SectionCard>
 				</TabsContent>
 
+				{/* ─────────────────────────────────────────────────────────── */}
+				{/* PACKAGES TAB                                                */}
+				{/* ─────────────────────────────────────────────────────────── */}
 				<TabsContent value="packages" className="mt-4">
 					{packageInstances.length === 0 ? (
-						<Card>
-							<CardContent className="py-12 text-center text-muted-foreground text-sm">
-								No packages found.
-							</CardContent>
-						</Card>
+						<div className="rounded-2xl border border-[#e5e5e5] bg-white p-5">
+							<EmptyState
+								icon={Package}
+								heading="No packages found"
+								helper="Create a sale to assign a package to this customer."
+							/>
+						</div>
 					) : (
 						<div className="space-y-3">
 							{packageInstances.map((pkg) => (
@@ -760,134 +1165,137 @@ export function CustomerProfilePanel({
 					)}
 				</TabsContent>
 
+				{/* ─────────────────────────────────────────────────────────── */}
+				{/* PAYMENTS TAB                                                */}
+				{/* ─────────────────────────────────────────────────────────── */}
 				<TabsContent value="payments" className="mt-4">
-					<Card>
-						<CardHeader className="pb-3">
-							<CardTitle className="text-base">Payment History</CardTitle>
-						</CardHeader>
-						<CardContent>
-							{recentPayments.length === 0 ? (
-								<p className="py-4 text-center text-muted-foreground text-sm">
-									No payment records found.
-								</p>
-							) : (
-								<div className="overflow-hidden rounded-md border">
-									<table className="w-full text-sm">
-										<thead className="bg-muted/50">
-											<tr>
-												<th className="px-3 py-2 text-left font-medium text-muted-foreground text-xs">
-													Date
-												</th>
-												<th className="px-3 py-2 text-left font-medium text-muted-foreground text-xs">
-													Amount
-												</th>
-												<th className="px-3 py-2 text-left font-medium text-muted-foreground text-xs">
-													Method
-												</th>
-												<th className="px-3 py-2 text-left font-medium text-muted-foreground text-xs">
-													Status
-												</th>
+					<SectionCard title="Payment History">
+						{recentPayments.length === 0 ? (
+							<EmptyState
+								icon={CreditCard}
+								heading="No payment records found"
+								helper="Payments will appear here once a sale is completed."
+							/>
+						) : (
+							<div className="rounded-xl border border-[#e5e5e5] overflow-hidden">
+								<table className="w-full">
+									<thead className="bg-[#f3f3f3]">
+										<tr className="border-b border-[#e5e5e5]">
+											<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+												Date
+											</th>
+											<th className="px-4 py-2.5 text-right text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+												Amount
+											</th>
+											<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+												Method
+											</th>
+											<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+												Status
+											</th>
+										</tr>
+									</thead>
+									<tbody className="divide-y divide-[#e5e5e5]">
+										{recentPayments.map((payment) => (
+											<tr
+												key={payment.id}
+												className="hover:bg-[#fafafa] transition-colors"
+											>
+												<td className="px-4 py-3 text-sm font-mono tabular-nums text-[#737373]">
+													{formatDate(payment.createdAt)}
+												</td>
+												<td className="px-4 py-3 text-sm font-mono tabular-nums text-right font-medium text-[#0a0a0a]">
+													{formatPrice(payment.totalAmount ?? 0, "MYR")}
+												</td>
+												<td className="px-4 py-3 text-sm text-[#737373]">
+													{payment.paymentMethod ?? "—"}
+												</td>
+												<td className="px-4 py-3">
+													<PaymentStatusPill status={payment.status ?? ""} />
+												</td>
 											</tr>
-										</thead>
-										<tbody className="divide-y">
-											{recentPayments.map((payment) => (
-												<tr key={payment.id}>
-													<td className="px-3 py-2 text-muted-foreground tabular-nums">
-														{formatDate(payment.createdAt)}
-													</td>
-													<td className="px-3 py-2 font-medium tabular-nums">
-														{formatPrice(payment.totalAmount ?? 0, "MYR")}
-													</td>
-													<td className="px-3 py-2 text-muted-foreground">
-														{payment.paymentMethod ?? "—"}
-													</td>
-													<td className="px-3 py-2">
-														<Badge
-															variant={paymentStatusVariant(
-																payment.status ?? "",
-															)}
-															className="text-xs"
-														>
-															{payment.status ?? "unknown"}
-														</Badge>
-													</td>
-												</tr>
-											))}
-										</tbody>
-									</table>
-								</div>
-							)}
-						</CardContent>
-					</Card>
+										))}
+									</tbody>
+								</table>
+							</div>
+						)}
+					</SectionCard>
 				</TabsContent>
 
+				{/* ─────────────────────────────────────────────────────────── */}
+				{/* APPOINTMENTS TAB                                            */}
+				{/* ─────────────────────────────────────────────────────────── */}
 				<TabsContent value="appointments" className="mt-4">
-					<Card>
-						<CardHeader className="pb-3">
-							<CardTitle className="text-base">Appointment History</CardTitle>
-						</CardHeader>
-						<CardContent>
-							{!allAppts || allAppts.length === 0 ? (
-								<p className="py-4 text-center text-muted-foreground text-sm">
-									No appointments found.
-								</p>
-							) : (
-								<div className="overflow-hidden rounded-md border">
-									<table className="w-full text-sm">
-										<thead className="bg-muted/50">
-											<tr>
-												<th className="px-3 py-2 text-left font-medium text-muted-foreground text-xs">
-													Service
-												</th>
-												<th className="px-3 py-2 text-left font-medium text-muted-foreground text-xs">
-													Date
-												</th>
-												<th className="px-3 py-2 text-left font-medium text-muted-foreground text-xs">
-													Time
-												</th>
-												<th className="px-3 py-2 text-left font-medium text-muted-foreground text-xs">
-													Status
-												</th>
-											</tr>
-										</thead>
-										<tbody className="divide-y">
-											{allAppts.map((appt) => {
-												const start = appt.startTime
-													? appt.startTime instanceof Date
-														? appt.startTime
-														: new Date(appt.startTime)
-													: null;
-												return (
-													<tr key={appt.id}>
-														<td className="px-3 py-2 font-medium">
-															{(appt as { serviceName?: string | null })
-																.serviceName ?? "—"}
-														</td>
-														<td className="px-3 py-2 text-muted-foreground tabular-nums">
-															{start ? start.toISOString().slice(0, 10) : "—"}
-														</td>
-														<td className="px-3 py-2 text-muted-foreground tabular-nums">
-															{start ? start.toTimeString().slice(0, 5) : "—"}
-														</td>
-														<td className="px-3 py-2">
-															<Badge
-																variant={appointmentStatusVariant(
-																	appt.status ?? "",
-																)}
-																className="text-xs"
-															>
-																{appt.status ?? "unknown"}
-															</Badge>
-														</td>
-													</tr>
-												);
-											})}
-										</tbody>
-									</table>
-								</div>
-							)}
-						</CardContent>
-					</Card>
+					<SectionCard title="Appointment History">
+						{!allAppts || allAppts.length === 0 ? (
+							<EmptyState
+								icon={Calendar}
+								heading="No appointments found"
+								helper="Appointments will appear here once they are booked."
+							/>
+						) : (
+							<div className="rounded-xl border border-[#e5e5e5] overflow-hidden">
+								<table className="w-full">
+									<thead className="bg-[#f3f3f3]">
+										<tr className="border-b border-[#e5e5e5]">
+											<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+												Service
+											</th>
+											<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+												Date
+											</th>
+											<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+												Time
+											</th>
+											<th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+												Status
+											</th>
+										</tr>
+									</thead>
+									<tbody className="divide-y divide-[#e5e5e5]">
+										{allAppts.map((appt) => {
+											const start = appt.startTime
+												? appt.startTime instanceof Date
+													? appt.startTime
+													: new Date(appt.startTime)
+												: null;
+											return (
+												<tr
+													key={appt.id}
+													className="hover:bg-[#fafafa] transition-colors"
+												>
+													<td className="px-4 py-3 text-sm font-medium text-[#0a0a0a]">
+														{(appt as { serviceName?: string | null })
+															.serviceName ?? "—"}
+													</td>
+													<td className="px-4 py-3 text-sm font-mono tabular-nums text-[#737373]">
+														{start ? start.toISOString().slice(0, 10) : "—"}
+													</td>
+													<td className="px-4 py-3 text-sm font-mono tabular-nums text-[#737373]">
+														{start ? start.toTimeString().slice(0, 5) : "—"}
+													</td>
+													<td className="px-4 py-3">
+														<AppointmentStatusPill status={appt.status ?? ""} />
+													</td>
+												</tr>
+											);
+										})}
+									</tbody>
+								</table>
+							</div>
+						)}
+					</SectionCard>
+				</TabsContent>
+
+				{/* ─────────────────────────────────────────────────────────── */}
+				{/* LOGS TAB                                                    */}
+				{/* ─────────────────────────────────────────────────────────── */}
+				<TabsContent value="logs" className="mt-4">
+					<LogsTab
+						organizationId={organizationId!}
+						memberId={member.id}
+						memberUserId={member.userId}
+					/>
 				</TabsContent>
 			</Tabs>
 		</div>

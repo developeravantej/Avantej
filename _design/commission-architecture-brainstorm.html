@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Commission Architecture — Scaling Brainstorm</title>
+<style>
+  :root {
+    --ink:#0a0a0a; --muted:#6b7280; --line:#e5e7eb; --bg:#f7f7f6; --card:#fff;
+    --green:#059669; --green-bg:#ecfdf5; --green-ln:#b8e6d2;
+    --amber:#b45309; --amber-bg:#fffbeb; --amber-ln:#f0e0b8;
+    --red:#dc2626; --red-bg:#fef2f2; --red-ln:#f0d9d9;
+    --blue:#2563eb; --blue-bg:#eff6ff; --blue-ln:#cfe0fb;
+    --purple:#7c3aed; --purple-bg:#f5f3ff; --purple-ln:#ddd0f7;
+    --teal:#0d9488; --teal-bg:#f0fdfa; --teal-ln:#bfe9e2;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--bg);line-height:1.5;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1120px;margin:0 auto;padding:48px 32px 110px;}
+  header.page{border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:8px;}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+  h1{font-size:31px;margin:8px 0 6px;letter-spacing:-.02em;}
+  .sub{color:var(--muted);font-size:15px;max-width:760px;}
+  h2{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:56px 0 20px;padding-bottom:8px;border-bottom:1px solid var(--line);}
+  h2 .n{color:var(--ink);}
+  code{font-family:var(--mono);font-size:12.5px;background:#f1f1ef;padding:1px 5px;border-radius:5px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;}
+
+  /* decisions banner */
+  .decisions{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:24px;}
+  @media(max-width:760px){.decisions{grid-template-columns:1fr;}}
+  .dec{border:1px solid var(--green-ln);background:var(--green-bg);border-radius:14px;padding:16px 18px;}
+  .dec .lbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green);}
+  .dec .val{font-size:15px;font-weight:700;margin:4px 0 6px;}
+  .dec .why{font-size:12.5px;color:#3f6152;}
+
+  /* reframe table */
+  table.cmp{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:13px;}
+  table.cmp th,table.cmp td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top;}
+  table.cmp thead th{background:#fafafa;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
+  table.cmp tbody td:first-child{font-weight:600;color:var(--muted);width:150px;}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;}
+  .pill.deliver{color:var(--blue);background:var(--blue-bg);border:1px solid var(--blue-ln);}
+  .pill.origin{color:var(--teal);background:var(--teal-bg);border:1px solid var(--teal-ln);}
+
+  /* options scaling */
+  .opts{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  @media(max-width:760px){.opts{grid-template-columns:1fr;}}
+  .opt{border:1px solid var(--line);border-radius:14px;background:#fff;padding:18px;position:relative;}
+  .opt.win{border:2px solid var(--green);box-shadow:0 4px 16px -8px rgba(5,150,105,.4);}
+  .opt h3{margin:0 0 2px;font-size:15px;}
+  .opt .tagline{font-size:12px;color:var(--muted);margin-bottom:12px;}
+  .badge-win{position:absolute;top:-11px;right:14px;background:var(--green);color:#fff;font-size:10px;font-weight:700;letter-spacing:.05em;padding:3px 10px;border-radius:20px;}
+  .scalebar{height:7px;border-radius:6px;background:#eee;overflow:hidden;margin:10px 0 4px;}
+  .scalebar i{display:block;height:100%;}
+  .scalelbl{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);}
+  .opt ul{margin:12px 0 0;padding-left:16px;font-size:12px;color:#374151;}
+  .opt li{margin:4px 0;}
+  .opt .verdict{font-size:12px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-weight:600;}
+  .opt .verdict.no{color:var(--red);} .opt .verdict.yes{color:var(--green);} .opt .verdict.maybe{color:var(--amber);}
+
+  /* track diagram */
+  .diagram{display:flex;flex-direction:column;gap:0;align-items:stretch;}
+  .order-node{align-self:center;background:var(--ink);color:#fff;border-radius:12px;padding:12px 20px;text-align:center;}
+  .order-node .t{font-weight:700;font-size:14px;} .order-node .s{font-size:11.5px;opacity:.7;font-family:var(--mono);}
+  .branch{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin:6px 0;}
+  .tracks{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  @media(max-width:760px){.tracks{grid-template-columns:1fr;}}
+  .track{border-radius:14px;padding:16px;border:1px solid;}
+  .track.t-del{border-color:var(--blue-ln);background:linear-gradient(180deg,var(--blue-bg),#fff);}
+  .track.t-sal{border-color:var(--teal-ln);background:linear-gradient(180deg,var(--teal-bg),#fff);}
+  .track.t-mkt{border-color:var(--purple-ln);background:linear-gradient(180deg,var(--purple-bg),#fff);}
+  .track .hd{font-weight:700;font-size:14px;display:flex;align-items:center;gap:7px;}
+  .track .role{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:20px;background:#fff;border:1px solid var(--line);color:var(--muted);}
+  .track dl{margin:12px 0 0;font-size:12px;}
+  .track dt{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-top:8px;}
+  .track dd{margin:1px 0 0;font-weight:600;font-family:var(--mono);font-size:12px;}
+  .track .emits{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line);font-size:11.5px;color:#374151;}
+  .merge{align-self:center;margin:14px 0;text-align:center;}
+  .merge .arrow{color:var(--muted);font-size:20px;line-height:1;}
+  .persist-node{align-self:center;background:var(--purple);color:#fff;border-radius:12px;padding:11px 20px;text-align:center;font-size:13px;}
+  .persist-node b{font-weight:700;}
+
+  /* schema */
+  pre{margin:0;font-family:var(--mono);font-size:12.5px;line-height:1.65;background:#0d1117;color:#e6edf3;border-radius:12px;padding:20px 22px;overflow-x:auto;}
+  pre .k{color:#ff7b72;} pre .t{color:#79c0ff;} pre .s{color:#a5d6ff;} pre .c{color:#8b949e;font-style:italic;} pre .p{color:#d2a8ff;} pre .n{color:#ffa657;}
+  .new-tag{color:var(--green);font-weight:700;}
+
+  /* mockups */
+  .mock{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;margin-top:4px;}
+  .mock .winbar{display:flex;align-items:center;gap:6px;padding:9px 14px;background:#fafafa;border-bottom:1px solid var(--line);}
+  .mock .winbar i{width:10px;height:10px;border-radius:50%;background:#e0e0e0;display:inline-block;}
+  .mock .winbar .title{margin-left:8px;font-size:12px;color:var(--muted);font-family:var(--mono);}
+  .mock .body{padding:18px 20px;}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;}
+  .tab{padding:9px 16px;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;cursor:default;display:flex;align-items:center;gap:7px;}
+  .tab.active{color:var(--ink);border-bottom-color:var(--ink);}
+  .tab .dotc{width:8px;height:8px;border-radius:50%;}
+  .tab.add{color:var(--blue);font-weight:600;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;}
+  .seg span{padding:7px 13px;font-size:12.5px;font-weight:600;color:var(--muted);border-right:1px solid var(--line);}
+  .seg span:last-child{border-right:0;}
+  .seg span.on{background:var(--ink);color:#fff;}
+  .slotrow{display:grid;grid-template-columns:1fr 90px 110px;gap:10px;align-items:center;margin-bottom:8px;font-size:13px;}
+  .slotrow input,.inp{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;font-family:var(--mono);background:#fafafa;}
+  .help{font-size:11.5px;color:var(--muted);margin-top:4px;}
+  .ratetbl{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px;}
+  .ratetbl th,.ratetbl td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;}
+  .ratetbl th{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);}
+  .ratetbl td.amt{font-family:var(--mono);font-weight:600;}
+
+  /* review mock */
+  .grp{margin-bottom:16px;}
+  .grp .ghd{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:6px 0;}
+  .grp .ghd .cnt{background:#f1f1ef;border-radius:20px;padding:1px 8px;font-size:10px;}
+  .splitrow{display:grid;grid-template-columns:26px 1fr auto auto;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;font-size:13px;}
+  .av{width:26px;height:26px;border-radius:50%;background:#f1f1ef;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;}
+  .splitrow .nm{font-weight:600;} .splitrow .meta{font-size:11px;color:var(--muted);}
+  .amt2{font-family:var(--mono);font-weight:700;}
+  .stat{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-ln);}
+
+  /* sequencing */
+  .seq{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:760px){.seq{grid-template-columns:1fr;}}
+  .step{border:1px solid var(--line);border-radius:14px;padding:18px;}
+  .step .num{width:28px;height:28px;border-radius:8px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;margin-bottom:10px;}
+  .step h3{margin:0 0 6px;font-size:15px;}
+  .step p{margin:0;font-size:13px;color:#374151;}
+  .step .tag{display:inline-block;margin-top:10px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:20px;}
+  .tag.safe{background:var(--green-bg);color:var(--green);border:1px solid var(--green-ln);}
+  .tag.add{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-ln);}
+
+  /* scaling story */
+  .scaling{background:linear-gradient(180deg,#fffdf6,#fff);border:1px solid var(--amber-ln);border-radius:14px;padding:20px 22px;}
+  .scaling .yr{display:flex;gap:14px;align-items:flex-start;padding:10px 0;border-bottom:1px dashed var(--amber-ln);}
+  .scaling .yr:last-child{border-bottom:0;}
+  .scaling .when{font-family:var(--mono);font-weight:700;font-size:13px;color:var(--amber);width:120px;flex-shrink:0;}
+  .scaling .what{font-size:13px;color:#5c4108;}
+  .scaling .what b{color:var(--ink);}
+
+  .footer{margin-top:64px;padding-top:20px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <div class="eyebrow">Avantej · Commission System · Architecture Brainstorm</div>
+    <h1>From "trainer splits" to a scalable commission model</h1>
+    <p class="sub">
+      Today's engine is delivery-shaped and trainer-locked. This doc reframes commission as
+      stackable <b>tracks</b> so marketing, sales, and future teams earn cleanly — and shows
+      the schema + UI/UX + build order. Decisions below were optimized for <b>how you scale</b>,
+      not lowest upfront effort.
+    </p>
+  </header>
+
+  <!-- DECISIONS -->
+  <div class="decisions">
+    <div class="dec">
+      <div class="lbl">Model</div>
+      <div class="val">Option B — Tracks</div>
+      <div class="why">Each new team = one track row, not an engine rewrite. 90% of a rule-engine's flexibility at a third of the complexity.</div>
+    </div>
+    <div class="dec">
+      <div class="lbl">Stacking</div>
+      <div class="val">Separate pots, per-track policy</div>
+      <div class="why">Delivery & origination are different money. Encoded as a column, so a tenant can pick shared-pot without forking code.</div>
+    </div>
+    <div class="dec">
+      <div class="lbl">Sales basis</div>
+      <div class="val">Configurable enum · default Net</div>
+      <div class="why">gross / net / flat as a column. Net by default so you never pay commission on discounted-away money.</div>
+    </div>
+  </div>
+
+  <!-- 1. REFRAME -->
+  <h2><span class="n">①</span> &nbsp;The reframe: two flavors of commission, not one</h2>
+  <table class="cmp">
+    <thead>
+      <tr><th></th><th><span class="pill deliver">Delivery</span> — what we have</th><th><span class="pill origin">Origination</span> — what's missing</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Earned by</td><td>who <b>performed</b> it — trainers / coaches</td><td>who <b>caused the sale</b> — sales rep, marketer, referrer</td></tr>
+      <tr><td>Triggered on</td><td>appointment completion / no-show / cancellation</td><td>the <b>sale</b> itself (order paid)</td></tr>
+      <tr><td>Base amount</td><td>the session / delivery total</td><td>gross · net · or flat spiff on the order</td></tr>
+      <tr><td>Who splits</td><td>all present coaches, by weightage pool (10000bp)</td><td>usually one closer; optionally a small team</td></tr>
+      <tr><td>Stacks?</td><td>—</td><td><b>Yes — on top of delivery, same order</b></td></tr>
+      <tr><td>In schema today</td><td>✅ <code>commission_coach_slots</code> + <code>trainer_tiers</code></td><td>⚠️ only the <code>requireTrainerRole:false</code> POS hack</td></tr>
+    </tbody>
+  </table>
+  <p class="help" style="margin-top:12px;">
+    Example: Sales Rep <b>A</b> sells a PT package, Trainer <b>B</b> (Senior) delivers it.
+    B earns from the <span class="pill deliver">Delivery</span> track; A earns from the
+    <span class="pill origin">Sales</span> track — independently, on the same order. They never compete for one pot.
+  </p>
+
+  <!-- 2. OPTIONS ON SCALING -->
+  <h2><span class="n">②</span> &nbsp;Three models, scored on scaling</h2>
+  <div class="opts">
+    <div class="opt">
+      <h3>A · Rename trainer→earner</h3>
+      <div class="tagline">Any role earns from the single existing pool.</div>
+      <div class="scalebar"><i style="width:25%;background:var(--red)"></i></div>
+      <div class="scalelbl"><span>Scales poorly</span><span>cheap</span></div>
+      <ul>
+        <li>Reuses all current math</li>
+        <li>One 10000bp pool — sales & trainers fight for the same money</li>
+        <li>No stacking; breaks at the first multi-team payout</li>
+      </ul>
+      <div class="verdict no">✕ Rejected — papers over the real ceiling</div>
+    </div>
+    <div class="opt win">
+      <div class="badge-win">CHOSEN</div>
+      <h3>B · Commission tracks</h3>
+      <div class="tagline">Delivery / Sales / Marketing as stacked tracks per category.</div>
+      <div class="scalebar"><i style="width:85%;background:var(--green)"></i></div>
+      <div class="scalelbl"><span>Scales cleanly</span><span>moderate</span></div>
+      <ul>
+        <li>Existing trainer logic = the "delivery track", ~unchanged</li>
+        <li>New team = new track row + its tier table</li>
+        <li>Absorbs the POS hack as a real origination track</li>
+        <li>Can evolve into C later if ever needed</li>
+      </ul>
+      <div class="verdict yes">✓ Best fit for an SME product that's growing teams</div>
+    </div>
+    <div class="opt">
+      <h3>C · Generic rule engine</h3>
+      <div class="tagline">conditions → basis → beneficiary → rate, fully configurable.</div>
+      <div class="scalebar"><i style="width:100%;background:var(--amber)"></i></div>
+      <div class="scalelbl"><span>Scales infinitely</span><span>heavy</span></div>
+      <ul>
+        <li>Any rule a tenant could imagine</li>
+        <li>Config UI + testing burden is large</li>
+        <li>No tenant has asked for arbitrary rules yet</li>
+      </ul>
+      <div class="verdict maybe">~ Deferred — premature today, reachable from B</div>
+    </div>
+  </div>
+
+  <!-- 3. TRACK MODEL -->
+  <h2><span class="n">③</span> &nbsp;The track model — one order, stacked tracks</h2>
+  <div class="card">
+    <div class="diagram">
+      <div class="order-node">
+        <div class="t">Sales Order / Appointment</div>
+        <div class="s">PT Package · RM 300 · Senior trainer delivers</div>
+      </div>
+      <div class="branch">▼ &nbsp; category resolves its enabled tracks &nbsp; ▼</div>
+      <div class="tracks">
+        <div class="track t-del">
+          <div class="hd">Delivery <span class="role">trainer</span></div>
+          <dl>
+            <dt>Trigger</dt><dd>on completion</dd>
+            <dt>Basis</dt><dd>delivery total</dd>
+            <dt>Beneficiaries</dt><dd>coach slots (pool 10000bp)</dd>
+            <dt>Rate by</dt><dd>trainer tier</dd>
+          </dl>
+          <div class="emits">→ emits split(s) to present coaches, weightage-redistributed</div>
+        </div>
+        <div class="track t-sal">
+          <div class="hd">Sales <span class="role">sales</span></div>
+          <dl>
+            <dt>Trigger</dt><dd>on sale (paid)</dd>
+            <dt>Basis</dt><dd>net order ✓ default</dd>
+            <dt>Beneficiaries</dt><dd>the closer (1)</dd>
+            <dt>Rate by</dt><dd>sales tier · or flat</dd>
+          </dl>
+          <div class="emits">→ emits one split to the assigned sales rep</div>
+        </div>
+        <div class="track t-mkt">
+          <div class="hd">Marketing <span class="role">marketing</span></div>
+          <dl>
+            <dt>Trigger</dt><dd>on sale (paid)</dd>
+            <dt>Basis</dt><dd>flat spiff</dd>
+            <dt>Beneficiaries</dt><dd>lead source (0–1)</dd>
+            <dt>Rate by</dt><dd>marketing tier</dd>
+          </dl>
+          <div class="emits">→ emits split if a lead-gen attribution exists</div>
+        </div>
+      </div>
+      <div class="merge"><div class="arrow">▼ &nbsp;&nbsp;&nbsp; ▼ &nbsp;&nbsp;&nbsp; ▼</div></div>
+      <div class="persist-node"><b>Shared persist + review</b> — caps, insert, audit, approval inbox (one engine)</div>
+    </div>
+    <p class="help" style="margin-top:14px;">
+      Each track is a <b>pure planner</b> producing splits; they all feed the <b>same</b> persist &
+      review layer. This is exactly the <code>gather → plan → persist</code> refactor — tracks are
+      just multiple planners, so that refactor is the foundation, not throwaway work.
+    </p>
+  </div>
+
+  <!-- 4. SCHEMA -->
+  <h2><span class="n">④</span> &nbsp;Schema — what changes</h2>
+  <pre><span class="c">// NEW — a category has many tracks (was: one implicit trainer config)</span>
+<span class="k">table</span> <span class="t">commission_tracks</span> {
+  <span class="p">id</span>            uuid pk
+  <span class="p">categoryId</span>    uuid → service_categories
+  <span class="p">roleType</span>      <span class="t">text</span>   <span class="c">// "trainer" | "sales" | "marketing" | "referrer" …extensible</span>
+  <span class="p">trigger</span>       <span class="t">text</span>   <span class="c">// "on_completion" | "on_sale"</span>
+  <span class="p">basis</span>         <span class="t">text</span>   <span class="c">// "delivery_total" | "gross_order" | "net_order" | "flat"  ← the dimension</span>
+  <span class="p">paymentType</span>   <span class="t">text</span>   <span class="c">// "fixed" | "variable"  (reused from today)</span>
+  <span class="p">poolPolicy</span>    <span class="t">text</span>   <span class="c">// "separate" (default) | "shared"  ← stacking, per-track</span>
+  <span class="p">maxBeneficiaries</span> int  <span class="c">// 1 for sales, N for coach pools</span>
+  <span class="p">isActive</span>      bool
+}
+<span class="c">// Trainer config today maps 1:1 onto a roleType:"trainer" track — zero data loss.</span>
+
+<span class="c">// GENERALIZE — tiers gain a roleType so they're role-scoped, not trainer-only</span>
+<span class="k">table</span> <span class="t">earner_tiers</span> {         <span class="c">// was: trainer_tiers (renamed + 1 column)</span>
+  <span class="p">id</span> uuid pk · <span class="p">name</span> · <span class="p">rank</span> · <span class="p">isActive</span>
+  <span class="p">roleType</span>  <span class="t">text</span>          <span class="new-tag">// NEW — "trainer" | "sales" | …  Trainer/Sales tiers coexist</span>
+}
+
+<span class="c">// RATES hang off a track, keyed by tier (was: configId + trainerTierId)</span>
+<span class="k">table</span> <span class="t">commission_track_rates</span> {
+  <span class="p">trackId</span>  uuid → commission_tracks
+  <span class="p">tierId</span>   uuid → earner_tiers
+  <span class="p">amount</span>   int   <span class="c">// cents if fixed, basis-points if variable</span>
+}
+
+<span class="c">// coach slots stay — they belong to delivery-type tracks only</span>
+<span class="k">table</span> <span class="t">commission_coach_slots</span> {  <span class="p">trackId</span>  <span class="c">// repointed from configId → trackId</span> · <span class="p">slotIndex</span> · <span class="p">weightageBasisPoints</span> }
+
+<span class="c">// OUTPUT — splits gain provenance so review/payout can group by track</span>
+<span class="k">table</span> <span class="t">commission_splits</span> {
+  …all existing snapshot fields…
+  <span class="p">trackId</span>   uuid     <span class="new-tag">// NEW — which track produced this</span>
+  <span class="p">roleType</span>  <span class="t">text</span>     <span class="new-tag">// NEW — denormalized for fast review grouping</span>
+  <span class="p">tierId</span>    uuid     <span class="c">// was trainerTierId (rename; still a snapshot, no FK)</span>
+}</pre>
+  <p class="help" style="margin-top:12px;">
+    Migration is additive + a rename: existing trainer config becomes a <code>roleType:"trainer"</code>
+    track, <code>trainer_tiers</code>→<code>earner_tiers</code> with <code>roleType:"trainer"</code> backfilled.
+    No historical split is recomputed.
+  </p>
+
+  <!-- 5. UI/UX -->
+  <h2><span class="n">⑤</span> &nbsp;UI / UX</h2>
+
+  <!-- config mock -->
+  <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#374151;">A · Category commission setup — tabbed by track (progressive: extra tracks only appear when enabled)</div>
+  <div class="mock">
+    <div class="winbar"><i></i><i></i><i></i><span class="title">/dashboard/settings/commissions · Personal Training</span></div>
+    <div class="body">
+      <div class="tabs">
+        <div class="tab active"><span class="dotc" style="background:var(--blue)"></span>Delivery</div>
+        <div class="tab"><span class="dotc" style="background:var(--teal)"></span>Sales</div>
+        <div class="tab"><span class="dotc" style="background:var(--purple)"></span>Marketing</div>
+        <div class="tab add">+ Add track</div>
+      </div>
+
+      <div class="field">
+        <label>Payment type</label>
+        <div class="seg"><span class="on">Fixed (RM)</span><span>Variable (%)</span></div>
+      </div>
+
+      <div class="field">
+        <label>Coach slots &amp; weightage <span style="color:var(--muted);text-transform:none;font-weight:400">— must total 100%</span></label>
+        <div class="slotrow"><input class="inp" value="Lead coach" /><input class="inp" value="60%" /><span class="help">slot 1</span></div>
+        <div class="slotrow"><input class="inp" value="Assistant" /><input class="inp" value="40%" /><span class="help">slot 2</span></div>
+        <div class="help">Absent slots redistribute to present coaches automatically.</div>
+      </div>
+
+      <div class="field">
+        <label>Rate by trainer tier</label>
+        <table class="ratetbl">
+          <thead><tr><th>Tier</th><th>Rate</th><th>Per-cycle cap</th></tr></thead>
+          <tbody>
+            <tr><td>Master</td><td class="amt">RM 80</td><td class="amt">RM 6,000</td></tr>
+            <tr><td>Senior</td><td class="amt">RM 50</td><td class="amt">RM 4,000</td></tr>
+            <tr><td>Junior</td><td class="amt">RM 30</td><td class="amt">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- sales tab mock -->
+  <div style="font-size:13px;font-weight:600;margin:22px 0 8px;color:#374151;">A′ · The same screen, "Sales" track selected — different shape, same engine</div>
+  <div class="mock">
+    <div class="winbar"><i></i><i></i><i></i><span class="title">/dashboard/settings/commissions · Personal Training</span></div>
+    <div class="body">
+      <div class="tabs">
+        <div class="tab"><span class="dotc" style="background:var(--blue)"></span>Delivery</div>
+        <div class="tab active"><span class="dotc" style="background:var(--teal)"></span>Sales</div>
+        <div class="tab"><span class="dotc" style="background:var(--purple)"></span>Marketing</div>
+        <div class="tab add">+ Add track</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+        <div class="field"><label>Commission basis</label>
+          <div class="seg"><span>Gross</span><span class="on">Net (after discount)</span><span>Flat spiff</span></div>
+          <div class="help">Net is recommended — you don't pay on money you discounted away.</div>
+        </div>
+        <div class="field"><label>Stacking</label>
+          <div class="seg"><span class="on">Separate pot</span><span>Shared with delivery</span></div>
+          <div class="help">Separate = paid on top of trainers' commission.</div>
+        </div>
+      </div>
+      <div class="field"><label>Beneficiary</label>
+        <div class="seg"><span class="on">Assigned closer (1)</span><span>Sales team split</span></div>
+      </div>
+      <div class="field"><label>Rate by sales tier</label>
+        <table class="ratetbl">
+          <thead><tr><th>Tier</th><th>Rate (% of net)</th><th>Cap</th></tr></thead>
+          <tbody>
+            <tr><td>Senior closer</td><td class="amt">5.0%</td><td class="amt">—</td></tr>
+            <tr><td>Junior closer</td><td class="amt">3.0%</td><td class="amt">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- review mock -->
+  <div style="font-size:13px;font-weight:600;margin:22px 0 8px;color:#374151;">B · Commission review inbox — splits grouped by track, approvable on separate cadences</div>
+  <div class="mock">
+    <div class="winbar"><i></i><i></i><i></i><span class="title">/dashboard/operations/commissions</span></div>
+    <div class="body">
+      <div class="grp">
+        <div class="ghd"><span class="dotc" style="width:8px;height:8px;border-radius:50%;background:var(--blue);display:inline-block"></span>Delivery commissions <span class="cnt">2</span></div>
+        <div class="splitrow"><div class="av">AB</div><div><div class="nm">Aiman B. <span class="meta">· Senior · lead coach 60%</span></div><div class="meta">PT Package · earned 30 May</div></div><div class="amt2">RM 48.00</div><div class="stat">pending</div></div>
+        <div class="splitrow"><div class="av">SC</div><div><div class="nm">Siti C. <span class="meta">· Junior · assistant 40%</span></div><div class="meta">PT Package · earned 30 May</div></div><div class="amt2">RM 20.00</div><div class="stat">pending</div></div>
+      </div>
+      <div class="grp">
+        <div class="ghd"><span class="dotc" style="width:8px;height:8px;border-radius:50%;background:var(--teal);display:inline-block"></span>Sales commissions <span class="cnt">1</span></div>
+        <div class="splitrow"><div class="av">RL</div><div><div class="nm">Rahim L. <span class="meta">· Senior closer · 5% of net</span></div><div class="meta">PT Package · net RM 300 · earned 30 May</div></div><div class="amt2">RM 15.00</div><div class="stat">pending</div></div>
+      </div>
+    </div>
+  </div>
+  <p class="help" style="margin-top:12px;">
+    Same package, three earners, two tracks — each line shows its provenance (tier, slot/basis) and
+    finance can filter & approve "Delivery" separately from "Sales".
+  </p>
+
+  <!-- 6. SEQUENCING -->
+  <h2><span class="n">⑥</span> &nbsp;Build order — refactor first, tracks are additive</h2>
+  <div class="seq">
+    <div class="step">
+      <div class="num">1</div>
+      <h3>Structural refactor (behavior-preserving)</h3>
+      <p>Land <code>gather → plan → persist</code> on the current trainer-only logic. No schema change, no behavior change — proven by an output-diff test on real splits.</p>
+      <span class="tag safe">✓ zero behavior change</span>
+    </div>
+    <div class="step">
+      <div class="num">2</div>
+      <h3>Generalize to tracks (additive)</h3>
+      <p>Migrate trainer config → a <code>trainer</code> track, rename tiers, add the tracks/rates tables. The delivery planner is what you already refactored; add a sales planner + the config tabs.</p>
+      <span class="tag add">+ new tracks, shared persist</span>
+    </div>
+  </div>
+
+  <!-- 7. SCALING STORY -->
+  <h2><span class="n">⑦</span> &nbsp;Why this scales</h2>
+  <div class="scaling">
+    <div class="yr"><div class="when">today</div><div class="what"><b>Trainers + tiers.</b> Exactly what ships now — becomes the delivery track, untouched behavior.</div></div>
+    <div class="yr"><div class="when">+ sales team</div><div class="what">Enable a <b>Sales track</b> on a category. One row in <code>commission_tracks</code> + a sales tier table. No engine change.</div></div>
+    <div class="yr"><div class="when">+ marketing</div><div class="what">Enable a <b>Marketing track</b> with a flat spiff basis. Same pattern. Reviews auto-group it.</div></div>
+    <div class="yr"><div class="when">+ referral program</div><div class="what">Add <code>roleType:"referrer"</code>. <b>Zero new tables</b> — it's a value in an existing enum + a planner strategy.</div></div>
+    <div class="yr"><div class="when">if ever needed</div><div class="what">Tenant wants arbitrary rules → evolve track → rule-engine (Option C) on the same persist/review foundation.</div></div>
+  </div>
+
+  <div class="footer">
+    <span>Brainstorm · commission architecture · proposal only — no code or schema changed</span>
+    <span>Avantej · 2026-05-30</span>
+  </div>
+
+</div>
+</body>
+</html>

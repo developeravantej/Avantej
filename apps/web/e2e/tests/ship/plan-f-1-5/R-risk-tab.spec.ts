@@ -79,7 +79,11 @@ async function seedSnapshot(
 	organizationId: string,
 	daysAgo: number,
 	healthScore: number | null,
-	flags: Array<{ code: string; severity: "info" | "warn" | "critical"; observedAt: string }>,
+	flags: Array<{
+		code: string;
+		severity: "info" | "warn" | "critical";
+		observedAt: string;
+	}>,
 ) {
 	const d = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
 	await cp
@@ -358,9 +362,9 @@ test.describe("@ship-f-1-5 Plan F.1.5 — Tenant Risk tab", () => {
 			await expect(spark).toHaveAttribute("data-last-score", "50");
 			await expect(spark.locator("polyline")).toHaveCount(1);
 			await expect(spark.locator("circle")).toHaveCount(10);
-			await expect(
-				page.getByTestId("health-sparkline-last-label"),
-			).toHaveText("50");
+			await expect(page.getByTestId("health-sparkline-last-label")).toHaveText(
+				"50",
+			);
 		}
 		const hist5 = await rpc(apiCtx, "platformAdminTenants/health/history", {
 			organizationId,

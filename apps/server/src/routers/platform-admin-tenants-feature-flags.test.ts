@@ -35,8 +35,7 @@ function fakeContext(userId = TEST_USER_ID) {
 	return {
 		session: { user: { id: userId, email: "admin@test.local" } },
 		honoContext: {
-			get: (k: string) =>
-				k === "controlPanelDb" ? controlPanelDb : undefined,
+			get: (k: string) => (k === "controlPanelDb" ? controlPanelDb : undefined),
 		},
 	};
 }
@@ -102,9 +101,10 @@ async function seedOrgWithTier(
 				stripeCustomerId: `cus_test_${idSuffix}`,
 				stripePriceId: `price_test_${idSuffix}`,
 				tier,
-				organizationCountLimit: TIER_LIMITS[tier].organizations === Number.MAX_SAFE_INTEGER
-					? 9999
-					: TIER_LIMITS[tier].organizations,
+				organizationCountLimit:
+					TIER_LIMITS[tier].organizations === Number.MAX_SAFE_INTEGER
+						? 9999
+						: TIER_LIMITS[tier].organizations,
 				applicationFeeBps: TIER_LIMITS[tier].appFeeBps,
 				currency: "usd",
 				status,
@@ -246,10 +246,7 @@ describe("platformAdminTenantsFeatureFlagsRouter — overrides (F.6 Agent Fo)", 
 			.where(
 				and(
 					eq(adminSessionActions.targetOrganizationId, orgId),
-					eq(
-						adminSessionActions.actionType,
-						"tenant_feature_override_set",
-					),
+					eq(adminSessionActions.actionType, "tenant_feature_override_set"),
 				),
 			);
 		expect(auditRows.length).toBeGreaterThan(0);
@@ -310,10 +307,7 @@ describe("platformAdminTenantsFeatureFlagsRouter — overrides (F.6 Agent Fo)", 
 			.where(
 				and(
 					eq(adminSessionActions.targetOrganizationId, orgId),
-					eq(
-						adminSessionActions.actionType,
-						"tenant_feature_override_clear",
-					),
+					eq(adminSessionActions.actionType, "tenant_feature_override_clear"),
 				),
 			);
 		expect(auditRows.length).toBe(1);

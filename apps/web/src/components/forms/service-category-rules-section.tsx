@@ -1,13 +1,7 @@
-import type { UseFormReturn } from "react-hook-form";
+import type { AnyFieldApi } from "@tanstack/react-form";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-	FormControl,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export type ServiceCategoryRulesValues = {
 	requireAdvanceBooking: boolean;
@@ -17,19 +11,42 @@ export type ServiceCategoryRulesValues = {
 	bufferTimeMinutes: number;
 };
 
-type Props<T extends ServiceCategoryRulesValues> = {
-	form: UseFormReturn<T>;
+// See supplier-form-sections.tsx for explanation of the loose typing pattern.
+type FormShape = {
+	Field: (props: {
+		name: string;
+		children: (field: AnyFieldApi) => React.ReactNode;
+	}) => React.ReactNode;
+};
+
+export type ServiceCategoryRulesFormApi = FormShape;
+
+type Props = {
+	form: ServiceCategoryRulesFormApi;
 	requireAdvanceBooking: boolean;
 	enableCancellationWindow: boolean;
 };
 
-export function ServiceCategoryRulesSection<T extends ServiceCategoryRulesValues>({
+function FieldError({ errors }: { errors: unknown[] }) {
+	if (errors.length === 0) return null;
+	return (
+		<>
+			{errors.map((error, i) => (
+				<p key={i} className="text-sm text-destructive">
+					{typeof error === "string"
+						? error
+						: (error as { message?: string })?.message || "Invalid value"}
+				</p>
+			))}
+		</>
+	);
+}
+
+export function ServiceCategoryRulesSection({
 	form,
 	requireAdvanceBooking,
 	enableCancellationWindow,
-}: Props<T>) {
-	// biome-ignore lint/suspicious/noExplicitAny: generic form field name narrowing
-	const f = form as unknown as UseFormReturn<ServiceCategoryRulesValues>;
+}: Props) {
 	return (
 		<div className="rounded-2xl border border-brand-secondary-3 bg-card p-6">
 			<h3 className="mb-4 font-subheading text-base text-foreground">
@@ -37,118 +54,112 @@ export function ServiceCategoryRulesSection<T extends ServiceCategoryRulesValues
 			</h3>
 
 			<div className="grid grid-cols-2 gap-4">
-				<FormField
-					control={f.control}
-					name="requireAdvanceBooking"
-					render={({ field }) => (
-						<FormItem className="flex flex-row items-center gap-2 gap-y-0">
-							<FormControl>
-								<Checkbox
-									className="bg-white"
-									checked={field.value}
-									onCheckedChange={field.onChange}
-								/>
-							</FormControl>
-							<FormLabel className="!mt-0 font-normal">
+				<form.Field name="requireAdvanceBooking">
+					{(field) => (
+						<div className="flex flex-row items-center gap-2">
+							<Checkbox
+								id={field.name}
+								className="bg-white"
+								checked={field.state.value}
+								onCheckedChange={(v) => field.handleChange(v === true)}
+							/>
+							<Label htmlFor={field.name} className="font-normal">
 								Require advance booking
-							</FormLabel>
-						</FormItem>
+							</Label>
+						</div>
 					)}
-				/>
+				</form.Field>
 
-				<FormField
-					control={f.control}
-					name="enableCancellationWindow"
-					render={({ field }) => (
-						<FormItem className="flex flex-row items-center gap-2 gap-y-0">
-							<FormControl>
-								<Checkbox
-									className="bg-white"
-									checked={field.value}
-									onCheckedChange={field.onChange}
-								/>
-							</FormControl>
-							<FormLabel className="!mt-0 font-normal">
+				<form.Field name="enableCancellationWindow">
+					{(field) => (
+						<div className="flex flex-row items-center gap-2">
+							<Checkbox
+								id={field.name}
+								className="bg-white"
+								checked={field.state.value}
+								onCheckedChange={(v) => field.handleChange(v === true)}
+							/>
+							<Label htmlFor={field.name} className="font-normal">
 								Enable cancellation window
-							</FormLabel>
-						</FormItem>
+							</Label>
+						</div>
 					)}
-				/>
+				</form.Field>
 			</div>
 
 			<div className="mt-3 grid grid-cols-2 gap-4">
-				<FormField
-					control={f.control}
-					name="minAdvanceHours"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Min advance booking (hours)</FormLabel>
-							<FormControl>
-								<Input
-									className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-									type="number"
-									min={0}
-									disabled={!requireAdvanceBooking}
-									placeholder={requireAdvanceBooking ? undefined : "Not required"}
-									{...field}
-									onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
-								/>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
+				<form.Field name="minAdvanceHours">
+					{(field) => (
+						<div className="space-y-1">
+							<Label htmlFor={field.name}>Min advance booking (hours)</Label>
+							<Input
+								id={field.name}
+								className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+								type="number"
+								min={0}
+								disabled={!requireAdvanceBooking}
+								placeholder={requireAdvanceBooking ? undefined : "Not required"}
+								value={field.state.value}
+								onBlur={field.handleBlur}
+								onChange={(e) =>
+									field.handleChange(e.target.valueAsNumber || 0)
+								}
+							/>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
+				</form.Field>
 
-				<FormField
-					control={f.control}
-					name="cancellationCutoffHours"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Cancellation cutoff (hours)</FormLabel>
-							<FormControl>
-								<Input
-									className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-									type="number"
-									min={0}
-									disabled={!enableCancellationWindow}
-									placeholder={
-										enableCancellationWindow ? undefined : "Not required"
-									}
-									{...field}
-									onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
-								/>
-							</FormControl>
-							<FormMessage />
-						</FormItem>
+				<form.Field name="cancellationCutoffHours">
+					{(field) => (
+						<div className="space-y-1">
+							<Label htmlFor={field.name}>Cancellation cutoff (hours)</Label>
+							<Input
+								id={field.name}
+								className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+								type="number"
+								min={0}
+								disabled={!enableCancellationWindow}
+								placeholder={
+									enableCancellationWindow ? undefined : "Not required"
+								}
+								value={field.state.value}
+								onBlur={field.handleBlur}
+								onChange={(e) =>
+									field.handleChange(e.target.valueAsNumber || 0)
+								}
+							/>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
+				</form.Field>
 			</div>
 
 			<div className="mt-3">
-				<FormField
-					control={f.control}
-					name="bufferTimeMinutes"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Buffer Time (minutes)</FormLabel>
-							<FormControl>
-								<Input
-									className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-									type="number"
-									min={0}
-									max={480}
-									{...field}
-									onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
-								/>
-							</FormControl>
+				<form.Field name="bufferTimeMinutes">
+					{(field) => (
+						<div className="space-y-1">
+							<Label htmlFor={field.name}>Buffer Time (minutes)</Label>
+							<Input
+								id={field.name}
+								className="bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+								type="number"
+								min={0}
+								max={480}
+								value={field.state.value}
+								onBlur={field.handleBlur}
+								onChange={(e) =>
+									field.handleChange(e.target.valueAsNumber || 0)
+								}
+							/>
 							<p className="text-xs text-muted-foreground">
 								Minutes required between consecutive bookings for services in
 								this category
 							</p>
-							<FormMessage />
-						</FormItem>
+							<FieldError errors={field.state.meta.errors} />
+						</div>
 					)}
-				/>
+				</form.Field>
 			</div>
 		</div>
 	);

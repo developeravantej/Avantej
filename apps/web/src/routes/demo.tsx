@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "@tanstack/react-form";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,15 +10,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import {
-	Form,
-	FormControl,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/demo")({
@@ -35,31 +27,45 @@ const demoSchema = z.object({
 
 type DemoForm = z.infer<typeof demoSchema>;
 
+function FieldError({ errors }: { errors: unknown[] }) {
+	if (errors.length === 0) return null;
+	return (
+		<>
+			{errors.map((error, i) => (
+				<p key={i} className="text-sm text-destructive">
+					{typeof error === "string"
+						? error
+						: (error as { message?: string })?.message || "Invalid value"}
+				</p>
+			))}
+		</>
+	);
+}
+
 function DemoPage() {
-	const form = useForm<DemoForm>({
-		resolver: zodResolver(demoSchema),
+	const form = useForm({
 		defaultValues: {
 			name: "",
 			email: "",
 			company: "",
 			message: "",
+		} as DemoForm,
+		validators: { onSubmit: demoSchema },
+		onSubmit: async ({ value }) => {
+			const bodyLines = [
+				`From: ${value.name} (${value.email})`,
+				value.company ? `Company: ${value.company}` : null,
+				"",
+				value.message || "I would like to request a demo of Avantej.",
+			]
+				.filter((line) => line !== null)
+				.join("\n");
+
+			const mailtoUrl = `mailto:support@avantej.com?subject=${encodeURIComponent("Demo Request")}&body=${encodeURIComponent(bodyLines)}`;
+			window.location.href = mailtoUrl;
+			toast.success("Opening your email client...");
 		},
 	});
-
-	const onSubmit = (data: DemoForm) => {
-		const bodyLines = [
-			`From: ${data.name} (${data.email})`,
-			data.company ? `Company: ${data.company}` : null,
-			"",
-			data.message || "I would like to request a demo of Avantej.",
-		]
-			.filter((line) => line !== null)
-			.join("\n");
-
-		const mailtoUrl = `mailto:support@avantej.com?subject=${encodeURIComponent("Demo Request")}&body=${encodeURIComponent(bodyLines)}`;
-		window.location.href = mailtoUrl;
-		toast.success("Opening your email client...");
-	};
 
 	return (
 		<div className="min-h-screen bg-zinc-50">
@@ -86,88 +92,98 @@ function DemoPage() {
 								</CardDescription>
 							</CardHeader>
 							<CardContent>
-								<Form {...form}>
-									<form
-										onSubmit={form.handleSubmit(onSubmit)}
-										className="space-y-4"
-									>
-										<FormField
-											control={form.control}
-											name="name"
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>
-														Name <span className="text-red-500">*</span>
-													</FormLabel>
-													<FormControl>
-														<Input placeholder="Your full name" {...field} />
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-										<FormField
-											control={form.control}
-											name="email"
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>
-														Email <span className="text-red-500">*</span>
-													</FormLabel>
-													<FormControl>
-														<Input
-															type="email"
-															placeholder="you@company.com"
-															{...field}
-														/>
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-										<FormField
-											control={form.control}
-											name="company"
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>Company</FormLabel>
-													<FormControl>
-														<Input
-															placeholder="Your company or franchise name"
-															{...field}
-														/>
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-										<FormField
-											control={form.control}
-											name="message"
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>How can we help?</FormLabel>
-													<FormControl>
-														<Textarea
-															rows={4}
-															placeholder="Tell us about your business and what you are looking to achieve with Avantej..."
-															{...field}
-														/>
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-										<Button
-											type="submit"
-											size="lg"
-											className="w-full bg-zinc-950 text-white hover:bg-black/90"
-											disabled={form.formState.isSubmitting}
-										>
-											Request Demo
-										</Button>
-									</form>
-								</Form>
+								{/* react-doctor-disable-next-line react-doctor/no-prevent-default -- TanStack Router SPA */}
+								<form
+									onSubmit={(e) => {
+										e.preventDefault();
+										e.stopPropagation();
+										form.handleSubmit();
+									}}
+									className="space-y-4"
+								>
+									<form.Field name="name">
+										{(field) => (
+											<div className="space-y-2">
+												<Label htmlFor={field.name}>
+													Name <span className="text-red-500">*</span>
+												</Label>
+												<Input
+													id={field.name}
+													placeholder="Your full name"
+													value={field.state.value}
+													onBlur={field.handleBlur}
+													onChange={(e) => field.handleChange(e.target.value)}
+												/>
+												<FieldError errors={field.state.meta.errors} />
+											</div>
+										)}
+									</form.Field>
+
+									<form.Field name="email">
+										{(field) => (
+											<div className="space-y-2">
+												<Label htmlFor={field.name}>
+													Email <span className="text-red-500">*</span>
+												</Label>
+												<Input
+													id={field.name}
+													type="email"
+													placeholder="you@company.com"
+													value={field.state.value}
+													onBlur={field.handleBlur}
+													onChange={(e) => field.handleChange(e.target.value)}
+												/>
+												<FieldError errors={field.state.meta.errors} />
+											</div>
+										)}
+									</form.Field>
+
+									<form.Field name="company">
+										{(field) => (
+											<div className="space-y-2">
+												<Label htmlFor={field.name}>Company</Label>
+												<Input
+													id={field.name}
+													placeholder="Your company or franchise name"
+													value={field.state.value ?? ""}
+													onBlur={field.handleBlur}
+													onChange={(e) => field.handleChange(e.target.value)}
+												/>
+												<FieldError errors={field.state.meta.errors} />
+											</div>
+										)}
+									</form.Field>
+
+									<form.Field name="message">
+										{(field) => (
+											<div className="space-y-2">
+												<Label htmlFor={field.name}>How can we help?</Label>
+												<Textarea
+													id={field.name}
+													rows={4}
+													placeholder="Tell us about your business and what you are looking to achieve with Avantej..."
+													value={field.state.value ?? ""}
+													onBlur={field.handleBlur}
+													onChange={(e) => field.handleChange(e.target.value)}
+												/>
+												<FieldError errors={field.state.meta.errors} />
+											</div>
+										)}
+									</form.Field>
+
+									<form.Subscribe selector={(state) => state.isSubmitting}>
+										{(isSubmitting) => (
+											<Button
+												type="submit"
+												size="lg"
+												className="w-full bg-zinc-950 text-white hover:bg-black/90"
+												disabled={isSubmitting}
+											>
+												Request Demo
+											</Button>
+										)}
+									</form.Subscribe>
+								</form>
 							</CardContent>
 						</Card>
 					</div>

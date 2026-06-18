@@ -87,70 +87,85 @@ export function ExtendInstanceDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-md" data-testid="extend-instance-dialog">
-				<DialogHeader>
-					<DialogTitle>Extend Expiry</DialogTitle>
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+				data-testid="extend-instance-dialog"
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						PACKAGE CATALOG
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Extend Expiry
+					</DialogTitle>
 					{instanceLabel && (
-						<DialogDescription>Extending "{instanceLabel}".</DialogDescription>
+						<DialogDescription className="text-sm text-[#737373]">
+							Extending "{instanceLabel}".
+						</DialogDescription>
 					)}
 				</DialogHeader>
 
-				<div className="space-y-4 py-2">
-					{/* Current expiry */}
-					<div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 px-4 py-3">
-						<CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
-						<div className="text-sm">
-							<span className="text-muted-foreground">Current expiry: </span>
-							<span className="font-medium">{currentExpiresLabel}</span>
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					<div className="space-y-4 py-2">
+						{/* Current expiry */}
+						<div className="flex items-center gap-3 rounded-lg border border-[#e5e5e5] bg-[#f3f3f3] px-4 py-3">
+							<CalendarDays className="h-4 w-4 shrink-0 text-[#737373]" />
+							<div className="text-sm">
+								<span className="text-[#737373]">Current expiry: </span>
+								<span className="font-medium">{currentExpiresLabel}</span>
+							</div>
 						</div>
-					</div>
 
-					{/* Add days */}
-					<div className="space-y-1.5">
-						<Label htmlFor="extend-days">
-							Add days <span className="text-destructive">*</span>
-						</Label>
-						<Input
-							id="extend-days"
-							type="number"
-							min={1}
-							max={365}
-							step={1}
-							placeholder="e.g. 30"
-							value={addDays}
-							onChange={(e) => setAddDays(e.target.value)}
-							data-testid="extend-days-input"
-						/>
-						{addDays && !isValidDays && (
-							<p className="text-xs text-destructive">Enter a number between 1 and 365.</p>
-						)}
-						{isValidDays && newExpiresAt && (
-							<p className="text-xs text-muted-foreground">
-								New expiry:{" "}
-								<span className="font-medium text-foreground">
-									{new Date(newExpiresAt).toLocaleDateString("en-MY")}
-								</span>
-							</p>
-						)}
-					</div>
+						{/* Add days */}
+						<div className="space-y-1.5">
+							<Label htmlFor="extend-days">
+								Add days <span className="text-rose-600">*</span>
+							</Label>
+							<Input
+								id="extend-days"
+								type="number"
+								min={1}
+								max={365}
+								step={1}
+								placeholder="e.g. 30"
+								value={addDays}
+								onChange={(e) => setAddDays(e.target.value)}
+								data-testid="extend-days-input"
+							/>
+							{addDays && !isValidDays && (
+								<p className="text-xs text-rose-600">
+									Enter a number between 1 and 365.
+								</p>
+							)}
+							{isValidDays && newExpiresAt && (
+								<p className="text-xs text-[#737373]">
+									New expiry:{" "}
+									<span className="font-medium text-[#0a0a0a]">
+										{new Date(newExpiresAt).toLocaleDateString("en-MY")}
+									</span>
+								</p>
+							)}
+						</div>
 
-					{/* Reason */}
-					<div className="space-y-1.5">
-						<Label htmlFor="extend-reason">
-							Reason{" "}
-							<span className="text-muted-foreground text-xs">(recommended)</span>
-						</Label>
-						<Textarea
-							id="extend-reason"
-							placeholder="e.g. Customer was hospitalized — extending grace period…"
-							rows={2}
-							value={reason}
-							onChange={(e) => setReason(e.target.value)}
-						/>
+						{/* Reason */}
+						<div className="space-y-1.5">
+							<Label htmlFor="extend-reason">
+								Reason{" "}
+								<span className="text-[#737373] text-xs">(recommended)</span>
+							</Label>
+							<Textarea
+								id="extend-reason"
+								placeholder="e.g. Customer was hospitalized — extending grace period…"
+								rows={2}
+								value={reason}
+								onChange={(e) => setReason(e.target.value)}
+							/>
+						</div>
 					</div>
 				</div>
 
-				<DialogFooter>
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 					<Button
 						type="button"
 						variant="outline"
@@ -161,6 +176,7 @@ export function ExtendInstanceDialog({
 					</Button>
 					<Button
 						type="button"
+						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
 						onClick={handleConfirm}
 						disabled={!isValidDays || extendMutation.isPending}
 						data-testid="extend-instance-confirm-button"

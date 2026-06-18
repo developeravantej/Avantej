@@ -1,14 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { MembersTabPage } from "@/components/pages/access-control/members-tab";
 import { InvitationsTabPage } from "@/components/pages/access-control/invitations-tab";
 import { UserPlus } from "lucide-react";
 
+import { z } from "zod";
+
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/access-control/user-assignment",
 )({
-	validateSearch: (search: Record<string, unknown>) => ({
-		tab: (search.tab as string | undefined) ?? "members",
-	}),
+	beforeLoad: async () => {
+		await requirePermission("role_management:read");
+	},
+	validateSearch: z.object({ tab: z.string().catch("members") }),
 	component: StaffAccessPage,
 });
 

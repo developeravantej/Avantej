@@ -2,7 +2,9 @@ export function encodeCursor(changedAt: Date, id: string): string {
 	return `${changedAt.toISOString()}|${id}`;
 }
 
-export function parseCursor(cursor: string): { changedAt: Date; id: string } | null {
+export function parseCursor(
+	cursor: string,
+): { changedAt: Date; id: string } | null {
 	try {
 		const sep = cursor.lastIndexOf("|");
 		if (sep === -1) return null;

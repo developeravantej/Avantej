@@ -50,9 +50,7 @@ const FIXTURE_ROLES: Role[] = [
 		name: "Admin Role",
 		description: "Admin role for tests",
 		priority: 1,
-		permissions: [
-			{ resourceId: "users", actionId: "read", scope: "own" },
-		],
+		permissions: [{ resourceId: "users", actionId: "read", scope: "own" }],
 	},
 ];
 
@@ -117,8 +115,8 @@ describe("EnhancedPermissionMatrix (smoke)", () => {
 		// circular toggle button is the immediate sibling of the action text.
 		// The "Create" action starts with no permission → first toggle should
 		// grant "own".
-		const createRow = screen.getByText("Create").closest("div")
-			?.parentElement?.parentElement as HTMLElement;
+		const createRow = screen.getByText("Create").closest("div")?.parentElement
+			?.parentElement as HTMLElement;
 		const createToggle = createRow.querySelector("button");
 		expect(createToggle).not.toBeNull();
 

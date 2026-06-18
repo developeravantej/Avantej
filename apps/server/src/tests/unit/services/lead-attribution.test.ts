@@ -7,9 +7,9 @@ import {
 
 describe("mergeLeadAttributionIntoStaffAssignments", () => {
 	test("returns empty-derived slot 0 when no assignments", () => {
-		expect(
-			mergeLeadAttributionIntoStaffAssignments([], "lead-user"),
-		).toEqual([{ staffId: "lead-user", slotIndex: 0 }]);
+		expect(mergeLeadAttributionIntoStaffAssignments([], "lead-user")).toEqual([
+			{ staffId: "lead-user", slotIndex: 0 },
+		]);
 	});
 
 	test("no-op when lead already assigned", () => {

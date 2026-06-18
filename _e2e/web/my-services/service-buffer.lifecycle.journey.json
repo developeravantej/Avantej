@@ -1,0 +1,10 @@
+{
+  "my-services/service-buffer.lifecycle.spec.ts::updateMyBuffer — set then restore my override for an assigned service": [
+    "List the caller's assigned services via serviceMembers/listMine and capture the original buffer override",
+    "Set a marker buffer (17 min) for an assigned service via serviceMembers/updateMyBuffer",
+    "Assert the response returns the marker buffer value",
+    "Re-query serviceMembers/listMine and assert the override persisted on that service",
+    "Clear the override (null) and assert it is removed",
+    "Restore the caller's original buffer value in finally"
+  ]
+}

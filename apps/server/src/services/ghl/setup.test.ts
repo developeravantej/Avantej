@@ -72,14 +72,15 @@ describe("ensureCustomFieldsExist", () => {
 	});
 
 	test("creates missing custom fields and returns the new ids", async () => {
-		const fetchMock = mock<(input: string, init?: RequestInit) => Promise<Response>>(async (input, init) => {
+		const fetchMock = mock<
+			(input: string, init?: RequestInit) => Promise<Response>
+		>(async (input, init) => {
 			const url = String(input);
 			const method = init?.method ?? "GET";
 			if (method === "GET" && url.includes("/customFields")) {
-				return new Response(
-					JSON.stringify({ customFields: [] }),
-					{ status: 200 },
-				);
+				return new Response(JSON.stringify({ customFields: [] }), {
+					status: 200,
+				});
 			}
 			if (method === "POST" && url.includes("/customFields")) {
 				const body = JSON.parse(init!.body as string) as { name: string };

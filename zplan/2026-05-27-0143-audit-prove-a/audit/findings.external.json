@@ -1,0 +1,236 @@
+[
+  {
+    "id": "CP-001", "domain": "commissions-payouts", "severity": "critical",
+    "status": "missing", "testable": true,
+    "title": "commission_payout:process never seeded — runBatch & processForRecipient always FORBIDDEN",
+    "file": "packages/api/src/routers/payouts.ts", "line": 187,
+    "verifiedBy": "self", "verificationTag": "verified",
+    "description": "runBatch and processForRecipient both require commission_payout:process. Neither seed file (seed-rbac.ts nor seeds/permissions.seed.ts) seeds that action — only read/create/update are seeded. Every call returns FORBIDDEN for all users including admins.",
+    "evidence": "seed-rbac.ts:119-122 — only read/create/update. payouts.ts:187 — requirePermissionOrpc(..., 'commission_payout', 'process')"
+  },
+  {
+    "id": "CP-002", "domain": "commissions-payouts", "severity": "critical",
+    "status": "missing", "testable": true,
+    "title": "commission_review:resolve never seeded — resolveReview always FORBIDDEN",
+    "file": "packages/api/src/routers/commission-splits/review.procedures.ts", "line": 69,
+    "verifiedBy": "agent", "verificationTag": "agent-reported",
+    "description": "resolveReviewProcedure requires permission resource='commission_review', action='resolve'. No seed file seeds this resource/action pair. The Review tab approve/reject buttons always fail.",
+    "evidence": "grep across packages/db/src — 0 results for commission_review"
+  },
+  {
+    "id": "DU-001", "domain": "dashboard-ui", "severity": "high",
+    "status": "missing", "testable": true,
+    "title": "Payment view: item.date.toISOString() runtime crash — date is already a string over oRPC",
+    "file": "apps/web/src/routes/_authenticated/dashboard/_layout/payment/view.tsx", "line": 41,
+    "verifiedBy": "self", "verificationTag": "verified",
+    "description": "oRPC serializes Date objects to ISO strings over JSON. The code calls item.date.toISOString() but item.date is a string at runtime. Throws TypeError: item.date.toISOString is not a function — crashes the entire payment history view on load.",
+    "evidence": "date: item.date ? item.date.toISOString() : null"
+  },
+  {
+    "id": "SI-001", "domain": "server-infra", "severity": "high",
+    "status": "missing", "testable": true,
+    "title": "Notification dispatch: unbounded SELECT — no LIMIT on pending notifications",
+    "file": "apps/server/src/services/notification-dispatch.service.ts", "line": 65,
+    "verifiedBy": "self", "verificationTag": "verified",
+    "description": "The pending notifications SELECT has no LIMIT. A large tenant with thousands of queued notifications in the 48h window will load all of them into Worker memory (128 MB cap), risking OOM or CPU timeout.",
+    "evidence": "Only .limit(1) exists on the user-lookup sub-query; the pending query at line 65 has none."
+  },
+  {
+    "id": "CU-002", "domain": "customers", "severity": "high",
+    "status": "missing", "testable": true,
+    "title": "addEmailAndDispatchMagicLink: no RBAC scope check — any staff can reassign email for out-of-scope customer",
+    "file": "apps/server/src/routers/customer-profiles.ts", "line": 463,
+    "verifiedBy": "self", "verificationTag": "verified",
+    "description": "Fetches customerProfile by ID but never looks up the member's hierarchyScopeId against accessibleNodeIds. A trainer in Branch A can add/replace the email of a customer in Branch B, then dispatch a magic-link — potential account takeover.",
+    "evidence": "No members lookup, no accessibleNodeIds check. Compare softDelete (line 220-231) which performs the check."
+  },
+  {
+    "id": "CU-003", "domain": "customers", "severity": "high",
+    "status": "missing", "testable": true,
+    "title": "resendMagicLink: no RBAC scope check — same omission as CU-002",
+    "file": "apps/server/src/routers/customer-profiles.ts", "line": 570,
+    "verifiedBy": "self", "verificationTag": "verified",
+    "description": "Same pattern as CU-002. customer_management:update permission check but no accessibleNodeIds validation.",
+    "evidence": "Lines 593-604: profile fetched by ID, no member lookup, no scope check"
+  },
+  {
+    "id": "CU-004", "domain": "customers", "severity": "high",
+    "status": "missing", "testable": true,
+    "title": "sendClaimLink: no RBAC scope check — staff in restricted scope can send claim link for any tenant customer",
+    "file": "apps/server/src/routers/customer-profiles.ts", "line": 774,
+    "verifiedBy": "self", "verificationTag": "verified",
+    "description": "Finds profile by ID, checks isUnclaimed, but never validates against accessibleNodeIds. Any staff with customer_management:update can send a claim link for customers in other branches.",
+    "evidence": "Lines 799-815: profile fetch, isUnclaimed check — no scope validation"
+  },
+  {
+    "id": "CU-005", "domain": "customers", "severity": "high",
+    "status": "missing", "testable": true,
+    "title": "createUnclaimed is non-atomic — CP user created then tenant write fails → orphaned CP user",
+    "file": "apps/server/src/routers/customer-profiles.ts", "line": 716,
+    "verifiedBy": "self", "verificationTag": "verified",
+    "description": "Three sequential cross-DB writes: (1) insert CP user, (2) membershipService.createMember, (3) insert tenant customerProfiles. If steps 2 or 3 fail, the CP user exists with no tenant member/profile and no compensating delete.",
+    "evidence": "Lines 716, 731, 740 — sequential awaits, no surrounding try/catch or rollback"
+  },
+  {
+    "id": "CP-003", "domain": "commissions-payouts", "severity": "high",
+    "status": "partial", "testable": true,
+    "title": "PayoutsTab UI gates on commission_payout:update but API requires :process — buttons show but always fail",
+    "file": "apps/web/src/components/pages/commissions/payouts-tab.tsx", "line": 467,
+    "verifiedBy": "agent", "verificationTag": "agent-reported",
+    "description": "canRunBatch uses hasPermission('commission_payout:update'). Backend requires 'process'. A user with 'update' sees the Run Batch / Process Pending buttons but every click returns FORBIDDEN.",
+    "evidence": "payouts-tab.tsx: hasPermission('commission_payout:update'); payouts.ts:187: 'process'"
+  },
+  {
+    "id": "DU-003", "domain": "dashboard-ui", "severity": "medium",
+    "status": "missing", "testable": false,
+    "title": "Dashboard index: no error states on any query — silent zeros on API failure",
+    "file": "apps/web/src/routes/_authenticated/dashboard/_layout/index.tsx", "line": 128,
+    "verifiedBy": "agent", "verificationTag": "agent-reported",
+    "description": "All 8 useQuery calls expose no isError branch in the render. A failed query shows RM 0.00 or empty lists with no user-facing error or retry option.",
+    "evidence": "kpisQuery, todayKpisQuery, staffQuery, etc. — isError never used"
+  },
+  {
+    "id": "DU-004", "domain": "dashboard-ui", "severity": "medium",
+    "status": "missing", "testable": false,
+    "title": "Dashboard: no role-gating — trainers see all admin KPIs and revenue data",
+    "file": "apps/web/src/routes/_authenticated/dashboard/_layout/index.tsx", "line": 116,
+    "verifiedBy": "agent", "verificationTag": "agent-reported",
+    "description": "No hasRole/hasPermission guard on any widget. Trainers see org-wide revenue, branch breakdowns, and all-staff performance tables. Queries 403 silently, showing zeros.",
+    "evidence": "function DashboardComponent() — no permission checks on any section"
+  },
+  {
+    "id": "SI-002", "domain": "server-infra", "severity": "medium",
+    "status": "missing", "testable": false,
+    "title": "Notification dispatch: TOCTOU race on emailSentAt — concurrent cron runs can double-send",
+    "file": "apps/server/src/services/notification-dispatch.service.ts", "line": 65,
+    "verifiedBy": "self", "verificationTag": "verified",
+    "description": "No DB-level lock (SELECT FOR UPDATE). Both concurrent cron invocations can find NULL-emailSentAt, send the email, then each write emailSentAt. Cloudflare Workers crons rarely overlap but it's not impossible.",
+    "evidence": "isNull(notifications.emailSentAt) ... sendEmail ... .set({ emailSentAt: sql`now()` }) — no transaction lock"
+  },
+  {
+    "id": "SI-008", "domain": "server-infra", "severity": "medium",
+    "status": "partial", "testable": false,
+    "title": "BETTER_AUTH_SECRET falls back to public default — sessions forgeable in misconfigured deployments",
+    "file": "apps/server/src/lib/better-auth.ts", "line": 323,
+    "verifiedBy": "self", "verificationTag": "verified",
+    "description": "If BETTER_AUTH_SECRET is missing, code uses the well-known string 'dev-secret-key-minimum-32-characters-long'. Any token signed with this key is trivially forgeable.",
+    "evidence": "getEnvVar('BETTER_AUTH_SECRET') || 'dev-secret-key-minimum-32-characters-long'"
+  },
+  {
+    "id": "SI-009", "domain": "server-infra", "severity": "medium",
+    "status": "partial", "testable": false,
+    "title": "CORS allowlist hardcodes localhost origins at module level — always active in production",
+    "file": "apps/server/src/index.ts", "line": 56,
+    "verifiedBy": "self", "verificationTag": "verified",
+    "description": "ALLOWED_ORIGINS is a module-level constant including http://localhost:3021 etc., not conditional on NODE_ENV. On production Workers, a request with Origin: http://localhost:3021 gets Access-Control-Allow-Credentials: true.",
+    "evidence": "const ALLOWED_ORIGINS = new Set<string>(['http://localhost:3021', ...])"
+  },
+  {
+    "id": "CP-004", "domain": "commissions-payouts", "severity": "medium",
+    "status": "partial", "testable": true,
+    "title": "Sidebar Payouts item: isActive never true because pathname excludes '?', and Link to with embedded query string is non-standard",
+    "file": "apps/web/src/components/app-sidebar.tsx", "line": 386,
+    "verifiedBy": "self", "verificationTag": "verified",
+    "description": "isActive = pathname.startsWith(item.url) where item.url='/dashboard/commissions/view?tab=payouts'. pathname='/dashboard/commissions/view' never contains '?'. Item never highlighted. <Link to={item.url}> with query string in 'to' prop is also non-standard in TanStack Router.",
+    "evidence": "app-sidebar.tsx:386: pathname.startsWith(item.url)"
+  },
+  {
+    "id": "DU-002", "domain": "dashboard-ui", "severity": "medium",
+    "status": "missing", "testable": true,
+    "title": "Payment view: Created By column shows raw user ID instead of resolved name",
+    "file": "apps/web/src/routes/_authenticated/dashboard/_layout/payment/view.tsx", "line": 48,
+    "verifiedBy": "agent", "verificationTag": "agent-reported",
+    "description": "API handler resolves createdByName but view maps created_by: item.createdBy (the raw UUID), not item.createdByName. Staff see UUIDs in the Created By column.",
+    "evidence": "created_by: item.createdBy — should be item.createdByName"
+  },
+  {
+    "id": "CP-009", "domain": "commissions-payouts", "severity": "medium",
+    "status": "partial", "testable": false,
+    "title": "payouts.list RBAC: appointment-less batch payouts bypass branch scope check",
+    "file": "packages/api/src/routers/payouts.ts", "line": 54,
+    "verifiedBy": "agent", "verificationTag": "agent-reported",
+    "description": "RBAC filter OR(isNull(appointmentId), inArray(branchId, accessibleNodeIds)). Batch payouts have no appointmentId — isNull arm always true, bypassing branch scope check.",
+    "evidence": "payouts.ts:54-60 — isNull(payouts.appointmentId) unconditionally passes all appointment-less rows"
+  },
+  {
+    "id": "CU-006", "domain": "customers", "severity": "medium",
+    "status": "missing", "testable": true,
+    "title": "createUnclaimed: no phone deduplication — duplicate unclaimed profiles possible",
+    "file": "apps/server/src/routers/customer-profiles.ts", "line": 669,
+    "verifiedBy": "agent", "verificationTag": "agent-reported",
+    "description": "No lookup against customerProfiles.phone before inserting. Double-submitting Quick Add creates two orphaned placeholder users with the same phone.",
+    "evidence": "No prior lookup before insert"
+  },
+  {
+    "id": "PO-005", "domain": "pos-sales", "severity": "medium",
+    "status": "missing", "testable": true,
+    "title": "'Online' payment shows 'payment link will be generated' but no link is ever sent",
+    "file": "packages/api/src/routers/pos.ts", "line": 64,
+    "verifiedBy": "agent", "verificationTag": "agent-reported",
+    "description": "PaymentStep subtitle says 'Send a payment link'. Router transforms 'online' → 'stripe', sets paymentStatus='pending'. No link is dispatched.",
+    "evidence": "METHOD_CONFIG: { method: 'online', subtitle: 'Send a payment link' }; router transforms; no link dispatch"
+  },
+  {
+    "id": "PO-006", "domain": "pos-sales", "severity": "medium",
+    "status": "missing", "testable": true,
+    "title": "Sales view: STATUS_PILLS maps 'cancelled' value to 'Refunded' label — misleading filter",
+    "file": "apps/web/src/routes/_authenticated/dashboard/_layout/sales/view.tsx", "line": 211,
+    "verifiedBy": "agent", "verificationTag": "agent-reported",
+    "description": "Clicking 'Refunded' filter queries status='cancelled'. Cancelled and refunded are distinct states.",
+    "evidence": "{ value: 'cancelled', label: 'Refunded', dot: 'bg-[#737373]' }"
+  },
+  {
+    "id": "DU-005", "domain": "dashboard-ui", "severity": "medium",
+    "status": "partial", "testable": true,
+    "title": "Sidebar Packages link uses service_management:read but route requires package_management:read",
+    "file": "apps/web/src/components/app-sidebar.tsx", "line": 177,
+    "verifiedBy": "agent", "verificationTag": "agent-reported",
+    "description": "Permission mismatch: sidebar hides Packages unless service_management:read; route guard checks package_management:read. Users see broken nav or invisible accessible routes.",
+    "evidence": "sidebar: permission: 'service_management:read'; route beforeLoad: requirePermission('package_management:read')"
+  },
+  {
+    "id": "SI-010", "domain": "server-infra", "severity": "low",
+    "status": "missing", "testable": false,
+    "title": "Notification email subject not sanitized — CRLF header injection risk",
+    "file": "apps/server/src/services/notification-dispatch.service.ts", "line": 92,
+    "verifiedBy": "agent", "verificationTag": "agent-reported",
+    "description": "notification.title used directly as subject with no CRLF stripping. escapeHtml is applied to HTML body only.",
+    "evidence": "subject: notification.title"
+  },
+  {
+    "id": "CU-007", "domain": "customers", "severity": "low",
+    "status": "missing", "testable": false,
+    "title": "Quick Add email field silently dropped — UI collects it, server schema excludes it",
+    "file": "apps/web/src/components/customers/add-customer-dialog.tsx", "line": 134,
+    "verifiedBy": "self", "verificationTag": "verified",
+    "description": "QuickAddTab passes email to createUnclaimed but server Zod schema has no email field. The value is silently stripped.",
+    "evidence": "add-customer-dialog.tsx:134 passes email; server schema has no email field"
+  },
+  {
+    "id": "PO-007", "domain": "pos-sales", "severity": "low",
+    "status": "missing", "testable": true,
+    "title": "Sales $id: line items only visible in Print Receipt modal — not in main view",
+    "file": "apps/web/src/routes/_authenticated/dashboard/_layout/sales/$id.tsx", "line": 437,
+    "verifiedBy": "agent", "verificationTag": "agent-reported",
+    "description": "Order Summary card shows totals/metadata only. Line items and tax breakdown require opening Print Receipt modal.",
+    "evidence": "No items table rendered outside printDialogOpen context"
+  },
+  {
+    "id": "PO-008", "domain": "pos-sales", "severity": "low",
+    "status": "missing", "testable": true,
+    "title": "Cancel Sale button gated on status='confirmed' — POS sales complete immediately, button never shows",
+    "file": "apps/web/src/routes/_authenticated/dashboard/_layout/sales/$id.tsx", "line": 393,
+    "verifiedBy": "agent", "verificationTag": "agent-reported",
+    "description": "POS sales land at 'completed' not 'confirmed'. Cancel button never renders for typical POS sales.",
+    "evidence": "order.status === 'confirmed' && <CancelSaleButton>"
+  },
+  {
+    "id": "CU-008", "domain": "customers", "severity": "low",
+    "status": "missing", "testable": false,
+    "title": "MagicLinkActions: placeholder domain mismatch — @ghl.placeholder vs @avantej.placeholder",
+    "file": "apps/web/src/components/customers/customer-360/magic-link-actions.tsx", "line": 21,
+    "verifiedBy": "agent", "verificationTag": "agent-reported",
+    "description": "PLACEHOLDER_DOMAIN = '@ghl.placeholder' on client; server uses 'avantej.placeholder'. A profile with isUnclaimed=false but @avantej.placeholder email falls into wrong UI branch.",
+    "evidence": "client line 21: '@ghl.placeholder'; server line 29: 'avantej.placeholder'"
+  }
+]

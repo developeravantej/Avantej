@@ -61,7 +61,9 @@ try {
 	console.log("  (connection_string decrypted OK)");
 } catch (e: any) {
 	console.log(`  ✗ Decryption failed: ${e.message}`);
-	console.log("  Likely cause: ENCRYPTION_KEY in .env doesn't match what was used to encrypt.");
+	console.log(
+		"  Likely cause: ENCRYPTION_KEY in .env doesn't match what was used to encrypt.",
+	);
 	process.exit(1);
 }
 
@@ -94,7 +96,9 @@ if (constraintExists.rows.length === 0) {
 		`SELECT id FROM category_commission_configs LIMIT 1`,
 	);
 	if (cfg.rows.length === 0) {
-		console.log("  (no category_commission_configs row — skipping insert tests)");
+		console.log(
+			"  (no category_commission_configs row — skipping insert tests)",
+		);
 	} else {
 		const configId = cfg.rows[0]!.id;
 		const cases: Array<{
@@ -146,7 +150,10 @@ if (constraintExists.rows.length === 0) {
 					} else if (c.expectReject) {
 						fail(c.label, `rejected with wrong code ${e.code}`);
 					} else {
-						fail(c.label, `unexpectedly rejected: ${e.message?.split("\n")[0]}`);
+						fail(
+							c.label,
+							`unexpectedly rejected: ${e.message?.split("\n")[0]}`,
+						);
 					}
 				} finally {
 					await client.query("ROLLBACK TO SAVEPOINT sp");
@@ -167,7 +174,10 @@ const colExists = await pool.query(`
 	WHERE table_name = 'sales_order_items' AND column_name = 'commission_excluded'
 `);
 if (colExists.rows.length === 0) {
-	fail("column present", "commission_excluded column missing on sales_order_items");
+	fail(
+		"column present",
+		"commission_excluded column missing on sales_order_items",
+	);
 } else {
 	ok("column present", "sales_order_items.commission_excluded");
 
@@ -183,7 +193,11 @@ if (colExists.rows.length === 0) {
 		try {
 			await client.query("BEGIN");
 			// Flip the flag temporarily on one line
-			const upd = await client.query<{ id: string; product_id: string | null; service_id: string | null }>(
+			const upd = await client.query<{
+				id: string;
+				product_id: string | null;
+				service_id: string | null;
+			}>(
 				`UPDATE sales_order_items
 				 SET commission_excluded = TRUE
 				 WHERE sales_order_id = $1
@@ -231,12 +245,11 @@ const idx = await pool.query<{ indexdef: string }>(
 	 WHERE c.relname = 'commission_splits_appt_staff_unique'`,
 );
 if (idx.rows.length === 0) {
-	console.log("  (no commission_splits_appt_staff_unique index — POS tx wrapping still applies)");
-} else {
-	ok(
-		"partial unique index present",
-		idx.rows[0]!.indexdef.split(" USING ")[0],
+	console.log(
+		"  (no commission_splits_appt_staff_unique index — POS tx wrapping still applies)",
 	);
+} else {
+	ok("partial unique index present", idx.rows[0]!.indexdef.split(" USING ")[0]);
 
 	// Simulate the race: insert the same (appointment_id, staff_id) twice.
 	const appt = await pool.query<{ id: string }>(
@@ -247,7 +260,9 @@ if (idx.rows.length === 0) {
 	);
 
 	if (appt.rows.length === 0 || member.rows.length === 0) {
-		console.log("  (no appointment or trainer rows — skipping duplicate-insert test)");
+		console.log(
+			"  (no appointment or trainer rows — skipping duplicate-insert test)",
+		);
 	} else {
 		const apptId = appt.rows[0]!.id;
 		const staffId = member.rows[0]!.user_id;

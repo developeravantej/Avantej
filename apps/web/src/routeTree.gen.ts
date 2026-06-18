@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as SubscribeRouteImport } from './routes/subscribe'
+import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as FeaturesRouteImport } from './routes/features'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as ContactRouteImport } from './routes/contact'
@@ -27,7 +28,6 @@ import { Route as authSignInLinkRouteImport } from './routes/(auth)/sign-in-link
 import { Route as authSetupPasswordRouteImport } from './routes/(auth)/setup-password'
 import { Route as authLoginRouteImport } from './routes/(auth)/login'
 import { Route as AuthenticatedUserViewRouteImport } from './routes/_authenticated/user/view'
-import { Route as AuthenticatedServiceViewRouteImport } from './routes/_authenticated/service/view'
 import { Route as AuthenticatedServiceCategoryViewRouteImport } from './routes/_authenticated/service-category/view'
 import { Route as AuthenticatedDashboardLayoutRouteImport } from './routes/_authenticated/dashboard/_layout'
 import { Route as AuthenticatedBillingConnectRouteImport } from './routes/_authenticated/billing.connect'
@@ -50,6 +50,7 @@ import { Route as AuthenticatedDashboardLayoutSettingsNotificationsRouteImport }
 import { Route as AuthenticatedDashboardLayoutSettingsInstallmentPlansRouteImport } from './routes/_authenticated/dashboard/_layout/settings/installment-plans'
 import { Route as AuthenticatedDashboardLayoutSettingsGoogleCalendarRouteImport } from './routes/_authenticated/dashboard/_layout/settings/google-calendar'
 import { Route as AuthenticatedDashboardLayoutSettingsEmailRouteImport } from './routes/_authenticated/dashboard/_layout/settings/email'
+import { Route as AuthenticatedDashboardLayoutSettingsCommissionCyclesRouteImport } from './routes/_authenticated/dashboard/_layout/settings/commission-cycles'
 import { Route as AuthenticatedDashboardLayoutServiceViewRouteImport } from './routes/_authenticated/dashboard/_layout/service/view'
 import { Route as AuthenticatedDashboardLayoutServiceCategoryViewRouteImport } from './routes/_authenticated/dashboard/_layout/service-category/view'
 import { Route as AuthenticatedDashboardLayoutSalesViewRouteImport } from './routes/_authenticated/dashboard/_layout/sales/view'
@@ -74,7 +75,6 @@ import { Route as AuthenticatedDashboardLayoutPlatformAdminCommsRouteImport } fr
 import { Route as AuthenticatedDashboardLayoutPlatformAdminBillingRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/billing'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminAuditRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/audit'
 import { Route as AuthenticatedDashboardLayoutPlatformAdminAdminsRouteImport } from './routes/_authenticated/dashboard/_layout/platform-admin/admins'
-import { Route as AuthenticatedDashboardLayoutPayoutsViewRouteImport } from './routes/_authenticated/dashboard/_layout/payouts/view'
 import { Route as AuthenticatedDashboardLayoutPaymentViewRouteImport } from './routes/_authenticated/dashboard/_layout/payment/view'
 import { Route as AuthenticatedDashboardLayoutPackagesViewRouteImport } from './routes/_authenticated/dashboard/_layout/packages/view'
 import { Route as AuthenticatedDashboardLayoutOperationsApprovalsRouteImport } from './routes/_authenticated/dashboard/_layout/operations/approvals'
@@ -117,6 +117,11 @@ const VerifyEmailRoute = VerifyEmailRouteImport.update({
 const SubscribeRoute = SubscribeRouteImport.update({
   id: '/subscribe',
   path: '/subscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SetPasswordRoute = SetPasswordRouteImport.update({
+  id: '/set-password',
+  path: '/set-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FeaturesRoute = FeaturesRouteImport.update({
@@ -199,12 +204,6 @@ const AuthenticatedUserViewRoute = AuthenticatedUserViewRouteImport.update({
   path: '/user/view',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedServiceViewRoute =
-  AuthenticatedServiceViewRouteImport.update({
-    id: '/service/view',
-    path: '/service/view',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
 const AuthenticatedServiceCategoryViewRoute =
   AuthenticatedServiceCategoryViewRouteImport.update({
     id: '/service-category/view',
@@ -339,6 +338,12 @@ const AuthenticatedDashboardLayoutSettingsEmailRoute =
   AuthenticatedDashboardLayoutSettingsEmailRouteImport.update({
     id: '/settings/email',
     path: '/settings/email',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutSettingsCommissionCyclesRoute =
+  AuthenticatedDashboardLayoutSettingsCommissionCyclesRouteImport.update({
+    id: '/settings/commission-cycles',
+    path: '/settings/commission-cycles',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
 const AuthenticatedDashboardLayoutServiceViewRoute =
@@ -487,12 +492,6 @@ const AuthenticatedDashboardLayoutPlatformAdminAdminsRoute =
   AuthenticatedDashboardLayoutPlatformAdminAdminsRouteImport.update({
     id: '/platform-admin/admins',
     path: '/platform-admin/admins',
-    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
-  } as any)
-const AuthenticatedDashboardLayoutPayoutsViewRoute =
-  AuthenticatedDashboardLayoutPayoutsViewRouteImport.update({
-    id: '/payouts/view',
-    path: '/payouts/view',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
 const AuthenticatedDashboardLayoutPaymentViewRoute =
@@ -705,6 +704,7 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/demo': typeof DemoRoute
   '/features': typeof FeaturesRoute
+  '/set-password': typeof SetPasswordRoute
   '/subscribe': typeof SubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/login': typeof authLoginRoute
@@ -719,7 +719,6 @@ export interface FileRoutesByFullPath {
   '/billing/connect': typeof AuthenticatedBillingConnectRoute
   '/dashboard': typeof AuthenticatedDashboardLayoutRouteWithChildren
   '/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
-  '/service/view': typeof AuthenticatedServiceViewRoute
   '/user/view': typeof AuthenticatedUserViewRoute
   '/dashboard/inventory-options': typeof AuthenticatedDashboardLayoutInventoryOptionsRoute
   '/dashboard/': typeof AuthenticatedDashboardLayoutIndexRoute
@@ -748,7 +747,6 @@ export interface FileRoutesByFullPath {
   '/dashboard/operations/approvals': typeof AuthenticatedDashboardLayoutOperationsApprovalsRoute
   '/dashboard/packages/view': typeof AuthenticatedDashboardLayoutPackagesViewRoute
   '/dashboard/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
-  '/dashboard/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   '/dashboard/platform-admin/admins': typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
   '/dashboard/platform-admin/audit': typeof AuthenticatedDashboardLayoutPlatformAdminAuditRoute
   '/dashboard/platform-admin/billing': typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
@@ -773,6 +771,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/sales/view': typeof AuthenticatedDashboardLayoutSalesViewRoute
   '/dashboard/service-category/view': typeof AuthenticatedDashboardLayoutServiceCategoryViewRoute
   '/dashboard/service/view': typeof AuthenticatedDashboardLayoutServiceViewRoute
+  '/dashboard/settings/commission-cycles': typeof AuthenticatedDashboardLayoutSettingsCommissionCyclesRoute
   '/dashboard/settings/email': typeof AuthenticatedDashboardLayoutSettingsEmailRoute
   '/dashboard/settings/google-calendar': typeof AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute
   '/dashboard/settings/installment-plans': typeof AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute
@@ -805,6 +804,7 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/demo': typeof DemoRoute
   '/features': typeof FeaturesRoute
+  '/set-password': typeof SetPasswordRoute
   '/subscribe': typeof SubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/login': typeof authLoginRoute
@@ -818,7 +818,6 @@ export interface FileRoutesByTo {
   '/appointment/view': typeof AuthenticatedAppointmentViewRoute
   '/billing/connect': typeof AuthenticatedBillingConnectRoute
   '/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
-  '/service/view': typeof AuthenticatedServiceViewRoute
   '/user/view': typeof AuthenticatedUserViewRoute
   '/dashboard/inventory-options': typeof AuthenticatedDashboardLayoutInventoryOptionsRoute
   '/dashboard': typeof AuthenticatedDashboardLayoutIndexRoute
@@ -847,7 +846,6 @@ export interface FileRoutesByTo {
   '/dashboard/operations/approvals': typeof AuthenticatedDashboardLayoutOperationsApprovalsRoute
   '/dashboard/packages/view': typeof AuthenticatedDashboardLayoutPackagesViewRoute
   '/dashboard/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
-  '/dashboard/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   '/dashboard/platform-admin/admins': typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
   '/dashboard/platform-admin/audit': typeof AuthenticatedDashboardLayoutPlatformAdminAuditRoute
   '/dashboard/platform-admin/billing': typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
@@ -871,6 +869,7 @@ export interface FileRoutesByTo {
   '/dashboard/sales/view': typeof AuthenticatedDashboardLayoutSalesViewRoute
   '/dashboard/service-category/view': typeof AuthenticatedDashboardLayoutServiceCategoryViewRoute
   '/dashboard/service/view': typeof AuthenticatedDashboardLayoutServiceViewRoute
+  '/dashboard/settings/commission-cycles': typeof AuthenticatedDashboardLayoutSettingsCommissionCyclesRoute
   '/dashboard/settings/email': typeof AuthenticatedDashboardLayoutSettingsEmailRoute
   '/dashboard/settings/google-calendar': typeof AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute
   '/dashboard/settings/installment-plans': typeof AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute
@@ -905,6 +904,7 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/demo': typeof DemoRoute
   '/features': typeof FeaturesRoute
+  '/set-password': typeof SetPasswordRoute
   '/subscribe': typeof SubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/(auth)/login': typeof authLoginRoute
@@ -919,7 +919,6 @@ export interface FileRoutesById {
   '/_authenticated/billing/connect': typeof AuthenticatedBillingConnectRoute
   '/_authenticated/dashboard/_layout': typeof AuthenticatedDashboardLayoutRouteWithChildren
   '/_authenticated/service-category/view': typeof AuthenticatedServiceCategoryViewRoute
-  '/_authenticated/service/view': typeof AuthenticatedServiceViewRoute
   '/_authenticated/user/view': typeof AuthenticatedUserViewRoute
   '/_authenticated/dashboard/_layout/inventory-options': typeof AuthenticatedDashboardLayoutInventoryOptionsRoute
   '/_authenticated/dashboard/_layout/': typeof AuthenticatedDashboardLayoutIndexRoute
@@ -948,7 +947,6 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/operations/approvals': typeof AuthenticatedDashboardLayoutOperationsApprovalsRoute
   '/_authenticated/dashboard/_layout/packages/view': typeof AuthenticatedDashboardLayoutPackagesViewRoute
   '/_authenticated/dashboard/_layout/payment/view': typeof AuthenticatedDashboardLayoutPaymentViewRoute
-  '/_authenticated/dashboard/_layout/payouts/view': typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   '/_authenticated/dashboard/_layout/platform-admin/admins': typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
   '/_authenticated/dashboard/_layout/platform-admin/audit': typeof AuthenticatedDashboardLayoutPlatformAdminAuditRoute
   '/_authenticated/dashboard/_layout/platform-admin/billing': typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
@@ -973,6 +971,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/sales/view': typeof AuthenticatedDashboardLayoutSalesViewRoute
   '/_authenticated/dashboard/_layout/service-category/view': typeof AuthenticatedDashboardLayoutServiceCategoryViewRoute
   '/_authenticated/dashboard/_layout/service/view': typeof AuthenticatedDashboardLayoutServiceViewRoute
+  '/_authenticated/dashboard/_layout/settings/commission-cycles': typeof AuthenticatedDashboardLayoutSettingsCommissionCyclesRoute
   '/_authenticated/dashboard/_layout/settings/email': typeof AuthenticatedDashboardLayoutSettingsEmailRoute
   '/_authenticated/dashboard/_layout/settings/google-calendar': typeof AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute
   '/_authenticated/dashboard/_layout/settings/installment-plans': typeof AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute
@@ -1007,6 +1006,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/demo'
     | '/features'
+    | '/set-password'
     | '/subscribe'
     | '/verify-email'
     | '/login'
@@ -1021,7 +1021,6 @@ export interface FileRouteTypes {
     | '/billing/connect'
     | '/dashboard'
     | '/service-category/view'
-    | '/service/view'
     | '/user/view'
     | '/dashboard/inventory-options'
     | '/dashboard/'
@@ -1050,7 +1049,6 @@ export interface FileRouteTypes {
     | '/dashboard/operations/approvals'
     | '/dashboard/packages/view'
     | '/dashboard/payment/view'
-    | '/dashboard/payouts/view'
     | '/dashboard/platform-admin/admins'
     | '/dashboard/platform-admin/audit'
     | '/dashboard/platform-admin/billing'
@@ -1075,6 +1073,7 @@ export interface FileRouteTypes {
     | '/dashboard/sales/view'
     | '/dashboard/service-category/view'
     | '/dashboard/service/view'
+    | '/dashboard/settings/commission-cycles'
     | '/dashboard/settings/email'
     | '/dashboard/settings/google-calendar'
     | '/dashboard/settings/installment-plans'
@@ -1107,6 +1106,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/demo'
     | '/features'
+    | '/set-password'
     | '/subscribe'
     | '/verify-email'
     | '/login'
@@ -1120,7 +1120,6 @@ export interface FileRouteTypes {
     | '/appointment/view'
     | '/billing/connect'
     | '/service-category/view'
-    | '/service/view'
     | '/user/view'
     | '/dashboard/inventory-options'
     | '/dashboard'
@@ -1149,7 +1148,6 @@ export interface FileRouteTypes {
     | '/dashboard/operations/approvals'
     | '/dashboard/packages/view'
     | '/dashboard/payment/view'
-    | '/dashboard/payouts/view'
     | '/dashboard/platform-admin/admins'
     | '/dashboard/platform-admin/audit'
     | '/dashboard/platform-admin/billing'
@@ -1173,6 +1171,7 @@ export interface FileRouteTypes {
     | '/dashboard/sales/view'
     | '/dashboard/service-category/view'
     | '/dashboard/service/view'
+    | '/dashboard/settings/commission-cycles'
     | '/dashboard/settings/email'
     | '/dashboard/settings/google-calendar'
     | '/dashboard/settings/installment-plans'
@@ -1206,6 +1205,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/demo'
     | '/features'
+    | '/set-password'
     | '/subscribe'
     | '/verify-email'
     | '/(auth)/login'
@@ -1220,7 +1220,6 @@ export interface FileRouteTypes {
     | '/_authenticated/billing/connect'
     | '/_authenticated/dashboard/_layout'
     | '/_authenticated/service-category/view'
-    | '/_authenticated/service/view'
     | '/_authenticated/user/view'
     | '/_authenticated/dashboard/_layout/inventory-options'
     | '/_authenticated/dashboard/_layout/'
@@ -1249,7 +1248,6 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/operations/approvals'
     | '/_authenticated/dashboard/_layout/packages/view'
     | '/_authenticated/dashboard/_layout/payment/view'
-    | '/_authenticated/dashboard/_layout/payouts/view'
     | '/_authenticated/dashboard/_layout/platform-admin/admins'
     | '/_authenticated/dashboard/_layout/platform-admin/audit'
     | '/_authenticated/dashboard/_layout/platform-admin/billing'
@@ -1274,6 +1272,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/sales/view'
     | '/_authenticated/dashboard/_layout/service-category/view'
     | '/_authenticated/dashboard/_layout/service/view'
+    | '/_authenticated/dashboard/_layout/settings/commission-cycles'
     | '/_authenticated/dashboard/_layout/settings/email'
     | '/_authenticated/dashboard/_layout/settings/google-calendar'
     | '/_authenticated/dashboard/_layout/settings/installment-plans'
@@ -1308,6 +1307,7 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   DemoRoute: typeof DemoRoute
   FeaturesRoute: typeof FeaturesRoute
+  SetPasswordRoute: typeof SetPasswordRoute
   SubscribeRoute: typeof SubscribeRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
   authLoginRoute: typeof authLoginRoute
@@ -1331,6 +1331,13 @@ declare module '@tanstack/react-router' {
       path: '/subscribe'
       fullPath: '/subscribe'
       preLoaderRoute: typeof SubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/set-password': {
+      id: '/set-password'
+      path: '/set-password'
+      fullPath: '/set-password'
+      preLoaderRoute: typeof SetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/features': {
@@ -1443,13 +1450,6 @@ declare module '@tanstack/react-router' {
       path: '/user/view'
       fullPath: '/user/view'
       preLoaderRoute: typeof AuthenticatedUserViewRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/service/view': {
-      id: '/_authenticated/service/view'
-      path: '/service/view'
-      fullPath: '/service/view'
-      preLoaderRoute: typeof AuthenticatedServiceViewRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/service-category/view': {
@@ -1604,6 +1604,13 @@ declare module '@tanstack/react-router' {
       path: '/settings/email'
       fullPath: '/dashboard/settings/email'
       preLoaderRoute: typeof AuthenticatedDashboardLayoutSettingsEmailRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/settings/commission-cycles': {
+      id: '/_authenticated/dashboard/_layout/settings/commission-cycles'
+      path: '/settings/commission-cycles'
+      fullPath: '/dashboard/settings/commission-cycles'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutSettingsCommissionCyclesRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
     '/_authenticated/dashboard/_layout/service/view': {
@@ -1772,13 +1779,6 @@ declare module '@tanstack/react-router' {
       path: '/platform-admin/admins'
       fullPath: '/dashboard/platform-admin/admins'
       preLoaderRoute: typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRouteImport
-      parentRoute: typeof AuthenticatedDashboardLayoutRoute
-    }
-    '/_authenticated/dashboard/_layout/payouts/view': {
-      id: '/_authenticated/dashboard/_layout/payouts/view'
-      path: '/payouts/view'
-      fullPath: '/dashboard/payouts/view'
-      preLoaderRoute: typeof AuthenticatedDashboardLayoutPayoutsViewRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
     '/_authenticated/dashboard/_layout/payment/view': {
@@ -2064,7 +2064,6 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutOperationsApprovalsRoute: typeof AuthenticatedDashboardLayoutOperationsApprovalsRoute
   AuthenticatedDashboardLayoutPackagesViewRoute: typeof AuthenticatedDashboardLayoutPackagesViewRoute
   AuthenticatedDashboardLayoutPaymentViewRoute: typeof AuthenticatedDashboardLayoutPaymentViewRoute
-  AuthenticatedDashboardLayoutPayoutsViewRoute: typeof AuthenticatedDashboardLayoutPayoutsViewRoute
   AuthenticatedDashboardLayoutPlatformAdminAdminsRoute: typeof AuthenticatedDashboardLayoutPlatformAdminAdminsRoute
   AuthenticatedDashboardLayoutPlatformAdminAuditRoute: typeof AuthenticatedDashboardLayoutPlatformAdminAuditRoute
   AuthenticatedDashboardLayoutPlatformAdminBillingRoute: typeof AuthenticatedDashboardLayoutPlatformAdminBillingRoute
@@ -2089,6 +2088,7 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutSalesViewRoute: typeof AuthenticatedDashboardLayoutSalesViewRoute
   AuthenticatedDashboardLayoutServiceCategoryViewRoute: typeof AuthenticatedDashboardLayoutServiceCategoryViewRoute
   AuthenticatedDashboardLayoutServiceViewRoute: typeof AuthenticatedDashboardLayoutServiceViewRoute
+  AuthenticatedDashboardLayoutSettingsCommissionCyclesRoute: typeof AuthenticatedDashboardLayoutSettingsCommissionCyclesRoute
   AuthenticatedDashboardLayoutSettingsEmailRoute: typeof AuthenticatedDashboardLayoutSettingsEmailRoute
   AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute: typeof AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute
   AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute: typeof AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute
@@ -2168,8 +2168,6 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutPackagesViewRoute,
     AuthenticatedDashboardLayoutPaymentViewRoute:
       AuthenticatedDashboardLayoutPaymentViewRoute,
-    AuthenticatedDashboardLayoutPayoutsViewRoute:
-      AuthenticatedDashboardLayoutPayoutsViewRoute,
     AuthenticatedDashboardLayoutPlatformAdminAdminsRoute:
       AuthenticatedDashboardLayoutPlatformAdminAdminsRoute,
     AuthenticatedDashboardLayoutPlatformAdminAuditRoute:
@@ -2218,6 +2216,8 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutServiceCategoryViewRoute,
     AuthenticatedDashboardLayoutServiceViewRoute:
       AuthenticatedDashboardLayoutServiceViewRoute,
+    AuthenticatedDashboardLayoutSettingsCommissionCyclesRoute:
+      AuthenticatedDashboardLayoutSettingsCommissionCyclesRoute,
     AuthenticatedDashboardLayoutSettingsEmailRoute:
       AuthenticatedDashboardLayoutSettingsEmailRoute,
     AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute:
@@ -2275,7 +2275,6 @@ interface AuthenticatedRouteChildren {
   AuthenticatedBillingConnectRoute: typeof AuthenticatedBillingConnectRoute
   AuthenticatedDashboardLayoutRoute: typeof AuthenticatedDashboardLayoutRouteWithChildren
   AuthenticatedServiceCategoryViewRoute: typeof AuthenticatedServiceCategoryViewRoute
-  AuthenticatedServiceViewRoute: typeof AuthenticatedServiceViewRoute
   AuthenticatedUserViewRoute: typeof AuthenticatedUserViewRoute
 }
 
@@ -2289,7 +2288,6 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardLayoutRoute:
     AuthenticatedDashboardLayoutRouteWithChildren,
   AuthenticatedServiceCategoryViewRoute: AuthenticatedServiceCategoryViewRoute,
-  AuthenticatedServiceViewRoute: AuthenticatedServiceViewRoute,
   AuthenticatedUserViewRoute: AuthenticatedUserViewRoute,
 }
 
@@ -2305,6 +2303,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   DemoRoute: DemoRoute,
   FeaturesRoute: FeaturesRoute,
+  SetPasswordRoute: SetPasswordRoute,
   SubscribeRoute: SubscribeRoute,
   VerifyEmailRoute: VerifyEmailRoute,
   authLoginRoute: authLoginRoute,

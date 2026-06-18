@@ -56,8 +56,7 @@ export async function ensurePrimaryStaffField(args: {
 	});
 	const targetKey = `contact.${PRIMARY_STAFF_FIELD_KEY}`;
 	const existing = (list.customFields ?? []).find(
-		(f) =>
-			f.fieldKey === PRIMARY_STAFF_FIELD_KEY || f.fieldKey === targetKey,
+		(f) => f.fieldKey === PRIMARY_STAFF_FIELD_KEY || f.fieldKey === targetKey,
 	);
 	let ghlFieldId: string | undefined = existing?.id;
 

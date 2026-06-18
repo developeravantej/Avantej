@@ -1,17 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { ArrowLeft, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserContext } from "@/hooks/useUserContext";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { QrCodeCard } from "@/features/branch-invites/components/qr-code-card";
 
 // routeTree.gen.ts will be updated by TanStack Router devtools on next dev run.
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/branch/$id",
 )({
+	beforeLoad: async () => {
+		await requirePermission("hierarchy_management:read");
+	},
 	component: BranchDetailPage,
 });
 
@@ -24,14 +28,15 @@ function BranchDetailPage() {
 
 	// Fetch branch details (re-use listNodes and filter by id)
 	const { data: nodesData, isLoading: isLoadingNode } = useQuery({
-		queryKey: ["hierarchy-nodes", organizationId],
-		queryFn: () =>
-			client.hierarchy.listNodes({ organizationId: organizationId! }),
+		...orpc.hierarchy.listNodes.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 	});
 
 	const branch = nodesData?.nodes?.find(
-		(n: { id: string; type: string }) => n.id === branchId && n.type === "branch",
+		(n: { id: string; type: string }) =>
+			n.id === branchId && n.type === "branch",
 	) as
 		| {
 				id: string;

@@ -84,7 +84,8 @@ export const tenantMiddleware = createMiddleware(async (c, next) => {
 		// blocked at the app boundary. Platform-admin paths bypass so ops can
 		// resume / restore / inspect. Self-contained block; a later Layer-2
 		// read-only billing gate sits beside it.
-		const isPlatformAdminPath = c.req.path.includes("/platformAdmin") || c.req.path.includes("/admin");
+		const isPlatformAdminPath =
+			c.req.path.includes("/platformAdmin") || c.req.path.includes("/admin");
 		if (isAppBlocked(organization.paymentStatus) && !isPlatformAdminPath) {
 			return c.json(
 				{
@@ -113,8 +114,7 @@ export const tenantMiddleware = createMiddleware(async (c, next) => {
 						? error.message
 						: "Failed to initialize tenant context",
 			},
-			500
+			500,
 		);
 	}
 });
-

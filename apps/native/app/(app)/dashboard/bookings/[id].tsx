@@ -112,8 +112,7 @@ export default function BookingDetailScreen() {
 			}),
 		onSuccess: () => {
 			queryClient.invalidateQueries({
-				predicate: (q) =>
-					JSON.stringify(q.queryKey).includes("appointments"),
+				predicate: (q) => JSON.stringify(q.queryKey).includes("appointments"),
 			});
 			router.back();
 		},

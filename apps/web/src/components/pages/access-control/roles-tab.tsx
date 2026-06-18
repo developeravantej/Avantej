@@ -1,14 +1,25 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
-import { client } from "@/utils/orpc";
-import { Plus, Search, Shield, Settings, Users, Database, FileText, Trash2, X } from "lucide-react";
+import { client, orpc } from "@/utils/orpc";
+import {
+	Plus,
+	Search,
+	Shield,
+	Settings,
+	Users,
+	Database,
+	FileText,
+	Trash2,
+	X,
+} from "lucide-react";
 import {
 	Dialog,
 	DialogContent,
 	DialogHeader,
 	DialogTitle,
 	DialogDescription,
+	DialogFooter,
 } from "@/components/ui/dialog";
 import { RoleEditor } from "@/components/access-control/editors/RoleEditor";
 import { EnhancedPermissionMatrix } from "@/components/access-control/permission-matrix/EnhancedPermissionMatrix";
@@ -17,10 +28,14 @@ import type {
 	PermissionResource,
 } from "@/components/access-control/permission-matrix/permission-matrix.types";
 import { useRoles } from "@/hooks/useRoles";
+import { StatusCallout } from "@/components/ui/status-callout";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-const RESOURCE_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+const RESOURCE_ICON_MAP: Record<
+	string,
+	React.ComponentType<{ className?: string }>
+> = {
 	user_management: Users,
 	users: Users,
 	role_management: Shield,
@@ -37,38 +52,41 @@ export interface RolesTabPageProps {
 	onViewChange?: (mode: RolesViewMode) => void;
 }
 
-export function RolesTabPage({ onViewChange: _onViewChange }: RolesTabPageProps = {}) {
+export function RolesTabPage({
+	onViewChange: _onViewChange,
+}: RolesTabPageProps = {}) {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 
-	type PermissionItem = Awaited<ReturnType<typeof client.permissions.list>>[number];
+	type PermissionItem = Awaited<
+		ReturnType<typeof client.permissions.list>
+	>[number];
 	type RoleItem = Awaited<ReturnType<typeof client.roles.list>>[number];
 	type MemberItem = Awaited<ReturnType<typeof client.members.list>>[number];
 
 	const { data: permissionsData = [] as PermissionItem[] } = useQuery({
-		queryKey: ["permissions", organizationId],
-		queryFn: (): Promise<PermissionItem[]> => {
-			if (!organizationId) return Promise.resolve([]);
-			return client.permissions.list({ organizationId });
-		},
+		...orpc.permissions.list.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 	});
 
-	const { data: rolesApiData = [] as RoleItem[], isLoading: rolesLoading } = useQuery({
-		queryKey: ["roles", organizationId],
-		queryFn: (): Promise<RoleItem[]> => {
-			if (!organizationId) return Promise.resolve([]);
-			return client.roles.list({ organizationId });
-		},
+	const {
+		data: rolesApiData = [] as RoleItem[],
+		isLoading: rolesLoading,
+		isError: rolesError,
+		refetch: refetchRoles,
+	} = useQuery({
+		...orpc.roles.list.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 	});
 
 	const { data: membersData = [] as MemberItem[] } = useQuery({
-		queryKey: ["members", organizationId],
-		queryFn: (): Promise<MemberItem[]> => {
-			if (!organizationId) return Promise.resolve([]);
-			return client.members.list({ organizationId });
-		},
+		...orpc.members.list.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 	});
 
@@ -102,7 +120,7 @@ export function RolesTabPage({ onViewChange: _onViewChange }: RolesTabPageProps 
 	}, [permissionsData]);
 
 	const displayRoles = useMemo<Role[]>(() => {
-		return rolesApiData.map((r) => ({
+		return rolesApiData.map((r: RoleItem) => ({
 			id: r.id,
 			name: r.name,
 			description: r.description ?? undefined,
@@ -135,7 +153,10 @@ export function RolesTabPage({ onViewChange: _onViewChange }: RolesTabPageProps 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [isCreating, setIsCreating] = useState(false);
 	const [editingRole, setEditingRole] = useState<Role | null>(null);
-	const [deleteConfirmRole, setDeleteConfirmRole] = useState<{ id: string; name: string } | null>(null);
+	const [deleteConfirmRole, setDeleteConfirmRole] = useState<{
+		id: string;
+		name: string;
+	} | null>(null);
 	const [pendingUpdates, setPendingUpdates] = useState<Set<string>>(new Set());
 	const [wizardPermissions] = useState<Record<string, boolean>>({});
 
@@ -147,11 +168,13 @@ export function RolesTabPage({ onViewChange: _onViewChange }: RolesTabPageProps 
 
 	// Auto-select first role when list loads
 	const activeRoleId = selectedRoleId ?? filteredRoles[0]?.id ?? null;
-	const activeRole = displayRoles.find((r) => r.id === activeRoleId) ?? null;
-	const activeApiRole = rolesApiData.find((r) => r.id === activeRoleId) ?? null;
+	const activeRole =
+		displayRoles.find((r: Role) => r.id === activeRoleId) ?? null;
+	const activeApiRole =
+		rolesApiData.find((r: RoleItem) => r.id === activeRoleId) ?? null;
 
 	const handleDeleteRole = (roleId: string) => {
-		const roleItem = rolesApiData.find((r) => r.id === roleId);
+		const roleItem = rolesApiData.find((r: RoleItem) => r.id === roleId);
 		if (!roleItem || roleItem.isSystem) return;
 		setDeleteConfirmRole({ id: roleId, name: roleItem.name });
 	};
@@ -163,7 +186,9 @@ export function RolesTabPage({ onViewChange: _onViewChange }: RolesTabPageProps 
 			toast.success(`Role "${deleteConfirmRole.name}" deleted.`);
 			if (selectedRoleId === deleteConfirmRole.id) setSelectedRoleId(null);
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Failed to delete role.");
+			toast.error(
+				err instanceof Error ? err.message : "Failed to delete role.",
+			);
 		} finally {
 			setDeleteConfirmRole(null);
 		}
@@ -185,10 +210,14 @@ export function RolesTabPage({ onViewChange: _onViewChange }: RolesTabPageProps 
 			});
 			for (const perm of rolePerms) {
 				const matched = permissionsData.find(
-					(p) => p.resource === perm.resourceId && p.action === perm.actionId,
+					(p: PermissionItem) =>
+						p.resource === perm.resourceId && p.action === perm.actionId,
 				);
 				if (!matched) continue;
-				await addPermission.mutateAsync({ roleId: newRole.id, permissionId: matched.id });
+				await addPermission.mutateAsync({
+					roleId: newRole.id,
+					permissionId: matched.id,
+				});
 			}
 			toast.success("Role created.");
 		} catch (err) {
@@ -208,7 +237,7 @@ export function RolesTabPage({ onViewChange: _onViewChange }: RolesTabPageProps 
 		if (!organizationId) return;
 		const updateKey = `${roleId}-${resourceId}-${actionId}`;
 		const perm = permissionsData.find(
-			(p) => p.resource === resourceId && p.action === actionId,
+			(p: PermissionItem) => p.resource === resourceId && p.action === actionId,
 		);
 		if (!perm) {
 			toast.error(`Could not find permission for ${actionId} on ${resourceId}`);
@@ -222,7 +251,9 @@ export function RolesTabPage({ onViewChange: _onViewChange }: RolesTabPageProps 
 				await removePermission.mutateAsync({ roleId, permissionId: perm.id });
 			}
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Failed to update permission");
+			toast.error(
+				err instanceof Error ? err.message : "Failed to update permission",
+			);
 		} finally {
 			setPendingUpdates((prev) => {
 				const s = new Set(prev);
@@ -238,7 +269,7 @@ export function RolesTabPage({ onViewChange: _onViewChange }: RolesTabPageProps 
 			<div className="flex w-[240px] shrink-0 flex-col border-r border-[#edede4]">
 				{/* Search + New */}
 				<div className="flex items-center gap-2 border-b border-[#edede4] px-3 py-2">
-					<div className="flex flex-1 items-center gap-1.5 rounded-lg border border-[#edede4] bg-[#f3f3f3] px-2.5 py-1.5">
+					<div className="flex flex-1 items-center gap-1.5 rounded-lg border border-[#e5e5e5] bg-[#f3f3f3] px-2.5 py-1.5">
 						<Search className="h-3 w-3 shrink-0 text-[#6b7170]" />
 						<input
 							className="w-full bg-transparent text-xs outline-none placeholder:text-[#6b7170]"
@@ -269,10 +300,22 @@ export function RolesTabPage({ onViewChange: _onViewChange }: RolesTabPageProps 
 
 				{/* Role items */}
 				<div className="flex-1 overflow-y-auto">
-					{rolesLoading ? (
+					{rolesError ? (
+						<div className="px-3 py-3">
+							<StatusCallout
+								variant="error"
+								title="Couldn't load roles"
+								message="Something went wrong while loading roles."
+								onRetry={() => refetchRoles()}
+							/>
+						</div>
+					) : rolesLoading ? (
 						<div className="space-y-1 px-3 py-2">
 							{[1, 2, 3].map((i) => (
-								<div key={i} className="h-10 animate-pulse rounded-lg bg-[#f3f3f3]" />
+								<div
+									key={i}
+									className="h-10 animate-pulse rounded-lg bg-[#f3f3f3]"
+								/>
 							))}
 						</div>
 					) : filteredRoles.length === 0 ? (
@@ -283,7 +326,9 @@ export function RolesTabPage({ onViewChange: _onViewChange }: RolesTabPageProps 
 						filteredRoles.map((role) => {
 							const count = userCounts[role.id];
 							const isActive = role.id === activeRoleId;
-							const isSystem = rolesApiData.find((r) => r.id === role.id)?.isSystem ?? false;
+							const isSystem =
+								rolesApiData.find((r: RoleItem) => r.id === role.id)
+									?.isSystem ?? false;
 							return (
 								<div
 									key={role.id}
@@ -367,10 +412,10 @@ export function RolesTabPage({ onViewChange: _onViewChange }: RolesTabPageProps 
 									</span>
 								)}
 								{/* Legend */}
-								<div className="flex items-center gap-1.5 rounded-lg border border-[#edede4] bg-[#f3f3f3] px-2.5 py-1 text-xs text-[#6b7170]">
+								<div className="flex items-center gap-1.5 rounded-lg border border-[#e5e5e5] bg-[#f3f3f3] px-2.5 py-1 text-xs text-[#737373]">
 									<span className="inline-block h-2.5 w-2.5 rounded-sm border border-green-300 bg-green-100" />
 									Granted
-									<span className="ml-2 inline-block h-2.5 w-2.5 rounded-sm border border-[#edede4] bg-[#f3f3f3]" />
+									<span className="ml-2 inline-block h-2.5 w-2.5 rounded-sm border border-[#e5e5e5] bg-[#f3f3f3]" />
 									Denied
 								</div>
 							</div>
@@ -390,10 +435,17 @@ export function RolesTabPage({ onViewChange: _onViewChange }: RolesTabPageProps 
 
 						{/* Footer */}
 						<div className="flex shrink-0 items-center justify-between border-t border-[#edede4] px-5 py-2">
-							<div className="flex items-center gap-4 text-xs text-[#6b7170]">
+							<div className="flex items-center gap-4 text-xs text-[#737373]">
 								<span className="flex items-center gap-1.5">
 									<span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm border border-green-400 bg-green-100">
-										<svg width="8" height="8" viewBox="0 0 12 12" fill="none" stroke="#16a34a" strokeWidth="2.5">
+										<svg
+											width="8"
+											height="8"
+											viewBox="0 0 12 12"
+											fill="none"
+											stroke="#16a34a"
+											strokeWidth="2.5"
+										>
 											<path d="M2 6l3 3 5-5" />
 										</svg>
 									</span>
@@ -404,8 +456,9 @@ export function RolesTabPage({ onViewChange: _onViewChange }: RolesTabPageProps 
 									Denied
 								</span>
 							</div>
-							<div className="text-xs text-[#6b7170]">
-								{resources.length} resources · {activeApiRole?.isSystem ? "System role" : "Custom role"}
+							<div className="text-xs text-[#737373]">
+								{resources.length} resources ·{" "}
+								{activeApiRole?.isSystem ? "System role" : "Custom role"}
 							</div>
 						</div>
 					</>
@@ -416,7 +469,7 @@ export function RolesTabPage({ onViewChange: _onViewChange }: RolesTabPageProps 
 							<p className="text-sm font-medium text-[#0a0a0a]">
 								{rolesLoading ? "Loading roles…" : "Select a role"}
 							</p>
-							<p className="mt-1 text-xs text-[#6b7170]">
+							<p className="mt-1 text-xs text-[#737373]">
 								{rolesLoading
 									? "Please wait"
 									: "Choose a role from the left panel to view its permissions"}
@@ -436,16 +489,25 @@ export function RolesTabPage({ onViewChange: _onViewChange }: RolesTabPageProps 
 					}
 				}}
 			>
-				<DialogContent className="flex max-h-[85vh] flex-col sm:max-w-2xl">
-					<DialogHeader className="shrink-0">
-						<DialogTitle>{editingRole ? "Edit Role" : "Create New Role"}</DialogTitle>
+				<DialogContent
+					className="sm:max-w-2xl p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden flex max-h-[85vh] flex-col"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5] shrink-0">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							ROLES & PERMISSIONS
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							{editingRole ? "Edit Role" : "Create New Role"}
+						</DialogTitle>
 						{!editingRole && (
-							<DialogDescription>
-								Create a new role to define what users can access and do in your system.
+							<DialogDescription className="text-sm text-[#737373]">
+								Create a new role to define what users can access and do in your
+								system.
 							</DialogDescription>
 						)}
 					</DialogHeader>
-					<div className="min-h-0 flex-1 overflow-y-auto mt-4">
+					<div className="px-6 pt-4 pb-2 overflow-y-auto min-h-0 flex-1">
 						<RoleEditor
 							role={editingRole || undefined}
 							resources={resources}
@@ -476,16 +538,24 @@ export function RolesTabPage({ onViewChange: _onViewChange }: RolesTabPageProps 
 					if (!open) setDeleteConfirmRole(null);
 				}}
 			>
-				<DialogContent className="sm:max-w-sm">
-					<DialogHeader>
-						<DialogTitle>Delete role?</DialogTitle>
-						<DialogDescription>
+				<DialogContent
+					className="sm:max-w-sm p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							ROLES & PERMISSIONS
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Delete role?
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
 							This will permanently delete{" "}
-							<strong>{deleteConfirmRole?.name}</strong> and remove it from all assigned
-							members. This cannot be undone.
+							<strong>{deleteConfirmRole?.name}</strong> and remove it from all
+							assigned members. This cannot be undone.
 						</DialogDescription>
 					</DialogHeader>
-					<div className="flex justify-end gap-2 pt-2">
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<button
 							type="button"
 							onClick={() => setDeleteConfirmRole(null)}
@@ -502,7 +572,7 @@ export function RolesTabPage({ onViewChange: _onViewChange }: RolesTabPageProps 
 						>
 							{deleteRole.isPending ? "Deleting…" : "Delete Role"}
 						</button>
-					</div>
+					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 		</div>

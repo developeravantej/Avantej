@@ -1,0 +1,8 @@
+{
+  "promotions/promotions.lifecycle.spec.ts::Promotion lifecycle — create, deactivate (API-verified)": [
+    "Create a percentage promotion (value 10) via promotions/create",
+    "Register teardown to deactivate the promotion",
+    "List active promotions and assert the code is present",
+    "Deactivate and assert the promotion is absent from the active list"
+  ]
+}

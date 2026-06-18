@@ -1,0 +1,72 @@
+name: E2E Full (nightly)
+
+on:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-full-${{ github.workflow }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+  PLAYWRIGHT_BASE_URL: http://localhost:3021
+  PLAYWRIGHT_SERVER_URL: http://localhost:3020
+
+jobs:
+  full:
+    name: Journey + dashboard E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require CI database secrets
+        env:
+          CI_DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
+          CI_ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+        run: |
+          if [ -z "$CI_DATABASE_URL" ] || [ -z "$CI_ENCRYPTION_KEY" ]; then
+            echo "::warning::Secrets missing — skipping nightly E2E."
+            exit 0
+          fi
+
+      - uses: ./.github/actions/bun-setup
+
+      - name: Write server .dev.vars
+        run: node scripts/ci/write-server-dev-vars.mjs
+        env:
+          CI_DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
+          CI_TENANT_DATABASE_URL: ${{ secrets.CI_TENANT_DATABASE_URL }}
+          CI_ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+
+      - uses: ./.github/actions/playwright-setup
+
+      - name: Seed business fixture
+        run: cd apps/server && bun run scripts/seed-business-data.ts
+        env:
+          DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+
+      - name: Run journey and dashboard specs
+        run: |
+          bunx playwright test \
+            --project=chromium \
+            --project=dashboard-e2e \
+            --project=journeys-e2e \
+            --grep-invert @nightly-skip
+        env:
+          E2E_EMAIL: ${{ secrets.CI_E2E_EMAIL }}
+          E2E_PASSWORD: ${{ secrets.CI_E2E_PASSWORD }}
+
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-full-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 14

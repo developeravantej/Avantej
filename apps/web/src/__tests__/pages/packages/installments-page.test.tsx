@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../helpers/render-with-providers";
-import { mockClient } from "../../helpers/mock-client";
+import { mockClient, mockOrpc } from "../../helpers/mock-client";
 
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({ client: mockClient, orpc: mockOrpc }));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: {
@@ -25,7 +25,10 @@ import { PackageInstallmentsPage } from "@/components/pages/packages/installment
 describe("PackageInstallmentsPage", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockClient.installments.adminOverview.mockResolvedValue({ items: [], total: 0 });
+		mockClient.installments.adminOverview.mockResolvedValue({
+			items: [],
+			total: 0,
+		});
 		mockClient.installments.listByPackageInstance.mockResolvedValue([]);
 		mockClient.installments.setOverdraft.mockResolvedValue({});
 		mockClient.installmentPlans.list.mockResolvedValue([]);
@@ -37,7 +40,9 @@ describe("PackageInstallmentsPage", () => {
 		// All standard tabs should be visible
 		expect(screen.getByRole("button", { name: "All" })).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "Active" })).toBeInTheDocument();
-		expect(screen.getByRole("button", { name: "Due Soon" })).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "Due Soon" }),
+		).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "Overdue" })).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "Locked" })).toBeInTheDocument();
 	});
@@ -107,9 +112,7 @@ describe("PackageInstallmentsPage", () => {
 		});
 	});
 
-	it(
-		"opens the Allow Overdraft dialog, fills reason, submits, and calls setOverdraft with correct args",
-		async () => {
+	it("opens the Allow Overdraft dialog, fills reason, submits, and calls setOverdraft with correct args", async () => {
 		const user = userEvent.setup({ delay: null });
 		const organizationId = "996febce-aaad-4ded-8f47-02d2b566c8ee";
 
@@ -146,11 +149,15 @@ describe("PackageInstallmentsPage", () => {
 		await user.click(row);
 
 		// The sheet should be open — find and click the "Allow Overdraft" button
-		const allowOverdraftBtn = await screen.findByRole("button", { name: "Allow Overdraft" });
+		const allowOverdraftBtn = await screen.findByRole("button", {
+			name: "Allow Overdraft",
+		});
 		await user.click(allowOverdraftBtn);
 
 		// The dialog should appear with a reason textarea
-		const reasonTextarea = await screen.findByRole("textbox", { name: /reason/i });
+		const reasonTextarea = await screen.findByRole("textbox", {
+			name: /reason/i,
+		});
 		await user.type(reasonTextarea, "VIP customer — payment delayed by 3 days");
 
 		// Submit button should now be enabled
@@ -166,9 +173,7 @@ describe("PackageInstallmentsPage", () => {
 				reason: "VIP customer — payment delayed by 3 days",
 			});
 		});
-		},
-		15000,
-	);
+	}, 15000);
 
 	it("shows em-dash when nextInstallmentAmount is null under Due Soon tab", async () => {
 		const user = userEvent.setup();

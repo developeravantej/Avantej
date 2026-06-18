@@ -35,19 +35,17 @@ export const ghlUserLinks = pgTable(
 		updatedAt: timestamp("updated_at").defaultNow().notNull(),
 	},
 	(table) => ({
-		ghlUserIdUniqueIdx: uniqueIndex(
-			"ghl_user_links_ghl_user_id_unique",
-		).on(table.ghlUserId),
+		ghlUserIdUniqueIdx: uniqueIndex("ghl_user_links_ghl_user_id_unique").on(
+			table.ghlUserId,
+		),
 		// Phase G: org-shared GHL model — one member maps to ONE GHL user per
 		// org (branch differentiation lives in a GHL custom-field dropdown).
-		memberUniqueIdx: uniqueIndex(
-			"ghl_user_links_member_unique",
-		).on(table.memberId),
+		memberUniqueIdx: uniqueIndex("ghl_user_links_member_unique").on(
+			table.memberId,
+		),
 		userIdIdx: index("ghl_user_links_user_idx").on(table.userId),
 		memberIdIdx: index("ghl_user_links_member_idx").on(table.memberId),
-		branchNodeIdIdx: index("ghl_user_links_branch_idx").on(
-			table.branchNodeId,
-		),
+		branchNodeIdIdx: index("ghl_user_links_branch_idx").on(table.branchNodeId),
 		ghlLocationIdIdx: index("ghl_user_links_ghl_location_idx").on(
 			table.ghlLocationId,
 		),

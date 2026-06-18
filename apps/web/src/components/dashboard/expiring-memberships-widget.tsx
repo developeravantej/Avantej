@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserContext } from "@/hooks/useUserContext";
-import { client } from "@/utils/orpc";
+import { orpc } from "@/utils/orpc";
 
 type WithinOption = 7 | 30;
 
@@ -14,12 +14,9 @@ export function ExpiringMembershipsWidget() {
 	const organizationId = userCtx?.currentOrganizationId ?? "";
 
 	const { data, isLoading } = useQuery({
-		queryKey: ["memberships", "expiring", organizationId, within],
-		queryFn: () =>
-			client.packageInstances.listExpiring({
-				organizationId,
-				within,
-			}),
+		...orpc.packageInstances.listExpiring.queryOptions({
+			input: { organizationId, within },
+		}),
 		enabled: !!organizationId,
 		staleTime: 60 * 1000,
 	});
@@ -92,7 +89,10 @@ export function ExpiringMembershipsWidget() {
 								<Link
 									key={row.packageInstanceId}
 									to="/dashboard/customers/v2/view"
-									search={{} as any}
+									search={(_prev) => ({
+										customer: undefined,
+										showDeleted: undefined,
+									})}
 									className="flex items-center justify-between py-2 text-sm hover:bg-brand-secondary-3/30"
 								>
 									<div className="min-w-0 flex-1">

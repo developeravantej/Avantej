@@ -57,7 +57,10 @@ async function ghlGetCustomField(
 	apiKey: string,
 	locId: string,
 	fieldId: string,
-): Promise<{ status: number; body: { customField?: GhlCustomFieldResponse } | null }> {
+): Promise<{
+	status: number;
+	body: { customField?: GhlCustomFieldResponse } | null;
+}> {
 	const res = await fetch(
 		`${GHL_BASE_URL}/locations/${locId}/customFields/${fieldId}`,
 		{
@@ -70,10 +73,15 @@ async function ghlGetCustomField(
 		},
 	);
 	if (!res.ok) return { status: res.status, body: null };
-	return { status: res.status, body: (await res.json()) as { customField?: GhlCustomFieldResponse } };
+	return {
+		status: res.status,
+		body: (await res.json()) as { customField?: GhlCustomFieldResponse },
+	};
 }
 
-function extractOptionLabels(field: GhlCustomFieldResponse | undefined): string[] {
+function extractOptionLabels(
+	field: GhlCustomFieldResponse | undefined,
+): string[] {
 	if (!field) return [];
 	const raw = field.picklistOptions ?? field.options ?? [];
 	return raw.map((opt) =>
@@ -189,9 +197,7 @@ test.describe("real GHL — second country", () => {
 			const countryLabel = page.getByText("Select Country", { exact: true });
 			await expect(countryLabel).toBeVisible({ timeout: 10_000 });
 			// The trigger is the immediate sibling combobox under that label.
-			const countryTrigger = page
-				.getByRole("combobox")
-				.first();
+			const countryTrigger = page.getByRole("combobox").first();
 			await countryTrigger.click();
 			await page
 				.getByRole("option", { name: new RegExp(`^${thailand.name}`) })
@@ -217,9 +223,7 @@ test.describe("real GHL — second country", () => {
 			await page.locator("#branch_code").fill(branchCode);
 
 			// Real GHL POST happens during submit — allow generous timeout.
-			await page
-				.getByRole("button", { name: /^Create Branch$/i })
-				.click();
+			await page.getByRole("button", { name: /^Create Branch$/i }).click();
 
 			// ── Step 6: DB assert — new branch row exists ─────────────────────
 			const newBranch = await waitForDb(
@@ -310,8 +314,7 @@ test.describe("real GHL — second country", () => {
 				const orgRow = await cp.query.organizations.findFirst({
 					where: eq(organizations.id, organizationId),
 				});
-				const m =
-					(orgRow?.ghlCountryFieldMap as CountryFieldMap | null) ?? {};
+				const m = (orgRow?.ghlCountryFieldMap as CountryFieldMap | null) ?? {};
 				const fid = m[thailand.id]?.ghlFieldId;
 				if (fid) {
 					const live = await ghlGetCustomField(apiKey, ghlLocationId, fid);

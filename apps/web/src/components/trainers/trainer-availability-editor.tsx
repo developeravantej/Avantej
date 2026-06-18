@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus, X, Save } from "lucide-react";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { Button } from "@/components/ui/button";
 import {
 	Select,
@@ -73,9 +73,9 @@ export function TrainerAvailabilityEditor({
 	// ── Fetch existing availability ──────────────────────────────────────────
 
 	const { data: availabilityData, isLoading } = useQuery({
-		queryKey: ["trainer-availability", trainerId],
-		queryFn: () =>
-			client.trainerAvailability.list({ organizationId, trainerId }),
+		...orpc.trainerAvailability.list.queryOptions({
+			input: { organizationId, trainerId },
+		}),
 		enabled: !!organizationId && !!trainerId,
 	});
 
@@ -84,7 +84,7 @@ export function TrainerAvailabilityEditor({
 	useEffect(() => {
 		if (availabilityData) {
 			setShifts(
-				availabilityData.map((slot: any) => ({
+				availabilityData.map((slot) => ({
 					dayOfWeek: slot.dayOfWeek,
 					startTime: slot.startTime,
 					endTime: slot.endTime,
@@ -115,7 +115,11 @@ export function TrainerAvailabilityEditor({
 			}),
 		successMessage: "Availability saved successfully.",
 		errorMessage: (err) => err.message || "Failed to save availability.",
-		invalidate: [["trainer-availability", trainerId]],
+		invalidate: [
+			orpc.trainerAvailability.list.queryOptions({
+				input: { organizationId, trainerId },
+			}).queryKey,
+		],
 		onSuccess: () => {
 			onSaved?.();
 		},
@@ -134,7 +138,11 @@ export function TrainerAvailabilityEditor({
 		setShifts((prev) => prev.filter((_, i) => i !== index));
 	}
 
-	function updateShift(index: number, field: "startTime" | "endTime", value: string) {
+	function updateShift(
+		index: number,
+		field: "startTime" | "endTime",
+		value: string,
+	) {
 		setShifts((prev) =>
 			prev.map((shift, i) =>
 				i === index ? { ...shift, [field]: value } : shift,
@@ -163,9 +171,14 @@ export function TrainerAvailabilityEditor({
 				);
 
 				return (
-					<div key={day} className="bg-white border border-brand-secondary-3 rounded-md p-4 space-y-2">
+					<div
+						key={day}
+						className="bg-white border border-brand-secondary-3 rounded-md p-4 space-y-2"
+					>
 						<div className="flex items-center justify-between">
-							<span className="text-sm font-medium text-brand-primary-1">{DAY_LABELS[day]}</span>
+							<span className="text-sm font-medium text-brand-primary-1">
+								{DAY_LABELS[day]}
+							</span>
 							<Button
 								type="button"
 								variant="ghost"
@@ -179,18 +192,19 @@ export function TrainerAvailabilityEditor({
 						</div>
 
 						{dayShifts.length === 0 ? (
-							<p className="text-xs text-brand-secondary-1 pl-1">No shifts, day off</p>
+							<p className="text-xs text-brand-secondary-1 pl-1">
+								No shifts, day off
+							</p>
 						) : (
 							<div className="space-y-1.5 pl-1">
 								{dayShifts.map(({ shift, originalIndex }) => (
-									<div
-										key={originalIndex}
-										className="flex items-center gap-2"
-									>
+									<div key={originalIndex} className="flex items-center gap-2">
 										{/* Start time */}
 										<Select
 											value={shift.startTime}
-											onValueChange={(v) => updateShift(originalIndex, "startTime", v)}
+											onValueChange={(v) =>
+												updateShift(originalIndex, "startTime", v)
+											}
 										>
 											<SelectTrigger className="h-8 w-28 text-xs border-brand-secondary-3 focus:border-black focus:ring-black">
 												<SelectValue />
@@ -209,7 +223,9 @@ export function TrainerAvailabilityEditor({
 										{/* End time */}
 										<Select
 											value={shift.endTime}
-											onValueChange={(v) => updateShift(originalIndex, "endTime", v)}
+											onValueChange={(v) =>
+												updateShift(originalIndex, "endTime", v)
+											}
 										>
 											<SelectTrigger className="h-8 w-28 text-xs border-brand-secondary-3 focus:border-black focus:ring-black">
 												<SelectValue />

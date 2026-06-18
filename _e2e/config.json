@@ -1,0 +1,85 @@
+{
+  "__comment": "Persisted E2E config for the Avantej dashboard suite (web/Playwright). Smoke-for-all-pages + journeys-for-core (POS/sales, commissions, customers). Reused by re-runs so phases stay deterministic.",
+  "baseURL": "http://localhost:3021",
+  "web": {
+    "enabled": true,
+    "testDir": "_e2e/web",
+    "configPath": "_e2e/playwright.config.ts",
+    "ports": [
+      3021,
+      3020
+    ]
+  },
+  "mobile": {
+    "enabled": false,
+    "platform": "ios",
+    "__note": "iOS needs macOS (xcodebuild/simctl); host is win32. Web-only."
+  },
+  "auth": {
+    "globalSetup": "_e2e/web/global-setup.ts",
+    "storageState": "_e2e/.auth/admin.json",
+    "loginPath": "/login",
+    "credentialsEnv": [
+      "E2E_EMAIL",
+      "E2E_PASSWORD"
+    ],
+    "defaultUser": "franchisee@gmail.com (tenant admin)"
+  },
+  "data": {
+    "target": "local dev (Test Fitness Franchise tenant branch)",
+    "writePrefix": "E2E-",
+    "__note": "Smoke specs are read-only (navigate + assert render). Core journeys stop short of irreversible mutations (no sale submit, no delete/approve)."
+  },
+  "modules": [
+    "access-control",
+    "announcements",
+    "appointment",
+    "attendance",
+    "audit",
+    "branch",
+    "brands",
+    "cancelled-sales",
+    "categories",
+    "commissions",
+    "customers",
+    "expenses",
+    "home",
+    "inventory-options",
+    "memberships",
+    "my-services",
+    "notifications",
+    "onboarding",
+    "operations",
+    "packages",
+    "payment",
+    "products",
+    "promotions",
+    "purchase-orders",
+    "refunds",
+    "reports",
+    "rooms",
+    "role",
+    "sales",
+    "service",
+    "service-category",
+    "settings",
+    "stock-requests",
+    "suppliers",
+    "trainers",
+    "transfer-orders",
+    "uom",
+    "uom-conversions",
+    "user"
+  ],
+  "roles": {
+    "admin": {
+      "email": "franchisee@gmail.com",
+      "storageState": "_e2e/.auth/admin.json"
+    },
+    "staff": {
+      "email": "staff.deterministic@test.com",
+      "storageState": "_e2e/.auth/staff.json",
+      "note": "role staff; provisioned via apps/server/scripts/seed-e2e-staff.ts"
+    }
+  }
+}

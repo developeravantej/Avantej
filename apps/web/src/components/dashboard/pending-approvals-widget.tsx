@@ -10,7 +10,7 @@ import { ClipboardCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUserContext } from "@/hooks/useUserContext";
-import { client } from "@/utils/orpc";
+import { orpc } from "@/utils/orpc";
 
 type PendingRow = {
 	id: string;
@@ -47,13 +47,9 @@ export function PendingApprovalsWidget() {
 	const isStaff = callerRole === "admin" || callerRole === "trainer";
 
 	const { data: rows, isLoading } = useQuery({
-		queryKey: ["packageInstances", "listPending", organizationId, "widget"],
-		queryFn: () =>
-			client.packageInstances.listPending({
-				organizationId,
-				scope: "all",
-				limit: 100,
-			}),
+		...orpc.packageInstances.listPending.queryOptions({
+			input: { organizationId, scope: "all", limit: 100 },
+		}),
 		enabled: !!organizationId && isStaff,
 		staleTime: 60 * 1000,
 	});

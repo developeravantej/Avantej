@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { RequestRefundDialog } from "@/components/refunds/request-refund-dialog";
 import { client } from "@/utils/orpc";
-import type { InstallmentOverviewItem, SuggestRefundResult } from "./installment-types";
+import type {
+	InstallmentOverviewItem,
+	SuggestRefundResult,
+} from "./installment-types";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -25,11 +28,7 @@ export function RefundDialog({
 }: RefundDialogProps) {
 	// Fetch suggested refund amount when the dialog is open
 	const suggestRefundQuery = useQuery({
-		queryKey: [
-			"installments",
-			"suggestRefund",
-			packageInstance?.id,
-		],
+		queryKey: ["installments", "suggestRefund", packageInstance?.id],
 		queryFn: (): Promise<SuggestRefundResult> =>
 			client.installments.suggestRefund({
 				organizationId,

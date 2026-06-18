@@ -62,7 +62,7 @@ export function DataTable<TData extends UomRow, TValue>({
 	emptyTitle,
 	emptyDescription,
 	emptyAction,
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
+	// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }: DataTableProps<TData, TValue>) {
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [globalFilter, setGlobalFilter] = useState("");
@@ -139,7 +139,9 @@ export function DataTable<TData extends UomRow, TValue>({
 					<StatusCallout
 						variant="error"
 						title="Couldn't load data"
-						message={error instanceof Error ? error.message : "An error occurred"}
+						message={
+							error instanceof Error ? error.message : "An error occurred"
+						}
 						onRetry={onRetry}
 					/>
 				</div>
@@ -249,20 +251,36 @@ export function DataTable<TData extends UomRow, TValue>({
 			/>
 
 			{/* Delete Confirmation Dialog */}
-			<Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle>Confirm Delete</DialogTitle>
-						<DialogDescription>
-							Are you sure you want to delete this unit of measure? This action cannot be undone.
+			<Dialog
+				open={!!deleteTarget}
+				onOpenChange={(open) => !open && setDeleteTarget(null)}
+			>
+				<DialogContent
+					hideCloseButton
+					className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							UNITS OF MEASURE
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+							Confirm Delete
+						</DialogTitle>
+						<DialogDescription className="text-sm text-[#737373]">
+							Are you sure you want to delete this unit of measure? This action
+							cannot be undone.
 						</DialogDescription>
 					</DialogHeader>
-					<DialogFooter>
-						<Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+						<Button
+							variant="outline"
+							onClick={() => setDeleteTarget(null)}
+							disabled={isDeleting}
+						>
 							Cancel
 						</Button>
 						<Button
-							variant="destructive"
+							className="bg-red-600 hover:bg-red-700 text-white"
 							onClick={() => {
 								if (deleteTarget) {
 									onDelete(deleteTarget);

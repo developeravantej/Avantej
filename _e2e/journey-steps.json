@@ -1,0 +1,966 @@
+{
+  "home/smoke.spec.ts::Dashboard home loads with KPIs/widgets": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Dashboard home with KPIs/widgets."
+  ],
+  "access-control/smoke.spec.ts::User assignment (Staff Access) loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/access-control/user-assignment.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — User assignment (Staff Access)."
+  ],
+  "access-control/smoke.spec.ts::Roles tab loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/access-control/roles.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Roles tab."
+  ],
+  "access-control/smoke.spec.ts::Permissions tab loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/access-control/permissions.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Permissions tab."
+  ],
+  "access-control/smoke.spec.ts::Invitations loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/access-control/invitations.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Invitations."
+  ],
+  "announcements/smoke.spec.ts::Announcements list loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/announcements/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Announcements list."
+  ],
+  "appointment/smoke.spec.ts::Appointments calendar/list loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/appointment/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Appointments calendar/list."
+  ],
+  "appointment/smoke.spec.ts::Class slots loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/appointment/class-slots/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Class slots."
+  ],
+  "attendance/smoke.spec.ts::Attendance loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/attendance/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Attendance."
+  ],
+  "audit/smoke.spec.ts::Audit log loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/audit/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Audit log."
+  ],
+  "branch/smoke.spec.ts::Branch list loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/branch/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Branch list."
+  ],
+  "branch/smoke.spec.ts::Create-branch form loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/branch/create.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Create-branch form."
+  ],
+  "brands/smoke.spec.ts::Brands list loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/brands/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Brands list."
+  ],
+  "cancelled-sales/smoke.spec.ts::Cancelled sales loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/cancelled-sales/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Cancelled sales."
+  ],
+  "categories/smoke.spec.ts::Categories loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/categories/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Categories."
+  ],
+  "commissions/smoke.spec.ts::My commissions loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/commissions/my.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — My commissions."
+  ],
+  "commissions/smoke.spec.ts::All commissions loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/commissions/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — All commissions."
+  ],
+  "customers/smoke.spec.ts::Customers list loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/customers/v2/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Customers list."
+  ],
+  "customers/smoke.spec.ts::Walk-in customers loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/customers/walk-in/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Walk-in customers."
+  ],
+  "expenses/smoke.spec.ts::Expenses loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/expenses/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Expenses."
+  ],
+  "inventory-options/smoke.spec.ts::Inventory options loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/inventory-options.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Inventory options."
+  ],
+  "memberships/smoke.spec.ts::Memberships loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/memberships/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Memberships."
+  ],
+  "my-services/smoke.spec.ts::My services loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/my-services/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — My services."
+  ],
+  "notifications/smoke.spec.ts::Notifications loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/notifications/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Notifications."
+  ],
+  "onboarding/smoke.spec.ts::Onboarding loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/onboarding/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Onboarding."
+  ],
+  "operations/smoke.spec.ts::Operations approvals loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/operations/approvals.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Operations approvals."
+  ],
+  "packages/smoke.spec.ts::Packages list loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/packages/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Packages list."
+  ],
+  "packages/smoke.spec.ts::Package instances loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/packages/instances/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Package instances."
+  ],
+  "packages/smoke.spec.ts::Installments loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/packages/installments/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Installments."
+  ],
+  "payment/smoke.spec.ts::Payments loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/payment/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Payments."
+  ],
+  "products/smoke.spec.ts::Products loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/products/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Products."
+  ],
+  "promotions/smoke.spec.ts::Promotions loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/promotions/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Promotions."
+  ],
+  "purchase-orders/smoke.spec.ts::Purchase orders loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/purchase-orders/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Purchase orders."
+  ],
+  "refunds/smoke.spec.ts::Refunds loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/refunds/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Refunds."
+  ],
+  "reports/smoke.spec.ts::Reports loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/reports/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Reports."
+  ],
+  "role/smoke.spec.ts::Legacy role route redirects + loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/role/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Legacy role route redirects +."
+  ],
+  "rooms/smoke.spec.ts::Legacy rooms route redirects + loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/rooms/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Legacy rooms route redirects +."
+  ],
+  "sales/smoke.spec.ts::Sales list loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/sales/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Sales list."
+  ],
+  "sales/smoke.spec.ts::POS create page loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/sales/create.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — POS create page."
+  ],
+  "service/smoke.spec.ts::Services loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/service/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Services."
+  ],
+  "service-category/smoke.spec.ts::Service categories loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/service-category/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Service categories."
+  ],
+  "settings/smoke.spec.ts::Organization settings loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/settings/organization.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Organization settings."
+  ],
+  "settings/smoke.spec.ts::Commission cycles settings loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/settings/commission-cycles.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Commission cycles settings."
+  ],
+  "settings/smoke.spec.ts::Installment plans settings loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/settings/installment-plans.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Installment plans settings."
+  ],
+  "settings/smoke.spec.ts::Notification settings loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/settings/notifications.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Notification settings."
+  ],
+  "settings/smoke.spec.ts::Google Calendar settings loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/settings/google-calendar.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Google Calendar settings."
+  ],
+  "settings/smoke.spec.ts::Tax rates settings loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/settings/tax-rates.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Tax rates settings."
+  ],
+  "stock-requests/smoke.spec.ts::Stock requests loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/stock-requests/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Stock requests."
+  ],
+  "suppliers/smoke.spec.ts::Suppliers loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/suppliers/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Suppliers."
+  ],
+  "trainers/smoke.spec.ts::Trainers list loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/trainers/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Trainers list."
+  ],
+  "trainers/smoke.spec.ts::Trainer availability loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/trainers/availability.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Trainer availability."
+  ],
+  "trainers/smoke.spec.ts::Trainer tiers loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/trainers/tiers.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Trainer tiers."
+  ],
+  "transfer-orders/smoke.spec.ts::Transfer orders loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/transfer-orders/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Transfer orders."
+  ],
+  "uom/smoke.spec.ts::Units of measure loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/uom/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — Units of measure."
+  ],
+  "uom-conversions/smoke.spec.ts::UOM conversions loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/uom-conversions/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — UOM conversions."
+  ],
+  "user/smoke.spec.ts::User profile loads": [
+    "Start logged-in as the tenant admin (franchisee@gmail.com).",
+    "Navigate to /dashboard/user/view.",
+    "Wait for the dashboard shell (sidebar) to mount, with reload-resilience for cold starts.",
+    "Assert the route did not bounce to /login and did not crash into the \"Something went wrong\" ErrorBoundary.",
+    "Confirm page content (a heading) painted — User profile."
+  ],
+  "sales/pos-journey.spec.ts::POS journey — open New Sale and search a member (no submit)": [
+    "Start logged-in as the tenant admin.",
+    "Load the Sales list (/dashboard/sales/view) and confirm it renders.",
+    "Open the POS create flow (/dashboard/sales/create).",
+    "Wait for the customer step — the member search box — to mount.",
+    "Type a member name (\"Ahmad\") to drive the read-only member lookup.",
+    "Confirm the lookup resolves with no ErrorBoundary crash. No sale is submitted."
+  ],
+  "commissions/commissions-journey.spec.ts::Commissions journey — switch from My to All Commissions tab": [
+    "Start logged-in as the tenant admin.",
+    "Load Commissions (/dashboard/commissions/view) on the default \"My Commissions\" pill.",
+    "Click the \"All Commissions\" pill.",
+    "Assert the URL reflects tab=all and the panel re-renders without crashing.",
+    "Confirm a table or empty state is shown under the new tab. Read-only — no adjustments created."
+  ],
+  "customers/customers-journey.spec.ts::Customers journey — search directory and open a profile": [
+    "Start logged-in as the tenant admin.",
+    "Load the Customers directory (/dashboard/customers/v2/view).",
+    "Type \"a\" into the \"Search customers…\" box (debounced lookup).",
+    "Confirm the filtered query resolves with no ErrorBoundary crash.",
+    "If a customer row rendered, open it and confirm the profile panel; otherwise confirm a graceful empty state."
+  ],
+  "access-control/role-permissions-duplicate-add.rule.spec.ts::rule: adding a duplicate permission to a role is rejected (409)": [
+    "Create a custom role (cascade-deletes its permissions on delete)",
+    "Register teardown to delete the role",
+    "Pick an existing permission via permissions/list",
+    "Add the permission to the role via rolePermissions/add (succeeds)",
+    "Attempt to add the same permission again and assert 409"
+  ],
+  "access-control/role-permissions-system-role-immutable.rule.spec.ts::rule: removing a permission from a system role is rejected (400)": [
+    "List roles and find a system role (isSystem=true)",
+    "Pick an existing permission via permissions/list",
+    "Attempt rolePermissions/remove on the system role and assert 400"
+  ],
+  "access-control/roles-duplicate-name.rule.spec.ts::rule: duplicate role name is rejected (409)": [
+    "Create a custom role with a unique name",
+    "Register teardown to delete the role",
+    "Attempt roles/create with the same name and assert 409"
+  ],
+  "access-control/roles-priority-range.rule.spec.ts::rule: role priority outside 1-99 is rejected (400)": [
+    "Attempt roles/create with priority 0 (below min) and assert 400",
+    "Attempt roles/create with priority 100 (above max, reserved for admin) and assert 400"
+  ],
+  "access-control/roles-system-role-immutable.rule.spec.ts::rule: updating or deleting a system role is rejected (400)": [
+    "List roles and find a system role (isSystem=true)",
+    "Attempt roles/update on the system role and assert 400",
+    "Attempt roles/delete on the system role and assert 400",
+    "Re-list and assert the system role is unchanged"
+  ],
+  "access-control/roles.lifecycle.spec.ts::Role lifecycle — create, list, update, delete (API-verified)": [
+    "Create a custom role (priority 50) via roles/create",
+    "Register teardown to delete the role",
+    "List roles and assert the new role name is present",
+    "Update the role's name and priority via roles/update",
+    "Re-list and assert the updated name and priority persisted",
+    "Delete the role and assert it is gone from the list"
+  ],
+  "announcements/announcements.lifecycle.spec.ts::Announcement lifecycle — create, update, delete (API-verified)": [
+    "Create an announcement via announcements/create",
+    "Register teardown to delete the announcement",
+    "List announcements and assert the title is present",
+    "Update the title and priority via announcements/update",
+    "Re-list and assert the updated title persisted",
+    "Delete the announcement and assert it is gone from the list"
+  ],
+  "appointment/class-slots.lifecycle.spec.ts::Class slot rule — reducing capacity below booked spots is rejected (400)": [
+    "Creates a throwaway service and a class slot with capacity 2",
+    "Enrolls one synthetic client so spotsBooked becomes 1",
+    "Asserts classSlots/update with capacity 0 (below spotsBooked) is rejected with 400",
+    "Tears down slot (cancel, cascades enrollment) and service (isActive:false)"
+  ],
+  "appointment/class-slots.lifecycle.spec.ts::Class slot rule — enrolling the same client twice is rejected (409)": [
+    "Creates a throwaway service and a class slot with capacity 5",
+    "Enrolls a synthetic client once (succeeds, returns appointmentId)",
+    "Asserts a second enrollment of the same clientUserId is rejected with 409 (CONFLICT: already enrolled)",
+    "Tears down slot (cancel) and service (isActive:false)"
+  ],
+  "attendance/check-ins.lifecycle.spec.ts::Check-in rule — member check-in without clientId is rejected (400)": [
+    "Posts checkIns/recordCheckIn with clientType 'member' and no clientId",
+    "Asserts the zod superRefine rejects it with 400 ('clientId is required for member check-ins')"
+  ],
+  "attendance/check-ins.lifecycle.spec.ts::Check-in rule — duplicate member drop-in within 30 min is rejected (409)": [
+    "Resolves the caller's own members.userId as the clientId (a real member)",
+    "Records a first member drop-in check-in (succeeds, returns id) and registers deleteCheckIn teardown",
+    "Asserts a second member drop-in for the same client within 30 min is rejected with 409 (ALREADY_CHECKED_IN)",
+    "Deletes the created check-in on teardown"
+  ],
+  "brands/brands.lifecycle.spec.ts::Brand lifecycle — create, list, update, delete (API-verified)": [
+    "Create a uniquely-named (E2E-DEEP-) brand via the brands API and register its teardown.",
+    "Assert the brand appears in brands/list.",
+    "Update the brand name and assert brands/getById returns the new name.",
+    "Delete the brand and assert it no longer appears in brands/list.",
+    "Teardown deletes the fixture in finally — no test data left behind."
+  ],
+  "categories/product-categories.lifecycle.spec.ts::Product category lifecycle — create, update, delete (API-verified)": [
+    "Create a product category via productCategories/create and assert an id is returned",
+    "Fetch productCategories/getById and assert the stored name matches",
+    "Update the category name and assert getById reflects the edit",
+    "Delete the category and assert it is absent from productCategories/list"
+  ],
+  "commissions/category-commission-weightage-sum.rule.spec.ts::rule: slot weightages must sum to 10000 (reject otherwise; exact sum succeeds)": [
+    "Create a throwaway service category to attach the config to",
+    "Register teardown to delete the commission config and deactivate the category",
+    "Upsert with slots summing to 9000 and assert 400",
+    "Upsert with slots summing to exactly 10000 and assert success",
+    "Read the config back and assert slot weightages total 10000"
+  ],
+  "commissions/commission-cycle-anchor-day.rule.spec.ts::rule: monthly_anchored anchorDay out of 1..28 is rejected; valid upsert succeeds": [
+    "Resolve a branch id and register teardown to delete that branch's cycle policy",
+    "Upsert monthly_anchored with anchorDay 0 and assert 400",
+    "Upsert monthly_anchored with anchorDay 29 and assert 400",
+    "Upsert monthly_anchored with anchorDay 15 and assert success",
+    "List policies and assert the branch policy has cycleType monthly_anchored and anchorDay 15"
+  ],
+  "commissions/commission-splits-manual-adjustment-xor.rule.spec.ts::rule: manual adjustment targeting more than one entity is rejected (400)": [
+    "Call commissionSplits/createManualAdjustment with both salesOrderId and appointmentId set",
+    "Assert the request is rejected with 400 (XOR: exactly one target required)"
+  ],
+  "customers/customer-profiles.lifecycle.spec.ts::Self profile upsert — update a field then restore (API-verified)": [
+    "Read the caller's own customer profile via customerProfiles/get (captures original notes)",
+    "Upsert a unique E2E marker into the notes field via customerProfiles/upsert",
+    "Assert the upsert response returns the marker notes",
+    "Re-query customerProfiles/get and assert the marker persisted",
+    "Restore the original notes value (withRestored)",
+    "Assert the marker is no longer present after restore"
+  ],
+  "customers/customers.detail.spec.ts::Customer profile opens from the directory and shows profile content": [
+    "Start logged-in as the tenant admin.",
+    "Load the Customers directory and wait for it to render.",
+    "Click the first customer row (skip the test if the directory is empty).",
+    "Assert no ErrorBoundary crash after opening the profile.",
+    "Assert the profile panel shows real content (profile / contact / New Sale / email / phone)."
+  ],
+  "customers/upsert-for-customer-unknown-target.rule.spec.ts::upsertForCustomer rejects an unknown target customer": [
+    "Call customerProfiles/upsertForCustomer with a targetUserId that is not a client member in this tenant",
+    "Assert the server rejects with 403 (no permission) or 404 (target not found)",
+    "Confirm no profile row is created for the bogus target"
+  ],
+  "expenses/expenses-self-approval-forbidden.rule.spec.ts::rule: submitter cannot approve their own expense (403)": [
+    "Create an expense as the admin user via expenses/create",
+    "Register teardown to reject the expense (no delete API)",
+    "Attempt expenses/approve as the same user and assert 403",
+    "Fetch by id and assert the expense is still pending"
+  ],
+  "expenses/expenses.lifecycle.spec.ts::Expense lifecycle — create and verify (API-verified)": [
+    "Create an expense (supplies, amount 4200) via expenses/create",
+    "Register teardown to reject the expense (no delete API)",
+    "Fetch by id and assert description and amount",
+    "List expenses and assert the description is present"
+  ],
+  "memberships/freeze-end-before-start.rule.spec.ts::freeze rejects endDate <= startDate (400)": [
+    "Call memberships/freeze with endDate equal to startDate (window not strictly positive)",
+    "Assert the server rejects with 400 BAD_REQUEST",
+    "Confirm the guard runs before any package-instance lookup, so nothing is created"
+  ],
+  "my-services/service-buffer.lifecycle.spec.ts::updateMyBuffer — set then restore my override for an assigned service": [
+    "List the caller's assigned services via serviceMembers/listMine and capture the original buffer override",
+    "Set a marker buffer (17 min) for an assigned service via serviceMembers/updateMyBuffer",
+    "Assert the response returns the marker buffer value",
+    "Re-query serviceMembers/listMine and assert the override persisted on that service",
+    "Clear the override (null) and assert it is removed",
+    "Restore the caller's original buffer value in finally"
+  ],
+  "my-services/update-my-buffer-unassigned.rule.spec.ts::updateMyBuffer rejects a service the caller is not assigned to (404)": [
+    "Call serviceMembers/updateMyBuffer with a random serviceId the caller is not assigned to",
+    "Assert the server rejects with 404 NOT_FOUND",
+    "Confirm no buffer override row is written"
+  ],
+  "products/adjust-stock-below-zero.rule.spec.ts::adjustStock below zero is rejected (BAD_REQUEST)": [
+    "Create a product with zero stock at the branch",
+    "Call products/adjustStock with a negative delta and assert it is rejected with 400 (Insufficient stock)"
+  ],
+  "products/duplicate-sku.rule.spec.ts::creating a second product with the same sku is rejected": [
+    "Create a product with a unique sku",
+    "Attempt to create a second product reusing the same sku and assert the call is rejected (400/409/500)"
+  ],
+  "products/products.lifecycle.spec.ts::Product lifecycle — create, update, discontinue (API-verified)": [
+    "Create a UOM dependency and a product (sku, name, uomId, price) and assert an id is returned",
+    "Fetch products/getById and assert the stored name matches",
+    "Update the product name and assert getById reflects the edit",
+    "Set status to discontinued and assert the product is absent from the status:active list"
+  ],
+  "promotions/promotions-update-immutable-code-type.rule.spec.ts::rule: update cannot change code or type (ignored)": [
+    "Create a percentage promotion and assert its code and type",
+    "Register teardown to deactivate the promotion",
+    "Call promotions/update with a new name plus code and type fields",
+    "Re-list and assert code and type are unchanged but name was applied"
+  ],
+  "promotions/promotions.lifecycle.spec.ts::Promotion lifecycle — create, deactivate (API-verified)": [
+    "Create a percentage promotion (value 10) via promotions/create",
+    "Register teardown to deactivate the promotion",
+    "List active promotions and assert the code is present",
+    "Deactivate and assert the promotion is absent from the active list"
+  ],
+  "purchase-orders/purchase-orders.lifecycle.spec.ts::PO lifecycle — create(draft) -> approve -> cancel (API-verified)": [
+    "Creates throwaway uom, product, and supplier as dependencies",
+    "Creates a purchase order with one line item and asserts status is 'draft'",
+    "Approves the draft PO and re-queries getById to assert status is 'approved'",
+    "Cancels the approved PO and re-queries getById to assert status is 'cancelled'",
+    "Tears down PO (cancel), supplier (deactivate), product (discontinue), uom (delete) in reverse order"
+  ],
+  "purchase-orders/purchase-orders.lifecycle.spec.ts::PO rule — approving a non-draft PO is rejected (400)": [
+    "Creates dependency uom, product, supplier and a draft PO",
+    "Approves once (draft -> approved)",
+    "Asserts a second approve on the approved PO is rejected with 400 (BAD_REQUEST: 'Only draft purchase orders can be approved')",
+    "Cleans up all created rows in reverse order"
+  ],
+  "rooms/rooms.lifecycle.spec.ts::Room lifecycle — create, update, delete (API-verified)": [
+    "Create a room (name, type, capacity, branchId) and assert an id is returned",
+    "Fetch rooms/getById and assert name and capacity match",
+    "Update name and capacity and assert getById reflects the edit",
+    "Delete the room and assert it is absent from rooms/list"
+  ],
+  "sales/sales.detail.spec.ts::Sale detail opens from the list and shows order content": [
+    "Start logged-in as the tenant admin.",
+    "Load the Sales list and wait for it to render.",
+    "Click the first sales row (skip the test if the dataset has no sales).",
+    "Assert no ErrorBoundary crash after opening the detail.",
+    "Assert the detail shows real order content (total / amount / invoice / payment)."
+  ],
+  "service/service.lifecycle.spec.ts::Service lifecycle — create, update, deactivate (API-verified)": [
+    "Create a service (name, duration, maxAttendees) and assert an id is returned",
+    "Fetch services/getById and assert name and duration match",
+    "Update name and duration and assert getById reflects the edit",
+    "Set isActive:false and assert the service is absent from the isActive:true list"
+  ],
+  "service-category/config-buffer-exceeds-duration.rule.spec.ts::bufferTimeMinutes greater than defaultDuration is rejected (BAD_REQUEST)": [
+    "Create a service category to attach a config to",
+    "Upsert serviceCategoryConfig with bufferTimeMinutes (60) exceeding defaultDuration (30) and assert it is rejected with 400"
+  ],
+  "service-category/service-category.lifecycle.spec.ts::Service category lifecycle — create, update, deactivate (API-verified)": [
+    "Create a service category via serviceCategories/create and assert an id is returned",
+    "Fetch serviceCategories/getById and assert the stored name matches",
+    "Update the category name and assert getById reflects the edit",
+    "Set isActive:false and assert the category is absent from the isActive:true list"
+  ],
+  "settings/installment-plans-duplicate-code.rule.spec.ts::rule: duplicate installment plan code is rejected (409)": [
+    "Create an installment plan with a unique code",
+    "Register teardown to deactivate the plan",
+    "Attempt installmentPlans/create with the same code and assert 409"
+  ],
+  "settings/installment-plans-price-premium-range.rule.spec.ts::rule: pricePremiumBps outside [0,10000] is rejected (400)": [
+    "Attempt installmentPlans/create with pricePremiumBps -1 and assert 400",
+    "Attempt installmentPlans/create with pricePremiumBps 10001 and assert 400"
+  ],
+  "settings/installment-plans.lifecycle.spec.ts::Installment plan lifecycle — create, update, deactivate (API-verified)": [
+    "Create an installment plan (3 installments, pricePremiumBps 500)",
+    "Register teardown to deactivate the plan",
+    "Fetch by id and assert code and numInstallments",
+    "Update name and numInstallments to 6",
+    "Re-fetch and assert the updates persisted",
+    "Deactivate and assert the plan is absent from the active-only list"
+  ],
+  "settings/organization-settings.rule.spec.ts::rule: upsert persists a changed setting, then restore original (no residue)": [
+    "Read the original value of organization setting 'grace_period_days'",
+    "Upsert a changed value (13) via organizationSettings/upsert",
+    "Re-read and assert the changed value persisted",
+    "Restore the original value in a finally block",
+    "Re-read and assert the changed value is no longer present"
+  ],
+  "stock-requests/stock-requests.lifecycle.spec.ts::Stock request lifecycle — create(pending) -> approve (API-verified)": [
+    "Resolves the caller's own member id (issuedByMemberId) and a destination branch id",
+    "Creates a throwaway uom and product for the line item",
+    "Creates a stock request and asserts status is 'pending'",
+    "Approves it and re-queries getById to assert status is 'approved'",
+    "Tears down stock request (reject — no stock moved), product (discontinue), uom (delete)"
+  ],
+  "suppliers/suppliers.lifecycle.spec.ts::Supplier lifecycle — create, update, deactivate (API-verified)": [
+    "Create a supplier via suppliers/create and assert an id is returned",
+    "Fetch suppliers/getById and assert the stored name matches the created name",
+    "Update the supplier name via suppliers/update and assert getById reflects the edit",
+    "Deactivate the supplier via suppliers/deactivate and assert it is absent from the isActive:true list"
+  ],
+  "tax-rates/deactivate-default.rule.spec.ts::deactivating the default does not throw and clears isDefault": [
+    "Capture the pre-existing default to restore later",
+    "Create a tax rate with isDefault:true",
+    "Deactivate it and assert the call succeeds returning isActive:false and isDefault:false",
+    "Assert getById confirms the cleared isDefault and isActive flags persisted"
+  ],
+  "tax-rates/default-uniqueness.rule.spec.ts::creating a second default clears the prior default": [
+    "Capture the pre-existing default to restore later",
+    "Create tax rate A with isDefault:true and assert getDefault returns A",
+    "Create tax rate B with isDefault:true and assert getDefault now returns B",
+    "Assert A.isDefault is now false (the new default stole the flag)"
+  ],
+  "tax-rates/tax-rates.lifecycle.spec.ts::Tax rate lifecycle — create, update, deactivate (API-verified)": [
+    "Create a tax rate via taxRates/create and assert an id is returned",
+    "Fetch taxRates/getById and assert name and rateInBasisPoints match",
+    "Update name and rateInBasisPoints and assert getById reflects the edit",
+    "Deactivate the tax rate and assert it is absent from the isActive:true list"
+  ],
+  "trainers/member-profiles.lifecycle.spec.ts::Member profile upsert — set bio then restore (read-modify-restore)": [
+    "List existing members via members/list and pick a non-client member (trainer/staff/admin)",
+    "Read that member's current profile bio via memberProfiles/get (captures original)",
+    "Upsert a unique E2E marker bio via memberProfiles/upsert",
+    "Assert the upsert response returns the marker bio",
+    "Re-query memberProfiles/get and assert the marker persisted",
+    "Restore the member's original bio (withRestored)"
+  ],
+  "transfer-orders/transfer-orders.lifecycle.spec.ts::Transfer rule — source branch equals destination branch is rejected (400)": [
+    "Resolves the caller's own member id and a branch id",
+    "Posts transferOrders/create with fromBranchId == toBranchId",
+    "Asserts the zod .refine() rejects it with 400 ('Transfer source and destination must be different branches')"
+  ],
+  "transfer-orders/transfer-orders.lifecycle.spec.ts::Transfer lifecycle — create(pending) -> markInTransit (API-verified)": [
+    "Resolves two distinct branch node ids from the hierarchy; skips if fewer than two exist",
+    "Creates a throwaway uom and product for the line item",
+    "Creates a transfer order between two distinct branches and asserts status is 'pending'",
+    "Calls markInTransit and re-queries getById to assert status is 'in_transit'",
+    "Tears down transfer (cancel — no stock moved), product (discontinue), uom (delete)"
+  ],
+  "uom/uom.lifecycle.spec.ts::Unit of measure lifecycle — create, update, delete (API-verified)": [
+    "Create a unit of measure via unitsOfMeasure/create and assert an id is returned",
+    "Fetch unitsOfMeasure/getById and assert the stored name matches",
+    "Update the UOM name and assert getById reflects the edit",
+    "Delete the UOM and assert it is absent from unitsOfMeasure/list"
+  ],
+  "access-control/rbac-staff.rbac.spec.ts::Staff is FORBIDDEN from creating a role (role_management:create)": [
+    "Authenticate as the seeded non-admin staff user (staff.deterministic@test.com, role \"staff\").",
+    "Call roles/create via the staff API session.",
+    "Assert the server rejects it with 403 FORBIDDEN — the staff role lacks role_management:create.",
+    "(403, not 401, confirms an authenticated-but-unprivileged member.)"
+  ],
+  "access-control/rbac-staff.rbac.spec.ts::Staff is FORBIDDEN from inviting a user (user_management:create)": [
+    "As the staff session, call invitations/create.",
+    "Assert the server rejects it with 403 FORBIDDEN — staff lacks user_management:create.",
+    "Verifies the permission guard at the server boundary, not just the UI."
+  ],
+  "access-control/rbac-staff.rbac.spec.ts::Staff does not see a create-role control on the roles page": [
+    "Load /dashboard/access-control/roles in the staff browser session.",
+    "Assert the page renders without crashing.",
+    "Assert there is NO New/Create/Add role button — the UI hides what the server also blocks (defence-in-depth)."
+  ],
+  "sales/sales-detail-direct.detail.spec.ts::Sale detail ($id) renders order content + Cancel dialog opens (no submit)": [
+    "Start logged-in as the tenant admin.",
+    "Fetch a real sales-order id from the API (salesOrders.list) so the test isn't dependent on the list view showing rows.",
+    "Navigate directly to /dashboard/sales/<id> (the refactored $id detail page).",
+    "Assert no ErrorBoundary / 'order not found' crash.",
+    "Assert real order content renders: the order number, the 'Total Amount' label, and 'Created By' (which reads order.createdByName — the field whose `as any` cast was removed).",
+    "Open the Cancel Sale dialog (extracted CancelSaleDialog), assert it shows, then Escape-close it — never submit, because cancelling a sale is irreversible."
+  ],
+  "settings/google-calendar.detail.spec.ts::Google Calendar settings renders typed content (no crash)": [
+    "Start logged-in as the tenant admin.",
+    "Load /dashboard/settings/google-calendar (the refactored page whose orgStatus + listConnectedCalendars queries had their `as any` casts removed).",
+    "Assert no ErrorBoundary crash.",
+    "Assert the page renders its 'Google Calendar' content — proving the now-typed query data still drives the UI correctly."
+  ],
+  "branch/hierarchy.lifecycle.spec.ts::createNode → updateNode → moveNode → deleteNode (API-verified)": [
+    "Locate the org-root hierarchy node",
+    "createNode two countries under the root + a state under the first country",
+    "List nodes and assert the new state is present",
+    "updateNode to rename the state; assert the new name",
+    "moveNode the state under the second country; assert its parentId changed",
+    "deleteNode the state and both countries; assert all are gone from the tree"
+  ],
+  "branch/reassign-and-invites.lifecycle.spec.ts::reassignMember moves a member to a new node and back": [
+    "Create a disposable destination node",
+    "Pick a non-admin active member and snapshot its current scope",
+    "reassignMember to the temp node; re-read and assert the new scope",
+    "Restore the member to its original scope (finally)",
+    "Assert the restore landed and delete the temp node"
+  ],
+  "branch/reassign-and-invites.lifecycle.spec.ts::branchInvites — create returns a token, list strips it, revoke removes it": [
+    "branchInvites/create for the deepest branch; assert an id + raw token are returned",
+    "List invites and assert the invite is present with the token stripped",
+    "branchInvites/revoke the invite",
+    "Re-list and assert the invite is no longer active"
+  ],
+  "members/member.lifecycle.spec.ts::create → suspend/reactivate → role → scope → deactivate → softDelete/restore → remove": [
+    "Create a disposable member from a spare registered account; assert present",
+    "suspend then reactivate; assert status toggles suspended→active",
+    "updateRole to trainer; assert role changed",
+    "updateScope to an alternate node; assert scope changed",
+    "deactivate; assert status inactive",
+    "softDelete; assert it drops out of the default list",
+    "restore; assert it reappears",
+    "remove; assert the member is gone"
+  ],
+  "members/member.rule.spec.ts::a userId can be a member only once (duplicate → CONFLICT)": [
+    "Add a disposable member from a spare account (register teardown remove)",
+    "Attempt to add the same userId/email again",
+    "Assert the second create is rejected (CONFLICT)"
+  ],
+  "members/member.rule.spec.ts::the last admin cannot be removed (BAD_REQUEST)": [
+    "List members and count active admins",
+    "Only when exactly one admin exists (removal guaranteed to be rejected, never executed)",
+    "Attempt members/remove on the sole admin and assert BAD_REQUEST"
+  ],
+  "members/member.rule.spec.ts::a non-admin is forbidden from mutating an out-of-scope member": [
+    "As admin, find a member outside the staff user's scope (org-root admin)",
+    "As the seeded staff (non-admin) session, attempt members/updateRole on that member",
+    "Assert the server returns FORBIDDEN"
+  ],
+  "packages/approval-flow.lifecycle.spec.ts::approval gate forces purchased packages to pending, then confirmPayment + assignTrainer activates": [
+    "Create a purchased package instance",
+    "Assert the approval gate forced status to pending",
+    "confirmPayment for the instance",
+    "assignTrainer with an active trainer; assert status becomes active"
+  ],
+  "packages/approval-flow.lifecycle.spec.ts::reject transitions a pending purchased package to cancelled": [
+    "Create a purchased package instance (forced pending)",
+    "reject the pending package with a reason",
+    "Assert status becomes cancelled"
+  ],
+  "packages/package-instance.lifecycle.spec.ts::create → freeze → unfreeze → extend → cancel (API-verified)": [
+    "Create an assigned, paid package instance; assert it lands active",
+    "freeze; assert status frozen",
+    "unfreeze; assert status active",
+    "extend by 30 days; assert expiresAt moved forward",
+    "cancel; assert status cancelled"
+  ],
+  "packages/package-instance.rule.spec.ts::creditsRemaining is generated = creditsTotal - creditsUsed": [
+    "Create an instance with creditsTotal 10 and creditsUsed 3",
+    "Assert the generated creditsRemaining equals 7 (cannot be written directly)"
+  ],
+  "packages/package-instance.rule.spec.ts::purchase_number is globally unique": [
+    "Create an instance with an explicit purchaseNumber",
+    "Attempt a second create reusing the same purchaseNumber",
+    "Assert the duplicate is rejected"
+  ],
+  "packages/package-instance.rule.spec.ts::assignTrainer requires status=pending (rejected on an active package)": [
+    "Create an assigned, paid instance (status active)",
+    "Attempt assignTrainer on the active instance",
+    "Assert BAD_REQUEST (package is not pending)"
+  ],
+  "packages/package-instance.rule.spec.ts::installment plan price premium scales totalPrice and taxAmount": [
+    "Create a premium installment plan (pricePremiumBps 1000)",
+    "Create a purchased instance on that plan with base price 5000 / tax 100",
+    "Assert the server scaled totalPrice to 5500 and tax to 110"
+  ],
+  "goods-receipts/receipt-invoice.lifecycle.spec.ts::create receipt → invoice → matchInvoice → markInvoicePaid (API-verified)": [
+    "Build supplier → product → purchase order → goods receipt (deps)",
+    "Create a supplier invoice matching the PO total",
+    "Preview the invoice and assert the three totals are within tolerance",
+    "matchInvoice; assert status becomes matched",
+    "markInvoicePaid; assert status becomes paid"
+  ],
+  "goods-receipts/three-way-match.rule.spec.ts::damaged units do not enter sellable stock (stock += received - damaged)": [
+    "Build supplier → product → PO (no receipt yet); read pre-receipt stock",
+    "Create a receipt for 10 received with 2 damaged",
+    "Re-read stock and assert it increased by exactly 8 (received - damaged)"
+  ],
+  "goods-receipts/three-way-match.rule.spec.ts::3-way match fails when invoice total is outside tolerance": [
+    "Build supplier → product → PO → receipt",
+    "Create an invoice whose total is far outside tolerance",
+    "matchInvoice and assert it is rejected (3-way match failed)"
+  ],
+  "goods-receipts/three-way-match.rule.spec.ts::a paid invoice is not editable (only pending/disputed are)": [
+    "Build the chain and create a matching invoice",
+    "matchInvoice then markInvoicePaid",
+    "Attempt updateInvoice and assert it is rejected (cannot edit a paid invoice)"
+  ],
+  "audit/audit-log.rule.spec.ts::admin can list audit logs": [
+    "As admin, call auditLogs/list",
+    "Assert rows are returned (the tenant has activity)"
+  ],
+  "audit/audit-log.rule.spec.ts::a non-admin (staff) is forbidden from reading audit logs": [
+    "Open a staff (non-admin) request context",
+    "Call auditLogs/list as staff",
+    "Assert the server returns FORBIDDEN"
+  ],
+  "notifications/notifications.rule.spec.ts::markRead on a notification id the user does not own → NOT_FOUND": [
+    "Call notifications/markRead with a well-formed but non-owned id",
+    "Assert the server returns NOT_FOUND (per-user scoping)"
+  ],
+  "notifications/notifications.rule.spec.ts::markRead marks an owned unread notification as read (if any exist)": [
+    "List the user's unread notifications",
+    "markRead the first unread notification",
+    "Re-list unread and assert it is no longer present"
+  ],
+  "households/primary-contact.rule.spec.ts::removing the primary-contact profile nulls household.primaryContactProfileId": [
+    "Pick a customer and ensure a customer profile exists (upsertForCustomer)",
+    "Create a household with that profile as primaryContactProfileId",
+    "Assert households/get shows the primary contact set",
+    "removeMember for that profile",
+    "Assert households/get now shows primaryContactProfileId null"
+  ],
+  "cancelled-sales/cancellation-number.rule.spec.ts::two cancellations get distinct, monotonic CAN- numbers from the sequence": [
+    "Create a disposable sales order and cancel it; capture the cancellation number",
+    "Create and cancel a second disposable order; capture its number",
+    "Assert both match CAN-YYYYMMDD-NNNN, are distinct, and the sequence is monotonic"
+  ],
+  "cancelled-sales/cancellation-number.rule.spec.ts::re-cancelling an order reuses its existing cancellation number (never two)": [
+    "Create a disposable sales order",
+    "Cancel it and capture the cancellation number",
+    "Cancel the same order again",
+    "Assert the second cancellation reuses the same CAN- number (an order never gets two)"
+  ],
+  "refunds/refund-lifecycle.rule.spec.ts::request → approve → process walks pending → approved → processed": [
+    "Create a disposable sales order for a real customer (total 10000)",
+    "refunds/request for 3000; assert status pending",
+    "refunds/approve; assert status approved",
+    "refunds/process (cash); assert status processed"
+  ],
+  "refunds/refund-lifecycle.rule.spec.ts::request → reject moves a pending refund to rejected": [
+    "Create a disposable order and request a refund (pending)",
+    "refunds/reject with review notes; assert status rejected",
+    "Attempt to approve the rejected refund; assert BAD_REQUEST (only pending can be approved)"
+  ],
+  "refunds/refund-lifecycle.rule.spec.ts::a refund cannot exceed the remaining-refundable amount": [
+    "Create a disposable order with a known total",
+    "Request a refund far exceeding the total",
+    "Assert BAD_REQUEST (exceeds remaining-refundable)"
+  ],
+  "rbac/listnodes-scope.rbac.spec.ts::a branch-scoped staff sees a strict subset of the admin node tree": [
+    "As admin, call hierarchy/listNodes and count the full node tree",
+    "As the seeded staff (non-admin) session, call hierarchy/listNodes",
+    "If staff lacks the permission entirely, accept the FORBIDDEN boundary",
+    "Otherwise assert the staff node set is non-empty and a strict subset of the admin tree"
+  ],
+  "multi-tenant/unknown-org.isolation.spec.ts::a request for a non-existent organizationId is rejected (403)": [
+    "As admin, call a tenant procedure with a well-formed UUID that maps to no organization",
+    "Assert the tenant middleware rejects it with 403 before the handler runs"
+  ],
+  "payment/stripe-payment.rule.spec.ts::createPaymentIntent returns a PI on the org Connect account with an application fee": [
+    "Find a Connect-enabled branch and create a disposable confirmed appointment (amount 10000)",
+    "Call payments/createPaymentIntent against the Stripe test sandbox",
+    "Assert it returns a clientSecret, an acct_ Connect account, amount 10000, and a positive application fee below the amount"
+  ],
+  "payment/stripe-payment.rule.spec.ts::createPaymentIntent is idempotent per appointment (pi:appt:<id>)": [
+    "Create a disposable appointment on a Connect-enabled branch",
+    "Call createPaymentIntent twice for the same appointment",
+    "Assert both return the same paymentIntentId (pi:appt:<id> idempotency key)"
+  ],
+  "payment/stripe-payment.rule.spec.ts::application_fee_amount = computeApplicationFee(amount, bps) — scales linearly": [
+    "Create two disposable appointments with amounts A and 2A",
+    "createPaymentIntent for each",
+    "Assert the fee for 2A is exactly double the fee for A (proves floor(amount*bps/10000))"
+  ],
+  "payment/stripe-payment.rule.spec.ts::refund requires a paid appointment (PRECONDITION_FAILED)": [
+    "Create a disposable unpaid appointment",
+    "Call payments/refund on it",
+    "Assert PRECONDITION_FAILED (refund requires a paid appointment with a PaymentIntent)"
+  ],
+  "payment/stripe-payment.rule.spec.ts::createPaymentIntent rejects when the branch country has no Connect account (PRECONDITION_FAILED)": [
+    "Iterate branches, creating a disposable appointment on each",
+    "Call createPaymentIntent for each",
+    "Assert at least one branch (whose country has no onboarded Connect account) is rejected with PRECONDITION_FAILED (412)"
+  ],
+  "payment/stripe-webhook.rule.spec.ts::an appointment payment can be confirmed (→paid) and refunded (→refunded)": [
+    "Create a disposable appointment on a Connect-enabled branch + createPaymentIntent",
+    "Confirm the PaymentIntent with a test card (pm_card_visa) via the Stripe API",
+    "Poll until the payment_intent.succeeded webhook flips the appointment to paid",
+    "Call payments/refund; assert the refund succeeds",
+    "Poll until the charge.refunded webhook flips the appointment to refunded"
+  ],
+  "payment/stripe-webhook.rule.spec.ts::chargeSavedCard charges a card saved via SetupIntent (off_session)": [
+    "Ensure a customer profile, then createSetupIntent",
+    "Confirm the SetupIntent with a test card via the Stripe API",
+    "Poll listSavedCards until the setup_intent.succeeded webhook stores the card",
+    "Call payments/chargeSavedCard off-session; assert the charge succeeds for the amount"
+  ],
+  "multi-tenant/second-tenant.isolation.spec.ts::the admin (member of org A only) is denied on org B": [
+    "Read org B id from _e2e/.auth/orgB.json (provisioned by seed-second-tenant.ts)",
+    "As the franchisee admin (member of org A only), call tenant procedures for org B",
+    "Assert each is rejected (403/404) — no member row in org B"
+  ],
+  "saas/saas-state.rule.spec.ts::suspended/cancelled tenant returns 403 on tenant procedures": [
+    "Set org B paymentStatus to suspended/cancelled via seed-second-tenant.ts --set-status",
+    "As an org B member, call a tenant procedure",
+    "Assert 403 with the state name in the body"
+  ],
+  "saas/saas-state.rule.spec.ts::past-due tenant is read-only: a write procedure is blocked, a read succeeds": [
+    "Set org B to past_due (past grace)",
+    "As an org B member, call a read procedure → assert 200",
+    "Call a write procedure (createNode) → assert 403 (read-only)"
+  ],
+  "multi-tenant/second-tenant.isolation.spec.ts::a member of org B sees org B data but is denied on org A": [
+    "As an org B member session, list org B hierarchy nodes (proves per-org tenantDb routing)",
+    "Call the same procedure for org A",
+    "Assert org A is rejected (not a member there)"
+  ]
+}

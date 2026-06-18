@@ -2,7 +2,7 @@ import { createLazyFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useUserContext } from "@/hooks/useUserContext";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -15,6 +15,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Bell } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 
 export const Route = createLazyFileRoute(
 	"/_authenticated/dashboard/_layout/notifications/view",
@@ -34,14 +35,9 @@ function NotificationsViewPage() {
 	const [readFilter, setReadFilter] = useState<boolean | undefined>(undefined);
 
 	const { data: apiData = [], isLoading } = useQuery({
-		queryKey: ["notifications", organizationId, readFilter],
-		queryFn: async () => {
-			if (!organizationId) return [];
-			return client.notifications.list({
-				organizationId,
-				isRead: readFilter,
-			});
-		},
+		...orpc.notifications.list.queryOptions({
+			input: { organizationId: organizationId!, isRead: readFilter },
+		}),
 		enabled: !!organizationId,
 	});
 
@@ -51,9 +47,11 @@ function NotificationsViewPage() {
 				organizationId: organizationId!,
 			}),
 		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["notifications", organizationId],
-			});
+			queryClient.invalidateQueries(
+				orpc.notifications.list.queryOptions({
+					input: { organizationId: organizationId! },
+				}),
+			);
 			toast.success("All marked as read");
 		},
 	});
@@ -65,9 +63,11 @@ function NotificationsViewPage() {
 				id,
 			}),
 		onSuccess: () => {
-			queryClient.invalidateQueries({
-				queryKey: ["notifications", organizationId],
-			});
+			queryClient.invalidateQueries(
+				orpc.notifications.list.queryOptions({
+					input: { organizationId: organizationId! },
+				}),
+			);
 		},
 	});
 
@@ -77,9 +77,7 @@ function NotificationsViewPage() {
 		message: item.message,
 		type: item.type,
 		isRead: item.isRead,
-		createdAt: item.createdAt
-			? new Date(item.createdAt).toISOString()
-			: "",
+		createdAt: item.createdAt ? new Date(item.createdAt).toISOString() : "",
 	}));
 
 	const columns: ColumnDef<NotificationRow>[] = [
@@ -112,68 +110,76 @@ function NotificationsViewPage() {
 		);
 	}
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
 	return (
-		<div className="p-6 space-y-6">
-			{/* Header */}
-			<div className="flex items-center justify-between">
-				<div className="flex items-center gap-3">
-					<div className="p-2 rounded-lg bg-primary/10">
-						<Bell className="size-6 text-primary" />
+		<Skeleton
+			name="notifications-view"
+			loading={isLoading}
+			fallback={<PageLoader />}
+		>
+			<div className="p-6 space-y-6">
+				{/* Header */}
+				<div className="flex items-center justify-between">
+					<div className="flex items-center gap-3">
+						<div className="p-2 rounded-lg bg-primary/10">
+							<Bell className="size-6 text-primary" />
+						</div>
+						<div>
+							<h1 className="text-2xl font-semibold font-heading">
+								Notifications
+							</h1>
+							<p className="text-brand-secondary-1 text-sm">
+								Your notification history.
+							</p>
+						</div>
 					</div>
-					<div>
-						<h1 className="text-2xl font-semibold font-heading">Notifications</h1>
-						<p className="text-brand-secondary-1 text-sm">
-							Your notification history.
-						</p>
-					</div>
-				</div>
-				<Button
-					onClick={() => markAllReadMutation.mutate()}
-					disabled={markAllReadMutation.isPending || data.length === 0}
-					variant="outline"
-				>
-					{markAllReadMutation.isPending ? "Marking…" : "Mark All as Read"}
-				</Button>
-			</div>
-
-			{/* Read/Unread filter tabs */}
-			<div className="flex items-center rounded-lg border bg-muted/40 p-1 gap-1">
-				{READ_TABS.map((tab) => (
-					<button
-						key={tab.label}
-						type="button"
-						onClick={() => setReadFilter(tab.value)}
-						className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-							readFilter === tab.value
-								? "bg-background shadow-sm text-foreground"
-								: "text-muted-foreground hover:text-foreground"
-						}`}
+					<Button
+						onClick={() => markAllReadMutation.mutate()}
+						disabled={markAllReadMutation.isPending || data.length === 0}
+						variant="outline"
 					>
-						{tab.label}
-					</button>
-				))}
+						{markAllReadMutation.isPending ? "Marking…" : "Mark All as Read"}
+					</Button>
+				</div>
+
+				{/* Read/Unread filter tabs */}
+				<div className="flex items-center rounded-lg border bg-muted/40 p-1 gap-1">
+					{READ_TABS.map((tab) => (
+						<button
+							key={tab.label}
+							type="button"
+							onClick={() => setReadFilter(tab.value)}
+							className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+								readFilter === tab.value
+									? "bg-background shadow-sm text-foreground"
+									: "text-muted-foreground hover:text-foreground"
+							}`}
+						>
+							{tab.label}
+						</button>
+					))}
+				</div>
+
+				<Separator />
+
+				{/* Table or empty state */}
+				{data.length === 0 ? (
+					<EmptyState
+						icon={Bell}
+						title={
+							readFilter === false
+								? "You're all caught up!"
+								: "No notifications"
+						}
+						description={
+							readFilter === false
+								? "All notifications have been read."
+								: "No notifications here yet."
+						}
+					/>
+				) : (
+					<DataTable<NotificationRow, unknown> columns={columns} data={data} />
+				)}
 			</div>
-
-			<Separator />
-
-			{/* Table or empty state */}
-			{data.length === 0 ? (
-				<EmptyState
-					icon={Bell}
-					title={readFilter === false ? "You're all caught up!" : "No notifications"}
-					description={
-						readFilter === false
-							? "All notifications have been read."
-							: "No notifications here yet."
-					}
-				/>
-			) : (
-				<DataTable<NotificationRow, unknown> columns={columns} data={data} />
-			)}
-		</div>
+		</Skeleton>
 	);
 }

@@ -93,7 +93,9 @@ export function TrainerCard({
 				</div>
 				<StatusBadge
 					status={isActive ? "active" : "inactive"}
-					label={isActive ? "Active" : isSuspended ? "Suspended" : trainer.status}
+					label={
+						isActive ? "Active" : isSuspended ? "Suspended" : trainer.status
+					}
 					className="shrink-0 self-start text-xs"
 				/>
 			</div>

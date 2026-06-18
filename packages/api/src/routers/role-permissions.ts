@@ -11,49 +11,29 @@ import { permissions } from "@avantej-core/db/schema/tenant/permissions";
 import { eq, and } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
-import { requirePermission } from "@avantej-core/services";
-
+import { tenantProcedure } from "../index";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 export const rolePermissionsRouter = {
 	/**
 	 * List role-permission assignments with permission details
 	 *
 	 * Optionally filtered by roleId.
 	 */
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				roleId: z.string().uuid().optional(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"user_management",
-					"read"
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"user_management",
+				"read",
+			);
 
 			const query = context.tenantDb
 				.select({
@@ -68,7 +48,7 @@ export const rolePermissionsRouter = {
 				.from(rolePermissions)
 				.innerJoin(
 					permissions,
-					eq(rolePermissions.permissionId, permissions.id)
+					eq(rolePermissions.permissionId, permissions.id),
 				);
 
 			if (input.roleId) {
@@ -83,42 +63,26 @@ export const rolePermissionsRouter = {
 	 *
 	 * Validates that the role and permission exist. Rejects duplicates.
 	 */
-	add: protectedProcedure
+	add: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				roleId: z.string().uuid(),
 				permissionId: z.string().uuid(),
-				scope: z.enum(["organization", "team", "own", "branch"]).optional().default("organization"),
-			})
+				scope: z
+					.enum(["organization", "team", "own", "branch"])
+					.optional()
+					.default("organization"),
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"user_management",
-					"update"
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"user_management",
+				"update",
+			);
 
 			// Validate role exists
 			const role = await context.tenantDb.query.roles.findFirst({
@@ -131,10 +95,9 @@ export const rolePermissionsRouter = {
 			}
 
 			// Validate permission exists
-			const permission =
-				await context.tenantDb.query.permissions.findFirst({
-					where: eq(permissions.id, input.permissionId),
-				});
+			const permission = await context.tenantDb.query.permissions.findFirst({
+				where: eq(permissions.id, input.permissionId),
+			});
 			if (!permission) {
 				throw new ORPCError("NOT_FOUND", {
 					message: `Permission not found: ${input.permissionId}`,
@@ -153,13 +116,9 @@ export const rolePermissionsRouter = {
 
 				return created;
 			} catch (error) {
-				if (
-					error instanceof Error &&
-					error.message.includes("unique")
-				) {
+				if (error instanceof Error && error.message.includes("unique")) {
 					throw new ORPCError("CONFLICT", {
-						message:
-							"This permission is already assigned to the role",
+						message: "This permission is already assigned to the role",
 					});
 				}
 				throw new ORPCError("BAD_REQUEST", {
@@ -176,41 +135,22 @@ export const rolePermissionsRouter = {
 	 *
 	 * Cannot modify permissions on system roles.
 	 */
-	remove: protectedProcedure
+	remove: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 				roleId: z.string().uuid(),
 				permissionId: z.string().uuid(),
-			})
+			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"user_management",
-					"update"
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"user_management",
+				"update",
+			);
 
 			// Validate role exists and is not system
 			const role = await context.tenantDb.query.roles.findFirst({
@@ -232,8 +172,8 @@ export const rolePermissionsRouter = {
 				.where(
 					and(
 						eq(rolePermissions.roleId, input.roleId),
-						eq(rolePermissions.permissionId, input.permissionId)
-					)
+						eq(rolePermissions.permissionId, input.permissionId),
+					),
 				);
 
 			return { success: true, message: "Permission removed from role" };

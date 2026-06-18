@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -108,7 +109,7 @@ export function BulkCommsComposer({
 	const handleTemplatePick = (id: string) => {
 		setTemplateId(id);
 		if (id === SCRATCH) return;
-		const tpl = templates.find((t: any) => t.id === id);
+		const tpl = templates.find((t) => t.id === id);
 		if (!tpl) return;
 		if (isDm) {
 			setSubject(tpl.subject ?? "");
@@ -154,8 +155,7 @@ export function BulkCommsComposer({
 			);
 			onSent({ succeeded: res.succeeded, failed: res.failed.length });
 		},
-		onError: (e: any) =>
-			toast.error(e?.message ?? "Bulk announcement failed"),
+		onError: (e: any) => toast.error(e?.message ?? "Bulk announcement failed"),
 	});
 
 	const isPending = dmMut.isPending || annMut.isPending;
@@ -176,7 +176,8 @@ export function BulkCommsComposer({
 		const names = organizationNamesPreview ?? [];
 		const head = names.slice(0, 3).join(", ");
 		const more = Math.max(0, organizationIds.length - 3);
-		if (!head) return `${organizationIds.length} tenant${organizationIds.length === 1 ? "" : "s"}`;
+		if (!head)
+			return `${organizationIds.length} tenant${organizationIds.length === 1 ? "" : "s"}`;
 		return more > 0 ? `${head} + ${more} more` : head;
 	})();
 
@@ -198,6 +199,9 @@ export function BulkCommsComposer({
 							? `Send DM to ${organizationIds.length} tenant${organizationIds.length === 1 ? "" : "s"}`
 							: `Send announcement to ${organizationIds.length} tenant${organizationIds.length === 1 ? "" : "s"}`}
 					</DialogTitle>
+					<DialogDescription>
+						Compose the message to send to the selected tenants.
+					</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-4">
@@ -206,7 +210,10 @@ export function BulkCommsComposer({
 						className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
 						data-testid="bulk-comms-recipients"
 					>
-						Sending to: <span className="font-medium text-foreground">{recipientSummary}</span>
+						Sending to:{" "}
+						<span className="font-medium text-foreground">
+							{recipientSummary}
+						</span>
 					</div>
 
 					{overCap && (
@@ -228,7 +235,7 @@ export function BulkCommsComposer({
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value={SCRATCH}>Compose from scratch</SelectItem>
-								{templates.map((t: any) => (
+								{templates.map((t) => (
 									<SelectItem key={t.id} value={t.id}>
 										{t.name}
 									</SelectItem>
@@ -250,7 +257,9 @@ export function BulkCommsComposer({
 								/>
 							</div>
 							<div className="space-y-1">
-								<label className="text-xs text-muted-foreground">Body (markdown)</label>
+								<label className="text-xs text-muted-foreground">
+									Body (markdown)
+								</label>
 								<Textarea
 									value={body}
 									onChange={(e) => setBody(e.target.value)}
@@ -272,7 +281,9 @@ export function BulkCommsComposer({
 								/>
 							</div>
 							<div className="space-y-1">
-								<label className="text-xs text-muted-foreground">Body (markdown)</label>
+								<label className="text-xs text-muted-foreground">
+									Body (markdown)
+								</label>
 								<Textarea
 									value={body}
 									onChange={(e) => setBody(e.target.value)}
@@ -283,7 +294,9 @@ export function BulkCommsComposer({
 							</div>
 							<div className="grid grid-cols-2 gap-3">
 								<div className="space-y-1">
-									<label className="text-xs text-muted-foreground">Priority</label>
+									<label className="text-xs text-muted-foreground">
+										Priority
+									</label>
 									<Select
 										value={priority}
 										onValueChange={(v) => setPriority(v as Priority)}
@@ -300,7 +313,9 @@ export function BulkCommsComposer({
 									</Select>
 								</div>
 								<div className="space-y-1">
-									<label className="text-xs text-muted-foreground">Audience</label>
+									<label className="text-xs text-muted-foreground">
+										Audience
+									</label>
 									<Select
 										value={audience}
 										onValueChange={(v) => setAudience(v as Audience)}
@@ -328,7 +343,9 @@ export function BulkCommsComposer({
 							<div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
 								Preview
 							</div>
-							<div className="text-sm font-medium">{isDm ? subject : title}</div>
+							<div className="text-sm font-medium">
+								{isDm ? subject : title}
+							</div>
 							<div className="text-xs whitespace-pre-wrap text-muted-foreground mt-1">
 								{body}
 							</div>

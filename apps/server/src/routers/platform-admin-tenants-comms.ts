@@ -18,36 +18,28 @@
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import {
-	platformAdminProcedure as adminProcedure,
-	superAdminProcedure,
-} from "@avantej-core/api";
+import { requirePlatformAdmin, adminProcedure } from "@/lib/admin-procedure";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { users } from "@avantej-core/db/schema/control-panel/users";
 import { notifications } from "@avantej-core/db/schema/tenant/notifications";
 import { announcements } from "@avantej-core/db/schema/tenant/announcements";
 import { sendEmail } from "@/lib/email";
 import { getTenantDb } from "@/lib/db";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 import { recordAdminAction } from "@/services/admin-audit.service";
 import { escapeHtml } from "@/lib/html";
 
-function cpDbFrom(context: unknown): NeonDatabase<typeof controlPanelSchema> {
-	const db = (context as { honoContext?: { get: (k: string) => unknown } }).honoContext?.get(
-		"controlPanelDb",
-	) as NeonDatabase<typeof controlPanelSchema> | undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
+const superAdminProcedure = adminProcedure.use(
+	requirePlatformAdmin(["super_admin"]),
+);
 
 function adminUserIdFrom(context: unknown): string {
 	const session = (context as { session?: { user?: { id?: string } } }).session;
 	const id = session?.user?.id;
-	if (!id) throw new ORPCError("UNAUTHORIZED", { message: "No admin user in session" });
+	if (!id)
+		throw new ORPCError("UNAUTHORIZED", {
+			message: "No admin user in session",
+		});
 	return id;
 }
 
@@ -75,7 +67,7 @@ export const platformAdminTenantsCommsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 
 			const [org] = await cpDb
@@ -167,7 +159,7 @@ export const platformAdminTenantsCommsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 
 			const [org] = await cpDb
@@ -217,7 +209,7 @@ export const platformAdminTenantsCommsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 
 			async function sendOne(orgId: string) {
@@ -279,7 +271,9 @@ export const platformAdminTenantsCommsRouter = {
 			const chunkSize = 10;
 			for (let i = 0; i < input.organizationIds.length; i += chunkSize) {
 				const chunk = input.organizationIds.slice(i, i + chunkSize);
-				const results = await Promise.allSettled(chunk.map((id) => sendOne(id)));
+				const results = await Promise.allSettled(
+					chunk.map((id) => sendOne(id)),
+				);
 				results.forEach((r, idx) => {
 					const orgId = chunk[idx]!;
 					if (r.status === "fulfilled") {
@@ -287,7 +281,8 @@ export const platformAdminTenantsCommsRouter = {
 					} else {
 						failed.push({
 							orgId,
-							error: r.reason instanceof Error ? r.reason.message : String(r.reason),
+							error:
+								r.reason instanceof Error ? r.reason.message : String(r.reason),
 						});
 					}
 				});
@@ -303,17 +298,13 @@ export const platformAdminTenantsCommsRouter = {
 				organizationIds: z.array(z.string().uuid()).min(1).max(100),
 				title: z.string().trim().min(1).max(200),
 				bodyMarkdown: z.string().trim().min(1).max(20000),
-				priority: z
-					.enum(["low", "normal", "high", "urgent"])
-					.default("normal"),
-				targetAudience: z
-					.enum(["all", "staff", "clients"])
-					.default("all"),
+				priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
+				targetAudience: z.enum(["all", "staff", "clients"]).default("all"),
 				templateId: z.string().uuid().optional(),
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 			const adminUserId = adminUserIdFrom(context);
 
 			async function createOne(orgId: string) {
@@ -353,7 +344,9 @@ export const platformAdminTenantsCommsRouter = {
 			const chunkSize = 10;
 			for (let i = 0; i < input.organizationIds.length; i += chunkSize) {
 				const chunk = input.organizationIds.slice(i, i + chunkSize);
-				const results = await Promise.allSettled(chunk.map((id) => createOne(id)));
+				const results = await Promise.allSettled(
+					chunk.map((id) => createOne(id)),
+				);
 				results.forEach((r, idx) => {
 					const orgId = chunk[idx]!;
 					if (r.status === "fulfilled") {
@@ -361,7 +354,8 @@ export const platformAdminTenantsCommsRouter = {
 					} else {
 						failed.push({
 							orgId,
-							error: r.reason instanceof Error ? r.reason.message : String(r.reason),
+							error:
+								r.reason instanceof Error ? r.reason.message : String(r.reason),
 						});
 					}
 				});

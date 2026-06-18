@@ -7,9 +7,15 @@ import {
 	deleteRoom,
 } from "@avantej-core/services";
 
-const mockFindMany = mock((..._args: any[]): Promise<any[]> => Promise.resolve([]));
-const mockFindFirst = mock((..._args: any[]): Promise<any> => Promise.resolve(null));
-const mockReturning = mock((..._args: any[]): Promise<any[]> => Promise.resolve([]));
+const mockFindMany = mock(
+	(..._args: any[]): Promise<any[]> => Promise.resolve([]),
+);
+const mockFindFirst = mock(
+	(..._args: any[]): Promise<any> => Promise.resolve(null),
+);
+const mockReturning = mock(
+	(..._args: any[]): Promise<any[]> => Promise.resolve([]),
+);
 const mockValues = mock((..._args: any[]) => ({ returning: mockReturning }));
 const mockInsert = mock((..._args: any[]) => ({ values: mockValues }));
 const mockUpdate = mock((..._args: any[]) => ({
@@ -57,7 +63,9 @@ describe("listRooms", () => {
 	});
 
 	test("filters by branchId when provided", async () => {
-		const fakeRooms = [{ id: "r1", name: "Room A", branchId: "br1", isActive: true }];
+		const fakeRooms = [
+			{ id: "r1", name: "Room A", branchId: "br1", isActive: true },
+		];
 		mockFindMany.mockResolvedValueOnce(fakeRooms);
 
 		const result = await listRooms(mockTenantDb, { branchId: "br1" });
@@ -68,7 +76,9 @@ describe("listRooms", () => {
 	});
 
 	test("filters by isActive=false to include inactive rooms", async () => {
-		const fakeRooms = [{ id: "r3", name: "Room C", branchId: "br1", isActive: false }];
+		const fakeRooms = [
+			{ id: "r3", name: "Room C", branchId: "br1", isActive: false },
+		];
 		mockFindMany.mockResolvedValueOnce(fakeRooms);
 
 		const result = await listRooms(mockTenantDb, { isActive: false });
@@ -84,7 +94,9 @@ describe("listRooms", () => {
 		];
 		mockFindMany.mockResolvedValueOnce(allRooms);
 
-		const result = await listRooms(mockTenantDb, { accessibleNodeIds: ["br1", "br3"] });
+		const result = await listRooms(mockTenantDb, {
+			accessibleNodeIds: ["br1", "br3"],
+		});
 
 		expect(result).toHaveLength(2);
 		expect(result.map((r) => r.id)).toEqual(["r1", "r3"]);
@@ -168,7 +180,12 @@ describe("createRoom", () => {
 		mockReturning.mockResolvedValueOnce([]);
 
 		await expect(
-			createRoom(mockTenantDb, { name: "Room A", type: "consultation", capacity: 10, branchId: "br1" })
+			createRoom(mockTenantDb, {
+				name: "Room A",
+				type: "consultation",
+				capacity: 10,
+				branchId: "br1",
+			}),
 		).rejects.toThrow("Failed to create room");
 	});
 });
@@ -176,12 +193,18 @@ describe("createRoom", () => {
 describe("updateRoom", () => {
 	test("updates and returns the room", async () => {
 		const updatedRoom = { id: "r1", name: "Updated Room A", isActive: true };
-		const mockReturningUpd = mock((..._args: any[]) => Promise.resolve([updatedRoom]));
-		const mockWhereUpd = mock((..._args: any[]) => ({ returning: mockReturningUpd }));
+		const mockReturningUpd = mock((..._args: any[]) =>
+			Promise.resolve([updatedRoom]),
+		);
+		const mockWhereUpd = mock((..._args: any[]) => ({
+			returning: mockReturningUpd,
+		}));
 		const mockSetUpd = mock((..._args: any[]) => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		const result = await updateRoom(mockTenantDb, "r1", { name: "Updated Room A" });
+		const result = await updateRoom(mockTenantDb, "r1", {
+			name: "Updated Room A",
+		});
 
 		expect(result as any).toEqual(updatedRoom);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
@@ -189,19 +212,27 @@ describe("updateRoom", () => {
 
 	test("throws 'Room not found' when update returns empty", async () => {
 		const mockReturningUpd = mock((..._args: any[]) => Promise.resolve([]));
-		const mockWhereUpd = mock((..._args: any[]) => ({ returning: mockReturningUpd }));
+		const mockWhereUpd = mock((..._args: any[]) => ({
+			returning: mockReturningUpd,
+		}));
 		const mockSetUpd = mock((..._args: any[]) => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		await expect(updateRoom(mockTenantDb, "nonexistent", { name: "X" })).rejects.toThrow("Room not found");
+		await expect(
+			updateRoom(mockTenantDb, "nonexistent", { name: "X" }),
+		).rejects.toThrow("Room not found");
 	});
 });
 
 describe("deleteRoom (soft delete)", () => {
 	test("sets isActive=false via update — does NOT call db.delete", async () => {
 		const deactivatedRoom = { id: "r1", name: "Room A", isActive: false };
-		const mockReturningUpd = mock((..._args: any[]) => Promise.resolve([deactivatedRoom]));
-		const mockWhereUpd = mock((..._args: any[]) => ({ returning: mockReturningUpd }));
+		const mockReturningUpd = mock((..._args: any[]) =>
+			Promise.resolve([deactivatedRoom]),
+		);
+		const mockWhereUpd = mock((..._args: any[]) => ({
+			returning: mockReturningUpd,
+		}));
 		const mockSetUpd = mock((..._args: any[]) => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
@@ -217,10 +248,14 @@ describe("deleteRoom (soft delete)", () => {
 
 	test("throws 'Room not found' when soft delete update returns empty", async () => {
 		const mockReturningUpd = mock((..._args: any[]) => Promise.resolve([]));
-		const mockWhereUpd = mock((..._args: any[]) => ({ returning: mockReturningUpd }));
+		const mockWhereUpd = mock((..._args: any[]) => ({
+			returning: mockReturningUpd,
+		}));
 		const mockSetUpd = mock((..._args: any[]) => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		await expect(deleteRoom(mockTenantDb, "nonexistent")).rejects.toThrow("Room not found");
+		await expect(deleteRoom(mockTenantDb, "nonexistent")).rejects.toThrow(
+			"Room not found",
+		);
 	});
 });

@@ -50,9 +50,7 @@ export function CompactView({
 									<div className="flex items-center gap-2">
 										<span className="font-medium">{role.name}</span>
 										{groupBadge && (
-											<Badge
-												className={cn("text-xs", groupBadge.config.color)}
-											>
+											<Badge className={cn("text-xs", groupBadge.config.color)}>
 												{groupBadge.config.label}
 											</Badge>
 										)}

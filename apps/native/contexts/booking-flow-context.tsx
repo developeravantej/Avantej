@@ -1,4 +1,11 @@
-import { createContext, useCallback, use, useMemo, useState, type ReactNode } from "react";
+import {
+	createContext,
+	useCallback,
+	use,
+	useMemo,
+	useState,
+	type ReactNode,
+} from "react";
 
 export interface BookingFlowState {
 	packageInstanceId: string | null;
@@ -22,6 +29,8 @@ export interface BookingFlowState {
 	classSlotId: string | null;
 	branchId: string | null;
 	branchName: string | null;
+	status: string | null;
+	expiresAt: string | null;
 }
 
 const initialState: BookingFlowState = {
@@ -43,6 +52,8 @@ const initialState: BookingFlowState = {
 	classSlotId: null,
 	branchId: null,
 	branchName: null,
+	status: null,
+	expiresAt: null,
 };
 
 interface BookingFlowContextValue {
@@ -64,7 +75,10 @@ export function BookingFlowProvider({ children }: { children: ReactNode }) {
 		setState(initialState);
 	}, []);
 
-	const value = useMemo(() => ({ state, update, reset }), [state, update, reset]);
+	const value = useMemo(
+		() => ({ state, update, reset }),
+		[state, update, reset],
+	);
 
 	return (
 		<BookingFlowContext.Provider value={value}>

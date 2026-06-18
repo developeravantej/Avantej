@@ -216,13 +216,15 @@ export default function ReviewScreen() {
 				sessionTotal: 1,
 				pricePerClient: 0,
 			};
-			console.log("appointments.create payload:", JSON.stringify(payload, null, 2));
+			console.log(
+				"appointments.create payload:",
+				JSON.stringify(payload, null, 2),
+			);
 			return client.appointments.create(payload);
 		},
 		onSuccess: (data: any) => {
 			queryClient.invalidateQueries({
-				predicate: (q) =>
-					JSON.stringify(q.queryKey).includes("appointments"),
+				predicate: (q) => JSON.stringify(q.queryKey).includes("appointments"),
 			});
 			queryClient.invalidateQueries({
 				predicate: (q) =>
@@ -259,8 +261,7 @@ export default function ReviewScreen() {
 					? issues
 							.map((i) => `${i.path?.join(".") ?? "?"}: ${i.message}`)
 							.join("\n")
-					: error?.message ||
-						"Could not create booking. Please try again.";
+					: error?.message || "Could not create booking. Please try again.";
 			Alert.alert("Booking Failed", detail);
 		},
 	});

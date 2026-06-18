@@ -37,7 +37,13 @@ function buildOldPosSchedule(params: {
 	installmentsTotal: number;
 	intervalDays: number;
 }): OldScheduleRow[] {
-	const { creditsTotal, totalPrice, taxAmount, installmentsTotal, intervalDays } = params;
+	const {
+		creditsTotal,
+		totalPrice,
+		taxAmount,
+		installmentsTotal,
+		intervalDays,
+	} = params;
 	const amounts = calculateInstallmentAmounts(totalPrice, installmentsTotal);
 	const baseTax = Math.floor(taxAmount / installmentsTotal);
 	const taxRemainder = taxAmount - baseTax * installmentsTotal;
@@ -45,7 +51,8 @@ function buildOldPosSchedule(params: {
 	const rows: OldScheduleRow[] = [];
 	for (let i = 1; i <= installmentsTotal; i++) {
 		const amount = amounts[i - 1] ?? 0;
-		const instTaxAmount = i === installmentsTotal ? baseTax + taxRemainder : baseTax;
+		const instTaxAmount =
+			i === installmentsTotal ? baseTax + taxRemainder : baseTax;
 		const dueDateOffsetDays = i * intervalDays;
 		const creditsUnlockedByThis =
 			calculateCreditsUnlocked(creditsTotal, i, installmentsTotal) -
@@ -84,7 +91,13 @@ function buildNewSchedule(params: {
 	installmentsTotal: number;
 	intervalDays: number;
 }): NewScheduleRow[] {
-	const { creditsTotal, totalPrice, taxAmount, installmentsTotal, intervalDays } = params;
+	const {
+		creditsTotal,
+		totalPrice,
+		taxAmount,
+		installmentsTotal,
+		intervalDays,
+	} = params;
 	const amounts = calculateInstallmentAmounts(totalPrice, installmentsTotal);
 	const baseTaxPerInstallment = Math.floor(taxAmount / installmentsTotal);
 	const taxRemainder = taxAmount - baseTaxPerInstallment * installmentsTotal;
@@ -93,7 +106,9 @@ function buildNewSchedule(params: {
 	for (let i = 1; i <= installmentsTotal; i++) {
 		const amount = amounts[i - 1] ?? 0;
 		const instTaxAmount =
-			i === installmentsTotal ? baseTaxPerInstallment + taxRemainder : baseTaxPerInstallment;
+			i === installmentsTotal
+				? baseTaxPerInstallment + taxRemainder
+				: baseTaxPerInstallment;
 		const dueDateOffsetDays = i * intervalDays;
 		const creditsUnlockedByThis =
 			calculateCreditsUnlocked(creditsTotal, i, installmentsTotal) -

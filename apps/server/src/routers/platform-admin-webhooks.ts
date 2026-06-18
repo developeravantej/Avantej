@@ -30,26 +30,9 @@
 
 import { z } from "zod";
 import { and, desc, eq, gte, isNotNull, isNull, sql } from "drizzle-orm";
-import { ORPCError } from "@orpc/server";
-import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { platformAdminProcedure as adminProcedure } from "@avantej-core/api";
+import { adminProcedure } from "@/lib/admin-procedure";
 import { processedWebhookEvents } from "@avantej-core/db/schema/control-panel/processed-webhook-events";
-
-function cpDbFrom(
-	context: unknown,
-): NeonDatabase<typeof controlPanelSchema> {
-	const db = (
-		context as { honoContext?: { get: (k: string) => unknown } }
-	).honoContext?.get("controlPanelDb") as
-		| NeonDatabase<typeof controlPanelSchema>
-		| undefined;
-	if (!db)
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message: "Control panel DB unavailable",
-		});
-	return db;
-}
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 
 function toIsoString(d: unknown): string {
 	if (d instanceof Date) return d.toISOString();
@@ -61,9 +44,10 @@ function toIsoString(d: unknown): string {
  * Derive a coarse status label from the row's processed_at + error columns.
  * Exposed for unit testing.
  */
-export function deriveStatus(
-	row: { processedAt: Date | null; error: string | null },
-): "succeeded" | "failed" | "pending" {
+export function deriveStatus(row: {
+	processedAt: Date | null;
+	error: string | null;
+}): "succeeded" | "failed" | "pending" {
 	if (row.error) return "failed";
 	if (row.processedAt) return "succeeded";
 	return "pending";
@@ -83,7 +67,7 @@ export const platformAdminWebhooksRouter = {
 	getOverview: adminProcedure
 		.input(z.object({}).default({}))
 		.handler(async ({ context }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 
 			const since24h = since(1);
 			const since7d = since(7);
@@ -214,7 +198,7 @@ export const platformAdminWebhooksRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			const cpDb = cpDbFrom(context);
+			const cpDb = getControlPanelDb(context);
 
 			const sinceAt = since(input.days);
 			const conds = [gte(processedWebhookEvents.receivedAt, sinceAt)];

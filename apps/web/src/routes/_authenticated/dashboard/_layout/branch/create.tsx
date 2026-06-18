@@ -11,17 +11,17 @@ import {
 
 /**
  * Create Branch Route
- * 
+ *
  * Form for creating hierarchical branches (country, region, area, branch).
  * Requires: hierarchy_management:create permission
  */
 export const Route = createFileRoute(
-	"/_authenticated/dashboard/_layout/branch/create"
+	"/_authenticated/dashboard/_layout/branch/create",
 )({
 	beforeLoad: async () => {
 		await requirePermission(
 			{ resource: "hierarchy_management", action: "create" },
-			"/dashboard/branch/view"
+			"/dashboard/branch/view",
 		);
 	},
 	component: CreateBranchComponent,
@@ -109,9 +109,12 @@ function CreateBranchComponent() {
 
 						{/* Permissions Required */}
 						<div className="rounded-lg bg-brand-secondary-3/50 p-4 border border-brand-secondary-3">
-							<h3 className="font-semibold text-sm mb-2">Permissions Required</h3>
+							<h3 className="font-semibold text-sm mb-2">
+								Permissions Required
+							</h3>
 							<p className="text-sm text-muted-foreground">
-								You need Organization Owner permissions to create branches and hierarchy items.
+								You need Organization Owner permissions to create branches and
+								hierarchy items.
 							</p>
 						</div>
 					</CardContent>
@@ -120,4 +123,3 @@ function CreateBranchComponent() {
 		</div>
 	);
 }
-

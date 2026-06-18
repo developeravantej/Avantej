@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client } from "@/utils/orpc";
+import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { formatPrice, rmToCents } from "@/lib/money";
 import { BranchSelector } from "@/components/branch/branch-selector";
@@ -39,25 +39,33 @@ export type CreatePOSheetProps = {
 };
 
 // react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
-export function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }: CreatePOSheetProps) {
+export function CreatePOSheet({
+	open,
+	onOpenChange,
+	organizationId,
+	onCreated,
+}: CreatePOSheetProps) {
 	const [supplierId, setSupplierId] = useState("");
 	const [branchId, setBranchId] = useState("");
 	const [orderDate, setOrderDate] = useState(() => todayISO());
 	const [expectedDelivery, setExpectedDelivery] = useState("");
 	const [notes, setNotes] = useState("");
 	const [lineItems, setLineItems] = useState<LineItem[]>([
-		{ key: crypto.randomUUID(), productId: "", orderedQty: "1", unitCostRM: "" },
+		{
+			key: crypto.randomUUID(),
+			productId: "",
+			orderedQty: "1",
+			unitCostRM: "",
+		},
 	]);
 
 	const { data: suppliers = [] } = useQuery({
-		queryKey: ["suppliers", organizationId],
-		queryFn: () => client.suppliers.list({ organizationId }),
+		...orpc.suppliers.list.queryOptions({ input: { organizationId } }),
 		enabled: !!organizationId && open,
 	});
 
 	const { data: products = [] } = useQuery({
-		queryKey: ["products", organizationId],
-		queryFn: () => client.products.list({ organizationId }),
+		...orpc.products.list.queryOptions({ input: { organizationId } }),
 		enabled: !!organizationId && open,
 	});
 
@@ -79,13 +87,25 @@ export function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }:
 		setOrderDate(todayISO());
 		setExpectedDelivery("");
 		setNotes("");
-		setLineItems([{ key: crypto.randomUUID(), productId: "", orderedQty: "1", unitCostRM: "" }]);
+		setLineItems([
+			{
+				key: crypto.randomUUID(),
+				productId: "",
+				orderedQty: "1",
+				unitCostRM: "",
+			},
+		]);
 	}
 
 	function addLine() {
 		setLineItems((prev) => [
 			...prev,
-			{ key: crypto.randomUUID(), productId: "", orderedQty: "1", unitCostRM: "" },
+			{
+				key: crypto.randomUUID(),
+				productId: "",
+				orderedQty: "1",
+				unitCostRM: "",
+			},
 		]);
 	}
 
@@ -93,9 +113,13 @@ export function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }:
 		setLineItems((prev) => prev.filter((l) => l.key !== key));
 	}
 
-	function updateLine(key: string, field: keyof Omit<LineItem, "key">, value: string) {
+	function updateLine(
+		key: string,
+		field: keyof Omit<LineItem, "key">,
+		value: string,
+	) {
 		setLineItems((prev) =>
-			prev.map((l) => (l.key === key ? { ...l, [field]: value } : l))
+			prev.map((l) => (l.key === key ? { ...l, [field]: value } : l)),
 		);
 	}
 
@@ -106,12 +130,24 @@ export function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }:
 	}, 0);
 
 	function handleSubmit() {
-		if (!supplierId) { toast.error("Please select a supplier."); return; }
-		if (!branchId.trim()) { toast.error("Please enter a branch ID."); return; }
-		if (!orderDate) { toast.error("Please set an order date."); return; }
+		if (!supplierId) {
+			toast.error("Please select a supplier.");
+			return;
+		}
+		if (!branchId.trim()) {
+			toast.error("Please enter a branch ID.");
+			return;
+		}
+		if (!orderDate) {
+			toast.error("Please set an order date.");
+			return;
+		}
 
 		const validItems = lineItems.filter(
-			(l) => l.productId && parseInt(l.orderedQty, 10) > 0 && parseFloat(l.unitCostRM) > 0
+			(l) =>
+				l.productId &&
+				parseInt(l.orderedQty, 10) > 0 &&
+				parseFloat(l.unitCostRM) > 0,
 		);
 		if (validItems.length === 0) {
 			toast.error("Add at least one valid line item.");
@@ -156,7 +192,7 @@ export function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }:
 								<SelectValue placeholder="Select supplier…" />
 							</SelectTrigger>
 							<SelectContent>
-								{suppliers.map((s: any) => (
+								{suppliers.map((s) => (
 									<SelectItem key={s.id} value={s.id}>
 										{s.name}
 									</SelectItem>
@@ -216,7 +252,12 @@ export function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }:
 					<div className="space-y-3">
 						<div className="flex items-center justify-between">
 							<span className="text-sm font-medium">Line Items</span>
-							<Button type="button" size="sm" variant="outline" onClick={addLine}>
+							<Button
+								type="button"
+								size="sm"
+								variant="outline"
+								onClick={addLine}
+							>
 								<Plus className="size-3.5 mr-1" />
 								Add Item
 							</Button>
@@ -229,9 +270,16 @@ export function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }:
 						)}
 
 						{lineItems.map((line, idx) => (
-							<div key={line.key} className="grid grid-cols-[1fr_80px_100px_32px] gap-2 items-end">
+							<div
+								key={line.key}
+								className="grid grid-cols-[1fr_80px_100px_32px] gap-2 items-end"
+							>
 								<div className="space-y-1">
-									{idx === 0 && <Label className="text-xs text-muted-foreground">Product</Label>}
+									{idx === 0 && (
+										<Label className="text-xs text-muted-foreground">
+											Product
+										</Label>
+									)}
 									<Select
 										value={line.productId}
 										onValueChange={(v) => updateLine(line.key, "productId", v)}
@@ -240,7 +288,7 @@ export function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }:
 											<SelectValue placeholder="Select…" />
 										</SelectTrigger>
 										<SelectContent>
-											{products.map((p: any) => (
+											{products.map((p) => (
 												<SelectItem key={p.id} value={p.id}>
 													{p.name} ({p.sku})
 												</SelectItem>
@@ -250,26 +298,36 @@ export function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }:
 								</div>
 
 								<div className="space-y-1">
-									{idx === 0 && <Label className="text-xs text-muted-foreground">Qty</Label>}
+									{idx === 0 && (
+										<Label className="text-xs text-muted-foreground">Qty</Label>
+									)}
 									<Input
 										className="h-8 text-sm"
 										type="number"
 										min="1"
 										step="1"
 										value={line.orderedQty}
-										onChange={(e) => updateLine(line.key, "orderedQty", e.target.value)}
+										onChange={(e) =>
+											updateLine(line.key, "orderedQty", e.target.value)
+										}
 									/>
 								</div>
 
 								<div className="space-y-1">
-									{idx === 0 && <Label className="text-xs text-muted-foreground">Unit Cost (RM)</Label>}
+									{idx === 0 && (
+										<Label className="text-xs text-muted-foreground">
+											Unit Cost (RM)
+										</Label>
+									)}
 									<Input
 										className="h-8 text-sm"
 										type="number"
 										min="0"
 										step="0.01"
 										value={line.unitCostRM}
-										onChange={(e) => updateLine(line.key, "unitCostRM", e.target.value)}
+										onChange={(e) =>
+											updateLine(line.key, "unitCostRM", e.target.value)
+										}
 										placeholder="0.00"
 									/>
 								</div>
@@ -302,7 +360,11 @@ export function CreatePOSheet({ open, onOpenChange, organizationId, onCreated }:
 					<Separator />
 
 					<div className="flex gap-2 justify-end pt-1">
-						<Button variant="outline" onClick={handleClose} disabled={createMutation.isPending}>
+						<Button
+							variant="outline"
+							onClick={handleClose}
+							disabled={createMutation.isPending}
+						>
 							Cancel
 						</Button>
 						<Button onClick={handleSubmit} disabled={createMutation.isPending}>

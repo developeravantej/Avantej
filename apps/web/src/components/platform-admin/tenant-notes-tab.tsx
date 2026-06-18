@@ -59,8 +59,7 @@ export function TenantNotesTab({
 
 	const { data, isLoading, error } = useQuery({
 		queryKey,
-		queryFn: () =>
-			client.platformAdminTenants.notes.list({ organizationId }),
+		queryFn: () => client.platformAdminTenants.notes.list({ organizationId }),
 	});
 
 	const [body, setBody] = useState("");
@@ -202,8 +201,7 @@ function NoteRow({
 	});
 
 	const del = useMutation({
-		mutationFn: () =>
-			client.platformAdminTenants.notes.delete({ id: note.id }),
+		mutationFn: () => client.platformAdminTenants.notes.delete({ id: note.id }),
 		onSuccess: () => {
 			toast.success("Note deleted");
 			onChange();

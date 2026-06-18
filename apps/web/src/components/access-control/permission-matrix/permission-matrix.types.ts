@@ -22,6 +22,13 @@ export interface Role {
 	permissions: {
 		resourceId: string;
 		actionId: string;
-		scope: "own" | "team" | "organization" | "country" | "region" | "area" | "branch";
+		scope:
+			| "own"
+			| "team"
+			| "organization"
+			| "country"
+			| "region"
+			| "area"
+			| "branch";
 	}[];
 }

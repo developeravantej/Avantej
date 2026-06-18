@@ -77,6 +77,7 @@ async function main() {
 				// biome-ignore lint/suspicious/noExplicitAny: cross-package db type
 				tenantDb as any,
 				p.id,
+				{ skipPush: true },
 			);
 			console.log(
 				`   pkg ${p.id} → ${sent} notification(s) ${sent === 0 ? "(skipped — no branch resolvable)" : "sent"}`,

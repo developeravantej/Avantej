@@ -1,8 +1,18 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type { CustomRecurrence } from "@/types/appointments";
 
 type RepeatRuleSectionProps = {
@@ -41,7 +51,9 @@ export function RepeatRuleSection({
 	const weeklyLabel = parsedDate
 		? parsedDate.toLocaleDateString("en-US", { weekday: "long" })
 		: "selected day";
-	const weekPosition = parsedDate ? getWeekPosition(parsedDate) : "selected week";
+	const weekPosition = parsedDate
+		? getWeekPosition(parsedDate)
+		: "selected week";
 	const annualLabel = parsedDate
 		? parsedDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })
 		: "MM DD";
@@ -50,7 +62,10 @@ export function RepeatRuleSection({
 	return (
 		<div className="space-y-2">
 			<div className="flex items-center gap-2">
-				<Label htmlFor="recurrence" className="text-sm font-medium text-brand-primary-1">
+				<Label
+					htmlFor="recurrence"
+					className="text-sm font-medium text-brand-primary-1"
+				>
 					Recurrence
 				</Label>
 				<Tooltip>
@@ -92,11 +107,15 @@ export function RepeatRuleSection({
 			{/* Custom recurrence panel */}
 			{recurrence === "custom" && (
 				<div className="space-y-6 p-6 bg-brand-secondary-3/50 rounded-lg border border-brand-secondary-3 mt-2">
-					<h4 className="text-lg font-semibold text-brand-primary-1">Custom Recurrence</h4>
+					<h4 className="text-lg font-semibold text-brand-primary-1">
+						Custom Recurrence
+					</h4>
 
 					{/* Repeat every */}
 					<div className="space-y-3">
-						<Label className="text-sm font-medium text-brand-primary-1">Repeat every</Label>
+						<Label className="text-sm font-medium text-brand-primary-1">
+							Repeat every
+						</Label>
 						<div className="flex items-center gap-x-3">
 							<Input
 								type="number"
@@ -104,13 +123,18 @@ export function RepeatRuleSection({
 								max="99"
 								value={customRecurrence?.frequency ?? 1}
 								onChange={(e) =>
-									onChangeCustomRecurrence("frequency", parseInt(e.target.value) || 1)
+									onChangeCustomRecurrence(
+										"frequency",
+										parseInt(e.target.value) || 1,
+									)
 								}
 								className="w-20 border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1 text-center"
 							/>
 							<Select
 								value={customRecurrence?.timeUnit ?? "week"}
-								onValueChange={(value) => onChangeCustomRecurrence("timeUnit", value)}
+								onValueChange={(value) =>
+									onChangeCustomRecurrence("timeUnit", value)
+								}
 							>
 								<SelectTrigger className="w-32 border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
 									<SelectValue />
@@ -119,7 +143,9 @@ export function RepeatRuleSection({
 									<SelectItem value="day">day</SelectItem>
 									<SelectItem value="week">week</SelectItem>
 									<SelectItem value="month">month</SelectItem>
-									<SelectItem value="year" disabled>year (coming soon)</SelectItem>
+									<SelectItem value="year" disabled>
+										year (coming soon)
+									</SelectItem>
 								</SelectContent>
 							</Select>
 						</div>
@@ -128,7 +154,9 @@ export function RepeatRuleSection({
 					{/* Repeat on (weekly) */}
 					{customRecurrence?.timeUnit === "week" && (
 						<div className="space-y-3">
-							<Label className="text-sm font-medium text-brand-primary-1">Repeat on</Label>
+							<Label className="text-sm font-medium text-brand-primary-1">
+								Repeat on
+							</Label>
 							<div className="flex gap-2">
 								{DAYS.map((day) => (
 									<button
@@ -152,16 +180,22 @@ export function RepeatRuleSection({
 					{/* Monthly on */}
 					{customRecurrence?.timeUnit === "month" && (
 						<div className="space-y-3">
-							<Label className="text-sm font-medium text-brand-primary-1">Monthly on</Label>
+							<Label className="text-sm font-medium text-brand-primary-1">
+								Monthly on
+							</Label>
 							<Select
 								value={customRecurrence.monthlyType ?? "day"}
-								onValueChange={(value) => onChangeCustomRecurrence("monthlyType", value)}
+								onValueChange={(value) =>
+									onChangeCustomRecurrence("monthlyType", value)
+								}
 							>
 								<SelectTrigger className="w-full border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1">
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent className="z-[10001]">
-									<SelectItem value="day">Monthly on day {dayOfMonth}</SelectItem>
+									<SelectItem value="day">
+										Monthly on day {dayOfMonth}
+									</SelectItem>
 									<SelectItem value="week">
 										Monthly on the {weekPosition} {weeklyLabel}
 									</SelectItem>
@@ -172,7 +206,9 @@ export function RepeatRuleSection({
 
 					{/* Ends */}
 					<div className="space-y-3">
-						<Label className="text-sm font-medium text-brand-primary-1">Ends</Label>
+						<Label className="text-sm font-medium text-brand-primary-1">
+							Ends
+						</Label>
 						<div className="space-y-2">
 							<div className="flex items-center gap-x-2">
 								<input
@@ -184,7 +220,10 @@ export function RepeatRuleSection({
 									onChange={() => onChangeCustomRecurrence("endsType", "never")}
 									className="size-4 text-blue-600 focus:ring-blue-500 border-brand-secondary-3"
 								/>
-								<Label htmlFor="ends-never" className="text-sm text-brand-primary-1 cursor-pointer">
+								<Label
+									htmlFor="ends-never"
+									className="text-sm text-brand-primary-1 cursor-pointer"
+								>
 									Never
 								</Label>
 							</div>
@@ -199,14 +238,19 @@ export function RepeatRuleSection({
 									onChange={() => onChangeCustomRecurrence("endsType", "on")}
 									className="size-4 text-blue-600 focus:ring-blue-500 border-brand-secondary-3"
 								/>
-								<Label htmlFor="ends-on" className="text-sm text-brand-primary-1 cursor-pointer">
+								<Label
+									htmlFor="ends-on"
+									className="text-sm text-brand-primary-1 cursor-pointer"
+								>
 									On
 								</Label>
 								<div className="ml-2 px-3 py-1 bg-brand-secondary-3 border border-brand-secondary-3 rounded text-sm text-brand-secondary-1">
 									<Input
 										type="date"
 										value={customRecurrence?.endsDate ?? ""}
-										onChange={(e) => onChangeCustomRecurrence("endsDate", e.target.value)}
+										onChange={(e) =>
+											onChangeCustomRecurrence("endsDate", e.target.value)
+										}
 										className="w-full border-0 bg-transparent focus:ring-0"
 									/>
 								</div>
@@ -222,7 +266,10 @@ export function RepeatRuleSection({
 									onChange={() => onChangeCustomRecurrence("endsType", "after")}
 									className="size-4 text-blue-600 focus:ring-blue-500 border-brand-secondary-3"
 								/>
-								<Label htmlFor="ends-after" className="text-sm text-brand-primary-1 cursor-pointer">
+								<Label
+									htmlFor="ends-after"
+									className="text-sm text-brand-primary-1 cursor-pointer"
+								>
 									After
 								</Label>
 								<div className="ml-2 flex items-center gap-x-1">
@@ -239,7 +286,9 @@ export function RepeatRuleSection({
 										}
 										className="w-16 border-brand-secondary-3 focus:border-brand-primary-1 focus:ring-brand-primary-1 text-center"
 									/>
-									<span className="text-sm text-brand-secondary-1">occurrences</span>
+									<span className="text-sm text-brand-secondary-1">
+										occurrences
+									</span>
 								</div>
 							</div>
 						</div>

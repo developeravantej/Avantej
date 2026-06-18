@@ -1,5 +1,3 @@
-"use client";
-
 import { Mail, Phone, Edit, Users, Award } from "lucide-react";
 import {
 	Dialog,
@@ -56,55 +54,67 @@ export function TrainerDetailDialog({
 				if (!open) onClose();
 			}}
 		>
-			<DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-2xl gap-0">
+			<DialogContent
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
 				{/* Header */}
-				<div className="px-6 pt-6 pb-5 border-b border-border">
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
 					<div className="flex items-start gap-4">
 						<div className="flex size-16 shrink-0 items-center justify-center rounded-full bg-brand-secondary-2 text-brand-primary-1 text-xl font-bold">
 							{initials}
 						</div>
 						<div className="flex-1 min-w-0 pt-1">
-							<DialogHeader className="p-0 space-y-0">
-								<DialogTitle className="text-base font-bold text-foreground">
+							<div className="p-0 space-y-0">
+								<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+									TRAINER DIRECTORY
+								</p>
+								<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
 									{trainer.displayName ?? trainer.name}
 								</DialogTitle>
 								{trainer.specialization && (
-									<DialogDescription className="text-xs text-muted-foreground mt-0.5">
+									<DialogDescription className="text-sm text-[#737373] mt-0.5">
 										{trainer.specialization}
 									</DialogDescription>
 								)}
-							</DialogHeader>
+							</div>
 							<div className="mt-2">
 								<StatusBadge
 									status={isActive ? "active" : "inactive"}
 									label={
-										isActive ? "Active" : isSuspended ? "Suspended" : trainer.status
+										isActive
+											? "Active"
+											: isSuspended
+												? "Suspended"
+												: trainer.status
 									}
 									className="text-xs"
 								/>
 							</div>
 						</div>
 					</div>
-				</div>
+				</DialogHeader>
 
 				{/* Detail rows */}
-				<div className="px-5 py-4 space-y-1 bg-white">
+				<div className="px-6 pt-4 pb-2 overflow-y-auto space-y-1 bg-white">
 					<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-accent transition-colors">
 						<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-secondary-3">
-							<Mail className="size-3.5 text-muted-foreground" />
+							<Mail className="size-3.5 text-[#737373]" />
 						</div>
 						<div className="flex-1 min-w-0">
-							<p className="text-[11px] text-muted-foreground font-medium">Email</p>
-							<p className="text-sm text-foreground font-medium">{trainer.email}</p>
+							<p className="text-[11px] text-[#737373] font-medium">Email</p>
+							<p className="text-sm text-foreground font-medium">
+								{trainer.email}
+							</p>
 						</div>
 					</div>
 					{trainer.phoneNumber && (
 						<div className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-accent transition-colors">
 							<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-secondary-3">
-								<Phone className="size-3.5 text-muted-foreground" />
+								<Phone className="size-3.5 text-[#737373]" />
 							</div>
 							<div className="flex-1 min-w-0">
-								<p className="text-[11px] text-muted-foreground font-medium">Phone</p>
+								<p className="text-[11px] text-[#737373] font-medium">Phone</p>
 								<p className="text-sm text-foreground font-medium">
 									{trainer.phoneNumber}
 								</p>
@@ -114,21 +124,23 @@ export function TrainerDetailDialog({
 					{trainer.bio && (
 						<div className="flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-accent transition-colors">
 							<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-secondary-3">
-								<Users className="size-3.5 text-muted-foreground" />
+								<Users className="size-3.5 text-[#737373]" />
 							</div>
 							<div className="flex-1 min-w-0">
-								<p className="text-[11px] text-muted-foreground font-medium">Bio</p>
-								<p className="text-sm text-foreground leading-relaxed">{trainer.bio}</p>
+								<p className="text-[11px] text-[#737373] font-medium">Bio</p>
+								<p className="text-sm text-foreground leading-relaxed">
+									{trainer.bio}
+								</p>
 							</div>
 						</div>
 					)}
 					{trainer.certifications && trainer.certifications.length > 0 && (
 						<div className="flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-accent transition-colors">
 							<div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-secondary-3">
-								<Award className="size-3.5 text-muted-foreground" />
+								<Award className="size-3.5 text-[#737373]" />
 							</div>
 							<div className="flex-1 min-w-0">
-								<p className="text-[11px] text-muted-foreground font-medium">
+								<p className="text-[11px] text-[#737373] font-medium">
 									Certifications
 								</p>
 								<div className="flex flex-wrap gap-1.5 mt-1">
@@ -147,14 +159,14 @@ export function TrainerDetailDialog({
 				</div>
 
 				{/* Footer actions */}
-				<div className="px-5 pb-5 pt-0 bg-white flex flex-col gap-2">
+				<div className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 					<button
 						type="button"
 						onClick={() => {
 							onClose();
 							onEdit(trainer);
 						}}
-						className="flex items-center justify-center gap-2 w-full rounded-xl border border-border py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent transition-colors"
+						className="flex items-center justify-center gap-2 rounded-xl border border-[#e5e5e5] px-4 py-2.5 text-sm font-medium text-[#737373] hover:bg-accent transition-colors"
 					>
 						<Edit className="size-3.5" />
 						Edit Profile
@@ -167,7 +179,7 @@ export function TrainerDetailDialog({
 								onSuspend(trainer.id);
 							}}
 							disabled={isMutating}
-							className="flex items-center justify-center gap-2 w-full rounded-xl border border-border py-2.5 text-sm font-medium text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-50"
+							className="flex items-center justify-center gap-2 rounded-xl border border-[#e5e5e5] px-4 py-2.5 text-sm font-medium text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-50"
 						>
 							Suspend
 						</button>
@@ -180,7 +192,7 @@ export function TrainerDetailDialog({
 								onReactivate(trainer.id);
 							}}
 							disabled={isMutating}
-							className="flex items-center justify-center gap-2 w-full rounded-xl border border-border py-2.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50"
+							className="flex items-center justify-center gap-2 rounded-xl border border-[#e5e5e5] px-4 py-2.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50"
 						>
 							Reactivate
 						</button>

@@ -34,4 +34,3 @@ export const colors = {
 		3: "#EDEDE4",
 	},
 } as const;
-

@@ -22,4 +22,3 @@ export function formatMoney(cents: number | null | undefined): string {
 	const value = (cents ?? 0) / 100;
 	return `${CURRENCY_SYMBOL} ${value.toFixed(2)}`;
 }
-

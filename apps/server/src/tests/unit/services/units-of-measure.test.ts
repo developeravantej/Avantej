@@ -100,7 +100,12 @@ describe("getUomById", () => {
 
 describe("createUom", () => {
 	test("inserts and returns the new UOM with defaults", async () => {
-		const fakeUom = { id: "u1", name: "Kilogram", baseUomId: null, conversionFactor: "1" };
+		const fakeUom = {
+			id: "u1",
+			name: "Kilogram",
+			baseUomId: null,
+			conversionFactor: "1",
+		};
 		mockReturning.mockResolvedValueOnce([fakeUom]);
 
 		const result = await createUom(mockTenantDb, { name: "Kilogram" });
@@ -113,7 +118,12 @@ describe("createUom", () => {
 	});
 
 	test("inserts with baseUomId and conversionFactor when provided", async () => {
-		const fakeUom = { id: "u2", name: "Gram", baseUomId: "u1", conversionFactor: "0.001" };
+		const fakeUom = {
+			id: "u2",
+			name: "Gram",
+			baseUomId: "u1",
+			conversionFactor: "0.001",
+		};
 		mockReturning.mockResolvedValueOnce([fakeUom]);
 
 		const result = await createUom(mockTenantDb, {
@@ -132,20 +142,26 @@ describe("createUom", () => {
 		mockReturning.mockResolvedValueOnce([]);
 
 		await expect(createUom(mockTenantDb, { name: "Kilogram" })).rejects.toThrow(
-			"Failed to create unit of measure"
+			"Failed to create unit of measure",
 		);
 	});
 });
 
 describe("updateUom", () => {
 	test("updates and returns the UOM", async () => {
-		const updatedUom = { id: "u1", name: "Updated Kilogram", conversionFactor: "1" };
+		const updatedUom = {
+			id: "u1",
+			name: "Updated Kilogram",
+			conversionFactor: "1",
+		};
 		const mockReturningUpd = mock(() => Promise.resolve([updatedUom]));
 		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		const result = await updateUom(mockTenantDb, "u1", { name: "Updated Kilogram" });
+		const result = await updateUom(mockTenantDb, "u1", {
+			name: "Updated Kilogram",
+		});
 
 		expect(result).toEqual(updatedUom as any);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
@@ -157,9 +173,9 @@ describe("updateUom", () => {
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		await expect(updateUom(mockTenantDb, "nonexistent", { name: "X" })).rejects.toThrow(
-			"Unit of measure not found"
-		);
+		await expect(
+			updateUom(mockTenantDb, "nonexistent", { name: "X" }),
+		).rejects.toThrow("Unit of measure not found");
 	});
 });
 

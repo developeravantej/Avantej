@@ -36,7 +36,11 @@ const TARGET_ORG_ID = "996febce-aaad-4ded-8f47-02d2b566c8ee";
 type SlotDef = { dayOfWeek: string; startTime: string; endTime: string };
 
 const DETERMINISTIC_SLOTS: SlotDef[] = [
-	"monday", "tuesday", "wednesday", "thursday", "friday",
+	"monday",
+	"tuesday",
+	"wednesday",
+	"thursday",
+	"friday",
 ].flatMap((day) => [
 	{ dayOfWeek: day, startTime: "09:00", endTime: "13:00" },
 	{ dayOfWeek: day, startTime: "15:00", endTime: "17:00" },
@@ -104,7 +108,8 @@ async function seedCoachIntake() {
 
 	console.log("Starting coach intake availability seed...\n");
 
-	const { db: controlDb, pool: controlPool } = createControlPanelDb(databaseUrl);
+	const { db: controlDb, pool: controlPool } =
+		createControlPanelDb(databaseUrl);
 	let tenantPool: Pool | null = null;
 
 	try {
@@ -133,7 +138,9 @@ async function seedCoachIntake() {
 				where: (m, { eq }) => eq(m.userId, user.id),
 			});
 			if (!member) {
-				console.log(`  SKIP — tenant member not found. Run seed-trainers.ts first.`);
+				console.log(
+					`  SKIP — tenant member not found. Run seed-trainers.ts first.`,
+				);
 				continue;
 			}
 
@@ -141,7 +148,9 @@ async function seedCoachIntake() {
 				where: (cia, { eq }) => eq(cia.trainerId, member.id),
 			});
 			if (existing.length > 0) {
-				console.log(`  Already has ${existing.length} intake slots — skipping.`);
+				console.log(
+					`  Already has ${existing.length} intake slots — skipping.`,
+				);
 				continue;
 			}
 
@@ -163,7 +172,9 @@ async function seedCoachIntake() {
 		for (const { email, slots } of TRAINER_INTAKE) {
 			const days = [...new Set(slots.map((s) => s.dayOfWeek))];
 			console.log(`  ${email}`);
-			console.log(`    ${slots.length} slots across ${days.length} days: ${days.join(", ")}`);
+			console.log(
+				`    ${slots.length} slots across ${days.length} days: ${days.join(", ")}`,
+			);
 		}
 		console.log("=".repeat(60));
 	} catch (error) {

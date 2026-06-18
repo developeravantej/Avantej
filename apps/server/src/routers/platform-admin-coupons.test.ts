@@ -154,7 +154,10 @@ beforeEach(async () => {
 		.where(
 			and(
 				eq(adminSessionActions.adminUserId, TEST_USER_ID),
-				inArray(adminSessionActions.actionType, COUPON_ACTIONS as unknown as string[]),
+				inArray(
+					adminSessionActions.actionType,
+					COUPON_ACTIONS as unknown as string[],
+				),
 			),
 		);
 	await controlPanelDb
@@ -192,7 +195,11 @@ beforeEach(async () => {
 describe("platformAdminCoupons.listCoupons", () => {
 	it("returns projected coupons with paging shape", async () => {
 		const handler = getHandler<{
-			coupons: Array<{ id: string; name: string | null; percentOff: number | null }>;
+			coupons: Array<{
+				id: string;
+				name: string | null;
+				percentOff: number | null;
+			}>;
 			hasMore: boolean;
 			nextCursor: string | undefined;
 		}>(router.listCoupons);
@@ -469,8 +476,11 @@ describe("platformAdminCoupons.removeCoupon", () => {
 		expect(result.ok).toBe(true);
 		expect(mockCustomersDeleteDiscount).toHaveBeenCalledTimes(1);
 		expect(
-			(mockCustomersDeleteDiscount as unknown as { mock: { calls: unknown[][] } })
-				.mock.calls[0]![0],
+			(
+				mockCustomersDeleteDiscount as unknown as {
+					mock: { calls: unknown[][] };
+				}
+			).mock.calls[0]![0],
 		).toBe(TEST_CUSTOMER);
 
 		const rows = await controlPanelDb

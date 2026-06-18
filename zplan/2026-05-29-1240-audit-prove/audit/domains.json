@@ -1,0 +1,183 @@
+{
+  "domains": [
+    {
+      "id": "auth-members-hierarchy",
+      "name": "Auth, Members & Hierarchy",
+      "verifyTopN": 5,
+      "routers": [
+        "packages/api/src/routers/members/",
+        "packages/api/src/routers/hierarchy/",
+        "packages/api/src/routers/invitations/",
+        "packages/api/src/routers/member-profiles.ts",
+        "packages/api/src/routers/notification-preferences.ts",
+        "packages/api/src/routers/notifications.ts",
+        "packages/api/src/routers/user-activity-log.ts",
+        "packages/api/src/routers/audit-logs.ts",
+        "apps/server/src/routers/auth.ts",
+        "apps/server/src/routers/invitations.ts",
+        "apps/server/src/routers/invitation-acceptance.ts",
+        "apps/server/src/routers/tenant-admin.ts"
+      ],
+      "services": [
+        "packages/services/src/member.service.ts",
+        "packages/services/src/member-profile.service.ts",
+        "packages/services/src/member-stats.service.ts",
+        "packages/services/src/hierarchy.service.ts",
+        "packages/services/src/hierarchy-validation.service.ts",
+        "packages/services/src/hierarchy-scope.ts",
+        "packages/services/src/invitation.service.ts",
+        "packages/services/src/permission.service.ts",
+        "packages/services/src/tenant-admin.service.ts",
+        "packages/services/src/audit-log.service.ts",
+        "packages/services/src/branch-invite.service.ts",
+        "packages/services/src/user-activity-log.service.ts",
+        "packages/services/src/notification-preference.service.ts",
+        "packages/services/src/notification.service.ts"
+      ]
+    },
+    {
+      "id": "services-appointments-scheduling",
+      "name": "Services, Appointments & Scheduling",
+      "verifyTopN": 5,
+      "routers": [
+        "packages/api/src/routers/services/",
+        "packages/api/src/routers/appointments/",
+        "packages/api/src/routers/class-slots/",
+        "packages/api/src/routers/rooms.ts",
+        "packages/api/src/routers/trainer-availability.ts",
+        "packages/api/src/routers/trainers.ts",
+        "packages/api/src/routers/service-members.ts",
+        "packages/api/src/routers/service-categories.ts",
+        "packages/api/src/routers/service-category-config.ts",
+        "packages/api/src/routers/trainer-tiers.ts"
+      ],
+      "services": [
+        "packages/services/src/service.service.ts",
+        "packages/services/src/appointment.service.ts",
+        "packages/services/src/class-slots.service.ts",
+        "packages/services/src/recurrence.service.ts",
+        "packages/services/src/rooms.service.ts",
+        "packages/services/src/trainer.service.ts",
+        "packages/services/src/trainer-availability.service.ts",
+        "packages/services/src/service-category.service.ts",
+        "packages/services/src/trainer-tier.service.ts",
+        "packages/services/src/waitlist.service.ts",
+        "packages/services/src/coach-intake.service.ts",
+        "packages/services/src/announcements.service.ts",
+        "packages/services/src/buffer-time.service.ts",
+        "packages/services/src/category-buffer-overrides.service.ts",
+        "packages/services/src/scheduled-reports.service.ts",
+        "packages/services/src/google-calendar.service.ts",
+        "packages/services/src/google-calendar-sync.service.ts",
+        "packages/services/src/health-score.ts"
+      ]
+    },
+    {
+      "id": "sales-pos-packages",
+      "name": "Sales, POS & Packages",
+      "verifyTopN": 5,
+      "routers": [
+        "packages/api/src/routers/sales-orders.ts",
+        "packages/api/src/routers/package-instances/",
+        "packages/api/src/routers/refunds/",
+        "packages/api/src/routers/invoices.ts",
+        "packages/api/src/routers/memberships.ts",
+        "packages/api/src/routers/installment-plans.ts",
+        "packages/api/src/routers/cancelled-sales.ts",
+        "apps/server/src/routers/payments.ts",
+        "apps/server/src/routers/customer-profiles.ts"
+      ],
+      "services": [
+        "packages/services/src/pos.service.ts",
+        "packages/services/src/sales-order.service.ts",
+        "packages/services/src/package-instance.service.ts",
+        "packages/services/src/package-instance-staff.service.ts",
+        "packages/services/src/refunds.service.ts",
+        "packages/services/src/invoice.service.ts",
+        "packages/services/src/memberships.service.ts",
+        "packages/services/src/membership.service.ts",
+        "packages/services/src/installment-plan.service.ts",
+        "packages/services/src/installment.service.ts",
+        "packages/services/src/payments.service.ts",
+        "packages/services/src/cancelled-sales.service.ts"
+      ]
+    },
+    {
+      "id": "commissions-payouts",
+      "name": "Commissions & Payouts",
+      "verifyTopN": 5,
+      "routers": [
+        "packages/api/src/routers/commission-splits/",
+        "packages/api/src/routers/analytics.ts",
+        "packages/api/src/routers/scheduled-reports.ts",
+        "apps/server/src/routers/partner-stripe.ts"
+      ],
+      "services": [
+        "packages/services/src/commission-splits.service.ts",
+        "packages/services/src/commission-cycle.service.ts",
+        "packages/services/src/commission-calculator.service.ts",
+        "packages/services/src/commission-math.ts",
+        "packages/services/src/category-commission.service.ts",
+        "packages/services/src/payouts.service.ts",
+        "packages/services/src/analytics.service.ts",
+        "packages/services/src/branch-stats-cache.service.ts"
+      ]
+    },
+    {
+      "id": "crm-customers-promotions",
+      "name": "CRM, Customers & Promotions",
+      "verifyTopN": 4,
+      "routers": [
+        "packages/api/src/routers/customer-profiles.ts",
+        "packages/api/src/routers/customer-directory.ts",
+        "packages/api/src/routers/promotions.ts",
+        "packages/api/src/routers/waitlist.ts",
+        "packages/api/src/routers/preferred-times.ts",
+        "packages/api/src/routers/coach-intake.ts",
+        "packages/api/src/routers/google-calendar.ts"
+      ],
+      "services": [
+        "packages/services/src/customer-profile.service.ts",
+        "packages/services/src/customer-directory.service.ts",
+        "packages/services/src/walk-in.service.ts",
+        "packages/services/src/promotions.service.ts",
+        "packages/services/src/preferred-time.service.ts"
+      ]
+    },
+    {
+      "id": "inventory-platform",
+      "name": "Inventory, Products & SaaS Platform",
+      "verifyTopN": 4,
+      "routers": [
+        "packages/api/src/routers/purchase-orders.ts",
+        "packages/api/src/routers/goods-receipts.ts",
+        "packages/api/src/routers/suppliers.ts",
+        "packages/api/src/routers/tax-rates.ts",
+        "packages/api/src/routers/brands.ts",
+        "packages/api/src/routers/product-categories.ts",
+        "packages/api/src/routers/units-of-measure.ts",
+        "packages/api/src/routers/onboarding.ts",
+        "apps/server/src/routers/subscriptions.ts",
+        "apps/server/src/routers/stripe-connect.ts",
+        "apps/server/src/routers/admin.ts"
+      ],
+      "services": [
+        "packages/services/src/products.service.ts",
+        "packages/services/src/purchase-orders.service.ts",
+        "packages/services/src/goods-receipt.service.ts",
+        "packages/services/src/stock-requests.service.ts",
+        "packages/services/src/transfer-orders.service.ts",
+        "packages/services/src/suppliers.service.ts",
+        "packages/services/src/tax-rates.service.ts",
+        "packages/services/src/tax.service.ts",
+        "packages/services/src/brands.service.ts",
+        "packages/services/src/product-categories.service.ts",
+        "packages/services/src/units-of-measure.service.ts",
+        "packages/services/src/onboarding.service.ts",
+        "packages/services/src/organization-settings.service.ts",
+        "packages/services/src/pricing.service.ts",
+        "packages/services/src/ghl-staff-sync.service.ts"
+      ]
+    }
+  ]
+}

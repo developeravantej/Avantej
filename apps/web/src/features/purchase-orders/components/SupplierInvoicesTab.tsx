@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { client } from "@/utils/orpc";
+import { orpc } from "@/utils/orpc";
 import { formatPrice } from "@/lib/money";
 import { CopyableCell } from "@/components/tables/copyable-cell";
 import DataTable from "@/components/tables/sales/view/data-table";
@@ -35,31 +35,38 @@ export type SupplierInvoicesTabProps = {
 	canUpdate: boolean;
 };
 
-export function SupplierInvoicesTab({ organizationId, canCreate: _canCreate, canUpdate }: SupplierInvoicesTabProps) {
+export function SupplierInvoicesTab({
+	organizationId,
+	canCreate: _canCreate,
+	canUpdate,
+}: SupplierInvoicesTabProps) {
 	const [reviewInvoiceId, setReviewInvoiceId] = useState<string | null>(null);
-	const [paidInvoice, setPaidInvoice] = useState<{ id: string; number: string } | null>(null);
+	const [paidInvoice, setPaidInvoice] = useState<{
+		id: string;
+		number: string;
+	} | null>(null);
 	const [statusFilter, setStatusFilter] = useState("");
 
-	const { data: invoices = [], isLoading, isError, error, refetch } = useQuery({
-		queryKey: ["supplierInvoices", organizationId],
-		queryFn: async () => {
-			if (!organizationId) return [];
-			return client.goodsReceipts.listInvoices({
-				organizationId,
-				status: statusFilter || undefined,
-			});
-		},
+	const {
+		data: invoices = [],
+		isLoading,
+		isError,
+		error,
+		refetch,
+	} = useQuery({
+		...orpc.goodsReceipts.listInvoices.queryOptions({
+			input: { organizationId, status: statusFilter || undefined },
+		}),
 		enabled: !!organizationId,
 	});
 
 	const { data: suppliers = [] } = useQuery({
-		queryKey: ["suppliers", organizationId],
-		queryFn: () => client.suppliers.list({ organizationId }),
+		...orpc.suppliers.list.queryOptions({ input: { organizationId } }),
 		enabled: !!organizationId,
 	});
 
 	const supplierMap = useMemo(
-		() => new Map(suppliers.map((s: any) => [s.id, s.name])),
+		() => new Map(suppliers.map((s) => [s.id, s.name])),
 		[suppliers],
 	);
 
@@ -77,7 +84,10 @@ export function SupplierInvoicesTab({ organizationId, canCreate: _canCreate, can
 			header: "Supplier",
 			accessorKey: "supplierId",
 			cell: ({ row }) => (
-				<span className="text-sm">{(supplierMap.get(row.original.supplierId) as any) ?? row.original.supplierId.slice(0, 8) + "…"}</span>
+				<span className="text-sm">
+					{supplierMap.get(row.original.supplierId) ??
+						row.original.supplierId.slice(0, 8) + "…"}
+				</span>
 			),
 		},
 		{
@@ -86,7 +96,9 @@ export function SupplierInvoicesTab({ organizationId, canCreate: _canCreate, can
 			accessorKey: "purchaseOrderId",
 			cell: ({ row }) => (
 				<span className="text-xs font-mono text-muted-foreground">
-					{row.original.purchaseOrderId ? row.original.purchaseOrderId.slice(0, 8) + "…" : "—"}
+					{row.original.purchaseOrderId
+						? row.original.purchaseOrderId.slice(0, 8) + "…"
+						: "—"}
 				</span>
 			),
 		},
@@ -94,7 +106,9 @@ export function SupplierInvoicesTab({ organizationId, canCreate: _canCreate, can
 			id: "invoiceDate",
 			header: "Invoice Date",
 			accessorKey: "invoiceDate",
-			cell: ({ row }) => <span className="text-sm">{formatDate(row.original.invoiceDate)}</span>,
+			cell: ({ row }) => (
+				<span className="text-sm">{formatDate(row.original.invoiceDate)}</span>
+			),
 		},
 		{
 			id: "dueDate",
@@ -102,7 +116,11 @@ export function SupplierInvoicesTab({ organizationId, canCreate: _canCreate, can
 			accessorKey: "dueDate",
 			cell: ({ row }) => (
 				<span className="text-sm">
-					{row.original.dueDate ? formatDate(row.original.dueDate) : <span className="text-muted-foreground">-</span>}
+					{row.original.dueDate ? (
+						formatDate(row.original.dueDate)
+					) : (
+						<span className="text-muted-foreground">-</span>
+					)}
 				</span>
 			),
 		},
@@ -111,7 +129,9 @@ export function SupplierInvoicesTab({ organizationId, canCreate: _canCreate, can
 			header: "Amount (MYR)",
 			accessorKey: "totalCents",
 			cell: ({ row }) => (
-				<span className="text-sm font-medium tabular-nums">{formatPrice(row.original.totalCents, "MYR")}</span>
+				<span className="text-sm font-medium tabular-nums">
+					{formatPrice(row.original.totalCents, "MYR")}
+				</span>
 			),
 		},
 		{
@@ -125,7 +145,8 @@ export function SupplierInvoicesTab({ organizationId, canCreate: _canCreate, can
 			header: "Actions",
 			cell: ({ row }) => {
 				const { id, status, invoiceNumber } = row.original;
-				if (!canUpdate) return <span className="text-muted-foreground text-xs">-</span>;
+				if (!canUpdate)
+					return <span className="text-muted-foreground text-xs">-</span>;
 				return (
 					<div className="flex items-center gap-1.5">
 						{(status === "pending" || status === "disputed") && (
@@ -157,7 +178,10 @@ export function SupplierInvoicesTab({ organizationId, canCreate: _canCreate, can
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center gap-2">
-				<Select value={statusFilter} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
+				<Select
+					value={statusFilter}
+					onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}
+				>
 					<SelectTrigger className="w-40">
 						<SelectValue placeholder="All statuses" />
 					</SelectTrigger>

@@ -17,7 +17,14 @@
  * Run (after a journey run):  bun e2e/journeys/build-review.ts
  */
 
-import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync, rmSync } from "fs";
+import {
+	readFileSync,
+	writeFileSync,
+	mkdirSync,
+	copyFileSync,
+	existsSync,
+	rmSync,
+} from "fs";
 import { join, dirname, basename } from "path";
 import { fileURLToPath } from "url";
 
@@ -26,13 +33,43 @@ const REPORT = join(HERE, ".results", "report.json");
 const OUT_DIR = join(HERE, "review");
 const ASSET_DIR = join(OUT_DIR, "assets");
 
-interface Attachment { name: string; path?: string; contentType: string }
-interface Step { title: string; category: string; steps?: Step[] }
-interface Result { status: string; duration: number; attachments?: Attachment[]; steps?: Step[]; errors?: { message?: string }[] }
-interface PWTest { projectName?: string; results?: Result[]; tags?: string[] }
-interface Spec { title: string; tests?: PWTest[]; tags?: string[]; file?: string }
-interface Suite { title: string; file?: string; specs?: Spec[]; suites?: Suite[] }
-interface Report { suites?: Suite[] }
+interface Attachment {
+	name: string;
+	path?: string;
+	contentType: string;
+}
+interface Step {
+	title: string;
+	category: string;
+	steps?: Step[];
+}
+interface Result {
+	status: string;
+	duration: number;
+	attachments?: Attachment[];
+	steps?: Step[];
+	errors?: { message?: string }[];
+}
+interface PWTest {
+	projectName?: string;
+	results?: Result[];
+	tags?: string[];
+}
+interface Spec {
+	title: string;
+	tests?: PWTest[];
+	tags?: string[];
+	file?: string;
+}
+interface Suite {
+	title: string;
+	file?: string;
+	specs?: Spec[];
+	suites?: Suite[];
+}
+interface Report {
+	suites?: Suite[];
+}
 
 interface Card {
 	id: string;
@@ -68,27 +105,45 @@ const MODULE_LABELS: Record<string, string> = {
 	"06-saas-platform": "SaaS Platform Surface",
 };
 
-const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+const slugify = (s: string) =>
+	s
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-|-$/g, "")
+		.slice(0, 60);
 
 function fileKey(file: string): string {
-	return basename(file).replace(/\.(admin|staff|platform|anon)\.journey\.spec\.ts$/, "").replace(/\.spec\.ts$/, "");
+	return basename(file)
+		.replace(/\.(admin|staff|platform|anon)\.journey\.spec\.ts$/, "")
+		.replace(/\.spec\.ts$/, "");
 }
 function moduleFromFile(file: string): string {
 	const key = fileKey(file);
 	if (MODULE_LABELS[key]) return MODULE_LABELS[key];
-	return key.replace(/^\d+[-_]/, "").replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+	return key
+		.replace(/^\d+[-_]/, "")
+		.replace(/[-_]/g, " ")
+		.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 function tabFromProject(project: string): string {
 	return /platform/i.test(project) ? "SaaS Platform" : "Tenant Platform";
 }
 
-function flattenStepTitles(steps: Step[] | undefined, acc: string[] = []): string[] {
+function flattenStepTitles(
+	steps: Step[] | undefined,
+	acc: string[] = [],
+): string[] {
 	if (!steps) return acc;
 	for (const s of steps) {
 		// The JSON reporter lists user test.step() titles here with no `category` field;
 		// take every title, skipping framework hooks/fixtures defensively.
 		const t = (s.title || "").trim();
-		if (t && !/^(before|after) hooks$/i.test(t) && !/^fixture:/i.test(t) && !/^(worker|browserContext|apiRequest)\b/i.test(t)) {
+		if (
+			t &&
+			!/^(before|after) hooks$/i.test(t) &&
+			!/^fixture:/i.test(t) &&
+			!/^(worker|browserContext|apiRequest)\b/i.test(t)
+		) {
 			acc.push(t);
 		}
 		if (s.steps) flattenStepTitles(s.steps, acc);
@@ -104,14 +159,19 @@ function tierOf(tags: string[] | undefined, title: string): string {
 }
 
 // Walk suites tracking the owning file + the nearest describe() title (module override).
-function collect(suites: Suite[] | undefined, file: string, describe: string, out: Card[]): void {
+function collect(
+	suites: Suite[] | undefined,
+	file: string,
+	describe: string,
+	out: Card[],
+): void {
 	if (!suites) return;
 	for (const suite of suites) {
 		// Playwright sets `.file` on describe suites too, so detect the file suite by its
 		// title (the spec path) — a describe suite's title is the module name.
 		const isFile = /\.spec\.ts$/.test(suite.title);
 		const nextFile = isFile ? suite.title : (suite.file ?? file);
-		const nextDescribe = isFile ? "" : (suite.title || describe);
+		const nextDescribe = isFile ? "" : suite.title || describe;
 
 		for (const spec of suite.specs ?? []) {
 			const test = spec.tests?.[spec.tests.length - 1];
@@ -132,7 +192,10 @@ function collect(suites: Suite[] | undefined, file: string, describe: string, ou
 				if (a.contentType === "video/webm" || a.name === "video") {
 					copyFileSync(a.path, join(dest, "video.webm"));
 					video = `assets/${slug}/video.webm`;
-				} else if (a.contentType?.startsWith("image/") || a.name === "screenshot") {
+				} else if (
+					a.contentType?.startsWith("image/") ||
+					a.name === "screenshot"
+				) {
 					copyFileSync(a.path, join(dest, fname));
 					shots.push(`assets/${slug}/${fname}`);
 				}
@@ -147,7 +210,9 @@ function collect(suites: Suite[] | undefined, file: string, describe: string, ou
 				status: result.status,
 				durationMs: result.duration,
 				steps: flattenStepTitles(result.steps),
-				error: result.errors?.[0]?.message?.replace(/\[[0-9;]*m/g, "").slice(0, 600),
+				error: result.errors?.[0]?.message
+					?.replace(/\[[0-9;]*m/g, "")
+					.slice(0, 600),
 				video,
 				shots,
 			});
@@ -169,8 +234,10 @@ const cards: Card[] = [];
 collect(report.suites, "", "", cards);
 
 const TABS = ["SaaS Platform", "Tenant Platform"];
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-const badgeClass = (s: string) => (s === "passed" ? "ok" : s === "skipped" ? "skip" : "bad");
+const esc = (s: string) =>
+	s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const badgeClass = (s: string) =>
+	s === "passed" ? "ok" : s === "skipped" ? "skip" : "bad";
 
 const css = `
 :root{--bg:#0b0d10;--card:#151a1f;--ln:#222a31;--fg:#e6edf3;--mut:#8b98a5;--ok:#3fb950;--bad:#f85149;--skip:#d29922;--accent:#d6cdb1;--saas:#6ea8fe}
@@ -235,7 +302,9 @@ const cardHtml = (c: Card) => `
 function panelHtml(tab: string, idx: number): string {
 	const tabCards = cards.filter((c) => c.tab === tab);
 	const passed = tabCards.filter((c) => c.status === "passed").length;
-	const failed = tabCards.filter((c) => c.status === "failed" || c.status === "timedOut").length;
+	const failed = tabCards.filter(
+		(c) => c.status === "failed" || c.status === "timedOut",
+	).length;
 	const skipped = tabCards.filter((c) => c.status === "skipped").length;
 	const modules = [...new Set(tabCards.map((c) => c.module))];
 	let body = `<div class="tsummary">
@@ -261,7 +330,9 @@ const tabBtns = TABS.map((t, i) => {
 const total = cards.length;
 const totPass = cards.filter((c) => c.status === "passed").length;
 const totSkip = cards.filter((c) => c.status === "skipped").length;
-const totFail = cards.filter((c) => c.status === "failed" || c.status === "timedOut").length;
+const totFail = cards.filter(
+	(c) => c.status === "failed" || c.status === "timedOut",
+).length;
 
 const html = `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -327,4 +398,6 @@ document.querySelectorAll('.tabbtn').forEach(function(b){
 writeFileSync(join(OUT_DIR, "e2e.html"), html);
 const bySaas = cards.filter((c) => c.tab === "SaaS Platform").length;
 const byTenant = cards.filter((c) => c.tab === "Tenant Platform").length;
-console.log(`wrote ${join(OUT_DIR, "e2e.html")} — ${total} journeys (${totPass} passed, ${totFail} failed, ${totSkip} skipped) | SaaS Platform: ${bySaas}, Tenant Platform: ${byTenant}`);
+console.log(
+	`wrote ${join(OUT_DIR, "e2e.html")} — ${total} journeys (${totPass} passed, ${totFail} failed, ${totSkip} skipped) | SaaS Platform: ${bySaas}, Tenant Platform: ${byTenant}`,
+);

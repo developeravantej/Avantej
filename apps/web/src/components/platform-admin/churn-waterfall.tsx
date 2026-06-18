@@ -53,9 +53,19 @@ export function ChurnWaterfall({
 	const noMovement = newMrr === 0 && churnedMrr === 0;
 
 	const data = [
-		{ key: "start", label: "Start", value: startingMrr, fill: "var(--color-start)" },
+		{
+			key: "start",
+			label: "Start",
+			value: startingMrr,
+			fill: "var(--color-start)",
+		},
 		{ key: "new", label: "New", value: newMrr, fill: "var(--color-new)" },
-		{ key: "churn", label: "Churn", value: churnedMrr, fill: "var(--color-churn)" },
+		{
+			key: "churn",
+			label: "Churn",
+			value: churnedMrr,
+			fill: "var(--color-churn)",
+		},
 		{ key: "end", label: "End", value: endingMrr, fill: "var(--color-end)" },
 	];
 
@@ -114,9 +124,7 @@ export function ChurnWaterfall({
 						Net Δ:{" "}
 						<span
 							className={
-								netNewMrrLast30dCents >= 0
-									? "text-green-700"
-									: "text-red-700"
+								netNewMrrLast30dCents >= 0 ? "text-green-700" : "text-red-700"
 							}
 							data-testid="churn-waterfall-net"
 						>

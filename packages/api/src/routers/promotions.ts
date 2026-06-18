@@ -1,6 +1,11 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../guards";
 import {
 	listPromotions,
 	validatePromoCode,
@@ -9,10 +14,9 @@ import {
 	updatePromotion,
 	deactivatePromotion,
 } from "@avantej-core/services/promotions.service";
-import { requirePermission } from "@avantej-core/services";
 
 export const promotionsRouter = {
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -24,32 +28,16 @@ export const promotionsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"promotion_management",
-					"read",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"promotion_management",
+				"read",
+			);
 
 			return listPromotions(context.tenantDb, {
 				isActive: input.isActive,
@@ -60,7 +48,7 @@ export const promotionsRouter = {
 			});
 		}),
 
-	validate: protectedProcedure
+	validate: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -73,32 +61,16 @@ export const promotionsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"promotion_management",
-					"read",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"promotion_management",
+				"read",
+			);
 
 			try {
 				return await validatePromoCode(context.tenantDb, input.code, {
@@ -118,7 +90,7 @@ export const promotionsRouter = {
 			}
 		}),
 
-	apply: protectedProcedure
+	apply: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -129,32 +101,13 @@ export const promotionsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"promotion_management",
-					"create",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"promotion_management",
+				"create",
+			);
 
 			return applyPromotion(context.tenantDb, input.promotionId, {
 				customerId: input.customerId,
@@ -163,7 +116,7 @@ export const promotionsRouter = {
 			});
 		}),
 
-	create: protectedProcedure
+	create: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -187,32 +140,16 @@ export const promotionsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"promotion_management",
-					"create",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"promotion_management",
+				"create",
+			);
 
 			const actor = {
 				userId: context.session!.user.id,
@@ -220,24 +157,28 @@ export const promotionsRouter = {
 				role: context.member.role,
 			};
 
-			return createPromotion(context.tenantDb, {
-				code: input.code,
-				name: input.name,
-				description: input.description,
-				type: input.type,
-				value: input.value,
-				minimumOrderAmount: input.minimumOrderAmount,
-				maximumDiscount: input.maximumDiscount,
-				usageLimit: input.usageLimit,
-				perCustomerLimit: input.perCustomerLimit,
-				validFrom: new Date(input.validFrom),
-				validUntil: input.validUntil ? new Date(input.validUntil) : undefined,
-				branchId: input.branchId,
-				createdBy: context.member.userId,
-			}, actor);
+			return createPromotion(
+				context.tenantDb,
+				{
+					code: input.code,
+					name: input.name,
+					description: input.description,
+					type: input.type,
+					value: input.value,
+					minimumOrderAmount: input.minimumOrderAmount,
+					maximumDiscount: input.maximumDiscount,
+					usageLimit: input.usageLimit,
+					perCustomerLimit: input.perCustomerLimit,
+					validFrom: new Date(input.validFrom),
+					validUntil: input.validUntil ? new Date(input.validUntil) : undefined,
+					branchId: input.branchId,
+					createdBy: context.member.userId,
+				},
+				actor,
+			);
 		}),
 
-	update: protectedProcedure
+	update: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -250,32 +191,13 @@ export const promotionsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"promotion_management",
-					"update",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"promotion_management",
+				"update",
+			);
 
 			return updatePromotion(context.tenantDb, input.id, {
 				...(input.name !== undefined && { name: input.name }),
@@ -292,7 +214,7 @@ export const promotionsRouter = {
 			});
 		}),
 
-	deactivate: protectedProcedure
+	deactivate: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -300,32 +222,13 @@ export const promotionsRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
-			try {
-				await requirePermission(
-					context.tenantDb,
-					context.member,
-					"promotion_management",
-					"delete",
-				);
-			} catch (error) {
-				throw new ORPCError("FORBIDDEN", {
-					message:
-						error instanceof Error ? error.message : "Permission denied",
-				});
-			}
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"promotion_management",
+				"delete",
+			);
 
 			const actor = {
 				userId: context.session!.user.id,

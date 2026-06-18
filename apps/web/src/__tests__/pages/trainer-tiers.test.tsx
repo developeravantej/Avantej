@@ -2,12 +2,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
 vi.mock("@tanstack/react-router", () => ({
 	Link: ({ children }: { children: React.ReactNode }) => children,
 }));
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({ client: mockClient, orpc: mockOrpc }));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: {
@@ -59,9 +59,7 @@ describe("TrainerTiersPage", () => {
 		renderWithProviders(<TrainerTiersPage />);
 
 		await waitFor(() => {
-			expect(
-				screen.getByText(/No tiers yet/i),
-			).toBeInTheDocument();
+			expect(screen.getByText(/No tiers yet/i)).toBeInTheDocument();
 		});
 	});
 
@@ -70,14 +68,18 @@ describe("TrainerTiersPage", () => {
 		renderWithProviders(<TrainerTiersPage />);
 
 		await waitFor(() => {
-			expect(screen.getByRole("button", { name: /new tier/i })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /new tier/i }),
+			).toBeInTheDocument();
 		});
 
 		await user.click(screen.getByRole("button", { name: /new tier/i }));
 
 		await waitFor(() => {
 			// Dialog title is a heading element (h2)
-			expect(screen.getByRole("heading", { name: "New Tier" })).toBeInTheDocument();
+			expect(
+				screen.getByRole("heading", { name: "New Tier" }),
+			).toBeInTheDocument();
 			expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
 			expect(screen.getByLabelText(/rank/i)).toBeInTheDocument();
 			expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
@@ -92,7 +94,9 @@ describe("TrainerTiersPage", () => {
 		renderWithProviders(<TrainerTiersPage />);
 
 		await waitFor(() => {
-			expect(screen.getByRole("button", { name: /new tier/i })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /new tier/i }),
+			).toBeInTheDocument();
 		});
 
 		// Open dialog
@@ -177,7 +181,9 @@ describe("TrainerTiersPage", () => {
 		renderWithProviders(<TrainerTiersPage />);
 
 		await waitFor(() => {
-			expect(screen.getByRole("button", { name: /new tier/i })).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: /new tier/i }),
+			).toBeInTheDocument();
 		});
 
 		await user.click(screen.getByRole("button", { name: /new tier/i }));

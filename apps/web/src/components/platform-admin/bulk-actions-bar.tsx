@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
@@ -81,17 +82,14 @@ export function BulkActionsBar({
 				label,
 			}),
 		onSuccess: (res) => {
-			toast.success(
-				`Applied tag — inserted ${res.inserted}/${res.attempted}.`,
-			);
+			toast.success(`Applied tag — inserted ${res.inserted}/${res.attempted}.`);
 			qc.invalidateQueries({ queryKey: ["platformAdminTenants"] });
 			setApplyOpen(false);
 			setApplyLabel("");
 			setApplyNew("");
 			onClear();
 		},
-		onError: (e: any) =>
-			toast.error(e?.message ?? "Bulk add failed"),
+		onError: (e: any) => toast.error(e?.message ?? "Bulk add failed"),
 	});
 
 	const handleApply = () => {
@@ -117,8 +115,7 @@ export function BulkActionsBar({
 			setRemoveLabel("");
 			onClear();
 		},
-		onError: (e: any) =>
-			toast.error(e?.message ?? "Bulk remove failed"),
+		onError: (e: any) => toast.error(e?.message ?? "Bulk remove failed"),
 	});
 
 	// ── Suspend ────────────────────────────────────────────────────────────
@@ -138,8 +135,7 @@ export function BulkActionsBar({
 			setSuspendReason("");
 			onClear();
 		},
-		onError: (e: any) =>
-			toast.error(e?.message ?? "Bulk suspend failed"),
+		onError: (e: any) => toast.error(e?.message ?? "Bulk suspend failed"),
 	});
 
 	return (
@@ -147,10 +143,7 @@ export function BulkActionsBar({
 			className="flex items-center gap-3 rounded-md border bg-muted/40 px-3 py-2"
 			data-testid="bulk-actions-bar"
 		>
-			<span
-				className="text-sm font-medium"
-				data-testid="bulk-actions-count"
-			>
+			<span className="text-sm font-medium" data-testid="bulk-actions-count">
 				{selectedIds.length} selected
 			</span>
 
@@ -184,10 +177,15 @@ export function BulkActionsBar({
 								Apply tag to {selectedIds.length} tenant
 								{selectedIds.length === 1 ? "" : "s"}
 							</DialogTitle>
+							<DialogDescription>
+								Choose an existing tag or create a new one to apply.
+							</DialogDescription>
 						</DialogHeader>
 						<div className="space-y-3">
 							<div>
-								<label className="text-xs text-muted-foreground">Existing tag</label>
+								<label className="text-xs text-muted-foreground">
+									Existing tag
+								</label>
 								<Select value={applyLabel} onValueChange={setApplyLabel}>
 									<SelectTrigger data-testid="bulk-apply-tag-select">
 										<SelectValue placeholder="Choose an existing tag" />
@@ -201,9 +199,13 @@ export function BulkActionsBar({
 									</SelectContent>
 								</Select>
 							</div>
-							<div className="text-xs text-muted-foreground text-center">— or —</div>
+							<div className="text-xs text-muted-foreground text-center">
+								— or —
+							</div>
 							<div>
-								<label className="text-xs text-muted-foreground">New tag label</label>
+								<label className="text-xs text-muted-foreground">
+									New tag label
+								</label>
 								<Input
 									placeholder="e.g. enterprise"
 									value={applyNew}
@@ -246,6 +248,9 @@ export function BulkActionsBar({
 								Remove tag from {selectedIds.length} tenant
 								{selectedIds.length === 1 ? "" : "s"}
 							</DialogTitle>
+							<DialogDescription>
+								Select the tag to remove from the selected tenants.
+							</DialogDescription>
 						</DialogHeader>
 						<Select value={removeLabel} onValueChange={setRemoveLabel}>
 							<SelectTrigger data-testid="bulk-remove-tag-select">
@@ -323,6 +328,9 @@ export function BulkActionsBar({
 									Suspend {selectedIds.length} tenant
 									{selectedIds.length === 1 ? "" : "s"}?
 								</DialogTitle>
+								<DialogDescription>
+									Provide a reason for suspending the selected tenants.
+								</DialogDescription>
 							</DialogHeader>
 							<div className="space-y-2">
 								<label className="text-xs text-muted-foreground">

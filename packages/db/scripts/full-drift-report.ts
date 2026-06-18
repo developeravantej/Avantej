@@ -18,7 +18,9 @@ for (const schema of ["drizzle", "public"]) {
 		[schema],
 	);
 	if (r.rows.length) {
-		console.log(`migration tables in ${schema}: ${r.rows.map((r: any) => r.table_name).join(", ")}`);
+		console.log(
+			`migration tables in ${schema}: ${r.rows.map((r: any) => r.table_name).join(", ")}`,
+		);
 	}
 }
 
@@ -26,13 +28,23 @@ for (const schema of ["drizzle", "public"]) {
 const cols = await pool.query(
 	`SELECT column_name FROM information_schema.columns WHERE table_name = 'organizations' ORDER BY ordinal_position`,
 );
-console.log(`\norganizations: ${cols.rows.map((r: any) => r.column_name).join(", ")}`);
+console.log(
+	`\norganizations: ${cols.rows.map((r: any) => r.column_name).join(", ")}`,
+);
 
 // 4. Check which migration journal exists
 try {
-	const j = await pool.query(`SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY id`);
+	const j = await pool.query(
+		`SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY id`,
+	);
 	console.log(`\ndrizzle.__drizzle_migrations: ${j.rows.length} entries`);
-	for (const r of j.rows) console.log("  -", (r as any).id, (r as any).hash?.slice(0, 12), (r as any).created_at);
+	for (const r of j.rows)
+		console.log(
+			"  -",
+			(r as any).id,
+			(r as any).hash?.slice(0, 12),
+			(r as any).created_at,
+		);
 } catch {
 	console.log("\nNo drizzle.__drizzle_migrations table");
 }

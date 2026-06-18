@@ -1,0 +1,6 @@
+{
+  "products/adjust-stock-below-zero.rule.spec.ts::adjustStock below zero is rejected (BAD_REQUEST)": [
+    "Create a product with zero stock at the branch",
+    "Call products/adjustStock with a negative delta and assert it is rejected with 400 (Insufficient stock)"
+  ]
+}

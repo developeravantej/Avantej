@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, beforeAll, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
 let StockRequestsViewPage: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
@@ -17,7 +17,7 @@ vi.mock("@tanstack/react-router", () => ({
 	useNavigate: () => () => {},
 	useSearch: () => ({}),
 }));
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({ client: mockClient, orpc: mockOrpc }));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: {
@@ -34,9 +34,7 @@ vi.mock("sonner", () => ({
 }));
 
 beforeAll(async () => {
-	await import(
-		"@/routes/_authenticated/dashboard/_layout/stock-requests/view"
-	);
+	await import("@/routes/_authenticated/dashboard/_layout/stock-requests/view");
 });
 
 describe("Stock Requests page", () => {

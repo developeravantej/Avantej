@@ -98,10 +98,17 @@ describe("getProductCategoryById", () => {
 
 describe("createProductCategory", () => {
 	test("inserts and returns the new category", async () => {
-		const fakeCategory = { id: "c1", name: "Apparel", externalCode: null, description: null };
+		const fakeCategory = {
+			id: "c1",
+			name: "Apparel",
+			externalCode: null,
+			description: null,
+		};
 		mockReturning.mockResolvedValueOnce([fakeCategory]);
 
-		const result = await createProductCategory(mockTenantDb, { name: "Apparel" });
+		const result = await createProductCategory(mockTenantDb, {
+			name: "Apparel",
+		});
 
 		expect(result as any).toEqual(fakeCategory);
 		expect(mockInsert).toHaveBeenCalledTimes(1);
@@ -109,7 +116,12 @@ describe("createProductCategory", () => {
 	});
 
 	test("inserts with externalCode and description when provided", async () => {
-		const fakeCategory = { id: "c2", name: "Footwear", externalCode: "FW-01", description: "All footwear" };
+		const fakeCategory = {
+			id: "c2",
+			name: "Footwear",
+			externalCode: "FW-01",
+			description: "All footwear",
+		};
 		mockReturning.mockResolvedValueOnce([fakeCategory]);
 
 		const result = await createProductCategory(mockTenantDb, {
@@ -128,20 +140,27 @@ describe("createProductCategory", () => {
 		mockReturning.mockResolvedValueOnce([]);
 
 		await expect(
-			createProductCategory(mockTenantDb, { name: "Apparel" })
+			createProductCategory(mockTenantDb, { name: "Apparel" }),
 		).rejects.toThrow("Failed to create product category");
 	});
 });
 
 describe("updateProductCategory", () => {
 	test("updates and returns the category", async () => {
-		const updatedCategory = { id: "c1", name: "Updated Apparel", externalCode: null, description: null };
+		const updatedCategory = {
+			id: "c1",
+			name: "Updated Apparel",
+			externalCode: null,
+			description: null,
+		};
 		const mockReturningUpd = mock(() => Promise.resolve([updatedCategory]));
 		const mockWhereUpd = mock(() => ({ returning: mockReturningUpd }));
 		const mockSetUpd = mock(() => ({ where: mockWhereUpd }));
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
-		const result = await updateProductCategory(mockTenantDb, "c1", { name: "Updated Apparel" });
+		const result = await updateProductCategory(mockTenantDb, "c1", {
+			name: "Updated Apparel",
+		});
 
 		expect(result as any).toEqual(updatedCategory);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);
@@ -154,7 +173,7 @@ describe("updateProductCategory", () => {
 		mockUpdate.mockImplementationOnce(() => ({ set: mockSetUpd }));
 
 		await expect(
-			updateProductCategory(mockTenantDb, "nonexistent", { name: "X" })
+			updateProductCategory(mockTenantDb, "nonexistent", { name: "X" }),
 		).rejects.toThrow("Product category not found");
 	});
 });

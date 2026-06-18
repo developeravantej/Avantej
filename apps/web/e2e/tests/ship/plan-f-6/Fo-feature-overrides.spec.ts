@@ -32,7 +32,7 @@ test.use({ video: "on" });
 
 const ENV_SUPER_ADMIN_EMAIL = process.env.E2E_SUPER_ADMIN_EMAIL;
 const ENV_SUPER_ADMIN_PASSWORD = process.env.E2E_SUPER_ADMIN_PASSWORD;
-const WEB_ORIGIN = process.env.E2E_WEB_BASE_URL ?? "http://localhost:3001";
+const WEB_ORIGIN = process.env.E2E_WEB_BASE_URL ?? "http://localhost:3021";
 
 async function rpc(
 	request: APIRequestContext,
@@ -142,8 +142,10 @@ test.describe("@ship-f-6 Plan F.6 — Agent Fo per-tenant feature overrides", ()
 		`)) as unknown as { rows: Array<{ id: string }> };
 		const anyOrg = orgRows.rows[0];
 		if (!anyOrg) {
-			console.log("[setup] no v4 organization in DB — skipping");
-			test.skip();
+			test.skip(
+				true,
+				"No RFC4122 organization in control-panel DB — seed dev data first",
+			);
 			return;
 		}
 		const orgId = anyOrg.id;
@@ -172,11 +174,9 @@ test.describe("@ship-f-6 Plan F.6 — Agent Fo per-tenant feature overrides", ()
 		);
 		expect(setRes.status).toBe(200);
 
-		const getRes = await rpc(
-			apiCtx,
-			"platformAdminTenants/featureFlags/get",
-			{ organizationId: orgId },
-		);
+		const getRes = await rpc(apiCtx, "platformAdminTenants/featureFlags/get", {
+			organizationId: orgId,
+		});
 		console.log(
 			`[scenario-1] get status=${getRes.status} body=${JSON.stringify(getRes.body).slice(0, 500)}`,
 		);
@@ -215,11 +215,9 @@ test.describe("@ship-f-6 Plan F.6 — Agent Fo per-tenant feature overrides", ()
 		console.log(`[scenario-3] clearOverride status=${clearRes.status}`);
 		expect(clearRes.status).toBe(200);
 
-		const getRes2 = await rpc(
-			apiCtx,
-			"platformAdminTenants/featureFlags/get",
-			{ organizationId: orgId },
-		);
+		const getRes2 = await rpc(apiCtx, "platformAdminTenants/featureFlags/get", {
+			organizationId: orgId,
+		});
 		const getBody2 = getRes2.body?.json ?? getRes2.body;
 		expect(getBody2.source).toBe("tier_default");
 		expect(getBody2.overrides).toEqual({});
@@ -230,7 +228,9 @@ test.describe("@ship-f-6 Plan F.6 — Agent Fo per-tenant feature overrides", ()
 			"platformAdminTenants/featureFlags/clearOverride",
 			{ organizationId: orgId, featureKey: "commissionSplits" },
 		);
-		console.log(`[scenario-4] clearOverride idempotent status=${clearAgain.status}`);
+		console.log(
+			`[scenario-4] clearOverride idempotent status=${clearAgain.status}`,
+		);
 		expect(clearAgain.status).toBe(200);
 
 		// ── Scenario 6: Audit rows written ──────────────────────────────
@@ -267,7 +267,11 @@ test.describe("@ship-f-6 Plan F.6 — Agent Fo per-tenant feature overrides", ()
 			console.log("[scenario-2] could not create support context, skipping");
 		} else {
 			const supportPage = await supportContext.newPage();
-			await loginAsAdmin(supportPage, supportSigned.email, supportSigned.password);
+			await loginAsAdmin(
+				supportPage,
+				supportSigned.email,
+				supportSigned.password,
+			);
 			const supportApi = supportContext.request;
 			const forbiddenRes = await rpc(
 				supportApi,
@@ -303,9 +307,7 @@ test.describe("@ship-f-6 Plan F.6 — Agent Fo per-tenant feature overrides", ()
 			await tab.waitFor({ timeout: 10_000 });
 			console.log("[scenario-7] tab rendered");
 			// Super-admin should see at least one toggle button.
-			const anyToggle = page.locator(
-				'[data-testid$="-toggle-btn"]',
-			);
+			const anyToggle = page.locator('[data-testid$="-toggle-btn"]');
 			const toggleCount = await anyToggle.count();
 			console.log(`[scenario-7] toggle button count=${toggleCount}`);
 			// Tolerant: don't fail if tier chip + cards render but toggle button

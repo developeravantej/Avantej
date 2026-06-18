@@ -115,7 +115,10 @@ export default function OnboardingScreen() {
 	} = useQuery<InviteContext>({
 		queryKey: ["onboarding", "inviteContext", org, token],
 		queryFn: () =>
-			client.onboarding.getInviteContext({ orgId: org ?? "", token: token ?? "" }),
+			client.onboarding.getInviteContext({
+				orgId: org ?? "",
+				token: token ?? "",
+			}),
 		enabled: !!org && !!token,
 		retry: false,
 	});
@@ -198,9 +201,7 @@ export default function OnboardingScreen() {
 					style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
 				>
 					<ActivityIndicator size="large" color="#111827" />
-					<Text
-						style={{ marginTop: 16, color: "#6B7280", fontSize: 14 }}
-					>
+					<Text style={{ marginTop: 16, color: "#6B7280", fontSize: 14 }}>
 						Loading invite...
 					</Text>
 				</View>

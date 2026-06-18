@@ -42,7 +42,9 @@ export function TimePresetEditor({
 }: TimePresetEditorProps) {
 	return (
 		<div className="rounded-2xl border border-brand-secondary-3 bg-card p-6 space-y-4">
-			<h4 className="font-subheading text-sm text-foreground">Time-Preset Configuration</h4>
+			<h4 className="font-subheading text-sm text-foreground">
+				Time-Preset Configuration
+			</h4>
 
 			{/* Recurring Days */}
 			<div>
@@ -60,7 +62,10 @@ export function TimePresetEditor({
 								disabled={isPending}
 								className="size-4 accent-primary text-primary focus:ring-ring border-brand-secondary-3 rounded"
 							/>
-							<label htmlFor={`day-${day}`} className="ml-1 text-xs text-foreground">
+							<label
+								htmlFor={`day-${day}`}
+								className="ml-1 text-xs text-foreground"
+							>
 								{day.slice(0, 3)}
 							</label>
 						</div>
@@ -81,7 +86,10 @@ export function TimePresetEditor({
 								DAY_ORDER.indexOf(b as DayOfWeek),
 						)
 						.map((day) => (
-							<div key={day} className="border border-brand-secondary-3 rounded-lg p-3">
+							<div
+								key={day}
+								className="border border-brand-secondary-3 rounded-lg p-3"
+							>
 								<div className="flex items-center justify-between mb-2">
 									<h5 className="text-sm font-medium text-foreground">{day}</h5>
 									<button
@@ -112,7 +120,9 @@ export function TimePresetEditor({
 											<input
 												type="time"
 												value={time}
-												onChange={(e) => onUpdateSlot(day, index, e.target.value)}
+												onChange={(e) =>
+													onUpdateSlot(day, index, e.target.value)
+												}
 												disabled={isPending}
 												className="p-2 rounded-md border border-input bg-white shadow-xs focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:text-sm"
 											/>

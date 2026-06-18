@@ -26,7 +26,7 @@ type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
  */
 export async function getPlatformAdmin(
 	controlPanelDb: ControlPanelDb,
-	userId: string
+	userId: string,
 ) {
 	const row = await controlPanelDb.query.platformAdmins.findFirst({
 		where: eq(platformAdmins.userId, userId),
@@ -41,7 +41,7 @@ export async function getPlatformAdmin(
  */
 export async function syncUserRole(
 	controlPanelDb: ControlPanelDb,
-	userId: string
+	userId: string,
 ): Promise<void> {
 	const adminRow = await getPlatformAdmin(controlPanelDb, userId);
 	await controlPanelDb
@@ -56,15 +56,14 @@ export async function syncUserRole(
  */
 export async function getFirstActiveOrgForUser(
 	controlPanelDb: ControlPanelDb,
-	userId: string
+	userId: string,
 ): Promise<string | null> {
 	const row = await controlPanelDb.query.organizationMembers.findFirst({
 		where: and(
 			eq(organizationMembers.userId, userId),
-			eq(organizationMembers.status, "active")
+			eq(organizationMembers.status, "active"),
 		),
 		orderBy: (om, { asc }) => [asc(om.joinedAt)],
 	});
 	return row?.organizationId ?? null;
 }
-

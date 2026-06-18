@@ -148,16 +148,14 @@ function InstallmentsSection({
 					</tr>
 				</thead>
 				<tbody className="divide-y">
-					{data.map((inst: any, idx: any) => (
+					{data.map((inst, idx) => (
 						<tr key={inst.id} className="bg-background">
 							<td className="px-3 py-2 text-muted-foreground">{idx + 1}</td>
 							<td className="px-3 py-2 tabular-nums">
 								{formatDate(inst.dueDate)}
 							</td>
 							<td className="px-3 py-2 tabular-nums">
-								{inst.amount != null
-									? `MYR ${centsToRm(inst.amount)}`
-									: "—"}
+								{inst.amount != null ? `MYR ${centsToRm(inst.amount)}` : "—"}
 							</td>
 							<td className="px-3 py-2">
 								<Badge
@@ -183,7 +181,9 @@ function PreferredTimesSection({
 	data,
 	isLoading,
 }: {
-	data: Array<{ id: string; dayOfWeek: string; time: string; priority: number }> | undefined;
+	data:
+		| Array<{ id: string; dayOfWeek: string; time: string; priority: number }>
+		| undefined;
 	isLoading: boolean;
 }) {
 	if (isLoading) {
@@ -232,7 +232,8 @@ export function PackageRow({ pkg, organizationId }: PackageRowProps) {
 
 	const queryClient = useQueryClient();
 
-	const hasInstallmentPlan = !!pkg.paymentPlanCode && pkg.paymentPlanCode !== "full";
+	const hasInstallmentPlan =
+		!!pkg.paymentPlanCode && pkg.paymentPlanCode !== "full";
 
 	// Installment summary — always fetched when plan is active (lightweight)
 	const { data: installmentData } = useQuery({
@@ -302,9 +303,7 @@ export function PackageRow({ pkg, organizationId }: PackageRowProps) {
 					<span className="truncate font-medium text-sm">{label}</span>
 					<div className="flex flex-wrap items-center gap-3 text-muted-foreground text-xs">
 						{credits && <span>{credits}</span>}
-						{pkg.expiresAt && (
-							<span>expires {formatDate(pkg.expiresAt)}</span>
-						)}
+						{pkg.expiresAt && <span>expires {formatDate(pkg.expiresAt)}</span>}
 						{pkg.paymentPlanCode && (
 							<span className="rounded-sm bg-muted px-1 py-0.5 font-mono">
 								{pkg.paymentPlanCode}
@@ -359,8 +358,9 @@ export function PackageRow({ pkg, organizationId }: PackageRowProps) {
 									className="h-6 px-2 text-xs"
 									onClick={() => {
 										setDraftTimes(
-											(preferredData ?? []).map((t: any) => ({
-												dayOfWeek: t.dayOfWeek as PreferredTimeItem["dayOfWeek"],
+											(preferredData ?? []).map((t) => ({
+												dayOfWeek:
+													t.dayOfWeek as PreferredTimeItem["dayOfWeek"],
 												time: t.time,
 												priority: t.priority,
 											})),

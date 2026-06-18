@@ -3,7 +3,9 @@
 // Order: lex by filename (matches drizzle-kit ordering).
 
 export const CONTROL_PANEL_MIGRATIONS = [
-	{ tag: "0000_far_luminals", sql: `CREATE TABLE "account" (
+	{
+		tag: "0000_far_luminals",
+		sql: `CREATE TABLE "account" (
 	"id" text PRIMARY KEY NOT NULL,
 	"account_id" text NOT NULL,
 	"provider_id" text NOT NULL,
@@ -128,19 +130,34 @@ CREATE INDEX "org_members_org_idx" ON "organization_members" USING btree ("organ
 CREATE INDEX "org_members_status_idx" ON "organization_members" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "platform_admins_role_idx" ON "platform_admins" USING btree ("role");--> statement-breakpoint
 CREATE INDEX "admin_sessions_admin_idx" ON "admin_sessions" USING btree ("admin_user_id");--> statement-breakpoint
-CREATE INDEX "admin_sessions_active_idx" ON "admin_sessions" USING btree ("ended_at") WHERE "admin_sessions"."ended_at" IS NULL;` },
-	{ tag: "0001_redundant_stature", sql: `ALTER TABLE "organizations" ADD COLUMN "stripe_connect_account_id" text;--> statement-breakpoint
+CREATE INDEX "admin_sessions_active_idx" ON "admin_sessions" USING btree ("ended_at") WHERE "admin_sessions"."ended_at" IS NULL;`,
+	},
+	{
+		tag: "0001_redundant_stature",
+		sql: `ALTER TABLE "organizations" ADD COLUMN "stripe_connect_account_id" text;--> statement-breakpoint
 ALTER TABLE "organizations" ADD COLUMN "stripe_connect_status" text DEFAULT 'pending' NOT NULL;--> statement-breakpoint
 ALTER TABLE "organizations" ADD COLUMN "stripe_connect_account_type" text DEFAULT 'franchiser' NOT NULL;--> statement-breakpoint
 ALTER TABLE "organizations" ADD COLUMN "stripe_connect_onboarding_completed_at" timestamp;--> statement-breakpoint
 CREATE INDEX "organizations_stripe_connect_idx" ON "organizations" USING btree ("stripe_connect_account_id");--> statement-breakpoint
-ALTER TABLE "organizations" ADD CONSTRAINT "organizations_stripe_connect_account_id_unique" UNIQUE("stripe_connect_account_id");` },
-	{ tag: "0002_wealthy_mariko_yashida", sql: `ALTER TABLE "user" ADD COLUMN "role" text;` },
-	{ tag: "0003_careful_mole_man", sql: `ALTER TABLE "user" ADD COLUMN "banned" boolean;--> statement-breakpoint
+ALTER TABLE "organizations" ADD CONSTRAINT "organizations_stripe_connect_account_id_unique" UNIQUE("stripe_connect_account_id");`,
+	},
+	{
+		tag: "0002_wealthy_mariko_yashida",
+		sql: `ALTER TABLE "user" ADD COLUMN "role" text;`,
+	},
+	{
+		tag: "0003_careful_mole_man",
+		sql: `ALTER TABLE "user" ADD COLUMN "banned" boolean;--> statement-breakpoint
 ALTER TABLE "user" ADD COLUMN "ban_reason" text;--> statement-breakpoint
-ALTER TABLE "user" ADD COLUMN "ban_expires" timestamp;` },
-	{ tag: "0004_flaky_kang", sql: `ALTER TABLE "organizations" ADD COLUMN "schema_version" text DEFAULT '0000';` },
-	{ tag: "0005_little_victor_mancha", sql: `CREATE TABLE "organization_analytics" (
+ALTER TABLE "user" ADD COLUMN "ban_expires" timestamp;`,
+	},
+	{
+		tag: "0004_flaky_kang",
+		sql: `ALTER TABLE "organizations" ADD COLUMN "schema_version" text DEFAULT '0000';`,
+	},
+	{
+		tag: "0005_little_victor_mancha",
+		sql: `CREATE TABLE "organization_analytics" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"organization_id" uuid NOT NULL,
 	"total_customers" integer DEFAULT 0 NOT NULL,
@@ -158,8 +175,11 @@ ALTER TABLE "user" ADD COLUMN "ban_expires" timestamp;` },
 );
 --> statement-breakpoint
 ALTER TABLE "organization_analytics" ADD CONSTRAINT "organization_analytics_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "org_analytics_org_idx" ON "organization_analytics" USING btree ("organization_id");` },
-	{ tag: "0006_free_bruce_banner", sql: `CREATE TABLE "ghl_location_links" (
+CREATE INDEX "org_analytics_org_idx" ON "organization_analytics" USING btree ("organization_id");`,
+	},
+	{
+		tag: "0006_free_bruce_banner",
+		sql: `CREATE TABLE "ghl_location_links" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"location_id" text NOT NULL,
 	"organization_id" uuid NOT NULL,
@@ -172,8 +192,11 @@ CREATE INDEX "org_analytics_org_idx" ON "organization_analytics" USING btree ("o
 ALTER TABLE "ghl_location_links" ADD CONSTRAINT "ghl_location_links_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "ghl_location_links_location_id_unique" ON "ghl_location_links" USING btree ("location_id");--> statement-breakpoint
 CREATE INDEX "ghl_location_links_org_idx" ON "ghl_location_links" USING btree ("organization_id");--> statement-breakpoint
-CREATE INDEX "ghl_location_links_active_idx" ON "ghl_location_links" USING btree ("is_active");` },
-	{ tag: "0007_narrow_boom_boom", sql: `CREATE TABLE "organization_branches" (
+CREATE INDEX "ghl_location_links_active_idx" ON "ghl_location_links" USING btree ("is_active");`,
+	},
+	{
+		tag: "0007_narrow_boom_boom",
+		sql: `CREATE TABLE "organization_branches" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"organization_id" uuid NOT NULL,
 	"tenant_node_id" uuid NOT NULL,
@@ -186,12 +209,21 @@ CREATE INDEX "ghl_location_links_active_idx" ON "ghl_location_links" USING btree
 ALTER TABLE "organization_branches" ADD CONSTRAINT "organization_branches_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "org_branches_name_unique_idx" ON "organization_branches" USING btree ("name");--> statement-breakpoint
 CREATE INDEX "org_branches_org_idx" ON "organization_branches" USING btree ("organization_id");--> statement-breakpoint
-CREATE INDEX "org_branches_tenant_node_idx" ON "organization_branches" USING btree ("tenant_node_id");` },
-	{ tag: "0008_cooing_the_spike", sql: `ALTER TABLE "organization_branches" ADD COLUMN "country" text;--> statement-breakpoint
-CREATE INDEX "org_branches_country_idx" ON "organization_branches" USING btree ("country");` },
-	{ tag: "0009_abandoned_blonde_phantom", sql: `ALTER TABLE "organization_branches" ADD COLUMN "country_tenant_node_id" uuid;--> statement-breakpoint
-CREATE INDEX "org_branches_country_node_idx" ON "organization_branches" USING btree ("country_tenant_node_id");` },
-	{ tag: "0010_cp_critical", sql: `-- migration: 0010_cp_critical
+CREATE INDEX "org_branches_tenant_node_idx" ON "organization_branches" USING btree ("tenant_node_id");`,
+	},
+	{
+		tag: "0008_cooing_the_spike",
+		sql: `ALTER TABLE "organization_branches" ADD COLUMN "country" text;--> statement-breakpoint
+CREATE INDEX "org_branches_country_idx" ON "organization_branches" USING btree ("country");`,
+	},
+	{
+		tag: "0009_abandoned_blonde_phantom",
+		sql: `ALTER TABLE "organization_branches" ADD COLUMN "country_tenant_node_id" uuid;--> statement-breakpoint
+CREATE INDEX "org_branches_country_node_idx" ON "organization_branches" USING btree ("country_tenant_node_id");`,
+	},
+	{
+		tag: "0010_cp_critical",
+		sql: `-- migration: 0010_cp_critical
 -- description: audit-added — organizations.ownerUserId RESTRICT + admin_session_actions audit table
 -- scope: control-panel database only
 
@@ -225,8 +257,11 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;--> statement-breakpoint
 
 CREATE INDEX IF NOT EXISTS "admin_session_actions_session_idx" ON "admin_session_actions" USING btree ("admin_session_id");--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "admin_session_actions_target_org_idx" ON "admin_session_actions" USING btree ("target_organization_id");
-` },
-	{ tag: "0010_rename_ghl_links_per_branch", sql: `ALTER TABLE "ghl_location_links" RENAME TO "ghl_branch_links";--> statement-breakpoint
+`,
+	},
+	{
+		tag: "0010_rename_ghl_links_per_branch",
+		sql: `ALTER TABLE "ghl_location_links" RENAME TO "ghl_branch_links";--> statement-breakpoint
 ALTER TABLE "ghl_branch_links" RENAME COLUMN "location_id" TO "ghl_location_id";--> statement-breakpoint
 
 -- Drop old indexes that reference the renamed table/column
@@ -250,9 +285,15 @@ CREATE UNIQUE INDEX "ghl_branch_links_ghl_location_unique" ON "ghl_branch_links"
 CREATE INDEX "ghl_branch_links_org_idx" ON "ghl_branch_links" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "ghl_branch_links_branch_idx" ON "ghl_branch_links" USING btree ("tenant_branch_id");--> statement-breakpoint
 CREATE INDEX "ghl_branch_links_active_idx" ON "ghl_branch_links" USING btree ("is_active");
-` },
-	{ tag: "0011_worthless_black_tom", sql: `ALTER TABLE "ghl_branch_links" ADD COLUMN "existing_branch_custom_field_id" text;` },
-	{ tag: "0012_ghl_org_shared", sql: `-- Phase G: add GHL org-shared sync columns to organizations (control panel DB).
+`,
+	},
+	{
+		tag: "0011_worthless_black_tom",
+		sql: `ALTER TABLE "ghl_branch_links" ADD COLUMN "existing_branch_custom_field_id" text;`,
+	},
+	{
+		tag: "0012_ghl_org_shared",
+		sql: `-- Phase G: add GHL org-shared sync columns to organizations (control panel DB).
 -- Idempotent.
 
 ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "ghl_location_id" text;
@@ -268,8 +309,11 @@ ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "ghl_sync_model" text;
 -- Default existing tenants to per-branch model to preserve current behavior.
 UPDATE "organizations" SET "ghl_sync_model" = 'per-branch'
 WHERE "ghl_sync_model" IS NULL;
-` },
-	{ tag: "0013_subscriptions_extensions", sql: `ALTER TABLE "subscriptions" ADD COLUMN "stripe_price_id" text NOT NULL DEFAULT 'price_legacy_seed';
+`,
+	},
+	{
+		tag: "0013_subscriptions_extensions",
+		sql: `ALTER TABLE "subscriptions" ADD COLUMN "stripe_price_id" text NOT NULL DEFAULT 'price_legacy_seed';
 --> statement-breakpoint
 ALTER TABLE "subscriptions" ALTER COLUMN "stripe_price_id" DROP DEFAULT;
 --> statement-breakpoint
@@ -294,8 +338,11 @@ ALTER TABLE "subscriptions" ADD COLUMN "cancel_at_period_end" text DEFAULT 'fals
 ALTER TABLE "subscriptions" ADD COLUMN "canceled_at" timestamp;
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "subscriptions_status_idx" ON "subscriptions" ("status");
-` },
-	{ tag: "0014_subscriptions_cancel_bool_and_index", sql: `ALTER TABLE "subscriptions" ALTER COLUMN "cancel_at_period_end" DROP DEFAULT;
+`,
+	},
+	{
+		tag: "0014_subscriptions_cancel_bool_and_index",
+		sql: `ALTER TABLE "subscriptions" ALTER COLUMN "cancel_at_period_end" DROP DEFAULT;
 --> statement-breakpoint
 ALTER TABLE "subscriptions" ALTER COLUMN "cancel_at_period_end" TYPE boolean USING (cancel_at_period_end::boolean);
 --> statement-breakpoint
@@ -304,8 +351,11 @@ ALTER TABLE "subscriptions" ALTER COLUMN "cancel_at_period_end" SET DEFAULT fals
 ALTER TABLE "subscriptions" ALTER COLUMN "cancel_at_period_end" SET NOT NULL;
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "subscriptions_past_due_idx" ON "subscriptions" ("grace_period_ends_at") WHERE "status" = 'past_due';
-` },
-	{ tag: "0015_organizations_trial_and_connect_state", sql: `ALTER TABLE "organizations" DROP CONSTRAINT IF EXISTS "organizations_subscription_id_subscriptions_id_fk";
+`,
+	},
+	{
+		tag: "0015_organizations_trial_and_connect_state",
+		sql: `ALTER TABLE "organizations" DROP CONSTRAINT IF EXISTS "organizations_subscription_id_subscriptions_id_fk";
 --> statement-breakpoint
 ALTER TABLE "organizations" ALTER COLUMN "subscription_id" DROP NOT NULL;
 --> statement-breakpoint
@@ -320,10 +370,16 @@ ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "payouts_enabled" boolean D
 ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "details_submitted" boolean DEFAULT false NOT NULL;
 --> statement-breakpoint
 ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "connect_account_updated_at" timestamp;
-` },
-	{ tag: "0016_organizations_trial_idx", sql: `CREATE INDEX IF NOT EXISTS "organizations_trial_ends_at_idx" ON "organizations"("trial_ends_at") WHERE "trial_ends_at" IS NOT NULL;
-` },
-	{ tag: "0017_processed_webhook_events", sql: `CREATE TABLE IF NOT EXISTS "processed_webhook_events" (
+`,
+	},
+	{
+		tag: "0016_organizations_trial_idx",
+		sql: `CREATE INDEX IF NOT EXISTS "organizations_trial_ends_at_idx" ON "organizations"("trial_ends_at") WHERE "trial_ends_at" IS NOT NULL;
+`,
+	},
+	{
+		tag: "0017_processed_webhook_events",
+		sql: `CREATE TABLE IF NOT EXISTS "processed_webhook_events" (
     "event_id" text PRIMARY KEY NOT NULL,
     "event_type" text NOT NULL,
     "source" text NOT NULL,
@@ -339,8 +395,11 @@ CREATE INDEX IF NOT EXISTS "processed_webhook_events_type_idx" ON "processed_web
 CREATE INDEX IF NOT EXISTS "processed_webhook_events_source_idx" ON "processed_webhook_events"("source");
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "processed_webhook_events_received_idx" ON "processed_webhook_events"("received_at");
-` },
-	{ tag: "0018_platform_payment_ledger", sql: `CREATE TABLE IF NOT EXISTS "platform_payment_ledger" (
+`,
+	},
+	{
+		tag: "0018_platform_payment_ledger",
+		sql: `CREATE TABLE IF NOT EXISTS "platform_payment_ledger" (
     "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
     "organization_id" uuid,
     "event_kind" text NOT NULL,
@@ -360,8 +419,11 @@ CREATE INDEX IF NOT EXISTS "ledger_org_idx" ON "platform_payment_ledger"("organi
 CREATE INDEX IF NOT EXISTS "ledger_event_kind_idx" ON "platform_payment_ledger"("event_kind");
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "ledger_occurred_idx" ON "platform_payment_ledger"("occurred_at");
-` },
-	{ tag: "0019_org_country_stripe_accounts", sql: `-- Plan B Phase 4 — Per-country Stripe Connect accounts.
+`,
+	},
+	{
+		tag: "0019_org_country_stripe_accounts",
+		sql: `-- Plan B Phase 4 — Per-country Stripe Connect accounts.
 --
 -- The Phase 1-3 model put a single stripe_connect_account_id on
 -- organizations, scoped to one Stripe Connect Standard account (MY-only,
@@ -402,8 +464,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS "org_country_stripe_accounts_org_country_uq"
 
 CREATE INDEX IF NOT EXISTS "org_country_stripe_accounts_acct_idx"
   ON "org_country_stripe_accounts" ("stripe_account_id");
-` },
-	{ tag: "0020_drop_legacy_org_connect_columns", sql: `-- Plan B Phase 4.5 — Drop legacy org-level Stripe Connect columns.
+`,
+	},
+	{
+		tag: "0020_drop_legacy_org_connect_columns",
+		sql: `-- Plan B Phase 4.5 — Drop legacy org-level Stripe Connect columns.
 --
 -- All Connect state has migrated to org_country_stripe_accounts (Phase 4.1
 -- + backfill ran in 4.1 for existing accts; ongoing flow via OAuth callback
@@ -434,8 +499,11 @@ ALTER TABLE "organizations"
   DROP COLUMN IF EXISTS "payouts_enabled",
   DROP COLUMN IF EXISTS "details_submitted",
   DROP COLUMN IF EXISTS "connect_account_updated_at";
-` },
-	{ tag: "0021_plan_c_integrity_tables", sql: `-- Plan C Wave 1 — Payment integrity foundation tables.
+`,
+	},
+	{
+		tag: "0021_plan_c_integrity_tables",
+		sql: `-- Plan C Wave 1 — Payment integrity foundation tables.
 --
 -- Four new control-panel tables supporting:
 --   - C.2 dispute handler (platform_dispute_queue)
@@ -506,8 +574,11 @@ CREATE TABLE IF NOT EXISTS "reconciliation_state" (
   "last_reconciled_at" timestamp NOT NULL,
   PRIMARY KEY ("organization_id", "country_code", "resource_type")
 );
-` },
-	{ tag: "0022_tenant_usage_snapshots", sql: `-- Plan E E.2 — Tenant Usage Snapshots
+`,
+	},
+	{
+		tag: "0022_tenant_usage_snapshots",
+		sql: `-- Plan E E.2 — Tenant Usage Snapshots
 -- Daily-cron rollup of per-tenant usage. See ADR-0023.
 
 CREATE TABLE IF NOT EXISTS "tenant_usage_snapshots" (
@@ -529,8 +600,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS "tenant_usage_snapshots_org_date_uq"
 
 CREATE INDEX IF NOT EXISTS "tenant_usage_snapshots_org_idx"
   ON "tenant_usage_snapshots" ("organization_id", "snapshot_date" DESC);
-` },
-	{ tag: "0023_admin_actions_direct_audit", sql: `-- Plan E E.3 — Allow admin_session_actions to record direct platform-admin
+`,
+	},
+	{
+		tag: "0023_admin_actions_direct_audit",
+		sql: `-- Plan E E.3 — Allow admin_session_actions to record direct platform-admin
 -- actions (lifecycle ops, comms, etc.) that don't occur within an
 -- impersonation session.
 --
@@ -549,8 +623,11 @@ ALTER TABLE "admin_session_actions"
 
 CREATE INDEX IF NOT EXISTS "admin_session_actions_admin_user_idx"
   ON "admin_session_actions" ("admin_user_id");
-` },
-	{ tag: "0024_tenant_deletions", sql: `-- Plan E E.8 — Tenant Deletions (GDPR soft + hard delete).
+`,
+	},
+	{
+		tag: "0024_tenant_deletions",
+		sql: `-- Plan E E.8 — Tenant Deletions (GDPR soft + hard delete).
 -- 30-day grace window before hard delete; restore zeroes restored_at.
 -- See ADR-0026.
 
@@ -573,8 +650,11 @@ CREATE INDEX IF NOT EXISTS "tenant_deletions_hard_after_idx"
 
 CREATE INDEX IF NOT EXISTS "tenant_deletions_org_idx"
   ON "tenant_deletions" ("organization_id");
-` },
-	{ tag: "0025_organizations_country_code", sql: `-- Plan E follow-up — country on organizations.
+`,
+	},
+	{
+		tag: "0025_organizations_country_code",
+		sql: `-- Plan E follow-up — country on organizations.
 --
 -- The E.7 provisioning wizard captured country (MY/SG/TH) but stashed it
 -- in admin_session_actions.metadata only. Promote to a first-class column
@@ -587,8 +667,11 @@ ALTER TABLE "organizations"
 
 CREATE INDEX IF NOT EXISTS "organizations_country_code_idx"
   ON "organizations" ("country_code");
-` },
-	{ tag: "0026_tenant_notes", sql: `-- Plan F.1 — tenant_notes.
+`,
+	},
+	{
+		tag: "0026_tenant_notes",
+		sql: `-- Plan F.1 — tenant_notes.
 --
 -- Internal platform-admin notes attached to a tenant org. Pinned,
 -- append-only audit trail, 1-hour edit-own window then frozen.
@@ -606,8 +689,11 @@ CREATE TABLE tenant_notes (
 );
 CREATE INDEX tenant_notes_org_idx ON tenant_notes (organization_id, created_at DESC) WHERE deleted_at IS NULL;
 CREATE INDEX tenant_notes_pinned_idx ON tenant_notes (organization_id, is_pinned, created_at DESC) WHERE deleted_at IS NULL;
-` },
-	{ tag: "0027_tenant_tags", sql: `-- Plan F.1 — tenant_tags.
+`,
+	},
+	{
+		tag: "0027_tenant_tags",
+		sql: `-- Plan F.1 — tenant_tags.
 --
 -- Platform-admin labels attached to a tenant org (e.g. "enterprise",
 -- "trial", "high-risk"). UNIQUE per (organization_id, label) so the
@@ -629,8 +715,11 @@ CREATE TABLE tenant_tags (
 );
 CREATE INDEX tenant_tags_label_idx ON tenant_tags (label);
 CREATE INDEX tenant_tags_org_idx ON tenant_tags (organization_id);
-` },
-	{ tag: "0028_health_score_on_snapshots", sql: `-- Plan F.1.5 — Health score + risk flags on tenant_usage_snapshots (Agent H).
+`,
+	},
+	{
+		tag: "0028_health_score_on_snapshots",
+		sql: `-- Plan F.1.5 — Health score + risk flags on tenant_usage_snapshots (Agent H).
 --
 -- Adds two nullable columns to the existing daily snapshot table. The
 -- cron will populate these on each new write from F.1.5 onward.
@@ -641,8 +730,11 @@ CREATE INDEX tenant_tags_org_idx ON tenant_tags (organization_id);
 ALTER TABLE tenant_usage_snapshots
   ADD COLUMN IF NOT EXISTS health_score integer,
   ADD COLUMN IF NOT EXISTS risk_flags jsonb;
-` },
-	{ tag: "0029_comms_templates", sql: `-- Plan F.2.5 — Comms templates library (Agent C).
+`,
+	},
+	{
+		tag: "0029_comms_templates",
+		sql: `-- Plan F.2.5 — Comms templates library (Agent C).
 --
 -- Reusable templates for direct-message and announcement composers.
 -- The bulk composer (Agent B, next) and per-tenant compose flows pull
@@ -672,8 +764,11 @@ CREATE INDEX IF NOT EXISTS comms_templates_kind_idx
 
 CREATE INDEX IF NOT EXISTS comms_templates_name_idx
   ON comms_templates (name);
-` },
-	{ tag: "0030_snapshot_factor_columns", sql: `-- Plan F.6 (Agent Sn) — Wire missing health-score factor columns.
+`,
+	},
+	{
+		tag: "0030_snapshot_factor_columns",
+		sql: `-- Plan F.6 (Agent Sn) — Wire missing health-score factor columns.
 --
 -- F.1.5 launched the composite health-score formula but the snapshot
 -- cron was only populating 2 of 5 factors (payment_status +
@@ -703,8 +798,11 @@ ALTER TABLE tenant_usage_snapshots
   ADD COLUMN IF NOT EXISTS last_admin_login_at timestamp,
   ADD COLUMN IF NOT EXISTS failed_webhooks_7d integer,
   ADD COLUMN IF NOT EXISTS daily_active_members_30d_avg integer;
-` },
-	{ tag: "0031_tenant_feature_overrides", sql: `-- Plan F.6 (Agent Fo) — Per-tenant feature-flag overrides.
+`,
+	},
+	{
+		tag: "0031_tenant_feature_overrides",
+		sql: `-- Plan F.6 (Agent Fo) — Per-tenant feature-flag overrides.
 --
 -- F.4 shipped a read-only Feature flags tab that derives features
 -- from \`TIER_LIMITS[tier]\`. Ops needs per-tenant overrides so they can
@@ -737,13 +835,17 @@ CREATE TABLE IF NOT EXISTS tenant_feature_overrides (
 
 CREATE INDEX IF NOT EXISTS tenant_feature_overrides_org_idx
   ON tenant_feature_overrides (organization_id);
-` },
-	{ tag: "0032_organizations_ghl_primary_staff_field_id", sql: `-- GHL Path C: cache the org's "Primary Staff" SINGLE_OPTIONS custom-field id
+`,
+	},
+	{
+		tag: "0032_organizations_ghl_primary_staff_field_id",
+		sql: `-- GHL Path C: cache the org's "Primary Staff" SINGLE_OPTIONS custom-field id
 -- on organizations (one per org-shared GHL location). Idempotent.
 
 ALTER TABLE "organizations"
   ADD COLUMN IF NOT EXISTS "ghl_primary_staff_field_id" text;
-` },
+`,
+	},
 ] as const;
 
 export const CONTROL_PANEL_LATEST_MIGRATION_TAG =

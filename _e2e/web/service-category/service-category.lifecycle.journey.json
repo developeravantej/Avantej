@@ -1,0 +1,8 @@
+{
+  "service-category/service-category.lifecycle.spec.ts::Service category lifecycle — create, update, deactivate (API-verified)": [
+    "Create a service category via serviceCategories/create and assert an id is returned",
+    "Fetch serviceCategories/getById and assert the stored name matches",
+    "Update the category name and assert getById reflects the edit",
+    "Set isActive:false and assert the category is absent from the isActive:true list"
+  ]
+}

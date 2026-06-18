@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_authenticated/service-category/view")({
 	beforeLoad: async () => {
 		await requirePermission(
 			{ resource: "service_management", action: "read" },
-			"/dashboard"
+			"/dashboard",
 		);
 	},
 	component: ServiceCategoryViewComponent,
@@ -48,7 +48,9 @@ function ServiceCategoryViewComponent() {
 		return (
 			<div className="space-y-4">
 				<h1 className="text-3xl font-semibold">Service Categories</h1>
-				<p className="text-muted-foreground">No organization selected. Please select an organization first.</p>
+				<p className="text-muted-foreground">
+					No organization selected. Please select an organization first.
+				</p>
 			</div>
 		);
 	}
@@ -57,7 +59,9 @@ function ServiceCategoryViewComponent() {
 		return (
 			<div className="space-y-4">
 				<h1 className="text-3xl font-semibold">Service Categories</h1>
-				<p className="text-destructive">{error instanceof Error ? error.message : "Failed to load categories"}</p>
+				<p className="text-destructive">
+					{error instanceof Error ? error.message : "Failed to load categories"}
+				</p>
 			</div>
 		);
 	}

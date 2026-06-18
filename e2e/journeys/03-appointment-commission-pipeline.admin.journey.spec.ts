@@ -5,7 +5,10 @@
  *           → commission engine → commission_splits → commissions UI.
  */
 import { test, expect } from "@playwright/test";
-import { ensureJourneyFixtures, branchForClient } from "../helpers/seed-journey-fixtures";
+import {
+	ensureJourneyFixtures,
+	branchForClient,
+} from "../helpers/seed-journey-fixtures";
 import {
 	seedConfirmedAppointment,
 	completeAppointment,
@@ -14,7 +17,9 @@ import {
 } from "../helpers/seed-data";
 import { OrpcClientError } from "../helpers/orpc-client";
 
-test("Completing an appointment generates commission splits", { tag: ["@p0"] }, async ({ page }) => {
+test("Completing an appointment generates commission splits", {
+	tag: ["@p0"],
+}, async ({ page }) => {
 	let appointmentId = "";
 
 	await test.step("Resolve fixtures (trainer, client, service, branch)", async () => {
@@ -36,7 +41,12 @@ test("Completing an appointment generates commission splits", { tag: ["@p0"] }, 
 						offsetMinutes: attempt * 137,
 					});
 				} catch (err) {
-					if (err instanceof OrpcClientError && err.code === "CONFLICT" && attempt < 5) continue;
+					if (
+						err instanceof OrpcClientError &&
+						err.code === "CONFLICT" &&
+						attempt < 5
+					)
+						continue;
 					throw err;
 				}
 			}
@@ -49,16 +59,24 @@ test("Completing an appointment generates commission splits", { tag: ["@p0"] }, 
 
 		await test.step("Open the Commissions surface", async () => {
 			await page.goto("/dashboard/commissions/view");
-			await expect(page.getByRole("heading", { name: /commission/i }).first()).toBeVisible();
+			await expect(
+				page.getByRole("heading", { name: /commission/i }).first(),
+			).toBeVisible();
 			await page.waitForTimeout(1200);
 		});
 
 		await test.step("Commission splits exist for the completed appointment", async () => {
-			const splits = await getCommissionSplitsForAppointment(page, appointmentId);
+			const splits = await getCommissionSplitsForAppointment(
+				page,
+				appointmentId,
+			);
 			// Splits only materialise when a commission rule applies to the service category.
 			// Assert the pipeline ran without error; surface the count in the report.
 			expect(Array.isArray(splits)).toBe(true);
-			test.info().annotations.push({ type: "commission-splits", description: String(splits.length) });
+			test.info().annotations.push({
+				type: "commission-splits",
+				description: String(splits.length),
+			});
 		});
 	});
 

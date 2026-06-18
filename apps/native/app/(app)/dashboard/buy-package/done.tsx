@@ -46,10 +46,7 @@ function PackageSummaryCard({ state, total }: PackageSummaryCardProps) {
 					{state.packageName ?? "Package"}
 				</Text>
 				{state.creditsTotal && (
-					<Text
-						className="mt-1 text-sm"
-						style={{ color: colors.secondary[1] }}
-					>
+					<Text className="mt-1 text-sm" style={{ color: colors.secondary[1] }}>
 						{state.creditsTotal} credits included
 					</Text>
 				)}
@@ -57,10 +54,7 @@ function PackageSummaryCard({ state, total }: PackageSummaryCardProps) {
 
 			{state.serviceName && (
 				<View className="mb-3">
-					<Text
-						className="mb-1 text-xs"
-						style={{ color: colors.secondary[1] }}
-					>
+					<Text className="mb-1 text-xs" style={{ color: colors.secondary[1] }}>
 						Service
 					</Text>
 					<Text
@@ -74,10 +68,7 @@ function PackageSummaryCard({ state, total }: PackageSummaryCardProps) {
 
 			{state.serviceType === "private" && state.preferredTimes.length > 0 && (
 				<View className="mb-3">
-					<Text
-						className="mb-1 text-xs"
-						style={{ color: colors.secondary[1] }}
-					>
+					<Text className="mb-1 text-xs" style={{ color: colors.secondary[1] }}>
 						Preferred Times
 					</Text>
 					{state.preferredTimes.map((pt) => (
@@ -94,10 +85,7 @@ function PackageSummaryCard({ state, total }: PackageSummaryCardProps) {
 
 			{state.validityDays && (
 				<View className="mb-3">
-					<Text
-						className="mb-1 text-xs"
-						style={{ color: colors.secondary[1] }}
-					>
+					<Text className="mb-1 text-xs" style={{ color: colors.secondary[1] }}>
 						Validity
 					</Text>
 					<Text
@@ -111,10 +99,7 @@ function PackageSummaryCard({ state, total }: PackageSummaryCardProps) {
 
 			{state.remark && (
 				<View className="mb-3">
-					<Text
-						className="mb-1 text-xs"
-						style={{ color: colors.secondary[1] }}
-					>
+					<Text className="mb-1 text-xs" style={{ color: colors.secondary[1] }}>
 						Remark
 					</Text>
 					<Text className="text-base" style={{ color: colors.primary[1] }}>
@@ -170,11 +155,7 @@ export default function DoneScreen() {
 							onPress={handleGoHome}
 							className="mr-3 size-10 items-center justify-center"
 						>
-							<Ionicons
-								name="arrow-back"
-								size={24}
-								color={colors.primary[1]}
-							/>
+							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-black">
 							Purchase Complete
@@ -200,9 +181,7 @@ export default function DoneScreen() {
 							<Text className="font-semibold text-primary-1 text-sm">
 								Step 7 of 7
 							</Text>
-							<Text className="font-semibold text-primary-1 text-sm">
-								100%
-							</Text>
+							<Text className="font-semibold text-primary-1 text-sm">100%</Text>
 						</View>
 
 						<View
@@ -268,11 +247,7 @@ export default function DoneScreen() {
 							className="mb-4 size-20 items-center justify-center rounded-full"
 							style={{ backgroundColor: "#10B981" }}
 						>
-							<Ionicons
-								name="checkmark"
-								size={40}
-								color={colors.primary[2]}
-							/>
+							<Ionicons name="checkmark" size={40} color={colors.primary[2]} />
 						</View>
 
 						<Text

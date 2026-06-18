@@ -67,7 +67,10 @@ function exclusionMessage(constraint: string | undefined): string {
 	}
 }
 
-function fkRestrictMessage(constraint: string | undefined, detail: string | undefined): string {
+function fkRestrictMessage(
+	constraint: string | undefined,
+	detail: string | undefined,
+): string {
 	if (detail) {
 		// PG detail is usually like: Key (id)=(...) is still referenced from table "x".
 		return `Cannot delete — ${detail}`;

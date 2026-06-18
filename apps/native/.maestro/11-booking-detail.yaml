@@ -1,0 +1,33 @@
+appId: ${APP_ID}
+---
+# Test: Booking detail screen
+- runFlow: helpers/login.yaml
+
+# Navigate to Bookings tab
+- tapOn:
+    text: ".*Bookings.*"
+- waitForAnimationToEnd
+
+# Wait for bookings to load
+- extendedWaitUntil:
+    visible:
+      text: ".*Booking.*"
+    timeout: 5000
+- waitForAnimationToEnd
+
+# Tap first booking
+- tapOn:
+    index: 0
+    below:
+      text: ".*Booking.*|.*Today.*|.*Tomorrow.*|.*Upcoming.*"
+- waitForAnimationToEnd
+
+# Verify booking detail loaded
+- extendedWaitUntil:
+    visible:
+      text: ".*Session.*|.*Trainer.*|.*Date.*|.*Status.*"
+    timeout: 5000
+
+# Go back
+- back
+- waitForAnimationToEnd

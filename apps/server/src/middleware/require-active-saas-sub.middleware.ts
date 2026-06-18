@@ -16,7 +16,7 @@
 import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { o } from "@avantej-core/api";
-import { controlPanelDb } from "@/lib/db";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { subscriptions } from "@avantej-core/db/schema/control-panel/subscriptions";
 
@@ -108,63 +108,70 @@ export function isWriteProcedure(procedurePath: string | undefined): boolean {
  *
  *   const someProcedure = protectedProcedure.use(requireActiveSaaSSub).query(...)
  */
-export const requireActiveSaaSSub = o.middleware(async ({ context, next, path }) => {
-	const orgId = (context as { organizationId?: string }).organizationId;
-	if (!orgId) {
-		throw new ORPCError("BAD_REQUEST", { message: "No organization context" });
-	}
-
-	const [org] = await controlPanelDb
-		.select()
-		.from(organizations)
-		.where(eq(organizations.id, orgId))
-		.limit(1);
-	if (!org) {
-		throw new ORPCError("NOT_FOUND", { message: "Organization not found" });
-	}
-
-	let sub: SubStateInput = null;
-	if (org.subscriptionId) {
-		const [row] = await controlPanelDb
-			.select()
-			.from(subscriptions)
-			.where(eq(subscriptions.id, org.subscriptionId))
-			.limit(1);
-		if (row) {
-			sub = {
-				status: row.status,
-				pastDueAt: row.pastDueAt,
-				gracePeriodEndsAt: row.gracePeriodEndsAt,
-				trialEndsAt: row.trialEndsAt,
-			};
-		}
-	}
-
-	const decision = evaluateAccess(sub, new Date(), org.trialEndsAt);
-
-	if (decision.decision === "block") {
-		throw new ORPCError("SAAS_BLOCKED" as never, {
-			message: `Access blocked: ${decision.reason}`,
-		});
-	}
-
-	if (decision.decision === "read_only") {
-		// Prefix-based write detection. Plan D will replace with a tag system.
-		const procPath: string | undefined = Array.isArray(path)
-			? path.join(".")
-			: (path as unknown as string | undefined);
-		if (isWriteProcedure(procPath)) {
-			throw new ORPCError("SAAS_PAST_DUE_READONLY" as never, {
-				message: `Read-only mode: ${decision.reason}`,
+export const requireActiveSaaSSub = o.middleware(
+	async ({ context, next, path }) => {
+		const orgId = (context as { organizationId?: string }).organizationId;
+		if (!orgId) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "No organization context",
 			});
 		}
-	}
 
-	return next({
-		context: {
-			...context,
-			saasBanner:
-				decision.decision === "allow" ? decision.banner : undefined,
-		},
-	});
-});
+		// Request-scoped CP DB from the Hono context (set by dbMiddleware) — never the
+		// deprecated module-level singleton, which can't be shared across Worker isolates.
+		const controlPanelDb = getControlPanelDb(context);
+
+		const [org] = await controlPanelDb
+			.select()
+			.from(organizations)
+			.where(eq(organizations.id, orgId))
+			.limit(1);
+		if (!org) {
+			throw new ORPCError("NOT_FOUND", { message: "Organization not found" });
+		}
+
+		let sub: SubStateInput = null;
+		if (org.subscriptionId) {
+			const [row] = await controlPanelDb
+				.select()
+				.from(subscriptions)
+				.where(eq(subscriptions.id, org.subscriptionId))
+				.limit(1);
+			if (row) {
+				sub = {
+					status: row.status,
+					pastDueAt: row.pastDueAt,
+					gracePeriodEndsAt: row.gracePeriodEndsAt,
+					trialEndsAt: row.trialEndsAt,
+				};
+			}
+		}
+
+		const decision = evaluateAccess(sub, new Date(), org.trialEndsAt);
+
+		if (decision.decision === "block") {
+			throw new ORPCError("SAAS_BLOCKED" as never, {
+				message: `Access blocked: ${decision.reason}`,
+			});
+		}
+
+		if (decision.decision === "read_only") {
+			// Prefix-based write detection. Plan D will replace with a tag system.
+			const procPath: string | undefined = Array.isArray(path)
+				? path.join(".")
+				: (path as unknown as string | undefined);
+			if (isWriteProcedure(procPath)) {
+				throw new ORPCError("SAAS_PAST_DUE_READONLY" as never, {
+					message: `Read-only mode: ${decision.reason}`,
+				});
+			}
+		}
+
+		return next({
+			context: {
+				...context,
+				saasBanner: decision.decision === "allow" ? decision.banner : undefined,
+			},
+		});
+	},
+);

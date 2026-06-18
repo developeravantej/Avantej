@@ -1,0 +1,208 @@
+appId: ${APP_ID}
+---
+# Buy Package E2E flow
+# Login
+- runFlow: helpers/login.yaml
+
+# Navigate to Buy Package from home
+- tapOn:
+    text: ".*Buy.*Package.*"
+- waitForAnimationToEnd
+
+# ── Step 1: Setup — select category & service ──
+- assertVisible: "Buy Package"
+- assertVisible: "SELECT CATEGORY"
+- extendedWaitUntil:
+    visible: "Choose a category to explore available services"
+    timeout: 5000
+
+# Wait for categories to load, tap first category
+- waitForAnimationToEnd
+- tapOn:
+    index: 0
+    below: "Choose a category to explore available services"
+
+# Wait for services to load under selected category
+- extendedWaitUntil:
+    visible: "SELECT SERVICE"
+    timeout: 5000
+- waitForAnimationToEnd
+
+# Tap first available service
+- tapOn:
+    index: 0
+    below: "What would you like to focus on today?"
+
+# Tap Continue
+- scrollUntilVisible:
+    element: "Continue"
+    direction: DOWN
+- tapOn: "Continue"
+- waitForAnimationToEnd
+
+# ── Step 2: Schedule — select trainer & time preferences ──
+- extendedWaitUntil:
+    visible: "CHOOSE YOUR TRAINER"
+    timeout: 5000
+- waitForAnimationToEnd
+
+# Open trainer dropdown and select first trainer
+- tapOn: "Select a trainer..."
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Select a Trainer"
+    timeout: 3000
+- tapOn:
+    index: 0
+    below: "Select a Trainer"
+- waitForAnimationToEnd
+
+# Add time preference — tap ADD 01 slot to open picker modal
+- scrollUntilVisible:
+    element: "ADD 01"
+    direction: DOWN
+- tapOn: "ADD 01"
+- waitForAnimationToEnd
+
+# Modal opens with day picker (Mon default) and time picker
+- extendedWaitUntil:
+    visible: "Add This Slot"
+    timeout: 5000
+
+# Day already defaults to Monday — just confirm
+- tapOn: "Add This Slot"
+- waitForAnimationToEnd
+
+# Tap Continue
+- scrollUntilVisible:
+    element: "Continue"
+    direction: DOWN
+- tapOn: "Continue"
+- waitForAnimationToEnd
+
+# ── Step 3: Info — additional remarks (optional, skip) ──
+- extendedWaitUntil:
+    visible: "Additional Information"
+    timeout: 5000
+- scrollUntilVisible:
+    element: "Continue"
+    direction: DOWN
+- tapOn: "Continue"
+- waitForAnimationToEnd
+
+# ── Step 4: Plan — auto-skips if only full payment available ──
+# If payment plan screen appears, select Full Payment
+- waitForAnimationToEnd
+
+# ── Step 5: Review — review package details ──
+- extendedWaitUntil:
+    visible: "REVIEW YOUR PACKAGE"
+    timeout: 5000
+- scrollUntilVisible:
+    element: "Continue"
+    direction: DOWN
+- tapOn: "Continue"
+- waitForAnimationToEnd
+
+# ── Step 6: Sign — terms + signature ──
+- extendedWaitUntil:
+    visible: "E-Signature"
+    timeout: 5000
+
+# View each terms document (required before agreeing)
+# On Android, terms screen opens PDF via intent → back dismisses and returns to sign
+# Document 1
+- tapOn:
+    text: ".*Company.*Client.*Agreement.*"
+- waitForAnimationToEnd
+- back
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "E-Signature"
+    timeout: 5000
+
+# Document 2
+- tapOn:
+    text: ".*Satisfaction.*Guarantee.*"
+- waitForAnimationToEnd
+- back
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "E-Signature"
+    timeout: 5000
+
+# Document 3
+- tapOn:
+    text: ".*Par.*Q.*"
+- waitForAnimationToEnd
+- back
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "E-Signature"
+    timeout: 5000
+
+# Check agreement checkbox (all docs now viewed)
+- tapOn:
+    text: ".*agree.*terms.*conditions.*"
+
+# Open signature modal
+- scrollUntilVisible:
+    element: "Tap to sign"
+    direction: DOWN
+- tapOn: "Tap to sign"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Sign Here"
+    timeout: 3000
+
+# Draw signature strokes on the canvas
+- swipe:
+    start: "20%, 50%"
+    end: "80%, 40%"
+    duration: 600
+- swipe:
+    start: "80%, 40%"
+    end: "40%, 60%"
+    duration: 400
+- swipe:
+    start: "40%, 60%"
+    end: "70%, 55%"
+    duration: 400
+
+# Confirm signature
+- tapOn: "Confirm"
+- waitForAnimationToEnd
+
+# Proceed to payment
+- scrollUntilVisible:
+    element: "Proceed to Payment"
+    direction: DOWN
+- tapOn: "Proceed to Payment"
+- waitForAnimationToEnd
+
+# ── Step 7: Pay — submit order ──
+- extendedWaitUntil:
+    visible: "Review & Submit"
+    timeout: 5000
+- scrollUntilVisible:
+    element:
+      text: ".*Submit Order.*"
+    direction: DOWN
+- tapOn:
+    text: ".*Submit Order.*"
+- waitForAnimationToEnd
+
+# ── Step 8: Done ──
+- extendedWaitUntil:
+    visible: "Order Submitted!"
+    timeout: 10000
+- assertVisible: "Package Details"
+
+# Scroll to bottom and verify action buttons
+- scrollUntilVisible:
+    element: "Back to Home"
+    direction: DOWN
+
+# Return to home (navigation stack may not clear fully — known issue)
+- tapOn: "Back to Home"
+- waitForAnimationToEnd

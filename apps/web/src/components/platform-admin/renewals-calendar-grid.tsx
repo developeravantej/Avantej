@@ -122,16 +122,15 @@ export function RenewalsCalendarGrid({ weeks }: { weeks: Week[] }) {
 														Cancels at period end
 													</span>
 												) : null}
-												{r.status !== "active" &&
-												r.status !== "trialing" ? (
+												{r.status !== "active" && r.status !== "trialing" ? (
 													<span className="text-xs rounded-full px-2 py-0.5 bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 capitalize">
 														{r.status.replace("_", " ")}
 													</span>
 												) : null}
 											</div>
 											<div className="text-xs text-muted-foreground mt-0.5 tabular-nums">
-												Renews {fmtDate(r.currentPeriodEnd)} · in{" "}
-												{r.daysUntil} day{r.daysUntil === 1 ? "" : "s"}
+												Renews {fmtDate(r.currentPeriodEnd)} · in {r.daysUntil}{" "}
+												day{r.daysUntil === 1 ? "" : "s"}
 											</div>
 										</div>
 										<div

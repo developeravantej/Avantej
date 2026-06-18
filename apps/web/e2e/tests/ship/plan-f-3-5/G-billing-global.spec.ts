@@ -142,12 +142,10 @@ test.describe("@ship-f-3-5 Plan F.3.5 — Global Billing (Agent G)", () => {
 		await page.goto("/dashboard/platform-admin/billing");
 		await page.waitForLoadState("networkidle");
 
-		await expect(
-			page.getByTestId("billing-global-page"),
-		).toBeVisible({ timeout: 15_000 });
-		await expect(
-			page.getByRole("heading", { name: "Billing" }),
-		).toBeVisible();
+		await expect(page.getByTestId("billing-global-page")).toBeVisible({
+			timeout: 15_000,
+		});
+		await expect(page.getByRole("heading", { name: "Billing" })).toBeVisible();
 
 		// KPI cards (wait for query → kpi-row to render).
 		await expect(page.getByTestId("billing-kpi-row")).toBeVisible({
@@ -209,9 +207,7 @@ test.describe("@ship-f-3-5 Plan F.3.5 — Global Billing (Agent G)", () => {
 				await page.waitForURL(/\/dashboard\/platform-admin\/tenants\//, {
 					timeout: 10_000,
 				});
-				await expect(page).toHaveURL(
-					/\/dashboard\/platform-admin\/tenants\//,
-				);
+				await expect(page).toHaveURL(/\/dashboard\/platform-admin\/tenants\//);
 				await page.goBack();
 				await page.waitForLoadState("networkidle");
 			}

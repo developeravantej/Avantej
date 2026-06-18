@@ -1,14 +1,13 @@
 /**
- * Canonical form shape. See: zplan/Done_04-24_14-00_form-standardization/plan/plan.md §3.
+ * Canonical form shape (TanStack Form):
  * - Zod schema colocated (top of file)
  * - organizationId is a prop, never a form field
  * - Email/URL use z.union([z.string().email/url(), z.literal("")]).optional() for empty-string compat
- * - Error display: inline <FormMessage> + toast on mutation error
+ * - Error display: inline field errors + toast on mutation error
  */
 
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "@tanstack/react-form";
 import * as z from "zod";
 
 import { useApiMutation } from "@/hooks/useApiMutation";
@@ -17,17 +16,17 @@ import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogFooter,
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { Form } from "@/components/ui/form";
 import {
 	SupplierContactSection,
 	SupplierDetailsSection,
+	type SupplierFormApi,
 } from "./supplier-form-sections";
 
-// 1. Schema — colocated, defines UI shape + validation. Server validates separately.
 const supplierFormSchema = z.object({
 	name: z
 		.string()
@@ -49,9 +48,8 @@ const supplierFormSchema = z.object({
 	isActive: z.boolean(),
 });
 
-type SupplierFormValues = z.infer<typeof supplierFormSchema>;
+export type SupplierFormValues = z.infer<typeof supplierFormSchema>;
 
-// 2. Props — organizationId is a prop, NOT a form field
 interface SupplierFormDialogProps {
 	isOpen: boolean;
 	onClose: () => void;
@@ -80,9 +78,22 @@ export function SupplierFormDialog({
 	mode,
 	initialData,
 }: SupplierFormDialogProps) {
-	// 3. Form instance
-	const form = useForm<SupplierFormValues>({
-		resolver: zodResolver(supplierFormSchema),
+	const mutation = useApiMutation({
+		mutationFn: (values: SupplierFormValues) =>
+			mode === "create"
+				? client.suppliers.create({ organizationId, ...values })
+				: client.suppliers.update({
+						organizationId,
+						id: initialData!.id!,
+						...values,
+					}),
+		successMessage: mode === "create" ? "Supplier created" : "Supplier updated",
+		errorMessage: (err) => err.message || "Failed to save supplier",
+		invalidate: [orpc.suppliers.list.key()],
+		onSuccess: () => onClose(),
+	});
+
+	const form = useForm({
 		defaultValues: {
 			name: initialData?.name ?? "",
 			description: initialData?.description ?? "",
@@ -95,10 +106,13 @@ export function SupplierFormDialog({
 			website: initialData?.website ?? "",
 			barcode: initialData?.barcode ?? "",
 			isActive: initialData?.isActive ?? true,
+		} as SupplierFormValues,
+		validators: { onSubmit: supplierFormSchema },
+		onSubmit: async ({ value }) => {
+			await mutation.mutateAsync(value);
 		},
 	});
 
-	// 4. Reset on dialog re-open with fresh initialData
 	// react-doctor-disable-next-line react-doctor/no-effect-event-handler -- prop-driven reset: isOpen toggles externally, not a user event
 	useEffect(() => {
 		if (isOpen) {
@@ -118,65 +132,73 @@ export function SupplierFormDialog({
 		}
 	}, [isOpen, initialData, form]);
 
-	// 5. Mutation — isPending drives submit state
-	const mutation = useApiMutation({
-		mutationFn: (values: SupplierFormValues) =>
-			mode === "create"
-				? client.suppliers.create({ organizationId, ...values })
-				: client.suppliers.update({
-						organizationId,
-						id: initialData!.id!,
-						...values,
-					}),
-		successMessage:
-			mode === "create" ? "Supplier created" : "Supplier updated",
-		errorMessage: (err) => err.message || "Failed to save supplier",
-		invalidate: [orpc.suppliers.list.key()],
-		onSuccess: () => onClose(),
-	});
-
-	// 6. Submit handler
-	const onSubmit = (values: SupplierFormValues) => mutation.mutate(values);
-
 	const inputClass =
-		"mt-1 block w-full p-2 rounded-md border-brand-secondary-3 shadow-sm focus:border-black focus:ring-black sm:text-sm";
+		"mt-1 block w-full p-2 rounded-md border-[#e5e5e5] shadow-sm focus:border-black focus:ring-black sm:text-sm";
 
 	return (
 		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-				<DialogHeader>
-					<DialogTitle>
+			<DialogContent
+				className="sm:max-w-2xl p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+				hideCloseButton
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						SUPPLIERS
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
 						{mode === "create" ? "Add Supplier" : "Edit Supplier"}
 					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
+						{mode === "create"
+							? "Fill in the details to add a new supplier."
+							: "Update the details for this supplier."}
+					</DialogDescription>
 				</DialogHeader>
 
-				<Form {...form}>
-					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-						<SupplierDetailsSection form={form} inputClass={inputClass} />
+				{/* react-doctor-disable-next-line react-doctor/no-prevent-default -- TanStack Router SPA */}
+				<form
+					onSubmit={(e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						form.handleSubmit();
+					}}
+				>
+					<div className="px-6 pt-4 pb-2 overflow-y-auto max-h-[65vh] space-y-4">
+						<SupplierDetailsSection
+							form={form as unknown as SupplierFormApi}
+							inputClass={inputClass}
+						/>
 
-						<SupplierContactSection form={form} inputClass={inputClass} />
+						<SupplierContactSection
+							form={form as unknown as SupplierFormApi}
+							inputClass={inputClass}
+						/>
+					</div>
 
-						<DialogFooter>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={onClose}
-								disabled={mutation.isPending}
-							>
-								Cancel
-							</Button>
-							<Button type="submit" disabled={mutation.isPending}>
-								{mutation.isPending
-									? mode === "create"
-										? "Adding..."
-										: "Saving..."
-									: mode === "create"
-										? "Add Supplier"
-										: "Save Changes"}
-							</Button>
-						</DialogFooter>
-					</form>
-				</Form>
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={onClose}
+							disabled={mutation.isPending}
+						>
+							Cancel
+						</Button>
+						<Button
+							type="submit"
+							disabled={mutation.isPending}
+							className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
+						>
+							{mutation.isPending
+								? mode === "create"
+									? "Adding..."
+									: "Saving..."
+								: mode === "create"
+									? "Add Supplier"
+									: "Save Changes"}
+						</Button>
+					</DialogFooter>
+				</form>
 			</DialogContent>
 		</Dialog>
 	);

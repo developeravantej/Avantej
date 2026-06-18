@@ -1,8 +1,8 @@
 /**
  * Tenant Appointments Schema
- * 
+ *
  * Represents individual appointment bookings, including type, time, location, service, status, and payment tracking.
- * 
+ *
  * Business Rules:
  * - endTime is calculated: startTime + duration
  * - Private appointments have maxAttendees = 1
@@ -12,7 +12,17 @@
  * - Payment status tracks Stripe PaymentIntent lifecycle
  */
 
-import { pgTable, uuid, text, timestamp, integer, boolean, index, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+	pgTable,
+	uuid,
+	text,
+	timestamp,
+	integer,
+	boolean,
+	index,
+	uniqueIndex,
+	jsonb,
+} from "drizzle-orm/pg-core";
 import { hierarchyNodes } from "./hierarchy";
 import { services } from "./services";
 import { members } from "./members";
@@ -22,137 +32,189 @@ import { rooms } from "./rooms";
 import { salesOrders } from "./sales-orders";
 import { categoryCommissionConfigVersions } from "./category-commission-config-versions";
 
-export const appointments = pgTable("appointments", {
-	id: uuid("id").primaryKey().defaultRandom(),
-	type: text("type").notNull(), // "private" | "semi-private"
-	startTime: timestamp("start_time").notNull(),
-	duration: integer("duration").notNull(), // Duration in minutes
-	endTime: timestamp("end_time").notNull(), // Calculated: startTime + duration
-	
-	serviceId: uuid("service_id").references(() => services.id, { onDelete: "set null" }),
-	branchId: uuid("branch_id")
-		.notNull()
-		.references(() => hierarchyNodes.id, { onDelete: "restrict" }),
-	
-	status: text("status").notNull(), // "pending" | "confirmed" | "completed" | "cancelled" | "no-show"
-	sessionTotal: integer("session_total").notNull(), // Total pre-tax revenue (pricePerClient × clientCount)
-	pricePerClient: integer("price_per_client").notNull(), // Price per client (in cents)
-	
-	// Recurring appointment support
-	isRecurring: boolean("is_recurring").default(false).notNull(),
-	recurringParentId: uuid("recurring_parent_id").references((): any => appointments.id, { onDelete: "cascade" }), // Self-reference for recurring series
-	// DEPRECATED — never written by new code. Recurrence rules are stored in recurrence_rules table.
-	// Kept for backward compatibility. Do not read or write this column from new code.
-	recurringFrequency: text("recurring_frequency"), // "daily" | "weekly" | "custom"
-	recurringEndDate: timestamp("recurring_end_date"),
-	
-	// Conflict resolution
-	conflictResolved: boolean("conflict_resolved").default(false).notNull(),
-	conflictReason: text("conflict_reason"),
-	
-	// Payment tracking
-	paymentStatus: text("payment_status").default("pending").notNull(), // "pending" | "paid" | "partial" | "refunded" | "failed"
-	stripePaymentIntentId: text("stripe_payment_intent_id"), // Stripe PaymentIntent ID for this appointment
-	// Payment columns (Plan B Phase 2 — Direct Charge via Connect).
-	// Currency: per-org for Phase 2 (MYR default); per-country in Phase 4.
-	currency: text("currency").default("MYR").notNull(),
-	// Application fee remitted to Avantej platform, in same minor units as sessionTotal.
-	applicationFeeAmount: integer("application_fee_amount"),
-	// Snapshot of which connected account charged the customer. Survives Phase 4
-	// schema move (when stripe_connect_account_id moves from organizations to
-	// per-country hierarchy_nodes), so historical reconciliation stays valid.
-	stripeConnectAccountIdSnapshot: text("stripe_connect_account_id_snapshot"),
-	// Stripe Payment Link ID (when staff sends customer a hosted-checkout URL).
-	stripePaymentLinkId: text("stripe_payment_link_id"),
-	paymentLinkUrl: text("payment_link_url"),
-	paidAt: timestamp("paid_at"),
-	paymentFailureReason: text("payment_failure_reason"),
-	paymentMethodType: text("payment_method_type"), // "card" | "fpx" | ... — last successful method
-	
-	notes: text("notes"),
-	createdBy: text("created_by").notNull(), // References members.userId (staff/admin who created)
-	
-	createdAt: timestamp("created_at").defaultNow().notNull(),
-	updatedAt: timestamp("updated_at").defaultNow().notNull(),
+export const appointments = pgTable(
+	"appointments",
+	{
+		id: uuid("id").primaryKey().defaultRandom(),
+		type: text("type").notNull(), // "private" | "semi-private"
+		startTime: timestamp("start_time").notNull(),
+		duration: integer("duration").notNull(), // Duration in minutes
+		endTime: timestamp("end_time").notNull(), // Calculated: startTime + duration
 
-	// ========== NEW FIELDS ==========
+		serviceId: uuid("service_id").references(() => services.id, {
+			onDelete: "set null",
+		}),
+		branchId: uuid("branch_id")
+			.notNull()
+			.references(() => hierarchyNodes.id, { onDelete: "restrict" }),
 
-	// Booking identifier
-	bookingNumber: text("booking_number").unique(),
+		status: text("status").notNull(), // "pending" | "confirmed" | "completed" | "cancelled" | "no-show"
+		sessionTotal: integer("session_total").notNull(), // Total pre-tax revenue (pricePerClient × clientCount)
+		pricePerClient: integer("price_per_client").notNull(), // Price per client (in cents)
 
-	// Client booking (for mobile app - direct client bookings)
-	userId: text("user_id"),
+		// Recurring appointment support
+		isRecurring: boolean("is_recurring").default(false).notNull(),
+		recurringParentId: uuid("recurring_parent_id").references(
+			(): any => appointments.id,
+			{ onDelete: "cascade" },
+		), // Self-reference for recurring series
+		// DEPRECATED — never written by new code. Recurrence rules are stored in recurrence_rules table.
+		// Kept for backward compatibility. Do not read or write this column from new code.
+		recurringFrequency: text("recurring_frequency"), // "daily" | "weekly" | "custom"
+		recurringEndDate: timestamp("recurring_end_date"),
 
-	// Trainer assignment
-	trainerId: uuid("trainer_id")
-		.references(() => members.id, { onDelete: "set null" }),
+		// Conflict resolution
+		conflictResolved: boolean("conflict_resolved").default(false).notNull(),
+		conflictReason: text("conflict_reason"),
 
-	// Package usage
-	packageInstanceId: uuid("package_instance_id")
-		.references(() => packageInstances.id, { onDelete: "set null" }),
-	creditsUsed: integer("credits_used").default(1),
+		// Payment tracking
+		paymentStatus: text("payment_status").default("pending").notNull(), // "pending" | "paid" | "partial" | "refunded" | "failed"
+		stripePaymentIntentId: text("stripe_payment_intent_id"), // Stripe PaymentIntent ID for this appointment
+		// Payment columns (Plan B Phase 2 — Direct Charge via Connect).
+		// Currency: per-org for Phase 2 (MYR default); per-country in Phase 4.
+		currency: text("currency").default("MYR").notNull(),
+		// Application fee remitted to Avantej platform, in same minor units as sessionTotal.
+		applicationFeeAmount: integer("application_fee_amount"),
+		// Snapshot of which connected account charged the customer. Survives Phase 4
+		// schema move (when stripe_connect_account_id moves from organizations to
+		// per-country hierarchy_nodes), so historical reconciliation stays valid.
+		stripeConnectAccountIdSnapshot: text("stripe_connect_account_id_snapshot"),
+		// Stripe Payment Link ID (when staff sends customer a hosted-checkout URL).
+		stripePaymentLinkId: text("stripe_payment_link_id"),
+		paymentLinkUrl: text("payment_link_url"),
+		paidAt: timestamp("paid_at"),
+		paymentFailureReason: text("payment_failure_reason"),
+		paymentMethodType: text("payment_method_type"), // "card" | "fpx" | ... — last successful method
 
-	// Location
-	location: text("location"),
+		notes: text("notes"),
+		createdBy: text("created_by").notNull(), // References members.userId (staff/admin who created)
 
-	// Cancellation tracking
-	cancelledAt: timestamp("cancelled_at"),
-	cancellationReason: text("cancellation_reason"),
+		createdAt: timestamp("created_at").defaultNow().notNull(),
+		updatedAt: timestamp("updated_at").defaultNow().notNull(),
 
-	// Class slot reference
-	classSlotId: uuid("class_slot_id")
-		.references(() => classSlots.id, { onDelete: "set null" }),
+		// ========== NEW FIELDS ==========
 
-	// Description/image
-	description: text("description"),
-	imageUrl: text("image_url"),
+		// Booking identifier
+		bookingNumber: text("booking_number").unique(),
 
-	// Room assignment
-	roomId: uuid("room_id").references(() => rooms.id, { onDelete: "set null" }),
+		// Client booking (for mobile app - direct client bookings)
+		userId: text("user_id"),
 
-	// Google Calendar integration
-	googleCalendarEventId: text("google_calendar_event_id"),
+		// Denormalized customer name snapshot (read-scaling: avoids cross-DB lookup
+		// to the shared control-panel `user` table on every list render). Populated at
+		// create time and refreshed by the propagate-forward step in the customer
+		// rename flow for UPCOMING appointments only. Past appointments keep the name
+		// as it was when the session occurred. Nullable: legacy rows fall back to live lookup.
+		customerName: text("customer_name"),
 
-	// POS linkage for double-commission guard (Policy P6)
-	salesOrderId: uuid("sales_order_id").references(() => salesOrders.id, { onDelete: "set null" }),
+		// Trainer assignment
+		trainerId: uuid("trainer_id").references(() => members.id, {
+			onDelete: "set null",
+		}),
 
-	// Commission snapshot fields (Flaws #9, #10, #11)
-	// priceSnapshotCents: write-once at booking — commission reads this, not live pricePerClient.
-	// Null on historical rows; calculator falls back to pricePerClient when null.
-	priceSnapshotCents: integer("price_snapshot_cents"),
-	// configVersionId: audit anchor recording which config version was active at booking.
-	// Commission rates are still calculated from the live config (Option A — audit trail only).
-	configVersionId: uuid("config_version_id").references(
-		() => categoryCommissionConfigVersions.id,
-	),
-	// isComplimentary: walk-in/direct comp appointments do not generate commission splits
-	// even without a sales order (which was the only prior guard).
-	isComplimentary: boolean("is_complimentary").notNull().default(false),
-	complimentaryReason: text("complimentary_reason"),
-}, (table) => ({
-	branchIdIdx: index("appointments_branch_idx").on(table.branchId),
-	serviceIdIdx: index("appointments_service_idx").on(table.serviceId),
-	startTimeIdx: index("appointments_start_time_idx").on(table.startTime),
-	statusIdx: index("appointments_status_idx").on(table.status),
-	typeIdx: index("appointments_type_idx").on(table.type),
-	recurringParentIdIdx: index("appointments_recurring_idx").on(table.recurringParentId),
-	stripePaymentIntentIdIdx: index("appointments_stripe_payment_idx").on(table.stripePaymentIntentId),
-	startTimeStatusIdx: index("appointments_start_time_status_idx").on(table.startTime, table.status),
-	bookingNumberIdx: index("appointments_booking_number_idx").on(table.bookingNumber),
-	userIdIdx: index("appointments_user_idx").on(table.userId),
-	trainerIdIdx: index("appointments_trainer_idx").on(table.trainerId),
-	packageInstanceIdIdx: index("appointments_package_instance_idx").on(table.packageInstanceId),
-	classSlotIdIdx: index("appointments_class_slot_idx").on(table.classSlotId),
-	userStatusIdx: index("appointments_user_status_idx").on(table.userId, table.status),
-	roomIdIdx: index("appointments_room_idx").on(table.roomId),
-	salesOrderIdIdx: index("appointments_sales_order_idx").on(table.salesOrderId),
-	isRecurringIdx: index("appointments_is_recurring_idx").on(table.isRecurring),
-	// Prevents concurrent materialization from creating duplicate occurrence rows for the same parent + date.
-	// Note: the migration uses a partial index (WHERE recurring_parent_id IS NOT NULL) for efficiency;
-	// Postgres treats NULLs as distinct in unique indexes so non-recurring rows are unaffected.
-	appointmentsRecurringOccurrenceUniqueIdx: uniqueIndex("appointments_recurring_occurrence_unique_idx").on(
-		table.recurringParentId,
-		table.startTime
-	),
-}));
+		// Package usage
+		packageInstanceId: uuid("package_instance_id").references(
+			() => packageInstances.id,
+			{ onDelete: "set null" },
+		),
+		creditsUsed: integer("credits_used").default(1),
 
+		// Location
+		location: text("location"),
+
+		// Cancellation tracking
+		cancelledAt: timestamp("cancelled_at"),
+		cancellationReason: text("cancellation_reason"),
+
+		// Class slot reference
+		classSlotId: uuid("class_slot_id").references(() => classSlots.id, {
+			onDelete: "set null",
+		}),
+
+		// Description/image
+		description: text("description"),
+		imageUrl: text("image_url"),
+
+		// Room assignment
+		roomId: uuid("room_id").references(() => rooms.id, {
+			onDelete: "set null",
+		}),
+
+		// Google Calendar integration
+		googleCalendarEventId: text("google_calendar_event_id"),
+
+		// POS linkage for double-commission guard (Policy P6)
+		salesOrderId: uuid("sales_order_id").references(() => salesOrders.id, {
+			onDelete: "set null",
+		}),
+
+		// Commission snapshot fields (Flaws #9, #10, #11)
+		// priceSnapshotCents: write-once at booking — commission reads this, not live pricePerClient.
+		// Null on historical rows; calculator falls back to pricePerClient when null.
+		priceSnapshotCents: integer("price_snapshot_cents"),
+		// configVersionId: audit anchor recording which config version was active at booking.
+		// Commission rates are still calculated from the live config (Option A — audit trail only).
+		configVersionId: uuid("config_version_id").references(
+			() => categoryCommissionConfigVersions.id,
+		),
+		// isComplimentary: walk-in/direct comp appointments do not generate commission splits
+		// even without a sales order (which was the only prior guard).
+		isComplimentary: boolean("is_complimentary").notNull().default(false),
+		complimentaryReason: text("complimentary_reason"),
+
+		// Reschedule audit trail — append-only array of {from, to, at, by} entries
+		rescheduleHistory: jsonb("reschedule_history")
+			.$type<Array<{ from: string; to: string; at: string; by: string }>>()
+			.notNull()
+			.default([]),
+	},
+	(table) => ({
+		branchIdIdx: index("appointments_branch_idx").on(table.branchId),
+		serviceIdIdx: index("appointments_service_idx").on(table.serviceId),
+		startTimeIdx: index("appointments_start_time_idx").on(table.startTime),
+		statusIdx: index("appointments_status_idx").on(table.status),
+		typeIdx: index("appointments_type_idx").on(table.type),
+		recurringParentIdIdx: index("appointments_recurring_idx").on(
+			table.recurringParentId,
+		),
+		stripePaymentIntentIdIdx: index("appointments_stripe_payment_idx").on(
+			table.stripePaymentIntentId,
+		),
+		startTimeStatusIdx: index("appointments_start_time_status_idx").on(
+			table.startTime,
+			table.status,
+		),
+		bookingNumberIdx: index("appointments_booking_number_idx").on(
+			table.bookingNumber,
+		),
+		userIdIdx: index("appointments_user_idx").on(table.userId),
+		trainerIdIdx: index("appointments_trainer_idx").on(table.trainerId),
+		// Composite index for trainer-scoped conflict/availability lookups within a
+		// date range (proposeSchedule, computeAvailableSlots). See migration 0084.
+		trainerStartTimeIdx: index("appointments_trainer_starttime_idx").on(
+			table.trainerId,
+			table.startTime,
+		),
+		packageInstanceIdIdx: index("appointments_package_instance_idx").on(
+			table.packageInstanceId,
+		),
+		classSlotIdIdx: index("appointments_class_slot_idx").on(table.classSlotId),
+		userStatusIdx: index("appointments_user_status_idx").on(
+			table.userId,
+			table.status,
+		),
+		roomIdIdx: index("appointments_room_idx").on(table.roomId),
+		salesOrderIdIdx: index("appointments_sales_order_idx").on(
+			table.salesOrderId,
+		),
+		isRecurringIdx: index("appointments_is_recurring_idx").on(
+			table.isRecurring,
+		),
+		// Prevents concurrent materialization from creating duplicate occurrence rows for the same parent + date.
+		// Note: the migration uses a partial index (WHERE recurring_parent_id IS NOT NULL) for efficiency;
+		// Postgres treats NULLs as distinct in unique indexes so non-recurring rows are unaffected.
+		appointmentsRecurringOccurrenceUniqueIdx: uniqueIndex(
+			"appointments_recurring_occurrence_unique_idx",
+		).on(table.recurringParentId, table.startTime),
+	}),
+);

@@ -1,0 +1,183 @@
+{
+	"sessionId": "2026-05-27-1700-audit-prove-a-commission-installment",
+	"verifiedTopN": ["F-COM-A", "F-COM-B", "F-PAY-1"],
+	"findings": [
+		{
+			"id": "F-COM-A",
+			"domain": "D-commission-engine",
+			"severity": "critical",
+			"status": "partial",
+			"testable": true,
+			"verification": "verified",
+			"title": "getMyCommissions queries by members.id instead of userId; trainer 'My Commissions' page always empty",
+			"file": "packages/api/src/routers/commission-splits/read.procedures.ts:81",
+			"persistence": null,
+			"note": "commission_splits.staffId convention is members.userId (matches staff_assignments). Procedure passes context.member.id — never matches."
+		},
+		{
+			"id": "F-COM-B",
+			"domain": "D-commission-engine",
+			"severity": "critical",
+			"status": "partial",
+			"testable": true,
+			"verification": "verified",
+			"title": "Newly inserted automatic splits omit configVersionId; per-cycle cap (applyCommissionCaps) INNER JOINs on it and silently excludes them — caps can be exceeded",
+			"file": "packages/services/src/commission-calculator.service.ts:620 vs commission-splits.service.ts:431",
+			"persistence": {"table": "commission_splits", "where": {"splitType": "automatic"}, "expect": {"configVersionId": "NOT NULL"}}
+		},
+		{
+			"id": "F-COM-C",
+			"domain": "D-commission-engine",
+			"severity": "high",
+			"status": "partial",
+			"testable": true,
+			"verification": "agent-reported",
+			"title": "reverseForRefund does full clawback for any salesOrder-linked split; partial refund of one POS line voids commission for every other line/trainer on the order",
+			"file": "packages/services/src/commission-splits.service.ts:2044-2066",
+			"persistence": {"table": "commission_split_reversals", "where": {"refundId": "<rid>"}, "expect": {"amountCents": "proportional, not full"}}
+		},
+		{
+			"id": "F-COM-D",
+			"domain": "D-commission-engine",
+			"severity": "medium",
+			"status": "partial",
+			"testable": true,
+			"verification": "agent-reported",
+			"title": "categoryCommission.upsert/delete write no audit_log entries despite _actor param",
+			"file": "packages/api/src/routers/category-commission.ts",
+			"persistence": {"table": "audit_log", "where": {"entityType": "category_commission_config"}, "expect": {"action": "create|update|delete"}}
+		},
+		{
+			"id": "F-PAY-1",
+			"domain": "D-commission-payouts",
+			"severity": "high",
+			"status": "partial",
+			"testable": true,
+			"verification": "verified",
+			"title": "Liability-tab markPaidBatch does not invalidate payoutKeys.list — Payouts tab stale up to 30s",
+			"file": "apps/web/src/components/pages/commissions/liability-tab.tsx:303-307",
+			"persistence": null
+		},
+		{
+			"id": "F-PAY-3",
+			"domain": "D-commission-payouts",
+			"severity": "critical",
+			"status": "partial",
+			"testable": true,
+			"verification": "agent-reported",
+			"title": "Two divergent mark-paid pipelines (Liability vs Payouts.runBatch) — Liability writes splits only with no payouts row; KPIs/recipientSummary under-report",
+			"file": "commission_splits.markPaidBatch vs payouts.service.ts runBatch",
+			"persistence": {"table": "payouts", "where": {"sourcedFromLiability": true}, "expect": "row must exist matched to the splits"}
+		},
+		{
+			"id": "F-PAY-4",
+			"domain": "D-commission-payouts",
+			"severity": "high",
+			"status": "partial",
+			"testable": true,
+			"verification": "agent-reported",
+			"title": "Math.abs(p.amount) applied to reversal rows inflates Disbursed-this-Month and per-recipient pending KPIs",
+			"file": "apps/web/src/components/pages/commissions/payouts-tab.tsx",
+			"persistence": null
+		},
+		{
+			"id": "F-PAY-6",
+			"domain": "D-commission-payouts",
+			"severity": "critical",
+			"status": "partial",
+			"testable": true,
+			"verification": "agent-reported",
+			"title": "Payout state machine (markPaid/markFailed/retry/cancel) exists & row-locked, but Payouts tab exposes ZERO action UI — reversal-adjustment payouts stuck pending forever",
+			"file": "payouts.ts:383-507 + payouts.service.ts:688-918 vs payouts-tab.tsx (no action UI)",
+			"persistence": null
+		},
+		{
+			"id": "F-PAY-10",
+			"domain": "D-commission-payouts",
+			"severity": "medium",
+			"status": "partial",
+			"testable": true,
+			"verification": "agent-reported",
+			"title": "useRunBatch does not forward confirmImmediately:false; bank-transfer/cheque payouts always land at 'paid' immediately",
+			"file": "apps/web/src/features/payouts/api.ts:190-210",
+			"persistence": {"table": "payouts", "where": {"method": "bank_transfer"}, "expect": {"status": "pending until explicit confirmation"}}
+		},
+		{
+			"id": "F-INS-1",
+			"domain": "D-installments-pos",
+			"severity": "high",
+			"status": "partial",
+			"testable": true,
+			"verification": "agent-reported",
+			"title": "Schedule rounding remainder placed on installment #1 (inconsistent with tax-remainder which is on last)",
+			"file": "packages/services/src/installment.service.ts:78-89 vs :247-249",
+			"persistence": {"table": "payment_items", "where": {"saleId": "<sid>"}, "expect": {"last_row_amount": "absorbs remainder"}}
+		},
+		{
+			"id": "F-INS-2",
+			"domain": "D-installments-pos",
+			"severity": "high",
+			"status": "partial",
+			"testable": true,
+			"verification": "agent-reported",
+			"title": "POS first-installment uses inlined UPDATE that skips confirmInstallmentPayment — no audit_log row for 'installment.paid' and misses markCompleteIfFinal",
+			"file": "apps/server/src/services/pos.service.ts:738-770",
+			"persistence": {"table": "audit_log", "where": {"action": "installment.paid"}, "expect": "row must exist for first installment of every POS sale"}
+		},
+		{
+			"id": "F-INS-3",
+			"domain": "D-installments-pos",
+			"severity": "critical",
+			"status": "partial",
+			"testable": false,
+			"verification": "agent-reported",
+			"title": "Cron-vs-payment race: sweep cron and confirmInstallmentPayment take package_instances/installments row locks in different orders; flag-on-by-default mutates state during read",
+			"file": "packages/api/src/routers/installments.ts:100-105",
+			"persistence": null
+		},
+		{
+			"id": "F-INS-4",
+			"domain": "D-installments-pos",
+			"severity": "high",
+			"status": "partial",
+			"testable": true,
+			"verification": "agent-reported",
+			"title": "7 installment mutations gated by member.role === 'admin' string check instead of requirePermissionOrpc; resetOverride :390 inconsistent (uses permission)",
+			"file": "packages/api/src/routers/installments.ts (multiple, :390)",
+			"persistence": null
+		},
+		{
+			"id": "F-SAAS-1",
+			"domain": "D-installments-saas",
+			"severity": "critical",
+			"status": "partial",
+			"testable": false,
+			"verification": "agent-reported",
+			"title": "Stripe lifecycle writes subscriptions.status but never organizations.paymentStatus — middleware suspension/cancellation lockout unreachable",
+			"file": "apps/server/src/services/saas-subscription.service.ts + orpc-tenant.middleware.ts:149-160",
+			"persistence": {"db": "control-panel", "table": "organizations", "where": {"id": "<orgId>"}, "expect": {"paymentStatus": "synced with subscriptions.status"}}
+		},
+		{
+			"id": "F-SAAS-2",
+			"domain": "D-installments-saas",
+			"severity": "critical",
+			"status": "missing",
+			"testable": false,
+			"verification": "agent-reported",
+			"title": "No past-due → suspended sweeper cron; gracePeriodEndsAt is set (hardcoded 7d) but never enforced",
+			"file": "apps/server/src/services/saas-subscription.service.ts:28",
+			"persistence": null
+		},
+		{
+			"id": "F-SAAS-3",
+			"domain": "D-installments-saas",
+			"severity": "high",
+			"status": "partial",
+			"testable": false,
+			"verification": "agent-reported",
+			"title": "markActive/markPastDue have no event-timestamp ordering guard; out-of-order Stripe redelivery can clobber past_due with stale active",
+			"file": "apps/server/src/services/saas-subscription.service.ts",
+			"persistence": null
+		}
+	]
+}

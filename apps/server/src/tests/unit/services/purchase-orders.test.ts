@@ -1,6 +1,12 @@
 import { describe, test, expect, beforeEach, mock } from "bun:test";
-import { createMockTenantDb } from "../../helpers/db-mock.factory";
-import { makePurchaseOrder, makePurchaseOrderItem } from "../../helpers/fixtures";
+import {
+	createMockTenantDb,
+	selectChainResolving,
+} from "../../helpers/db-mock.factory";
+import {
+	makePurchaseOrder,
+	makePurchaseOrderItem,
+} from "../../helpers/fixtures";
 
 import {
 	listPurchaseOrders,
@@ -14,16 +20,13 @@ import {
 let mockDb: any;
 const MEMBER_ID = "bbbbbbbb-0000-4000-8000-000000000001";
 const BRANCH_NODE_ID = "aaaaaaaa-0000-4000-8000-000000000001";
-
-function selectChainResolving(value: unknown) {
-	const chain: Record<string, unknown> = {};
-	for (const m of ["from", "where", "orderBy", "limit", "offset", "leftJoin", "innerJoin", "groupBy", "having"]) {
-		chain[m] = mock(() => chain);
-	}
-	chain.then = (resolve: (v: unknown) => unknown) =>
-		Promise.resolve(value).then(resolve);
-	return chain;
-}
+// Phase 8.4 — actor for approve/cancel audit row.
+const ACTOR = {
+	userId: "test-user-id",
+	memberId: MEMBER_ID,
+	role: "admin" as const,
+	branchId: BRANCH_NODE_ID,
+};
 
 beforeEach(() => {
 	mockDb = createMockTenantDb();
@@ -90,10 +93,14 @@ describe("createPurchaseOrder — PO number generation", () => {
 			// generatePONumber: select({total: count()}).from().where()
 			tx.select.mockReturnValueOnce(selectChainResolving([{ total: 0 }]));
 			// Insert PO
-			const insertValues = { returning: mock(() => Promise.resolve([createdPO])) };
+			const insertValues = {
+				returning: mock(() => Promise.resolve([createdPO])),
+			};
 			tx.insert.mockReturnValueOnce({ values: mock(() => insertValues) });
 			// Insert items
-			tx.insert.mockReturnValueOnce({ values: mock(() => ({ returning: mock(() => Promise.resolve([])) })) });
+			tx.insert.mockReturnValueOnce({
+				values: mock(() => ({ returning: mock(() => Promise.resolve([])) })),
+			});
 			return cb(tx);
 		});
 
@@ -110,15 +117,21 @@ describe("createPurchaseOrder — PO number generation", () => {
 	});
 
 	test("increments sequence number for subsequent POs on the same day", async () => {
-		const createdPO = makePurchaseOrder({ purchaseOrderNumber: "PO-20260227-0006" });
+		const createdPO = makePurchaseOrder({
+			purchaseOrderNumber: "PO-20260227-0006",
+		});
 
 		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
 			const tx = createMockTenantDb();
 			// 5 existing POs today
 			tx.select.mockReturnValueOnce(selectChainResolving([{ total: 5 }]));
-			const insertValues = { returning: mock(() => Promise.resolve([createdPO])) };
+			const insertValues = {
+				returning: mock(() => Promise.resolve([createdPO])),
+			};
 			tx.insert.mockReturnValueOnce({ values: mock(() => insertValues) });
-			tx.insert.mockReturnValueOnce({ values: mock(() => ({ returning: mock(() => Promise.resolve([])) })) });
+			tx.insert.mockReturnValueOnce({
+				values: mock(() => ({ returning: mock(() => Promise.resolve([])) })),
+			});
 			return cb(tx);
 		});
 
@@ -142,10 +155,14 @@ describe("approvePurchaseOrder", () => {
 
 		mockDb.select.mockReturnValueOnce(selectChainResolving([po]));
 
-		const setChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([approved])) })) };
+		const setChain = {
+			where: mock(() => ({
+				returning: mock(() => Promise.resolve([approved])),
+			})),
+		};
 		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
 
-		const result = await approvePurchaseOrder(mockDb, po.id, MEMBER_ID);
+		const result = await approvePurchaseOrder(mockDb, po.id, ACTOR);
 
 		expect(result!.status).toBe("approved");
 	});
@@ -154,16 +171,16 @@ describe("approvePurchaseOrder", () => {
 		const po = makePurchaseOrder({ status: "approved" });
 		mockDb.select.mockReturnValueOnce(selectChainResolving([po]));
 
-		await expect(
-			approvePurchaseOrder(mockDb, po.id, MEMBER_ID),
-		).rejects.toThrow("Only draft purchase orders can be approved");
+		await expect(approvePurchaseOrder(mockDb, po.id, ACTOR)).rejects.toThrow(
+			"Only draft purchase orders can be approved",
+		);
 	});
 
 	test("throws when PO not found", async () => {
 		mockDb.select.mockReturnValueOnce(selectChainResolving([]));
 
 		await expect(
-			approvePurchaseOrder(mockDb, "nonexistent", MEMBER_ID),
+			approvePurchaseOrder(mockDb, "nonexistent", ACTOR),
 		).rejects.toThrow("Purchase order not found");
 	});
 });
@@ -172,75 +189,109 @@ describe("approvePurchaseOrder", () => {
 describe("receiveItems", () => {
 	test("sets status to partially_received when not all items received", async () => {
 		const po = makePurchaseOrder({ status: "approved" });
+		// 0/10 received; receiving 5 leaves it partial, so PO → "partially_received".
 		const item = makePurchaseOrderItem({
 			purchaseOrderId: po.id,
 			orderedQty: 10,
-			receivedQty: 5,
+			receivedQty: 0,
 		});
 		const updatedPO = { ...po, status: "partially_received" };
 
 		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
 			const tx = createMockTenantDb();
-			// update item receivedQty
+			// 1. row-lock select PO (.for("update"))
+			tx.select.mockReturnValueOnce(selectChainResolving([po]));
+			// 2. select all PO items
+			tx.select.mockReturnValueOnce(selectChainResolving([item]));
+			// 3. update item receivedQty (awaited, no returning)
 			const itemSetChain = { where: mock(() => Promise.resolve()) };
 			tx.update.mockReturnValueOnce({ set: mock(() => itemSetChain) });
-			// select all items after update
-			tx.select.mockReturnValueOnce(selectChainResolving([item]));
-			// update PO status
-			const poSetChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([updatedPO])) })) };
+			// 4. update PO status
+			const poSetChain = {
+				where: mock(() => ({
+					returning: mock(() => Promise.resolve([updatedPO])),
+				})),
+			};
 			tx.update.mockReturnValueOnce({ set: mock(() => poSetChain) });
 			return cb(tx);
 		});
 
-		const result = await receiveItems(mockDb, po.id, [{ itemId: item.id, receivedQty: 5 }]);
+		const result = await receiveItems(mockDb, po.id, [
+			{ itemId: item.id, receivedQty: 5 },
+		]);
 
 		expect(result!.status).toBe("partially_received");
 	});
 
 	test("sets status to received when all items fully received", async () => {
 		const po = makePurchaseOrder({ status: "approved" });
+		// Item is at 0/5 received; receiving 5 fills it and flips PO to "received".
 		const item = makePurchaseOrderItem({
 			purchaseOrderId: po.id,
 			orderedQty: 5,
-			receivedQty: 5,
+			receivedQty: 0,
 		});
 		const updatedPO = { ...po, status: "received" };
 
 		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
 			const tx = createMockTenantDb();
+			// 1. row-lock select PO
+			tx.select.mockReturnValueOnce(selectChainResolving([po]));
+			// 2. select all PO items
+			tx.select.mockReturnValueOnce(selectChainResolving([item]));
+			// 3. update item receivedQty
 			const itemSetChain = { where: mock(() => Promise.resolve()) };
 			tx.update.mockReturnValueOnce({ set: mock(() => itemSetChain) });
-			tx.select.mockReturnValueOnce(selectChainResolving([item]));
-			const poSetChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([updatedPO])) })) };
+			// 4. update PO status
+			const poSetChain = {
+				where: mock(() => ({
+					returning: mock(() => Promise.resolve([updatedPO])),
+				})),
+			};
 			tx.update.mockReturnValueOnce({ set: mock(() => poSetChain) });
 			return cb(tx);
 		});
 
-		const result = await receiveItems(mockDb, po.id, [{ itemId: item.id, receivedQty: 5 }]);
+		const result = await receiveItems(mockDb, po.id, [
+			{ itemId: item.id, receivedQty: 5 },
+		]);
 
 		expect(result!.status).toBe("received");
 	});
 
 	test("handles incremental receiving (partially received then received)", async () => {
 		const po = makePurchaseOrder({ status: "partially_received" });
+		// Already 3/5 received; receiving the remaining 2 completes the line item,
+		// so the PO rolls up to "received".
 		const item = makePurchaseOrderItem({
 			purchaseOrderId: po.id,
 			orderedQty: 5,
-			receivedQty: 5,
+			receivedQty: 3,
 		});
 		const updatedPO = { ...po, status: "received" };
 
 		mockDb.transaction.mockImplementationOnce(async (cb: Function) => {
 			const tx = createMockTenantDb();
+			// 1. row-lock select PO
+			tx.select.mockReturnValueOnce(selectChainResolving([po]));
+			// 2. select all PO items
+			tx.select.mockReturnValueOnce(selectChainResolving([item]));
+			// 3. update item receivedQty (+2 → fully received)
 			const itemSetChain = { where: mock(() => Promise.resolve()) };
 			tx.update.mockReturnValueOnce({ set: mock(() => itemSetChain) });
-			tx.select.mockReturnValueOnce(selectChainResolving([item]));
-			const poSetChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([updatedPO])) })) };
+			// 4. update PO status
+			const poSetChain = {
+				where: mock(() => ({
+					returning: mock(() => Promise.resolve([updatedPO])),
+				})),
+			};
 			tx.update.mockReturnValueOnce({ set: mock(() => poSetChain) });
 			return cb(tx);
 		});
 
-		const result = await receiveItems(mockDb, po.id, [{ itemId: item.id, receivedQty: 2 }]);
+		const result = await receiveItems(mockDb, po.id, [
+			{ itemId: item.id, receivedQty: 2 },
+		]);
 
 		expect(result!.status).toBe("received");
 	});
@@ -253,10 +304,14 @@ describe("cancelPurchaseOrder", () => {
 		const cancelled = { ...po, status: "cancelled" };
 
 		mockDb.select.mockReturnValueOnce(selectChainResolving([po]));
-		const setChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([cancelled])) })) };
+		const setChain = {
+			where: mock(() => ({
+				returning: mock(() => Promise.resolve([cancelled])),
+			})),
+		};
 		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
 
-		const result = await cancelPurchaseOrder(mockDb, po.id);
+		const result = await cancelPurchaseOrder(mockDb, po.id, ACTOR);
 
 		expect(result!.status).toBe("cancelled");
 	});
@@ -266,10 +321,14 @@ describe("cancelPurchaseOrder", () => {
 		const cancelled = { ...po, status: "cancelled" };
 
 		mockDb.select.mockReturnValueOnce(selectChainResolving([po]));
-		const setChain = { where: mock(() => ({ returning: mock(() => Promise.resolve([cancelled])) })) };
+		const setChain = {
+			where: mock(() => ({
+				returning: mock(() => Promise.resolve([cancelled])),
+			})),
+		};
 		mockDb.update.mockReturnValueOnce({ set: mock(() => setChain) });
 
-		const result = await cancelPurchaseOrder(mockDb, po.id);
+		const result = await cancelPurchaseOrder(mockDb, po.id, ACTOR);
 
 		expect(result!.status).toBe("cancelled");
 	});
@@ -278,7 +337,7 @@ describe("cancelPurchaseOrder", () => {
 		const po = makePurchaseOrder({ status: "received" });
 		mockDb.select.mockReturnValueOnce(selectChainResolving([po]));
 
-		await expect(cancelPurchaseOrder(mockDb, po.id)).rejects.toThrow(
+		await expect(cancelPurchaseOrder(mockDb, po.id, ACTOR)).rejects.toThrow(
 			"Only draft or approved purchase orders can be cancelled",
 		);
 	});
@@ -286,6 +345,8 @@ describe("cancelPurchaseOrder", () => {
 	test("throws when PO not found", async () => {
 		mockDb.select.mockReturnValueOnce(selectChainResolving([]));
 
-		await expect(cancelPurchaseOrder(mockDb, "nonexistent")).rejects.toThrow("Purchase order not found");
+		await expect(
+			cancelPurchaseOrder(mockDb, "nonexistent", ACTOR),
+		).rejects.toThrow("Purchase order not found");
 	});
 });

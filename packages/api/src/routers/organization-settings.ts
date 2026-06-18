@@ -6,26 +6,41 @@
  */
 
 import { getSetting, upsertSetting } from "@avantej-core/services";
-import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import { assertOrgContextMatch, requirePermissionOrpc } from "../guards";
 
 export const organizationSettingsRouter = {
-	get: protectedProcedure
+	get: tenantProcedure
 		.input(z.object({ organizationId: z.string().uuid(), key: z.string() }))
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "No tenant DB" });
+			assertOrgContextMatch(context, input);
 			const value = await getSetting(context.tenantDb, input.key);
 			if (value === null) return null;
 			return { key: input.key, value };
 		}),
 
-	upsert: protectedProcedure
-		.input(z.object({ organizationId: z.string().uuid(), key: z.string(), value: z.string() }))
+	upsert: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				key: z.string(),
+				value: z.string(),
+			}),
+		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "No tenant DB" });
-			if (!context.member) throw new ORPCError("FORBIDDEN", { message: "Not a member" });
-			if (context.member.role !== "admin") throw new ORPCError("FORBIDDEN", { message: "Admin only" });
-			return upsertSetting(context.tenantDb, input.key, input.value, context.member.userId);
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"organization_settings",
+				"update",
+			);
+			return upsertSetting(
+				context.tenantDb,
+				input.key,
+				input.value,
+				context.member.userId,
+			);
 		}),
 };

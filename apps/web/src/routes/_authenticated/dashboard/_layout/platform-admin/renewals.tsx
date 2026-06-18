@@ -13,12 +13,7 @@
 
 import { Link, createFileRoute, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -147,9 +142,7 @@ function PlatformAdminRenewalsPage() {
 					<BigNumberCard
 						title="Past-due"
 						value={calendarQ.data.summary.pastDueCount}
-						band={
-							calendarQ.data.summary.pastDueCount > 0 ? "red" : "neutral"
-						}
+						band={calendarQ.data.summary.pastDueCount > 0 ? "red" : "neutral"}
 						subLabel="Past_due or unpaid right now"
 						testId="kpi-past-due"
 					/>

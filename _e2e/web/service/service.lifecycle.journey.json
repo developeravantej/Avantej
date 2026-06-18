@@ -1,0 +1,8 @@
+{
+  "service/service.lifecycle.spec.ts::Service lifecycle — create, update, deactivate (API-verified)": [
+    "Create a service (name, duration, maxAttendees) and assert an id is returned",
+    "Fetch services/getById and assert name and duration match",
+    "Update name and duration and assert getById reflects the edit",
+    "Set isActive:false and assert the service is absent from the isActive:true list"
+  ]
+}

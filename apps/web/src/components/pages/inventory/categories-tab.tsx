@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LayoutGrid } from "lucide-react";
 import { PageLoader } from "@/components/ui/loading-spinner";
+import { Skeleton } from "boneyard-js/react";
 import DataTable from "@/components/tables/categories/view/data-table";
 import { columns } from "@/components/tables/categories/view/columns";
 import type { CategoryRow } from "@/components/tables/categories/view/columns";
@@ -41,7 +42,7 @@ export function CategoriesTabPage() {
 
 	const productCountByCategory = useMemo(() => {
 		const counts = new Map<string, number>();
-		products?.forEach((p: any) => {
+		products?.forEach((p) => {
 			if (p.categoryId)
 				counts.set(p.categoryId, (counts.get(p.categoryId) ?? 0) + 1);
 		});
@@ -71,10 +72,6 @@ export function CategoriesTabPage() {
 		);
 	}
 
-	if (isLoading) {
-		return <PageLoader />;
-	}
-
 	if (isError) {
 		return (
 			<div className="flex flex-col items-center justify-center py-12">
@@ -93,7 +90,7 @@ export function CategoriesTabPage() {
 		);
 	}
 
-	const tableData: CategoryRow[] = categories.map((c: any) => ({
+	const tableData: CategoryRow[] = categories.map((c) => ({
 		ID: c.id,
 		Name: c.name,
 		externalCode: c.externalCode ?? "",
@@ -101,21 +98,27 @@ export function CategoriesTabPage() {
 	}));
 
 	return (
-		<>
-			{tableData.length === 0 && (
-				<EmptyState
-					title="No categories yet"
-					description="Create a category to organize products."
-					icon={LayoutGrid}
+		<Skeleton
+			name="inventory-categories-tab"
+			loading={isLoading}
+			fallback={<PageLoader />}
+		>
+			<>
+				{tableData.length === 0 && (
+					<EmptyState
+						title="No categories yet"
+						description="Create a category to organize products."
+						icon={LayoutGrid}
+					/>
+				)}
+				<DataTable
+					columns={columns}
+					data={tableData}
+					organizationId={organizationId}
+					onDelete={(id) => deleteMutation.mutate(id)}
+					isMutating={deleteMutation.isPending}
 				/>
-			)}
-			<DataTable
-				columns={columns}
-				data={tableData}
-				organizationId={organizationId}
-				onDelete={(id) => deleteMutation.mutate(id)}
-				isMutating={deleteMutation.isPending}
-			/>
-		</>
+			</>
+		</Skeleton>
 	);
 }

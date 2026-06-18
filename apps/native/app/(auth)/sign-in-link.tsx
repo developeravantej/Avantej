@@ -38,7 +38,9 @@ export default function SignInLinkScreen() {
 
 			setSentTo(trimmed);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to send sign-in link");
+			setError(
+				err instanceof Error ? err.message : "Failed to send sign-in link",
+			);
 		} finally {
 			setIsLoading(false);
 		}
@@ -55,8 +57,8 @@ export default function SignInLinkScreen() {
 						Check Your Inbox
 					</Text>
 					<Text className="mb-8 text-center text-base text-zinc-600">
-						We sent a sign-in link to {sentTo}. The link is valid for 30
-						minutes and can only be used once.
+						We sent a sign-in link to {sentTo}. The link is valid for 30 minutes
+						and can only be used once.
 					</Text>
 					<Pressable
 						onPress={() => {

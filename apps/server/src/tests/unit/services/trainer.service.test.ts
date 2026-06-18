@@ -14,7 +14,17 @@ const WEEK_START = new Date("2026-05-12T00:00:00.000Z");
 
 function selectChain(value: unknown) {
 	const chain: Record<string, unknown> = {};
-	for (const m of ["from", "where", "orderBy", "limit", "offset", "leftJoin", "innerJoin", "groupBy", "having"]) {
+	for (const m of [
+		"from",
+		"where",
+		"orderBy",
+		"limit",
+		"offset",
+		"leftJoin",
+		"innerJoin",
+		"groupBy",
+		"having",
+	]) {
 		chain[m] = mock(() => chain);
 	}
 	chain.then = (resolve: (v: unknown) => unknown) =>
@@ -35,7 +45,7 @@ describe("getTrainerWeeklyStats", () => {
 
 		// Promise.all selects: sessions, commission, revenue, capacity
 		mockDb.select
-			.mockReturnValueOnce(selectChain([{ cnt: 5 }]))        // sessions
+			.mockReturnValueOnce(selectChain([{ cnt: 5 }])) // sessions
 			.mockReturnValueOnce(selectChain([{ total: 120000 }])) // commission YTD
 			.mockReturnValueOnce(selectChain([{ total: 250000 }])) // revenue
 			.mockReturnValueOnce(selectChain([{ totalCapacity: 10 }])); // capacity
@@ -44,7 +54,7 @@ describe("getTrainerWeeklyStats", () => {
 
 		expect(result.memberId).toBe(USER_ID);
 		expect(result.sessionsThisWeek).toBe(5);
-		expect(result.utilizationPct).toBe(50);  // 5 / 10 * 100
+		expect(result.utilizationPct).toBe(50); // 5 / 10 * 100
 		expect(result.commissionYtd).toBe(120000);
 		expect(result.revenueGenerated).toBe(250000);
 	});
@@ -117,7 +127,7 @@ describe("getTrainerWeeklySchedule", () => {
 		};
 
 		mockDb.select
-			.mockReturnValueOnce(selectChain([apptRow]))  // appointments
+			.mockReturnValueOnce(selectChain([apptRow])) // appointments
 			.mockReturnValueOnce(selectChain([slotRow])); // class slots
 
 		const result = await getTrainerWeeklySchedule(mockDb, USER_ID, WEEK_START);
@@ -132,8 +142,8 @@ describe("getTrainerWeeklySchedule", () => {
 		mockDb.query.members.findFirst.mockResolvedValueOnce(undefined);
 
 		mockDb.select
-			.mockReturnValueOnce(selectChain([]))   // appointments (trainerId="" returns nothing)
-			.mockReturnValueOnce(selectChain([]));  // no slots — memberPk undefined branch
+			.mockReturnValueOnce(selectChain([])) // appointments (trainerId="" returns nothing)
+			.mockReturnValueOnce(selectChain([])); // no slots — memberPk undefined branch
 
 		const result = await getTrainerWeeklySchedule(mockDb, USER_ID, WEEK_START);
 
@@ -145,7 +155,9 @@ describe("getTrainerWeeklySchedule", () => {
 
 		const appts = Array.from({ length: 150 }, (_, i) => ({
 			id: `appt-${i}`,
-			startTime: new Date(`2026-05-13T${String(Math.floor(i / 6)).padStart(2, "0")}:${String((i % 6) * 10).padStart(2, "0")}:00Z`),
+			startTime: new Date(
+				`2026-05-13T${String(Math.floor(i / 6)).padStart(2, "0")}:${String((i % 6) * 10).padStart(2, "0")}:00Z`,
+			),
 			endTime: new Date("2026-05-13T10:00:00Z"),
 			serviceId: null,
 		}));
@@ -176,30 +188,40 @@ describe("getTrainerWeeklyStatsBatch", () => {
 
 		// inArray members select
 		mockDb.select
-			.mockReturnValueOnce(selectChain([
-				{ id: MEMBER_PK, userId: USER_ID },
-				{ id: MEMBER_PK_2, userId: USER_ID_2 },
-			]))
+			.mockReturnValueOnce(
+				selectChain([
+					{ id: MEMBER_PK, userId: USER_ID },
+					{ id: MEMBER_PK_2, userId: USER_ID_2 },
+				]),
+			)
 			// sessions GROUP BY trainerId
-			.mockReturnValueOnce(selectChain([
-				{ trainerId: MEMBER_PK, cnt: 3 },
-				{ trainerId: MEMBER_PK_2, cnt: 7 },
-			]))
+			.mockReturnValueOnce(
+				selectChain([
+					{ trainerId: MEMBER_PK, cnt: 3 },
+					{ trainerId: MEMBER_PK_2, cnt: 7 },
+				]),
+			)
 			// commission GROUP BY staffId
-			.mockReturnValueOnce(selectChain([
-				{ staffId: USER_ID, total: 60000 },
-				{ staffId: USER_ID_2, total: 90000 },
-			]))
+			.mockReturnValueOnce(
+				selectChain([
+					{ staffId: USER_ID, total: 60000 },
+					{ staffId: USER_ID_2, total: 90000 },
+				]),
+			)
 			// revenue GROUP BY trainerId
-			.mockReturnValueOnce(selectChain([
-				{ trainerId: MEMBER_PK, total: 150000 },
-				{ trainerId: MEMBER_PK_2, total: 200000 },
-			]))
+			.mockReturnValueOnce(
+				selectChain([
+					{ trainerId: MEMBER_PK, total: 150000 },
+					{ trainerId: MEMBER_PK_2, total: 200000 },
+				]),
+			)
 			// capacity GROUP BY instructorId
-			.mockReturnValueOnce(selectChain([
-				{ instructorId: MEMBER_PK, totalCapacity: 10 },
-				{ instructorId: MEMBER_PK_2, totalCapacity: 14 },
-			]));
+			.mockReturnValueOnce(
+				selectChain([
+					{ instructorId: MEMBER_PK, totalCapacity: 10 },
+					{ instructorId: MEMBER_PK_2, totalCapacity: 14 },
+				]),
+			);
 
 		const result = await getTrainerWeeklyStatsBatch(
 			mockDb,
@@ -227,19 +249,25 @@ describe("getTrainerWeeklyStatsBatch", () => {
 
 	test("throws when memberIds exceeds 100", async () => {
 		const ids = Array.from({ length: 101 }, (_, i) => `user-${i}`);
-		expect(getTrainerWeeklyStatsBatch(mockDb, ids, WEEK_START)).rejects.toThrow("max 100");
+		expect(getTrainerWeeklyStatsBatch(mockDb, ids, WEEK_START)).rejects.toThrow(
+			"max 100",
+		);
 	});
 
 	test("returns zero stats for userId not found in tenant DB", async () => {
 		// members select returns empty (userId not in tenant)
 		mockDb.select
-			.mockReturnValueOnce(selectChain([]))   // members
-			.mockReturnValueOnce(selectChain([]))   // sessions (empty — no pks)
-			.mockReturnValueOnce(selectChain([]))   // commission
-			.mockReturnValueOnce(selectChain([]))   // revenue
-			.mockReturnValueOnce(selectChain([]));  // capacity
+			.mockReturnValueOnce(selectChain([])) // members
+			.mockReturnValueOnce(selectChain([])) // sessions (empty — no pks)
+			.mockReturnValueOnce(selectChain([])) // commission
+			.mockReturnValueOnce(selectChain([])) // revenue
+			.mockReturnValueOnce(selectChain([])); // capacity
 
-		const result = await getTrainerWeeklyStatsBatch(mockDb, [USER_ID], WEEK_START);
+		const result = await getTrainerWeeklyStatsBatch(
+			mockDb,
+			[USER_ID],
+			WEEK_START,
+		);
 
 		const stats = result.get(USER_ID)!;
 		expect(stats.sessionsThisWeek).toBe(0);

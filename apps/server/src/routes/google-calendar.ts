@@ -8,7 +8,18 @@ import {
 } from "@avantej-core/services";
 import { googleCalendarConnections } from "@avantej-core/db/schema/tenant/google-calendar-connections";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import {
+	decryptOAuthState,
+	encryptOAuthState,
+	encryptToken,
+} from "@avantej-core/db/lib/oauth-security";
 import { eq } from "drizzle-orm";
+
+type GoogleOAuthState = {
+	organizationId: string;
+	userId: string;
+	returnUrl: string;
+};
 
 const app = new Hono();
 
@@ -29,9 +40,11 @@ app.get("/initiate", async (c) => {
 		return c.text("Missing organizationId", 400);
 	}
 
-	const state = btoa(
-		JSON.stringify({ organizationId, userId: session.user.id, returnUrl }),
-	);
+	const state = encryptOAuthState<GoogleOAuthState>({
+		organizationId,
+		userId: session.user.id,
+		returnUrl,
+	});
 
 	const clientId = process.env.GOOGLE_CLIENT_ID ?? "";
 	const redirectUri = process.env.GOOGLE_REDIRECT_URI ?? "";
@@ -54,12 +67,13 @@ app.get("/callback", async (c) => {
 		);
 	}
 
-	let state: { organizationId: string; userId: string; returnUrl: string };
+	let state: GoogleOAuthState;
 	try {
-		state = JSON.parse(atob(stateParam)) as typeof state;
-	} catch {
+		state = decryptOAuthState<GoogleOAuthState>(stateParam);
+	} catch (err) {
+		const reason = err instanceof Error ? err.message : "invalid_state";
 		return c.redirect(
-			`${webOrigin}/dashboard/settings/google-calendar?gcal=error&message=invalid_state`,
+			`${webOrigin}/dashboard/settings/google-calendar?gcal=error&message=${reason}`,
 		);
 	}
 
@@ -85,26 +99,32 @@ app.get("/callback", async (c) => {
 
 		const syncScope = member.role === "admin" ? "all" : "own";
 		const refreshToken = tokens.refresh_token ?? "";
+		const encryptedAccess = encryptToken(tokens.access_token);
+		const encryptedRefresh = refreshToken ? encryptToken(refreshToken) : "";
 
 		await tenantDb
 			.insert(googleCalendarConnections)
 			.values({
 				memberId: member.id,
-				accessToken: tokens.access_token,
-				refreshToken,
+				accessToken: encryptedAccess,
+				refreshToken: encryptedRefresh,
 				tokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
 				googleEmail: userInfo.email,
 				syncScope,
+				encryptionKeyId: "v1",
+				tokenRotatedAt: new Date(),
 			})
 			.onConflictDoUpdate({
 				target: googleCalendarConnections.memberId,
 				set: {
-					accessToken: tokens.access_token,
+					accessToken: encryptedAccess,
 					refreshToken:
-						refreshToken || googleCalendarConnections.refreshToken,
+						encryptedRefresh || googleCalendarConnections.refreshToken,
 					tokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
 					googleEmail: userInfo.email,
 					syncScope,
+					encryptionKeyId: "v1",
+					tokenRotatedAt: new Date(),
 					isActive: true,
 					lastSyncError: null,
 					updatedAt: new Date(),

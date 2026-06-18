@@ -247,5 +247,5 @@ export {
 	DropdownMenuLabel,
 	DropdownMenuItem,
 	DropdownMenuSeparator,
-	DropdownMenuShortcut
-}
+	DropdownMenuShortcut,
+};

@@ -5,7 +5,7 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
 export async function listBrands(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: { search?: string } = {}
+	params: { search?: string } = {},
 ): Promise<(typeof brands.$inferSelect)[]> {
 	const { search } = params;
 
@@ -23,8 +23,8 @@ export async function listBrands(
 
 export async function getBrandById(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
-): Promise<(typeof brands.$inferSelect) | null> {
+	id: string,
+): Promise<typeof brands.$inferSelect | null> {
 	const row = await tenantDb.query.brands.findFirst({
 		where: eq(brands.id, id),
 	});
@@ -33,7 +33,7 @@ export async function getBrandById(
 
 export async function createBrand(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	params: { name: string; description?: string; createdBy?: string | null }
+	params: { name: string; description?: string; createdBy?: string | null },
 ): Promise<typeof brands.$inferSelect> {
 	const [row] = await tenantDb
 		.insert(brands)
@@ -54,13 +54,15 @@ export async function createBrand(
 export async function updateBrand(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	id: string,
-	params: { name?: string; description?: string; updatedBy?: string | null }
+	params: { name?: string; description?: string; updatedBy?: string | null },
 ): Promise<typeof brands.$inferSelect> {
 	const [row] = await tenantDb
 		.update(brands)
 		.set({
 			...(params.name !== undefined && { name: params.name }),
-			...(params.description !== undefined && { description: params.description }),
+			...(params.description !== undefined && {
+				description: params.description,
+			}),
 			...(params.updatedBy !== undefined && { updatedBy: params.updatedBy }),
 			updatedAt: new Date(),
 		})
@@ -75,7 +77,7 @@ export async function updateBrand(
 
 export async function deleteBrand(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
-	id: string
+	id: string,
 ): Promise<void> {
 	await tenantDb.delete(brands).where(eq(brands.id, id));
 }

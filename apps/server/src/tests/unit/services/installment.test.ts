@@ -18,14 +18,19 @@ const mockWhere = mock(() => ({ limit: mockLimit }));
 const mockLeftJoin = mock(() => ({ where: mockWhere }));
 // mockDirectWhere: used by select().from().where() (no join) — e.g. evaluateAndExpireIfOverdue
 const mockDirectWhere = mock(() => Promise.resolve([]));
-const mockFrom = mock(() => ({ leftJoin: mockLeftJoin, where: mockDirectWhere }));
+const mockFrom = mock(() => ({
+	leftJoin: mockLeftJoin,
+	where: mockDirectWhere,
+}));
 const mockSelect = mock(() => ({ from: mockFrom }));
 
 const mockFindFirst = mock(() => Promise.resolve(null));
 const mockFindMany = mock(() => Promise.resolve([]));
 const mockInstallmentsFindFirst = mock(() => Promise.resolve(null));
 const mockReturning = mock(() => Promise.resolve([]));
-const mockSet = mock(() => ({ where: mock(() => ({ returning: mockReturning }) ) }));
+const mockSet = mock(() => ({
+	where: mock(() => ({ returning: mockReturning })),
+}));
 const mockUpdate = mock(() => ({ set: mockSet }));
 const mockInsertReturning = mock(() => Promise.resolve([]));
 const mockInsertValues = mock(() => ({ returning: mockInsertReturning }));
@@ -45,7 +50,10 @@ const mockTransaction = mock((callback: (tx: unknown) => Promise<unknown>) => {
 		insert: mockInsert,
 		query: {
 			packageInstances: { findFirst: mockFindFirst, findMany: mockFindMany },
-			installments: { findFirst: mockInstallmentsFindFirst, findMany: mock(() => Promise.resolve([])) },
+			installments: {
+				findFirst: mockInstallmentsFindFirst,
+				findMany: mock(() => Promise.resolve([])),
+			},
 		},
 	};
 	return callback(tx);
@@ -129,7 +137,10 @@ describe("getGracePeriodDaysForPackage", () => {
 	test("returns DEFAULT_GRACE_PERIOD_DAYS when package instance not found", async () => {
 		mockLimit.mockResolvedValueOnce([]);
 
-		const result = await getGracePeriodDaysForPackage(mockTenantDb, "nonexistent");
+		const result = await getGracePeriodDaysForPackage(
+			mockTenantDb,
+			"nonexistent",
+		);
 
 		expect(result).toBe(DEFAULT_GRACE_PERIOD_DAYS);
 	});
@@ -153,20 +164,22 @@ describe("evaluateAndLockIfOverdue", () => {
 	 * Build a package instance fixture. Dates relative to "now" are computed
 	 * at call time so tests remain deterministic even if the clock advances.
 	 */
-	function makePackage(overrides: Partial<{
-		id: string;
-		paymentPlanType: string | null;
-		installmentsPaid: number;
-		installmentsTotal: number;
-		nextDueDate: Date | null;
-		gracePeriodEndsAt: Date | null;
-		isLocked: boolean;
-		serviceId: string;
-		creditsTotal: number;
-		creditsUsed: number;
-		creditsUnlocked: number;
-		creditsRemaining: number;
-	}> = {}) {
+	function makePackage(
+		overrides: Partial<{
+			id: string;
+			paymentPlanType: string | null;
+			installmentsPaid: number;
+			installmentsTotal: number;
+			nextDueDate: Date | null;
+			gracePeriodEndsAt: Date | null;
+			isLocked: boolean;
+			serviceId: string;
+			creditsTotal: number;
+			creditsUsed: number;
+			creditsUnlocked: number;
+			creditsRemaining: number;
+		}> = {},
+	) {
 		return {
 			id: "pi-test",
 			paymentPlanType: "half",
@@ -231,21 +244,33 @@ describe("evaluateAndLockIfOverdue", () => {
 		mockServiceGracePeriod(14);
 
 		const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
-		const pkg = makePackage({ nextDueDate: tenDaysAgo, gracePeriodEndsAt: null });
+		const pkg = makePackage({
+			nextDueDate: tenDaysAgo,
+			gracePeriodEndsAt: null,
+		});
 		// tx.select().from().where().for("update") → [pkg]
 		mockForUpdate.mockResolvedValueOnce([pkg] as any);
 
 		// tx.update(installments)…returning() → [] (no overdue rows yet)
 		const mkUpdateSet = (rows: unknown[]) =>
-			mock(() => ({ where: mock(() => ({ returning: mock(() => Promise.resolve(rows)) })) }));
+			mock(() => ({
+				where: mock(() => ({ returning: mock(() => Promise.resolve(rows)) })),
+			}));
 		mockUpdate.mockImplementationOnce(() => ({ set: mkUpdateSet([]) }));
 
 		// tx.query.installments.findFirst → first overdue installment
 		mockInstallmentsFindFirst.mockResolvedValueOnce({ id: "inst-1" } as any);
 
 		// tx.update(packageInstances)…returning() → updatedPkg with gracePeriodEndsAt set
-		const updatedPkg = { ...pkg, gracePeriodEndsAt: new Date(tenDaysAgo.getTime() + 14 * 24 * 60 * 60 * 1000) };
-		mockUpdate.mockImplementationOnce(() => ({ set: mkUpdateSet([updatedPkg]) }));
+		const updatedPkg = {
+			...pkg,
+			gracePeriodEndsAt: new Date(
+				tenDaysAgo.getTime() + 14 * 24 * 60 * 60 * 1000,
+			),
+		};
+		mockUpdate.mockImplementationOnce(() => ({
+			set: mkUpdateSet([updatedPkg]),
+		}));
 
 		// tx.insert(installmentEvents).values(…).returning() for logInstallmentEvent
 		mockInsertReturning.mockResolvedValueOnce([]);
@@ -260,12 +285,16 @@ describe("evaluateAndLockIfOverdue", () => {
 		mockServiceGracePeriod(14);
 
 		const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000);
-		const gracePeriodEndsAt = new Date(fifteenDaysAgo.getTime() + 14 * 24 * 60 * 60 * 1000); // ended 1 day ago
+		const gracePeriodEndsAt = new Date(
+			fifteenDaysAgo.getTime() + 14 * 24 * 60 * 60 * 1000,
+		); // ended 1 day ago
 		const pkg = makePackage({ nextDueDate: fifteenDaysAgo, gracePeriodEndsAt });
 		mockForUpdate.mockResolvedValueOnce([pkg] as any);
 
 		const mkUpdateSet = (rows: unknown[]) =>
-			mock(() => ({ where: mock(() => ({ returning: mock(() => Promise.resolve(rows)) })) }));
+			mock(() => ({
+				where: mock(() => ({ returning: mock(() => Promise.resolve(rows)) })),
+			}));
 
 		// update installments → [] (overdueRows empty)
 		mockUpdate.mockImplementationOnce(() => ({ set: mkUpdateSet([]) }));
@@ -274,8 +303,15 @@ describe("evaluateAndLockIfOverdue", () => {
 		mockInstallmentsFindFirst.mockResolvedValueOnce({ id: "inst-1" } as any);
 
 		// update packageInstances (lock) → lockedPkg
-		const lockedPkg = { ...pkg, isLocked: true, lockedAt: new Date(), lockedReason: "non_payment" };
-		mockUpdate.mockImplementationOnce(() => ({ set: mkUpdateSet([lockedPkg]) }));
+		const lockedPkg = {
+			...pkg,
+			isLocked: true,
+			lockedAt: new Date(),
+			lockedReason: "non_payment",
+		};
+		mockUpdate.mockImplementationOnce(() => ({
+			set: mkUpdateSet([lockedPkg]),
+		}));
 
 		// logInstallmentEvent insert
 		mockInsertReturning.mockResolvedValueOnce([]);
@@ -295,16 +331,18 @@ describe("due_soon filter", () => {
 	 * Build a minimal package instance fixture for due_soon tests.
 	 * nextDueDate is relative to now, computed at call time.
 	 */
-	function makePackageInstance(overrides: {
-		id?: string;
-		nextDueDate?: Date | null;
-		gracePeriodEndsAt?: Date | null;
-		isLocked?: boolean;
-		paymentPlanType?: string | null;
-		serviceId?: string;
-		clientId?: string | null;
-		[key: string]: unknown;
-	} = {}) {
+	function makePackageInstance(
+		overrides: {
+			id?: string;
+			nextDueDate?: Date | null;
+			gracePeriodEndsAt?: Date | null;
+			isLocked?: boolean;
+			paymentPlanType?: string | null;
+			serviceId?: string;
+			clientId?: string | null;
+			[key: string]: unknown;
+		} = {},
+	) {
 		return {
 			id: "pi-due-1",
 			paymentPlanType: "half",
@@ -367,7 +405,9 @@ describe("due_soon filter", () => {
 			};
 		});
 
-		const result = await getAdminInstallmentOverview(db, { status: "due_soon" });
+		const result = await getAdminInstallmentOverview(db, {
+			status: "due_soon",
+		});
 
 		expect(result.items).toHaveLength(1);
 		expect(result.items[0]!.id).toBe("pi-a");
@@ -405,7 +445,9 @@ describe("due_soon filter", () => {
 			};
 		});
 
-		const result = await getAdminInstallmentOverview(db, { status: "due_soon" });
+		const result = await getAdminInstallmentOverview(db, {
+			status: "due_soon",
+		});
 
 		expect(result.items).toHaveLength(0);
 		expect(result.total).toBe(0);
@@ -440,7 +482,9 @@ describe("due_soon filter", () => {
 			};
 		});
 
-		const result = await getAdminInstallmentOverview(db, { status: "due_soon" });
+		const result = await getAdminInstallmentOverview(db, {
+			status: "due_soon",
+		});
 
 		expect(result.items).toHaveLength(0);
 		expect(result.total).toBe(0);
@@ -475,7 +519,9 @@ describe("due_soon filter", () => {
 			};
 		});
 
-		const result = await getAdminInstallmentOverview(db, { status: "due_soon" });
+		const result = await getAdminInstallmentOverview(db, {
+			status: "due_soon",
+		});
 
 		expect(result.items).toHaveLength(0);
 		expect(result.total).toBe(0);
@@ -492,11 +538,13 @@ describe("setPackageOverdraft", () => {
 	/**
 	 * Build a minimal package instance fixture for overdraft tests.
 	 */
-	function makePkg(overrides: Partial<{
-		id: string;
-		allowCreditOverdraft: boolean;
-		updatedAt: Date;
-	}> = {}) {
+	function makePkg(
+		overrides: Partial<{
+			id: string;
+			allowCreditOverdraft: boolean;
+			updatedAt: Date;
+		}> = {},
+	) {
 		return {
 			id: "pi-overdraft-1",
 			serviceId: "svc-1",
@@ -560,7 +608,13 @@ describe("setPackageOverdraft", () => {
 			transaction: mock((cb: (tx: unknown) => Promise<unknown>) => cb(tx)),
 		} as any;
 
-		const result = await setPackageOverdraft(db, pkg.id, true, "VIP customer", actor);
+		const result = await setPackageOverdraft(
+			db,
+			pkg.id,
+			true,
+			"VIP customer",
+			actor,
+		);
 
 		expect(result.allowCreditOverdraft).toBe(true);
 		// update was called once (package row)
@@ -575,8 +629,14 @@ describe("setPackageOverdraft", () => {
 	test("enable when already enabled → no-op, no audit row, no event row", async () => {
 		const pkg = makePkg({ allowCreditOverdraft: true });
 
-		const mockInsert = mock(() => ({ values: mock(() => Promise.resolve([])) }));
-		const mockUpdate = mock(() => ({ set: mock(() => ({ where: mock(() => ({ returning: mock(() => Promise.resolve([])) })) })) }));
+		const mockInsert = mock(() => ({
+			values: mock(() => Promise.resolve([])),
+		}));
+		const mockUpdate = mock(() => ({
+			set: mock(() => ({
+				where: mock(() => ({ returning: mock(() => Promise.resolve([])) })),
+			})),
+		}));
 
 		const mockForUpdate = mock(() => Promise.resolve([pkg]));
 		const mockSelectWhere = mock(() => ({ for: mockForUpdate }));
@@ -593,7 +653,13 @@ describe("setPackageOverdraft", () => {
 			transaction: mock((cb: (tx: unknown) => Promise<unknown>) => cb(tx)),
 		} as any;
 
-		const result = await setPackageOverdraft(db, pkg.id, true, "already on", actor);
+		const result = await setPackageOverdraft(
+			db,
+			pkg.id,
+			true,
+			"already on",
+			actor,
+		);
 
 		// Returns original pkg without modification
 		expect(result.allowCreditOverdraft).toBe(true);
@@ -629,7 +695,13 @@ describe("setPackageOverdraft", () => {
 			transaction: mock((cb: (tx: unknown) => Promise<unknown>) => cb(tx)),
 		} as any;
 
-		const result = await setPackageOverdraft(db, pkg.id, false, "payment cleared", actor);
+		const result = await setPackageOverdraft(
+			db,
+			pkg.id,
+			false,
+			"payment cleared",
+			actor,
+		);
 
 		expect(result.allowCreditOverdraft).toBe(false);
 		expect(mockUpdate).toHaveBeenCalledTimes(1);

@@ -8,8 +8,12 @@ describe("normalizeGender", () => {
 		expect(normalizeGender("Other")).toBe<Gender>("other");
 	});
 	it("maps prefer-not-to-say variants", () => {
-		expect(normalizeGender("Prefer not to say")).toBe<Gender>("prefer_not_to_say");
-		expect(normalizeGender("prefer_not_to_say")).toBe<Gender>("prefer_not_to_say");
+		expect(normalizeGender("Prefer not to say")).toBe<Gender>(
+			"prefer_not_to_say",
+		);
+		expect(normalizeGender("prefer_not_to_say")).toBe<Gender>(
+			"prefer_not_to_say",
+		);
 	});
 	it("returns empty string for unknown / nullish", () => {
 		expect(normalizeGender(null)).toBe("");

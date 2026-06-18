@@ -19,7 +19,9 @@ const fakeStripeClient = {
 	billingPortal: { sessions: { create: mockBillingPortalCreate } },
 };
 
-const subscriptionsRouter = createSubscriptionsRouter(fakeStripeClient as never);
+const subscriptionsRouter = createSubscriptionsRouter(
+	fakeStripeClient as never,
+);
 
 const TEST_ORG_ID = "00000000-0000-0000-0000-3333000000aa";
 const TEST_SUB_DB_ID = "00000000-0000-0000-0000-3333000000bb";
@@ -34,7 +36,9 @@ function setEnv(overrides: Record<string, string | undefined>) {
 /** Extract the raw handler fn from an oRPC procedure (stored under `["~orpc"].handler`). */
 function getHandler<T>(proc: unknown): (args: unknown) => Promise<T> {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	return ((proc as any)["~orpc"] as Record<string, unknown>)["handler"] as (args: unknown) => Promise<T>;
+	return ((proc as any)["~orpc"] as Record<string, unknown>)["handler"] as (
+		args: unknown,
+	) => Promise<T>;
 }
 
 beforeEach(async () => {
@@ -51,10 +55,15 @@ beforeEach(async () => {
 	await controlPanelDb
 		.delete(subscriptions)
 		.where(eq(subscriptions.id, TEST_SUB_DB_ID));
-	await controlPanelDb.delete(organizations).where(eq(organizations.id, TEST_ORG_ID));
+	await controlPanelDb
+		.delete(organizations)
+		.where(eq(organizations.id, TEST_ORG_ID));
 });
 
-async function seedOrg(opts: { trialEndsAt?: Date | null; subscriptionId?: string | null }) {
+async function seedOrg(opts: {
+	trialEndsAt?: Date | null;
+	subscriptionId?: string | null;
+}) {
 	await controlPanelDb.insert(organizations).values({
 		id: TEST_ORG_ID,
 		name: "Test Tenant",
@@ -88,19 +97,28 @@ describe("subscriptions.createCheckoutSession", () => {
 		expect(result.sessionId).toBe("cs_test_123");
 		expect(mockCheckoutCreate).toHaveBeenCalledTimes(1);
 
-		const args = (mockCheckoutCreate as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]![0] as Record<string, unknown>;
+		const args = (
+			mockCheckoutCreate as unknown as { mock: { calls: unknown[][] } }
+		).mock.calls[0]![0] as Record<string, unknown>;
 		expect(args.mode).toBe("subscription");
-		expect((args.line_items as Array<{ price: string; quantity: number }>)[0]!.price).toBe("price_pro_test");
+		expect(
+			(args.line_items as Array<{ price: string; quantity: number }>)[0]!.price,
+		).toBe("price_pro_test");
 		expect(args.client_reference_id).toBe(TEST_ORG_ID);
 		expect(args.customer_email).toBe("tenant@example.com");
-		expect((args.subscription_data as { metadata: Record<string, string> }).metadata.organizationId).toBe(TEST_ORG_ID);
+		expect(
+			(args.subscription_data as { metadata: Record<string, string> }).metadata
+				.organizationId,
+		).toBe(TEST_ORG_ID);
 	});
 
 	it("throws BAD_REQUEST when organizationId is missing from context", async () => {
 		const fakeContext = {
 			session: { user: { id: "user_test", email: "tenant@example.com" } },
 		};
-		const handler = getHandler<unknown>(subscriptionsRouter.createCheckoutSession);
+		const handler = getHandler<unknown>(
+			subscriptionsRouter.createCheckoutSession,
+		);
 		await expect(
 			handler({ context: fakeContext, input: { tier: "basic" } }),
 		).rejects.toThrow(/organization/i);
@@ -117,12 +135,15 @@ describe("subscriptions.createCheckoutSession", () => {
 				session: { user: { id: "user_test", email: "tenant@example.com" } },
 				organizationId: TEST_ORG_ID,
 			};
-			const handler = getHandler<unknown>(subscriptionsRouter.createCheckoutSession);
+			const handler = getHandler<unknown>(
+				subscriptionsRouter.createCheckoutSession,
+			);
 			await expect(
 				handler({ context: fakeContext, input: { tier: "professional" } }),
 			).rejects.toThrow(/STRIPE_PRICE_PROFESSIONAL/);
 		} finally {
-			if (savedProcessEnv !== undefined) process.env.STRIPE_PRICE_PROFESSIONAL = savedProcessEnv;
+			if (savedProcessEnv !== undefined)
+				process.env.STRIPE_PRICE_PROFESSIONAL = savedProcessEnv;
 		}
 	});
 });
@@ -214,7 +235,9 @@ describe("subscriptions.getStatus", () => {
 		expect(result.banner).toBeNull();
 
 		// Cleanup the sub row we inserted.
-		await controlPanelDb.delete(subscriptions).where(eq(subscriptions.id, TEST_SUB_DB_ID));
+		await controlPanelDb
+			.delete(subscriptions)
+			.where(eq(subscriptions.id, TEST_SUB_DB_ID));
 	});
 });
 
@@ -238,16 +261,22 @@ describe("subscriptions.billingPortal", () => {
 			session: { user: { id: "user_test" } },
 			organizationId: TEST_ORG_ID,
 		};
-		const handler = getHandler<{ portalUrl: string }>(subscriptionsRouter.billingPortal);
+		const handler = getHandler<{ portalUrl: string }>(
+			subscriptionsRouter.billingPortal,
+		);
 		const result = await handler({ context: fakeContext, input: {} });
 		expect(result.portalUrl).toContain("billing.stripe.com");
 		expect(mockBillingPortalCreate).toHaveBeenCalledTimes(1);
 
-		const args = (mockBillingPortalCreate as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]![0] as Record<string, unknown>;
+		const args = (
+			mockBillingPortalCreate as unknown as { mock: { calls: unknown[][] } }
+		).mock.calls[0]![0] as Record<string, unknown>;
 		expect(args.customer).toBe("cus_portal_test");
 		expect(args.return_url).toContain("/dashboard/billing");
 
-		await controlPanelDb.delete(subscriptions).where(eq(subscriptions.id, TEST_SUB_DB_ID));
+		await controlPanelDb
+			.delete(subscriptions)
+			.where(eq(subscriptions.id, TEST_SUB_DB_ID));
 	});
 
 	it("throws when org has no subscription", async () => {
@@ -258,6 +287,8 @@ describe("subscriptions.billingPortal", () => {
 			organizationId: TEST_ORG_ID,
 		};
 		const handler = getHandler<unknown>(subscriptionsRouter.billingPortal);
-		await expect(handler({ context: fakeContext, input: {} })).rejects.toThrow(/no active subscription/i);
+		await expect(handler({ context: fakeContext, input: {} })).rejects.toThrow(
+			/no active subscription/i,
+		);
 	});
 });

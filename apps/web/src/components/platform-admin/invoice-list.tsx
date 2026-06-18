@@ -93,15 +93,16 @@ export function InvoiceList({
 						<TableHead className="text-right">Amount</TableHead>
 						<TableHead>Refund</TableHead>
 						<TableHead>Links</TableHead>
-						{isSuperAdmin && <TableHead className="text-right">Actions</TableHead>}
+						{isSuperAdmin && (
+							<TableHead className="text-right">Actions</TableHead>
+						)}
 					</TableRow>
 				</TableHeader>
 				<TableBody>
 					{invoices.map((inv) => {
 						const fullyRefunded =
 							inv.refunded && inv.refundedAmount >= inv.amountPaid;
-						const partiallyRefunded =
-							inv.refundedAmount > 0 && !fullyRefunded;
+						const partiallyRefunded = inv.refundedAmount > 0 && !fullyRefunded;
 						const canRefund =
 							inv.status === "paid" && !fullyRefunded && inv.paymentIntent;
 						return (

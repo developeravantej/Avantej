@@ -19,13 +19,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { Invoice } from "./invoice-list";
 
-export type RefundReason =
-	| "duplicate"
-	| "fraudulent"
-	| "requested_by_customer";
+export type RefundReason = "duplicate" | "fraudulent" | "requested_by_customer";
 
 export type RefundInput = {
 	amountCents: number;
@@ -56,7 +54,8 @@ export function RefundConfirmDialog({
 	const maxRefundable = invoice
 		? Math.max(0, invoice.amountPaid - invoice.refundedAmount)
 		: 0;
-	const defaultAmount = maxRefundable > 0 ? (maxRefundable / 100).toFixed(2) : "0.00";
+	const defaultAmount =
+		maxRefundable > 0 ? (maxRefundable / 100).toFixed(2) : "0.00";
 	const [amount, setAmount] = useState(defaultAmount);
 	const [reason, setReason] = useState<RefundReason>("requested_by_customer");
 	const [notes, setNotes] = useState("");
@@ -172,9 +171,8 @@ export function RefundConfirmDialog({
 
 					<div>
 						<Label htmlFor="refund-notes">Internal notes (optional)</Label>
-						<textarea
+						<Textarea
 							id="refund-notes"
-							className="w-full min-h-[80px] rounded-md border bg-background px-3 py-2 text-sm"
 							placeholder="Audit-only context — e.g. ticket number, customer ask"
 							value={notes}
 							onChange={(e) => setNotes(e.target.value)}

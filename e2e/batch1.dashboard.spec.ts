@@ -7,7 +7,10 @@ async function login(page: Page) {
 	await page.goto("/login");
 	await page.getByLabel("Email").fill("franchisee@gmail.com");
 	await page.locator("#password").fill("password123");
-	await page.getByRole("button", { name: /sign in|login/i }).first().click();
+	await page
+		.getByRole("button", { name: /sign in|login/i })
+		.first()
+		.click();
 	await page.waitForURL("**/dashboard**", { timeout: 15_000 });
 }
 
@@ -22,7 +25,9 @@ test.describe("Dashboard Home (/dashboard)", () => {
 	test("TC-01: page loads with key widgets visible", async ({ page }) => {
 		await page.goto("/dashboard");
 		// GreetingBanner or a heading element should be visible
-		await expect(page.locator("h1, h2, [data-testid='greeting']").first()).toBeVisible({
+		await expect(
+			page.locator("h1, h2, [data-testid='greeting']").first(),
+		).toBeVisible({
 			timeout: 15_000,
 		});
 	});
@@ -51,7 +56,9 @@ test.describe("Dashboard Home (/dashboard)", () => {
 		).toBeTruthy();
 	});
 
-	test("TC-04: period param — page still loads with explicit period", async ({ page }) => {
+	test("TC-04: period param — page still loads with explicit period", async ({
+		page,
+	}) => {
 		await page.goto("/dashboard?period=this_week");
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 		await expect(page.getByText(/something went wrong/i)).not.toBeVisible();
@@ -80,7 +87,9 @@ test.describe("Access Control Roles (/dashboard/access-control/roles)", () => {
 		await expect(page.getByText(/something went wrong/i)).not.toBeVisible();
 	});
 
-	test("TC-03: Permissions tab button visible and clickable", async ({ page }) => {
+	test("TC-03: Permissions tab button visible and clickable", async ({
+		page,
+	}) => {
 		await page.goto("/dashboard/access-control/roles");
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 		const permissionsTab = page.getByRole("button", { name: /permissions/i });
@@ -90,7 +99,9 @@ test.describe("Access Control Roles (/dashboard/access-control/roles)", () => {
 		await expect(page).toHaveURL(/tab=permissions/, { timeout: 8_000 });
 	});
 
-	test("TC-04: direct navigation to Permissions tab renders content", async ({ page }) => {
+	test("TC-04: direct navigation to Permissions tab renders content", async ({
+		page,
+	}) => {
 		await page.goto("/dashboard/access-control/roles?tab=permissions");
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 		await expect(page.getByText(/something went wrong/i)).not.toBeVisible();
@@ -109,7 +120,9 @@ test.describe("Role View (detail via roles list)", () => {
 		await login(page);
 	});
 
-	test("TC-01: legacy /dashboard/role/view redirects to roles tab", async ({ page }) => {
+	test("TC-01: legacy /dashboard/role/view redirects to roles tab", async ({
+		page,
+	}) => {
 		await page.goto("/dashboard/role/view");
 		// Should redirect to /dashboard/access-control/roles?tab=roles
 		await expect(page).toHaveURL(/access-control\/roles/, { timeout: 15_000 });
@@ -122,12 +135,16 @@ test.describe("Role View (detail via roles list)", () => {
 		await expect(page.getByText(/something went wrong/i)).not.toBeVisible();
 	});
 
-	test("TC-03: navigate to roles list and open first role if rows exist", async ({ page }) => {
+	test("TC-03: navigate to roles list and open first role if rows exist", async ({
+		page,
+	}) => {
 		await page.goto("/dashboard/access-control/roles");
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 
 		const firstRow = page.locator("tbody tr").first();
-		const hasRows = await firstRow.isVisible({ timeout: 8_000 }).catch(() => false);
+		const hasRows = await firstRow
+			.isVisible({ timeout: 8_000 })
+			.catch(() => false);
 
 		if (!hasRows) {
 			test.skip(true, "No role rows found — skipping detail navigation");
@@ -156,7 +173,9 @@ test.describe("Access Control User Assignment (/dashboard/access-control/user-as
 	}) => {
 		await page.goto("/dashboard/access-control/user-assignment");
 		await expect(
-			page.getByRole("heading", { name: /staff access|user assignment|members/i }).first(),
+			page
+				.getByRole("heading", { name: /staff access|user assignment|members/i })
+				.first(),
 		).toBeVisible({ timeout: 15_000 });
 	});
 
@@ -166,7 +185,9 @@ test.describe("Access Control User Assignment (/dashboard/access-control/user-as
 		await expect(page.getByText(/something went wrong/i)).not.toBeVisible();
 	});
 
-	test("TC-03: Invitations tab button visible and switches tab", async ({ page }) => {
+	test("TC-03: Invitations tab button visible and switches tab", async ({
+		page,
+	}) => {
 		await page.goto("/dashboard/access-control/user-assignment");
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 		const invTab = page.getByRole("button", { name: /invitations/i });
@@ -175,11 +196,15 @@ test.describe("Access Control User Assignment (/dashboard/access-control/user-as
 		await expect(page).toHaveURL(/tab=invitations/, { timeout: 8_000 });
 	});
 
-	test("TC-04: Members tab shows a list or empty state (no crash)", async ({ page }) => {
+	test("TC-04: Members tab shows a list or empty state (no crash)", async ({
+		page,
+	}) => {
 		await page.goto("/dashboard/access-control/user-assignment");
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 		// Either a table row or an empty state message should be present
-		const tableOrEmpty = page.locator("tbody tr, [data-empty-state], [data-testid='empty']");
+		const tableOrEmpty = page.locator(
+			"tbody tr, [data-empty-state], [data-testid='empty']",
+		);
 		// We just confirm no crash; content may vary
 		await expect(page.getByText(/something went wrong/i)).not.toBeVisible();
 	});
@@ -194,11 +219,16 @@ test.describe("Access Control Permissions (legacy redirect)", () => {
 		await login(page);
 	});
 
-	test("TC-01: redirects to roles page with permissions tab", async ({ page }) => {
+	test("TC-01: redirects to roles page with permissions tab", async ({
+		page,
+	}) => {
 		await page.goto("/dashboard/access-control/permissions");
-		await expect(page).toHaveURL(/access-control\/roles.*tab=permissions|access-control\/roles\?tab=permissions/, {
-			timeout: 15_000,
-		});
+		await expect(page).toHaveURL(
+			/access-control\/roles.*tab=permissions|access-control\/roles\?tab=permissions/,
+			{
+				timeout: 15_000,
+			},
+		);
 	});
 
 	test("TC-02: no error boundary after redirect", async ({ page }) => {
@@ -217,11 +247,11 @@ test.describe("Access Control Invitations (legacy redirect)", () => {
 		await login(page);
 	});
 
-	test("TC-01: redirects to user-assignment with invitations tab", async ({ page }) => {
+	test("TC-01: redirects to user-assignment with invitations tab", async ({
+		page,
+	}) => {
 		await page.goto("/dashboard/access-control/invitations");
-		await expect(
-			page,
-		).toHaveURL(
+		await expect(page).toHaveURL(
 			/access-control\/user-assignment.*tab=invitations|access-control\/user-assignment\?tab=invitations/,
 			{ timeout: 15_000 },
 		);
@@ -242,7 +272,9 @@ test.describe("Appointment View (/dashboard/appointment/view)", () => {
 		await login(page);
 	});
 
-	test("TC-01: page loads — appointment list area visible", async ({ page }) => {
+	test("TC-01: page loads — appointment list area visible", async ({
+		page,
+	}) => {
 		await page.goto("/dashboard/appointment/view");
 		// The appointment page should render some container; heading or main content
 		await expect(
@@ -262,7 +294,9 @@ test.describe("Appointment View (/dashboard/appointment/view)", () => {
 		await page.goto("/dashboard/appointment/view");
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 		// Confirm no blank white page — at least one meaningful element
-		const anyContent = page.locator("main, [role='main'], table, ul, [data-testid]").first();
+		const anyContent = page
+			.locator("main, [role='main'], table, ul, [data-testid]")
+			.first();
 		await expect(anyContent).toBeVisible({ timeout: 8_000 });
 	});
 });
@@ -306,7 +340,9 @@ test.describe("Appointment Class Slots View (/dashboard/appointment/class-slots/
 		await page.waitForLoadState("networkidle", { timeout: 15_000 });
 
 		const firstRow = page.locator("tbody tr").first();
-		const hasRows = await firstRow.isVisible({ timeout: 8_000 }).catch(() => false);
+		const hasRows = await firstRow
+			.isVisible({ timeout: 8_000 })
+			.catch(() => false);
 
 		if (!hasRows) {
 			test.skip(true, "No class slot rows found — skipping column check");
@@ -314,7 +350,9 @@ test.describe("Appointment Class Slots View (/dashboard/appointment/class-slots/
 		}
 
 		// If rows exist, table headers should include at least Date or Service
-		const headerText = await page.locator("thead").textContent({ timeout: 8_000 });
+		const headerText = await page
+			.locator("thead")
+			.textContent({ timeout: 8_000 });
 		expect(headerText?.toLowerCase()).toMatch(/date|service|capacity|status/);
 	});
 });
@@ -329,9 +367,12 @@ test.describe("Rooms View (redirect) (/dashboard/rooms/view)", () => {
 
 	test("TC-01: redirects to service/view with rooms tab", async ({ page }) => {
 		await page.goto("/dashboard/rooms/view");
-		await expect(page).toHaveURL(/service\/view.*tab=rooms|service\/view\?tab=rooms/, {
-			timeout: 15_000,
-		});
+		await expect(page).toHaveURL(
+			/service\/view.*tab=rooms|service\/view\?tab=rooms/,
+			{
+				timeout: 15_000,
+			},
+		);
 	});
 
 	test("TC-02: no error boundary after redirect", async ({ page }) => {

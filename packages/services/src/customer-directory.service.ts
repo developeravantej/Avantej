@@ -17,6 +17,14 @@ import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { eq, getTableColumns, inArray, sql } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function assertUuids(ids: string[], label: string): void {
+	for (const id of ids) {
+		if (!UUID_RE.test(id)) throw new Error(`Invalid UUID in ${label}: ${id}`);
+	}
+}
+
 type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 
@@ -36,6 +44,7 @@ export interface CustomerDirectoryRow {
 	lastVisitAt: Date | null;
 	createdAt: Date;
 	isDeleted: boolean | null;
+	isUnclaimed: boolean;
 	lifecycleStatus: "lead" | "active" | "lapsed" | "churned";
 }
 
@@ -82,6 +91,8 @@ export async function listCustomerDirectory(
 		return { rows: [], total: 0 };
 	}
 
+	assertUuids(accessibleNodeIds, "listCustomerDirectory");
+
 	const searchPattern = search ? `%${search}%` : null;
 
 	// ----------------------------------------------------------------
@@ -107,6 +118,7 @@ export async function listCustomerDirectory(
 			m.joined_at                                                AS joined_at,
 			cp.phone                                                   AS phone,
 			cp.is_deleted                                              AS is_deleted,
+			COALESCE(cp.is_unclaimed, false)                           AS is_unclaimed,
 			CAST(
 				COUNT(DISTINCT pi.id) FILTER (WHERE pi.status = 'active')
 			AS INTEGER)                                                AS active_package_count,
@@ -119,18 +131,23 @@ export async function listCustomerDirectory(
 				ORDER BY pi2.starts_at DESC
 				LIMIT 1
 			)                                                          AS active_package_name,
-			-- Scalar subqueries (not joined SUMs) so the package/appointment join
-			-- fan-out cannot multiply these totals; ::BIGINT so cents sums can exceed int4.
+			-- Decorrelated to avoid JOIN fan-out: summing over the
+			-- members×package_instances×appointment_clients(×installments) cartesian
+			-- product inflated these sums (and overflowed ::INTEGER → "integer out of
+			-- range"). Each money sum is computed from its own table per member.
+			-- BIGINT guards against per-member whale totals exceeding 2.1B cents.
 			COALESCE((
-				SELECT SUM(pay.total_amount) FROM payments pay
+				SELECT SUM(pay.total_amount)
+				FROM payments pay
 				WHERE pay.customer_id = m.user_id AND pay.status = 'succeeded'
 			), 0)::BIGINT                                              AS lifetime_value_cents,
 			COALESCE((
 				SELECT SUM(inst.amount + COALESCE(inst.tax_amount, 0))
 				FROM installments inst
-				JOIN package_instances pinst ON pinst.id = inst.package_instance_id
-				WHERE pinst.client_id = m.user_id AND inst.status IN ('pending', 'overdue')
-			), 0)::BIGINT                                              AS outstanding_balance_cents,
+				JOIN package_instances pkg ON pkg.id = inst.package_instance_id
+				WHERE pkg.client_id = m.user_id
+				  AND inst.status IN ('pending', 'overdue')
+			), 0)::BIGINT                                             AS outstanding_balance_cents,
 			CAST(
 				COUNT(DISTINCT ac.appointment_id)
 			AS INTEGER)                                                AS appointment_count,
@@ -159,7 +176,7 @@ export async function listCustomerDirectory(
 			${includeDeleted ? sql`` : sql`AND (cp.is_deleted IS NULL OR cp.is_deleted = false)`}
 			${branchId ? sql`AND m.hierarchy_scope_id = ${branchId}::uuid` : sql``}
 			${searchPattern ? sql`AND cp.phone ILIKE ${searchPattern}` : sql``}
-		GROUP BY m.id, m.user_id, m.hierarchy_scope_id, m.joined_at, cp.phone, cp.is_deleted
+		GROUP BY m.id, m.user_id, m.hierarchy_scope_id, m.joined_at, cp.phone, cp.is_deleted, cp.is_unclaimed
 		ORDER BY m.joined_at DESC
 		LIMIT ${limit} OFFSET ${offset}
 	`;
@@ -187,10 +204,12 @@ export async function listCustomerDirectory(
 		joined_at: Date;
 		phone: string | null;
 		is_deleted: boolean | null;
+		is_unclaimed: boolean;
 		active_package_count: number;
 		active_package_name: string | null;
-		lifetime_value_cents: number | string; // ::BIGINT comes back as string
-		outstanding_balance_cents: number | string;
+		// BIGINT casts are returned as strings by the pg driver.
+		lifetime_value_cents: string | number;
+		outstanding_balance_cents: string | number;
 		appointment_count: number;
 		last_visit_at: Date | null;
 		lifecycle_status: "lead" | "active" | "lapsed" | "churned";
@@ -207,7 +226,12 @@ export async function listCustomerDirectory(
 	// ----------------------------------------------------------------
 	const userIds = tenantRows.map((r) => r.user_id);
 	const userRows = await controlPanelDb
-		.select({ id: user.id, name: user.name, email: user.email })
+		.select({
+			id: user.id,
+			name: user.name,
+			email: user.email,
+			emailVerified: user.emailVerified,
+		})
 		.from(user)
 		.where(inArray(user.id, userIds));
 
@@ -245,6 +269,9 @@ export async function listCustomerDirectory(
 			lastVisitAt: r.last_visit_at,
 			createdAt: r.joined_at,
 			isDeleted: r.is_deleted ?? null,
+			// Derived: stale is_unclaimed flag AND-ed with !emailVerified (claimed
+			// customers have verified email via the magic-link claim). See getCustomerDetail.
+			isUnclaimed: (r.is_unclaimed ?? false) && !userDetail?.emailVerified,
 			lifecycleStatus: r.lifecycle_status,
 		};
 	});
@@ -287,8 +314,16 @@ export async function getCustomerStats(
 	const { accessibleNodeIds, branchId } = params;
 
 	if (accessibleNodeIds.length === 0) {
-		return { totalCount: 0, activeCount: 0, lapsedCount: 0, leadCount: 0, avgLifetimeValueCents: 0 };
+		return {
+			totalCount: 0,
+			activeCount: 0,
+			lapsedCount: 0,
+			leadCount: 0,
+			avgLifetimeValueCents: 0,
+		};
 	}
+
+	assertUuids(accessibleNodeIds, "getCustomerStats");
 
 	const result = await tenantDb.execute(sql`
 		WITH customer_agg AS (
@@ -304,17 +339,21 @@ export async function getCustomerStats(
 					COUNT(DISTINCT ac.appointment_id)
 				AS INTEGER)                                                     AS visit_count,
 				MAX(ac.created_at)                                              AS last_visit_at,
-				COALESCE(
-					SUM(p.total_amount) FILTER (WHERE p.status = 'succeeded'), 0
-				)::INTEGER                                                      AS lifetime_value_cents
+				-- Decorrelated (see listCustomerDirectory): summing payments inside the
+				-- members×package_instances×appointment_clients join inflated this and
+				-- overflowed ::INTEGER. Per-member scalar subquery + BIGINT instead.
+				COALESCE((
+					SELECT SUM(pay.total_amount)
+					FROM payments pay
+					WHERE pay.customer_id = m.user_id AND pay.status = 'succeeded'
+				), 0)::BIGINT                                                   AS lifetime_value_cents
 			FROM members m
 			LEFT JOIN package_instances pi ON pi.client_id = m.user_id
-			LEFT JOIN payments p ON p.customer_id = m.user_id
 			LEFT JOIN appointment_clients ac ON ac.client_id = m.user_id
 			WHERE m.role = 'client'
 				AND m.hierarchy_scope_id = ANY(${sql.raw(`ARRAY[${accessibleNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`)})
 				${branchId ? sql`AND m.hierarchy_scope_id = ${branchId}::uuid` : sql``}
-			GROUP BY m.id
+			GROUP BY m.id, m.user_id
 		)
 		SELECT
 			CAST(COUNT(*) AS INTEGER)                                          AS total_count,
@@ -327,7 +366,7 @@ export async function getCustomerStats(
 				WHERE visit_count = 0
 				  AND total_pkg_count = 0
 			) AS INTEGER)                                                      AS lead_count,
-			CAST(COALESCE(AVG(lifetime_value_cents), 0) AS INTEGER)            AS avg_lifetime_value_cents
+			CAST(COALESCE(AVG(lifetime_value_cents), 0) AS BIGINT)             AS avg_lifetime_value_cents
 		FROM customer_agg
 	`);
 
@@ -336,7 +375,8 @@ export async function getCustomerStats(
 		active_count: number;
 		lapsed_count: number;
 		lead_count: number;
-		avg_lifetime_value_cents: number;
+		// BIGINT cast → string from the pg driver.
+		avg_lifetime_value_cents: string | number;
 	};
 
 	return {
@@ -344,7 +384,7 @@ export async function getCustomerStats(
 		activeCount: row?.active_count ?? 0,
 		lapsedCount: row?.lapsed_count ?? 0,
 		leadCount: row?.lead_count ?? 0,
-		avgLifetimeValueCents: row?.avg_lifetime_value_cents ?? 0,
+		avgLifetimeValueCents: Number(row?.avg_lifetime_value_cents ?? 0),
 	};
 }
 
@@ -358,7 +398,9 @@ export interface CustomerDetail {
 	profile: typeof customerProfiles.$inferSelect | null;
 	primaryStaffMember: { id: string; name: string } | null;
 	referrerMember: { id: string; name: string } | null;
-	packageInstances: (typeof packageInstances.$inferSelect & { serviceName: string | null })[];
+	packageInstances: (typeof packageInstances.$inferSelect & {
+		serviceName: string | null;
+	})[];
 	recentPayments: (typeof payments.$inferSelect)[];
 	appointmentCount: number;
 	outstandingBalanceCents: number;
@@ -386,12 +428,11 @@ async function resolveMemberDisplayNames(
 					.where(inArray(user.id, userIds))
 			: [];
 
-	const userNameById = new Map(userRows.map((u) => [u.id, u.name ?? "Unknown"]));
+	const userNameById = new Map(
+		userRows.map((u) => [u.id, u.name ?? "Unknown"]),
+	);
 	return new Map(
-		memberRows.map((m) => [
-			m.id,
-			userNameById.get(m.userId) ?? "Unknown",
-		]),
+		memberRows.map((m) => [m.id, userNameById.get(m.userId) ?? "Unknown"]),
 	);
 }
 
@@ -434,7 +475,10 @@ export async function getCustomerDetail(
 
 		// All package instances with service name, ordered: active first, then by expiresAt DESC
 		tenantDb
-			.select({ ...getTableColumns(packageInstances), serviceName: services.name })
+			.select({
+				...getTableColumns(packageInstances),
+				serviceName: services.name,
+			})
 			.from(packageInstances)
 			.leftJoin(services, eq(packageInstances.serviceId, services.id))
 			.where(eq(packageInstances.clientId, userId))
@@ -471,7 +515,12 @@ export async function getCustomerDetail(
 
 		// Cross-DB user lookup
 		controlPanelDb
-			.select({ id: user.id, name: user.name, email: user.email })
+			.select({
+				id: user.id,
+				name: user.name,
+				email: user.email,
+				emailVerified: user.emailVerified,
+			})
 			.from(user)
 			.where(eq(user.id, userId)),
 	]);
@@ -485,10 +534,7 @@ export async function getCustomerDetail(
 	const staffNameMap = await resolveMemberDisplayNames(
 		controlPanelDb,
 		tenantDb,
-		[
-			profile?.primaryStaffMemberId ?? "",
-			profile?.referrerMemberId ?? "",
-		],
+		[profile?.primaryStaffMemberId ?? "", profile?.referrerMemberId ?? ""],
 	);
 
 	return {
@@ -497,12 +543,22 @@ export async function getCustomerDetail(
 			name: userDetail?.name ?? "Unknown",
 			email: userDetail?.email ?? "",
 		},
-		profile: profile ?? null,
+		// Derive claim status from the authoritative signal: a customer who has
+		// authenticated via the magic-link claim has emailVerified=true. The
+		// customer_profiles.is_unclaimed flag is set at staff-creation and may be
+		// stale (we no longer clear it at link-dispatch time), so we AND it with
+		// !emailVerified to reflect whether the customer has actually claimed.
+		profile: profile
+			? {
+					...profile,
+					isUnclaimed:
+						(profile.isUnclaimed ?? false) && !userDetail?.emailVerified,
+				}
+			: null,
 		primaryStaffMember: profile?.primaryStaffMemberId
 			? {
 					id: profile.primaryStaffMemberId,
-					name:
-						staffNameMap.get(profile.primaryStaffMemberId) ?? "Unknown",
+					name: staffNameMap.get(profile.primaryStaffMemberId) ?? "Unknown",
 				}
 			: null,
 		referrerMember: profile?.referrerMemberId

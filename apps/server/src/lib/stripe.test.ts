@@ -36,11 +36,15 @@ describe("verifyWebhookSignature", () => {
 	});
 
 	it("throws when no signature header is provided (platform)", async () => {
-		await expect(verifyWebhookSignature("{}", null, "platform")).rejects.toThrow(/Missing Stripe-Signature/i);
+		await expect(
+			verifyWebhookSignature("{}", null, "platform"),
+		).rejects.toThrow(/Missing Stripe-Signature/i);
 	});
 
 	it("throws when no signature header is provided (connect)", async () => {
-		await expect(verifyWebhookSignature("{}", null, "connect")).rejects.toThrow(/Missing Stripe-Signature/i);
+		await expect(verifyWebhookSignature("{}", null, "connect")).rejects.toThrow(
+			/Missing Stripe-Signature/i,
+		);
 	});
 
 	it("throws when STRIPE_PLATFORM_WEBHOOK_SECRET is unset and source=platform", async () => {
@@ -48,9 +52,12 @@ describe("verifyWebhookSignature", () => {
 		const saved = process.env.STRIPE_PLATFORM_WEBHOOK_SECRET;
 		delete process.env.STRIPE_PLATFORM_WEBHOOK_SECRET;
 		try {
-			await expect(verifyWebhookSignature("{}", "t=1,v1=fake", "platform")).rejects.toThrow(/STRIPE_PLATFORM_WEBHOOK_SECRET/);
+			await expect(
+				verifyWebhookSignature("{}", "t=1,v1=fake", "platform"),
+			).rejects.toThrow(/STRIPE_PLATFORM_WEBHOOK_SECRET/);
 		} finally {
-			if (saved !== undefined) process.env.STRIPE_PLATFORM_WEBHOOK_SECRET = saved;
+			if (saved !== undefined)
+				process.env.STRIPE_PLATFORM_WEBHOOK_SECRET = saved;
 		}
 	});
 
@@ -59,15 +66,24 @@ describe("verifyWebhookSignature", () => {
 		const saved = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
 		delete process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
 		try {
-			await expect(verifyWebhookSignature("{}", "t=1,v1=fake", "connect")).rejects.toThrow(/STRIPE_CONNECT_WEBHOOK_SECRET/);
+			await expect(
+				verifyWebhookSignature("{}", "t=1,v1=fake", "connect"),
+			).rejects.toThrow(/STRIPE_CONNECT_WEBHOOK_SECRET/);
 		} finally {
-			if (saved !== undefined) process.env.STRIPE_CONNECT_WEBHOOK_SECRET = saved;
+			if (saved !== undefined)
+				process.env.STRIPE_CONNECT_WEBHOOK_SECRET = saved;
 		}
 	});
 
 	it("throws InvalidSignature on garbage signature (delegated to Stripe SDK)", async () => {
 		await expect(
-			verifyWebhookSignature(JSON.stringify({ id: "evt_x" }), "t=1,v1=fake", "platform"),
-		).rejects.toThrow(/Invalid webhook signature|Webhook signature verification failed/);
+			verifyWebhookSignature(
+				JSON.stringify({ id: "evt_x" }),
+				"t=1,v1=fake",
+				"platform",
+			),
+		).rejects.toThrow(
+			/Invalid webhook signature|Webhook signature verification failed/,
+		);
 	});
 });

@@ -1,0 +1,26 @@
+appId: ${APP_ID}
+---
+# Test: Home dashboard content and quick actions
+- runFlow: helpers/login.yaml
+
+# Verify dashboard sections
+- assertVisible:
+    text: ".*Book.*Session.*"
+- assertVisible:
+    text: ".*Buy.*Package.*"
+- assertVisible:
+    text: ".*Calendar.*"
+- assertVisible:
+    text: ".*My.*Credits.*"
+
+# Verify active plan card
+- assertVisible:
+    text: ".*ACTIVE PLAN.*"
+
+# Verify recent activity section
+- scrollUntilVisible:
+    element:
+      text: ".*RECENT ACTIVITY.*"
+    direction: DOWN
+- assertVisible:
+    text: ".*RECENT ACTIVITY.*"

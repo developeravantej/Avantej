@@ -5,13 +5,17 @@ import { ghlFetch } from "./http-client";
 describe("ghlFetch", () => {
 	beforeEach(() => {
 		(globalThis as any).fetch = mock(() =>
-			Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 })),
+			Promise.resolve(
+				new Response(JSON.stringify({ ok: true }), { status: 200 }),
+			),
 		);
 	});
 
 	test("sends Authorization header with Bearer token", async () => {
 		const fetchMock = mock(() =>
-			Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 })),
+			Promise.resolve(
+				new Response(JSON.stringify({ ok: true }), { status: 200 }),
+			),
 		);
 		(globalThis as any).fetch = fetchMock;
 
@@ -22,7 +26,10 @@ describe("ghlFetch", () => {
 		});
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
-		const callArgs = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		const callArgs = fetchMock.mock.calls[0] as unknown as [
+			string,
+			RequestInit,
+		];
 		const url = callArgs[0];
 		const init = callArgs[1];
 		expect(url).toBe("https://services.leadconnectorhq.com/contacts/abc");
@@ -74,10 +81,7 @@ describe("ghlFetch", () => {
 		(globalThis as any).fetch = mock(
 			() =>
 				new Promise((resolve) =>
-					setTimeout(
-						() => resolve(new Response("", { status: 200 })),
-						50,
-					),
+					setTimeout(() => resolve(new Response("", { status: 200 })), 50),
 				),
 		);
 		await expect(

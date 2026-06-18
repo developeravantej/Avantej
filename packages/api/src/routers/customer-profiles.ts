@@ -10,29 +10,25 @@ import { leadSources } from "@avantej-core/db/schema/tenant/lead-sources";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import {
 	getCustomerProfile,
-	requirePermission,
+	restoreCustomerProfile,
+	softDeleteCustomerProfile,
 	upsertCustomerProfile,
+	writeAudit,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 
 export const customerProfilesRouter = {
-	get: protectedProcedure
+	get: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
 			}),
 		)
 		.handler(async ({ context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
 			const userId = context.session?.user?.id;
 			if (!userId) {
 				throw new ORPCError("UNAUTHORIZED", {
@@ -44,7 +40,7 @@ export const customerProfilesRouter = {
 			return profile;
 		}),
 
-	upsert: protectedProcedure
+	upsert: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -66,13 +62,7 @@ export const customerProfilesRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-
+			assertOrgContextMatch(context, input);
 			const userId = context.session?.user?.id;
 			if (!userId) {
 				throw new ORPCError("UNAUTHORIZED", {
@@ -87,9 +77,7 @@ export const customerProfilesRouter = {
 				userId,
 				...(input.phone !== undefined && { phone: input.phone }),
 				...(input.dateOfBirth !== undefined && {
-					dateOfBirth: input.dateOfBirth
-						? new Date(input.dateOfBirth)
-						: null,
+					dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
 				}),
 				...(input.gender !== undefined && { gender: input.gender }),
 				...(input.address !== undefined && { address: input.address }),
@@ -129,7 +117,7 @@ export const customerProfilesRouter = {
 	 * Verifies the target user is a 'client' member within the caller's accessible scope.
 	 * Does NOT touch the existing self-scoped `upsert` above.
 	 */
-	upsertForCustomer: protectedProcedure
+	upsertForCustomer: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -152,19 +140,8 @@ export const customerProfilesRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
-
-			await requirePermission(
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
 				"customer_management",
@@ -192,7 +169,7 @@ export const customerProfilesRouter = {
 				});
 			}
 
-			return upsertCustomerProfile(context.tenantDb, {
+			const result = await upsertCustomerProfile(context.tenantDb, {
 				userId: input.targetUserId,
 				phone: input.phone,
 				dateOfBirth: input.dateOfBirth
@@ -211,6 +188,19 @@ export const customerProfilesRouter = {
 				campaignId: input.campaignId,
 				// === /3.2 ===
 			});
+
+			await writeAudit(context.tenantDb, {
+				actorUserId: context.member.userId,
+				actorMemberId: context.member.id,
+				actorRole: context.member.role ?? undefined,
+				action: "customer.profile_updated",
+				entityType: "member",
+				entityId: target.id,
+				branchId: target.hierarchyScopeId ?? undefined,
+				summary: `Updated profile for customer`,
+			}).catch(() => {});
+
+			return result;
 		}),
 
 	// === 3.2 lead source / attribution ===
@@ -218,7 +208,7 @@ export const customerProfilesRouter = {
 	 * Lookup of acquisition channels for the create-customer / customer-360 pickers.
 	 * Returns active rows by default; pass `includeInactive=true` for admin views.
 	 */
-	listLeadSources: protectedProcedure
+	listLeadSources: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -226,18 +216,113 @@ export const customerProfilesRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message:
-						"Tenant database not available. Ensure organization context is set.",
-				});
-			}
+			assertOrgContextMatch(context, input);
 			const rows = await context.tenantDb
 				.select()
 				.from(leadSources)
-				.where(input.includeInactive ? undefined : eq(leadSources.isActive, true))
+				.where(
+					input.includeInactive ? undefined : eq(leadSources.isActive, true),
+				)
 				.orderBy(asc(leadSources.name));
 			return rows;
 		}),
 	// === /3.2 ===
+
+	softDelete: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				targetUserId: z.string(),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"customer_management",
+				"delete",
+			);
+
+			const target = await context.tenantDb.query.members.findFirst({
+				where: and(
+					eq(members.userId, input.targetUserId),
+					eq(members.role, "client"),
+				),
+			});
+			if (!target) {
+				throw new ORPCError("NOT_FOUND", { message: "Customer not found" });
+			}
+
+			const accessibleNodeIds = context.accessibleNodeIds ?? [];
+			if (!accessibleNodeIds.includes(target.hierarchyScopeId)) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Customer is outside your accessible scope",
+				});
+			}
+
+			await softDeleteCustomerProfile(context.tenantDb, input.targetUserId);
+
+			await writeAudit(context.tenantDb, {
+				actorUserId: context.member.userId,
+				actorMemberId: context.member.id,
+				actorRole: context.member.role ?? undefined,
+				action: "customer.profile_deleted",
+				entityType: "member",
+				entityId: target.id,
+				branchId: target.hierarchyScopeId ?? undefined,
+				summary: "Soft-deleted customer profile",
+			}).catch(() => {});
+
+			return { success: true };
+		}),
+
+	restore: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				targetUserId: z.string(),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"customer_management",
+				"update",
+			);
+
+			const target = await context.tenantDb.query.members.findFirst({
+				where: and(
+					eq(members.userId, input.targetUserId),
+					eq(members.role, "client"),
+				),
+			});
+			if (!target) {
+				throw new ORPCError("NOT_FOUND", { message: "Customer not found" });
+			}
+
+			const accessibleNodeIds = context.accessibleNodeIds ?? [];
+			if (!accessibleNodeIds.includes(target.hierarchyScopeId)) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Customer is outside your accessible scope",
+				});
+			}
+
+			await restoreCustomerProfile(context.tenantDb, input.targetUserId);
+
+			await writeAudit(context.tenantDb, {
+				actorUserId: context.member.userId,
+				actorMemberId: context.member.id,
+				actorRole: context.member.role ?? undefined,
+				action: "customer.profile_restored",
+				entityType: "member",
+				entityId: target.id,
+				branchId: target.hierarchyScopeId ?? undefined,
+				summary: "Restored soft-deleted customer profile",
+			}).catch(() => {});
+
+			return { success: true };
+		}),
 };

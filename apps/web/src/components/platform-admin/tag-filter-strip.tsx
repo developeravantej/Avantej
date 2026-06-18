@@ -31,7 +31,10 @@ export function TagFilterStrip({
 
 	if (isLoading) {
 		return (
-			<div className="text-xs text-muted-foreground" data-testid="tag-filter-strip-loading">
+			<div
+				className="text-xs text-muted-foreground"
+				data-testid="tag-filter-strip-loading"
+			>
 				Loading tags…
 			</div>
 		);

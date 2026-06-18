@@ -67,8 +67,7 @@ function PlatformAdminRevenuePage() {
 
 	const churnQ = useQuery({
 		queryKey: ["platformAdminRevenue", "getRecentChurn", 30],
-		queryFn: () =>
-			client.platformAdminRevenue.getRecentChurn({ days: 30 }),
+		queryFn: () => client.platformAdminRevenue.getRecentChurn({ days: 30 }),
 		staleTime: 0,
 	});
 
@@ -181,7 +180,9 @@ function PlatformAdminRevenuePage() {
 											<span className="text-red-700 dark:text-red-400 tabular-nums">
 												-{fmtCents(e.mrrCentsLost)}
 											</span>
-											<span className="text-xs">{fmtRelative(e.canceledAt)}</span>
+											<span className="text-xs">
+												{fmtRelative(e.canceledAt)}
+											</span>
 										</div>
 									</li>
 								))}

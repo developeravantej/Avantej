@@ -34,7 +34,9 @@ function makeFakeInvite(overrides: Record<string, unknown> = {}) {
 }
 
 /** Build a mock tenantDb that has `.query.invitations.findFirst` returning the given invite. */
-function makeTenantDbWithInvite(invite: ReturnType<typeof makeFakeInvite> | null) {
+function makeTenantDbWithInvite(
+	invite: ReturnType<typeof makeFakeInvite> | null,
+) {
 	return {
 		query: {
 			invitations: {
@@ -47,14 +49,26 @@ function makeTenantDbWithInvite(invite: ReturnType<typeof makeFakeInvite> | null
 			},
 			hierarchyNodes: {
 				findFirst: mock(() =>
-					Promise.resolve({ id: invite?.hierarchyScopeId, name: "Test Branch", address: null })
+					Promise.resolve({
+						id: invite?.hierarchyScopeId,
+						name: "Test Branch",
+						address: null,
+					}),
 				),
 				findMany: mock(() => Promise.resolve([])),
 			},
 		},
-		insert: mock(() => ({ values: mock(() => ({ returning: mock(() => Promise.resolve([invite])) })) })),
-		update: mock(() => ({ set: mock(() => ({ where: mock(() => Promise.resolve([])) })) })),
-		transaction: mock((cb: (tx: unknown) => Promise<unknown>) => cb({} as unknown)),
+		insert: mock(() => ({
+			values: mock(() => ({
+				returning: mock(() => Promise.resolve([invite])),
+			})),
+		})),
+		update: mock(() => ({
+			set: mock(() => ({ where: mock(() => Promise.resolve([])) })),
+		})),
+		transaction: mock((cb: (tx: unknown) => Promise<unknown>) =>
+			cb({} as unknown),
+		),
 	} as any;
 }
 
@@ -63,7 +77,9 @@ function makeCpDbWithOrg(orgName = "My Org") {
 	return {
 		query: {
 			organizations: {
-				findFirst: mock(() => Promise.resolve({ id: randomUUID(), name: orgName })),
+				findFirst: mock(() =>
+					Promise.resolve({ id: randomUUID(), name: orgName }),
+				),
 			},
 			user: {
 				findFirst: mock(() => Promise.resolve(undefined)),
@@ -92,7 +108,7 @@ describe("generateBase64UrlToken (via createBranchInvite insert path)", () => {
 					capturedToken = vals.token;
 					return {
 						returning: mock(() =>
-							Promise.resolve([makeFakeInvite({ token: vals.token })])
+							Promise.resolve([makeFakeInvite({ token: vals.token })]),
 						),
 					};
 				}),
@@ -126,7 +142,7 @@ describe("generateBase64UrlToken (via createBranchInvite insert path)", () => {
 						capturedToken = vals.token;
 						return {
 							returning: mock(() =>
-								Promise.resolve([makeFakeInvite({ token: vals.token })])
+								Promise.resolve([makeFakeInvite({ token: vals.token })]),
 							),
 						};
 					}),
@@ -267,7 +283,7 @@ describe("getInviteContext", () => {
 				tenantDb,
 				controlPanelDb,
 				organizationId: randomUUID(),
-			})
+			}),
 		).rejects.toMatchObject({ code: "NOT_FOUND" });
 	});
 
@@ -286,7 +302,7 @@ describe("getInviteContext", () => {
 				tenantDb,
 				controlPanelDb,
 				organizationId: randomUUID(),
-			})
+			}),
 		).rejects.toMatchObject({ code: "GONE" });
 	});
 
@@ -305,7 +321,7 @@ describe("getInviteContext", () => {
 				tenantDb,
 				controlPanelDb,
 				organizationId: randomUUID(),
-			})
+			}),
 		).rejects.toMatchObject({ code: "GONE" });
 	});
 
@@ -324,7 +340,7 @@ describe("getInviteContext", () => {
 				tenantDb,
 				controlPanelDb,
 				organizationId: randomUUID(),
-			})
+			}),
 		).rejects.toMatchObject({ code: "GONE" });
 	});
 
@@ -383,7 +399,7 @@ describe("redeemBranchInvite — validation branches", () => {
 	function makeRedeemParams(
 		tenantDb: unknown,
 		controlPanelDb: unknown,
-		overrides: Record<string, unknown> = {}
+		overrides: Record<string, unknown> = {},
 	) {
 		return {
 			token: "some-token",
@@ -409,7 +425,7 @@ describe("redeemBranchInvite — validation branches", () => {
 		const controlPanelDb = makeCpDbWithOrg();
 
 		await expect(
-			redeemBranchInvite(makeRedeemParams(tenantDb, controlPanelDb) as any)
+			redeemBranchInvite(makeRedeemParams(tenantDb, controlPanelDb) as any),
 		).rejects.toMatchObject({ code: "GONE" });
 	});
 
@@ -423,7 +439,7 @@ describe("redeemBranchInvite — validation branches", () => {
 		const controlPanelDb = makeCpDbWithOrg();
 
 		await expect(
-			redeemBranchInvite(makeRedeemParams(tenantDb, controlPanelDb) as any)
+			redeemBranchInvite(makeRedeemParams(tenantDb, controlPanelDb) as any),
 		).rejects.toMatchObject({ code: "GONE" });
 	});
 
@@ -437,7 +453,7 @@ describe("redeemBranchInvite — validation branches", () => {
 		const controlPanelDb = makeCpDbWithOrg();
 
 		await expect(
-			redeemBranchInvite(makeRedeemParams(tenantDb, controlPanelDb) as any)
+			redeemBranchInvite(makeRedeemParams(tenantDb, controlPanelDb) as any),
 		).rejects.toMatchObject({ code: "GONE" });
 	});
 
@@ -450,7 +466,7 @@ describe("redeemBranchInvite — validation branches", () => {
 		const controlPanelDb = makeCpDbWithOrg();
 
 		await expect(
-			redeemBranchInvite(makeRedeemParams(tenantDb, controlPanelDb) as any)
+			redeemBranchInvite(makeRedeemParams(tenantDb, controlPanelDb) as any),
 		).rejects.toMatchObject({ code: "NOT_FOUND" });
 	});
 });

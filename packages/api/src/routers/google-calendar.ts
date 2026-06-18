@@ -1,4 +1,5 @@
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import { requirePermissionOrpc } from "../guards";
 import { z } from "zod";
 import { ORPCError } from "@orpc/server";
 import { googleCalendarConnections } from "@avantej-core/db/schema/tenant/google-calendar-connections";
@@ -6,7 +7,6 @@ import { members } from "@avantej-core/db/schema/tenant/members";
 import { eq, and, count, max } from "drizzle-orm";
 import {
 	revokeGoogleToken,
-	requirePermission,
 	listGoogleCalendars,
 	checkSyncNowRateLimit,
 } from "@avantej-core/services";
@@ -18,12 +18,14 @@ import {
 function assertTenantAndMember(context: {
 	tenantDb?: unknown;
 	member?: unknown;
-}): asserts context is { tenantDb: NonNullable<typeof context.tenantDb>; member: NonNullable<typeof context.member> } {
-	if (!context.tenantDb) {
-		throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Tenant database not available." });
-	}
-	if (!context.member) {
-		throw new ORPCError("FORBIDDEN", { message: "Not a member of this organization" });
+}): asserts context is {
+	tenantDb: NonNullable<typeof context.tenantDb>;
+	member: NonNullable<typeof context.member>;
+} {
+	if (!context.tenantDb || !context.member) {
+		throw new ORPCError("INTERNAL_SERVER_ERROR", {
+			message: "Missing tenant context: tenantDb and member are required",
+		});
 	}
 }
 
@@ -35,14 +37,15 @@ export const googleCalendarRouter = {
 	// ------------------------------------------------------------------
 	// status — caller's own connection status
 	// ------------------------------------------------------------------
-	status: protectedProcedure
+	status: tenantProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context }) => {
 			assertTenantAndMember(context);
 
-			const connection = await context.tenantDb.query.googleCalendarConnections.findFirst({
-				where: eq(googleCalendarConnections.memberId, context.member.id),
-			});
+			const connection =
+				await context.tenantDb.query.googleCalendarConnections.findFirst({
+					where: eq(googleCalendarConnections.memberId, context.member.id),
+				});
 
 			if (!connection) {
 				return {
@@ -66,14 +69,15 @@ export const googleCalendarRouter = {
 	// ------------------------------------------------------------------
 	// disconnect — revoke + delete caller's own connection
 	// ------------------------------------------------------------------
-	disconnect: protectedProcedure
+	disconnect: tenantProcedure
 		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context }) => {
 			assertTenantAndMember(context);
 
-			const connection = await context.tenantDb.query.googleCalendarConnections.findFirst({
-				where: eq(googleCalendarConnections.memberId, context.member.id),
-			});
+			const connection =
+				await context.tenantDb.query.googleCalendarConnections.findFirst({
+					where: eq(googleCalendarConnections.memberId, context.member.id),
+				});
 
 			if (!connection) {
 				throw new ORPCError("NOT_FOUND", {
@@ -96,35 +100,43 @@ export const googleCalendarRouter = {
 	// orgStatus — org-wide aggregate (Task 1.16)
 	// RBAC: appointment_management:read
 	// ------------------------------------------------------------------
-	orgStatus: protectedProcedure
-		.input(z.object({}))
+	orgStatus: tenantProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context }) => {
 			assertTenantAndMember(context);
-			await requirePermission(context.tenantDb, context.member, "appointment_management", "read");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"appointment_management",
+				"read",
+			);
 
 			// 3 parallel aggregates
-			const [connectedCountRow, trainerCountRow, lastSyncRow] = await Promise.all([
-				// count active Google Calendar connections
-				context.tenantDb
-					.select({ value: count() })
-					.from(googleCalendarConnections)
-					.where(eq(googleCalendarConnections.isActive, true))
-					.then((rows: any) => rows[0]?.value ?? 0),
+			const [connectedCountRow, trainerCountRow, lastSyncRow] =
+				await Promise.all([
+					// count active Google Calendar connections
+					context.tenantDb
+						.select({ value: count() })
+						.from(googleCalendarConnections)
+						.where(eq(googleCalendarConnections.isActive, true))
+						.then((rows: any) => rows[0]?.value ?? 0),
 
-				// count trainers (role = "trainer", status = "active")
-				context.tenantDb
-					.select({ value: count() })
-					.from(members)
-					.where(and(eq(members.role, "trainer"), eq(members.status, "active")))
-					.then((rows: any) => rows[0]?.value ?? 0),
+					// count trainers (role = "trainer", status = "active")
+					context.tenantDb
+						.select({ value: count() })
+						.from(members)
+						.where(
+							and(eq(members.role, "trainer"), eq(members.status, "active")),
+						)
+						.then((rows: any) => rows[0]?.value ?? 0),
 
-				// latest sync across all connections
-				context.tenantDb
-					.select({ lastSync: max(googleCalendarConnections.lastSyncAt) })
-					.from(googleCalendarConnections)
-					.where(eq(googleCalendarConnections.isActive, true))
-					.then((rows: any) => rows[0]?.lastSync ?? null),
-			]);
+					// latest sync across all connections
+					context.tenantDb
+						.select({ lastSync: max(googleCalendarConnections.lastSyncAt) })
+						.from(googleCalendarConnections)
+						.where(eq(googleCalendarConnections.isActive, true))
+						.then((rows: any) => rows[0]?.lastSync ?? null),
+				]);
 
 			return {
 				connectedCount: Number(connectedCountRow),
@@ -139,9 +151,10 @@ export const googleCalendarRouter = {
 	// updateSettings — update caller's own syncDirection + conflictPolicy (Task 1.17)
 	// RBAC: appointment_management:update
 	// ------------------------------------------------------------------
-	updateSettings: protectedProcedure
+	updateSettings: tenantProcedure
 		.input(
 			z.object({
+				organizationId: z.string().uuid(),
 				syncDirection: z
 					.enum(["one_way_to_google", "one_way_from_google", "two_way"])
 					.optional(),
@@ -152,23 +165,32 @@ export const googleCalendarRouter = {
 		)
 		.handler(async ({ context, input }) => {
 			assertTenantAndMember(context);
-			await requirePermission(context.tenantDb, context.member, "appointment_management", "update");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"appointment_management",
+				"update",
+			);
 
-			const connection = await context.tenantDb.query.googleCalendarConnections.findFirst({
-				where: eq(googleCalendarConnections.memberId, context.member.id),
-			});
+			const connection =
+				await context.tenantDb.query.googleCalendarConnections.findFirst({
+					where: eq(googleCalendarConnections.memberId, context.member.id),
+				});
 
 			if (!connection) {
 				throw new ORPCError("NOT_FOUND", {
-					message: "No Google Calendar connection found. Connect your calendar first.",
+					message:
+						"No Google Calendar connection found. Connect your calendar first.",
 				});
 			}
 
 			const updates: Record<string, unknown> = {
 				updatedAt: new Date(),
 			};
-			if (input.syncDirection !== undefined) updates.syncDirection = input.syncDirection;
-			if (input.conflictPolicy !== undefined) updates.conflictPolicy = input.conflictPolicy;
+			if (input.syncDirection !== undefined)
+				updates.syncDirection = input.syncDirection;
+			if (input.conflictPolicy !== undefined)
+				updates.conflictPolicy = input.conflictPolicy;
 
 			await context.tenantDb
 				.update(googleCalendarConnections)
@@ -182,16 +204,22 @@ export const googleCalendarRouter = {
 	// syncNow — in-memory rate-limit 1/min per member (Task 1.18)
 	// RBAC: appointment_management:update
 	// ------------------------------------------------------------------
-	syncNow: protectedProcedure
-		.input(z.object({}))
+	syncNow: tenantProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context }) => {
 			assertTenantAndMember(context);
-			await requirePermission(context.tenantDb, context.member, "appointment_management", "update");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"appointment_management",
+				"update",
+			);
 
 			const allowed = checkSyncNowRateLimit(context.member.id);
 			if (!allowed) {
 				throw new ORPCError("TOO_MANY_REQUESTS", {
-					message: "Sync already enqueued. Please wait at least 60 seconds between syncs.",
+					message:
+						"Sync already enqueued. Please wait at least 60 seconds between syncs.",
 				});
 			}
 
@@ -213,26 +241,34 @@ export const googleCalendarRouter = {
 	// listConnectedCalendars — Google calendarList with 24h JS-side cache (Task 1.30)
 	// RBAC: appointment_management:read
 	// ------------------------------------------------------------------
-	listConnectedCalendars: protectedProcedure
-		.input(z.object({}))
+	listConnectedCalendars: tenantProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
 		.handler(async ({ context }) => {
 			assertTenantAndMember(context);
-			await requirePermission(context.tenantDb, context.member, "appointment_management", "read");
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"appointment_management",
+				"read",
+			);
 
-			const connection = await context.tenantDb.query.googleCalendarConnections.findFirst({
-				where: eq(googleCalendarConnections.memberId, context.member.id),
-			});
+			const connection =
+				await context.tenantDb.query.googleCalendarConnections.findFirst({
+					where: eq(googleCalendarConnections.memberId, context.member.id),
+				});
 
 			if (!connection) {
 				throw new ORPCError("NOT_FOUND", {
-					message: "No Google Calendar connection found. Connect your calendar first.",
+					message:
+						"No Google Calendar connection found. Connect your calendar first.",
 				});
 			}
 
 			const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 			const cacheValid =
 				connection.cachedCalendarListAt !== null &&
-				Date.now() - new Date(connection.cachedCalendarListAt).getTime() < CACHE_TTL_MS;
+				Date.now() - new Date(connection.cachedCalendarListAt).getTime() <
+					CACHE_TTL_MS;
 
 			if (cacheValid && connection.cachedCalendarListJson) {
 				try {

@@ -1,0 +1,8 @@
+{
+  "rooms/rooms.lifecycle.spec.ts::Room lifecycle — create, update, delete (API-verified)": [
+    "Create a room (name, type, capacity, branchId) and assert an id is returned",
+    "Fetch rooms/getById and assert name and capacity match",
+    "Update name and capacity and assert getById reflects the edit",
+    "Delete the room and assert it is absent from rooms/list"
+  ]
+}

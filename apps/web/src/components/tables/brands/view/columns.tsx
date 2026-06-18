@@ -69,7 +69,11 @@ export const columns: ColumnDef<BrandRow>[] = [
 						variant="ghost"
 						size="sm"
 						className="size-8 p-0 text-primary hover:bg-primary/10"
-						onClick={() => (table.options.meta as BrandTableMeta | undefined)?.onEdit?.(brand)}
+						onClick={() =>
+							(table.options.meta as BrandTableMeta | undefined)?.onEdit?.(
+								brand,
+							)
+						}
 					>
 						<span className="sr-only">Edit brand</span>
 						<Edit className="size-4" />
@@ -78,7 +82,11 @@ export const columns: ColumnDef<BrandRow>[] = [
 						variant="ghost"
 						size="sm"
 						className="size-8 p-0 text-destructive hover:bg-destructive/10"
-						onClick={() => (table.options.meta as BrandTableMeta | undefined)?.onDelete?.(brand)}
+						onClick={() =>
+							(table.options.meta as BrandTableMeta | undefined)?.onDelete?.(
+								brand,
+							)
+						}
 					>
 						<span className="sr-only">Delete brand</span>
 						<Trash2 className="size-4" />

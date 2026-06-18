@@ -1,7 +1,11 @@
 import { useMemo, useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { loadStripe, type Stripe, type StripeElements } from "@stripe/stripe-js";
+import {
+	loadStripe,
+	type Stripe,
+	type StripeElements,
+} from "@stripe/stripe-js";
 import {
 	Elements,
 	PaymentElement,
@@ -23,7 +27,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { centsToRm, rmToCents } from "@/lib/money";
-import { client as orpcClient } from "@/utils/orpc";
+import { client as orpcClient, orpc } from "@/utils/orpc";
 
 type SavedCard = {
 	id: string;
@@ -49,12 +53,9 @@ export function SavedCardsSection({
 	const [chargeTarget, setChargeTarget] = useState<SavedCard | null>(null);
 
 	const cardsQuery = useQuery({
-		queryKey: ["saved-cards", organizationId, customerProfileId],
-		queryFn: async () =>
-			(await orpcClient.payments.listSavedCards({
-				organizationId,
-				customerProfileId,
-			})) as { cards: SavedCard[] },
+		...orpc.payments.listSavedCards.queryOptions({
+			input: { organizationId, customerProfileId },
+		}),
 		enabled: !!organizationId && !!customerProfileId,
 	});
 
@@ -67,11 +68,7 @@ export function SavedCardsSection({
 					<CreditCard className="size-4" />
 					Saved cards
 				</CardTitle>
-				<Button
-					size="sm"
-					variant="outline"
-					onClick={() => setSaveOpen(true)}
-				>
+				<Button size="sm" variant="outline" onClick={() => setSaveOpen(true)}>
 					<Plus className="mr-1 size-3.5" />
 					Save card
 				</Button>
@@ -82,8 +79,9 @@ export function SavedCardsSection({
 						<Loader2 className="size-5 animate-spin" />
 					</div>
 				) : cards.length === 0 ? (
-					<p className="py-4 text-center text-muted-foreground text-sm">
-						No saved cards. Click "Save card" to collect one for off-session charges.
+					<p className="py-4 text-center text-[#737373] text-sm">
+						No saved cards. Click "Save card" to collect one for off-session
+						charges.
 					</p>
 				) : (
 					<ul className="space-y-2">
@@ -96,10 +94,8 @@ export function SavedCardsSection({
 									<div className="font-medium uppercase tracking-wide">
 										{c.brand}
 									</div>
-									<div className="text-muted-foreground">
-										•••• {c.last4}
-									</div>
-									<div className="text-muted-foreground text-xs">
+									<div className="text-[#737373]">•••• {c.last4}</div>
+									<div className="text-[#737373] text-xs">
 										exp {c.expMonth.toString().padStart(2, "0")}/{c.expYear}
 									</div>
 								</div>
@@ -183,7 +179,9 @@ function SaveCardDialog({
 				stripeAccountId: data.stripeAccountId,
 			}),
 		onError: (err: unknown) =>
-			toast.error(err instanceof Error ? err.message : "Failed to start save-card"),
+			toast.error(
+				err instanceof Error ? err.message : "Failed to start save-card",
+			),
 	});
 
 	useEffect(() => {
@@ -202,36 +200,51 @@ function SaveCardDialog({
 	}, [setup]);
 
 	return (
-		<Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>Save card for off-session charges</DialogTitle>
-					<DialogDescription>
+		<Dialog
+			open={open}
+			onOpenChange={(o) => {
+				if (!o) onClose();
+			}}
+		>
+			<DialogContent
+				hideCloseButton
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						PAYMENT METHODS
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
+						Save card for off-session charges
+					</DialogTitle>
+					<DialogDescription className="text-sm text-[#737373]">
 						Customer's card is stored on the tenant's Stripe Connect account.
 						Used later without prompting (memberships, no-shows, rebooking).
 					</DialogDescription>
 				</DialogHeader>
 
-				{!publishableKey && (
-					<p className="rounded-md bg-red-50 p-3 text-red-900 text-sm">
-						Missing VITE_STRIPE_PUBLISHABLE_KEY — set it in apps/web/.env.
-					</p>
-				)}
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					{!publishableKey && (
+						<p className="rounded-md bg-red-50 p-3 text-red-900 text-sm">
+							Missing VITE_STRIPE_PUBLISHABLE_KEY — set it in apps/web/.env.
+						</p>
+					)}
 
-				{createSetup.isPending && (
-					<div className="flex items-center justify-center py-8">
-						<Loader2 className="size-6 animate-spin" />
-					</div>
-				)}
+					{createSetup.isPending && (
+						<div className="flex items-center justify-center py-8">
+							<Loader2 className="size-6 animate-spin" />
+						</div>
+					)}
 
-				{setup && stripePromise && (
-					<Elements
-						stripe={stripePromise}
-						options={{ clientSecret: setup.clientSecret }}
-					>
-						<SaveCardForm onSaved={onSaved} onClose={onClose} />
-					</Elements>
-				)}
+					{setup && stripePromise && (
+						<Elements
+							stripe={stripePromise}
+							options={{ clientSecret: setup.clientSecret }}
+						>
+							<SaveCardForm onSaved={onSaved} onClose={onClose} />
+						</Elements>
+					)}
+				</div>
 			</DialogContent>
 		</Dialog>
 	);
@@ -273,7 +286,11 @@ function SaveCardForm({
 				<Button variant="outline" onClick={onClose} disabled={submitting}>
 					Cancel
 				</Button>
-				<Button onClick={confirm} disabled={submitting} className="flex-1">
+				<Button
+					onClick={confirm}
+					disabled={submitting}
+					className="flex-1 bg-[#0a0a0a] text-white hover:bg-[#262626]"
+				>
 					{submitting && <Loader2 className="mr-2 size-4 animate-spin" />}
 					Save card
 				</Button>
@@ -345,47 +362,64 @@ function ChargeSavedCardDialog({
 	const validAmount = Number.isFinite(parsed) && parsed > 0;
 
 	return (
-		<Dialog open={card !== null} onOpenChange={(o) => { if (!o) handleClose(); }}>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle>
+		<Dialog
+			open={card !== null}
+			onOpenChange={(o) => {
+				if (!o) handleClose();
+			}}
+		>
+			<DialogContent
+				hideCloseButton
+				className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+			>
+				<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+						CUSTOMER DIRECTORY
+					</p>
+					<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
 						{card && `Charge ${card.brand.toUpperCase()} •••• ${card.last4}`}
 					</DialogTitle>
-					<DialogDescription>
+					<DialogDescription className="text-sm text-[#737373]">
 						Off-session charge using the saved card. Application fee per tier
 						(Phase 3d) is remitted to Avantej.
 					</DialogDescription>
 				</DialogHeader>
 
-				<div className="space-y-3 py-2">
-					<div className="space-y-1.5">
-						<Label htmlFor="charge-amount">Amount (RM)</Label>
-						<Input
-							id="charge-amount"
-							type="number"
-							inputMode="decimal"
-							step="0.01"
-							min="0.01"
-							placeholder="0.00"
-							value={amountRm}
-							onChange={(e) => setAmountRm(e.target.value)}
-							disabled={charge.isPending}
-						/>
-					</div>
-					<div className="space-y-1.5">
-						<Label htmlFor="charge-desc">Description (optional)</Label>
-						<Input
-							id="charge-desc"
-							placeholder="No-show fee, deposit, ..."
-							value={description}
-							onChange={(e) => setDescription(e.target.value)}
-							disabled={charge.isPending}
-						/>
+				<div className="px-6 pt-4 pb-2 overflow-y-auto">
+					<div className="space-y-3 py-2">
+						<div className="space-y-1.5">
+							<Label htmlFor="charge-amount">Amount (RM)</Label>
+							<Input
+								id="charge-amount"
+								type="number"
+								inputMode="decimal"
+								step="0.01"
+								min="0.01"
+								placeholder="0.00"
+								value={amountRm}
+								onChange={(e) => setAmountRm(e.target.value)}
+								disabled={charge.isPending}
+							/>
+						</div>
+						<div className="space-y-1.5">
+							<Label htmlFor="charge-desc">Description (optional)</Label>
+							<Input
+								id="charge-desc"
+								placeholder="No-show fee, deposit, ..."
+								value={description}
+								onChange={(e) => setDescription(e.target.value)}
+								disabled={charge.isPending}
+							/>
+						</div>
 					</div>
 				</div>
 
-				<DialogFooter className="gap-2">
-					<Button variant="outline" onClick={handleClose} disabled={charge.isPending}>
+				<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
+					<Button
+						variant="outline"
+						onClick={handleClose}
+						disabled={charge.isPending}
+					>
 						Cancel
 					</Button>
 					<Button

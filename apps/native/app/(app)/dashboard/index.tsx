@@ -78,7 +78,9 @@ const DEFAULT_IMAGE =
 // ─── Skeleton Components ──────────────────────────────────────────
 
 function SkeletonBox({ className }: { className: string }) {
-	return <View className={`animate-pulse rounded-lg bg-secondary-3 ${className}`} />;
+	return (
+		<View className={`animate-pulse rounded-lg bg-secondary-3 ${className}`} />
+	);
 }
 
 function PlanCardSkeleton() {
@@ -205,7 +207,13 @@ export default function Home() {
 			: null;
 		const renewalDate = expiresAt ? formatDate(expiresAt) : null;
 
-		return { creditsRemaining, creditsTotal, progress, weeksToFinish, renewalDate };
+		return {
+			creditsRemaining,
+			creditsTotal,
+			progress,
+			weeksToFinish,
+			renewalDate,
+		};
 	}, [activePackage]);
 
 	const nextAppointment = upcomingAppointments?.[0] ?? null;
@@ -304,9 +312,7 @@ export default function Home() {
 							</Text>
 						</View>
 						<Pressable
-							onPress={() =>
-								router.push("/dashboard/notifications/" as never)
-							}
+							onPress={() => router.push("/dashboard/notifications/" as never)}
 							className="relative size-10 items-center justify-center"
 						>
 							<Ionicons
@@ -393,8 +399,8 @@ export default function Home() {
 										color={colors.secondary[1]}
 									/>
 									<Text className="ml-2 text-secondary-1 text-sm">
-										At this pace, you'll finish in{" "}
-										{planStats.weeksToFinish} weeks
+										At this pace, you'll finish in {planStats.weeksToFinish}{" "}
+										weeks
 									</Text>
 								</View>
 							)}
@@ -405,9 +411,7 @@ export default function Home() {
 										Renews on {planStats.renewalDate}
 									</Text>
 									<Pressable
-										onPress={() =>
-											router.push("/dashboard/packages" as never)
-										}
+										onPress={() => router.push("/dashboard/packages" as never)}
 									>
 										<Text className="font-medium text-primary-1 text-sm">
 											Manage membership{" "}
@@ -458,8 +462,8 @@ export default function Home() {
 									color={colors.secondary[1]}
 								/>
 								<Text className="ml-3 flex-1 text-secondary-1 text-sm">
-									Quick insight: Most members book 2 workouts per week to
-									finish on time
+									Quick insight: Most members book 2 workouts per week to finish
+									on time
 								</Text>
 							</View>
 						</View>
@@ -484,16 +488,10 @@ export default function Home() {
 						</Pressable>
 
 						<Pressable
-							onPress={() =>
-								router.push("/dashboard/calendar" as never)
-							}
+							onPress={() => router.push("/dashboard/calendar" as never)}
 							className="aspect-square w-[22%] items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 shadow-sm"
 						>
-							<Ionicons
-								name="calendar"
-								size={24}
-								color={colors.secondary[1]}
-							/>
+							<Ionicons name="calendar" size={24} color={colors.secondary[1]} />
 							<Text className="mt-2 font-medium text-primary-1 text-xs">
 								Calendar
 							</Text>
@@ -516,9 +514,7 @@ export default function Home() {
 						</Pressable>
 
 						<Pressable
-							onPress={() =>
-								router.push("/dashboard/packages" as never)
-							}
+							onPress={() => router.push("/dashboard/packages" as never)}
 							className="aspect-square w-[22%] items-center justify-center rounded-xl border border-secondary-3 bg-primary-2 shadow-sm"
 						>
 							<Ionicons
@@ -601,8 +597,7 @@ export default function Home() {
 													color={colors.secondary[1]}
 												/>
 												<Text className="ml-1 text-secondary-1 text-sm">
-													{upcomingActivity.time} •{" "}
-													{upcomingActivity.duration}
+													{upcomingActivity.time} • {upcomingActivity.duration}
 												</Text>
 											</View>
 											<Text className="text-secondary-1 text-xs">
@@ -640,9 +635,7 @@ export default function Home() {
 								</Text>
 								<Pressable
 									onPress={() =>
-										router.push(
-											"/dashboard/book-workout/book-workout",
-										)
+										router.push("/dashboard/book-workout/book-workout")
 									}
 									className="rounded-lg bg-primary-1 px-5 py-2"
 								>

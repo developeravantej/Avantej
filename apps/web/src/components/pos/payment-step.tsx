@@ -72,15 +72,21 @@ interface PaymentStepProps {
 	items: CartItem[];
 	discountCents: number;
 	taxRateBps: number;
+	/** Pre-computed due-now amount from pos-workflow (first instalment or full total). */
+	dueNowCents: number;
 	method: PaymentMethod | null;
 	paymentReference: string;
 	amountTenderedCents: number;
+	/** Whether the cashier has manually edited the tendered amount. */
+	tenderedTouched: boolean;
 	selectedInstallmentPlanId: string | null;
 	/** Preferred trainer UUID for package purchase — optional. */
 	preferredTrainerId: string | null;
 	onMethodChange: (method: PaymentMethod) => void;
 	onReferenceChange: (ref: string) => void;
 	onAmountTenderedChange: (cents: number) => void;
+	/** Called when the cashier manually edits the tendered amount. */
+	onTenderedTouched: () => void;
 	onInstallmentPlanChange: (planId: string | null) => void;
 	onPreferredTrainerChange: (trainerId: string | null) => void;
 }
@@ -90,14 +96,17 @@ export function PaymentStep({
 	items,
 	discountCents,
 	taxRateBps,
+	dueNowCents,
 	method,
 	paymentReference,
 	amountTenderedCents,
+	tenderedTouched,
 	selectedInstallmentPlanId,
 	preferredTrainerId,
 	onMethodChange,
 	onReferenceChange,
 	onAmountTenderedChange,
+	onTenderedTouched,
 	onInstallmentPlanChange,
 	onPreferredTrainerChange,
 }: PaymentStepProps) {
@@ -105,21 +114,12 @@ export function PaymentStep({
 	const amountTenderedRm =
 		amountTenderedCents > 0 ? centsToRm(amountTenderedCents) : "";
 
-	useEffect(() => {
-		if (method === "cash" && amountTenderedCents === 0 && totalCents > 0) {
-			// react-doctor-disable-next-line react-doctor/no-prop-callback-in-effect -- tightly coupled POS step coordination, would benefit from Provider but scope deferred
-			onAmountTenderedChange(totalCents);
-		}
-	}, [method, amountTenderedCents, totalCents, onAmountTenderedChange]);
-
-	const changeDueCents =
-		method === "cash" && amountTenderedCents >= totalCents
-			? amountTenderedCents - totalCents
-			: null;
-
-	const packageItems = items.filter((i) => i.type === "package" || i.type === "service");
+	const packageItems = items.filter(
+		(i) => i.type === "package" || i.type === "service",
+	);
 	const showInstallmentPicker = packageItems.length >= 1;
 
+	// Fetch plans + trainer list up-front (hooks must come before any derived consts that use them)
 	const { data: installmentPlans = [] } = useQuery({
 		queryKey: ["installment-plans", organizationId],
 		queryFn: async () => {
@@ -131,19 +131,56 @@ export function PaymentStep({
 		enabled: showInstallmentPicker,
 	});
 
+	// Trainer list — only fetched when a package item is in the cart
+	const { data: trainers = [] } = useQuery({
+		queryKey: ["members-trainers", organizationId],
+		queryFn: () =>
+			client.members.list({
+				organizationId,
+				role: "trainer",
+				status: "active",
+			}),
+		enabled: showInstallmentPicker,
+	});
+
 	const planOptions: InstallmentPlanOption[] = installmentPlans.map((p) => ({
 		id: p.id,
 		code: p.code,
 		name: p.name,
 		numInstallments: p.numInstallments,
+		pricePremiumBps: p.pricePremiumBps ?? 0,
 	}));
 
-	// Trainer list — only fetched when a package item is in the cart
-	const { data: trainers = [] } = useQuery({
-		queryKey: ["members-trainers", organizationId],
-		queryFn: () => client.members.list({ organizationId, role: "trainer", status: "active" }),
-		enabled: showInstallmentPicker,
-	});
+	const selectedPlanOption =
+		planOptions.find((p) => p.id === selectedInstallmentPlanId) ?? null;
+	// dueNowCents is computed in pos-workflow and passed as a prop (FE-M1)
+
+	useEffect(() => {
+		// Keep cash tendered synced to the due-now amount until the user edits it. The default tax
+		// rate loads asynchronously; without this, an auto-tendered PRE-TAX amount falls
+		// below the taxed total and silently disables Confirm with no on-screen reason.
+		// tenderedTouched is lifted to pos-workflow (FE-M2) so it survives remounts.
+		if (
+			method === "cash" &&
+			!tenderedTouched &&
+			dueNowCents > 0 &&
+			amountTenderedCents !== dueNowCents
+		) {
+			// react-doctor-disable-next-line react-doctor/no-prop-callback-in-effect -- tightly coupled POS step coordination, would benefit from Provider but scope deferred
+			onAmountTenderedChange(dueNowCents);
+		}
+	}, [
+		method,
+		tenderedTouched,
+		amountTenderedCents,
+		dueNowCents,
+		onAmountTenderedChange,
+	]);
+
+	const changeDueCents =
+		method === "cash" && amountTenderedCents >= dueNowCents
+			? amountTenderedCents - dueNowCents
+			: null;
 
 	return (
 		<div className="space-y-6">
@@ -157,7 +194,7 @@ export function PaymentStep({
 							<button
 								key={m}
 								type="button"
-								onClick={() => onMethodChange(m as any)}
+								onClick={() => onMethodChange(m)}
 								className={`relative flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
 									isSelected
 										? "border-primary bg-primary/5 shadow-sm"
@@ -187,7 +224,7 @@ export function PaymentStep({
 			</div>
 
 			{/* Online payment callout */}
-			{(method as any) === "online" && (
+			{method === "online" && (
 				<StatusCallout variant="info" title="Payment link will be generated">
 					A payment link will be generated after you finalize the sale. Forward
 					it to the customer to collect payment.
@@ -221,20 +258,21 @@ export function PaymentStep({
 							<Input
 								id="cash-tendered"
 								type="number"
-								min={centsToRm(totalCents)}
+								min={centsToRm(dueNowCents)}
 								step="0.01"
 								className="pl-9"
-								placeholder={centsToRm(totalCents)}
+								placeholder={centsToRm(dueNowCents)}
 								value={amountTenderedRm}
-								onChange={(e) =>
-									onAmountTenderedChange(parseCents(e.target.value))
-								}
+								onChange={(e) => {
+									onTenderedTouched();
+									onAmountTenderedChange(parseCents(e.target.value));
+								}}
 							/>
 						</div>
-						{amountTenderedCents > 0 && amountTenderedCents < totalCents && (
+						{amountTenderedCents > 0 && amountTenderedCents < dueNowCents && (
 							<p className="text-destructive text-xs">
-								Tendered amount is less than total. Please collect at least{" "}
-								{formatPrice(totalCents, "MYR")}.
+								Tendered amount is less than due today. Please collect at least{" "}
+								{formatPrice(dueNowCents, "MYR")}.
 							</p>
 						)}
 					</div>
@@ -260,7 +298,11 @@ export function PaymentStep({
 							onInstallmentPlanChange(v === "full" ? null : v)
 						}
 					>
-						<SelectTrigger id="installment-plan" className="w-full max-w-xs" data-testid="pos-installment-plan-select">
+						<SelectTrigger
+							id="installment-plan"
+							className="w-full max-w-xs"
+							data-testid="pos-installment-plan-select"
+						>
 							<SelectValue placeholder="Pay in full" />
 						</SelectTrigger>
 						<SelectContent>
@@ -277,6 +319,35 @@ export function PaymentStep({
 							No instalment plans configured. Will charge full amount.
 						</p>
 					)}
+					{selectedPlanOption && (
+						<div className="rounded-lg border border-[#e5e5e5] bg-[#f9f9f9] px-3 py-2.5 text-xs space-y-1 max-w-xs">
+							<div className="flex justify-between font-medium text-[#0a0a0a]">
+								<span>
+									Due today (instalment 1/{selectedPlanOption.numInstallments})
+								</span>
+								<span className="font-mono tabular-nums">
+									{formatPrice(dueNowCents, "MYR")}
+								</span>
+							</div>
+							{selectedPlanOption.pricePremiumBps > 0 && (
+								<div className="flex justify-between text-[#737373]">
+									<span>
+										Total after premium (
+										{(selectedPlanOption.pricePremiumBps / 100).toFixed(0)}%)
+									</span>
+									<span className="font-mono tabular-nums">
+										{formatPrice(
+											Math.round(
+												totalCents *
+													(1 + selectedPlanOption.pricePremiumBps / 10000),
+											),
+											"MYR",
+										)}
+									</span>
+								</div>
+							)}
+						</div>
+					)}
 				</div>
 			)}
 
@@ -285,11 +356,15 @@ export function PaymentStep({
 				<div className="space-y-1.5">
 					<Label htmlFor="preferred-trainer">
 						Preferred trainer{" "}
-						<span className="font-normal text-muted-foreground">(optional)</span>
+						<span className="font-normal text-muted-foreground">
+							(optional)
+						</span>
 					</Label>
 					<Select
 						value={preferredTrainerId ?? "none"}
-						onValueChange={(v) => onPreferredTrainerChange(v === "none" ? null : v)}
+						onValueChange={(v) =>
+							onPreferredTrainerChange(v === "none" ? null : v)
+						}
 					>
 						<SelectTrigger id="preferred-trainer" className="w-full max-w-xs">
 							<SelectValue placeholder="No preference" />
@@ -305,7 +380,8 @@ export function PaymentStep({
 					</Select>
 					{trainers.length === 0 && (
 						<p className="text-muted-foreground text-xs">
-							No trainers found. You can assign one later from the package detail.
+							No trainers found. You can assign one later from the package
+							detail.
 						</p>
 					)}
 				</div>

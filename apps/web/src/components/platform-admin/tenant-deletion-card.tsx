@@ -56,7 +56,9 @@ export function TenantDeletionCard({ organizationId }: Props) {
 			);
 		},
 		onError: (e) =>
-			toast.error(`Export failed: ${e instanceof Error ? e.message : String(e)}`),
+			toast.error(
+				`Export failed: ${e instanceof Error ? e.message : String(e)}`,
+			),
 	});
 
 	const requestSoftDelete = useMutation({
@@ -142,7 +144,9 @@ export function TenantDeletionCard({ organizationId }: Props) {
 							disabled={restore.isPending}
 							onClick={() => restore.mutate()}
 						>
-							{restore.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+							{restore.isPending ? (
+								<Loader2 className="size-4 animate-spin" />
+							) : null}
 							Restore
 						</Button>
 					) : (
@@ -179,9 +183,13 @@ export function TenantDeletionCard({ organizationId }: Props) {
 									<span>·</span>
 									<span>by {d.requestedBy}</span>
 									{d.restoredAt ? (
-										<Badge variant="secondary">restored {formatDate(d.restoredAt)}</Badge>
+										<Badge variant="secondary">
+											restored {formatDate(d.restoredAt)}
+										</Badge>
 									) : d.hardDeletedAt ? (
-										<Badge variant="destructive">hard-deleted {formatDate(d.hardDeletedAt)}</Badge>
+										<Badge variant="destructive">
+											hard-deleted {formatDate(d.hardDeletedAt)}
+										</Badge>
 									) : (
 										<Badge variant="outline">open</Badge>
 									)}

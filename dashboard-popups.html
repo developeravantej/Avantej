@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Avantej Dashboard — Popup Inventory</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f5f5f5;
+    color: #1a1a1a;
+    line-height: 1.5;
+  }
+
+  header {
+    background: #fff;
+    border-bottom: 1px solid #e5e5e5;
+    padding: 20px 32px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  header h1 { font-size: 1.25rem; font-weight: 700; flex-shrink: 0; }
+  header p { font-size: 0.85rem; color: #666; flex-shrink: 0; }
+
+  #search {
+    margin-left: auto;
+    padding: 8px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    width: 260px;
+    outline: none;
+  }
+  #search:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    padding: 12px 32px;
+    background: #fff;
+    border-bottom: 1px solid #e5e5e5;
+    flex-wrap: wrap;
+  }
+
+  .filter-btn {
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    font-size: 0.78rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .filter-btn:hover { background: #f3f4f6; }
+  .filter-btn.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+
+  main { max-width: 1400px; margin: 0 auto; padding: 32px; }
+
+  .section { margin-bottom: 48px; }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .section-title { font-size: 1.1rem; font-weight: 700; }
+  .section-count {
+    background: #f3f4f6;
+    color: #555;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 14px;
+  }
+
+  .card {
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 12px;
+    padding: 18px;
+    transition: box-shadow 0.15s;
+  }
+  .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+  .card.hidden { display: none; }
+
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .card-title { font-size: 0.95rem; font-weight: 700; flex: 1; }
+
+  .badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .badge-Dialog        { background: #ede9fe; color: #5b21b6; }
+  .badge-Sheet         { background: #d1fae5; color: #065f46; }
+  .badge-AlertDialog   { background: #fee2e2; color: #991b1b; }
+  .badge-Drawer        { background: #fef3c7; color: #92400e; }
+  .badge-Popover       { background: #e0e7ff; color: #3730a3; }
+  .badge-DropdownMenu  { background: #f3f4f6; color: #374151; }
+
+  .url-path {
+    font-size: 0.72rem;
+    color: #9ca3af;
+    font-family: monospace;
+    margin-bottom: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .description {
+    font-size: 0.82rem;
+    color: #555;
+    margin-bottom: 10px;
+  }
+
+  .meta-row {
+    font-size: 0.78rem;
+    color: #374151;
+    margin-bottom: 8px;
+  }
+  .meta-label {
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-right: 4px;
+  }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+  .tag {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    padding: 2px 7px;
+    color: #374151;
+  }
+  .tag-action { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+
+  .empty { text-align: center; padding: 64px 0; color: #9ca3af; font-size: 0.95rem; }
+
+  .stats {
+    display: flex;
+    gap: 24px;
+    padding: 16px 32px;
+    background: #fff;
+    border-bottom: 1px solid #e5e5e5;
+    font-size: 0.8rem;
+    color: #666;
+  }
+  .stats span b { color: #1a1a1a; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Avantej — Dashboard Popup Inventory</h1>
+    <p>All dialogs, sheets, drawers &amp; alert dialogs across dashboard pages</p>
+  </div>
+  <input id="search" type="text" placeholder="Search by title, page, field…" oninput="filterCards()" />
+</header>
+
+<div class="stats" id="stats"></div>
+
+<div class="filter-row" id="filterRow">
+  <button class="filter-btn active" data-type="all" onclick="setType('all',this)">All</button>
+  <button class="filter-btn" data-type="Dialog" onclick="setType('Dialog',this)">Dialog</button>
+  <button class="filter-btn" data-type="Sheet" onclick="setType('Sheet',this)">Sheet</button>
+  <button class="filter-btn" data-type="Drawer" onclick="setType('Drawer',this)">Drawer</button>
+  <button class="filter-btn" data-type="AlertDialog" onclick="setType('AlertDialog',this)">AlertDialog</button>
+  <button class="filter-btn" data-type="Popover" onclick="setType('Popover',this)">Popover</button>
+  <button class="filter-btn" data-type="DropdownMenu" onclick="setType('DropdownMenu',this)">DropdownMenu</button>
+</div>
+
+<main id="main"></main>
+
+<script>
+const DATA = [
+  // ── ACCESS CONTROL ─────────────────────────────────────────────────────────
+  { section: "Access Control", page: "User Role Assignment — Members Tab", url_path: "/dashboard/access-control/user-assignment?tab=members", popup_type: "Dialog", title: "Assign Role to {user.name}", description: "Allows assigning system roles and custom roles to a member.", trigger: "Edit Roles button from member card dropdown menu", fields: ["System Role", "Custom Role (optional)"], actions: ["Cancel", "Save Changes"] },
+  { section: "Access Control", page: "User Role Assignment — Members Tab", url_path: "/dashboard/access-control/user-assignment?tab=members", popup_type: "Dialog", title: "Invite User", description: "Send an invitation email to a new user.", trigger: "Invite User button at the top of the page", fields: ["Email", "Role"], actions: ["Cancel", "Send Invitation"] },
+  { section: "Access Control", page: "User Role Assignment — Members Tab", url_path: "/dashboard/access-control/user-assignment?tab=members", popup_type: "Dialog", title: "Edit User: {user.name}", description: "Update user profile details including role, custom role, and hierarchy scope.", trigger: "Edit User from member card dropdown menu", fields: ["Role", "Custom Role (optional)", "Hierarchy Scope"], actions: ["Cancel", "Save Changes"] },
+  { section: "Access Control", page: "User Role Assignment — Members Tab", url_path: "/dashboard/access-control/user-assignment?tab=members", popup_type: "Dialog", title: "Move {user.name} to a different branch", description: "Select the destination branch for reassigning a member.", trigger: "Move to branch from member card dropdown menu", fields: ["Destination branch"], actions: ["Cancel", "Move member"] },
+  { section: "Access Control", page: "Roles & Permissions", url_path: "/dashboard/access-control/roles?tab=roles", popup_type: "Dialog", title: "Create New Role", description: "Create a new custom role with selected permissions.", trigger: "Plus button in the role list sidebar", fields: ["Role name", "Description", "Priority", "Permissions matrix"], actions: ["Cancel", "Create Role"] },
+  { section: "Access Control", page: "Roles & Permissions", url_path: "/dashboard/access-control/roles?tab=roles", popup_type: "Dialog", title: "Edit Role", description: "Edit an existing custom role.", trigger: "Edit action on role (when selected)", fields: ["Role name", "Description", "Priority", "Permissions matrix"], actions: ["Cancel", "Save Changes"] },
+  { section: "Access Control", page: "Roles & Permissions", url_path: "/dashboard/access-control/roles?tab=roles", popup_type: "Dialog", title: "Delete role?", description: "Confirm permanent deletion of a custom role.", trigger: "Delete icon on role in sidebar (hover to reveal)", fields: [], actions: ["Cancel", "Delete Role"] },
+  { section: "Access Control", page: "Permission Definitions", url_path: "/dashboard/access-control/roles?tab=permissions", popup_type: "Dialog", title: "Remove All Permissions for {resource.name}", description: "Confirm removal of all role assignments for a permission resource.", trigger: "Remove All Permissions from resource card dropdown menu", fields: [], actions: ["Cancel", "Remove All Permissions"] },
+  { section: "Access Control", page: "Invitations", url_path: "/dashboard/access-control/user-assignment?tab=invitations", popup_type: "Dialog", title: "Invite Member", description: "Send an invitation to join the organization with email, role, and hierarchy scope.", trigger: "Invite Member button at the top of the page", fields: ["Email Address", "Role", "Hierarchy Scope"], actions: ["Cancel", "Send Invitation"] },
+
+  // ── CUSTOMERS ─────────────────────────────────────────────────────────────
+  { section: "Customers", page: "Customer 360", url_path: "/dashboard/customers/$id", popup_type: "Dialog", title: "Pause Membership", description: "Freeze a package for medical leave, travel, or other reasons. Auto-resumes on end date. Audit-logged.", trigger: "Pause Membership button in customer header", fields: ["Package", "Start date", "End date", "Reason", "Waive freeze fee", "Notes (optional)"], actions: ["Cancel", "Pause membership"] },
+  { section: "Customers", page: "Customers Directory", url_path: "/dashboard/customers/v2/view", popup_type: "Dialog", title: "Add Customer", description: "Create a profile now or send the customer an onboarding link.", trigger: "Add Customer button in header", fields: ["Quick Add: First Name, Last Name, Phone, Email, Branch, Date of Birth, Notes", "Send Onboarding: Customer Email, Branch"], actions: ["Cancel", "Create Profile", "Send Invitation"] },
+  { section: "Customers", page: "Package Instance Details", url_path: "/dashboard/customers/v2/view (packages tab)", popup_type: "Sheet", title: "Customer name / Package service name", description: "View detailed package information including credits, expiry, outstanding balance, and installment schedule.", trigger: "Click on package row in packages tab", fields: [], actions: ["Unlock", "Refund", "Confirm Payment (on installment timeline)"] },
+  { section: "Customers", page: "Package Instance Details", url_path: "/dashboard/customers/v2/view (packages tab drawer)", popup_type: "Dialog", title: "Confirm Payment", description: "Confirm payment for a specific installment.", trigger: "Confirm Payment button in installment timeline (within drawer)", fields: ["Payment Method", "Notes (optional)", "Override Next Interval (days, optional)"], actions: ["Cancel", "Confirm"] },
+  { section: "Customers", page: "Package Instance Details", url_path: "/dashboard/customers/v2/view (packages tab drawer)", popup_type: "Dialog", title: "Manual Unlock", description: "Manually unlock a package. A reason is required for audit purposes.", trigger: "Unlock button in installment section (within drawer)", fields: ["Reason"], actions: ["Cancel", "Unlock Package"] },
+  { section: "Customers", page: "Package Instance Details", url_path: "/dashboard/customers/v2/view (packages tab drawer)", popup_type: "Dialog", title: "Request Refund", description: "Submit a refund request for review and approval.", trigger: "Refund button in installment section (within drawer)", fields: ["Refund Amount (RM)", "Tax Amount (RM, optional)", "Reason", "Additional Notes (optional)"], actions: ["Cancel", "Submit Request"] },
+
+  // ── SALES, PAYMENT & REFUNDS ──────────────────────────────────────────────
+  { section: "Sales, Payment & Refunds", page: "Sales Order Detail", url_path: "/dashboard/sales/$id", popup_type: "Dialog", title: "Cancel Sale", description: "Cancel a confirmed or completed sale order with a reason and optional category.", trigger: "Cancel Sale button in header", fields: ["Category (optional)", "Reason (required, min 5 chars)"], actions: ["Keep Sale", "Cancel Sale"] },
+  { section: "Sales, Payment & Refunds", page: "Sales Order Detail", url_path: "/dashboard/sales/$id", popup_type: "Dialog", title: "Request Refund", description: "Submit a full refund request for a sales order with amount, tax, reason, and optional notes.", trigger: "Request Refund button in header", fields: ["Refund Amount (RM)", "Tax Amount (RM, optional)", "Reason", "Additional Notes (optional)"], actions: ["Cancel", "Submit Request"] },
+  { section: "Sales, Payment & Refunds", page: "Sales Order Detail", url_path: "/dashboard/sales/$id", popup_type: "Dialog", title: "Partial Package Refund", description: "Refund a specific number of unused session credits on a package instance.", trigger: "Partial Refund button in header", fields: ["Package Instance ID", "Credits to refund", "Reason"], actions: ["Cancel", "Create Refund"] },
+  { section: "Sales, Payment & Refunds", page: "Sales Order Detail", url_path: "/dashboard/sales/$id", popup_type: "Dialog", title: "Print Receipt", description: "Display receipt for printing.", trigger: "Print Receipt button in header", fields: [], actions: ["Close", "Print"] },
+  { section: "Sales, Payment & Refunds", page: "Sales Orders List", url_path: "/dashboard/sales/view", popup_type: "Dialog", title: "Request Refund", description: "Submit a full refund request for a sales order from the list view.", trigger: "Refund button in sales table row", fields: ["Refund Amount (RM)", "Tax Amount (RM, optional)", "Reason", "Additional Notes (optional)"], actions: ["Cancel", "Submit Request"] },
+  { section: "Sales, Payment & Refunds", page: "Refunds Tab", url_path: "/dashboard/sales/view?tab=refunds", popup_type: "Dialog", title: "Audit Trail", description: "Show event history and audit trail for a specific refund request.", trigger: "Audit Trail button in refund row", fields: [], actions: [] },
+  { section: "Sales, Payment & Refunds", page: "Refunds Tab", url_path: "/dashboard/sales/view?tab=refunds", popup_type: "Dialog", title: "Reject Refund", description: "Provide rejection reason for a pending refund request. Reason visible in audit trail.", trigger: "Reject button in pending refund row or bulk action", fields: ["Rejection Notes (required)"], actions: ["Cancel", "Reject"] },
+  { section: "Sales, Payment & Refunds", page: "Refunds Tab", url_path: "/dashboard/sales/view?tab=refunds", popup_type: "Dialog", title: "Mark as Processed", description: "Record how a refund was issued to the customer (payment method and reference).", trigger: "Process button in approved refund row", fields: ["Refund Method (Cash, Card Reversal, Bank Transfer, Store Credit)", "Reference (optional/conditional)"], actions: ["Cancel", "Mark Processed"] },
+
+  // ── COMMISSIONS ────────────────────────────────────────────────────────────
+  { section: "Commissions", page: "Commissions — All Tab", url_path: "/dashboard/commissions/view?tab=all", popup_type: "Dialog", title: "Void Commission Split", description: "Void a commission split with a required reason recorded in the audit trail.", trigger: "Void button on commission ledger row", fields: ["Reason (required)"], actions: ["Cancel", "Void"] },
+  { section: "Commissions", page: "Commissions — Liability Tab", url_path: "/dashboard/commissions/view?tab=liability", popup_type: "Dialog", title: "Mark Commission as Paid", description: "Confirms marking commission splits for selected staff members as paid. Cannot be undone.", trigger: "Mark as Paid button in footer (when staff selected)", fields: [], actions: ["Cancel", "Confirm"] },
+  { section: "Commissions", page: "Commissions — Manual Adjustment", url_path: "/dashboard/commissions/view", popup_type: "Dialog", title: "New Manual Adjustment", description: "Creates a manual commission adjustment added to the Review tab as pending until approved.", trigger: "New Adjustment button in header", fields: ["Staff Member", "Amount (RM)", "Target", "Target ID", "Note"], actions: ["Cancel", "Create Adjustment"] },
+  { section: "Commissions", page: "Commissions — Payouts", url_path: "/dashboard/commissions/view?tab=payouts", popup_type: "DropdownMenu", title: "Payout Row Actions", description: "State-machine actions for a payout record.", trigger: "More horizontal icon on payout table row", fields: [], actions: ["Confirm via Stripe", "Mark Paid (manual ref)", "Mark Failed", "Cancel", "Retry"] },
+  { section: "Commissions", page: "Commissions — Payouts", url_path: "/dashboard/commissions/view?tab=payouts", popup_type: "Dialog", title: "Mark Paid", description: "Mark a payout as paid.", trigger: "Mark Paid option in payout row dropdown", fields: [], actions: ["Cancel", "Mark Paid"] },
+  { section: "Commissions", page: "Commissions — Payouts", url_path: "/dashboard/commissions/view?tab=payouts", popup_type: "Dialog", title: "Mark Failed", description: "Mark a payout as failed.", trigger: "Mark Failed option in payout row dropdown", fields: [], actions: ["Cancel", "Mark Failed"] },
+  { section: "Commissions", page: "Commissions — Payouts", url_path: "/dashboard/commissions/view?tab=payouts", popup_type: "Dialog", title: "Retry Payout", description: "Retry a failed payout.", trigger: "Retry option in payout row dropdown (when status is failed)", fields: [], actions: ["Cancel", "Retry"] },
+  { section: "Commissions", page: "Commissions — Payouts", url_path: "/dashboard/commissions/view?tab=payouts", popup_type: "Dialog", title: "Cancel Payout", description: "Cancel a payout.", trigger: "Cancel option in payout row dropdown", fields: [], actions: ["Cancel", "Confirm Cancel"] },
+  { section: "Commissions", page: "Commissions — Payouts", url_path: "/dashboard/commissions/view?tab=payouts", popup_type: "Dialog", title: "Confirm via Stripe", description: "Confirm a payout via Stripe Connect.", trigger: "Confirm via Stripe option in payout row dropdown", fields: [], actions: ["Cancel", "Confirm"] },
+  { section: "Commissions", page: "Commissions — Payouts — Run Batch", url_path: "/dashboard/commissions/view?tab=payouts", popup_type: "Drawer", title: "Run Batch", description: "Process pending commission splits and create payouts for selected staff members.", trigger: "Run Batch button in payouts toolbar", fields: ["Staff selection (multi-select)", "Payment method selector"], actions: ["Cancel", "Process Payouts"] },
+  { section: "Commissions", page: "Commissions — Review Tab", url_path: "/dashboard/commissions/view?tab=review", popup_type: "Dialog", title: "Approve / Reject Adjustment", description: "Approve or reject a pending commission adjustment with optional note.", trigger: "Approve or Reject button on pending review row", fields: ["Note (optional for approve, required for reject)"], actions: ["Cancel", "Approve / Reject"] },
+
+  // ── TRAINERS & MY SERVICES ────────────────────────────────────────────────
+  { section: "Trainers & My Services", page: "My Services — Buffer Time", url_path: "/dashboard/my-services/view?tab=buffer", popup_type: "Dialog", title: "Set Buffer Time", description: "Override the default buffer time for a service assignment.", trigger: "Edit button in buffer time table row", fields: ["Service (read-only)", "Category (read-only)", "My Buffer (minutes)"], actions: ["Cancel", "Clear Override", "Save"] },
+  { section: "Trainers & My Services", page: "Trainers — Tiers", url_path: "/dashboard/trainers/view?tab=tiers", popup_type: "Dialog", title: "New Tier", description: "Create a new seniority tier for commission calculation.", trigger: "New Tier button", fields: ["Name", "Rank", "Description"], actions: ["Cancel", "Create Tier"] },
+  { section: "Trainers & My Services", page: "Trainers — Tiers", url_path: "/dashboard/trainers/view?tab=tiers", popup_type: "Dialog", title: "Delete Tier", description: "Permanently delete a trainer tier; unassigns all trainers from it.", trigger: "Delete button on inactive tier row", fields: [], actions: ["Cancel", "Delete"] },
+  { section: "Trainers & My Services", page: "Trainers — Tiers", url_path: "/dashboard/trainers/view?tab=tiers", popup_type: "Dialog", title: "Deactivate Tier", description: "Deactivate a trainer tier; trainers assigned will have commission skipped until reactivated.", trigger: "Deactivate button on active tier row", fields: [], actions: ["Cancel", "Deactivate"] },
+  { section: "Trainers & My Services", page: "Trainers — Availability", url_path: "/dashboard/trainers/view?tab=availability", popup_type: "Sheet", title: "Trainer Availability ({trainer name})", description: "View and edit a trainer's weekly availability schedule.", trigger: "Click trainer name or any day cell in weekly grid", fields: ["Monday–Sunday time windows (start time, end time)", "Window kind (Available / Blocked / Time Off)"], actions: ["Edit", "Cancel", "Save Changes"] },
+  { section: "Trainers & My Services", page: "Trainers — Availability", url_path: "/dashboard/trainers/view?tab=availability", popup_type: "Dialog", title: "Add Exception Day or Block Time", description: "Mark a specific date as time-off or blocked for a trainer.", trigger: "Add Exception or Block Time buttons", fields: ["Trainer (optional)", "Kind (Time Off / Blocked)", "Exception Date", "Reason (optional)"], actions: ["Cancel", "Add Exception or Block Time"] },
+  { section: "Trainers & My Services", page: "Trainers — Availability (Intake)", url_path: "/dashboard/trainers/view?tab=availability", popup_type: "Sheet", title: "Set Intake Schedule ({trainer name})", description: "Set intake availability windows for a trainer (when new clients can book initial consultations).", trigger: "Set Intake Schedule button on trainer row", fields: ["Monday–Sunday time windows (start time, end time)"], actions: ["Save Intake Availability"] },
+  { section: "Trainers & My Services", page: "Trainers List", url_path: "/dashboard/trainers/view?tab=trainers", popup_type: "Dialog", title: "Add Trainer / Edit Trainer", description: "Create a new trainer or edit an existing trainer's profile.", trigger: "Invite Trainer button (create) or Edit button in detail panel (edit)", fields: ["Email", "Hierarchy Scope", "Display Name", "Specialization", "Phone Number", "Bio", "Certifications"], actions: ["Cancel", "Add Trainer / Save Changes"] },
+  { section: "Trainers & My Services", page: "Trainers — Detail Panel", url_path: "/dashboard/trainers/view?tab=trainers", popup_type: "Dialog", title: "Change Tier", description: "Assign or change a trainer's seniority tier.", trigger: "Change Tier button in detail panel header", fields: ["Tier (dropdown)"], actions: ["Cancel", "Save"] },
+  { section: "Trainers & My Services", page: "Trainers — Detail Panel", url_path: "/dashboard/trainers/view?tab=trainers", popup_type: "Dialog", title: "Assign Branch", description: "Reassign a trainer to a different organizational branch/hierarchy node.", trigger: "Assign Branch button in detail panel header", fields: ["Branch (dropdown)"], actions: ["Cancel", "Save"] },
+
+  // ── SERVICES, ROOMS, PROMOTIONS & APPOINTMENTS ────────────────────────────
+  { section: "Services, Rooms, Promotions & Appointments", page: "Class Slots", url_path: "/dashboard/appointment/class-slots/view", popup_type: "Dialog", title: "Create Class Slot", description: "Schedule a new group class slot.", trigger: "New Class Slot button", fields: ["Service", "Branch", "Date", "Start Time", "End Time", "Capacity", "Instructor (optional)", "Location (optional)"], actions: ["Cancel", "Create"] },
+  { section: "Services, Rooms, Promotions & Appointments", page: "Class Slots", url_path: "/dashboard/appointment/class-slots/view", popup_type: "Dialog", title: "Edit Class Slot", description: "Update the details for a class slot.", trigger: "Edit button on class slot row", fields: ["Start Time", "End Time", "Capacity", "Instructor", "Location"], actions: ["Cancel", "Save Changes"] },
+  { section: "Services, Rooms, Promotions & Appointments", page: "Class Slots", url_path: "/dashboard/appointment/class-slots/view", popup_type: "Dialog", title: "Signups", description: "View and manage signups for a class slot, enroll customers.", trigger: "View Signups button on class slot row", fields: ["Enroll customer (select)"], actions: ["Enroll"] },
+  { section: "Services, Rooms, Promotions & Appointments", page: "Class Slots", url_path: "/dashboard/appointment/class-slots/view", popup_type: "Dialog", title: "Cancel Class Slot", description: "Confirm cancellation of a class slot with optional reason.", trigger: "Cancel Class button on class slot dropdown menu", fields: ["Cancellation reason (optional)"], actions: ["Keep Class", "Cancel Class"] },
+  { section: "Services, Rooms, Promotions & Appointments", page: "Installment Plans", url_path: "/dashboard/service/view?tab=installments", popup_type: "Dialog", title: "Add Installment Plan", description: "Define a new installment plan to offer on package services.", trigger: "New Plan button", fields: ["Code", "Name", "Installments", "Interval (days)", "Price Premium (%)", "Description", "Set as default plan"], actions: ["Cancel", "Add Plan"] },
+  { section: "Services, Rooms, Promotions & Appointments", page: "Installment Plans", url_path: "/dashboard/service/view?tab=installments", popup_type: "Dialog", title: "Edit Installment Plan", description: "Update plan details. The plan code cannot be changed.", trigger: "Edit button on plan card", fields: ["Code (read-only)", "Name", "Installments", "Interval (days)", "Price Premium (%)", "Description"], actions: ["Cancel", "Save Changes"] },
+  { section: "Services, Rooms, Promotions & Appointments", page: "Installment Plans", url_path: "/dashboard/service/view?tab=installments", popup_type: "Dialog", title: "Disable Installment Plan", description: "Confirm disabling an installment plan.", trigger: "Disable button on plan card", fields: [], actions: ["Cancel", "Disable"] },
+  { section: "Services, Rooms, Promotions & Appointments", page: "Service Pricing (Price Overrides)", url_path: "/dashboard/service/view?tab=pricing", popup_type: "Dialog", title: "Add Service Price Override", description: "Set a price override for a service, optionally scoped to a branch or customer type.", trigger: "Add Override button", fields: ["Service", "Branch", "Customer Type", "Price (RM)", "Effective From", "Effective Until (optional)"], actions: ["Cancel", "Save Override"] },
+  { section: "Services, Rooms, Promotions & Appointments", page: "Service Pricing (Price Overrides)", url_path: "/dashboard/service/view?tab=pricing", popup_type: "Dialog", title: "Expire price override?", description: "Confirm expiring a price override by setting effective-until date to now.", trigger: "Expire button on price override row", fields: [], actions: ["Cancel", "Expire Override"] },
+  { section: "Services, Rooms, Promotions & Appointments", page: "Service Pricing (Price Overrides)", url_path: "/dashboard/service/view?tab=pricing", popup_type: "Dialog", title: "Delete price override?", description: "Confirm permanently removing a price override.", trigger: "Delete button on price override row", fields: [], actions: ["Cancel", "Delete Override"] },
+  { section: "Services, Rooms, Promotions & Appointments", page: "Promotions", url_path: "/dashboard/service/view?tab=promotions", popup_type: "Dialog", title: "New Promotion", description: "Create a new discount code or promotion. The code will be automatically uppercased.", trigger: "New Promotion button", fields: ["Code", "Name", "Description", "Type", "Value", "Minimum Order Amount (RM)", "Usage Limit", "Per Customer", "Valid From", "Valid Until"], actions: ["Cancel", "Create Promotion"] },
+  { section: "Services, Rooms, Promotions & Appointments", page: "Promotions", url_path: "/dashboard/service/view?tab=promotions", popup_type: "Dialog", title: "Edit Promotion", description: "Update name, description, and validity window. Code and type cannot be changed.", trigger: "Edit button on promotion row", fields: ["Name", "Description", "Valid From", "Valid Until"], actions: ["Cancel", "Save Changes"] },
+  { section: "Services, Rooms, Promotions & Appointments", page: "Promotions", url_path: "/dashboard/service/view?tab=promotions", popup_type: "Dialog", title: "Confirm Deactivate", description: "Confirm deactivating a promotion so it's no longer usable.", trigger: "Deactivate button on promotion row", fields: [], actions: ["Cancel", "Deactivate"] },
+  { section: "Services, Rooms, Promotions & Appointments", page: "Rooms", url_path: "/dashboard/service/view?tab=rooms", popup_type: "Dialog", title: "Create Room", description: "Fill in the details to create a new room.", trigger: "Create Room button", fields: ["Name", "Type", "Capacity", "Branch"], actions: ["Cancel", "Create Room"] },
+  { section: "Services, Rooms, Promotions & Appointments", page: "Rooms", url_path: "/dashboard/service/view?tab=rooms", popup_type: "Dialog", title: "Edit Room", description: "Update room details.", trigger: "Edit button on room row", fields: ["Name", "Type", "Capacity", "Branch", "Active (checkbox)"], actions: ["Cancel", "Save Changes"] },
+  { section: "Services, Rooms, Promotions & Appointments", page: "Services", url_path: "/dashboard/service/view?tab=services", popup_type: "Dialog", title: "Add Service", description: "Create a new service with pricing, duration, and scheduling configuration.", trigger: "New Service button", fields: ["Name", "Category", "Price", "Duration", "Duration Unit", "Sessions", "Max Attendees", "Scheduling Type", "Taxable", "Tax %", "Payment Plans", "Installment Interval Days", "Grace Period Days"], actions: ["Cancel", "Create Service"] },
+  { section: "Services, Rooms, Promotions & Appointments", page: "Services", url_path: "/dashboard/service/view?tab=services", popup_type: "Dialog", title: "Service Detail", description: "View detailed information about a service.", trigger: "Service row click for details", fields: [], actions: ["Close"] },
+
+  // ── PRODUCTS, INVENTORY & UOM ─────────────────────────────────────────────
+  { section: "Products, Inventory & UOM", page: "Product Pricing", url_path: "/dashboard/products/pricing", popup_type: "Dialog", title: "Add Product Price Override", description: "Create a new price override for a product, with optional branch and customer type scoping.", trigger: "Add Override button in filter bar", fields: ["Product", "Branch", "Customer Type", "Price (RM)", "Effective From", "Effective Until"], actions: ["Cancel", "Save Override"] },
+  { section: "Products, Inventory & UOM", page: "Product Pricing", url_path: "/dashboard/products/pricing", popup_type: "Dialog", title: "Expire price override?", description: "Expire a price override, setting effective-until to now.", trigger: "Expire button on price override table row", fields: [], actions: ["Cancel", "Expire Override"] },
+  { section: "Products, Inventory & UOM", page: "Product Pricing", url_path: "/dashboard/products/pricing", popup_type: "Dialog", title: "Delete price override?", description: "Permanently delete a price override.", trigger: "Delete button on price override table row", fields: [], actions: ["Cancel", "Delete Override"] },
+  { section: "Products, Inventory & UOM", page: "Brands", url_path: "/dashboard/inventory-options?tab=brands", popup_type: "Dialog", title: "Add Brand", description: "Create a new brand for the product catalog.", trigger: "Add Brand button in table toolbar", fields: ["Brand Name"], actions: ["Cancel", "Add Brand"] },
+  { section: "Products, Inventory & UOM", page: "Brands", url_path: "/dashboard/inventory-options?tab=brands", popup_type: "Dialog", title: "Edit Brand", description: "Update existing brand details.", trigger: "Edit action on brand row", fields: ["Brand Name"], actions: ["Cancel", "Save Changes"] },
+  { section: "Products, Inventory & UOM", page: "Brands", url_path: "/dashboard/inventory-options?tab=brands", popup_type: "Dialog", title: "Delete Brand", description: "Confirm permanent removal of a brand.", trigger: "Delete action on brand row", fields: [], actions: ["Cancel", "Delete"] },
+  { section: "Products, Inventory & UOM", page: "Categories", url_path: "/dashboard/inventory-options?tab=categories", popup_type: "Dialog", title: "Add Category", description: "Create a new product category.", trigger: "Add Category button in table toolbar", fields: ["Category Name", "External Code"], actions: ["Cancel", "Add Category"] },
+  { section: "Products, Inventory & UOM", page: "Categories", url_path: "/dashboard/inventory-options?tab=categories", popup_type: "Dialog", title: "Edit Category", description: "Update existing category details.", trigger: "Edit action on category row", fields: ["Category Name", "External Code"], actions: ["Cancel", "Save Changes"] },
+  { section: "Products, Inventory & UOM", page: "Categories", url_path: "/dashboard/inventory-options?tab=categories", popup_type: "Dialog", title: "Delete Category", description: "Confirm permanent removal of a category.", trigger: "Delete action on category row", fields: [], actions: ["Cancel", "Delete"] },
+  { section: "Products, Inventory & UOM", page: "Units of Measure", url_path: "/dashboard/uom/view?tab=units", popup_type: "Dialog", title: "Add New UoM", description: "Create a new base unit of measure.", trigger: "Add UoM button in table toolbar", fields: ["Name", "Description"], actions: ["Cancel", "Add UoM"] },
+  { section: "Products, Inventory & UOM", page: "Units of Measure", url_path: "/dashboard/uom/view?tab=units", popup_type: "Dialog", title: "Edit UoM", description: "Update existing unit of measure details.", trigger: "Edit action on UoM row", fields: ["Name", "Description"], actions: ["Cancel", "Save Changes"] },
+  { section: "Products, Inventory & UOM", page: "Units of Measure", url_path: "/dashboard/uom/view?tab=units", popup_type: "Dialog", title: "Confirm Delete", description: "Confirm permanent deletion of a unit of measure.", trigger: "Delete action on UoM row", fields: [], actions: ["Cancel", "Delete"] },
+  { section: "Products, Inventory & UOM", page: "UoM Conversions", url_path: "/dashboard/uom/view?tab=conversions", popup_type: "Dialog", title: "Add UoM Conversion", description: "Create a new unit of measure conversion with base UoM and factor.", trigger: "Add Conversion button in table toolbar", fields: ["Name", "Base UoM", "Conversion Factor", "Description"], actions: ["Cancel", "Add Conversion"] },
+  { section: "Products, Inventory & UOM", page: "UoM Conversions", url_path: "/dashboard/uom/view?tab=conversions", popup_type: "Dialog", title: "Edit UoM Conversion", description: "Update existing UoM conversion details.", trigger: "Edit action on conversion row", fields: ["Name", "Base UoM", "Conversion Factor", "Description"], actions: ["Cancel", "Save Changes"] },
+
+  // ── PACKAGES, MEMBERSHIPS & INSTALLMENTS ─────────────────────────────────
+  { section: "Packages, Memberships & Installments", page: "Session Packs", url_path: "/dashboard/packages/view?tab=session-packs", popup_type: "Dialog", title: "Assign Package", description: "Assign or sell a package to a client with credits, dates, and optional installment plan.", trigger: "Assign Pack button in header", fields: ["Package", "Client ID", "Source", "Installment Plan", "Credits (Sessions)", "Start Date", "Expiry Date", "Total Price (RM)", "Payment Status", "Remark"], actions: ["Cancel", "Assign Package"] },
+  { section: "Packages, Memberships & Installments", page: "Session Packs", url_path: "/dashboard/packages/view?tab=session-packs", popup_type: "Dialog", title: "Status History", description: "Display status transitions and audit trail for a package instance.", trigger: "Click table row to view details", fields: [], actions: [] },
+  { section: "Packages, Memberships & Installments", page: "Session Packs", url_path: "/dashboard/packages/view?tab=session-packs", popup_type: "Dialog", title: "Assigned Staff", description: "Manage trainer/staff assignments for a package instance.", trigger: "Staff button in table row", fields: ["Select trainer to add"], actions: ["Add", "Close"] },
+  { section: "Packages, Memberships & Installments", page: "Session Packs", url_path: "/dashboard/packages/view?tab=session-packs", popup_type: "Dialog", title: "Freeze Package?", description: "Freeze a package instance, preventing customer from booking sessions.", trigger: "Freeze action in dropdown menu", fields: ["Frozen until (optional)", "Reason"], actions: ["Cancel", "Freeze Package"] },
+  { section: "Packages, Memberships & Installments", page: "Session Packs", url_path: "/dashboard/packages/view?tab=session-packs", popup_type: "Dialog", title: "Unfreeze Package?", description: "Reactivate a frozen package, allowing customer to book sessions again.", trigger: "Unfreeze action in dropdown menu", fields: [], actions: ["Cancel", "Unfreeze"] },
+  { section: "Packages, Memberships & Installments", page: "Session Packs", url_path: "/dashboard/packages/view?tab=session-packs", popup_type: "Dialog", title: "Extend Expiry", description: "Extend package expiry date by adding days.", trigger: "Extend action in dropdown menu", fields: ["Add days", "Reason"], actions: ["Cancel", "Extend Expiry"] },
+  { section: "Packages, Memberships & Installments", page: "Session Packs", url_path: "/dashboard/packages/view?tab=session-packs", popup_type: "Dialog", title: "Cancel Package?", description: "Permanently cancel a package instance (irreversible).", trigger: "Cancel Pack action in dropdown menu", fields: ["Reason"], actions: ["Keep Package", "Cancel Package"] },
+  { section: "Packages, Memberships & Installments", page: "Memberships", url_path: "/dashboard/packages/view?tab=memberships", popup_type: "Sheet", title: "Customer Detail", description: "View detailed customer profile and membership information.", trigger: "Click customer name in table row", fields: [], actions: [] },
+  { section: "Packages, Memberships & Installments", page: "Memberships", url_path: "/dashboard/packages/view?tab=memberships", popup_type: "Dialog", title: "Freeze Package?", description: "Freeze a membership package.", trigger: "Freeze action in dropdown menu", fields: ["Frozen until (optional)", "Reason"], actions: ["Cancel", "Freeze Package"] },
+  { section: "Packages, Memberships & Installments", page: "Memberships", url_path: "/dashboard/packages/view?tab=memberships", popup_type: "Dialog", title: "Unfreeze Package?", description: "Unfreeze a membership package.", trigger: "Unfreeze action in dropdown menu", fields: [], actions: ["Cancel", "Unfreeze"] },
+  { section: "Packages, Memberships & Installments", page: "Memberships", url_path: "/dashboard/packages/view?tab=memberships", popup_type: "Dialog", title: "Extend Expiry", description: "Extend membership expiry date.", trigger: "Extend action in dropdown menu", fields: ["Add days", "Reason"], actions: ["Cancel", "Extend Expiry"] },
+  { section: "Packages, Memberships & Installments", page: "Memberships", url_path: "/dashboard/packages/view?tab=memberships", popup_type: "Dialog", title: "Cancel Package?", description: "Permanently cancel a membership package.", trigger: "Cancel Package action in dropdown menu", fields: ["Reason"], actions: ["Keep Package", "Cancel Package"] },
+  { section: "Packages, Memberships & Installments", page: "Installments", url_path: "/dashboard/packages/view?tab=installments", popup_type: "Dialog", title: "Installment Package Detail", description: "Review installments and take admin actions (confirm, reschedule, waive, unlock, adjust credits, refund).", trigger: "Click table row to view package details", fields: [], actions: ["Manual Unlock", "Allow/Disable Overdraft", "Adjust Credits", "Request Refund", "Close"] },
+  { section: "Packages, Memberships & Installments", page: "Installments", url_path: "/dashboard/packages/view?tab=installments", popup_type: "Dialog", title: "Confirm Payment", description: "Confirm payment for an installment with method, notes, and optional interval override.", trigger: "Confirm Payment button in package detail dialog", fields: ["Payment Method", "Notes (optional)", "Override Next Interval (days, optional)"], actions: ["Cancel", "Confirm"] },
+  { section: "Packages, Memberships & Installments", page: "Installments", url_path: "/dashboard/packages/view?tab=installments", popup_type: "Dialog", title: "Reschedule Installment", description: "Reschedule an unpaid installment to a new due date.", trigger: "Reschedule button in package detail dialog", fields: ["New Due Date", "Reason"], actions: ["Cancel", "Reschedule"] },
+  { section: "Packages, Memberships & Installments", page: "Installments", url_path: "/dashboard/packages/view?tab=installments", popup_type: "Dialog", title: "Waive Installment", description: "Permanently waive an unpaid installment (irreversible).", trigger: "Waive button in package detail dialog", fields: ["Reason"], actions: ["Cancel", "Waive Installment"] },
+  { section: "Packages, Memberships & Installments", page: "Installments", url_path: "/dashboard/packages/view?tab=installments", popup_type: "Dialog", title: "Manual Unlock", description: "Manually unlock a locked package for audit-tracked admin action.", trigger: "Manual Unlock button in package detail dialog (when locked)", fields: ["Reason"], actions: ["Cancel", "Unlock Package"] },
+  { section: "Packages, Memberships & Installments", page: "Installments", url_path: "/dashboard/packages/view?tab=installments", popup_type: "Dialog", title: "Allow / Disable Overdraft", description: "Allow or disable overdraft to permit/prevent booking when package is locked.", trigger: "Allow Overdraft / Disable Overdraft button in package detail dialog", fields: ["Reason"], actions: ["Cancel", "Confirm"] },
+  { section: "Packages, Memberships & Installments", page: "Installments", url_path: "/dashboard/packages/view?tab=installments", popup_type: "Dialog", title: "Adjust Credits", description: "Override credits unlocked/used values with audit reason; restore formula with Reset button.", trigger: "Adjust Credits button in package detail dialog", fields: ["Credits Unlocked", "Credits Used", "Reason"], actions: ["Cancel", "Reset to formula (if override active)", "Save Changes"] },
+  { section: "Packages, Memberships & Installments", page: "Installments", url_path: "/dashboard/packages/view?tab=installments", popup_type: "Dialog", title: "Request Refund", description: "Submit a refund request for review and approval with amount, tax, and reason.", trigger: "Request Refund button in package detail dialog", fields: ["Refund Amount (RM)", "Tax Amount (RM, optional)", "Reason", "Additional Notes (optional)"], actions: ["Cancel", "Submit Request"] },
+
+  // ── STOCK, PURCHASE ORDERS & OPERATIONS ───────────────────────────────────
+  { section: "Stock, Purchase Orders & Operations", page: "Stock Requests", url_path: "/dashboard/stock-requests/view?tab=requests", popup_type: "Dialog", title: "New Stock Request", description: "Create a new stock request to move inventory between branches.", trigger: "New Request button", fields: ["To Branch", "From Branch", "Destination Label", "Notes", "Product ID", "Quantity", "Item Notes"], actions: ["Cancel", "Create"] },
+  { section: "Stock, Purchase Orders & Operations", page: "Stock Requests", url_path: "/dashboard/stock-requests/view?tab=requests", popup_type: "Dialog", title: "Fulfill Stock Request", description: "Enter the quantity fulfilled for each item in the stock request.", trigger: "Fulfill button on pending approved stock requests", fields: ["Product with requested quantity", "Fulfilled quantity input"], actions: ["Cancel", "Confirm Fulfill"] },
+  { section: "Stock, Purchase Orders & Operations", page: "Transfer Orders", url_path: "/dashboard/stock-requests/view?tab=transfers", popup_type: "Dialog", title: "New Transfer Order", description: "Create a new inventory transfer between branches.", trigger: "New Transfer button", fields: ["From Branch", "To Branch", "Notes", "Product ID", "Quantity", "Item Notes"], actions: ["Cancel", "Create"] },
+  { section: "Stock, Purchase Orders & Operations", page: "Transfer Orders", url_path: "/dashboard/stock-requests/view?tab=transfers", popup_type: "Dialog", title: "Complete Transfer Order", description: "Enter the quantity received for each item in the transfer order.", trigger: "Complete button on in-transit transfer orders", fields: ["Product with transferred quantity", "Received quantity input"], actions: ["Cancel", "Confirm Complete"] },
+  { section: "Stock, Purchase Orders & Operations", page: "Transfer Orders", url_path: "/dashboard/stock-requests/view?tab=transfers", popup_type: "Dialog", title: "Cancel Transfer Order", description: "Confirm cancellation of a transfer order (cannot be undone).", trigger: "Cancel button on pending or in-transit transfer orders", fields: [], actions: ["Keep", "Cancel Order"] },
+  { section: "Stock, Purchase Orders & Operations", page: "Purchase Orders", url_path: "/dashboard/purchase-orders/view", popup_type: "Dialog", title: "New Purchase Order", description: "Create a draft purchase order to send to a supplier.", trigger: "New PO button", fields: ["Supplier", "Branch", "Order Date", "Expected Delivery", "Notes", "Product", "Quantity", "Unit Cost (RM)"], actions: ["Cancel", "Create Draft PO"] },
+  { section: "Stock, Purchase Orders & Operations", page: "Purchase Orders", url_path: "/dashboard/purchase-orders/view", popup_type: "Dialog", title: "Receive Items", description: "Record received quantities for a purchase order.", trigger: "Receive button on approved/ordered/partially_received POs", fields: ["Product with ordered quantity", "Received quantity input"], actions: ["Cancel", "Confirm Receipt"] },
+  { section: "Stock, Purchase Orders & Operations", page: "Purchase Orders", url_path: "/dashboard/purchase-orders/view", popup_type: "Dialog", title: "Record Supplier Invoice", description: "Record an invoice against a purchase order.", trigger: "Invoice button on received/partially_received POs", fields: ["Invoice Number", "Goods Receipt (optional)", "Invoice Total (RM)", "Tax Amount (RM, optional)", "Invoice Date", "Due Date (optional)"], actions: ["Cancel", "Save Invoice"] },
+  { section: "Stock, Purchase Orders & Operations", page: "Purchase Orders", url_path: "/dashboard/purchase-orders/view", popup_type: "Dialog", title: "Approve purchase order?", description: "Confirm approval of a purchase order (commits the order and allows supplier notification).", trigger: "Approve button on draft POs", fields: [], actions: ["Cancel", "Approve"] },
+  { section: "Stock, Purchase Orders & Operations", page: "Purchase Orders", url_path: "/dashboard/purchase-orders/view", popup_type: "Dialog", title: "Cancel purchase order?", description: "Confirm cancellation of a purchase order (cannot be undone).", trigger: "Cancel button on draft/approved POs", fields: [], actions: ["Keep order", "Cancel order"] },
+  { section: "Stock, Purchase Orders & Operations", page: "Operations — Approvals", url_path: "/dashboard/operations/approvals", popup_type: "Dialog", title: "Reject package", description: "Reject a pending package purchase with optional reason (customer will be notified).", trigger: "Reject button on pending packages in inbox", fields: ["Reason (optional)"], actions: ["Cancel", "Reject"] },
+  { section: "Stock, Purchase Orders & Operations", page: "Operations — Approvals", url_path: "/dashboard/operations/approvals", popup_type: "Dialog", title: "Bulk approve N packages", description: "Assign one trainer to multiple selected packages (packages whose branch doesn't match trainer will be skipped).", trigger: "Approve all visible CTA or bulk approve from selected rows", fields: ["Trainer to assign"], actions: ["Cancel", "Approve N"] },
+  { section: "Stock, Purchase Orders & Operations", page: "Operations — Approvals", url_path: "/dashboard/operations/approvals", popup_type: "Dialog", title: "Reject N packages", description: "Bulk reject multiple packages with optional reason (customers will be notified, packages move to cancelled).", trigger: "Bulk reject from selected rows", fields: ["Reason (optional)"], actions: ["Cancel", "Reject N"] },
+  { section: "Stock, Purchase Orders & Operations", page: "Operations — Approvals", url_path: "/dashboard/operations/approvals", popup_type: "Sheet", title: "Schedule sessions", description: "Review and adjust proposed session slots for remaining package credits before creating them.", trigger: "Schedule button in expanded row detail or on package instance", fields: ["Session date (per slot)", "Session time (per slot)"], actions: ["Cancel", "Create N sessions"] },
+  { section: "Stock, Purchase Orders & Operations", page: "Operations — Approvals", url_path: "/dashboard/operations/approvals", popup_type: "Sheet", title: "Book replacement session", description: "Pick a date and time for a replacement session (one credit will be used).", trigger: "Schedule replacement session from package detail", fields: ["Session date", "Session time"], actions: ["Cancel", "Book session"] },
+
+  // ── SETTINGS, BRANCH & MISC ───────────────────────────────────────────────
+  { section: "Settings, Branch & Misc", page: "Settings — Commission Cycles", url_path: "/dashboard/settings/commission-cycles", popup_type: "Dialog", title: "Add / Edit cycle policy", description: "Create or edit commission cycle policies (cap window math) for the organization or specific branches.", trigger: "Add policy button or Edit pencil icon", fields: ["Scope", "Cycle type", "Anchor day"], actions: ["Cancel", "Create policy / Save changes"] },
+  { section: "Settings, Branch & Misc", page: "Settings — Installment Plans", url_path: "/dashboard/settings/installment-plans", popup_type: "Dialog", title: "Add / Edit Installment Plan", description: "Create or edit installment payment plans with premium pricing and interval settings.", trigger: "New Plan button or Edit button on plan card", fields: ["Code", "Name", "Installments", "Interval (days)", "Price Premium (%)", "Description", "Set as default plan"], actions: ["Cancel", "Add Plan / Save Changes"] },
+  { section: "Settings, Branch & Misc", page: "Settings — Installment Plans", url_path: "/dashboard/settings/installment-plans", popup_type: "Dialog", title: "Disable Installment Plan", description: "Deactivate an installment plan with warning about active services using it.", trigger: "Disable button on plan card footer", fields: [], actions: ["Cancel", "Disable"] },
+  { section: "Settings, Branch & Misc", page: "Settings — Tax Rates", url_path: "/dashboard/settings/tax-rates", popup_type: "Dialog", title: "Add / Edit Tax Rate", description: "Create or edit tax rates with category, effective dates, and default status.", trigger: "New Rate button or Edit button in row actions", fields: ["Name", "Code", "Rate (%)", "Category", "Effective From", "Effective Until", "Description", "Set as default tax rate"], actions: ["Cancel", "Add Rate / Save Changes"] },
+  { section: "Settings, Branch & Misc", page: "Settings — Tax Rates", url_path: "/dashboard/settings/tax-rates", popup_type: "Dialog", title: "Disable Tax Rate", description: "Deactivate a tax rate that will no longer be selectable for new transactions.", trigger: "Disable button in row actions", fields: [], actions: ["Cancel", "Disable"] },
+  { section: "Settings, Branch & Misc", page: "Branch", url_path: "/dashboard/branch/view", popup_type: "Dialog", title: "Edit {Branch Name}", description: "Edit branch details including name, country/region/area hierarchy, address, and person in charge.", trigger: "Edit Branch button in detail panel", fields: ["Name", "Country", "Region", "Area", "Address", "Person In Charge", "Member Reassignment section"], actions: ["Cancel", "Save Changes"] },
+  { section: "Settings, Branch & Misc", page: "Announcements", url_path: "/dashboard/announcements/view", popup_type: "Dialog", title: "New / Edit Announcement", description: "Create or edit announcements with priority, audience targeting, date range, pinning, and acknowledgement options.", trigger: "New button in header or Edit button in expanded row", fields: ["Title", "Message", "Priority", "Target Audience", "Branch Scope", "Start Date", "End Date", "Pin to top", "Requires acknowledgement"], actions: ["Cancel", "Create / Save Changes"] },
+  { section: "Settings, Branch & Misc", page: "Announcements", url_path: "/dashboard/announcements/view", popup_type: "Dialog", title: "Confirm Delete", description: "Confirm permanent deletion of an announcement.", trigger: "Delete button in expanded announcement row", fields: [], actions: ["Cancel", "Delete"] },
+  { section: "Settings, Branch & Misc", page: "Announcements", url_path: "/dashboard/announcements/view", popup_type: "Dialog", title: "Archive Announcement", description: "Deactivate an announcement so it's no longer visible to recipients.", trigger: "Archive button in expanded announcement row", fields: [], actions: ["Cancel", "Archive"] },
+  { section: "Settings, Branch & Misc", page: "Expenses", url_path: "/dashboard/expenses/view", popup_type: "Dialog", title: "Submit Expense", description: "Submit a new expense claim with category, amount, date, and optional receipt URL.", trigger: "Submit Expense button in header", fields: ["Category", "Description", "Amount (RM)", "Expense Date", "Receipt URL"], actions: ["Cancel", "Submit"] },
+  { section: "Settings, Branch & Misc", page: "Expenses", url_path: "/dashboard/expenses/view", popup_type: "Dialog", title: "Reject Expense", description: "Reject an expense claim with mandatory rejection reason.", trigger: "Reject button in pending expense row", fields: ["Rejection Reason"], actions: ["Cancel", "Reject"] },
+  { section: "Settings, Branch & Misc", page: "Expenses", url_path: "/dashboard/expenses/view", popup_type: "Dialog", title: "Mark as Paid", description: "Mark an approved expense as paid with optional payment reference.", trigger: "Mark Paid button in approved expense row", fields: ["Payment Reference"], actions: ["Cancel", "Confirm"] },
+  { section: "Settings, Branch & Misc", page: "User Management", url_path: "/dashboard/user/view", popup_type: "Dialog", title: "Log in as {Member Name}?", description: "Confirm impersonation of a staff member (audited, 1 hour session).", trigger: "Impersonate option from member dropdown menu", fields: [], actions: ["Cancel", "Confirm"] },
+
+  // ── PLATFORM ADMIN ────────────────────────────────────────────────────────
+  { section: "Platform Admin", page: "Platform Admin — Admins", url_path: "/dashboard/platform-admin/admins", popup_type: "Dialog", title: "Revoke Platform Admin", description: "Confirmation dialog to revoke platform admin access from a user.", trigger: "Revoke button (trash icon) in admins table", fields: [], actions: ["Cancel", "Revoke Access"] },
+  { section: "Platform Admin", page: "Platform Admin — Admins", url_path: "/dashboard/platform-admin/admins", popup_type: "Dialog", title: "Add Platform Admin", description: "Search for users and assign them a platform admin role.", trigger: "Add Admin button in header", fields: ["Search user by email or name", "Role (Super Admin, Support, Billing)"], actions: ["Cancel", "Grant Access"] },
+  { section: "Platform Admin", page: "Platform Admin — Billing", url_path: "/dashboard/platform-admin/billing", popup_type: "Dialog", title: "Create Coupon", description: "Create a new platform coupon (super_admin only).", trigger: "Create Coupon button in Coupons tab", fields: ["Coupon name", "Percent off", "Amount off", "Currency", "Duration", "Max redemptions"], actions: ["Cancel", "Create"] },
+  { section: "Platform Admin", page: "Platform Admin — Migrations", url_path: "/dashboard/platform-admin/migrations", popup_type: "Dialog", title: "Migration SQL Preview", description: "Read-only SQL preview of a migration file.", trigger: "Click on a migration row in the timeline table", fields: [], actions: ["Close"] },
+  { section: "Platform Admin", page: "Platform Admin — Comms", url_path: "/dashboard/platform-admin/comms", popup_type: "Dialog", title: "Template Editor", description: "Create or edit communication templates for direct messages and announcements.", trigger: "New Template button or Edit button on template row", fields: ["Template name", "Subject", "Body (markdown)", "Kind", "Priority", "Target Audience"], actions: ["Cancel", "Create / Update"] },
+];
+
+// ── Render ──────────────────────────────────────────────────────────────────
+let activeType = "all";
+let searchTerm = "";
+
+function setType(type, btn) {
+  activeType = type;
+  document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  renderAll();
+}
+
+function filterCards() {
+  searchTerm = document.getElementById("search").value.toLowerCase();
+  renderAll();
+}
+
+function cardMatches(d) {
+  if (activeType !== "all" && d.popup_type !== activeType) return false;
+  if (!searchTerm) return true;
+  const haystack = [d.section, d.page, d.title, d.description, d.trigger, ...(d.fields || []), ...(d.actions || []), d.url_path].join(" ").toLowerCase();
+  return haystack.includes(searchTerm);
+}
+
+function renderAll() {
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+
+  const sections = [...new Set(DATA.map(d => d.section))];
+  let totalVisible = 0;
+
+  for (const section of sections) {
+    const items = DATA.filter(d => d.section === section && cardMatches(d));
+    if (items.length === 0) continue;
+    totalVisible += items.length;
+
+    const sec = document.createElement("div");
+    sec.className = "section";
+    sec.innerHTML = `<div class="section-header"><span class="section-title">${section}</span><span class="section-count">${items.length}</span></div>`;
+
+    const grid = document.createElement("div");
+    grid.className = "grid";
+
+    for (const d of items) {
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const fieldsHtml = d.fields && d.fields.length
+        ? `<div class="meta-row"><span class="meta-label">Fields</span><div class="tags">${d.fields.map(f => `<span class="tag">${f}</span>`).join("")}</div></div>`
+        : "";
+
+      const actionsHtml = d.actions && d.actions.length
+        ? `<div class="meta-row"><span class="meta-label">Actions</span><div class="tags">${d.actions.map(a => `<span class="tag tag-action">${a}</span>`).join("")}</div></div>`
+        : "";
+
+      card.innerHTML = `
+        <div class="card-top">
+          <div class="card-title">${d.title}</div>
+          <span class="badge badge-${d.popup_type}">${d.popup_type}</span>
+        </div>
+        <div class="url-path">${d.url_path}</div>
+        <div class="description">${d.description}</div>
+        <div class="meta-row"><span class="meta-label">Trigger:</span>${d.trigger}</div>
+        ${fieldsHtml}
+        ${actionsHtml}
+      `;
+      grid.appendChild(card);
+    }
+
+    sec.appendChild(grid);
+    main.appendChild(sec);
+  }
+
+  if (totalVisible === 0) {
+    main.innerHTML = `<div class="empty">No popups match your search.</div>`;
+  }
+
+  const typeCounts = {};
+  DATA.forEach(d => { typeCounts[d.popup_type] = (typeCounts[d.popup_type] || 0) + 1; });
+  const statsEl = document.getElementById("stats");
+  statsEl.innerHTML = `<span><b>${totalVisible}</b> shown of <b>${DATA.length}</b> total</span>` +
+    Object.entries(typeCounts).map(([t,c]) => `<span>${t}: <b>${c}</b></span>`).join("");
+}
+
+renderAll();
+</script>
+</body>
+</html>

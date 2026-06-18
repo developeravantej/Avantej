@@ -13,11 +13,17 @@
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { households } from "@avantej-core/db/schema/tenant/households";
 import { members } from "@avantej-core/db/schema/tenant/members";
-import { requirePermission } from "@avantej-core/services";
+import {
+	requirePermissionOrpc,
+	assertTenantContext,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../guards";
 import { ORPCError } from "@orpc/server";
 import { asc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import type { Context } from "../context";
 
 function ensureCtx(context: {
 	tenantDb?: unknown;
@@ -26,42 +32,29 @@ function ensureCtx(context: {
 	tenantDb: NonNullable<typeof context.tenantDb>;
 	member: NonNullable<typeof context.member> & { userId: string };
 } {
-	if (!context.tenantDb) {
-		throw new ORPCError("INTERNAL_SERVER_ERROR", {
-			message:
-				"Tenant database not available. Ensure organization context is set.",
-		});
-	}
-	if (!context.member) {
+	assertTenantContext(context as Parameters<typeof assertTenantContext>[0]);
+	if (!context.member?.userId) {
 		throw new ORPCError("FORBIDDEN", {
-			message: "User is not a member of this organization",
+			message: "Member userId is required",
 		});
 	}
 }
 
-async function checkPermission(
-	context: { tenantDb: unknown; member: unknown },
-	action: "read" | "update",
-) {
-	try {
-		await requirePermission(
-			// biome-ignore lint/suspicious/noExplicitAny: ctx types are constrained at call site
-			context.tenantDb as any,
-			// biome-ignore lint/suspicious/noExplicitAny: ctx types are constrained at call site
-			context.member as any,
-			"customer_management",
-			action,
-		);
-	} catch (error) {
-		throw new ORPCError("FORBIDDEN", {
-			message: error instanceof Error ? error.message : "Permission denied",
-		});
+async function checkPermission(context: Context, action: "read" | "update") {
+	if (!context.tenantDb || !context.member) {
+		throw new ORPCError("FORBIDDEN");
 	}
+	await requirePermissionOrpc(
+		context.tenantDb,
+		context.member,
+		"customer_management",
+		action,
+	);
 }
 
 export const householdsRouter = {
 	/** Create a new household. Optionally bind a primary contact profile. */
-	create: protectedProcedure
+	create: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -71,6 +64,7 @@ export const householdsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
+			assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "update");
 
@@ -104,7 +98,7 @@ export const householdsRouter = {
 		}),
 
 	/** Add a customer profile to a household. */
-	addMember: protectedProcedure
+	addMember: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -113,6 +107,7 @@ export const householdsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
+			assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "update");
 
@@ -145,7 +140,7 @@ export const householdsRouter = {
 		}),
 
 	/** Remove a customer profile from any household (clears household_id). */
-	removeMember: protectedProcedure
+	removeMember: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -153,6 +148,7 @@ export const householdsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
+			assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "update");
 
@@ -174,9 +170,7 @@ export const householdsRouter = {
 				const household = await db.query.households.findFirst({
 					where: eq(households.id, profile.householdId),
 				});
-				if (
-					household?.primaryContactProfileId === input.customerProfileId
-				) {
+				if (household?.primaryContactProfileId === input.customerProfileId) {
 					await db
 						.update(households)
 						.set({ primaryContactProfileId: null })
@@ -194,7 +188,7 @@ export const householdsRouter = {
 		}),
 
 	/** Fetch one household with all its members (joined to user for display). */
-	get: protectedProcedure
+	get: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -202,6 +196,7 @@ export const householdsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
+			assertOrgContextMatch(context, input);
 			ensureCtx(context);
 			await checkPermission(context, "read");
 
@@ -241,7 +236,7 @@ export const householdsRouter = {
 	 *   (`accessibleNodeIds`). This prevents staff from reading all-org household
 	 *   data outside their scope.
 	 */
-	list: protectedProcedure
+	list: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -249,6 +244,10 @@ export const householdsRouter = {
 			}),
 		)
 		.handler(async ({ context, input }) => {
+			assertOrgContextMatch(context, input);
+			if (input.branchId) {
+				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			}
 			ensureCtx(context);
 			await checkPermission(context, "read");
 
@@ -256,25 +255,29 @@ export const householdsRouter = {
 			const db = context.tenantDb as any;
 
 			const isAdmin = context.member.role === "admin";
-			const accessibleNodeIds = (context as any).accessibleNodeIds as string[] | null | undefined;
+			const accessibleNodeIds = (context as any).accessibleNodeIds as
+				| string[]
+				| null
+				| undefined;
 
 			// Determine the effective branch filter:
 			// - explicit branchId wins (used for drill-down UIs)
 			// - no branchId + admin → no scope restriction
 			// - no branchId + staff → restrict to accessibleNodeIds scope
-			const scopeNodeIds: string[] | null =
-				input.branchId
-					? [input.branchId]
-					: isAdmin
-						? null // null = unrestricted
-						: (accessibleNodeIds && accessibleNodeIds.length > 0 ? accessibleNodeIds : null);
+			const scopeNodeIds: string[] | null = input.branchId
+				? [input.branchId]
+				: isAdmin
+					? null // null = unrestricted
+					: (accessibleNodeIds ?? []);
 
 			// If there is no scope restriction, return all households.
 			if (scopeNodeIds === null) {
-				return db
-					.select()
-					.from(households)
-					.orderBy(asc(households.name));
+				return db.select().from(households).orderBy(asc(households.name));
+			}
+
+			// Safe-guard: no accessible nodes means no households should be visible.
+			if (scopeNodeIds.length === 0) {
+				return [];
 			}
 
 			// Scoped path: find userIds of members whose hierarchyScopeId falls

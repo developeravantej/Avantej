@@ -6,7 +6,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const AUTH_FILE = path.join(__dirname, ".auth", "platform-admin.json");
 
-const PLATFORM_ADMIN = { email: "developer.avantej@gmail.com", password: "password123" };
+const PLATFORM_ADMIN = {
+	email: "developer.avantej@gmail.com",
+	password: "password123",
+};
 
 setup("authenticate platform admin", async ({ page }) => {
 	await page.goto("/login");

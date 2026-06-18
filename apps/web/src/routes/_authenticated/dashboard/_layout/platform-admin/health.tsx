@@ -12,12 +12,7 @@
 
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusCallout } from "@/components/ui/status-callout";
@@ -128,9 +123,7 @@ function PlatformAdminHealthPage() {
 			) : scoreboardQ.data ? (
 				<Card data-testid="health-trend-card">
 					<CardHeader className="pb-2">
-						<CardTitle className="text-base">
-							30-day average score
-						</CardTitle>
+						<CardTitle className="text-base">30-day average score</CardTitle>
 						<div className="text-xs text-muted-foreground">
 							Daily mean across all scored tenants.
 						</div>

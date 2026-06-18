@@ -42,7 +42,9 @@ describe("evaluateAccess", () => {
 			now,
 		);
 		expect(result.decision).toBe("allow");
-		expect(result.decision === "allow" && result.banner).toBe("past_due_in_grace");
+		expect(result.decision === "allow" && result.banner).toBe(
+			"past_due_in_grace",
+		);
 	});
 
 	it("read-only when past_due past 7-day grace", () => {
@@ -56,7 +58,9 @@ describe("evaluateAccess", () => {
 			now,
 		);
 		expect(result.decision).toBe("read_only");
-		expect(result.decision === "read_only" && result.reason).toBe("past_due_past_grace");
+		expect(result.decision === "read_only" && result.reason).toBe(
+			"past_due_past_grace",
+		);
 	});
 
 	it("read-only when status is canceled", () => {
@@ -115,21 +119,15 @@ describe("evaluateAccess", () => {
 	});
 
 	it("blocks when no sub and trial expired", () => {
-		const result = evaluateAccess(
-			null,
-			now,
-			new Date("2026-05-01T00:00:00Z"),
-		);
+		const result = evaluateAccess(null, now, new Date("2026-05-01T00:00:00Z"));
 		expect(result.decision).toBe("block");
-		expect(result.decision === "block" && result.reason).toBe("trial_expired_no_sub");
+		expect(result.decision === "block" && result.reason).toBe(
+			"trial_expired_no_sub",
+		);
 	});
 
 	it("allows + 'trialing' banner when no sub but trial still active", () => {
-		const result = evaluateAccess(
-			null,
-			now,
-			new Date("2026-05-20T00:00:00Z"),
-		);
+		const result = evaluateAccess(null, now, new Date("2026-05-20T00:00:00Z"));
 		expect(result.decision).toBe("allow");
 		expect(result.decision === "allow" && result.banner).toBe("trialing");
 	});
@@ -137,7 +135,9 @@ describe("evaluateAccess", () => {
 	it("blocks when no sub and no trialEndsAt", () => {
 		const result = evaluateAccess(null, now, null);
 		expect(result.decision).toBe("block");
-		expect(result.decision === "block" && result.reason).toBe("trial_expired_no_sub");
+		expect(result.decision === "block" && result.reason).toBe(
+			"trial_expired_no_sub",
+		);
 	});
 
 	it("blocks when no sub and trialEndsAt is undefined", () => {

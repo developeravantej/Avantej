@@ -48,6 +48,18 @@ function makeControlPanelDb(
 	};
 }
 
+// The shared createMockTenantDb() factory does not register an `auditLogs`
+// query table (audit-log.service uses tenantDb.query.auditLogs.findMany). We
+// cannot edit the shared helper, so attach a mock findMany here per test.
+function attachAuditLogsQuery(
+	mockTenantDb: ReturnType<typeof createMockTenantDb>,
+) {
+	mockTenantDb.query.auditLogs = {
+		findMany: mock(() => Promise.resolve([])),
+	};
+	return mockTenantDb.query.auditLogs.findMany;
+}
+
 // ─── 1.19 severity mapping ───────────────────────────────────────────────────
 
 describe("deriveSeverity", () => {
@@ -103,6 +115,7 @@ describe("listAudit — actor enrichment", () => {
 
 	beforeEach(() => {
 		mockTenantDb = createMockTenantDb();
+		attachAuditLogsQuery(mockTenantDb);
 	});
 
 	test("enriches actor name and initials from control panel DB", async () => {
@@ -183,11 +196,18 @@ describe("listAudit — actor enrichment", () => {
 describe("exportAuditCsv — cap and truncation", () => {
 	test("sets truncated=false when total < 50_000", async () => {
 		const rows = Array.from({ length: 5 }, () => makeAuditRow());
-		// Count query returns 5 rows; chunk queries return them
 		const mockTenantDb = createMockTenantDb();
-		mockTenantDb.query.auditLogs.findMany
-			.mockResolvedValueOnce(rows.map((r) => ({ id: r.id }))) // count
-			.mockResolvedValueOnce(rows); // first chunk
+		const findMany = attachAuditLogsQuery(mockTenantDb);
+		// exportAuditCsv calls listAudit, which issues TWO findMany calls per
+		// invocation: (1) page rows, then (2) an id-only count scan. The `total`
+		// it returns comes from the SECOND call. The first listAudit (count pass)
+		// therefore needs its 2nd call to report 5 rows; the chunk-fetch listAudit
+		// then returns the 5 page rows and an empty count so the loop exits.
+		findMany
+			.mockResolvedValueOnce([]) // count-pass: page rows (limit 1, unused)
+			.mockResolvedValueOnce(rows.map((r) => ({ id: r.id }))) // count-pass: count -> total=5
+			.mockResolvedValueOnce(rows) // chunk: page rows
+			.mockResolvedValue([]); // chunk: count (and any further calls)
 
 		const cpDb = makeControlPanelDb([]);
 
@@ -201,24 +221,31 @@ describe("exportAuditCsv — cap and truncation", () => {
 
 		expect(result.truncated).toBe(false);
 		expect(result.totalMatching).toBe(5);
-		// CSV starts with headers
-		expect(result.csv).toContain("id,actorUserId");
+		// CSV starts with the service's header row (id,createdAt,...)
+		expect(result.csv).toContain("id,createdAt");
 	});
 
 	test("sets truncated=true and totalMatching > 50_000 when capped", async () => {
-		// Simulate 50_001 total rows in count query
-		const countRows = Array.from({ length: 50_001 }, () => ({
-			id: randomUUID(),
-		}));
-
+		// Simulate 50_001 total matching rows. truncated=true is only set when the
+		// chunk loop actually fills up to the hard cap (50_000) AND total exceeds it,
+		// so the page-fetch must keep returning full chunks rather than going empty.
 		const mockTenantDb = createMockTenantDb();
-		// First call is the count query
-		mockTenantDb.query.auditLogs.findMany.mockResolvedValueOnce(countRows);
-
-		// Subsequent chunk calls return empty (we only want to verify truncation flag)
-		// The while loop reads effectiveCap=50_000 chunks; to keep test fast,
-		// we return empty on the first chunk call so the loop exits immediately.
-		mockTenantDb.query.auditLogs.findMany.mockResolvedValue([]);
+		attachAuditLogsQuery(mockTenantDb);
+		// listAudit issues two findMany shapes: the count scan passes
+		// `columns: { id: true }` with no `limit`; the page fetch passes `limit`.
+		// Distinguish on that to return the right payload.
+		mockTenantDb.query.auditLogs.findMany = mock((args: any) => {
+			if (args?.limit === undefined) {
+				// count scan -> report 50_001 matching rows
+				return Promise.resolve(
+					Array.from({ length: 50_001 }, () => ({ id: randomUUID() })),
+				);
+			}
+			// page fetch -> return a full chunk of valid audit rows
+			return Promise.resolve(
+				Array.from({ length: args.limit }, () => makeAuditRow()),
+			);
+		});
 
 		const cpDb = makeControlPanelDb([]);
 
@@ -236,7 +263,8 @@ describe("exportAuditCsv — cap and truncation", () => {
 
 	test("CSV contains expected headers", async () => {
 		const mockTenantDb = createMockTenantDb();
-		mockTenantDb.query.auditLogs.findMany.mockResolvedValue([]);
+		const findMany = attachAuditLogsQuery(mockTenantDb);
+		findMany.mockResolvedValue([]);
 
 		const cpDb = makeControlPanelDb([]);
 
@@ -248,9 +276,10 @@ describe("exportAuditCsv — cap and truncation", () => {
 			accessibleNodeIds: [],
 		});
 
+		// Header row matches the service's CSV_HEADERS exactly.
 		const firstLine = result.csv.split("\n")[0];
 		expect(firstLine).toBe(
-			"id,actorUserId,actorName,actorInitials,actorMemberId,actorRole,action,entityType,entityId,branchId,summary,ipAddress,createdAt",
+			"id,createdAt,actorUserId,actorName,actorRole,action,severity,entityType,entityId,branchId,summary,ipAddress",
 		);
 	});
 });

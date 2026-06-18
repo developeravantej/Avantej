@@ -1,0 +1,7 @@
+{
+  "memberships/freeze-end-before-start.rule.spec.ts::freeze rejects endDate <= startDate (400)": [
+    "Call memberships/freeze with endDate equal to startDate (window not strictly positive)",
+    "Assert the server rejects with 400 BAD_REQUEST",
+    "Confirm the guard runs before any package-instance lookup, so nothing is created"
+  ]
+}

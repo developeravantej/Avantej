@@ -17,7 +17,17 @@
  *   in the week where the trainer is the primary trainer (appointments.trainerId).
  */
 
-import { and, count, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import {
+	and,
+	count,
+	eq,
+	gte,
+	inArray,
+	isNotNull,
+	lte,
+	ne,
+	sql,
+} from "drizzle-orm";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { classSlots } from "@avantej-core/db/schema/tenant/class-slots";
 import { commissionSplits } from "@avantej-core/db/schema/tenant/commission-splits";
@@ -58,15 +68,17 @@ export interface TrainerWeeklySchedule {
 
 function getWeekBounds(weekStart?: Date): { start: Date; end: Date } {
 	const now = new Date();
-	const start = weekStart ? new Date(weekStart) : (() => {
-		// Default: most recent Monday
-		const d = new Date(now);
-		const day = d.getUTCDay(); // 0=Sun
-		const diff = day === 0 ? 6 : day - 1;
-		d.setUTCDate(d.getUTCDate() - diff);
-		d.setUTCHours(0, 0, 0, 0);
-		return d;
-	})();
+	const start = weekStart
+		? new Date(weekStart)
+		: (() => {
+				// Default: most recent Monday
+				const d = new Date(now);
+				const day = d.getUTCDay(); // 0=Sun
+				const diff = day === 0 ? 6 : day - 1;
+				d.setUTCDate(d.getUTCDate() - diff);
+				d.setUTCHours(0, 0, 0, 0);
+				return d;
+			})();
 	const end = new Date(start);
 	end.setUTCDate(end.getUTCDate() + 7);
 	end.setUTCMilliseconds(-1);
@@ -104,7 +116,7 @@ export async function getTrainerWeeklyStats(
 				.from(appointments)
 				.where(
 					and(
-						eq(appointments.trainerId, memberRow?.id as string ?? ""),
+						eq(appointments.trainerId, (memberRow?.id as string) ?? ""),
 						eq(appointments.status, "completed"),
 						gte(appointments.startTime, start),
 						lte(appointments.startTime, end),
@@ -114,7 +126,10 @@ export async function getTrainerWeeklyStats(
 			// 2) Commission YTD — sum non-void splits by staffId (userId)
 			tenantDb
 				.select({
-					total: sql<number>`COALESCE(SUM(${commissionSplits.calculatedAmount}), 0)`.mapWith(Number),
+					total:
+						sql<number>`COALESCE(SUM(${commissionSplits.calculatedAmount}), 0)`.mapWith(
+							Number,
+						),
 				})
 				.from(commissionSplits)
 				.where(
@@ -128,12 +143,15 @@ export async function getTrainerWeeklyStats(
 			// 3) Revenue generated — sum sessionTotal for completed appointments in the week
 			tenantDb
 				.select({
-					total: sql<number>`COALESCE(SUM(${appointments.sessionTotal}), 0)`.mapWith(Number),
+					total:
+						sql<number>`COALESCE(SUM(${appointments.sessionTotal}), 0)`.mapWith(
+							Number,
+						),
 				})
 				.from(appointments)
 				.where(
 					and(
-						eq(appointments.trainerId, memberRow?.id as string ?? ""),
+						eq(appointments.trainerId, (memberRow?.id as string) ?? ""),
 						eq(appointments.status, "completed"),
 						gte(appointments.startTime, start),
 						lte(appointments.startTime, end),
@@ -143,17 +161,20 @@ export async function getTrainerWeeklyStats(
 			// 4) Slot capacity sum for the week — uses instructorId = members.id (uuid PK)
 			memberRow?.id
 				? tenantDb
-					.select({
-						totalCapacity: sql<number>`COALESCE(SUM(${classSlots.capacity}), 0)`.mapWith(Number),
-					})
-					.from(classSlots)
-					.where(
-						and(
-							eq(classSlots.instructorId, memberRow.id),
-							gte(classSlots.date, start),
-							lte(classSlots.date, end),
-						),
-					)
+						.select({
+							totalCapacity:
+								sql<number>`COALESCE(SUM(${classSlots.capacity}), 0)`.mapWith(
+									Number,
+								),
+						})
+						.from(classSlots)
+						.where(
+							and(
+								eq(classSlots.instructorId, memberRow.id),
+								gte(classSlots.date, start),
+								lte(classSlots.date, end),
+							),
+						)
 				: Promise.resolve([{ totalCapacity: 0 }]),
 		]);
 
@@ -161,9 +182,10 @@ export async function getTrainerWeeklyStats(
 	const commissionYtd = commissionResult[0]?.total ?? 0;
 	const revenueGenerated = revenueResult[0]?.total ?? 0;
 	const totalCapacity = capacityResult[0]?.totalCapacity ?? 0;
-	const utilizationPct = totalCapacity > 0
-		? Math.min(100, Math.round((sessionsThisWeek / totalCapacity) * 100))
-		: 0;
+	const utilizationPct =
+		totalCapacity > 0
+			? Math.min(100, Math.round((sessionsThisWeek / totalCapacity) * 100))
+			: 0;
 
 	return {
 		memberId,
@@ -206,7 +228,7 @@ export async function getTrainerWeeklySchedule(
 			.from(appointments)
 			.where(
 				and(
-					eq(appointments.trainerId, memberRow?.id as string ?? ""),
+					eq(appointments.trainerId, (memberRow?.id as string) ?? ""),
 					gte(appointments.startTime, start),
 					lte(appointments.startTime, end),
 					sql`${appointments.status} NOT IN ('cancelled', 'no-show')`,
@@ -217,23 +239,23 @@ export async function getTrainerWeeklySchedule(
 		// Class slots assigned to this trainer
 		memberRow?.id
 			? tenantDb
-				.select({
-					id: classSlots.id,
-					date: classSlots.date,
-					startTime: classSlots.startTime,
-					endTime: classSlots.endTime,
-					serviceId: classSlots.serviceId,
-				})
-				.from(classSlots)
-				.where(
-					and(
-						eq(classSlots.instructorId, memberRow.id),
-						gte(classSlots.date, start),
-						lte(classSlots.date, end),
-						eq(classSlots.isCancelled, false),
-					),
-				)
-				.limit(200)
+					.select({
+						id: classSlots.id,
+						date: classSlots.date,
+						startTime: classSlots.startTime,
+						endTime: classSlots.endTime,
+						serviceId: classSlots.serviceId,
+					})
+					.from(classSlots)
+					.where(
+						and(
+							eq(classSlots.instructorId, memberRow.id),
+							gte(classSlots.date, start),
+							lte(classSlots.date, end),
+							eq(classSlots.isCancelled, false),
+						),
+					)
+					.limit(200)
 			: Promise.resolve([]),
 	]);
 
@@ -297,27 +319,30 @@ export async function getTrainerWeeklyStatsBatch(
 			// 1) Sessions per trainer (by member PK uuid, then map back to userId)
 			memberPkIds.length > 0
 				? tenantDb
-					.select({
-						trainerId: appointments.trainerId,
-						cnt: count(),
-					})
-					.from(appointments)
-					.where(
-						and(
-							inArray(appointments.trainerId, memberPkIds),
-							eq(appointments.status, "completed"),
-							gte(appointments.startTime, start),
-							lte(appointments.startTime, end),
-						),
-					)
-					.groupBy(appointments.trainerId)
+						.select({
+							trainerId: appointments.trainerId,
+							cnt: count(),
+						})
+						.from(appointments)
+						.where(
+							and(
+								inArray(appointments.trainerId, memberPkIds),
+								eq(appointments.status, "completed"),
+								gte(appointments.startTime, start),
+								lte(appointments.startTime, end),
+							),
+						)
+						.groupBy(appointments.trainerId)
 				: Promise.resolve([]),
 
 			// 2) Commission YTD per userId (staffId IS the userId)
 			tenantDb
 				.select({
 					staffId: commissionSplits.staffId,
-					total: sql<number>`COALESCE(SUM(${commissionSplits.calculatedAmount}), 0)`.mapWith(Number),
+					total:
+						sql<number>`COALESCE(SUM(${commissionSplits.calculatedAmount}), 0)`.mapWith(
+							Number,
+						),
 				})
 				.from(commissionSplits)
 				.where(
@@ -332,44 +357,53 @@ export async function getTrainerWeeklyStatsBatch(
 			// 3) Revenue per trainer (by member PK, map back)
 			memberPkIds.length > 0
 				? tenantDb
-					.select({
-						trainerId: appointments.trainerId,
-						total: sql<number>`COALESCE(SUM(${appointments.sessionTotal}), 0)`.mapWith(Number),
-					})
-					.from(appointments)
-					.where(
-						and(
-							inArray(appointments.trainerId, memberPkIds),
-							eq(appointments.status, "completed"),
-							gte(appointments.startTime, start),
-							lte(appointments.startTime, end),
-						),
-					)
-					.groupBy(appointments.trainerId)
+						.select({
+							trainerId: appointments.trainerId,
+							total:
+								sql<number>`COALESCE(SUM(${appointments.sessionTotal}), 0)`.mapWith(
+									Number,
+								),
+						})
+						.from(appointments)
+						.where(
+							and(
+								inArray(appointments.trainerId, memberPkIds),
+								eq(appointments.status, "completed"),
+								gte(appointments.startTime, start),
+								lte(appointments.startTime, end),
+							),
+						)
+						.groupBy(appointments.trainerId)
 				: Promise.resolve([]),
 
 			// 4) Slot capacity per trainer (by member PK, map back)
 			memberPkIds.length > 0
 				? tenantDb
-					.select({
-						instructorId: classSlots.instructorId,
-						totalCapacity: sql<number>`COALESCE(SUM(${classSlots.capacity}), 0)`.mapWith(Number),
-					})
-					.from(classSlots)
-					.where(
-						and(
-							inArray(classSlots.instructorId, memberPkIds),
-							gte(classSlots.date, start),
-							lte(classSlots.date, end),
-						),
-					)
-					.groupBy(classSlots.instructorId)
+						.select({
+							instructorId: classSlots.instructorId,
+							totalCapacity:
+								sql<number>`COALESCE(SUM(${classSlots.capacity}), 0)`.mapWith(
+									Number,
+								),
+						})
+						.from(classSlots)
+						.where(
+							and(
+								inArray(classSlots.instructorId, memberPkIds),
+								gte(classSlots.date, start),
+								lte(classSlots.date, end),
+							),
+						)
+						.groupBy(classSlots.instructorId)
 				: Promise.resolve([]),
 		]);
 
 	// Build lookup maps keyed by member PK uuid
 	const sessionsByPk = new Map<string, number>();
-	for (const row of sessionsRows as { trainerId: string | null; cnt: number }[]) {
+	for (const row of sessionsRows as {
+		trainerId: string | null;
+		cnt: number;
+	}[]) {
 		if (row.trainerId) sessionsByPk.set(row.trainerId, row.cnt);
 	}
 
@@ -379,12 +413,18 @@ export async function getTrainerWeeklyStatsBatch(
 	}
 
 	const revenueByPk = new Map<string, number>();
-	for (const row of revenueRows as { trainerId: string | null; total: number }[]) {
+	for (const row of revenueRows as {
+		trainerId: string | null;
+		total: number;
+	}[]) {
 		if (row.trainerId) revenueByPk.set(row.trainerId, row.total);
 	}
 
 	const capacityByPk = new Map<string, number>();
-	for (const row of capacityRows as { instructorId: string | null; totalCapacity: number }[]) {
+	for (const row of capacityRows as {
+		instructorId: string | null;
+		totalCapacity: number;
+	}[]) {
 		if (row.instructorId) capacityByPk.set(row.instructorId, row.totalCapacity);
 	}
 
@@ -396,9 +436,10 @@ export async function getTrainerWeeklyStatsBatch(
 		const commissionYtd = commissionByUserId.get(userId) ?? 0;
 		const revenueGenerated = memberPk ? (revenueByPk.get(memberPk) ?? 0) : 0;
 		const totalCapacity = memberPk ? (capacityByPk.get(memberPk) ?? 0) : 0;
-		const utilizationPct = totalCapacity > 0
-			? Math.min(100, Math.round((sessionsThisWeek / totalCapacity) * 100))
-			: 0;
+		const utilizationPct =
+			totalCapacity > 0
+				? Math.min(100, Math.round((sessionsThisWeek / totalCapacity) * 100))
+				: 0;
 
 		result.set(userId, {
 			memberId: userId,
@@ -410,4 +451,60 @@ export async function getTrainerWeeklyStatsBatch(
 	}
 
 	return result;
+}
+
+// ---------------------------------------------------------------------------
+// 1.40 — getTrainerCustomers (distinct clients for a trainer)
+// ---------------------------------------------------------------------------
+
+export interface TrainerCustomer {
+	userId: string;
+	totalAppointments: number;
+	completedCount: number;
+	nextAppointmentAt: Date | null;
+}
+
+export async function getTrainerCustomers(
+	tenantDb: TenantDb,
+	memberId: string, // members.userId (cross-DB)
+	limit = 20,
+): Promise<TrainerCustomer[]> {
+	// Resolve trainer's PK (members.id) from userId
+	const memberRow = await tenantDb.query.members.findFirst({
+		where: eq(members.userId, memberId),
+		columns: { id: true },
+	});
+	if (!memberRow) return [];
+
+	const now = new Date();
+
+	// Aggregate per distinct client userId
+	const rows = await tenantDb
+		.select({
+			userId: appointments.userId,
+			total: count(),
+			completed: sql<number>`COUNT(*) FILTER (WHERE ${appointments.status} = 'completed')`,
+			nextAt: min_start(appointments.startTime, now),
+		})
+		.from(appointments)
+		.where(
+			and(
+				eq(appointments.trainerId, memberRow.id),
+				isNotNull(appointments.userId),
+				ne(appointments.status, "cancelled"),
+			),
+		)
+		.groupBy(appointments.userId)
+		.limit(limit);
+
+	return rows.map((r) => ({
+		userId: r.userId as string,
+		totalAppointments: Number(r.total),
+		completedCount: Number(r.completed),
+		nextAppointmentAt: r.nextAt ?? null,
+	}));
+}
+
+function min_start(col: typeof appointments.startTime, after: Date) {
+	return sql<Date | null>`MIN(${col}) FILTER (WHERE ${col} >= ${after.toISOString()})`;
 }

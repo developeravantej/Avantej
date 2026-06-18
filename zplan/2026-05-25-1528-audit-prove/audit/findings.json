@@ -1,0 +1,101 @@
+[
+  {
+    "id": "T-6",
+    "title": "Tier assignment broken — assignTier never called from Change Tier button",
+    "file": "apps/web/src/components/pages/trainers/trainers-list-page.tsx",
+    "line": 412,
+    "severity": "critical",
+    "status": "missing",
+    "testable": true,
+    "tab": "trainers",
+    "note": "useTrainerActions.ts:102 declares assignTier mutation but it is never invoked. Change Tier opens the profile edit form which has no tier field."
+  },
+  {
+    "id": "T-18",
+    "title": "Availability upsert silently resets blocked/timeoff slots to 'available'",
+    "file": "apps/web/src/components/trainers/trainer-availability-editor.tsx",
+    "line": 100,
+    "severity": "high",
+    "status": "partial",
+    "testable": true,
+    "tab": "trainers",
+    "note": "TrainerAvailabilityEditor omits kind field from slot payload; server default is 'available'. Every save destroys manual blocked/timeoff slots."
+  },
+  {
+    "id": "T-19",
+    "title": "Assign Branch button is a no-op — branch cannot be changed from the UI",
+    "file": "apps/web/src/components/pages/trainers/trainers-list-page.tsx",
+    "line": 420,
+    "severity": "high",
+    "status": "missing",
+    "testable": true,
+    "tab": "trainers",
+    "note": "onEdit() opens the edit dialog which hides email+scope fields in edit mode (TrainerFormDialog.tsx:158). Trainer cannot be reassigned to a different branch."
+  },
+  {
+    "id": "T-16",
+    "title": "weeklyStatsBatch requires user_management:approve — staff see '…' for all session counts",
+    "file": "packages/api/src/routers/trainers.ts",
+    "line": 134,
+    "severity": "medium",
+    "status": "implemented",
+    "testable": true,
+    "tab": "trainers",
+    "note": "RBAC gate is too strict for the stats endpoint; staff cannot see trainer session counts even though they can access the trainers tab."
+  },
+  {
+    "id": "AV-10",
+    "title": "Intake Availability feature completely absent from refactored tab",
+    "file": "apps/web/src/components/pages/trainers/trainer-availability-tab.tsx",
+    "line": 1,
+    "severity": "critical",
+    "status": "missing",
+    "testable": true,
+    "tab": "availability",
+    "note": "CoachIntakeEditor, CoachIntakeClaimDialog, and coachIntake API queries all exist but were not included in the new TrainerAvailabilityTab. Entire intake scheduling feature dropped in refactor."
+  },
+  {
+    "id": "AV-12",
+    "title": "TrainerAvailabilitySheet is read-only — schedule cannot be edited from the tab",
+    "file": "apps/web/src/components/trainers/trainer-availability-sheet.tsx",
+    "line": 1,
+    "severity": "high",
+    "status": "partial",
+    "testable": true,
+    "tab": "availability",
+    "note": "Hub doc described sheet as an editor. Current sheet has no mutations, no inputs, no save button. trainerAvailability.upsert/create/update/delete API procedures exist but have no UI entry point."
+  },
+  {
+    "id": "AV-17",
+    "title": "Trainer role self-filter relies on unsafe MemberWithId cast",
+    "file": "apps/web/src/components/pages/trainers/trainer-availability-tab.tsx",
+    "line": 324,
+    "severity": "medium",
+    "status": "partial",
+    "testable": false,
+    "tab": "availability",
+    "note": "member.id not in official UserContextResponse type. If absent at runtime, isTrainerRole=true but callerMemberId=null, causing trainer to see all rows."
+  },
+  {
+    "id": "TI-3",
+    "title": "Missing-rate-categories banner shows raw UUIDs and is never dismissible",
+    "file": "apps/web/src/components/pages/trainers/trainer-tiers-page.tsx",
+    "line": 118,
+    "severity": "medium",
+    "status": "partial",
+    "testable": true,
+    "tab": "tiers",
+    "note": "Banner renders c.categoryId (UUID) not a human-readable name (line 126). No dismiss handler; banner persists for the full page session."
+  },
+  {
+    "id": "TI-11",
+    "title": "Duplicate tier ranks silently allowed — ambiguous ordering",
+    "file": "packages/db/src/schema/tenant/trainer-tiers.ts",
+    "line": 13,
+    "severity": "low",
+    "status": "implemented",
+    "testable": true,
+    "tab": "tiers",
+    "note": "rankIdx is a plain index, not uniqueIndex. No service-level uniqueness check in createTrainerTier."
+  }
+]

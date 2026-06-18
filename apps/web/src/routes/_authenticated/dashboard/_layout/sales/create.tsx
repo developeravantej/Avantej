@@ -1,13 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { requirePermission } from "@/lib/route-guards";
 import { PosWorkflow } from "@/components/pos/pos-workflow";
+
+import { z } from "zod";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/sales/create",
 )({
-	validateSearch: (search: Record<string, unknown>): { customer?: string } => {
-		const customer = search.customer;
-		return typeof customer === "string" && customer ? { customer } : {};
+	beforeLoad: async () => {
+		await requirePermission("pos:create");
 	},
+	validateSearch: z.object({
+		customer: z.string().min(1).optional().catch(undefined),
+	}),
 	component: PosCreatePage,
 });
 

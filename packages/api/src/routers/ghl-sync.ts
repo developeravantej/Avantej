@@ -6,11 +6,10 @@
  */
 
 import { ghlSyncEvents } from "@avantej-core/db/schema/tenant/ghl-sync-events";
-import { requirePermission } from "@avantej-core/services";
-import { ORPCError } from "@orpc/server";
 import { desc } from "drizzle-orm";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import { assertOrgContextMatch, requirePermissionOrpc } from "../guards";
 
 export type GhlSyncEventRow = {
 	id: string;
@@ -28,7 +27,7 @@ export const ghlSyncRouter = {
 	 * List recent GHL sync events for the current tenant, newest first.
 	 * Returns the raw payload for inspection alongside status/error metadata.
 	 */
-	listEvents: protectedProcedure
+	listEvents: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -36,17 +35,8 @@ export const ghlSyncRouter = {
 			}),
 		)
 		.handler(async ({ context, input }): Promise<GhlSyncEventRow[]> => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Member context required",
-				});
-			}
-			await requirePermission(
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
 				"user_management",

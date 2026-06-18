@@ -1,0 +1,43 @@
+{
+  "__comment": "Avantej dashboard exploratory QA. SAFE-WRITES on tenant 'Test Fitness Franchise'. All test data prefixed E2E-LOOP-<ts>, self-cleaning. Irreversible controls (delete/send/pay/approve/etc) NEVER clicked even in safe-writes.",
+  "baseURL": "http://localhost:3021",
+  "startPaths": ["/dashboard"],
+  "allowPrefixes": ["/dashboard"],
+  "denyPatterns": [
+    "/login", "/logout", "/signup", "/set-password", "/setup-password",
+    "/verify-email", "/accept-invitation", "/subscribe", "/sign-in-link",
+    "/billing", "/platform-admin", "delete", "archive", "danger"
+  ],
+  "dataMode": "safe-writes",
+  "testPrefix": "E2E-LOOP",
+  "authStatePath": "e2e/.auth/tenant-admin.json",
+  "caps": {
+    "maxRoutes": 200,
+    "maxMinutes": 180,
+    "maxActionsPerPage": 30,
+    "maxDepth": 2,
+    "perTemplateCap": 2,
+    "perPageTimeoutSec": 120
+  },
+  "heartbeatStaleSec": 600,
+  "notifyOnDone": true,
+  "destructiveLabels": [
+    "delete", "remove", "archive", "send", "publish", "pay", "transfer",
+    "confirm", "deactivate", "revoke", "reset", "wipe", "approve", "reject",
+    "cancel sale", "void", "refund", "suspend", "logout", "sign out"
+  ],
+  "spinnerTimeoutMs": 15000,
+  "severityFloor": "low",
+  "learningsPath": "_e2e/loop/LEARNINGS.md",
+  "server": {
+    "manage": false,
+    "__note": "Warden disabled: its Node-fetch health probe cannot resolve the .localhost tenant subdomain and thrash-killed bun dev. Server is run manually for this session.",
+    "startCmd": "bun dev",
+    "healthUrl": "http://localhost:3021/",
+    "healthExpect": "",
+    "readyTimeoutSec": 180,
+    "restartOnWedge": true,
+    "failuresBeforeRestart": 4,
+    "maxRestarts": 12
+  }
+}

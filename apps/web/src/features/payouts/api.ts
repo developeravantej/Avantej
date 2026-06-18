@@ -1,25 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMutation } from "@tanstack/react-query";
 import { useApiMutation } from "@/hooks/useApiMutation";
-import { client, queryClient } from "@/utils/orpc";
-
-// ---------------------------------------------------------------------------
-// Query keys
-// ---------------------------------------------------------------------------
-
-export const payoutKeys = {
-	all: (orgId: string) => ["payouts", orgId] as const,
-	list: (orgId: string) => ["payouts", orgId, "list"] as const,
-	preview: (orgId: string, params: PreviewBatchParams) =>
-		["payouts", orgId, "preview", params] as const,
-	recipientSummary: (orgId: string, recipientId: string) =>
-		["payouts", orgId, "recipientSummary", recipientId] as const,
-};
-
-export const commissionKeys = {
-	liability: (orgId: string, filters?: Record<string, unknown>) =>
-		["commissionLiability", orgId, filters] as const,
-};
+import { client, orpc, queryClient } from "@/utils/orpc";
 
 // ---------------------------------------------------------------------------
 // Types (mirroring the service layer to avoid cross-package import in web app)
@@ -87,6 +69,8 @@ export type RunBatchParams = {
 	branchId?: string;
 	paymentMethod: "bank_transfer" | "cash" | "check" | "other";
 	reference?: string;
+	// F-PAY-10: forward confirmImmediately so bank-transfer batches can stay in pending/processing until explicit confirmation
+	confirmImmediately?: boolean;
 };
 
 export type RunBatchResult = {
@@ -108,12 +92,9 @@ export type ProcessForRecipientParams = {
 
 export function usePayoutsList(organizationId: string | null) {
 	return useQuery({
-		queryKey: payoutKeys.list(organizationId ?? ""),
-		queryFn: () =>
-			client.payouts.list({
-				organizationId: organizationId ?? "",
-				limit: 100,
-			}),
+		...orpc.payouts.list.queryOptions({
+			input: { organizationId: organizationId ?? "", limit: 100 },
+		}),
 		enabled: !!organizationId,
 		staleTime: 30_000,
 	});
@@ -125,13 +106,9 @@ export function useLiabilitySummary(
 	to: string,
 ) {
 	return useQuery({
-		queryKey: commissionKeys.liability(organizationId ?? "", { from, to }),
-		queryFn: () =>
-			client.commissionSplits.liabilitySummary({
-				organizationId: organizationId ?? "",
-				from,
-				to,
-			}),
+		...orpc.commissionSplits.liabilitySummary.queryOptions({
+			input: { organizationId: organizationId ?? "", from, to },
+		}),
 		enabled: !!organizationId && !!from && !!to,
 		staleTime: 30_000,
 	});
@@ -143,15 +120,15 @@ export function usePreviewBatch(
 	enabled: boolean,
 ) {
 	return useQuery<PreviewBatchResult>({
-		queryKey: payoutKeys.preview(organizationId ?? "", params),
-		queryFn: () =>
-			client.payouts.previewBatch({
+		...orpc.payouts.previewBatch.queryOptions({
+			input: {
 				organizationId: organizationId ?? "",
 				staffIds: params.staffIds,
 				periodStart: new Date(params.periodStart),
 				periodEnd: new Date(params.periodEnd),
 				branchId: params.branchId,
-			}) as Promise<PreviewBatchResult>,
+			},
+		}),
 		enabled:
 			!!organizationId &&
 			enabled &&
@@ -169,15 +146,12 @@ export function useRecipientSummary(
 	recipientId: string | null,
 ) {
 	return useQuery<RecipientSummaryResult>({
-		queryKey: payoutKeys.recipientSummary(
-			organizationId ?? "",
-			recipientId ?? "",
-		),
-		queryFn: () =>
-			client.payouts.recipientSummary({
+		...orpc.payouts.recipientSummary.queryOptions({
+			input: {
 				organizationId: organizationId ?? "",
 				recipientId: recipientId ?? "",
-			}) as Promise<RecipientSummaryResult>,
+			},
+		}),
 		enabled: !!organizationId && !!recipientId,
 		staleTime: 30_000,
 	});
@@ -190,6 +164,7 @@ export function useRecipientSummary(
 export function useRunBatch(organizationId: string) {
 	return useApiMutation<RunBatchResult, RunBatchParams>({
 		mutationFn: (params: RunBatchParams) =>
+			// F-PAY-10: forward confirmImmediately so bank-transfer batches can stay in pending/processing until explicit confirmation
 			client.payouts.runBatch({
 				organizationId: params.organizationId,
 				staffIds: params.staffIds,
@@ -197,14 +172,15 @@ export function useRunBatch(organizationId: string) {
 				periodEnd: new Date(params.periodEnd),
 				paymentMethod: params.paymentMethod,
 				reference: params.reference,
+				confirmImmediately: params.confirmImmediately ?? true,
 			}) as Promise<RunBatchResult>,
 		successMessage: (result) =>
 			`${result.payoutIds.length} payout${result.payoutIds.length !== 1 ? "s" : ""} created — ${result.splitCount} splits processed.`,
 		invalidate: [
-			payoutKeys.list(organizationId),
-			commissionKeys.liability(organizationId, {}),
-			["commissions"],
-			["commissionLiability"],
+			orpc.payouts.list.key(),
+			orpc.commissionSplits.liabilitySummary.key(),
+			orpc.commissionSplits.listLedger.key(),
+			orpc.commissionSplits.listPendingReview.key(),
 		],
 	});
 }
@@ -220,13 +196,119 @@ export function useProcessForRecipient(organizationId: string) {
 				reference: params.reference,
 			}),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: payoutKeys.all(organizationId) });
-			queryClient.invalidateQueries({ queryKey: ["commissionLiability"] });
+			queryClient.invalidateQueries({ queryKey: orpc.payouts.key() });
+			queryClient.invalidateQueries({
+				queryKey: orpc.commissionSplits.liabilitySummary.key(),
+			});
 		},
 	});
 }
 
-export function invalidatePayouts(organizationId: string) {
-	queryClient.invalidateQueries({ queryKey: payoutKeys.all(organizationId) });
-	queryClient.invalidateQueries({ queryKey: ["commissionLiability"] });
+export function invalidatePayouts(_organizationId: string) {
+	queryClient.invalidateQueries({ queryKey: orpc.payouts.key() });
+	queryClient.invalidateQueries({
+		queryKey: orpc.commissionSplits.liabilitySummary.key(),
+	});
+}
+
+// ---------------------------------------------------------------------------
+// F-PAY-6: per-row state-machine mutation hooks (gated by commission_payout:process)
+// ---------------------------------------------------------------------------
+
+export type MarkPaidParams = {
+	organizationId: string;
+	id: string;
+	paymentReference: string;
+};
+
+export type MarkFailedParams = {
+	organizationId: string;
+	id: string;
+	reason: string;
+};
+
+export type RetryPayoutParams = {
+	organizationId: string;
+	id: string;
+};
+
+export type CancelPayoutParams = {
+	organizationId: string;
+	id: string;
+	reason: string;
+};
+
+export function useMarkPayoutPaid(organizationId: string) {
+	return useApiMutation<unknown, MarkPaidParams>({
+		mutationFn: (params) =>
+			client.payouts.markPaid({
+				organizationId: params.organizationId,
+				id: params.id,
+				paymentReference: params.paymentReference,
+			}),
+		successMessage: "Payout marked as paid",
+		errorMessage: (err) => err.message,
+		invalidate: [
+			orpc.payouts.list.key(),
+			orpc.commissionSplits.liabilitySummary.key(),
+			orpc.commissionSplits.listLedger.key(),
+			orpc.commissionSplits.listPendingReview.key(),
+		],
+	});
+}
+
+export function useMarkPayoutFailed(organizationId: string) {
+	return useApiMutation<unknown, MarkFailedParams>({
+		mutationFn: (params) =>
+			client.payouts.markFailed({
+				organizationId: params.organizationId,
+				id: params.id,
+				reason: params.reason,
+			}),
+		successMessage: "Payout marked as failed",
+		errorMessage: (err) => err.message,
+		invalidate: [
+			orpc.payouts.list.key(),
+			orpc.commissionSplits.liabilitySummary.key(),
+			orpc.commissionSplits.listLedger.key(),
+			orpc.commissionSplits.listPendingReview.key(),
+		],
+	});
+}
+
+export function useRetryPayout(organizationId: string) {
+	return useApiMutation<unknown, RetryPayoutParams>({
+		mutationFn: (params) =>
+			client.payouts.retry({
+				organizationId: params.organizationId,
+				id: params.id,
+			}),
+		successMessage: "Payout queued for retry",
+		errorMessage: (err) => err.message,
+		invalidate: [
+			orpc.payouts.list.key(),
+			orpc.commissionSplits.liabilitySummary.key(),
+			orpc.commissionSplits.listLedger.key(),
+			orpc.commissionSplits.listPendingReview.key(),
+		],
+	});
+}
+
+export function useCancelPayout(organizationId: string) {
+	return useApiMutation<unknown, CancelPayoutParams>({
+		mutationFn: (params) =>
+			client.payouts.cancel({
+				organizationId: params.organizationId,
+				id: params.id,
+				reason: params.reason,
+			}),
+		successMessage: "Payout cancelled",
+		errorMessage: (err) => err.message,
+		invalidate: [
+			orpc.payouts.list.key(),
+			orpc.commissionSplits.liabilitySummary.key(),
+			orpc.commissionSplits.listLedger.key(),
+			orpc.commissionSplits.listPendingReview.key(),
+		],
+	});
 }

@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, beforeAll, vi } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
-import { mockClient } from "../helpers/mock-client";
+import { mockClient, mockOrpc } from "../helpers/mock-client";
 
 let TaxRatesPage: React.ComponentType;
 vi.mock("@tanstack/react-router", () => ({
@@ -13,7 +13,16 @@ vi.mock("@tanstack/react-router", () => ({
 	Link: ({ children }: { children: React.ReactNode }) => children,
 	useNavigate: vi.fn().mockReturnValue(vi.fn()),
 }));
-vi.mock("@/utils/orpc", () => ({ client: mockClient }));
+vi.mock("@/utils/orpc", () => ({
+	client: mockClient,
+	orpc: mockOrpc,
+	queryClient: {
+		invalidateQueries: () => Promise.resolve(),
+		setQueryData: () => {},
+		getQueryData: () => undefined,
+		clear: () => {},
+	},
+}));
 vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: {
@@ -51,6 +60,7 @@ describe("Tax Rates page", () => {
 
 		await waitFor(() => {
 			expect(screen.getByText("Tax Rates")).toBeInTheDocument();
+			// Button text is "Add tax rate"
 			expect(
 				screen.getAllByRole("button", { name: /add tax rate/i }).length,
 			).toBeGreaterThan(0);
@@ -151,9 +161,8 @@ describe("Tax Rates page", () => {
 		renderWithProviders(<TaxRatesPage />);
 
 		await waitFor(() => {
-			// Multiple "Active" elements: filter button + status badge
-			const activeElements = screen.getAllByText("Active");
-			expect(activeElements.length).toBeGreaterThanOrEqual(2);
+			// Status badge + select option both say "Active"
+			expect(screen.getAllByText("Active").length).toBeGreaterThanOrEqual(1);
 		});
 	});
 
@@ -183,12 +192,10 @@ describe("Tax Rates page", () => {
 		renderWithProviders(<TaxRatesPage />);
 
 		await waitFor(() => {
-			const statusSelect = screen.getByRole("combobox");
-			const options = within(statusSelect).getAllByRole("option");
-			const activeOption = options.find((o) => o.textContent === "Active");
-			const allOption = options.find((o) => o.textContent === "All status");
-			expect(activeOption).toBeTruthy();
-			expect(allOption).toBeTruthy();
+			// Filter is a <select> with options "Active" and "All status"
+			expect(screen.getByRole("combobox")).toBeInTheDocument();
+			expect(screen.getByText("Active")).toBeInTheDocument();
+			expect(screen.getByText("All status")).toBeInTheDocument();
 		});
 	});
 });

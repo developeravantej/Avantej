@@ -11,12 +11,7 @@ import {
 	Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -37,7 +32,8 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import type { PermissionResource } from "@/components/access-control/permission-matrix/permission-matrix.types";
-import { client } from "@/utils/orpc";
+import { StatusCallout } from "@/components/ui/status-callout";
+import { client, orpc } from "@/utils/orpc";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { toast } from "sonner";
@@ -93,9 +89,7 @@ function ResourceCard({ resource, onRemovePermissions }: ResourceCardProps) {
 						</div>
 						<div className="space-y-1 flex-1">
 							<CardTitle className="text-base">{resource.name}</CardTitle>
-							<p className="text-sm text-muted-foreground">
-								{resource.description}
-							</p>
+							<p className="text-sm text-[#737373]">{resource.description}</p>
 						</div>
 					</div>
 
@@ -109,7 +103,7 @@ function ResourceCard({ resource, onRemovePermissions }: ResourceCardProps) {
 							<DropdownMenuSeparator />
 							<DropdownMenuItem
 								onClick={onRemovePermissions}
-								className="cursor-pointer text-destructive focus:text-destructive"
+								className="cursor-pointer text-rose-600 focus:text-rose-600"
 							>
 								<Trash2 className="size-4 mr-2" />
 								Remove All Permissions
@@ -127,7 +121,7 @@ function ResourceCard({ resource, onRemovePermissions }: ResourceCardProps) {
 
 			<CardContent className="pt-0">
 				<div className="space-y-2">
-					<div className="text-sm font-medium text-muted-foreground">
+					<div className="text-sm font-medium text-[#737373]">
 						Available Actions
 					</div>
 					<div className="flex flex-wrap gap-1">
@@ -149,27 +143,33 @@ export function PermissionsTabPage() {
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const queryClient = useQueryClient();
 
-	type PermissionItem = Awaited<ReturnType<typeof client.permissions.list>>[number];
-	type RolePermissionItem = Awaited<ReturnType<typeof client.rolePermissions.list>>[number];
+	type PermissionItem = Awaited<
+		ReturnType<typeof client.permissions.list>
+	>[number];
+	type RolePermissionItem = Awaited<
+		ReturnType<typeof client.rolePermissions.list>
+	>[number];
 
-	const { data: permissions = [] as PermissionItem[], isLoading } = useQuery({
-		queryKey: ["permissions", organizationId],
-		queryFn: async (): Promise<PermissionItem[]> => {
-			if (!organizationId) return [];
-			return client.permissions.list({ organizationId });
-		},
+	const {
+		data: permissions = [] as PermissionItem[],
+		isLoading,
+		isError,
+		refetch,
+	} = useQuery({
+		...orpc.permissions.list.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
 		enabled: !!organizationId,
 	});
 
 	// Fetch all role-permission assignments so we can look up permissionIds by resource
-	const { data: rolePermissionAssignments = [] as RolePermissionItem[] } = useQuery({
-		queryKey: ["rolePermissions", organizationId],
-		queryFn: async (): Promise<RolePermissionItem[]> => {
-			if (!organizationId) return [];
-			return client.rolePermissions.list({ organizationId });
-		},
-		enabled: !!organizationId,
-	});
+	const { data: rolePermissionAssignments = [] as RolePermissionItem[] } =
+		useQuery({
+			...orpc.rolePermissions.list.queryOptions({
+				input: { organizationId: organizationId! },
+			}),
+			enabled: !!organizationId,
+		});
 
 	// Group flat permission records into PermissionResource objects
 	const resources = useMemo<PermissionResource[]>(() => {
@@ -205,15 +205,11 @@ export function PermissionsTabPage() {
 	const filteredResources = resources.filter(
 		(resource) =>
 			resource.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			resource.description
-				?.toLowerCase()
-				.includes(searchQuery.toLowerCase()) ||
+			resource.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			resource.actions.some(
 				(action) =>
 					action.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-					action.description
-						?.toLowerCase()
-						.includes(searchQuery.toLowerCase()),
+					action.description?.toLowerCase().includes(searchQuery.toLowerCase()),
 			),
 	);
 
@@ -223,18 +219,18 @@ export function PermissionsTabPage() {
 		setIsRemoving(true);
 		try {
 			// Find all permission IDs that belong to this resource
-			const resourcePermIds = permissions.flatMap((p) =>
+			const resourcePermIds = permissions.flatMap((p: PermissionItem) =>
 				p.resource === confirmResource.id ? [p.id] : [],
 			);
 
 			// Find all role-permission assignments for those permissions
-			const assignmentsToRemove = rolePermissionAssignments.filter((rp) =>
-				resourcePermIds.includes(rp.permissionId),
+			const assignmentsToRemove = rolePermissionAssignments.filter(
+				(rp: RolePermissionItem) => resourcePermIds.includes(rp.permissionId),
 			);
 
 			// Remove each assignment
 			await Promise.all(
-				assignmentsToRemove.map((rp) =>
+				assignmentsToRemove.map((rp: RolePermissionItem) =>
 					client.rolePermissions.remove({
 						organizationId,
 						roleId: rp.roleId,
@@ -243,9 +239,11 @@ export function PermissionsTabPage() {
 				),
 			);
 
-			await queryClient.invalidateQueries({
-				queryKey: ["rolePermissions", organizationId],
-			});
+			await queryClient.invalidateQueries(
+				orpc.rolePermissions.list.queryOptions({
+					input: { organizationId: organizationId! },
+				}),
+			);
 			toast.success(
 				`Removed all role assignments for ${confirmResource.name} (${assignmentsToRemove.length} removed)`,
 			);
@@ -287,19 +285,26 @@ export function PermissionsTabPage() {
 					if (!open) setConfirmResource(null);
 				}}
 			>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>
+				<DialogContent
+					className="sm:max-w-md p-0 gap-0 rounded-2xl bg-white border border-[#e5e5e5] overflow-hidden"
+					hideCloseButton
+				>
+					<DialogHeader className="px-6 pt-6 pb-4 border-b border-[#e5e5e5]">
+						<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
+							ROLES & PERMISSIONS
+						</p>
+						<DialogTitle className="text-lg font-bold text-[#0a0a0a]">
 							Remove All Permissions for {confirmResource?.name}
 						</DialogTitle>
-						<DialogDescription>
+						<DialogDescription className="text-sm text-[#737373]">
 							This will remove all role assignments for every action in the{" "}
 							<strong>{confirmResource?.name}</strong> resource. The resource
 							itself will remain in the system but no roles will have access to
 							it. This cannot be undone.
 						</DialogDescription>
 					</DialogHeader>
-					<DialogFooter>
+					<div className="px-6 pt-4 pb-2 overflow-y-auto" />
+					<DialogFooter className="px-6 py-4 border-t border-[#e5e5e5] bg-[#fafafa] flex justify-end gap-2">
 						<Button
 							variant="outline"
 							onClick={() => setConfirmResource(null)}
@@ -311,6 +316,7 @@ export function PermissionsTabPage() {
 							variant="destructive"
 							onClick={handleConfirmRemovePermissions}
 							disabled={isRemoving}
+							className="bg-red-600 hover:bg-red-700 text-white"
 						>
 							{isRemoving ? "Removing..." : "Remove All Permissions"}
 						</Button>
@@ -324,7 +330,7 @@ export function PermissionsTabPage() {
 					<CardContent className="p-4">
 						<div className="text-center">
 							<div className="text-2xl font-bold">{resources.length}</div>
-							<div className="text-sm text-muted-foreground">Resources</div>
+							<div className="text-sm text-[#737373]">Resources</div>
 						</div>
 					</CardContent>
 				</Card>
@@ -332,7 +338,7 @@ export function PermissionsTabPage() {
 					<CardContent className="p-4">
 						<div className="text-center">
 							<div className="text-2xl font-bold">{getTotalActions()}</div>
-							<div className="text-sm text-muted-foreground">Total Actions</div>
+							<div className="text-sm text-[#737373]">Total Actions</div>
 						</div>
 					</CardContent>
 				</Card>
@@ -344,9 +350,7 @@ export function PermissionsTabPage() {
 									? Math.round(getTotalActions() / resources.length)
 									: 0}
 							</div>
-							<div className="text-sm text-muted-foreground">
-								Avg Actions/Resource
-							</div>
+							<div className="text-sm text-[#737373]">Avg Actions/Resource</div>
 						</div>
 					</CardContent>
 				</Card>
@@ -356,7 +360,7 @@ export function PermissionsTabPage() {
 			<Card>
 				<CardContent className="py-4">
 					<div className="relative max-w-md">
-						<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground size-4" />
+						<Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#737373] size-4" />
 						<Input
 							placeholder="Search resources or actions..."
 							value={searchQuery}
@@ -368,12 +372,19 @@ export function PermissionsTabPage() {
 			</Card>
 
 			{/* Resource Grid */}
-			{isLoading ? (
+			{isError ? (
+				<StatusCallout
+					variant="error"
+					title="Couldn't load permissions"
+					message="Something went wrong while loading permission resources."
+					onRetry={() => refetch()}
+				/>
+			) : isLoading ? (
 				<Card>
 					<CardContent className="py-12">
 						<div className="text-center">
-							<Loader2 className="size-8 mx-auto text-muted-foreground mb-4 animate-spin" />
-							<p className="text-muted-foreground">Loading permissions…</p>
+							<Loader2 className="size-8 mx-auto text-[#737373] mb-4 animate-spin" />
+							<p className="text-[#737373]">Loading permissions…</p>
 						</div>
 					</CardContent>
 				</Card>

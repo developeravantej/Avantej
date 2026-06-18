@@ -6,7 +6,6 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Select,
@@ -100,7 +99,9 @@ function StatPill({ label, value, valueClass, nullTooltip }: StatPillProps) {
 	return (
 		<div className="flex flex-1 flex-col gap-1 rounded-xl border border-[#e5e5e5] bg-white px-4 py-3">
 			<div className="flex items-center gap-1">
-				<span className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">{label}</span>
+				<span className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">
+					{label}
+				</span>
 				{isNull && nullTooltip && (
 					<TooltipProvider>
 						<Tooltip>
@@ -123,11 +124,14 @@ function StatPill({ label, value, valueClass, nullTooltip }: StatPillProps) {
 	);
 }
 
-function OrgStatusStrip() {
+function OrgStatusStrip({ organizationId }: { organizationId: string }) {
 	const { data: orgStatusRaw, isLoading } = useQuery({
-		...(orpc.googleCalendar.orgStatus as any).queryOptions({}),
+		...orpc.googleCalendar.orgStatus.queryOptions({
+			input: { organizationId },
+		}),
+		enabled: !!organizationId,
 	});
-	const orgStatus = orgStatusRaw as any;
+	const orgStatus = orgStatusRaw;
 
 	if (isLoading) {
 		return (
@@ -160,7 +164,11 @@ function OrgStatusStrip() {
 			/>
 			<StatPill
 				label="Last org sync"
-				value={orgStatus?.lastOrgSyncAt ? formatRelativeTime(orgStatus.lastOrgSyncAt) : null}
+				value={
+					orgStatus?.lastOrgSyncAt
+						? formatRelativeTime(orgStatus.lastOrgSyncAt)
+						: null
+				}
 			/>
 		</div>
 	);
@@ -183,16 +191,19 @@ function MyConnectionCard({
 		isError,
 		refetch,
 	} = useQuery({
-		queryKey: ["googleCalendar", "status", organizationId],
-		queryFn: () => client.googleCalendar.status({ organizationId }),
+		...orpc.googleCalendar.status.queryOptions({ input: { organizationId } }),
 		enabled: !!organizationId,
 	});
 
 	const disconnectMutation = useApiMutation({
-		mutationFn: (_: void) => client.googleCalendar.disconnect({ organizationId }),
+		mutationFn: (_: void) =>
+			client.googleCalendar.disconnect({ organizationId }),
 		successMessage: "Google Calendar disconnected",
 		errorMessage: "Failed to disconnect Google Calendar",
-		invalidate: [["googleCalendar", "status", organizationId]],
+		invalidate: [
+			orpc.googleCalendar.status.queryOptions({ input: { organizationId } })
+				.queryKey,
+		],
 	});
 
 	const handleConnect = () => {
@@ -240,7 +251,9 @@ function MyConnectionCard({
 			<div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
 				<AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-700" />
 				<div className="flex-1">
-					<div className="text-sm font-semibold text-amber-800">My calendar not connected</div>
+					<div className="text-sm font-semibold text-amber-800">
+						My calendar not connected
+					</div>
 					<div className="mt-0.5 text-xs text-amber-700/80">
 						Connect to start syncing your appointments with Google Calendar.
 					</div>
@@ -263,11 +276,15 @@ function MyConnectionCard({
 			<div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
 				<CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-700" />
 				<div className="flex-1 min-w-0">
-					<div className="text-sm font-semibold text-emerald-800">Your calendar is connected</div>
+					<div className="text-sm font-semibold text-emerald-800">
+						Your calendar is connected
+					</div>
 					{status.googleEmail && (
 						<div className="mt-0.5 text-xs text-emerald-700/80">
 							Connected as{" "}
-							<span className="font-mono tabular-nums">{status.googleEmail}</span>
+							<span className="font-mono tabular-nums">
+								{status.googleEmail}
+							</span>
 							{status.lastSyncAt && (
 								<> · Last sync {formatRelativeTime(status.lastSyncAt)}</>
 							)}
@@ -276,7 +293,9 @@ function MyConnectionCard({
 				</div>
 				<div className="flex shrink-0 items-center gap-2">
 					<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500">
-						{status.syncScope === "all" ? "All appointments" : "Your appointments"}
+						{status.syncScope === "all"
+							? "All appointments"
+							: "Your appointments"}
 					</span>
 					<button
 						type="button"
@@ -298,8 +317,12 @@ function MyConnectionCard({
 				<div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4">
 					<AlertTriangle className="mt-0.5 size-4 shrink-0 text-rose-700" />
 					<div className="flex-1">
-						<div className="text-sm font-semibold text-rose-800">Last sync failed</div>
-						<div className="mt-0.5 text-xs text-rose-700/80">{status.lastSyncError}</div>
+						<div className="text-sm font-semibold text-rose-800">
+							Last sync failed
+						</div>
+						<div className="mt-0.5 text-xs text-rose-700/80">
+							{status.lastSyncError}
+						</div>
 					</div>
 					<button
 						type="button"
@@ -334,20 +357,23 @@ const CONFLICT_POLICY_OPTIONS = [
 type SyncDirection = (typeof SYNC_DIRECTION_OPTIONS)[number]["value"];
 type ConflictPolicy = (typeof CONFLICT_POLICY_OPTIONS)[number]["value"];
 
-function SettingsSidebar() {
+function SettingsSidebar({ organizationId }: { organizationId: string }) {
 	const [syncDirection, setSyncDirection] = useState<SyncDirection>("two_way");
-	const [conflictPolicy, setConflictPolicy] = useState<ConflictPolicy>("avantej_wins");
+	const [conflictPolicy, setConflictPolicy] =
+		useState<ConflictPolicy>("avantej_wins");
 	const [countdown, setCountdown] = useState(0);
 
 	const updateSettingsMutation = useApiMutation({
-		mutationFn: (input: { syncDirection?: SyncDirection; conflictPolicy?: ConflictPolicy }) =>
-			client.googleCalendar.updateSettings(input),
+		mutationFn: (input: {
+			syncDirection?: SyncDirection;
+			conflictPolicy?: ConflictPolicy;
+		}) => client.googleCalendar.updateSettings({ ...input, organizationId }),
 		successMessage: "Settings saved",
 		errorMessage: "Failed to save settings",
 	});
 
 	const syncNowMutation = useApiMutation({
-		mutationFn: () => client.googleCalendar.syncNow({}),
+		mutationFn: () => client.googleCalendar.syncNow({ organizationId }),
 		successMessage: false,
 		errorMessage: false,
 		onSuccess: () => {
@@ -370,10 +396,13 @@ function SettingsSidebar() {
 
 	// Calendar list
 	const { data: calendarDataRaw, isLoading: calsLoading } = useQuery({
-		...(orpc.googleCalendar.listConnectedCalendars as any).queryOptions({}),
+		...orpc.googleCalendar.listConnectedCalendars.queryOptions({
+			input: { organizationId },
+		}),
+		enabled: !!organizationId,
 	});
-	const calendarData = calendarDataRaw as any;
-	const calendars: any[] = calendarData?.calendars ?? [];
+	const calendarData = calendarDataRaw;
+	const calendars = calendarData?.calendars ?? [];
 
 	useEffect(() => {
 		if (countdown <= 0) return;
@@ -403,10 +432,15 @@ function SettingsSidebar() {
 
 			{/* Sync direction */}
 			<div className="flex flex-col gap-2">
-				<label className="text-xs font-semibold text-[#0a0a0a]">Sync direction</label>
+				<label className="text-xs font-semibold text-[#0a0a0a]">
+					Sync direction
+				</label>
 				<div className="flex flex-col gap-2 rounded-xl border border-[#e5e5e5] bg-white p-3">
 					{SYNC_DIRECTION_OPTIONS.map((opt) => (
-						<label key={opt.value} className="flex cursor-pointer items-center gap-2.5">
+						<label
+							key={opt.value}
+							className="flex cursor-pointer items-center gap-2.5"
+						>
 							<input
 								type="radio"
 								name="syncDirection"
@@ -427,10 +461,15 @@ function SettingsSidebar() {
 
 			{/* Conflict resolution */}
 			<div className="flex flex-col gap-2">
-				<label className="text-xs font-semibold text-[#0a0a0a]">Conflict resolution</label>
+				<label className="text-xs font-semibold text-[#0a0a0a]">
+					Conflict resolution
+				</label>
 				<div className="flex flex-col gap-2 rounded-xl border border-[#e5e5e5] bg-white p-3">
 					{CONFLICT_POLICY_OPTIONS.map((opt) => (
-						<label key={opt.value} className="flex cursor-pointer items-center gap-2.5">
+						<label
+							key={opt.value}
+							className="flex cursor-pointer items-center gap-2.5"
+						>
 							<input
 								type="radio"
 								name="conflictPolicy"
@@ -451,7 +490,9 @@ function SettingsSidebar() {
 
 			{/* Calendars synced */}
 			<div className="flex flex-col gap-2">
-				<label className="text-xs font-semibold text-[#0a0a0a]">Calendars synced</label>
+				<label className="text-xs font-semibold text-[#0a0a0a]">
+					Calendars synced
+				</label>
 				{calsLoading ? (
 					<Skeleton className="h-10 w-full rounded-xl" />
 				) : calendars.length === 0 ? (
@@ -523,7 +564,8 @@ function SettingsSidebar() {
 // ---------------------------------------------------------------------------
 
 function GoogleCalendarPage() {
-	const { data: userContext, isLoading: isUserContextLoading } = useUserContext();
+	const { data: userContext, isLoading: isUserContextLoading } =
+		useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? "";
 	const { gcal, message } = Route.useSearch();
 	const navigate = Route.useNavigate();
@@ -558,55 +600,49 @@ function GoogleCalendarPage() {
 	};
 
 	return (
-		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6 flex flex-col">
-			{/* Page header */}
-			<div className="mb-5 flex items-end justify-between">
-				<div>
-					<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373] mb-1">
-						CALENDAR INTEGRATION
-					</p>
-					<div className="flex items-center gap-3">
-						<div className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#e5e5e5] bg-white">
-							<GoogleGLogo />
-						</div>
-						<h1 className="text-[28px] font-extrabold tracking-tight leading-none text-[#0a0a0a]">
-							Google Calendar
-						</h1>
-					</div>
-					<p className="mt-1 text-sm text-[#737373]">
-						Two-way appointment sync for trainers.
-					</p>
+		<div className="-m-6 flex min-h-screen flex-col bg-[#f3f3f3]">
+			<header className="sticky top-0 z-20 flex h-14 shrink-0 items-center border-b border-[#e5e5e5] bg-white px-7">
+				<div className="flex items-center gap-3 text-sm">
+					<span className="text-muted-foreground">Settings</span>
+					<span className="text-[#a3a3a3]">/</span>
+					<span className="font-semibold">Google Calendar</span>
 				</div>
-				<button
-					type="button"
-					onClick={handleConnect}
-					disabled={!organizationId || isUserContextLoading}
-					className="inline-flex items-center gap-1.5 bg-[#0a0a0a] text-white px-3.5 py-2 rounded-[10px] text-[13px] font-semibold hover:bg-[#262626] transition disabled:opacity-50"
+				<div className="ml-auto flex items-center gap-2">
+					<button
+						type="button"
+						onClick={handleConnect}
+						disabled={!organizationId || isUserContextLoading}
+						className="flex items-center gap-2 rounded-lg bg-[#0a0a0a] text-white px-4 py-2 text-xs font-semibold transition hover:bg-[#262626] disabled:opacity-50"
+					>
+						{isUserContextLoading ? "Loading…" : "Connect My Calendar"}
+					</button>
+				</div>
+			</header>
+
+			<div className="flex flex-col gap-5 px-6 py-6 flex-1">
+				{/* Master-detail split */}
+				<div
+					className="grid grid-cols-[1fr_300px] rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden flex-1"
+					style={{ minHeight: "calc(100vh - 200px)" }}
 				>
-					{isUserContextLoading ? "Loading…" : "Connect My Calendar"}
-				</button>
-			</div>
+					{/* Main scroll area */}
+					<div className="flex flex-col gap-5 overflow-auto p-5 border-r border-[#e5e5e5]">
+						{/* Org stat pills */}
+						{organizationId && (
+							<OrgStatusStrip organizationId={organizationId} />
+						)}
 
-			{/* Master-detail split */}
-			<div
-				className="grid grid-cols-[1fr_300px] rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden flex-1"
-				style={{ minHeight: "calc(100vh - 200px)" }}
-			>
-				{/* Main scroll area */}
-				<div className="flex flex-col gap-5 overflow-auto p-5 border-r border-[#e5e5e5]">
-					{/* Org stat pills */}
-					{organizationId && <OrgStatusStrip />}
+						{/* My connection banner */}
+						<MyConnectionCard
+							organizationId={organizationId}
+							isUserContextLoading={isUserContextLoading}
+						/>
+					</div>
 
-					{/* My connection banner */}
-					<MyConnectionCard
-						organizationId={organizationId}
-						isUserContextLoading={isUserContextLoading}
-					/>
-				</div>
-
-				{/* Settings sidebar */}
-				<div className="overflow-auto">
-					<SettingsSidebar />
+					{/* Settings sidebar */}
+					<div className="overflow-auto">
+						<SettingsSidebar organizationId={organizationId} />
+					</div>
 				</div>
 			</div>
 		</div>

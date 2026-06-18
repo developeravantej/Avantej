@@ -11,13 +11,18 @@
 
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { protectedProcedure } from "../index";
+import { tenantProcedure } from "../index";
+import { assertOrgContextMatch } from "../guards";
 import {
 	getTrainerWeeklyStats,
 	getTrainerWeeklySchedule,
 	getTrainerWeeklyStatsBatch,
+	getTrainerCustomers,
 } from "@avantej-core/services/trainer.service";
 import { hasPermission } from "@avantej-core/services";
+import { inArray } from "drizzle-orm";
+import { user as cpUsers } from "@avantej-core/db/schema/auth";
+import { getControlPanelDb } from "../lib/context-helpers";
 
 export const trainersRouter = {
 	/**
@@ -25,7 +30,7 @@ export const trainersRouter = {
 	 *
 	 * Requires member_management:read AND (self OR member_management:approve).
 	 */
-	weeklyStats: protectedProcedure
+	weeklyStats: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -34,17 +39,7 @@ export const trainersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
+			assertOrgContextMatch(context, input);
 			// RBAC: must have member_management:read
 			const canRead = await hasPermission(
 				context.tenantDb,
@@ -69,7 +64,8 @@ export const trainersRouter = {
 				);
 				if (!canApprove) {
 					throw new ORPCError("FORBIDDEN", {
-						message: "You can only view your own stats unless you have approve permission",
+						message:
+							"You can only view your own stats unless you have approve permission",
 					});
 				}
 			}
@@ -86,7 +82,7 @@ export const trainersRouter = {
 	 *
 	 * Requires appointment_management:read.
 	 */
-	weeklySchedule: protectedProcedure
+	weeklySchedule: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -95,17 +91,7 @@ export const trainersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
+			assertOrgContextMatch(context, input);
 			const canRead = await hasPermission(
 				context.tenantDb,
 				context.member,
@@ -131,7 +117,7 @@ export const trainersRouter = {
 	 * Requires member_management:approve (admin-level, card-grid use).
 	 * Returns a plain object (record) keyed by userId — oRPC serialises Maps as objects.
 	 */
-	weeklyStatsBatch: protectedProcedure
+	weeklyStatsBatch: tenantProcedure
 		.input(
 			z.object({
 				organizationId: z.string().uuid(),
@@ -140,17 +126,7 @@ export const trainersRouter = {
 			}),
 		)
 		.handler(async ({ input, context }) => {
-			if (!context.tenantDb) {
-				throw new ORPCError("INTERNAL_SERVER_ERROR", {
-					message: "Tenant database not available.",
-				});
-			}
-			if (!context.member) {
-				throw new ORPCError("FORBIDDEN", {
-					message: "User is not a member of this organization",
-				});
-			}
-
+			assertOrgContextMatch(context, input);
 			const canApprove = await hasPermission(
 				context.tenantDb,
 				context.member,
@@ -171,5 +147,62 @@ export const trainersRouter = {
 
 			// Convert Map to plain record for JSON serialisation
 			return Object.fromEntries(statsMap);
+		}),
+
+	/**
+	 * Distinct customers (clients) handled by a trainer.
+	 *
+	 * Requires appointment_management:read.
+	 */
+	customers: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				memberId: z.string(), // members.userId
+				limit: z.number().int().min(1).max(50).optional(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			const canRead = await hasPermission(
+				context.tenantDb,
+				context.member,
+				"appointment_management",
+				"read",
+			);
+			if (!canRead) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "Requires appointment_management:read permission",
+				});
+			}
+
+			const customers = await getTrainerCustomers(
+				context.tenantDb,
+				input.memberId,
+				input.limit,
+			);
+
+			if (customers.length === 0) return [];
+
+			// Enrich with names from control panel DB
+			const userIds = customers.map((c) => c.userId);
+			let nameMap = new Map<string, string>();
+			try {
+				const cpDb = getControlPanelDb(context);
+				const userRows = await cpDb
+					.select({ id: cpUsers.id, name: cpUsers.name, email: cpUsers.email })
+					.from(cpUsers)
+					.where(inArray(cpUsers.id, userIds));
+				for (const u of userRows) {
+					nameMap.set(u.id, u.name ?? u.email ?? "Unknown");
+				}
+			} catch {
+				// CP DB unavailable — return without names
+			}
+
+			return customers.map((c) => ({
+				...c,
+				name: nameMap.get(c.userId) ?? "Unknown Customer",
+			}));
 		}),
 };

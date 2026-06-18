@@ -38,8 +38,7 @@ function fakeContext(userId = TEST_USER_ID) {
 	return {
 		session: { user: { id: userId, email: "admin@test.local" } },
 		honoContext: {
-			get: (k: string) =>
-				k === "controlPanelDb" ? controlPanelDb : undefined,
+			get: (k: string) => (k === "controlPanelDb" ? controlPanelDb : undefined),
 		},
 	};
 }
