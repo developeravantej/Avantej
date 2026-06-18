@@ -30,6 +30,7 @@
  * "tax.set_default"          — Default tax rate changed
  * "email_domain.registered"  — Sending domain registered at Resend (email settings)
  * "email_domain.deleted"     — Sending domain removed (email settings)
+ * "email_route.changed"      — Notification routing updated (email settings)
  */
 
 import { eq, and, inArray, isNull, or, gte, lte, desc } from "drizzle-orm";

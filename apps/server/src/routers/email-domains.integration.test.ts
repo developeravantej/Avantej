@@ -49,6 +49,8 @@ import { organizations } from "@avantej-core/db/schema/control-panel/organizatio
 import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
 import { user as userTable } from "@avantej-core/db/schema/auth";
 import { emailDomains } from "@avantej-core/db/schema/control-panel/email-domains";
+import { emailDomainAliases } from "@avantej-core/db/schema/control-panel/email-domain-aliases";
+import { emailNotificationRoutes } from "@avantej-core/db/schema/control-panel/email-notification-routes";
 import { emailDomainsRouter } from "./email-domains";
 
 function getHandler<T>(proc: unknown): (args: unknown) => Promise<T> {
@@ -122,6 +124,9 @@ afterAll(async () => {
 				eq(emailDomains.domain, TEST_DOMAIN_NAME),
 			),
 		);
+	await cpDb
+		.delete(emailNotificationRoutes)
+		.where(eq(emailNotificationRoutes.organizationId, TEST_ORG_ID));
 });
 
 describe("emailDomainsRouter — integration", () => {
@@ -221,5 +226,126 @@ describe("emailDomainsRouter — integration", () => {
 				input: { organizationId: TEST_ORG_ID },
 			}),
 		).rejects.toMatchObject({ code: "FORBIDDEN" });
+	});
+});
+
+describe("emailDomainsRouter — notification routing", () => {
+	let domainId: string | undefined;
+	let aliasId: string;
+
+	test("setup: verified domain + alias", async () => {
+		if (shouldSkipIntegration()) return;
+		const [dom] = await cpDb!
+			.insert(emailDomains)
+			.values({
+				organizationId: TEST_ORG_ID,
+				resendDomainId: `dom_route_${crypto.randomUUID()}`,
+				domain: `route-test-${Date.now()}.example.com`,
+				fromName: "Route Test",
+				defaultLocalPart: "support",
+				status: "verified",
+				verifiedAt: new Date(),
+			})
+			.returning();
+		domainId = dom!.id;
+		const [alias] = await cpDb!
+			.insert(emailDomainAliases)
+			.values({ emailDomainId: domainId, localPart: "billing", label: "Billing dept" })
+			.returning();
+		aliasId = alias!.id;
+		expect(aliasId).toBeTruthy();
+	});
+
+	test("getNotificationRouting returns empty routes + the org's aliases", async () => {
+		if (shouldSkipIntegration()) return;
+		const handler = getHandler<{
+			routes: unknown[];
+			aliases: Array<{ id: string }>;
+			verifiedDomain: { domain: string } | null;
+		}>(emailDomainsRouter.getNotificationRouting);
+		const res = await handler({ context: fakeContext(), input: { organizationId: TEST_ORG_ID } });
+		expect(res.routes).toEqual([]);
+		expect(res.aliases.some((a) => a.id === aliasId)).toBe(true);
+		expect(res.verifiedDomain?.domain).toContain("route-test-");
+	});
+
+	test("upsertNotificationRoute binds an alias + overrides (idempotent)", async () => {
+		if (shouldSkipIntegration()) return;
+		const handler = getHandler<{ notificationType: string; aliasId: string | null }>(
+			emailDomainsRouter.upsertNotificationRoute,
+		);
+		const first = await handler({
+			context: fakeContext(),
+			input: {
+				organizationId: TEST_ORG_ID,
+				notificationType: "payment_receipt",
+				aliasId,
+				fromNameOverride: "Acme Billing",
+				subjectOverride: "Receipt {amount}",
+			},
+		});
+		expect(first.aliasId).toBe(aliasId);
+		const second = await handler({
+			context: fakeContext(),
+			input: {
+				organizationId: TEST_ORG_ID,
+				notificationType: "payment_receipt",
+				aliasId: null,
+				fromNameOverride: "Acme",
+			},
+		});
+		expect(second.aliasId).toBeNull();
+		const rows = await cpDb!
+			.select()
+			.from(emailNotificationRoutes)
+			.where(
+				and(
+					eq(emailNotificationRoutes.organizationId, TEST_ORG_ID),
+					eq(emailNotificationRoutes.notificationType, "payment_receipt"),
+				),
+			);
+		expect(rows).toHaveLength(1);
+	});
+
+	test("upsert rejects an aliasId that does not belong to the org", async () => {
+		if (shouldSkipIntegration()) return;
+		const handler = getHandler(emailDomainsRouter.upsertNotificationRoute);
+		await expect(
+			handler({
+				context: fakeContext(),
+				input: {
+					organizationId: TEST_ORG_ID,
+					notificationType: "member_invitation",
+					aliasId: "00000000-0000-4000-8000-0000000000aa",
+				},
+			}),
+		).rejects.toMatchObject({ code: "BAD_REQUEST" });
+	});
+
+	test("deleteNotificationRoute resets the type", async () => {
+		if (shouldSkipIntegration()) return;
+		const handler = getHandler<{ deleted: boolean }>(emailDomainsRouter.deleteNotificationRoute);
+		const res = await handler({
+			context: fakeContext(),
+			input: { organizationId: TEST_ORG_ID, notificationType: "payment_receipt" },
+		});
+		expect(res.deleted).toBe(true);
+	});
+
+	test("non-admin is rejected", async () => {
+		if (shouldSkipIntegration()) return;
+		const handler = getHandler(emailDomainsRouter.getNotificationRouting);
+		await expect(
+			handler({
+				context: fakeContext("00000000-0000-4000-8000-000000000099"),
+				input: { organizationId: TEST_ORG_ID },
+			}),
+		).rejects.toMatchObject({ code: "FORBIDDEN" });
+	});
+
+	test("cleanup domain", async () => {
+		if (shouldSkipIntegration()) return;
+		if (!domainId) return;
+		await cpDb!.delete(emailDomains).where(eq(emailDomains.id, domainId));
 	});
 });
