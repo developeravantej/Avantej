@@ -964,6 +964,9 @@ webhookRoutes.post("/resend", async (c) => {
 			const messageId = data.email_id;
 			const mapped = mapResendEventToLogStatus(event.type);
 			const orgIdTag = data.tags?.find((t) => t.name === "organization_id")?.value;
+			const notificationTypeTag = data.tags?.find(
+				(t: { name: string; value: string }) => t.name === "notification_type",
+			)?.value;
 			const toAddr = Array.isArray(data.to) ? data.to.join(", ") : data.to;
 			if (messageId && mapped) {
 				await upsertEmailLogFromWebhook(cpDb, {
@@ -977,6 +980,7 @@ webhookRoutes.post("/resend", async (c) => {
 					fromAddress: data.from ?? null,
 					toAddress: toAddr ?? null,
 					subject: data.subject ?? null,
+					notificationType: notificationTypeTag ?? null,
 				});
 			}
 		} else if (event.type.startsWith("domain.")) {

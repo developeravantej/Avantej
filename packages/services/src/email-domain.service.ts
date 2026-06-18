@@ -506,6 +506,7 @@ export interface UpdateEmailLogFromWebhookParams {
 	fromAddress?: string | null;
 	toAddress?: string | null;
 	subject?: string | null;
+	notificationType?: string | null;
 }
 
 /**
@@ -546,6 +547,7 @@ export async function upsertEmailLogFromWebhook(
 			fromAddress: params.fromAddress ?? "",
 			toAddress: params.toAddress ?? "",
 			subject: params.subject ?? "",
+			notificationType: params.notificationType ?? null,
 			status: params.status,
 			lastEventType: params.eventType,
 			lastEventAt: params.eventAt,
