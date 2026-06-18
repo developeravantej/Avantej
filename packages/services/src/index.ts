@@ -164,6 +164,8 @@ export {
 } from "./ghl-staff-sync.service";
 // Email domain & log services (control-panel persistence)
 export * from "./email-domain.service";
+// Notification routing helpers (pure — no DB/env)
+export * from "./notification-routing";
 // Google Calendar services
 export * from "./google-calendar.service";
 export * from "./google-calendar-sync.service";
