@@ -127,7 +127,11 @@ const manualAdjustment = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
-			staffId: z.string().uuid(),
+			// staffId holds members.userId — a cross-DB Better-Auth user id, which is
+			// NOT a UUID (Better-Auth uses default nanoid-style ids). Validating .uuid()
+			// here rejected every real staff member at runtime (400 "Invalid UUID").
+			// Match the payouts router convention (recipientId/staffIds use z.string()).
+			staffId: z.string().min(1),
 			amountCents: z.number().int(),
 			note: z.string().min(1),
 			salesOrderId: z.string().uuid().optional(),
@@ -192,7 +196,9 @@ const markPaidBatchProcedure = tenantProcedure
 	.input(
 		z.object({
 			organizationId: z.string().uuid(),
-			memberIds: z.array(z.string().uuid()).min(1),
+			// memberIds hold members.userId (Better-Auth ids, NOT UUIDs) — see staffId
+			// note above. .uuid() here would reject every real member.
+			memberIds: z.array(z.string().min(1)).min(1),
 			from: z.string().datetime(),
 			to: z.string().datetime(),
 			// F-PAY-3: payment method for the payouts row created per member.

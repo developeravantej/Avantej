@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +20,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { formatPrice } from "@/lib/money";
+import { formatPrice, rmToCents } from "@/lib/money";
 import { client, orpc } from "@/utils/orpc";
 
 type PaymentMethod = "manual_transfer" | "cash" | "card" | "fpx" | "stripe";
@@ -50,11 +50,26 @@ export function CollectPaymentDialog({
 		useState<PaymentMethod>("manual_transfer");
 	const [notes, setNotes] = useState("");
 	const [nextIntervalDays, setNextIntervalDays] = useState("");
+	// Phase C — collectable amount in RM. Defaults to the full remaining balance;
+	// a smaller value records a partial payment (balance stays owed).
+	const [amountRm, setAmountRm] = useState("");
+
+	// Reset the amount field to the full balance whenever a new installment opens.
+	useEffect(() => {
+		if (target) setAmountRm((target.amountDue / 100).toFixed(2));
+	}, [target]);
+
+	const amountCents = amountRm ? rmToCents(Number.parseFloat(amountRm)) : 0;
+	const isPartial =
+		!!target && amountCents > 0 && amountCents < target.amountDue;
+	const amountInvalid =
+		!!target && (amountCents <= 0 || amountCents > target.amountDue);
 
 	function resetForm() {
 		setPaymentMethod("manual_transfer");
 		setNotes("");
 		setNextIntervalDays("");
+		setAmountRm("");
 	}
 
 	const confirmMutation = useMutation({
@@ -67,6 +82,12 @@ export function CollectPaymentDialog({
 				nextIntervalDays: nextIntervalDays
 					? Number.parseInt(nextIntervalDays, 10) || undefined
 					: undefined,
+				// Only send `amount` for a genuine partial; full balance omits it
+				// so the server settles the whole remaining due (legacy behaviour).
+				amount:
+					target && amountCents > 0 && amountCents < target.amountDue
+						? amountCents
+						: undefined,
 			}),
 		onSuccess: () => {
 			// Prefix-match invalidation: refreshes the tab list and the due-soon badge
@@ -120,6 +141,36 @@ export function CollectPaymentDialog({
 
 				<div className="px-6 pt-4 pb-2 overflow-y-auto">
 					<div className="flex flex-col gap-4 py-2">
+						<div className="flex flex-col gap-1.5">
+							<Label htmlFor="collect-amount">Amount to Collect (RM)</Label>
+							<Input
+								id="collect-amount"
+								data-testid="collect-payment-amount"
+								type="number"
+								min="0"
+								step="0.01"
+								value={amountRm}
+								onChange={(e) => setAmountRm(e.target.value)}
+							/>
+							{target && (
+								<p
+									className={
+										amountInvalid
+											? "text-[11px] text-rose-600"
+											: isPartial
+												? "text-[11px] text-amber-700"
+												: "text-[11px] text-[#737373]"
+									}
+								>
+									{amountInvalid
+										? `Enter an amount between RM 0.01 and ${formatPrice(target.amountDue, "MYR")}.`
+										: isPartial
+											? `Partial payment — ${formatPrice(target.amountDue - amountCents, "MYR")} will remain owed on this installment.`
+											: `Full balance: ${formatPrice(target.amountDue, "MYR")}.`}
+								</p>
+							)}
+						</div>
+
 						<div className="flex flex-col gap-1.5">
 							<Label htmlFor="collect-payment-method">Payment Method</Label>
 							<Select
@@ -184,12 +235,16 @@ export function CollectPaymentDialog({
 						data-testid="collect-payment-confirm"
 						className="bg-[#0a0a0a] text-white hover:bg-[#262626]"
 						onClick={() => {
-							if (!target) return;
+							if (!target || amountInvalid) return;
 							confirmMutation.mutate(target.installmentId);
 						}}
-						disabled={confirmMutation.isPending}
+						disabled={confirmMutation.isPending || amountInvalid}
 					>
-						{confirmMutation.isPending ? "Confirming…" : "Confirm Payment"}
+						{confirmMutation.isPending
+							? "Confirming…"
+							: isPartial
+								? "Record Partial Payment"
+								: "Confirm Payment"}
 					</Button>
 				</DialogFooter>
 			</DialogContent>

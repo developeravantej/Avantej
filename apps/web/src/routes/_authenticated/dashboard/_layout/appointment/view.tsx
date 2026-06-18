@@ -1,15 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useUserContext } from "@/hooks/useUserContext";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { TrainerSidebar } from "@/components/calendar/trainer-sidebar";
 import { AppointmentList } from "@/components/appointments/appointment-list";
 import { requirePermission } from "@/lib/route-guards";
-import { client, orpc } from "@/utils/orpc";
-import {
-	mapApiAppointmentToCalendar,
-	getAppointmentQueryRange,
-} from "@/lib/appointment-mapper";
+import { useTrainerSchedule } from "@/hooks/useTrainerSchedule";
+import type { mapApiAppointmentToCalendar } from "@/lib/appointment-mapper";
 import { AttendanceTab } from "@/components/attendance/attendance-tab";
 
 export const Route = createFileRoute(
@@ -32,44 +28,18 @@ function RouteComponent() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 
-	const currentOrg = userContext?.organizations.find(
-		(o) => o.id === organizationId,
-	);
-	const memberRole = currentOrg?.hierarchy?.member?.role?.toLowerCase();
-	const memberId = currentOrg?.hierarchy?.member?.id;
-	const canViewAllTrainers = memberRole === "admin" || memberRole === "staff";
-
-	const [sidebarSelectedId, setSidebarSelectedId] = useState<string | null>(
-		null,
-	);
-	const selectedTrainerId = canViewAllTrainers
-		? sidebarSelectedId
-		: (memberId ?? null);
-
-	const { startFrom, startTo } = getAppointmentQueryRange();
-
 	const {
-		data: apiAppointments = [],
+		canViewAllTrainers,
+		sidebarSelectedId,
+		setSidebarSelectedId,
+		selectedTrainerId,
+		appointments,
 		isLoading,
 		error,
-	} = useQuery({
-		...orpc.appointments.list.queryOptions({
-			input: {
-				organizationId: organizationId!,
-				trainerId: selectedTrainerId ?? undefined,
-				startFrom,
-				startTo,
-				limit: 200,
-			},
-		}),
-		enabled: !!organizationId && activeTab === "schedule",
-		staleTime: 60 * 1000,
+	} = useTrainerSchedule({
+		organizationId,
+		enabled: activeTab === "schedule",
 	});
-
-	const appointments = useMemo(
-		() => apiAppointments.map(mapApiAppointmentToCalendar),
-		[apiAppointments],
-	);
 
 	return (
 		<div className="-m-6 flex h-screen flex-col bg-[#f3f3f3]">

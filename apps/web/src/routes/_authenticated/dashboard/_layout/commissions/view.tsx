@@ -7,6 +7,7 @@ import { LiabilityTab } from "@/components/pages/commissions/liability-tab";
 import { ManualAdjustmentDialog } from "@/components/pages/commissions/manual-adjustment-dialog";
 import { MyCommissionsPage } from "@/components/pages/commissions/mine-tab";
 import { ReviewTab } from "@/components/pages/commissions/review-tab";
+import { DisputesTab } from "@/components/pages/commissions/disputes-tab";
 import { PayoutsTab } from "@/components/pages/commissions/payouts-tab";
 import { Button } from "@/components/ui/button";
 import { useUserContext } from "@/hooks/useUserContext";
@@ -43,6 +44,16 @@ function CommissionsPage() {
 	});
 	const pendingReviewTotal = reviewMeta?.total ?? 0;
 
+	// Always-mounted badge query for disputed-commission count
+	const { data: disputeMeta } = useQuery({
+		...orpc.commissionSplits.listContested.queryOptions({
+			input: { organizationId: organizationId!, limit: 1 },
+		}),
+		enabled: !!organizationId && hasPermission("commission_management:read"),
+		staleTime: 30_000,
+	});
+	const disputedTotal = disputeMeta?.total ?? 0;
+
 	// F-COM-01: gate the "New Adjustment" trigger on the same permission the
 	// manualAdjustment procedure requires (commission_payout:create).
 	const canCreateAdjustment = hasPermission("commission_payout:create");
@@ -59,6 +70,11 @@ function CommissionsPage() {
 						label: "Review",
 						badge: pendingReviewTotal > 0 ? pendingReviewTotal : null,
 					},
+					{
+						id: "disputes",
+						label: "Disputes",
+						badge: disputedTotal > 0 ? disputedTotal : null,
+					},
 				]),
 		...(!hasPermission("commission_payout:read")
 			? []
@@ -73,6 +89,8 @@ function CommissionsPage() {
 			<AllCommissionsPage />
 		) : tab === "review" ? (
 			<ReviewTab />
+		) : tab === "disputes" ? (
+			<DisputesTab />
 		) : tab === "liability" ? (
 			<LiabilityTab />
 		) : tab === "payouts" && organizationId ? (

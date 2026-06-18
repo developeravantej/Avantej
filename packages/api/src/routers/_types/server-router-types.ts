@@ -830,6 +830,39 @@ export const paymentsRouterType = {
 				throw new Error("Not implemented - this is only for type inference");
 			},
 		),
+
+	// Phase E1 — per-installment Stripe payment link
+	createInstallmentPaymentLink: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				installmentId: z.string().uuid(),
+			}),
+		)
+		.handler(
+			(): {
+				url: string;
+				paymentLinkId: string;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+
+	// Phase E2 — hosted Checkout Session in setup mode to save card for auto-charge
+	createCardSetupSession: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				packageInstanceId: z.string().uuid(),
+			}),
+		)
+		.handler(
+			(): {
+				url: string;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 };
 
 // Stripe Connect router type definition for client type inference.

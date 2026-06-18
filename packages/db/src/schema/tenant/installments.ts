@@ -3,6 +3,7 @@ import {
 	uuid,
 	integer,
 	text,
+	boolean,
 	timestamp,
 	index,
 	uniqueIndex,
@@ -24,11 +25,22 @@ export const installments = pgTable(
 		taxAmount: integer("tax_amount").default(0).notNull(),
 		status: text("status").notNull(), // 'pending' | 'paid' | 'overdue' | 'cancelled' | 'waived'
 		dueDate: timestamp("due_date", { withTimezone: true }).notNull(),
+		// Set on the first reschedule only (preserves the plan's original schedule);
+		// null means the installment has never been rescheduled.
+		originalDueDate: timestamp("original_due_date", { withTimezone: true }),
 		paidAt: timestamp("paid_at", { withTimezone: true }),
 		paymentMethod: text("payment_method"), // 'manual_transfer' | 'cash'
 		confirmedBy: text("confirmed_by"),
 		creditsUnlockedByThis: integer("credits_unlocked_by_this").notNull(),
 		notes: text("notes"),
+		// Partial payment tracking
+		amountPaid: integer("amount_paid").default(0).notNull(),
+		// Per-installment commission
+		commissionAmount: integer("commission_amount").default(0).notNull(),
+		commissionDistributed: boolean("commission_distributed").default(false).notNull(),
+		// Stripe per-installment correlation
+		stripePaymentIntentId: text("stripe_payment_intent_id"),
+		stripePaymentLinkId: text("stripe_payment_link_id"),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.defaultNow()
 			.notNull(),

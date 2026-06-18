@@ -12,6 +12,7 @@ import {
 	calculateCreditsUnlocked,
 	calculateInstallmentAmounts,
 	calculateSuggestedRefund,
+	resolveUpcomingWindow,
 } from "./installment.service";
 
 // ---------------------------------------------------------------------------
@@ -190,5 +191,48 @@ describe("calculateSuggestedRefund", () => {
 		});
 		expect(r.unusedCredits).toBe(0);
 		expect(r.suggestedRefund).toBe(0);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// resolveUpcomingWindow — boundary logic for the Sales → Installments tab
+// ---------------------------------------------------------------------------
+
+describe("resolveUpcomingWindow", () => {
+	// Fixed reference instant so the 14-day math is deterministic.
+	const now = new Date("2026-06-13T08:30:00.000Z");
+	const DAY = 24 * 60 * 60 * 1000;
+
+	it("due_soon spans [now, now+14d] inclusive on both ends", () => {
+		const b = resolveUpcomingWindow("due_soon", now);
+		expect(b.from?.getTime()).toBe(now.getTime());
+		expect(b.fromInclusive).toBe(true);
+		expect(b.to?.getTime()).toBe(now.getTime() + 14 * DAY);
+		expect(b.toInclusive).toBe(true);
+	});
+
+	it("due_soon upper bound is exactly 14 days out, not 13 or 15", () => {
+		const b = resolveUpcomingWindow("due_soon", now);
+		const days = (b.to!.getTime() - now.getTime()) / DAY;
+		expect(days).toBe(14);
+	});
+
+	it("overdue is everything strictly before now (exclusive upper, no lower)", () => {
+		const b = resolveUpcomingWindow("overdue", now);
+		expect(b.from).toBeNull();
+		expect(b.to?.getTime()).toBe(now.getTime());
+		expect(b.toInclusive).toBe(false); // lt, so an installment due exactly now is NOT overdue
+	});
+
+	it("all is unbounded — status filter alone decides membership", () => {
+		const b = resolveUpcomingWindow("all", now);
+		expect(b.from).toBeNull();
+		expect(b.to).toBeNull();
+	});
+
+	it("does not mutate the injected now", () => {
+		const snapshot = now.getTime();
+		resolveUpcomingWindow("due_soon", now);
+		expect(now.getTime()).toBe(snapshot);
 	});
 });

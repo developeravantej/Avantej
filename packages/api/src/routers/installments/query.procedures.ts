@@ -9,8 +9,10 @@ import {
 	getInstallmentsByPackageInstance,
 	getAdminInstallmentOverview,
 	listUpcomingInstallments,
+	exportUpcomingInstallmentsCsv,
 	evaluateAndLockIfOverdue,
 	getSuggestedRefund,
+	getPackageInstallmentState,
 } from "@avantej-core/services";
 import { installmentEvents } from "@avantej-core/db/schema/tenant/installment-events";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
@@ -156,6 +158,40 @@ const listUpcoming = tenantProcedure
 		);
 	});
 
+const exportUpcomingCsv = tenantProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			window: z.enum(["due_soon", "overdue", "all"]).optional(),
+			branchId: z.string().uuid().optional(),
+			search: z.string().optional(),
+		}),
+	)
+	.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"service_management",
+			"read",
+		);
+		if (input.branchId) {
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds);
+		}
+
+		const controlPanelDb = getControlPanelDb(context);
+
+		return exportUpcomingInstallmentsCsv(
+			context.tenantDb,
+			{
+				window: input.window,
+				branchId: input.branchId,
+				search: input.search,
+			},
+			controlPanelDb,
+		);
+	});
+
 const getEvents = tenantProcedure
 	.input(
 		z.object({
@@ -197,10 +233,34 @@ const suggestRefund = tenantProcedure
 		return getSuggestedRefund(context.tenantDb, input.packageInstanceId);
 	});
 
+const getPackageState = tenantProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			packageInstanceId: z.string().uuid(),
+		}),
+	)
+	.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"service_management",
+			"read",
+		);
+
+		return getPackageInstallmentState(
+			context.tenantDb,
+			input.packageInstanceId,
+		);
+	});
+
 export const installmentQueryProcedures = {
 	listByPackageInstance,
 	adminOverview,
 	listUpcoming,
+	exportUpcomingCsv,
 	getEvents,
 	suggestRefund,
+	getPackageState,
 };

@@ -3,10 +3,12 @@ import { commissionSplitsReadProcedures } from "./read.procedures";
 import { commissionSplitsLifecycleProcedures } from "./lifecycle.procedures";
 import { commissionSplitsAnalyticsProcedures } from "./analytics.procedures";
 import { commissionSplitsReviewProcedures } from "./review.procedures";
+import { commissionSplitsDisputeProcedures } from "./dispute.procedures";
 
 export const commissionSplitsRouter = {
 	...commissionSplitsReadProcedures,
 	...commissionSplitsLifecycleProcedures,
 	...commissionSplitsAnalyticsProcedures,
 	...commissionSplitsReviewProcedures,
+	...commissionSplitsDisputeProcedures,
 };

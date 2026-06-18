@@ -1150,9 +1150,17 @@ export async function recordPosSale(
 	// Phase 3 — Origination commission: fires ONCE per order for confirmed (non-Stripe) orders.
 	// Stripe orders fire at the payment_intent.succeeded webhook instead.
 	// Must be outside the per-item loop — one split per order, not per item.
+	//
+	// Phase D guard: multi-installment plans (installmentPlan.numInstallments > 1) skip
+	// the front-load path entirely. distributeInstallmentOriginationCommission in
+	// installment.service.ts handles commission proportionally as each installment clears
+	// (including installment #1 which auto-confirms at POS sale time above).
+	const isMultiInstallmentPlan =
+		!!installmentPlan && (installmentPlan.numInstallments ?? 1) > 1;
 	if (
 		input.paymentMethod !== "stripe" &&
-		(input.soldBy || input.leadSourceUserId)
+		(input.soldBy || input.leadSourceUserId) &&
+		!isMultiInstallmentPlan
 	) {
 		const { calculateOriginationCommission } = await import(
 			"./commission-calculator.service"

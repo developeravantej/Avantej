@@ -21,7 +21,9 @@ export const installmentsRouter = {
 	resetOverride: installmentMutateProcedures.resetOverride,
 	adminOverview: installmentQueryProcedures.adminOverview,
 	listUpcoming: installmentQueryProcedures.listUpcoming,
+	exportUpcomingCsv: installmentQueryProcedures.exportUpcomingCsv,
 	getEvents: installmentQueryProcedures.getEvents,
 	suggestRefund: installmentQueryProcedures.suggestRefund,
 	setOverdraft: installmentMutateProcedures.setOverdraft,
+	getPackageState: installmentQueryProcedures.getPackageState,
 };

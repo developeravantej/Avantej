@@ -34,6 +34,9 @@ const confirmPayment = tenantProcedure
 			]),
 			notes: z.string().optional(),
 			nextIntervalDays: z.number().int().min(1).optional(),
+			// Phase C — partial payment. Cents to collect; omit to settle the
+			// full remaining balance. Clamped server-side to the remaining due.
+			amount: z.number().int().min(1).optional(),
 		}),
 	)
 	.handler(async ({ input, context }) => {
@@ -51,6 +54,7 @@ const confirmPayment = tenantProcedure
 			notes: input.notes,
 			confirmedBy: context.member.userId,
 			nextIntervalDays: input.nextIntervalDays,
+			amount: input.amount,
 		});
 	});
 
@@ -122,6 +126,10 @@ const processRefundProcedure = tenantProcedure
 		return {
 			success: true,
 			cancelledInstallmentIds: result.cancelledInstallmentIds,
+			refundedInstallmentIds: result.refundedInstallmentIds,
+			paidAmountToRefund: result.paidAmountToRefund,
+			voidedCommissionCount: result.voidedCommissionCount,
+			commissionNeedingManualReversal: result.commissionNeedingManualReversal,
 		};
 	});
 

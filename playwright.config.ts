@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const TENANT_ADMIN_AUTH = "e2e/.auth/tenant-admin.json";
+const STAFF_AUTH = "e2e/.auth/staff.json";
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3021";
 const serverHealthUrl =
 	process.env.PLAYWRIGHT_SERVER_URL ?? "http://localhost:3020";
@@ -85,6 +86,18 @@ export default defineConfig({
 			name: "journeys-anon",
 			use: { ...devices["Desktop Chrome"] },
 			testMatch: /\.anon\.journey\.spec\.ts/,
+		},
+		// Non-admin (staff) auth + specs. Named *.staff.spec.ts so they do NOT
+		// match the admin journeys-e2e project's /(?<!anon)\.journey\.spec\.ts/.
+		{
+			name: "setup-staff",
+			testMatch: /auth-staff\.setup\.ts/,
+		},
+		{
+			name: "launchpad-staff",
+			use: { ...devices["Desktop Chrome"], storageState: STAFF_AUTH },
+			testMatch: /\.staff\.spec\.ts$/,
+			dependencies: ["setup-staff"],
 		},
 	],
 });

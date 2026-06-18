@@ -116,6 +116,11 @@ export const packageInstances = pgTable(
 		lockedAt: timestamp("locked_at", { withTimezone: true }),
 		lockedReason: text("locked_reason"),
 
+		// Stripe saved-card / auto-charge
+		stripeCustomerId: text("stripe_customer_id"),
+		defaultPaymentMethodId: text("default_payment_method_id"),
+		autoChargeEnabled: boolean("auto_charge_enabled").default(false).notNull(),
+
 		// When true, payment confirmations use max(current, formula) rather than overwriting
 		creditsAdminOverride: boolean("credits_admin_override")
 			.default(false)

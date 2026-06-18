@@ -640,6 +640,13 @@ export interface PosSaleParams {
 	}>;
 	paymentMethod?: "cash" | "card" | "bank_transfer";
 	installmentPlanCode?: string;
+	/**
+	 * Cross-DB userId of the salesperson who closed the deal.
+	 * Stored on sales_orders.sold_by and used as the beneficiary of on_sale
+	 * origination commission splits. Defaults to null when omitted (no commission
+	 * is attributed to a specific closer).
+	 */
+	soldBy?: string;
 }
 
 export interface PosSaleResult {
@@ -679,6 +686,7 @@ export async function recordPosSaleFull(
 		paymentMethod: params.paymentMethod ?? "cash",
 		amountTenderedCents,
 		installmentPlanCode: params.installmentPlanCode,
+		...(params.soldBy ? { soldBy: params.soldBy } : {}),
 	});
 }
 

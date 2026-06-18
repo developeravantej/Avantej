@@ -1,4 +1,4 @@
-import { getRouteApi, Link } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,11 +15,13 @@ import { TopPerformersCard } from "./TopPerformersCard";
 import { RecentActivityCard } from "./RecentActivityCard";
 import { TodayAppointmentsCard } from "./TodayAppointmentsCard";
 
-const routeApi = getRouteApi("/_authenticated/dashboard/_layout/");
-
-export function DashboardPage() {
-	const { period } = routeApi.useSearch();
-	const navigate = routeApi.useNavigate();
+export function DashboardPage({
+	period,
+	onSelectPeriod,
+}: {
+	period: Period;
+	onSelectPeriod: (p: Period) => void;
+}) {
 	const trendDays =
 		period === "today"
 			? 1
@@ -161,7 +163,7 @@ export function DashboardPage() {
 				{/* ░░ TOP APP BAR ░░ */}
 				<DashboardHeader
 					period={period}
-					onSelectPeriod={(p: Period) => navigate({ search: { period: p } })}
+					onSelectPeriod={onSelectPeriod}
 					onRefresh={() => kpisQuery.refetch()}
 				/>
 

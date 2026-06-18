@@ -479,6 +479,28 @@ export default {
 							console.error(`[scheduled] onboarding-alerts failed:`, e),
 						),
 				);
+				// Plan 2 / Job 1 — daily stale commission-approval digest to admins.
+				// Folded into this manager-facing 09:00 slot (Workers Free 5-cron limit).
+				const { runCommissionApprovalAlert } = await import(
+					"@/services/commission-approval-alert.service"
+				);
+				const { getTenantDb: getTenantDbForCommissionAlert } = await import(
+					"@/lib/db"
+				);
+				ctx.waitUntil(
+					runCommissionApprovalAlert({
+						controlPanelDb: cpDb,
+						getTenantDb: (orgId) => getTenantDbForCommissionAlert(orgId),
+					})
+						.then((r) =>
+							console.log(
+								`[scheduled] commission-approval-alert done: ${JSON.stringify(r)}`,
+							),
+						)
+						.catch((e) =>
+							console.error(`[scheduled] commission-approval-alert failed:`, e),
+						),
+				);
 			} else if (cron === "0 3 * * *") {
 				// Plan E E.8 — hard-delete overdue soft-deleted tenants.
 				const { hardDeleteOverdueTenants } = await import(
@@ -585,6 +607,27 @@ export default {
 							),
 					);
 				}
+				// Phase E2 — installment auto-charge. Runs after the sweep so that
+				// newly-overdue installments (flipped by the sweep above) are included
+				// in the same nightly run. Folded into this slot to stay under the
+				// Workers Free 5-cron limit.
+				const { runInstallmentAutoCharge } = await import(
+					"@/services/installment-autocharge.service"
+				);
+				ctx.waitUntil(
+					runInstallmentAutoCharge({
+						controlPanelDb: cpDb,
+						getTenantDb: (orgId) => getTenantDb(orgId),
+					})
+						.then((r) =>
+							console.log(
+								`[scheduled] installment-autocharge done: ${JSON.stringify(r)}`,
+							),
+						)
+						.catch((e) =>
+							console.error(`[scheduled] installment-autocharge failed:`, e),
+						),
+				);
 				// Folded in from the retired "30 2 * * *" slot to stay under the
 				// Workers Free 5-cron limit. Plan C C.5 nightly Stripe reconciliation.
 				const { runReconciliation } = await import(

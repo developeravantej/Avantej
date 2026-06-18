@@ -2046,7 +2046,7 @@
     "status": "deferred",
     "specFile": null,
     "note": "guards.ts:20-32 assertOrgContextMatch",
-    "deferReason": "Needs a second provisioned tenant + cross-tenant user. Deferred to a seeded loop."
+    "deferReason": "VERIFIED GREEN 2026-06-07 against a provisioned org B (both cross-tenant directions) via seed-second-tenant.ts; deferred again only because org B was torn down. Re-provision to re-cover."
   },
   {
     "module": "multi-tenant",
@@ -2057,7 +2057,7 @@
     "status": "deferred",
     "specFile": null,
     "note": "orpc-tenant.middleware.ts:199-222; context.ts:27-31",
-    "deferReason": "Needs a second provisioned tenant + cross-tenant user. Deferred to a seeded loop."
+    "deferReason": "VERIFIED GREEN 2026-06-07 against a provisioned org B (both cross-tenant directions) via seed-second-tenant.ts; deferred again only because org B was torn down. Re-provision to re-cover."
   },
   {
     "module": "multi-tenant",
@@ -2079,7 +2079,7 @@
     "status": "deferred",
     "specFile": null,
     "note": "orpc-tenant.middleware.ts:233-245; guards.ts:47-51",
-    "deferReason": "Needs a second provisioned tenant + cross-tenant user. Deferred to a seeded loop."
+    "deferReason": "VERIFIED GREEN 2026-06-07 against a provisioned org B (both cross-tenant directions) via seed-second-tenant.ts; deferred again only because org B was torn down. Re-provision to re-cover."
   },
   {
     "module": "rbac",
@@ -2141,7 +2141,7 @@
     "status": "deferred",
     "specFile": null,
     "note": "orpc-tenant.middleware.ts:125-166",
-    "deferReason": "Remaining RBAC node-scope + SaaS-state rows need a branch-scoped staff fixture / org paymentStatus flip. Deferred (staff-RBAC permission-denied IS covered)."
+    "deferReason": "SaaS suspended/cancelled VERIFIED GREEN 2026-06-07 against a provisioned org B (deferred again on teardown). past_due read-only needs a saas_subscriptions row past grace (subscription-based, not paymentStatus) — set E2E_SAAS_PASTDUE_SUBSCRIPTION=1 once seeded."
   },
   {
     "module": "saas",
@@ -2152,7 +2152,7 @@
     "status": "deferred",
     "specFile": null,
     "note": "require-active-saas-sub.middleware.ts:89-104,154-164",
-    "deferReason": "Remaining RBAC node-scope + SaaS-state rows need a branch-scoped staff fixture / org paymentStatus flip. Deferred (staff-RBAC permission-denied IS covered)."
+    "deferReason": "SaaS suspended/cancelled VERIFIED GREEN 2026-06-07 against a provisioned org B (deferred again on teardown). past_due read-only needs a saas_subscriptions row past grace (subscription-based, not paymentStatus) — set E2E_SAAS_PASTDUE_SUBSCRIPTION=1 once seeded."
   },
   {
     "module": "access-control",
@@ -2429,11 +2429,10 @@
     "op": "create+update",
     "screen": "/dashboard/payment/view",
     "permission": "payments:create|update",
-    "status": "deferred",
-    "specFile": "payment/stripe-payment.rule.spec.ts",
+    "status": "covered",
+    "specFile": "payment/invoices.lifecycle.spec.ts",
     "danger": "none",
-    "note": "invoices.ts:95,139",
-    "deferReason": "Invoice create/update has no standalone procedure — it is a side-effect of the Stripe payment-link flow. Deferred (all other payment rows are covered, incl. webhook-driven refund + chargeSavedCard)."
+    "note": "invoices.create/update are standalone procedures (base-router.ts invoices: invoicesRouter); covered by invoices.lifecycle.spec.ts"
   },
   {
     "module": "payment",

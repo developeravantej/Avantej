@@ -32,6 +32,8 @@ import { type StripeClientLike, makeResolveStripe } from "./_shared";
 import { createIntentProcedures } from "./intent.procedures";
 import { createLinkProcedures } from "./link.procedures";
 import { createLinkDeactivateProcedures } from "./link-deactivate.procedures";
+import { createInstallmentLinkProcedures } from "./link-installment.procedures";
+import { createCardSetupInstallmentProcedures } from "./card-setup-installment.procedures";
 import { statusProcedures } from "./status.procedures";
 import { createRefundProcedures } from "./refund.procedures";
 import { createSavedCardProcedures } from "./saved-card.procedures";
@@ -44,6 +46,8 @@ export function createPaymentsRouter(stripeClientOverride?: StripeClientLike) {
 		...createIntentProcedures(resolveStripe),
 		...createLinkProcedures(resolveStripe),
 		...createLinkDeactivateProcedures(resolveStripe),
+		...createInstallmentLinkProcedures(resolveStripe),
+		...createCardSetupInstallmentProcedures(resolveStripe),
 		...statusProcedures,
 		...createRefundProcedures(resolveStripe),
 		...createSavedCardProcedures(resolveStripe),

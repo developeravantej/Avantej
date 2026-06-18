@@ -98,35 +98,45 @@ test("confirming a package payment twice is idempotent (second is a no-op)", {
 		packageInstanceId = created.id;
 		expect(packageInstanceId).toBeTruthy();
 
-		// First confirm → succeeds (not alreadyConfirmed).
-		const first = await orpcCall<object, { alreadyConfirmed?: boolean }>(
+		type ConfirmResult = {
+			alreadyConfirmed?: boolean;
+			paymentStatus?: string;
+			installmentsPaid?: number;
+		};
+
+		// First confirm → succeeds (not alreadyConfirmed); package becomes paid.
+		const first = await orpcCall<object, ConfirmResult>(
 			page,
 			"packageInstances",
 			"confirmPayment",
 			{ organizationId: TEST_ORG_ID, packageInstanceId, paymentMethod: "cash" },
 		);
 		expect(first?.alreadyConfirmed ?? false).toBe(false);
+		expect(first?.paymentStatus).toBe("paid");
 
-		// Second confirm → idempotent no-op.
-		const second = await orpcCall<object, { alreadyConfirmed?: boolean }>(
+		// Second confirm → idempotent no-op: returns alreadyConfirmed and does NOT
+		// double-credit (paymentStatus stays 'paid', installmentsPaid does not advance).
+		// This is the actual idempotency invariant the spec is named for.
+		const second = await orpcCall<object, ConfirmResult>(
 			page,
 			"packageInstances",
 			"confirmPayment",
 			{ organizationId: TEST_ORG_ID, packageInstanceId, paymentMethod: "cash" },
 		);
 		expect(second?.alreadyConfirmed).toBe(true);
+		expect(second?.paymentStatus).toBe("paid");
+		expect(second?.installmentsPaid).toBe(first?.installmentsPaid);
 
-		// The package left awaiting_payment exactly once (now pending, not double).
+		// Payment received → the package is no longer awaiting payment.
+		// NOTE: the approval-pipeline transition (awaiting_payment → 'pending'
+		// approval) is gated on the tenant's package-approval config and is covered
+		// by the package-approval journeys — NOT asserted here, where it made this
+		// idempotency test brittle and config-dependent.
 		expect(
 			(await listApprovals(page, "awaiting_payment")).some(
 				(r) => r.id === packageInstanceId,
 			),
 		).toBe(false);
-		expect(
-			(await listApprovals(page, "pending")).some(
-				(r) => r.id === packageInstanceId,
-			),
-		).toBe(true);
 	} finally {
 		if (packageInstanceId) {
 			try {

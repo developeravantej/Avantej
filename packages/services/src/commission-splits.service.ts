@@ -1223,11 +1223,16 @@ export async function liabilitySummary(
 		}
 	}
 
-	// Build WHERE conditions
+	// Build WHERE conditions.
+	// Exclude both `void` and `contested`: a contested split contributes 0 to every
+	// money column (the CASE sums only match approved/paid/pending), but without
+	// this filter it would still surface a phantom zero-value trainer row. Disputed
+	// commission is intentionally out of the payable pool until resolved.
 	const baseConditions = [
 		gte(commissionSplits.earnedAt, fromDate),
 		lte(commissionSplits.earnedAt, toDate),
 		ne(commissionSplits.status, "void"),
+		ne(commissionSplits.status, "contested"),
 	];
 
 	if (staffIdScope !== null) {
@@ -1733,24 +1738,29 @@ export async function createManualAdjustment(
 	}
 
 	// Duplicate guard: reject if a non-void manual split already exists for the
-	// same staff + appointment combination. Prevents accidental double-entry.
-	if (params.appointmentId) {
-		const dupe = await tenantDb.query.commissionSplits.findFirst({
-			where: and(
-				eq(commissionSplits.staffId, params.staffId),
-				eq(commissionSplits.appointmentId, params.appointmentId),
-				eq(commissionSplits.splitType, "manual"),
-				ne(commissionSplits.status, "void"),
+	// same staff + the SAME target (appointment, sales-order, OR package). Exactly
+	// one target is set (XOR enforced above). Prevents accidental double-entry
+	// across all target types, not just appointments.
+	const targetMatch = params.appointmentId
+		? eq(commissionSplits.appointmentId, params.appointmentId)
+		: params.salesOrderId
+			? eq(commissionSplits.salesOrderId, params.salesOrderId)
+			: eq(commissionSplits.packageInstanceId, params.packageInstanceId!);
+	const dupe = await tenantDb.query.commissionSplits.findFirst({
+		where: and(
+			eq(commissionSplits.staffId, params.staffId),
+			targetMatch,
+			eq(commissionSplits.splitType, "manual"),
+			ne(commissionSplits.status, "void"),
+		),
+	});
+	if (dupe) {
+		throw Object.assign(
+			new Error(
+				`A manual adjustment for this staff member and target already exists (split ${dupe.id}). Void it first before creating another.`,
 			),
-		});
-		if (dupe) {
-			throw Object.assign(
-				new Error(
-					`A manual adjustment for this staff member and appointment already exists (split ${dupe.id}). Void it first before creating another.`,
-				),
-				{ code: "CONFLICT" },
-			);
-		}
+			{ code: "CONFLICT" },
+		);
 	}
 
 	// High-value flag: amounts above the threshold enter "pending_review" so they
@@ -2995,6 +3005,396 @@ export async function listPendingReview(
 			: { earnedAt: lastRow.earnedAt.toISOString(), id: lastRow.id };
 
 	return { rows: resultRows, total, nextCursor };
+}
+
+// ---------------------------------------------------------------------------
+// Staff dispute / contest workflow (Plan 1 — 2026-06-13)
+// ---------------------------------------------------------------------------
+
+/** Reasons a staff member can give for contesting a split. */
+export const CONTEST_CATEGORIES = [
+	"wrong_amount",
+	"wrong_staff",
+	"should_not_earn",
+	"missing_split",
+	"other",
+] as const;
+export type ContestCategory = (typeof CONTEST_CATEGORIES)[number];
+
+/** Statuses from which a split may be contested (money has NOT moved yet). */
+const CONTESTABLE_STATUSES = ["pending", "approved"] as const;
+
+export interface ContestCommissionSplitParams {
+	splitId: string;
+	/** The earner contesting — MUST equal the split's staffId (members.userId). */
+	contestedBy: string;
+	category: ContestCategory;
+	reason: string;
+	actor: { userId: string; memberId: string; role: string };
+}
+
+/**
+ * Contest a commission split. Only the earner (staffId === contestedBy) may
+ * contest, and only while the split is `pending` or `approved` — a `paid` split
+ * has already moved money and must go through refund/reversal, not dispute.
+ *
+ * The split moves to status='contested', remembering its prior status in
+ * contested_from_status so an "uphold" resolution can restore it. Because
+ * liability + payout-batch queries only count `approved`/`paid`, a contested
+ * split automatically drops out of the payable pool.
+ */
+export async function contestCommissionSplit(
+	tenantDb: TenantDb,
+	params: ContestCommissionSplitParams,
+): Promise<CommissionSplit> {
+	return tenantDb.transaction(async (tx) => {
+		const [split] = await tx
+			.select()
+			.from(commissionSplits)
+			.where(eq(commissionSplits.id, params.splitId))
+			.for("update");
+
+		if (!split) {
+			throw new ORPCError("NOT_FOUND", {
+				message: "Commission split not found",
+			});
+		}
+
+		// Ownership: only the earner may contest their own split. Enforced here so
+		// even an admin acting through this path cannot contest someone else's row.
+		if (split.staffId !== params.contestedBy) {
+			throw new ORPCError("FORBIDDEN", {
+				message: "You can only dispute your own commission splits",
+				data: { code: "NOT_OWNER" },
+			});
+		}
+
+		if (!(CONTESTABLE_STATUSES as readonly string[]).includes(split.status)) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Cannot dispute a split with status '${split.status}'. Only pending or approved splits can be disputed${
+					split.status === "paid"
+						? " — a paid split must be handled via a refund/reversal."
+						: "."
+				}`,
+				data: { code: "NOT_CONTESTABLE" },
+			});
+		}
+
+		const now = new Date();
+		const [updated] = await tx
+			.update(commissionSplits)
+			.set({
+				status: "contested",
+				contestedBy: params.contestedBy,
+				contestedReason: params.reason,
+				contestedCategory: params.category,
+				contestedAt: now,
+				contestedFromStatus: split.status,
+				updatedAt: now,
+			})
+			.where(eq(commissionSplits.id, params.splitId))
+			.returning();
+
+		await writeAudit(tx, {
+			actorUserId: params.actor.userId,
+			actorMemberId: params.actor.memberId,
+			actorRole: params.actor.role,
+			action: "commission.contested",
+			entityType: "commission_split",
+			entityId: params.splitId,
+			summary: `Commission split contested by staff ${params.contestedBy} (${params.category})`,
+			changes: {
+				previousStatus: split.status,
+				newStatus: "contested",
+				category: params.category,
+				reason: params.reason,
+			},
+		});
+
+		return updated!;
+	});
+}
+
+export interface ContestedRow {
+	id: string;
+	staffId: string;
+	staffName: string;
+	amountCents: number;
+	note: string | null;
+	appointmentId: string | null;
+	salesOrderId: string | null;
+	packageInstanceId: string | null;
+	contestedCategory: string | null;
+	contestedReason: string | null;
+	contestedAt: string | null;
+	contestedFromStatus: string | null;
+	roleType: string | null;
+	trackId: string | null;
+	earnedAt: string;
+}
+
+export interface ListContestedParams {
+	accessibleNodeIds: string[];
+	limit: number;
+	cursor?: { contestedAt: string; id: string };
+}
+
+export interface ListContestedResult {
+	rows: ContestedRow[];
+	total: number;
+	nextCursor: { contestedAt: string; id: string } | null;
+}
+
+/**
+ * List contested splits for the manager Disputes surface. Mirrors
+ * listPendingReview: RBAC scope via the earner's branch, cursor pagination,
+ * best-effort control-panel name hydration.
+ */
+export async function listContested(
+	tenantDb: TenantDb,
+	controlPanelDb: ControlPanelDb,
+	params: ListContestedParams,
+): Promise<ListContestedResult> {
+	const scopeCondition =
+		params.accessibleNodeIds.length > 0
+			? or(
+					sql`${commissionSplits.appointmentId} IS NULL AND ${commissionSplits.salesOrderId} IS NULL`,
+					inArray(
+						sql`(SELECT branch_id FROM appointments WHERE id = ${commissionSplits.appointmentId})::uuid`,
+						params.accessibleNodeIds,
+					),
+					inArray(
+						sql`(SELECT branch_id FROM sales_orders WHERE id = ${commissionSplits.salesOrderId})::uuid`,
+						params.accessibleNodeIds,
+					),
+				)
+			: sql`true`;
+
+	const [countRow] = await tenantDb
+		.select({ count: sql<number>`COUNT(*)::int` })
+		.from(commissionSplits)
+		.where(and(eq(commissionSplits.status, "contested"), scopeCondition));
+	const total = countRow?.count ?? 0;
+
+	const cursorCondition = params.cursor
+		? sql`(${commissionSplits.contestedAt}, ${commissionSplits.id}) < (${params.cursor.contestedAt}::timestamptz, ${params.cursor.id}::uuid)`
+		: sql`true`;
+
+	const rows = await tenantDb
+		.select()
+		.from(commissionSplits)
+		.where(
+			and(
+				eq(commissionSplits.status, "contested"),
+				scopeCondition,
+				cursorCondition,
+			),
+		)
+		.orderBy(desc(commissionSplits.contestedAt), desc(commissionSplits.id))
+		.limit(params.limit);
+
+	const userIds = [...new Set(rows.map((r) => r.staffId))];
+	const nameMap = new Map<string, string>();
+	if (userIds.length > 0) {
+		try {
+			const { user } = await import("@avantej-core/db/schema/auth");
+			const { inArray: inArr } = await import("drizzle-orm");
+			const users = await controlPanelDb
+				.select({ id: user.id, name: user.name })
+				.from(user)
+				.where(inArr(user.id, userIds));
+			for (const u of users) nameMap.set(u.id, u.name);
+		} catch {
+			// Best-effort — fall back to IDs as names
+		}
+	}
+
+	const resultRows: ContestedRow[] = rows.map((r) => ({
+		id: r.id,
+		staffId: r.staffId,
+		staffName: nameMap.get(r.staffId) ?? r.staffId,
+		amountCents: r.calculatedAmount,
+		note: r.notes,
+		appointmentId: r.appointmentId ?? null,
+		salesOrderId: r.salesOrderId ?? null,
+		packageInstanceId: r.packageInstanceId ?? null,
+		contestedCategory: r.contestedCategory ?? null,
+		contestedReason: r.contestedReason ?? null,
+		contestedAt: r.contestedAt ? r.contestedAt.toISOString() : null,
+		contestedFromStatus: r.contestedFromStatus ?? null,
+		roleType: r.roleType ?? null,
+		trackId: r.trackId ?? null,
+		earnedAt: r.earnedAt.toISOString(),
+	}));
+
+	const lastRow = rows[rows.length - 1];
+	const nextCursor =
+		rows.length < params.limit || !lastRow || !lastRow.contestedAt
+			? null
+			: { contestedAt: lastRow.contestedAt.toISOString(), id: lastRow.id };
+
+	return { rows: resultRows, total, nextCursor };
+}
+
+export interface ResolveDisputeParams {
+	splitId: string;
+	action: "uphold" | "void" | "adjust";
+	note: string | null;
+	/** Required when action='adjust' — the corrected amount in signed cents. */
+	adjustmentAmountCents?: number;
+	actor: { userId: string; memberId: string; role: string };
+}
+
+/**
+ * Resolve a contested split (manager action):
+ *   - uphold → restore the split's prior status (contested_from_status)
+ *   - void   → status='void'
+ *   - adjust → void the contested split AND insert a corrected manual split,
+ *              atomically in one transaction. The new split enters pending_review
+ *              when its magnitude crosses the manual-review threshold (same rule
+ *              as createManualAdjustment), otherwise pending.
+ */
+export async function resolveDispute(
+	tenantDb: TenantDb,
+	params: ResolveDisputeParams,
+): Promise<{ resolved: CommissionSplit; adjustment: CommissionSplit | null }> {
+	return tenantDb.transaction(async (tx) => {
+		const [split] = await tx
+			.select()
+			.from(commissionSplits)
+			.where(eq(commissionSplits.id, params.splitId))
+			.for("update");
+
+		if (!split) {
+			throw new ORPCError("NOT_FOUND", {
+				message: "Commission split not found",
+			});
+		}
+		if (split.status !== "contested") {
+			throw new ORPCError("BAD_REQUEST", {
+				message: `Cannot resolve: split status is '${split.status}', expected 'contested'`,
+				data: { code: "NOT_CONTESTED" },
+			});
+		}
+
+		const now = new Date();
+
+		if (params.action === "uphold") {
+			const restoreTo = split.contestedFromStatus ?? "pending";
+			const [updated] = await tx
+				.update(commissionSplits)
+				.set({
+					status: restoreTo,
+					resolvedBy: params.actor.userId,
+					resolvedAt: now,
+					resolutionNote: params.note,
+					updatedAt: now,
+				})
+				.where(eq(commissionSplits.id, params.splitId))
+				.returning();
+
+			await writeAudit(tx, {
+				actorUserId: params.actor.userId,
+				actorMemberId: params.actor.memberId,
+				actorRole: params.actor.role,
+				action: "commission.dispute_upheld",
+				entityType: "commission_split",
+				entityId: params.splitId,
+				summary: `Dispute upheld for staff ${split.staffId} — split restored to '${restoreTo}'`,
+				changes: { newStatus: restoreTo, note: params.note },
+			});
+
+			return { resolved: updated!, adjustment: null };
+		}
+
+		// Both "void" and "adjust" void the contested split first.
+		const [voided] = await tx
+			.update(commissionSplits)
+			.set({
+				status: "void",
+				resolvedBy: params.actor.userId,
+				resolvedAt: now,
+				resolutionNote: params.note,
+				updatedAt: now,
+			})
+			.where(eq(commissionSplits.id, params.splitId))
+			.returning();
+
+		await writeAudit(tx, {
+			actorUserId: params.actor.userId,
+			actorMemberId: params.actor.memberId,
+			actorRole: params.actor.role,
+			action:
+				params.action === "adjust"
+					? "commission.dispute_adjusted"
+					: "commission.dispute_voided",
+			entityType: "commission_split",
+			entityId: params.splitId,
+			summary: `Dispute ${params.action === "adjust" ? "adjusted" : "voided"} for staff ${split.staffId}`,
+			changes: {
+				previousStatus: "contested",
+				newStatus: "void",
+				note: params.note,
+			},
+		});
+
+		if (params.action === "void") {
+			return { resolved: voided!, adjustment: null };
+		}
+
+		// action === "adjust": insert a corrected manual split inline (same tx)
+		if (
+			params.adjustmentAmountCents == null ||
+			params.adjustmentAmountCents === 0
+		) {
+			throw new ORPCError("BAD_REQUEST", {
+				message: "A non-zero adjustment amount is required to adjust a dispute",
+				data: { code: "ADJUSTMENT_AMOUNT_REQUIRED" },
+			});
+		}
+
+		const requiresReview =
+			Math.abs(params.adjustmentAmountCents) >= MANUAL_REVIEW_THRESHOLD_CENTS;
+		const adjNote = `Dispute correction for split ${params.splitId}${
+			params.note ? ` — ${params.note}` : ""
+		}`;
+
+		const [adjustment] = await tx
+			.insert(commissionSplits)
+			.values({
+				// Preserve the original target so the new split is anchored identically.
+				appointmentId: split.appointmentId ?? null,
+				salesOrderId: split.salesOrderId ?? null,
+				packageInstanceId: split.packageInstanceId ?? null,
+				staffId: split.staffId,
+				splitPercentage: 0,
+				calculatedAmount: params.adjustmentAmountCents,
+				notes: adjNote,
+				status: requiresReview ? "pending_review" : "pending",
+				splitType: "manual",
+				manualNote: adjNote,
+				earnedAt: split.earnedAt,
+				createdByUserId: params.actor.userId,
+			})
+			.returning();
+
+		await writeAudit(tx, {
+			actorUserId: params.actor.userId,
+			actorMemberId: params.actor.memberId,
+			actorRole: params.actor.role,
+			action: "commission.manual_adjustment",
+			entityType: "commission_split",
+			entityId: adjustment!.id,
+			summary: `Dispute-correction adjustment for staff ${split.staffId}: ${params.adjustmentAmountCents} cents`,
+			changes: {
+				amountCents: params.adjustmentAmountCents,
+				sourceDisputeSplitId: params.splitId,
+				requiresReview,
+			},
+		});
+
+		return { resolved: voided!, adjustment: adjustment! };
+	});
 }
 
 // ---------------------------------------------------------------------------

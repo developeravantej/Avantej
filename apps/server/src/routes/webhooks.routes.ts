@@ -422,6 +422,85 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 					`[connect webhook] account.updated for acct=${account.id} — no matching org (metadata.organizationId=${orgId})`,
 				);
 			}
+		} else if (event.type === "checkout.session.completed") {
+			// Phase E2 — installment_setup: customer completed the hosted Checkout
+			// Session that saves their card for auto-charge. Capture the Stripe
+			// Customer id and the PaymentMethod from the SetupIntent on the session,
+			// then write them onto the package_instance row.
+			const session = event.data.object as Stripe.Checkout.Session;
+			const metadata = (session.metadata ?? {}) as Record<string, string>;
+
+			if (metadata.type === "installment_setup") {
+				const packageInstanceId = metadata.packageInstanceId;
+				const organizationId = metadata.organizationId;
+
+				if (!packageInstanceId || !organizationId) {
+					console.warn(
+						`[connect webhook] checkout.session.completed installment_setup missing metadata — session=${session.id}`,
+					);
+				} else {
+					try {
+						// The session may carry the customer id directly; fall back to the
+						// setup_intent's payment_method when we need to retrieve it.
+						const customerId =
+							typeof session.customer === "string"
+								? session.customer
+								: (session.customer?.id ?? null);
+
+						// Resolve the payment_method id from the SetupIntent on the session.
+						const setupIntentRef = session.setup_intent;
+						let paymentMethodId: string | null = null;
+						if (setupIntentRef) {
+							const siId =
+								typeof setupIntentRef === "string"
+									? setupIntentRef
+									: setupIntentRef.id;
+							const stripe = getStripeClient();
+							const si = await stripe.setupIntents.retrieve(
+								siId,
+								{},
+								{ stripeAccount: event.account ?? undefined },
+							);
+							paymentMethodId =
+								typeof si.payment_method === "string"
+									? si.payment_method
+									: (si.payment_method?.id ?? null);
+						}
+
+						if (!customerId || !paymentMethodId) {
+							console.warn(
+								`[connect webhook] checkout.session.completed installment_setup incomplete — session=${session.id} customer=${customerId} pm=${paymentMethodId}`,
+							);
+						} else {
+							const tenantDb = await getTenantDb(organizationId, c);
+							const { packageInstances: pkgSchema } = await import(
+								"@avantej-core/db/schema/tenant/package-instances"
+							);
+							const result = await tenantDb
+								.update(pkgSchema)
+								.set({
+									stripeCustomerId: customerId,
+									defaultPaymentMethodId: paymentMethodId,
+									autoChargeEnabled: true,
+									updatedAt: new Date(),
+								})
+								.where(eq(pkgSchema.id, packageInstanceId))
+								.returning({ id: pkgSchema.id });
+
+							console.log(
+								`[connect webhook] installment_setup saved card pkg=${packageInstanceId} customer=${customerId} pm=${paymentMethodId} rowsUpdated=${result.length}`,
+							);
+						}
+					} catch (setupErr) {
+						// Best-effort — never throw out of webhook.
+						console.error(
+							`[connect webhook] installment_setup handler threw for session=${session.id}:`,
+							setupErr,
+						);
+					}
+				}
+			}
+			// Non-installment_setup checkout sessions are not handled here; fall through.
 		} else if (event.type === "setup_intent.succeeded") {
 			// Plan B Phase 3d — card saved. Persist the PM id as the customer's
 			// default so future chargeSavedCard calls can use it without UI prompts.
@@ -469,6 +548,108 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 			const paymentRowId = metadata.paymentId;
 			const isSalesOrderPayment =
 				metadata.type === "sales_order" && !!salesOrderId && !!paymentRowId;
+
+			// Phase E1 — per-installment Stripe payment link. Match BEFORE
+			// sales_order/package branches so it doesn't fall through.
+			if (
+				metadata.type === "installment" &&
+				metadata.installmentId &&
+				organizationId &&
+				event.type === "payment_intent.succeeded"
+			) {
+				const piObj = pi as Stripe.PaymentIntent;
+				const installmentId = metadata.installmentId;
+				try {
+					const tenantDb = await getTenantDb(organizationId, c);
+
+					// Same-PI replay guard: if this installment row already recorded
+					// this PI id, the event is a Stripe retry — skip silently.
+					const { installments: installmentsSchema } = await import(
+						"@avantej-core/db/schema/tenant/installments"
+					);
+					const [existingRow] = await tenantDb
+						.select({
+							stripePaymentIntentId:
+								installmentsSchema.stripePaymentIntentId,
+							stripePaymentLinkId: installmentsSchema.stripePaymentLinkId,
+							status: installmentsSchema.status,
+						})
+						.from(installmentsSchema)
+						.where(eq(installmentsSchema.id, installmentId))
+						.limit(1);
+
+					if (
+						existingRow?.status === "paid" &&
+						existingRow.stripePaymentIntentId === piObj.id
+					) {
+						console.log(
+							`[connect webhook] installment replay (same PI) ignored installmentId=${installmentId} pi=${piObj.id}`,
+						);
+					} else if (
+						existingRow?.status === "paid" &&
+						existingRow.stripePaymentIntentId !== piObj.id
+					) {
+						// Second/duplicate payment — installment already settled by a
+						// different PI. Log loudly; do not double-confirm.
+						console.error(
+							`[connect webhook] DUPLICATE payment for already-paid installment installmentId=${installmentId} firstPi=${existingRow.stripePaymentIntentId} duplicatePi=${piObj.id} amount=${piObj.amount} — not reprocessed; refund required`,
+						);
+					} else {
+						const { confirmInstallmentPayment } = await import(
+							"@avantej-core/services"
+						);
+						// Resolve link id from the stored row (link creates it there).
+						const paymentLinkId =
+							existingRow?.stripePaymentLinkId ??
+							metadata.paymentLinkId ??
+							null;
+
+						await confirmInstallmentPayment(tenantDb, {
+							installmentId,
+							paymentMethod: "stripe",
+							amount: piObj.amount_received ?? piObj.amount,
+							stripePaymentIntentId: piObj.id,
+							...(paymentLinkId
+								? { stripePaymentLinkId: String(paymentLinkId) }
+								: {}),
+							confirmedBy: "system",
+							notes: `Stripe payment link — PI ${piObj.id}`,
+						});
+
+						console.log(
+							`[connect webhook] installment confirmed installmentId=${installmentId} pi=${piObj.id} amount=${piObj.amount_received ?? piObj.amount}`,
+						);
+
+						// Belt-and-braces: deactivate the single-use link now that it's
+						// paid. Links are created with completed_sessions.limit=1 which
+						// Stripe enforces, but explicit deactivation prevents stale UI.
+						if (paymentLinkId && event.account) {
+							try {
+								const stripe = getStripeClient();
+								await stripe.paymentLinks.update(
+									String(paymentLinkId),
+									{ active: false },
+									{ stripeAccount: event.account },
+								);
+							} catch (linkErr) {
+								console.error(
+									`[connect webhook] failed to deactivate installment link ${paymentLinkId}:`,
+									linkErr,
+								);
+							}
+						}
+					}
+				} catch (instErr) {
+					// Best-effort — never throw out of webhook (Stripe would retry forever).
+					console.error(
+						`[connect webhook] installment PI handler threw for installmentId=${installmentId} pi=${piObj.id}:`,
+						instErr,
+					);
+				}
+
+				await markEventProcessed(event.id, cpDb);
+				return c.json({ received: true }, 200);
+			}
 
 			// Plan B Phase 3c.1 — POS online checkout fast-path. Match BEFORE
 			// the package + appointment branches so we don't fall through.
@@ -704,39 +885,48 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 
 						// Phase 3 — Origination commission for Stripe-paid orders.
 						// Fired here (not at recordPosSale time) so unpaid online orders
-						// never pay origination. Idempotency: (sales_order_id, track_id, staff_id)
-						// unique index + 23505 skip ensures exactly one split per (order, track, staff).
-						try {
-							const { calculateOriginationCommission } = await import(
-								"@avantej-core/services"
-							);
-							// Load soldBy + leadSourceUserId from the order row to resolve attribution
-							const [orderRow] = await tenantDb
-								.select({
-									soldBy: salesOrders.soldBy,
-									leadSourceUserId: salesOrders.leadSourceUserId,
-								})
-								.from(salesOrders)
-								.where(eq(salesOrders.id, salesOrderId))
-								.limit(1);
-							if (orderRow && (orderRow.soldBy || orderRow.leadSourceUserId)) {
-								await calculateOriginationCommission(tenantDb, {
-									salesOrderId,
-									soldByUserId: orderRow.soldBy ?? null,
-									leadSourceUserId: orderRow.leadSourceUserId ?? null,
-									actor: {
-										userId: "system",
-										memberId: "system",
-										role: "system",
-									},
-								});
+						// never pay origination. Idempotency: (sales_order_id, track_id, staff_id,
+						// installment_id) unique index + 23505 skip ensures exactly one split per
+						// (order, track, staff, installment).
+						//
+						// Phase D guard: multi-installment packages (hasInstallmentPkg) skip the
+						// front-load path here. The installment confirm path (confirmInstallmentPayment
+						// called below for installment #1) calls distributeInstallmentOriginationCommission
+						// instead, ensuring commission distributes proportionally across all installments.
+						if (!hasInstallmentPkg) {
+							try {
+								const { calculateOriginationCommission } = await import(
+									"@avantej-core/services"
+								);
+								// Load soldBy + leadSourceUserId from the order row to resolve attribution
+								const [orderRow] = await tenantDb
+									.select({
+										soldBy: salesOrders.soldBy,
+										leadSourceUserId: salesOrders.leadSourceUserId,
+									})
+									.from(salesOrders)
+									.where(eq(salesOrders.id, salesOrderId))
+									.limit(1);
+								if (orderRow && (orderRow.soldBy || orderRow.leadSourceUserId)) {
+									await calculateOriginationCommission(tenantDb, {
+										salesOrderId,
+										soldByUserId: orderRow.soldBy ?? null,
+										leadSourceUserId: orderRow.leadSourceUserId ?? null,
+										actor: {
+											// memberId is a uuid column — system actor has no member row
+											userId: "system",
+											memberId: null,
+											role: "system",
+										},
+									});
+								}
+							} catch (originationErr) {
+								// Best-effort — never let commission failure fail the webhook ack
+								console.error(
+									`[connect webhook] origination commission failed for so=${salesOrderId}:`,
+									originationErr,
+								);
 							}
-						} catch (originationErr) {
-							// Best-effort — never let commission failure fail the webhook ack
-							console.error(
-								`[connect webhook] origination commission failed for so=${salesOrderId}:`,
-								originationErr,
-							);
 						}
 						// Belt-and-braces: deactivate the payment link now that it's paid.
 						// Links are created single-use (restrictions.completed_sessions),
