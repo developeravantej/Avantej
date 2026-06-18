@@ -170,12 +170,20 @@ async function dispatchAuthEmail(opts: {
     }
 
     try {
+      const authNotificationType =
+        opts.capture.type === "verification"
+          ? "auth_verification"
+          : opts.capture.type === "password-reset"
+            ? "auth_password_reset"
+            : "auth_magic_link";
       await sendTenantEmail(db, {
         organizationId,
         to: opts.email,
         subject: opts.subject,
         html: opts.html,
         text: opts.text,
+        notificationType: authNotificationType,
+        subjectVars: { appName: getEnvVar("RESEND_FROM_NAME") || "Avantej Core" },
         allowPlatformFallback: false,
       });
       recordEmailCapture({
@@ -572,6 +580,12 @@ function createBetterAuth(c?: Context) {
                 subject,
                 html,
                 text,
+                notificationType: "member_invitation",
+                subjectVars: {
+                  organizationName,
+                  role: role ?? "",
+                  inviterName: inviterName ?? "",
+                },
                 allowPlatformFallback: true,
               });
               sentViaTenantPath = true;
