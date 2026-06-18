@@ -166,6 +166,7 @@ export {
 export * from "./email-domain.service";
 // Notification routing helpers (pure — no DB/env)
 export * from "./notification-routing";
+export * from "./notification-route.service";
 // Google Calendar services
 export * from "./google-calendar.service";
 export * from "./google-calendar-sync.service";
