@@ -1,0 +1,11 @@
+ERROR: Tenant auth-email send failed; falling back to platform sender: Error: Resend API error: The e2e-verified.example.com domain is not verified. Please, add and verify your domain on https://resend.com/domains
+      at sendTenantEmail (file:///Users/ngchwanlii/App/prod/avantej-core/apps/server/src/lib/email-send-tenant.ts:178:9)
+      at async dispatchAuthEmail (file:///Users/ngchwanlii/App/prod/avantej-core/apps/server/src/lib/better-auth.ts:173:7)
+      at async sendMagicLinkEmail (file:///Users/ngchwanlii/App/prod/avantej-core/apps/server/src/lib/email.ts:595:2)
+      at async dispatchAuthEmail (file:///Users/ngchwanlii/App/prod/avantej-core/apps/server/src/lib/better-auth.ts:196:7)
+      at async sendMagicLinkEmail (file:///Users/ngchwanlii/App/prod/avantej-core/apps/server/src/lib/email.ts:595:2)
+      at async dispatchAuthEmail (file:///Users/ngchwanlii/App/prod/avantej-core/apps/server/src/lib/better-auth.ts:196:7)
+      at async sendMagicLinkEmail (file:///Users/ngchwanlii/App/prod/avantej-core/apps/server/src/lib/email.ts:595:2)
+      at async dispatchAuthEmail (file:///Users/ngchwanlii/App/prod/avantej-core/apps/server/src/lib/better-auth.ts:196:7)
+--> POST /api/auth/sign-in/magic-link 500 1s
+[wrangler:info] POST /api/auth/sign-in/magic-link 500 Internal Server Error (1474ms)

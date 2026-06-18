@@ -47,7 +47,8 @@ import {
 	deleteTenantProject,
 } from "@/services/neon.service";
 import { recordAdminAction } from "@/services/admin-audit.service";
-import { sendInvitationEmail } from "@/lib/email";
+import { renderInvitationEmail } from "@/lib/email";
+import { sendTenantEmail } from "@/lib/email-send-tenant";
 
 export type ProvisionTenantInput = {
 	name: string;
@@ -200,13 +201,26 @@ export async function provisionTenant(
 		// 7. Email the owner (best-effort — failure to email shouldn't roll back
 		// the Neon project; the admin can resend from the invitations UI).
 		try {
-			await sendInvitationEmail(
-				ownerEmail,
+			const { subject, html, text } = renderInvitationEmail(
 				invitationLink,
 				name,
 				inviterName,
 				"admin",
 			);
+			await sendTenantEmail(controlPanelDb, {
+				organizationId: organization.id,
+				to: ownerEmail,
+				subject,
+				html,
+				text,
+				notificationType: "member_invitation",
+				subjectVars: {
+					organizationName: name,
+					role: "admin",
+					inviterName: inviterName ?? "",
+				},
+				allowPlatformFallback: true,
+			});
 		} catch (err) {
 			console.error(
 				"[provisionTenant] invite email failed (org still created):",

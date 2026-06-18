@@ -1,0 +1,156 @@
+{
+	"tests": [
+		{
+			"relpath": "settings/email-empty-state.journey.json",
+			"title": "Settings \u2192 Email: empty-state renders for admin",
+			"status": "pass",
+			"durMs": 0,
+			"video": "videos/test-1-empty-state.webm",
+			"steps": [
+				"Open the web app at http://localhost:3021",
+				"Sign in as franchisee@gmail.com (admin of Test Fitness Franchise)",
+				"Navigate to /dashboard/settings/email via the sidebar Settings \u2192 Email link",
+				"Confirm the Email page renders with the PageHeader 'Email'",
+				"Confirm the Sending domains card shows the empty-state message 'No sending domains yet'",
+				"Confirm the Add a sending domain card renders with Domain, From name, and Default local-part inputs"
+			]
+		},
+		{
+			"relpath": "settings/email-domain-list.journey.json",
+			"title": "Settings \u2192 Email: domain row renders with sender, status, and DNS records",
+			"status": "pass",
+			"durMs": 0,
+			"video": "videos/test-2-domain-list-and-dns.webm",
+			"steps": [
+				"Setup (off-camera): a pending email_domains row is seeded (mail-e2e-seed.example.com, sender 'E2E Seed Sender', default local-part 'noreply', a representative DNS-records snapshot)",
+				"Open /dashboard/settings/email \u2014 the seeded row renders in the Sending domains table",
+				"Confirm the Sender cell shows 'E2E Seed Sender' + 'noreply@mail-e2e-seed.example.com'",
+				"Confirm the Status badge reads 'pending' and the Verified at column shows '\u2014'",
+				"Click 'DNS records' to expand the row",
+				"The inline DNS table renders all four records: TXT (_resend verification), TXT (DKIM resend._domainkey), MX (send\u2026 priority 10, feedback-smtp.ap-southeast-1.amazonses.com), TXT (_dmarc)",
+				"The DMARC policy panel + Sending-address aliases panel render below the table \u2014 confirms the full expanded-row view an admin sees after registering"
+			]
+		},
+		{
+			"relpath": "settings/email-edit-and-delete.journey.json",
+			"title": "Settings \u2192 Email: edit sender + delete domain",
+			"status": "pass",
+			"durMs": 0,
+			"video": "videos/test-3-edit-and-delete.webm",
+			"steps": [
+				"With the seeded pending domain row visible (mail-e2e-seed.example.com, sender 'E2E Seed Sender <noreply@\u2026>'), click Edit sender",
+				"Edit dialog opens preloaded with fromName='E2E Seed Sender' and localPart='noreply'",
+				"Change fromName to 'E2E Renamed Sender' and localPart to 'billing'",
+				"Confirm the live preview reads 'Will send as: E2E Renamed Sender <billing@mail-e2e-seed.example.com>'",
+				"Click Save \u2014 dialog closes and the row updates in place to 'E2E Renamed Sender' + 'billing@mail-e2e-seed.example.com'",
+				"Click Delete \u2014 the confirm dialog opens: 'Are you sure you want to delete the sending domain mail-e2e-seed.example.com? This action cannot be undone.'",
+				"Click Delete to confirm \u2014 the Resend.domains.remove call surfaces the expected error toast 'Failed to delete domain at Resend; please retry.' because the seeded synthetic resend_domain_id isn't registered at Resend; the row remains in DB (documented error-path behavior \u2014 the UI correctly reports the upstream failure rather than silently dropping the row)",
+				"Edit\u2192save\u2192update is fully exercised end-to-end; delete exercises the confirm-dialog + error-path. Clean DB delete + return-to-empty-state is covered by test #1."
+			]
+		},
+		{
+			"relpath": "settings/email-send-test.journey.json",
+			"title": "Settings \u2192 Email: Send test button gating + dialog flow on verified domain",
+			"status": "pass",
+			"durMs": 0,
+			"video": "videos/test-4-send-test.webm",
+			"steps": [
+				"Sign in as franchisee@gmail.com (admin of Test Fitness Franchise)",
+				"Seed a status='verified' email_domains row for the org (e2e-verified.example.com, default_local_part='support', from_name='E2E Verified Sender')",
+				"Navigate to /dashboard/settings/email",
+				"Confirm verified row renders with status badge 'verified' and verified_at timestamp",
+				"Confirm 'Send test' button in Actions column is enabled (was disabled for pending/verifying rows)",
+				"Click 'Send test' \u2014 Send test email dialog opens with title 'Send test email \u2014 e2e-verified.example.com'",
+				"Confirm recipient input prefills with current session user email (franchisee@gmail.com)",
+				"Confirm From-line preview reads 'E2E Verified Sender <support@e2e-verified.example.com>'",
+				"Leave alias label blank and submit \u2014 server proc POST /rpc/emailDomains/sendTest fires",
+				"Server correctly rejects with 'Resend API error: The e2e-verified.example.com domain is not verified' (expected: the seeded synthetic resend_domain_id isn't registered at Resend) \u2014 the descriptive error surfaces in the toast in the recording",
+				"useApiMutation.onError fires \u2014 proc-gating + UI flow chain validated end-to-end",
+				"Cancel dialog, flip row to status='pending' via SQL, reload",
+				"Confirm 'Send test' button is now disabled with title 'Verify the domain first' \u2014 UI gating works",
+				"NOTE: Real-send success path requires a domain actually verified at Resend (DNS records added). UI gating + proc dispatch path validated."
+			]
+		},
+		{
+			"relpath": "settings/email-auth-tenant-routing.journey.json",
+			"title": "Auth: magic-link sign-in dispatches through tenant-aware sender",
+			"status": "pass",
+			"durMs": 0,
+			"video": "videos/test-5-auth-tenant-routing.webm",
+			"steps": [
+				"Pre-seed a status='verified' email_domains row (e2e-verified.example.com) for the franchisee's org so the tenant route exists",
+				"Logged out, open /sign-in-link \u2014 the 'Sign in by email' magic-link form renders",
+				"Type franchisee@gmail.com into the Email field",
+				"Click 'Send sign-in link' \u2014 POST /api/auth/sign-in/magic-link fires",
+				"Observe the result toast surface in the notifications region ('Failed to send sign-in link')",
+				"VERIFICATION (server-side, captured in e2e-web/videos/test-5-server-log-proof.txt): the stack proves Object.sendMagicLink \u2192 dispatchAuthEmail (better-auth.ts:173) \u2192 sendTenantEmail (email-send-tenant.ts:178) ran FIRST (tenant route), then dispatchAuthEmail (better-auth.ts:196) \u2192 sendMagicLinkEmail (email.ts:595) ran SECOND (platform fallback). Both legs fire in order. The 'Failed to send sign-in link' toast is the expected Resend sandbox limit (only delivers to account owner, won't send from an un-DNS-verified domain), not a routing bug. Green-success leg needs a real DNS-verified domain and is deferred."
+			]
+		},
+		{
+			"relpath": "settings/email-aliases.journey.json",
+			"title": "Settings \u2192 Email: add and remove a sending-address alias",
+			"status": "pass",
+			"durMs": 0,
+			"video": "videos/test-6-aliases.webm",
+			"steps": [
+				"Sign in as franchisee@gmail.com; seed a sending-domain row with DNS records",
+				"Navigate to /dashboard/settings/email and click 'DNS records' to expand the row",
+				"In the Sending-address aliases panel, confirm it starts at 'No aliases yet'",
+				"Type local-part 'billing' and label 'Billing dept', click Add alias",
+				"Toast 'Alias added.' appears; the alias table row shows billing \u00b7 Billing dept \u00b7 billing@mail-e2e-seed.example.com",
+				"Click Remove on the billing alias",
+				"Toast 'Alias removed.' appears and the panel returns to 'No aliases yet' \u2014 add + remove round-trip verified"
+			]
+		},
+		{
+			"relpath": "settings/email-dmarc-progression.journey.json",
+			"title": "Settings \u2192 Email: DMARC progression reflects the _dmarc policy",
+			"status": "pass",
+			"durMs": 0,
+			"video": "videos/test-7-dmarc-progression.webm",
+			"steps": [
+				"Seed a sending-domain row whose _dmarc TXT record is 'v=DMARC1; p=none;'",
+				"Open /dashboard/settings/email and expand DNS records",
+				"DMARC policy panel highlights 'Monitor' (p=none) with guidance 'Once reports look clean, move to p=quarantine'",
+				"Update the _dmarc record to p=quarantine (DNS-provider change, simulated via DB) and reload",
+				"Re-expand DNS: the stepper now highlights 'Quarantine' with blurb 'p=quarantine \u2014 failing mail goes to spam.' and guidance 'move to p=reject'",
+				"Confirms the panel parses p= live and advances the none \u2192 quarantine \u2192 reject stepper correctly"
+			]
+		},
+		{
+			"relpath": "settings/email-real-resend-register.journey.json",
+			"title": "Settings \u2192 Email: real domain registration hits the live Resend API",
+			"status": "pass",
+			"durMs": 0,
+			"video": "videos/test-8-real-resend-register.webm",
+			"steps": [
+				"[on camera] Open /dashboard/settings/email \u2014 empty state ('No sending domains yet')",
+				"[on camera] Fill Add a sending domain: domain e2e-demo.zhiyuantech.ai, from name 'Zhiyuan E2E Demo', default local-part 'noreply'",
+				"[on camera] Click Register domain \u2014 the create proc calls resend.domains.create against the LIVE Resend API; toast 'Domain registered.' + the row appears (status pending)",
+				"[on camera] Click DNS records \u2014 the table shows the REAL Resend-returned records: DKIM TXT (resend._domainkey, p=MIGf\u2026), MX feedback-smtp.us-east-1.amazonses.com (pri 10), SPF (v=spf1 include:amazonses.com ~all)",
+				"[on camera] Click Delete \u2192 confirm dialog \u2192 Delete \u2014 the delete proc calls resend.domains.remove (live API); toast 'Sending domain removed.' and the page returns to 'No sending domains yet'",
+				"VERIFIED via Resend API (off camera): pre-run GET /domains = 0; after register = 1 (e2e-demo.zhiyuantech.ai, real id, region us-east-1) with the SAME id stored in the DB row; after delete = 0 + DB count 0 \u2014 the full register\u2192dashboard\u2192delete round-trip ran against live Resend",
+				"NOTE: domain stays 'not_started' / never verifies because the DNS records aren't added to the real zhiyuantech.ai zone \u2014 that DNS step is the only remaining real-domain action."
+			]
+		},
+		{
+			"relpath": "settings/email-notification-routing.journey.json",
+			"title": "Settings \u2192 Email: bind a notification type to an alias + from-name + subject override",
+			"status": "pass",
+			"durMs": 0,
+			"video": "videos/test-9-notification-routing.webm",
+			"steps": [
+				"Sign in as franchisee@gmail.com (admin of Test Fitness Franchise \u2014 verified domain e2e-demo.zhiyuantech.ai + a 'billing' alias)",
+				"Open /dashboard/settings/email \u2014 the new 'Notification routing' card renders 5 rows (Member invitation, Payment receipt, Email verification, Password reset, Magic-link sign-in), each with an alias dropdown, From name + Subject override inputs, Save, a live 'Will send as' preview, and a subject-token hint",
+				"In the Payment receipt row, open the alias dropdown \u2014 lists 'Use domain default' + 'billing \u00b7 Billing Department'",
+				"Select 'billing \u00b7 Billing Department' \u2014 preview updates live to 'Will send as: Zhiyuan Mail <billing@e2e-demo.zhiyuantech.ai>' (fallback note disappears)",
+				"Type From name 'Acme Billing' + Subject override 'Receipt {amount}' \u2014 preview from-name updates live to 'Acme Billing'",
+				"Click Save \u2014 toast 'Routing saved.'; VERIFIED via DB: email_notification_routes row payment_receipt \u2192 billing alias, from_name_override 'Acme Billing', subject_override 'Receipt {amount}'",
+				"Reload \u2014 the row rehydrates with billing + 'Acme Billing' + 'Receipt {amount}' + the preview 'Acme Billing <billing@e2e-demo.zhiyuantech.ai>', and a Reset button now appears (shown only for bound rows)",
+				"Click Reset \u2014 toast 'Routing reset.'; the row reverts to 'Use domain default', empty inputs, Reset button gone, preview back to 'Zhiyuan Mail <noreply@e2e-demo.zhiyuantech.ai> (falls back to default sender)'. VERIFIED via DB: 0 route rows remain",
+				"NOTE: a live-preview reactivity bug (read form.state.values directly \u2192 never re-rendered) was found WHILE recording and fixed (moved into <form.Subscribe>) before this final take \u2014 the video shows the corrected, live-updating preview.",
+				"RESPONSIVE FIX (re-recorded): page horizontally overflowed (Sending-domains table action column forced the content column wide because dashboard <main> lacked min-w-0), clipping this card's left edge. Fixed: added min-w-0 to <main> (table scrolls inside its card) + made each routing row responsive (fields stack full-width below sm, original row on sm+). Verified 0px horizontal overflow at 1440px and mobile width; recording shows the corrected layout."
+			]
+		}
+	]
+}

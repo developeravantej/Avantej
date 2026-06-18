@@ -9,7 +9,9 @@ import { os, ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { getBetterAuth } from "@/lib/better-auth";
-import { sendInvitationEmail } from "@/lib/email";
+import { renderInvitationEmail } from "@/lib/email";
+import { sendTenantEmail } from "@/lib/email-send-tenant";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 import { fireCustomerSync } from "@/services/ghl/customer-sync-trigger";
 import { dispatchStaffSync } from "@/services/ghl/dispatch-staff-sync";
 import { user as userTable } from "@avantej-core/db/schema/auth";
@@ -71,7 +73,7 @@ export const sendEmail = o
       inviterName: z.string().optional(),
     })
   )
-  .handler(async ({ input }) => {
+  .handler(async ({ input, context }) => {
     const { invitation, organizationId, organizationName, inviterName } = input;
 
     // Construct invitation link
@@ -79,19 +81,31 @@ export const sendEmail = o
       getEnvVar("CORS_ORIGIN") || getEnvVar("FRONTEND_URL") || "http://localhost:3001";
     const invitationLink = `${frontendURL}/accept-invitation?token=${invitation.token}&orgId=${organizationId}`;
 
-    // Send email via Resend
-    await sendInvitationEmail(
-      invitation.email,
+    const orgName = organizationName || "the organization";
+    const { subject, html, text } = renderInvitationEmail(
       invitationLink,
-      organizationName || "the organization",
+      orgName,
       inviterName,
-      invitation.role
+      invitation.role,
     );
 
-    return {
-      success: true,
-      message: "Invitation email sent successfully",
-    };
+    const cpDb = getControlPanelDb(context);
+    await sendTenantEmail(cpDb, {
+      organizationId,
+      to: invitation.email,
+      subject,
+      html,
+      text,
+      notificationType: "member_invitation",
+      subjectVars: {
+        organizationName: orgName,
+        role: invitation.role,
+        inviterName: inviterName ?? "",
+      },
+      allowPlatformFallback: true,
+    });
+
+    return { success: true, message: "Invitation email sent successfully" };
   });
 
 /**

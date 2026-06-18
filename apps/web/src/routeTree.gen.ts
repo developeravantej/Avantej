@@ -49,6 +49,7 @@ import { Route as AuthenticatedDashboardLayoutSettingsOrganizationRouteImport } 
 import { Route as AuthenticatedDashboardLayoutSettingsNotificationsRouteImport } from './routes/_authenticated/dashboard/_layout/settings/notifications'
 import { Route as AuthenticatedDashboardLayoutSettingsInstallmentPlansRouteImport } from './routes/_authenticated/dashboard/_layout/settings/installment-plans'
 import { Route as AuthenticatedDashboardLayoutSettingsGoogleCalendarRouteImport } from './routes/_authenticated/dashboard/_layout/settings/google-calendar'
+import { Route as AuthenticatedDashboardLayoutSettingsEmailRouteImport } from './routes/_authenticated/dashboard/_layout/settings/email'
 import { Route as AuthenticatedDashboardLayoutServiceViewRouteImport } from './routes/_authenticated/dashboard/_layout/service/view'
 import { Route as AuthenticatedDashboardLayoutServiceCategoryViewRouteImport } from './routes/_authenticated/dashboard/_layout/service-category/view'
 import { Route as AuthenticatedDashboardLayoutSalesViewRouteImport } from './routes/_authenticated/dashboard/_layout/sales/view'
@@ -332,6 +333,12 @@ const AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute =
   AuthenticatedDashboardLayoutSettingsGoogleCalendarRouteImport.update({
     id: '/settings/google-calendar',
     path: '/settings/google-calendar',
+    getParentRoute: () => AuthenticatedDashboardLayoutRoute,
+  } as any)
+const AuthenticatedDashboardLayoutSettingsEmailRoute =
+  AuthenticatedDashboardLayoutSettingsEmailRouteImport.update({
+    id: '/settings/email',
+    path: '/settings/email',
     getParentRoute: () => AuthenticatedDashboardLayoutRoute,
   } as any)
 const AuthenticatedDashboardLayoutServiceViewRoute =
@@ -766,6 +773,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/sales/view': typeof AuthenticatedDashboardLayoutSalesViewRoute
   '/dashboard/service-category/view': typeof AuthenticatedDashboardLayoutServiceCategoryViewRoute
   '/dashboard/service/view': typeof AuthenticatedDashboardLayoutServiceViewRoute
+  '/dashboard/settings/email': typeof AuthenticatedDashboardLayoutSettingsEmailRoute
   '/dashboard/settings/google-calendar': typeof AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute
   '/dashboard/settings/installment-plans': typeof AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute
   '/dashboard/settings/notifications': typeof AuthenticatedDashboardLayoutSettingsNotificationsRoute
@@ -863,6 +871,7 @@ export interface FileRoutesByTo {
   '/dashboard/sales/view': typeof AuthenticatedDashboardLayoutSalesViewRoute
   '/dashboard/service-category/view': typeof AuthenticatedDashboardLayoutServiceCategoryViewRoute
   '/dashboard/service/view': typeof AuthenticatedDashboardLayoutServiceViewRoute
+  '/dashboard/settings/email': typeof AuthenticatedDashboardLayoutSettingsEmailRoute
   '/dashboard/settings/google-calendar': typeof AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute
   '/dashboard/settings/installment-plans': typeof AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute
   '/dashboard/settings/notifications': typeof AuthenticatedDashboardLayoutSettingsNotificationsRoute
@@ -964,6 +973,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard/_layout/sales/view': typeof AuthenticatedDashboardLayoutSalesViewRoute
   '/_authenticated/dashboard/_layout/service-category/view': typeof AuthenticatedDashboardLayoutServiceCategoryViewRoute
   '/_authenticated/dashboard/_layout/service/view': typeof AuthenticatedDashboardLayoutServiceViewRoute
+  '/_authenticated/dashboard/_layout/settings/email': typeof AuthenticatedDashboardLayoutSettingsEmailRoute
   '/_authenticated/dashboard/_layout/settings/google-calendar': typeof AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute
   '/_authenticated/dashboard/_layout/settings/installment-plans': typeof AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute
   '/_authenticated/dashboard/_layout/settings/notifications': typeof AuthenticatedDashboardLayoutSettingsNotificationsRoute
@@ -1065,6 +1075,7 @@ export interface FileRouteTypes {
     | '/dashboard/sales/view'
     | '/dashboard/service-category/view'
     | '/dashboard/service/view'
+    | '/dashboard/settings/email'
     | '/dashboard/settings/google-calendar'
     | '/dashboard/settings/installment-plans'
     | '/dashboard/settings/notifications'
@@ -1162,6 +1173,7 @@ export interface FileRouteTypes {
     | '/dashboard/sales/view'
     | '/dashboard/service-category/view'
     | '/dashboard/service/view'
+    | '/dashboard/settings/email'
     | '/dashboard/settings/google-calendar'
     | '/dashboard/settings/installment-plans'
     | '/dashboard/settings/notifications'
@@ -1262,6 +1274,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard/_layout/sales/view'
     | '/_authenticated/dashboard/_layout/service-category/view'
     | '/_authenticated/dashboard/_layout/service/view'
+    | '/_authenticated/dashboard/_layout/settings/email'
     | '/_authenticated/dashboard/_layout/settings/google-calendar'
     | '/_authenticated/dashboard/_layout/settings/installment-plans'
     | '/_authenticated/dashboard/_layout/settings/notifications'
@@ -1584,6 +1597,13 @@ declare module '@tanstack/react-router' {
       path: '/settings/google-calendar'
       fullPath: '/dashboard/settings/google-calendar'
       preLoaderRoute: typeof AuthenticatedDashboardLayoutSettingsGoogleCalendarRouteImport
+      parentRoute: typeof AuthenticatedDashboardLayoutRoute
+    }
+    '/_authenticated/dashboard/_layout/settings/email': {
+      id: '/_authenticated/dashboard/_layout/settings/email'
+      path: '/settings/email'
+      fullPath: '/dashboard/settings/email'
+      preLoaderRoute: typeof AuthenticatedDashboardLayoutSettingsEmailRouteImport
       parentRoute: typeof AuthenticatedDashboardLayoutRoute
     }
     '/_authenticated/dashboard/_layout/service/view': {
@@ -2069,6 +2089,7 @@ interface AuthenticatedDashboardLayoutRouteChildren {
   AuthenticatedDashboardLayoutSalesViewRoute: typeof AuthenticatedDashboardLayoutSalesViewRoute
   AuthenticatedDashboardLayoutServiceCategoryViewRoute: typeof AuthenticatedDashboardLayoutServiceCategoryViewRoute
   AuthenticatedDashboardLayoutServiceViewRoute: typeof AuthenticatedDashboardLayoutServiceViewRoute
+  AuthenticatedDashboardLayoutSettingsEmailRoute: typeof AuthenticatedDashboardLayoutSettingsEmailRoute
   AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute: typeof AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute
   AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute: typeof AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute
   AuthenticatedDashboardLayoutSettingsNotificationsRoute: typeof AuthenticatedDashboardLayoutSettingsNotificationsRoute
@@ -2197,6 +2218,8 @@ const AuthenticatedDashboardLayoutRouteChildren: AuthenticatedDashboardLayoutRou
       AuthenticatedDashboardLayoutServiceCategoryViewRoute,
     AuthenticatedDashboardLayoutServiceViewRoute:
       AuthenticatedDashboardLayoutServiceViewRoute,
+    AuthenticatedDashboardLayoutSettingsEmailRoute:
+      AuthenticatedDashboardLayoutSettingsEmailRoute,
     AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute:
       AuthenticatedDashboardLayoutSettingsGoogleCalendarRoute,
     AuthenticatedDashboardLayoutSettingsInstallmentPlansRoute:

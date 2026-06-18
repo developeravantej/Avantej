@@ -46,6 +46,13 @@ import {
 	markGhlWebhookFailed,
 	processGhlWebhook,
 } from "@/services/gohighlevel.service";
+import { Webhook as SvixWebhook } from "svix";
+import {
+	getEmailDomainByResendId,
+	updateEmailDomainStatus,
+	upsertEmailLogFromWebhook,
+	type EmailLogStatus,
+} from "@avantej-core/services/email-domain.service";
 
 export const webhookRoutes = new Hono();
 
@@ -816,5 +823,195 @@ webhookRoutes.get("/gohighlevel/:locationId/links", authMiddleware, async (c) =>
 			},
 			500
 		);
+	}
+});
+
+/**
+ * POST /webhooks/resend
+ *
+ * Resend webhook receiver. Verifies the svix signature against
+ * RESEND_WEBHOOK_SECRET, dedupes by svix-id (the `id` field of the parsed
+ * envelope), routes status events to email_logs and domain.* events to
+ * email_domains. Always returns 200 even on downstream failure — Resend
+ * retries forever otherwise.
+ */
+function getResendWebhookSecret(): string | undefined {
+	try {
+		const { env } = require("cloudflare:workers") as { env?: Record<string, string> };
+		if (env?.RESEND_WEBHOOK_SECRET) return env.RESEND_WEBHOOK_SECRET;
+	} catch {
+		// not in Workers
+	}
+	return process.env.RESEND_WEBHOOK_SECRET;
+}
+
+export function mapResendEventToLogStatus(eventType: string): EmailLogStatus | null {
+	switch (eventType) {
+		case "email.sent":
+			return "sent";
+		case "email.delivered":
+			return "delivered";
+		case "email.delivery_delayed":
+			return "queued";
+		case "email.bounced":
+			return "bounced";
+		case "email.complained":
+			return "complained";
+		case "email.opened":
+			return "opened";
+		case "email.clicked":
+			return "clicked";
+		case "email.failed":
+			return "failed";
+		default:
+			return null;
+	}
+}
+
+export function mapResendDomainStatus(
+	resendStatus: string | undefined,
+): "pending" | "verifying" | "verified" | "failed" | null {
+	if (!resendStatus) return null;
+	switch (resendStatus) {
+		case "verified":
+			return "verified";
+		case "failed":
+		case "temporary_failure":
+			return "failed";
+		case "pending":
+		case "not_started":
+			return "pending";
+		default:
+			return "verifying";
+	}
+}
+
+// Resend svix webhook events are a few KB; cap well above that so a malicious
+// caller can't force us to buffer + svix-verify a huge body (CPU/memory DoS).
+const RESEND_WEBHOOK_MAX_BODY_BYTES = 64 * 1024;
+
+webhookRoutes.post("/resend", async (c) => {
+	// Cheap pre-read reject on declared size, before buffering the body.
+	const contentLength = c.req.header("content-length");
+	if (contentLength && Number(contentLength) > RESEND_WEBHOOK_MAX_BODY_BYTES) {
+		return c.json({ error: "Payload too large" }, 413);
+	}
+
+	const body = await c.req.text();
+	// Authoritative check — content-length may be absent or lie.
+	if (body.length > RESEND_WEBHOOK_MAX_BODY_BYTES) {
+		return c.json({ error: "Payload too large" }, 413);
+	}
+
+	const secret = getResendWebhookSecret();
+	if (!secret) {
+		console.error("[resend webhook] RESEND_WEBHOOK_SECRET not configured");
+		return c.json({ error: "Webhook not configured" }, 500);
+	}
+
+	const svixId = c.req.header("svix-id");
+	const svixTimestamp = c.req.header("svix-timestamp");
+	const svixSignature = c.req.header("svix-signature");
+	if (!svixId || !svixTimestamp || !svixSignature) {
+		return c.json({ error: "Missing svix headers" }, 400);
+	}
+
+	let event: { type: string; data: Record<string, unknown>; created_at?: string };
+	try {
+		const wh = new SvixWebhook(secret);
+		event = wh.verify(body, {
+			"svix-id": svixId,
+			"svix-timestamp": svixTimestamp,
+			"svix-signature": svixSignature,
+		}) as { type: string; data: Record<string, unknown>; created_at?: string };
+	} catch (e) {
+		return c.json(
+			{ error: e instanceof Error ? e.message : "Invalid signature" },
+			400,
+		);
+	}
+
+	const cpDb = getControlPanelDb(c);
+	const eventAt = event.created_at ? new Date(event.created_at) : new Date();
+
+	// Dedup by svix-id (envelope id, NOT data.email_id — message id repeats
+	// across delivered/bounced/opened events for the same email and would
+	// silently collapse status tracking).
+	const claim = await claimWebhookEvent(
+		{
+			eventId: svixId,
+			eventType: event.type,
+			source: "resend",
+			stripeAccount: null,
+		},
+		cpDb,
+	);
+	if (claim.status === "already_processed") {
+		return c.json({ received: true, svixId, deduped: true }, 200);
+	}
+
+	try {
+		if (event.type.startsWith("email.")) {
+			const data = event.data as {
+				email_id?: string;
+				to?: string | string[];
+				from?: string;
+				subject?: string;
+				tags?: Array<{ name: string; value: string }>;
+				bounce?: { message?: string };
+				click?: unknown;
+			};
+			const messageId = data.email_id;
+			const mapped = mapResendEventToLogStatus(event.type);
+			const orgIdTag = data.tags?.find((t) => t.name === "organization_id")?.value;
+			const notificationTypeTag = data.tags?.find(
+				(t: { name: string; value: string }) => t.name === "notification_type",
+			)?.value;
+			const toAddr = Array.isArray(data.to) ? data.to.join(", ") : data.to;
+			if (messageId && mapped) {
+				await upsertEmailLogFromWebhook(cpDb, {
+					resendMessageId: messageId,
+					status: mapped,
+					eventType: event.type,
+					eventAt,
+					errorMessage: data.bounce?.message ?? null,
+					payload: event,
+					organizationId: orgIdTag ?? null,
+					fromAddress: data.from ?? null,
+					toAddress: toAddr ?? null,
+					subject: data.subject ?? null,
+					notificationType: notificationTypeTag ?? null,
+				});
+			}
+		} else if (event.type.startsWith("domain.")) {
+			const data = event.data as {
+				id?: string;
+				status?: string;
+				records?: unknown;
+			};
+			const resendDomainId = data.id;
+			if (resendDomainId) {
+				const row = await getEmailDomainByResendId(cpDb, resendDomainId);
+				if (row) {
+					const mappedStatus = mapResendDomainStatus(data.status);
+					if (mappedStatus) {
+						await updateEmailDomainStatus(cpDb, {
+							id: row.id,
+							status: mappedStatus,
+							dnsRecords: data.records ?? row.dnsRecords,
+						});
+					}
+				}
+			}
+		}
+		await markEventProcessed(svixId, cpDb);
+		// Always 200 — Resend retries forever on non-2xx.
+		return c.json({ received: true, svixId }, 200);
+	} catch (e) {
+		const msg = e instanceof Error ? e.message : String(e);
+		await markEventFailed(svixId, msg, cpDb);
+		console.error(`[resend webhook] handler failed for ${event.type}:`, e);
+		// Still 200 — let our own monitoring catch failures.
+		return c.json({ received: true, svixId, handler_error: true }, 200);
 	}
 });

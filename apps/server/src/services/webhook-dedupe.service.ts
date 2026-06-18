@@ -23,7 +23,7 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { controlPanelDb as singletonDb } from "@/lib/db";
 import { processedWebhookEvents } from "@avantej-core/db/schema/control-panel/processed-webhook-events";
 
-export type WebhookSource = "platform" | "connect" | "reconciler";
+export type WebhookSource = "platform" | "connect" | "reconciler" | "resend";
 
 export type ClaimResult =
 	| { status: "claimed"; attempts: number }

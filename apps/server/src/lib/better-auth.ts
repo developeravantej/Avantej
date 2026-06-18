@@ -28,12 +28,14 @@ import { organization } from "better-auth/plugins";
 import { admin } from "better-auth/plugins";
 import { magicLink } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import ws from "ws";
 import type { Context } from "hono";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
+import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
+import { user as userTable } from "@avantej-core/db/schema/auth";
 import * as schema from "@avantej-core/db/schema/auth";
 
 // Configure Neon for Cloudflare Workers (WebSocket support)
@@ -43,7 +45,17 @@ import {
   sendPasswordResetEmail as sendPasswordResetEmailResend,
   sendInvitationEmail as sendInvitationEmailResend,
   sendMagicLinkEmail as sendMagicLinkEmailResend,
+  renderInvitationEmail,
+  renderVerificationEmail,
+  renderPasswordResetEmail,
+  renderMagicLinkEmail,
+  recordEmailCapture,
 } from "@/lib/email";
+import { sendTenantEmail } from "@/lib/email-send-tenant";
+import { emailDomains } from "@avantej-core/db/schema/control-panel/email-domains";
+import { emailLogs } from "@avantej-core/db/schema/control-panel/email-logs";
+import { emailDomainAliases } from "@avantej-core/db/schema/control-panel/email-domain-aliases";
+import { emailNotificationRoutes } from "@avantej-core/db/schema/control-panel/email-notification-routes";
 import { dispatchProfileSync } from "@/services/ghl/dispatch-staff-sync";
 import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
@@ -91,6 +103,111 @@ function createBetterAuthDb(c?: Context) {
   }
   const pool = new Pool({ connectionString: databaseUrl });
   return drizzle({ client: pool });
+}
+
+/**
+ * Resolve the user's primary active org for routing transactional auth email
+ * through that org's verified sending domain. Returns null when the user
+ * has no active membership (e.g. new signup, pre-org user, ex-member) —
+ * caller should fall back to the platform sender in that case.
+ *
+ * Earliest-joined active membership wins. We don't try to disambiguate
+ * "current" org because Better-Auth callbacks have no session in scope.
+ */
+async function resolveUserPrimaryOrgIdByEmail(
+  db: NeonDatabase<typeof controlPanelSchema>,
+  email: string,
+): Promise<string | null> {
+  const row = await db
+    .select({ orgId: organizationMembers.organizationId })
+    .from(userTable)
+    .innerJoin(
+      organizationMembers,
+      and(
+        eq(organizationMembers.userId, userTable.id),
+        eq(organizationMembers.status, "active"),
+      ),
+    )
+    .where(eq(userTable.email, email))
+    .orderBy(organizationMembers.joinedAt)
+    .limit(1);
+  return row[0]?.orgId ?? null;
+}
+
+/**
+ * Dispatch a transactional auth email (verify/reset/magic-link) through the
+ * user's verified org sending domain when available, falling back to the
+ * platform Resend sender otherwise. The legacy platform sender owns its own
+ * email-capture call; the tenant path records its own capture so test
+ * harnesses don't lose visibility on tenant-routed sends.
+ */
+async function dispatchAuthEmail(opts: {
+  email: string;
+  subject: string;
+  html: string;
+  text: string;
+  capture: {
+    type: "verification" | "password-reset" | "magic-link";
+    metadata: Record<string, string | undefined>;
+  };
+  fallback: () => Promise<void>;
+}): Promise<void> {
+  const databaseUrl = getEnvVar("DATABASE_URL");
+  if (!databaseUrl) {
+    await opts.fallback();
+    return;
+  }
+
+  const pool = new Pool({ connectionString: databaseUrl });
+  try {
+    const db = drizzle({
+      client: pool,
+      schema: controlPanelSchema,
+    }) as NeonDatabase<typeof controlPanelSchema>;
+
+    const organizationId = await resolveUserPrimaryOrgIdByEmail(db, opts.email);
+    if (!organizationId) {
+      await opts.fallback();
+      return;
+    }
+
+    try {
+      const authNotificationType =
+        opts.capture.type === "verification"
+          ? "auth_verification"
+          : opts.capture.type === "password-reset"
+            ? "auth_password_reset"
+            : "auth_magic_link";
+      await sendTenantEmail(db, {
+        organizationId,
+        to: opts.email,
+        subject: opts.subject,
+        html: opts.html,
+        text: opts.text,
+        notificationType: authNotificationType,
+        subjectVars: { appName: getEnvVar("RESEND_FROM_NAME") || "Avantej Core" },
+        allowPlatformFallback: false,
+      });
+      recordEmailCapture({
+        type: opts.capture.type,
+        to: opts.email,
+        subject: opts.subject,
+        html: opts.html,
+        text: opts.text,
+        metadata: opts.capture.metadata,
+      });
+    } catch (err) {
+      // Tenant-path send failed (no verified domain, Resend error, etc.).
+      // Fall back to the platform sender so the email is not silently lost.
+      console.error(
+        "Tenant auth-email send failed; falling back to platform sender:",
+        err,
+      );
+      await opts.fallback();
+    }
+  } finally {
+    await pool.end();
+  }
 }
 
 /**
@@ -201,11 +318,22 @@ function createBetterAuth(c?: Context) {
       user: { email: string; name?: string | null };
       url: string;
     }) => {
-      await sendVerificationEmailResend(
-        user.email,
-        url,
-        user.name || undefined
-      );
+      const rendered = renderVerificationEmail(url, user.name || undefined);
+      await dispatchAuthEmail({
+        email: user.email,
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text,
+        capture: {
+          type: "verification",
+          metadata: {
+            verificationLink: rendered.verificationLinkForUser,
+            token: rendered.token,
+          },
+        },
+        fallback: () =>
+          sendVerificationEmailResend(user.email, url, user.name || undefined),
+      });
     },
     sendResetPassword: async ({
       user,
@@ -214,11 +342,19 @@ function createBetterAuth(c?: Context) {
       user: { email: string; name?: string | null };
       url: string;
     }) => {
-      await sendPasswordResetEmailResend(
-        user.email,
-        url,
-        user.name || undefined
-      );
+      const rendered = renderPasswordResetEmail(url, user.name || undefined);
+      await dispatchAuthEmail({
+        email: user.email,
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text,
+        capture: {
+          type: "password-reset",
+          metadata: { resetLink: url, token: rendered.token },
+        },
+        fallback: () =>
+          sendPasswordResetEmailResend(user.email, url, user.name || undefined),
+      });
     },
   },
   emailVerification: {
@@ -229,11 +365,22 @@ function createBetterAuth(c?: Context) {
       user: { email: string; name?: string | null };
       url: string;
     }) => {
-      await sendVerificationEmailResend(
-        user.email,
-        url,
-        user.name || undefined
-      );
+      const rendered = renderVerificationEmail(url, user.name || undefined);
+      await dispatchAuthEmail({
+        email: user.email,
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text,
+        capture: {
+          type: "verification",
+          metadata: {
+            verificationLink: rendered.verificationLinkForUser,
+            token: rendered.token,
+          },
+        },
+        fallback: () =>
+          sendVerificationEmailResend(user.email, url, user.name || undefined),
+      });
     },
     sendOnSignUp: true, // Automatically send verification email on signup
   },
@@ -245,11 +392,22 @@ function createBetterAuth(c?: Context) {
       user: { email: string; name?: string | null };
       url: string;
     }) => {
-      await sendVerificationEmailResend(
-        user.email,
-        url,
-        user.name || undefined
-      );
+      const rendered = renderVerificationEmail(url, user.name || undefined);
+      await dispatchAuthEmail({
+        email: user.email,
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text,
+        capture: {
+          type: "verification",
+          metadata: {
+            verificationLink: rendered.verificationLinkForUser,
+            token: rendered.token,
+          },
+        },
+        fallback: () =>
+          sendVerificationEmailResend(user.email, url, user.name || undefined),
+      });
     },
     sendPasswordResetEmail: async ({
       user,
@@ -258,11 +416,19 @@ function createBetterAuth(c?: Context) {
       user: { email: string; name?: string | null };
       url: string;
     }) => {
-      await sendPasswordResetEmailResend(
-        user.email,
-        url,
-        user.name || undefined
-      );
+      const rendered = renderPasswordResetEmail(url, user.name || undefined);
+      await dispatchAuthEmail({
+        email: user.email,
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text,
+        capture: {
+          type: "password-reset",
+          metadata: { resetLink: url, token: rendered.token },
+        },
+        fallback: () =>
+          sendPasswordResetEmailResend(user.email, url, user.name || undefined),
+      });
     },
   },
   databaseHooks: {
@@ -370,17 +536,30 @@ function createBetterAuth(c?: Context) {
         const baseURL = getEnvVar("BETTER_AUTH_URL") || "http://localhost:3000";
         const invitationLink = `${baseURL}/accept-invitation?id=${invitation.id}`;
 
-        // Fetch organization name from database
-        // Note: This callback doesn't have access to Hono context,
-        // so we create a temporary pool for this operation (Cloudflare Workers requirement)
+        const inviterName = inviter?.name || undefined;
+        const role = invitation.role;
+
+        // No Hono context in this callback (Cloudflare Workers I/O isolation
+        // forbids reusing singleton pools across requests), so we build a
+        // temp Pool/drizzle client with the columns we need: organizations
+        // for the org name, plus emailDomains + emailLogs for sendTenantEmail.
         let organizationName = "an organization";
-        try {
-          // Create a temporary pool for this read operation
-          // Cannot use singleton pool in Cloudflare Workers due to I/O isolation
-          const databaseUrl = getEnvVar("DATABASE_URL");
-          if (databaseUrl) {
-            const tempPool = new Pool({ connectionString: databaseUrl });
-            const tempDb = drizzle({ client: tempPool, schema: { organizations } });
+        let sentViaTenantPath = false;
+        const databaseUrl = getEnvVar("DATABASE_URL");
+
+        if (databaseUrl) {
+          const tempPool = new Pool({ connectionString: databaseUrl });
+          const tempDb = drizzle({
+            client: tempPool,
+            schema: {
+              organizations,
+              emailDomains,
+              emailLogs,
+              emailDomainAliases,
+              emailNotificationRoutes,
+            },
+          });
+          try {
             try {
               const org = await tempDb.query.organizations.findFirst({
                 where: eq(organizations.id, invitation.organizationId),
@@ -388,28 +567,58 @@ function createBetterAuth(c?: Context) {
               if (org) {
                 organizationName = org.name;
               }
-            } finally {
-              await tempPool.end();
+            } catch (error) {
+              console.error(
+                "Failed to fetch organization name for invitation email:",
+                error,
+              );
             }
+
+            const { subject, html, text } = renderInvitationEmail(
+              invitationLink,
+              organizationName,
+              inviterName,
+              role,
+            );
+
+            try {
+              await sendTenantEmail(tempDb as never, {
+                organizationId: invitation.organizationId,
+                to: email,
+                subject,
+                html,
+                text,
+                notificationType: "member_invitation",
+                subjectVars: {
+                  organizationName,
+                  role: role ?? "",
+                  inviterName: inviterName ?? "",
+                },
+                allowPlatformFallback: true,
+              });
+              sentViaTenantPath = true;
+            } catch (error) {
+              // Tenant-path send failed; fall through to legacy platform
+              // sender so the invite is never silently dropped.
+              console.error(
+                "Tenant invitation send failed; falling back to platform sender:",
+                error,
+              );
+            }
+          } finally {
+            await tempPool.end();
           }
-        } catch (error) {
-          console.error(
-            "Failed to fetch organization name for invitation email:",
-            error
-          );
-          // Fall back to default name
         }
 
-        const inviterName = inviter?.name || undefined;
-        const role = invitation.role;
-
-        await sendInvitationEmailResend(
-          email,
-          invitationLink,
-          organizationName,
-          inviterName,
-          role
-        );
+        if (!sentViaTenantPath) {
+          await sendInvitationEmailResend(
+            email,
+            invitationLink,
+            organizationName,
+            inviterName,
+            role,
+          );
+        }
       },
     }),
     admin({
@@ -426,7 +635,18 @@ function createBetterAuth(c?: Context) {
         token: string;
         url: string;
       }) => {
-        await sendMagicLinkEmailResend(email, url);
+        const rendered = renderMagicLinkEmail(url);
+        await dispatchAuthEmail({
+          email,
+          subject: rendered.subject,
+          html: rendered.html,
+          text: rendered.text,
+          capture: {
+            type: "magic-link",
+            metadata: { magicLink: url },
+          },
+          fallback: () => sendMagicLinkEmailResend(email, url),
+        });
       },
     }),
   ],

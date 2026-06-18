@@ -51,9 +51,7 @@ describe("Expenses page", () => {
 
 		await waitFor(() => {
 			expect(screen.getByText("Expenses")).toBeInTheDocument();
-			expect(
-				screen.getByText("Submit and manage expense claims"),
-			).toBeInTheDocument();
+			expect(screen.getByText("EXPENSE TRACKING")).toBeInTheDocument();
 			expect(
 				screen.getAllByRole("button", { name: /submit expense/i }).length,
 			).toBeGreaterThan(0);

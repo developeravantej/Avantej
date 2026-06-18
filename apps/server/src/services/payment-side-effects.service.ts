@@ -34,7 +34,7 @@ import { appointmentStatusHistory } from "@avantej-core/db/schema/tenant/appoint
 import { user } from "@avantej-core/db/schema/auth";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
-import { sendEmail } from "@/lib/email";
+import { sendTenantEmail } from "@/lib/email-send-tenant";
 import { escapeHtml } from "@/lib/html";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
@@ -260,7 +260,15 @@ async function sendPaymentReceiptEmail(args: ReceiptEmailArgs): Promise<void> {
 		</div>
 	`.trim();
 
-	await sendEmail({ to: email, subject, html });
+	await sendTenantEmail(controlPanelDb, {
+		organizationId,
+		to: email,
+		subject,
+		html,
+		notificationType: "payment_receipt",
+		subjectVars: { amount: formattedAmount, appointmentId },
+		allowPlatformFallback: true,
+	});
 
 	console.log(
 		`[payment-side-effects] receipt sent for appt=${appointmentId} to=${email}`,

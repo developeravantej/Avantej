@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, beforeAll, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../helpers/render-with-providers";
 import { mockClient } from "../helpers/mock-client";
@@ -23,6 +23,15 @@ vi.mock("@/hooks/useUserContext", () => ({
 	useUserContext: () => ({
 		data: {
 			currentOrganizationId: "996febce-aaad-4ded-8f47-02d2b566c8ee",
+			organizations: [
+				{
+					id: "996febce-aaad-4ded-8f47-02d2b566c8ee",
+					name: "Test Org",
+					slug: "test-org",
+					role: "Organization Owner",
+					permissions: [],
+				},
+			],
 		},
 		hasPermission: vi.fn().mockReturnValue(true),
 	}),
@@ -113,10 +122,18 @@ describe("Dashboard page", () => {
 		renderWithProviders(<DashboardComponent />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Today")).toBeInTheDocument();
-			expect(screen.getByText("This Week")).toBeInTheDocument();
-			expect(screen.getByText("This Month")).toBeInTheDocument();
-			expect(screen.getByText("This Year")).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: "Today" }),
+			).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: "Week" }),
+			).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: "Month" }),
+			).toBeInTheDocument();
+			expect(
+				screen.getByRole("button", { name: "Year" }),
+			).toBeInTheDocument();
 		});
 	});
 
@@ -145,8 +162,13 @@ describe("Dashboard page", () => {
 
 		renderWithProviders(<DashboardComponent />);
 
+		// Scope to the hero headline (the canonical "sales total"); the same
+		// formatted figure also appears in the KPI tiles and trend stats.
 		await waitFor(() => {
-			expect(screen.getByText(/2[,.]500/)).toBeInTheDocument();
+			const heroCol = screen
+				.getByText("Month-to-date revenue")
+				.closest("div.relative.z-10") as HTMLElement;
+			expect(within(heroCol).getByText(/2[,.]500/)).toBeInTheDocument();
 		});
 	});
 
@@ -162,8 +184,12 @@ describe("Dashboard page", () => {
 
 		renderWithProviders(<DashboardComponent />);
 
+		// Scope to the hero summary line; the order count also appears in a KPI tile.
 		await waitFor(() => {
-			expect(screen.getByText(/25 orders/)).toBeInTheDocument();
+			const heroCol = screen
+				.getByText("Month-to-date revenue")
+				.closest("div.relative.z-10") as HTMLElement;
+			expect(within(heroCol).getByText(/25 orders/)).toBeInTheDocument();
 		});
 	});
 
@@ -219,11 +245,11 @@ describe("Dashboard page", () => {
 		renderWithProviders(<DashboardComponent />);
 
 		await waitFor(() => {
-			expect(screen.getByText("Sales Overview")).toBeInTheDocument();
+			expect(screen.getByText("Today's Revenue")).toBeInTheDocument();
 			// "Appointments" appears both as KPI card title and widget mock
 			expect(screen.getAllByText("Active Members").length).toBeGreaterThan(0);
-			expect(screen.getByText("Revenue by Branch")).toBeInTheDocument();
-			expect(screen.getByText("Staff Performance")).toBeInTheDocument();
+			expect(screen.getByText("Revenue by branch")).toBeInTheDocument();
+			expect(screen.getByText("Top performers")).toBeInTheDocument();
 		});
 	});
 });

@@ -1,0 +1,18 @@
+{
+	"title": "Settings \u2192 Email: bind a notification type to an alias + from-name + subject override",
+	"module": "settings",
+	"prodMutationClass": "create-update-delete-test-row",
+	"journey": [
+		"Sign in as franchisee@gmail.com (admin of Test Fitness Franchise, which has a verified domain e2e-demo.zhiyuantech.ai + a 'billing' alias)",
+		"Navigate to /dashboard/settings/email \u2014 the new 'Notification routing' card renders below Sending domains + Add a sending domain",
+		"Confirm the card shows one row per tenant-facing notification type: Member invitation, Payment receipt, Email verification, Password reset, Magic-link sign-in \u2014 each with an alias dropdown, From name + Subject override inputs, a Save button, a live 'Will send as' preview, and a per-type subject-token hint",
+		"In the Payment receipt row, open the alias dropdown \u2014 it lists 'Use domain default' + the org's curated alias 'billing \u00b7 Billing Department'",
+		"Select 'billing \u00b7 Billing Department' \u2014 the live preview updates to 'Will send as: Zhiyuan Mail <billing@e2e-demo.zhiyuantech.ai>' (the '(falls back to default sender)' note disappears)",
+		"Type From name 'Acme Billing' and Subject override 'Receipt {amount}' \u2014 the preview from-name updates live to 'Acme Billing'",
+		"Click Save \u2014 the upsertNotificationRoute proc persists the route (toast 'Routing saved.'). VERIFIED via DB: email_notification_routes row payment_receipt \u2192 alias billing, from_name_override 'Acme Billing', subject_override 'Receipt {amount}'",
+		"Reload the page \u2014 the Payment receipt row rehydrates with billing selected, 'Acme Billing', 'Receipt {amount}', the preview 'Acme Billing <billing@e2e-demo.zhiyuantech.ai>', and a Reset button now appears (shown only for bound rows)",
+		"Click Reset \u2014 the deleteNotificationRoute proc clears the route (toast 'Routing reset.'); the row reverts to 'Use domain default', empty inputs, the Reset button disappears, and the preview returns to 'Zhiyuan Mail <noreply@e2e-demo.zhiyuantech.ai> (falls back to default sender)'. VERIFIED via DB: 0 route rows remain",
+		"NOTE: a reactivity bug found while recording \u2014 the live preview read form.state.values directly (non-reactive) so it never updated on change \u2014 was fixed (moved into a <form.Subscribe>) before this final recording. The video shows the corrected, live-updating preview.",
+		"RESPONSIVE FIX (re-recorded): page horizontally overflowed (Sending-domains table action column forced the content column wide because dashboard <main> lacked min-w-0), clipping this card's left edge. Fixed: added min-w-0 to <main> (table scrolls inside its card) + made each routing row responsive (fields stack full-width below sm, original row on sm+). Verified 0px horizontal overflow at 1440px and mobile width; recording shows the corrected layout."
+	]
+}

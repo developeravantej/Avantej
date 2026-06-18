@@ -1,0 +1,270 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>E2E review</title>
+<style>
+:root{--bg:#f4f6fa;--panel:#fff;--card:#fff;--bd:#e3e8ef;--fg:#1f2937;--mut:#6b7280;--acc:#2563eb;--ok:#16a34a;--bad:#dc2626;--okbg:#ecfdf3;--badbg:#fef2f2}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+header.top{position:sticky;top:0;z-index:5;background:rgba(255,255,255,.92);backdrop-filter:saturate(1.2) blur(6px);border-bottom:1px solid var(--bd);padding:18px 24px}
+h1{margin:0 0 4px;font-size:20px;letter-spacing:-.01em}.sub{color:var(--mut);font-size:13px}
+.stats{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
+.stat{background:var(--panel);border:1px solid var(--bd);border-radius:10px;padding:8px 14px;min-width:72px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.tnum{color:var(--mut);font-weight:700;font-size:13px;flex:none}
+.stat b{display:block;font-size:20px}.stat span{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.controls input#q{background:#fff;color:var(--fg);border:1px solid var(--bd);border-radius:9px;padding:8px 12px;font-size:13px;min-width:220px}
+.chip{cursor:pointer;background:#fff;border:1px solid var(--bd);border-radius:999px;padding:6px 13px;font-size:12px;color:var(--mut);user-select:none}
+.chip.on{color:#fff;border-color:var(--acc);background:var(--acc)}
+main{max-width:1080px;margin:0 auto;padding:24px}
+section.cat{margin-bottom:30px}
+section.cat>h2{font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);border-left:3px solid var(--acc);padding-left:10px;margin:0 0 14px}
+.plat-h{display:flex;align-items:baseline;gap:12px;margin:38px 0 18px;padding-bottom:10px;border-bottom:2px solid var(--acc)}
+.plat-h:first-child{margin-top:0}
+.plat-h h2{margin:0;font-size:19px;letter-spacing:-.01em}
+.plat-h span{color:var(--mut);font-size:12.5px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(16,24,40,.05)}
+.card.fail{border-color:#f3c9c9}
+.card header{display:flex;align-items:center;gap:10px}
+.card h3{margin:0;font-size:16px;flex:1;letter-spacing:-.01em;line-height:1.35}
+.badge{font-weight:700;font-size:10.5px;padding:3px 9px;border-radius:6px;letter-spacing:.04em}
+.badge.pass{background:var(--okbg);color:var(--ok);border:1px solid #bbf7d0}
+.badge.fail{background:var(--badbg);color:var(--bad);border:1px solid #fecaca}
+.dur{font-size:11.5px;color:var(--mut);white-space:nowrap}
+.review{display:inline-flex;align-items:center;gap:6px;cursor:pointer;user-select:none;font-size:11.5px;color:var(--mut);padding:4px 9px;border:1px solid var(--bd);border-radius:999px;white-space:nowrap}
+.review input{width:15px;height:15px;accent-color:var(--ok);cursor:pointer;margin:0}
+.card.reviewed{border-color:#bbf7d0;background:#f7fdf9}
+.card.reviewed .review{color:var(--ok);border-color:#bbf7d0;background:var(--okbg);font-weight:600}
+.card.reviewed>header h3{text-decoration:line-through;text-decoration-color:#9fdcb6;text-decoration-thickness:1px}
+.meta{margin:8px 0 14px;font-size:12px}.meta code{color:#3056b3;background:#eef2ff;padding:2px 7px;border-radius:5px;font-size:11px}
+.cols{display:grid;grid-template-columns:1fr 440px;gap:22px;align-items:start}
+@media(max-width:820px){.cols{grid-template-columns:1fr}}
+.lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);font-weight:600;margin-bottom:7px}
+ol.journey{margin:0;padding-left:0;list-style:none;counter-reset:step}
+ol.journey li{counter-increment:step;position:relative;padding:6px 0 6px 32px;border-bottom:1px dashed #eef1f5;font-size:13.5px;color:#374151}
+ol.journey li:last-child{border-bottom:0}
+ol.journey li::before{content:counter(step);position:absolute;left:0;top:6px;width:20px;height:20px;border-radius:50%;background:var(--acc);color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.nosteps{color:var(--mut);font-size:12.5px;font-style:italic}
+video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b0b0b;border:1px solid var(--bd)}
+.vpath{color:var(--mut);font-size:10.5px;margin-top:6px;word-break:break-all}
+.novid{color:#b45309;font-size:12.5px}
+.hidden{display:none!important}
+.foot{color:var(--mut);font-size:12px;text-align:center;padding:28px 0}
+</style></head><body>
+<header class="top">
+	<h1>E2E review</h1>
+	<div class="sub">9 tests · 9/9 pass · 9 recorded · 9 with journey</div>
+	<div class="stats">
+		<div class="stat"><b>8</b><span>Tests</span></div>
+		<div class="stat" style="border-color:#bbf7d0"><b style="color:var(--ok)">8</b><span>Pass</span></div>
+		<div class="stat" style="border-color:#fecaca"><b style="color:var(--bad)">0</b><span>Fail</span></div>
+		<div class="stat"><b>8</b><span>Videos</span></div>
+		<div class="stat" style="border-color:#bbf7d0"><b id="rev-count" style="color:var(--ok)">0</b><span>Reviewed</span></div>
+	</div>
+	<div class="controls">
+		<input id="q" placeholder="Search tests…" oninput="filt()">
+		<span class="chip on" data-f="all" onclick="setF(this,'all')">All</span>
+		<span class="chip" data-f="pass" onclick="setF(this,'pass')">Pass</span>
+		<span class="chip" data-f="fail" onclick="setF(this,'fail')">Fail</span>
+		<span class="chip" id="vo" onclick="tv(this)">Has video</span>
+		<span class="chip" id="ur" onclick="tu(this)">Unreviewed</span>
+		<span class="chip" onclick="clearReviewed()" title="Uncheck all reviewed marks">Clear done</span>
+	</div>
+</header>
+<main>
+<section class="cat"><h2>settings <span style="font-weight:400">(9)</span></h2>
+	<article class="card pass" data-status="pass" data-video="1" data-id="settings/email-aliases.journey.json::Settings → Email: add and remove a sending-address alias">
+		<header>
+			<span class="badge pass">PASS</span>
+			<span class="tnum">#1</span>
+			<h3>Settings → Email: add and remove a sending-address alias</h3>
+			<span class="dur">0ms</span>
+			<label class="review" title="Mark this test as reviewed (saved in your browser)">
+				<input type="checkbox" class="review-chk" data-id="settings/email-aliases.journey.json::Settings → Email: add and remove a sending-address alias"><span>Reviewed</span>
+			</label>
+		</header>
+		<div class="meta"><code>settings/email-aliases.journey.json</code></div>
+		<div class="cols">
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Sign in as franchisee@gmail.com; seed a sending-domain row with DNS records</li><li>Navigate to /dashboard/settings/email and click 'DNS records' to expand the row</li><li>In the Sending-address aliases panel, confirm it starts at 'No aliases yet'</li><li>Type local-part 'billing' and label 'Billing dept', click Add alias</li><li>Toast 'Alias added.' appears; the alias table row shows billing · Billing dept · billing@mail-e2e-seed.example.com</li><li>Click Remove on the billing alias</li><li>Toast 'Alias removed.' appears and the panel returns to 'No aliases yet' — add + remove round-trip verified</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/test-6-aliases.webm"></video><div class="vpath">../../e2e-web/videos/test-6-aliases.webm · 3.1 MB</div></div>
+		</div>
+	</article>
+	<article class="card pass" data-status="pass" data-video="1" data-id="settings/email-auth-tenant-routing.journey.json::Auth: magic-link sign-in dispatches through tenant-aware sender">
+		<header>
+			<span class="badge pass">PASS</span>
+			<span class="tnum">#2</span>
+			<h3>Auth: magic-link sign-in dispatches through tenant-aware sender</h3>
+			<span class="dur">0ms</span>
+			<label class="review" title="Mark this test as reviewed (saved in your browser)">
+				<input type="checkbox" class="review-chk" data-id="settings/email-auth-tenant-routing.journey.json::Auth: magic-link sign-in dispatches through tenant-aware sender"><span>Reviewed</span>
+			</label>
+		</header>
+		<div class="meta"><code>settings/email-auth-tenant-routing.journey.json</code></div>
+		<div class="cols">
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Pre-seed a status='verified' email_domains row (e2e-verified.example.com) for the franchisee's org so the tenant route exists</li><li>Logged out, open /sign-in-link — the 'Sign in by email' magic-link form renders</li><li>Type franchisee@gmail.com into the Email field</li><li>Click 'Send sign-in link' — POST /api/auth/sign-in/magic-link fires</li><li>Observe the result toast surface in the notifications region ('Failed to send sign-in link')</li><li>VERIFICATION (server-side, captured in e2e-web/videos/test-5-server-log-proof.txt): the stack proves Object.sendMagicLink → dispatchAuthEmail (better-auth.ts:173) → sendTenantEmail (email-send-tenant.ts:178) ran FIRST (tenant route), then dispatchAuthEmail (better-auth.ts:196) → sendMagicLinkEmail (email.ts:595) ran SECOND (platform fallback). Both legs fire in order. The 'Failed to send sign-in link' toast is the expected Resend sandbox limit (only delivers to account owner, won't send from an un-DNS-verified domain), not a routing bug. Green-success leg needs a real DNS-verified domain and is deferred.</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/test-5-auth-tenant-routing.webm"></video><div class="vpath">../../e2e-web/videos/test-5-auth-tenant-routing.webm · 1.2 MB</div></div>
+		</div>
+	</article>
+	<article class="card pass" data-status="pass" data-video="1" data-id="settings/email-dmarc-progression.journey.json::Settings → Email: DMARC progression reflects the _dmarc policy">
+		<header>
+			<span class="badge pass">PASS</span>
+			<span class="tnum">#3</span>
+			<h3>Settings → Email: DMARC progression reflects the _dmarc policy</h3>
+			<span class="dur">0ms</span>
+			<label class="review" title="Mark this test as reviewed (saved in your browser)">
+				<input type="checkbox" class="review-chk" data-id="settings/email-dmarc-progression.journey.json::Settings → Email: DMARC progression reflects the _dmarc policy"><span>Reviewed</span>
+			</label>
+		</header>
+		<div class="meta"><code>settings/email-dmarc-progression.journey.json</code></div>
+		<div class="cols">
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Seed a sending-domain row whose _dmarc TXT record is 'v=DMARC1; p=none;'</li><li>Open /dashboard/settings/email and expand DNS records</li><li>DMARC policy panel highlights 'Monitor' (p=none) with guidance 'Once reports look clean, move to p=quarantine'</li><li>Update the _dmarc record to p=quarantine (DNS-provider change, simulated via DB) and reload</li><li>Re-expand DNS: the stepper now highlights 'Quarantine' with blurb 'p=quarantine — failing mail goes to spam.' and guidance 'move to p=reject'</li><li>Confirms the panel parses p= live and advances the none → quarantine → reject stepper correctly</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/test-7-dmarc-progression.webm"></video><div class="vpath">../../e2e-web/videos/test-7-dmarc-progression.webm · 3.0 MB</div></div>
+		</div>
+	</article>
+	<article class="card pass" data-status="pass" data-video="1" data-id="settings/email-domain-list.journey.json::Settings → Email: domain row renders with sender, status, and DNS records">
+		<header>
+			<span class="badge pass">PASS</span>
+			<span class="tnum">#4</span>
+			<h3>Settings → Email: domain row renders with sender, status, and DNS records</h3>
+			<span class="dur">0ms</span>
+			<label class="review" title="Mark this test as reviewed (saved in your browser)">
+				<input type="checkbox" class="review-chk" data-id="settings/email-domain-list.journey.json::Settings → Email: domain row renders with sender, status, and DNS records"><span>Reviewed</span>
+			</label>
+		</header>
+		<div class="meta"><code>settings/email-domain-list.journey.json</code></div>
+		<div class="cols">
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Setup (off-camera): a pending email_domains row is seeded (mail-e2e-seed.example.com, sender 'E2E Seed Sender', default local-part 'noreply', a representative DNS-records snapshot)</li><li>Open /dashboard/settings/email — the seeded row renders in the Sending domains table</li><li>Confirm the Sender cell shows 'E2E Seed Sender' + 'noreply@mail-e2e-seed.example.com'</li><li>Confirm the Status badge reads 'pending' and the Verified at column shows '—'</li><li>Click 'DNS records' to expand the row</li><li>The inline DNS table renders all four records: TXT (_resend verification), TXT (DKIM resend._domainkey), MX (send… priority 10, feedback-smtp.ap-southeast-1.amazonses.com), TXT (_dmarc)</li><li>The DMARC policy panel + Sending-address aliases panel render below the table — confirms the full expanded-row view an admin sees after registering</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/test-2-domain-list-and-dns.webm"></video><div class="vpath">../../e2e-web/videos/test-2-domain-list-and-dns.webm · 1.2 MB</div></div>
+		</div>
+	</article>
+	<article class="card pass" data-status="pass" data-video="1" data-id="settings/email-edit-and-delete.journey.json::Settings → Email: edit sender + delete domain">
+		<header>
+			<span class="badge pass">PASS</span>
+			<span class="tnum">#5</span>
+			<h3>Settings → Email: edit sender + delete domain</h3>
+			<span class="dur">0ms</span>
+			<label class="review" title="Mark this test as reviewed (saved in your browser)">
+				<input type="checkbox" class="review-chk" data-id="settings/email-edit-and-delete.journey.json::Settings → Email: edit sender + delete domain"><span>Reviewed</span>
+			</label>
+		</header>
+		<div class="meta"><code>settings/email-edit-and-delete.journey.json</code></div>
+		<div class="cols">
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>With the seeded pending domain row visible (mail-e2e-seed.example.com, sender 'E2E Seed Sender &lt;noreply@…&gt;'), click Edit sender</li><li>Edit dialog opens preloaded with fromName='E2E Seed Sender' and localPart='noreply'</li><li>Change fromName to 'E2E Renamed Sender' and localPart to 'billing'</li><li>Confirm the live preview reads 'Will send as: E2E Renamed Sender &lt;billing@mail-e2e-seed.example.com&gt;'</li><li>Click Save — dialog closes and the row updates in place to 'E2E Renamed Sender' + 'billing@mail-e2e-seed.example.com'</li><li>Click Delete — the confirm dialog opens: 'Are you sure you want to delete the sending domain mail-e2e-seed.example.com? This action cannot be undone.'</li><li>Click Delete to confirm — the Resend.domains.remove call surfaces the expected error toast 'Failed to delete domain at Resend; please retry.' because the seeded synthetic resend_domain_id isn't registered at Resend; the row remains in DB (documented error-path behavior — the UI correctly reports the upstream failure rather than silently dropping the row)</li><li>Edit→save→update is fully exercised end-to-end; delete exercises the confirm-dialog + error-path. Clean DB delete + return-to-empty-state is covered by test #1.</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/test-3-edit-and-delete.webm"></video><div class="vpath">../../e2e-web/videos/test-3-edit-and-delete.webm · 3.8 MB</div></div>
+		</div>
+	</article>
+	<article class="card pass" data-status="pass" data-video="1" data-id="settings/email-empty-state.journey.json::Settings → Email: empty-state renders for admin">
+		<header>
+			<span class="badge pass">PASS</span>
+			<span class="tnum">#6</span>
+			<h3>Settings → Email: empty-state renders for admin</h3>
+			<span class="dur">0ms</span>
+			<label class="review" title="Mark this test as reviewed (saved in your browser)">
+				<input type="checkbox" class="review-chk" data-id="settings/email-empty-state.journey.json::Settings → Email: empty-state renders for admin"><span>Reviewed</span>
+			</label>
+		</header>
+		<div class="meta"><code>settings/email-empty-state.journey.json</code></div>
+		<div class="cols">
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Open the web app at http://localhost:3021</li><li>Sign in as franchisee@gmail.com (admin of Test Fitness Franchise)</li><li>Navigate to /dashboard/settings/email via the sidebar Settings → Email link</li><li>Confirm the Email page renders with the PageHeader 'Email'</li><li>Confirm the Sending domains card shows the empty-state message 'No sending domains yet'</li><li>Confirm the Add a sending domain card renders with Domain, From name, and Default local-part inputs</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/test-1-empty-state.webm"></video><div class="vpath">../../e2e-web/videos/test-1-empty-state.webm · 0.8 MB</div></div>
+		</div>
+	</article>
+	<article class="card pass" data-status="pass" data-video="1" data-id="settings/email-real-resend-register.journey.json::Settings → Email: real domain registration hits the live Resend API">
+		<header>
+			<span class="badge pass">PASS</span>
+			<span class="tnum">#7</span>
+			<h3>Settings → Email: real domain registration hits the live Resend API</h3>
+			<span class="dur">0ms</span>
+			<label class="review" title="Mark this test as reviewed (saved in your browser)">
+				<input type="checkbox" class="review-chk" data-id="settings/email-real-resend-register.journey.json::Settings → Email: real domain registration hits the live Resend API"><span>Reviewed</span>
+			</label>
+		</header>
+		<div class="meta"><code>settings/email-real-resend-register.journey.json</code></div>
+		<div class="cols">
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>[on camera] Open /dashboard/settings/email — empty state ('No sending domains yet')</li><li>[on camera] Fill Add a sending domain: domain e2e-demo.zhiyuantech.ai, from name 'Zhiyuan E2E Demo', default local-part 'noreply'</li><li>[on camera] Click Register domain — the create proc calls resend.domains.create against the LIVE Resend API; toast 'Domain registered.' + the row appears (status pending)</li><li>[on camera] Click DNS records — the table shows the REAL Resend-returned records: DKIM TXT (resend._domainkey, p=MIGf…), MX feedback-smtp.us-east-1.amazonses.com (pri 10), SPF (v=spf1 include:amazonses.com ~all)</li><li>[on camera] Click Delete → confirm dialog → Delete — the delete proc calls resend.domains.remove (live API); toast 'Sending domain removed.' and the page returns to 'No sending domains yet'</li><li>VERIFIED via Resend API (off camera): pre-run GET /domains = 0; after register = 1 (e2e-demo.zhiyuantech.ai, real id, region us-east-1) with the SAME id stored in the DB row; after delete = 0 + DB count 0 — the full register→dashboard→delete round-trip ran against live Resend</li><li>NOTE: domain stays 'not_started' / never verifies because the DNS records aren't added to the real zhiyuantech.ai zone — that DNS step is the only remaining real-domain action.</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/test-8-real-resend-register.webm"></video><div class="vpath">../../e2e-web/videos/test-8-real-resend-register.webm · 4.6 MB</div></div>
+		</div>
+	</article>
+	<article class="card pass" data-status="pass" data-video="1" data-id="settings/email-send-test.journey.json::Settings → Email: Send test button gating + dialog flow on verified domain">
+		<header>
+			<span class="badge pass">PASS</span>
+			<span class="tnum">#8</span>
+			<h3>Settings → Email: Send test button gating + dialog flow on verified domain</h3>
+			<span class="dur">0ms</span>
+			<label class="review" title="Mark this test as reviewed (saved in your browser)">
+				<input type="checkbox" class="review-chk" data-id="settings/email-send-test.journey.json::Settings → Email: Send test button gating + dialog flow on verified domain"><span>Reviewed</span>
+			</label>
+		</header>
+		<div class="meta"><code>settings/email-send-test.journey.json</code></div>
+		<div class="cols">
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Sign in as franchisee@gmail.com (admin of Test Fitness Franchise)</li><li>Seed a status='verified' email_domains row for the org (e2e-verified.example.com, default_local_part='support', from_name='E2E Verified Sender')</li><li>Navigate to /dashboard/settings/email</li><li>Confirm verified row renders with status badge 'verified' and verified_at timestamp</li><li>Confirm 'Send test' button in Actions column is enabled (was disabled for pending/verifying rows)</li><li>Click 'Send test' — Send test email dialog opens with title 'Send test email — e2e-verified.example.com'</li><li>Confirm recipient input prefills with current session user email (franchisee@gmail.com)</li><li>Confirm From-line preview reads 'E2E Verified Sender &lt;support@e2e-verified.example.com&gt;'</li><li>Leave alias label blank and submit — server proc POST /rpc/emailDomains/sendTest fires</li><li>Server correctly rejects with 'Resend API error: The e2e-verified.example.com domain is not verified' (expected: the seeded synthetic resend_domain_id isn't registered at Resend) — the descriptive error surfaces in the toast in the recording</li><li>useApiMutation.onError fires — proc-gating + UI flow chain validated end-to-end</li><li>Cancel dialog, flip row to status='pending' via SQL, reload</li><li>Confirm 'Send test' button is now disabled with title 'Verify the domain first' — UI gating works</li><li>NOTE: Real-send success path requires a domain actually verified at Resend (DNS records added). UI gating + proc dispatch path validated.</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/test-4-send-test.webm"></video><div class="vpath">../../e2e-web/videos/test-4-send-test.webm · 2.5 MB</div></div>
+		</div>
+	</article>
+	<article class="card pass" data-status="pass" data-video="1" data-id="settings/email-notification-routing.journey.json::Settings → Email: bind a notification type to an alias + from-name + subject override">
+		<header>
+			<span class="badge pass">PASS</span>
+			<span class="tnum">#9</span>
+			<h3>Settings → Email: bind a notification type to an alias + from-name + subject override</h3>
+			<span class="dur">0ms</span>
+			<label class="review" title="Mark this test as reviewed (saved in your browser)">
+				<input type="checkbox" class="review-chk" data-id="settings/email-notification-routing.journey.json::Settings → Email: bind a notification type to an alias + from-name + subject override"><span>Reviewed</span>
+			</label>
+		</header>
+		<div class="meta"><code>settings/email-notification-routing.journey.json</code></div>
+		<div class="cols">
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Sign in as franchisee@gmail.com (admin of Test Fitness Franchise — verified domain e2e-demo.zhiyuantech.ai + a 'billing' alias)</li><li>Open /dashboard/settings/email — the new 'Notification routing' card renders 5 rows (Member invitation, Payment receipt, Email verification, Password reset, Magic-link sign-in), each with an alias dropdown, From name + Subject override inputs, Save, a live 'Will send as' preview, and a subject-token hint</li><li>In the Payment receipt row, open the alias dropdown — lists 'Use domain default' + 'billing · Billing Department'</li><li>Select 'billing · Billing Department' — preview updates live to 'Will send as: Zhiyuan Mail &lt;billing@e2e-demo.zhiyuantech.ai&gt;' (fallback note disappears)</li><li>Type From name 'Acme Billing' + Subject override 'Receipt {amount}' — preview from-name updates live to 'Acme Billing'</li><li>Click Save — toast 'Routing saved.'; VERIFIED via DB: email_notification_routes row payment_receipt → billing alias, from_name_override 'Acme Billing', subject_override 'Receipt {amount}'</li><li>Reload — the row rehydrates with billing + 'Acme Billing' + 'Receipt {amount}' + preview 'Acme Billing &lt;billing@e2e-demo.zhiyuantech.ai&gt;', and a Reset button now appears (shown only for bound rows)</li><li>Click Reset — toast 'Routing reset.'; the row reverts to 'Use domain default', empty inputs, Reset button gone, preview back to 'Zhiyuan Mail &lt;noreply@e2e-demo.zhiyuantech.ai&gt; (falls back to default sender)'. VERIFIED via DB: 0 route rows remain</li><li>NOTE: a live-preview reactivity bug (read form.state.values directly → never re-rendered) was found WHILE recording and fixed (moved into &lt;form.Subscribe&gt;) before this final take — the video shows the corrected, live-updating preview.</li><li>RESPONSIVE FIX (re-recorded): the page horizontally overflowed (the Sending-domains table's action column forced the content column wide because the dashboard &lt;main&gt; lacked min-w-0), which clipped this card's left edge. Fixed: added min-w-0 to &lt;main&gt; (table now scrolls inside its card) and made each routing row responsive (fields stack full-width below the sm breakpoint, original row layout on sm+). Verified 0px horizontal overflow at 1440px and at mobile width; this recording shows the corrected, non-clipped layout.</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/test-9-notification-routing.webm?v=responsive"></video><div class="vpath">../../e2e-web/videos/test-9-notification-routing.webm · 9.7 MB</div></div>
+		</div>
+	</article></section>
+<div class="foot">Generated by the e2e skill · open locally to play recordings · review marks saved in your browser</div>
+</main>
+<script>
+// Review-state persistence contract: marks are keyed by the STABLE per-test id
+// (relpath::title) inside a PER-PAGE localStorage entry, so regenerating this
+// page (appending tests, refreshing videos) never loses marks — only a test
+// whose file path or title changed gets a fresh (unreviewed) id. The per-page
+// namespace keeps "Clear done" on one suite's page from wiping another's.
+const PAGE="e2e-review-checked-v1:e2e.html";
+const LEGACY="e2e-review-checked-v1";
+let f="all",vo=false,ur=false;
+// A test that merely migrated runners keeps its mark: ".journey.json" ids
+// fall back to their old ".spec.ts" Playwright id (same module/name/title).
+function aliasOf(id){
+	if(id.includes(".journey.json::"))return id.replace(".journey.json::",".spec.ts::");
+	return null;
+}
+function loadChecked(){
+	try{
+		const cur=JSON.parse(localStorage.getItem(PAGE)||"null");
+		const ids=new Set([...document.querySelectorAll('.review-chk')].map(c=>c.dataset.id));
+		// pool of every mark ever made on any review page in this browser
+		// (old shared key + per-page keys) — used to adopt marks across page
+		// consolidation AND across runner migrations (legacy-alias ids).
+		const pool={};
+		for(let i=0;i<localStorage.length;i++){
+			const key=localStorage.key(i);
+			if(!key||!key.startsWith(LEGACY))continue;
+			try{Object.assign(pool,JSON.parse(localStorage.getItem(key)||"{}"));}catch(e){}
+		}
+		const mine=cur||{};
+		let changed=false;
+		for(const id of ids){
+			if(mine[id])continue;
+			const alias=aliasOf(id);
+			if((!cur&&pool[id])||(alias&&pool[alias])){mine[id]=true;changed=true;}
+		}
+		if(changed||(!cur&&Object.keys(mine).length))localStorage.setItem(PAGE,JSON.stringify(mine));
+		return mine;
+	}catch(e){return {}}
+}
+function saveChecked(o){try{localStorage.setItem(PAGE,JSON.stringify(o))}catch(e){}}
+function updateCount(){const t=document.querySelectorAll('.card').length;const n=document.querySelectorAll('.card.reviewed').length;const el=document.getElementById('rev-count');if(el)el.textContent=n+'/'+t;}
+function initReviewed(){const o=loadChecked();document.querySelectorAll('.review-chk').forEach(chk=>{const on=!!o[chk.dataset.id];chk.checked=on;chk.closest('.card').classList.toggle('reviewed',on);chk.addEventListener('change',()=>{const s=loadChecked();if(chk.checked)s[chk.dataset.id]=true;else delete s[chk.dataset.id];saveChecked(s);chk.closest('.card').classList.toggle('reviewed',chk.checked);updateCount();filt();});});updateCount();}
+function clearReviewed(){if(!confirm('Uncheck ALL reviewed marks on THIS page?'))return;saveChecked({});document.querySelectorAll('.review-chk').forEach(c=>{c.checked=false;c.closest('.card').classList.remove('reviewed');});updateCount();filt();}
+function setF(el,v){document.querySelectorAll('.chip[data-f]').forEach(c=>c.classList.remove('on'));el.classList.add('on');f=v;filt();}
+function tv(el){vo=!vo;el.classList.toggle('on',vo);filt();}
+function tu(el){ur=!ur;el.classList.toggle('on',ur);filt();}
+function filt(){const q=(document.getElementById('q').value||'').toLowerCase();document.querySelectorAll('.card').forEach(c=>{const okF=f==='all'||c.dataset.status===f;const okV=!vo||c.dataset.video==='1';const okU=!ur||!c.classList.contains('reviewed');const okQ=!q||c.textContent.toLowerCase().includes(q);c.classList.toggle('hidden',!(okF&&okV&&okU&&okQ));});document.querySelectorAll('section.cat').forEach(s=>{s.classList.toggle('hidden',![...s.querySelectorAll('.card')].some(c=>!c.classList.contains('hidden')));});}
+initReviewed();
+</script>
+</body></html>

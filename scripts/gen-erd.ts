@@ -368,12 +368,30 @@ async function main() {
 	const cpUrl = process.env.DATABASE_URL!;
 	const cpPool = new Pool({ connectionString: cpUrl });
 	const cpDb = drizzle({ client: cpPool, schema: { organizations } });
-	const orgs = await cpDb.query.organizations.findMany({ limit: 1 });
+	const orgs = await cpDb.query.organizations.findMany();
 	if (!orgs.length) throw new Error("No orgs in control panel");
-	const tenantUrl = decrypt(orgs[0].connectionString);
+	// Pick the first org whose connection string actually decrypts. Placeholder /
+	// unprovisioned orgs (e.g. billing test orgs) store a non-encrypted stub that
+	// would throw "Invalid encrypted format" — skip them; we only need one real
+	// tenant DB to diff the live schema against.
+	let chosen: { name: string; url: string } | undefined;
+	for (const org of orgs) {
+		try {
+			chosen = { name: org.name, url: decrypt(org.connectionString) };
+			break;
+		} catch {
+			// org without a valid encrypted connection string — skip
+		}
+	}
 	await cpPool.end();
+	if (!chosen) {
+		throw new Error(
+			`No org with a decryptable connection string (checked ${orgs.length})`,
+		);
+	}
+	const tenantUrl = chosen.url;
 
-	console.log(`Using tenant: ${orgs[0].name}`);
+	console.log(`Using tenant: ${chosen.name}`);
 
 	const [cp, tenant] = await Promise.all([fetchDb(cpUrl), fetchDb(tenantUrl)]);
 	const schemaFks = parseSchemaFks();

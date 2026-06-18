@@ -2785,6 +2785,238 @@ export const platformAdminMigrationsRouterType = {
 		}),
 };
 
+/**
+ * Type-only twin of the server emailDomains router. Lets the web client
+ * infer types for client.emailDomains.* without depending on apps/server.
+ */
+interface EmailDomainRow {
+	id: string;
+	organizationId: string;
+	resendDomainId: string;
+	domain: string;
+	fromName: string;
+	defaultLocalPart: string | null;
+	status: string;
+	dnsRecords: unknown;
+	verifiedAt: Date | null;
+	createdAt: Date;
+	updatedAt: Date;
+}
+
+const RESEND_REGIONS_TYPE = [
+	"us-east-1",
+	"eu-west-1",
+	"sa-east-1",
+	"ap-northeast-1",
+] as const;
+
+export const emailDomainsRouterType = {
+	create: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				domain: z.string().min(3).max(253),
+				fromName: z.string().min(1).max(100),
+				defaultLocalPart: z.string().optional(),
+				region: z.enum(RESEND_REGIONS_TYPE).optional(),
+			}),
+		)
+		.handler((): EmailDomainRow => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	update: protectedProcedure
+		.input(
+			z.object({
+				id: z.string().uuid(),
+				organizationId: z.string().uuid(),
+				fromName: z.string().min(1).max(100).optional(),
+				defaultLocalPart: z.string().nullable().optional(),
+			}),
+		)
+		.handler((): EmailDomainRow => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	list: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler((): EmailDomainRow[] => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	get: protectedProcedure
+		.input(
+			z.object({
+				id: z.string().uuid(),
+				organizationId: z.string().uuid(),
+				refresh: z.boolean().optional(),
+			}),
+		)
+		.handler((): EmailDomainRow => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	verify: protectedProcedure
+		.input(
+			z.object({
+				id: z.string().uuid(),
+				organizationId: z.string().uuid(),
+			}),
+		)
+		.handler((): EmailDomainRow => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	delete: protectedProcedure
+		.input(
+			z.object({
+				id: z.string().uuid(),
+				organizationId: z.string().uuid(),
+			}),
+		)
+		.handler((): { deleted: true; id: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	sendTest: protectedProcedure
+		.input(
+			z.object({
+				id: z.string().uuid(),
+				organizationId: z.string().uuid(),
+				to: z.string().email().optional(),
+				aliasLabel: z.string().optional(),
+			}),
+		)
+		.handler(
+			(): {
+				sent: true;
+				to: string;
+				fromAddress: string;
+				messageId: string;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	listAliases: protectedProcedure
+		.input(
+			z.object({
+				emailDomainId: z.string().uuid(),
+				organizationId: z.string().uuid(),
+			}),
+		)
+		.handler(
+			(): Array<{
+				id: string;
+				emailDomainId: string;
+				localPart: string;
+				label: string | null;
+				createdAt: Date;
+				updatedAt: Date;
+			}> => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	addAlias: protectedProcedure
+		.input(
+			z.object({
+				emailDomainId: z.string().uuid(),
+				organizationId: z.string().uuid(),
+				localPart: z.string(),
+				label: z.string().optional(),
+			}),
+		)
+		.handler(
+			(): {
+				id: string;
+				emailDomainId: string;
+				localPart: string;
+				label: string | null;
+				createdAt: Date;
+				updatedAt: Date;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	removeAlias: protectedProcedure
+		.input(
+			z.object({
+				id: z.string().uuid(),
+				emailDomainId: z.string().uuid(),
+				organizationId: z.string().uuid(),
+			}),
+		)
+		.handler((): { deleted: true; id: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+	getNotificationRouting: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): {
+				routes: Array<{
+					id: string;
+					organizationId: string;
+					notificationType: string;
+					aliasId: string | null;
+					fromNameOverride: string | null;
+					subjectOverride: string | null;
+					createdAt: Date;
+					updatedAt: Date;
+					aliasLocalPart: string | null;
+					aliasLabel: string | null;
+				}>;
+				aliases: Array<{ id: string; localPart: string; label: string | null }>;
+				verifiedDomain: {
+					id: string;
+					domain: string;
+					fromName: string;
+					defaultLocalPart: string | null;
+				} | null;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	upsertNotificationRoute: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				notificationType: z.enum([
+					"member_invitation",
+					"payment_receipt",
+					"auth_verification",
+					"auth_password_reset",
+					"auth_magic_link",
+				]),
+				aliasId: z.string().uuid().nullable().optional(),
+				fromNameOverride: z.string().nullable().optional(),
+				subjectOverride: z.string().nullable().optional(),
+			}),
+		)
+		.handler(
+			(): {
+				id: string;
+				organizationId: string;
+				notificationType: string;
+				aliasId: string | null;
+				fromNameOverride: string | null;
+				subjectOverride: string | null;
+				createdAt: Date;
+				updatedAt: Date;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+	deleteNotificationRoute: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				notificationType: z.enum([
+					"member_invitation",
+					"payment_receipt",
+					"auth_verification",
+					"auth_password_reset",
+					"auth_magic_link",
+				]),
+			}),
+		)
+		.handler((): { deleted: true; notificationType: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+};
+
 // Full appRouter with auth and server-specific procedures for type inference on the client
 export const appRouter = {
 	...baseRouter,
@@ -2832,6 +3064,7 @@ export const appRouter = {
 	platformAdminHealth: platformAdminHealthRouterType,
 	platformAdminWebhooks: platformAdminWebhooksRouterType,
 	platformAdminMigrations: platformAdminMigrationsRouterType,
+	emailDomains: emailDomainsRouterType,
 };
 
 export type AppRouter = typeof appRouter;

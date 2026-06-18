@@ -1,6 +1,6 @@
 {
 	"name": "avantej-core-server",
-	"account_id": "72d7c14adb24ffc0b9fc1770c607bf65",
+	"account_id": "a9c786e2839df3157985b75b9195a5dd",
 	"main": "src/index.ts",
 	"compatibility_date": "2025-06-15",
 	"workers_dev": true,
@@ -23,6 +23,8 @@
 	//   - daily 02:00 UTC: installment sweep (Phase 4 installments)
 	//   - daily 03:00 UTC: hard-delete sweeper for overdue tenants (Plan E E.8)
 	//   - daily 09:00 UTC: onboarding-stuck alert (Plan C C.6)
+	//   - every 15 min: refresh stale sending-domain verification status (email)
+	//   - daily 04:00 UTC: purge aged email_logs rows (email retention)
 	"triggers": {
 		"crons": [
 			"0 * * * *",
@@ -30,7 +32,9 @@
 			"0 2 * * *",
 			"30 2 * * *",
 			"0 3 * * *",
-			"0 9 * * *"
+			"0 9 * * *",
+			"*/15 * * * *",
+			"0 4 * * *"
 		]
 	}
 }

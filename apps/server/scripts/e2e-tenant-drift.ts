@@ -17,7 +17,8 @@ import { Pool } from "@neondatabase/serverless";
 import { eq } from "drizzle-orm";
 
 const args = process.argv.slice(2);
-const slug = (args.find((a) => a.startsWith("--slug=")) ?? "--slug=test-fitness-franchise").split("=")[1];
+const slugArg = args.find((a) => a.startsWith("--slug=")) ?? "--slug=test-fitness-franchise";
+const slug = slugArg.split("=")[1] ?? "test-fitness-franchise";
 const doFix = args.includes("--fix");
 
 const TABLES = ["services", "appointments", "package_instances", "sales_orders", "installments"];

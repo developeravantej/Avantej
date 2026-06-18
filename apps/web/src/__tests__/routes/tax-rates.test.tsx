@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, beforeAll, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "../helpers/render-with-providers";
 import { mockClient } from "../helpers/mock-client";
 
@@ -52,7 +52,7 @@ describe("Tax Rates page", () => {
 		await waitFor(() => {
 			expect(screen.getByText("Tax Rates")).toBeInTheDocument();
 			expect(
-				screen.getAllByRole("button", { name: /new tax rate/i }).length,
+				screen.getAllByRole("button", { name: /add tax rate/i }).length,
 			).toBeGreaterThan(0);
 		});
 	});
@@ -183,11 +183,12 @@ describe("Tax Rates page", () => {
 		renderWithProviders(<TaxRatesPage />);
 
 		await waitFor(() => {
-			const buttons = screen.getAllByRole("button");
-			const activeBtn = buttons.find((b) => b.textContent === "Active");
-			const allBtn = buttons.find((b) => b.textContent === "All");
-			expect(activeBtn).toBeTruthy();
-			expect(allBtn).toBeTruthy();
+			const statusSelect = screen.getByRole("combobox");
+			const options = within(statusSelect).getAllByRole("option");
+			const activeOption = options.find((o) => o.textContent === "Active");
+			const allOption = options.find((o) => o.textContent === "All status");
+			expect(activeOption).toBeTruthy();
+			expect(allOption).toBeTruthy();
 		});
 	});
 });
