@@ -113,26 +113,26 @@ const passCount = tests.filter((t) => t.ok).length;
 const html = `<!doctype html><html><head><meta charset="utf-8">
 <title>Migration Review — schema · data · video</title>
 <style>
-  body{font:14px/1.5 system-ui,sans-serif;margin:0;background:#0f172a;color:#e2e8f0}
-  header{padding:20px 28px;background:#1e293b;border-bottom:1px solid #334155}
-  h1{margin:0 0 4px;font-size:20px} .sub{color:#94a3b8;font-size:13px}
+  body{font:14px/1.5 system-ui,sans-serif;margin:0;background:#f8fafc;color:#1e293b}
+  header{padding:20px 28px;background:#fff;border-bottom:1px solid #e2e8f0}
+  h1{margin:0 0 4px;font-size:20px;color:#0f172a} .sub{color:#64748b;font-size:13px}
   main{padding:24px;max-width:1500px;margin:0 auto}
-  .card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:18px 20px;margin:0 0 22px}
-  .card.pass{border-left:4px solid #22c55e} .card.fail{border-left:4px solid #ef4444}
-  h2{font-size:16px;margin:0 0 10px;display:flex;gap:10px;align-items:center}
-  .badge{font-size:11px;padding:2px 8px;border-radius:999px;background:#22c55e;color:#06240f}
-  .fail .badge{background:#ef4444;color:#2a0606}
+  .card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 20px;margin:0 0 22px;box-shadow:0 1px 3px rgba(15,23,42,.05)}
+  .card.pass{border-left:4px solid #16a34a} .card.fail{border-left:4px solid #dc2626}
+  h2{font-size:16px;margin:0 0 10px;display:flex;gap:10px;align-items:center;color:#0f172a}
+  .badge{font-size:11px;padding:2px 8px;border-radius:999px;background:#16a34a;color:#fff}
+  .fail .badge{background:#dc2626;color:#fff}
   .grid{display:grid;grid-template-columns:minmax(360px,1fr) 1.4fr;gap:20px;align-items:start}
-  video{width:100%;border-radius:8px;background:#000;max-height:420px}
-  h3{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;margin:14px 0 6px}
-  .journey{margin:0 0 10px;padding-left:20px;color:#cbd5e1;font-size:13px}
+  video{width:100%;border-radius:8px;background:#000;max-height:420px;border:1px solid #e2e8f0}
+  h3{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;margin:14px 0 6px}
+  .journey{margin:0 0 10px;padding-left:20px;color:#334155;font-size:13px}
   table.data{border-collapse:collapse;width:100%;font-size:11.5px;display:block;overflow:auto;max-height:300px}
-  table.data th,table.data td{border:1px solid #334155;padding:3px 6px;text-align:left;white-space:nowrap}
-  table.data th{background:#0f172a;position:sticky;top:0}
+  table.data th,table.data td{border:1px solid #e2e8f0;padding:3px 6px;text-align:left;white-space:nowrap}
+  table.data th{background:#f1f5f9;position:sticky;top:0}
   .schema{display:flex;flex-wrap:wrap;gap:6px}
-  .schema .col{background:#0f172a;border:1px solid #334155;border-radius:6px;padding:2px 7px;font-size:11px}
-  .schema i{color:#64748b;font-style:normal}
-  code{background:#0f172a;padding:1px 5px;border-radius:4px} .muted{color:#64748b}
+  .schema .col{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:2px 7px;font-size:11px}
+  .schema i{color:#94a3b8;font-style:normal}
+  code{background:#f1f5f9;padding:1px 5px;border-radius:4px} .muted{color:#94a3b8}
 </style></head><body>
 <header>
   <h1>Legacy → Avantej Migration — Review</h1>

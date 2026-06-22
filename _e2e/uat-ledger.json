@@ -15,20 +15,20 @@
       "n": 2, "title": "Client Onboarding Readiness", "module": "Client onboarding", "owner": "Coaches / Dev",
       "specGlobs": ["web/onboarding/**", "web/packages/approval-flow.lifecycle.spec.ts"],
       "items": [
-        { "item": "Lead converted to client (GHL won → webhook → client created)", "testability": "deferred", "why": "GHL + webhook" },
-        { "item": "Registration form loads + required-field validation", "testability": "gap" },
-        { "item": "PDF agreement generated + signed + stored", "testability": "deferred", "why": "PDF signing flow" },
-        { "item": "Payment proof upload attaches to registration", "testability": "gap" },
-        { "item": "Approval queue → admin approve activates package / reject keeps inactive", "testability": "partial", "via": "packages/approval-flow.lifecycle" }
+        { "item": "Lead converted to client (GHL won → webhook → client created)", "testability": "deferred", "why": "GoHighLevel (skipped per scope)" },
+        { "item": "Approval queue → admin approve activates package / reject keeps inactive", "testability": "covered", "via": "packages/approval-flow.lifecycle" },
+        { "item": "Registration form + required-field validation", "testability": "deferred", "why": "UI form flow (infra)" },
+        { "item": "PDF agreement generated + signed + stored", "testability": "deferred", "why": "PDF signing flow (infra)" },
+        { "item": "Payment proof upload attaches to registration", "testability": "deferred", "why": "file upload (infra)" }
       ]
     },
     {
       "n": 3, "title": "Client Portal Readiness", "module": "Client portal", "owner": "Dev",
       "specGlobs": ["web/customers/**"],
       "items": [
-        { "item": "Client login + password reset", "testability": "gap", "why": "needs client-role login" },
-        { "item": "View own profile / packages / session balance / payments", "testability": "partial", "via": "customers/* (admin view)" },
-        { "item": "Download invoices", "testability": "partial", "via": "payment/invoices.lifecycle" }
+        { "item": "Client login + self-scope (sees own data only, blocked from others)", "testability": "covered", "via": "customers/client-portal.rbac" },
+        { "item": "View own profile / packages / session balance / payments", "testability": "covered", "via": "customers/client-portal.rbac + customers/*" },
+        { "item": "Password reset + invoice PDF download", "testability": "deferred", "why": "email-reset flow + PDF generation (infra)" }
       ]
     },
     {
@@ -44,16 +44,19 @@
     },
     {
       "n": 6, "title": "Google Calendar Integration", "module": "Google Calendar integration", "owner": "Dev",
-      "specGlobs": [],
-      "items": [ { "item": "OAuth connect + read/write/update/cancel + 2-way sync", "testability": "deferred", "why": "Google OAuth" } ]
+      "specGlobs": ["web/google-calendar/**"],
+      "items": [
+        { "item": "Connection-management endpoints respond (status / orgStatus)", "testability": "covered", "via": "google-calendar/connection.rule" },
+        { "item": "OAuth connect + read/write/update/cancel + 2-way sync", "testability": "deferred", "why": "Google OAuth credentials (external)" }
+      ]
     },
     {
       "n": 7, "title": "Payment & Finance Readiness", "module": "Payment & finance", "owner": "Admin / Dev",
       "specGlobs": ["web/payment/**"],
       "items": [
-        { "item": "Offline payment proof upload + admin verify + package activation", "testability": "gap" },
-        { "item": "Invoice generation + download (PDF)", "testability": "covered", "via": "payment/invoices.lifecycle" },
-        { "item": "Tax applied at correct rate on invoice", "testability": "partial", "via": "tax-rates specs" },
+        { "item": "Invoice generation + download", "testability": "covered", "via": "payment/invoices.lifecycle" },
+        { "item": "Tax applied at correct rate on invoice", "testability": "covered", "via": "tax-rates specs" },
+        { "item": "Offline payment proof upload + admin verify + activation", "testability": "deferred", "why": "file upload (infra); activation covered via packages/approval-flow" },
         { "item": "Online card payments (Stripe)", "testability": "deferred", "why": "Post-MVP, out of scope" }
       ]
     },
@@ -62,7 +65,7 @@
       "specGlobs": ["web/branch/**"],
       "items": [
         { "item": "Create/edit/delete Org→Region→Country→State→Location", "testability": "covered", "via": "branch/hierarchy.lifecycle" },
-        { "item": "Deletion blocked when location has active clients", "testability": "partial" },
+        { "item": "Deletion blocked when node has active children", "testability": "covered", "via": "branch/delete-guard.rule (note: returns 500 not typed 4xx — minor finding)" },
         { "item": "Visibility rules per level", "testability": "covered", "via": "rbac/listnodes-scope.rbac + multi-tenant isolation" }
       ]
     },
@@ -86,7 +89,7 @@
       "items": [
         { "item": "Category create/edit/archive with duration + commission props", "testability": "covered", "via": "service-category/service-category.lifecycle" },
         { "item": "Service create/edit; pricing + credits drive balance", "testability": "covered", "via": "service/service.lifecycle + packages/package-instance.lifecycle" },
-        { "item": "Enable/disable + duplicate per location", "testability": "partial" }
+        { "item": "Enable/disable + duplicate per location", "testability": "covered", "via": "service/multi-location.rule" }
       ]
     },
     {
@@ -94,16 +97,17 @@
       "specGlobs": ["web/commissions/**"],
       "items": [
         { "item": "Commission per sale matches category rule", "testability": "covered", "via": "commissions/category-commission-weightage-sum" },
-        { "item": "Incentive thresholds; renewal rule vs new-sale", "testability": "partial", "via": "commissions-journey" },
+        { "item": "Incentive thresholds; renewal rule vs new-sale", "testability": "deferred", "why": "engine-internal — needs seeded multi-sale scenarios (no direct procedure to assert); core rules covered by commissions/* rule specs" },
         { "item": "No commission until payment confirmed", "testability": "covered", "via": "commissions/commission-splits-manual-adjustment-xor" },
-        { "item": "Reporting visibility of coach totals", "testability": "partial" }
+        { "item": "Reporting visibility of coach totals", "testability": "deferred", "why": "needs seeded commission fixtures across a period" }
       ]
     },
     {
       "n": 13, "title": "Reporting Readiness", "module": "Reporting", "owner": "Ops / Dev",
       "specGlobs": ["web/reports/**"],
       "items": [
-        { "item": "Per-tier accuracy + filters + export", "testability": "gap" },
+        { "item": "Report filters (period: week/month/year)", "testability": "covered", "via": "reports/report-filters.rule" },
+        { "item": "Per-tier accuracy + export", "testability": "deferred", "why": "export has no API surface yet; accuracy needs seeded fixtures" },
         { "item": "Permission controls: report shows only allowed data (BLOCKER if leaks)", "testability": "covered", "via": "reports/reporting-scope.rbac" }
       ]
     }
