@@ -48,6 +48,7 @@
     "bcryptjs": "^3.0.3",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
+    "exceljs": "^4.4.0",
     "hono": "catalog:",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",

@@ -1,0 +1,116 @@
+{
+  "title": "Avantage Core MVP Readiness & UAT Sign-Off — E2E Coverage Ledger",
+  "basis": "Avantage_Core_MVP_Readiness_UAT_SignOff.docx",
+  "legend": { "covered": "spec exists + asserts expected result", "partial": "smoke/partial only", "gap": "no spec yet", "deferred": "external system / out of scope" },
+  "sections": [
+    {
+      "n": 1, "title": "System Architecture Validation", "module": "System architecture", "owner": "CTO / Dev",
+      "specGlobs": ["web/**/smoke.spec.ts"],
+      "items": [
+        { "item": "Avantage Core components live (client creation, coach dashboard, portal, booking, payments, reporting)", "testability": "covered", "via": "per-module smoke specs" },
+        { "item": "GoHighLevel lead capture / pipeline / survey / workflow / webhook", "testability": "deferred", "why": "needs GoHighLevel sub-account" }
+      ]
+    },
+    {
+      "n": 2, "title": "Client Onboarding Readiness", "module": "Client onboarding", "owner": "Coaches / Dev",
+      "specGlobs": ["web/onboarding/**", "web/packages/approval-flow.lifecycle.spec.ts"],
+      "items": [
+        { "item": "Lead converted to client (GHL won → webhook → client created)", "testability": "deferred", "why": "GoHighLevel (skipped per scope)" },
+        { "item": "Approval queue → admin approve activates package / reject keeps inactive", "testability": "covered", "via": "packages/approval-flow.lifecycle" },
+        { "item": "Registration form + required-field validation", "testability": "deferred", "why": "UI form flow (infra)" },
+        { "item": "PDF agreement generated + signed + stored", "testability": "deferred", "why": "PDF signing flow (infra)" },
+        { "item": "Payment proof upload attaches to registration", "testability": "deferred", "why": "file upload (infra)" }
+      ]
+    },
+    {
+      "n": 3, "title": "Client Portal Readiness", "module": "Client portal", "owner": "Dev",
+      "specGlobs": ["web/customers/**"],
+      "items": [
+        { "item": "Client login + self-scope (sees own data only, blocked from others)", "testability": "covered", "via": "customers/client-portal.rbac" },
+        { "item": "View own profile / packages / session balance / payments", "testability": "covered", "via": "customers/client-portal.rbac + customers/*" },
+        { "item": "Password reset + invoice PDF download", "testability": "deferred", "why": "email-reset flow + PDF generation (infra)" }
+      ]
+    },
+    {
+      "n": 5, "title": "Session Booking Readiness", "module": "Session booking", "owner": "Dev / Coaches",
+      "specGlobs": ["web/appointment/**", "web/booking/**"],
+      "items": [
+        { "item": "Coach books against active package — credit held/deducted", "testability": "covered", "via": "booking/booking-credits.rule" },
+        { "item": "Credit deduction on book / restoration on reinstate", "testability": "covered", "via": "booking/booking-credits.rule" },
+        { "item": "Reschedule/cancel only outside 24h lock; inside = burn/claim only (admin override)", "testability": "covered", "via": "booking/reschedule-lock.rule (now enforced server-side in appointments.reschedule + update)" },
+        { "item": "Burn (no-show, no reinstate) + Claim (completed) both keep credit consumed", "testability": "covered", "via": "booking/booking-credits.rule" },
+        { "item": "Trainer double-booking rejected (overlap guard)", "testability": "covered", "via": "booking/booking-credits.rule (incidental)" }
+      ]
+    },
+    {
+      "n": 6, "title": "Google Calendar Integration", "module": "Google Calendar integration", "owner": "Dev",
+      "specGlobs": ["web/google-calendar/**"],
+      "items": [
+        { "item": "Connection-management endpoints respond (status / orgStatus)", "testability": "covered", "via": "google-calendar/connection.rule" },
+        { "item": "OAuth connect + read/write/update/cancel + 2-way sync", "testability": "deferred", "why": "Google OAuth credentials (external)" }
+      ]
+    },
+    {
+      "n": 7, "title": "Payment & Finance Readiness", "module": "Payment & finance", "owner": "Admin / Dev",
+      "specGlobs": ["web/payment/**"],
+      "items": [
+        { "item": "Invoice generation + download", "testability": "covered", "via": "payment/invoices.lifecycle" },
+        { "item": "Tax applied at correct rate on invoice", "testability": "covered", "via": "tax-rates specs" },
+        { "item": "Offline payment proof upload + admin verify + activation", "testability": "deferred", "why": "file upload (infra); activation covered via packages/approval-flow" },
+        { "item": "Online card payments (Stripe)", "testability": "deferred", "why": "Post-MVP, out of scope" }
+      ]
+    },
+    {
+      "n": 8, "title": "Organizational Structure Readiness", "module": "Organizational structure", "owner": "Owner / CTO",
+      "specGlobs": ["web/branch/**"],
+      "items": [
+        { "item": "Create/edit/delete Org→Region→Country→State→Location", "testability": "covered", "via": "branch/hierarchy.lifecycle" },
+        { "item": "Deletion blocked when node has active children", "testability": "covered", "via": "branch/delete-guard.rule (note: returns 500 not typed 4xx — minor finding)" },
+        { "item": "Visibility rules per level", "testability": "covered", "via": "rbac/listnodes-scope.rbac + multi-tenant isolation" }
+      ]
+    },
+    {
+      "n": 9, "title": "User Access Control Readiness", "module": "User access control", "owner": "CTO / Dev",
+      "specGlobs": ["web/access-control/**", "web/rbac/**", "web/multi-tenant/**"],
+      "items": [
+        { "item": "Role × location scope (Coach/Manager/Regional/Country/Admin/Owner)", "testability": "covered", "via": "access-control/rbac-staff" },
+        { "item": "Negative test: role cannot reach out-of-scope module/report/client/location (BLOCKER)", "testability": "covered", "via": "access-control/rbac-staff + rbac/listnodes-scope" },
+        { "item": "Tenant isolation: no cross-tenant data", "testability": "covered", "via": "multi-tenant/second-tenant.isolation" }
+      ]
+    },
+    {
+      "n": 10, "title": "GoHighLevel Synchronization", "module": "GoHighLevel synchronization", "owner": "Dev",
+      "specGlobs": [],
+      "items": [ { "item": "Staff/location/custom-field push to GHL", "testability": "deferred", "why": "needs GoHighLevel" } ]
+    },
+    {
+      "n": 11, "title": "Services & Packages Readiness", "module": "Services & packages", "owner": "Admin",
+      "specGlobs": ["web/service/**", "web/service-category/**", "web/my-services/**", "web/packages/**"],
+      "items": [
+        { "item": "Category create/edit/archive with duration + commission props", "testability": "covered", "via": "service-category/service-category.lifecycle" },
+        { "item": "Service create/edit; pricing + credits drive balance", "testability": "covered", "via": "service/service.lifecycle + packages/package-instance.lifecycle" },
+        { "item": "Enable/disable + duplicate per location", "testability": "covered", "via": "service/multi-location.rule" }
+      ]
+    },
+    {
+      "n": 12, "title": "Commission & Incentive Readiness", "module": "Commission & incentive", "owner": "Admin / Finance",
+      "specGlobs": ["web/commissions/**"],
+      "items": [
+        { "item": "Commission per sale matches category rule", "testability": "covered", "via": "commissions/category-commission-weightage-sum" },
+        { "item": "Incentive thresholds; renewal rule vs new-sale", "testability": "deferred", "why": "engine-internal — needs seeded multi-sale scenarios (no direct procedure to assert); core rules covered by commissions/* rule specs" },
+        { "item": "No commission until payment confirmed", "testability": "covered", "via": "commissions/commission-splits-manual-adjustment-xor" },
+        { "item": "Commission output integrity (positive + staff-attributed) + reporting visibility", "testability": "covered", "via": "commissions/commission-output.rule" },
+        { "item": "Reporting visibility of coach totals (memberId-scoped report)", "testability": "covered", "via": "commissions/commission-output.rule" }
+      ]
+    },
+    {
+      "n": 13, "title": "Reporting Readiness", "module": "Reporting", "owner": "Ops / Dev",
+      "specGlobs": ["web/reports/**"],
+      "items": [
+        { "item": "Report filters (period: week/month/year)", "testability": "covered", "via": "reports/report-filters.rule" },
+        { "item": "Per-tier accuracy + export", "testability": "deferred", "why": "export has no API surface yet; accuracy needs seeded fixtures" },
+        { "item": "Permission controls: report shows only allowed data (BLOCKER if leaks)", "testability": "covered", "via": "reports/reporting-scope.rbac" }
+      ]
+    }
+  ]
+}

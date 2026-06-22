@@ -7,6 +7,11 @@
  * reports:read / user_management:read / service_management:read lands on a
  * clean page with NO 403s — the defect this spec guards against.
  *
+ * The no-403 guard also covers the badge queries added with the Renewals and
+ * Refunds cards (commit a0d4f590) — packageInstances.listExpiring (reports:read)
+ * and refunds.list (refund_management:read) must be gated for staff too; any
+ * ungated firing surfaces here as a forbidden /rpc/ response.
+ *
  * Runs under the `launchpad-staff` project (storageState = staff.json).
  */
 import { test, expect } from "@playwright/test";

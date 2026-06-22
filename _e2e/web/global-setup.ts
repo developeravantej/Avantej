@@ -33,6 +33,13 @@ const ROLES: Array<{
 		password: process.env.E2E_STAFF_PASSWORD ?? "password123",
 		required: false,
 	},
+	{
+		// Client-role login for the §3/4 client-portal specs (seed-customers.ts).
+		name: "client",
+		email: process.env.E2E_CLIENT_EMAIL ?? "sarah.lim@example.com",
+		password: process.env.E2E_CLIENT_PASSWORD ?? "password123",
+		required: false,
+	},
 	// Second-tenant (org B) owner — only when E2E_SECOND_TENANT=1 (a provisioned
 	// org B exists). Captures _e2e/.auth/orgB-session.json for the isolation/saas
 	// specs. Best-effort: skips if the login can't resolve org B.
