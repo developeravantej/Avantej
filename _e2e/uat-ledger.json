@@ -17,7 +17,8 @@
       "items": [
         { "item": "Lead converted to client (GHL won → webhook → client created)", "testability": "deferred", "why": "GoHighLevel (skipped per scope)" },
         { "item": "Approval queue → admin approve activates package / reject keeps inactive", "testability": "covered", "via": "packages/approval-flow.lifecycle" },
-        { "item": "Registration form + required-field validation", "testability": "deferred", "why": "UI form flow (infra)" },
+        { "item": "Registration form loads (country/branch options)", "testability": "covered", "via": "onboarding/registration-form.rule" },
+        { "item": "Registration required-field validation", "testability": "deferred", "why": "full UI form submit flow (infra)" },
         { "item": "PDF agreement generated + signed + stored", "testability": "deferred", "why": "PDF signing flow (infra)" },
         { "item": "Payment proof upload attaches to registration", "testability": "deferred", "why": "file upload (infra)" }
       ]
@@ -28,7 +29,8 @@
       "items": [
         { "item": "Client login + self-scope (sees own data only, blocked from others)", "testability": "covered", "via": "customers/client-portal.rbac" },
         { "item": "View own profile / packages / session balance / payments", "testability": "covered", "via": "customers/client-portal.rbac + customers/*" },
-        { "item": "Password reset + invoice PDF download", "testability": "deferred", "why": "email-reset flow + PDF generation (infra)" }
+        { "item": "Password reset request", "testability": "covered", "via": "customers/password-reset.rule (better-auth request-password-reset)" },
+        { "item": "Invoice PDF download", "testability": "deferred", "why": "PDF generation (infra)" }
       ]
     },
     {
@@ -108,7 +110,8 @@
       "specGlobs": ["web/reports/**"],
       "items": [
         { "item": "Report filters (period: week/month/year)", "testability": "covered", "via": "reports/report-filters.rule" },
-        { "item": "Per-tier accuracy + export", "testability": "deferred", "why": "export has no API surface yet; accuracy needs seeded fixtures" },
+        { "item": "Report export (CSV)", "testability": "covered", "via": "reports/report-export.rule (auditLogs/exportCsv)" },
+        { "item": "Per-tier accuracy", "testability": "deferred", "why": "needs seeded per-tier fixtures" },
         { "item": "Permission controls: report shows only allowed data (BLOCKER if leaks)", "testability": "covered", "via": "reports/reporting-scope.rbac" }
       ]
     }
