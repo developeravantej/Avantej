@@ -26,19 +26,19 @@ function NewSalePanel({ organizationId: _organizationId }: PanelProps) {
 function NewCustomerPanel({ organizationId }: PanelProps) {
 	return (
 		<div className="@container -m-6 h-full min-h-[460px]">
-			<div className="grid h-full min-h-[460px] grid-cols-1 overflow-hidden rounded-2xl @2xl:grid-cols-[300px_1fr]">
+			<div className="grid h-full min-h-[460px] grid-cols-1 overflow-hidden rounded-2xl @2xl:grid-cols-[300px_minmax(0,1fr)]">
 				{/* Context aside */}
 				<aside className="flex flex-col bg-gradient-to-b from-[#111317] to-[#1c1f26] p-8 text-white">
-					<span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/10">
+					<span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/10 text-white">
 						<UserPlus className="size-6" />
 					</span>
-					<p className="mt-5 text-[10px] font-bold uppercase tracking-widest text-white/55">
+					<p className="mt-5 text-[10px] font-bold uppercase tracking-widest !text-white/55">
 						Customer Directory
 					</p>
-					<h2 className="mt-1 text-2xl font-bold tracking-tight">
+					<h2 className="mt-1 text-2xl font-bold tracking-tight !text-white">
 						Create Customer
 					</h2>
-					<p className="mt-3 text-sm leading-relaxed text-white/60">
+					<p className="mt-3 text-sm leading-relaxed !text-white/60">
 						Register a new member with the essentials. Staff can complete the
 						full profile later or start a sale straight after.
 					</p>

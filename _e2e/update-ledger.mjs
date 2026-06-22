@@ -77,7 +77,7 @@ const DEFER = [
 				r.module !== "multi-tenant" &&
 				/tenant (A|B)|isolation/i.test(r.rule || "")),
 		reason:
-			"VERIFIED GREEN 2026-06-07 against a provisioned org B (both cross-tenant directions) via seed-second-tenant.ts; deferred again only because org B was torn down. Re-provision to re-cover.",
+			"VERIFIED GREEN 2026-06-13 against a freshly provisioned org B — both cross-tenant directions + unknown-org 403 — via seed-second-tenant.ts (org a9c36329, since torn down). Deferred again only because org B is a billable Neon branch destroyed after verification. Re-cover: E2E_SECOND_TENANT=1 bunx playwright test _e2e/web/multi-tenant.",
 	},
 	{
 		match: (r) =>
@@ -91,7 +91,7 @@ const DEFER = [
 	{
 		match: (r) => r.module === "rbac" || r.module === "saas",
 		reason:
-			"SaaS suspended/cancelled VERIFIED GREEN 2026-06-07 against a provisioned org B (deferred again on teardown). past_due read-only needs a saas_subscriptions row past grace (subscription-based, not paymentStatus) — set E2E_SAAS_PASTDUE_SUBSCRIPTION=1 once seeded.",
+			"SaaS suspended/cancelled AND past_due read-only BOTH VERIFIED GREEN 2026-06-13 against a freshly provisioned org B (since torn down). Suspended: seed-second-tenant.ts --set-status=suspended + E2E_SAAS_STATE=suspended. Past_due read-only: scripts/e2e-orgb-pastdue-sub.ts seeds a subscriptions row (status=past_due, gracePeriodEndsAt in the past) linked via organizations.subscriptionId with paymentStatus=active, then E2E_SAAS_PASTDUE_SUBSCRIPTION=1. Deferred again only because org B is a billable Neon branch destroyed after verification.",
 	},
 	{
 		match: (r) =>
@@ -118,7 +118,7 @@ const DEFER = [
 		// flow with no discrete procedure. priority so it stays deferred despite the
 		// payment folder having passing specs.
 		priority: true,
-		match: (r) => r.module === "payment" && r.entity === "invoice",
+		match: () => false, // (disabled 2026-06-13) invoice IS a standalone procedure; covered by payment/invoices.lifecycle.spec.ts
 		reason:
 			"Invoice create/update has no standalone procedure — it is a side-effect of the Stripe payment-link flow. Deferred (all other payment rows are covered, incl. webhook-driven refund + chargeSavedCard).",
 	},
