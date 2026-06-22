@@ -126,6 +126,22 @@
           ],
           "rows": [
             {
+              "id": "cd350642-8b5a-4a89-bf09-a398a99d5929",
+              "user_id": "2ebd35f2-049c-4aa0-a478-a78f23a40257",
+              "phone": "+60 11-7097 1815",
+              "gender": null,
+              "is_unclaimed": true,
+              "primary_staff_member_id": null
+            },
+            {
+              "id": "e529478d-8cde-4e89-9721-5e0e2ed4ce3b",
+              "user_id": "fd8d05cb-86fa-4b23-8ec4-fcbbe37f4464",
+              "phone": "+60 11-6335 3530",
+              "gender": null,
+              "is_unclaimed": true,
+              "primary_staff_member_id": null
+            },
+            {
               "id": "50d144ac-b9b7-48b0-87f6-eda5322bd146",
               "user_id": "6a82c31b-42b7-4f50-b1d9-95b47985a6a1",
               "phone": "+60 12-345 6789",
@@ -156,25 +172,9 @@
               "gender": null,
               "is_unclaimed": true,
               "primary_staff_member_id": null
-            },
-            {
-              "id": "97a23104-9e66-4923-9243-952dcfece41a",
-              "user_id": "881f93cb-0ddc-4e27-b3de-bb3366977e3d",
-              "phone": "+60 11-6792 9255",
-              "gender": null,
-              "is_unclaimed": true,
-              "primary_staff_member_id": null
-            },
-            {
-              "id": "b051169d-e11b-42b6-aaba-5ba34de258c9",
-              "user_id": "f5f99116-91d2-4280-ae00-248407288b3c",
-              "phone": "+6012-300-0004",
-              "gender": "female",
-              "is_unclaimed": true,
-              "primary_staff_member_id": "67122081-40e7-4029-9ba1-20b851d8f401"
             }
           ],
-          "total": 75
+          "total": 77
         }
       ]
     },
@@ -417,6 +417,16 @@
               "credits_used": 1
             },
             {
+              "id": "97568120-d772-409d-8c5c-818e75b57402",
+              "type": "private",
+              "status": "confirmed",
+              "start_time": "2031-03-02 14:30:00",
+              "duration": 60,
+              "branch_id": "e5b88c19-da14-42e6-8d91-4a7941fa3ecd",
+              "package_instance_id": null,
+              "credits_used": 1
+            },
+            {
               "id": "41f7a093-e636-4d2a-b100-25992b2014ac",
               "type": "private",
               "status": "completed",
@@ -435,19 +445,9 @@
               "branch_id": "abce4846-ecfa-4f3f-8734-65114e3e42b4",
               "package_instance_id": null,
               "credits_used": 1
-            },
-            {
-              "id": "21e45c9b-43e5-4790-8f2b-eeb4d5b3f80e",
-              "type": "private",
-              "status": "completed",
-              "start_time": "2031-01-05 01:30:00",
-              "duration": 60,
-              "branch_id": "abce4846-ecfa-4f3f-8734-65114e3e42b4",
-              "package_instance_id": null,
-              "credits_used": 1
             }
           ],
-          "total": 550
+          "total": 573
         }
       ]
     },
@@ -528,14 +528,14 @@
           ],
           "rows": [
             {
-              "id": "56cfb3de-77a4-4bbe-85f2-477c3c976ae3",
-              "invoice_number": "INV-20260621-000630",
+              "id": "98825c25-6545-4ac7-90d3-c185ad4b3090",
+              "invoice_number": "INV-20260622-000661",
               "sales_order_id": null,
               "payment_id": null,
-              "date": "2026-06-21 10:38:48.011",
+              "date": "2026-06-22 03:16:09.145",
               "due_date": null,
               "customer_id": null,
-              "customer_name": "E2E-DEEP-invoice-cust-mqnnhgdy-24",
+              "customer_name": "E2E-DEEP-invoice-cust-mqon31yy-26",
               "created_by": "E2E-DEEP",
               "payment_mode": null,
               "total_amount": 20000,
@@ -543,54 +543,16 @@
               "status": "cancelled",
               "e_invoice_status": null,
               "e_invoice_id": null,
-              "created_at": "2026-06-21 10:38:46.076754",
-              "updated_at": "2026-06-21 10:38:52.011"
+              "created_at": "2026-06-22 03:16:06.90798",
+              "updated_at": "2026-06-22 03:16:15.134"
             },
             {
-              "id": "f64cc5ad-06ca-45f0-aefa-480b3b6bcf42",
-              "invoice_number": "INV-20260621-000629",
-              "sales_order_id": null,
-              "payment_id": null,
-              "date": "2026-06-21 09:45:42.503",
-              "due_date": null,
-              "customer_id": null,
-              "customer_name": "E2E-DEEP-invoice-cust-mqnljs46-24",
-              "created_by": "E2E-DEEP",
-              "payment_mode": null,
-              "total_amount": 20000,
-              "amount_paid": 0,
-              "status": "cancelled",
-              "e_invoice_status": null,
-              "e_invoice_id": null,
-              "created_at": "2026-06-21 09:45:40.706961",
-              "updated_at": "2026-06-21 09:45:46.66"
-            },
-            {
-              "id": "426637c4-8fb0-4b80-8ae1-ab8a14caa071",
-              "invoice_number": "INV-20260621-000628",
-              "sales_order_id": null,
-              "payment_id": null,
-              "date": "2026-06-21 09:37:59.869",
-              "due_date": null,
-              "customer_id": null,
-              "customer_name": "E2E-DEEP-invoice-cust-mqnlapg0-24",
-              "created_by": "E2E-DEEP",
-              "payment_mode": null,
-              "total_amount": 20000,
-              "amount_paid": 0,
-              "status": "cancelled",
-              "e_invoice_status": null,
-              "e_invoice_id": null,
-              "created_at": "2026-06-21 09:37:58.147558",
-              "updated_at": "2026-06-21 09:38:03.915"
-            },
-            {
-              "id": "05c3dba2-bb3f-4b06-859f-0f6344b826a2",
-              "invoice_number": "INV-20260620-000627",
-              "sales_order_id": "5279a946-390c-4d57-a573-95bfc9a62884",
-              "payment_id": "4c674207-309a-4790-9189-c1b889c400ad",
-              "date": "2026-06-20 11:22:04.427",
-              "due_date": "2026-06-20 11:22:04.427",
+              "id": "920b7b6a-6f88-49fd-9d2f-c435a5dcf847",
+              "invoice_number": "INV-20260621-000660",
+              "sales_order_id": "f23ab8e5-9c79-42a6-bb63-f0d90464a86e",
+              "payment_id": "07d4ba1f-a8d6-4bbb-940c-c539efc3e66c",
+              "date": "2026-06-21 11:34:30.001",
+              "due_date": "2026-06-21 11:34:30.001",
               "customer_id": "4ca63585-922a-418d-9129-7bb1ca2d5555",
               "customer_name": "Ahmad Firdaus",
               "created_by": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
@@ -600,16 +562,16 @@
               "status": "partially_paid",
               "e_invoice_status": null,
               "e_invoice_id": null,
-              "created_at": "2026-06-20 11:22:04.338889",
-              "updated_at": "2026-06-20 11:22:04.338889"
+              "created_at": "2026-06-21 11:34:29.909261",
+              "updated_at": "2026-06-21 11:34:29.909261"
             },
             {
-              "id": "e60eb8b3-b9cb-476a-8ef2-a2bda22b903f",
-              "invoice_number": "INV-20260620-000626",
-              "sales_order_id": "93990671-845d-4eb6-88df-af529deab65a",
-              "payment_id": "8875cfc6-ad21-4478-aace-a388c87d5104",
-              "date": "2026-06-20 11:21:02.41",
-              "due_date": "2026-06-20 11:21:02.41",
+              "id": "a1d3355c-593e-4b10-97d2-b6b29a76e3a0",
+              "invoice_number": "INV-20260621-000659",
+              "sales_order_id": "c1204b85-c6c9-4803-9e57-87c3605b5f01",
+              "payment_id": "46a325df-ce23-466b-b2b8-ed887ffd944f",
+              "date": "2026-06-21 11:33:28.544",
+              "due_date": "2026-06-21 11:33:28.544",
               "customer_id": "4ca63585-922a-418d-9129-7bb1ca2d5555",
               "customer_name": "Ahmad Firdaus",
               "created_by": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
@@ -619,16 +581,16 @@
               "status": "partially_paid",
               "e_invoice_status": null,
               "e_invoice_id": null,
-              "created_at": "2026-06-20 11:21:02.319163",
-              "updated_at": "2026-06-20 11:21:02.319163"
+              "created_at": "2026-06-21 11:33:28.451018",
+              "updated_at": "2026-06-21 11:33:28.451018"
             },
             {
-              "id": "79f26a52-6a19-4de5-b960-6d665e0a9b82",
-              "invoice_number": "INV-20260620-000625",
-              "sales_order_id": "4671adab-74ad-4ad1-9696-b001af7c92d4",
-              "payment_id": "0a5216f0-a57b-4fc5-91ce-1cfaf7400a6d",
-              "date": "2026-06-20 11:20:00.821",
-              "due_date": "2026-06-20 11:20:00.821",
+              "id": "28c8fa18-2e31-4736-a9f2-e102bf8bfaf3",
+              "invoice_number": "INV-20260621-000658",
+              "sales_order_id": "300bf0cd-af5b-4a58-a9d9-e2531e8a14d4",
+              "payment_id": "c5467ebf-8278-4c01-8ba8-48ca6b3d1843",
+              "date": "2026-06-21 11:32:27.99",
+              "due_date": "2026-06-21 11:32:27.99",
               "customer_id": "4ca63585-922a-418d-9129-7bb1ca2d5555",
               "customer_name": "Ahmad Firdaus",
               "created_by": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
@@ -638,11 +600,49 @@
               "status": "partially_paid",
               "e_invoice_status": null,
               "e_invoice_id": null,
-              "created_at": "2026-06-20 11:20:00.729159",
-              "updated_at": "2026-06-20 11:20:00.729159"
+              "created_at": "2026-06-21 11:32:27.900939",
+              "updated_at": "2026-06-21 11:32:27.900939"
+            },
+            {
+              "id": "1f50d83f-ffff-4ca5-b432-9c98dc075368",
+              "invoice_number": "INV-20260621-000657",
+              "sales_order_id": "08992aa8-addd-4790-a0a8-0b27f4e873a9",
+              "payment_id": "bc3e8dfe-a4bd-4e33-bbda-532e9399fd79",
+              "date": "2026-06-21 11:31:26.778",
+              "due_date": "2026-06-21 11:31:26.778",
+              "customer_id": "4ca63585-922a-418d-9129-7bb1ca2d5555",
+              "customer_name": "Ahmad Firdaus",
+              "created_by": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
+              "payment_mode": "cash",
+              "total_amount": 9000,
+              "amount_paid": 3000,
+              "status": "partially_paid",
+              "e_invoice_status": null,
+              "e_invoice_id": null,
+              "created_at": "2026-06-21 11:31:26.688431",
+              "updated_at": "2026-06-21 11:31:26.688431"
+            },
+            {
+              "id": "8b847b68-c5e9-4e35-9d03-244e29b035a6",
+              "invoice_number": "INV-20260621-000656",
+              "sales_order_id": "80b9fda4-c992-4354-9512-c98dca6d7865",
+              "payment_id": "3d3cbacc-5469-4328-a072-dff670b77483",
+              "date": "2026-06-21 11:30:26.174",
+              "due_date": "2026-06-21 11:30:26.174",
+              "customer_id": "4ca63585-922a-418d-9129-7bb1ca2d5555",
+              "customer_name": "Ahmad Firdaus",
+              "created_by": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
+              "payment_mode": "cash",
+              "total_amount": 9000,
+              "amount_paid": 3000,
+              "status": "partially_paid",
+              "e_invoice_status": null,
+              "e_invoice_id": null,
+              "created_at": "2026-06-21 11:30:26.082015",
+              "updated_at": "2026-06-21 11:30:26.082015"
             }
           ],
-          "total": 608
+          "total": 639
         }
       ]
     },
@@ -902,7 +902,7 @@
               "hierarchy_scope_id": "e5b88c19-da14-42e6-8d91-4a7941fa3ecd"
             }
           ],
-          "total": 101
+          "total": 103
         },
         {
           "table": "roles",
@@ -1188,16 +1188,16 @@
               "is_active": false
             },
             {
-              "id": "7e5b0636-7ed9-4498-a6bd-9a495dd1f04e",
-              "name": "Core Conditioning Svc-Class 9254",
+              "id": "e9df80c2-0121-450a-a103-0fe351ab371b",
+              "name": "AutoCharge Test Service (Copy)",
               "type": "private",
-              "price": 5000,
+              "price": null,
               "session_count": null,
               "expiry_days": null,
-              "is_active": true
+              "is_active": false
             }
           ],
-          "total": 136
+          "total": 138
         },
         {
           "table": "service_categories",
@@ -1273,7 +1273,7 @@
               "name": "E2E-DEEP-cc-cat-run-13"
             }
           ],
-          "total": 137
+          "total": 140
         },
         {
           "table": "package_instances",
@@ -1481,49 +1481,49 @@
           ],
           "rows": [
             {
-              "id": "5f6cf255-d840-4bbf-936f-5a1c0ab575d0",
+              "id": "dc8b8d8f-317e-4cea-9145-0fc7e8e9d192",
               "status": "cancelled",
               "credits_total": 10,
               "credits_used": 0,
               "credits_remaining": 0
             },
             {
-              "id": "8428e957-43c7-4cf1-b3ef-e98df707254e",
+              "id": "51ab5af3-c2dd-42db-ab24-ed8a80cb57be",
               "status": "cancelled",
               "credits_total": 5,
               "credits_used": 0,
               "credits_remaining": 5
             },
             {
-              "id": "9ad00e30-6543-4c81-9e63-3abe846743ae",
+              "id": "0a1b4f2f-2eef-4243-8742-36abd57e999a",
               "status": "cancelled",
               "credits_total": 5,
               "credits_used": 0,
               "credits_remaining": 5
             },
             {
-              "id": "74f79452-7b13-484e-b65a-3d2931b5ec94",
+              "id": "e91cabfd-b58b-4856-acef-b7f6489f51aa",
               "status": "cancelled",
               "credits_total": 10,
               "credits_used": 3,
               "credits_remaining": 7
             },
             {
-              "id": "d4d2d398-5d35-49d5-a938-fa15aa8ded19",
+              "id": "96200a5c-e9bf-40b3-9957-2e70da323584",
               "status": "cancelled",
               "credits_total": 10,
               "credits_used": 0,
               "credits_remaining": 10
             },
             {
-              "id": "622401c2-c823-490c-9e7e-48fbae11f345",
+              "id": "167f152e-426f-49eb-8d23-6aa64a05173d",
               "status": "cancelled",
               "credits_total": 5,
               "credits_used": 0,
               "credits_remaining": 5
             }
           ],
-          "total": 674
+          "total": 713
         }
       ]
     },
@@ -1708,15 +1708,15 @@
           ],
           "rows": [
             {
-              "id": "f387ce1e-5843-44ad-9d4b-bb71241328eb",
+              "id": "d694076d-59ac-4e36-af4b-acfc936b34e8",
               "appointment_id": null,
               "staff_id": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
               "split_percentage": 10,
               "calculated_amount": 300,
               "notes": null,
-              "created_at": "2026-06-20 11:18:20.538117",
-              "updated_at": "2026-06-20 11:18:20.538117",
-              "sales_order_id": "755bdf2d-d8b8-4b62-9332-b0eab696664f",
+              "created_at": "2026-06-21 11:30:48.768402",
+              "updated_at": "2026-06-21 11:30:48.768402",
+              "sales_order_id": "80b9fda4-c992-4354-9512-c98dca6d7865",
               "status": "pending",
               "approved_by": null,
               "approved_at": null,
@@ -1730,7 +1730,7 @@
               "base_amount_cents": 900,
               "split_type": "automatic",
               "manual_note": null,
-              "earned_at": "2026-06-20 11:18:21.155+00",
+              "earned_at": "2026-06-21 11:30:49.386+00",
               "package_instance_id": null,
               "config_version_id": null,
               "cap_applied": false,
@@ -1742,7 +1742,7 @@
               "track_id": "066cc79d-06ac-4106-9f60-0fad5884f27a",
               "role_type": "sales",
               "track_version_id": "fcb7db7b-eb8d-4673-8293-0db2b2f3a0a6",
-              "installment_id": "10bd6e71-3c45-4b68-9ca9-a36082d126eb",
+              "installment_id": "5dc11696-191a-46da-9528-2df86f7ddc1f",
               "contested_by": null,
               "contested_reason": null,
               "contested_category": null,
@@ -1753,15 +1753,15 @@
               "resolution_note": null
             },
             {
-              "id": "968d4a13-8003-41a6-9002-30e683d5d9fc",
+              "id": "de6330ca-1d9f-495c-96b0-91194252280b",
               "appointment_id": null,
               "staff_id": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
               "split_percentage": 10,
               "calculated_amount": 300,
               "notes": null,
-              "created_at": "2026-06-20 11:18:12.699208",
-              "updated_at": "2026-06-20 11:18:12.699208",
-              "sales_order_id": "755bdf2d-d8b8-4b62-9332-b0eab696664f",
+              "created_at": "2026-06-21 11:30:40.902743",
+              "updated_at": "2026-06-21 11:30:40.902743",
+              "sales_order_id": "80b9fda4-c992-4354-9512-c98dca6d7865",
               "status": "pending",
               "approved_by": null,
               "approved_at": null,
@@ -1775,7 +1775,7 @@
               "base_amount_cents": 900,
               "split_type": "automatic",
               "manual_note": null,
-              "earned_at": "2026-06-20 11:18:13.314+00",
+              "earned_at": "2026-06-21 11:30:41.532+00",
               "package_instance_id": null,
               "config_version_id": null,
               "cap_applied": false,
@@ -1787,7 +1787,7 @@
               "track_id": "066cc79d-06ac-4106-9f60-0fad5884f27a",
               "role_type": "sales",
               "track_version_id": "fcb7db7b-eb8d-4673-8293-0db2b2f3a0a6",
-              "installment_id": "507e9c2e-cc2d-449e-8815-5dc5ef41bc84",
+              "installment_id": "4571f117-a4b4-47bd-81b2-7dfa19a6e04e",
               "contested_by": null,
               "contested_reason": null,
               "contested_category": null,
@@ -1798,15 +1798,15 @@
               "resolution_note": null
             },
             {
-              "id": "a8f41cf9-91ef-4527-b472-dbb1ff97a8f2",
+              "id": "43b882f2-36f9-41b6-bf5e-d50c2329c88a",
               "appointment_id": null,
               "staff_id": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
               "split_percentage": 10,
               "calculated_amount": 300,
               "notes": null,
-              "created_at": "2026-06-20 11:17:57.942425",
-              "updated_at": "2026-06-20 11:17:57.942425",
-              "sales_order_id": "755bdf2d-d8b8-4b62-9332-b0eab696664f",
+              "created_at": "2026-06-21 11:30:26.082015",
+              "updated_at": "2026-06-21 11:30:26.082015",
+              "sales_order_id": "80b9fda4-c992-4354-9512-c98dca6d7865",
               "status": "pending",
               "approved_by": null,
               "approved_at": null,
@@ -1820,7 +1820,7 @@
               "base_amount_cents": 900,
               "split_type": "automatic",
               "manual_note": null,
-              "earned_at": "2026-06-20 11:18:01.54+00",
+              "earned_at": "2026-06-21 11:30:29.747+00",
               "package_instance_id": null,
               "config_version_id": null,
               "cap_applied": false,
@@ -1832,7 +1832,7 @@
               "track_id": "066cc79d-06ac-4106-9f60-0fad5884f27a",
               "role_type": "sales",
               "track_version_id": "fcb7db7b-eb8d-4673-8293-0db2b2f3a0a6",
-              "installment_id": "38f2d782-9cee-4164-871d-5e4cb1e37a06",
+              "installment_id": "a2c06ee7-a6e2-4660-9525-04afe93e7597",
               "contested_by": null,
               "contested_reason": null,
               "contested_category": null,
@@ -1843,15 +1843,15 @@
               "resolution_note": null
             },
             {
-              "id": "15ab5706-a1c2-4f22-b145-e26ba436a8d8",
+              "id": "9a5561a9-b7de-4aba-a9bb-d3e29f99b86c",
               "appointment_id": null,
               "staff_id": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
               "split_percentage": 10,
               "calculated_amount": 300,
               "notes": null,
-              "created_at": "2026-06-20 11:17:17.998334",
-              "updated_at": "2026-06-20 11:17:17.998334",
-              "sales_order_id": "b3501570-ddd2-494c-a3f4-2e8055749eca",
+              "created_at": "2026-06-21 11:29:47.281821",
+              "updated_at": "2026-06-21 11:29:47.281821",
+              "sales_order_id": "7e365167-c70d-4775-8207-a5016e63fe2c",
               "status": "pending",
               "approved_by": null,
               "approved_at": null,
@@ -1865,7 +1865,7 @@
               "base_amount_cents": 900,
               "split_type": "automatic",
               "manual_note": null,
-              "earned_at": "2026-06-20 11:17:18.617+00",
+              "earned_at": "2026-06-21 11:29:47.898+00",
               "package_instance_id": null,
               "config_version_id": null,
               "cap_applied": false,
@@ -1877,7 +1877,7 @@
               "track_id": "066cc79d-06ac-4106-9f60-0fad5884f27a",
               "role_type": "sales",
               "track_version_id": "fcb7db7b-eb8d-4673-8293-0db2b2f3a0a6",
-              "installment_id": "94be0abc-5669-412c-9d3f-9001cf0f477b",
+              "installment_id": "aa428b70-bee5-463d-bef0-c543b4921ca2",
               "contested_by": null,
               "contested_reason": null,
               "contested_category": null,
@@ -1888,15 +1888,15 @@
               "resolution_note": null
             },
             {
-              "id": "b5d9166e-369b-44cc-b577-9891018a081a",
+              "id": "1ec62de6-eff4-44fd-ad7e-39c2c3c6524b",
               "appointment_id": null,
               "staff_id": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
               "split_percentage": 10,
               "calculated_amount": 300,
               "notes": null,
-              "created_at": "2026-06-20 11:17:10.045645",
-              "updated_at": "2026-06-20 11:17:10.045645",
-              "sales_order_id": "b3501570-ddd2-494c-a3f4-2e8055749eca",
+              "created_at": "2026-06-21 11:29:39.520602",
+              "updated_at": "2026-06-21 11:29:39.520602",
+              "sales_order_id": "7e365167-c70d-4775-8207-a5016e63fe2c",
               "status": "pending",
               "approved_by": null,
               "approved_at": null,
@@ -1910,7 +1910,7 @@
               "base_amount_cents": 900,
               "split_type": "automatic",
               "manual_note": null,
-              "earned_at": "2026-06-20 11:17:10.678+00",
+              "earned_at": "2026-06-21 11:29:40.135+00",
               "package_instance_id": null,
               "config_version_id": null,
               "cap_applied": false,
@@ -1922,7 +1922,7 @@
               "track_id": "066cc79d-06ac-4106-9f60-0fad5884f27a",
               "role_type": "sales",
               "track_version_id": "fcb7db7b-eb8d-4673-8293-0db2b2f3a0a6",
-              "installment_id": "91e3e819-991b-4801-8f70-121a1208c7ae",
+              "installment_id": "b1c6d25b-5573-49e6-ad1b-7fb827ec8341",
               "contested_by": null,
               "contested_reason": null,
               "contested_category": null,
@@ -1933,15 +1933,15 @@
               "resolution_note": null
             },
             {
-              "id": "ab561217-25ac-4c59-881c-225bb4288c19",
+              "id": "ec0be675-edfb-48d8-abf8-953fb0a79a53",
               "appointment_id": null,
               "staff_id": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
               "split_percentage": 10,
               "calculated_amount": 300,
               "notes": null,
-              "created_at": "2026-06-20 11:16:55.2523",
-              "updated_at": "2026-06-20 11:16:55.2523",
-              "sales_order_id": "b3501570-ddd2-494c-a3f4-2e8055749eca",
+              "created_at": "2026-06-21 11:29:24.837985",
+              "updated_at": "2026-06-21 11:29:24.837985",
+              "sales_order_id": "7e365167-c70d-4775-8207-a5016e63fe2c",
               "status": "pending",
               "approved_by": null,
               "approved_at": null,
@@ -1955,7 +1955,7 @@
               "base_amount_cents": 900,
               "split_type": "automatic",
               "manual_note": null,
-              "earned_at": "2026-06-20 11:16:58.891+00",
+              "earned_at": "2026-06-21 11:29:28.444+00",
               "package_instance_id": null,
               "config_version_id": null,
               "cap_applied": false,
@@ -1967,7 +1967,7 @@
               "track_id": "066cc79d-06ac-4106-9f60-0fad5884f27a",
               "role_type": "sales",
               "track_version_id": "fcb7db7b-eb8d-4673-8293-0db2b2f3a0a6",
-              "installment_id": "1396ef1b-21cc-4b14-8d2a-a0fa8bbbcd9f",
+              "installment_id": "6116d0e8-2a4e-48c5-b586-166ac54fa494",
               "contested_by": null,
               "contested_reason": null,
               "contested_category": null,
@@ -1978,7 +1978,7 @@
               "resolution_note": null
             }
           ],
-          "total": 295
+          "total": 326
         }
       ]
     }
