@@ -67,7 +67,7 @@
       "specGlobs": ["web/branch/**"],
       "items": [
         { "item": "Create/edit/delete Org→Region→Country→State→Location", "testability": "covered", "via": "branch/hierarchy.lifecycle" },
-        { "item": "Deletion blocked when node has active children", "testability": "covered", "via": "branch/delete-guard.rule (note: returns 500 not typed 4xx — minor finding)" },
+        { "item": "Deletion blocked when node has active children", "testability": "covered", "via": "branch/delete-guard.rule (now returns typed 409 CONFLICT — FK-restrict violation mapped in delete.procedures.ts)" },
         { "item": "Visibility rules per level", "testability": "covered", "via": "rbac/listnodes-scope.rbac + multi-tenant isolation" }
       ]
     },

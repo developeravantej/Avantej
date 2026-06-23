@@ -28,9 +28,9 @@ test.describe("§8 org structure — deletion guard", () => {
 			organizationId,
 			nodeId: parent.id,
 		});
-		// Deletion must be REJECTED (any non-2xx). NOTE: the API returns 500 here
-		// rather than a typed 4xx — the guard fires but throws a raw Error; a minor
-		// error-mapping finding (should be CONFLICT/BAD_REQUEST).
+		// Deletion must be REJECTED (any non-2xx). The API now maps the FK-restrict
+		// violation to a typed 409 CONFLICT (see hierarchy/delete.procedures.ts);
+		// we still assert >=400 so the spec stays robust to the exact status code.
 		expect(
 			r.status() >= 400,
 			`deleteNode on a parent with children -> ${r.status()} (expected rejection)`,

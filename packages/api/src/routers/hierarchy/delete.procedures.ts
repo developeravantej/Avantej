@@ -282,6 +282,20 @@ export const hierarchyDeleteProcedures = {
 							message: error.message,
 						});
 					}
+					// A Postgres FK-restrict violation surfaces when the node (or one of
+					// its cascaded descendants) is still referenced by a row in another
+					// table — most commonly a member scoped to a descendant node, which
+					// the cascade does not reassign. This is a data-state conflict, not a
+					// server fault, so map it to CONFLICT rather than a raw 500.
+					if (
+						error.message.includes("foreign key constraint") ||
+						error.message.includes("still referenced")
+					) {
+						throw new ORPCError("CONFLICT", {
+							message:
+								"Cannot delete this node because it (or one of its child nodes) still has members or other records assigned. Reassign or remove them first.",
+						});
+					}
 				}
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message:

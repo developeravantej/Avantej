@@ -91,4 +91,82 @@ test.describe("§5 session booking — 24h reschedule lock", () => {
 		).toBeTruthy();
 		await staff.dispose();
 	});
+
+	test("admin can cancel inside the 24h lock; a non-admin cannot", async ({
+		page,
+		playwright,
+	}) => {
+		test.skip(
+			!existsSync(STAFF_STATE),
+			"no staff session — run `bun e2e:seed`",
+		);
+		const organizationId = getOrgId();
+
+		const apptRes = await rpc(page.request, "appointments/list", {
+			organizationId,
+		});
+		const appts = Array.isArray(apptRes)
+			? apptRes
+			: (apptRes?.items ?? apptRes?.appointments ?? []);
+		const branchId = appts.find((a: any) => a.branchId)?.branchId;
+		test.skip(!branchId, "no accessible branch");
+
+		// Book inside the 24h lock (booking itself is not locked).
+		const appt = await rpc(page.request, "appointments/create", {
+			organizationId,
+			type: "private",
+			startTime: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
+			duration: 60,
+			branchId,
+			status: "confirmed",
+			sessionTotal: 0,
+			pricePerClient: 0,
+			bookingNumber: testId("cancel-lock"),
+		});
+		const apptId = appt?.id;
+		expect(apptId, `book: ${JSON.stringify(appt)}`).toBeTruthy();
+		cleanup.add(`appt ${apptId}`, async () => {
+			await rpcRaw(page.request, "appointments/update", {
+				organizationId,
+				id: apptId,
+				status: "cancelled",
+			});
+		});
+
+		// NON-ADMIN (staff) cancel inside the lock → rejected, appt stays un-cancelled.
+		const staff: APIRequestContext = await playwright.request.newContext({
+			baseURL: BASE,
+			storageState: STAFF_STATE,
+		});
+		const staffCancel = await rpcRaw(staff, "appointments/update", {
+			organizationId,
+			id: apptId,
+			status: "cancelled",
+		});
+		expect(
+			staffCancel.status() >= 400,
+			`staff cancel inside lock -> ${staffCancel.status()} (expected rejection)`,
+		).toBeTruthy();
+		await staff.dispose();
+
+		const afterStaff = await rpc(page.request, "appointments/getById", {
+			organizationId,
+			id: apptId,
+		});
+		expect(
+			afterStaff?.status,
+			"appt must remain un-cancelled after a blocked staff cancel",
+		).not.toBe("cancelled");
+
+		// ADMIN override — cancel inside the lock succeeds (also serves as cleanup).
+		const adminCancel = await rpcRaw(page.request, "appointments/update", {
+			organizationId,
+			id: apptId,
+			status: "cancelled",
+		});
+		expect(
+			adminCancel.ok(),
+			`admin cancel inside lock -> ${adminCancel.status()} (override expected)`,
+		).toBeTruthy();
+	});
 });
