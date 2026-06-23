@@ -8,7 +8,7 @@ import {
 } from "@/components/tables/payment/view/columns";
 import DataTable from "@/components/tables/payment/view/data-table";
 import { useUserContext } from "@/hooks/useUserContext";
-import { client, orpc } from "@/utils/orpc";
+import { orpc } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { useMemo } from "react";
 
@@ -39,6 +39,8 @@ function RouteComponent() {
 	});
 
 	const paymentsData: PaymentRow[] = invoicesApiData.map((item) => ({
+		id: item.id,
+		organization_id: organizationId,
 		date: item.date ? new Date(item.date).toISOString() : null,
 		invoice: item.invoiceNumber,
 		sales_order: item.salesOrderId ?? null,

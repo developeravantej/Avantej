@@ -1,13 +1,19 @@
 import { DataTableColumnHeader } from "@/components/tables/data-column-header";
 import { Badge } from "@/components/ui/badge";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Copy } from "lucide-react";
+import { Copy, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatPrice } from "@/lib/money";
+import { client } from "@/utils/orpc";
+import { downloadInvoiceDoc } from "@/components/pages/payment/export-invoice-pdf";
 
 export interface PaymentRow {
+	/** Invoice id — needed to fetch line items for the PDF download. */
+	id?: string | null;
+	/** Current org id — needed for the scoped getDetail call. */
+	organization_id?: string | null;
 	date?: string | null;
 	invoice?: string | null;
 	sales_order?: string | null;
@@ -18,6 +24,52 @@ export interface PaymentRow {
 	created_by?: string | null;
 	e_invoice_status?: string | null;
 }
+
+/**
+ * Per-row "Download PDF" action. Fetches the invoice + its line items via
+ * invoices.getDetail, then builds the PDF client-side (jsPDF) and saves it.
+ */
+const DownloadInvoiceButton: React.FC<{ row: PaymentRow }> = ({ row }) => {
+	const [busy, setBusy] = React.useState(false);
+
+	const onDownload = async () => {
+		if (!row.id || !row.organization_id) {
+			toast.error("Invoice is missing its id — cannot generate a PDF.");
+			return;
+		}
+		setBusy(true);
+		try {
+			const detail = await client.invoices.getDetail({
+				organizationId: row.organization_id,
+				id: row.id,
+			});
+			await downloadInvoiceDoc(detail);
+		} catch (err) {
+			toast.error(
+				err instanceof Error ? err.message : "Failed to generate invoice PDF",
+			);
+		} finally {
+			setBusy(false);
+		}
+	};
+
+	return (
+		<button
+			type="button"
+			onClick={onDownload}
+			disabled={busy || !row.id}
+			title="Download invoice PDF"
+			className="inline-flex items-center gap-1.5 rounded-[8px] border border-[#e5e5e5] bg-white px-2.5 py-1.5 text-xs font-medium text-[#0a0a0a] transition hover:bg-[#f5f5f5] disabled:cursor-not-allowed disabled:opacity-50"
+		>
+			{busy ? (
+				<Loader2 className="h-3.5 w-3.5 animate-spin" />
+			) : (
+				<Download className="h-3.5 w-3.5" />
+			)}
+			PDF
+		</button>
+	);
+};
 
 // Helper component for copyable cells
 interface CopyableCellProps {
@@ -66,7 +118,6 @@ const formatDate = (dateString: string | null | undefined): string => {
 	}
 };
 
-
 // Helper function to format E-Invoice Status
 const formatEInvoiceStatus = (
 	status: string | null | undefined,
@@ -81,11 +132,12 @@ const formatEInvoiceStatus = (
 		cancelled: { label: "Cancelled", variant: "outline" as const },
 	};
 
-	const config =
-		statusConfig[status.toLowerCase() as keyof typeof statusConfig] || {
-			label: status,
-			variant: "outline" as const,
-		};
+	const config = statusConfig[
+		status.toLowerCase() as keyof typeof statusConfig
+	] || {
+		label: status,
+		variant: "outline" as const,
+	};
 
 	return (
 		<Badge variant={config.variant} className="text-xs">
@@ -168,10 +220,14 @@ export function buildColumns(): ColumnDef<PaymentRow>[] {
 					bank_transfer: "bg-orange-100 text-orange-700 border-orange-200",
 				};
 				return mode ? (
-					<Badge className={`capitalize border text-xs ${modeStyles[mode] ?? "bg-muted text-muted-foreground border-border"}`}>
+					<Badge
+						className={`capitalize border text-xs ${modeStyles[mode] ?? "bg-muted text-muted-foreground border-border"}`}
+					>
 						{mode.replace("_", " ")}
 					</Badge>
-				) : "N/A";
+				) : (
+					"N/A"
+				);
 			},
 			enableSorting: true,
 			enableHiding: false,
@@ -194,7 +250,8 @@ export function buildColumns(): ColumnDef<PaymentRow>[] {
 			),
 			cell: ({ getValue }) => {
 				const createdBy = getValue<string>();
-				if (!createdBy) return <span className="text-sm text-[#737373]">—</span>;
+				if (!createdBy)
+					return <span className="text-sm text-[#737373]">—</span>;
 				const initial = createdBy.charAt(0).toUpperCase();
 				return (
 					<div className="flex items-center gap-2">
@@ -208,6 +265,14 @@ export function buildColumns(): ColumnDef<PaymentRow>[] {
 			},
 			enableSorting: true,
 			enableHiding: true,
+		},
+		// 8. Actions — download invoice PDF
+		{
+			id: "actions",
+			header: () => <span className="sr-only">Actions</span>,
+			cell: ({ row }) => <DownloadInvoiceButton row={row.original} />,
+			enableSorting: false,
+			enableHiding: false,
 		},
 	];
 }

@@ -6,6 +6,7 @@ import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
 import {
 	listInvoices,
 	getInvoiceById,
+	getInvoiceWithItems,
 	createInvoice,
 	updateInvoice,
 	getPaymentStatusHistory,
@@ -108,6 +109,37 @@ export const invoicesRouter = {
 				});
 			}
 			return invoice;
+		}),
+
+	/**
+	 * Fetch an invoice with its line-item breakdown for PDF rendering. The web
+	 * client builds the actual PDF (jsPDF, mirroring reports/export-pdf.ts) from
+	 * this payload — the server stays presentation-free. Same read permission +
+	 * hierarchy scope as getById/list.
+	 */
+	getDetail: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				id: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"payments",
+				"read",
+			);
+
+			const detail = await getInvoiceWithItems(context.tenantDb, input.id);
+			if (!detail) {
+				throw new ORPCError("NOT_FOUND", {
+					message: `Invoice not found: ${input.id}`,
+				});
+			}
+			return detail;
 		}),
 
 	create: tenantProcedure
