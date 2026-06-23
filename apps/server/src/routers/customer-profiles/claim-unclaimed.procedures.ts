@@ -9,6 +9,7 @@ import { ORPCError } from "@orpc/server";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getBetterAuth } from "@/lib/better-auth";
+import { fireCustomerSync } from "@/services/ghl/customer-sync-trigger";
 import { getEnvVar } from "./_shared";
 
 const UNCLAIMED_EMAIL_DOMAIN = "avantej.placeholder";
@@ -208,6 +209,34 @@ export const claimUnclaimedProcedures = {
 
 			const newMember = await context.tenantDb.query.members.findFirst({
 				where: eq(members.userId, userId),
+			});
+
+			// Best-effort outbound GHL contact sync. fireCustomerSync never throws
+			// (GHL failures are swallowed + recorded on ghl_contact_links), so a GHL
+			// hiccup can't fail the Quick Add write that already committed above.
+			await fireCustomerSync({
+				honoContext: context.honoContext,
+				tenantDb: context.tenantDb,
+				organizationId: input.organizationId,
+				userId,
+				customerProfile: {
+					id: profile.id,
+					userId,
+					phone: input.phone ?? null,
+					dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
+					gender: null,
+					address: null,
+					emergencyContactName: null,
+					emergencyContactPhone: null,
+					medicalNotes: null,
+					fitnessGoals: null,
+					creditPoints: 0,
+					notes: input.notes ?? null,
+					isDeleted: false,
+					deletedAt: null,
+					deletedSource: null,
+				},
+				operation: "create",
 			});
 
 			return {
