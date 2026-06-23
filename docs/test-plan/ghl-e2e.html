@@ -52,12 +52,12 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 </style></head><body>
 <header class="top">
 	<h1>E2E review</h1>
-	<div class="sub">12 tests · 12/12 pass · 12 recorded · 12 with journey</div>
+	<div class="sub">14 tests · 14/14 pass · 14 recorded · 14 with journey</div>
 	<div class="stats">
-		<div class="stat"><b>12</b><span>Tests</span></div>
-		<div class="stat" style="border-color:#bbf7d0"><b style="color:var(--ok)">12</b><span>Pass</span></div>
+		<div class="stat"><b>14</b><span>Tests</span></div>
+		<div class="stat" style="border-color:#bbf7d0"><b style="color:var(--ok)">14</b><span>Pass</span></div>
 		<div class="stat" style="border-color:#fecaca"><b style="color:var(--bad)">0</b><span>Fail</span></div>
-		<div class="stat"><b>12</b><span>Videos</span></div>
+		<div class="stat"><b>14</b><span>Videos</span></div>
 		<div class="stat" style="border-color:#bbf7d0"><b id="rev-count" style="color:var(--ok)">0</b><span>Reviewed</span></div>
 	</div>
 	<div class="controls">
@@ -71,7 +71,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 	</div>
 </header>
 <main>
-<section class="cat"><h2>ghl <span style="font-weight:400">(12)</span></h2>
+<section class="cat"><h2>ghl <span style="font-weight:400">(14)</span></h2>
 	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/branch-retry-failed.journey.json::GHL → Branch: bulk retry of failed syncs recovers errored contacts">
 		<header>
 			<span class="badge pass">PASS</span>
@@ -88,10 +88,26 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/ghl--branch-retry-failed.webm"></video><div class="vpath">../../e2e-web/videos/ghl--branch-retry-failed.webm · 0.0 MB</div></div>
 		</div>
 	</article>
-	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/inbound-bad-signature-rejected.journey.json::GHL → Inbound: bad signature rejected (401, no record)">
+	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/connect-disconnect-org-shared.journey.json::GHL → Setup: connect/disconnect org-shared preserves country map">
 		<header>
 			<span class="badge pass">PASS</span>
 			<span class="tnum">#2</span>
+			<h3>GHL → Setup: connect/disconnect org-shared preserves country map</h3>
+			<span class="dur">7.0s</span>
+			<label class="review" title="Mark this test as reviewed (saved in your browser)">
+				<input type="checkbox" class="review-chk" data-id="ghl/connect-disconnect-org-shared.journey.json::GHL → Setup: connect/disconnect org-shared preserves country map"><span>Reviewed</span>
+			</label>
+		</header>
+		<div class="meta"><code>ghl/connect-disconnect-org-shared.journey.json</code></div>
+		<div class="cols">
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>getOrgShared → connected, countryFieldCount = 4</li><li>disconnectOrgShared → disconnected; connectOrgShared(loc, key) → reconnected</li><li>countryFieldCount stays 4 across disconnect→reconnect — map preserved</li><li>Regression for the fixed bug (connect reset {} / disconnect null wiped the map)</li><li>Live org restored to connected state</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/ghl--connect-disconnect-org-shared.webm"></video><div class="vpath">../../e2e-web/videos/ghl--connect-disconnect-org-shared.webm · 0.0 MB</div></div>
+		</div>
+	</article>
+	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/inbound-bad-signature-rejected.journey.json::GHL → Inbound: bad signature rejected (401, no record)">
+		<header>
+			<span class="badge pass">PASS</span>
+			<span class="tnum">#3</span>
 			<h3>GHL → Inbound: bad signature rejected (401, no record)</h3>
 			<span class="dur">3.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
@@ -107,7 +123,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/inbound-dedup-idempotency.journey.json::GHL → Inbound: duplicate event is deduped (idempotency)">
 		<header>
 			<span class="badge pass">PASS</span>
-			<span class="tnum">#3</span>
+			<span class="tnum">#4</span>
 			<h3>GHL → Inbound: duplicate event is deduped (idempotency)</h3>
 			<span class="dur">5.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
@@ -123,7 +139,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/inbound-webhook-creates-client.journey.json::GHL → Inbound webhook creates a client (shows as processed in Sync Events)">
 		<header>
 			<span class="badge pass">PASS</span>
-			<span class="tnum">#4</span>
+			<span class="tnum">#5</span>
 			<h3>GHL → Inbound webhook creates a client (shows as processed in Sync Events)</h3>
 			<span class="dur">6.1s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
@@ -139,7 +155,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/integration-connected.journey.json::GHL → Integration page shows org-shared connection (connected)">
 		<header>
 			<span class="badge pass">PASS</span>
-			<span class="tnum">#5</span>
+			<span class="tnum">#6</span>
 			<h3>GHL → Integration page shows org-shared connection (connected)</h3>
 			<span class="dur">4.2s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
@@ -155,7 +171,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/outbound-customer-create.journey.json::GHL → Outbound: create customer pushes a real GHL contact">
 		<header>
 			<span class="badge pass">PASS</span>
-			<span class="tnum">#6</span>
+			<span class="tnum">#7</span>
 			<h3>GHL → Outbound: create customer pushes a real GHL contact</h3>
 			<span class="dur">9.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
@@ -171,7 +187,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/outbound-customer-delete.journey.json::GHL → Outbound: delete customer removes the real GHL contact">
 		<header>
 			<span class="badge pass">PASS</span>
-			<span class="tnum">#7</span>
+			<span class="tnum">#8</span>
 			<h3>GHL → Outbound: delete customer removes the real GHL contact</h3>
 			<span class="dur">8.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
@@ -187,7 +203,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/outbound-customer-edit.journey.json::GHL → Outbound: edit customer updates the real GHL contact">
 		<header>
 			<span class="badge pass">PASS</span>
-			<span class="tnum">#8</span>
+			<span class="tnum">#9</span>
 			<h3>GHL → Outbound: edit customer updates the real GHL contact</h3>
 			<span class="dur">7.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
@@ -203,7 +219,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/outbound-customer-retry.journey.json::GHL → Outbound: customer sync retry recovers a failed contact">
 		<header>
 			<span class="badge pass">PASS</span>
-			<span class="tnum">#9</span>
+			<span class="tnum">#10</span>
 			<h3>GHL → Outbound: customer sync retry recovers a failed contact</h3>
 			<span class="dur">6.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
@@ -219,7 +235,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/outbound-staff-create.journey.json::GHL → Outbound: new staff (invite→accept) creates a real GHL user">
 		<header>
 			<span class="badge pass">PASS</span>
-			<span class="tnum">#10</span>
+			<span class="tnum">#11</span>
 			<h3>GHL → Outbound: new staff (invite→accept) creates a real GHL user</h3>
 			<span class="dur">11.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
@@ -232,10 +248,26 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/ghl--outbound-staff-create.webm"></video><div class="vpath">../../e2e-web/videos/ghl--outbound-staff-create.webm · 0.2 MB</div></div>
 		</div>
 	</article>
+	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/outbound-staff-profile-sync.journey.json::GHL → Outbound: staff profile edit syncs to GHL user">
+		<header>
+			<span class="badge pass">PASS</span>
+			<span class="tnum">#12</span>
+			<h3>GHL → Outbound: staff profile edit syncs to GHL user</h3>
+			<span class="dur">9.0s</span>
+			<label class="review" title="Mark this test as reviewed (saved in your browser)">
+				<input type="checkbox" class="review-chk" data-id="ghl/outbound-staff-profile-sync.journey.json::GHL → Outbound: staff profile edit syncs to GHL user"><span>Reviewed</span>
+			</label>
+		</header>
+		<div class="meta"><code>ghl/outbound-staff-profile-sync.journey.json</code></div>
+		<div class="cols">
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Create mock staff via invite→accept (GHL user 'ZZ ProfileTest')</li><li>Sign in AS the staff, self-edit firstName/lastName (better-auth update-user)</li><li>databaseHooks.user.update.after → dispatchProfileSync → PUT /users/:id</li><li>GET /users/:id name 'ZZ ProfileTest' → 'ZZRenamed ProfileSynced' (verified live)</li><li>Root cause of earlier 'partial': GHL user name derives from firstName/lastName, not `name`; correct trigger = staff self-edit</li><li>Teardown: GHL user deleted + Avantej rows removed</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/ghl--outbound-staff-profile-sync.webm"></video><div class="vpath">../../e2e-web/videos/ghl--outbound-staff-profile-sync.webm · 0.0 MB</div></div>
+		</div>
+	</article>
 	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/outbound-staff-updates.journey.json::GHL → Outbound: staff updates (role / branch / deactivate) sync to GHL user">
 		<header>
 			<span class="badge pass">PASS</span>
-			<span class="tnum">#11</span>
+			<span class="tnum">#13</span>
 			<h3>GHL → Outbound: staff updates (role / branch / deactivate) sync to GHL user</h3>
 			<span class="dur">9.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
@@ -251,7 +283,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/staging-web-customer-create.journey.json::GHL → STAGING web: create customer → real GHL contact (live screencast)">
 		<header>
 			<span class="badge pass">PASS</span>
-			<span class="tnum">#12</span>
+			<span class="tnum">#14</span>
 			<h3>GHL → STAGING web: create customer → real GHL contact (live screencast)</h3>
 			<span class="dur">12.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">

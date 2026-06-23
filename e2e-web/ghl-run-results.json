@@ -165,6 +165,35 @@
 				"Verify: errored link flips back to active (re-pushed to GHL)",
 				"Teardown: test customer + GHL contact removed; throwaway link deactivated"
 			]
+		},
+		{
+			"relpath": "ghl/outbound-staff-profile-sync.journey.json",
+			"title": "GHL → Outbound: staff profile edit syncs to GHL user",
+			"status": "pass",
+			"durMs": 9000,
+			"video": "videos/ghl--outbound-staff-profile-sync.webm",
+			"steps": [
+				"Create mock staff via invite→accept (GHL user 'ZZ ProfileTest')",
+				"Sign in AS the staff, self-edit firstName/lastName (better-auth update-user)",
+				"databaseHooks.user.update.after → dispatchProfileSync → PUT /users/:id",
+				"GET /users/:id name 'ZZ ProfileTest' → 'ZZRenamed ProfileSynced' (verified live)",
+				"Root cause of earlier 'partial': GHL user name derives from firstName/lastName, not `name`; correct trigger = staff self-edit",
+				"Teardown: GHL user deleted + Avantej rows removed"
+			]
+		},
+		{
+			"relpath": "ghl/connect-disconnect-org-shared.journey.json",
+			"title": "GHL → Setup: connect/disconnect org-shared preserves country map",
+			"status": "pass",
+			"durMs": 7000,
+			"video": "videos/ghl--connect-disconnect-org-shared.webm",
+			"steps": [
+				"getOrgShared → connected, countryFieldCount = 4",
+				"disconnectOrgShared → disconnected; connectOrgShared(loc, key) → reconnected",
+				"countryFieldCount stays 4 across disconnect→reconnect — map preserved",
+				"Regression for the fixed bug (connect reset {} / disconnect null wiped the map)",
+				"Live org restored to connected state"
+			]
 		}
 	]
 }
