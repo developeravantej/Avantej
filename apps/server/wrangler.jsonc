@@ -5,11 +5,17 @@
 	"compatibility_date": "2025-06-15",
 	"workers_dev": true,
 	"compatibility_flags": ["nodejs_compat"],
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1
+	},
 	"vars": {
 		"NODE_ENV": "production",
 		"INSTALLMENTS_LOCK_ON_OPEN": "true",
-		"CORS_ORIGIN": "https://avantej-core.developer-avantej.workers.dev",
-		"BETTER_AUTH_URL": "https://avantej-core-server.developer-avantej.workers.dev"
+		"CORS_ORIGIN": "https://avantej-core-web.ngchwanlii-a9c.workers.dev",
+		"BETTER_AUTH_URL": "https://avantej-core-server.ngchwanlii-a9c.workers.dev",
+		"WEB_APP_URL": "https://avantej-core-web.ngchwanlii-a9c.workers.dev",
+		"FRONTEND_URL": "https://avantej-core-web.ngchwanlii-a9c.workers.dev"
 		// Add public environment variables here
 		// Comma-separate CORS_ORIGIN if multiple frontends need access.
 	},
