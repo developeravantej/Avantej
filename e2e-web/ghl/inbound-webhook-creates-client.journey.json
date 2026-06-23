@@ -1,0 +1,13 @@
+{
+	"title": "GHL → Inbound webhook creates a client (shows as processed in Sync Events)",
+	"module": "ghl",
+	"prodMutationClass": "create+delete (self-clean, no real GHL account touched)",
+	"journey": [
+		"Setup (off-camera): a throwaway branch-link 'avantej-e2e-inbound-loc' is bound to the org, then a signed phone-only ContactCreate webhook for a unique contact 'e2e-ghl-<ts>' is POSTed to /webhooks/gohighlevel/avantej-e2e-inbound-loc — the server resolves the tenant, verifies the signature, and runs processGhlWebhook",
+		"Open the web app at http://avantej.localhost:3021 signed in as franchisee@gmail.com",
+		"Navigate to GHL Integration (/go-highlevel-integration) and scroll to the 'Sync Events' card",
+		"Confirm the newest event row shows a 'processed' status badge for the inbound contact-create",
+		"Expand the event row and confirm the raw payload contains the test contact id 'e2e-ghl-<ts>' and firstName 'E2E'",
+		"Teardown (off-camera): the created sync event, member, customer profile, contact-link, placeholder user, and throwaway link are deleted"
+	]
+}

@@ -1,0 +1,12 @@
+{
+	"title": "GHL → Outbound: create customer pushes a real GHL contact",
+	"module": "ghl",
+	"prodMutationClass": "create+delete · LIVE real GHL write (cleaned up)",
+	"journey": [
+		"Sign in as franchisee@gmail.com; Dashboard → Create Customer",
+		"Enter ZZ TestCust-GHL, phone +60120009901, branch Bukit Jalil; Create Profile",
+		"Customer is created and appears in the directory (active, unclaimed)",
+		"Verify on the GHL side via API read-back: GET /contacts/<id> returns the contact firstName 'ZZ', lastName 'TestCust-GHL', tag 'customer:active', locationId G0izzPbelobw04MIntR1",
+		"Teardown (off-camera): real GHL contact deleted + Avantej test customer removed"
+	]
+}
