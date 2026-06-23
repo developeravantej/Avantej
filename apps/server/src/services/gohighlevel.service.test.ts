@@ -581,6 +581,20 @@ describe("extractCustomFieldsForProfile", () => {
 		expect(fields.leadOriginator).toBe("Friend");
 	});
 
+	test("resolves selectedCountry from designated_country (renamed GHL field)", () => {
+		// GHL custom field key was renamed sys_selected_country -> designated_country.
+		// The workflow webhook body still uses the JSON key `selected_country`, but
+		// the raw-field-key fallback must match the current GHL field.
+		expect(
+			extractCustomFieldsForProfile({ contact: { selected_country: "Malaysia" } })
+				.selectedCountry,
+		).toBe("Malaysia");
+		expect(
+			extractCustomFieldsForProfile({ contact: { designated_country: "Singapore" } })
+				.selectedCountry,
+		).toBe("Singapore");
+	});
+
 	test("invalid age string yields null", () => {
 		const fields = extractCustomFieldsForProfile({ age: "abc" });
 		expect(fields.age).toBeNull();
