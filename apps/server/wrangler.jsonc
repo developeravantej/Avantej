@@ -5,6 +5,14 @@
 	"compatibility_date": "2025-06-15",
 	"workers_dev": true,
 	"compatibility_flags": ["nodejs_compat"],
+	// R2 bucket for offline payment-proof uploads (UAT §7). Bucket created on the
+	// ZHIYUAN account 2026-06-23. Accessed in handlers via c.env.PROOFS_BUCKET.
+	"r2_buckets": [
+		{
+			"binding": "PROOFS_BUCKET",
+			"bucket_name": "avantej-payment-proofs"
+		}
+	],
 	"vars": {
 		"NODE_ENV": "production",
 		"INSTALLMENTS_LOCK_ON_OPEN": "true",

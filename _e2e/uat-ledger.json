@@ -19,8 +19,8 @@
         { "item": "Approval queue → admin approve activates package / reject keeps inactive", "testability": "covered", "via": "packages/approval-flow.lifecycle" },
         { "item": "Registration form loads (country/branch options)", "testability": "covered", "via": "onboarding/registration-form.rule" },
         { "item": "Registration required-field validation", "testability": "deferred", "why": "full UI form submit flow (infra)" },
-        { "item": "PDF agreement generated + signed + stored", "testability": "deferred", "why": "PDF signing flow (infra)" },
-        { "item": "Payment proof upload attaches to registration", "testability": "deferred", "why": "file upload (infra)" }
+        { "item": "PDF agreement generated + signed + stored", "testability": "covered", "via": "packageInstances.getAgreement/signAgreement (e_signature+terms_agreed_at, immutable once signed) + web PackageAgreementSection (sign + jsPDF download) on the package drawer + unit tests (agreement.service.test, export-agreement-pdf.test)" },
+        { "item": "Payment proof upload attaches to registration", "testability": "partial", "via": "upload infra now exists (R2 + packageInstances.uploadPaymentProof, see §7); proofs attach to the package instance — wiring an upload into the registration form itself is the remaining UI step" }
       ]
     },
     {
@@ -30,7 +30,7 @@
         { "item": "Client login + self-scope (sees own data only, blocked from others)", "testability": "covered", "via": "customers/client-portal.rbac" },
         { "item": "View own profile / packages / session balance / payments", "testability": "covered", "via": "customers/client-portal.rbac + customers/*" },
         { "item": "Password reset request", "testability": "covered", "via": "customers/password-reset.rule (better-auth request-password-reset)" },
-        { "item": "Invoice PDF download", "testability": "deferred", "why": "PDF generation (infra)" }
+        { "item": "Invoice PDF download", "testability": "covered", "via": "invoices.getDetail proc + web export-invoice-pdf (jsPDF, client-side) + unit test export-invoice-pdf.test.ts" }
       ]
     },
     {
@@ -58,7 +58,7 @@
       "items": [
         { "item": "Invoice generation + download", "testability": "covered", "via": "payment/invoices.lifecycle" },
         { "item": "Tax applied at correct rate on invoice", "testability": "covered", "via": "tax-rates specs" },
-        { "item": "Offline payment proof upload + admin verify + activation", "testability": "deferred", "why": "file upload (infra); activation covered via packages/approval-flow" },
+        { "item": "Offline payment proof upload + admin verify + activation", "testability": "covered", "via": "R2 (bucket avantej-payment-proofs + PROOFS_BUCKET binding) + payment_proofs table (mig 0095) + packageInstances.uploadPaymentProof/listPaymentProofs/downloadPaymentProof + web PaymentProofSection on package drawer + unit tests (payment-proof.service.test). activate via existing confirmPayment. NOTE: live R2 round-trip verified on deploy/wrangler --remote; mig 0095 needs tenant rollout" },
         { "item": "Online card payments (Stripe)", "testability": "deferred", "why": "Post-MVP, out of scope" }
       ]
     },

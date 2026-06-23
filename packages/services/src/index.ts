@@ -305,6 +305,10 @@ export {
 } from "./invitation.service";
 // Invoice services
 export * from "./invoice.service";
+// Package agreement + e-signature (UAT §2)
+export * from "./agreement.service";
+// Offline payment-proof metadata (UAT §7)
+export * from "./payment-proof.service";
 // Memberships service - expiring memberships widget and related queries
 export * from "./memberships.service";
 // Member services - for member management

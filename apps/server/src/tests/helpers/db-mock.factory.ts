@@ -130,6 +130,7 @@ export function createMockTenantDb() {
 			installments: createQueryTable(),
 			installmentEvents: createQueryTable(),
 			packageInstances: createQueryTable(),
+			paymentProofs: createQueryTable(),
 			members: createQueryTable(),
 			hierarchyNodes: createQueryTable(),
 			salesOrders: createQueryTable(),
