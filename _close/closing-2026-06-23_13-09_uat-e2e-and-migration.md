@@ -72,3 +72,17 @@ bash _e2e/shard-run.sh                     # full suite, merged, review rebuilt
 bunx playwright test --config _e2e/playwright.config.ts web/booking   # §5 reschedule + (new) cancel lock
 bun check-types                            # API change type-safe
 ```
+
+---
+
+## Re-rate 2026-06-23 (after fix pass — commit a2d31bdb)
+
+| Check | Before | After | What changed |
+|---|---|---|---|
+| A. Edge cases | 7 | **9** | §5 cancel-lock now TESTED (admin override vs non-admin rejected, appt stays un-cancelled); §8 deleteNode now typed **409** not raw 500. Booking 4/4 pass. |
+| B. E2E + video | 6 | **6** | Unchanged — a single clean full-suite green run + per-journey video is **environment-blocked** here (dev-server wedge + turbo-restart flakiness). Specs pass in batches; migration journeys carry video; most UAT specs are API-boundary (no video). Honest ceiling for this sandbox. |
+| C. Best approach | 8 | **9** | 24h-lock logic extracted to `appointments/lock.ts` (`assertOutsideBookingLock`), reused by reschedule + cancel — duplication removed, behavior-preserving. |
+
+**Overall: 6 → 6** (= min(9, 6, 9); bounded by B). Gate: **NEEDS WORK** — solely because B (clean full-suite run + video) can't be produced in this environment, not due to any failing test or unhandled case.
+
+Done: plan #1 (cancel-lock test), #3 (deleteNode 409), #4 (shared helper). Remaining: #2 (full-suite run + video) — run `bash _e2e/shard-run.sh` on a stable env; #5 (dev-tenant teardown) — optional, accepted.
