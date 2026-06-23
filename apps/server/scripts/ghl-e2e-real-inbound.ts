@@ -46,6 +46,18 @@ async function main() {
 		const j = await res.json().catch(() => ({}));
 		console.log(`CONTACT_ID=${contactId}`);
 		console.log(`HTTP=${res.status} body=${JSON.stringify(j).slice(0, 200)}`);
+	} else if (cmd === "update") {
+		const link = await cp.query.ghlBranchLinks.findFirst({ where: eq(ghlBranchLinks.ghlLocationId, LOCATION) });
+		if (!link?.webhookSecret) throw new Error("no webhook_secret");
+		const contactId = process.argv[3];
+		const body = JSON.stringify({ type: "ContactUpdate", locationId: LOCATION, contact: { id: contactId, firstName: "ZZUpdated", lastName: "RealInbound", phone: "+60120009904" } });
+		const res = await fetch(`${STAGING}/webhooks/gohighlevel/${LOCATION}`, {
+			method: "POST",
+			headers: { "content-type": "application/json", "x-wh-signature": sign(link.webhookSecret, body) },
+			body,
+		});
+		const j = await res.json().catch(() => ({}));
+		console.log(`UPDATE HTTP=${res.status} status=${(j as Record<string, unknown>).status}`);
 	} else if (cmd === "cleanup") {
 		const contactId = process.argv[3];
 		const links = await tdb.select({ userId: ghlContactLinks.userId, cpId: ghlContactLinks.customerProfileId }).from(ghlContactLinks).where(eq(ghlContactLinks.ghlContactId, contactId));

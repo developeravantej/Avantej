@@ -97,6 +97,74 @@
 				"Verify on the GHL side via API read-back: GET /contacts/Fq87vqBR3pFsq6yewz31 returned firstName 'ZZ', lastName 'StgWeb-GHL', tag 'customer:active' — a REAL contact in the live GHL account, end-to-end through STAGING",
 				"Teardown (off-camera): real GHL contact deleted + Avantej test customer removed"
 			]
+		},
+		{
+			"relpath": "ghl/inbound-bad-signature-rejected.journey.json",
+			"title": "GHL → Inbound: bad signature rejected (401, no record)",
+			"status": "pass",
+			"durMs": 3000,
+			"video": "videos/ghl--inbound-bad-signature-rejected.webm",
+			"steps": [
+				"Off-camera: POST to the staging real-location webhook with an invalid x-wh-signature",
+				"Server returns HTTP 401 'Invalid webhook signature' (code invalid_signature) — verified",
+				"Staging GHL Integration → Sync Events shows a 'failed' row, reason 'Invalid webhook signature', contact 'unknown' — no client created",
+				"Proves the verifyGhlWebhookAuth gate rejects unsigned/forged webhooks"
+			]
+		},
+		{
+			"relpath": "ghl/inbound-dedup-idempotency.journey.json",
+			"title": "GHL → Inbound: duplicate event is deduped (idempotency)",
+			"status": "pass",
+			"durMs": 5000,
+			"video": "videos/ghl--inbound-dedup-idempotency.webm",
+			"steps": [
+				"Off-camera: signed ContactCreate for a unique contact → processed (client created)",
+				"Off-camera: a second signed webhook for the same contact + event type",
+				"Staging GHL Integration → Sync Events shows the first 'processed' and the duplicate 'skipped' (Duplicate event skipped) — deduped by (location, contact, eventType)",
+				"Proves inbound idempotency: a re-delivered webhook does not double-create the client",
+				"Teardown (off-camera): sync events + client removed"
+			]
+		},
+		{
+			"relpath": "ghl/outbound-staff-updates.journey.json",
+			"title": "GHL → Outbound: staff updates (role / branch / deactivate) sync to GHL user",
+			"status": "pass",
+			"durMs": 9000,
+			"video": "videos/ghl--outbound-staff-updates.webm",
+			"steps": [
+				"Seed mock CP user → members.create (staff) → real GHL user (ghlUserId 5K3u…, synced)",
+				"C2 updateRole(trainer) → dispatchStaffSync(update) → ghlSync synced (PUT /users/:id)",
+				"C4 updateScope(new branch) → dispatchStaffSync(update) → ghlSync synced",
+				"C3 deactivate → ghlSync SKIPPED (reason 'deactivate-skip') — FINDING: deactivation does not touch the GHL user by design",
+				"C5 profile-name edit → same dispatchProfileSync→PUT path (not triggerable standalone w/ a non-platform-admin session; proven by C2/C4)",
+				"Teardown: GHL user deleted (404) + all Avantej rows removed"
+			]
+		},
+		{
+			"relpath": "ghl/outbound-customer-retry.journey.json",
+			"title": "GHL → Outbound: customer sync retry recovers a failed contact",
+			"status": "pass",
+			"durMs": 6000,
+			"video": "videos/ghl--outbound-customer-retry.webm",
+			"steps": [
+				"Create throwaway customer (real GHL contact + active link), seed contact-link sync_status = 'error'",
+				"customerProfiles.retryGhlSync(org, customerProfileId) → ghlSync 'synced'",
+				"Verify: link sync_status error → active; real GHL contact intact",
+				"Teardown: customer + GHL contact removed"
+			]
+		},
+		{
+			"relpath": "ghl/branch-retry-failed.journey.json",
+			"title": "GHL → Branch: bulk retry of failed syncs recovers errored contacts",
+			"status": "pass",
+			"durMs": 6000,
+			"video": "videos/ghl--branch-retry-failed.webm",
+			"steps": [
+				"Branch (active GHL link) has a contact-link sync_status = 'error'",
+				"ghl.retryFailedSyncs(org, tenantBranchId) → { attempted: 1, recovered: 1, stillFailing: 0 }",
+				"Verify: errored link flips back to active (re-pushed to GHL)",
+				"Teardown: test customer + GHL contact removed; throwaway link deactivated"
+			]
 		}
 	]
 }

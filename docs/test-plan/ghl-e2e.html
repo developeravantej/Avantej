@@ -52,12 +52,12 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 </style></head><body>
 <header class="top">
 	<h1>E2E review</h1>
-	<div class="sub">7 tests · 7/7 pass · 7 recorded · 7 with journey</div>
+	<div class="sub">12 tests · 12/12 pass · 12 recorded · 12 with journey</div>
 	<div class="stats">
-		<div class="stat"><b>7</b><span>Tests</span></div>
-		<div class="stat" style="border-color:#bbf7d0"><b style="color:var(--ok)">7</b><span>Pass</span></div>
+		<div class="stat"><b>12</b><span>Tests</span></div>
+		<div class="stat" style="border-color:#bbf7d0"><b style="color:var(--ok)">12</b><span>Pass</span></div>
 		<div class="stat" style="border-color:#fecaca"><b style="color:var(--bad)">0</b><span>Fail</span></div>
-		<div class="stat"><b>7</b><span>Videos</span></div>
+		<div class="stat"><b>12</b><span>Videos</span></div>
 		<div class="stat" style="border-color:#bbf7d0"><b id="rev-count" style="color:var(--ok)">0</b><span>Reviewed</span></div>
 	</div>
 	<div class="controls">
@@ -71,11 +71,59 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 	</div>
 </header>
 <main>
-<section class="cat"><h2>ghl <span style="font-weight:400">(7)</span></h2>
-	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/inbound-webhook-creates-client.journey.json::GHL → Inbound webhook creates a client (shows as processed in Sync Events)">
+<section class="cat"><h2>ghl <span style="font-weight:400">(12)</span></h2>
+	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/branch-retry-failed.journey.json::GHL → Branch: bulk retry of failed syncs recovers errored contacts">
 		<header>
 			<span class="badge pass">PASS</span>
 			<span class="tnum">#1</span>
+			<h3>GHL → Branch: bulk retry of failed syncs recovers errored contacts</h3>
+			<span class="dur">6.0s</span>
+			<label class="review" title="Mark this test as reviewed (saved in your browser)">
+				<input type="checkbox" class="review-chk" data-id="ghl/branch-retry-failed.journey.json::GHL → Branch: bulk retry of failed syncs recovers errored contacts"><span>Reviewed</span>
+			</label>
+		</header>
+		<div class="meta"><code>ghl/branch-retry-failed.journey.json</code></div>
+		<div class="cols">
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Branch (active GHL link) has a contact-link sync_status = 'error'</li><li>ghl.retryFailedSyncs(org, tenantBranchId) → { attempted: 1, recovered: 1, stillFailing: 0 }</li><li>Verify: errored link flips back to active (re-pushed to GHL)</li><li>Teardown: test customer + GHL contact removed; throwaway link deactivated</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/ghl--branch-retry-failed.webm"></video><div class="vpath">../../e2e-web/videos/ghl--branch-retry-failed.webm · 0.0 MB</div></div>
+		</div>
+	</article>
+	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/inbound-bad-signature-rejected.journey.json::GHL → Inbound: bad signature rejected (401, no record)">
+		<header>
+			<span class="badge pass">PASS</span>
+			<span class="tnum">#2</span>
+			<h3>GHL → Inbound: bad signature rejected (401, no record)</h3>
+			<span class="dur">3.0s</span>
+			<label class="review" title="Mark this test as reviewed (saved in your browser)">
+				<input type="checkbox" class="review-chk" data-id="ghl/inbound-bad-signature-rejected.journey.json::GHL → Inbound: bad signature rejected (401, no record)"><span>Reviewed</span>
+			</label>
+		</header>
+		<div class="meta"><code>ghl/inbound-bad-signature-rejected.journey.json</code></div>
+		<div class="cols">
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Off-camera: POST to the staging real-location webhook with an invalid x-wh-signature</li><li>Server returns HTTP 401 'Invalid webhook signature' (code invalid_signature) — verified</li><li>Staging GHL Integration → Sync Events shows a 'failed' row, reason 'Invalid webhook signature', contact 'unknown' — no client created</li><li>Proves the verifyGhlWebhookAuth gate rejects unsigned/forged webhooks</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/ghl--inbound-bad-signature-rejected.webm"></video><div class="vpath">../../e2e-web/videos/ghl--inbound-bad-signature-rejected.webm · 0.1 MB</div></div>
+		</div>
+	</article>
+	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/inbound-dedup-idempotency.journey.json::GHL → Inbound: duplicate event is deduped (idempotency)">
+		<header>
+			<span class="badge pass">PASS</span>
+			<span class="tnum">#3</span>
+			<h3>GHL → Inbound: duplicate event is deduped (idempotency)</h3>
+			<span class="dur">5.0s</span>
+			<label class="review" title="Mark this test as reviewed (saved in your browser)">
+				<input type="checkbox" class="review-chk" data-id="ghl/inbound-dedup-idempotency.journey.json::GHL → Inbound: duplicate event is deduped (idempotency)"><span>Reviewed</span>
+			</label>
+		</header>
+		<div class="meta"><code>ghl/inbound-dedup-idempotency.journey.json</code></div>
+		<div class="cols">
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Off-camera: signed ContactCreate for a unique contact → processed (client created)</li><li>Off-camera: a second signed webhook for the same contact + event type</li><li>Staging GHL Integration → Sync Events shows the first 'processed' and the duplicate 'skipped' (Duplicate event skipped) — deduped by (location, contact, eventType)</li><li>Proves inbound idempotency: a re-delivered webhook does not double-create the client</li><li>Teardown (off-camera): sync events + client removed</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/ghl--inbound-dedup-idempotency.webm"></video><div class="vpath">../../e2e-web/videos/ghl--inbound-dedup-idempotency.webm · 0.1 MB</div></div>
+		</div>
+	</article>
+	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/inbound-webhook-creates-client.journey.json::GHL → Inbound webhook creates a client (shows as processed in Sync Events)">
+		<header>
+			<span class="badge pass">PASS</span>
+			<span class="tnum">#4</span>
 			<h3>GHL → Inbound webhook creates a client (shows as processed in Sync Events)</h3>
 			<span class="dur">6.1s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
@@ -91,7 +139,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/integration-connected.journey.json::GHL → Integration page shows org-shared connection (connected)">
 		<header>
 			<span class="badge pass">PASS</span>
-			<span class="tnum">#2</span>
+			<span class="tnum">#5</span>
 			<h3>GHL → Integration page shows org-shared connection (connected)</h3>
 			<span class="dur">4.2s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
@@ -107,7 +155,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/outbound-customer-create.journey.json::GHL → Outbound: create customer pushes a real GHL contact">
 		<header>
 			<span class="badge pass">PASS</span>
-			<span class="tnum">#3</span>
+			<span class="tnum">#6</span>
 			<h3>GHL → Outbound: create customer pushes a real GHL contact</h3>
 			<span class="dur">9.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
@@ -123,7 +171,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/outbound-customer-delete.journey.json::GHL → Outbound: delete customer removes the real GHL contact">
 		<header>
 			<span class="badge pass">PASS</span>
-			<span class="tnum">#4</span>
+			<span class="tnum">#7</span>
 			<h3>GHL → Outbound: delete customer removes the real GHL contact</h3>
 			<span class="dur">8.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
@@ -139,7 +187,7 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/outbound-customer-edit.journey.json::GHL → Outbound: edit customer updates the real GHL contact">
 		<header>
 			<span class="badge pass">PASS</span>
-			<span class="tnum">#5</span>
+			<span class="tnum">#8</span>
 			<h3>GHL → Outbound: edit customer updates the real GHL contact</h3>
 			<span class="dur">7.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
@@ -152,10 +200,26 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/ghl--outbound-customer-edit.webm"></video><div class="vpath">../../e2e-web/videos/ghl--outbound-customer-edit.webm · 0.2 MB</div></div>
 		</div>
 	</article>
+	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/outbound-customer-retry.journey.json::GHL → Outbound: customer sync retry recovers a failed contact">
+		<header>
+			<span class="badge pass">PASS</span>
+			<span class="tnum">#9</span>
+			<h3>GHL → Outbound: customer sync retry recovers a failed contact</h3>
+			<span class="dur">6.0s</span>
+			<label class="review" title="Mark this test as reviewed (saved in your browser)">
+				<input type="checkbox" class="review-chk" data-id="ghl/outbound-customer-retry.journey.json::GHL → Outbound: customer sync retry recovers a failed contact"><span>Reviewed</span>
+			</label>
+		</header>
+		<div class="meta"><code>ghl/outbound-customer-retry.journey.json</code></div>
+		<div class="cols">
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Create throwaway customer (real GHL contact + active link), seed contact-link sync_status = 'error'</li><li>customerProfiles.retryGhlSync(org, customerProfileId) → ghlSync 'synced'</li><li>Verify: link sync_status error → active; real GHL contact intact</li><li>Teardown: customer + GHL contact removed</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/ghl--outbound-customer-retry.webm"></video><div class="vpath">../../e2e-web/videos/ghl--outbound-customer-retry.webm · 0.0 MB</div></div>
+		</div>
+	</article>
 	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/outbound-staff-create.journey.json::GHL → Outbound: new staff (invite→accept) creates a real GHL user">
 		<header>
 			<span class="badge pass">PASS</span>
-			<span class="tnum">#6</span>
+			<span class="tnum">#10</span>
 			<h3>GHL → Outbound: new staff (invite→accept) creates a real GHL user</h3>
 			<span class="dur">11.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
@@ -168,10 +232,26 @@ video{width:100%;max-width:440px;border-radius:10px;display:block;background:#0b
 			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/ghl--outbound-staff-create.webm"></video><div class="vpath">../../e2e-web/videos/ghl--outbound-staff-create.webm · 0.2 MB</div></div>
 		</div>
 	</article>
+	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/outbound-staff-updates.journey.json::GHL → Outbound: staff updates (role / branch / deactivate) sync to GHL user">
+		<header>
+			<span class="badge pass">PASS</span>
+			<span class="tnum">#11</span>
+			<h3>GHL → Outbound: staff updates (role / branch / deactivate) sync to GHL user</h3>
+			<span class="dur">9.0s</span>
+			<label class="review" title="Mark this test as reviewed (saved in your browser)">
+				<input type="checkbox" class="review-chk" data-id="ghl/outbound-staff-updates.journey.json::GHL → Outbound: staff updates (role / branch / deactivate) sync to GHL user"><span>Reviewed</span>
+			</label>
+		</header>
+		<div class="meta"><code>ghl/outbound-staff-updates.journey.json</code></div>
+		<div class="cols">
+			<div class="col-journey"><div class="lbl">Journey</div><ol class="journey"><li>Seed mock CP user → members.create (staff) → real GHL user (ghlUserId 5K3u…, synced)</li><li>C2 updateRole(trainer) → dispatchStaffSync(update) → ghlSync synced (PUT /users/:id)</li><li>C4 updateScope(new branch) → dispatchStaffSync(update) → ghlSync synced</li><li>C3 deactivate → ghlSync SKIPPED (reason 'deactivate-skip') — FINDING: deactivation does not touch the GHL user by design</li><li>C5 profile-name edit → same dispatchProfileSync→PUT path (not triggerable standalone w/ a non-platform-admin session; proven by C2/C4)</li><li>Teardown: GHL user deleted (404) + all Avantej rows removed</li></ol></div>
+			<div class="col-video"><div class="lbl">Recording</div><video controls preload="none" src="../../e2e-web/videos/ghl--outbound-staff-updates.webm"></video><div class="vpath">../../e2e-web/videos/ghl--outbound-staff-updates.webm · 0.0 MB</div></div>
+		</div>
+	</article>
 	<article class="card pass" data-status="pass" data-video="1" data-id="ghl/staging-web-customer-create.journey.json::GHL → STAGING web: create customer → real GHL contact (live screencast)">
 		<header>
 			<span class="badge pass">PASS</span>
-			<span class="tnum">#7</span>
+			<span class="tnum">#12</span>
 			<h3>GHL → STAGING web: create customer → real GHL contact (live screencast)</h3>
 			<span class="dur">12.0s</span>
 			<label class="review" title="Mark this test as reviewed (saved in your browser)">
