@@ -37,6 +37,11 @@ type CommissionTrigger = "on_completion" | "on_sale";
 type CommissionBasis = "delivery_total" | "gross_order" | "net_order" | "flat";
 type CommissionPaymentType = "fixed" | "variable";
 type CommissionPoolPolicy = "separate" | "shared";
+// UAT §12 — which kind of sale a track applies to:
+//   "new"     — only a new customer's first purchase (acquisition)
+//   "renewal" — only a returning customer's purchase
+//   "any"     — applies regardless (default; preserves pre-migration behaviour)
+type CommissionSalesType = "new" | "renewal" | "any";
 
 export const commissionTracks = pgTable(
 	"commission_tracks",
@@ -70,6 +75,13 @@ export const commissionTracks = pgTable(
 			.notNull()
 			.default("separate")
 			.$type<CommissionPoolPolicy>(),
+		// UAT §12 — new-vs-renewal scoping. Default 'any' preserves all existing
+		// tracks (they fire regardless of whether the sale is a new customer or a
+		// renewal). Migration 0096 adds the column with this default.
+		salesType: text("sales_type")
+			.notNull()
+			.default("any")
+			.$type<CommissionSalesType>(),
 		maxBeneficiaries: integer("max_beneficiaries").notNull().default(1),
 		// NULL = uncapped per cycle
 		maxPerCycleCents: integer("max_per_cycle_cents"),

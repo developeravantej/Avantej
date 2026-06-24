@@ -24,7 +24,7 @@
  * Callers at appointment.service.ts and pos.service.ts are unchanged.
  */
 
-import { eq, and, sum, isNotNull } from "drizzle-orm";
+import { eq, and, sum, isNotNull, lt, ne, inArray } from "drizzle-orm";
 import { loadCommissionContext } from "./commission/context";
 import { planSplits } from "./commission/plan";
 import { persistSplits } from "./commission/persist";
@@ -47,9 +47,32 @@ import type { StaffAssignment } from "./commission-math";
 import type { CommissionSplit } from "./commission-splits.service";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import type { CommissionEarnReason } from "@avantej-core/types";
+import type {
+	CommissionEarnReason,
+	CommissionSalesType,
+} from "@avantej-core/types";
 
 export type { CommissionSplit };
+
+/**
+ * UAT §12 — pick the origination tracks that apply to a sale of the given kind.
+ *
+ * A track scoped to the matching sale type ("new" for a first-time customer,
+ * "renewal" for a returning one) takes precedence. Only when NO sale-type-
+ * specific track is configured do the catch-all "any" tracks apply. This keeps
+ * pre-§12 tenants (all tracks "any") behaving identically and prevents an "any"
+ * track from double-paying alongside a specific one.
+ *
+ * Pure — exported for unit testing.
+ */
+export function selectTracksBySalesType<
+	T extends { salesType: CommissionSalesType },
+>(tracks: T[], isRenewal: boolean): T[] {
+	const wanted: CommissionSalesType = isRenewal ? "renewal" : "new";
+	const specific = tracks.filter((t) => t.salesType === wanted);
+	if (specific.length > 0) return specific;
+	return tracks.filter((t) => t.salesType === "any");
+}
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 type TenantTx = Parameters<Parameters<TenantDb["transaction"]>[0]>[0];
@@ -408,6 +431,8 @@ async function planOriginationForOrder(
 			soldBy: salesOrders.soldBy,
 			complimentaryReason: salesOrders.complimentaryReason,
 			isComplimentary: salesOrders.isComplimentary,
+			customerId: salesOrders.customerId,
+			date: salesOrders.date,
 		})
 		.from(salesOrders)
 		.where(eq(salesOrders.id, params.salesOrderId))
@@ -518,6 +543,42 @@ async function planOriginationForOrder(
 
 	if (onSaleTracks.length === 0) {
 		// No origination tracks configured — clean exit, no commission
+		return null;
+	}
+
+	// UAT §12 — new-vs-renewal scoping. The sale is a "renewal" when this order's
+	// customer already has an earlier confirmed/completed order; otherwise it is a
+	// new-customer sale. Walk-in/anonymous orders (no customerId) are treated as
+	// new. Origination tracks scoped to the matching sale type take precedence
+	// over catch-all "any" tracks (see selectTracksBySalesType).
+	let isRenewal = false;
+	if (order.customerId) {
+		const [priorOrder] = await db
+			.select({ id: salesOrders.id })
+			.from(salesOrders)
+			.where(
+				and(
+					eq(salesOrders.customerId, order.customerId),
+					inArray(salesOrders.status, ["confirmed", "completed"]),
+					lt(salesOrders.date, order.date),
+					ne(salesOrders.id, params.salesOrderId),
+				),
+			)
+			.limit(1);
+		isRenewal = !!priorOrder;
+	}
+
+	onSaleTracks = selectTracksBySalesType(onSaleTracks, isRenewal);
+
+	if (onSaleTracks.length === 0) {
+		// Tracks exist but none apply to this sale type — clean exit.
+		console.info(
+			JSON.stringify({
+				event: "origination_commission_no_track_for_sales_type",
+				salesOrderId: params.salesOrderId,
+				isRenewal,
+			}),
+		);
 		return null;
 	}
 
