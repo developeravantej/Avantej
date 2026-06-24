@@ -536,6 +536,7 @@ export {
 	type TrainerAvailabilityExceptionKind,
 	type TrainerAvailabilityKind,
 	type TrainerUtilisationEntry,
+	listCoachIntakeAvailability,
 	listTrainerAvailability,
 	listTrainerAvailabilityByBranch,
 	listTrainerAvailabilityExceptions,

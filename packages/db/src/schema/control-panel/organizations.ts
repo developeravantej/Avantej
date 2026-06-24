@@ -68,6 +68,10 @@ export const organizations = pgTable(
 		// one GHL location per org, branches as custom-field option). NULL =
 		// not configured. Defaults to "per-branch" for existing tenants.
 		ghlSyncModel: text("ghl_sync_model"),
+		// Per-org IANA timezone for availability/booking math (migration 0013).
+		// Currently informational — booking slot math still runs in UTC; org-tz
+		// awareness is a tracked future enhancement (see appointment.service.ts).
+		timezone: text("timezone").notNull().default("Asia/Kuala_Lumpur"),
 	},
 	(table) => ({
 		// Indexes for performance

@@ -3,6 +3,7 @@ import {
 	trainerAvailability,
 	trainerAvailabilityExceptions,
 } from "@avantej-core/db/schema/tenant/trainer-availability";
+import { coachIntakeAvailability } from "@avantej-core/db/schema/tenant/coach-intake-availability";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { memberProfiles } from "@avantej-core/db/schema/tenant/member-profiles";
@@ -61,6 +62,32 @@ export async function listTrainerAvailability(
 ): Promise<(typeof trainerAvailability.$inferSelect)[]> {
 	const rows = await tenantDb.query.trainerAvailability.findMany({
 		where: eq(trainerAvailability.trainerId, trainerId),
+	});
+	return rows.sort((a, b) => {
+		const dayDiff =
+			(DAY_ORDER[a.dayOfWeek] ?? 7) - (DAY_ORDER[b.dayOfWeek] ?? 7);
+		if (dayDiff !== 0) return dayDiff;
+		return a.startTime.localeCompare(b.startTime);
+	});
+}
+
+/**
+ * List a trainer's active recurring windows from `coach_intake_availability`.
+ *
+ * This is the admin-managed companion to {@link listTrainerAvailability}: the
+ * "Coach Intake Availability" admin page writes here, so the booking flow must
+ * union-read both sources or admin-entered schedules never surface to clients.
+ * Only `isActive` rows count. Mirrors the trainer-availability sort order.
+ */
+export async function listCoachIntakeAvailability(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	trainerId: string,
+): Promise<(typeof coachIntakeAvailability.$inferSelect)[]> {
+	const rows = await tenantDb.query.coachIntakeAvailability.findMany({
+		where: and(
+			eq(coachIntakeAvailability.trainerId, trainerId),
+			eq(coachIntakeAvailability.isActive, true),
+		),
 	});
 	return rows.sort((a, b) => {
 		const dayDiff =
@@ -510,12 +537,23 @@ export async function computeAvailableSlots(
 	startDate: Date,
 	endDate: Date,
 ): Promise<ComputedDayAvailability[]> {
-	// 1. Get recurring availability
-	const recurringSlots = await listTrainerAvailability(tenantDb, trainerId);
+	// 1. Get recurring availability from BOTH sources in parallel — the
+	//    trainer-managed windows and the admin-managed coach-intake windows —
+	//    then merge and dedupe by (day, start, end) so admin-entered schedules
+	//    surface to the booking flow. (HH:MM math stays in UTC; org-tz-aware
+	//    slotting is a tracked future enhancement, see appointment.service.ts.)
+	const [primarySlots, intakeSlots] = await Promise.all([
+		listTrainerAvailability(tenantDb, trainerId),
+		listCoachIntakeAvailability(tenantDb, trainerId),
+	]);
 
 	// Group by day-of-week for fast lookup
+	const seen = new Set<string>();
 	const slotsByDay = new Map<string, TimeWindow[]>();
-	for (const slot of recurringSlots) {
+	for (const slot of [...primarySlots, ...intakeSlots]) {
+		const key = `${slot.dayOfWeek}|${slot.startTime}|${slot.endTime}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
 		const list = slotsByDay.get(slot.dayOfWeek) ?? [];
 		list.push({ startTime: slot.startTime, endTime: slot.endTime });
 		slotsByDay.set(slot.dayOfWeek, list);
