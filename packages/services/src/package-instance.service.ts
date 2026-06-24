@@ -118,9 +118,13 @@ export async function listPackageInstancesForClient(
 
 	return tenantDb.query.packageInstances.findMany({
 		where: and(...conditions),
-		// Pinned packages first (DESC of nullable timestamp → NULLs last in
-		// Postgres by default), then oldest-first as legacy tiebreaker.
-		orderBy: [desc(packageInstances.pinnedAt), asc(packageInstances.createdAt)],
+		// Pinned packages first, then oldest-first as legacy tiebreaker. Postgres
+		// defaults DESC to NULLS FIRST, which would float unpinned rows to the top
+		// — force NULLS LAST so the single pinned row leads.
+		orderBy: [
+			sql`${packageInstances.pinnedAt} desc nulls last`,
+			asc(packageInstances.createdAt),
+		],
 		limit: Math.min(limit, 200),
 	});
 }
