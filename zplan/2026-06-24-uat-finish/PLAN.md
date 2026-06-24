@@ -133,7 +133,15 @@ Move 2 ledger items to **covered** and close 2 bug threads. No new features.
 - Web `tsc -b` clean on the touched surface. dist rebuilt.
 - **review-uat.html NOT regenerated** — it's built from a full-suite report.json; a partial run would degrade it (prior-session lesson). Refresh it via `bash _e2e/shard-run.sh` on a stable env.
 
-### Not committed yet / open
-- Changes are in the working tree, **not committed** (awaiting user).
-- **Phase 3 (§12 incentive + renewal engine)** — paused for go/no-go per the user's decision. Real feature: schema + migration + engine + procedures + tests; money path.
-- **Phase 4** — §6 full OAuth (real Google creds), BETTER_AUTH_URL/CORS reconcile, prod-tenant migration rollout, §1/§10 GHL — all external/gated.
+### Phase 3 — §12 incentive + renewal engine — DONE ✅ (commits 4865074b, 6e24e857)
+- **3a renewal-vs-new-sale** — `commission_tracks.sales_type` (new|renewal|any, default any) + tenant migration 0096; engine `selectTracksBySalesType` + on-the-fly renewal detection in `planOriginationForOrder` (returning customer = has a prior confirmed order); threaded through upsertTrack service + procedure. 7 unit + e2e renewal-rate. Migration 0096 applied to test tenant.
+- **3b incentive thresholds** — `commission_incentives` (rules) + `commission_incentive_awards` (idempotent ledger, UNIQUE(rule,staff,period)) + migration 0097; `evaluateIncentivesForPeriod` (ON CONFLICT DO NOTHING) + pure `computeIncentiveBonusCents`/`monthlyPeriodKey`; `commissionIncentives` router; daily `incentive-sweep` cron (previous closed month). 9 unit + e2e incentive-threshold (sweep run twice → 2nd creates 0). Migration 0097 applied to test tenant.
+- Verification: 9 commissions e2e green; commission unit regression 69 green; web tsc clean; verify:migrations in sync. Ledger §12 incentive/renewal → covered.
+
+### Commits (all pushed to origin/checkpoint-6-22)
+- `1c1d691c` Phases 0–2 (+ prior fix-pass specs)
+- `4865074b` §12 3a renewal rate
+- `6e24e857` §12 3b incentive thresholds
+
+### Phase 4 — still open / gated
+- §6 full OAuth (real Google creds), BETTER_AUTH_URL/CORS reconcile, **prod-tenant rollout of migrations 0095/0096/0097**, §1/§10 GHL — all external/gated. Migrations 0096/0097 are applied to the dev test tenant only.

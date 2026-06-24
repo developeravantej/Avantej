@@ -26,7 +26,7 @@ N="${E2E_SHARDS:-8}"
 # Stripe sandbox and are Post-MVP per the UAT). Playwright shards this selection.
 DIRS="web/branch web/access-control web/multi-tenant web/rbac \
 web/service web/service-category web/my-services web/packages \
-web/commissions web/booking web/reports web/customers \
+web/commissions web/booking web/reports web/customers web/onboarding \
 web/payment/invoices web/payment/smoke web/google-calendar web/migration"
 
 rm -rf _e2e/results/art-* _e2e/results/report-*.json _e2e/results/shard-*.log 2>/dev/null
