@@ -99,7 +99,7 @@
       "specGlobs": ["web/commissions/**"],
       "items": [
         { "item": "Commission per sale matches category rule", "testability": "covered", "via": "commissions/category-commission-weightage-sum" },
-        { "item": "Incentive thresholds; renewal rule vs new-sale", "testability": "deferred", "why": "engine-internal — needs seeded multi-sale scenarios (no direct procedure to assert); core rules covered by commissions/* rule specs" },
+        { "item": "Incentive thresholds; renewal rule vs new-sale", "testability": "covered", "via": "renewal: commission_tracks.sales_type (new|renewal|any) + engine selectTracksBySalesType + commissions/renewal-rate.rule (salesType round-trip) + 7 unit. incentive: commission_incentives rules + idempotent commission_incentive_awards ledger + evaluateIncentivesForPeriod + daily incentive-sweep cron (previous-month) + commissions/incentive-threshold.rule (CRUD + exactly-once sweep) + 9 unit" },
         { "item": "No commission until payment confirmed", "testability": "covered", "via": "commissions/commission-splits-manual-adjustment-xor" },
         { "item": "Commission output integrity (positive + staff-attributed) + reporting visibility", "testability": "covered", "via": "commissions/commission-output.rule" },
         { "item": "Reporting visibility of coach totals (memberId-scoped report)", "testability": "covered", "via": "commissions/commission-output.rule" }

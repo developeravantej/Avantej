@@ -579,6 +579,26 @@ export default {
 							console.error(`[scheduled] package-expiry failed:`, e),
 						),
 				);
+				// UAT §12 — commission incentive sweep. Awards previous-month bonuses
+				// to staff who crossed a threshold. Idempotent (unique award key), so
+				// running daily only creates awards on the first post-month-end run.
+				const { runIncentiveSweep } = await import(
+					"@/services/incentive-sweep.service"
+				);
+				ctx.waitUntil(
+					runIncentiveSweep({
+						controlPanelDb: cpDb,
+						getTenantDb: (orgId) => getTenantDb(orgId),
+					})
+						.then((r) =>
+							console.log(
+								`[scheduled] incentive-sweep done: ${JSON.stringify(r)}`,
+							),
+						)
+						.catch((e) =>
+							console.error(`[scheduled] incentive-sweep failed:`, e),
+						),
+				);
 				// Heal drifted customer_name snapshots (rename paths that bypass the
 				// forward-propagate, e.g. a failed propagate or an external writer).
 				// Only writes rows whose snapshot differs from the live name.

@@ -651,3 +651,19 @@ export {
 	upsertTrack,
 	type UpsertTrackInput,
 } from "./commission-tracks.service";
+
+// Commission incentive thresholds (UAT §12 — 3b)
+export {
+	computeIncentiveBonusCents,
+	monthlyPeriodKey,
+	createIncentive,
+	type CreateIncentiveInput,
+	listIncentives,
+	deactivateIncentive,
+	listIncentiveAwards,
+	evaluateIncentivesForPeriod,
+	type EvaluateIncentivesParams,
+	type EvaluateIncentivesResult,
+	type IncentiveRuleRow,
+	type IncentiveAwardRow,
+} from "./commission-incentive.service";

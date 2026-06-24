@@ -145,3 +145,7 @@ export * from "./commission-track-rates";
 export * from "./commission-track-versions";
 export * from "./earner-tiers";
 // #endregion
+
+// #region UAT §12 — Commission incentive thresholds (Migration 0097)
+export * from "./commission-incentives";
+// #endregion
