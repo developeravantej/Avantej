@@ -15,6 +15,7 @@ import {
 	boolean,
 	timestamp,
 	index,
+	uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { members } from "./members";
@@ -132,6 +133,11 @@ export const packageInstances = pgTable(
 			.default(false)
 			.notNull(),
 
+		// Customer pin — feature one package on the native app dashboard.
+		// NULL = not pinned. Timestamp doubles as audit trail.
+		// Enforced single-pin-per-client via partial uniqueIndex below.
+		pinnedAt: timestamp("pinned_at", { withTimezone: true }),
+
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at").defaultNow().notNull(),
 	},
@@ -161,5 +167,10 @@ export const packageInstances = pgTable(
 		salesOrderIdIdx: index("package_instances_sales_order_id_idx").on(
 			table.salesOrderId,
 		),
+		oneActivePinIdx: uniqueIndex("package_instances_one_pin_per_client_idx")
+			.on(table.clientId)
+			.where(
+				sql`${table.pinnedAt} IS NOT NULL AND ${table.clientId} IS NOT NULL`,
+			),
 	}),
 );

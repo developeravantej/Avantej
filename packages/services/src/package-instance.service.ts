@@ -11,7 +11,18 @@
  * ```
  */
 
-import { eq, and, asc, inArray, sql, or, lt, lte, desc } from "drizzle-orm";
+import {
+	eq,
+	and,
+	asc,
+	inArray,
+	sql,
+	or,
+	lt,
+	lte,
+	desc,
+	isNotNull,
+} from "drizzle-orm";
 
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -107,8 +118,83 @@ export async function listPackageInstancesForClient(
 
 	return tenantDb.query.packageInstances.findMany({
 		where: and(...conditions),
-		orderBy: [asc(packageInstances.createdAt)],
+		// Pinned packages first (DESC of nullable timestamp → NULLs last in
+		// Postgres by default), then oldest-first as legacy tiebreaker.
+		orderBy: [desc(packageInstances.pinnedAt), asc(packageInstances.createdAt)],
 		limit: Math.min(limit, 200),
+	});
+}
+
+/**
+ * Toggle the customer pin on a package instance.
+ *
+ * Invariant: at most one pinned package per client at any time. Enforced by
+ * a partial unique index on (client_id) WHERE pinned_at IS NOT NULL, with
+ * this transaction as the primary guard.
+ *
+ * Behavior:
+ *   - If the target row is already pinned → unpin it (set pinned_at = NULL).
+ *   - Else → clear any other pinned rows for this client, then pin the target.
+ *
+ * Throws:
+ *   - "Package not found" — id does not exist.
+ *   - "Forbidden — not your package" — caller is not the owner.
+ *   - "Only active packages can be pinned" — status !== "active".
+ */
+export async function togglePackagePin(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	params: { packageInstanceId: string; clientId: string },
+): Promise<{ id: string; pinnedAt: Date | null }> {
+	return tenantDb.transaction(async (tx) => {
+		const [pkg] = await tx
+			.select()
+			.from(packageInstances)
+			.where(eq(packageInstances.id, params.packageInstanceId))
+			.for("update");
+
+		if (!pkg) throw new Error("Package not found");
+		if (pkg.clientId !== params.clientId)
+			throw new Error("Forbidden — not your package");
+		if (pkg.status !== "active")
+			throw new Error("Only active packages can be pinned");
+
+		if (pkg.pinnedAt) {
+			const [row] = await tx
+				.update(packageInstances)
+				.set({ pinnedAt: null, updatedAt: new Date() })
+				.where(eq(packageInstances.id, pkg.id))
+				.returning({
+					id: packageInstances.id,
+					pinnedAt: packageInstances.pinnedAt,
+				});
+			if (!row) throw new Error("Failed to unpin package");
+			return row;
+		}
+
+		// Clear any existing pin on other packages for this client first,
+		// then pin the target. Both inside the same tx → atomic.
+		await tx
+			.update(packageInstances)
+			.set({ pinnedAt: null, updatedAt: new Date() })
+			.where(
+				and(
+					eq(packageInstances.clientId, params.clientId),
+					isNotNull(packageInstances.pinnedAt),
+				),
+			);
+
+		const now = new Date();
+		const [row] = await tx
+			.update(packageInstances)
+			.set({ pinnedAt: now, updatedAt: now })
+			.where(eq(packageInstances.id, pkg.id))
+			.returning({
+				id: packageInstances.id,
+				pinnedAt: packageInstances.pinnedAt,
+			});
+
+		if (!row) throw new Error("Failed to pin package");
+		return row;
 	});
 }
 

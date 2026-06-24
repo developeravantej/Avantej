@@ -370,6 +370,7 @@ export {
 	listPackageInstancesForClient,
 	markCompleteIfFinal,
 	type PackageInstanceHistoryQueryOpts,
+	togglePackagePin,
 	type UnfreezePackageInstanceParams,
 	unfreezePackageInstance,
 	type UpdatePackageInstanceParams,
