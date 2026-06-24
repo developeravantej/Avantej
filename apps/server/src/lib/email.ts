@@ -76,6 +76,12 @@ function getDefaultFromName(): string {
 	return getEnvVar("RESEND_FROM_NAME") || "Avantej Core";
 }
 
+export interface SendEmailAttachment {
+	filename: string;
+	/** Resend accepts base64 string or Buffer. We pass base64 strings only. */
+	content: string;
+}
+
 /**
  * Email sending options
  */
@@ -86,6 +92,7 @@ export interface SendEmailOptions {
 	text?: string;
 	from?: string;
 	fromName?: string;
+	attachments?: SendEmailAttachment[];
 }
 
 type CapturedEmailType =
@@ -109,7 +116,8 @@ const EMAIL_CAPTURE_LIMIT = 50;
 const capturedEmails: CapturedEmail[] = [];
 
 let emailCaptureEnabled =
-	getEnvVar("EMAIL_CAPTURE_ENABLED") === "true" || (process.env.NODE_ENV as string) === "test";
+	getEnvVar("EMAIL_CAPTURE_ENABLED") === "true" ||
+	(process.env.NODE_ENV as string) === "test";
 
 export function __setEmailCaptureEnabled(enabled: boolean): void {
 	emailCaptureEnabled = enabled;
@@ -129,7 +137,9 @@ export function __getCapturedEmails(type?: CapturedEmailType): CapturedEmail[] {
 	return capturedEmails.filter((email) => email.type === type);
 }
 
-export function recordEmailCapture(capture: Omit<CapturedEmail, "sentAt">): void {
+export function recordEmailCapture(
+	capture: Omit<CapturedEmail, "sentAt">,
+): void {
 	if (!emailCaptureEnabled) {
 		return;
 	}
@@ -139,7 +149,7 @@ export function recordEmailCapture(capture: Omit<CapturedEmail, "sentAt">): void
 	}
 	if (capture.metadata?.token) {
 		console.log(
-			`📬 Captured ${capture.type} token for ${capture.to}: ${capture.metadata.token}`
+			`📬 Captured ${capture.type} token for ${capture.to}: ${capture.metadata.token}`,
 		);
 	}
 }
@@ -186,7 +196,7 @@ function extractTokenFromLink(link?: string): string | undefined {
  * ```
  */
 export async function sendEmail(options: SendEmailOptions): Promise<void> {
-	const { to, subject, html, text, from, fromName } = options;
+	const { to, subject, html, text, from, fromName, attachments } = options;
 
 	if (!to || !subject || !html) {
 		throw new Error("To, subject, and html are required");
@@ -204,19 +214,29 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
 			subject,
 			html,
 			text: text || html.replace(/<[^>]*>/g, ""), // Strip HTML tags for text version
+			...(attachments && attachments.length > 0
+				? {
+						attachments: attachments.map((a) => ({
+							filename: a.filename,
+							content: a.content,
+						})),
+					}
+				: {}),
 		});
 
 		if (result.error) {
 			throw new Error(
-				`Resend API error: ${result.error.message || "Unknown error"}`
+				`Resend API error: ${result.error.message || "Unknown error"}`,
 			);
 		}
 
-		console.log(`Email sent successfully to ${Array.isArray(to) ? to.join(", ") : to}`);
+		console.log(
+			`Email sent successfully to ${Array.isArray(to) ? to.join(", ") : to}`,
+		);
 	} catch (error) {
 		console.error("Failed to send email:", error);
 		throw new Error(
-			`Failed to send email: ${error instanceof Error ? error.message : "Unknown error"}`
+			`Failed to send email: ${error instanceof Error ? error.message : "Unknown error"}`,
 		);
 	}
 }
@@ -316,10 +336,18 @@ ${p.afterLines.join("\n\n")}
 export function renderVerificationEmail(
 	verificationLink: string,
 	userName?: string,
-): { subject: string; html: string; text: string; verificationLinkForUser: string; token?: string } {
+): {
+	subject: string;
+	html: string;
+	text: string;
+	verificationLinkForUser: string;
+	token?: string;
+} {
 	// Send users to the frontend UI instead of the backend `/api/auth/verify-email` URL.
 	const frontendURL =
-		getEnvVar("CORS_ORIGIN") || getEnvVar("FRONTEND_URL") || "http://localhost:3001";
+		getEnvVar("CORS_ORIGIN") ||
+		getEnvVar("FRONTEND_URL") ||
+		"http://localhost:3001";
 	const tokenFromLink = extractTokenFromLink(verificationLink);
 	const callbackURLFromLink = (() => {
 		try {
@@ -339,7 +367,8 @@ export function renderVerificationEmail(
 		title: "Verify Your Email",
 		heading: "Verify Your Email Address",
 		greeting,
-		intro: "Thank you for signing up for Avantej Core! Please verify your email address by clicking the button below:",
+		intro:
+			"Thank you for signing up for Avantej Core! Please verify your email address by clicking the button below:",
 		button: {
 			label: "Verify Email Address",
 			href: verificationLinkForUser,
@@ -354,7 +383,8 @@ export function renderVerificationEmail(
 	const text = buildEmailText({
 		heading: "Verify Your Email Address",
 		greeting,
-		intro: "Thank you for signing up for Avantej Core! Please verify your email address by visiting this link:",
+		intro:
+			"Thank you for signing up for Avantej Core! Please verify your email address by visiting this link:",
 		link: verificationLinkForUser,
 		afterLines: [
 			"This link will expire in 24 hours.",
@@ -376,12 +406,10 @@ export function renderVerificationEmail(
 export async function sendVerificationEmail(
 	to: string,
 	verificationLink: string,
-	userName?: string
+	userName?: string,
 ): Promise<void> {
-	const { subject, html, text, verificationLinkForUser, token } = renderVerificationEmail(
-		verificationLink,
-		userName,
-	);
+	const { subject, html, text, verificationLinkForUser, token } =
+		renderVerificationEmail(verificationLink, userName);
 
 	await sendEmail({
 		to,
@@ -416,7 +444,8 @@ export function renderPasswordResetEmail(
 		title: "Reset Your Password",
 		heading: "Reset Your Password",
 		greeting,
-		intro: "We received a request to reset your password. Click the button below to create a new password:",
+		intro:
+			"We received a request to reset your password. Click the button below to create a new password:",
 		button: {
 			label: "Reset Password",
 			href: resetLink,
@@ -431,7 +460,8 @@ export function renderPasswordResetEmail(
 	const text = buildEmailText({
 		heading: "Reset Your Password",
 		greeting,
-		intro: "We received a request to reset your password. Visit this link to create a new password:",
+		intro:
+			"We received a request to reset your password. Visit this link to create a new password:",
 		link: resetLink,
 		afterLines: [
 			"This link will expire in 1 hour.",
@@ -453,9 +483,12 @@ export function renderPasswordResetEmail(
 export async function sendPasswordResetEmail(
 	to: string,
 	resetLink: string,
-	userName?: string
+	userName?: string,
 ): Promise<void> {
-	const { subject, html, text, token } = renderPasswordResetEmail(resetLink, userName);
+	const { subject, html, text, token } = renderPasswordResetEmail(
+		resetLink,
+		userName,
+	);
 
 	await sendEmail({
 		to,
@@ -533,7 +566,7 @@ export async function sendInvitationEmail(
 	invitationLink: string,
 	organizationName: string,
 	inviterName?: string,
-	role?: string
+	role?: string,
 ): Promise<void> {
 	const { subject, html, text } = renderInvitationEmail(
 		invitationLink,
@@ -586,21 +619,27 @@ export function renderMagicLinkEmail(
 		title: "Sign in to Avantej",
 		heading: `Sign in${orgPhrase}`,
 		greeting,
-		intro: "Click the button below to sign in. This link is single-use and expires shortly.",
+		intro:
+			"Click the button below to sign in. This link is single-use and expires shortly.",
 		button: {
 			label: "Sign in",
 			href: magicLink,
 			color: EMAIL_BUTTON_COLORS.signin,
 		},
-		afterParagraphs: ["If you did not request this email, you can safely ignore it."],
+		afterParagraphs: [
+			"If you did not request this email, you can safely ignore it.",
+		],
 	});
 
 	const text = buildEmailText({
 		heading: `Sign in${orgPhrase}`,
 		greeting,
-		intro: "Click the link below to sign in. This link is single-use and expires shortly.",
+		intro:
+			"Click the link below to sign in. This link is single-use and expires shortly.",
 		link: magicLink,
-		afterLines: ["If you did not request this email, you can safely ignore it."],
+		afterLines: [
+			"If you did not request this email, you can safely ignore it.",
+		],
 	});
 
 	return { subject, html, text };
@@ -612,7 +651,11 @@ export async function sendMagicLinkEmail(
 	userName?: string,
 	organizationName?: string,
 ): Promise<void> {
-	const { subject, html, text } = renderMagicLinkEmail(magicLink, userName, organizationName);
+	const { subject, html, text } = renderMagicLinkEmail(
+		magicLink,
+		userName,
+		organizationName,
+	);
 
 	await sendEmail({
 		to,
@@ -633,4 +676,3 @@ export async function sendMagicLinkEmail(
 		},
 	});
 }
-
