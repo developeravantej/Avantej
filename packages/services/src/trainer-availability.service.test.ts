@@ -1,6 +1,7 @@
 import { describe, expect, it, mock } from "bun:test";
 import {
 	addTrainerAvailabilityException,
+	computeAvailableSlots,
 	deleteTrainerAvailabilityException,
 	listTrainerAvailabilityExceptions,
 } from "./trainer-availability.service";
@@ -117,5 +118,108 @@ describe("deleteTrainerAvailabilityException", () => {
 
 		expect(deleteMock).toHaveBeenCalledTimes(1);
 		expect(whereMock).toHaveBeenCalledTimes(1);
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// computeAvailableSlots — coach-intake union (recovered in 669625e1)
+//
+// Booking availability must read trainer_availability ∪ coach_intake_availability
+// so admin-managed coach schedules surface to clients. These tests exercise the
+// REAL union/dedupe in computeAvailableSlots (no mocking-away of the function).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const JS_DAYS = [
+	"sunday",
+	"monday",
+	"tuesday",
+	"wednesday",
+	"thursday",
+	"friday",
+	"saturday",
+];
+
+function recurringWindow(
+	dayOfWeek: string,
+	startTime: string,
+	endTime: string,
+	id: string,
+) {
+	return {
+		id,
+		trainerId: "t-1",
+		dayOfWeek,
+		startTime,
+		endTime,
+		isActive: true,
+		createdAt: new Date(),
+		updatedAt: new Date(),
+	};
+}
+
+// tenantDb stub: trainer + coach recurring windows come from `query.*.findMany`;
+// both `select()` chains (booked appointments + exceptions) resolve to [] so the
+// recurring windows pass through unsubtracted.
+function makeAvailabilityDb(opts: {
+	trainer: unknown[];
+	coach: unknown[];
+}): AnyTenantDb {
+	return {
+		query: {
+			trainerAvailability: { findMany: async () => opts.trainer },
+			coachIntakeAvailability: { findMany: async () => opts.coach },
+		},
+		select: () => ({ from: () => ({ where: () => Promise.resolve([]) }) }),
+	};
+}
+
+describe("computeAvailableSlots — coach-intake union", () => {
+	it("surfaces an admin-managed coach-intake window with NO trainer_availability row", async () => {
+		const day = new Date(2026, 5, 22);
+		day.setHours(0, 0, 0, 0);
+		const dayName = JS_DAYS[day.getDay()] as string;
+
+		const tenantDb = makeAvailabilityDb({
+			trainer: [],
+			coach: [recurringWindow(dayName, "09:00", "10:00", "ci-1")],
+		});
+
+		const result = await computeAvailableSlots(tenantDb, "t-1", day, day);
+
+		expect(result).toHaveLength(1);
+		expect(result[0]?.dayOfWeek).toBe(dayName);
+		expect(result[0]?.windows).toContainEqual({
+			startTime: "09:00",
+			endTime: "10:00",
+		});
+	});
+
+	it("dedupes a window present in BOTH sources (day|start|end key)", async () => {
+		const day = new Date(2026, 5, 22);
+		day.setHours(0, 0, 0, 0);
+		const dayName = JS_DAYS[day.getDay()] as string;
+
+		const tenantDb = makeAvailabilityDb({
+			trainer: [recurringWindow(dayName, "09:00", "10:00", "ta-1")],
+			coach: [recurringWindow(dayName, "09:00", "10:00", "ci-1")],
+		});
+
+		const result = await computeAvailableSlots(tenantDb, "t-1", day, day);
+
+		expect(result).toHaveLength(1);
+		// One window, not two — the duplicate from coach-intake is collapsed.
+		expect(result[0]?.windows).toEqual([
+			{ startTime: "09:00", endTime: "10:00" },
+		]);
+	});
+
+	it("returns nothing when neither source has a window (control)", async () => {
+		const day = new Date(2026, 5, 22);
+		day.setHours(0, 0, 0, 0);
+
+		const tenantDb = makeAvailabilityDb({ trainer: [], coach: [] });
+		const result = await computeAvailableSlots(tenantDb, "t-1", day, day);
+
+		expect(result).toHaveLength(0);
 	});
 });
