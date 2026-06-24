@@ -20,6 +20,16 @@ beforeEach(() => {
 	mockDb = createMockTenantDb();
 });
 
+// signPackageAgreement now uses a conditional UPDATE … WHERE terms_agreed_at IS
+// NULL and inspects rowCount (atomic compare-and-set). The shared update mock
+// resolves to { returning } with no rowCount, so configure update() per test to
+// resolve to a result with the affected-row count we want to simulate.
+function updateAffecting(rowCount: number) {
+	return {
+		set: () => ({ where: () => Promise.resolve({ rowCount }) }),
+	};
+}
+
 // Joined row shape returned by getPackageAgreement's select(...).
 function makeRow(over: Record<string, unknown> = {}) {
 	return {
@@ -80,6 +90,7 @@ describe("getPackageAgreement", () => {
 describe("signPackageAgreement", () => {
 	test("persists signature + timestamp on an unsigned agreement", async () => {
 		mockDb.select.mockReturnValueOnce(selectChainResolving([makeRow()]));
+		mockDb.update.mockReturnValueOnce(updateAffecting(1)); // 1 row signed
 
 		const signedAt = new Date("2026-06-25T10:00:00Z");
 		const result = await signPackageAgreement(
@@ -92,6 +103,18 @@ describe("signPackageAgreement", () => {
 		expect(result.signedAt).toBe(signedAt);
 		expect(result.signature).toEqual({ signedName: "Ahmad Firdaus" });
 		expect(mockDb.update).toHaveBeenCalledTimes(1);
+	});
+
+	test("rejects via the atomic guard when a concurrent sign already landed (TOCTOU)", async () => {
+		// The row read as unsigned (early check passes), but between the read and
+		// the conditional UPDATE another request signed it → 0 rows affected.
+		mockDb.select.mockReturnValueOnce(selectChainResolving([makeRow()]));
+		mockDb.update.mockReturnValueOnce(updateAffecting(0)); // lost the race
+
+		await expect(
+			signPackageAgreement(mockDb, PKG_ID, { signedName: "Racer" }),
+		).rejects.toBeInstanceOf(AgreementAlreadySignedError);
+		expect(mockDb.update).toHaveBeenCalledTimes(1); // it DID attempt the write
 	});
 
 	test("blocks re-signing an already-signed agreement", async () => {

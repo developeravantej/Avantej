@@ -67,10 +67,12 @@ export const hierarchyDeleteProcedures = {
 				"delete",
 			);
 
-			// Prepare delete options (defaults to true for both)
+			// Prepare delete options. Default is BLOCK (UAT §8): a node with child
+			// nodes or assigned members is rejected with a typed CONFLICT and the
+			// subtree is left intact. Callers opt into a cascade by passing true.
 			const deleteOptions: DeleteHierarchyNodeOptions = {
-				autoDeleteChildren: input.options?.autoDeleteChildren ?? true,
-				autoReassignMembers: input.options?.autoReassignMembers ?? true,
+				autoDeleteChildren: input.options?.autoDeleteChildren ?? false,
+				autoReassignMembers: input.options?.autoReassignMembers ?? false,
 			};
 
 			// Collect branch node IDs before deletion (for sync cleanup)

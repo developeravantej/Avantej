@@ -21,6 +21,12 @@ import { members } from "@avantej-core/db/schema/tenant/members";
 import { sql, eq, inArray } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import * as branchStatsCacheService from "./branch-stats-cache.service";
+
+type TenantDb = NeonDatabase<typeof tenantSchema>;
+/** Transaction handle — same query surface as TenantDb. */
+type TenantTx = Parameters<Parameters<TenantDb["transaction"]>[0]>[0];
+/** Either a pooled tenant client or an in-flight transaction. */
+type TenantDbOrTx = TenantDb | TenantTx;
 import type {
 	CreateHierarchyNodeParams,
 	UpdateHierarchyNodeParams,
@@ -50,7 +56,7 @@ import {
  * ```
  */
 export async function getDescendantNodeIds(
-	tenantDb: NeonDatabase<typeof tenantSchema>,
+	tenantDb: TenantDbOrTx,
 	nodeId: string,
 ): Promise<string[]> {
 	if (!nodeId) {
@@ -467,7 +473,7 @@ export interface DeleteHierarchyNodeOptions {
  * @returns UUID of the target node for reassignment, or null if not found
  */
 async function findReassignTarget(
-	tenantDb: NeonDatabase<typeof tenantSchema>,
+	tenantDb: TenantDbOrTx,
 	nodeId: string,
 ): Promise<string | null> {
 	// Get the node being deleted
@@ -513,7 +519,7 @@ async function findReassignTarget(
  * @param parentId - UUID of the parent node
  */
 async function recursivelyDeleteChildren(
-	tenantDb: NeonDatabase<typeof tenantSchema>,
+	tenantDb: TenantDbOrTx,
 	parentId: string,
 ): Promise<void> {
 	// Get all direct children
@@ -571,7 +577,7 @@ async function recursivelyDeleteChildren(
  * ```
  */
 export async function deleteHierarchyNode(
-	tenantDb: NeonDatabase<typeof tenantSchema>,
+	tenantDb: TenantDb,
 	nodeId: string,
 	options: DeleteHierarchyNodeOptions = {},
 ) {
@@ -582,69 +588,73 @@ export async function deleteHierarchyNode(
 	const { autoDeleteChildren = true, autoReassignMembers = true } = options;
 
 	try {
-		// Check if node exists
-		const node = await tenantDb.query.hierarchyNodes.findFirst({
-			where: eq(hierarchyNodes.id, nodeId),
-		});
+		// Run the whole delete in ONE transaction so the tree can never be left
+		// half-deleted: every guard either lets the full delete commit, or aborts
+		// before any row is touched / rolls everything back. (UAT §8.)
+		return await tenantDb.transaction(async (tx) => {
+			// Check if node exists
+			const node = await tx.query.hierarchyNodes.findFirst({
+				where: eq(hierarchyNodes.id, nodeId),
+			});
 
-		if (!node) {
-			throw new Error(`Node not found: ${nodeId}`);
-		}
+			if (!node) {
+				throw new Error(`Node not found: ${nodeId}`);
+			}
 
-		// Check if node has child nodes
-		const activeChildNodes = await tenantDb.query.hierarchyNodes.findMany({
-			where: eq(hierarchyNodes.parentId, nodeId),
-		});
+			// Full subtree (self + all descendants) — the unit we reason about.
+			const subtreeIds = await getDescendantNodeIds(tx, nodeId);
 
-		// Handle children based on options
-		if (activeChildNodes.length > 0) {
-			if (autoDeleteChildren) {
-				// Recursively hard-delete all children
-				await recursivelyDeleteChildren(tenantDb, nodeId);
-			} else {
-				// Throw error if auto-delete is disabled
+			// Direct child nodes (drives the block-on-children rule).
+			const activeChildNodes = await tx.query.hierarchyNodes.findMany({
+				where: eq(hierarchyNodes.parentId, nodeId),
+			});
+
+			if (activeChildNodes.length > 0 && !autoDeleteChildren) {
 				throw new Error(
 					`Cannot delete node "${node.name}" because it has ${activeChildNodes.length} active child node(s). Please delete or move the child nodes first.`,
 				);
 			}
-		}
 
-		// Check if node has assigned members
-		const assignedMembers = await tenantDb.query.members.findMany({
-			where: eq(members.hierarchyScopeId, nodeId),
-		});
+			// Members assigned ANYWHERE in the subtree — not just the direct node.
+			// A descendant member is the real cause of the FK-restrict 500 the old
+			// code hit; we surface it as a typed conflict (block) or reassign the
+			// whole subtree up-front (cascade) so the child deletes never violate FK.
+			const subtreeMembers = await tx.query.members.findMany({
+				where: inArray(members.hierarchyScopeId, subtreeIds),
+				columns: { id: true },
+			});
 
-		// Handle members based on options
-		if (assignedMembers.length > 0) {
-			if (autoReassignMembers) {
-				// Find target node for reassignment
-				const targetNodeId = await findReassignTarget(tenantDb, nodeId);
-
-				if (!targetNodeId) {
+			if (subtreeMembers.length > 0) {
+				if (!autoReassignMembers) {
+					// BLOCK: leave the subtree completely intact.
 					throw new Error(
-						`Cannot delete node "${node.name}" because it has ${assignedMembers.length} assigned member(s) and no valid target node found for reassignment.`,
+						`Cannot delete node "${node.name}" because it (or a child node) has ${subtreeMembers.length} assigned member(s). Please reassign or remove the members first.`,
 					);
 				}
-
-				// Reassign all members to target node
-				await tenantDb
+				// CASCADE: reassign every subtree member to the target BEFORE any node
+				// is deleted, so no member ever references a node about to disappear.
+				const targetNodeId = await findReassignTarget(tx, nodeId);
+				if (!targetNodeId || subtreeIds.includes(targetNodeId)) {
+					throw new Error(
+						`Cannot delete node "${node.name}" because it has ${subtreeMembers.length} assigned member(s) and no valid target node found for reassignment.`,
+					);
+				}
+				await tx
 					.update(members)
-					.set({
-						hierarchyScopeId: targetNodeId,
-					})
-					.where(eq(members.hierarchyScopeId, nodeId));
-			} else {
-				// Throw error if auto-reassign is disabled
-				throw new Error(
-					`Cannot delete node "${node.name}" because it has ${assignedMembers.length} assigned member(s). Please reassign or remove the members first.`,
-				);
+					.set({ hierarchyScopeId: targetNodeId })
+					.where(inArray(members.hierarchyScopeId, subtreeIds));
 			}
-		}
 
-		// Hard delete: Actually delete the record
-		await tenantDb.delete(hierarchyNodes).where(eq(hierarchyNodes.id, nodeId));
+			// Now safe to delete children (no members reference them anymore).
+			if (activeChildNodes.length > 0 && autoDeleteChildren) {
+				await recursivelyDeleteChildren(tx, nodeId);
+			}
 
-		return node; // Return the deleted node info
+			// Hard delete the node itself.
+			await tx.delete(hierarchyNodes).where(eq(hierarchyNodes.id, nodeId));
+
+			return node; // Return the deleted node info
+		});
 	} catch (error) {
 		throw new Error(
 			`Failed to delete hierarchy node: ${error instanceof Error ? error.message : "Unknown error"}`,

@@ -136,16 +136,32 @@ export const packageInstancesPaymentProofProcedures = {
 				httpMetadata: { contentType: input.contentType },
 			});
 
-			return recordPaymentProof(context.tenantDb, {
-				id: proofId,
-				packageInstanceId: input.packageInstanceId,
-				r2Key,
-				fileName: input.fileName,
-				contentType: input.contentType,
-				byteSize: bytes.byteLength,
-				uploadedBy,
-				notes: input.notes,
-			});
+			try {
+				return await recordPaymentProof(context.tenantDb, {
+					id: proofId,
+					packageInstanceId: input.packageInstanceId,
+					r2Key,
+					fileName: input.fileName,
+					contentType: input.contentType,
+					byteSize: bytes.byteLength,
+					uploadedBy,
+					notes: input.notes,
+				});
+			} catch (recordErr) {
+				// Compensation: the object is already in R2 but the metadata row
+				// failed to persist. Delete the orphaned object so storage can't
+				// drift from the DB. Best-effort — log if cleanup also fails.
+				try {
+					await bucket.delete(r2Key);
+				} catch (cleanupErr) {
+					console.error(
+						"Failed to clean up orphaned payment-proof object",
+						r2Key,
+						cleanupErr,
+					);
+				}
+				throw recordErr;
+			}
 		}),
 
 	listPaymentProofs: tenantProcedure

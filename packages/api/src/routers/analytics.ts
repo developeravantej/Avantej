@@ -8,6 +8,7 @@ import {
 import {
 	getDashboardKpis,
 	getStaffPerformance,
+	getCommissionByTier,
 	getRevenueSeries,
 	getMemberCountSeries,
 	getChurnSeries,
@@ -71,6 +72,38 @@ const getStaffPerformanceHandler = tenantProcedure
 		return getStaffPerformance(context.tenantDb, {
 			period: input.period,
 			branchId: input.branchId,
+			accessibleNodeIds: context.accessibleNodeIds ?? [],
+		});
+	});
+
+const getCommissionByTierHandler = tenantProcedure
+	.input(
+		z.object({
+			organizationId: z.string().uuid(),
+			period: z.enum([
+				"today",
+				"this_week",
+				"this_month",
+				"this_year",
+				"custom",
+			]),
+			from: z.string().datetime().optional(),
+			to: z.string().datetime().optional(),
+		}),
+	)
+	.handler(async ({ input, context }) => {
+		assertOrgContextMatch(context, input);
+		await requirePermissionOrpc(
+			context.tenantDb,
+			context.member,
+			"reports",
+			"read",
+		);
+
+		return getCommissionByTier(context.tenantDb, {
+			period: input.period,
+			from: input.from ? new Date(input.from) : undefined,
+			to: input.to ? new Date(input.to) : undefined,
 			accessibleNodeIds: context.accessibleNodeIds ?? [],
 		});
 	});
@@ -172,6 +205,7 @@ const getClassFillRateSeriesHandler = tenantProcedure
 export const analyticsRouter = {
 	getDashboardKpis: getDashboardKpisHandler,
 	getStaffPerformance: getStaffPerformanceHandler,
+	getCommissionByTier: getCommissionByTierHandler,
 	getRevenueSeries: getRevenueSeriesHandler,
 	getMemberCountSeries: getMemberCountSeriesHandler,
 	getChurnSeries: getChurnSeriesHandler,
