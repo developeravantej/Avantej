@@ -1,0 +1,1108 @@
+{
+  "org": "test-fitness-franchise",
+  "generatedFor": "migration-review",
+  "modules": [
+    {
+      "module": "Branches (hierarchy)",
+      "table": "hierarchy_nodes",
+      "sourceTable": "location",
+      "schema": [
+        {
+          "column": "id",
+          "type": "uuid"
+        },
+        {
+          "column": "name",
+          "type": "text"
+        },
+        {
+          "column": "type",
+          "type": "USER-DEFINED"
+        },
+        {
+          "column": "parent_id",
+          "type": "uuid"
+        },
+        {
+          "column": "depth",
+          "type": "integer"
+        },
+        {
+          "column": "created_at",
+          "type": "timestamp without time zone"
+        },
+        {
+          "column": "updated_at",
+          "type": "timestamp without time zone"
+        },
+        {
+          "column": "country_node_id",
+          "type": "uuid"
+        },
+        {
+          "column": "archived_at",
+          "type": "timestamp without time zone"
+        },
+        {
+          "column": "slug",
+          "type": "text"
+        },
+        {
+          "column": "opening_hours",
+          "type": "jsonb"
+        }
+      ],
+      "migratedCount": 6,
+      "rows": [
+        {
+          "id": "732f16af-5e0d-4add-9a0b-03aac652ddbd",
+          "name": "Bukit Jalil",
+          "slug": "bukit-jalil",
+          "type": "branch",
+          "depth": 3,
+          "address": "Aurora Place, Bukit Jalil, Level 2, Unit A-02, Kuala Lumpur, 57000",
+          "pic_user_id": "eb221786-3c88-4877-bdaa-b74f39468475"
+        },
+        {
+          "id": "ee84435d-92f6-4d82-964b-3839bb03646f",
+          "name": "Mont Kiara",
+          "slug": "mont-kiara",
+          "type": "branch",
+          "depth": 3,
+          "address": "Plaza Mont Kiara, Block C, Unit 3-12, Kuala Lumpur, 50480",
+          "pic_user_id": "084c07d8-adff-490c-93fb-80c471eef8d9"
+        },
+        {
+          "id": "86ef1472-579c-435b-ae4d-675e002ef7ef",
+          "name": "Phrom Phong",
+          "slug": "phrom-phong",
+          "type": "branch",
+          "depth": 3,
+          "address": "Sukhumvit 39, Unit 5B, Bangkok, 10110",
+          "pic_user_id": "c60ae4a9-c8a5-47bf-ad71-db3953b1ee48"
+        },
+        {
+          "id": "4b3669a6-1e30-4cd5-ab74-ddb752347164",
+          "name": "Puchong",
+          "slug": "puchong",
+          "type": "branch",
+          "depth": 3,
+          "address": "Bandar Puteri Puchong, Shoplot 21-1, Puchong, 47100",
+          "pic_user_id": "6c147d2b-7983-44cc-a651-1e687f3c692d"
+        },
+        {
+          "id": "15f2397e-13a3-4303-b984-476fc3e97e4c",
+          "name": "Singapore CBD",
+          "slug": "singapore-cbd",
+          "type": "branch",
+          "depth": 3,
+          "address": "Tanjong Pagar, TBC, Singapore, 079903",
+          "pic_user_id": null
+        },
+        {
+          "id": "6ba1e26d-0a9f-4839-bc11-f8a08488032b",
+          "name": "TTDI",
+          "slug": "ttdi",
+          "type": "branch",
+          "depth": 3,
+          "address": "Jalan Wan Kadir 3, 1st Floor, Kuala Lumpur, 60000",
+          "pic_user_id": "4307c757-59fe-465b-be7f-c8e5fb558ed2"
+        }
+      ]
+    },
+    {
+      "module": "Staff (members)",
+      "table": "members",
+      "sourceTable": "staff_member",
+      "schema": [
+        {
+          "column": "id",
+          "type": "uuid"
+        },
+        {
+          "column": "user_id",
+          "type": "text"
+        },
+        {
+          "column": "role",
+          "type": "text"
+        },
+        {
+          "column": "hierarchy_scope_id",
+          "type": "uuid"
+        },
+        {
+          "column": "status",
+          "type": "text"
+        },
+        {
+          "column": "joined_at",
+          "type": "timestamp without time zone"
+        },
+        {
+          "column": "trainer_tier_id",
+          "type": "uuid"
+        },
+        {
+          "column": "role_id",
+          "type": "uuid"
+        },
+        {
+          "column": "lead_source_id",
+          "type": "uuid"
+        },
+        {
+          "column": "household_id",
+          "type": "uuid"
+        },
+        {
+          "column": "invitation_id",
+          "type": "uuid"
+        },
+        {
+          "column": "deleted_at",
+          "type": "timestamp without time zone"
+        }
+      ],
+      "migratedCount": 11,
+      "rows": [
+        {
+          "legacy_id": "STF-00001",
+          "name": "Chloe Tan",
+          "email": "chloe.tan@movefitness.test",
+          "id": "34573c93-f3f0-478e-9639-a65023cce34c",
+          "user_id": "eb221786-3c88-4877-bdaa-b74f39468475",
+          "role": "staff",
+          "status": "active",
+          "hierarchy_scope_id": "732f16af-5e0d-4add-9a0b-03aac652ddbd"
+        },
+        {
+          "legacy_id": "STF-00002",
+          "name": "Amir Lim",
+          "email": "amir.lim@movefitness.test",
+          "id": "211b47bb-591f-42fc-ba31-115f9d24764b",
+          "user_id": "c4aa248b-52a9-4735-bc08-3ef838e9c90c",
+          "role": "trainer",
+          "status": "active",
+          "hierarchy_scope_id": "732f16af-5e0d-4add-9a0b-03aac652ddbd"
+        },
+        {
+          "legacy_id": "STF-00003",
+          "name": "Siti Rahman",
+          "email": "siti.rahman@movefitness.test",
+          "id": "e3d857c8-4463-4fad-a2f2-4d0ffa67a423",
+          "user_id": "64d1398b-5994-43ce-a127-17df4f04b167",
+          "role": "trainer",
+          "status": "active",
+          "hierarchy_scope_id": "6ba1e26d-0a9f-4839-bc11-f8a08488032b"
+        },
+        {
+          "legacy_id": "STF-00004",
+          "name": "Daniel Wong",
+          "email": "daniel.wong@movefitness.test",
+          "id": "a37ce078-f71c-4fd6-a61a-59816b25cb11",
+          "user_id": "6636097b-9deb-4a1f-8223-492d0495b789",
+          "role": "trainer",
+          "status": "active",
+          "hierarchy_scope_id": "ee84435d-92f6-4d82-964b-3839bb03646f"
+        },
+        {
+          "legacy_id": "STF-00005",
+          "name": "Nattapong S.",
+          "email": "nattapong.s@movefitness.test",
+          "id": "f3303a0f-8fe8-40c2-bc0f-3961e2597782",
+          "user_id": "8532e38e-bb54-42ce-a141-8521e44c04bb",
+          "role": "trainer",
+          "status": "active",
+          "hierarchy_scope_id": "86ef1472-579c-435b-ae4d-675e002ef7ef"
+        },
+        {
+          "legacy_id": "STF-00006",
+          "name": "Mei Chen",
+          "email": "mei.chen@movefitness.test",
+          "id": "ae2993db-d63e-45b6-8f11-ea2692cb5668",
+          "user_id": "2eaccfa7-4af6-4b9f-a497-823223f2d5a1",
+          "role": "admin",
+          "status": "active",
+          "hierarchy_scope_id": "732f16af-5e0d-4add-9a0b-03aac652ddbd"
+        },
+        {
+          "legacy_id": "STF-00007",
+          "name": "Priya Nair",
+          "email": "priya.nair@movefitness.test",
+          "id": "d2bea4e8-8592-4919-8f6c-c13dbfb000cc",
+          "user_id": "878dbeb0-5d88-452d-99a7-52b10b4c7bca",
+          "role": "staff",
+          "status": "active",
+          "hierarchy_scope_id": "6ba1e26d-0a9f-4839-bc11-f8a08488032b"
+        },
+        {
+          "legacy_id": "STF-00008",
+          "name": "Marcus Lee",
+          "email": "marcus.lee@movefitness.test",
+          "id": "b12d31d6-a121-483e-95d9-fd3986b464ec",
+          "user_id": "4307c757-59fe-465b-be7f-c8e5fb558ed2",
+          "role": "trainer",
+          "status": "active",
+          "hierarchy_scope_id": "6ba1e26d-0a9f-4839-bc11-f8a08488032b"
+        },
+        {
+          "legacy_id": "STF-00009",
+          "name": "Rachel Ong",
+          "email": "rachel.ong@movefitness.test",
+          "id": "01f6e749-406e-4949-ac36-3af2874f01c1",
+          "user_id": "084c07d8-adff-490c-93fb-80c471eef8d9",
+          "role": "staff",
+          "status": "active",
+          "hierarchy_scope_id": "ee84435d-92f6-4d82-964b-3839bb03646f"
+        },
+        {
+          "legacy_id": "STF-00010",
+          "name": "Arisa K.",
+          "email": "arisa.k@movefitness.test",
+          "id": "a204dccc-b805-4892-8c1a-6aa73e2a4ad2",
+          "user_id": "c60ae4a9-c8a5-47bf-ad71-db3953b1ee48",
+          "role": "staff",
+          "status": "active",
+          "hierarchy_scope_id": "86ef1472-579c-435b-ae4d-675e002ef7ef"
+        },
+        {
+          "legacy_id": "STF-00011",
+          "name": "Jason Koh",
+          "email": "jason.koh@movefitness.test",
+          "id": "67122081-40e7-4029-9ba1-20b851d8f401",
+          "user_id": "6c147d2b-7983-44cc-a651-1e687f3c692d",
+          "role": "trainer",
+          "status": "active",
+          "hierarchy_scope_id": "4b3669a6-1e30-4cd5-ab74-ddb752347164"
+        }
+      ]
+    },
+    {
+      "module": "Services (PT packages)",
+      "table": "services",
+      "sourceTable": "product",
+      "schema": [
+        {
+          "column": "id",
+          "type": "uuid"
+        },
+        {
+          "column": "name",
+          "type": "text"
+        },
+        {
+          "column": "category_id",
+          "type": "uuid"
+        },
+        {
+          "column": "duration",
+          "type": "integer"
+        },
+        {
+          "column": "duration_unit_type",
+          "type": "text"
+        },
+        {
+          "column": "max_attendees",
+          "type": "integer"
+        },
+        {
+          "column": "attendance_threshold",
+          "type": "integer"
+        },
+        {
+          "column": "stripe_product_id",
+          "type": "text"
+        },
+        {
+          "column": "stripe_price_id",
+          "type": "text"
+        },
+        {
+          "column": "stripe_sync_status",
+          "type": "text"
+        },
+        {
+          "column": "stripe_last_synced_at",
+          "type": "timestamp without time zone"
+        },
+        {
+          "column": "branch_id",
+          "type": "uuid"
+        },
+        {
+          "column": "is_active",
+          "type": "boolean"
+        },
+        {
+          "column": "created_at",
+          "type": "timestamp without time zone"
+        },
+        {
+          "column": "updated_at",
+          "type": "timestamp without time zone"
+        },
+        {
+          "column": "title",
+          "type": "text"
+        },
+        {
+          "column": "description",
+          "type": "text"
+        },
+        {
+          "column": "image_url",
+          "type": "text"
+        },
+        {
+          "column": "type",
+          "type": "text"
+        },
+        {
+          "column": "price",
+          "type": "integer"
+        },
+        {
+          "column": "price_unit",
+          "type": "text"
+        },
+        {
+          "column": "taxable",
+          "type": "boolean"
+        },
+        {
+          "column": "tax_percentage",
+          "type": "integer"
+        },
+        {
+          "column": "is_recommended",
+          "type": "boolean"
+        },
+        {
+          "column": "location",
+          "type": "text"
+        },
+        {
+          "column": "features",
+          "type": "ARRAY"
+        },
+        {
+          "column": "session_count",
+          "type": "integer"
+        },
+        {
+          "column": "expirable",
+          "type": "boolean"
+        },
+        {
+          "column": "expiry_days",
+          "type": "integer"
+        },
+        {
+          "column": "expiry_date",
+          "type": "timestamp without time zone"
+        },
+        {
+          "column": "buffer_time_minutes",
+          "type": "integer"
+        },
+        {
+          "column": "available_payment_plans",
+          "type": "ARRAY"
+        },
+        {
+          "column": "installment_interval_days",
+          "type": "integer"
+        },
+        {
+          "column": "grace_period_days",
+          "type": "integer"
+        },
+        {
+          "column": "time_preset_config",
+          "type": "jsonb"
+        },
+        {
+          "column": "created_by",
+          "type": "text"
+        },
+        {
+          "column": "updated_by",
+          "type": "text"
+        },
+        {
+          "column": "default_commission_bps",
+          "type": "integer"
+        },
+        {
+          "column": "scheduling_type",
+          "type": "text"
+        }
+      ],
+      "migratedCount": 6,
+      "rows": [
+        {
+          "id": "029fad60-2c2c-4958-9ba5-d47524978b5c",
+          "name": "FITCATION",
+          "type": "private",
+          "price": 648000,
+          "session_count": 36,
+          "expiry_days": 98,
+          "is_active": true,
+          "legacy_id": "MY-T1-FITCATION"
+        },
+        {
+          "id": "8c73c93d-defd-45ad-ae83-65bf900a40d3",
+          "name": "LMK",
+          "type": "private",
+          "price": 19900,
+          "session_count": 1,
+          "expiry_days": 14,
+          "is_active": true,
+          "legacy_id": "MY-LMK"
+        },
+        {
+          "id": "604825fa-58a5-4a3d-81a6-70ec73b2136a",
+          "name": "PT 2x12",
+          "type": "private",
+          "price": 456000,
+          "session_count": 24,
+          "expiry_days": 98,
+          "is_active": true,
+          "legacy_id": "MY-T1-PT-2X12"
+        },
+        {
+          "id": "a04d5ae7-d319-434d-80db-9a5359f0f3fd",
+          "name": "PT 2x12",
+          "type": "private",
+          "price": 4200000,
+          "session_count": 24,
+          "expiry_days": 98,
+          "is_active": true,
+          "legacy_id": "TH-T1-PT-2X12"
+        },
+        {
+          "id": "a6c22ef6-2b00-4aa3-8700-7003523356da",
+          "name": "PT 2x12",
+          "type": "private",
+          "price": 240000,
+          "session_count": 24,
+          "expiry_days": 98,
+          "is_active": false,
+          "legacy_id": "SG-T1-PT-2X12"
+        },
+        {
+          "id": "55072497-d42a-484d-9ce9-e882874ab95c",
+          "name": "SPT 2x12",
+          "type": "semi_private",
+          "price": 780000,
+          "session_count": 24,
+          "expiry_days": 98,
+          "is_active": true,
+          "legacy_id": "MY-T1-SPT-2X12"
+        }
+      ]
+    },
+    {
+      "module": "Customers (profiles)",
+      "table": "customer_profiles",
+      "sourceTable": "client",
+      "schema": [
+        {
+          "column": "id",
+          "type": "uuid"
+        },
+        {
+          "column": "user_id",
+          "type": "text"
+        },
+        {
+          "column": "phone",
+          "type": "text"
+        },
+        {
+          "column": "date_of_birth",
+          "type": "timestamp without time zone"
+        },
+        {
+          "column": "gender",
+          "type": "text"
+        },
+        {
+          "column": "address",
+          "type": "text"
+        },
+        {
+          "column": "emergency_contact_name",
+          "type": "text"
+        },
+        {
+          "column": "emergency_contact_phone",
+          "type": "text"
+        },
+        {
+          "column": "medical_notes",
+          "type": "text"
+        },
+        {
+          "column": "fitness_goals",
+          "type": "ARRAY"
+        },
+        {
+          "column": "credit_points",
+          "type": "integer"
+        },
+        {
+          "column": "notes",
+          "type": "text"
+        },
+        {
+          "column": "created_at",
+          "type": "timestamp without time zone"
+        },
+        {
+          "column": "updated_at",
+          "type": "timestamp without time zone"
+        },
+        {
+          "column": "is_deleted",
+          "type": "boolean"
+        },
+        {
+          "column": "deleted_at",
+          "type": "timestamp without time zone"
+        },
+        {
+          "column": "deleted_source",
+          "type": "text"
+        },
+        {
+          "column": "lead_source_id",
+          "type": "uuid"
+        },
+        {
+          "column": "referrer_member_id",
+          "type": "uuid"
+        },
+        {
+          "column": "campaign_id",
+          "type": "text"
+        },
+        {
+          "column": "household_id",
+          "type": "uuid"
+        },
+        {
+          "column": "stripe_customer_id",
+          "type": "text"
+        },
+        {
+          "column": "stripe_connect_account_id_snapshot",
+          "type": "text"
+        },
+        {
+          "column": "default_payment_method_id",
+          "type": "text"
+        },
+        {
+          "column": "account_group_id",
+          "type": "uuid"
+        },
+        {
+          "column": "relationship",
+          "type": "text"
+        },
+        {
+          "column": "lead_acquisition_type",
+          "type": "text"
+        },
+        {
+          "column": "primary_staff_member_id",
+          "type": "uuid"
+        },
+        {
+          "column": "is_unclaimed",
+          "type": "boolean"
+        }
+      ],
+      "migratedCount": 8,
+      "rows": [
+        {
+          "legacy_id": "aoikumo_9001",
+          "name": "Ryan Tan",
+          "email": "ryan.tan@example.test",
+          "id": "cb7c6980-916f-4933-ac10-ef12898daea2",
+          "user_id": "621154d6-8838-4874-8def-f3282b8bb4e2",
+          "phone": "+6012-300-0001",
+          "gender": "male",
+          "is_unclaimed": true,
+          "primary_staff_member_id": "211b47bb-591f-42fc-ba31-115f9d24764b"
+        },
+        {
+          "legacy_id": "aoikumo_9002",
+          "name": "Aisyah Ahmad",
+          "email": "aisyah.ahmad@example.test",
+          "id": "74483280-14f8-4799-8eb4-368bc58e8dd2",
+          "user_id": "5733baaa-f982-4cc7-92b7-1f03a0ffbc3f",
+          "phone": "+6012-300-0002",
+          "gender": "female",
+          "is_unclaimed": true,
+          "primary_staff_member_id": "e3d857c8-4463-4fad-a2f2-4d0ffa67a423"
+        },
+        {
+          "legacy_id": "aoikumo_9004",
+          "name": "Sofia Lee",
+          "email": "sofia.lee@example.test",
+          "id": "b051169d-e11b-42b6-aaba-5ba34de258c9",
+          "user_id": "f5f99116-91d2-4280-ae00-248407288b3c",
+          "phone": "+6012-300-0004",
+          "gender": "female",
+          "is_unclaimed": true,
+          "primary_staff_member_id": "67122081-40e7-4029-9ba1-20b851d8f401"
+        },
+        {
+          "legacy_id": "aoikumo_9005",
+          "name": "Mina Park",
+          "email": "mina.park@example.test",
+          "id": "d577454c-6170-481a-9455-e337ebb052ed",
+          "user_id": "eee0d9cf-1568-4a1a-b79a-de49662fc392",
+          "phone": "+6012-300-0005",
+          "gender": "female",
+          "is_unclaimed": true,
+          "primary_staff_member_id": "a37ce078-f71c-4fd6-a61a-59816b25cb11"
+        },
+        {
+          "legacy_id": "aoikumo_9007",
+          "name": "Farah Noor",
+          "email": "farah.noor@example.test",
+          "id": "26377bcb-37c6-43ed-aa39-9d79cca10104",
+          "user_id": "87ed54ce-585c-4253-ae56-41297931b54b",
+          "phone": "+6012-300-0007",
+          "gender": "female",
+          "is_unclaimed": true,
+          "primary_staff_member_id": "211b47bb-591f-42fc-ba31-115f9d24764b"
+        },
+        {
+          "legacy_id": "aoikumo_9008",
+          "name": "Alex Chan",
+          "email": "alex.chan@example.test",
+          "id": "7cb2d91d-3468-4432-bcdf-7a4f41925f8e",
+          "user_id": "c860a8f6-52b0-43c8-b096-84d844cc6702",
+          "phone": "+6012-300-0008",
+          "gender": "male",
+          "is_unclaimed": true,
+          "primary_staff_member_id": "e3d857c8-4463-4fad-a2f2-4d0ffa67a423"
+        },
+        {
+          "legacy_id": "aoikumo_th_9006",
+          "name": "Nicha S.",
+          "email": "nicha.s@example.test",
+          "id": "76a700dc-d449-4678-a130-8a05b33a2113",
+          "user_id": "7cbd2929-6972-431d-ac2e-47e26ace4080",
+          "phone": "+6681-300-0006",
+          "gender": "female",
+          "is_unclaimed": true,
+          "primary_staff_member_id": "f3303a0f-8fe8-40c2-bc0f-3961e2597782"
+        },
+        {
+          "legacy_id": "ghl_contact_9003",
+          "name": "Kelvin Lim",
+          "email": "kelvin.lim@example.test",
+          "id": "86048ee1-7d82-4205-84bf-15b47f08d8e4",
+          "user_id": "2fb66830-f207-4770-92fa-b4c1f104748f",
+          "phone": "+6012-300-0003",
+          "gender": "male",
+          "is_unclaimed": true,
+          "primary_staff_member_id": "a37ce078-f71c-4fd6-a61a-59816b25cb11"
+        }
+      ]
+    },
+    {
+      "module": "Appointments",
+      "table": "appointments",
+      "sourceTable": "appointment",
+      "schema": [
+        {
+          "column": "id",
+          "type": "uuid"
+        },
+        {
+          "column": "type",
+          "type": "text"
+        },
+        {
+          "column": "start_time",
+          "type": "timestamp without time zone"
+        },
+        {
+          "column": "duration",
+          "type": "integer"
+        },
+        {
+          "column": "end_time",
+          "type": "timestamp without time zone"
+        },
+        {
+          "column": "service_id",
+          "type": "uuid"
+        },
+        {
+          "column": "branch_id",
+          "type": "uuid"
+        },
+        {
+          "column": "status",
+          "type": "text"
+        },
+        {
+          "column": "session_total",
+          "type": "integer"
+        },
+        {
+          "column": "price_per_client",
+          "type": "integer"
+        },
+        {
+          "column": "is_recurring",
+          "type": "boolean"
+        },
+        {
+          "column": "recurring_parent_id",
+          "type": "uuid"
+        },
+        {
+          "column": "recurring_frequency",
+          "type": "text"
+        },
+        {
+          "column": "recurring_end_date",
+          "type": "timestamp without time zone"
+        },
+        {
+          "column": "conflict_resolved",
+          "type": "boolean"
+        },
+        {
+          "column": "conflict_reason",
+          "type": "text"
+        },
+        {
+          "column": "payment_status",
+          "type": "text"
+        },
+        {
+          "column": "stripe_payment_intent_id",
+          "type": "text"
+        },
+        {
+          "column": "notes",
+          "type": "text"
+        },
+        {
+          "column": "created_by",
+          "type": "text"
+        },
+        {
+          "column": "created_at",
+          "type": "timestamp without time zone"
+        },
+        {
+          "column": "updated_at",
+          "type": "timestamp without time zone"
+        },
+        {
+          "column": "booking_number",
+          "type": "text"
+        },
+        {
+          "column": "user_id",
+          "type": "text"
+        },
+        {
+          "column": "trainer_id",
+          "type": "uuid"
+        },
+        {
+          "column": "package_instance_id",
+          "type": "uuid"
+        },
+        {
+          "column": "credits_used",
+          "type": "integer"
+        },
+        {
+          "column": "location",
+          "type": "text"
+        },
+        {
+          "column": "cancelled_at",
+          "type": "timestamp without time zone"
+        },
+        {
+          "column": "cancellation_reason",
+          "type": "text"
+        },
+        {
+          "column": "class_slot_id",
+          "type": "uuid"
+        },
+        {
+          "column": "description",
+          "type": "text"
+        },
+        {
+          "column": "image_url",
+          "type": "text"
+        },
+        {
+          "column": "room_id",
+          "type": "uuid"
+        },
+        {
+          "column": "google_calendar_event_id",
+          "type": "text"
+        },
+        {
+          "column": "sales_order_id",
+          "type": "uuid"
+        },
+        {
+          "column": "currency",
+          "type": "text"
+        },
+        {
+          "column": "application_fee_amount",
+          "type": "integer"
+        },
+        {
+          "column": "stripe_connect_account_id_snapshot",
+          "type": "text"
+        },
+        {
+          "column": "stripe_payment_link_id",
+          "type": "text"
+        },
+        {
+          "column": "payment_link_url",
+          "type": "text"
+        },
+        {
+          "column": "paid_at",
+          "type": "timestamp without time zone"
+        },
+        {
+          "column": "payment_failure_reason",
+          "type": "text"
+        },
+        {
+          "column": "payment_method_type",
+          "type": "text"
+        },
+        {
+          "column": "price_snapshot_cents",
+          "type": "integer"
+        },
+        {
+          "column": "config_version_id",
+          "type": "uuid"
+        },
+        {
+          "column": "is_complimentary",
+          "type": "boolean"
+        },
+        {
+          "column": "complimentary_reason",
+          "type": "text"
+        },
+        {
+          "column": "reschedule_history",
+          "type": "jsonb"
+        },
+        {
+          "column": "customer_name",
+          "type": "text"
+        }
+      ],
+      "migratedCount": 16,
+      "rows": [
+        {
+          "id": "b1d884ce-9115-4b0b-9390-a926118b961b",
+          "type": "private",
+          "status": "completed",
+          "start_time": "2026-01-21 02:00:00",
+          "duration": 60,
+          "branch_id": "6ba1e26d-0a9f-4839-bc11-f8a08488032b",
+          "trainer_id": "e3d857c8-4463-4fad-a2f2-4d0ffa67a423",
+          "user_id": null,
+          "legacy_id": "APT-00014"
+        },
+        {
+          "id": "162339a9-fd7d-4c68-aea3-df7392d74473",
+          "type": "private",
+          "status": "completed",
+          "start_time": "2026-01-29 02:00:00",
+          "duration": 60,
+          "branch_id": "6ba1e26d-0a9f-4839-bc11-f8a08488032b",
+          "trainer_id": "e3d857c8-4463-4fad-a2f2-4d0ffa67a423",
+          "user_id": null,
+          "legacy_id": "APT-00015"
+        },
+        {
+          "id": "d821a8a3-f297-4b01-8515-b9f6f316deb7",
+          "type": "private",
+          "status": "completed",
+          "start_time": "2026-05-06 16:00:00",
+          "duration": 60,
+          "branch_id": "732f16af-5e0d-4add-9a0b-03aac652ddbd",
+          "trainer_id": "211b47bb-591f-42fc-ba31-115f9d24764b",
+          "user_id": null,
+          "legacy_id": "APT-00001"
+        },
+        {
+          "id": "54387978-4b54-49d2-be54-c7ea662ec3f8",
+          "type": "private",
+          "status": "completed",
+          "start_time": "2026-05-09 16:00:00",
+          "duration": 60,
+          "branch_id": "732f16af-5e0d-4add-9a0b-03aac652ddbd",
+          "trainer_id": "211b47bb-591f-42fc-ba31-115f9d24764b",
+          "user_id": null,
+          "legacy_id": "APT-00002"
+        },
+        {
+          "id": "334b3e40-ca41-42eb-8c8b-84cc4f3050e7",
+          "type": "private",
+          "status": "completed",
+          "start_time": "2026-05-11 02:00:00",
+          "duration": 60,
+          "branch_id": "86ef1472-579c-435b-ae4d-675e002ef7ef",
+          "trainer_id": "f3303a0f-8fe8-40c2-bc0f-3961e2597782",
+          "user_id": null,
+          "legacy_id": "APT-00010"
+        },
+        {
+          "id": "955d0414-02d5-41a4-9f6f-52d1f1e9cfab",
+          "type": "private",
+          "status": "completed",
+          "start_time": "2026-05-15 19:00:00",
+          "duration": 60,
+          "branch_id": "ee84435d-92f6-4d82-964b-3839bb03646f",
+          "trainer_id": "a37ce078-f71c-4fd6-a61a-59816b25cb11",
+          "user_id": null,
+          "legacy_id": "APT-00006"
+        },
+        {
+          "id": "82c9b477-1cd6-4eed-bad3-dc9166de2ce8",
+          "type": "private",
+          "status": "completed",
+          "start_time": "2026-05-16 02:00:00",
+          "duration": 60,
+          "branch_id": "6ba1e26d-0a9f-4839-bc11-f8a08488032b",
+          "trainer_id": "e3d857c8-4463-4fad-a2f2-4d0ffa67a423",
+          "user_id": null,
+          "legacy_id": "APT-00004"
+        },
+        {
+          "id": "f9fd7f75-2126-4e20-9966-17a25aaf943b",
+          "type": "private",
+          "status": "completed",
+          "start_time": "2026-05-21 01:00:00",
+          "duration": 60,
+          "branch_id": "ee84435d-92f6-4d82-964b-3839bb03646f",
+          "trainer_id": "a37ce078-f71c-4fd6-a61a-59816b25cb11",
+          "user_id": null,
+          "legacy_id": "APT-00008"
+        },
+        {
+          "id": "a67655dd-83fc-46d6-839c-febf839557ca",
+          "type": "private",
+          "status": "completed",
+          "start_time": "2026-05-23 02:00:00",
+          "duration": 60,
+          "branch_id": "86ef1472-579c-435b-ae4d-675e002ef7ef",
+          "trainer_id": "f3303a0f-8fe8-40c2-bc0f-3961e2597782",
+          "user_id": null,
+          "legacy_id": "APT-00011"
+        },
+        {
+          "id": "27b892e4-976d-4a28-9a9e-f9d4df454b20",
+          "type": "private",
+          "status": "no-show",
+          "start_time": "2026-05-23 02:00:00",
+          "duration": 60,
+          "branch_id": "6ba1e26d-0a9f-4839-bc11-f8a08488032b",
+          "trainer_id": "e3d857c8-4463-4fad-a2f2-4d0ffa67a423",
+          "user_id": null,
+          "legacy_id": "APT-00005"
+        },
+        {
+          "id": "ec86dd05-4537-4166-abcd-5b7004c0fb09",
+          "type": "private",
+          "status": "cancelled",
+          "start_time": "2026-06-05 01:00:00",
+          "duration": 60,
+          "branch_id": "ee84435d-92f6-4d82-964b-3839bb03646f",
+          "trainer_id": "a37ce078-f71c-4fd6-a61a-59816b25cb11",
+          "user_id": null,
+          "legacy_id": "APT-00009"
+        },
+        {
+          "id": "a1f4542d-5054-40ab-b0d7-f851713c8f30",
+          "type": "private",
+          "status": "completed",
+          "start_time": "2026-06-06 15:00:00",
+          "duration": 60,
+          "branch_id": "732f16af-5e0d-4add-9a0b-03aac652ddbd",
+          "trainer_id": "211b47bb-591f-42fc-ba31-115f9d24764b",
+          "user_id": null,
+          "legacy_id": "APT-00012"
+        },
+        {
+          "id": "d635cf73-daca-462f-ae00-c6eff1b4d46b",
+          "type": "private",
+          "status": "completed",
+          "start_time": "2026-06-09 15:00:00",
+          "duration": 60,
+          "branch_id": "732f16af-5e0d-4add-9a0b-03aac652ddbd",
+          "trainer_id": "211b47bb-591f-42fc-ba31-115f9d24764b",
+          "user_id": null,
+          "legacy_id": "APT-00013"
+        },
+        {
+          "id": "b1297431-a9bf-475e-b4ef-8e0409be9bd2",
+          "type": "private",
+          "status": "cancelled",
+          "start_time": "2026-06-12 16:00:00",
+          "duration": 60,
+          "branch_id": "732f16af-5e0d-4add-9a0b-03aac652ddbd",
+          "trainer_id": "211b47bb-591f-42fc-ba31-115f9d24764b",
+          "user_id": null,
+          "legacy_id": "APT-00016"
+        },
+        {
+          "id": "e4a97ab1-62db-46e7-9c38-ab2b75f171b6",
+          "type": "private",
+          "status": "confirmed",
+          "start_time": "2026-06-18 16:00:00",
+          "duration": 60,
+          "branch_id": "732f16af-5e0d-4add-9a0b-03aac652ddbd",
+          "trainer_id": "211b47bb-591f-42fc-ba31-115f9d24764b",
+          "user_id": null,
+          "legacy_id": "APT-00003"
+        },
+        {
+          "id": "4b7e2f24-9d9c-41df-adb6-32a5eafb09b4",
+          "type": "semi-private",
+          "status": "confirmed",
+          "start_time": "2026-06-20 18:00:00",
+          "duration": 60,
+          "branch_id": "4b3669a6-1e30-4cd5-ab74-ddb752347164",
+          "trainer_id": "67122081-40e7-4029-9ba1-20b851d8f401",
+          "user_id": null,
+          "legacy_id": "APT-00007"
+        }
+      ]
+    }
+  ]
+}

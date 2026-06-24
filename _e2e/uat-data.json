@@ -1,0 +1,1986 @@
+{
+  "org": "test-fitness-franchise",
+  "sections": {
+    "3": {
+      "label": "Client portal / customers",
+      "tables": [
+        {
+          "table": "customer_profiles",
+          "schema": [
+            {
+              "column": "id",
+              "type": "uuid"
+            },
+            {
+              "column": "user_id",
+              "type": "text"
+            },
+            {
+              "column": "phone",
+              "type": "text"
+            },
+            {
+              "column": "date_of_birth",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "gender",
+              "type": "text"
+            },
+            {
+              "column": "address",
+              "type": "text"
+            },
+            {
+              "column": "emergency_contact_name",
+              "type": "text"
+            },
+            {
+              "column": "emergency_contact_phone",
+              "type": "text"
+            },
+            {
+              "column": "medical_notes",
+              "type": "text"
+            },
+            {
+              "column": "fitness_goals",
+              "type": "ARRAY"
+            },
+            {
+              "column": "credit_points",
+              "type": "integer"
+            },
+            {
+              "column": "notes",
+              "type": "text"
+            },
+            {
+              "column": "created_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "updated_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "is_deleted",
+              "type": "boolean"
+            },
+            {
+              "column": "deleted_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "deleted_source",
+              "type": "text"
+            },
+            {
+              "column": "lead_source_id",
+              "type": "uuid"
+            },
+            {
+              "column": "referrer_member_id",
+              "type": "uuid"
+            },
+            {
+              "column": "campaign_id",
+              "type": "text"
+            },
+            {
+              "column": "household_id",
+              "type": "uuid"
+            },
+            {
+              "column": "stripe_customer_id",
+              "type": "text"
+            },
+            {
+              "column": "stripe_connect_account_id_snapshot",
+              "type": "text"
+            },
+            {
+              "column": "default_payment_method_id",
+              "type": "text"
+            },
+            {
+              "column": "account_group_id",
+              "type": "uuid"
+            },
+            {
+              "column": "relationship",
+              "type": "text"
+            },
+            {
+              "column": "lead_acquisition_type",
+              "type": "text"
+            },
+            {
+              "column": "primary_staff_member_id",
+              "type": "uuid"
+            },
+            {
+              "column": "is_unclaimed",
+              "type": "boolean"
+            }
+          ],
+          "rows": [
+            {
+              "id": "cd350642-8b5a-4a89-bf09-a398a99d5929",
+              "user_id": "2ebd35f2-049c-4aa0-a478-a78f23a40257",
+              "phone": "+60 11-7097 1815",
+              "gender": null,
+              "is_unclaimed": true,
+              "primary_staff_member_id": null
+            },
+            {
+              "id": "e529478d-8cde-4e89-9721-5e0e2ed4ce3b",
+              "user_id": "fd8d05cb-86fa-4b23-8ec4-fcbbe37f4464",
+              "phone": "+60 11-6335 3530",
+              "gender": null,
+              "is_unclaimed": true,
+              "primary_staff_member_id": null
+            },
+            {
+              "id": "50d144ac-b9b7-48b0-87f6-eda5322bd146",
+              "user_id": "6a82c31b-42b7-4f50-b1d9-95b47985a6a1",
+              "phone": "+60 12-345 6789",
+              "gender": "female",
+              "is_unclaimed": false,
+              "primary_staff_member_id": null
+            },
+            {
+              "id": "4c2bb65a-960a-47cd-ae10-75d4f425101c",
+              "user_id": "06a70f4a-bdaa-46b3-bade-89a54f6a095d",
+              "phone": "+60 13-8636 5334",
+              "gender": null,
+              "is_unclaimed": true,
+              "primary_staff_member_id": null
+            },
+            {
+              "id": "b2ab3c53-83f1-4c20-9fa4-4d83b00d522a",
+              "user_id": "b0b99f1a-e241-4cee-bce5-e185abba21cc",
+              "phone": "+60 11-9086 8629",
+              "gender": null,
+              "is_unclaimed": true,
+              "primary_staff_member_id": null
+            },
+            {
+              "id": "b1d54909-ceef-4075-a6ec-1c26604e1267",
+              "user_id": "a384cc90-58db-4d98-a8d2-9e0e91e2ded0",
+              "phone": "+60 13-9484 7496",
+              "gender": null,
+              "is_unclaimed": true,
+              "primary_staff_member_id": null
+            }
+          ],
+          "total": 77
+        }
+      ]
+    },
+    "5": {
+      "label": "Session booking",
+      "tables": [
+        {
+          "table": "appointments",
+          "schema": [
+            {
+              "column": "id",
+              "type": "uuid"
+            },
+            {
+              "column": "type",
+              "type": "text"
+            },
+            {
+              "column": "start_time",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "duration",
+              "type": "integer"
+            },
+            {
+              "column": "end_time",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "service_id",
+              "type": "uuid"
+            },
+            {
+              "column": "branch_id",
+              "type": "uuid"
+            },
+            {
+              "column": "status",
+              "type": "text"
+            },
+            {
+              "column": "session_total",
+              "type": "integer"
+            },
+            {
+              "column": "price_per_client",
+              "type": "integer"
+            },
+            {
+              "column": "is_recurring",
+              "type": "boolean"
+            },
+            {
+              "column": "recurring_parent_id",
+              "type": "uuid"
+            },
+            {
+              "column": "recurring_frequency",
+              "type": "text"
+            },
+            {
+              "column": "recurring_end_date",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "conflict_resolved",
+              "type": "boolean"
+            },
+            {
+              "column": "conflict_reason",
+              "type": "text"
+            },
+            {
+              "column": "payment_status",
+              "type": "text"
+            },
+            {
+              "column": "stripe_payment_intent_id",
+              "type": "text"
+            },
+            {
+              "column": "notes",
+              "type": "text"
+            },
+            {
+              "column": "created_by",
+              "type": "text"
+            },
+            {
+              "column": "created_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "updated_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "booking_number",
+              "type": "text"
+            },
+            {
+              "column": "user_id",
+              "type": "text"
+            },
+            {
+              "column": "trainer_id",
+              "type": "uuid"
+            },
+            {
+              "column": "package_instance_id",
+              "type": "uuid"
+            },
+            {
+              "column": "credits_used",
+              "type": "integer"
+            },
+            {
+              "column": "location",
+              "type": "text"
+            },
+            {
+              "column": "cancelled_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "cancellation_reason",
+              "type": "text"
+            },
+            {
+              "column": "class_slot_id",
+              "type": "uuid"
+            },
+            {
+              "column": "description",
+              "type": "text"
+            },
+            {
+              "column": "image_url",
+              "type": "text"
+            },
+            {
+              "column": "room_id",
+              "type": "uuid"
+            },
+            {
+              "column": "google_calendar_event_id",
+              "type": "text"
+            },
+            {
+              "column": "sales_order_id",
+              "type": "uuid"
+            },
+            {
+              "column": "currency",
+              "type": "text"
+            },
+            {
+              "column": "application_fee_amount",
+              "type": "integer"
+            },
+            {
+              "column": "stripe_connect_account_id_snapshot",
+              "type": "text"
+            },
+            {
+              "column": "stripe_payment_link_id",
+              "type": "text"
+            },
+            {
+              "column": "payment_link_url",
+              "type": "text"
+            },
+            {
+              "column": "paid_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "payment_failure_reason",
+              "type": "text"
+            },
+            {
+              "column": "payment_method_type",
+              "type": "text"
+            },
+            {
+              "column": "price_snapshot_cents",
+              "type": "integer"
+            },
+            {
+              "column": "config_version_id",
+              "type": "uuid"
+            },
+            {
+              "column": "is_complimentary",
+              "type": "boolean"
+            },
+            {
+              "column": "complimentary_reason",
+              "type": "text"
+            },
+            {
+              "column": "reschedule_history",
+              "type": "jsonb"
+            },
+            {
+              "column": "customer_name",
+              "type": "text"
+            }
+          ],
+          "rows": [
+            {
+              "id": "b252b42e-0d7a-482e-9f42-6a9f2b4762cd",
+              "type": "private",
+              "status": "completed",
+              "start_time": "2031-05-14 14:30:00",
+              "duration": 60,
+              "branch_id": "abce4846-ecfa-4f3f-8734-65114e3e42b4",
+              "package_instance_id": null,
+              "credits_used": 1
+            },
+            {
+              "id": "b4ddda53-b65d-4c49-9190-861b2982a120",
+              "type": "private",
+              "status": "cancelled",
+              "start_time": "2031-03-17 08:30:00",
+              "duration": 60,
+              "branch_id": "e5b88c19-da14-42e6-8d91-4a7941fa3ecd",
+              "package_instance_id": null,
+              "credits_used": 1
+            },
+            {
+              "id": "cd40cca2-ac15-44d0-aa2a-2af9690c0104",
+              "type": "private",
+              "status": "cancelled",
+              "start_time": "2031-03-04 17:00:00",
+              "duration": 60,
+              "branch_id": "abce4846-ecfa-4f3f-8734-65114e3e42b4",
+              "package_instance_id": null,
+              "credits_used": 1
+            },
+            {
+              "id": "97568120-d772-409d-8c5c-818e75b57402",
+              "type": "private",
+              "status": "confirmed",
+              "start_time": "2031-03-02 14:30:00",
+              "duration": 60,
+              "branch_id": "e5b88c19-da14-42e6-8d91-4a7941fa3ecd",
+              "package_instance_id": null,
+              "credits_used": 1
+            },
+            {
+              "id": "41f7a093-e636-4d2a-b100-25992b2014ac",
+              "type": "private",
+              "status": "completed",
+              "start_time": "2031-01-18 10:00:00",
+              "duration": 60,
+              "branch_id": "abce4846-ecfa-4f3f-8734-65114e3e42b4",
+              "package_instance_id": null,
+              "credits_used": 1
+            },
+            {
+              "id": "cd02eab5-dd64-4b47-8138-0f8db8d669b1",
+              "type": "private",
+              "status": "completed",
+              "start_time": "2031-01-05 11:30:00",
+              "duration": 60,
+              "branch_id": "abce4846-ecfa-4f3f-8734-65114e3e42b4",
+              "package_instance_id": null,
+              "credits_used": 1
+            }
+          ],
+          "total": 573
+        }
+      ]
+    },
+    "7": {
+      "label": "Payment & finance",
+      "tables": [
+        {
+          "table": "invoices",
+          "schema": [
+            {
+              "column": "id",
+              "type": "uuid"
+            },
+            {
+              "column": "invoice_number",
+              "type": "text"
+            },
+            {
+              "column": "sales_order_id",
+              "type": "uuid"
+            },
+            {
+              "column": "payment_id",
+              "type": "uuid"
+            },
+            {
+              "column": "date",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "due_date",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "customer_id",
+              "type": "text"
+            },
+            {
+              "column": "customer_name",
+              "type": "text"
+            },
+            {
+              "column": "created_by",
+              "type": "text"
+            },
+            {
+              "column": "payment_mode",
+              "type": "text"
+            },
+            {
+              "column": "total_amount",
+              "type": "integer"
+            },
+            {
+              "column": "amount_paid",
+              "type": "integer"
+            },
+            {
+              "column": "status",
+              "type": "text"
+            },
+            {
+              "column": "e_invoice_status",
+              "type": "text"
+            },
+            {
+              "column": "e_invoice_id",
+              "type": "text"
+            },
+            {
+              "column": "created_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "updated_at",
+              "type": "timestamp without time zone"
+            }
+          ],
+          "rows": [
+            {
+              "id": "98825c25-6545-4ac7-90d3-c185ad4b3090",
+              "invoice_number": "INV-20260622-000661",
+              "sales_order_id": null,
+              "payment_id": null,
+              "date": "2026-06-22 03:16:09.145",
+              "due_date": null,
+              "customer_id": null,
+              "customer_name": "E2E-DEEP-invoice-cust-mqon31yy-26",
+              "created_by": "E2E-DEEP",
+              "payment_mode": null,
+              "total_amount": 20000,
+              "amount_paid": 0,
+              "status": "cancelled",
+              "e_invoice_status": null,
+              "e_invoice_id": null,
+              "created_at": "2026-06-22 03:16:06.90798",
+              "updated_at": "2026-06-22 03:16:15.134"
+            },
+            {
+              "id": "920b7b6a-6f88-49fd-9d2f-c435a5dcf847",
+              "invoice_number": "INV-20260621-000660",
+              "sales_order_id": "f23ab8e5-9c79-42a6-bb63-f0d90464a86e",
+              "payment_id": "07d4ba1f-a8d6-4bbb-940c-c539efc3e66c",
+              "date": "2026-06-21 11:34:30.001",
+              "due_date": "2026-06-21 11:34:30.001",
+              "customer_id": "4ca63585-922a-418d-9129-7bb1ca2d5555",
+              "customer_name": "Ahmad Firdaus",
+              "created_by": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
+              "payment_mode": "cash",
+              "total_amount": 9000,
+              "amount_paid": 3000,
+              "status": "partially_paid",
+              "e_invoice_status": null,
+              "e_invoice_id": null,
+              "created_at": "2026-06-21 11:34:29.909261",
+              "updated_at": "2026-06-21 11:34:29.909261"
+            },
+            {
+              "id": "a1d3355c-593e-4b10-97d2-b6b29a76e3a0",
+              "invoice_number": "INV-20260621-000659",
+              "sales_order_id": "c1204b85-c6c9-4803-9e57-87c3605b5f01",
+              "payment_id": "46a325df-ce23-466b-b2b8-ed887ffd944f",
+              "date": "2026-06-21 11:33:28.544",
+              "due_date": "2026-06-21 11:33:28.544",
+              "customer_id": "4ca63585-922a-418d-9129-7bb1ca2d5555",
+              "customer_name": "Ahmad Firdaus",
+              "created_by": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
+              "payment_mode": "cash",
+              "total_amount": 9000,
+              "amount_paid": 3000,
+              "status": "partially_paid",
+              "e_invoice_status": null,
+              "e_invoice_id": null,
+              "created_at": "2026-06-21 11:33:28.451018",
+              "updated_at": "2026-06-21 11:33:28.451018"
+            },
+            {
+              "id": "28c8fa18-2e31-4736-a9f2-e102bf8bfaf3",
+              "invoice_number": "INV-20260621-000658",
+              "sales_order_id": "300bf0cd-af5b-4a58-a9d9-e2531e8a14d4",
+              "payment_id": "c5467ebf-8278-4c01-8ba8-48ca6b3d1843",
+              "date": "2026-06-21 11:32:27.99",
+              "due_date": "2026-06-21 11:32:27.99",
+              "customer_id": "4ca63585-922a-418d-9129-7bb1ca2d5555",
+              "customer_name": "Ahmad Firdaus",
+              "created_by": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
+              "payment_mode": "cash",
+              "total_amount": 9000,
+              "amount_paid": 3000,
+              "status": "partially_paid",
+              "e_invoice_status": null,
+              "e_invoice_id": null,
+              "created_at": "2026-06-21 11:32:27.900939",
+              "updated_at": "2026-06-21 11:32:27.900939"
+            },
+            {
+              "id": "1f50d83f-ffff-4ca5-b432-9c98dc075368",
+              "invoice_number": "INV-20260621-000657",
+              "sales_order_id": "08992aa8-addd-4790-a0a8-0b27f4e873a9",
+              "payment_id": "bc3e8dfe-a4bd-4e33-bbda-532e9399fd79",
+              "date": "2026-06-21 11:31:26.778",
+              "due_date": "2026-06-21 11:31:26.778",
+              "customer_id": "4ca63585-922a-418d-9129-7bb1ca2d5555",
+              "customer_name": "Ahmad Firdaus",
+              "created_by": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
+              "payment_mode": "cash",
+              "total_amount": 9000,
+              "amount_paid": 3000,
+              "status": "partially_paid",
+              "e_invoice_status": null,
+              "e_invoice_id": null,
+              "created_at": "2026-06-21 11:31:26.688431",
+              "updated_at": "2026-06-21 11:31:26.688431"
+            },
+            {
+              "id": "8b847b68-c5e9-4e35-9d03-244e29b035a6",
+              "invoice_number": "INV-20260621-000656",
+              "sales_order_id": "80b9fda4-c992-4354-9512-c98dca6d7865",
+              "payment_id": "3d3cbacc-5469-4328-a072-dff670b77483",
+              "date": "2026-06-21 11:30:26.174",
+              "due_date": "2026-06-21 11:30:26.174",
+              "customer_id": "4ca63585-922a-418d-9129-7bb1ca2d5555",
+              "customer_name": "Ahmad Firdaus",
+              "created_by": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
+              "payment_mode": "cash",
+              "total_amount": 9000,
+              "amount_paid": 3000,
+              "status": "partially_paid",
+              "e_invoice_status": null,
+              "e_invoice_id": null,
+              "created_at": "2026-06-21 11:30:26.082015",
+              "updated_at": "2026-06-21 11:30:26.082015"
+            }
+          ],
+          "total": 639
+        }
+      ]
+    },
+    "8": {
+      "label": "Organizational structure",
+      "tables": [
+        {
+          "table": "hierarchy_nodes",
+          "schema": [
+            {
+              "column": "id",
+              "type": "uuid"
+            },
+            {
+              "column": "name",
+              "type": "text"
+            },
+            {
+              "column": "type",
+              "type": "USER-DEFINED"
+            },
+            {
+              "column": "parent_id",
+              "type": "uuid"
+            },
+            {
+              "column": "depth",
+              "type": "integer"
+            },
+            {
+              "column": "created_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "updated_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "country_node_id",
+              "type": "uuid"
+            },
+            {
+              "column": "archived_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "slug",
+              "type": "text"
+            },
+            {
+              "column": "opening_hours",
+              "type": "jsonb"
+            }
+          ],
+          "rows": [
+            {
+              "id": "e5b88c19-da14-42e6-8d91-4a7941fa3ecd",
+              "name": "Test Fitness Franchise",
+              "type": "organization",
+              "depth": 0,
+              "parent_id": null
+            },
+            {
+              "id": "abce4846-ecfa-4f3f-8734-65114e3e42b4",
+              "name": "Malaysia",
+              "type": "country",
+              "depth": 1,
+              "parent_id": "e5b88c19-da14-42e6-8d91-4a7941fa3ecd"
+            },
+            {
+              "id": "b1c03470-d027-433b-b0e7-94214254d3b1",
+              "name": "Singapore",
+              "type": "country",
+              "depth": 1,
+              "parent_id": "e5b88c19-da14-42e6-8d91-4a7941fa3ecd"
+            },
+            {
+              "id": "85858a48-04a3-48fb-a739-7b2798a237d8",
+              "name": "Thailand",
+              "type": "country",
+              "depth": 1,
+              "parent_id": "e5b88c19-da14-42e6-8d91-4a7941fa3ecd"
+            },
+            {
+              "id": "326a6963-c6cb-4117-b070-5aeae576efa1",
+              "name": "USA",
+              "type": "country",
+              "depth": 1,
+              "parent_id": "e5b88c19-da14-42e6-8d91-4a7941fa3ecd"
+            },
+            {
+              "id": "a09a6049-6d6e-4e2d-8471-91ff1b86c94b",
+              "name": "Bangkok",
+              "type": "state",
+              "depth": 2,
+              "parent_id": "85858a48-04a3-48fb-a739-7b2798a237d8"
+            }
+          ],
+          "total": 24
+        },
+        {
+          "table": "branch_details",
+          "schema": [
+            {
+              "column": "node_id",
+              "type": "uuid"
+            },
+            {
+              "column": "address",
+              "type": "text"
+            },
+            {
+              "column": "pic_user_id",
+              "type": "text"
+            },
+            {
+              "column": "created_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "updated_at",
+              "type": "timestamp without time zone"
+            }
+          ],
+          "rows": [
+            {
+              "node_id": "0ca11a66-261e-47f2-8fc7-236149b888c9",
+              "address": null,
+              "pic_user_id": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH"
+            },
+            {
+              "node_id": "8662e918-b8bf-407d-adcf-fd2ec594669d",
+              "address": null,
+              "pic_user_id": "262297bb-fd56-4290-bb80-c951f445e058"
+            },
+            {
+              "node_id": "15f2397e-13a3-4303-b984-476fc3e97e4c",
+              "address": "Tanjong Pagar, TBC, Singapore, 079903",
+              "pic_user_id": null
+            },
+            {
+              "node_id": "732f16af-5e0d-4add-9a0b-03aac652ddbd",
+              "address": "Aurora Place, Bukit Jalil, Level 2, Unit A-02, Kuala Lumpur, 57000",
+              "pic_user_id": "eb221786-3c88-4877-bdaa-b74f39468475"
+            },
+            {
+              "node_id": "6ba1e26d-0a9f-4839-bc11-f8a08488032b",
+              "address": "Jalan Wan Kadir 3, 1st Floor, Kuala Lumpur, 60000",
+              "pic_user_id": "4307c757-59fe-465b-be7f-c8e5fb558ed2"
+            },
+            {
+              "node_id": "ee84435d-92f6-4d82-964b-3839bb03646f",
+              "address": "Plaza Mont Kiara, Block C, Unit 3-12, Kuala Lumpur, 50480",
+              "pic_user_id": "084c07d8-adff-490c-93fb-80c471eef8d9"
+            }
+          ],
+          "total": 8
+        }
+      ]
+    },
+    "9": {
+      "label": "User access control",
+      "tables": [
+        {
+          "table": "members",
+          "schema": [
+            {
+              "column": "id",
+              "type": "uuid"
+            },
+            {
+              "column": "user_id",
+              "type": "text"
+            },
+            {
+              "column": "role",
+              "type": "text"
+            },
+            {
+              "column": "hierarchy_scope_id",
+              "type": "uuid"
+            },
+            {
+              "column": "status",
+              "type": "text"
+            },
+            {
+              "column": "joined_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "trainer_tier_id",
+              "type": "uuid"
+            },
+            {
+              "column": "role_id",
+              "type": "uuid"
+            },
+            {
+              "column": "lead_source_id",
+              "type": "uuid"
+            },
+            {
+              "column": "household_id",
+              "type": "uuid"
+            },
+            {
+              "column": "invitation_id",
+              "type": "uuid"
+            },
+            {
+              "column": "deleted_at",
+              "type": "timestamp without time zone"
+            }
+          ],
+          "rows": [
+            {
+              "id": "0f30a11c-3a03-47d4-9d4c-139668ccbd15",
+              "user_id": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
+              "role": "admin",
+              "status": "active",
+              "hierarchy_scope_id": "e5b88c19-da14-42e6-8d91-4a7941fa3ecd"
+            },
+            {
+              "id": "ae2993db-d63e-45b6-8f11-ea2692cb5668",
+              "user_id": "2eaccfa7-4af6-4b9f-a497-823223f2d5a1",
+              "role": "admin",
+              "status": "active",
+              "hierarchy_scope_id": "732f16af-5e0d-4add-9a0b-03aac652ddbd"
+            },
+            {
+              "id": "feb5957a-f9e5-4d97-ab83-2c13a75a5cc5",
+              "user_id": "zpjYI6uop6NTVpoSomFBSqJrCSPcEH5U",
+              "role": "admin",
+              "status": "active",
+              "hierarchy_scope_id": "e5b88c19-da14-42e6-8d91-4a7941fa3ecd"
+            },
+            {
+              "id": "60c8a25e-f3b1-473f-9eaf-b1edcc93d267",
+              "user_id": "8d8999b5-4ac4-470a-9237-72bda97eef53",
+              "role": "client",
+              "status": "active",
+              "hierarchy_scope_id": "0ca11a66-261e-47f2-8fc7-236149b888c9"
+            },
+            {
+              "id": "53ed0976-0f29-4205-a265-3f8a08cd8045",
+              "user_id": "7c4141d0-223e-450b-b05b-f8ee724cdbd5",
+              "role": "client",
+              "status": "active",
+              "hierarchy_scope_id": "0ca11a66-261e-47f2-8fc7-236149b888c9"
+            },
+            {
+              "id": "dbfb0a0d-f932-4f0a-9497-910408c662e3",
+              "user_id": "4ca63585-922a-418d-9129-7bb1ca2d5555",
+              "role": "client",
+              "status": "active",
+              "hierarchy_scope_id": "e5b88c19-da14-42e6-8d91-4a7941fa3ecd"
+            }
+          ],
+          "total": 103
+        },
+        {
+          "table": "roles",
+          "schema": [
+            {
+              "column": "id",
+              "type": "uuid"
+            },
+            {
+              "column": "name",
+              "type": "text"
+            },
+            {
+              "column": "description",
+              "type": "text"
+            },
+            {
+              "column": "is_system",
+              "type": "boolean"
+            },
+            {
+              "column": "priority",
+              "type": "integer"
+            },
+            {
+              "column": "created_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "updated_at",
+              "type": "timestamp without time zone"
+            }
+          ],
+          "rows": [
+            {
+              "id": "d0a9c322-a160-48c4-9a8f-241f669948ba",
+              "name": "admin",
+              "priority": 100,
+              "is_system": true
+            },
+            {
+              "id": "10b4be2a-3c80-44a9-905e-751c8d376750",
+              "name": "trainer",
+              "priority": 50,
+              "is_system": true
+            },
+            {
+              "id": "b4510e69-aa99-445c-a035-8790a7f927fd",
+              "name": "staff",
+              "priority": 30,
+              "is_system": true
+            },
+            {
+              "id": "5cb3f0a7-5750-4caa-8e89-1dc4eed76540",
+              "name": "client",
+              "priority": 10,
+              "is_system": true
+            },
+            {
+              "id": "11e2dfb3-9b4b-4190-badf-0b18f515885f",
+              "name": "Test Role",
+              "priority": 25,
+              "is_system": false
+            },
+            {
+              "id": "974cbb66-d68e-4790-a416-3087928b52be",
+              "name": "TestRole_1776657408727",
+              "priority": 3,
+              "is_system": false
+            }
+          ],
+          "total": 7
+        }
+      ]
+    },
+    "11": {
+      "label": "Services & packages",
+      "tables": [
+        {
+          "table": "services",
+          "schema": [
+            {
+              "column": "id",
+              "type": "uuid"
+            },
+            {
+              "column": "name",
+              "type": "text"
+            },
+            {
+              "column": "category_id",
+              "type": "uuid"
+            },
+            {
+              "column": "duration",
+              "type": "integer"
+            },
+            {
+              "column": "duration_unit_type",
+              "type": "text"
+            },
+            {
+              "column": "max_attendees",
+              "type": "integer"
+            },
+            {
+              "column": "attendance_threshold",
+              "type": "integer"
+            },
+            {
+              "column": "stripe_product_id",
+              "type": "text"
+            },
+            {
+              "column": "stripe_price_id",
+              "type": "text"
+            },
+            {
+              "column": "stripe_sync_status",
+              "type": "text"
+            },
+            {
+              "column": "stripe_last_synced_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "branch_id",
+              "type": "uuid"
+            },
+            {
+              "column": "is_active",
+              "type": "boolean"
+            },
+            {
+              "column": "created_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "updated_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "title",
+              "type": "text"
+            },
+            {
+              "column": "description",
+              "type": "text"
+            },
+            {
+              "column": "image_url",
+              "type": "text"
+            },
+            {
+              "column": "type",
+              "type": "text"
+            },
+            {
+              "column": "price",
+              "type": "integer"
+            },
+            {
+              "column": "price_unit",
+              "type": "text"
+            },
+            {
+              "column": "taxable",
+              "type": "boolean"
+            },
+            {
+              "column": "tax_percentage",
+              "type": "integer"
+            },
+            {
+              "column": "is_recommended",
+              "type": "boolean"
+            },
+            {
+              "column": "location",
+              "type": "text"
+            },
+            {
+              "column": "features",
+              "type": "ARRAY"
+            },
+            {
+              "column": "session_count",
+              "type": "integer"
+            },
+            {
+              "column": "expirable",
+              "type": "boolean"
+            },
+            {
+              "column": "expiry_days",
+              "type": "integer"
+            },
+            {
+              "column": "expiry_date",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "buffer_time_minutes",
+              "type": "integer"
+            },
+            {
+              "column": "available_payment_plans",
+              "type": "ARRAY"
+            },
+            {
+              "column": "installment_interval_days",
+              "type": "integer"
+            },
+            {
+              "column": "grace_period_days",
+              "type": "integer"
+            },
+            {
+              "column": "time_preset_config",
+              "type": "jsonb"
+            },
+            {
+              "column": "created_by",
+              "type": "text"
+            },
+            {
+              "column": "updated_by",
+              "type": "text"
+            },
+            {
+              "column": "default_commission_bps",
+              "type": "integer"
+            },
+            {
+              "column": "scheduling_type",
+              "type": "text"
+            }
+          ],
+          "rows": [
+            {
+              "id": "dddddddd-0000-4000-8000-000000000001",
+              "name": "AutoCharge Test Service",
+              "type": "private",
+              "price": null,
+              "session_count": null,
+              "expiry_days": null,
+              "is_active": true
+            },
+            {
+              "id": "ce5a3ea3-fbc3-48fa-82c4-aa33431ecad0",
+              "name": "AutoCharge Test Service (Copy)",
+              "type": "private",
+              "price": null,
+              "session_count": null,
+              "expiry_days": null,
+              "is_active": false
+            },
+            {
+              "id": "0b332870-f426-417d-b0ae-f7ea2f92b1aa",
+              "name": "AutoCharge Test Service (Copy)",
+              "type": "private",
+              "price": null,
+              "session_count": null,
+              "expiry_days": null,
+              "is_active": false
+            },
+            {
+              "id": "9cbcb040-c5e5-4c5e-9f70-f2b6f207826c",
+              "name": "AutoCharge Test Service (Copy)",
+              "type": "private",
+              "price": null,
+              "session_count": null,
+              "expiry_days": null,
+              "is_active": false
+            },
+            {
+              "id": "4636eda8-8c50-47fa-812b-77e79e26bf94",
+              "name": "AutoCharge Test Service (Copy)",
+              "type": "private",
+              "price": null,
+              "session_count": null,
+              "expiry_days": null,
+              "is_active": false
+            },
+            {
+              "id": "e9df80c2-0121-450a-a103-0fe351ab371b",
+              "name": "AutoCharge Test Service (Copy)",
+              "type": "private",
+              "price": null,
+              "session_count": null,
+              "expiry_days": null,
+              "is_active": false
+            }
+          ],
+          "total": 138
+        },
+        {
+          "table": "service_categories",
+          "schema": [
+            {
+              "column": "id",
+              "type": "uuid"
+            },
+            {
+              "column": "name",
+              "type": "text"
+            },
+            {
+              "column": "display_order",
+              "type": "integer"
+            },
+            {
+              "column": "branch_id",
+              "type": "uuid"
+            },
+            {
+              "column": "is_active",
+              "type": "boolean"
+            },
+            {
+              "column": "created_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "updated_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "description",
+              "type": "text"
+            },
+            {
+              "column": "created_by",
+              "type": "text"
+            },
+            {
+              "column": "updated_by",
+              "type": "text"
+            },
+            {
+              "column": "scheduling_type",
+              "type": "text"
+            }
+          ],
+          "rows": [
+            {
+              "id": "fe3a684b-a1af-4215-b32f-42195d4678e1",
+              "name": "E2E-DEEP-svccat-cfg-run-1"
+            },
+            {
+              "id": "b037a888-39cb-4861-a654-78828ef29c2b",
+              "name": "E2E-DEEP-svccat-run-2"
+            },
+            {
+              "id": "c35da6c6-13ab-4ed5-add8-6a22d1e02852",
+              "name": "E2E-DEEP-svccat-run-1"
+            },
+            {
+              "id": "7834480c-e851-499f-9048-d8aa21d9cd5b",
+              "name": "E2E-DEEP-cc-cat-run-1"
+            },
+            {
+              "id": "ca56e5df-06b4-4681-9d35-d32fb16b332d",
+              "name": "E2E-DEEP-cc-cat-run-1"
+            },
+            {
+              "id": "5ee4e154-21b7-4cf9-9c5d-414fdc438f31",
+              "name": "E2E-DEEP-cc-cat-run-13"
+            }
+          ],
+          "total": 140
+        },
+        {
+          "table": "package_instances",
+          "schema": [
+            {
+              "column": "id",
+              "type": "uuid"
+            },
+            {
+              "column": "client_id",
+              "type": "text"
+            },
+            {
+              "column": "source",
+              "type": "text"
+            },
+            {
+              "column": "assigned_by",
+              "type": "text"
+            },
+            {
+              "column": "purchase_number",
+              "type": "text"
+            },
+            {
+              "column": "payment_id",
+              "type": "uuid"
+            },
+            {
+              "column": "total_price",
+              "type": "integer"
+            },
+            {
+              "column": "tax_amount",
+              "type": "integer"
+            },
+            {
+              "column": "payment_status",
+              "type": "text"
+            },
+            {
+              "column": "payment_method",
+              "type": "text"
+            },
+            {
+              "column": "e_signature",
+              "type": "text"
+            },
+            {
+              "column": "terms_agreed_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "credits_total",
+              "type": "integer"
+            },
+            {
+              "column": "credits_used",
+              "type": "integer"
+            },
+            {
+              "column": "starts_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "expires_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "status",
+              "type": "text"
+            },
+            {
+              "column": "remark",
+              "type": "text"
+            },
+            {
+              "column": "created_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "updated_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "service_id",
+              "type": "uuid"
+            },
+            {
+              "column": "payment_plan_type",
+              "type": "text"
+            },
+            {
+              "column": "installments_total",
+              "type": "integer"
+            },
+            {
+              "column": "installments_paid",
+              "type": "integer"
+            },
+            {
+              "column": "credits_unlocked",
+              "type": "integer"
+            },
+            {
+              "column": "next_due_date",
+              "type": "timestamp with time zone"
+            },
+            {
+              "column": "grace_period_ends_at",
+              "type": "timestamp with time zone"
+            },
+            {
+              "column": "is_locked",
+              "type": "boolean"
+            },
+            {
+              "column": "locked_at",
+              "type": "timestamp with time zone"
+            },
+            {
+              "column": "locked_reason",
+              "type": "text"
+            },
+            {
+              "column": "credits_remaining",
+              "type": "integer"
+            },
+            {
+              "column": "walk_in_customer_id",
+              "type": "uuid"
+            },
+            {
+              "column": "credits_admin_override",
+              "type": "boolean"
+            },
+            {
+              "column": "allow_credit_overdraft",
+              "type": "boolean"
+            },
+            {
+              "column": "assigned_trainer_id",
+              "type": "uuid"
+            },
+            {
+              "column": "assigned_trainer_assigned_by",
+              "type": "text"
+            },
+            {
+              "column": "assigned_trainer_assigned_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "approved_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "approved_by",
+              "type": "text"
+            },
+            {
+              "column": "cancellation_reason",
+              "type": "text"
+            },
+            {
+              "column": "cancelled_by",
+              "type": "text"
+            },
+            {
+              "column": "preferred_trainer_id",
+              "type": "uuid"
+            },
+            {
+              "column": "frozen_until",
+              "type": "timestamp with time zone"
+            },
+            {
+              "column": "sales_order_id",
+              "type": "uuid"
+            },
+            {
+              "column": "pinned_at",
+              "type": "timestamp with time zone"
+            },
+            {
+              "column": "installments_waived",
+              "type": "integer"
+            },
+            {
+              "column": "customer_name",
+              "type": "text"
+            },
+            {
+              "column": "stripe_customer_id",
+              "type": "text"
+            },
+            {
+              "column": "default_payment_method_id",
+              "type": "text"
+            },
+            {
+              "column": "auto_charge_enabled",
+              "type": "boolean"
+            }
+          ],
+          "rows": [
+            {
+              "id": "dc8b8d8f-317e-4cea-9145-0fc7e8e9d192",
+              "status": "cancelled",
+              "credits_total": 10,
+              "credits_used": 0,
+              "credits_remaining": 0
+            },
+            {
+              "id": "51ab5af3-c2dd-42db-ab24-ed8a80cb57be",
+              "status": "cancelled",
+              "credits_total": 5,
+              "credits_used": 0,
+              "credits_remaining": 5
+            },
+            {
+              "id": "0a1b4f2f-2eef-4243-8742-36abd57e999a",
+              "status": "cancelled",
+              "credits_total": 5,
+              "credits_used": 0,
+              "credits_remaining": 5
+            },
+            {
+              "id": "e91cabfd-b58b-4856-acef-b7f6489f51aa",
+              "status": "cancelled",
+              "credits_total": 10,
+              "credits_used": 3,
+              "credits_remaining": 7
+            },
+            {
+              "id": "96200a5c-e9bf-40b3-9957-2e70da323584",
+              "status": "cancelled",
+              "credits_total": 10,
+              "credits_used": 0,
+              "credits_remaining": 10
+            },
+            {
+              "id": "167f152e-426f-49eb-8d23-6aa64a05173d",
+              "status": "cancelled",
+              "credits_total": 5,
+              "credits_used": 0,
+              "credits_remaining": 5
+            }
+          ],
+          "total": 713
+        }
+      ]
+    },
+    "12": {
+      "label": "Commission & incentive",
+      "tables": [
+        {
+          "table": "commission_splits",
+          "schema": [
+            {
+              "column": "id",
+              "type": "uuid"
+            },
+            {
+              "column": "appointment_id",
+              "type": "uuid"
+            },
+            {
+              "column": "staff_id",
+              "type": "text"
+            },
+            {
+              "column": "split_percentage",
+              "type": "integer"
+            },
+            {
+              "column": "calculated_amount",
+              "type": "integer"
+            },
+            {
+              "column": "notes",
+              "type": "text"
+            },
+            {
+              "column": "created_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "updated_at",
+              "type": "timestamp without time zone"
+            },
+            {
+              "column": "sales_order_id",
+              "type": "uuid"
+            },
+            {
+              "column": "status",
+              "type": "text"
+            },
+            {
+              "column": "approved_by",
+              "type": "text"
+            },
+            {
+              "column": "approved_at",
+              "type": "timestamp with time zone"
+            },
+            {
+              "column": "paid_by",
+              "type": "text"
+            },
+            {
+              "column": "paid_at",
+              "type": "timestamp with time zone"
+            },
+            {
+              "column": "payout_id",
+              "type": "uuid"
+            },
+            {
+              "column": "slot_index",
+              "type": "integer"
+            },
+            {
+              "column": "condition_id",
+              "type": "uuid"
+            },
+            {
+              "column": "trainer_tier_id",
+              "type": "uuid"
+            },
+            {
+              "column": "weightage_basis_points",
+              "type": "integer"
+            },
+            {
+              "column": "base_amount_cents",
+              "type": "integer"
+            },
+            {
+              "column": "split_type",
+              "type": "text"
+            },
+            {
+              "column": "manual_note",
+              "type": "text"
+            },
+            {
+              "column": "earned_at",
+              "type": "timestamp with time zone"
+            },
+            {
+              "column": "package_instance_id",
+              "type": "uuid"
+            },
+            {
+              "column": "config_version_id",
+              "type": "uuid"
+            },
+            {
+              "column": "cap_applied",
+              "type": "boolean"
+            },
+            {
+              "column": "floor_applied",
+              "type": "boolean"
+            },
+            {
+              "column": "excluded",
+              "type": "boolean"
+            },
+            {
+              "column": "is_complimentary",
+              "type": "boolean"
+            },
+            {
+              "column": "earn_reason",
+              "type": "text"
+            },
+            {
+              "column": "created_by_user_id",
+              "type": "text"
+            },
+            {
+              "column": "track_id",
+              "type": "uuid"
+            },
+            {
+              "column": "role_type",
+              "type": "text"
+            },
+            {
+              "column": "track_version_id",
+              "type": "uuid"
+            },
+            {
+              "column": "installment_id",
+              "type": "uuid"
+            },
+            {
+              "column": "contested_by",
+              "type": "text"
+            },
+            {
+              "column": "contested_reason",
+              "type": "text"
+            },
+            {
+              "column": "contested_category",
+              "type": "text"
+            },
+            {
+              "column": "contested_at",
+              "type": "timestamp with time zone"
+            },
+            {
+              "column": "contested_from_status",
+              "type": "text"
+            },
+            {
+              "column": "resolved_by",
+              "type": "text"
+            },
+            {
+              "column": "resolved_at",
+              "type": "timestamp with time zone"
+            },
+            {
+              "column": "resolution_note",
+              "type": "text"
+            }
+          ],
+          "rows": [
+            {
+              "id": "d694076d-59ac-4e36-af4b-acfc936b34e8",
+              "appointment_id": null,
+              "staff_id": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
+              "split_percentage": 10,
+              "calculated_amount": 300,
+              "notes": null,
+              "created_at": "2026-06-21 11:30:48.768402",
+              "updated_at": "2026-06-21 11:30:48.768402",
+              "sales_order_id": "80b9fda4-c992-4354-9512-c98dca6d7865",
+              "status": "pending",
+              "approved_by": null,
+              "approved_at": null,
+              "paid_by": null,
+              "paid_at": null,
+              "payout_id": null,
+              "slot_index": 0,
+              "condition_id": null,
+              "trainer_tier_id": null,
+              "weightage_basis_points": 10000,
+              "base_amount_cents": 900,
+              "split_type": "automatic",
+              "manual_note": null,
+              "earned_at": "2026-06-21 11:30:49.386+00",
+              "package_instance_id": null,
+              "config_version_id": null,
+              "cap_applied": false,
+              "floor_applied": false,
+              "excluded": false,
+              "is_complimentary": false,
+              "earn_reason": "pos_product",
+              "created_by_user_id": null,
+              "track_id": "066cc79d-06ac-4106-9f60-0fad5884f27a",
+              "role_type": "sales",
+              "track_version_id": "fcb7db7b-eb8d-4673-8293-0db2b2f3a0a6",
+              "installment_id": "5dc11696-191a-46da-9528-2df86f7ddc1f",
+              "contested_by": null,
+              "contested_reason": null,
+              "contested_category": null,
+              "contested_at": null,
+              "contested_from_status": null,
+              "resolved_by": null,
+              "resolved_at": null,
+              "resolution_note": null
+            },
+            {
+              "id": "de6330ca-1d9f-495c-96b0-91194252280b",
+              "appointment_id": null,
+              "staff_id": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
+              "split_percentage": 10,
+              "calculated_amount": 300,
+              "notes": null,
+              "created_at": "2026-06-21 11:30:40.902743",
+              "updated_at": "2026-06-21 11:30:40.902743",
+              "sales_order_id": "80b9fda4-c992-4354-9512-c98dca6d7865",
+              "status": "pending",
+              "approved_by": null,
+              "approved_at": null,
+              "paid_by": null,
+              "paid_at": null,
+              "payout_id": null,
+              "slot_index": 0,
+              "condition_id": null,
+              "trainer_tier_id": null,
+              "weightage_basis_points": 10000,
+              "base_amount_cents": 900,
+              "split_type": "automatic",
+              "manual_note": null,
+              "earned_at": "2026-06-21 11:30:41.532+00",
+              "package_instance_id": null,
+              "config_version_id": null,
+              "cap_applied": false,
+              "floor_applied": false,
+              "excluded": false,
+              "is_complimentary": false,
+              "earn_reason": "pos_product",
+              "created_by_user_id": null,
+              "track_id": "066cc79d-06ac-4106-9f60-0fad5884f27a",
+              "role_type": "sales",
+              "track_version_id": "fcb7db7b-eb8d-4673-8293-0db2b2f3a0a6",
+              "installment_id": "4571f117-a4b4-47bd-81b2-7dfa19a6e04e",
+              "contested_by": null,
+              "contested_reason": null,
+              "contested_category": null,
+              "contested_at": null,
+              "contested_from_status": null,
+              "resolved_by": null,
+              "resolved_at": null,
+              "resolution_note": null
+            },
+            {
+              "id": "43b882f2-36f9-41b6-bf5e-d50c2329c88a",
+              "appointment_id": null,
+              "staff_id": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
+              "split_percentage": 10,
+              "calculated_amount": 300,
+              "notes": null,
+              "created_at": "2026-06-21 11:30:26.082015",
+              "updated_at": "2026-06-21 11:30:26.082015",
+              "sales_order_id": "80b9fda4-c992-4354-9512-c98dca6d7865",
+              "status": "pending",
+              "approved_by": null,
+              "approved_at": null,
+              "paid_by": null,
+              "paid_at": null,
+              "payout_id": null,
+              "slot_index": 0,
+              "condition_id": null,
+              "trainer_tier_id": null,
+              "weightage_basis_points": 10000,
+              "base_amount_cents": 900,
+              "split_type": "automatic",
+              "manual_note": null,
+              "earned_at": "2026-06-21 11:30:29.747+00",
+              "package_instance_id": null,
+              "config_version_id": null,
+              "cap_applied": false,
+              "floor_applied": false,
+              "excluded": false,
+              "is_complimentary": false,
+              "earn_reason": "pos_product",
+              "created_by_user_id": null,
+              "track_id": "066cc79d-06ac-4106-9f60-0fad5884f27a",
+              "role_type": "sales",
+              "track_version_id": "fcb7db7b-eb8d-4673-8293-0db2b2f3a0a6",
+              "installment_id": "a2c06ee7-a6e2-4660-9525-04afe93e7597",
+              "contested_by": null,
+              "contested_reason": null,
+              "contested_category": null,
+              "contested_at": null,
+              "contested_from_status": null,
+              "resolved_by": null,
+              "resolved_at": null,
+              "resolution_note": null
+            },
+            {
+              "id": "9a5561a9-b7de-4aba-a9bb-d3e29f99b86c",
+              "appointment_id": null,
+              "staff_id": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
+              "split_percentage": 10,
+              "calculated_amount": 300,
+              "notes": null,
+              "created_at": "2026-06-21 11:29:47.281821",
+              "updated_at": "2026-06-21 11:29:47.281821",
+              "sales_order_id": "7e365167-c70d-4775-8207-a5016e63fe2c",
+              "status": "pending",
+              "approved_by": null,
+              "approved_at": null,
+              "paid_by": null,
+              "paid_at": null,
+              "payout_id": null,
+              "slot_index": 0,
+              "condition_id": null,
+              "trainer_tier_id": null,
+              "weightage_basis_points": 10000,
+              "base_amount_cents": 900,
+              "split_type": "automatic",
+              "manual_note": null,
+              "earned_at": "2026-06-21 11:29:47.898+00",
+              "package_instance_id": null,
+              "config_version_id": null,
+              "cap_applied": false,
+              "floor_applied": false,
+              "excluded": false,
+              "is_complimentary": false,
+              "earn_reason": "pos_product",
+              "created_by_user_id": null,
+              "track_id": "066cc79d-06ac-4106-9f60-0fad5884f27a",
+              "role_type": "sales",
+              "track_version_id": "fcb7db7b-eb8d-4673-8293-0db2b2f3a0a6",
+              "installment_id": "aa428b70-bee5-463d-bef0-c543b4921ca2",
+              "contested_by": null,
+              "contested_reason": null,
+              "contested_category": null,
+              "contested_at": null,
+              "contested_from_status": null,
+              "resolved_by": null,
+              "resolved_at": null,
+              "resolution_note": null
+            },
+            {
+              "id": "1ec62de6-eff4-44fd-ad7e-39c2c3c6524b",
+              "appointment_id": null,
+              "staff_id": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
+              "split_percentage": 10,
+              "calculated_amount": 300,
+              "notes": null,
+              "created_at": "2026-06-21 11:29:39.520602",
+              "updated_at": "2026-06-21 11:29:39.520602",
+              "sales_order_id": "7e365167-c70d-4775-8207-a5016e63fe2c",
+              "status": "pending",
+              "approved_by": null,
+              "approved_at": null,
+              "paid_by": null,
+              "paid_at": null,
+              "payout_id": null,
+              "slot_index": 0,
+              "condition_id": null,
+              "trainer_tier_id": null,
+              "weightage_basis_points": 10000,
+              "base_amount_cents": 900,
+              "split_type": "automatic",
+              "manual_note": null,
+              "earned_at": "2026-06-21 11:29:40.135+00",
+              "package_instance_id": null,
+              "config_version_id": null,
+              "cap_applied": false,
+              "floor_applied": false,
+              "excluded": false,
+              "is_complimentary": false,
+              "earn_reason": "pos_product",
+              "created_by_user_id": null,
+              "track_id": "066cc79d-06ac-4106-9f60-0fad5884f27a",
+              "role_type": "sales",
+              "track_version_id": "fcb7db7b-eb8d-4673-8293-0db2b2f3a0a6",
+              "installment_id": "b1c6d25b-5573-49e6-ad1b-7fb827ec8341",
+              "contested_by": null,
+              "contested_reason": null,
+              "contested_category": null,
+              "contested_at": null,
+              "contested_from_status": null,
+              "resolved_by": null,
+              "resolved_at": null,
+              "resolution_note": null
+            },
+            {
+              "id": "ec0be675-edfb-48d8-abf8-953fb0a79a53",
+              "appointment_id": null,
+              "staff_id": "wZGQSvB1v2xWt3NwcSV0DYvRDQLxldkH",
+              "split_percentage": 10,
+              "calculated_amount": 300,
+              "notes": null,
+              "created_at": "2026-06-21 11:29:24.837985",
+              "updated_at": "2026-06-21 11:29:24.837985",
+              "sales_order_id": "7e365167-c70d-4775-8207-a5016e63fe2c",
+              "status": "pending",
+              "approved_by": null,
+              "approved_at": null,
+              "paid_by": null,
+              "paid_at": null,
+              "payout_id": null,
+              "slot_index": 0,
+              "condition_id": null,
+              "trainer_tier_id": null,
+              "weightage_basis_points": 10000,
+              "base_amount_cents": 900,
+              "split_type": "automatic",
+              "manual_note": null,
+              "earned_at": "2026-06-21 11:29:28.444+00",
+              "package_instance_id": null,
+              "config_version_id": null,
+              "cap_applied": false,
+              "floor_applied": false,
+              "excluded": false,
+              "is_complimentary": false,
+              "earn_reason": "pos_product",
+              "created_by_user_id": null,
+              "track_id": "066cc79d-06ac-4106-9f60-0fad5884f27a",
+              "role_type": "sales",
+              "track_version_id": "fcb7db7b-eb8d-4673-8293-0db2b2f3a0a6",
+              "installment_id": "6116d0e8-2a4e-48c5-b586-166ac54fa494",
+              "contested_by": null,
+              "contested_reason": null,
+              "contested_category": null,
+              "contested_at": null,
+              "contested_from_status": null,
+              "resolved_by": null,
+              "resolved_at": null,
+              "resolution_note": null
+            }
+          ],
+          "total": 326
+        }
+      ]
+    }
+  }
+}

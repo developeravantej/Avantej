@@ -7,6 +7,8 @@ import type { InstallmentOverviewItem } from "@/components/packages/installment-
 import { InstallmentTimeline } from "@/components/packages/installment-timeline";
 import { ManualUnlockDialog } from "@/components/packages/manual-unlock-dialog";
 import { RefundDialog } from "@/components/packages/refund-dialog";
+import { PackageAgreementSection } from "@/components/pages/packages/package-agreement-section";
+import { PaymentProofSection } from "@/components/pages/payment/payment-proof-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -99,8 +101,9 @@ export function PackagesTabRowDrawer({
 	// Nothing to render until a row is selected
 	if (!row) return null;
 
-	const creditsPercent =
-		Math.round((row.creditsRemaining / Math.max(row.creditsTotal, 1)) * 100);
+	const creditsPercent = Math.round(
+		(row.creditsRemaining / Math.max(row.creditsTotal, 1)) * 100,
+	);
 
 	const expiry = expiryLabel(row.daysUntilExpiry);
 
@@ -201,7 +204,9 @@ export function PackagesTabRowDrawer({
 							<Separator />
 							<div className="flex flex-col gap-4 py-5">
 								<div className="flex items-center justify-between">
-									<span className="text-sm font-medium">Installment Schedule</span>
+									<span className="text-sm font-medium">
+										Installment Schedule
+									</span>
 									{canWrite && (
 										<div className="flex gap-2">
 											{row.isLocked && (
@@ -232,6 +237,20 @@ export function PackagesTabRowDrawer({
 							</div>
 						</>
 					)}
+
+					{/* ── Agreement section (UAT §2) ──────────────────────────────── */}
+					<PackageAgreementSection
+						organizationId={organizationId}
+						packageInstanceId={row.id}
+						canWrite={canWrite}
+					/>
+
+					{/* ── Payment-proof section (UAT §7) ──────────────────────────── */}
+					<PaymentProofSection
+						organizationId={organizationId}
+						packageInstanceId={row.id}
+						canWrite={canWrite}
+					/>
 				</SheetContent>
 			</Sheet>
 

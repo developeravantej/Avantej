@@ -95,6 +95,11 @@ const EXPECTED_DRIFT: { tenant: Baseline; controlPanel: Baseline } = {
 			"commission_track_versions",
 			"commission_tracks",
 			"credit_point_ledger",
+			// ID-crosswalk table the legacy-onboarding ETL creates at runtime
+			// (apps/server/scripts/migration/core/crosswalk.ts, CREATE TABLE IF
+			// NOT EXISTS mig_xwalk). Intentionally not modeled in Drizzle; left
+			// behind in tenants the migration pipeline has been run against.
+			"mig_xwalk",
 			"push_tokens",
 			"scheduled_reports",
 			"stock_movements",
@@ -223,7 +228,10 @@ function main(): void {
 	console.log(`Drift check (generated_at: ${report.generated_at})`);
 
 	const tenantNew = unexpectedOnly(report.tenant, EXPECTED_DRIFT.tenant);
-	const cpNew = unexpectedOnly(report.controlPanel, EXPECTED_DRIFT.controlPanel);
+	const cpNew = unexpectedOnly(
+		report.controlPanel,
+		EXPECTED_DRIFT.controlPanel,
+	);
 
 	printSection("tenant", report.tenant, tenantNew);
 	printSection("controlPanel", report.controlPanel, cpNew);

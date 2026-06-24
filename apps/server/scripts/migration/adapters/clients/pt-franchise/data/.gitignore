@@ -1,0 +1,5 @@
+# Client source data is sensitive — never commit it.
+*.xlsx
+*.xls
+*.csv
+!.gitignore

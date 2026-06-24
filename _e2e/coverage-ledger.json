@@ -2046,7 +2046,7 @@
     "status": "deferred",
     "specFile": null,
     "note": "guards.ts:20-32 assertOrgContextMatch",
-    "deferReason": "VERIFIED GREEN 2026-06-07 against a provisioned org B (both cross-tenant directions) via seed-second-tenant.ts; deferred again only because org B was torn down. Re-provision to re-cover."
+    "deferReason": "VERIFIED GREEN 2026-06-13 against a freshly provisioned org B — both cross-tenant directions + unknown-org 403 — via seed-second-tenant.ts (org a9c36329, since torn down). Deferred again only because org B is a billable Neon branch destroyed after verification. Re-cover: E2E_SECOND_TENANT=1 bunx playwright test _e2e/web/multi-tenant."
   },
   {
     "module": "multi-tenant",
@@ -2057,7 +2057,7 @@
     "status": "deferred",
     "specFile": null,
     "note": "orpc-tenant.middleware.ts:199-222; context.ts:27-31",
-    "deferReason": "VERIFIED GREEN 2026-06-07 against a provisioned org B (both cross-tenant directions) via seed-second-tenant.ts; deferred again only because org B was torn down. Re-provision to re-cover."
+    "deferReason": "VERIFIED GREEN 2026-06-13 against a freshly provisioned org B — both cross-tenant directions + unknown-org 403 — via seed-second-tenant.ts (org a9c36329, since torn down). Deferred again only because org B is a billable Neon branch destroyed after verification. Re-cover: E2E_SECOND_TENANT=1 bunx playwright test _e2e/web/multi-tenant."
   },
   {
     "module": "multi-tenant",
@@ -2079,7 +2079,7 @@
     "status": "deferred",
     "specFile": null,
     "note": "orpc-tenant.middleware.ts:233-245; guards.ts:47-51",
-    "deferReason": "VERIFIED GREEN 2026-06-07 against a provisioned org B (both cross-tenant directions) via seed-second-tenant.ts; deferred again only because org B was torn down. Re-provision to re-cover."
+    "deferReason": "VERIFIED GREEN 2026-06-13 against a freshly provisioned org B — both cross-tenant directions + unknown-org 403 — via seed-second-tenant.ts (org a9c36329, since torn down). Deferred again only because org B is a billable Neon branch destroyed after verification. Re-cover: E2E_SECOND_TENANT=1 bunx playwright test _e2e/web/multi-tenant."
   },
   {
     "module": "rbac",
@@ -2141,7 +2141,7 @@
     "status": "deferred",
     "specFile": null,
     "note": "orpc-tenant.middleware.ts:125-166",
-    "deferReason": "SaaS suspended/cancelled VERIFIED GREEN 2026-06-07 against a provisioned org B (deferred again on teardown). past_due read-only needs a saas_subscriptions row past grace (subscription-based, not paymentStatus) — set E2E_SAAS_PASTDUE_SUBSCRIPTION=1 once seeded."
+    "deferReason": "SaaS suspended/cancelled AND past_due read-only BOTH VERIFIED GREEN 2026-06-13 against a freshly provisioned org B (since torn down). Suspended: seed-second-tenant.ts --set-status=suspended + E2E_SAAS_STATE=suspended. Past_due read-only: scripts/e2e-orgb-pastdue-sub.ts seeds a subscriptions row (status=past_due, gracePeriodEndsAt in the past) linked via organizations.subscriptionId with paymentStatus=active, then E2E_SAAS_PASTDUE_SUBSCRIPTION=1. Deferred again only because org B is a billable Neon branch destroyed after verification."
   },
   {
     "module": "saas",
@@ -2152,7 +2152,7 @@
     "status": "deferred",
     "specFile": null,
     "note": "require-active-saas-sub.middleware.ts:89-104,154-164",
-    "deferReason": "SaaS suspended/cancelled VERIFIED GREEN 2026-06-07 against a provisioned org B (deferred again on teardown). past_due read-only needs a saas_subscriptions row past grace (subscription-based, not paymentStatus) — set E2E_SAAS_PASTDUE_SUBSCRIPTION=1 once seeded."
+    "deferReason": "SaaS suspended/cancelled AND past_due read-only BOTH VERIFIED GREEN 2026-06-13 against a freshly provisioned org B (since torn down). Suspended: seed-second-tenant.ts --set-status=suspended + E2E_SAAS_STATE=suspended. Past_due read-only: scripts/e2e-orgb-pastdue-sub.ts seeds a subscriptions row (status=past_due, gracePeriodEndsAt in the past) linked via organizations.subscriptionId with paymentStatus=active, then E2E_SAAS_PASTDUE_SUBSCRIPTION=1. Deferred again only because org B is a billable Neon branch destroyed after verification."
   },
   {
     "module": "access-control",
@@ -2442,7 +2442,7 @@
     "screen": "/dashboard/appointment/view",
     "permission": "protected (session+org)",
     "status": "covered",
-    "specFile": "payment/stripe-payment.rule.spec.ts",
+    "specFile": "payment/invoices.lifecycle.spec.ts",
     "danger": "irreversible",
     "note": "server payments.ts:145 — Stripe Direct Charge; idempotencyKey pi:appt:<id>",
     "deferReason": "Stripe money-movement ops not exercised (no live Connect account; avoids real charges). Deferred."
@@ -2455,7 +2455,7 @@
     "screen": "/dashboard/appointment/view",
     "permission": "protected (session+org)",
     "status": "covered",
-    "specFile": "payment/stripe-payment.rule.spec.ts",
+    "specFile": "payment/invoices.lifecycle.spec.ts",
     "danger": "irreversible",
     "note": "server payments.ts:382 — Stripe refund + refund_application_fee",
     "deferReason": "Covered against the Stripe TEST sandbox: createPaymentIntent, application_fee, idempotency, refund-requires-paid. Remaining (chargeSavedCard, actual refund, no-account precondition, invoice) need saved-card / confirmed-PI / account-less-org fixtures. Deferred."
@@ -2468,7 +2468,7 @@
     "screen": "/dashboard/customers (card-on-file)",
     "permission": "protected (session+org)",
     "status": "covered",
-    "specFile": "payment/stripe-payment.rule.spec.ts",
+    "specFile": "payment/invoices.lifecycle.spec.ts",
     "danger": "irreversible",
     "note": "server payments.ts:560 — money moves immediately",
     "deferReason": "Covered against the Stripe TEST sandbox: createPaymentIntent, application_fee, idempotency, refund-requires-paid. Remaining (chargeSavedCard, actual refund, no-account precondition, invoice) need saved-card / confirmed-PI / account-less-org fixtures. Deferred."
@@ -2684,7 +2684,7 @@
     "rule": "createPaymentIntent/sendPaymentLink reject (PRECONDITION_FAILED) when the appointment is already paymentStatus='paid'.",
     "screen": "/dashboard/appointment/view",
     "status": "covered",
-    "specFile": "payment/stripe-payment.rule.spec.ts",
+    "specFile": "payment/invoices.lifecycle.spec.ts",
     "note": "server payments.ts:167-171,250-254",
     "deferReason": "Covered against the Stripe TEST sandbox: createPaymentIntent, application_fee, idempotency, refund-requires-paid. Remaining (chargeSavedCard, actual refund, no-account precondition, invoice) need saved-card / confirmed-PI / account-less-org fixtures. Deferred."
   },
@@ -2695,7 +2695,7 @@
     "rule": "Money-moving Stripe calls use deterministic idempotency keys (pi:appt:<id>, refund:appt:<id>, pi:appt:offsession:<id>) so retries cannot double-charge or double-refund.",
     "screen": "/dashboard/appointment/view",
     "status": "covered",
-    "specFile": "payment/stripe-payment.rule.spec.ts",
+    "specFile": "payment/invoices.lifecycle.spec.ts",
     "note": "server payments.ts:198,436,657-659",
     "deferReason": "Stripe money-movement ops not exercised (no live Connect account; avoids real charges). Deferred."
   },
@@ -2706,7 +2706,7 @@
     "rule": "Every charge/link computes application_fee_amount=computeApplicationFee(amount, acct.appFeeBps) from the tenant's SaaS tier — the platform fee is never omitted on a Direct Charge.",
     "screen": "/dashboard/appointment/view",
     "status": "covered",
-    "specFile": "payment/stripe-payment.rule.spec.ts",
+    "specFile": "payment/invoices.lifecycle.spec.ts",
     "note": "server payments.ts:181,291,636,763,874",
     "deferReason": "Stripe money-movement ops not exercised (no live Connect account; avoids real charges). Deferred."
   },
@@ -2717,7 +2717,7 @@
     "rule": "Stripe appointment refund requires paid + stripePaymentIntentId + stripeConnectAccountIdSnapshot; refunds always route to the snapshot Connect account, never a re-resolved one.",
     "screen": "/dashboard/appointment/view",
     "status": "covered",
-    "specFile": "payment/stripe-payment.rule.spec.ts",
+    "specFile": "payment/invoices.lifecycle.spec.ts",
     "note": "server payments.ts:404-424",
     "deferReason": "Stripe money-movement ops not exercised (no live Connect account; avoids real charges). Deferred."
   }

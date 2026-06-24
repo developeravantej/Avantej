@@ -4,7 +4,7 @@
  * Pipeline: /dashboard landing → card rail → panel embeds → /dashboard/overview.
  *
  * Proves the launchpad feature (commits 5447e947 + 95c126ab):
- *   - the landing page is the launchpad (6 daily-task cards), not the old analytics page
+ *   - the landing page is the launchpad (8 daily-task cards), not the old analytics page
  *   - clicking a card swaps the right panel to a real embedded component
  *   - the analytics dashboard now lives at /dashboard/overview
  *
@@ -33,12 +33,14 @@ test.describe("Dashboard launchpad", () => {
 		const rail = page.getByText("Daily tasks", { exact: true });
 		await expect(rail).toBeVisible({ timeout: 15_000 });
 
-		// All six daily-task cards present for the admin role.
+		// All daily-task cards present for the admin role.
 		for (const label of [
 			"New Sale",
 			"Create Customer",
 			"View Customers",
+			"Renewals / Expiring",
 			"Installments",
+			"Refunds & Cancellations",
 			"Commission Payout",
 			"Trainer Schedule",
 		]) {
@@ -114,6 +116,44 @@ test.describe("Dashboard launchpad", () => {
 				/payout|recipient|pending|paid/i,
 				{ timeout: 15_000 },
 			);
+		});
+	});
+
+	test("Renewals card → memberships worklist panel", {
+		tag: ["@p1"],
+	}, async ({ page }) => {
+		await page
+			.getByRole("button", { name: /Renewals \/ Expiring/ })
+			.first()
+			.click();
+		// MembershipsPage exposes the expiry-status tabs (Active / Expiring / Frozen / Expired).
+		await expect(page.locator("body")).toContainText(/expiring|frozen/i, {
+			timeout: 15_000,
+		});
+	});
+
+	test("Refunds card → review queue, toggles to cancelled sales", {
+		tag: ["@p1"],
+	}, async ({ page }) => {
+		await test.step("Refunds → refund review queue (RefundsTab)", async () => {
+			await page
+				.getByRole("button", { name: /Refunds & Cancellations/ })
+				.first()
+				.click();
+			// RefundsTab's search box is the stable signal the queue mounted.
+			await expect(page.getByPlaceholder("Search refunds…")).toBeVisible({
+				timeout: 15_000,
+			});
+		});
+
+		await test.step("Toggle → Cancellations (CancelledSalesTab)", async () => {
+			// The toggle label is CSS-capitalized; its accessible name is the raw
+			// lowercase "cancellations" (anchored so it doesn't match the card).
+			await page.getByRole("button", { name: /^cancellations$/i }).click();
+			// CancelledSalesTab's distinct search placeholder confirms the swap.
+			await expect(
+				page.getByPlaceholder("Search sale ID, customer, staff…"),
+			).toBeVisible({ timeout: 15_000 });
 		});
 	});
 

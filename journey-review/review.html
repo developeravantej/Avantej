@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Avantej — Customer Journey Review</title>
+<style>
+  :root { --fg:#0a0a0a; --mut:#6b7170; --line:#e5e5e5; --green:#15803d; --amber:#b45309; --bg:#faf9f7; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; color:var(--fg); background:var(--bg); }
+  header { padding:28px 32px 18px; border-bottom:1px solid var(--line); background:#fff; }
+  header h1 { margin:0; font-size:22px; font-weight:600; }
+  header p { margin:6px 0 0; color:var(--mut); font-size:14px; }
+  .bar { margin-top:14px; height:8px; border-radius:6px; background:#eee; overflow:hidden; }
+  .bar > div { height:100%; width:0; background:var(--green); transition:width .25s; }
+  .count { font-size:13px; color:var(--mut); margin-top:6px; }
+  main { max-width:920px; margin:0 auto; padding:24px 24px 60px; }
+  .ch { background:#fff; border:1px solid var(--line); border-radius:14px; margin:18px 0; overflow:hidden; }
+  .ch.done { border-color:#bbf7d0; }
+  .ch-head { display:flex; align-items:flex-start; gap:14px; padding:18px 20px; border-bottom:1px solid var(--line); }
+  .num { flex:none; width:30px; height:30px; border-radius:8px; display:grid; place-items:center; font-size:13px; font-weight:600; color:#fff; background:var(--green); }
+  .num.edge { background:var(--amber); }
+  .ch-meta { flex:1; min-width:0; }
+  .ch-meta h2 { margin:0; font-size:16px; font-weight:600; }
+  .ch-meta .journey { margin:4px 0 0; color:var(--mut); font-size:13px; line-height:1.5; }
+  .tag { font-size:11px; font-weight:600; padding:2px 8px; border-radius:20px; }
+  .tag.golden { color:var(--green); background:#f0fdf4; border:1px solid #bbf7d0; }
+  .tag.edge { color:var(--amber); background:#fffbeb; border:1px solid #fde68a; }
+  label.rev { flex:none; display:flex; align-items:center; gap:7px; font-size:13px; color:var(--mut); cursor:pointer; user-select:none; }
+  label.rev input { width:17px; height:17px; accent-color:var(--green); cursor:pointer; }
+  video { width:100%; display:block; background:#000; }
+  .pending { padding:34px 20px; text-align:center; color:var(--mut); font-size:14px; background:#fcfbf9; }
+  .pending b { color:var(--amber); font-weight:600; }
+  .steps { padding:12px 20px 18px; font-size:12.5px; color:var(--mut); }
+  .steps span { display:inline-block; padding:2px 0; }
+  .steps .arr { color:#c9c5bd; padding:0 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Avantej — customer journey, end to end</h1>
+  <p>Each chapter is a recorded run against the live test tenant. Tick a chapter once you've reviewed it — progress persists in this browser.</p>
+  <div class="bar"><div id="barfill"></div></div>
+  <div class="count" id="count"></div>
+</header>
+<main id="app"></main>
+<script>
+const CHAPTERS = [
+  { id:"installment", kind:"golden", title:"Installment sale → per-installment commission → payout",
+    journey:"A package sold on a 3-instalment plan. Each cleared instalment earns a proportional origination commission (with a final true-up); all of them are then approved and paid out in the ledger.",
+    steps:["installment sale","3 commissions earned","approve all","mark paid","PAID"],
+    video:"01-installment-journey.webm" },
+  { id:"dispute", kind:"edge", title:"Trainer disputes a commission → manager upholds",
+    journey:"A trainer flags a commission as wrong from their My Commissions tab; it leaves the payable pool as 'contested'; the manager reviews it on the Disputes tab and upholds it, restoring the original.",
+    steps:["dispute on Mine","contested","manager Uphold","restored"],
+    video:"02-dispute.webm" },
+  { id:"dispute-adjust", kind:"edge", title:"Trainer disputes → manager adjusts (corrected amount)",
+    journey:"The other resolution path: the manager resolves the dispute by Adjusting — voiding the disputed split and creating a corrected manual split at the right amount, in one step.",
+    steps:["contested","manager Adjust","void + corrected split"],
+    video:"06-dispute-adjust.webm" },
+  { id:"ledger", kind:"golden", title:"Commission settlement — approve → mark paid",
+    journey:"A single origination commission from a full-payment sale walks the ledger lifecycle: Pending → Approve Selected → Approved → Mark as Paid → Paid.",
+    steps:["pending","approve","approved","mark paid","paid"],
+    video:"03-ledger-payout.webm" },
+  { id:"refund", kind:"edge", title:"Refund → commission clawback",
+    journey:"An installment sale earns per-installment commissions (shown under Pending), then the package is refunded — the very same commissions reappear under Void, clawed back automatically.",
+    steps:["earned (pending)","refund","commission voided"],
+    video:"04-refund.webm" },
+  { id:"delivery", kind:"golden", title:"Completed session → trainer earns a delivery commission",
+    journey:"The on_completion path (vs origination at sale): completing an appointment fires a delivery commission to the trainer (earnReason=completion). The manager finds it under All Staff in the ledger and approves it.",
+    steps:["session completed","delivery commission earned","manager approves"],
+    video:"07-delivery.webm" },
+  { id:"overdue", kind:"edge", title:"Installment overdue → lock → resume",
+    journey:"An installment passes its due date and grace period: the real lock evaluator (the one the nightly sweep runs) locks the package (sessions blocked, reason 'non_payment'), shown in the installments admin view; a manual unlock resumes it.",
+    steps:["overdue","grace expired","locked","manual unlock"],
+    video:"05-overdue-lock.webm" },
+];
+
+const KEY = "avantej-journey-review";
+const state = JSON.parse(localStorage.getItem(KEY) || "{}");
+const app = document.getElementById("app");
+
+function render() {
+  app.innerHTML = "";
+  CHAPTERS.forEach((c, i) => {
+    const done = !!state[c.id];
+    const el = document.createElement("section");
+    el.className = "ch" + (done ? " done" : "");
+    const steps = c.steps.map(s => `<span>${s}</span>`).join('<span class="arr">→</span>');
+    el.innerHTML = `
+      <div class="ch-head">
+        <div class="num ${c.kind === "edge" ? "edge" : ""}">${i + 1}</div>
+        <div class="ch-meta">
+          <h2>${c.title} <span class="tag ${c.kind}">${c.kind === "golden" ? "golden path" : "edge case"}</span></h2>
+          <p class="journey">${c.journey}</p>
+        </div>
+        <label class="rev"><input type="checkbox" data-id="${c.id}" ${done ? "checked" : ""}/> reviewed</label>
+      </div>
+      <div class="steps">${steps}</div>
+      ${c.video
+        ? `<video controls preload="metadata" src="${c.video}"></video>`
+        : `<div class="pending"><b>Blocked — needs a test backdate helper.</b> There's no API path to seed an overdue instalment: <code>reschedule</code> rejects past dates by design (and currently 500s instead of returning a clean 400). The journey + lock/unlock assertions are written (<code>customer-journey-overdue-lock.journey.spec.ts</code>, test.fixme); add a test-only DB backdate of <code>due_date</code> + <code>next_due_date</code>, then <code>getPackageState</code> triggers the lock and the chapter records.</div>`}
+    `;
+    app.appendChild(el);
+  });
+  updateProgress();
+}
+
+function updateProgress() {
+  const total = CHAPTERS.length;
+  const done = CHAPTERS.filter(c => state[c.id]).length;
+  document.getElementById("barfill").style.width = (done / total * 100) + "%";
+  document.getElementById("count").textContent = `${done} of ${total} chapters reviewed`;
+}
+
+app.addEventListener("change", (e) => {
+  const id = e.target.getAttribute("data-id");
+  if (!id) return;
+  state[id] = e.target.checked;
+  localStorage.setItem(KEY, JSON.stringify(state));
+  e.target.closest(".ch").classList.toggle("done", e.target.checked);
+  updateProgress();
+});
+
+render();
+</script>
+</body>
+</html>

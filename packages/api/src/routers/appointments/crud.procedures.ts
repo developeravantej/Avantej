@@ -5,6 +5,7 @@ import {
 	syncAppointmentToGoogleCalendar,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
+import { assertOutsideBookingLock } from "./lock";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
 import {
@@ -260,6 +261,12 @@ export const appointmentsCrudProcedures = {
 				throw new ORPCError("FORBIDDEN", {
 					message: "Access denied",
 				});
+			}
+
+			// UAT §5 — 24-hour lock (shared helper; admins override). Only cancels are
+			// gated here; burn (no-show) / claim (completed) stay allowed inside the lock.
+			if (input.status === "cancelled") {
+				assertOutsideBookingLock(existing.startTime, context.member, "cancel");
 			}
 
 			// Actor is required by the service layer to fire commission generation

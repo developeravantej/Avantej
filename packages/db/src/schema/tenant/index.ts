@@ -50,6 +50,7 @@ export * from "./organization-settings";
 export * from "./package-instances";
 export * from "./package-instance-staff";
 export * from "./payment-items";
+export * from "./payment-proofs";
 export * from "./payments";
 export * from "./payouts";
 export * from "./permissions";

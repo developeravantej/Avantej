@@ -5,6 +5,7 @@ import {
 	writeAudit,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
+import { assertOutsideBookingLock } from "./lock";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
 import {
@@ -150,6 +151,13 @@ export const appointmentsCreditsProcedures = {
 					message: `Cannot reschedule an appointment with status "${existing.status}". Only upcoming sessions can be moved.`,
 				});
 			}
+
+			// UAT §5 — 24-hour lock (shared helper; admins override).
+			assertOutsideBookingLock(
+				existing.startTime,
+				context.member,
+				"reschedule",
+			);
 
 			const fromIso = existing.startTime.toISOString();
 			const newStart = new Date(input.newStartTime);
