@@ -195,9 +195,7 @@ test.describe("real GHL — ADMIN", () => {
 
 			// Switch role from default "staff" to "admin"
 			await dialog.locator("#role").click();
-			const adminOption = page
-				.getByRole("option", { name: /^Admin$/ })
-				.first();
+			const adminOption = page.getByRole("option", { name: /^Admin$/ }).first();
 			await expect(adminOption).toBeVisible({ timeout: 5_000 });
 			await adminOption.click();
 			await expect(dialog.locator("#role")).toContainText(/admin/i);
@@ -272,7 +270,10 @@ test.describe("real GHL — ADMIN", () => {
 			const scopeNode = await t.query.hierarchyNodes.findFirst({
 				where: eq(hierarchyNodes.id, newMember.hierarchyScopeId),
 			});
-			expect(scopeNode, "admin must be scoped to a hierarchy node").toBeTruthy();
+			expect(
+				scopeNode,
+				"admin must be scoped to a hierarchy node",
+			).toBeTruthy();
 			expect(scopeNode?.type).toBe("organization");
 			expect(scopeNode?.depth).toBe(0);
 

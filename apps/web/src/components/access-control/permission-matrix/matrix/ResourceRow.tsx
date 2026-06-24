@@ -76,7 +76,12 @@ export function ResourceRow({
 								roleId={role.id}
 								resourceId={resource.id}
 								actionId={action.id}
-								hasAccess={hasPermission(roles, role.id, resource.id, action.id)}
+								hasAccess={hasPermission(
+									roles,
+									role.id,
+									resource.id,
+									action.id,
+								)}
 								scope={getPermissionScope(
 									roles,
 									role.id,

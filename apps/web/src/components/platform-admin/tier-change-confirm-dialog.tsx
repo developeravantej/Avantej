@@ -25,10 +25,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 
-export type ProrationBehavior =
-	| "create_prorations"
-	| "none"
-	| "always_invoice";
+export type ProrationBehavior = "create_prorations" | "none" | "always_invoice";
 
 export type TierChangeInput = {
 	toTier: Tier;
@@ -91,8 +88,8 @@ export function TierChangeConfirmDialog({
 							Stripe will create proration invoice items immediately.
 						</div>
 						<div className="text-xs text-muted-foreground">
-							By default credits/debits are added to the next invoice.
-							Audited under <code>tenant_tier_change</code>.
+							By default credits/debits are added to the next invoice. Audited
+							under <code>tenant_tier_change</code>.
 						</div>
 					</div>
 				</div>
@@ -138,10 +135,7 @@ export function TierChangeConfirmDialog({
 								</Label>
 							</div>
 							<div className="flex items-center gap-2">
-								<RadioGroupItem
-									value="always_invoice"
-									id="proration-always"
-								/>
+								<RadioGroupItem value="always_invoice" id="proration-always" />
 								<Label htmlFor="proration-always" className="font-normal">
 									Always invoice now
 								</Label>
@@ -150,9 +144,7 @@ export function TierChangeConfirmDialog({
 					</div>
 
 					<div>
-						<Label htmlFor="tier-change-notes">
-							Internal notes (optional)
-						</Label>
+						<Label htmlFor="tier-change-notes">Internal notes (optional)</Label>
 						<Textarea
 							id="tier-change-notes"
 							placeholder="Audit-only context — e.g. ticket number, customer ask"

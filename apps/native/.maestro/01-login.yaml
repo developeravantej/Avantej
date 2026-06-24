@@ -1,0 +1,12 @@
+appId: ${APP_ID}
+---
+# Test: Login with valid credentials
+- runFlow: helpers/login.yaml
+
+# Verify home screen loaded
+- extendedWaitUntil:
+    visible:
+      text: ".*Good Morning.*|.*Good Afternoon.*|.*Good Evening.*"
+    timeout: 15000
+- assertVisible:
+    text: ".*Calendar.*"

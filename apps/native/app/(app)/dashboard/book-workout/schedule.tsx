@@ -84,9 +84,9 @@ export default function ScheduleScreen() {
 	const [viewMode, setViewMode] = useState<"week" | "month">("week");
 	const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 	const [selectedTime, setSelectedTime] = useState<string | null>(null);
-	const [selectedClassSlotId, setSelectedClassSlotId] = useState<
-		string | null
-	>(null);
+	const [selectedClassSlotId, setSelectedClassSlotId] = useState<string | null>(
+		null,
+	);
 	// Class-slot recurring picker state
 	const [selectedRecurringDay, setSelectedRecurringDay] = useState<
 		string | null
@@ -133,10 +133,7 @@ export default function ScheduleScreen() {
 	}, [selectedDate]);
 
 	// Fetch class slots for the selected date (only for non-private services)
-	const {
-		data: classSlots,
-		isLoading: classSlotsLoading,
-	} = useQuery({
+	const { data: classSlots, isLoading: classSlotsLoading } = useQuery({
 		...orpc.classSlots.list.queryOptions({
 			input: {
 				organizationId,
@@ -760,10 +757,7 @@ export default function ScheduleScreen() {
 									</View>
 								) : classSlotsLoading ? (
 									<View className="items-center py-8">
-										<ActivityIndicator
-											size="large"
-											color={colors.primary[1]}
-										/>
+										<ActivityIndicator size="large" color={colors.primary[1]} />
 									</View>
 								) : !classSlots || classSlots.length === 0 ? (
 									<View className="mb-3 rounded-2xl border border-secondary-3 bg-secondary-3 p-4">

@@ -2,10 +2,30 @@ import { CalendarPlus, ShoppingCart, Calendar, BarChart3 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 const actions = [
-	{ label: "New Appointment", icon: CalendarPlus, href: "/dashboard/appointment/view", primary: true },
-	{ label: "New Sale", icon: ShoppingCart, href: "/dashboard/sales/view", primary: false },
-	{ label: "Calendar", icon: Calendar, href: "/dashboard/appointment/view", primary: false },
-	{ label: "Reports", icon: BarChart3, href: "/dashboard/sales/view", primary: false },
+	{
+		label: "New Appointment",
+		icon: CalendarPlus,
+		href: "/dashboard/appointment/view",
+		primary: true,
+	},
+	{
+		label: "New Sale",
+		icon: ShoppingCart,
+		href: "/dashboard/sales/view",
+		primary: false,
+	},
+	{
+		label: "Calendar",
+		icon: Calendar,
+		href: "/dashboard/appointment/view",
+		primary: false,
+	},
+	{
+		label: "Reports",
+		icon: BarChart3,
+		href: "/dashboard/sales/view",
+		primary: false,
+	},
 ];
 
 export function QuickActions() {

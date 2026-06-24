@@ -3,7 +3,11 @@ import type { Appointment } from "../types";
 import { statusStyle } from "../utils";
 
 function formatTime(date: Date) {
-	return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+	return date.toLocaleTimeString("en-US", {
+		hour: "numeric",
+		minute: "2-digit",
+		hour12: true,
+	});
 }
 
 interface CalendarCellProps {
@@ -15,7 +19,14 @@ interface CalendarCellProps {
 	onCellClick: (date: Date) => void;
 }
 
-export function CalendarCell({ date, appts, isTodayDate, inPeriod, minHeight, onCellClick }: CalendarCellProps) {
+export function CalendarCell({
+	date,
+	appts,
+	isTodayDate,
+	inPeriod,
+	minHeight,
+	onCellClick,
+}: CalendarCellProps) {
 	const preview =
 		appts.find((a) => a.status === "pending") ??
 		appts.find((a) => a.status === "confirmed") ??
@@ -41,7 +52,14 @@ export function CalendarCell({ date, appts, isTodayDate, inPeriod, minHeight, on
 			}}
 		>
 			<div className="flex items-center justify-between">
-				<span className={cn("text-sm font-medium", isTodayDate && "text-blue-600 font-bold")}>{date.getDate()}</span>
+				<span
+					className={cn(
+						"text-sm font-medium",
+						isTodayDate && "text-blue-600 font-bold",
+					)}
+				>
+					{date.getDate()}
+				</span>
 				{appts.length > 0 && (
 					<span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1 rounded-full bg-blue-100 text-blue-800 text-xs font-semibold">
 						{appts.length}
@@ -49,30 +67,43 @@ export function CalendarCell({ date, appts, isTodayDate, inPeriod, minHeight, on
 				)}
 			</div>
 
-			{preview && (() => {
-				const s = statusStyle(preview.status);
-				return (
-					<div
-						role="button"
-						tabIndex={0}
-						className={cn("rounded border-l-[3px] px-1.5 py-1 text-xs leading-tight", s.bg, s.border, s.text)}
-						onClick={(e) => { e.stopPropagation(); onCellClick(date); }}
-						onKeyDown={(e) => {
-							if (e.key === "Enter" || e.key === " ") {
-								e.preventDefault();
+			{preview &&
+				(() => {
+					const s = statusStyle(preview.status);
+					return (
+						<div
+							role="button"
+							tabIndex={0}
+							className={cn(
+								"rounded border-l-[3px] px-1.5 py-1 text-xs leading-tight",
+								s.bg,
+								s.border,
+								s.text,
+							)}
+							onClick={(e) => {
 								e.stopPropagation();
 								onCellClick(date);
-							}
-						}}
-					>
-						<div className="font-medium truncate">{preview.title}</div>
-						<div className="opacity-75 truncate">{formatTime(new Date(preview.start))}</div>
-					</div>
-				);
-			})()}
+							}}
+							onKeyDown={(e) => {
+								if (e.key === "Enter" || e.key === " ") {
+									e.preventDefault();
+									e.stopPropagation();
+									onCellClick(date);
+								}
+							}}
+						>
+							<div className="font-medium truncate">{preview.title}</div>
+							<div className="opacity-75 truncate">
+								{formatTime(new Date(preview.start))}
+							</div>
+						</div>
+					);
+				})()}
 
 			{appts.length > 1 && (
-				<div className="text-xs text-zinc-400 text-right">+{appts.length - 1} more</div>
+				<div className="text-xs text-zinc-400 text-right">
+					+{appts.length - 1} more
+				</div>
 			)}
 		</div>
 	);

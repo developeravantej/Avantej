@@ -31,10 +31,9 @@ async function login(page: Page): Promise<void> {
 	await page.fill('input[type="email"]', ADMIN_EMAIL);
 	await page.fill('input[type="password"]', ADMIN_PASSWORD);
 	await page.click('button[type="submit"]');
-	await page.waitForURL(
-		/\/(dashboard|customers|home|onboarding|subscribe)/,
-		{ timeout: 20_000 },
-	);
+	await page.waitForURL(/\/(dashboard|customers|home|onboarding|subscribe)/, {
+		timeout: 20_000,
+	});
 }
 
 async function rpc<T>(
@@ -62,7 +61,9 @@ async function rpc<T>(
 	return res as { status: number; body: T | { json: { message?: string } } };
 }
 
-test("payments.refund issues a Stripe refund on a paid appointment", async ({ page }) => {
+test("payments.refund issues a Stripe refund on a paid appointment", async ({
+	page,
+}) => {
 	await login(page);
 	console.log("✓ Logged in");
 
@@ -100,7 +101,12 @@ test("payments.refund issues a Stripe refund on a paid appointment", async ({ pa
 
 	// Issue refund.
 	const refundRes = await rpc<{
-		json: { refundId: string; status: string; amount: number; currency: string };
+		json: {
+			refundId: string;
+			status: string;
+			amount: number;
+			currency: string;
+		};
 	}>(page, "payments/refund", {
 		organizationId: ORG_ID,
 		appointmentId: APPOINTMENT_ID,
@@ -111,7 +117,12 @@ test("payments.refund issues a Stripe refund on a paid appointment", async ({ pa
 	expect(refundRes.status).toBe(200);
 	const refund = (
 		refundRes.body as {
-			json: { refundId: string; status: string; amount: number; currency: string };
+			json: {
+				refundId: string;
+				status: string;
+				amount: number;
+				currency: string;
+			};
 		}
 	).json;
 	// Standard accounts return pyr_ (Payouts Reversal); Custom/platform-direct

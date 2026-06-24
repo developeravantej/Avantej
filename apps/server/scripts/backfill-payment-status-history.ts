@@ -72,7 +72,9 @@ async function backfillPaymentStatusHistory() {
 	});
 
 	if (!org) {
-		throw new Error(`Organization ${TARGET_ORG_ID} not found in control panel DB`);
+		throw new Error(
+			`Organization ${TARGET_ORG_ID} not found in control panel DB`,
+		);
 	}
 
 	console.log(`Processing: ${org.name} (${org.id})`);
@@ -115,7 +117,10 @@ async function backfillPaymentStatusHistory() {
 		const rowCount = (result as unknown as { rowCount: number }).rowCount ?? 0;
 		console.log(`Inserted ${rowCount} payment_status_history row(s)`);
 	} catch (error) {
-		console.error("Error during backfill:", error instanceof Error ? error.message : error);
+		console.error(
+			"Error during backfill:",
+			error instanceof Error ? error.message : error,
+		);
 		throw error;
 	} finally {
 		await tenantPool.end();

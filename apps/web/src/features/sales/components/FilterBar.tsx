@@ -89,7 +89,10 @@ export function FilterBar({
 			<div className="mx-1 h-5 border-r border-[#e5e5e5]" />
 
 			{/* Branch */}
-			<Select value={branchId || "all"} onValueChange={(v) => onBranchChange(v === "all" ? "" : v)}>
+			<Select
+				value={branchId || "all"}
+				onValueChange={(v) => onBranchChange(v === "all" ? "" : v)}
+			>
 				<SelectTrigger className="h-8 w-36 text-xs border-[#e5e5e5]">
 					<SelectValue placeholder="All Branches" />
 				</SelectTrigger>

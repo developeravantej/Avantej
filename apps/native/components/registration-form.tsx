@@ -306,13 +306,12 @@ const CountryRow = memo(function CountryRow({
 		<Pressable
 			onPress={handlePress}
 			className="mx-4 flex-row items-center border-b px-2 py-3"
-			style={isSelected ? countryRowStyles.rowSelected : countryRowStyles.rowBase}
+			style={
+				isSelected ? countryRowStyles.rowSelected : countryRowStyles.rowBase
+			}
 		>
 			<Text className="mr-3 text-2xl">{item.flag}</Text>
-			<Text
-				className="flex-1 text-base"
-				style={{ color: colors.primary[1] }}
-			>
+			<Text className="flex-1 text-base" style={{ color: colors.primary[1] }}>
 				{item.name}
 			</Text>
 			<Text
@@ -382,10 +381,7 @@ function CountryCodePicker({
 	return (
 		<Modal visible={visible} animationType="slide" transparent>
 			<View className="flex-1 justify-end">
-				<Pressable
-					className="flex-1"
-					onPress={onClose}
-				/>
+				<Pressable className="flex-1" onPress={onClose} />
 				<View
 					className="rounded-t-3xl bg-primary-2"
 					style={{ maxHeight: "70%" }}
@@ -410,11 +406,7 @@ function CountryCodePicker({
 							className="flex-row items-center rounded-xl border bg-primary-3 px-3"
 							style={{ borderColor: colors.secondary[2] }}
 						>
-							<Ionicons
-								name="search"
-								size={18}
-								color={colors.secondary[1]}
-							/>
+							<Ionicons name="search" size={18} color={colors.secondary[1]} />
 							<TextInput
 								className="ml-2 flex-1 py-3 text-base"
 								style={{ color: colors.primary[1] }}
@@ -495,11 +487,7 @@ function PhoneInput({
 					>
 						{selectedCountry.dialCode}
 					</Text>
-					<Ionicons
-						name="chevron-down"
-						size={14}
-						color={colors.secondary[1]}
-					/>
+					<Ionicons name="chevron-down" size={14} color={colors.secondary[1]} />
 				</Pressable>
 
 				{/* Phone number input */}
@@ -556,7 +544,6 @@ function PersonalDetailsStep({
 
 	return (
 		<>
-
 			<FormLabel text="First Name" required />
 			<FormInput
 				placeholder="First Name as per IC"
@@ -726,17 +713,13 @@ function PersonalDetailsStep({
 				onPress={() => setShowDatePicker(true)}
 				className="mb-4 rounded-xl border bg-primary-2 px-4 py-3"
 				style={{
-					borderColor: errors.dateOfBirth
-						? "#E53935"
-						: colors.secondary[2],
+					borderColor: errors.dateOfBirth ? "#E53935" : colors.secondary[2],
 				}}
 			>
 				<Text
 					className="text-base"
 					style={{
-						color: data.dateOfBirth
-							? colors.primary[1]
-							: colors.secondary[1],
+						color: data.dateOfBirth ? colors.primary[1] : colors.secondary[1],
 					}}
 				>
 					{data.dateOfBirth
@@ -749,10 +732,7 @@ function PersonalDetailsStep({
 				</Text>
 			</Pressable>
 			{errors.dateOfBirth && (
-				<Text
-					className="-mt-3 mb-4 text-xs"
-					style={{ color: "#E53935" }}
-				>
+				<Text className="-mt-3 mb-4 text-xs" style={{ color: "#E53935" }}>
 					{errors.dateOfBirth}
 				</Text>
 			)}
@@ -770,7 +750,7 @@ function PersonalDetailsStep({
 					}}
 				/>
 			)}
-						<Pressable
+			<Pressable
 				onPress={handleSignOut}
 				className="mb-4 self-start flex-row items-center gap-2 rounded-xl border border-red-400 bg-red-50 px-4 py-2"
 			>
@@ -840,11 +820,16 @@ function BranchSelectionStep({
 	data: BranchSelection;
 	onChange: (data: Partial<BranchSelection>) => void;
 	errors: Record<string, string>;
-// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
+	// react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 }) {
 	const [countries, setCountries] = useState<string[]>([]);
 	const [branches, setBranches] = useState<
-		{ id: string; name: string; address: string | null; organizationId: string }[]
+		{
+			id: string;
+			name: string;
+			address: string | null;
+			organizationId: string;
+		}[]
 	>([]);
 	const [loadingCountries, setLoadingCountries] = useState(true);
 	const [loadingBranches, setLoadingBranches] = useState(false);
@@ -957,11 +942,7 @@ function BranchSelectionStep({
 											? "border-primary-1"
 											: "border-secondary-2"
 								}`}
-								style={
-									errors.branchId
-										? { borderColor: "#E53935" }
-										: undefined
-								}
+								style={errors.branchId ? { borderColor: "#E53935" } : undefined}
 							>
 								<Text
 									className="flex-1 text-base"
@@ -1034,10 +1015,7 @@ function BranchSelectionStep({
 					)}
 
 					{errors.branchId && (
-						<Text
-							className="mt-1 text-xs"
-							style={{ color: "#E53935" }}
-						>
+						<Text className="mt-1 text-xs" style={{ color: "#E53935" }}>
 							{errors.branchId}
 						</Text>
 					)}
@@ -1055,13 +1033,16 @@ interface RegistrationFormProps {
 	inviteToken?: string;
 }
 
-export default function RegistrationForm({ inviteToken = "" }: RegistrationFormProps) {
+export default function RegistrationForm({
+	inviteToken = "",
+}: RegistrationFormProps) {
 	const { user, refetch } = useAuth();
 	const [currentStep, setCurrentStep] = useState(0);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [errors, setErrors] = useState<Record<string, string>>({});
 
-	const userFirstName = (user as { firstName?: string } | null)?.firstName || "";
+	const userFirstName =
+		(user as { firstName?: string } | null)?.firstName || "";
 	const userLastName = (user as { lastName?: string } | null)?.lastName || "";
 
 	const [personalDetails, setPersonalDetails] = useState<PersonalDetails>({
@@ -1095,8 +1076,10 @@ export default function RegistrationForm({ inviteToken = "" }: RegistrationFormP
 		}
 	}, [user, userFirstName, userLastName]);
 
-	const [phoneCountry, setPhoneCountry] = useState<CountryCode>(getDefaultCountry);
-	const [emergencyPhoneCountry, setEmergencyPhoneCountry] = useState<CountryCode>(getDefaultCountry);
+	const [phoneCountry, setPhoneCountry] =
+		useState<CountryCode>(getDefaultCountry);
+	const [emergencyPhoneCountry, setEmergencyPhoneCountry] =
+		useState<CountryCode>(getDefaultCountry);
 
 	const [emergencyContact, setEmergencyContact] = useState<EmergencyContact>({
 		name: "",
@@ -1143,8 +1126,10 @@ export default function RegistrationForm({ inviteToken = "" }: RegistrationFormP
 			if (!emergencyContact.phone.trim())
 				newErrors.phone = "Emergency Contact No. is required";
 		} else if (step === 2) {
-			if (!branchSelection.country) newErrors.country = "Please select a country";
-			if (!branchSelection.branchId) newErrors.branchId = "Please select a branch";
+			if (!branchSelection.country)
+				newErrors.country = "Please select a country";
+			if (!branchSelection.branchId)
+				newErrors.branchId = "Please select a branch";
 		}
 
 		setErrors(newErrors);
@@ -1217,225 +1202,219 @@ export default function RegistrationForm({ inviteToken = "" }: RegistrationFormP
 				showsVerticalScrollIndicator={false}
 				automaticallyAdjustKeyboardInsets
 			>
-					{/* Header */}
-					<View className="items-center px-4 pt-4 pb-2">
-						<Image
-							source={require("../assets/images/Logo-B.png")}
-							className="mb-2 size-12"
-							contentFit="contain"
-						/>
-						<Text className="font-bold text-2xl text-primary-1">
-							User Registration
-						</Text>
-					</View>
+				{/* Header */}
+				<View className="items-center px-4 pt-4 pb-2">
+					<Image
+						source={require("../assets/images/Logo-B.png")}
+						className="mb-2 size-12"
+						contentFit="contain"
+					/>
+					<Text className="font-bold text-2xl text-primary-1">
+						User Registration
+					</Text>
+				</View>
 
-					<View className="px-4 pb-6">
-						{/* Progress Indicator */}
-						<View className="mb-6">
-							<View className="mb-2 flex-row items-center justify-between">
-								<Text className="font-semibold text-primary-1 text-sm">
-									Step {currentStep + 1} of {totalSteps}
-								</Text>
-								<Text className="font-semibold text-primary-1 text-sm">
-									{progressPercentage}%
-								</Text>
-							</View>
-
-							{/* Progress Bar */}
-							<View
-								className="mb-4 h-2 overflow-hidden rounded-full"
-								style={{ backgroundColor: colors.secondary[2] }}
-							>
-								<View
-									className="h-full rounded-full"
-									style={{
-										width: `${progressPercentage}%`,
-										backgroundColor: colors.primary[1],
-									}}
-								/>
-							</View>
-
-							{/* Step Navigation */}
-							<View className="relative" style={{ height: 50 }}>
-								{/* Connector line */}
-								<View
-									className="absolute rounded-full"
-									style={{
-										left: "15%",
-										right: "14%",
-										top: "24%",
-										height: 2,
-										backgroundColor: colors.secondary[2],
-										zIndex: 0,
-									}}
-								/>
-								{/* Steps */}
-								<View className="absolute inset-0 flex-row items-center justify-between">
-									{STEPS.map((step, index) => (
-										<View
-											key={step.number}
-											className="items-center justify-center"
-											style={{ flex: 1, zIndex: 1 }}
-										>
-											{index <= currentStep ? (
-												<View className="mb-1 items-center justify-center">
-													<View
-														className="size-7 items-center justify-center rounded-full border-2 border-primary-1"
-														style={{
-															backgroundColor:
-																index === currentStep
-																	? colors.primary[1]
-																	: colors.primary[2],
-															zIndex: 2,
-														}}
-													>
-														{index < currentStep ? (
-															<Ionicons
-																name="checkmark"
-																size={14}
-																color={colors.primary[1]}
-															/>
-														) : (
-															<View
-																className="size-2 rounded-full"
-																style={{
-																	backgroundColor: colors.primary[2],
-																}}
-															/>
-														)}
-													</View>
-												</View>
-											) : (
-												<View className="mb-1 items-center justify-center">
-													<View
-														className="size-7 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
-														style={{ zIndex: 2 }}
-													>
-														<Text className="font-semibold text-primary-1 text-xs">
-															{step.number}
-														</Text>
-													</View>
-												</View>
-											)}
-											<Text
-												className={`mt-1 text-center text-xs ${
-													index === currentStep
-														? "font-bold"
-														: "font-medium"
-												}`}
-												style={{
-													color:
-														index <= currentStep
-															? colors.primary[1]
-															: colors.secondary[1],
-												}}
-											>
-												{step.label}
-											</Text>
-										</View>
-									))}
-								</View>
-							</View>
+				<View className="px-4 pb-6">
+					{/* Progress Indicator */}
+					<View className="mb-6">
+						<View className="mb-2 flex-row items-center justify-between">
+							<Text className="font-semibold text-primary-1 text-sm">
+								Step {currentStep + 1} of {totalSteps}
+							</Text>
+							<Text className="font-semibold text-primary-1 text-sm">
+								{progressPercentage}%
+							</Text>
 						</View>
 
-						{/* Section Title */}
-						<Text
-							className="mb-4 font-bold text-sm uppercase tracking-wide"
-							style={{ color: colors.primary[1] }}
+						{/* Progress Bar */}
+						<View
+							className="mb-4 h-2 overflow-hidden rounded-full"
+							style={{ backgroundColor: colors.secondary[2] }}
 						>
-							{currentStep === 0
-								? "PERSONAL DETAILS"
-								: currentStep === 1
-									? "EMERGENCY CONTACT"
-									: "SELECT PREFERRED LOCATION"}
-						</Text>
+							<View
+								className="h-full rounded-full"
+								style={{
+									width: `${progressPercentage}%`,
+									backgroundColor: colors.primary[1],
+								}}
+							/>
+						</View>
 
-						{/* Form Card */}
-						<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
-							{currentStep === 0 && (
-								<PersonalDetailsStep
-									data={personalDetails}
-									onChange={(d) =>
-										setPersonalDetails((prev) => ({ ...prev, ...d }))
-									}
-									errors={errors}
-									phoneCountry={phoneCountry}
-									onPhoneCountryChange={setPhoneCountry}
-								/>
-							)}
-
-							{currentStep === 1 && (
-								<EmergencyContactStep
-									data={emergencyContact}
-									onChange={(d) =>
-										setEmergencyContact((prev) => ({ ...prev, ...d }))
-									}
-									errors={errors}
-									phoneCountry={emergencyPhoneCountry}
-									onPhoneCountryChange={setEmergencyPhoneCountry}
-								/>
-							)}
-
-							{currentStep === 2 && (
-								<BranchSelectionStep
-									data={branchSelection}
-									onChange={(d) =>
-										setBranchSelection((prev) => ({ ...prev, ...d }))
-									}
-									errors={errors}
-								/>
-							)}
+						{/* Step Navigation */}
+						<View className="relative" style={{ height: 50 }}>
+							{/* Connector line */}
+							<View
+								className="absolute rounded-full"
+								style={{
+									left: "15%",
+									right: "14%",
+									top: "24%",
+									height: 2,
+									backgroundColor: colors.secondary[2],
+									zIndex: 0,
+								}}
+							/>
+							{/* Steps */}
+							<View className="absolute inset-0 flex-row items-center justify-between">
+								{STEPS.map((step, index) => (
+									<View
+										key={step.number}
+										className="items-center justify-center"
+										style={{ flex: 1, zIndex: 1 }}
+									>
+										{index <= currentStep ? (
+											<View className="mb-1 items-center justify-center">
+												<View
+													className="size-7 items-center justify-center rounded-full border-2 border-primary-1"
+													style={{
+														backgroundColor:
+															index === currentStep
+																? colors.primary[1]
+																: colors.primary[2],
+														zIndex: 2,
+													}}
+												>
+													{index < currentStep ? (
+														<Ionicons
+															name="checkmark"
+															size={14}
+															color={colors.primary[1]}
+														/>
+													) : (
+														<View
+															className="size-2 rounded-full"
+															style={{
+																backgroundColor: colors.primary[2],
+															}}
+														/>
+													)}
+												</View>
+											</View>
+										) : (
+											<View className="mb-1 items-center justify-center">
+												<View
+													className="size-7 items-center justify-center rounded-full border-2 border-secondary-2 bg-primary-2"
+													style={{ zIndex: 2 }}
+												>
+													<Text className="font-semibold text-primary-1 text-xs">
+														{step.number}
+													</Text>
+												</View>
+											</View>
+										)}
+										<Text
+											className={`mt-1 text-center text-xs ${
+												index === currentStep ? "font-bold" : "font-medium"
+											}`}
+											style={{
+												color:
+													index <= currentStep
+														? colors.primary[1]
+														: colors.secondary[1],
+											}}
+										>
+											{step.label}
+										</Text>
+									</View>
+								))}
+							</View>
 						</View>
 					</View>
-				</ScrollView>
 
-				{/* Bottom Navigation */}
-				<SafeAreaView
-					edges={["bottom"]}
-					className="border-secondary-3 border-t bg-primary-2"
-				>
-					<View className="flex-row gap-3 p-4">
-						{currentStep > 0 && (
-							<Pressable
-								onPress={handlePrev}
-								className="flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-primary-1 py-4"
-							>
-								<Ionicons
-									name="arrow-back"
-									size={18}
-									color={colors.primary[1]}
-								/>
-								<Text className="font-semibold text-base text-primary-1">
-									Back
-								</Text>
-							</Pressable>
+					{/* Section Title */}
+					<Text
+						className="mb-4 font-bold text-sm uppercase tracking-wide"
+						style={{ color: colors.primary[1] }}
+					>
+						{currentStep === 0
+							? "PERSONAL DETAILS"
+							: currentStep === 1
+								? "EMERGENCY CONTACT"
+								: "SELECT PREFERRED LOCATION"}
+					</Text>
+
+					{/* Form Card */}
+					<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-5 shadow-sm">
+						{currentStep === 0 && (
+							<PersonalDetailsStep
+								data={personalDetails}
+								onChange={(d) =>
+									setPersonalDetails((prev) => ({ ...prev, ...d }))
+								}
+								errors={errors}
+								phoneCountry={phoneCountry}
+								onPhoneCountryChange={setPhoneCountry}
+							/>
 						)}
 
-						<Pressable
-							onPress={currentStep === 2 ? handleSubmit : handleNext}
-							disabled={isSubmitting}
-							className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-primary-1 py-4"
-							style={{ opacity: isSubmitting ? 0.6 : 1 }}
-						>
-							{isSubmitting ? (
-								<ActivityIndicator size="small" color={colors.primary[2]} />
-							) : (
-								<>
-									<Text className="font-semibold text-base text-primary-2">
-										{currentStep === 2 ? "Submit" : "Continue"}
-									</Text>
-									{currentStep < 2 && (
-										<Ionicons
-											name="arrow-forward"
-											size={18}
-											color={colors.primary[2]}
-										/>
-									)}
-								</>
-							)}
-						</Pressable>
+						{currentStep === 1 && (
+							<EmergencyContactStep
+								data={emergencyContact}
+								onChange={(d) =>
+									setEmergencyContact((prev) => ({ ...prev, ...d }))
+								}
+								errors={errors}
+								phoneCountry={emergencyPhoneCountry}
+								onPhoneCountryChange={setEmergencyPhoneCountry}
+							/>
+						)}
+
+						{currentStep === 2 && (
+							<BranchSelectionStep
+								data={branchSelection}
+								onChange={(d) =>
+									setBranchSelection((prev) => ({ ...prev, ...d }))
+								}
+								errors={errors}
+							/>
+						)}
 					</View>
-				</SafeAreaView>
+				</View>
+			</ScrollView>
+
+			{/* Bottom Navigation */}
+			<SafeAreaView
+				edges={["bottom"]}
+				className="border-secondary-3 border-t bg-primary-2"
+			>
+				<View className="flex-row gap-3 p-4">
+					{currentStep > 0 && (
+						<Pressable
+							onPress={handlePrev}
+							className="flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-primary-1 py-4"
+						>
+							<Ionicons name="arrow-back" size={18} color={colors.primary[1]} />
+							<Text className="font-semibold text-base text-primary-1">
+								Back
+							</Text>
+						</Pressable>
+					)}
+
+					<Pressable
+						onPress={currentStep === 2 ? handleSubmit : handleNext}
+						disabled={isSubmitting}
+						className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-primary-1 py-4"
+						style={{ opacity: isSubmitting ? 0.6 : 1 }}
+					>
+						{isSubmitting ? (
+							<ActivityIndicator size="small" color={colors.primary[2]} />
+						) : (
+							<>
+								<Text className="font-semibold text-base text-primary-2">
+									{currentStep === 2 ? "Submit" : "Continue"}
+								</Text>
+								{currentStep < 2 && (
+									<Ionicons
+										name="arrow-forward"
+										size={18}
+										color={colors.primary[2]}
+									/>
+								)}
+							</>
+						)}
+					</Pressable>
+				</View>
+			</SafeAreaView>
 		</View>
 	);
 }

@@ -41,7 +41,13 @@ export type TrainerAssignment = {
 
 export type ItemTrainerAssignments = Record<string, TrainerAssignment[]>;
 
-export type PaymentMethod = "cash" | "card" | "manual_transfer" | "fpx" | "stripe" | "online";
+export type PaymentMethod =
+	| "cash"
+	| "card"
+	| "manual_transfer"
+	| "fpx"
+	| "stripe"
+	| "online";
 
 export interface TaxRateOption {
 	id: string;

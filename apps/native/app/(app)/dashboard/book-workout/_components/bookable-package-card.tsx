@@ -87,25 +87,15 @@ export function BookablePackageCard({
 			</View>
 
 			{service?.description && (
-				<Text
-					className="mb-2 text-sm"
-					style={{ color: colors.secondary[1] }}
-				>
+				<Text className="mb-2 text-sm" style={{ color: colors.secondary[1] }}>
 					{service.description}
 				</Text>
 			)}
 
 			<View className="mb-2 flex-row items-center justify-between">
 				<View className="flex-row items-center">
-					<Ionicons
-						name="star-outline"
-						size={14}
-						color={colors.secondary[1]}
-					/>
-					<Text
-						className="ml-1 text-sm"
-						style={{ color: colors.secondary[1] }}
-					>
+					<Ionicons name="star-outline" size={14} color={colors.secondary[1]} />
+					<Text className="ml-1 text-sm" style={{ color: colors.secondary[1] }}>
 						{remaining} of {total} credits remaining
 					</Text>
 				</View>
@@ -152,10 +142,7 @@ export function BookablePackageCard({
 							size={14}
 							color={colors.secondary[1]}
 						/>
-						<Text
-							className="ml-1 text-xs"
-							style={{ color: colors.primary[1] }}
-						>
+						<Text className="ml-1 text-xs" style={{ color: colors.primary[1] }}>
 							{formatMoney(instance.totalPrice)}
 						</Text>
 					</View>

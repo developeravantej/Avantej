@@ -2,14 +2,10 @@
 
 export function RefundBadge({ status }: { status: string }) {
 	const map: Record<string, string> = {
-		pending:
-			"bg-white text-[#4a4f51] border border-[#e5e5e5]",
-		approved:
-			"bg-[#f0fdf4] text-[#15803d] border border-[#bbf7d0]",
-		processed:
-			"bg-[#eff6ff] text-[#1d4ed8] border border-[#bfdbfe]",
-		rejected:
-			"bg-[#fef2f2] text-[#b91c1c] border border-[#fecaca]",
+		pending: "bg-white text-[#4a4f51] border border-[#e5e5e5]",
+		approved: "bg-[#f0fdf4] text-[#15803d] border border-[#bbf7d0]",
+		processed: "bg-[#eff6ff] text-[#1d4ed8] border border-[#bfdbfe]",
+		rejected: "bg-[#fef2f2] text-[#b91c1c] border border-[#fecaca]",
 		cancelled: "bg-[#d9d9ca] text-[#4a4f51]",
 	};
 	const cls = map[status] ?? "bg-[#d9d9ca] text-[#4a4f51]";

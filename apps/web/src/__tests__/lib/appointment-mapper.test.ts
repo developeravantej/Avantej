@@ -61,7 +61,12 @@ describe("mapApiAppointmentToCalendar", () => {
 
 	it("prefers enriched names and falls back to id snippets", () => {
 		const enriched = mapApiAppointmentToCalendar(
-			api({ clientName: "Jane", serviceName: "PT", trainerName: "Coach", trainerId: "t-1" }),
+			api({
+				clientName: "Jane",
+				serviceName: "PT",
+				trainerName: "Coach",
+				trainerId: "t-1",
+			}),
 		);
 		expect(enriched.clientName).toBe("Jane");
 		expect(enriched.service).toBe("PT");

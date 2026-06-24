@@ -105,9 +105,7 @@ export const columns: ColumnDef<UomConversionRow>[] = [
 					<DropdownMenuContent align="end">
 						<DropdownMenuLabel>Actions</DropdownMenuLabel>
 						<DropdownMenuItem
-							onClick={() =>
-								navigator.clipboard.writeText(conversion.name)
-							}
+							onClick={() => navigator.clipboard.writeText(conversion.name)}
 						>
 							Copy name
 						</DropdownMenuItem>

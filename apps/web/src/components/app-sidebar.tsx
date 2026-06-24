@@ -21,6 +21,7 @@ import {
 	Home,
 	LayoutDashboard,
 	LogOut,
+	Mail,
 	Map,
 	Megaphone,
 	MessageSquare,
@@ -241,6 +242,11 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				title: "Notification Preferences",
 				url: "/dashboard/settings/notifications",
 				icon: Bell,
+			},
+			{
+				title: "Email",
+				url: "/dashboard/settings/email",
+				icon: Mail,
 			},
 			{ title: "GHL Integration", url: "/go-highlevel-integration", icon: Map },
 			{

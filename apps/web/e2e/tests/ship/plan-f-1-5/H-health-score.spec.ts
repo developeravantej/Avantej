@@ -192,17 +192,14 @@ test.describe("@ship-f-1-5 Plan F.1.5 — Tenant Health Score", () => {
 			getBody.riskFlags.find((f: any) => f.code === "low_activity"),
 		).toBeTruthy();
 		expect(
-			getBody.riskFlags.find(
-				(f: any) => f.code === "subscription_cancelled",
-			),
+			getBody.riskFlags.find((f: any) => f.code === "subscription_cancelled"),
 		).toBeTruthy();
 
 		// ── 2. history({ days: 30 }) → ascending series ────────────────────
-		const histRes = await rpc(
-			apiCtx,
-			"platformAdminTenants/health/history",
-			{ organizationId, days: 30 },
-		);
+		const histRes = await rpc(apiCtx, "platformAdminTenants/health/history", {
+			organizationId,
+			days: 30,
+		});
 		expect(histRes.status, JSON.stringify(histRes.body)).toBe(200);
 		const histBody = histRes.body?.json ?? histRes.body;
 		expect(Array.isArray(histBody.series)).toBe(true);
@@ -255,9 +252,9 @@ test.describe("@ship-f-1-5 Plan F.1.5 — Tenant Health Score", () => {
 		});
 		expect(getDenied.status).toBeGreaterThanOrEqual(400);
 		const denyStr = JSON.stringify(getDenied.body).toLowerCase();
-		expect(
-			denyStr.includes("forbidden") || denyStr.includes("admin"),
-		).toBe(true);
+		expect(denyStr.includes("forbidden") || denyStr.includes("admin")).toBe(
+			true,
+		);
 
 		const listDenied = await rpc(
 			userApi,

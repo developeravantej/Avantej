@@ -1,5 +1,8 @@
 import { useMemo } from "react";
-import { buildColumns, type PaymentRow } from "@/components/tables/payment/view/columns";
+import {
+	buildColumns,
+	type PaymentRow,
+} from "@/components/tables/payment/view/columns";
 import PaymentDataTable from "@/components/tables/payment/view/data-table";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { Skeleton } from "boneyard-js/react";
@@ -14,7 +17,14 @@ export interface PaymentsTabProps {
 	onSelectPayment: (paymentId: string) => void;
 }
 
-export function PaymentsTab({ data, isLoading, isError, error, refetch, onSelectPayment }: PaymentsTabProps) {
+export function PaymentsTab({
+	data,
+	isLoading,
+	isError,
+	error,
+	refetch,
+	onSelectPayment,
+}: PaymentsTabProps) {
 	const columns = useMemo(() => buildColumns(), []);
 
 	if (isError) return <ErrorCard error={error} refetch={refetch} />;

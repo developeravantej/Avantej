@@ -26,7 +26,11 @@ const ENV_SUPER_ADMIN_PASSWORD = process.env.E2E_SUPER_ADMIN_PASSWORD;
 const WEB_ORIGIN = process.env.E2E_WEB_BASE_URL ?? "http://localhost:3001";
 const E2E_ORG_NAME = process.env.E2E_ORG_NAME ?? "Test Fitness Franchise";
 
-const VALID_TIERS: ReadonlyArray<Tier> = ["basic", "professional", "enterprise"];
+const VALID_TIERS: ReadonlyArray<Tier> = [
+	"basic",
+	"professional",
+	"enterprise",
+];
 
 async function rpc(
 	request: APIRequestContext,
@@ -124,11 +128,9 @@ test.describe("@ship-f-4 Plan F.4 — Agent Ff Tenant Feature flags tab", () => 
 		// ──────────────────────────────────────────────────────────────────
 		let liveTier: Tier | null = null;
 		if (organizationId) {
-			const r1 = await rpc(
-				apiCtx,
-				"platformAdminTenants/featureFlags/get",
-				{ organizationId },
-			);
+			const r1 = await rpc(apiCtx, "platformAdminTenants/featureFlags/get", {
+				organizationId,
+			});
 			console.log(
 				`[scenario-1] featureFlags.get status=${r1.status} keys=${JSON.stringify(Object.keys((r1.body?.json ?? r1.body) || {}))}`,
 			);
@@ -143,9 +145,7 @@ test.describe("@ship-f-4 Plan F.4 — Agent Ff Tenant Feature flags tab", () => 
 			expect(typeof view.features.memberships).toBe("boolean");
 			expect(typeof view.features.apiAccess).toBe("boolean");
 			expect(typeof view.tierLimits.appFeeBps).toBe("number");
-			expect(["basic", "advanced"]).toContain(
-				view.tierLimits.analyticsLevel,
-			);
+			expect(["basic", "advanced"]).toContain(view.tierLimits.analyticsLevel);
 
 			// ──────────────────────────────────────────────────────────────
 			// Scenario 2: features match TIER_LIMITS[returned.tier]
@@ -156,9 +156,7 @@ test.describe("@ship-f-4 Plan F.4 — Agent Ff Tenant Feature flags tab", () => 
 				TIER_LIMITS[view.tier as Tier].appFeeBps,
 			);
 			liveTier = view.tier as Tier;
-			console.log(
-				`[scenario-2] features parity OK — tier=${view.tier}`,
-			);
+			console.log(`[scenario-2] features parity OK — tier=${view.tier}`);
 		} else {
 			console.log("[scenario-1+2] skipped (no organizationId)");
 		}
@@ -169,11 +167,9 @@ test.describe("@ship-f-4 Plan F.4 — Agent Ff Tenant Feature flags tab", () => 
 		// level — the public RPC throws NOT_FOUND for unknown orgs so the
 		// e2e just asserts the error rather than the fallback shape).
 		// ──────────────────────────────────────────────────────────────────
-		const r3 = await rpc(
-			apiCtx,
-			"platformAdminTenants/featureFlags/get",
-			{ organizationId: "00000000-0000-0000-0000-000000000000" },
-		);
+		const r3 = await rpc(apiCtx, "platformAdminTenants/featureFlags/get", {
+			organizationId: "00000000-0000-0000-0000-000000000000",
+		});
 		console.log(`[scenario-3] missing-org status=${r3.status}`);
 		expect([200, 404]).toContain(r3.status);
 		if (r3.status === 200) {
@@ -237,15 +233,11 @@ test.describe("@ship-f-4 Plan F.4 — Agent Ff Tenant Feature flags tab", () => 
 				// Tier chip text matches what the RPC returned (when known).
 				if (liveTier) {
 					const chipText = (
-						await page
-							.getByTestId("feature-flags-tier-chip")
-							.textContent()
+						await page.getByTestId("feature-flags-tier-chip").textContent()
 					)
 						?.trim()
 						.toLowerCase();
-					console.log(
-						`[scenario-4] chipText=${chipText} liveTier=${liveTier}`,
-					);
+					console.log(`[scenario-4] chipText=${chipText} liveTier=${liveTier}`);
 					expect(chipText).toBe(liveTier);
 				}
 			} else {
@@ -266,11 +258,9 @@ test.describe("@ship-f-4 Plan F.4 — Agent Ff Tenant Feature flags tab", () => 
 			.where(eq(platformAdmins.userId, adminUserId));
 		const targetOrgIdForRbac =
 			organizationId ?? "00000000-0000-0000-0000-000000000000";
-		const r5 = await rpc(
-			apiCtx,
-			"platformAdminTenants/featureFlags/get",
-			{ organizationId: targetOrgIdForRbac },
-		);
+		const r5 = await rpc(apiCtx, "platformAdminTenants/featureFlags/get", {
+			organizationId: targetOrgIdForRbac,
+		});
 		console.log(`[scenario-5] support-role get status=${r5.status}`);
 		// 200 when org exists, 404 when not — both prove the gate let support
 		// through (FORBIDDEN would be a 403).

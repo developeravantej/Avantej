@@ -27,14 +27,21 @@ test("subscribe → Stripe Checkout → webhook → dashboard", async ({ page })
 		}
 	});
 	page.on("requestfailed", (req) => {
-		console.log(`[req failed] ${req.method()} ${req.url()} — ${req.failure()?.errorText}`);
+		console.log(
+			`[req failed] ${req.method()} ${req.url()} — ${req.failure()?.errorText}`,
+		);
 	});
 	page.on("response", async (res) => {
 		const url = res.url();
-		if (url.includes("/rpc/subscriptions") || url.includes("/rpc/auth/userContext")) {
+		if (
+			url.includes("/rpc/subscriptions") ||
+			url.includes("/rpc/auth/userContext")
+		) {
 			const status = res.status();
 			let body = "";
-			try { body = (await res.text()).slice(0, 800); } catch {}
+			try {
+				body = (await res.text()).slice(0, 800);
+			} catch {}
 			console.log(`[rpc] ${status} ${url}\n  BODY: ${body}\n`);
 		}
 	});
@@ -48,10 +55,9 @@ test("subscribe → Stripe Checkout → webhook → dashboard", async ({ page })
 	await page.fill('input[type="email"]', ADMIN_EMAIL);
 	await page.fill('input[type="password"]', ADMIN_PASSWORD);
 	await page.click('button[type="submit"]');
-	await page.waitForURL(
-		/\/(dashboard|customers|home|onboarding|subscribe)/,
-		{ timeout: 20_000 },
-	);
+	await page.waitForURL(/\/(dashboard|customers|home|onboarding|subscribe)/, {
+		timeout: 20_000,
+	});
 	console.log(`✓ Logged in + landed: ${page.url()}`);
 
 	// ── 2. Navigate to /subscribe ──────────────────────────────

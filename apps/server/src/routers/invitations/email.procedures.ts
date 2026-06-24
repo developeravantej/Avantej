@@ -1,12 +1,16 @@
 import { z } from "zod";
-import { sendInvitationEmail } from "@/lib/email";
+import { renderInvitationEmail } from "@/lib/email";
+import { sendTenantEmail } from "@/lib/email-send-tenant";
+import { getControlPanelDb } from "@avantej-core/api/lib/context-helpers";
 import { o, authMiddleware, getEnvVar } from "./_shared";
 
 /**
  * Send invitation email procedure
  *
- * Sends invitation email via Resend. Called after creating or resending an invitation.
- * This endpoint is protected - only authenticated users can send emails.
+ * Sends invitation email via the tenant email path (sendTenantEmail), which
+ * routes through the org's verified sending domain when configured and falls
+ * back to the platform sender otherwise. Called after creating or resending an
+ * invitation. Protected — only authenticated users can send emails.
  */
 export const sendEmail = o
 	.use(authMiddleware)
@@ -22,7 +26,7 @@ export const sendEmail = o
 			inviterName: z.string().optional(),
 		}),
 	)
-	.handler(async ({ input }) => {
+	.handler(async ({ input, context }) => {
 		const { invitation, organizationId, organizationName, inviterName } = input;
 
 		// Construct invitation link
@@ -32,14 +36,29 @@ export const sendEmail = o
 			"http://localhost:3001";
 		const invitationLink = `${frontendURL}/accept-invitation?token=${invitation.token}&orgId=${organizationId}`;
 
-		// Send email via Resend
-		await sendInvitationEmail(
-			invitation.email,
+		const orgName = organizationName || "the organization";
+		const { subject, html, text } = renderInvitationEmail(
 			invitationLink,
-			organizationName || "the organization",
+			orgName,
 			inviterName,
 			invitation.role,
 		);
+
+		const cpDb = getControlPanelDb(context);
+		await sendTenantEmail(cpDb, {
+			organizationId,
+			to: invitation.email,
+			subject,
+			html,
+			text,
+			notificationType: "member_invitation",
+			subjectVars: {
+				organizationName: orgName,
+				role: invitation.role,
+				inviterName: inviterName ?? "",
+			},
+			allowPlatformFallback: true,
+		});
 
 		return {
 			success: true,

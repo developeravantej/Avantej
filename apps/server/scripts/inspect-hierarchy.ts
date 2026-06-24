@@ -50,7 +50,9 @@ async function main() {
 	if (!org) throw new Error("test-fitness-franchise org not found");
 	console.log(`org: ${org.name} (${org.id})`);
 
-	const tenantPool = new Pool({ connectionString: decrypt(org.connectionString) });
+	const tenantPool = new Pool({
+		connectionString: decrypt(org.connectionString),
+	});
 	const tenantDb = drizzle({ client: tenantPool });
 
 	const cols = await tenantDb.execute(sql`
@@ -68,7 +70,9 @@ async function main() {
   `);
 	console.log(`\nbranches (type='branch'): ${branches.rows.length}`);
 	for (const r of branches.rows) {
-		console.log(`  - ${r.id} | name=${r.name} | depth=${r.depth} | parent_id=${r.parent_id}`);
+		console.log(
+			`  - ${r.id} | name=${r.name} | depth=${r.depth} | parent_id=${r.parent_id}`,
+		);
 	}
 
 	const types = await tenantDb.execute(sql`

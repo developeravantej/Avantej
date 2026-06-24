@@ -65,6 +65,7 @@ export type AppRouter = typeof baseRouter & {
 	platformAdminHealth: typeof serverRouterTypes.platformAdminHealthRouterType;
 	platformAdminWebhooks: typeof serverRouterTypes.platformAdminWebhooksRouterType;
 	platformAdminMigrations: typeof serverRouterTypes.platformAdminMigrationsRouterType;
+	emailDomains: typeof serverRouterTypes.emailDomainsRouterType;
 };
 
 /**
@@ -105,6 +106,7 @@ const _appRouter = {
 	platformAdminHealth: serverRouterTypes.platformAdminHealthRouterType,
 	platformAdminWebhooks: serverRouterTypes.platformAdminWebhooksRouterType,
 	platformAdminMigrations: serverRouterTypes.platformAdminMigrationsRouterType,
+	emailDomains: serverRouterTypes.emailDomainsRouterType,
 };
 
 export const appRouter = _appRouter as unknown as AppRouter;

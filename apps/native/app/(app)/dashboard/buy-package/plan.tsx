@@ -2,7 +2,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+	ActivityIndicator,
+	ScrollView,
+	Text,
+	TouchableOpacity,
+	View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
@@ -48,7 +54,10 @@ export default function PlanScreen() {
 	} = useQuery<InstallmentPlan[]>({
 		queryKey: ["installmentPlans", "active", organizationId],
 		queryFn: () =>
-			client.installmentPlans.list({ organizationId, activeOnly: true }) as Promise<InstallmentPlan[]>,
+			client.installmentPlans.list({
+				organizationId,
+				activeOnly: true,
+			}) as Promise<InstallmentPlan[]>,
 		staleTime: 60_000,
 	});
 
@@ -130,11 +139,7 @@ export default function PlanScreen() {
 							onPress={() => router.back()}
 							className="mr-3 h-10 w-10 items-center justify-center"
 						>
-							<Ionicons
-								name="arrow-back"
-								size={24}
-								color={colors.primary[1]}
-							/>
+							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 						</TouchableOpacity>
 						<Text className="flex-1 font-bold text-2xl text-black">
 							Payment Plan
@@ -273,10 +278,7 @@ export default function PlanScreen() {
 						{/* Loading state */}
 						{isLoading && (
 							<View className="items-center justify-center py-12">
-								<ActivityIndicator
-									size="large"
-									color={colors.primary[1]}
-								/>
+								<ActivityIndicator size="large" color={colors.primary[1]} />
 								<Text
 									className="mt-3 text-sm"
 									style={{ color: colors.secondary[1] }}
@@ -323,8 +325,11 @@ export default function PlanScreen() {
 						{/* Dynamic plan cards */}
 						{!isLoading &&
 							plans.map((plan) => {
-								const surchargeMultiplier = (10000 + plan.pricePremiumBps) / 10000;
-								const priceWithSurcharge = Math.round(price * surchargeMultiplier);
+								const surchargeMultiplier =
+									(10000 + plan.pricePremiumBps) / 10000;
+								const priceWithSurcharge = Math.round(
+									price * surchargeMultiplier,
+								);
 								const amountPerInstallment = Math.ceil(
 									priceWithSurcharge / plan.numInstallments,
 								);
@@ -365,7 +370,11 @@ export default function PlanScreen() {
 														className="mt-1 text-xs"
 														style={{ color: colors.secondary[1] }}
 													>
-														+{surchargePercent.toFixed(surchargePercent % 1 === 0 ? 0 : 1)}% surcharge
+														+
+														{surchargePercent.toFixed(
+															surchargePercent % 1 === 0 ? 0 : 1,
+														)}
+														% surcharge
 													</Text>
 												)}
 											</View>

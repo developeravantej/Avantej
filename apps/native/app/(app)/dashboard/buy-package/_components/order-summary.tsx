@@ -46,10 +46,7 @@ export function OrderSummary({
 							{packageName ?? "Package"}
 						</Text>
 						{creditsTotal != null && creditsTotal > 0 && (
-							<Text
-								className="text-sm"
-								style={{ color: colors.secondary[1] }}
-							>
+							<Text className="text-sm" style={{ color: colors.secondary[1] }}>
 								{creditsTotal} credits
 							</Text>
 						)}
@@ -72,10 +69,7 @@ export function OrderSummary({
 
 				{validityDays && (
 					<View className="border-secondary-3 border-t pt-3">
-						<Text
-							className="text-xs"
-							style={{ color: colors.secondary[1] }}
-						>
+						<Text className="text-xs" style={{ color: colors.secondary[1] }}>
 							Valid for {validityDays} days from purchase
 						</Text>
 					</View>
@@ -90,10 +84,7 @@ export function OrderSummary({
 					>
 						Payment Plan
 					</Text>
-					<Text
-						className="text-sm"
-						style={{ color: colors.secondary[1] }}
-					>
+					<Text className="text-sm" style={{ color: colors.secondary[1] }}>
 						{paymentPlanType === "half"
 							? "Half Payment (2×)"
 							: "Quarterly Payment (4×)"}
@@ -110,30 +101,18 @@ export function OrderSummary({
 
 			<View className="rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 				<View className="mb-2 flex-row justify-between">
-					<Text
-						className="text-sm"
-						style={{ color: colors.secondary[1] }}
-					>
+					<Text className="text-sm" style={{ color: colors.secondary[1] }}>
 						Subtotal
 					</Text>
-					<Text
-						className="text-sm"
-						style={{ color: colors.primary[1] }}
-					>
+					<Text className="text-sm" style={{ color: colors.primary[1] }}>
 						{fmt(subtotal)}
 					</Text>
 				</View>
 				<View className="mb-3 flex-row justify-between">
-					<Text
-						className="text-sm"
-						style={{ color: colors.secondary[1] }}
-					>
+					<Text className="text-sm" style={{ color: colors.secondary[1] }}>
 						Tax{taxRatePercent > 0 ? ` (${taxRatePercent}%)` : ""}
 					</Text>
-					<Text
-						className="text-sm"
-						style={{ color: colors.primary[1] }}
-					>
+					<Text className="text-sm" style={{ color: colors.primary[1] }}>
 						{fmt(taxAmount)}
 					</Text>
 				</View>

@@ -23,10 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { Invoice } from "./invoice-list";
 
-export type RefundReason =
-	| "duplicate"
-	| "fraudulent"
-	| "requested_by_customer";
+export type RefundReason = "duplicate" | "fraudulent" | "requested_by_customer";
 
 export type RefundInput = {
 	amountCents: number;
@@ -57,7 +54,8 @@ export function RefundConfirmDialog({
 	const maxRefundable = invoice
 		? Math.max(0, invoice.amountPaid - invoice.refundedAmount)
 		: 0;
-	const defaultAmount = maxRefundable > 0 ? (maxRefundable / 100).toFixed(2) : "0.00";
+	const defaultAmount =
+		maxRefundable > 0 ? (maxRefundable / 100).toFixed(2) : "0.00";
 	const [amount, setAmount] = useState(defaultAmount);
 	const [reason, setReason] = useState<RefundReason>("requested_by_customer");
 	const [notes, setNotes] = useState("");

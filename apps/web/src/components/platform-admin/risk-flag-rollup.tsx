@@ -42,13 +42,11 @@ const SEVERITY: Record<
 	{ chip: string; icon: typeof Info }
 > = {
 	critical: {
-		chip:
-			"bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800",
+		chip: "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800",
 		icon: AlertOctagon,
 	},
 	warn: {
-		chip:
-			"bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800",
+		chip: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800",
 		icon: AlertTriangle,
 	},
 	info: {

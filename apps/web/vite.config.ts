@@ -1,4 +1,4 @@
-import { cloudflare } from '@cloudflare/vite-plugin';
+import { cloudflare } from "@cloudflare/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
@@ -10,7 +10,8 @@ export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, process.cwd(), "");
 	// Override server port via SERVER_PORT env (used by E2E to avoid worktree port conflicts).
 	const serverUrl =
-		env.VITE_SERVER_URL ?? `http://localhost:${process.env.SERVER_PORT ?? 3020}`;
+		env.VITE_SERVER_URL ??
+		`http://localhost:${process.env.SERVER_PORT ?? 3020}`;
 
 	return {
 		plugins: [

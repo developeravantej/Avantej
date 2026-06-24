@@ -86,10 +86,7 @@ export function UpcomingBookingCard({
 						</Text>
 					</View>
 					{booking.location && (
-						<Text
-							className="text-sm"
-							style={{ color: colors.secondary[1] }}
-						>
+						<Text className="text-sm" style={{ color: colors.secondary[1] }}>
 							{booking.location}
 						</Text>
 					)}

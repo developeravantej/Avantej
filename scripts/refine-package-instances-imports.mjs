@@ -136,7 +136,9 @@ import type { TenantTx } from "./types";
 `,
 };
 
-for (const file of readdirSync(dir).filter((f) => f.endsWith(".procedures.ts"))) {
+for (const file of readdirSync(dir).filter((f) =>
+	f.endsWith(".procedures.ts"),
+)) {
 	const path = join(dir, file);
 	const src = readFileSync(path, "utf-8");
 	const exportIdx = src.indexOf("export const packageInstances");

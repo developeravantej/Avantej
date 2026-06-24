@@ -74,8 +74,7 @@ export default function CalendarScreen() {
 			return [
 				{
 					id: apt.id,
-					name:
-						apt.type === "private" ? "Personal Training" : "Class Session",
+					name: apt.type === "private" ? "Personal Training" : "Class Session",
 					time: new Date(apt.startTime).toLocaleTimeString("en-US", {
 						hour: "numeric",
 						minute: "2-digit",
@@ -171,10 +170,7 @@ export default function CalendarScreen() {
 					{/* Loading Indicator */}
 					{isLoading && (
 						<View className="mb-4 items-center py-8">
-							<ActivityIndicator
-								size="large"
-								color={colors.primary[1]}
-							/>
+							<ActivityIndicator size="large" color={colors.primary[1]} />
 							<Text className="mt-2 text-secondary-1 text-sm">
 								Loading appointments…
 							</Text>
@@ -182,96 +178,92 @@ export default function CalendarScreen() {
 					)}
 
 					{/* Selected Date Bookings */}
-					{!isLoading &&
-						selectedDate &&
-						selectedDateBookings.length > 0 && (
-							<View className="mb-4">
-								<Text className="mb-3 font-bold text-secondary-1 text-sm uppercase tracking-wide">
-									BOOKINGS ON{" "}
-									{new Date(selectedDate)
-										.toLocaleDateString("en-US", {
-											month: "long",
-											day: "numeric",
-											year: "numeric",
-										})
-										.toUpperCase()}
-								</Text>
-								{selectedDateBookings.map((booking: any) => (
-									<View
-										key={booking.id}
-										className="mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
-									>
-										<View className="mb-2 flex-row items-center justify-between">
-											<View className="flex-1 flex-row items-center">
-												<Ionicons
-													name={booking.icon as any}
-													size={20}
-													color={colors.primary[1]}
-													style={{ marginRight: 8 }}
-												/>
-												<Text className="flex-1 font-bold text-lg text-primary-1">
-													{booking.name}
-												</Text>
-											</View>
-											<View className="flex-row items-center">
-												<Ionicons
-													name="wallet-outline"
-													size={14}
-													color={colors.secondary[1]}
-												/>
-												<Text className="ml-1 font-semibold text-secondary-1 text-sm">
-													{booking.credits} credit
-													{booking.credits !== 1 ? "s" : ""}
-												</Text>
-											</View>
-										</View>
-										<View className="mb-1 flex-row items-center">
+					{!isLoading && selectedDate && selectedDateBookings.length > 0 && (
+						<View className="mb-4">
+							<Text className="mb-3 font-bold text-secondary-1 text-sm uppercase tracking-wide">
+								BOOKINGS ON{" "}
+								{new Date(selectedDate)
+									.toLocaleDateString("en-US", {
+										month: "long",
+										day: "numeric",
+										year: "numeric",
+									})
+									.toUpperCase()}
+							</Text>
+							{selectedDateBookings.map((booking: any) => (
+								<View
+									key={booking.id}
+									className="mb-3 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm"
+								>
+									<View className="mb-2 flex-row items-center justify-between">
+										<View className="flex-1 flex-row items-center">
 											<Ionicons
-												name="time-outline"
+												name={booking.icon as any}
+												size={20}
+												color={colors.primary[1]}
+												style={{ marginRight: 8 }}
+											/>
+											<Text className="flex-1 font-bold text-lg text-primary-1">
+												{booking.name}
+											</Text>
+										</View>
+										<View className="flex-row items-center">
+											<Ionicons
+												name="wallet-outline"
+												size={14}
+												color={colors.secondary[1]}
+											/>
+											<Text className="ml-1 font-semibold text-secondary-1 text-sm">
+												{booking.credits} credit
+												{booking.credits !== 1 ? "s" : ""}
+											</Text>
+										</View>
+									</View>
+									<View className="mb-1 flex-row items-center">
+										<Ionicons
+											name="time-outline"
+											size={14}
+											color={colors.secondary[1]}
+										/>
+										<Text className="ml-1 text-secondary-1 text-sm">
+											{booking.time}
+										</Text>
+									</View>
+									{booking.location && (
+										<View className="flex-row items-center">
+											<Ionicons
+												name="location-outline"
 												size={14}
 												color={colors.secondary[1]}
 											/>
 											<Text className="ml-1 text-secondary-1 text-sm">
-												{booking.time}
+												{booking.location}
 											</Text>
 										</View>
-										{booking.location && (
-											<View className="flex-row items-center">
-												<Ionicons
-													name="location-outline"
-													size={14}
-													color={colors.secondary[1]}
-												/>
-												<Text className="ml-1 text-secondary-1 text-sm">
-													{booking.location}
-												</Text>
-											</View>
-										)}
-									</View>
-								))}
-							</View>
-						)}
+									)}
+								</View>
+							))}
+						</View>
+					)}
 
 					{/* No Bookings Message */}
-					{!isLoading &&
-						selectedDate &&
-						selectedDateBookings.length === 0 && (
-							<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-6 shadow-sm">
-								<View className="items-center">
-									<Ionicons
-										name="calendar-outline"
-										size={48}
-										color={colors.secondary[1]}
-									/>
-									<Text className="mt-4 mb-2 text-center font-semibold text-base text-primary-1">
-										No Bookings
-									</Text>
-									<Text className="text-center text-secondary-1 text-sm">
-										You don't have any bookings on this date
-									</Text>
-								</View>
+					{!isLoading && selectedDate && selectedDateBookings.length === 0 && (
+						<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-6 shadow-sm">
+							<View className="items-center">
+								<Ionicons
+									name="calendar-outline"
+									size={48}
+									color={colors.secondary[1]}
+								/>
+								<Text className="mt-4 mb-2 text-center font-semibold text-base text-primary-1">
+									No Bookings
+								</Text>
+								<Text className="text-center text-secondary-1 text-sm">
+									You don't have any bookings on this date
+								</Text>
 							</View>
-						)}
+						</View>
+					)}
 				</View>
 			</ScrollView>
 		</Container>

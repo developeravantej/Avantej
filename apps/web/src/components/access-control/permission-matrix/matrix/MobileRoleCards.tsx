@@ -68,10 +68,7 @@ export function MobileRoleCards({
 													<span className="font-medium">{role.name}</span>
 													{groupBadge && (
 														<Badge
-															className={cn(
-																"text-xs",
-																groupBadge.config.color,
-															)}
+															className={cn("text-xs", groupBadge.config.color)}
 														>
 															{groupBadge.config.label}
 														</Badge>
@@ -101,9 +98,7 @@ export function MobileRoleCards({
 											return (
 												<div key={resource.id} className="space-y-2">
 													<div className="flex items-center gap-2 text-sm font-medium">
-														{Icon && (
-															<Icon className="size-4 text-primary" />
-														)}
+														{Icon && <Icon className="size-4 text-primary" />}
 														<span>{formatResourceName(resource.name)}</span>
 														<Badge variant="outline" className="text-xs">
 															{rolePerms.length}/{resource.actions.length}
@@ -182,4 +177,3 @@ export function MobileRoleCards({
 		</div>
 	);
 }
-

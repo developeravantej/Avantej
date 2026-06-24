@@ -1,0 +1,33 @@
+appId: ${APP_ID}
+---
+# Test: Profile screen content and actions
+- runFlow: helpers/login.yaml
+
+# Navigate to Profile tab
+- tapOn:
+    text: ".*Profile.*"
+- waitForAnimationToEnd
+
+# Verify profile loaded
+- extendedWaitUntil:
+    visible:
+      text: ".*Profile.*"
+    timeout: 5000
+
+# Verify stats section visible
+- assertVisible:
+    text: ".*Upcoming.*|.*Packages.*|.*Credits.*|.*Completed.*"
+
+# Verify Recent Activity button
+- scrollUntilVisible:
+    element:
+      text: ".*Recent Activity.*"
+    direction: DOWN
+- assertVisible:
+    text: ".*Recent Activity.*"
+
+# Verify settings section
+- scrollUntilVisible:
+    element:
+      text: ".*Sign Out.*|.*Logout.*"
+    direction: DOWN

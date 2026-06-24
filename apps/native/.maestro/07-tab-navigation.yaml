@@ -1,0 +1,32 @@
+appId: ${APP_ID}
+---
+# Test: Bottom tab navigation between all tabs
+- runFlow: helpers/login.yaml
+
+# Navigate to Explore tab
+- tapOn:
+    text: ".*Explore.*"
+- waitForAnimationToEnd
+- assertVisible:
+    text: ".*Explore.*"
+
+# Navigate to Bookings tab
+- tapOn:
+    text: ".*Bookings.*"
+- waitForAnimationToEnd
+- assertVisible:
+    text: ".*Booking.*"
+
+# Navigate to Profile tab
+- tapOn:
+    text: ".*Profile.*"
+- waitForAnimationToEnd
+- assertVisible:
+    text: ".*Profile.*"
+
+# Navigate back to Home tab
+- tapOn:
+    text: ".*Home.*"
+- waitForAnimationToEnd
+- assertVisible:
+    text: ".*Book.*Session.*"

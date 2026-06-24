@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_authenticated/user/view")({
 	beforeLoad: async () => {
 		await requirePermission(
 			{ resource: "user_management", action: "read" },
-			"/dashboard"
+			"/dashboard",
 		);
 	},
 	component: UserViewComponent,
@@ -46,4 +46,3 @@ function UserViewComponent() {
 		</div>
 	);
 }
-

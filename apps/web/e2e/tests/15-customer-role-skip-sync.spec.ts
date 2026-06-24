@@ -168,10 +168,7 @@ test.describe("real GHL — customer role skip", () => {
 				"/dashboard/access-control/user-assignment?tab=invitations",
 			);
 			await page.waitForLoadState("networkidle");
-			await page
-				.getByRole("button", { name: "Invite Member" })
-				.first()
-				.click();
+			await page.getByRole("button", { name: "Invite Member" }).first().click();
 			const dialog = page.locator('[role="dialog"]');
 			await expect(dialog).toBeVisible({ timeout: 5_000 });
 
@@ -182,7 +179,10 @@ test.describe("real GHL — customer role skip", () => {
 			// exercise the role-based skip rule. This mirrors how a tenant with
 			// a custom "customer" role would end up in the DB.
 			await dialog.locator("#role").click();
-			await page.getByRole("option", { name: /^Client$/ }).first().click();
+			await page
+				.getByRole("option", { name: /^Client$/ })
+				.first()
+				.click();
 
 			await dialog.locator("#hierarchyScopeId").click();
 			await page

@@ -101,11 +101,7 @@ test.describe("@ship-f-4 Plan F.4 — Agent Re /renewals page", () => {
 		const apiCtx = context.request;
 
 		// Scenario 1: getCalendar default — returns weeks + pastDue + summary.
-		const r1 = await rpc(
-			apiCtx,
-			"platformAdminRenewals/getCalendar",
-			{},
-		);
+		const r1 = await rpc(apiCtx, "platformAdminRenewals/getCalendar", {});
 		console.log(
 			`[scenario-1] getCalendar default status=${r1.status} body=${JSON.stringify(r1.body).slice(0, 300)}`,
 		);
@@ -177,11 +173,7 @@ test.describe("@ship-f-4 Plan F.4 — Agent Re /renewals page", () => {
 			.update(platformAdmins)
 			.set({ role: "support" })
 			.where(eq(platformAdmins.userId, adminUserId));
-		const r5 = await rpc(
-			apiCtx,
-			"platformAdminRenewals/getCalendar",
-			{},
-		);
+		const r5 = await rpc(apiCtx, "platformAdminRenewals/getCalendar", {});
 		console.log(`[scenario-5] support-role status=${r5.status}`);
 		expect(r5.status).toBe(200);
 		await cp

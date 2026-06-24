@@ -114,7 +114,9 @@ export function PaymentStep({
 	const amountTenderedRm =
 		amountTenderedCents > 0 ? centsToRm(amountTenderedCents) : "";
 
-	const packageItems = items.filter((i) => i.type === "package" || i.type === "service");
+	const packageItems = items.filter(
+		(i) => i.type === "package" || i.type === "service",
+	);
 	const showInstallmentPicker = packageItems.length >= 1;
 
 	// Fetch plans + trainer list up-front (hooks must come before any derived consts that use them)
@@ -132,7 +134,12 @@ export function PaymentStep({
 	// Trainer list — only fetched when a package item is in the cart
 	const { data: trainers = [] } = useQuery({
 		queryKey: ["members-trainers", organizationId],
-		queryFn: () => client.members.list({ organizationId, role: "trainer", status: "active" }),
+		queryFn: () =>
+			client.members.list({
+				organizationId,
+				role: "trainer",
+				status: "active",
+			}),
 		enabled: showInstallmentPicker,
 	});
 
@@ -144,7 +151,8 @@ export function PaymentStep({
 		pricePremiumBps: p.pricePremiumBps ?? 0,
 	}));
 
-	const selectedPlanOption = planOptions.find((p) => p.id === selectedInstallmentPlanId) ?? null;
+	const selectedPlanOption =
+		planOptions.find((p) => p.id === selectedInstallmentPlanId) ?? null;
 	// dueNowCents is computed in pos-workflow and passed as a prop (FE-M1)
 
 	useEffect(() => {
@@ -161,7 +169,13 @@ export function PaymentStep({
 			// react-doctor-disable-next-line react-doctor/no-prop-callback-in-effect -- tightly coupled POS step coordination, would benefit from Provider but scope deferred
 			onAmountTenderedChange(dueNowCents);
 		}
-	}, [method, tenderedTouched, amountTenderedCents, dueNowCents, onAmountTenderedChange]);
+	}, [
+		method,
+		tenderedTouched,
+		amountTenderedCents,
+		dueNowCents,
+		onAmountTenderedChange,
+	]);
 
 	const changeDueCents =
 		method === "cash" && amountTenderedCents >= dueNowCents
@@ -284,7 +298,11 @@ export function PaymentStep({
 							onInstallmentPlanChange(v === "full" ? null : v)
 						}
 					>
-						<SelectTrigger id="installment-plan" className="w-full max-w-xs" data-testid="pos-installment-plan-select">
+						<SelectTrigger
+							id="installment-plan"
+							className="w-full max-w-xs"
+							data-testid="pos-installment-plan-select"
+						>
 							<SelectValue placeholder="Pay in full" />
 						</SelectTrigger>
 						<SelectContent>
@@ -304,14 +322,27 @@ export function PaymentStep({
 					{selectedPlanOption && (
 						<div className="rounded-lg border border-[#e5e5e5] bg-[#f9f9f9] px-3 py-2.5 text-xs space-y-1 max-w-xs">
 							<div className="flex justify-between font-medium text-[#0a0a0a]">
-								<span>Due today (instalment 1/{selectedPlanOption.numInstallments})</span>
-								<span className="font-mono tabular-nums">{formatPrice(dueNowCents, "MYR")}</span>
+								<span>
+									Due today (instalment 1/{selectedPlanOption.numInstallments})
+								</span>
+								<span className="font-mono tabular-nums">
+									{formatPrice(dueNowCents, "MYR")}
+								</span>
 							</div>
 							{selectedPlanOption.pricePremiumBps > 0 && (
 								<div className="flex justify-between text-[#737373]">
-									<span>Total after premium ({(selectedPlanOption.pricePremiumBps / 100).toFixed(0)}%)</span>
+									<span>
+										Total after premium (
+										{(selectedPlanOption.pricePremiumBps / 100).toFixed(0)}%)
+									</span>
 									<span className="font-mono tabular-nums">
-										{formatPrice(Math.round(totalCents * (1 + selectedPlanOption.pricePremiumBps / 10000)), "MYR")}
+										{formatPrice(
+											Math.round(
+												totalCents *
+													(1 + selectedPlanOption.pricePremiumBps / 10000),
+											),
+											"MYR",
+										)}
 									</span>
 								</div>
 							)}
@@ -325,11 +356,15 @@ export function PaymentStep({
 				<div className="space-y-1.5">
 					<Label htmlFor="preferred-trainer">
 						Preferred trainer{" "}
-						<span className="font-normal text-muted-foreground">(optional)</span>
+						<span className="font-normal text-muted-foreground">
+							(optional)
+						</span>
 					</Label>
 					<Select
 						value={preferredTrainerId ?? "none"}
-						onValueChange={(v) => onPreferredTrainerChange(v === "none" ? null : v)}
+						onValueChange={(v) =>
+							onPreferredTrainerChange(v === "none" ? null : v)
+						}
 					>
 						<SelectTrigger id="preferred-trainer" className="w-full max-w-xs">
 							<SelectValue placeholder="No preference" />
@@ -345,7 +380,8 @@ export function PaymentStep({
 					</Select>
 					{trainers.length === 0 && (
 						<p className="text-muted-foreground text-xs">
-							No trainers found. You can assign one later from the package detail.
+							No trainers found. You can assign one later from the package
+							detail.
 						</p>
 					)}
 				</div>

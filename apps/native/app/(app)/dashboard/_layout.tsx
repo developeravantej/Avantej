@@ -2,10 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { colors } from "@/lib/colors";
 
 export default function DashboardLayout() {
 	const insets = useSafeAreaInsets();
+	usePushNotifications();
 
 	return (
 		<View style={{ flex: 1, backgroundColor: colors.primary[2] }}>
@@ -121,6 +123,13 @@ export default function DashboardLayout() {
 				/>
 				<Tabs.Screen
 					name="calendar"
+					options={{
+						href: null,
+						tabBarStyle: { display: "none" },
+					}}
+				/>
+				<Tabs.Screen
+					name="activity"
 					options={{
 						href: null,
 						tabBarStyle: { display: "none" },

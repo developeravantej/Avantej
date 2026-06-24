@@ -1,0 +1,31 @@
+appId: ${APP_ID}
+---
+# Test: Sign out from profile
+- runFlow: helpers/login.yaml
+
+# Navigate to Profile
+- tapOn:
+    text: ".*Profile.*"
+- waitForAnimationToEnd
+
+# Scroll to Sign Out
+- scrollUntilVisible:
+    element:
+      text: ".*Sign Out.*|.*Log.*Out.*"
+    direction: DOWN
+
+# Tap Sign Out
+- tapOn:
+    text: ".*Sign Out.*|.*Log.*Out.*"
+- waitForAnimationToEnd
+
+# Confirm sign out if dialog appears
+- tapOn:
+    text: ".*Sign Out.*|.*Log Out.*|.*Confirm.*|.*Yes.*"
+    optional: true
+- waitForAnimationToEnd
+
+# Verify returned to login screen
+- extendedWaitUntil:
+    visible: "Sign In"
+    timeout: 15000

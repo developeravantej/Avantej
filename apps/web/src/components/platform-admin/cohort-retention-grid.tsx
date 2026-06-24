@@ -20,8 +20,10 @@ export type CohortRetentionGridProps = {
 };
 
 function bandClass(pct: number): string {
-	if (pct >= 80) return "bg-green-50 text-green-800 dark:bg-green-900/30 dark:text-green-300";
-	if (pct >= 50) return "bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
+	if (pct >= 80)
+		return "bg-green-50 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+	if (pct >= 50)
+		return "bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
 	return "bg-red-50 text-red-800 dark:bg-red-900/30 dark:text-red-300";
 }
 
@@ -59,9 +61,7 @@ export function CohortRetentionGrid({
 								<th className="sticky left-0 z-10 bg-background text-left font-medium px-2 py-1.5">
 									Cohort
 								</th>
-								<th className="text-right font-medium px-2 py-1.5">
-									Size
-								</th>
+								<th className="text-right font-medium px-2 py-1.5">Size</th>
 								{colIndices.map((k) => (
 									<th
 										key={k}

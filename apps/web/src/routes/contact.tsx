@@ -57,7 +57,9 @@ function ContactPage() {
 			{/* Hero Section */}
 			<section className="py-20 bg-zinc-50">
 				<div className="container mx-auto px-4">
-					<h1 className="text-4xl font-semibold text-center mb-4">Contact Us</h1>
+					<h1 className="text-4xl font-semibold text-center mb-4">
+						Contact Us
+					</h1>
 					<p className="text-xl text-center text-zinc-600 max-w-3xl mx-auto">
 						Have questions or need assistance? Our team is here to help you get
 						the most out of Avantej.

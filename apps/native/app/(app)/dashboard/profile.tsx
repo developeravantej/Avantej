@@ -100,7 +100,11 @@ export default function ProfileScreen() {
 			>
 				<View className="px-4 pt-4">
 					<UserSummaryCard name={userName} memberSince={memberSince} />
-					<PersonalInfoSection name={userName} email={userEmail} phone={userPhone} />
+					<PersonalInfoSection
+						name={userName}
+						email={userEmail}
+						phone={userPhone}
+					/>
 					<NotificationPrefsSection
 						emailEnabled={emailEnabled}
 						pushEnabled={pushEnabled}
@@ -256,7 +260,13 @@ function ChangePasswordModal({
 	);
 }
 
-function UserSummaryCard({ name, memberSince }: { name: string; memberSince: string }) {
+function UserSummaryCard({
+	name,
+	memberSince,
+}: {
+	name: string;
+	memberSince: string;
+}) {
 	return (
 		<View className="mb-4 rounded-2xl border border-secondary-3 bg-primary-2 p-4 shadow-sm">
 			<View className="flex-row items-center">
@@ -279,7 +289,15 @@ function UserSummaryCard({ name, memberSince }: { name: string; memberSince: str
 	);
 }
 
-function InfoRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
+function InfoRow({
+	label,
+	value,
+	last,
+}: {
+	label: string;
+	value: string;
+	last?: boolean;
+}) {
 	return (
 		<View className={last ? "" : "mb-4 border-secondary-3 border-b pb-4"}>
 			<Text className="mb-1 text-secondary-1 text-xs uppercase tracking-wider">
@@ -292,7 +310,15 @@ function InfoRow({ label, value, last }: { label: string; value: string; last?: 
 	);
 }
 
-function PersonalInfoSection({ name, email, phone }: { name: string; email: string; phone: string }) {
+function PersonalInfoSection({
+	name,
+	email,
+	phone,
+}: {
+	name: string;
+	email: string;
+	phone: string;
+}) {
 	return (
 		<View className="mb-4">
 			<Text className="mb-3 font-bold text-secondary-1 text-sm uppercase tracking-wide">
@@ -324,7 +350,9 @@ function NotifToggleRow({
 		<View className={last ? "p-4" : "border-secondary-3 border-b p-4"}>
 			<View className="flex-row items-center justify-between">
 				<View className="mr-4 flex-1">
-					<Text className="mb-1 font-semibold text-base text-primary-1">{title}</Text>
+					<Text className="mb-1 font-semibold text-base text-primary-1">
+						{title}
+					</Text>
 					<Text className="text-secondary-1 text-sm">{description}</Text>
 				</View>
 				<Switch
@@ -345,7 +373,10 @@ function NotificationPrefsSection({
 }: {
 	emailEnabled: boolean;
 	pushEnabled: boolean;
-	onToggle: (key: "emailEnabled" | "pushEnabled" | "smsEnabled", value: boolean) => void;
+	onToggle: (
+		key: "emailEnabled" | "pushEnabled" | "smsEnabled",
+		value: boolean,
+	) => void;
 }) {
 	return (
 		<View className="mb-4">
@@ -387,7 +418,11 @@ function AccountRow({
 	return (
 		<Pressable
 			onPress={onPress}
-			className={last ? "flex-row items-center p-4" : "flex-row items-center border-secondary-3 border-b p-4"}
+			className={
+				last
+					? "flex-row items-center p-4"
+					: "flex-row items-center border-secondary-3 border-b p-4"
+			}
 		>
 			<Ionicons
 				name={icon}
@@ -449,4 +484,3 @@ function AccountSection({
 		</View>
 	);
 }
-

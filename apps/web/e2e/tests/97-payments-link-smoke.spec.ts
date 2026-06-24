@@ -35,10 +35,9 @@ async function login(page: Page): Promise<void> {
 	await page.fill('input[type="email"]', ADMIN_EMAIL);
 	await page.fill('input[type="password"]', ADMIN_PASSWORD);
 	await page.click('button[type="submit"]');
-	await page.waitForURL(
-		/\/(dashboard|customers|home|onboarding|subscribe)/,
-		{ timeout: 20_000 },
-	);
+	await page.waitForURL(/\/(dashboard|customers|home|onboarding|subscribe)/, {
+		timeout: 20_000,
+	});
 }
 
 async function rpc<T>(
@@ -66,7 +65,9 @@ async function rpc<T>(
 	return res as { status: number; body: T | { json: { message?: string } } };
 }
 
-test("payments.sendPaymentLink returns Stripe URL + persists on appointment", async ({ page }) => {
+test("payments.sendPaymentLink returns Stripe URL + persists on appointment", async ({
+	page,
+}) => {
 	await login(page);
 	console.log("✓ Logged in");
 
@@ -76,38 +77,73 @@ test("payments.sendPaymentLink returns Stripe URL + persists on appointment", as
 
 	// sendPaymentLink.
 	const linkRes = await rpc<{
-		json: { paymentLinkUrl: string; amount: number; currency: string; applicationFeeAmount: number };
+		json: {
+			paymentLinkUrl: string;
+			amount: number;
+			currency: string;
+			applicationFeeAmount: number;
+		};
 	}>(page, "payments/sendPaymentLink", {
 		organizationId: ORG_ID,
 		appointmentId,
 	});
-	console.log(`[rpc] sendPaymentLink ${linkRes.status} ${JSON.stringify(linkRes.body).slice(0, 400)}`);
+	console.log(
+		`[rpc] sendPaymentLink ${linkRes.status} ${JSON.stringify(linkRes.body).slice(0, 400)}`,
+	);
 	expect(linkRes.status).toBe(200);
-	const link = (linkRes.body as { json: { paymentLinkUrl: string; amount: number; currency: string; applicationFeeAmount: number } }).json;
+	const link = (
+		linkRes.body as {
+			json: {
+				paymentLinkUrl: string;
+				amount: number;
+				currency: string;
+				applicationFeeAmount: number;
+			};
+		}
+	).json;
 	expect(link.paymentLinkUrl).toMatch(/^https:\/\/buy\.stripe\.com\//);
 	expect(link.amount).toBeGreaterThan(0);
 	expect(link.applicationFeeAmount).toBeGreaterThan(0);
 	expect(link.applicationFeeAmount).toBeLessThan(link.amount);
 	console.log(`✓ Payment Link generated: ${link.paymentLinkUrl}`);
-	console.log(`  amount=${link.amount} ${link.currency} fee=${link.applicationFeeAmount}`);
+	console.log(
+		`  amount=${link.amount} ${link.currency} fee=${link.applicationFeeAmount}`,
+	);
 
 	// Verify persisted on appointment.
 	const statusRes = await rpc<{
-		json: { paymentStatus: string; paymentLinkUrl: string | null; applicationFeeAmount: number | null };
+		json: {
+			paymentStatus: string;
+			paymentLinkUrl: string | null;
+			applicationFeeAmount: number | null;
+		};
 	}>(page, "payments/getPaymentStatus", {
 		organizationId: ORG_ID,
 		appointmentId,
 	});
 	expect(statusRes.status).toBe(200);
-	const stat = (statusRes.body as { json: { paymentStatus: string; paymentLinkUrl: string | null; applicationFeeAmount: number | null } }).json;
+	const stat = (
+		statusRes.body as {
+			json: {
+				paymentStatus: string;
+				paymentLinkUrl: string | null;
+				applicationFeeAmount: number | null;
+			};
+		}
+	).json;
 	expect(stat.paymentLinkUrl).toBe(link.paymentLinkUrl);
 	expect(stat.applicationFeeAmount).toBe(link.applicationFeeAmount);
-	console.log(`✓ Persisted: status=${stat.paymentStatus} link=${stat.paymentLinkUrl}`);
+	console.log(
+		`✓ Persisted: status=${stat.paymentStatus} link=${stat.paymentLinkUrl}`,
+	);
 
 	// Visit the Payment Link so the video captures Stripe-hosted page.
 	await page.goto(link.paymentLinkUrl);
 	await page.waitForLoadState("domcontentloaded");
 	await page.waitForTimeout(2000);
-	await page.screenshot({ path: "test-results/payments-link-stripe-hosted.png", fullPage: true });
+	await page.screenshot({
+		path: "test-results/payments-link-stripe-hosted.png",
+		fullPage: true,
+	});
 	console.log("✓ Stripe-hosted page screenshot captured");
 });

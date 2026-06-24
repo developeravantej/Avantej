@@ -1,6 +1,9 @@
 import { DataTableColumnHeader } from "@/components/tables/data-column-header";
 import { CopyableCell } from "@/components/tables/copyable-cell";
-import { StatusBadge, type CanonicalStatus } from "@/components/ui/status-badge";
+import {
+	StatusBadge,
+	type CanonicalStatus,
+} from "@/components/ui/status-badge";
 import type { ColumnDef } from "@tanstack/react-table";
 import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -30,18 +33,33 @@ const formatDate = (dateString: string | null | undefined): string => {
 	}
 };
 
-const REFUND_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-	pending: { label: "Refund Pending", className: "bg-amber-50 text-amber-700 border-amber-200" },
-	partial:  { label: "Partial Refund", className: "bg-orange-50 text-orange-700 border-orange-200" },
-	processed: { label: "Refunded", className: "bg-green-50 text-green-700 border-green-200" },
+const REFUND_STATUS_CONFIG: Record<
+	string,
+	{ label: string; className: string }
+> = {
+	pending: {
+		label: "Refund Pending",
+		className: "bg-amber-50 text-amber-700 border-amber-200",
+	},
+	partial: {
+		label: "Partial Refund",
+		className: "bg-orange-50 text-orange-700 border-orange-200",
+	},
+	processed: {
+		label: "Refunded",
+		className: "bg-green-50 text-green-700 border-green-200",
+	},
 };
 
 function RefundStatusBadge({ status }: { status: string | null | undefined }) {
-	if (!status || status === "none") return <span className="text-[#737373] text-sm">—</span>;
+	if (!status || status === "none")
+		return <span className="text-[#737373] text-sm">—</span>;
 	const cfg = REFUND_STATUS_CONFIG[status];
 	if (!cfg) return <span className="text-sm text-[#737373]">{status}</span>;
 	return (
-		<span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${cfg.className}`}>
+		<span
+			className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${cfg.className}`}
+		>
 			{cfg.label}
 		</span>
 	);
@@ -153,7 +171,11 @@ export const columns: ColumnDef<SalesRow>[] = [
 		),
 		cell: ({ getValue }) => {
 			const status = getValue<string>();
-			return status ? <StatusBadge status={status as CanonicalStatus} /> : "N/A";
+			return status ? (
+				<StatusBadge status={status as CanonicalStatus} />
+			) : (
+				"N/A"
+			);
 		},
 		enableSorting: true,
 		enableHiding: false,

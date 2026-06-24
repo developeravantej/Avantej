@@ -1,0 +1,26 @@
+appId: ${APP_ID}
+---
+# Login flow — reusable via runFlow
+# Handles both fresh launch (needs login) and already logged in
+
+# Kill and relaunch via deep link to reset navigation state
+- runFlow:
+    when:
+      platform: Android
+    file: reset-android.yaml
+- runFlow:
+    when:
+      platform: iOS
+    file: reset-ios.yaml
+
+# Wait for either login screen or home screen
+- extendedWaitUntil:
+    visible:
+      text: ".*Sign In|.*Book.*Session.*|.*Good Morning.*|.*Good Afternoon.*|.*Good Evening.*"
+    timeout: 30000
+
+# Login only if Sign In is visible
+- runFlow:
+    when:
+      visible: "Sign In"
+    file: login-form.yaml

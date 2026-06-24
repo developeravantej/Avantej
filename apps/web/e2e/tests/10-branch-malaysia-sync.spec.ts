@@ -86,7 +86,9 @@ async function ghlGetCustomField(
 		},
 	);
 	const body =
-		res.status === 200 ? ((await res.json()) as GhlCustomFieldGetResponse) : null;
+		res.status === 200
+			? ((await res.json()) as GhlCustomFieldGetResponse)
+			: null;
 	return { status: res.status, body };
 }
 
@@ -125,7 +127,10 @@ async function pollGhlOptions(
 	locId: string,
 	fieldId: string,
 	predicate: (opts: string[]) => boolean,
-	{ timeoutMs = 20_000, intervalMs = 1_000 }: { timeoutMs?: number; intervalMs?: number } = {},
+	{
+		timeoutMs = 20_000,
+		intervalMs = 1_000,
+	}: { timeoutMs?: number; intervalMs?: number } = {},
 ): Promise<string[]> {
 	const deadline = Date.now() + timeoutMs;
 	let last: string[] = [];
@@ -157,7 +162,10 @@ test.describe("real GHL — branch sync (org-shared, Malaysia)", () => {
 		if (!org) throw new Error("'Test Fitness Franchise' org not found");
 		expect(org.ghlSyncModel, "org must be org-shared").toBe("org-shared");
 		expect(org.ghlLocationId, "ghlLocationId must be set").toBeTruthy();
-		expect(org.ghlApiKeyEncrypted, "ghlApiKeyEncrypted must be set").toBeTruthy();
+		expect(
+			org.ghlApiKeyEncrypted,
+			"ghlApiKeyEncrypted must be set",
+		).toBeTruthy();
 
 		const locationId = org.ghlLocationId as string;
 		const apiKey = decrypt(org.ghlApiKeyEncrypted as string);
@@ -218,7 +226,11 @@ test.describe("real GHL — branch sync (org-shared, Malaysia)", () => {
 
 		// Sanity-log the GHL field shape once so future runs can adjust the
 		// extractor if GHL changes its response envelope.
-		const initialGet = await ghlGetCustomField(apiKey, locationId, malaysiaFieldId);
+		const initialGet = await ghlGetCustomField(
+			apiKey,
+			locationId,
+			malaysiaFieldId,
+		);
 		console.log(
 			"[10] malaysia_location initial GET:",
 			JSON.stringify({
@@ -294,9 +306,10 @@ test.describe("real GHL — branch sync (org-shared, Malaysia)", () => {
 				(opts) => opts.includes(initialOptionLabel),
 				{ timeoutMs: 20_000 },
 			);
-			expect(optsAfterCreate, "GHL options should contain initial label").toContain(
-				initialOptionLabel,
-			);
+			expect(
+				optsAfterCreate,
+				"GHL options should contain initial label",
+			).toContain(initialOptionLabel);
 
 			// ════════════════════════════════════════════════════════════════
 			// PHASE 2: RENAME — open Edit dialog from branch view dropdown
@@ -305,9 +318,7 @@ test.describe("real GHL — branch sync (org-shared, Malaysia)", () => {
 			await page.waitForLoadState("networkidle");
 
 			// Find the row by branch name, open its actions dropdown, click Edit.
-			const row = page
-				.locator("tr", { hasText: initialBranchName })
-				.first();
+			const row = page.locator("tr", { hasText: initialBranchName }).first();
 			await expect(row).toBeVisible({ timeout: 15_000 });
 			await row.getByRole("button").last().click();
 			await page
@@ -396,7 +407,11 @@ test.describe("real GHL — branch sync (org-shared, Malaysia)", () => {
 			// TODO: once the org-shared delete-removal contract is finalized,
 			// tighten this to an explicit `.toContain(...)` or
 			// `.not.toContain(...)` assertion.
-			const finalGet = await ghlGetCustomField(apiKey, locationId, malaysiaFieldId);
+			const finalGet = await ghlGetCustomField(
+				apiKey,
+				locationId,
+				malaysiaFieldId,
+			);
 			expect(finalGet.status).toBe(200);
 			const finalOpts = extractOptions(finalGet.body);
 			console.log(
@@ -409,13 +424,19 @@ test.describe("real GHL — branch sync (org-shared, Malaysia)", () => {
 			);
 		} finally {
 			if (process.env.E2E_SKIP_GHL_CLEANUP === "1") {
-				console.log("[spec 10] E2E_SKIP_GHL_CLEANUP=1 — skipping cleanup; data preserved for manual review");
+				console.log(
+					"[spec 10] E2E_SKIP_GHL_CLEANUP=1 — skipping cleanup; data preserved for manual review",
+				);
 				return;
 			}
 			// ── Best-effort cleanup ─────────────────────────────────────────
 			// (1) Remove the GHL option (whichever label is present).
 			try {
-				const res = await ghlGetCustomField(apiKey, locationId, malaysiaFieldId);
+				const res = await ghlGetCustomField(
+					apiKey,
+					locationId,
+					malaysiaFieldId,
+				);
 				const opts = extractOptions(res.body);
 				const next = opts.filter(
 					(o) => o !== initialOptionLabel && o !== renamedOptionLabel,
@@ -436,16 +457,14 @@ test.describe("real GHL — branch sync (org-shared, Malaysia)", () => {
 			// failed before DELETE phase).
 			if (createdBranchId) {
 				try {
-					await t
-						.delete(hierarchyNodes)
-						.where(
-							and(
-								eq(hierarchyNodes.id, createdBranchId),
-								// Defensive: only if archived_at is null we know it
-								// survived; either way deletion is idempotent.
-								isNull(hierarchyNodes.archivedAt),
-							),
-						);
+					await t.delete(hierarchyNodes).where(
+						and(
+							eq(hierarchyNodes.id, createdBranchId),
+							// Defensive: only if archived_at is null we know it
+							// survived; either way deletion is idempotent.
+							isNull(hierarchyNodes.archivedAt),
+						),
+					);
 					await t
 						.delete(hierarchyNodes)
 						.where(eq(hierarchyNodes.id, createdBranchId));

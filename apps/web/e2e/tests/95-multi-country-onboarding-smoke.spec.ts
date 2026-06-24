@@ -35,10 +35,16 @@ test.setTimeout(120_000);
 const ADMIN_EMAIL = "franchisee@gmail.com";
 const ADMIN_PASSWORD = "password123";
 
-test("Add country (SG) -> redirects to Stripe OAuth with country pre-fill", async ({ page }) => {
+test("Add country (SG) -> redirects to Stripe OAuth with country pre-fill", async ({
+	page,
+}) => {
 	page.on("console", (msg) => {
 		const txt = msg.text();
-		if (msg.type() === "error" || txt.includes("[connect]") || txt.includes("[oauth]")) {
+		if (
+			msg.type() === "error" ||
+			txt.includes("[connect]") ||
+			txt.includes("[oauth]")
+		) {
 			console.log(`[browser.${msg.type()}] ${txt}`);
 		}
 	});
@@ -47,7 +53,9 @@ test("Add country (SG) -> redirects to Stripe OAuth with country pre-fill", asyn
 		if (url.includes("/rpc/stripeConnect")) {
 			const status = res.status();
 			let body = "";
-			try { body = (await res.text()).slice(0, 600); } catch {}
+			try {
+				body = (await res.text()).slice(0, 600);
+			} catch {}
 			console.log(`[rpc] ${status} ${url}\n  BODY: ${body}`);
 		}
 	});
@@ -57,10 +65,9 @@ test("Add country (SG) -> redirects to Stripe OAuth with country pre-fill", asyn
 	await page.fill('input[type="email"]', ADMIN_EMAIL);
 	await page.fill('input[type="password"]', ADMIN_PASSWORD);
 	await page.click('button[type="submit"]');
-	await page.waitForURL(
-		/\/(dashboard|customers|home|onboarding|subscribe)/,
-		{ timeout: 20_000 },
-	);
+	await page.waitForURL(/\/(dashboard|customers|home|onboarding|subscribe)/, {
+		timeout: 20_000,
+	});
 	console.log(`✓ Logged in + landed: ${page.url()}`);
 
 	// ── 2. Navigate to /billing/connect ────────────────────────
@@ -117,7 +124,9 @@ test("Add country (SG) -> redirects to Stripe OAuth with country pre-fill", asyn
 	expect(stripeUrl).toMatch(/[?&]state=/);
 	// Phase 4.3: stripe_user[country] is URL-encoded as stripe_user%5Bcountry%5D=SG
 	expect(stripeUrl).toMatch(/stripe_user(\[country\]|%5Bcountry%5D)=SG/);
-	console.log("✓ OAuth URL includes client_id, scope=read_write, signed state, and country=SG");
+	console.log(
+		"✓ OAuth URL includes client_id, scope=read_write, signed state, and country=SG",
+	);
 
 	// ── 8. Screenshot the Stripe-hosted page for the video ─────
 	await page.waitForLoadState("domcontentloaded");

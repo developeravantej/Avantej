@@ -32,7 +32,10 @@ function ensureImport(content) {
 
 function patchBlock(block) {
 	const inputPart = block.split(".handler")[0] ?? block;
-	if (!inputPart.includes("tenantProcedure") || !REQUIRED_BRANCH.test(inputPart)) {
+	if (
+		!inputPart.includes("tenantProcedure") ||
+		!REQUIRED_BRANCH.test(inputPart)
+	) {
 		return block;
 	}
 	if (
@@ -60,10 +63,12 @@ function patchBlock(block) {
 }
 
 for (const file of readdirSync(routersDir)) {
-	if (!file.endsWith(".ts") || file.endsWith(".test.ts") || SKIP.has(file)) continue;
+	if (!file.endsWith(".ts") || file.endsWith(".test.ts") || SKIP.has(file))
+		continue;
 	const path = join(routersDir, file);
 	let content = readFileSync(path, "utf-8");
-	if (!content.includes("tenantProcedure") || !content.includes("branchId")) continue;
+	if (!content.includes("tenantProcedure") || !content.includes("branchId"))
+		continue;
 
 	const before = content;
 	const parts = content.split(PROC_SPLIT);

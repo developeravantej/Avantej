@@ -42,6 +42,7 @@ import { platformAdminWebhooksRouter } from "@/routers/platform-admin-webhooks";
 import { platformAdminMigrationsRouter } from "@/routers/platform-admin-migrations";
 
 import { createContext } from "@avantej-core/api/context";
+import { emailDomainsRouter } from "@/routers/email-domains";
 import { baseRouter } from "@avantej-core/api/routers/index";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { OpenAPIReferencePlugin } from "@orpc/openapi/plugins";
@@ -139,6 +140,7 @@ const appRouter = {
 	platformAdminHealth: platformAdminHealthRouter,
 	platformAdminWebhooks: platformAdminWebhooksRouter,
 	platformAdminMigrations: platformAdminMigrationsRouter,
+	emailDomains: emailDomainsRouter,
 };
 
 const app = new Hono();
@@ -657,6 +659,41 @@ export default {
 						)
 						.catch((e) =>
 							console.error(`[scheduled] past-due-sweep failed:`, e),
+						),
+				);
+			} else if (cron === "*/15 * * * *") {
+				// Email — refresh stale sending-domain verification status. Re-polls
+				// Resend for rows still pending/verifying so DNS propagation flips the
+				// DB row to verified without the tenant clicking "Verify now".
+				const { runEmailDomainRefresh } = await import(
+					"@/services/email-domain-refresh.service"
+				);
+				ctx.waitUntil(
+					runEmailDomainRefresh({ controlPanelDb: cpDb })
+						.then((r) =>
+							console.log(
+								`[scheduled] email-domain-refresh done: ${JSON.stringify(r)}`,
+							),
+						)
+						.catch((e) =>
+							console.error(`[scheduled] email-domain-refresh failed:`, e),
+						),
+				);
+			} else if (cron === "0 4 * * *") {
+				// Email — purge aged email_logs rows (two-tier retention) so the
+				// table doesn't grow unbounded.
+				const { purgeOldEmailLogs } = await import(
+					"@avantej-core/services/email-domain.service"
+				);
+				ctx.waitUntil(
+					purgeOldEmailLogs(cpDb)
+						.then((r) =>
+							console.log(
+								`[scheduled] email-log-purge done: ${JSON.stringify(r)}`,
+							),
+						)
+						.catch((e) =>
+							console.error(`[scheduled] email-log-purge failed:`, e),
 						),
 				);
 			} else {

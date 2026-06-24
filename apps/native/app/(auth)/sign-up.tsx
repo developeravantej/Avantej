@@ -27,7 +27,12 @@ export default function SignUpScreen() {
 	const { signUp } = useAuth();
 
 	const handleSignUp = async () => {
-		if (!firstName.trim() || !lastName.trim() || !email.trim() || !password.trim()) {
+		if (
+			!firstName.trim() ||
+			!lastName.trim() ||
+			!email.trim() ||
+			!password.trim()
+		) {
 			return;
 		}
 
@@ -45,7 +50,13 @@ export default function SignUpScreen() {
 		setError(null);
 
 		try {
-			await signUp(`${firstName.trim()} ${lastName.trim()}`, email, password, firstName.trim(), lastName.trim());
+			await signUp(
+				`${firstName.trim()} ${lastName.trim()}`,
+				email,
+				password,
+				firstName.trim(),
+				lastName.trim(),
+			);
 			router.replace({
 				pathname: "/(auth)/verify-email",
 				params: { email },

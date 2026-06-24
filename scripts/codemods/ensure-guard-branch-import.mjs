@@ -9,7 +9,11 @@ for (const file of readdirSync(routersDir)) {
 	const path = join(routersDir, file);
 	let content = readFileSync(path, "utf-8");
 	if (!content.includes("guardBranchAccessible(")) continue;
-	if (/import \{[^}]*guardBranchAccessible[^}]*\} from "\.\.\/guards"/.test(content)) {
+	if (
+		/import \{[^}]*guardBranchAccessible[^}]*\} from "\.\.\/guards"/.test(
+			content,
+		)
+	) {
 		continue;
 	}
 	if (content.includes('from "../guards"')) {

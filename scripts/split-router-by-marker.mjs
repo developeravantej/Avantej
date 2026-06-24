@@ -13,7 +13,9 @@ import { join } from "node:path";
 
 const [, , routerName, ...moduleSpecs] = process.argv;
 if (!routerName || moduleSpecs.length === 0) {
-	console.error("Usage: split-router-by-marker.mjs <router> <module:proc,...> ...");
+	console.error(
+		"Usage: split-router-by-marker.mjs <router> <module:proc,...> ...",
+	);
 	process.exit(1);
 }
 
@@ -47,7 +49,9 @@ function extractBlocks(source, procStarts, { constPrefix = false } = {}) {
 				: source.length;
 
 		const beforeNext = source.slice(Math.max(start, end - 1200), end);
-		const nextComment = beforeNext.match(/\n(?:\/\/[^\n]*\n|\s+\/\*\*[\s\S]*)*$/);
+		const nextComment = beforeNext.match(
+			/\n(?:\/\/[^\n]*\n|\s+\/\*\*[\s\S]*)*$/,
+		);
 		if (nextComment && !nextComment[0].includes("Procedure")) {
 			end -= nextComment[0].length;
 		}
@@ -63,7 +67,9 @@ function extractBlocks(source, procStarts, { constPrefix = false } = {}) {
 		let block = source.slice(start, end).trim();
 		if (!constPrefix && block.endsWith(",")) block = block.slice(0, -1);
 		if (!block.includes(".handler(")) {
-			console.error(`Procedure ${name} block looks incomplete (${block.length} chars)`);
+			console.error(
+				`Procedure ${name} block looks incomplete (${block.length} chars)`,
+			);
 			process.exit(1);
 		}
 		procedures.set(name, block);
@@ -119,7 +125,9 @@ let exportToConst = new Map();
 
 if (inlineProcStarts.length > 0) {
 	const bodyInner = exportInner;
-	const procStarts = [...bodyInner.matchAll(new RegExp(`^\\s+(\\w+):\\s*${PROC}`, "gm"))];
+	const procStarts = [
+		...bodyInner.matchAll(new RegExp(`^\\s+(\\w+):\\s*${PROC}`, "gm")),
+	];
 	procedures = extractBlocks(bodyInner, procStarts);
 	for (const [key] of procedures) exportToConst.set(key, key);
 } else {
@@ -133,13 +141,19 @@ if (inlineProcStarts.length > 0) {
 	}
 	const header = preamble.slice(0, firstConst).trimEnd();
 	const constBody = preamble.slice(firstConst);
-	const constStarts = [...constBody.matchAll(new RegExp(`^const (\\w+) = ${PROC}`, "gm"))];
-	const constBlocks = extractBlocks(constBody, constStarts, { constPrefix: true });
+	const constStarts = [
+		...constBody.matchAll(new RegExp(`^const (\\w+) = ${PROC}`, "gm")),
+	];
+	const constBlocks = extractBlocks(constBody, constStarts, {
+		constPrefix: true,
+	});
 
 	for (const [exportKey, constName] of exportToConst) {
 		const block = constBlocks.get(constName);
 		if (!block) {
-			console.error(`Const not found for export key ${exportKey} -> ${constName}`);
+			console.error(
+				`Const not found for export key ${exportKey} -> ${constName}`,
+			);
 			process.exit(1);
 		}
 		procedures.set(exportKey, block);
@@ -171,7 +185,12 @@ mkdirSync(outDir, { recursive: true });
 function extractSharedPreamble(rawHeader) {
 	const schemaStart = rawHeader.search(/\nconst \w+Schema = z\./);
 	if (schemaStart === -1) {
-		return { header: rawHeader, schemaImport: "", wroteSchemas: false, wroteTypes: false };
+		return {
+			header: rawHeader,
+			schemaImport: "",
+			wroteSchemas: false,
+			wroteTypes: false,
+		};
 	}
 
 	const typeStart = rawHeader.search(/\ntype TenantDb = /);
@@ -216,7 +235,9 @@ function extractSharedPreamble(rawHeader) {
 		writeFileSync(join(outDir, "types.ts"), typesTs, "utf-8");
 	}
 
-	const schemaNames = [...schemaBlock.matchAll(/^const (\w+)/gm)].map((m) => m[1]);
+	const schemaNames = [...schemaBlock.matchAll(/^const (\w+)/gm)].map(
+		(m) => m[1],
+	);
 	const schemaImport =
 		schemaNames.length > 0
 			? `\nimport { ${schemaNames.join(", ")} } from "./schemas";${typeImport}`
@@ -226,7 +247,8 @@ function extractSharedPreamble(rawHeader) {
 }
 
 const shared = extractSharedPreamble(header);
-const adjustedHeader = shared.header.replace(/from "\.\.\//g, 'from "../../') + shared.schemaImport;
+const adjustedHeader =
+	shared.header.replace(/from "\.\.\//g, 'from "../../') + shared.schemaImport;
 if (shared.wroteSchemas) console.log("Wrote schemas.ts");
 if (shared.wroteTypes) console.log("Wrote types.ts");
 

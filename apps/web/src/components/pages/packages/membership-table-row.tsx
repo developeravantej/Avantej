@@ -103,8 +103,7 @@ export function MembershipTableRow({
 							className="h-full rounded-full bg-primary transition-all"
 							style={{
 								width: `${Math.round(
-									(row.creditsRemaining / Math.max(row.creditsTotal, 1)) *
-										100,
+									(row.creditsRemaining / Math.max(row.creditsTotal, 1)) * 100,
 								)}%`,
 							}}
 						/>

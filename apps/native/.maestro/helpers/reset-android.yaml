@@ -1,0 +1,9 @@
+appId: ${APP_ID}
+---
+- stopApp
+- launchApp
+- openLink: "${EXPO_URL}"
+- waitForAnimationToEnd
+- tapOn:
+    text: "Wait"
+    optional: true

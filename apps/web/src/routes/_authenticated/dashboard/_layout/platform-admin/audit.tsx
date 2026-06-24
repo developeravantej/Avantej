@@ -107,7 +107,8 @@ function PlatformAdminAuditPage() {
 				<h1 className="text-2xl font-semibold">Audit log</h1>
 				<p className="text-sm text-muted-foreground mt-1">
 					Every platform-admin action is recorded here. Impersonation actions
-					(session-scoped) and direct actions (lifecycle, comms) share this table.
+					(session-scoped) and direct actions (lifecycle, comms) share this
+					table.
 				</p>
 			</div>
 
@@ -309,10 +310,7 @@ function MetadataCell({ metadata }: { metadata: unknown }) {
 	const s = JSON.stringify(metadata);
 	const truncated = s.length > 100 ? `${s.slice(0, 100)}…` : s;
 	return (
-		<code
-			className="font-mono text-xs text-muted-foreground"
-			title={s}
-		>
+		<code className="font-mono text-xs text-muted-foreground" title={s}>
 			{truncated}
 		</code>
 	);

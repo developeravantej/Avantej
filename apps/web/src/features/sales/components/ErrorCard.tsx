@@ -1,9 +1,17 @@
-export function ErrorCard({ error, refetch }: { error: unknown; refetch: () => void }) {
+export function ErrorCard({
+	error,
+	refetch,
+}: {
+	error: unknown;
+	refetch: () => void;
+}) {
 	return (
 		<div className="flex flex-col items-center justify-center py-12">
 			<p className="font-medium text-rose-600 text-lg">Failed to load data</p>
 			<p className="mb-4 text-[#737373] text-sm">
-				{error instanceof Error ? error.message : "An unexpected error occurred"}
+				{error instanceof Error
+					? error.message
+					: "An unexpected error occurred"}
 			</p>
 			<button
 				type="button"

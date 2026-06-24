@@ -1,6 +1,9 @@
 import { DataTableColumnHeader } from "@/components/tables/data-column-header";
 import { Badge } from "@/components/ui/badge";
-import { StatusBadge, type CanonicalStatus } from "@/components/ui/status-badge";
+import {
+	StatusBadge,
+	type CanonicalStatus,
+} from "@/components/ui/status-badge";
 import type { ColumnDef } from "@tanstack/table-core";
 import { Package } from "lucide-react";
 import { CopyableCell } from "@/components/tables/copyable-cell";
@@ -23,7 +26,6 @@ export interface ProductRow {
 	updatedAt?: string | Date | null;
 }
 
-
 export const columns: ColumnDef<ProductRow>[] = [
 	{
 		id: "image",
@@ -40,21 +42,29 @@ export const columns: ColumnDef<ProductRow>[] = [
 	},
 	{
 		accessorKey: "name",
-		header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
-		cell: ({ getValue }) => <span className="font-medium">{getValue<string>() || "—"}</span>,
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Name" />
+		),
+		cell: ({ getValue }) => (
+			<span className="font-medium">{getValue<string>() || "—"}</span>
+		),
 		enableSorting: true,
 		enableHiding: false,
 	},
 	{
 		accessorKey: "sku",
-		header: ({ column }) => <DataTableColumnHeader column={column} title="SKU" />,
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="SKU" />
+		),
 		cell: ({ getValue }) => <CopyableCell value={getValue<string>()} />,
 		enableSorting: true,
 		enableHiding: false,
 	},
 	{
 		accessorKey: "type",
-		header: ({ column }) => <DataTableColumnHeader column={column} title="Type" />,
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Type" />
+		),
 		cell: ({ getValue }) => {
 			const type = getValue<string | null | undefined>();
 			return (
@@ -68,37 +78,62 @@ export const columns: ColumnDef<ProductRow>[] = [
 	},
 	{
 		accessorKey: "barcode",
-		header: ({ column }) => <DataTableColumnHeader column={column} title="Barcode" />,
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Barcode" />
+		),
 		cell: ({ getValue }) => {
 			const barcode = getValue<string | null | undefined>();
-			return barcode ? <CopyableCell value={barcode} /> : <span className="text-muted-foreground text-sm">-</span>;
+			return barcode ? (
+				<CopyableCell value={barcode} />
+			) : (
+				<span className="text-muted-foreground text-sm">-</span>
+			);
 		},
 		enableSorting: true,
 		enableHiding: true,
 	},
 	{
 		accessorKey: "price",
-		header: ({ column }) => <DataTableColumnHeader column={column} title="Price (MYR)" />,
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Price (MYR)" />
+		),
 		cell: ({ getValue }) => {
 			const price = getValue<number>();
-			return <span className="font-medium">{price != null ? formatPrice(price, "MYR") : "—"}</span>;
+			return (
+				<span className="font-medium">
+					{price != null ? formatPrice(price, "MYR") : "—"}
+				</span>
+			);
 		},
 		enableSorting: true,
 		enableHiding: false,
 	},
 	{
 		accessorKey: "status",
-		header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
-		cell: ({ getValue }) => <StatusBadge status={(getValue<string | null | undefined>() ?? "inactive") as CanonicalStatus} />,
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Status" />
+		),
+		cell: ({ getValue }) => (
+			<StatusBadge
+				status={
+					(getValue<string | null | undefined>() ??
+						"inactive") as CanonicalStatus
+				}
+			/>
+		),
 		enableSorting: true,
 		enableHiding: false,
 	},
 	{
 		accessorKey: "conversionFactor",
-		header: ({ column }) => <DataTableColumnHeader column={column} title="Conv. Factor" />,
+		header: ({ column }) => (
+			<DataTableColumnHeader column={column} title="Conv. Factor" />
+		),
 		cell: ({ getValue }) => {
 			const factor = getValue<string | null | undefined>();
-			return <span className="text-sm text-muted-foreground">{factor ?? "1"}</span>;
+			return (
+				<span className="text-sm text-muted-foreground">{factor ?? "1"}</span>
+			);
 		},
 		enableSorting: false,
 		enableHiding: true,

@@ -63,11 +63,7 @@ export function RevenueKpiRow({
 			<BigNumberCard
 				title="Cancelled (30d)"
 				value={cancelledLast30d}
-				subLabel={
-					<span>
-						Churn rate {churnRatePct.toFixed(2)}%
-					</span>
-				}
+				subLabel={<span>Churn rate {churnRatePct.toFixed(2)}%</span>}
 				band={cancelledLast30d > 0 ? "red" : "neutral"}
 				testId="kpi-cancelled-30d"
 			/>

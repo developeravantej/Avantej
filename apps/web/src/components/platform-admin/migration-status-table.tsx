@@ -29,11 +29,9 @@ export type MigrationStatusRow = {
 	state: "applied" | "pending" | "orphaned";
 };
 
-function variantFor(state: MigrationStatusRow["state"]):
-	| "default"
-	| "destructive"
-	| "outline"
-	| "secondary" {
+function variantFor(
+	state: MigrationStatusRow["state"],
+): "default" | "destructive" | "outline" | "secondary" {
 	switch (state) {
 		case "applied":
 			return "outline";
@@ -67,10 +65,7 @@ export function MigrationStatusTable({
 	onRowClick?: (tag: string) => void;
 }) {
 	return (
-		<div
-			className="flex h-full flex-col"
-			data-testid="migration-status-table"
-		>
+		<div className="flex h-full flex-col" data-testid="migration-status-table">
 			<div className="flex-1 overflow-y-auto">
 				<Table>
 					<TableHeader>

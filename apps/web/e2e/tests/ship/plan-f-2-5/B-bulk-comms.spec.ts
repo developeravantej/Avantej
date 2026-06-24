@@ -119,15 +119,11 @@ test.describe("@ship-f-2-5 Plan F.2.5 — Agent B bulk comms", () => {
 		// ── Scenario 1: Bulk DM RPC happy path ─────────────────────────
 		const dmRunStart = new Date();
 		const dmSubject = `bulk-dm-${Date.now()}`;
-		const r1 = await rpc(
-			apiCtx,
-			"platformAdminTenants/bulkSendDirectMessage",
-			{
-				organizationIds: targetOrgIds,
-				subject: dmSubject,
-				bodyMarkdown: "Hello from Agent B bulk DM test",
-			},
-		);
+		const r1 = await rpc(apiCtx, "platformAdminTenants/bulkSendDirectMessage", {
+			organizationIds: targetOrgIds,
+			subject: dmSubject,
+			bodyMarkdown: "Hello from Agent B bulk DM test",
+		});
 		console.log(
 			`[scenario-1] bulkSendDirectMessage status=${r1.status} body=${JSON.stringify(r1.body).slice(0, 300)}`,
 		);
@@ -142,16 +138,12 @@ test.describe("@ship-f-2-5 Plan F.2.5 — Agent B bulk comms", () => {
 		// ── Scenario 2: Bulk Announcement RPC ──────────────────────────
 		const annTargets = targetOrgIds.slice(0, 2);
 		const annTitle = `bulk-ann-${Date.now()}`;
-		const r2 = await rpc(
-			apiCtx,
-			"platformAdminTenants/bulkSendAnnouncement",
-			{
-				organizationIds: annTargets,
-				title: annTitle,
-				bodyMarkdown: "Maintenance window scheduled",
-				priority: "high",
-			},
-		);
+		const r2 = await rpc(apiCtx, "platformAdminTenants/bulkSendAnnouncement", {
+			organizationIds: annTargets,
+			title: annTitle,
+			bodyMarkdown: "Maintenance window scheduled",
+			priority: "high",
+		});
 		console.log(
 			`[scenario-2] bulkSendAnnouncement status=${r2.status} body=${JSON.stringify(r2.body).slice(0, 300)}`,
 		);
@@ -171,15 +163,11 @@ test.describe("@ship-f-2-5 Plan F.2.5 — Agent B bulk comms", () => {
 			{ length: 101 },
 			() => "00000000-0000-0000-0000-000000000000",
 		);
-		const r3 = await rpc(
-			apiCtx,
-			"platformAdminTenants/bulkSendDirectMessage",
-			{
-				organizationIds: tooMany,
-				subject: "should-fail",
-				bodyMarkdown: "x",
-			},
-		);
+		const r3 = await rpc(apiCtx, "platformAdminTenants/bulkSendDirectMessage", {
+			organizationIds: tooMany,
+			subject: "should-fail",
+			bodyMarkdown: "x",
+		});
 		console.log(
 			`[scenario-3] cap status=${r3.status} body=${JSON.stringify(r3.body).slice(0, 200)}`,
 		);
@@ -244,10 +232,7 @@ test.describe("@ship-f-2-5 Plan F.2.5 — Agent B bulk comms", () => {
 			.where(
 				and(
 					eq(adminSessionActions.actionType, "tenant_dm"),
-					inArray(
-						adminSessionActions.targetOrganizationId,
-						targetOrgIds,
-					),
+					inArray(adminSessionActions.targetOrganizationId, targetOrgIds),
 					gte(adminSessionActions.createdAt, dmRunStart),
 				),
 			);

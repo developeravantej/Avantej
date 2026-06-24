@@ -1,16 +1,27 @@
-// Learn more https://docs.expo.io/guides/customizing-metro
 const { getDefaultConfig } = require("expo/metro-config");
 const { withNativeWind } = require("nativewind/metro");
+const path = require("path");
 
-const config = withNativeWind(getDefaultConfig(__dirname), {
+const projectRoot = __dirname;
+const monorepoRoot = path.resolve(projectRoot, "../..");
+
+const config = getDefaultConfig(projectRoot);
+
+// Monorepo: watch all files and resolve packages from both local and root node_modules
+config.watchFolders = [monorepoRoot];
+config.resolver.nodeModulesPaths = [
+	path.resolve(projectRoot, "node_modules"),
+	path.resolve(monorepoRoot, "node_modules"),
+];
+
+const finalConfig = withNativeWind(config, {
 	input: "./global.css",
 	configPath: "./tailwind.config.js",
 });
 
-config.resolver.unstable_enablePackageExports = true;
-// Bundle PDF so local terms.pdf can be loaded offline
-if (!config.resolver.assetExts.includes("pdf")) {
-	config.resolver.assetExts.push("pdf");
+finalConfig.resolver.unstable_enablePackageExports = true;
+if (!finalConfig.resolver.assetExts.includes("pdf")) {
+	finalConfig.resolver.assetExts.push("pdf");
 }
 
-module.exports = config;
+module.exports = finalConfig;

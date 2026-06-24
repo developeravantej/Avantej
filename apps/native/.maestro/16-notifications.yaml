@@ -1,0 +1,22 @@
+appId: ${APP_ID}
+---
+# Test: Notifications screen
+- runFlow: helpers/login.yaml
+
+# Tap notification bell on home screen (text on Android, position fallback on iOS)
+- tapOn:
+    text: ".*🔔.*"
+    optional: true
+- tapOn:
+    point: "93%, 6%"
+    optional: true
+- waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible:
+      text: ".*Notification.*|.*No notification.*|.*Good Morning.*|.*Good Afternoon.*|.*Good Evening.*"
+    timeout: 5000
+
+# Go back
+- back
+- waitForAnimationToEnd

@@ -24,9 +24,12 @@ function ProductsViewPage() {
 					<Package className="h-8 w-8 text-[#737373]" />
 				</div>
 				<div className="text-center">
-					<p className="text-[15px] font-semibold text-[#0a0a0a]">Coming Soon</p>
+					<p className="text-[15px] font-semibold text-[#0a0a0a]">
+						Coming Soon
+					</p>
 					<p className="mt-1 text-sm text-[#737373]">
-						The Products module is under development and will be available shortly.
+						The Products module is under development and will be available
+						shortly.
 					</p>
 				</div>
 			</div>

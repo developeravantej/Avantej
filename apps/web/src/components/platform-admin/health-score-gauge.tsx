@@ -15,29 +15,31 @@ export function bandForScore(score: number | null): HealthBand {
 	return "red";
 }
 
-const BAND_STYLE: Record<HealthBand, { fg: string; bg: string; label: string }> =
-	{
-		green: {
-			fg: "text-green-700 dark:text-green-400",
-			bg: "bg-green-100 dark:bg-green-900/30",
-			label: "Healthy",
-		},
-		amber: {
-			fg: "text-amber-700 dark:text-amber-400",
-			bg: "bg-amber-100 dark:bg-amber-900/30",
-			label: "At risk",
-		},
-		red: {
-			fg: "text-red-700 dark:text-red-400",
-			bg: "bg-red-100 dark:bg-red-900/30",
-			label: "Critical",
-		},
-		none: {
-			fg: "text-muted-foreground",
-			bg: "bg-muted",
-			label: "No data",
-		},
-	};
+const BAND_STYLE: Record<
+	HealthBand,
+	{ fg: string; bg: string; label: string }
+> = {
+	green: {
+		fg: "text-green-700 dark:text-green-400",
+		bg: "bg-green-100 dark:bg-green-900/30",
+		label: "Healthy",
+	},
+	amber: {
+		fg: "text-amber-700 dark:text-amber-400",
+		bg: "bg-amber-100 dark:bg-amber-900/30",
+		label: "At risk",
+	},
+	red: {
+		fg: "text-red-700 dark:text-red-400",
+		bg: "bg-red-100 dark:bg-red-900/30",
+		label: "Critical",
+	},
+	none: {
+		fg: "text-muted-foreground",
+		bg: "bg-muted",
+		label: "No data",
+	},
+};
 
 export function HealthScoreGauge({
 	score,

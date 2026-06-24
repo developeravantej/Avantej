@@ -9,7 +9,11 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { client } from "@/utils/orpc";
-import type { CartItem, ItemTrainerAssignments, TrainerAssignment } from "./types";
+import type {
+	CartItem,
+	ItemTrainerAssignments,
+	TrainerAssignment,
+} from "./types";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -46,7 +50,11 @@ export function TrainerPickerStep({
 	const membersQuery = useQuery({
 		queryKey: ["members-trainer-role", organizationId],
 		queryFn: () =>
-			client.members.list({ organizationId, role: "trainer", status: "active" }),
+			client.members.list({
+				organizationId,
+				role: "trainer",
+				status: "active",
+			}),
 		enabled: !!organizationId,
 	});
 

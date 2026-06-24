@@ -1,5 +1,8 @@
 import { formatPrice } from "@/lib/money";
-import { formatCancellationTime, formatCategoryLabel } from "@/features/sales/sales-view.constants";
+import {
+	formatCancellationTime,
+	formatCategoryLabel,
+} from "@/features/sales/sales-view.constants";
 import type { CancelledSaleRow } from "@/features/sales/sales-view.types";
 import { LineItemsTable } from "@/features/sales/components/LineItemsTable";
 import { RefundStatusBadge } from "@/features/sales/components/SalesBadges";
@@ -17,7 +20,9 @@ export function CancelledExpandedRow({ row }: { row: CancelledSaleRow }) {
 						<div className="space-y-2 text-sm">
 							<div className="flex justify-between">
 								<span className="text-[#737373]">Cancelled at</span>
-								<span className="text-[#0a0a0a]">{ts ? `${ts.date}, ${ts.time}` : "—"}</span>
+								<span className="text-[#0a0a0a]">
+									{ts ? `${ts.date}, ${ts.time}` : "—"}
+								</span>
 							</div>
 							<div className="flex justify-between">
 								<span className="text-[#737373]">By staff</span>
@@ -25,17 +30,23 @@ export function CancelledExpandedRow({ row }: { row: CancelledSaleRow }) {
 							</div>
 							<div className="flex justify-between">
 								<span className="text-[#737373]">Category</span>
-								<span className="text-[#0a0a0a]">{formatCategoryLabel(row.cancellationReasonCategory)}</span>
+								<span className="text-[#0a0a0a]">
+									{formatCategoryLabel(row.cancellationReasonCategory)}
+								</span>
 							</div>
 							{row.cancellationReason && (
 								<div className="flex justify-between gap-4">
 									<span className="text-[#737373] shrink-0">Reason</span>
-									<span className="text-right text-[#0a0a0a]">{row.cancellationReason}</span>
+									<span className="text-right text-[#0a0a0a]">
+										{row.cancellationReason}
+									</span>
 								</div>
 							)}
 							<div className="flex justify-between">
 								<span className="text-[#737373]">Order</span>
-								<span className="font-mono tabular-nums text-xs text-[#0a0a0a]">{row.salesOrderId ?? "—"}</span>
+								<span className="font-mono tabular-nums text-xs text-[#0a0a0a]">
+									{row.salesOrderId ?? "—"}
+								</span>
 							</div>
 						</div>
 					</div>

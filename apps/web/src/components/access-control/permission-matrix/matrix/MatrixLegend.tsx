@@ -4,14 +4,46 @@ import { cn } from "@/lib/utils";
 
 export function MatrixLegend() {
 	const items: Array<{ bg: string; label: string; icon: ReactElement }> = [
-		{ bg: "bg-zinc-100", label: "Branch", icon: <Check className="size-3 text-zinc-700" /> },
-		{ bg: "bg-teal-100", label: "Area", icon: <Check className="size-3 text-teal-700" /> },
-		{ bg: "bg-purple-100", label: "Region", icon: <Check className="size-3 text-purple-700" /> },
-		{ bg: "bg-blue-100", label: "Country", icon: <Check className="size-3 text-blue-700" /> },
-		{ bg: "bg-green-100", label: "Organization", icon: <Check className="size-3 text-green-700" /> },
-		{ bg: "bg-orange-100", label: "Team", icon: <Check className="size-3 text-orange-700" /> },
-		{ bg: "bg-yellow-100", label: "Own", icon: <Minus className="size-3 text-yellow-700" /> },
-		{ bg: "bg-brand-secondary-3", label: "No Access", icon: <X className="size-3 text-brand-secondary-1" /> },
+		{
+			bg: "bg-zinc-100",
+			label: "Branch",
+			icon: <Check className="size-3 text-zinc-700" />,
+		},
+		{
+			bg: "bg-teal-100",
+			label: "Area",
+			icon: <Check className="size-3 text-teal-700" />,
+		},
+		{
+			bg: "bg-purple-100",
+			label: "Region",
+			icon: <Check className="size-3 text-purple-700" />,
+		},
+		{
+			bg: "bg-blue-100",
+			label: "Country",
+			icon: <Check className="size-3 text-blue-700" />,
+		},
+		{
+			bg: "bg-green-100",
+			label: "Organization",
+			icon: <Check className="size-3 text-green-700" />,
+		},
+		{
+			bg: "bg-orange-100",
+			label: "Team",
+			icon: <Check className="size-3 text-orange-700" />,
+		},
+		{
+			bg: "bg-yellow-100",
+			label: "Own",
+			icon: <Minus className="size-3 text-yellow-700" />,
+		},
+		{
+			bg: "bg-brand-secondary-3",
+			label: "No Access",
+			icon: <X className="size-3 text-brand-secondary-1" />,
+		},
 	];
 	return (
 		<div className="grid grid-cols-2 lg:grid-cols-4 gap-2 text-sm text-muted-foreground">

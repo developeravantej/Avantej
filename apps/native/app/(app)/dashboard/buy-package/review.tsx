@@ -162,11 +162,7 @@ export default function ReviewScreen() {
 							onPress={() => router.back()}
 							className="mr-3 size-10 items-center justify-center"
 						>
-							<Ionicons
-								name="arrow-back"
-								size={24}
-								color={colors.primary[1]}
-							/>
+							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-black">
 							Review Details

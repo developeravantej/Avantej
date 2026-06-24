@@ -1,0 +1,13 @@
+{
+	"title": "Settings → Email: DMARC progression reflects the _dmarc policy",
+	"module": "settings",
+	"prodMutationClass": "read-only-seeded-row",
+	"journey": [
+		"Sign in as franchisee@gmail.com (admin of Test Fitness Franchise)",
+		"Seed a sending-domain row whose _dmarc TXT record is p=none",
+		"Navigate to /dashboard/settings/email and expand DNS records",
+		"In the DMARC policy panel, confirm the stepper highlights 'Monitor' (p=none) and the guidance says to move to p=quarantine next",
+		"Update the seeded _dmarc record to p=quarantine and reload",
+		"Confirm the stepper now highlights 'Quarantine' and the guidance points to p=reject next"
+	]
+}

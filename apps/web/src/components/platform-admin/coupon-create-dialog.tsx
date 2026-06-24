@@ -99,12 +99,9 @@ export function CouponCreateDialog({
 		}
 	}, [open]);
 
-	const percentOff =
-		percentOffStr === "" ? undefined : Number(percentOffStr);
+	const percentOff = percentOffStr === "" ? undefined : Number(percentOffStr);
 	const amountOffCents =
-		amountOffStr === ""
-			? undefined
-			: Math.round(Number(amountOffStr) * 100);
+		amountOffStr === "" ? undefined : Math.round(Number(amountOffStr) * 100);
 	const durationInMonths =
 		durationInMonthsStr === "" ? undefined : Number(durationInMonthsStr);
 	const maxRedemptions =
@@ -167,15 +164,12 @@ export function CouponCreateDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-			<DialogContent
-				className="max-w-lg"
-				data-testid="coupon-create-dialog"
-			>
+			<DialogContent className="max-w-lg" data-testid="coupon-create-dialog">
 				<DialogHeader>
 					<DialogTitle>New coupon</DialogTitle>
 					<DialogDescription>
-						Creates a coupon in Stripe. Coupons can later be applied to a
-						tenant from the Billing tab.
+						Creates a coupon in Stripe. Coupons can later be applied to a tenant
+						from the Billing tab.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -198,9 +192,7 @@ export function CouponCreateDialog({
 						</Label>
 						<RadioGroup
 							value={discountKind}
-							onValueChange={(v) =>
-								setDiscountKind(v as "percent" | "amount")
-							}
+							onValueChange={(v) => setDiscountKind(v as "percent" | "amount")}
 							className="mt-2"
 						>
 							<div className="flex items-center gap-2">
@@ -251,9 +243,7 @@ export function CouponCreateDialog({
 									id="coupon-currency"
 									maxLength={3}
 									value={currency}
-									onChange={(e) =>
-										setCurrency(e.target.value.toLowerCase())
-									}
+									onChange={(e) => setCurrency(e.target.value.toLowerCase())}
 									data-testid="coupon-currency-input"
 								/>
 							</div>
@@ -349,8 +339,7 @@ export function CouponCreateDialog({
 							onSubmit({
 								name: name.trim(),
 								discountKind,
-								percentOff:
-									discountKind === "percent" ? percentOff : undefined,
+								percentOff: discountKind === "percent" ? percentOff : undefined,
 								amountOffCents:
 									discountKind === "amount" ? amountOffCents : undefined,
 								currency,

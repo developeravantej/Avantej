@@ -36,7 +36,11 @@ function useDebounced<T>(value: T, delayMs: number): T {
 	return v;
 }
 
-export function TenantMembersTab({ organizationId }: { organizationId: string }) {
+export function TenantMembersTab({
+	organizationId,
+}: {
+	organizationId: string;
+}) {
 	const [search, setSearch] = useState("");
 	const [role, setRole] = useState<string>(ALL_ROLES);
 	const [page, setPage] = useState(1);
@@ -75,7 +79,8 @@ export function TenantMembersTab({ organizationId }: { organizationId: string })
 			}),
 	});
 
-	const rows: MemberRosterRow[] = (listQuery.data?.rows ?? []) as MemberRosterRow[];
+	const rows: MemberRosterRow[] = (listQuery.data?.rows ??
+		[]) as MemberRosterRow[];
 	const total = listQuery.data?.total ?? 0;
 	const counts = countsQuery.data;
 
@@ -93,13 +98,19 @@ export function TenantMembersTab({ organizationId }: { organizationId: string })
 					<CardTitle className="text-base">Members overview</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-2">
-					<div className="text-2xl font-semibold" data-testid="members-kpi-total">
+					<div
+						className="text-2xl font-semibold"
+						data-testid="members-kpi-total"
+					>
 						{countsQuery.isLoading ? "…" : (counts?.totalMembers ?? 0)}
 						<span className="text-sm font-normal text-muted-foreground ml-2">
 							total
 						</span>
 					</div>
-					<div className="flex flex-wrap gap-2" data-testid="members-role-chips">
+					<div
+						className="flex flex-wrap gap-2"
+						data-testid="members-role-chips"
+					>
 						{(counts?.byRole ?? []).map((r) => (
 							<Badge
 								key={r.role}

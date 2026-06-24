@@ -46,10 +46,7 @@ function MetaTile({
 		<View className="flex-1 rounded-xl bg-primary-2 p-3">
 			<View className="mb-1 flex-row items-center">
 				<Ionicons name={icon} size={14} color={colors.secondary[1]} />
-				<Text
-					className="ml-1 text-xs"
-					style={{ color: colors.secondary[1] }}
-				>
+				<Text className="ml-1 text-xs" style={{ color: colors.secondary[1] }}>
 					{label}
 				</Text>
 			</View>
@@ -104,7 +101,10 @@ export default function ServiceDetailScreen() {
 	});
 
 	const related = (relatedServices ?? [])
-		.filter((s): s is typeof s & { price: number } => s.id !== serviceId && s.price !== null)
+		.filter(
+			(s): s is typeof s & { price: number } =>
+				s.id !== serviceId && s.price !== null,
+		)
 		.slice(0, 4);
 
 	const handleBookNow = () => {
@@ -207,11 +207,7 @@ export default function ServiceDetailScreen() {
 						<View className="flex-row gap-1">
 							{svc.isRecommended && (
 								<View className="flex-row items-center rounded-full bg-primary-1 px-2 py-1">
-									<Ionicons
-										name="star"
-										size={10}
-										color={colors.primary[2]}
-									/>
+									<Ionicons name="star" size={10} color={colors.primary[2]} />
 									<Text className="ml-1 font-medium text-xs text-primary-2">
 										Recommended
 									</Text>
@@ -261,11 +257,7 @@ export default function ServiceDetailScreen() {
 					<SectionHeader>Highlights</SectionHeader>
 					<View className="mb-3 flex-row gap-2">
 						{duration && (
-							<MetaTile
-								icon="time-outline"
-								label="Duration"
-								value={duration}
-							/>
+							<MetaTile icon="time-outline" label="Duration" value={duration} />
 						)}
 						<MetaTile
 							icon="people-outline"

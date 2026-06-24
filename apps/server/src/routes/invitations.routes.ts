@@ -10,7 +10,10 @@
 
 import { Hono } from "hono";
 import { authMiddleware } from "@/middleware/auth.middleware";
-import { sendInvitationEmail } from "@/lib/email";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
+import { renderInvitationEmail, sendInvitationEmail } from "@/lib/email";
+import { sendTenantEmail } from "@/lib/email-send-tenant";
 
 export const invitationRoutes = new Hono();
 
@@ -45,14 +48,43 @@ invitationRoutes.post("/send-email", authMiddleware, async (c) => {
 			"http://localhost:3001";
 		const invitationLink = `${frontendURL}/accept-invitation?token=${invitation.token}&orgId=${organizationId}`;
 
-		// Send email via Resend
-		await sendInvitationEmail(
-			invitation.email,
+		const orgName = organizationName || "the organization";
+		const { subject, html, text } = renderInvitationEmail(
 			invitationLink,
-			organizationName || "the organization",
+			orgName,
 			inviterName,
 			invitation.role,
 		);
+
+		// Route through the tenant email path (verified sending domain when
+		// configured) and fall back to the legacy platform sender otherwise.
+		const cpDb = c.get("controlPanelDb") as
+			| NeonDatabase<typeof controlPanelSchema>
+			| undefined;
+		if (cpDb) {
+			await sendTenantEmail(cpDb, {
+				organizationId,
+				to: invitation.email,
+				subject,
+				html,
+				text,
+				notificationType: "member_invitation",
+				subjectVars: {
+					organizationName: orgName,
+					role: invitation.role ?? "",
+					inviterName: inviterName ?? "",
+				},
+				allowPlatformFallback: true,
+			});
+		} else {
+			await sendInvitationEmail(
+				invitation.email,
+				invitationLink,
+				orgName,
+				inviterName,
+				invitation.role,
+			);
+		}
 
 		return c.json({
 			success: true,

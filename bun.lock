@@ -96,6 +96,7 @@
         "jspdf-autotable": "^5.0.8",
         "resend": "^6.4.2",
         "stripe": "^19.2.0",
+        "svix": "^1.86.0",
         "zod": "catalog:",
       },
       "devDependencies": {

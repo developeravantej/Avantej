@@ -12,7 +12,10 @@ for (const file of readdirSync(routersDir)) {
 	const path = join(routersDir, file);
 	let content = readFileSync(path, "utf-8");
 	if (!content.includes("requirePermissionOrpc(")) continue;
-	if (content.includes("requirePermissionOrpc") && content.includes('from "../guards"')) {
+	if (
+		content.includes("requirePermissionOrpc") &&
+		content.includes('from "../guards"')
+	) {
 		continue;
 	}
 
@@ -24,7 +27,9 @@ for (const file of readdirSync(routersDir)) {
 				return `import {${imports.trim()}, requirePermissionOrpc } from "../guards";`;
 			},
 		);
-	} else if (content.match(/import \{ tenantProcedure \} from "\.\.\/index";/)) {
+	} else if (
+		content.match(/import \{ tenantProcedure \} from "\.\.\/index";/)
+	) {
 		content = content.replace(
 			/(import \{ tenantProcedure \} from "\.\.\/index";)/,
 			'$1\nimport { requirePermissionOrpc } from "../guards";',

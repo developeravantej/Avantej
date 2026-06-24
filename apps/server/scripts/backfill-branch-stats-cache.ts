@@ -77,7 +77,10 @@ function loadDevVars(): void {
 			if (!trimmed || trimmed.startsWith("#")) continue;
 			const [key, ...valueParts] = trimmed.split("=");
 			if (key && valueParts.length > 0) {
-				const value = valueParts.join("=").trim().replace(/^["']|["']$/g, "");
+				const value = valueParts
+					.join("=")
+					.trim()
+					.replace(/^["']|["']$/g, "");
 				process.env[key.trim()] = value;
 			}
 		}
@@ -116,7 +119,9 @@ async function backfillOneTenant(
 		const tenantDb = drizzle({ client: pool, schema: tenantSchema });
 
 		// Fetch all hierarchy nodes
-		const nodes = await tenantDb.select({ id: hierarchyNodes.id }).from(hierarchyNodes);
+		const nodes = await tenantDb
+			.select({ id: hierarchyNodes.id })
+			.from(hierarchyNodes);
 
 		if (nodes.length === 0) {
 			result.success = true;
@@ -141,7 +146,9 @@ async function backfillOneTenant(
 			)
 			.groupBy(members.hierarchyScopeId);
 
-		const memberMap = new Map(memberRows.map((r) => [r.nodeId, Number(r.count)]));
+		const memberMap = new Map(
+			memberRows.map((r) => [r.nodeId, Number(r.count)]),
+		);
 
 		// Aggregate staff count per node
 		const staffRows = await tenantDb
@@ -176,7 +183,9 @@ async function backfillOneTenant(
 			)
 			.groupBy(salesOrders.branchId);
 
-		const revenueMap = new Map(revenueRows.map((r) => [r.nodeId, Number(r.total)]));
+		const revenueMap = new Map(
+			revenueRows.map((r) => [r.nodeId, Number(r.total)]),
+		);
 
 		if (dryRun) {
 			console.log(
@@ -241,7 +250,9 @@ async function processBatches(
 		const batch = orgs.slice(i, i + concurrency);
 		const batchNum = Math.floor(i / concurrency) + 1;
 		const totalBatches = Math.ceil(orgs.length / concurrency);
-		console.log(`\nBatch ${batchNum}/${totalBatches} (${batch.length} tenant(s))...`);
+		console.log(
+			`\nBatch ${batchNum}/${totalBatches} (${batch.length} tenant(s))...`,
+		);
 
 		const settled = await Promise.allSettled(
 			batch.map((org) => backfillOneTenant(org, dryRun)),
@@ -252,7 +263,9 @@ async function processBatches(
 				const r = s.value;
 				results.push(r);
 				if (r.success) {
-					console.log(`  [OK] ${r.organizationName} (${r.slug}): ${r.nodesProcessed} node(s)`);
+					console.log(
+						`  [OK] ${r.organizationName} (${r.slug}): ${r.nodesProcessed} node(s)`,
+					);
 				} else {
 					console.log(`  [FAIL] ${r.organizationName} (${r.slug}): ${r.error}`);
 				}
@@ -294,19 +307,27 @@ async function main() {
 		.filter((o) => o.connectionString)
 		.flatMap((o) => {
 			try {
-				return [{
-					id: o.id,
-					name: o.name,
-					slug: o.slug,
-					connectionString: decrypt(o.connectionString!),
-				}];
+				return [
+					{
+						id: o.id,
+						name: o.name,
+						slug: o.slug,
+						connectionString: decrypt(o.connectionString!),
+					},
+				];
 			} catch (err) {
-				console.warn(`  [SKIP] ${o.name} (${o.slug}): ${(err as Error).message}`);
+				console.warn(
+					`  [SKIP] ${o.name} (${o.slug}): ${(err as Error).message}`,
+				);
 				return [];
 			}
 		});
 
-	const results = await processBatches(orgsWithConn, options.concurrency, options.dryRun);
+	const results = await processBatches(
+		orgsWithConn,
+		options.concurrency,
+		options.dryRun,
+	);
 
 	const successful = results.filter((r) => r.success).length;
 	const failed = results.filter((r) => !r.success).length;

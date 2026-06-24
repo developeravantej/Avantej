@@ -20,9 +20,7 @@ export function DateGroupHeader({
 			<div
 				className={cn(
 					"flex size-14 shrink-0 flex-col items-center justify-center rounded-full text-center",
-					todayDate
-						? "bg-blue-600 text-white"
-						: "bg-zinc-100 text-zinc-700",
+					todayDate ? "bg-blue-600 text-white" : "bg-zinc-100 text-zinc-700",
 				)}
 			>
 				<span className="text-[10px] font-semibold leading-none tracking-wide">

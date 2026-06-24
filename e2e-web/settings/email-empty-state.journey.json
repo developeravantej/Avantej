@@ -1,0 +1,13 @@
+{
+	"title": "Settings → Email: empty-state renders for admin",
+	"module": "settings",
+	"prodMutationClass": "read-only",
+	"journey": [
+		"Open the web app at http://localhost:3021",
+		"Sign in as franchisee@gmail.com (admin of Test Fitness Franchise)",
+		"Navigate to /dashboard/settings/email via the sidebar Settings → Email link",
+		"Confirm the Email page renders with the PageHeader 'Email'",
+		"Confirm the Sending domains card shows the empty-state message 'No sending domains yet'",
+		"Confirm the Add a sending domain card renders with Domain, From name, and Default local-part inputs"
+	]
+}

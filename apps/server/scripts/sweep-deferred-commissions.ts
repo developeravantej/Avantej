@@ -299,7 +299,9 @@ async function processTenant(
 		summary.stuckCount = stuckRows.length;
 
 		if (stuckRows.length === 0) {
-			console.log(`  [${org.name}] No stuck items found (threshold: ${days} days).`);
+			console.log(
+				`  [${org.name}] No stuck items found (threshold: ${days} days).`,
+			);
 			return summary;
 		}
 
@@ -377,7 +379,9 @@ async function main() {
 
 	const databaseUrl = process.env.DATABASE_URL;
 	if (!databaseUrl) {
-		console.error("ERROR: DATABASE_URL is not set. Load .dev.vars or export the variable.");
+		console.error(
+			"ERROR: DATABASE_URL is not set. Load .dev.vars or export the variable.",
+		);
 		process.exit(1);
 	}
 
@@ -385,7 +389,9 @@ async function main() {
 	console.log("\nDeferred Commission Sweeper — Report Only");
 	console.log("==========================================");
 	console.log(`Age threshold : ${opts.days} days`);
-	console.log(`Scope         : ${opts.allOrgs ? "all tenants" : opts.tenantId ?? DEFAULT_ORG_ID}`);
+	console.log(
+		`Scope         : ${opts.allOrgs ? "all tenants" : (opts.tenantId ?? DEFAULT_ORG_ID)}`,
+	);
 	console.log("");
 
 	const controlPanelPool = new Pool({ connectionString: databaseUrl });
@@ -452,7 +458,10 @@ async function main() {
 		}
 
 		const totalStuck = summaries.reduce((acc, s) => acc + s.stuckCount, 0);
-		const totalItemCents = summaries.reduce((acc, s) => acc + s.totalItemCents, 0);
+		const totalItemCents = summaries.reduce(
+			(acc, s) => acc + s.totalItemCents,
+			0,
+		);
 		const totalLiabilityCents = summaries.reduce(
 			(acc, s) => acc + s.estimatedLiabilityCents,
 			0,

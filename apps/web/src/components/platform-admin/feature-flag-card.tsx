@@ -112,8 +112,7 @@ export function FeatureFlagCard({
 							{overrideMetadata.updatedAt ? (
 								<>
 									{" "}
-									·{" "}
-									{new Date(overrideMetadata.updatedAt).toLocaleDateString()}
+									· {new Date(overrideMetadata.updatedAt).toLocaleDateString()}
 								</>
 							) : null}
 						</div>
@@ -139,7 +138,9 @@ export function FeatureFlagCard({
 								size="sm"
 								variant="ghost"
 								onClick={onClearOverride}
-								data-testid={testId ? `${testId}-clear-override-btn` : undefined}
+								data-testid={
+									testId ? `${testId}-clear-override-btn` : undefined
+								}
 								className="text-xs"
 							>
 								Reset to tier default

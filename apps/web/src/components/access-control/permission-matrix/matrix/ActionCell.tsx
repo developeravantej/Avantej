@@ -10,10 +10,7 @@ import {
 	parseScopeValue,
 	type PermissionScope,
 } from "@/hooks/usePermissionMatrixState";
-import {
-	getScopeButtonStyle,
-	getScopeIcon,
-} from "./scope-style";
+import { getScopeButtonStyle, getScopeIcon } from "./scope-style";
 
 export interface ActionCellProps {
 	roleId: string;

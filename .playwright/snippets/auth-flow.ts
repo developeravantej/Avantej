@@ -12,7 +12,10 @@ export type LoginCredentials = {
 	password: string;
 };
 
-export async function login(page: Page, creds: LoginCredentials): Promise<void> {
+export async function login(
+	page: Page,
+	creds: LoginCredentials,
+): Promise<void> {
 	await page.goto("/login");
 	await page.getByLabel("Email").fill(creds.email);
 	await page.getByLabel("Password").fill(creds.password);

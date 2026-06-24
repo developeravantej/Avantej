@@ -98,7 +98,8 @@ export function UsersTable({
 	// Controlled dialog for confirmation — one dialog shared across all rows
 	const [confirmingUser, setConfirmingUser] = useState<UserRow | null>(null);
 
-	const canImpersonate = callerRole === "super_admin" || callerRole === "support";
+	const canImpersonate =
+		callerRole === "super_admin" || callerRole === "support";
 
 	const impersonateMutation = useApiMutation({
 		mutationFn: (userId: string) => client.admin.impersonateUser({ userId }),
@@ -121,12 +122,18 @@ export function UsersTable({
 		{
 			accessorKey: "firstName",
 			header: "First Name",
-			cell: ({ row }) => row.original.firstName || <span className="text-muted-foreground">-</span>,
+			cell: ({ row }) =>
+				row.original.firstName || (
+					<span className="text-muted-foreground">-</span>
+				),
 		},
 		{
 			accessorKey: "lastName",
 			header: "Last Name",
-			cell: ({ row }) => row.original.lastName || <span className="text-muted-foreground">-</span>,
+			cell: ({ row }) =>
+				row.original.lastName || (
+					<span className="text-muted-foreground">-</span>
+				),
 		},
 		{
 			accessorKey: "lastLoginAt",
@@ -303,7 +310,9 @@ export function UsersTable({
 					<Button
 						variant="outline"
 						size="sm"
-						disabled={pagination.currentPage >= pagination.totalPages || isLoading}
+						disabled={
+							pagination.currentPage >= pagination.totalPages || isLoading
+						}
 						onClick={() => onPageChange(pagination.currentPage + 1)}
 					>
 						Next
@@ -329,7 +338,10 @@ export function UsersTable({
 					</DialogHeader>
 					<DialogFooter>
 						<DialogClose asChild>
-							<Button variant="outline" disabled={impersonateMutation.isPending}>
+							<Button
+								variant="outline"
+								disabled={impersonateMutation.isPending}
+							>
 								Cancel
 							</Button>
 						</DialogClose>
@@ -342,7 +354,9 @@ export function UsersTable({
 								}
 							}}
 						>
-							{impersonateMutation.isPending ? "Logging in..." : "Confirm — Login as user"}
+							{impersonateMutation.isPending
+								? "Logging in..."
+								: "Confirm — Login as user"}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

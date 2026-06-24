@@ -45,7 +45,13 @@ function StatusBadge({ status }: { status: AssignedPackage["status"] }) {
 // Field row
 // ---------------------------------------------------------------------------
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+	label,
+	children,
+}: {
+	label: string;
+	children: React.ReactNode;
+}) {
 	return (
 		<div className="flex flex-col gap-1">
 			<span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -73,7 +79,11 @@ export function AssignedPackageDrawer({
 }: AssignedPackageDrawerProps) {
 	return (
 		<Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-			<SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto" data-testid="assigned-package-drawer">
+			<SheetContent
+				side="right"
+				className="w-full sm:max-w-md overflow-y-auto"
+				data-testid="assigned-package-drawer"
+			>
 				<SheetHeader className="mb-4">
 					<SheetTitle>Package Details</SheetTitle>
 					<SheetDescription>
@@ -84,7 +94,9 @@ export function AssignedPackageDrawer({
 				{pkg ? (
 					<div className="flex flex-col gap-5 px-1">
 						<Field label="Client">
-							<span data-testid="drawer-client-name">{pkg.clientDisplayName}</span>
+							<span data-testid="drawer-client-name">
+								{pkg.clientDisplayName}
+							</span>
 						</Field>
 
 						<Field label="Service">
@@ -98,12 +110,12 @@ export function AssignedPackageDrawer({
 						</Field>
 
 						<Field label="Credits Remaining">
-							<span className="font-medium tabular-nums">{pkg.creditsRemaining}</span>
+							<span className="font-medium tabular-nums">
+								{pkg.creditsRemaining}
+							</span>
 						</Field>
 
-						<Field label="Next Due">
-							{formatDateStr(pkg.nextDueDate)}
-						</Field>
+						<Field label="Next Due">{formatDateStr(pkg.nextDueDate)}</Field>
 
 						{pkg.status === "frozen" && pkg.frozenUntil && (
 							<Field label="Frozen Until">
@@ -113,9 +125,7 @@ export function AssignedPackageDrawer({
 
 						<Separator />
 
-						<Field label="Assigned On">
-							{formatDateStr(pkg.createdAt)}
-						</Field>
+						<Field label="Assigned On">{formatDateStr(pkg.createdAt)}</Field>
 					</div>
 				) : null}
 			</SheetContent>

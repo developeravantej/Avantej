@@ -49,7 +49,9 @@ function CustomersFilterSidebarImpl({
 				<div className="mb-3 flex items-center justify-between">
 					<div className="flex items-center gap-2">
 						<Users className="h-4 w-4 text-[#737373]" />
-						<span className="text-sm font-semibold text-[#0a0a0a]">Customers</span>
+						<span className="text-sm font-semibold text-[#0a0a0a]">
+							Customers
+						</span>
 					</div>
 					<span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-[#f3f3f3] px-2 py-0.5 font-mono tabular-nums text-[11px] font-medium text-[#737373]">
 						{totalCount}
@@ -132,7 +134,7 @@ function CustomersFilterSidebarImpl({
 											? "Deleted"
 											: customer.isUnclaimed
 												? "Unclaimed"
-												: customer.email ?? "Customer"}
+												: (customer.email ?? "Customer")}
 									</p>
 								</div>
 							</button>

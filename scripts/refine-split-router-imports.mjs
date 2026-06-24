@@ -120,7 +120,9 @@ const exportPrefix =
 			? "export const commissionSplits"
 			: `export const ${routerName}`;
 
-for (const file of readdirSync(dir).filter((f) => f.endsWith(".procedures.ts"))) {
+for (const file of readdirSync(dir).filter((f) =>
+	f.endsWith(".procedures.ts"),
+)) {
 	const header = headers[file];
 	if (!header) {
 		console.warn(`Skip ${file} (no header map)`);

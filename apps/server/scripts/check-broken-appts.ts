@@ -3,11 +3,28 @@ import ws from "ws";
 import { readFileSync } from "fs";
 import { decrypt } from "@avantej-core/db/lib/encryption";
 neonConfig.webSocketConstructor = ws;
-const env = Object.fromEntries(readFileSync(".dev.vars","utf8").split(/\r?\n/).filter(l=>l && !l.startsWith("#")).map(l=>{const i=l.indexOf("=");return [l.slice(0,i), l.slice(i+1).replace(/^"|"$/g,"")];}));
+const env = Object.fromEntries(
+	readFileSync(".dev.vars", "utf8")
+		.split(/\r?\n/)
+		.filter((l) => l && !l.startsWith("#"))
+		.map((l) => {
+			const i = l.indexOf("=");
+			return [l.slice(0, i), l.slice(i + 1).replace(/^"|"$/g, "")];
+		}),
+);
 process.env.ENCRYPTION_KEY = env.ENCRYPTION_KEY!;
 const cp = new Pool({ connectionString: env.DATABASE_URL });
-const conn = decrypt((await cp.query("SELECT connection_string FROM organizations WHERE slug='test-fitness-franchise'")).rows[0].connection_string);
+const conn = decrypt(
+	(
+		await cp.query(
+			"SELECT connection_string FROM organizations WHERE slug='test-fitness-franchise'",
+		)
+	).rows[0].connection_string,
+);
 const t = new Pool({ connectionString: conn });
-const r = await t.query(`SELECT a.id, a.status, a.service_id, a.trainer_id, a.sales_order_id, a.start_time, s.name svc_name FROM appointments a LEFT JOIN services s ON s.id=a.service_id WHERE a.id IN ('d8e66028-d247-4b89-967f-c4d0fecc50bb','21123a7b-16cb-490c-a4db-09161fedb9b1')`);
+const r = await t.query(
+	`SELECT a.id, a.status, a.service_id, a.trainer_id, a.sales_order_id, a.start_time, s.name svc_name FROM appointments a LEFT JOIN services s ON s.id=a.service_id WHERE a.id IN ('d8e66028-d247-4b89-967f-c4d0fecc50bb','21123a7b-16cb-490c-a4db-09161fedb9b1')`,
+);
 console.log("Broken appts:", r.rows);
-await t.end(); await cp.end();
+await t.end();
+await cp.end();

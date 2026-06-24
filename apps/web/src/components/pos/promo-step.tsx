@@ -48,9 +48,7 @@ export function PromoStep({
 
 	const subtotalCents = calcSubtotalCents(items);
 	const serviceIds = items.flatMap((i) =>
-		i.refId && (i.type === "service" || i.type === "package")
-			? [i.refId]
-			: [],
+		i.refId && (i.type === "service" || i.type === "package") ? [i.refId] : [],
 	);
 
 	// react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- validation-only mutation: validates promo code, does not mutate server state; nothing to invalidate

@@ -119,7 +119,10 @@ test.describe("@ship-f-1 Plan F.1 — Cross-Tenant Search ⌘K Palette", () => {
 			throw new Error("No organizations seeded in control-panel DB");
 		const sampleOrg = orgRows[0]!;
 		// Substring of the org name (first 3 chars), URL-safe.
-		const nameSubstr = sampleOrg.name.slice(0, Math.min(3, sampleOrg.name.length));
+		const nameSubstr = sampleOrg.name.slice(
+			0,
+			Math.min(3, sampleOrg.name.length),
+		);
 
 		// ── Browser login ──────────────────────────────────────────────────
 		await loginAsAdmin(page, adminEmail, adminPassword);
@@ -158,7 +161,9 @@ test.describe("@ship-f-1 Plan F.1 — Cross-Tenant Search ⌘K Palette", () => {
 		await page.waitForLoadState("networkidle");
 		await page.keyboard.press(hotkey);
 		await expect(palette).toBeVisible({ timeout: 5_000 });
-		await page.getByTestId("command-palette-input").fill("zzznomatch-xyz-12345");
+		await page
+			.getByTestId("command-palette-input")
+			.fill("zzznomatch-xyz-12345");
 		await expect(page.getByTestId("command-palette-no-results")).toBeVisible({
 			timeout: 10_000,
 		});
@@ -191,7 +196,10 @@ test.describe("@ship-f-1 Plan F.1 — Cross-Tenant Search ⌘K Palette", () => {
 		expect(idResults[0]!.orgId).toBe(sampleOrg.id);
 
 		// Query by slug substring — should rank slug above name where overlap.
-		const slugSubstr = sampleOrg.slug.slice(0, Math.min(4, sampleOrg.slug.length));
+		const slugSubstr = sampleOrg.slug.slice(
+			0,
+			Math.min(4, sampleOrg.slug.length),
+		);
 		const slugRes = await rpc(apiCtx, "platformAdminTenants/search/search", {
 			query: slugSubstr,
 		});

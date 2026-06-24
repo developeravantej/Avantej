@@ -61,7 +61,9 @@ export function SignupForm({
 	// Read search params without 'from' - will work on any route but may be undefined
 	// Props take precedence, so this is just a fallback for when used on /signup route
 	const searchParams = useSearch({ strict: false });
-	const searchInvitationToken = searchParams.invitationToken as string | undefined;
+	const searchInvitationToken = searchParams.invitationToken as
+		| string
+		| undefined;
 	const searchOrgId = searchParams.orgId as string | undefined;
 
 	// Use props first, then search params
@@ -307,7 +309,11 @@ export function SignupForm({
 				{!invitationEmail && (
 					<div className="mt-4 text-center text-sm">
 						Already have an account?{" "}
-						<Link to="/login" search={{}} className="underline underline-offset-4">
+						<Link
+							to="/login"
+							search={{}}
+							className="underline underline-offset-4"
+						>
 							Login
 						</Link>
 					</div>

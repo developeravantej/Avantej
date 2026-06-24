@@ -1,0 +1,115 @@
+[
+  {
+    "area": "Sending-domain CRUD",
+    "module": "settings/email",
+    "coverageStatus": "covered",
+    "coverageNotes": "unit (rate-limit, audit) + integration (create/list/update/get/verify/delete) + e2e screencasts",
+    "procedures": [
+      "emailDomains.create (Resend domains.create + persist + rate-limit + audit)",
+      "emailDomains.update (sender from-name / default local-part)",
+      "emailDomains.delete (Resend domains.remove + row delete + audit)",
+      "emailDomains.list",
+      "emailDomains.get (live status refresh)",
+      "emailDomains.verify (Resend domains.verify)"
+    ],
+    "gaps": [
+      "real-domain happy path: a domain actually transitioning to verified via live DNS (sandbox cannot)"
+    ],
+    "proposedSpecs": [
+      { "specFile": "email-empty-state.journey.json", "title": "Empty-state renders for admin (no domains yet)", "testType": "e2e", "prodMutation": "read-only", "authorability": "ready" },
+      { "specFile": "email-domain-list.journey.json", "title": "Domain row renders with sender, status, and DNS records", "testType": "e2e", "prodMutation": "seed-row", "authorability": "ready" },
+      { "specFile": "email-edit-and-delete.journey.json", "title": "Edit sender then delete the domain", "testType": "e2e", "prodMutation": "create-update-delete-test-row", "authorability": "ready" }
+    ]
+  },
+  {
+    "area": "Sending-address aliases",
+    "module": "settings/email",
+    "coverageStatus": "covered",
+    "coverageNotes": "e2e add/remove round-trip; NOTE aliases are DB-only — Resend has no per-address registration, a verified domain accepts any local-part",
+    "procedures": [
+      "emailDomains.addAlias (DB insert email_domain_aliases — no Resend call)",
+      "emailDomains.listAliases",
+      "emailDomains.removeAlias",
+      "resolveAliasLocalPart (alias label → local-part for the sender)"
+    ],
+    "gaps": [
+      "actual delivery FROM an alias address landing in an inbox (real-domain blocker)"
+    ],
+    "proposedSpecs": [
+      { "specFile": "email-aliases.journey.json", "title": "Add and remove a sending-address alias", "testType": "e2e", "prodMutation": "create-update-delete-test-row", "authorability": "ready" }
+    ]
+  },
+  {
+    "area": "Tenant-scoped sending",
+    "module": "settings/email",
+    "coverageStatus": "covered",
+    "coverageNotes": "unit: verified-domain send, platform fallback, alias resolution, failed-send logging, capture-on-fail",
+    "procedures": [
+      "sendTenantEmail (verified domain → from-address, fallback, tags org_id)",
+      "emailDomains.sendTest (admin + verified gate)"
+    ],
+    "gaps": [
+      "real send delivering through Resend (sandbox restricts recipients + unverified domain)"
+    ],
+    "proposedSpecs": [
+      { "specFile": "email-send-test.journey.json", "title": "Send test button gating + dialog flow on verified domain", "testType": "e2e", "prodMutation": "send-real-email-via-test-row", "authorability": "ready" }
+    ]
+  },
+  {
+    "area": "Auth transactional email routing",
+    "module": "settings/email",
+    "coverageStatus": "covered",
+    "coverageNotes": "unit + integration (auth-email) + e2e magic-link; tenant route then platform fallback proven in server trace",
+    "procedures": [
+      "dispatchAuthEmail (verify / reset / magic-link → tenant domain, platform fallback)",
+      "renderVerificationEmail / renderPasswordResetEmail / renderMagicLinkEmail"
+    ],
+    "gaps": [
+      "green success leg (delivery) requires a real DNS-verified domain"
+    ],
+    "proposedSpecs": [
+      { "specFile": "email-auth-tenant-routing.journey.json", "title": "Magic-link sign-in dispatches through tenant-aware sender", "testType": "e2e", "prodMutation": "trigger-real-resend-send", "authorability": "ready" }
+    ]
+  },
+  {
+    "area": "Resend webhook ingestion",
+    "module": "settings/email",
+    "coverageStatus": "covered",
+    "coverageNotes": "unit (status mappers) + integration (svix verify, dedup, upsert, 413 body cap)",
+    "procedures": [
+      "POST /webhooks/resend (svix verify + dedup by svix-id + upsert email_logs)",
+      "mapResendEventToLogStatus",
+      "body-size cap (64 KB → 413 before verify)"
+    ],
+    "gaps": [],
+    "proposedSpecs": []
+  },
+  {
+    "area": "Background jobs (CF Cron)",
+    "module": "settings/email",
+    "coverageStatus": "covered",
+    "coverageNotes": "unit-tested logic; cron dispatch itself is schedule-driven (not e2e-able)",
+    "procedures": [
+      "runEmailDomainRefresh (*/15 — re-poll Resend for stale pending/verifying)",
+      "purgeOldEmailLogs (daily 04:00 — 90d/180d two-tier retention, batched)"
+    ],
+    "gaps": [
+      "live scheduled trigger (verified by unit tests + CF cron config, not e2e)"
+    ],
+    "proposedSpecs": []
+  },
+  {
+    "area": "DMARC progression UI",
+    "module": "settings/email",
+    "coverageStatus": "covered",
+    "coverageNotes": "unit (parseDmarcPolicy) + e2e showing none→Monitor then quarantine→Quarantine",
+    "procedures": [
+      "parseDmarcPolicy (reads p= from the _dmarc TXT record)",
+      "DmarcProgression stepper (none → quarantine → reject)"
+    ],
+    "gaps": [],
+    "proposedSpecs": [
+      { "specFile": "email-dmarc-progression.journey.json", "title": "DMARC progression reflects the _dmarc policy", "testType": "e2e", "prodMutation": "read-only-seeded-row", "authorability": "ready" }
+    ]
+  }
+]

@@ -20,7 +20,9 @@ export function timeAgo(value: string | Date | null | undefined): string {
 	}
 }
 
-export function formatDateTime(value: string | Date | null | undefined): string {
+export function formatDateTime(
+	value: string | Date | null | undefined,
+): string {
 	if (!value) return "—";
 	try {
 		return new Date(value).toLocaleString("en-MY", {

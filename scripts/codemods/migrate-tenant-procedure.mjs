@@ -91,9 +91,7 @@ if (args.length === 0) {
 	const n = args[0].split("=")[1];
 	files = (BATCHES[n] ?? []).map((f) => join(routersDir, f));
 } else {
-	files = args.map((f) =>
-		f.includes("/") ? f : join(routersDir, f),
-	);
+	files = args.map((f) => (f.includes("/") ? f : join(routersDir, f)));
 }
 
 const tenantDbCheck =

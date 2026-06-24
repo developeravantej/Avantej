@@ -1,0 +1,22 @@
+appId: ${APP_ID}
+---
+# Test: My Packages list with status filters
+- runFlow: helpers/login.yaml
+
+# Navigate to Profile → packages or via My Credits
+- tapOn:
+    text: ".*My.*Credits.*"
+- waitForAnimationToEnd
+
+# Verify packages screen loaded
+- extendedWaitUntil:
+    visible:
+      text: ".*Package.*|.*Credit.*"
+    timeout: 5000
+
+# Scroll through packages
+- swipe:
+    start: "50%, 70%"
+    end: "50%, 30%"
+    duration: 500
+- waitForAnimationToEnd

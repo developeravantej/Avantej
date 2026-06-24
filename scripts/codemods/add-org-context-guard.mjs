@@ -34,10 +34,14 @@ const HANDLER_PATTERNS = [
 ];
 
 for (const file of readdirSync(routersDir)) {
-	if (!file.endsWith(".ts") || file.endsWith(".test.ts") || SKIP.has(file)) continue;
+	if (!file.endsWith(".ts") || file.endsWith(".test.ts") || SKIP.has(file))
+		continue;
 	const path = join(routersDir, file);
 	let content = readFileSync(path, "utf-8");
-	if (!content.includes("tenantProcedure") || !content.includes("organizationId: z.string().uuid()")) {
+	if (
+		!content.includes("tenantProcedure") ||
+		!content.includes("organizationId: z.string().uuid()")
+	) {
 		continue;
 	}
 

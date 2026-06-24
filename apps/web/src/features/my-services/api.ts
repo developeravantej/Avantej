@@ -43,7 +43,10 @@ export function useAssignedPackages(
 	statusFilter?: "active" | "frozen",
 ) {
 	return useInfiniteQuery<AssignedPackagesPage>({
-		queryKey: myServicesKeys.assignedPackages(organizationId ?? "", statusFilter),
+		queryKey: myServicesKeys.assignedPackages(
+			organizationId ?? "",
+			statusFilter,
+		),
 		queryFn: async ({ pageParam }) => {
 			const result = await client.packageInstances.listAssignedToMe({
 				organizationId: organizationId ?? "",

@@ -180,7 +180,9 @@ function AttendancePage() {
 	// ── KPI derivations ────────────────────────────────────────────────────
 
 	const kpiTotal = checkInRows.length;
-	const kpiAttended = checkInRows.filter((r) => r.outcome === "attended").length;
+	const kpiAttended = checkInRows.filter(
+		(r) => r.outcome === "attended",
+	).length;
 	const kpiDropIns = checkInRows.filter((r) => r.source === "drop_in").length;
 	const kpiNoShows = checkInRows.filter((r) => r.outcome === "no_show").length;
 
@@ -226,205 +228,207 @@ function AttendancePage() {
 				</div>
 			</header>
 			<div className="px-6 py-6">
-			{/* ── Filters band ── */}
-			<div className="mb-5 rounded-2xl border border-[#e5e5e5] bg-white p-4">
-				<div className="flex flex-wrap items-end gap-4">
-					{branchOptions.length > 0 && (
+				{/* ── Filters band ── */}
+				<div className="mb-5 rounded-2xl border border-[#e5e5e5] bg-white p-4">
+					<div className="flex flex-wrap items-end gap-4">
+						{branchOptions.length > 0 && (
+							<div className="flex flex-col gap-1.5">
+								<Label className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+									Branch
+								</Label>
+								<Select
+									value={branchId || ""}
+									onValueChange={(v) => setBranchId(v)}
+								>
+									<SelectTrigger className="h-9 w-56">
+										<SelectValue placeholder="Select branch…" />
+									</SelectTrigger>
+									<SelectContent>
+										{branchOptions.map((node) => (
+											<SelectItem key={node.id} value={node.id}>
+												{node.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+						)}
+
 						<div className="flex flex-col gap-1.5">
 							<Label className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
-								Branch
+								Date
 							</Label>
-							<Select
-								value={branchId || ""}
-								onValueChange={(v) => setBranchId(v)}
-							>
-								<SelectTrigger className="h-9 w-56">
-									<SelectValue placeholder="Select branch…" />
-								</SelectTrigger>
-								<SelectContent>
-									{branchOptions.map((node) => (
-										<SelectItem key={node.id} value={node.id}>
-											{node.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-					)}
-
-					<div className="flex flex-col gap-1.5">
-						<Label className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
-							Date
-						</Label>
-						<input
-							type="date"
-							value={date}
-							onChange={(e) => setDate(e.target.value)}
-							className="h-9 rounded-xl border border-[#e5e5e5] bg-white px-3 py-1 text-sm text-[#0a0a0a] outline-none focus:border-[#0a0a0a] font-mono tabular-nums"
-						/>
-					</div>
-				</div>
-			</div>
-
-			{/* ── KPI tiles ── */}
-			{!branchId ? (
-				<div className="rounded-2xl border border-[#e5e5e5] bg-white p-10 flex flex-col items-center justify-center text-center">
-					<ClipboardCheck className="h-8 w-8 mb-3 opacity-30 text-[#737373]" />
-					<p className="text-sm font-medium text-[#0a0a0a]">
-						No branch selected
-					</p>
-					<p className="text-xs mt-1 text-[#737373]">
-						Select a branch to load attendance data.
-					</p>
-				</div>
-			) : (
-				<>
-					<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
-						{checkInsLoading ? (
-							<>
-								<KpiSkeleton />
-								<KpiSkeleton />
-								<KpiSkeleton />
-								<KpiSkeleton />
-							</>
-						) : checkInsError ? null : (
-							<>
-								<KpiTile
-									icon={ClipboardCheck}
-									label="TOTAL CHECK-INS"
-									value={kpiTotal}
-								/>
-								<KpiTile
-									icon={UserCheck}
-									label="ATTENDED"
-									value={kpiAttended}
-									valueClass="text-emerald-700"
-								/>
-								<KpiTile
-									icon={Clock}
-									label="DROP-INS"
-									value={kpiDropIns}
-									valueClass="text-blue-700"
-								/>
-								<KpiTile
-									icon={XCircle}
-									label="NO-SHOWS"
-									value={kpiNoShows}
-									valueClass="text-rose-600"
-								/>
-							</>
-						)}
-					</div>
-
-					{/* ── Two-column content ── */}
-					<div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_360px]">
-						{/* Left: Today's Bookings */}
-						<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
-							<div className="px-5 py-4 border-b border-[#e5e5e5]">
-								<h2 className="text-lg font-bold text-[#0a0a0a]">
-									Today&apos;s Bookings
-								</h2>
-							</div>
-							<div className="p-5">
-								{bookingsLoading ? (
-									<div className="flex flex-col gap-3">
-										{[1, 2, 3].map((i) => (
-											<div
-												key={i}
-												className="h-12 w-full rounded-xl bg-[#e5e5e5] animate-pulse"
-											/>
-										))}
-									</div>
-								) : bookingsError ? (
-									<StatusCallout
-										variant="error"
-										onRetry={() => refetchBookings()}
-									>
-										Failed to load bookings. Please try again.
-									</StatusCallout>
-								) : bookings.length === 0 ? (
-									<div className="flex flex-col items-center justify-center py-10 text-[#737373]">
-										<ClipboardCheck className="h-8 w-8 mb-3 opacity-30" />
-										<p className="text-sm font-medium text-[#0a0a0a]">
-											No bookings today
-										</p>
-										<p className="text-xs mt-1">
-											No appointments are scheduled for this date.
-										</p>
-									</div>
-								) : (
-									<TodayBookingsSection
-										bookings={bookings}
-										organizationId={organizationId}
-										branchId={branchId}
-									/>
-								)}
-							</div>
-						</div>
-
-						{/* Right: Drop-in form */}
-						<div>
-							<DropInForm
-								organizationId={organizationId}
-								branchId={branchId}
-								queryKey={checkInsQueryKey}
+							<input
+								type="date"
+								value={date}
+								onChange={(e) => setDate(e.target.value)}
+								className="h-9 rounded-xl border border-[#e5e5e5] bg-white px-3 py-1 text-sm text-[#0a0a0a] outline-none focus:border-[#0a0a0a] font-mono tabular-nums"
 							/>
 						</div>
 					</div>
+				</div>
 
-					{/* ── Check-ins log ── */}
-					<div className="mt-5 rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
-						<div className="px-5 py-4 border-b border-[#e5e5e5] flex items-center gap-2">
-							<h2 className="text-lg font-bold text-[#0a0a0a]">
-								Today&apos;s Check-ins
-							</h2>
-							{!checkInsLoading && checkInsData?.total != null && checkInsData.total > 0 && (
-								<span className="font-mono tabular-nums rounded-full bg-[#f3f3f3] px-2 py-0.5 text-[11px] font-semibold text-[#737373]">
-									{checkInsData.total}
-								</span>
+				{/* ── KPI tiles ── */}
+				{!branchId ? (
+					<div className="rounded-2xl border border-[#e5e5e5] bg-white p-10 flex flex-col items-center justify-center text-center">
+						<ClipboardCheck className="h-8 w-8 mb-3 opacity-30 text-[#737373]" />
+						<p className="text-sm font-medium text-[#0a0a0a]">
+							No branch selected
+						</p>
+						<p className="text-xs mt-1 text-[#737373]">
+							Select a branch to load attendance data.
+						</p>
+					</div>
+				) : (
+					<>
+						<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+							{checkInsLoading ? (
+								<>
+									<KpiSkeleton />
+									<KpiSkeleton />
+									<KpiSkeleton />
+									<KpiSkeleton />
+								</>
+							) : checkInsError ? null : (
+								<>
+									<KpiTile
+										icon={ClipboardCheck}
+										label="TOTAL CHECK-INS"
+										value={kpiTotal}
+									/>
+									<KpiTile
+										icon={UserCheck}
+										label="ATTENDED"
+										value={kpiAttended}
+										valueClass="text-emerald-700"
+									/>
+									<KpiTile
+										icon={Clock}
+										label="DROP-INS"
+										value={kpiDropIns}
+										valueClass="text-blue-700"
+									/>
+									<KpiTile
+										icon={XCircle}
+										label="NO-SHOWS"
+										value={kpiNoShows}
+										valueClass="text-rose-600"
+									/>
+								</>
 							)}
 						</div>
 
-						{checkInsLoading ? (
-							<div className="p-5 flex flex-col gap-3">
-								{[1, 2, 3, 4].map((i) => (
-									<div
-										key={i}
-										className="h-12 w-full rounded-xl bg-[#e5e5e5] animate-pulse"
-									/>
-								))}
+						{/* ── Two-column content ── */}
+						<div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_360px]">
+							{/* Left: Today's Bookings */}
+							<div className="rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
+								<div className="px-5 py-4 border-b border-[#e5e5e5]">
+									<h2 className="text-lg font-bold text-[#0a0a0a]">
+										Today&apos;s Bookings
+									</h2>
+								</div>
+								<div className="p-5">
+									{bookingsLoading ? (
+										<div className="flex flex-col gap-3">
+											{[1, 2, 3].map((i) => (
+												<div
+													key={i}
+													className="h-12 w-full rounded-xl bg-[#e5e5e5] animate-pulse"
+												/>
+											))}
+										</div>
+									) : bookingsError ? (
+										<StatusCallout
+											variant="error"
+											onRetry={() => refetchBookings()}
+										>
+											Failed to load bookings. Please try again.
+										</StatusCallout>
+									) : bookings.length === 0 ? (
+										<div className="flex flex-col items-center justify-center py-10 text-[#737373]">
+											<ClipboardCheck className="h-8 w-8 mb-3 opacity-30" />
+											<p className="text-sm font-medium text-[#0a0a0a]">
+												No bookings today
+											</p>
+											<p className="text-xs mt-1">
+												No appointments are scheduled for this date.
+											</p>
+										</div>
+									) : (
+										<TodayBookingsSection
+											bookings={bookings}
+											organizationId={organizationId}
+											branchId={branchId}
+										/>
+									)}
+								</div>
 							</div>
-						) : checkInsError ? (
-							<div className="p-5">
-								<StatusCallout
-									variant="error"
-									onRetry={() => refetchCheckIns()}
-								>
-									Failed to load check-ins. Please try again.
-								</StatusCallout>
+
+							{/* Right: Drop-in form */}
+							<div>
+								<DropInForm
+									organizationId={organizationId}
+									branchId={branchId}
+									queryKey={checkInsQueryKey}
+								/>
 							</div>
-						) : checkInRows.length === 0 ? (
-							<div className="flex flex-col items-center justify-center py-16 text-[#737373]">
-								<ClipboardCheck className="h-8 w-8 mb-3 opacity-30" />
-								<p className="text-sm font-medium text-[#0a0a0a]">
-									No check-ins yet today
-								</p>
-								<p className="text-xs mt-1">
-									Walk-ins and bookings will appear here as members arrive.
-								</p>
+						</div>
+
+						{/* ── Check-ins log ── */}
+						<div className="mt-5 rounded-2xl border border-[#e5e5e5] bg-white overflow-hidden">
+							<div className="px-5 py-4 border-b border-[#e5e5e5] flex items-center gap-2">
+								<h2 className="text-lg font-bold text-[#0a0a0a]">
+									Today&apos;s Check-ins
+								</h2>
+								{!checkInsLoading &&
+									checkInsData?.total != null &&
+									checkInsData.total > 0 && (
+										<span className="font-mono tabular-nums rounded-full bg-[#f3f3f3] px-2 py-0.5 text-[11px] font-semibold text-[#737373]">
+											{checkInsData.total}
+										</span>
+									)}
 							</div>
-						) : (
-							<CheckInsLog
-								rows={checkInRows}
-								organizationId={organizationId}
-								queryKey={checkInsQueryKey}
-								canDelete={canDelete}
-							/>
-						)}
-					</div>
-				</>
-			)}
-		</div>
+
+							{checkInsLoading ? (
+								<div className="p-5 flex flex-col gap-3">
+									{[1, 2, 3, 4].map((i) => (
+										<div
+											key={i}
+											className="h-12 w-full rounded-xl bg-[#e5e5e5] animate-pulse"
+										/>
+									))}
+								</div>
+							) : checkInsError ? (
+								<div className="p-5">
+									<StatusCallout
+										variant="error"
+										onRetry={() => refetchCheckIns()}
+									>
+										Failed to load check-ins. Please try again.
+									</StatusCallout>
+								</div>
+							) : checkInRows.length === 0 ? (
+								<div className="flex flex-col items-center justify-center py-16 text-[#737373]">
+									<ClipboardCheck className="h-8 w-8 mb-3 opacity-30" />
+									<p className="text-sm font-medium text-[#0a0a0a]">
+										No check-ins yet today
+									</p>
+									<p className="text-xs mt-1">
+										Walk-ins and bookings will appear here as members arrive.
+									</p>
+								</div>
+							) : (
+								<CheckInsLog
+									rows={checkInRows}
+									organizationId={organizationId}
+									queryKey={checkInsQueryKey}
+									canDelete={canDelete}
+								/>
+							)}
+						</div>
+					</>
+				)}
+			</div>
 		</div>
 	);
 }

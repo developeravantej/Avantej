@@ -25,7 +25,11 @@ const OPTIONAL_INPUT_BRANCH_BLOCK =
 
 function ensureImport(content) {
 	if (!content.includes("guardInputBranchForContext")) return content;
-	if (/guardInputBranchForContext/.test(content.match(/import \{[^}]*\} from "\.\.\/guards"/)?.[0] ?? "")) {
+	if (
+		/guardInputBranchForContext/.test(
+			content.match(/import \{[^}]*\} from "\.\.\/guards"/)?.[0] ?? "",
+		)
+	) {
 		return content;
 	}
 	return content.replace(
@@ -55,7 +59,10 @@ for (const file of readdirSync(routersDir)) {
 		POS_INLINE,
 		"await guardInputBranchForContext(context, input.branchId);",
 	);
-	content = content.replace(OPTIONAL_INPUT_BRANCH_BLOCK, "await guardInputBranchForContext(context, input.branchId);");
+	content = content.replace(
+		OPTIONAL_INPUT_BRANCH_BLOCK,
+		"await guardInputBranchForContext(context, input.branchId);",
+	);
 	content = content.replace(
 		INPUT_BRANCH_AFTER_RESOLVE,
 		"await guardInputBranchForContext(context, input.branchId);\n",

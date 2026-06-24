@@ -1,0 +1,18 @@
+{
+	"title": "Settings → Email: real domain registration hits the live Resend API",
+	"module": "settings",
+	"prodMutationClass": "real-resend-create-then-delete",
+	"journey": [
+		"Pre-check: Resend API GET /domains returns 0 (dashboard empty)",
+		"Sign in as franchisee@gmail.com; open /dashboard/settings/email (empty state)",
+		"Fill the Add a sending domain form: domain e2e-demo.zhiyuantech.ai, from name 'Zhiyuan E2E Demo', default local-part 'noreply'",
+		"Click Register domain — the create proc calls resend.domains.create against the LIVE Resend API",
+		"Toast 'Domain registered. Add the DNS records and verify.'; row appears with status 'pending'",
+		"Expand DNS — shows the REAL Resend-returned records: DKIM (resend._domainkey TXT, p=MIGf…), MX feedback-smtp.us-east-1.amazonses.com (pri 10), SPF (v=spf1 include:amazonses.com ~all)",
+		"VERIFIED via Resend API: GET /domains now returns e2e-demo.zhiyuantech.ai, id a5cc92ab-5cc0-4e03-9237-c85b5de2d2c4, status not_started, region us-east-1 — and the DB row stores that same resend_domain_id (real id, not synthetic)",
+		"Click Delete → confirm → the delete proc calls resend.domains.remove against the live API",
+		"Toast 'Sending domain removed.' and the page returns to 'No sending domains yet'",
+		"VERIFIED via Resend API: GET /domains back to 0 + DB row count 0 — dashboard cleaned up. Full create→dashboard→delete round-trip proven against live Resend.",
+		"NOTE: the recorded video covers the register + real-DNS-records portion; the delete leg is API-verified (Resend 1→0). Domain does not verify because the DNS records aren't added to the real zhiyuantech.ai zone — that's the only remaining real-DNS step."
+	]
+}

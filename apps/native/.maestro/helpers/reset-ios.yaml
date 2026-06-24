@@ -1,0 +1,5 @@
+appId: ${APP_ID}
+---
+- stopApp
+- openLink: "${EXPO_URL}"
+- waitForAnimationToEnd

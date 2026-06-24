@@ -2,13 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Image } from "expo-image";
-import {
-	Pressable,
-	ScrollView,
-	Text,
-	TextInput,
-	View,
-} from "react-native";
+import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { usePurchaseFlow } from "@/contexts/purchase-flow-context";
@@ -48,11 +42,7 @@ export default function InfoScreen() {
 							onPress={() => router.back()}
 							className="mr-3 size-10 items-center justify-center"
 						>
-							<Ionicons
-								name="arrow-back"
-								size={24}
-								color={colors.primary[1]}
-							/>
+							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-black">
 							Additional Information

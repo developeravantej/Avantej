@@ -231,7 +231,9 @@ test.describe("@ship-f-1 Plan F.1 — Tenant Notes tab", () => {
 			organizationId,
 		});
 		const listAfterIds: string[] = (
-			listAfter.body?.json?.notes ?? listAfter.body?.notes ?? []
+			listAfter.body?.json?.notes ??
+			listAfter.body?.notes ??
+			[]
 		).map((n: { id: string }) => n.id);
 		expect(listAfterIds).not.toContain(goldenId);
 

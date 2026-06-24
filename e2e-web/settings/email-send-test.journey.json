@@ -1,0 +1,19 @@
+{
+	"title": "Settings → Email: Send test email through verified sending domain",
+	"module": "settings",
+	"prodMutationClass": "send-real-email-via-test-row",
+	"journey": [
+		"Sign in as franchisee@gmail.com (admin of Test Fitness Franchise)",
+		"Navigate to /dashboard/settings/email",
+		"Seed an email_domains row with status='verified' (so Send test button is enabled)",
+		"Reload /dashboard/settings/email — verified row should appear in the Sending domains table",
+		"In Actions column, confirm the 'Send test' button is enabled (was disabled for pending/verifying rows)",
+		"Click 'Send test' — Send test email dialog opens",
+		"Confirm the recipient input prefills with the current session user email",
+		"Confirm the From-line preview reads 'support@<domain>' (or the row's default_local_part)",
+		"Leave alias label empty and submit",
+		"Wait for the success toast 'Test email sent to <recipient>'",
+		"Confirm the email_logs row exists with status='sent', from_address matches verified domain",
+		"Re-open Send test, type aliasLabel 'billing' (matching a curated alias row if present), submit, verify second toast + second log row"
+	]
+}

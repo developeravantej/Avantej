@@ -156,7 +156,10 @@ export function CustomerStep({
 						{[...Array(3)].map((_, i) => (
 							// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton
 							// react-doctor-disable-next-line react-doctor/no-array-index-as-key -- position-as-identity: 3-row static loading skeleton
-							<div key={i} className="flex items-center gap-3 rounded-lg px-3 py-2.5">
+							<div
+								key={i}
+								className="flex items-center gap-3 rounded-lg px-3 py-2.5"
+							>
 								<div className="size-8 shrink-0 animate-pulse rounded-full bg-muted" />
 								<div className="flex-1 space-y-1.5">
 									<div className="h-3 w-32 animate-pulse rounded bg-muted" />
@@ -181,12 +184,14 @@ export function CustomerStep({
 									className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
 									onClick={() => handleSelect(r)}
 								>
-									<div className={cn(
-										"flex size-8 shrink-0 items-center justify-center rounded-full font-semibold text-xs",
-										r.type === "walk_in"
-											? "bg-brand-secondary-2 text-brand-primary-1"
-											: "bg-primary text-primary-foreground"
-									)}>
+									<div
+										className={cn(
+											"flex size-8 shrink-0 items-center justify-center rounded-full font-semibold text-xs",
+											r.type === "walk_in"
+												? "bg-brand-secondary-2 text-brand-primary-1"
+												: "bg-primary text-primary-foreground",
+										)}
+									>
 										{getInitials(r.name)}
 									</div>
 									<div className="min-w-0 flex-1">

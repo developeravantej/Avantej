@@ -102,7 +102,9 @@ export function QueueRow({
 				<div onClick={(e) => e.stopPropagation()}>{saleRefLink(refund)}</div>
 
 				{/* Requested */}
-				<div className="text-xs text-[#737373]">{timeAgo(refund.requestedAt)}</div>
+				<div className="text-xs text-[#737373]">
+					{timeAgo(refund.requestedAt)}
+				</div>
 
 				{/* Amount */}
 				<div
@@ -189,7 +191,9 @@ export function QueueRow({
 									</div>
 									<div className="flex justify-between">
 										<span className="text-[#737373]">Refund #</span>
-										<span className="font-mono text-xs">{refund.refundNumber}</span>
+										<span className="font-mono text-xs">
+											{refund.refundNumber}
+										</span>
 									</div>
 									<div className="flex justify-between">
 										<span className="text-[#737373]">Amount</span>
@@ -207,8 +211,12 @@ export function QueueRow({
 									)}
 									{refund.reviewNotes && (
 										<div className="flex justify-between gap-4">
-											<span className="text-[#737373] shrink-0">Review note</span>
-											<span className="text-xs text-right">{refund.reviewNotes}</span>
+											<span className="text-[#737373] shrink-0">
+												Review note
+											</span>
+											<span className="text-xs text-right">
+												{refund.reviewNotes}
+											</span>
 										</div>
 									)}
 								</div>

@@ -27,7 +27,11 @@ type DayOfWeek =
 	| "saturday"
 	| "sunday";
 
-export type PreferredTimeItem = { dayOfWeek: DayOfWeek; time: string; priority: number };
+export type PreferredTimeItem = {
+	dayOfWeek: DayOfWeek;
+	time: string;
+	priority: number;
+};
 
 export function PreferredTimesEditor({
 	items,
@@ -42,7 +46,11 @@ export function PreferredTimesEditor({
 	onCancel: () => void;
 	isSaving: boolean;
 }) {
-	function updateItem(index: number, field: "dayOfWeek" | "time", value: string) {
+	function updateItem(
+		index: number,
+		field: "dayOfWeek" | "time",
+		value: string,
+	) {
 		const next = items.map((item, i) =>
 			i === index ? { ...item, [field]: value } : item,
 		);

@@ -27,8 +27,7 @@ export function TenantRiskTab({ organizationId }: { organizationId: string }) {
 			"get",
 			organizationId,
 		] as const,
-		queryFn: () =>
-			client.platformAdminTenants.health.get({ organizationId }),
+		queryFn: () => client.platformAdminTenants.health.get({ organizationId }),
 	});
 
 	const historyQuery = useQuery({

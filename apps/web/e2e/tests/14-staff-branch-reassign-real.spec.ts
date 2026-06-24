@@ -233,10 +233,7 @@ test.describe("real GHL — branch reassign", () => {
 			);
 			await page.waitForLoadState("networkidle");
 
-			await page
-				.getByRole("button", { name: "Invite Member" })
-				.first()
-				.click();
+			await page.getByRole("button", { name: "Invite Member" }).first().click();
 			const dialog = page.locator('[role="dialog"]');
 			await expect(dialog).toBeVisible({ timeout: 5_000 });
 
@@ -279,7 +276,8 @@ test.describe("real GHL — branch reassign", () => {
 
 			// ── Step 3: Capture X (ghlUserId) before reassign ─────────────────
 			const newUser = await waitForDb(
-				() => cp.query.user.findFirst({ where: eq(userTable.email, staffEmail) }),
+				() =>
+					cp.query.user.findFirst({ where: eq(userTable.email, staffEmail) }),
 				{ timeoutMs: 10_000 },
 			);
 			createdStaffUserId = newUser.id;
@@ -414,12 +412,12 @@ test.describe("real GHL — branch reassign", () => {
 						where: eq(members.userId, createdStaffUserId),
 					});
 					if (m) {
-						await t
-							.delete(ghlUserLinks)
-							.where(eq(ghlUserLinks.memberId, m.id));
+						await t.delete(ghlUserLinks).where(eq(ghlUserLinks.memberId, m.id));
 						await t.delete(members).where(eq(members.id, m.id));
 					}
-					await cp.delete(userTable).where(eq(userTable.id, createdStaffUserId));
+					await cp
+						.delete(userTable)
+						.where(eq(userTable.id, createdStaffUserId));
 				}
 				await t
 					.delete(invitationsTable)

@@ -184,7 +184,9 @@ test.describe("@ship-f-2 Plan F.2 — Agent P prep work", () => {
 			.waitFor({ state: "visible", timeout: 15_000 })
 			.then(() => true)
 			.catch(() => false);
-		console.log(`[scenario-5] mission-control headingVisible=${headingVisible}`);
+		console.log(
+			`[scenario-5] mission-control headingVisible=${headingVisible}`,
+		);
 		if (headingVisible) {
 			const mrrCard = page.getByTestId("kpi-mrr");
 			await expect(mrrCard).toBeVisible();

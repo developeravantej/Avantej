@@ -3,13 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { Image } from "expo-image";
-import {
-	Pressable,
-	ScrollView,
-	Text,
-	TextInput,
-	View,
-} from "react-native";
+import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { TabContainer, useTabBarHeight } from "@/components/container";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useOrganization } from "@/hooks/useOrganization";
@@ -241,10 +235,7 @@ export default function ExploreScreen() {
 														className="ml-1 text-sm"
 														style={{ color: colors.secondary[1] }}
 													>
-														/{" "}
-														{service.type === "private"
-															? "session"
-															: "class"}
+														/ {service.type === "private" ? "session" : "class"}
 													</Text>
 												</View>
 											</View>
@@ -329,10 +320,7 @@ export default function ExploreScreen() {
 														className="ml-1 text-sm"
 														style={{ color: colors.secondary[1] }}
 													>
-														/{" "}
-														{service.type === "private"
-															? "session"
-															: "class"}
+														/ {service.type === "private" ? "session" : "class"}
 													</Text>
 												</View>
 											</View>

@@ -1,0 +1,33 @@
+appId: ${APP_ID}
+---
+# Test: Package detail screen
+- runFlow: helpers/login.yaml
+
+# Navigate to My Credits/Packages
+- tapOn:
+    text: ".*My.*Credits.*"
+- waitForAnimationToEnd
+
+# Wait for packages to load
+- extendedWaitUntil:
+    visible:
+      text: ".*Package.*|.*Credit.*"
+    timeout: 5000
+- waitForAnimationToEnd
+
+# Tap first package
+- tapOn:
+    index: 0
+    below:
+      text: ".*Package.*|.*Active.*|.*All.*"
+- waitForAnimationToEnd
+
+# Verify package detail loaded
+- extendedWaitUntil:
+    visible:
+      text: ".*credits.*|.*expires.*|.*Expir.*|.*remaining.*"
+    timeout: 5000
+
+# Go back
+- back
+- waitForAnimationToEnd

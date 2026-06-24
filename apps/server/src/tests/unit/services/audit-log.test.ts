@@ -72,6 +72,7 @@ describe("deriveSeverity", () => {
 			"commission.void",
 			"member.deactivate",
 			"package.terminate",
+			"email_domain.deleted",
 		];
 		for (const action of dangerActions) {
 			expect(deriveSeverity(action)).toBe<AuditSeverity>("danger");
@@ -98,6 +99,7 @@ describe("deriveSeverity", () => {
 			"checkin.create",
 			"appointment.created",
 			"promotion.create",
+			"email_domain.registered",
 			"unknown.action",
 		];
 		for (const action of infoActions) {

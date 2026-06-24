@@ -21,7 +21,10 @@ export default defineConfig({
 	fullyParallel: false,
 	retries: 0,
 	workers: 1,
-	reporter: [["list"], ["json", { outputFile: "test-results/gap-prove-results.json" }]],
+	reporter: [
+		["list"],
+		["json", { outputFile: "test-results/gap-prove-results.json" }],
+	],
 	use: {
 		baseURL,
 		trace: "on",

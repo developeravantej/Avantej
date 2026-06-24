@@ -3,6 +3,7 @@ import {
 	listPackageInstancesForClient,
 	getPackageInstanceById,
 	createPackageInstance,
+	togglePackagePin,
 } from "@avantej-core/services";
 
 // Shared mocks
@@ -234,5 +235,235 @@ describe("createPackageInstance", () => {
 		const valuesArg = mockValues.mock.calls[0]![0]!;
 		expect(valuesArg.source).toBe("assigned");
 		expect(valuesArg.assignedBy).toBe("staff-1");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// togglePackagePin
+// ---------------------------------------------------------------------------
+//
+// The service uses a Drizzle transaction with a fluent chain:
+//   tx.select().from(...).where(...).for("update")           → [pkg]
+//   tx.update(...).set(...).where(...) [.returning(...)]     → [row] | undefined
+//
+// We model the tx with a mutable script of updates: each call to .returning()
+// pops the next "returning" result; non-returning updates (the "clear other
+// pins" step) just resolve to undefined when awaited.
+// ---------------------------------------------------------------------------
+
+type PackageRow = {
+	id: string;
+	clientId: string | null;
+	status: string;
+	pinnedAt: Date | null;
+};
+
+type ReturningResult = Array<{ id: string; pinnedAt: Date | null }>;
+
+function makeTxMock(opts: {
+	selectedPkg: PackageRow | undefined;
+	returningResults: ReturningResult[];
+}) {
+	const updateCalls: Array<{
+		set: Record<string, unknown>;
+		hasReturning: boolean;
+	}> = [];
+	let returningIdx = 0;
+
+	const tx = {
+		select: () => ({
+			from: () => ({
+				where: () => ({
+					for: (_mode: string) =>
+						Promise.resolve(opts.selectedPkg ? [opts.selectedPkg] : []),
+				}),
+			}),
+		}),
+		update: () => ({
+			set: (setArg: Record<string, unknown>) => {
+				const call = { set: setArg, hasReturning: false };
+				updateCalls.push(call);
+				return {
+					where: () => {
+						const whereChain = {
+							returning: () => {
+								call.hasReturning = true;
+								const result = opts.returningResults[returningIdx++] ?? [];
+								return Promise.resolve(result);
+							},
+							// awaited-without-returning resolves to undefined
+							then: (resolve: (v: unknown) => unknown) => resolve(undefined),
+						};
+						return whereChain;
+					},
+				};
+			},
+		}),
+	};
+
+	const tenantDb = {
+		transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(tx),
+	} as any;
+
+	return { tenantDb, updateCalls };
+}
+
+describe("togglePackagePin", () => {
+	test("pin: sets pinnedAt and returns row; other clients untouched", async () => {
+		const target: PackageRow = {
+			id: "pkg-1",
+			clientId: "user-1",
+			status: "active",
+			pinnedAt: null,
+		};
+		const pinnedAt = new Date("2026-05-13T10:00:00Z");
+
+		const { tenantDb, updateCalls } = makeTxMock({
+			selectedPkg: target,
+			returningResults: [[{ id: "pkg-1", pinnedAt }]],
+		});
+
+		const result = await togglePackagePin(tenantDb, {
+			packageInstanceId: "pkg-1",
+			clientId: "user-1",
+		});
+
+		expect(result).toEqual({ id: "pkg-1", pinnedAt });
+		// Two updates: clear-others (no .returning) + set-this (.returning).
+		expect(updateCalls.length).toBe(2);
+		expect(updateCalls[0]!.hasReturning).toBe(false);
+		expect(updateCalls[0]!.set.pinnedAt).toBeNull();
+		expect(updateCalls[1]!.hasReturning).toBe(true);
+		expect(updateCalls[1]!.set.pinnedAt).toBeInstanceOf(Date);
+	});
+
+	test("unpin: clears pinnedAt on an already-pinned row", async () => {
+		const target: PackageRow = {
+			id: "pkg-1",
+			clientId: "user-1",
+			status: "active",
+			pinnedAt: new Date("2026-05-12T09:00:00Z"),
+		};
+
+		const { tenantDb, updateCalls } = makeTxMock({
+			selectedPkg: target,
+			returningResults: [[{ id: "pkg-1", pinnedAt: null }]],
+		});
+
+		const result = await togglePackagePin(tenantDb, {
+			packageInstanceId: "pkg-1",
+			clientId: "user-1",
+		});
+
+		expect(result).toEqual({ id: "pkg-1", pinnedAt: null });
+		// Single update: just unpin this row. No clear-others step.
+		expect(updateCalls.length).toBe(1);
+		expect(updateCalls[0]!.set.pinnedAt).toBeNull();
+		expect(updateCalls[0]!.hasReturning).toBe(true);
+	});
+
+	test("switch: pinning B clears A's pin (clear-others step fires)", async () => {
+		const target: PackageRow = {
+			id: "pkg-B",
+			clientId: "user-1",
+			status: "active",
+			pinnedAt: null,
+		};
+
+		const { tenantDb, updateCalls } = makeTxMock({
+			selectedPkg: target,
+			returningResults: [[{ id: "pkg-B", pinnedAt: new Date() }]],
+		});
+
+		await togglePackagePin(tenantDb, {
+			packageInstanceId: "pkg-B",
+			clientId: "user-1",
+		});
+
+		// First update is the bulk clear-others — runs unconditionally on pin path.
+		expect(updateCalls.length).toBe(2);
+		expect(updateCalls[0]!.set.pinnedAt).toBeNull();
+		expect(updateCalls[1]!.set.pinnedAt).toBeInstanceOf(Date);
+	});
+
+	test("rejects non-active package (expired)", async () => {
+		const target: PackageRow = {
+			id: "pkg-1",
+			clientId: "user-1",
+			status: "expired",
+			pinnedAt: null,
+		};
+
+		const { tenantDb, updateCalls } = makeTxMock({
+			selectedPkg: target,
+			returningResults: [],
+		});
+
+		await expect(
+			togglePackagePin(tenantDb, {
+				packageInstanceId: "pkg-1",
+				clientId: "user-1",
+			}),
+		).rejects.toThrow("Only active packages can be pinned");
+		expect(updateCalls.length).toBe(0);
+	});
+
+	test("rejects non-active package (pending)", async () => {
+		const target: PackageRow = {
+			id: "pkg-1",
+			clientId: "user-1",
+			status: "pending",
+			pinnedAt: null,
+		};
+
+		const { tenantDb, updateCalls } = makeTxMock({
+			selectedPkg: target,
+			returningResults: [],
+		});
+
+		await expect(
+			togglePackagePin(tenantDb, {
+				packageInstanceId: "pkg-1",
+				clientId: "user-1",
+			}),
+		).rejects.toThrow("Only active packages can be pinned");
+		expect(updateCalls.length).toBe(0);
+	});
+
+	test("rejects when caller doesn't own the package", async () => {
+		const target: PackageRow = {
+			id: "pkg-1",
+			clientId: "user-OTHER",
+			status: "active",
+			pinnedAt: null,
+		};
+
+		const { tenantDb, updateCalls } = makeTxMock({
+			selectedPkg: target,
+			returningResults: [],
+		});
+
+		await expect(
+			togglePackagePin(tenantDb, {
+				packageInstanceId: "pkg-1",
+				clientId: "user-1",
+			}),
+		).rejects.toThrow("Forbidden");
+		expect(updateCalls.length).toBe(0);
+	});
+
+	test("rejects when package not found", async () => {
+		const { tenantDb, updateCalls } = makeTxMock({
+			selectedPkg: undefined,
+			returningResults: [],
+		});
+
+		await expect(
+			togglePackagePin(tenantDb, {
+				packageInstanceId: "missing",
+				clientId: "user-1",
+			}),
+		).rejects.toThrow("Package not found");
+		expect(updateCalls.length).toBe(0);
 	});
 });

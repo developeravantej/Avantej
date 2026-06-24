@@ -1,7 +1,17 @@
-import { cancelledInitials, formatCategoryLabel, REASON_BADGE_CLASSES } from "@/features/sales/sales-view.constants";
+import {
+	cancelledInitials,
+	formatCategoryLabel,
+	REASON_BADGE_CLASSES,
+} from "@/features/sales/sales-view.constants";
 import type { CancelledSaleRow } from "@/features/sales/sales-view.types";
 
-export function CancelledAvatar({ name, size = "md" }: { name: string | null | undefined; size?: "sm" | "md" }) {
+export function CancelledAvatar({
+	name,
+	size = "md",
+}: {
+	name: string | null | undefined;
+	size?: "sm" | "md";
+}) {
 	const cls =
 		size === "sm"
 			? "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e5e5e5] text-[10px] font-bold text-[#404040]"
@@ -24,11 +34,19 @@ export function CustomerTypeBadge({ type }: { type: string }) {
 	);
 }
 
-export function ReasonBadge({ category }: { category: string | null | undefined }) {
+export function ReasonBadge({
+	category,
+}: {
+	category: string | null | undefined;
+}) {
 	if (!category) return <span className="text-[#737373]">—</span>;
-	const cls = REASON_BADGE_CLASSES[category] ?? "bg-muted/40 text-muted-foreground border border-border/50";
+	const cls =
+		REASON_BADGE_CLASSES[category] ??
+		"bg-muted/40 text-muted-foreground border border-border/50";
 	return (
-		<span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${cls}`}>
+		<span
+			className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${cls}`}
+		>
 			{formatCategoryLabel(category)}
 		</span>
 	);

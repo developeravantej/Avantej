@@ -123,13 +123,7 @@ export default function BookingsScreen() {
 		...orpc.appointments.listForUser.queryOptions({
 			input: {
 				organizationId,
-				statuses: [
-					"pending",
-					"confirmed",
-					"completed",
-					"cancelled",
-					"no-show",
-				],
+				statuses: ["pending", "confirmed", "completed", "cancelled", "no-show"],
 				limit: 100,
 			},
 		}),
@@ -154,8 +148,7 @@ export default function BookingsScreen() {
 			)
 			.sort(
 				(a, b) =>
-					new Date(a.startTime).getTime() -
-					new Date(b.startTime).getTime(),
+					new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
 			);
 		const past = all
 			.filter(
@@ -167,8 +160,7 @@ export default function BookingsScreen() {
 			)
 			.sort(
 				(a, b) =>
-					new Date(b.startTime).getTime() -
-					new Date(a.startTime).getTime(),
+					new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
 			);
 		return { upcomingList: upcoming, pastList: past };
 	}, [bookings]);

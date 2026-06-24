@@ -2,12 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { Image } from "expo-image";
-import {
-	Pressable,
-	ScrollView,
-	Text,
-	View,
-} from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { Container } from "@/components/container";
 import { useOrganization } from "@/hooks/useOrganization";
 import { colors } from "@/lib/colors";
@@ -80,19 +75,10 @@ function Section({
 	);
 }
 
-function Field({
-	label,
-	value,
-}: {
-	label: string;
-	value: React.ReactNode;
-}) {
+function Field({ label, value }: { label: string; value: React.ReactNode }) {
 	return (
 		<View className="mb-3 last:mb-0">
-			<Text
-				className="mb-1 text-xs"
-				style={{ color: colors.secondary[1] }}
-			>
+			<Text className="mb-1 text-xs" style={{ color: colors.secondary[1] }}>
 				{label}
 			</Text>
 			<View className="text-base">
@@ -183,11 +169,7 @@ export default function PackageDetailScreen() {
 							onPress={() => router.back()}
 							className="mr-3 size-10 items-center justify-center"
 						>
-							<Ionicons
-								name="arrow-back"
-								size={24}
-								color={colors.primary[1]}
-							/>
+							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 						</Pressable>
 						<Text
 							className="flex-1 font-bold text-2xl"
@@ -210,10 +192,7 @@ export default function PackageDetailScreen() {
 				<View className="px-4">
 					{isLoading || !inst ? (
 						<View className="rounded-2xl bg-primary-2 p-8 items-center">
-							<Text
-								className="text-sm"
-								style={{ color: colors.secondary[1] }}
-							>
+							<Text className="text-sm" style={{ color: colors.secondary[1] }}>
 								Loading…
 							</Text>
 						</View>
@@ -295,10 +274,7 @@ export default function PackageDetailScreen() {
 										<Field label="Starts" value={formatDate(inst.startsAt)} />
 									</View>
 									<View className="flex-1">
-										<Field
-											label="Expires"
-											value={formatDate(inst.expiresAt)}
-										/>
+										<Field label="Expires" value={formatDate(inst.expiresAt)} />
 									</View>
 								</View>
 								{expiryText && status === "active" && (
@@ -362,36 +338,35 @@ export default function PackageDetailScreen() {
 										{fmtMoneyCents(total)}
 									</Text>
 								</View>
-								{inst.paymentPlanType &&
-									inst.paymentPlanType !== "full" && (
-										<View
-											className="mt-3 border-t pt-3"
-											style={{ borderColor: colors.secondary[3] }}
-										>
+								{inst.paymentPlanType && inst.paymentPlanType !== "full" && (
+									<View
+										className="mt-3 border-t pt-3"
+										style={{ borderColor: colors.secondary[3] }}
+									>
+										<Field
+											label="Payment plan"
+											value={
+												inst.paymentPlanType === "half"
+													? "Half (2 installments)"
+													: inst.paymentPlanType === "quarterly"
+														? "Quarterly (4 installments)"
+														: inst.paymentPlanType
+											}
+										/>
+										{inst.installmentsTotal != null && (
 											<Field
-												label="Payment plan"
-												value={
-													inst.paymentPlanType === "half"
-														? "Half (2 installments)"
-														: inst.paymentPlanType === "quarterly"
-															? "Quarterly (4 installments)"
-															: inst.paymentPlanType
-												}
+												label="Installments paid"
+												value={`${inst.installmentsPaid ?? 0} / ${inst.installmentsTotal}`}
 											/>
-											{inst.installmentsTotal != null && (
-												<Field
-													label="Installments paid"
-													value={`${inst.installmentsPaid ?? 0} / ${inst.installmentsTotal}`}
-												/>
-											)}
-											{inst.nextDueDate && (
-												<Field
-													label="Next due"
-													value={formatDate(inst.nextDueDate)}
-												/>
-											)}
-										</View>
-									)}
+										)}
+										{inst.nextDueDate && (
+											<Field
+												label="Next due"
+												value={formatDate(inst.nextDueDate)}
+											/>
+										)}
+									</View>
+								)}
 							</Section>
 
 							{/* Schedule */}
@@ -508,11 +483,7 @@ export default function PackageDetailScreen() {
 											className="mr-3 size-10 items-center justify-center rounded-full"
 											style={{ backgroundColor: "#DCFCE7" }}
 										>
-											<Ionicons
-												name="person"
-												size={20}
-												color="#16A34A"
-											/>
+											<Ionicons name="person" size={20} color="#16A34A" />
 										</View>
 										<Text
 											className="font-semibold text-base"

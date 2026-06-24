@@ -3,12 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Image } from "expo-image";
-import {
-	Pressable,
-	ScrollView,
-	Text,
-	View,
-} from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Container } from "@/components/container";
 import { ServiceOptionCard } from "./_components/service-option-card";
@@ -128,9 +123,7 @@ function ProgressIndicator({
 									step.active ? "font-bold" : "font-medium"
 								}`}
 								style={{
-									color: step.active
-										? colors.primary[1]
-										: colors.secondary[1],
+									color: step.active ? colors.primary[1] : colors.secondary[1],
 								}}
 							>
 								{step.label}
@@ -204,12 +197,10 @@ export default function SetupScreen() {
 					| "class_slot"
 					| null) ?? "appointment",
 			timePresetConfig:
-				((selectedSvc as any).timePresetConfig as
-					| {
-							recurringDays: string[];
-							timeSlotsPerDay: Record<string, string[]>;
-					  }
-					| null) ?? null,
+				((selectedSvc as any).timePresetConfig as {
+					recurringDays: string[];
+					timeSlotsPerDay: Record<string, string[]>;
+				} | null) ?? null,
 			// Service IS the package — store same id/name in package fields so
 			// downstream screens (pay.tsx) continue to read state.packageId etc.
 			packageId: selectedServiceId,
@@ -234,11 +225,7 @@ export default function SetupScreen() {
 							onPress={() => router.back()}
 							className="mr-3 size-10 items-center justify-center"
 						>
-							<Ionicons
-								name="arrow-back"
-								size={24}
-								color={colors.primary[1]}
-							/>
+							<Ionicons name="arrow-back" size={24} color={colors.primary[1]} />
 						</Pressable>
 						<Text className="flex-1 font-bold text-2xl text-black">
 							Buy Package

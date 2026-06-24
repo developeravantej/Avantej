@@ -30,17 +30,26 @@ const REPLACERS = [
 		arity: 4,
 	},
 	{
-		pattern: permissionTryCatch(String.raw`context\.tenantDb!`, String.raw`context\.member!`),
+		pattern: permissionTryCatch(
+			String.raw`context\.tenantDb!`,
+			String.raw`context\.member!`,
+		),
 		emit: (resource, action) =>
 			`await requirePermissionOrpc(context.tenantDb, context.member, "${resource}", "${action}");`,
 	},
 	{
-		pattern: permissionTryCatch(String.raw`context\.tenantDb`, String.raw`context\.member!`),
+		pattern: permissionTryCatch(
+			String.raw`context\.tenantDb`,
+			String.raw`context\.member!`,
+		),
 		emit: (resource, action) =>
 			`await requirePermissionOrpc(context.tenantDb, context.member, "${resource}", "${action}");`,
 	},
 	{
-		pattern: permissionTryCatch(String.raw`context\.tenantDb!`, String.raw`context\.member`),
+		pattern: permissionTryCatch(
+			String.raw`context\.tenantDb!`,
+			String.raw`context\.member`,
+		),
 		emit: (resource, action) =>
 			`await requirePermissionOrpc(context.tenantDb, context.member, "${resource}", "${action}");`,
 	},

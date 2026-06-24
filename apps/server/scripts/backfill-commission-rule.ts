@@ -339,9 +339,7 @@ async function processTenant(
 			return result;
 		}
 
-		console.log(
-			`  [${org.name}] found ${qualifyingIds.length} row(s) to void`,
-		);
+		console.log(`  [${org.name}] found ${qualifyingIds.length} row(s) to void`);
 
 		if (opts.dryRun) {
 			// Do not write anything
@@ -351,8 +349,7 @@ async function processTenant(
 		// --- Apply ---
 		result.voided = await voidChunked(tenantDb, qualifyingIds, org.name);
 	} catch (err) {
-		result.error =
-			err instanceof Error ? err.message : String(err);
+		result.error = err instanceof Error ? err.message : String(err);
 		console.error(`  [${org.name}] ERROR: ${result.error}`);
 	} finally {
 		if (tenantPool) {
@@ -383,7 +380,9 @@ async function main() {
 
 	const databaseUrl = process.env.DATABASE_URL;
 	if (!databaseUrl) {
-		console.error("ERROR: DATABASE_URL is not set. Load .dev.vars or export the variable.");
+		console.error(
+			"ERROR: DATABASE_URL is not set. Load .dev.vars or export the variable.",
+		);
 		process.exit(1);
 	}
 
@@ -416,7 +415,9 @@ async function main() {
 		if (opts.tenantId) {
 			orgs = orgs.filter((o) => o.id === opts.tenantId);
 			if (orgs.length === 0) {
-				console.error(`ERROR: tenant ${opts.tenantId} not found in control panel`);
+				console.error(
+					`ERROR: tenant ${opts.tenantId} not found in control panel`,
+				);
 				process.exit(1);
 			}
 		}
@@ -473,9 +474,7 @@ async function main() {
 		}
 
 		if (opts.dryRun) {
-			console.log(
-				"\nDRY RUN — no changes written. Use --apply to commit.",
-			);
+			console.log("\nDRY RUN — no changes written. Use --apply to commit.");
 		} else {
 			console.log("\nDone.");
 		}
@@ -485,8 +484,10 @@ async function main() {
 }
 
 if (import.meta.main) {
-	main().then(() => process.exit(0)).catch((err) => {
-		console.error("\nFatal error:", err);
-		process.exit(1);
-	});
+	main()
+		.then(() => process.exit(0))
+		.catch((err) => {
+			console.error("\nFatal error:", err);
+			process.exit(1);
+		});
 }

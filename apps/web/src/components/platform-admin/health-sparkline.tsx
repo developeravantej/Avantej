@@ -61,7 +61,10 @@ export function HealthSparkline({ points }: { points: HealthPoint[] }) {
 	const lastScore = valid[valid.length - 1]!.healthScore;
 	const lastBand = bandForScore(lastScore);
 	const polylinePoints = valid
-		.map((p, i) => `${xFor(i, valid.length).toFixed(2)},${yFor(p.healthScore).toFixed(2)}`)
+		.map(
+			(p, i) =>
+				`${xFor(i, valid.length).toFixed(2)},${yFor(p.healthScore).toFixed(2)}`,
+		)
 		.join(" ");
 
 	// Horizontal band thresholds at y=80 (green floor) and y=50 (amber floor).
@@ -107,11 +110,7 @@ export function HealthSparkline({ points }: { points: HealthPoint[] }) {
 					className="fill-red-500/10"
 				/>
 				{/* Y axis labels */}
-				<text
-					x={4}
-					y={PAD_Y + 4}
-					className="fill-muted-foreground text-[10px]"
-				>
+				<text x={4} y={PAD_Y + 4} className="fill-muted-foreground text-[10px]">
 					100
 				</text>
 				<text

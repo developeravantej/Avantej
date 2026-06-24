@@ -31,12 +31,22 @@ export function formatCategoryLabel(raw: string | null | undefined): string {
 	return REASON_CATEGORY_LABELS[raw] ?? raw;
 }
 
-export function formatCancellationTime(value: string | Date | null | undefined): { date: string; time: string } | null {
+export function formatCancellationTime(
+	value: string | Date | null | undefined,
+): { date: string; time: string } | null {
 	if (!value) return null;
 	const d = new Date(value);
 	return {
-		date: d.toLocaleDateString("en-MY", { day: "numeric", month: "short", year: "numeric" }),
-		time: d.toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit", hour12: false }),
+		date: d.toLocaleDateString("en-MY", {
+			day: "numeric",
+			month: "short",
+			year: "numeric",
+		}),
+		time: d.toLocaleTimeString("en-MY", {
+			hour: "2-digit",
+			minute: "2-digit",
+			hour12: false,
+		}),
 	};
 }
 

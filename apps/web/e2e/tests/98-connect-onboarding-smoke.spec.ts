@@ -28,10 +28,17 @@ test.setTimeout(120_000);
 const ADMIN_EMAIL = "franchisee@gmail.com";
 const ADMIN_PASSWORD = "password123";
 
-test("connect Stripe -> redirects to connect.stripe.com onboarding", async ({ page }) => {
+test("connect Stripe -> redirects to connect.stripe.com onboarding", async ({
+	page,
+}) => {
 	page.on("console", (msg) => {
 		const txt = msg.text();
-		if (msg.type() === "error" || msg.type() === "warning" || txt.includes("[checkout]") || txt.includes("[connect]")) {
+		if (
+			msg.type() === "error" ||
+			msg.type() === "warning" ||
+			txt.includes("[checkout]") ||
+			txt.includes("[connect]")
+		) {
 			console.log(`[browser.${msg.type()}] ${txt}`);
 		}
 	});
@@ -40,7 +47,9 @@ test("connect Stripe -> redirects to connect.stripe.com onboarding", async ({ pa
 		if (url.includes("/rpc/stripeConnect")) {
 			const status = res.status();
 			let body = "";
-			try { body = (await res.text()).slice(0, 800); } catch {}
+			try {
+				body = (await res.text()).slice(0, 800);
+			} catch {}
 			console.log(`[rpc] ${status} ${url}\n  BODY: ${body}\n`);
 		}
 	});
@@ -50,10 +59,9 @@ test("connect Stripe -> redirects to connect.stripe.com onboarding", async ({ pa
 	await page.fill('input[type="email"]', ADMIN_EMAIL);
 	await page.fill('input[type="password"]', ADMIN_PASSWORD);
 	await page.click('button[type="submit"]');
-	await page.waitForURL(
-		/\/(dashboard|customers|home|onboarding|subscribe)/,
-		{ timeout: 20_000 },
-	);
+	await page.waitForURL(/\/(dashboard|customers|home|onboarding|subscribe)/, {
+		timeout: 20_000,
+	});
 	console.log(`✓ Logged in + landed: ${page.url()}`);
 
 	// ── 2. Navigate to /billing/connect ────────────────────────

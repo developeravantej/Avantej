@@ -219,18 +219,23 @@ async function processTenant(
 					.insert(trainerTiers)
 					.values({
 						name: "Standard",
-						description: "Default tier for trainers (seeded by commission config script)",
+						description:
+							"Default tier for trainers (seeded by commission config script)",
 						rank: 1,
 						isActive: true,
 					})
 					.returning();
 				standardTier = created!;
-				console.log(`  [${org.name}] CREATED trainer tier: Standard (${standardTier.id})`);
+				console.log(
+					`  [${org.name}] CREATED trainer tier: Standard (${standardTier.id})`,
+				);
 			} else {
 				console.log(`  [${org.name}] WOULD CREATE trainer tier: Standard`);
 			}
 		} else {
-			console.log(`  [${org.name}] EXISTS  trainer tier: Standard (${standardTier.id})`);
+			console.log(
+				`  [${org.name}] EXISTS  trainer tier: Standard (${standardTier.id})`,
+			);
 		}
 
 		// ----------------------------------------------------------------
@@ -243,12 +248,12 @@ async function processTenant(
 
 		// Include the just-created Standard tier in dry-run (it won't be in DB yet)
 		const effectiveTiers =
-			activeTiers.length === 0 && standardTier
-				? [standardTier]
-				: activeTiers;
+			activeTiers.length === 0 && standardTier ? [standardTier] : activeTiers;
 
 		result.tiersFound = effectiveTiers.length;
-		console.log(`  [${org.name}] Active tier(s): ${effectiveTiers.map((t) => t.name).join(", ")}`);
+		console.log(
+			`  [${org.name}] Active tier(s): ${effectiveTiers.map((t) => t.name).join(", ")}`,
+		);
 
 		// ----------------------------------------------------------------
 		// 3. Assign Standard tier to trainers that have no tier
@@ -290,9 +295,7 @@ async function processTenant(
 		// ----------------------------------------------------------------
 		// 4. Per-category config + slot + tier rate for EVERY active tier
 		// ----------------------------------------------------------------
-		const categories = await tDb
-			.select()
-			.from(serviceCategories);
+		const categories = await tDb.select().from(serviceCategories);
 
 		console.log(`  [${org.name}] Service categories: ${categories.length}`);
 
@@ -316,16 +319,22 @@ async function processTenant(
 						.returning();
 					config = created!;
 					result.configsCreated++;
-					console.log(`    [${org.name}] CREATED config for "${cat.name}" (${config.id})`);
+					console.log(
+						`    [${org.name}] CREATED config for "${cat.name}" (${config.id})`,
+					);
 				} else {
 					result.configsCreated++;
-					console.log(`    [${org.name}] WOULD CREATE config for "${cat.name}"`);
+					console.log(
+						`    [${org.name}] WOULD CREATE config for "${cat.name}"`,
+					);
 					// Can't create tier rates without a real config in dry-run
 					continue;
 				}
 			} else {
 				result.configsExisted++;
-				console.log(`    [${org.name}] EXISTS  config for "${cat.name}" (${config.id})`);
+				console.log(
+					`    [${org.name}] EXISTS  config for "${cat.name}" (${config.id})`,
+				);
 			}
 
 			// Coach slot 0 — one per config
@@ -351,10 +360,7 @@ async function processTenant(
 			for (const tier of effectiveTiers) {
 				const existingRate = await tDb.query.commissionTierRates.findFirst({
 					where: (r, { and, eq }) =>
-						and(
-							eq(r.configId, config!.id),
-							eq(r.trainerTierId, tier.id),
-						),
+						and(eq(r.configId, config!.id), eq(r.trainerTierId, tier.id)),
 				});
 				if (!existingRate) {
 					if (!dryRun) {
@@ -404,7 +410,9 @@ async function main() {
 
 	const databaseUrl = process.env.DATABASE_URL;
 	if (!databaseUrl) {
-		console.error("ERROR: DATABASE_URL is not set. Load .dev.vars or export the variable.");
+		console.error(
+			"ERROR: DATABASE_URL is not set. Load .dev.vars or export the variable.",
+		);
 		process.exit(1);
 	}
 

@@ -96,7 +96,11 @@ export function ShareActions({
 					title="Copy URL"
 					onClick={handleCopy}
 				>
-					{copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+					{copied ? (
+						<Check className="h-3.5 w-3.5" />
+					) : (
+						<Copy className="h-3.5 w-3.5" />
+					)}
 				</Button>
 				<Button
 					variant="ghost"
@@ -107,12 +111,24 @@ export function ShareActions({
 				>
 					<Download className="h-3.5 w-3.5" />
 				</Button>
-				<Button asChild variant="ghost" size="icon" className="h-7 w-7" title="Share via WhatsApp">
+				<Button
+					asChild
+					variant="ghost"
+					size="icon"
+					className="h-7 w-7"
+					title="Share via WhatsApp"
+				>
 					<a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
 						<MessageCircle className="h-3.5 w-3.5" />
 					</a>
 				</Button>
-				<Button asChild variant="ghost" size="icon" className="h-7 w-7" title="Share via Email">
+				<Button
+					asChild
+					variant="ghost"
+					size="icon"
+					className="h-7 w-7"
+					title="Share via Email"
+				>
 					<a href={mailtoUrl}>
 						<Mail className="h-3.5 w-3.5" />
 					</a>
@@ -123,7 +139,12 @@ export function ShareActions({
 
 	return (
 		<div className="flex flex-wrap gap-2">
-			<Button variant="outline" size="sm" onClick={handleCopy} data-testid="share-copy-url">
+			<Button
+				variant="outline"
+				size="sm"
+				onClick={handleCopy}
+				data-testid="share-copy-url"
+			>
 				{copied ? (
 					<Check className="mr-1.5 h-3.5 w-3.5" />
 				) : (
@@ -131,7 +152,12 @@ export function ShareActions({
 				)}
 				{copied ? "Copied" : "Copy URL"}
 			</Button>
-			<Button variant="outline" size="sm" onClick={handleDownload} data-testid="share-download-qr">
+			<Button
+				variant="outline"
+				size="sm"
+				onClick={handleDownload}
+				data-testid="share-download-qr"
+			>
 				<Download className="mr-1.5 h-3.5 w-3.5" />
 				Download QR
 			</Button>

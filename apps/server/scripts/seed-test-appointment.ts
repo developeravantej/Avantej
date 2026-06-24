@@ -9,7 +9,11 @@ const orgId = process.argv[2]!;
 const apptId = process.argv[3]!;
 const cpPool = new Pool({ connectionString: process.env.DATABASE_URL! });
 const cpDb = drizzle({ client: cpPool });
-const [org] = await cpDb.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+const [org] = await cpDb
+	.select()
+	.from(organizations)
+	.where(eq(organizations.id, orgId))
+	.limit(1);
 const tenantUrl = decrypt(org!.connectionString);
 const tp = new Pool({ connectionString: tenantUrl });
 const r = await tp.query(

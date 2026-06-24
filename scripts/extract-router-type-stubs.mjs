@@ -84,11 +84,10 @@ const newIndex = [
 ].join("\n");
 
 // remove unused z import from index if only used in stubs
-const cleanedIndex = newIndex.replace(
-	/import \{ z \} from "zod";\n/,
-	"",
-);
+const cleanedIndex = newIndex.replace(/import \{ z \} from "zod";\n/, "");
 
 writeFileSync(indexPath, cleanedIndex, "utf-8");
-console.log(`Wrote ${outPath} (${(header + exported).split("\n").length} lines)`);
+console.log(
+	`Wrote ${outPath} (${(header + exported).split("\n").length} lines)`,
+);
 console.log(`Updated ${indexPath} (${cleanedIndex.split("\n").length} lines)`);

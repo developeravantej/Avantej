@@ -107,7 +107,10 @@ test.describe("@ship-f-3-5 Plan F.3.5 — Coupons CRUD + apply", () => {
 		);
 		const strictUuid =
 			/^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$/;
-		const orgs = await cp.select({ id: orgsTable.id }).from(orgsTable).limit(20);
+		const orgs = await cp
+			.select({ id: orgsTable.id })
+			.from(orgsTable)
+			.limit(20);
 		const candidateOrg = orgs.find((r) => strictUuid.test(r.id));
 		if (!candidateOrg) {
 			throw new Error("No org with strict-UUID id in control-panel DB");

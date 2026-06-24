@@ -21,7 +21,12 @@ export function KpiStrip({
 
 	const tiles = [
 		{
-			label: kpiPeriod === "today" ? "Today's Revenue" : kpiPeriod === "week" ? "Week's Revenue" : "Month's Revenue",
+			label:
+				kpiPeriod === "today"
+					? "Today's Revenue"
+					: kpiPeriod === "week"
+						? "Week's Revenue"
+						: "Month's Revenue",
 			value: kpiSummary ? formatPrice(kpiSummary.totalSalesCents, "MYR") : null,
 			sub: kpiSummary ? `${kpiSummary.salesCount} transactions` : null,
 			accent: false as const,
@@ -29,21 +34,34 @@ export function KpiStrip({
 		},
 		{
 			label: "Outstanding",
-			value: kpiSummary ? formatPrice(kpiSummary.outstandingCents, "MYR") : null,
-			sub: kpiSummary && kpiSummary.outstandingCents > 0 ? "partial / overdue" : "all clear",
-			accent: kpiSummary != null && kpiSummary.outstandingCents > 0 ? ("red" as const) : (false as const),
+			value: kpiSummary
+				? formatPrice(kpiSummary.outstandingCents, "MYR")
+				: null,
+			sub:
+				kpiSummary && kpiSummary.outstandingCents > 0
+					? "partial / overdue"
+					: "all clear",
+			accent:
+				kpiSummary != null && kpiSummary.outstandingCents > 0
+					? ("red" as const)
+					: (false as const),
 			testId: "sales-kpi-outstanding",
 		},
 		{
 			label: "Refunded",
-			value: kpiSummary ? formatPrice(kpiSummary.totalRefundedCents, "MYR") : null,
+			value: kpiSummary
+				? formatPrice(kpiSummary.totalRefundedCents, "MYR")
+				: null,
 			sub: null,
 			accent: false as const,
 			testId: "sales-kpi-refunded",
 		},
 		{
 			label: "Net Collected",
-			value: netCollectedCents != null ? formatPrice(netCollectedCents, "MYR") : null,
+			value:
+				netCollectedCents != null
+					? formatPrice(netCollectedCents, "MYR")
+					: null,
 			sub: "After refunds",
 			accent: false as const,
 			testId: "sales-kpi-confirmed",
@@ -51,9 +69,14 @@ export function KpiStrip({
 	];
 
 	return (
-		<div className="shrink-0 border-b border-[#e5e5e5] bg-white px-6 py-4" data-testid="sales-kpi-strip">
+		<div
+			className="shrink-0 border-b border-[#e5e5e5] bg-white px-6 py-4"
+			data-testid="sales-kpi-strip"
+		>
 			<div className="mb-3 flex items-center justify-between">
-				<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">Overview</p>
+				<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">
+					Overview
+				</p>
 				<PeriodSelector value={kpiPeriod} onChange={onPeriodChange} />
 			</div>
 			<div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -74,7 +97,9 @@ export function KpiStrip({
 							</div>
 						) : (
 							<>
-								<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">{tile.label}</p>
+								<p className="text-[10px] font-bold tracking-widest uppercase text-[#737373]">
+									{tile.label}
+								</p>
 								<p
 									className={cn(
 										"mt-1 font-mono tabular-nums text-2xl font-bold text-[#0a0a0a]",

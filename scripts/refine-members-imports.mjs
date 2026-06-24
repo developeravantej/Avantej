@@ -122,7 +122,9 @@ import type { DispatchStaffSyncFn, GhlSyncResult } from "./shared";
 `,
 };
 
-for (const file of readdirSync(dir).filter((f) => f.endsWith(".procedures.ts"))) {
+for (const file of readdirSync(dir).filter((f) =>
+	f.endsWith(".procedures.ts"),
+)) {
 	const header = HEADERS[file];
 	if (!header) {
 		console.error(`Missing header for ${file}`);

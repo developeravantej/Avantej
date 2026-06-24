@@ -35,7 +35,10 @@ export interface CalendarAppointment {
 	};
 }
 
-const CALENDAR_STATUS_MAP: Record<string, "confirmed" | "pending" | "cancelled"> = {
+const CALENDAR_STATUS_MAP: Record<
+	string,
+	"confirmed" | "pending" | "cancelled"
+> = {
 	pending: "pending",
 	confirmed: "confirmed",
 	completed: "confirmed",
@@ -45,19 +48,28 @@ const CALENDAR_STATUS_MAP: Record<string, "confirmed" | "pending" | "cancelled">
 	"no-show": "cancelled",
 };
 
-export function mapApiAppointmentToCalendar(api: ApiAppointment): CalendarAppointment {
-	const start = typeof api.startTime === "string" ? new Date(api.startTime) : api.startTime;
-	const end = typeof api.endTime === "string" ? new Date(api.endTime) : api.endTime;
+export function mapApiAppointmentToCalendar(
+	api: ApiAppointment,
+): CalendarAppointment {
+	const start =
+		typeof api.startTime === "string" ? new Date(api.startTime) : api.startTime;
+	const end =
+		typeof api.endTime === "string" ? new Date(api.endTime) : api.endTime;
 	const status =
-		CALENDAR_STATUS_MAP[api.status] ?? (api.status === "cancelled" ? "cancelled" : "pending");
+		CALENDAR_STATUS_MAP[api.status] ??
+		(api.status === "cancelled" ? "cancelled" : "pending");
 	return {
 		id: api.id,
 		title: api.description?.trim() || "Appointment",
 		start,
 		end,
 		status,
-		clientName: api.clientName ?? (api.userId ? `Client (${api.userId.slice(0, 8)}…)` : "—"),
-		service: api.serviceName ?? (api.serviceId ? `Service (${api.serviceId.slice(0, 8)}…)` : "—"),
+		clientName:
+			api.clientName ??
+			(api.userId ? `Client (${api.userId.slice(0, 8)}…)` : "—"),
+		service:
+			api.serviceName ??
+			(api.serviceId ? `Service (${api.serviceId.slice(0, 8)}…)` : "—"),
 		assignedTo: api.trainerName
 			? { id: api.trainerId ?? "", name: api.trainerName }
 			: api.trainerId
@@ -66,7 +78,10 @@ export function mapApiAppointmentToCalendar(api: ApiAppointment): CalendarAppoin
 	};
 }
 
-function getAppointmentDateRange(view: "monthly" | "weekly", currentDate: Date): { startFrom: string; startTo: string } {
+function getAppointmentDateRange(
+	view: "monthly" | "weekly",
+	currentDate: Date,
+): { startFrom: string; startTo: string } {
 	if (view === "weekly") {
 		const weekStart = new Date(currentDate);
 		weekStart.setDate(currentDate.getDate() - currentDate.getDay());
@@ -79,9 +94,17 @@ function getAppointmentDateRange(view: "monthly" | "weekly", currentDate: Date):
 			startTo: weekEnd.toISOString(),
 		};
 	}
-	const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+	const monthStart = new Date(
+		currentDate.getFullYear(),
+		currentDate.getMonth(),
+		1,
+	);
 	monthStart.setHours(0, 0, 0, 0);
-	const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+	const monthEnd = new Date(
+		currentDate.getFullYear(),
+		currentDate.getMonth() + 1,
+		0,
+	);
 	monthEnd.setHours(23, 59, 59, 999);
 	return {
 		startFrom: monthStart.toISOString(),
@@ -90,7 +113,10 @@ function getAppointmentDateRange(view: "monthly" | "weekly", currentDate: Date):
 }
 
 /** Range for initial load: current month ± 1 month so prev/next has data */
-export function getAppointmentQueryRange(): { startFrom: string; startTo: string } {
+export function getAppointmentQueryRange(): {
+	startFrom: string;
+	startTo: string;
+} {
 	const now = new Date();
 	const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 	start.setHours(0, 0, 0, 0);

@@ -43,7 +43,9 @@ import { requirePermissionOrpc, assertOrgContextMatch, guardBranchAccessible } f
 `,
 };
 
-for (const file of readdirSync(dir).filter((f) => f.endsWith(".procedures.ts"))) {
+for (const file of readdirSync(dir).filter((f) =>
+	f.endsWith(".procedures.ts"),
+)) {
 	const header = HEADERS[file];
 	const exportMarker = EXPORT_MARKERS[file];
 	if (!header || !exportMarker) {

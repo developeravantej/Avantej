@@ -6,7 +6,9 @@ const dir = join(process.cwd(), "packages/api/src/routers/members");
 const block =
 	/\/\/ Shared GHL staff sync[\s]*?::\[\s\S]*?error\?: string;\n};\n\n/;
 
-for (const file of readdirSync(dir).filter((f) => f.endsWith(".procedures.ts"))) {
+for (const file of readdirSync(dir).filter((f) =>
+	f.endsWith(".procedures.ts"),
+)) {
 	const path = join(dir, file);
 	let src = readFileSync(path, "utf-8");
 	if (!src.includes("type GhlSyncResult")) continue;

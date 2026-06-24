@@ -33,7 +33,10 @@ const env = Object.fromEntries(
 			const i = l.indexOf("=");
 			return [
 				l.slice(0, i).trim(),
-				l.slice(i + 1).trim().replace(/^"|"$/g, ""),
+				l
+					.slice(i + 1)
+					.trim()
+					.replace(/^"|"$/g, ""),
 			];
 		}),
 );
@@ -82,17 +85,13 @@ async function main() {
 		.update(cps.user)
 		.set({ emailVerified: true, name: "SaaS Owner (Demo)" })
 		.where(eq(cps.user.id, userId));
-	await cp
-		.insert(cps.platformAdmins)
-		.values({ userId, role: "super_admin" });
+	await cp.insert(cps.platformAdmins).values({ userId, role: "super_admin" });
 
 	// Pick a real v4 UUID org
 	const [org] = await cp
 		.select({ id: cps.organizations.id, name: cps.organizations.name })
 		.from(cps.organizations)
-		.where(
-			sql`${cps.organizations.id}::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-4'`,
-		)
+		.where(sql`${cps.organizations.id}::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-4'`)
 		.limit(1);
 	if (!org) throw new Error("no v4 org");
 	const orgId = org.id;
@@ -215,9 +214,7 @@ async function main() {
 		await page.goto(`${WEB}/dashboard/platform-admin/tenants`);
 		await page.waitForLoadState("networkidle").catch(() => {});
 		await pause(page, 2500);
-		const search = page
-			.getByPlaceholder(/Search.*name.*slug.*owner/i)
-			.first();
+		const search = page.getByPlaceholder(/Search.*name.*slug.*owner/i).first();
 		if ((await search.count()) > 0) {
 			await search.fill(org.name.slice(0, Math.min(6, org.name.length)));
 			await pause(page, 2500);

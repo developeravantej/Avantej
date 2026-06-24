@@ -5,7 +5,12 @@ import { Button } from "@/components/ui/button";
 export type RoomRow = {
 	id: string;
 	name: string;
-	type: "consultation" | "group_session" | "private" | "training" | "individual";
+	type:
+		| "consultation"
+		| "group_session"
+		| "private"
+		| "training"
+		| "individual";
 	branchId: string;
 	branchName: string;
 	capacity: number;
@@ -43,7 +48,9 @@ export function createColumns(meta: ColumnMeta): ColumnDef<RoomRow>[] {
 				</Button>
 			),
 			cell: ({ row }) => (
-				<span className="font-semibold text-[#0a0a0a]">{row.original.name}</span>
+				<span className="font-semibold text-[#0a0a0a]">
+					{row.original.name}
+				</span>
 			),
 		},
 		{

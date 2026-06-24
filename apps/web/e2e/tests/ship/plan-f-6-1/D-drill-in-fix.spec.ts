@@ -134,11 +134,9 @@ test.describe("@ship-f-6-1 Plan F.6.1 — Agent D drill-in 500 fix", () => {
 		expect(missingBody.code).toBe("NOT_FOUND");
 
 		// ── Scenario 3: bad-shape uuid → 400 BAD_REQUEST ───────────────
-		const badRes = await rpc(
-			apiCtx,
-			"platformAdminTenants/getTenantDetail",
-			{ organizationId: "not-a-uuid" },
-		);
+		const badRes = await rpc(apiCtx, "platformAdminTenants/getTenantDetail", {
+			organizationId: "not-a-uuid",
+		});
 		console.log(`[scenario-3] status=${badRes.status}`);
 		expect(badRes.status).toBe(400);
 		const badBody = badRes.body?.json ?? badRes.body;

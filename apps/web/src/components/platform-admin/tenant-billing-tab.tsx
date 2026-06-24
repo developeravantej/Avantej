@@ -15,10 +15,7 @@ import { client } from "@/utils/orpc";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InvoiceList, type Invoice } from "./invoice-list";
-import {
-	RefundConfirmDialog,
-	type RefundInput,
-} from "./refund-confirm-dialog";
+import { RefundConfirmDialog, type RefundInput } from "./refund-confirm-dialog";
 import { TierChangeCard } from "./tier-change-card";
 import { CouponApplyCard } from "./coupon-apply-card";
 
@@ -156,8 +153,7 @@ export function TenantBillingTab({
 							</div>
 							{summary.data.balance !== 0 && (
 								<div className="text-xs text-muted-foreground">
-									Account balance:{" "}
-									{(summary.data.balance / 100).toFixed(2)}{" "}
+									Account balance: {(summary.data.balance / 100).toFixed(2)}{" "}
 									{summary.data.currency.toUpperCase()}
 								</div>
 							)}

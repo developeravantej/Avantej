@@ -154,7 +154,9 @@ export default function NotificationsScreen() {
 		}
 	};
 
-	const handleNotificationPress = (notification: (typeof notificationList)[0]) => {
+	const handleNotificationPress = (
+		notification: (typeof notificationList)[0],
+	) => {
 		if (!notification.read) {
 			handleMarkRead(notification.id);
 		}
@@ -208,10 +210,7 @@ export default function NotificationsScreen() {
 					{/* Header */}
 					<View className="mb-6 flex-row items-center justify-between">
 						<View className="flex-row items-center">
-							<Pressable
-								onPress={() => router.back()}
-								className="mr-4"
-							>
+							<Pressable onPress={() => router.back()} className="mr-4">
 								<Ionicons
 									name="arrow-back"
 									size={24}

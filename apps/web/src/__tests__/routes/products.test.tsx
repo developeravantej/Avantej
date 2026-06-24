@@ -80,9 +80,7 @@ vi.mock("sonner", () => ({
 }));
 
 beforeAll(async () => {
-	await import(
-		"@/routes/_authenticated/dashboard/_layout/products/view"
-	);
+	await import("@/routes/_authenticated/dashboard/_layout/products/view");
 });
 
 describe("Products page", () => {
@@ -101,7 +99,9 @@ describe("Products page", () => {
 		renderWithProviders(<ProductsViewPage />);
 
 		await waitFor(() => {
-			expect(screen.getByRole("heading", { name: "Products" })).toBeInTheDocument();
+			expect(
+				screen.getByRole("heading", { name: "Products" }),
+			).toBeInTheDocument();
 		});
 	});
 
