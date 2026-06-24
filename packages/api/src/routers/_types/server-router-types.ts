@@ -2747,8 +2747,11 @@ export const platformAdminMigrationsRouterType = {
 /**
  * Type-only twin of the server emailDomains router. Lets the web client
  * infer types for client.emailDomains.* without depending on apps/server.
+ *
+ * Exported so rolldown-dts can name it in the generated client.d.ts — an
+ * unexported handler return type triggers TS4058 ("cannot be named") on build.
  */
-interface EmailDomainRow {
+export interface EmailDomainRow {
 	id: string;
 	organizationId: string;
 	resendDomainId: string;
