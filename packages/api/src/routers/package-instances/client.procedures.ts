@@ -1,6 +1,7 @@
 import {
 	listPackageInstancesForClient,
 	getPackageInstanceById,
+	togglePackagePin,
 } from "@avantej-core/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { user } from "@avantej-core/db/schema/auth";
@@ -146,5 +147,55 @@ export const packageInstancesClientProcedures = {
 			}
 
 			return { ...instance, assignedTrainerName, preferredTrainerName };
+		}),
+
+	/**
+	 * Pin / unpin one of the current user's active packages so it leads the
+	 * dashboard. clientId is taken from the session (never trusted from input),
+	 * so a caller can only pin their OWN package. The service enforces the
+	 * single-pin-per-client invariant under a row lock + partial unique index.
+	 */
+	togglePin: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				packageInstanceId: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			const clientId = context.session?.user?.id;
+			if (!clientId) {
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "User session required",
+				});
+			}
+
+			try {
+				return await togglePackagePin(context.tenantDb, {
+					packageInstanceId: input.packageInstanceId,
+					clientId,
+				});
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : "Unknown error";
+				// A pin-A-vs-pin-B race for the same client slips past the row lock
+				// (different rows) and is caught by the partial unique index as a
+				// raw 23505 — surface it as a friendly CONFLICT, not a 500.
+				if (msg.includes("23505") || msg.includes("one_pin_per_client")) {
+					throw new ORPCError("CONFLICT", {
+						message: "Another package was just pinned — please retry.",
+					});
+				}
+				if (msg.includes("not found")) {
+					throw new ORPCError("NOT_FOUND", { message: msg });
+				}
+				if (msg.includes("Forbidden")) {
+					throw new ORPCError("FORBIDDEN", { message: msg });
+				}
+				if (msg.includes("active")) {
+					throw new ORPCError("BAD_REQUEST", { message: msg });
+				}
+				throw err;
+			}
 		}),
 };
