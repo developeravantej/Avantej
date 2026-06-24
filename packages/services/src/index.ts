@@ -652,6 +652,15 @@ export {
 	type UpsertTrackInput,
 } from "./commission-tracks.service";
 
+// Push notification tokens (native app) — restore barrel export lost in the
+// origin/main merge so the pushTokens router can resolve these.
+export {
+	type RegisterPushTokenParams,
+	registerPushToken,
+	unregisterPushToken,
+	getPushTokensForUser,
+} from "./push-token.service";
+
 // Commission incentive thresholds (UAT §12 — 3b)
 export {
 	computeIncentiveBonusCents,

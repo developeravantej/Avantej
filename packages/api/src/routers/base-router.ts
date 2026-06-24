@@ -15,6 +15,7 @@ import { coachIntakeRouter } from "./coach-intake";
 import { commissionSplitsRouter } from "./commission-splits";
 import { commissionTracksRouter } from "./commission-tracks";
 import { commissionIncentivesRouter } from "./commission-incentives";
+import { pushTokensRouter } from "./push-tokens";
 import { customerDirectoryRouter } from "./customer-directory";
 import { customerProfilesRouter } from "./customer-profiles";
 import { expensesRouter } from "./expenses";
@@ -113,6 +114,7 @@ export const baseRouter = {
 	commissionSplits: commissionSplitsRouter,
 	commissionTracks: commissionTracksRouter,
 	commissionIncentives: commissionIncentivesRouter,
+	pushTokens: pushTokensRouter,
 	categoryCommission: categoryCommissionRouter,
 	commissionCycle: commissionCycleRouter,
 	purchaseOrders: purchaseOrdersRouter,
