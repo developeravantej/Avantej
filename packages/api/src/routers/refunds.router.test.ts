@@ -471,3 +471,51 @@ describe("refundsRouter.bulkApprove", () => {
 		).rejects.toBeDefined();
 	});
 });
+
+// ─── getById ─────────────────────────────────────────────────────────────────
+
+describe("refundsRouter.getById", () => {
+	const OUT_OF_SCOPE_BRANCH = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+	const IN_SCOPE_BRANCH = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+	const validInput = { organizationId: ORG_ID, id: REFUND_ID };
+
+	it("throws FORBIDDEN when the refund's branchId is not in accessibleNodeIds", async () => {
+		const outOfScopeRefund = { ...REFUND_ROW, branchId: OUT_OF_SCOPE_BRANCH };
+		const tenantDb = makeAdminDb({
+			refunds: { findFirst: mock(() => Promise.resolve(outOfScopeRefund)) },
+		});
+		// Caller can reach IN_SCOPE_BRANCH only — not the refund's branch.
+		const ctx = createMockContext({
+			tenantDb,
+			accessibleNodeIds: [IN_SCOPE_BRANCH],
+		});
+		await expect(
+			call(refundsRouter.getById, validInput, { context: ctx }),
+		).rejects.toMatchObject({ code: "FORBIDDEN" });
+	});
+
+	it("returns the refund when its branchId is in accessibleNodeIds", async () => {
+		const inScopeRefund = { ...REFUND_ROW, branchId: IN_SCOPE_BRANCH };
+		const tenantDb = makeAdminDb({
+			refunds: { findFirst: mock(() => Promise.resolve(inScopeRefund)) },
+		});
+		const ctx = createMockContext({
+			tenantDb,
+			accessibleNodeIds: [IN_SCOPE_BRANCH],
+		});
+		const result = await call(refundsRouter.getById, validInput, {
+			context: ctx,
+		});
+		expect(result).toMatchObject({ id: REFUND_ID, branchId: IN_SCOPE_BRANCH });
+	});
+
+	it("returns an org-wide refund (null branchId) even with no accessible nodes", async () => {
+		// REFUND_ROW.branchId is null → org-wide → guard is a no-op.
+		const tenantDb = makeAdminDb();
+		const ctx = createMockContext({ tenantDb, accessibleNodeIds: [] });
+		const result = await call(refundsRouter.getById, validInput, {
+			context: ctx,
+		});
+		expect(result).toMatchObject({ id: REFUND_ID });
+	});
+});
