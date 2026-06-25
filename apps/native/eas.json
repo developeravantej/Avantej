@@ -13,14 +13,14 @@
       "distribution": "internal",
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_SERVER_URL": "https://avantej-core-server.developer-avantej.workers.dev"
+        "EXPO_PUBLIC_SERVER_URL": "https://avantej-core-server.ngchwanlii-a9c.workers.dev"
       }
     },
     "production": {
       "channel": "production",
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_SERVER_URL": "https://avantej-core-server.developer-avantej.workers.dev"
+        "EXPO_PUBLIC_SERVER_URL": "https://avantej-core-server.ngchwanlii-a9c.workers.dev"
       }
     }
   },
