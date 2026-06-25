@@ -16,9 +16,10 @@ import {
 	text,
 	timestamp,
 	index,
+	uniqueIndex,
 	jsonb,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { subscriptions } from "./subscriptions";
 import { users } from "./users";
 
@@ -59,10 +60,21 @@ export const organizations = pgTable(
 		// Field id locked at GHL custom-field creation time → country rename in
 		// Avantej only updates label, never fieldKey.
 		ghlCountryFieldMap: jsonb("ghl_country_field_map"),
+		// Map of GHL global (location-level) custom-field ids keyed by
+		// CustomFieldKey: { gender, emergencyContactName, ..., designatedCountry,
+		// designatedBranch }. Persisted at connect time from
+		// ensureCustomFieldsExist so the live sync path can stamp contacts
+		// (previously the return value was discarded → fields never sent).
+		ghlGlobalFieldMap: jsonb("ghl_global_field_map"),
 		// GHL custom-field id for the org's "Primary Staff" SINGLE_OPTIONS dropdown
 		// (one per org/location). Cached at creation time like ghlCountryFieldMap.
 		ghlPrimaryStaffFieldId: text("ghl_primary_staff_field_id"),
 		ghlProvisionedAt: timestamp("ghl_provisioned_at"),
+		// Org-shared inbound webhook auth secret. Per-branch tenants carry this
+		// on ghl_branch_links; org-shared has no link row, so the secret lives
+		// here. Generated at connect time; the tenant configures GHL's webhook
+		// automation to send it (header/query) and we verify on each inbound.
+		ghlWebhookSecret: text("ghl_webhook_secret"),
 		// Feature flag for sync model. "per-branch" (legacy Option X — one GHL
 		// location per branch via ghl_branch_links) or "org-shared" (Phase G —
 		// one GHL location per org, branches as custom-field option). NULL =
@@ -85,6 +97,10 @@ export const organizations = pgTable(
 		countryCodeIdx: index("organizations_country_code_idx").on(
 			table.countryCode,
 		),
+		// One GHL location per org (partial — unconnected orgs hold NULL).
+		ghlLocationIdUnique: uniqueIndex("organizations_ghl_location_id_unique")
+			.on(table.ghlLocationId)
+			.where(sql`${table.ghlLocationId} IS NOT NULL`),
 	}),
 );
 

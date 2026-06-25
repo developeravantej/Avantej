@@ -160,3 +160,52 @@ describe("rename + remove preserve original options", () => {
 		expect(calls.filter((c) => c.method === "PUT").length).toBe(0);
 	});
 });
+
+describe("data-loss guard tolerates small/legit shrinks", () => {
+	test("removing the only option (1 → 0) is allowed", async () => {
+		// A country with a single branch loses it — must not be blocked by the
+		// >50%-shrink guard (0 < 1/2 would otherwise throw).
+		getResponse = { customField: { picklistOptions: ["Only Branch"] } };
+		const result = await removeBranchOption({
+			...baseArgs,
+			optionLabel: "Only Branch",
+		});
+		expect(result).toEqual([]);
+	});
+
+	test("removing 1 of 3 (3 → 2) is allowed", async () => {
+		getResponse = { customField: { picklistOptions: ["A", "B", "C"] } };
+		const result = await removeBranchOption({ ...baseArgs, optionLabel: "B" });
+		expect(result).toEqual(["A", "C"]);
+	});
+});
+
+describe("ensureBranchOption guards against a lost-update race", () => {
+	test("re-verifies after PUT and retries if the option did not persist", async () => {
+		// Simulate a concurrent writer: the read-back after our PUT is missing
+		// our option (another PUT replaced the array). We must re-merge + retry.
+		const putBodies: string[][] = [];
+		let getCount = 0;
+		globalThis.fetch = mock(async (_input: any, init: any) => {
+			const method = (init?.method ?? "GET").toUpperCase();
+			if (method === "PUT") {
+				putBodies.push(JSON.parse(String(init.body)).options);
+				return new Response("{}", { status: 200 });
+			}
+			getCount++;
+			// 1st GET: baseline ["A"]. 2nd GET (verify after our PUT): a
+			// concurrent writer's array WITHOUT our "B" → triggers retry.
+			const opts = getCount === 1 ? ["A"] : ["A", "X"];
+			return new Response(
+				JSON.stringify({ customField: { picklistOptions: opts } }),
+				{ status: 200 },
+			);
+		}) as any;
+
+		const result = await ensureBranchOption({ ...baseArgs, optionLabel: "B" });
+		// Two PUTs: initial + retry merged against the concurrent state.
+		expect(putBodies.length).toBe(2);
+		expect(result).toContain("B");
+		expect(result).toContain("X"); // preserved the concurrent writer's option
+	});
+});

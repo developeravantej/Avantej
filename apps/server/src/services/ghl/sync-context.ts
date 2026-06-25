@@ -25,6 +25,7 @@ import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch-links";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { ensureCountryFieldExists, resolveBranchPath } from "./branch-sync";
+import type { CustomFieldIdMap } from "./payload-builders";
 
 type CountryFieldEntry = {
 	ghlFieldId: string;
@@ -42,6 +43,15 @@ export type SyncContext =
 			apiKey: string;
 			branchCountryFieldId: string;
 			branchOptionLabel: string;
+			// Bare branch name + country name for the designated_* single-line
+			// round-trip fields (branchOptionLabel is the composite dropdown label;
+			// these are the un-prefixed values).
+			branchName: string;
+			countryName: string;
+			// Global (location-level) custom-field ids (gender, emergency contact,
+			// etc.) read from organizations.ghlGlobalFieldMap. The live sync path
+			// supplies no customFieldIds, so the orchestrator merges these in.
+			globalFieldIds: CustomFieldIdMap;
 	  }
 	| {
 			model: "per-branch";
@@ -144,6 +154,9 @@ export async function resolveSyncContext(
 			apiKey,
 			branchCountryFieldId,
 			branchOptionLabel: path.optionLabel,
+			branchName: path.branchName,
+			countryName: path.countryName,
+			globalFieldIds: (org.ghlGlobalFieldMap as CustomFieldIdMap | null) ?? {},
 		};
 	}
 

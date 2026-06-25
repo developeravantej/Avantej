@@ -292,7 +292,9 @@ async function putFieldOptions(args: {
 	// response-shape mismatch and we would otherwise wipe the field.
 	if (
 		args.existing &&
-		args.existing.length > 0 &&
+		// Only guard meaningfully-large sets — legit small shrinks (a country's
+		// last branch 1→0, or 3→2) must not trip the >50% data-loss guard.
+		args.existing.length >= 4 &&
 		args.options.length < args.existing.length / 2
 	) {
 		throw new Error(
@@ -318,7 +320,14 @@ export async function ensureBranchOption(args: {
 	if (existing.includes(args.optionLabel)) return existing;
 	const next = [...existing, args.optionLabel];
 	await putFieldOptions({ ...args, options: next, existing });
-	return next;
+	// Re-verify: PUT replaces the WHOLE options array, so a concurrent branch
+	// create can silently drop our option (lost update). Read back; if our
+	// option is missing, re-merge against the latest server state and retry once.
+	const after = await readFieldOptions(args);
+	if (after.includes(args.optionLabel)) return after;
+	const merged = [...after, args.optionLabel];
+	await putFieldOptions({ ...args, options: merged, existing: after });
+	return merged;
 }
 
 export async function removeBranchOption(args: {

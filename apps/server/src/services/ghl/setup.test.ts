@@ -71,6 +71,97 @@ describe("ensureCustomFieldsExist", () => {
 		expect(result.medicalNotes).toBe("cf_b");
 	});
 
+	test("matches contact.-prefixed fieldKeys without creating duplicates", async () => {
+		// GHL returns contact-model custom fields with a "contact." prefix on
+		// fieldKey. Discovery must match these so re-provisioning does not POST
+		// duplicate fields.
+		let postCount = 0;
+		const fetchMock = mock<
+			(input: string, init?: RequestInit) => Promise<Response>
+		>(async (input, init) => {
+			const url = String(input);
+			const method = init?.method ?? "GET";
+			if (method === "GET" && url.includes("/customFields")) {
+				return new Response(
+					JSON.stringify({
+						customFields: [
+							{
+								id: "cf_g",
+								name: "Gender",
+								fieldKey: "contact.gender",
+								dataType: "TEXT",
+							},
+							{
+								id: "cf_ecn",
+								name: "Emergency Contact Name",
+								fieldKey: "contact.emergency_contact_name",
+								dataType: "TEXT",
+							},
+							{
+								id: "cf_ecp",
+								name: "Emergency Contact Phone",
+								fieldKey: "contact.emergency_contact_phone",
+								dataType: "PHONE",
+							},
+							{
+								id: "cf_mn",
+								name: "Medical Notes",
+								fieldKey: "contact.medical_notes",
+								dataType: "LARGE_TEXT",
+							},
+							{
+								id: "cf_cp",
+								name: "Credit Points",
+								fieldKey: "contact.credit_points",
+								dataType: "NUMERICAL",
+							},
+							{
+								id: "cf_n",
+								name: "Internal Notes",
+								fieldKey: "contact.internal_notes",
+								dataType: "LARGE_TEXT",
+							},
+							{
+								id: "cf_dc",
+								name: "Designated Country",
+								fieldKey: "contact.designated_country",
+								dataType: "TEXT",
+							},
+							{
+								id: "cf_db",
+								name: "Designated Branch",
+								fieldKey: "contact.designated_branch",
+								dataType: "TEXT",
+							},
+						],
+					}),
+					{ status: 200 },
+				);
+			}
+			if (method === "POST" && url.includes("/customFields")) {
+				postCount++;
+				return new Response(JSON.stringify({ id: "cf_new" }), { status: 201 });
+			}
+			return new Response("", { status: 404 });
+		});
+		(globalThis as any).fetch = fetchMock;
+
+		const result = await ensureCustomFieldsExist({
+			apiKey: "k",
+			locationId: "loc_1",
+		});
+
+		expect(postCount).toBe(0);
+		expect(result.gender).toBe("cf_g");
+		expect(result.emergencyContactName).toBe("cf_ecn");
+		expect(result.emergencyContactPhone).toBe("cf_ecp");
+		expect(result.medicalNotes).toBe("cf_mn");
+		expect(result.creditPoints).toBe("cf_cp");
+		expect(result.notes).toBe("cf_n");
+		expect(result.designatedCountry).toBe("cf_dc");
+		expect(result.designatedBranch).toBe("cf_db");
+	});
+
 	test("creates missing custom fields and returns the new ids", async () => {
 		const fetchMock = mock<
 			(input: string, init?: RequestInit) => Promise<Response>

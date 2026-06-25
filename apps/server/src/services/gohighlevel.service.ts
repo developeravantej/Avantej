@@ -1,7 +1,10 @@
 import { getControlPanelDb, getTenantDb } from "@/lib/db";
 import { user } from "@avantej-core/db/schema/auth";
 import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch-links";
+import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { and, eq, inArray, sql } from "drizzle-orm";
+import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { Context } from "hono";
 import { createHash } from "node:crypto";
 import { accountGroups } from "@avantej-core/db/schema/tenant/account-groups";
@@ -32,6 +35,58 @@ export class GhlWebhookError extends Error {
 }
 
 type AnyRecord = Record<string, unknown>;
+
+/**
+ * Resolve an inbound GHL webhook's locationId to the owning tenant + auth
+ * secret. Two models (Phase G):
+ *   1. Legacy per-branch — active `ghl_branch_links` row (one GHL location per
+ *      Avantej branch). Carries its own webhookSecret + tenantBranchId.
+ *   2. Org-shared — one GHL location per org; config lives on `organizations`.
+ *      Migrating to org-shared deactivates the branch link, so without this
+ *      fallback org-shared tenants 404 on every inbound webhook. tenantBranchId
+ *      is null here (the branch is resolved per-contact from selected_location,
+ *      falling back to the org root).
+ *
+ * Returns null when the location is unknown/inactive.
+ */
+export async function resolveWebhookLocation(
+	controlPanelDb: NeonDatabase<typeof controlPanelSchema>,
+	locationId: string,
+): Promise<{
+	organizationId: string;
+	webhookSecret: string | null;
+	tenantBranchId: string | null;
+} | null> {
+	const link = await controlPanelDb.query.ghlBranchLinks.findFirst({
+		where: and(
+			eq(ghlBranchLinks.ghlLocationId, locationId),
+			eq(ghlBranchLinks.isActive, true),
+		),
+	});
+	if (link) {
+		return {
+			organizationId: link.organizationId,
+			webhookSecret: link.webhookSecret ?? null,
+			tenantBranchId: link.tenantBranchId,
+		};
+	}
+
+	const org = await controlPanelDb.query.organizations.findFirst({
+		where: and(
+			eq(organizations.ghlLocationId, locationId),
+			eq(organizations.ghlSyncModel, "org-shared"),
+		),
+	});
+	if (org) {
+		return {
+			organizationId: org.id,
+			webhookSecret: org.ghlWebhookSecret ?? null,
+			tenantBranchId: null,
+		};
+	}
+
+	return null;
+}
 
 export type ExtractedGhlContactPayload = {
 	contactId: string;
@@ -68,12 +123,32 @@ export function findHierarchyBranchByName(
 	selectedLocation: string | null | undefined,
 ): string | null {
 	if (!selectedLocation) return null;
-	const needle = selectedLocation.trim().toLowerCase();
-	if (!needle) return null;
-	const match = branches.find(
-		(b) => b.type === "branch" && b.name.trim().toLowerCase() === needle,
-	);
-	return match?.id ?? null;
+	// GHL merge-tag artifact: a missing component renders as the literal string
+	// "null"/"undefined" glued onto the value (e.g. "KL Branchnull"). Strip it.
+	const cleaned = selectedLocation
+		.trim()
+		.replace(/(null|undefined)$/i, "")
+		.trim();
+	if (!cleaned) return null;
+	const needle = cleaned.toLowerCase();
+	const branchRows = branches.filter((b) => b.type === "branch");
+
+	// 1. exact bare branch name (the canonical designated_branch value).
+	const exact = branchRows.find((b) => b.name.trim().toLowerCase() === needle);
+	if (exact) return exact.id;
+
+	// 2. composite "State - Branch" dropdown label → match the last segment.
+	const SEP = " - ";
+	if (needle.includes(SEP)) {
+		const lastSeg = needle.split(SEP).pop()?.trim();
+		if (lastSeg) {
+			const seg = branchRows.find(
+				(b) => b.name.trim().toLowerCase() === lastSeg,
+			);
+			if (seg) return seg.id;
+		}
+	}
+	return null;
 }
 
 export type GhlContactResponseData = {
@@ -580,14 +655,9 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 	} = args;
 	const controlPanelDb = getControlPanelDb(c);
 
-	const locationLink = await controlPanelDb.query.ghlBranchLinks.findFirst({
-		where: and(
-			eq(ghlBranchLinks.ghlLocationId, locationId),
-			eq(ghlBranchLinks.isActive, true),
-		),
-	});
+	const resolved = await resolveWebhookLocation(controlPanelDb, locationId);
 
-	if (!locationLink) {
+	if (!resolved) {
 		throw new GhlWebhookError(
 			`Unknown or inactive GHL location: ${locationId}`,
 			404,
@@ -601,7 +671,7 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 		authorization,
 		headerSecret,
 		querySecret,
-		webhookSecret: locationLink.webhookSecret ?? null,
+		webhookSecret: resolved.webhookSecret,
 	});
 
 	const eventType = detectGhlEventType(payload);
@@ -625,7 +695,18 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 		payload,
 	});
 
-	const tenantDb = await getTenantDb(locationLink.organizationId, c);
+	const tenantDb = await getTenantDb(resolved.organizationId, c);
+	// Org-shared has no per-branch link → fall back to the org root node so an
+	// unmatched lead lands org-scoped rather than with a null hierarchyScopeId.
+	// Build a locationLink-shaped object so downstream code is unchanged.
+	const fallbackBranchId =
+		resolved.tenantBranchId ?? (await resolveOrgRootNodeId(tenantDb));
+	const locationLink = {
+		organizationId: resolved.organizationId,
+		tenantBranchId: fallbackBranchId,
+		ghlLocationId: locationId,
+		webhookSecret: resolved.webhookSecret,
+	};
 	const insertedEvents = await tenantDb
 		.insert(ghlSyncEvents)
 		.values({
@@ -969,6 +1050,7 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 		tenantDb,
 		customFields.selectedLocation,
 		locationLink.tenantBranchId,
+		customFields.selectedCountry,
 	);
 
 	// Auto-create member row (role='client') so lead becomes a usable customer immediately.
@@ -1162,6 +1244,7 @@ async function processDependentInGroup(args: {
 		tenantDb,
 		customFields.selectedLocation,
 		locationLink.tenantBranchId,
+		customFields.selectedCountry,
 	);
 
 	// Dependent links never carry a user_id (the primary keeps theirs).
@@ -1286,12 +1369,74 @@ export function extractCustomFieldsForProfile(
 	};
 }
 
+/**
+ * Org-shared fallback: the root hierarchy node (parent_id IS NULL) — used as
+ * the member's hierarchyScopeId when an inbound lead has no resolvable branch
+ * and there is no per-branch link to fall back to. Org-scoped, not misattributed
+ * to an arbitrary branch.
+ */
+async function resolveOrgRootNodeId(
+	tenantDb: Awaited<ReturnType<typeof getTenantDb>>,
+): Promise<string> {
+	const [root] = await tenantDb
+		.select({ id: hierarchyNodes.id })
+		.from(hierarchyNodes)
+		.where(sql`${hierarchyNodes.parentId} IS NULL`)
+		.orderBy(hierarchyNodes.createdAt)
+		.limit(1);
+	if (!root) {
+		throw new GhlWebhookError(
+			"Tenant has no root hierarchy node",
+			500,
+			"no_root_node",
+		);
+	}
+	return root.id;
+}
+
 async function resolveBranchNodeId(
 	tenantDb: Awaited<ReturnType<typeof getTenantDb>>,
 	selectedLocation: string | null,
 	fallbackBranchId: string,
+	selectedCountry?: string | null,
 ): Promise<string> {
 	if (!selectedLocation) return fallbackBranchId;
+
+	// Country-scope: when a country name is supplied and resolves to a country
+	// node, restrict the branch search to that country's subtree first — this
+	// disambiguates same-named branches across countries. Any miss falls
+	// through to the unscoped lookup, so single-country tenants and payloads
+	// without selected_country behave exactly as before (no regression).
+	if (selectedCountry?.trim()) {
+		const [country] = await tenantDb
+			.select({ id: hierarchyNodes.id })
+			.from(hierarchyNodes)
+			.where(
+				and(
+					eq(hierarchyNodes.type, "country"),
+					sql`lower(trim(${hierarchyNodes.name})) = lower(trim(${selectedCountry}))`,
+				),
+			)
+			.limit(1);
+		if (country) {
+			const scoped = await tenantDb
+				.select({
+					id: hierarchyNodes.id,
+					name: hierarchyNodes.name,
+					type: hierarchyNodes.type,
+				})
+				.from(hierarchyNodes)
+				.where(
+					and(
+						eq(hierarchyNodes.type, "branch"),
+						eq(hierarchyNodes.countryNodeId, country.id),
+					),
+				);
+			const scopedMatch = findHierarchyBranchByName(scoped, selectedLocation);
+			if (scopedMatch) return scopedMatch;
+		}
+	}
+
 	const rows = await tenantDb
 		.select({
 			id: hierarchyNodes.id,
@@ -1524,18 +1669,13 @@ export async function markGhlWebhookFailed(args: {
 		email,
 	} = args;
 	const controlPanelDb = getControlPanelDb(c);
-	const locationLink = await controlPanelDb.query.ghlBranchLinks.findFirst({
-		where: and(
-			eq(ghlBranchLinks.ghlLocationId, locationId),
-			eq(ghlBranchLinks.isActive, true),
-		),
-	});
+	const resolved = await resolveWebhookLocation(controlPanelDb, locationId);
 
-	if (!locationLink) {
+	if (!resolved) {
 		return;
 	}
 
-	const tenantDb = await getTenantDb(locationLink.organizationId, c);
+	const tenantDb = await getTenantDb(resolved.organizationId, c);
 	const fallbackContactId =
 		contactId || normalizeString((payload as AnyRecord).id) || "unknown";
 	const key = `${locationId}:${fallbackContactId}:failed:${createHash("sha256")
