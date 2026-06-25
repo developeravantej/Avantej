@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Link } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -190,10 +191,15 @@ export function InvitationList({
 									{invitation.email ? (
 										invitation.email
 									) : invitation.kind === "branch_self_signup" ? (
-										<span className="flex items-center gap-1.5 text-muted-foreground">
+										<Link
+											to="/dashboard/onboarding/view"
+											search={{ branch: invitation.hierarchyScopeId }}
+											className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:underline"
+											title="Manage this branch's QR code on the Onboarding page"
+										>
 											<QrCode className="size-3.5 shrink-0" />
 											<span className="italic">Self-signup link</span>
-										</span>
+										</Link>
 									) : (
 										<span className="text-muted-foreground">—</span>
 									)}
