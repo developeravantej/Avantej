@@ -15,6 +15,7 @@ import {
 	requirePermissionOrpc,
 	assertOrgContextMatch,
 	guardBranchAccessible,
+	guardStoredBranchForContext,
 } from "../../guards";
 import {
 	listSalesOrders,
@@ -140,6 +141,10 @@ export const salesOrderQueryProcedures = {
 				});
 			}
 
+			// Tenant isolation: a record pinned to a branch outside the caller's
+			// accessible scope must not be readable cross-branch.
+			await guardStoredBranchForContext(context, order.branchId);
+
 			let createdByName: string | null = null;
 			if (order.createdBy) {
 				const controlPanelDb = context.honoContext?.get("controlPanelDb") as
@@ -175,6 +180,19 @@ export const salesOrderQueryProcedures = {
 				"sales",
 				"read",
 			);
+
+			// Tenant isolation: load the parent order and verify its branch is in
+			// scope before exposing its status history.
+			const order = await getSalesOrderById(
+				context.tenantDb,
+				input.salesOrderId,
+			);
+			if (!order) {
+				throw new ORPCError("NOT_FOUND", {
+					message: `Sales order not found: ${input.salesOrderId}`,
+				});
+			}
+			await guardStoredBranchForContext(context, order.branchId);
 
 			const limit = input.limit;
 			const parsedCursor = input.cursor ? parseCursor(input.cursor) : null;
