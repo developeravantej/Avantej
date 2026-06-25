@@ -3,12 +3,16 @@ import {
 	getPackageAgreement,
 	signPackageAgreement,
 } from "@avantej-core/services";
+import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
+import { services } from "@avantej-core/db/schema/tenant/services";
+import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
 import {
 	assertOrgContextMatch,
 	assertTenantContext,
+	guardBranchAccessible,
 	requirePermissionOrpc,
 } from "../../guards";
 
@@ -36,6 +40,25 @@ export const packageInstancesAgreementProcedures = {
 				"service_management",
 				"read",
 			);
+
+			const pkg = await context.tenantDb.query.packageInstances.findFirst({
+				where: eq(packageInstances.id, input.packageInstanceId),
+			});
+			if (!pkg) {
+				throw new ORPCError("NOT_FOUND", {
+					message: `Package not found: ${input.packageInstanceId}`,
+				});
+			}
+			const svc = await context.tenantDb.query.services.findFirst({
+				where: eq(services.id, pkg.serviceId),
+			});
+			try {
+				guardBranchAccessible(svc?.branchId, context.accessibleNodeIds);
+			} catch {
+				throw new ORPCError("NOT_FOUND", {
+					message: `Package not found: ${input.packageInstanceId}`,
+				});
+			}
 
 			const agreement = await getPackageAgreement(
 				context.tenantDb,
