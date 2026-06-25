@@ -6,12 +6,15 @@
 
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
+import { inArray } from "drizzle-orm";
+import { members } from "@avantej-core/db/schema/tenant/members";
 import { tenantProcedure } from "../../index";
 import {
 	requirePermissionOrpc,
 	assertOrgContextMatch,
 	guardBranchAccessible,
 } from "../../guards";
+import type { Context } from "../../context";
 import {
 	previewBatch,
 	processCommissionReversals,
@@ -19,6 +22,45 @@ import {
 	runBatch,
 } from "@avantej-core/services/payouts.service";
 import { getControlPanelDb } from "../../lib/context-helpers";
+
+/**
+ * Non-admin tenant isolation: every targeted staff (control-panel user id)
+ * must resolve to a member whose hierarchyScopeId is inside the caller's
+ * accessibleNodeIds. Mirrors the recipientSummary guard. Admins and callers
+ * with empty accessibleNodeIds bypass. Any staff id with no member row, or one
+ * outside scope, → FORBIDDEN.
+ */
+async function assertStaffWithinScope(
+	context: Context,
+	staffUserIds: string[],
+): Promise<void> {
+	if (context.member?.role === "admin" || !context.accessibleNodeIds?.length) {
+		return;
+	}
+	const accessibleNodeIds = context.accessibleNodeIds;
+	const rows = await context.tenantDb
+		.select({
+			userId: members.userId,
+			hierarchyScopeId: members.hierarchyScopeId,
+		})
+		.from(members)
+		.where(inArray(members.userId, staffUserIds));
+
+	const scopeByUser = new Map<string, string>(
+		rows.map((r: { userId: string; hierarchyScopeId: string }) => [
+			r.userId,
+			r.hierarchyScopeId,
+		]),
+	);
+	for (const id of staffUserIds) {
+		const scope = scopeByUser.get(id);
+		if (!scope || !accessibleNodeIds.includes(scope)) {
+			throw new ORPCError("FORBIDDEN", {
+				message: "Staff member is not within your accessible scope",
+			});
+		}
+	}
+}
 
 export const payoutsBatchProcedures = {
 	/**
@@ -42,6 +84,7 @@ export const payoutsBatchProcedures = {
 			if (input.branchId) {
 				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			}
+			await assertStaffWithinScope(context, input.staffIds);
 			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
@@ -89,6 +132,7 @@ export const payoutsBatchProcedures = {
 			if (input.branchId) {
 				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			}
+			await assertStaffWithinScope(context, input.staffIds);
 			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
@@ -155,6 +199,7 @@ export const payoutsBatchProcedures = {
 			if (input.branchId) {
 				guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
 			}
+			await assertStaffWithinScope(context, [input.recipientId]);
 			await requirePermissionOrpc(
 				context.tenantDb,
 				context.member,
