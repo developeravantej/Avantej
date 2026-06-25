@@ -12,6 +12,7 @@ import {
 	requirePermissionOrpc,
 	assertOrgContextMatch,
 	resolveAccessibleNodeIds,
+	guardInputBranchForContext,
 } from "../../guards";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
@@ -136,6 +137,11 @@ export const membersReadProcedures = {
 			);
 
 			const accessibleNodeIds = await resolveAccessibleNodeIds(context);
+
+			// Tenant isolation: a requested branchId must be within the caller's
+			// scope. Without this, member-stats.service line 65 lets branchId
+			// REPLACE accessibleNodeIds, leaking any branch's new-member stats.
+			await guardInputBranchForContext(context, input.branchId);
 
 			return getMembersNewToday(context.tenantDb, {
 				accessibleNodeIds,
