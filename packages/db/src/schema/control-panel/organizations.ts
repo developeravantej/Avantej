@@ -18,6 +18,7 @@ import {
 	index,
 	uniqueIndex,
 	jsonb,
+	boolean,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { subscriptions } from "./subscriptions";
@@ -80,6 +81,11 @@ export const organizations = pgTable(
 		// one GHL location per org, branches as custom-field option). NULL =
 		// not configured. Defaults to "per-branch" for existing tenants.
 		ghlSyncModel: text("ghl_sync_model"),
+		// GHL inbound approval gate (Phase G follow-up). When true, an inbound
+		// ContactCreate for a NEW contact is held in ghl_pending_contacts for
+		// staff approval instead of being materialized immediately. Default false
+		// preserves the instant-sync behavior for every other tenant.
+		ghlRequireApproval: boolean("ghl_require_approval").default(false),
 		// Per-org IANA timezone for availability/booking math (migration 0013).
 		// Currently informational — booking slot math still runs in UTC; org-tz
 		// awareness is a tracked future enhancement (see appointment.service.ts).
