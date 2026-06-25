@@ -491,6 +491,73 @@ export async function listMemberships(
 }
 
 /**
+ * List all package instances for the org, scoped to the owning member's
+ * hierarchy_scope_id ∈ accessibleNodeIds. package_instances has no branchId;
+ * scope is the owning client member (mirrors listMemberships).
+ */
+export async function listAllPackageInstances(
+	controlPanelDb: ControlPanelDb,
+	tenantDb: TenantDb,
+	params: {
+		accessibleNodeIds: string[];
+		clientId?: string;
+		status?: string;
+		source?: string;
+		limit?: number;
+	},
+): Promise<Array<Record<string, unknown> & { clientName: string | null }>> {
+	const { accessibleNodeIds, clientId, status, source, limit = 100 } = params;
+
+	if (accessibleNodeIds.length === 0) return [];
+	assertUuids(accessibleNodeIds, "listAllPackageInstances");
+
+	const nodeArrayLiteral = sql.raw(
+		`ARRAY[${accessibleNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`,
+	);
+	const clientPredicate = clientId
+		? sql`AND pi.client_id = ${clientId}`
+		: sql``;
+	const statusPredicate = status ? sql`AND pi.status = ${status}` : sql``;
+	const sourcePredicate = source ? sql`AND pi.source = ${source}` : sql``;
+
+	const result = await tenantDb.execute(sql`
+		SELECT pi.*, m.hierarchy_scope_id AS hierarchy_scope_id
+		FROM package_instances pi
+		JOIN members m ON m.user_id = pi.client_id AND m.role = 'client'
+		WHERE m.hierarchy_scope_id = ANY(${nodeArrayLiteral})
+			${clientPredicate}
+			${statusPredicate}
+			${sourcePredicate}
+		ORDER BY pi.created_at DESC
+		LIMIT ${limit}
+	`);
+	const rows = result.rows as Array<Record<string, unknown>>;
+
+	const clientIds = [
+		...new Set(
+			rows
+				.map((r) => r.client_id as string | null)
+				.filter((id): id is string => id != null),
+		),
+	];
+	const userRows =
+		clientIds.length > 0
+			? await controlPanelDb
+					.select({ id: user.id, name: user.name })
+					.from(user)
+					.where(inArray(user.id, clientIds))
+			: [];
+	const userMap = new Map(userRows.map((u) => [u.id, u.name]));
+
+	return rows.map((r) => ({
+		...r,
+		clientName: r.client_id
+			? (userMap.get(r.client_id as string) ?? null)
+			: null,
+	}));
+}
+
+/**
  * Update a package instance by ID. Only provided fields are updated.
  */
 export async function updatePackageInstance(

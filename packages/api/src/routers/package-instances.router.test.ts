@@ -353,3 +353,124 @@ describe("packageInstancesRouter.confirmPayment", () => {
 		).rejects.toMatchObject({ code: "BAD_REQUEST" });
 	});
 });
+
+// ─── listAll (tenant-scope isolation) ─────────────────────────────────────────
+// listAll must scope rows to the owning member's hierarchy_scope_id ∈ accessibleNodeIds
+// (mirrors listMemberships). package_instances has no branchId column. A caller whose
+// accessibleNodeIds do not cover the owning branch must get [] (no cross-tenant leak),
+// and an empty accessibleNodeIds (non-admin) short-circuits to [].
+
+const IN_SCOPE_NODE = "11111111-1111-4111-8111-111111111111";
+const OUT_OF_SCOPE_NODE = "22222222-2222-4222-8222-222222222222";
+
+// tenantDb whose `execute` returns the package row only if the SQL text references
+// IN_SCOPE_NODE — emulating the WHERE m.hierarchy_scope_id = ANY(...) predicate the
+// service builds from accessibleNodeIds.
+function makeScopedListDb() {
+	return {
+		// Permission gate for the non-admin "staff" member: resolve a role with a
+		// service_management:read role-permission so requirePermissionOrpc passes
+		// and execution reaches the new scope predicate (the behaviour under test).
+		query: {
+			roles: {
+				findFirst: mock(() =>
+					Promise.resolve({ id: "role-staff", name: "staff", priority: 10 }),
+				),
+			},
+			permissions: {
+				findFirst: mock(() =>
+					Promise.resolve({
+						id: "perm-svc-read",
+						resource: "service_management",
+						action: "read",
+					}),
+				),
+			},
+			rolePermissions: {
+				findFirst: mock(() => Promise.resolve({ id: "rp-1" })),
+			},
+		},
+		// biome-ignore lint/suspicious/noExplicitAny: loose test stub
+		execute: mock((q: { sql?: string } | any) => {
+			const text = typeof q === "string" ? q : (q?.sql ?? JSON.stringify(q));
+			const visible = text.includes(IN_SCOPE_NODE);
+			return Promise.resolve({
+				rows: visible
+					? [
+							{
+								id: PKG_ID,
+								client_id: "client-1",
+								customer_name: "Ahmad",
+								service_id: SERVICE_ID,
+								status: "active",
+								source: "purchased",
+								created_at: new Date(),
+								hierarchy_scope_id: IN_SCOPE_NODE,
+							},
+						]
+					: [],
+			});
+		}),
+		// fallback select chain in case the handler path is partially migrated
+		select: mock(() => ({
+			from: mock(() => ({
+				where: mock(() => ({
+					orderBy: mock(() => ({ limit: mock(() => Promise.resolve([])) })),
+				})),
+			})),
+		})),
+	} as unknown as never;
+}
+
+const cpDbNoUsers = {
+	select: mock(() => ({
+		from: mock(() => ({ where: mock(() => Promise.resolve([])) })),
+	})),
+};
+
+const listAllCtx = (tenantDb: unknown, accessibleNodeIds: string[]) =>
+	createMockContext({
+		tenantDb,
+		member: {
+			id: "m-staff",
+			userId: "u-staff",
+			role: "staff",
+			status: "active",
+			hierarchyScopeId: IN_SCOPE_NODE,
+		},
+		accessibleNodeIds,
+		honoBindings: { controlPanelDb: cpDbNoUsers },
+	});
+
+describe("packageInstancesRouter.listAll (tenant isolation)", () => {
+	it("returns [] when the owning branch is outside the caller's accessibleNodeIds", async () => {
+		const ctx = listAllCtx(makeScopedListDb(), [OUT_OF_SCOPE_NODE]);
+		const result = (await call(
+			packageInstancesRouter.listAll,
+			{ organizationId: ORG_ID },
+			{ context: ctx },
+		)) as unknown[];
+		expect(result).toHaveLength(0);
+	});
+
+	it("short-circuits to [] when accessibleNodeIds is empty (non-admin)", async () => {
+		const ctx = listAllCtx(makeScopedListDb(), []);
+		const result = (await call(
+			packageInstancesRouter.listAll,
+			{ organizationId: ORG_ID },
+			{ context: ctx },
+		)) as unknown[];
+		expect(result).toHaveLength(0);
+	});
+
+	it("returns the row when the owning branch is in scope", async () => {
+		const ctx = listAllCtx(makeScopedListDb(), [IN_SCOPE_NODE]);
+		const result = (await call(
+			packageInstancesRouter.listAll,
+			{ organizationId: ORG_ID },
+			{ context: ctx },
+		)) as unknown as Array<{ id: string }>;
+		expect(result).toHaveLength(1);
+		expect(result[0]?.id).toBe(PKG_ID);
+	});
+});

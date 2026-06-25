@@ -1,11 +1,9 @@
 import {
 	listMemberships,
 	listAssignedToMember,
+	listAllPackageInstances,
 } from "@avantej-core/services/package-instance.service";
 import { listExpiringMemberships } from "@avantej-core/services/memberships.service";
-import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
-import { user } from "@avantej-core/db/schema/auth";
-import { desc, and, eq, inArray } from "drizzle-orm";
 import { parseCursor, encodeCursor } from "../../lib/cursor";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
@@ -127,44 +125,14 @@ export const packageInstancesListsProcedures = {
 				"read",
 			);
 
-			// Build filter conditions dynamically
-			const conditions = [];
-			if (input.clientId)
-				conditions.push(eq(packageInstances.clientId, input.clientId));
-			if (input.status)
-				conditions.push(eq(packageInstances.status, input.status));
-			if (input.source)
-				conditions.push(eq(packageInstances.source, input.source));
-
-			const rows = await context.tenantDb
-				.select()
-				.from(packageInstances)
-				.where(conditions.length > 0 ? and(...conditions) : undefined)
-				.orderBy(desc(packageInstances.createdAt))
-				.limit(input.limit);
-
-			// Cross-DB: batch-lookup client names from control panel
 			const controlPanelDb = getControlPanelDb(context);
-			let userMap = new Map<string, string>();
-			const clientIds = [
-				...new Set(
-					rows
-						.map((r: any) => r.clientId)
-						.filter((id: any): id is string => id != null),
-				),
-			];
-			if (clientIds.length > 0) {
-				const userRows = await controlPanelDb
-					.select({ id: user.id, name: user.name })
-					.from(user)
-					.where(inArray(user.id, clientIds as string[]));
-				userMap = new Map(userRows.map((u) => [u.id, u.name]));
-			}
-
-			return rows.map((row: any) => ({
-				...row,
-				clientName: row.clientId ? (userMap.get(row.clientId) ?? null) : null,
-			}));
+			return listAllPackageInstances(controlPanelDb, context.tenantDb, {
+				accessibleNodeIds: context.accessibleNodeIds ?? [],
+				clientId: input.clientId,
+				status: input.status,
+				source: input.source,
+				limit: input.limit,
+			});
 		}),
 
 	/**
