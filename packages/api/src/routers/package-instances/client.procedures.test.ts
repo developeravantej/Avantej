@@ -128,3 +128,105 @@ describe("packageInstances.togglePin", () => {
 		).rejects.toThrow();
 	});
 });
+
+// ---- packageInstances.getById — staff path branch-scope isolation ----
+
+const SVC_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const IN_SCOPE_BRANCH = "node-root"; // matches createMockContext default accessibleNodeIds
+const OUT_OF_SCOPE_BRANCH = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+
+// tenantDb stub for getById: the procedure calls
+//   getPackageInstanceById(tenantDb, id) → tenantDb.query.packageInstances.findFirst()
+//   requirePermissionOrpc → hasPermission → tenantDb.query.roles.findFirst()
+//     (returns undefined → admin fallback grants permission for the staff path)
+//   (fix) tenantDb.query.services.findFirst()  → resolves service.branchId
+// assignedTrainerId / preferredTrainerId left null so the enrichment selects are skipped.
+function makeGetByIdDb(instance: unknown, service: unknown) {
+	// biome-ignore lint/suspicious/noExplicitAny: loose test stub
+	return {
+		query: {
+			roles: { findFirst: () => Promise.resolve(undefined) },
+			packageInstances: {
+				findFirst: () => Promise.resolve(instance ?? null),
+			},
+			services: {
+				findFirst: () => Promise.resolve(service ?? null),
+			},
+		},
+	} as any;
+}
+
+describe("packageInstances.getById", () => {
+	it("staff caller for an out-of-scope service branch → FORBIDDEN", async () => {
+		const ctx = createMockContext({
+			// default member is role:"admin" → permission check bypasses;
+			// default accessibleNodeIds is ["node-root"], which excludes OUT_OF_SCOPE_BRANCH.
+			tenantDb: makeGetByIdDb(
+				{
+					id: PKG_ID,
+					serviceId: SVC_ID,
+					clientId: "someone-else", // not SESSION_USER → forces staff path
+					assignedTrainerId: null,
+					preferredTrainerId: null,
+				},
+				{ id: SVC_ID, branchId: OUT_OF_SCOPE_BRANCH },
+			),
+		});
+
+		await expect(
+			call(
+				packageInstancesClientProcedures.getById,
+				{ organizationId: ORG_ID, id: PKG_ID },
+				{ context: ctx },
+			),
+		).rejects.toMatchObject({ code: "FORBIDDEN" });
+	});
+
+	it("staff caller for an in-scope service branch → passes", async () => {
+		const ctx = createMockContext({
+			tenantDb: makeGetByIdDb(
+				{
+					id: PKG_ID,
+					serviceId: SVC_ID,
+					clientId: "someone-else",
+					assignedTrainerId: null,
+					preferredTrainerId: null,
+				},
+				{ id: SVC_ID, branchId: IN_SCOPE_BRANCH },
+			),
+		});
+
+		const res = await call(
+			packageInstancesClientProcedures.getById,
+			{ organizationId: ORG_ID, id: PKG_ID },
+			{ context: ctx },
+		);
+
+		expect(res.id).toBe(PKG_ID);
+		expect(res.assignedTrainerName).toBeNull();
+		expect(res.preferredTrainerName).toBeNull();
+	});
+
+	it("staff caller for an org-wide service (null branch) → passes", async () => {
+		const ctx = createMockContext({
+			tenantDb: makeGetByIdDb(
+				{
+					id: PKG_ID,
+					serviceId: SVC_ID,
+					clientId: "someone-else",
+					assignedTrainerId: null,
+					preferredTrainerId: null,
+				},
+				{ id: SVC_ID, branchId: null },
+			),
+		});
+
+		const res = await call(
+			packageInstancesClientProcedures.getById,
+			{ organizationId: ORG_ID, id: PKG_ID },
+			{ context: ctx },
+		);
+
+		expect(res.id).toBe(PKG_ID);
+	});
+});
