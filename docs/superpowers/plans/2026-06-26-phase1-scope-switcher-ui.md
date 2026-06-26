@@ -2,13 +2,17 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a global scope switcher to the tenant dashboard so a user can pick a country/state/branch (or "All") and have Overview + Reports re-scope to it.
+> **REVISED 2026-06-26 — per-module, shared scope.** Switcher is rendered in EACH branch-scoped module's header (not the sidebar), with ONE shared `activeScopeId`. See spec `docs/superpowers/specs/2026-06-25-tenant-scope-switcher-design.md` (§4.3, §4.7, §8). Old Task 4 (sidebar wiring) is **dropped** (see note below). Tasks 1–3 (foundation) + 5/6 (Overview) survive; the full module set is the rollout table at the end.
 
-**Architecture:** A new `ScopeProvider` (mirrors the existing sidebar context pattern, backed by read-only `useUserContext`) owns a selectable `activeScopeId` — defaulted to the member's top accessible node, persisted per (user, org), validated against `accessibleNodeIds` on load. The dead sidebar org button becomes the switcher. Read pages inject `scopeBranchId` into their already-guarded oRPC queries; the switcher can only narrow within `accessibleNodeIds` (server guards landed in Phase 0).
+**Goal:** Add a reusable scope switcher rendered in each branch-scoped module's header so a user can pick a country/state/branch (or "All") and re-scope that module — from one shared selection applied across all modules.
+
+**Architecture:** A new `ScopeProvider` (mirrors the existing sidebar context pattern, backed by read-only `useUserContext`) owns a selectable `activeScopeId` — defaulted to the member's top accessible node, persisted per (user, org), validated against `accessibleNodeIds` on load. A reusable `<ScopeSwitcher/>` consumes it and is placed in each module header. Read pages inject `scopeBranchId` into their already-guarded oRPC queries; the switcher can only narrow within `accessibleNodeIds` (server guards from Phase 0 + Phase 0.5).
 
 **Tech Stack:** React + TanStack Router/Query, oRPC client, vitest + @testing-library/react (Node 22), Tailwind.
 
-**Depends on:** Phase 0 scope-guard hardening (merged, PR #58). Builds on `main`.
+**Depends on:** Phase 0 (merged, PR #58) **and Phase 0.5 list-guards (below)**. Builds on `main`.
+
+**Module set (spec §4.7):** Wave 1 (16) = Overview, Reports, Approvals, Customers, Appointments, Class Slots, Trainers, Services, Announcements, Sales & Payments, Commissions, Expenses, Packages, Employees, Attendance, Staff Access. Wave 2 (3) = Payouts (needs Phase 0.5 `branchId` param), POS (recording-branch UX), Dashboard.
 
 ---
 
@@ -75,9 +79,18 @@ Consumer injection (Phase 1, no provider changes): in `DashboardPage.tsx` (lines
 
 ---
 
-## ⚠️ Backend prerequisite for the Reports task (Task 7)
+## Phase 0.5 — list-procedure guard prerequisites (do FIRST, before any switcher wiring)
 
-The 4 Reports series procedures (`getMemberCountSeries` / `getChurnSeries` / `getLtvSeries` / `getClassFillRateSeries`) do **not** yet accept a `branchId`/scope param — their `seriesInput` at `packages/api/src/routers/analytics.ts:103` must be extended (and the service threaded with `accessibleNodeIds`, mirroring the Phase 0 guarded analytics procedures) **before** Task 7 can inject `scopeBranchId`. Treat that backend extension as Task 7's first sub-step (or a small precursor task). Overview (Tasks 5–6) needs no backend change — its queries already accept a branch/scope param (confirmed in mapping).
+The switcher feeds a **user-controlled** scope into module list queries. Some are "safe-but-silent" (intersect `accessibleNodeIds`, so an out-of-scope pick returns empty instead of erroring). Make them **fail-loud** (`FORBIDDEN`) first — same TDD pattern as Phase 0 (`guardBranchAccessible` from `packages/api/src/guards.ts`; test = out-of-scope branch/scope id → `FORBIDDEN`, in-scope/admin → pass). From the `module-scope-classification` audit:
+
+- [ ] **0.5-A `members.list`** (`packages/api/src/routers/members/list.procedures.ts`) — accepts `input.hierarchyScopeId` (~:23) and constrains non-admins via `inArray(members.hierarchyScopeId, accessibleNodeIds)` (~:90-99) but never explicitly guards the supplied value. Add `await guardInputBranchForContext(context, input.hierarchyScopeId)` (or `guardBranchAccessible(input.hierarchyScopeId, accessibleNodeIds)`) before the query. Unblocks Employees / Trainers / Staff Access.
+- [ ] **0.5-B `appointments.list`** (`appointments/list.procedures.ts:22-56`) — `input.branchId` is post-filtered (`items.filter(r => r.branchId === input.branchId)`); add `await guardInputBranchForContext(context, input.branchId)` after `resolveAccessibleNodeIds`.
+- [ ] **0.5-C `services.list`** (`services/crud.procedures.ts:27-55`) — `branchId` passed to the service with `accessibleNodeIds`; add `await guardInputBranchForContext(context, input.branchId)` before the call.
+- [ ] **0.5-D `payouts.list`** (payouts router) — has **no** `branchId` input; rows only post-filtered by `accessibleNodeIds`. Add a `branchId?: z.string().uuid().optional()` input + `await guardInputBranchForContext(context, input.branchId)` + thread it into the list query. **Blocks the Payouts module (Wave 2) only** — not required for Wave 1.
+
+Each is one TDD task: failing test (out-of-scope id → `FORBIDDEN`) → add guard → green → commit.
+
+**Reports series note:** the 4 series procs (`getMemberCountSeries`/`getChurnSeries`/`getLtvSeries`/`getClassFillRateSeries`, `analytics.ts:103`) already filter by `accessibleNodeIds` but take no `branchId` — to make the Reports switcher narrow them (not just the KPI/revenue queries), extend `seriesInput` with `branchId?` + `guardBranchAccessible` (fold into the Reports rollout task). The KPI/revenue/staff queries on Overview + Reports already accept `branchId` — no backend change.
 
 ---
 
@@ -982,7 +995,13 @@ export function ScopeSwitcher({ className }: { className?: string }) {
 
 ---
 
-### Task 4: Wire ScopeSwitcher into the sidebar header (replace the dead org pill) — `apps/web/src/components/app-sidebar.tsx`
+### Task 4: ~~Wire ScopeSwitcher into the sidebar header~~ — **SUPERSEDED (DROPPED)**
+
+> **Do not implement.** The 2026-06-26 redesign moved the switcher from the sidebar into each module's header (see the per-module rollout table at the end). `<ScopeSwitcher/>` (Task 3) is placed in module page headers instead. The dead sidebar org button is left as-is. The original sidebar-wiring content below is retained only for reference.
+
+<details><summary>(superseded original)</summary>
+
+#### Original (do not implement): Wire ScopeSwitcher into the sidebar header — `apps/web/src/components/app-sidebar.tsx`
 
 **Prerequisites:** Tasks 1–2 already shipped `apps/web/src/components/scope/ScopeProvider.tsx` (exports `useScope`, `ScopeProvider`, `ScopeContextValue`, `ScopeNode`) and mounted `<ScopeProvider>` around `<Outlet/>` in `apps/web/src/routes/__root.tsx`, so `useScope()` has a provider ancestor at runtime when `AppSidebar` renders.
 
@@ -1305,11 +1324,15 @@ import { ScopeSwitcher } from "@/components/scope/ScopeSwitcher";
 
 - [ ] **Step 5 — commit:** `feat(scope): wire ScopeSwitcher into sidebar header, replacing the dead org pill`
 
-Relevant paths: `/Users/ngchwanlii/.superconductor/worktrees/avantej-core/sc-pinned-fermion-7e14/apps/web/src/components/scope/ScopeSwitcher.tsx`, `/Users/ngchwanlii/.superconductor/worktrees/avantej-core/sc-pinned-fermion-7e14/apps/web/src/components/app-sidebar.tsx`, `/Users/ngchwanlii/.superconductor/worktrees/avantej-core/sc-pinned-fermion-7e14/apps/web/src/__tests__/components/scope/scope-switcher.test.tsx`.
+Relevant paths: `apps/web/src/components/scope/ScopeSwitcher.tsx`, `apps/web/src/components/app-sidebar.tsx`, `apps/web/src/__tests__/components/scope/scope-switcher.test.tsx`.
+
+</details>
 
 ---
 
 ### Task 5: DashboardPage (Overview) consumes `scopeBranchId` — inject into the 7 scope-aware analytics queries — `apps/web/src/components/pages/dashboard/DashboardPage.tsx`
+
+> **This is the WORKED REFERENCE for the per-module rollout.** Every other Wave-1 module follows this exact shape (render `<ScopeSwitcher/>` in the header + inject `scopeBranchId` into its guarded query). The remaining modules are listed in the rollout table at the end — each is its own task, parameterized by the table row.
 
 **Files:**
 - Modify: `apps/web/src/components/pages/dashboard/DashboardPage.tsx`
@@ -1921,8 +1944,33 @@ git commit -m "feat(reports): inject activeScopeId as branchId on scope-aware an
 
 ---
 
+## Per-module rollout (Wave 1 = 16, Wave 2 = 3)
+
+Each row is ONE task following the **Task 5 reference pattern**: render `<ScopeSwitcher/>` in the module header (replace any ad-hoc branch `<Select>`); inject `scopeBranchId` (or `hierarchyScopeId`) into the listed query; add an RBAC test (branch-manager → only their node / static label; out-of-scope → `FORBIDDEN`). Overview (Task 5) + its "All" cards (Task 6) + Reports (Task 7) are already written above. The rest:
+
+| Module | Page component | Query to scope | Scope param | Phase 0.5 dep | Notes |
+|---|---|---|---|---|---|
+| Approvals | `operations/approvals.tsx` | `packageInstances.listPending` | `branchId` | — (guarded) | already has all/assignable toggle; add branch |
+| Customers | `customers/v2` → `useCustomerDirectory.ts:51` | `customerDirectory.list` | `branchId` | — | |
+| Appointments | `appointment/view.tsx` → `useTrainerSchedule.ts` | `appointments.list` | `branchId` | **0.5-B** | |
+| Class Slots | `class-slots-page.tsx:65` | `classSlots.list` | `branchId` | — | |
+| Trainers | `TrainersListPage` → `useTrainerData.ts:38` | `members.list` (role:trainer) | `hierarchyScopeId` | **0.5-A** | |
+| Services | `services-page.tsx:229` (default tab) | `services.list` | `branchId` | **0.5-C** | scope only the Services tab |
+| Announcements | `AnnouncementsViewPage.tsx:69` | `announcements.list` | `branchId` | — | already loads `hierarchy.listNodes` |
+| Sales & Payments | `sales/view.tsx:160` | `salesOrders.list` | `branchId` | — | **replace** existing ad-hoc branch filter (`view.tsx:62-64,400`) |
+| Commissions | `commissions/all-tab.tsx:318` | `commissionSplits.listLedger` | `branchId` | — | **replace** existing branch dropdown (`all-tab.tsx:480-500`); default tab "mine" is user-scoped — switcher on the "all" tab |
+| Expenses | `expenses/ExpensesViewPage.tsx:60` | `expenses.list` | `branchId` | — | query currently omits branchId — add it |
+| Packages | `packages/memberships-page.tsx:226` | `packageInstances.listMemberships` | `branchId` | — | **replace** existing branch filter; default tab "memberships" |
+| Employees | `user/UserViewPage.tsx:23` | `members.list` | `hierarchyScopeId` | **0.5-A** | query currently `{organizationId}` only — add scope |
+| Attendance | `attendance/attendance-tab.tsx` | `checkIns.list` / `listTodaysBookings` | `branchId` | — | **replace** ad-hoc Select |
+| Staff Access | `access-control/members-tab.tsx` | members grid query | `hierarchyScopeId`/`accessibleNodeIds` | **0.5-A** | |
+| **Payouts** (W2) | `features/payouts` → `usePayoutsList` (`api.ts:95`) | `payouts.list` | `branchId` (NEW) | **0.5-D** | needs the new param first |
+| **POS** (W2) | `sales/create.tsx` → `PosWorkflow` (`pos-workflow.tsx:445`) | `pos.recordSale` | `branchId` (recording) | — | **distinct UX**: switcher seeds the recording branch; explicit confirm; NOT a read filter |
+| **Dashboard** (W2) | `launchpad/DashboardLaunchpad.tsx:46` | `analytics.getDashboardKpis` + badges | `branchId` | — | lowest value; last |
+
 ## Self-review notes
-- ScopeProvider API is defined once (Task 1) and consumed by the SAME field names (`scopeBranchId`, `isAllScope`, `scopeNodes`, `setActiveScope`) across Tasks 3–7.
-- Security: the switcher only sets `activeScopeId ∈ accessibleNodeIds`; out-of-scope ids are rejected client-side AND server-side (Phase 0 guards). No new isolation surface.
-- Out of Phase 1 scope (tracked in the spec): Members/Appointments/Commissions read pages (Phase 2); reclassifying the `trusts-fixed-scope` set; FX-converted "All" totals.
-- Verify before merge: vitest on the new files + a Chrome-MCP journey (owner switches MY→SG→All; branch-scoped user sees only their node / static label).
+- ScopeProvider API is defined once (Task 1) and consumed by the SAME field names (`scopeBranchId`, `isAllScope`, `scopeNodes`, `setActiveScope`) across Task 3, Task 5/6/7, and every rollout-table module.
+- Security: the switcher only sets `activeScopeId ∈ accessibleNodeIds`; out-of-scope ids are rejected client-side AND server-side (Phase 0 + Phase 0.5 guards). No new isolation surface. The RBAC test (branch-manager static label + forged-scope `FORBIDDEN`) is mandatory per module.
+- Phase 0.5 (4 list-guards) is a hard prerequisite before wiring 0.5-dependent modules; do it first.
+- Out of scope (tracked in spec): reclassifying the `trusts-fixed-scope` set; FX-converted "All" totals.
+- Verify before merge: vitest on new files + a Chrome-MCP journey (owner switches MY→SG→All across Commissions/Employees/Reports; branch-manager sees only their node / static label everywhere).
