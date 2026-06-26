@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Plus, RefreshCw } from "lucide-react";
+import { ScopeSwitcher } from "@/components/scope/ScopeSwitcher";
 import { PERIODS, type Period } from "./types";
 
 interface DashboardHeaderProps {
@@ -19,6 +20,11 @@ export function DashboardHeader({
 				<span className="text-muted-foreground">Dashboard</span>
 				<span className="text-[#a3a3a3]">/</span>
 				<span className="font-semibold">Overview</span>
+			</div>
+
+			{/* Tenant scope switcher (country → state → branch) */}
+			<div className="ml-6 flex items-center gap-2">
+				<ScopeSwitcher className="h-8 w-56" />
 			</div>
 
 			{/* Period selector pills */}

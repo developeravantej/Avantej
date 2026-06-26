@@ -13,6 +13,7 @@ import type { NewTodayResult } from "@avantej-core/services";
 
 import { formatToday } from "./helpers";
 import { KpiTile } from "./KpiTile";
+import { PerCountryMoneyCards } from "./PerCountryMoneyCards";
 
 interface LargestSaleToday {
 	totalAmount: number;
@@ -36,6 +37,9 @@ interface HeroSectionProps {
 	largestError: boolean;
 	onRetryLargest: () => void;
 	newTodayCount: number | undefined;
+	/** true when viewing the whole accessible subtree → render per-branch
+	 *  ("per-country") money cards instead of the single combined MYR tile. */
+	isAllScope: boolean;
 }
 
 export function HeroSection({
@@ -55,6 +59,7 @@ export function HeroSection({
 	largestError,
 	onRetryLargest,
 	newTodayCount,
+	isAllScope,
 }: HeroSectionProps) {
 	return (
 		<section className="relative grid grid-cols-1 gap-8 overflow-hidden rounded-3xl border border-[#e5e5e5] bg-gradient-to-br from-white to-[#fafafa] p-7 lg:grid-cols-[1fr_400px]">
@@ -98,12 +103,14 @@ export function HeroSection({
 								Retry
 							</button>
 						</span>
+					) : isAllScope ? (
+						<PerCountryMoneyCards kpis={kpis} />
 					) : (
 						<span className="font-mono text-6xl font-extrabold leading-none tracking-tight tabular-nums">
 							{formatPrice(kpis?.totalSales ?? 0, "MYR")}
 						</span>
 					)}
-					{!kpisError && revenueDelta !== null && (
+					{!kpisError && !isAllScope && revenueDelta !== null && (
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<Badge

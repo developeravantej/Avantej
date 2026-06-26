@@ -3,6 +3,8 @@ import { useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 
 import { useUserContext } from "@/hooks/useUserContext";
+import { useScope } from "@/components/scope/ScopeProvider";
+import { ScopeSwitcher } from "@/components/scope/ScopeSwitcher";
 import { orpc } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { StatusCallout } from "@/components/ui/status-callout";
@@ -24,6 +26,7 @@ import { DownloadIcon, CalIcon } from "./icons";
 export function ReportsPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
+	const { scopeNodeId } = useScope();
 	const [window, setWindow] = useState<WindowKey>("30D");
 
 	const period = WINDOW_TO_PERIOD[window];
@@ -41,7 +44,7 @@ export function ReportsPage() {
 		refetch: refetchKpis,
 	} = useQuery({
 		...orpc.analytics.getDashboardKpis.queryOptions({
-			input: { organizationId: organizationId!, period },
+			input: { organizationId: organizationId!, period, branchId: scopeNodeId },
 		}),
 		enabled: !!organizationId,
 	});
@@ -49,7 +52,11 @@ export function ReportsPage() {
 	// ── Revenue series ──
 	const { data: series = [], isLoading: seriesLoading } = useQuery({
 		...orpc.analytics.getRevenueSeries.queryOptions({
-			input: { organizationId: organizationId!, days: seriesDays },
+			input: {
+				organizationId: organizationId!,
+				days: seriesDays,
+				branchId: scopeNodeId,
+			},
 		}),
 		enabled: !!organizationId,
 	});
@@ -57,7 +64,11 @@ export function ReportsPage() {
 	// ── Member count series ──
 	const { data: memberSeries = [] } = useQuery({
 		...orpc.analytics.getMemberCountSeries.queryOptions({
-			input: { organizationId: organizationId!, days: seriesDays },
+			input: {
+				organizationId: organizationId!,
+				days: seriesDays,
+				branchId: scopeNodeId,
+			},
 		}),
 		enabled: !!organizationId,
 	});
@@ -65,7 +76,11 @@ export function ReportsPage() {
 	// ── Churn series ──
 	const { data: churnSeries = [] } = useQuery({
 		...orpc.analytics.getChurnSeries.queryOptions({
-			input: { organizationId: organizationId!, days: seriesDays },
+			input: {
+				organizationId: organizationId!,
+				days: seriesDays,
+				branchId: scopeNodeId,
+			},
 		}),
 		enabled: !!organizationId,
 	});
@@ -73,7 +88,11 @@ export function ReportsPage() {
 	// ── LTV series ──
 	const { data: ltvSeries = [] } = useQuery({
 		...orpc.analytics.getLtvSeries.queryOptions({
-			input: { organizationId: organizationId!, days: seriesDays },
+			input: {
+				organizationId: organizationId!,
+				days: seriesDays,
+				branchId: scopeNodeId,
+			},
 		}),
 		enabled: !!organizationId,
 	});
@@ -81,7 +100,11 @@ export function ReportsPage() {
 	// ── Class fill rate series ──
 	const { data: fillSeries = [] } = useQuery({
 		...orpc.analytics.getClassFillRateSeries.queryOptions({
-			input: { organizationId: organizationId!, days: seriesDays },
+			input: {
+				organizationId: organizationId!,
+				days: seriesDays,
+				branchId: scopeNodeId,
+			},
 		}),
 		enabled: !!organizationId,
 	});
@@ -93,7 +116,7 @@ export function ReportsPage() {
 		isError: staffError,
 	} = useQuery({
 		...orpc.analytics.getStaffPerformance.queryOptions({
-			input: { organizationId: organizationId!, period },
+			input: { organizationId: organizationId!, period, branchId: scopeNodeId },
 		}),
 		enabled: !!organizationId,
 	});
@@ -286,6 +309,9 @@ export function ReportsPage() {
 					</div>
 
 					<div className="ml-auto flex flex-wrap items-center gap-2">
+						{/* Tenant scope switcher (country → state → branch) */}
+						<ScopeSwitcher className="w-56" />
+
 						{/* Period switcher */}
 						<div
 							className="flex items-center gap-0.5 rounded-xl border p-1"
