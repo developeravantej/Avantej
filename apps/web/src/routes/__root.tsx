@@ -1,6 +1,7 @@
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { ScopeProvider } from "@/components/scope/ScopeProvider";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import type { QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
@@ -59,7 +60,9 @@ function RootComponent() {
 					{isFetching && (
 						<div className="fixed top-0 left-0 right-0 z-50 h-0.5 bg-primary animate-pulse" />
 					)}
-					<Outlet />
+					<ScopeProvider>
+						<Outlet />
+					</ScopeProvider>
 					<Toaster richColors />
 				</ThemeProvider>
 			</AuthProvider>
