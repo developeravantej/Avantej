@@ -7,7 +7,7 @@ import { describe, test, expect, beforeAll } from "bun:test";
 import {
 	assertBranchAccessible,
 	BranchAccessDeniedError,
-	resolveBranchFilter,
+	resolveScopeNodeIds,
 } from "@avantej-core/services";
 import {
 	loadDevVars,
@@ -28,19 +28,23 @@ beforeAll(() => {
 });
 
 describe("hierarchy-scope (integration)", () => {
-	test("resolveBranchFilter rejects out-of-scope branchId", () => {
+	test("resolveScopeNodeIds rejects out-of-scope scope node", async () => {
 		if (shouldSkipIntegration()) return;
 
-		expect(() =>
-			resolveBranchFilter(OUT_OF_SCOPE, [TEST_BRANCH_NODE_ID]),
-		).toThrow(BranchAccessDeniedError);
+		// Guard fires before any DB expansion — no tenantDb access needed.
+		await expect(
+			resolveScopeNodeIds(tenantDb, OUT_OF_SCOPE, [TEST_BRANCH_NODE_ID]),
+		).rejects.toThrow(BranchAccessDeniedError);
 	});
 
-	test("resolveBranchFilter returns scoped branch list when branchId omitted", () => {
+	test("resolveScopeNodeIds returns scoped node list when scope omitted", async () => {
 		if (shouldSkipIntegration()) return;
 
+		// No scope picked → "All" = the accessible set verbatim (no DB hit).
 		const nodes = [TEST_BRANCH_NODE_ID];
-		expect(resolveBranchFilter(undefined, nodes)).toEqual(nodes);
+		expect(await resolveScopeNodeIds(tenantDb, undefined, nodes)).toEqual(
+			nodes,
+		);
 	});
 
 	test("assertBranchAccessible allows in-scope branch", () => {
