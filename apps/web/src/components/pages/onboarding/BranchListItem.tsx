@@ -51,7 +51,7 @@ export function BranchListItem({
 						</p>
 						{hasQr && (
 							<p className="font-mono text-[10px] text-[#737373] truncate">
-								{row.invite!.token.slice(0, 10)}…
+								{row.invite!.id.slice(0, 8)}…
 							</p>
 						)}
 					</div>

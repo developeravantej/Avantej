@@ -9,6 +9,7 @@ import {
 	requirePermissionOrpc,
 	assertOrgContextMatch,
 	guardBranchAccessible,
+	guardStoredBranchForContext,
 } from "../../guards";
 import { getControlPanelDb } from "../../lib/context-helpers";
 
@@ -104,6 +105,7 @@ export const refundsReadProcedures = {
 					message: `Refund ${input.id} not found`,
 				});
 			}
+			await guardStoredBranchForContext(context, refund.branchId);
 			return refund;
 		}),
 };

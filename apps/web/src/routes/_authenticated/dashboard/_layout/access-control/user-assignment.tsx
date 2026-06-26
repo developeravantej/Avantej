@@ -66,7 +66,7 @@ function StaffAccessPage() {
 			</div>
 
 			{/* Scroll region */}
-			<div className="min-h-0 flex-1 overflow-hidden">{content}</div>
+			<div className="min-h-0 flex-1 overflow-y-auto p-6">{content}</div>
 		</div>
 	);
 }

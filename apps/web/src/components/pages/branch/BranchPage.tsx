@@ -10,6 +10,15 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { cn } from "@/lib/utils";
 
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { EditBranchDialog } from "./EditBranchDialog";
 import { NodeDetailPanel } from "./NodeDetailPanel";
 import { TreeRow } from "./TreeRow";
@@ -21,7 +30,12 @@ import type { HierarchyNode, NodeWithStats } from "./types";
 export function BranchPage() {
 	const { data: session, isPending: authLoading } = authClient.useSession();
 	const isAuthenticated = !!session?.user;
-	const { data: userContext, isLoading: isLoadingContext } = useUserContext();
+	const {
+		data: userContext,
+		isLoading: isLoadingContext,
+		hasPermission,
+	} = useUserContext();
+	const canDelete = hasPermission("hierarchy_management:delete");
 	const navigate = useNavigate();
 	const orgErrorShown = useRef(false);
 
@@ -40,6 +54,9 @@ export function BranchPage() {
 	const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 	const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 	const [allExpanded, setAllExpanded] = useState(false);
+
+	// Delete confirmation state
+	const [deletingNode, setDeletingNode] = useState<NodeWithStats | null>(null);
 
 	const rawOrgId = userContext?.currentOrganizationId ?? null;
 	const organizationId =
@@ -220,6 +237,38 @@ export function BranchPage() {
 		errorMessage: (err) => `Failed to move: ${err.message}`,
 		invalidate: [orpc.hierarchy.listNodesWithStats.key(), ["user-context"]],
 	});
+
+	const deleteMutation = useApiMutation({
+		mutationFn: async (nodeId: string) => {
+			if (!organizationId) throw new Error("Organization ID required");
+			// Server defaults: autoDeleteChildren + autoReassignMembers = true.
+			return client.hierarchy.deleteNode({ organizationId, nodeId });
+		},
+		successMessage: "Branch deleted",
+		errorMessage: (err) => `Failed to delete: ${err.message}`,
+		invalidate: [orpc.hierarchy.listNodesWithStats.key(), ["user-context"]],
+	});
+
+	// ── Delete handlers ───────────────────────────────────────────────────────
+	// Count all descendants of a node so the confirm dialog can warn about cascade.
+	const countDescendants = useCallback(
+		(id: string): number => {
+			const kids = treeMap.get(id) ?? [];
+			return kids.reduce((acc, k) => acc + 1 + countDescendants(k.id), 0);
+		},
+		[treeMap],
+	);
+
+	const handleConfirmDelete = useCallback(async () => {
+		if (!deletingNode) return;
+		try {
+			await deleteMutation.mutateAsync(deletingNode.id);
+			if (selectedNodeId === deletingNode.id) setSelectedNodeId(null);
+			setDeletingNode(null);
+		} catch {
+			// errors surfaced by mutation onError
+		}
+	}, [deletingNode, deleteMutation, selectedNodeId]);
 
 	// ── Edit handlers ─────────────────────────────────────────────────────────
 	const handleOpenEdit = useCallback(
@@ -443,6 +492,9 @@ export function BranchPage() {
 							node={selectedNode}
 							breadcrumb={breadcrumb}
 							onEdit={() => handleOpenEdit(selectedNode)}
+							onDelete={() => setDeletingNode(selectedNode)}
+							canDelete={canDelete}
+							isDeleting={deleteMutation.isPending}
 						/>
 					) : (
 						<div className="flex h-full items-center justify-center rounded-2xl border border-[#e5e5e5] bg-white text-sm text-[#737373]">
@@ -481,6 +533,66 @@ export function BranchPage() {
 				onSubmit={handleEditSubmit}
 				isPending={updateMutation.isPending || moveMutation.isPending}
 			/>
+
+			{/* ── Delete confirmation ───────────────────────────────────────────── */}
+			<Dialog
+				open={!!deletingNode}
+				onOpenChange={(open) => {
+					if (!open) setDeletingNode(null);
+				}}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Delete “{deletingNode?.name}”?</DialogTitle>
+						<DialogDescription asChild>
+							<div className="space-y-2 text-sm">
+								<p>
+									This permanently deletes{" "}
+									<span className="font-semibold">{deletingNode?.name}</span>
+									{deletingNode && countDescendants(deletingNode.id) > 0 ? (
+										<>
+											{" "}
+											and its{" "}
+											<span className="font-semibold">
+												{countDescendants(deletingNode.id)}
+											</span>{" "}
+											sub-node(s)
+										</>
+									) : null}
+									. Members scoped to these nodes are reassigned to the parent.
+								</p>
+								<p className="text-rose-600">
+									This cannot be undone, and any linked GoHighLevel branch
+									options are removed.
+								</p>
+							</div>
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setDeletingNode(null)}
+							disabled={deleteMutation.isPending}
+						>
+							Cancel
+						</Button>
+						<Button
+							className="bg-rose-600 text-white hover:bg-rose-700"
+							onClick={handleConfirmDelete}
+							disabled={deleteMutation.isPending}
+						>
+							{deleteMutation.isPending ? (
+								<>
+									<Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+									Deleting…
+								</>
+							) : (
+								"Delete"
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

@@ -544,3 +544,105 @@ describe("commission triggers", () => {
 		);
 	});
 });
+
+// ---------------------------------------------------------------------------
+// statusHistory — tenant-isolation guard (loaded-record branch check)
+// ---------------------------------------------------------------------------
+
+const statusHistoryInput = {
+	organizationId: ORG_ID,
+	appointmentId: APPT_ID,
+};
+
+describe("appointmentsRouter.statusHistory", () => {
+	beforeEach(() => {
+		mockGetApptById.mockClear();
+		mockGetApptById.mockImplementation(() =>
+			Promise.resolve({
+				id: APPT_ID,
+				status: "confirmed",
+				branchId: BRANCH_ID,
+				userId: null,
+				salesOrderId: null,
+				serviceId: "svc-1",
+			}),
+		);
+	});
+
+	it("rejects when the appointment's branch is outside the caller's scope", async () => {
+		// Appointment is pinned to BRANCH_ID, caller can only see OTHER_BRANCH.
+		const ctx = createMockContext({
+			organizationId: ORG_ID,
+			tenantDb: makeUpdateDb(),
+			accessibleNodeIds: [OTHER_BRANCH],
+			// statusHistory unconditionally reaches getControlPanelDb for the
+			// (empty) name-enrichment step; provide a stub so the NEW branch guard
+			// — not a missing CP DB binding — is the deciding factor.
+			honoBindings: { controlPanelDb: {} },
+		});
+
+		await expect(
+			call(appointmentsRouter.statusHistory, statusHistoryInput, {
+				context: ctx,
+			}),
+		).rejects.toMatchObject({ code: "FORBIDDEN" });
+	});
+
+	it("returns NOT_FOUND when the appointment does not exist", async () => {
+		mockGetApptById.mockImplementation(() => Promise.resolve(null));
+		const ctx = createMockContext({
+			organizationId: ORG_ID,
+			tenantDb: makeUpdateDb(),
+			accessibleNodeIds: [BRANCH_ID],
+			honoBindings: { controlPanelDb: {} },
+		});
+
+		await expect(
+			call(appointmentsRouter.statusHistory, statusHistoryInput, {
+				context: ctx,
+			}),
+		).rejects.toMatchObject({ code: "NOT_FOUND" });
+	});
+
+	it("passes when the appointment's branch is in scope", async () => {
+		const ctx = createMockContext({
+			organizationId: ORG_ID,
+			tenantDb: makeUpdateDb(),
+			accessibleNodeIds: [BRANCH_ID],
+			honoBindings: { controlPanelDb: {} },
+		});
+
+		const result = await call(
+			appointmentsRouter.statusHistory,
+			statusHistoryInput,
+			{ context: ctx },
+		);
+		expect(result).toEqual({ rows: [], nextCursor: null });
+	});
+
+	it("passes for an org-wide (null-branch) appointment regardless of scope", async () => {
+		mockGetApptById.mockImplementation(() =>
+			Promise.resolve({
+				id: APPT_ID,
+				status: "confirmed",
+				branchId: null,
+				userId: null,
+				salesOrderId: null,
+				serviceId: "svc-1",
+			}),
+		);
+		const ctx = createMockContext({
+			organizationId: ORG_ID,
+			tenantDb: makeUpdateDb(),
+			accessibleNodeIds: [OTHER_BRANCH],
+			honoBindings: { controlPanelDb: {} },
+		});
+
+		const result = await call(
+			appointmentsRouter.statusHistory,
+			statusHistoryInput,
+			{ context: ctx },
+		);
+		expect(result).toEqual({ rows: [], nextCursor: null });
+	});
+});

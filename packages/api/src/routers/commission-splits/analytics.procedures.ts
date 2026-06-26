@@ -76,6 +76,13 @@ const liabilitySummaryProcedure = tenantProcedure
 			});
 		}
 
+		if (input.hierarchyNodeId) {
+			guardBranchAccessible(
+				input.hierarchyNodeId,
+				context.accessibleNodeIds ?? [],
+			);
+		}
+
 		const controlPanelDb = getControlPanelDb(context);
 
 		try {
@@ -86,6 +93,7 @@ const liabilitySummaryProcedure = tenantProcedure
 				categoryId: input.categoryId,
 				trackId: input.trackId,
 				roleType: input.roleType,
+				accessibleNodeIds: context.accessibleNodeIds ?? [],
 			});
 		} catch (err) {
 			if (err instanceof ORPCError) throw err;
@@ -221,6 +229,13 @@ const exportLiabilityCsvProcedure = tenantProcedure
 			});
 		}
 
+		if (input.hierarchyNodeId) {
+			guardBranchAccessible(
+				input.hierarchyNodeId,
+				context.accessibleNodeIds ?? [],
+			);
+		}
+
 		const controlPanelDb = getControlPanelDb(context);
 
 		try {
@@ -231,6 +246,7 @@ const exportLiabilityCsvProcedure = tenantProcedure
 				categoryId: input.categoryId,
 				trackId: input.trackId,
 				roleType: input.roleType,
+				accessibleNodeIds: context.accessibleNodeIds ?? [],
 			});
 		} catch (err) {
 			if (err instanceof ORPCError) throw err;

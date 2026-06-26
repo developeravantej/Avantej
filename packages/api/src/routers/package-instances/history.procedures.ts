@@ -1,10 +1,17 @@
 import { getPackageInstanceStatusHistory } from "@avantej-core/services";
 import { user as cpUsers } from "@avantej-core/db/schema/auth";
-import { inArray } from "drizzle-orm";
+import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
+import { services } from "@avantej-core/db/schema/tenant/services";
+import { inArray, eq } from "drizzle-orm";
+import { ORPCError } from "@orpc/server";
 import { parseCursor, encodeCursor } from "../../lib/cursor";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import { assertOrgContextMatch, requirePermissionOrpc } from "../../guards";
+import {
+	assertOrgContextMatch,
+	requirePermissionOrpc,
+	guardStoredBranchForContext,
+} from "../../guards";
 import { getControlPanelDb } from "../../lib/context-helpers";
 
 export const packageInstancesHistoryProcedures = {
@@ -25,6 +32,22 @@ export const packageInstancesHistoryProcedures = {
 				"package_management",
 				"read",
 			);
+
+			// Branch-scope: load instance → service, guard against accessibleNodeIds.
+			// A foreign instanceId must surface as NOT_FOUND, not an empty page
+			// (closes the enumeration oracle). Matches the lifecycle procedures.
+			const instance = await context.tenantDb.query.packageInstances.findFirst({
+				where: eq(packageInstances.id, input.packageInstanceId),
+			});
+			if (!instance) {
+				throw new ORPCError("NOT_FOUND", {
+					message: "Package instance not found",
+				});
+			}
+			const svc = await context.tenantDb.query.services.findFirst({
+				where: eq(services.id, instance.serviceId),
+			});
+			await guardStoredBranchForContext(context, svc?.branchId ?? null);
 
 			const limit = input.limit;
 			const parsedCursor = input.cursor ? parseCursor(input.cursor) : null;

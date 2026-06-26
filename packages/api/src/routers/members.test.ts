@@ -311,3 +311,123 @@ describe("memberRouter.restore", () => {
 		).rejects.toBeInstanceOf(ORPCError);
 	});
 });
+
+// --- members.newToday branch-scope guard (tenant isolation) ---
+
+const IN_SCOPE_BRANCH = "33333333-3333-4333-8333-333333333333";
+const OUT_OF_SCOPE_BRANCH = "44444444-4444-4444-8444-444444444444";
+
+/**
+ * Build a tenantDb covering exactly what `getMembersNewToday` touches:
+ *   - `select().from().where()` (count query) -> resolves to [{ cnt }]
+ *   - `select().from().where().orderBy().limit()` (recent query) -> rows
+ *   - `query.roles.findFirst` for the requirePermission admin-bypass path.
+ *
+ * The same `select` stub backs both queries; `where()` returns a thenable that
+ * also exposes `orderBy().limit()`, so both Promise.all branches resolve.
+ */
+function buildNewTodayTenantDb() {
+	const recentRows = [
+		{
+			id: MEMBER_ID,
+			userId: "user-1",
+			joinedAt: new Date(),
+		},
+	];
+	const countRows = [{ cnt: 1 }];
+
+	const whereResult: Record<string, unknown> = {
+		orderBy: mock(() => ({
+			limit: mock(() => Promise.resolve(recentRows)),
+		})),
+		// count query awaits `.where(...)` directly — make it a thenable.
+		then: (resolve: (v: unknown) => unknown) => resolve(countRows),
+	};
+	const selectBuilder = {
+		from: mock(() => ({ where: mock(() => whereResult) })),
+	};
+
+	return {
+		query: {
+			roles: {
+				findFirst: mock(() => Promise.resolve(undefined)),
+			},
+		},
+		select: mock(() => selectBuilder),
+	} as unknown as never;
+}
+
+describe("memberRouter.newToday", () => {
+	it("throws FORBIDDEN when branchId is outside the caller's accessibleNodeIds", async () => {
+		const tenantDb = buildNewTodayTenantDb();
+		const context = createMockContext({
+			organizationId: ORG_ID,
+			tenantDb,
+			// Admin role so requirePermission (admin-bypass via the undefined
+			// roles.findFirst fallback) passes and the NEW branch guard — which has
+			// no admin bypass — is the deciding factor. accessibleNodeIds is scoped
+			// to IN_SCOPE_BRANCH so OUT_OF_SCOPE_BRANCH is rejected by the guard.
+			member: {
+				id: "member-test-1",
+				userId: "user-test-1",
+				role: "admin" as const,
+				status: "active" as const,
+				hierarchyScopeId: IN_SCOPE_BRANCH,
+			},
+			accessibleNodeIds: [IN_SCOPE_BRANCH],
+		});
+
+		await expect(
+			call(
+				memberRouter.newToday,
+				{ organizationId: ORG_ID, branchId: OUT_OF_SCOPE_BRANCH },
+				{ context },
+			),
+		).rejects.toMatchObject({ code: "FORBIDDEN" });
+	});
+
+	it("allows an in-scope branchId", async () => {
+		const tenantDb = buildNewTodayTenantDb();
+		const context = createMockContext({
+			organizationId: ORG_ID,
+			tenantDb,
+			member: {
+				id: "member-test-1",
+				userId: "user-test-1",
+				role: "admin" as const,
+				status: "active" as const,
+				hierarchyScopeId: IN_SCOPE_BRANCH,
+			},
+			accessibleNodeIds: [IN_SCOPE_BRANCH],
+		});
+
+		const result = await call(
+			memberRouter.newToday,
+			{ organizationId: ORG_ID, branchId: IN_SCOPE_BRANCH },
+			{ context },
+		);
+
+		expect(result.count).toBe(1);
+		expect(result.recent).toHaveLength(1);
+	});
+
+	it("allows admin with no branchId (guard short-circuits)", async () => {
+		const tenantDb = buildNewTodayTenantDb();
+		const context = createMockContext({
+			organizationId: ORG_ID,
+			tenantDb,
+			// default admin member. accessibleNodeIds is non-empty so the handler's
+			// resolveAccessibleNodeIds short-circuits instead of walking the
+			// (unstubbed) hierarchy CTE. With no branchId the new guard is a no-op.
+			accessibleNodeIds: [IN_SCOPE_BRANCH],
+		});
+
+		const result = await call(
+			memberRouter.newToday,
+			{ organizationId: ORG_ID },
+			{ context },
+		);
+
+		expect(result.count).toBe(1);
+	});
+});

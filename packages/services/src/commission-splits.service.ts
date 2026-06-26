@@ -1159,6 +1159,8 @@ export interface LiabilitySummaryParams {
 	trackId?: string;
 	/** SQL-side filter: only include splits with this roleType (NULL treated as "delivery_legacy"). */
 	roleType?: string | null;
+	/** Caller's accessible hierarchy node IDs. Empty array = admin / org-wide. */
+	accessibleNodeIds?: string[];
 }
 
 /**
@@ -1178,19 +1180,32 @@ export async function liabilitySummary(
 	controlPanelDb: ControlPanelDb,
 	params: LiabilitySummaryParams,
 ): Promise<LiabilitySummaryResult> {
-	const { from, to, hierarchyNodeId, categoryId, trackId, roleType } = params;
+	const {
+		from,
+		to,
+		hierarchyNodeId,
+		categoryId,
+		trackId,
+		roleType,
+		accessibleNodeIds,
+	} = params;
 
 	const fromDate = new Date(from);
 	const toDate = new Date(to);
 
-	// Build staff scope from hierarchy if needed
+	// Build staff scope from hierarchy if needed.
+	// An explicit hierarchyNodeId takes precedence; otherwise, when the caller
+	// has a non-empty accessibleNodeIds set (non-admin / scoped), constrain to
+	// the staff within those nodes so an OMITTED hierarchyNodeId does not leak
+	// org-wide liability. An empty accessibleNodeIds = admin / org-wide bypass.
 	let staffIdScope: string[] | null = null;
-	if (hierarchyNodeId) {
-		const descendantNodeIds = await getDescendantNodeIds(
-			tenantDb,
-			hierarchyNodeId,
-		);
-		if (descendantNodeIds.length === 0) {
+	const scopeNodeIds = hierarchyNodeId
+		? await getDescendantNodeIds(tenantDb, hierarchyNodeId)
+		: accessibleNodeIds && accessibleNodeIds.length > 0
+			? accessibleNodeIds
+			: null;
+	if (scopeNodeIds !== null) {
+		if (scopeNodeIds.length === 0) {
 			// No nodes found — return empty result
 			return {
 				trainers: [],
@@ -1203,11 +1218,11 @@ export async function liabilitySummary(
 				},
 			};
 		}
-		// Fetch userIds of members whose hierarchyScopeId is within the descendant set
+		// Fetch userIds of members whose hierarchyScopeId is within the scope set
 		const scopedMembers = await tenantDb
 			.select({ userId: members.userId })
 			.from(members)
-			.where(inArray(members.hierarchyScopeId, descendantNodeIds));
+			.where(inArray(members.hierarchyScopeId, scopeNodeIds));
 		staffIdScope = scopedMembers.map((m) => m.userId);
 		if (staffIdScope.length === 0) {
 			return {
@@ -2296,6 +2311,8 @@ export interface ExportLiabilityCsvParams {
 	categoryId?: string;
 	trackId?: string;
 	roleType?: string | null;
+	/** Caller's accessible hierarchy node IDs. Empty array = admin / org-wide. */
+	accessibleNodeIds?: string[];
 }
 
 export interface ExportLiabilityCsvResult {
