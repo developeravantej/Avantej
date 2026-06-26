@@ -4,9 +4,13 @@
 
 > **REVISED 2026-06-26 — per-module, shared scope.** Switcher is rendered in EACH branch-scoped module's header (not the sidebar), with ONE shared `activeScopeId`. See spec `docs/superpowers/specs/2026-06-25-tenant-scope-switcher-design.md` (§4.3, §4.7, §8). Old Task 4 (sidebar wiring) is **dropped** (see note below). Tasks 1–3 (foundation) + 5/6 (Overview) survive; the full module set is the rollout table at the end.
 
-**Goal:** Add a reusable scope switcher rendered in each branch-scoped module's header so a user can pick a country/state/branch (or "All") and re-scope that module — from one shared selection applied across all modules.
+> **REVISED 2026-06-26 (b) — any-level `scopeNodeId` + backend subtree conversion.** The switcher must scope to ANY hierarchy level the user can access (country / region / state / branch), not just a leaf branch — for privileged users (owner, regional manager). Two consequences, both confirmed by the backend audit `wf_8e9e02ad-94e` (16-module read-proc classification):
+> 1. The provider value injected into queries is renamed **`scopeBranchId` → `scopeNodeId`** (it may be any node id, not a leaf).
+> 2. **Phase 0.5 grows from "add 4 guards" to a backend subtree-conversion pass.** Most module read-procs filter by **exact-equality** (`eq(col, input.branchId)` / `resolveBranchFilter` → `[branchId]`), which returns **zero rows** for a non-leaf node (business rows carry leaf branch ids). They must expand the supplied node via `getDescendantNodeIds(scopeNodeId) ∩ accessibleNodeIds` and filter with `inArray`. See the rewritten Phase 0.5 below. The **guard layer is unchanged** — `guardBranchAccessible` already accepts any accessible node (leaf or intermediate), since `accessibleNodeIds` = the member's scope + all descendants.
 
-**Architecture:** A new `ScopeProvider` (mirrors the existing sidebar context pattern, backed by read-only `useUserContext`) owns a selectable `activeScopeId` — defaulted to the member's top accessible node, persisted per (user, org), validated against `accessibleNodeIds` on load. A reusable `<ScopeSwitcher/>` consumes it and is placed in each module header. Read pages inject `scopeBranchId` into their already-guarded oRPC queries; the switcher can only narrow within `accessibleNodeIds` (server guards from Phase 0 + Phase 0.5).
+**Goal:** Add a reusable scope switcher rendered in each branch-scoped module's header so a user can pick any accessible hierarchy node — country / region / state / branch — (or "All") and re-scope that module — from one shared selection applied across all modules.
+
+**Architecture:** A new `ScopeProvider` (mirrors the existing sidebar context pattern, backed by read-only `useUserContext`) owns a selectable `activeScopeId` — defaulted to the member's top accessible node, persisted per (user, org), validated against `accessibleNodeIds` on load. A reusable `<ScopeSwitcher/>` consumes it and is placed in each module header. Read pages inject `scopeNodeId` (any-level node id) into their already-guarded oRPC queries; the server expands it to its accessible subtree (Phase 0.5). The switcher can only narrow within `accessibleNodeIds` (server guards from Phase 0 + Phase 0.5).
 
 **Tech Stack:** React + TanStack Router/Query, oRPC client, vitest + @testing-library/react (Node 22), Tailwind.
 
@@ -56,10 +60,14 @@ export interface ScopeContextValue {
 	/** true when activeScopeId === topAccessibleNodeId (viewing whole accessible
 	 *  subtree → Overview renders per-branch/"per-country" money cards). */
 	isAllScope: boolean;
-	/** EXACT value consumers inject as `branchId` on scope-aware oRPC inputs:
+	/** EXACT value consumers inject as the scope input on scope-aware oRPC inputs.
 	 *  `undefined` when isAllScope (server falls back to full accessibleNodeIds),
-	 *  else `activeScopeId`. Usage: `branchId: scopeBranchId`. */
-	scopeBranchId: string | undefined;
+	 *  else `activeScopeId` — which may be ANY hierarchy level (country / state /
+	 *  branch), NOT only a leaf branch. The server expands it via
+	 *  `getDescendantNodeIds(scopeNodeId) ∩ accessibleNodeIds` (Phase 0.5).
+	 *  Usage: `branchId: scopeNodeId` (the existing input field name is kept;
+	 *  its value is now any node id). */
+	scopeNodeId: string | undefined;
 	/** true once activeScopeId is resolved (user context loaded + member present). */
 	isScopeReady: boolean;
 }
@@ -75,22 +83,77 @@ Persistence + validation + org-reset behavior:
 - On mount / whenever `(userId, organizationId, topAccessibleNodeId, accessibleNodeIds)` change: read stored value; use it IFF still ∈ `accessibleNodeIds`; otherwise fall back to `topAccessibleNodeId` (stale/deleted node → silent fallback). This effect is what implements org-reset: when `currentOrganizationId` changes the effect re-keys to the new org (reading that org's stored value or its own top node).
 - `org` is resolved like `useUserContext` helpers: prefer `currentOrganizationId`, else `organizations[0]`.
 
-Consumer injection (Phase 1, no provider changes): in `DashboardPage.tsx` (lines 44,50,56,62,68,74,93-98,105) and `ReportsPage.tsx` (lines 44,52,96), add `branchId: scopeBranchId`. `Overview` reads `isAllScope` to choose per-branch cards vs single-node KPI tiles. The 4 Reports series queries (`getMemberCountSeries`/`getChurnSeries`/`getLtvSeries`/`getClassFillRateSeries`) need their backend `seriesInput` extended with `branchId` first (`analytics.ts:103`) — out of scope for these two tasks.
+Consumer injection (Phase 1, no provider changes): in `DashboardPage.tsx` (lines 44,50,56,62,68,74,93-98,105) and `ReportsPage.tsx` (lines 44,52,96), add `branchId: scopeNodeId`. `Overview` reads `isAllScope` to choose per-branch cards vs single-node KPI tiles. The 4 Reports series queries (`getMemberCountSeries`/`getChurnSeries`/`getLtvSeries`/`getClassFillRateSeries`) need their backend `seriesInput` extended with `branchId` first (`analytics.ts:103`) — out of scope for these two tasks.
 
 ---
 
-## Phase 0.5 — list-procedure guard prerequisites (do FIRST, before any switcher wiring)
+## Phase 0.5 — backend `scopeNodeId` subtree conversion (do FIRST, before any switcher wiring)
 
-The switcher feeds a **user-controlled** scope into module list queries. Some are "safe-but-silent" (intersect `accessibleNodeIds`, so an out-of-scope pick returns empty instead of erroring). Make them **fail-loud** (`FORBIDDEN`) first — same TDD pattern as Phase 0 (`guardBranchAccessible` from `packages/api/src/guards.ts`; test = out-of-scope branch/scope id → `FORBIDDEN`, in-scope/admin → pass). From the `module-scope-classification` audit:
+> **This replaces the old "add 4 guards" Phase 0.5.** The 16-module read-proc audit (`wf_8e9e02ad-94e`) showed the real prerequisite is a **filter-semantics conversion**, not just guards. Phase 0 already guarded the by-id read leaks; this phase makes the **list/analytics** filters subtree-correct for a user-selectable, any-level scope.
 
-- [ ] **0.5-A `members.list`** (`packages/api/src/routers/members/list.procedures.ts`) — accepts `input.hierarchyScopeId` (~:23) and constrains non-admins via `inArray(members.hierarchyScopeId, accessibleNodeIds)` (~:90-99) but never explicitly guards the supplied value. Add `await guardInputBranchForContext(context, input.hierarchyScopeId)` (or `guardBranchAccessible(input.hierarchyScopeId, accessibleNodeIds)`) before the query. Unblocks Employees / Trainers / Staff Access.
-- [ ] **0.5-B `appointments.list`** (`appointments/list.procedures.ts:22-56`) — `input.branchId` is post-filtered (`items.filter(r => r.branchId === input.branchId)`); add `await guardInputBranchForContext(context, input.branchId)` after `resolveAccessibleNodeIds`.
-- [ ] **0.5-C `services.list`** (`services/crud.procedures.ts:27-55`) — `branchId` passed to the service with `accessibleNodeIds`; add `await guardInputBranchForContext(context, input.branchId)` before the call.
-- [ ] **0.5-D `payouts.list`** (payouts router) — has **no** `branchId` input; rows only post-filtered by `accessibleNodeIds`. Add a `branchId?: z.string().uuid().optional()` input + `await guardInputBranchForContext(context, input.branchId)` + thread it into the list query. **Blocks the Payouts module (Wave 2) only** — not required for Wave 1.
+**Two load-bearing audit findings:**
 
-Each is one TDD task: failing test (out-of-scope id → `FORBIDDEN`) → add guard → green → commit.
+1. **Guards are already non-leaf-safe — only the FILTER breaks.** `guardBranchAccessible(id, accessibleNodeIds)` accepts ANY node in `accessibleNodeIds`, and that set = the member's `hierarchyScopeId` + ALL descendants (intermediate country/state nodes *and* leaves, via `getDescendantNodeIds`). So picking a region passes the guard and a forged out-of-scope id still returns `FORBIDDEN`. ⇒ **No guard signature changes.** (⚠️ **Verify at impl:** confirm `getDescendantNodeIds` returns intermediate nodes, not only leaves — the whole model rests on this. Check `packages/services/src/hierarchy.ts`.)
+2. **Dominant filter pattern = exact-equality**, which returns **zero rows** for a non-leaf node (rows carry leaf branch ids). Convert to **subtree expansion**.
 
-**Reports series note:** the 4 series procs (`getMemberCountSeries`/`getChurnSeries`/`getLtvSeries`/`getClassFillRateSeries`, `analytics.ts:103`) already filter by `accessibleNodeIds` but take no `branchId` — to make the Reports switcher narrow them (not just the KPI/revenue queries), extend `seriesInput` with `branchId?` + `guardBranchAccessible` (fold into the Reports rollout task). The KPI/revenue/staff queries on Overview + Reports already accept `branchId` — no backend change.
+### 0.5-CORE: shared `resolveScopeNodeIds` helper (do this first — unblocks everything else)
+
+Add to `packages/services/src/hierarchy-scope.ts`:
+
+```ts
+/** Expand a (possibly non-leaf) scope node to the accessible leaf+intermediate
+ *  node ids it covers. undefined/null scope → the caller's full accessible set
+ *  ("All"). The result is always a subset of accessibleNodeIds (narrow-only). */
+export async function resolveScopeNodeIds(
+	tenantDb: TenantDb,
+	scopeNodeId: string | null | undefined,
+	accessibleNodeIds: string[],
+): Promise<string[]> {
+	if (!scopeNodeId) return accessibleNodeIds;
+	const allowed = new Set(accessibleNodeIds);
+	const subtree = await getDescendantNodeIds(tenantDb, scopeNodeId);
+	return subtree.filter((id) => allowed.has(id));
+}
+```
+
+Then **convert the existing `resolveBranchFilter`** (`hierarchy-scope.ts:~37`, today `branchId ? [branchId] : accessibleNodeIds`) to delegate to `resolveScopeNodeIds` (it becomes `async`). This single change fixes **all 3 analytics KPI procs at once** (`getDashboardKpis`, `getStaffPerformance`, `getRevenueSeries` — they all route through `resolveBranchFilter`). Callers are already in async service methods.
+
+TDD: non-leaf node → its accessible descendants (incl. intermediate); leaf → `[leaf]`; out-of-scope id → `[]`; `undefined` → `accessibleNodeIds`.
+
+### Per-router conversion tasks
+
+Each is **one TDD task per router** (group the router's procs): failing test (pick a **non-leaf** node → returns subtree rows; pick **out-of-scope** → `FORBIDDEN`; pick a **leaf** → only that branch) → swap `eq(col, id)` for `inArray(col, await resolveScopeNodeIds(tenantDb, scopeNodeId, accessibleNodeIds))` → green → commit. The input param keeps its existing name (`branchId` / `hierarchyScopeId`); only its value-range (any node) and filter logic change.
+
+**Group A — equality → subtree (swap `eq`/post-filter for `inArray(resolveScopeNodeIds(...))`):**
+
+- [ ] **analytics** — covered by the 0.5-CORE `resolveBranchFilter` conversion (`getDashboardKpis`, `getStaffPerformance`, `getRevenueSeries`). `analytics.service.ts:122-466`.
+- [ ] **sales-orders** — `sales-order.service.ts`: `list` (~:140), `kpiSummary` (~:456, `effectiveBranchIds = [branchId]`), `largestToday` (~:600), `getLatest` (~:668). Guards at `query.procedures.ts:52/268/313/344`.
+- [ ] **members.list** — `members/list.procedures.ts:82` `eq(members.hierarchyScopeId, input.hierarchyScopeId)` → `inArray(members.hierarchyScopeId, resolveScopeNodeIds(...))`. (Members can be scoped to non-leaf nodes — same helper.) Unblocks Employees / Trainers / Staff Access.
+- [ ] **appointments.list** — `appointments/list.procedures.ts:76-78` post-filter `r.branchId === input.branchId` → expand + `inArray` (prefer pushing into the SQL filter at `list.procedures.ts:~318`). **Add `guardBranchAccessible(input.branchId, …)` here too** (currently absent).
+- [ ] **services.list** — `service.service.ts:79-194` `eq(services.branchId, branchId)` → `inArray`.
+- [ ] **commissions** — `commission-splits.service.ts`: `liabilityByStaff` (`eq` at ~:1945-1946) and `listCommissionLedger` (`eq` at ~:2203-2204) → `inArray`. (`liabilitySummary`/`exportLiabilityCsv` are already subtree-ready — see Group C.)
+- [ ] **expenses.list** — `expenses.service.ts:34-36` `eq(expenses.branchId, branchId)` → `inArray`; expand in the router (`expenses.ts`) and pass the array to the service.
+- [ ] **class-slots** — `class-slots.service.ts`: `list` (~:59), `bookingCounts` (~:442) `eq(classSlots.branchId, …)` → `inArray`.
+- [ ] **customers (customerDirectory)** — `customer-directory.service.ts`: `list` (~:175-191), `getStats` (~:354) raw-SQL `AND m.hierarchy_scope_id = ${branchId}` → expand + `inArray`/`= ANY`.
+- [ ] **announcements.list** — `announcements.service.ts:238-240` `eq(announcements.branchId, branchId)` → `inArray`.
+- [ ] **packageInstances.listMemberships** — `package-instance.service.ts:~360` optional `AND m.hierarchy_scope_id = ${branchId}` → expand + `= ANY`. (Router pre-check at `lists.procedures.ts:60-67` is already fine.)
+- [ ] **approvals (packageInstances.listPending)** — `package-instances/pending.procedures.ts:56-93` `inArray(services.branchId, [branchId])` → expand the supplied id before the `inArray`.
+- [ ] **attendance (check-ins)** — `check-ins.service.ts`: `listTodaysBookings` (`eq` ~:463), `list` (optional `eq` ~:737) → `inArray`. Guards already exact-safe.
+- [ ] **POS.searchCustomers** — `pos.service.ts:1225-1227` post-filter on `accessibleNodeIds.includes(m.hierarchyScopeId)`; **consume the currently-ignored `branchId` input** as `scopeNodeId` → `getDescendantNodeIds(scopeNodeId).includes(...) && accessibleNodeIds.includes(...)`. (Wave 2.)
+
+**Group B — no scope input today → add an optional `scopeNodeId`/`branchId` param, then expand:**
+
+- [ ] **analytics series ×4** (`getMemberCountSeries`/`getChurnSeries`/`getLtvSeries`/`getClassFillRateSeries`, `analytics.ts:108-170` + `analytics.service.ts:522-758`) — extend the shared `seriesInput` (`analytics.ts:103`) with `branchId?: z.string().uuid().optional()` + `guardBranchAccessible`; replace the bare `nodeIds` in the `branch_id = ANY(...)` SQL with `resolveScopeNodeIds(...)`. Needed for the **Reports** switcher to narrow the series (not just KPI/revenue).
+- [ ] **payouts.list** (was 0.5-D) — `payouts/read.procedures.ts:34-174` has no `branchId` input; add `branchId?: z.string().uuid().optional()` + `guardBranchAccessible`, then replace `context.accessibleNodeIds` at the two `inArray` calls (~:88, ~:95) with `resolveScopeNodeIds(tenantDb, input.branchId, context.accessibleNodeIds)`. **Blocks Payouts (Wave 2) only.**
+- [ ] **announcements.listActive** (optional) — already subtree-aware via `buildScopeFilter`; add a `scopeNodeId?` param + expand only if a switcher targets this proc.
+
+**Group C — already subtree-ready (reference patterns; no change unless a param is added):**
+`commissionSplits.liabilitySummary` / `exportLiabilityCsv` (already `getDescendantNodeIds(hierarchyNodeId) ∩ accessible`, `commission-splits.service.ts:1203/1225`); `packageInstances.listAll` (uses `accessibleNodeIds`, "All"-only — `package-instance.service.ts:657/689`); `customerDirectory.getById` (post-filter `accessibleNodeIds.includes`). Copy these as the canonical shape.
+
+**Group D — by-id / unscoped (no list-scope; post-filter guard already correct; NO switcher change):**
+`class-slots.getById`, `payouts.recipientSummary`, `pos.getReceiptData`. Left as-is.
+
+**Ordering:** 0.5-CORE first (helper + `resolveBranchFilter`), then Group A routers (any order, one commit each), then Group B. Group A/B are the hard prerequisite before the per-module FE rollout reaches the converted query.
 
 ---
 
@@ -210,7 +273,7 @@ describe("ScopeProvider — default scope", () => {
 		await waitFor(() => expect(result.current.activeScopeId).toBe("node-root"));
 		expect(result.current.topAccessibleNodeId).toBe("node-root");
 		expect(result.current.isAllScope).toBe(true);
-		expect(result.current.scopeBranchId).toBeUndefined();
+		expect(result.current.scopeNodeId).toBeUndefined();
 		expect(result.current.activeScopeNode?.id).toBe("node-root");
 		expect(result.current.isScopeReady).toBe(true);
 	});
@@ -230,7 +293,7 @@ describe("ScopeProvider — persistence + validation", () => {
 		const { result } = renderHook(() => useScope(), { wrapper });
 		await waitFor(() => expect(result.current.activeScopeId).toBe("node-branch-1"));
 		expect(result.current.isAllScope).toBe(false);
-		expect(result.current.scopeBranchId).toBe("node-branch-1");
+		expect(result.current.scopeNodeId).toBe("node-branch-1");
 	});
 
 	it("falls back to the top accessible node when the persisted scope is stale/inaccessible", async () => {
@@ -242,12 +305,12 @@ describe("ScopeProvider — persistence + validation", () => {
 });
 
 describe("ScopeProvider — setActiveScope", () => {
-	it("updates state, persists per (userId, organizationId), and narrows scopeBranchId", async () => {
+	it("updates state, persists per (userId, organizationId), and narrows scopeNodeId", async () => {
 		const { result } = renderHook(() => useScope(), { wrapper });
 		await waitFor(() => expect(result.current.activeScopeId).toBe("node-root"));
 		act(() => result.current.setActiveScope("node-branch-2"));
 		await waitFor(() => expect(result.current.activeScopeId).toBe("node-branch-2"));
-		expect(result.current.scopeBranchId).toBe("node-branch-2");
+		expect(result.current.scopeNodeId).toBe("node-branch-2");
 		expect(result.current.isAllScope).toBe(false);
 		expect(localStorage.getItem(`scope:${USER_ID}:${ORG_A}`)).toBe("node-branch-2");
 	});
@@ -287,7 +350,7 @@ describe("ScopeProvider — unloaded context", () => {
 		await waitFor(() => expect(result.current.isScopeReady).toBe(false));
 		expect(result.current.activeScopeId).toBeNull();
 		expect(result.current.accessibleNodeIds).toEqual([]);
-		expect(result.current.scopeBranchId).toBeUndefined();
+		expect(result.current.scopeNodeId).toBeUndefined();
 		expect(result.current.scopeNodes).toEqual([]);
 	});
 });
@@ -333,7 +396,7 @@ export interface ScopeContextValue {
 	scopeNodes: ScopeNode[];
 	topAccessibleNodeId: string | null;
 	isAllScope: boolean;
-	scopeBranchId: string | undefined;
+	scopeNodeId: string | undefined;
 	isScopeReady: boolean;
 }
 
@@ -459,7 +522,7 @@ export function ScopeProvider({ children }: { children: React.ReactNode }) {
 
 	// Inject as `branchId`: undefined for "All" (server uses full accessibleNodeIds),
 	// else the selected node id (narrows within RBAC).
-	const scopeBranchId = isAllScope ? undefined : (activeScopeId ?? undefined);
+	const scopeNodeId = isAllScope ? undefined : (activeScopeId ?? undefined);
 
 	const isScopeReady = activeScopeId != null;
 
@@ -473,7 +536,7 @@ export function ScopeProvider({ children }: { children: React.ReactNode }) {
 			scopeNodes,
 			topAccessibleNodeId,
 			isAllScope,
-			scopeBranchId,
+			scopeNodeId,
 			isScopeReady,
 		}),
 		[
@@ -485,7 +548,7 @@ export function ScopeProvider({ children }: { children: React.ReactNode }) {
 			scopeNodes,
 			topAccessibleNodeId,
 			isAllScope,
-			scopeBranchId,
+			scopeNodeId,
 			isScopeReady,
 		],
 	);
@@ -674,7 +737,7 @@ function makeScope(overrides: Partial<ScopeContextValue>): ScopeContextValue {
 		scopeNodes: [MY, KL, PJ],
 		topAccessibleNodeId: "n-my",
 		isAllScope: true,
-		scopeBranchId: undefined,
+		scopeNodeId: undefined,
 		isScopeReady: true,
 		...overrides,
 	};
@@ -700,7 +763,7 @@ describe("ScopeSwitcher", () => {
 			activeScopeNode: KL,
 			topAccessibleNodeId: "n-kl",
 			isAllScope: true,
-			scopeBranchId: undefined,
+			scopeNodeId: undefined,
 		});
 		renderWithProviders(<ScopeSwitcher />);
 		expect(screen.getByTestId("scope-switcher-static")).toHaveTextContent(
@@ -719,7 +782,7 @@ describe("ScopeSwitcher", () => {
 			activeScopeId: "n-kl",
 			activeScopeNode: KL,
 			isAllScope: false,
-			scopeBranchId: "n-kl",
+			scopeNodeId: "n-kl",
 		});
 		renderWithProviders(<ScopeSwitcher />);
 		expect(screen.getByRole("combobox")).toHaveTextContent("KL Branch");
@@ -754,7 +817,7 @@ describe("ScopeSwitcher", () => {
 			activeScopeId: "n-kl",
 			activeScopeNode: KL,
 			isAllScope: false,
-			scopeBranchId: "n-kl",
+			scopeNodeId: "n-kl",
 		});
 		renderWithProviders(<ScopeSwitcher />);
 		await user.click(screen.getByRole("combobox"));
@@ -1087,7 +1150,7 @@ function makeScope(overrides?: Partial<ScopeContextValue>): ScopeContextValue {
 		scopeNodes: [REGION, DOWNTOWN, NORTH],
 		topAccessibleNodeId: "node-region",
 		isAllScope: false,
-		scopeBranchId: "node-downtown",
+		scopeNodeId: "node-downtown",
 		isScopeReady: true,
 		...overrides,
 	};
@@ -1117,7 +1180,7 @@ describe("ScopeSwitcher", () => {
 			activeScopeId: "node-region",
 			activeScopeNode: REGION,
 			isAllScope: true,
-			scopeBranchId: undefined,
+			scopeNodeId: undefined,
 		});
 
 		renderWithProviders(
@@ -1135,7 +1198,7 @@ describe("ScopeSwitcher", () => {
 			accessibleNodeIds: ["node-region"],
 			scopeNodes: [REGION],
 			isAllScope: true,
-			scopeBranchId: undefined,
+			scopeNodeId: undefined,
 		});
 
 		renderWithProviders(
@@ -1330,17 +1393,17 @@ Relevant paths: `apps/web/src/components/scope/ScopeSwitcher.tsx`, `apps/web/src
 
 ---
 
-### Task 5: DashboardPage (Overview) consumes `scopeBranchId` — inject into the 7 scope-aware analytics queries — `apps/web/src/components/pages/dashboard/DashboardPage.tsx`
+### Task 5: DashboardPage (Overview) consumes `scopeNodeId` — inject into the 7 scope-aware analytics queries — `apps/web/src/components/pages/dashboard/DashboardPage.tsx`
 
-> **This is the WORKED REFERENCE for the per-module rollout.** Every other Wave-1 module follows this exact shape (render `<ScopeSwitcher/>` in the header + inject `scopeBranchId` into its guarded query). The remaining modules are listed in the rollout table at the end — each is its own task, parameterized by the table row.
+> **This is the WORKED REFERENCE for the per-module rollout.** Every other Wave-1 module follows this exact shape (render `<ScopeSwitcher/>` in the header + inject `scopeNodeId` into its guarded query). The remaining modules are listed in the rollout table at the end — each is its own task, parameterized by the table row.
 
 **Files:**
 - Modify: `apps/web/src/components/pages/dashboard/DashboardPage.tsx`
 - Test (create): `apps/web/src/__tests__/pages/dashboard-page-scope.test.tsx`
 
-Depends on Task 1 (`@/components/scope/ScopeProvider` exporting `useScope`) already merged. No backend changes: all 7 procedures (`analytics.getDashboardKpis` ×2, `analytics.getStaffPerformance`, `salesOrders.largestToday`, `members.newToday`, `auditLogs.list`, `appointments.list`, `analytics.getRevenueSeries`) already accept optional `branchId` (analytics.ts:29/58/83; sales-orders/query.procedures.ts:303-308; members/read.procedures.ts:123-128; appointments/list.procedures.ts:26; audit-logs.ts:19). `PendingApprovalsInline` (line 256, a prop not an oRPC input) is OUT OF SCOPE — the API-SPEC consumer list is exactly lines 44,50,56,62,68,74,93-98,105.
+Depends on Task 1 (`@/components/scope/ScopeProvider` exporting `useScope`) already merged **and on Phase 0.5** (subtree conversion). No backend change *in this FE task*: all 7 procedures (`analytics.getDashboardKpis` ×2, `analytics.getStaffPerformance`, `salesOrders.largestToday`, `members.newToday`, `auditLogs.list`, `appointments.list`, `analytics.getRevenueSeries`) already accept optional `branchId` (analytics.ts:29/58/83; sales-orders/query.procedures.ts:303-308; members/read.procedures.ts:123-128; appointments/list.procedures.ts:26; audit-logs.ts:19) — but their **subtree-expansion** (so a non-leaf `scopeNodeId` returns the right rows) is done in Phase 0.5 (analytics via 0.5-CORE, sales-orders/appointments via their Group-A tasks). The FE injection here is identical regardless; it just passes `scopeNodeId` through. `PendingApprovalsInline` (line 256, a prop not an oRPC input) is OUT OF SCOPE — the API-SPEC consumer list is exactly lines 44,50,56,62,68,74,93-98,105.
 
-- [ ] **Step 1: failing test** — Create `apps/web/src/__tests__/pages/dashboard-page-scope.test.tsx`. Mirrors the `src/__tests__/pages/approvals.test.tsx` mocking conventions (`mockClient`/`mockOrpc` helpers, `renderWithProviders`, `useUserContext` stub, `@tanstack/react-router` `Link` stub). `useScope` is narrowed to a single branch so `scopeBranchId === "node-branch-1"`; the queryFn built by `createTanstackQueryUtils` lands on `mockClient.<path>(input, …)`, so we assert `input` carries `branchId`.
+- [ ] **Step 1: failing test** — Create `apps/web/src/__tests__/pages/dashboard-page-scope.test.tsx`. Mirrors the `src/__tests__/pages/approvals.test.tsx` mocking conventions (`mockClient`/`mockOrpc` helpers, `renderWithProviders`, `useUserContext` stub, `@tanstack/react-router` `Link` stub). `useScope` is narrowed to a single branch so `scopeNodeId === "node-branch-1"`; the queryFn built by `createTanstackQueryUtils` lands on `mockClient.<path>(input, …)`, so we assert `input` carries `branchId`.
 
 ```tsx
 import { describe, it, expect, vi, type Mock } from "vitest";
@@ -1389,7 +1452,7 @@ vi.mock("@/hooks/useUserContext", () => ({
 	}),
 }));
 
-// Scope switcher narrowed to a single branch → scopeBranchId is that node id.
+// Scope switcher narrowed to a single branch → scopeNodeId is that node id.
 vi.mock("@/components/scope/ScopeProvider", () => ({
 	useScope: () => ({
 		activeScopeId: "node-branch-1",
@@ -1400,7 +1463,7 @@ vi.mock("@/components/scope/ScopeProvider", () => ({
 		scopeNodes: [],
 		topAccessibleNodeId: "node-region-1",
 		isAllScope: false,
-		scopeBranchId: "node-branch-1",
+		scopeNodeId: "node-branch-1",
 		isScopeReady: true,
 	}),
 }));
@@ -1435,7 +1498,7 @@ vi.mock("@/components/pages/dashboard/PendingApprovalsInline", () => ({
 import { DashboardPage } from "@/components/pages/dashboard/DashboardPage";
 
 describe("DashboardPage scope injection", () => {
-	it("injects scopeBranchId as branchId on every scope-aware analytics query", async () => {
+	it("injects scopeNodeId as branchId on every scope-aware analytics query", async () => {
 		renderWithProviders(
 			<DashboardPage period="this_month" onSelectPeriod={() => {}} />,
 		);
@@ -1486,47 +1549,47 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { useScope } from "@/components/scope/ScopeProvider";
 ```
 
-(b) Read `scopeBranchId` from the provider, directly under the `useUserContext()` line (~line 33):
+(b) Read `scopeNodeId` from the provider, directly under the `useUserContext()` line (~line 33):
 
 ```ts
 // old
 	const { data: userContext, hasRole } = useUserContext();
 // new
 	const { data: userContext, hasRole } = useUserContext();
-	const { scopeBranchId } = useScope();
+	const { scopeNodeId } = useScope();
 ```
 
-(c) Add `branchId: scopeBranchId` to each of the 7 query inputs. Use the `queryOptions(` line as context to disambiguate the two identical `input: { organizationId: organizationId!, period },` occurrences (getDashboardKpis vs getStaffPerformance) and the two identical `input: { organizationId: organizationId! },` occurrences (largestToday vs newToday). Indentation is tabs.
+(c) Add `branchId: scopeNodeId` to each of the 7 query inputs. Use the `queryOptions(` line as context to disambiguate the two identical `input: { organizationId: organizationId!, period },` occurrences (getDashboardKpis vs getStaffPerformance) and the two identical `input: { organizationId: organizationId! },` occurrences (largestToday vs newToday). Indentation is tabs.
 
 ```ts
 // getDashboardKpis (selected period) — lines 43-45
 		...orpc.analytics.getDashboardKpis.queryOptions({
-			input: { organizationId: organizationId!, period, branchId: scopeBranchId },
+			input: { organizationId: organizationId!, period, branchId: scopeNodeId },
 		}),
 
 // getDashboardKpis (today) — lines 49-51
 		...orpc.analytics.getDashboardKpis.queryOptions({
-			input: { organizationId: organizationId!, period: "today", branchId: scopeBranchId },
+			input: { organizationId: organizationId!, period: "today", branchId: scopeNodeId },
 		}),
 
 // getStaffPerformance — lines 55-57
 		...orpc.analytics.getStaffPerformance.queryOptions({
-			input: { organizationId: organizationId!, period, branchId: scopeBranchId },
+			input: { organizationId: organizationId!, period, branchId: scopeNodeId },
 		}),
 
 // salesOrders.largestToday — lines 61-63
 		...orpc.salesOrders.largestToday.queryOptions({
-			input: { organizationId: organizationId!, branchId: scopeBranchId },
+			input: { organizationId: organizationId!, branchId: scopeNodeId },
 		}),
 
 // members.newToday — lines 67-69
 		...orpc.members.newToday.queryOptions({
-			input: { organizationId: organizationId!, branchId: scopeBranchId },
+			input: { organizationId: organizationId!, branchId: scopeNodeId },
 		}),
 
 // auditLogs.list — lines 73-75
 		...orpc.auditLogs.list.queryOptions({
-			input: { organizationId: organizationId!, limit: 6, offset: 0, branchId: scopeBranchId },
+			input: { organizationId: organizationId!, limit: 6, offset: 0, branchId: scopeNodeId },
 		}),
 
 // appointments.list — lines 92-99 (add inside the multi-line input object, after limit)
@@ -1536,21 +1599,21 @@ import { useScope } from "@/components/scope/ScopeProvider";
 				startFrom: todayStart,
 				startTo: todayEnd,
 				limit: 50,
-				branchId: scopeBranchId,
+				branchId: scopeNodeId,
 			},
 		}),
 
 // getRevenueSeries — lines 104-106
 		...orpc.analytics.getRevenueSeries.queryOptions({
-			input: { organizationId: organizationId!, days: trendDays, branchId: scopeBranchId },
+			input: { organizationId: organizationId!, days: trendDays, branchId: scopeNodeId },
 		}),
 ```
 
-`scopeBranchId` is `string | undefined` per the API-SPEC: `undefined` at the "All" scope (server falls back to full `accessibleNodeIds`), else the narrowed `activeScopeId`. The optional `branchId: z.string().uuid().optional()` on each schema accepts `undefined` as omitted, so the "All" case is a no-op and only narrowing sends a value — server-side `guardBranchAccessible` already enforces RBAC.
+`scopeNodeId` is `string | undefined` per the API-SPEC: `undefined` at the "All" scope (server falls back to full `accessibleNodeIds`), else the narrowed `activeScopeId`. The optional `branchId: z.string().uuid().optional()` on each schema accepts `undefined` as omitted, so the "All" case is a no-op and only narrowing sends a value — server-side `guardBranchAccessible` already enforces RBAC.
 
 - [ ] **Step 4: run, verify PASS** — `cd apps/web && bunx vitest run src/__tests__/pages/dashboard-page-scope.test.tsx` (green). Then full type/lint gate: `cd apps/web && bunx vitest run && cd /Users/ngchwanlii/.superconductor/worktrees/avantej-core/sc-pinned-fermion-7e14 && bun check-types && bun check`.
 
-- [ ] **Step 5: commit** — `git commit -am "feat(dashboard): narrow Overview analytics queries by useScope().scopeBranchId"`
+- [ ] **Step 5: commit** — `git commit -am "feat(dashboard): narrow Overview analytics queries by useScope().scopeNodeId"`
 
 ---
 
@@ -1759,9 +1822,9 @@ import { useScope } from "@/components/scope/ScopeProvider";
 **Files:**
 - Modify: `/Users/ngchwanlii/.superconductor/worktrees/avantej-core/sc-pinned-fermion-7e14/apps/web/src/components/pages/reports/ReportsPage.tsx`
 - Create (test): `/Users/ngchwanlii/.superconductor/worktrees/avantej-core/sc-pinned-fermion-7e14/apps/web/src/__tests__/components/reports-page-scope.test.tsx`
-- Consumes (must already exist from the ScopeProvider task): `apps/web/src/components/scope/ScopeProvider.tsx` (`useScope`, `scopeBranchId`)
+- Consumes (must already exist from the ScopeProvider task): `apps/web/src/components/scope/ScopeProvider.tsx` (`useScope`, `scopeNodeId`)
 
-Scope note: only the **3 branch-aware** procedures get `branchId` here — `getDashboardKpis` (line 44), `getRevenueSeries` (line 52), `getStaffPerformance` (line 96). Backend already accepts `branchId` on these (`analytics.ts:29,58,83` + `guardBranchAccessible` at `:42,69,94`). Do **NOT** touch the 4 series queries at lines 60/68/76/84 (`getMemberCountSeries`/`getChurnSeries`/`getLtvSeries`/`getClassFillRateSeries`): their shared `seriesInput` (`analytics.ts:103`) has no `branchId`, so oRPC validation would reject the extra field — that backend extension is a separate task.
+Scope note: **after Phase 0.5 lands, all 7 analytics queries on this page accept `branchId` and should be injected.** The 3 always-branch-aware procs — `getDashboardKpis` (line 44), `getRevenueSeries` (line 52), `getStaffPerformance` (line 96) — accept `branchId` today (`analytics.ts:29,58,83` + `guardBranchAccessible` at `:42,69,94`) and their subtree-expansion is done by 0.5-CORE. The 4 series queries at lines 60/68/76/84 (`getMemberCountSeries`/`getChurnSeries`/`getLtvSeries`/`getClassFillRateSeries`) get a `branchId?` param + expansion in **Phase 0.5 Group B**; once that lands, inject `scopeNodeId` into them too. **Sequencing:** if this Reports FE task runs *before* 0.5 Group B, leave the 4 series untouched (the `seriesInput` at `analytics.ts:103` would reject an unknown `branchId` field) and the Step-1 test below asserts that no-leak behavior; if 0.5 Group B is already merged, inject all 7 and flip the "does NOT leak branchId" test to assert injection on the series too.
 
 - [ ] **Step 1: Write the failing test.** Create `apps/web/src/__tests__/components/reports-page-scope.test.tsx`. It mirrors the established harness (`schedule-report-dialog.test.tsx`): mocks `@/utils/orpc` with `{ client: mockClient, orpc: mockOrpc }` so `orpc.analytics.*.queryOptions()` resolves its `queryFn` back to the same `mockClient.analytics.*` spy, stubs `useUserContext` (org gate) and the `useScope` switcher, then asserts the injected `branchId`.
 
@@ -1782,7 +1845,7 @@ vi.mock("@/hooks/useUserContext", () => ({
 }));
 
 // ScopeProvider.useScope is the switcher context this task wires in.
-// scopeBranchId is the EXACT value the page must inject as `branchId`.
+// scopeNodeId is the EXACT value the page must inject as `branchId`.
 const useScopeMock = vi.fn();
 vi.mock("@/components/scope/ScopeProvider", () => ({
 	useScope: () => useScopeMock(),
@@ -1817,8 +1880,8 @@ describe("ReportsPage scope injection", () => {
 		primeAnalyticsMocks();
 	});
 
-	it("injects scopeBranchId as branchId on the 3 branch-aware analytics queries", async () => {
-		useScopeMock.mockReturnValue({ scopeBranchId: "branch-x", isAllScope: false });
+	it("injects scopeNodeId as branchId on the 3 branch-aware analytics queries", async () => {
+		useScopeMock.mockReturnValue({ scopeNodeId: "branch-x", isAllScope: false });
 
 		renderWithProviders(<ReportsPage />);
 
@@ -1844,7 +1907,7 @@ describe("ReportsPage scope injection", () => {
 	});
 
 	it("does NOT leak branchId onto the 4 hierarchy-only series queries", async () => {
-		useScopeMock.mockReturnValue({ scopeBranchId: "branch-x", isAllScope: false });
+		useScopeMock.mockReturnValue({ scopeNodeId: "branch-x", isAllScope: false });
 
 		renderWithProviders(<ReportsPage />);
 
@@ -1864,7 +1927,7 @@ describe("ReportsPage scope injection", () => {
 	});
 
 	it("passes branchId: undefined when isAllScope (server falls back to full accessibleNodeIds)", async () => {
-		useScopeMock.mockReturnValue({ scopeBranchId: undefined, isAllScope: true });
+		useScopeMock.mockReturnValue({ scopeNodeId: undefined, isAllScope: true });
 
 		renderWithProviders(<ReportsPage />);
 
@@ -1876,7 +1939,7 @@ describe("ReportsPage scope injection", () => {
 			string,
 			unknown
 		>;
-		// scopeBranchId is the EXACT injected value → key present, value undefined.
+		// scopeNodeId is the EXACT injected value → key present, value undefined.
 		expect("branchId" in input).toBe(true);
 		expect(input.branchId).toBeUndefined();
 	});
@@ -1897,32 +1960,32 @@ import { useUserContext } from "@/hooks/useUserContext";
 import { useScope } from "@/components/scope/ScopeProvider";
 ```
 
-Edit 3b — read `scopeBranchId` from the switcher, right after `organizationId` (lines 25-27):
+Edit 3b — read `scopeNodeId` from the switcher, right after `organizationId` (lines 25-27):
 ```ts
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const { scopeBranchId } = useScope();
+	const { scopeNodeId } = useScope();
 	const [window, setWindow] = useState<WindowKey>("30D");
 ```
 
-Edit 3c — inject `branchId: scopeBranchId` into the 3 branch-aware inputs.
+Edit 3c — inject `branchId: scopeNodeId` into the 3 branch-aware inputs.
 
 getDashboardKpis (line 43-44):
 ```ts
 		...orpc.analytics.getDashboardKpis.queryOptions({
-			input: { organizationId: organizationId!, period, branchId: scopeBranchId },
+			input: { organizationId: organizationId!, period, branchId: scopeNodeId },
 		}),
 ```
 getRevenueSeries (line 51-52):
 ```ts
 		...orpc.analytics.getRevenueSeries.queryOptions({
-			input: { organizationId: organizationId!, days: seriesDays, branchId: scopeBranchId },
+			input: { organizationId: organizationId!, days: seriesDays, branchId: scopeNodeId },
 		}),
 ```
 getStaffPerformance (line 95-96):
 ```ts
 		...orpc.analytics.getStaffPerformance.queryOptions({
-			input: { organizationId: organizationId!, period, branchId: scopeBranchId },
+			input: { organizationId: organizationId!, period, branchId: scopeNodeId },
 		}),
 ```
 Leave the `getMemberCountSeries`/`getChurnSeries`/`getLtvSeries`/`getClassFillRateSeries` inputs (lines 60/68/76/84) unchanged.
@@ -1946,7 +2009,9 @@ git commit -m "feat(reports): inject activeScopeId as branchId on scope-aware an
 
 ## Per-module rollout (Wave 1 = 16, Wave 2 = 3)
 
-Each row is ONE task following the **Task 5 reference pattern**: render `<ScopeSwitcher/>` in the module header (replace any ad-hoc branch `<Select>`); inject `scopeBranchId` (or `hierarchyScopeId`) into the listed query; add an RBAC test (branch-manager → only their node / static label; out-of-scope → `FORBIDDEN`). Overview (Task 5) + its "All" cards (Task 6) + Reports (Task 7) are already written above. The rest:
+Each row is ONE task following the **Task 5 reference pattern**: render `<ScopeSwitcher/>` in the module header (replace any ad-hoc branch `<Select>`); inject `scopeNodeId` into the listed query (the existing input field — `branchId` / `hierarchyScopeId` — now carries the any-level node id); add an RBAC test (branch-manager → only their node / static label; out-of-scope → `FORBIDDEN`). Overview (Task 5) + its "All" cards (Task 6) + Reports (Task 7) are already written above. The rest:
+
+> **Backend is already converted in Phase 0.5.** Every query in the table below has its subtree-expansion (equality→`inArray(resolveScopeNodeIds(...))`) + guard done in Phase 0.5, so each rollout task is **FE-only**: drop in the switcher + inject `scopeNodeId` + add the RBAC test. The "Phase 0.5 dep" column names the specific 0.5 conversion that must land first (in practice, **all** rows depend on 0.5-CORE + their router's Group-A/B task).
 
 | Module | Page component | Query to scope | Scope param | Phase 0.5 dep | Notes |
 |---|---|---|---|---|---|
@@ -1969,8 +2034,9 @@ Each row is ONE task following the **Task 5 reference pattern**: render `<ScopeS
 | **Dashboard** (W2) | `launchpad/DashboardLaunchpad.tsx:46` | `analytics.getDashboardKpis` + badges | `branchId` | — | lowest value; last |
 
 ## Self-review notes
-- ScopeProvider API is defined once (Task 1) and consumed by the SAME field names (`scopeBranchId`, `isAllScope`, `scopeNodes`, `setActiveScope`) across Task 3, Task 5/6/7, and every rollout-table module.
+- ScopeProvider API is defined once (Task 1) and consumed by the SAME field names (`scopeNodeId`, `isAllScope`, `scopeNodes`, `setActiveScope`) across Task 3, Task 5/6/7, and every rollout-table module.
 - Security: the switcher only sets `activeScopeId ∈ accessibleNodeIds`; out-of-scope ids are rejected client-side AND server-side (Phase 0 + Phase 0.5 guards). No new isolation surface. The RBAC test (branch-manager static label + forged-scope `FORBIDDEN`) is mandatory per module.
-- Phase 0.5 (4 list-guards) is a hard prerequisite before wiring 0.5-dependent modules; do it first.
+- Phase 0.5 (backend `scopeNodeId` subtree conversion — 0.5-CORE helper + per-router Group A/B) is a hard prerequisite before any FE rollout reaches a converted query; do it first. Guard layer is unchanged (Phase 0 covered by-id reads).
+- The injected provider field is **`scopeNodeId`** (any hierarchy level), not the old `scopeBranchId` (leaf-only). It maps onto each query's existing `branchId`/`hierarchyScopeId` input; the server expands it via `resolveScopeNodeIds`.
 - Out of scope (tracked in spec): reclassifying the `trusts-fixed-scope` set; FX-converted "All" totals.
 - Verify before merge: vitest on new files + a Chrome-MCP journey (owner switches MY→SG→All across Commissions/Employees/Reports; branch-manager sees only their node / static label everywhere).

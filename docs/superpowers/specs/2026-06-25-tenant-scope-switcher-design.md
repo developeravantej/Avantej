@@ -1,13 +1,22 @@
 # Tenant Dashboard Scope Switcher — Design Spec
 
 - **Date:** 2026-06-25 (revised 2026-06-26)
-- **Status:** Approved (design); Phase 0 merged (PR #58). **Revised 2026-06-26: global sidebar switcher → per-module switcher (shared scope).**
+- **Status:** Approved (design); Phase 0 merged (PR #58). **Revised 2026-06-26: (a) global sidebar switcher → per-module switcher (shared scope); (b) any-level `scopeNodeId` + backend subtree conversion (§0.1, §5.3).**
 - **Surface:** Tenant dashboard (`apps/web`, `/dashboard/*`) — **not** the control-panel / platform-admin surface
 - **Branch:** `fix/tenant-multi-country-region-support` (Phase 0 merged to `main`)
 
 ## 0. Revision note (2026-06-26)
 
 Original design put a **single global switcher in the sidebar**. Per client feedback, the switcher is now **rendered per-module** (in each module's header) — Commissions, Employees, Reports, etc. — while the picked scope is **shared** across modules (pick once, applies everywhere). RBAC is unchanged and central: the switcher only exposes `accessibleNodeIds`, so a branch manager never sees regional data, and the server enforces it. See §3 decision 7, §4.3, §4.7, §5.1, §8.
+
+### 0.1 Revision note (2026-06-26 b) — any-level `scopeNodeId` + backend subtree conversion
+
+A privileged user (owner, regional manager) must be able to scope to **any hierarchy level they can access** — country / region / state / branch — not just a leaf branch. Two consequences, both quantified by the backend read-proc audit `wf_8e9e02ad-94e` (16 modules):
+
+1. **`scopeBranchId` → `scopeNodeId`.** The value the switcher feeds into queries may be any node id, not a leaf. The server **expands** it: `targetIds = getDescendantNodeIds(scopeNodeId) ∩ accessibleNodeIds`, then filters `inArray(branchId, targetIds)`.
+2. **Phase 0.5 grows from "4 guards" to a backend subtree-conversion pass.** Most module read-procs filter by **exact-equality** (`eq(col, input.branchId)` / `resolveBranchFilter` → `[branchId]`) — which returns **zero rows** for a non-leaf node, because business rows carry leaf branch ids. They must convert to subtree expansion. The **guard layer is unchanged**: `guardBranchAccessible` already accepts any accessible node (leaf or intermediate), since `accessibleNodeIds` = the member's scope + all descendants. See the rewritten §5.3.
+
+This is a coordinated **FE + BE refactor**, not just FE wiring. FE foundation barely changes (the `<ScopeSwitcher/>` already renders the full country→state→branch tree); the bulk is the BE conversion in §5.3.
 
 ## 1. Problem
 
@@ -70,7 +79,9 @@ A query is served only if **both** hold: permission ✓ **and** `scopeId ∈ acc
 
 Introduce a user-selectable **`activeScopeId`** that replaces the *fixed* `hierarchyScopeId` as the value read pages pass to queries.
 
-- Implemented as a small `ScopeProvider` (or a focused extension of `useUserContext`) exposing `{ activeScopeId, setActiveScope, activeScopeNode, accessibleNodeIds }`.
+- Implemented as a small `ScopeProvider` (or a focused extension of `useUserContext`) exposing `{ activeScopeId, setActiveScope, activeScopeNode, accessibleNodeIds, scopeNodeId, isAllScope }`.
+- `activeScopeId` / `scopeNodeId` may be **any** accessible hierarchy node (country / region / state / branch), not only a leaf branch. `scopeNodeId` = the exact value consumers inject into a query's `branchId`/`hierarchyScopeId` input: `undefined` when "All" (server uses full `accessibleNodeIds`), else `activeScopeId`.
+- **Server-side expansion (the key BE rule):** a scoped read receives a possibly-non-leaf `scopeNodeId` and must filter by its accessible **subtree**, `inArray(branchId, getDescendantNodeIds(scopeNodeId) ∩ accessibleNodeIds)` — never `eq(branchId, scopeNodeId)` (that returns zero rows for a country/region). Centralized in a `resolveScopeNodeIds(tenantDb, scopeNodeId, accessibleNodeIds)` helper (§5.3).
 - **Default** = member's `hierarchyScopeId` (owner → org root → "All").
 - **Persisted** in `localStorage` under a key namespaced by `(userId, organizationId)`.
 - **Validated on load:** if the persisted id is not in `accessibleNodeIds` (access revoked) or the node no longer exists (deleted), discard and fall back to `hierarchyScopeId`. Never trust localStorage blindly.
@@ -89,7 +100,7 @@ A single reusable component **`<ScopeSwitcher/>`** (`apps/web/src/components/sco
 
 ### 4.4 Read pages consume the shared scope
 
-Each module's data hooks inject `scopeBranchId` (from the scope context: `activeScopeId` when narrowed, `undefined` when "All" → server falls back to full `accessibleNodeIds`) into their already-guarded oRPC queries. See §4.7 for the module list and §8 for the rollout order.
+Each module's data hooks inject `scopeNodeId` (from the scope context: `activeScopeId` — any hierarchy level — when narrowed, `undefined` when "All" → server falls back to full `accessibleNodeIds`) into their already-guarded oRPC queries' existing `branchId`/`hierarchyScopeId` input. The server expands the supplied node to its accessible subtree (§4.2, §5.3). See §4.7 for the module list and §8 for the rollout order.
 
 ### 4.5 Write flows untouched
 
@@ -163,14 +174,23 @@ Reference (already-correct) patterns to copy: `commissionSplits.liabilityByStaff
 
 > **Phase 0 status:** DONE — all 17 guarded + a `/code-review`-found regression fixed; merged in PR #58 (merge commit `fc408dbb`).
 
-### 5.3 Phase 0.5 — list-procedure guards (per-module switcher prerequisite)
+### 5.3 Phase 0.5 — backend `scopeNodeId` subtree conversion (per-module switcher prerequisite)
 
-Phase 0 guarded the by-id **read** leaks. The per-module switcher feeds a **user-controlled** scope into module **list** queries — some of which are "safe-but-silent" (they intersect `accessibleNodeIds`, so an out-of-scope pick returns an empty list instead of erroring). Before exposing a user-selectable scope, make these **fail-loud** (`FORBIDDEN` on out-of-scope), from the `module-scope-classification` audit:
-- **`payouts.list`** — has **no** `branchId` input today → add a `branchId?` param **and** `guardBranchAccessible(input.branchId, accessibleNodeIds)` (else a selected branch is silently ignored). Blocks the Payouts module (Wave 2).
-- **`members.list`** (Employees / Trainers / Staff Access) — accepts `hierarchyScopeId`, never guards it → add `guardBranchAccessible(input.hierarchyScopeId, accessibleNodeIds)`.
-- **`appointments.list`** and **`services.list`** — `branchId` is post-filtered, no explicit guard → add `guardBranchAccessible` for consistent fail-loud behavior.
+> **Rewritten 2026-06-26 (b)** after the 16-module read-proc audit (`wf_8e9e02ad-94e`). The original "add 4 guards" plan was insufficient: the real prerequisite is converting **exact-equality** filters to **subtree expansion** so a non-leaf `scopeNodeId` returns the right rows. Phase 0 already guarded the by-id read leaks; Phase 0.5 fixes the **list/analytics** filter semantics.
 
-All other Wave-1 modules (Overview, Reports, Approvals, Customers, Class Slots, Announcements, Sales & Payments, Commissions, Expenses, Packages, Attendance) already guard `branchId`/`accessibleNodeIds` and need no new guard.
+**Two load-bearing audit findings:**
+1. **Guards are already non-leaf-safe — only the FILTER breaks.** `guardBranchAccessible(id, accessibleNodeIds)` accepts ANY node in `accessibleNodeIds` (= member scope + all descendants, intermediate nodes *and* leaves). Picking a region passes; a forged out-of-scope id still returns `FORBIDDEN`. ⇒ no guard signature changes. (⚠️ Verify at impl: `getDescendantNodeIds` must return intermediate nodes, not only leaves — the model rests on this.)
+2. **Dominant filter = exact-equality** (`eq(col, input.branchId)` / `resolveBranchFilter` → `[branchId]`), which returns **zero rows** for a non-leaf node (rows carry leaf branch ids).
+
+**Conversion (centralized):** add a `resolveScopeNodeIds(tenantDb, scopeNodeId, accessibleNodeIds)` helper = `scopeNodeId ? getDescendantNodeIds(scopeNodeId) ∩ accessibleNodeIds : accessibleNodeIds`, and route every scoped read through it (`inArray(col, resolveScopeNodeIds(...))`). Converting the existing `resolveBranchFilter` chokepoint fixes all 3 analytics KPI procs at once.
+
+**Audit classification (counts; full file:line list in the Phase-1 plan §"Phase 0.5"):**
+- **A — needs-conversion (equality → subtree), ~20 procs across 13 routers:** analytics (getDashboardKpis / getStaffPerformance / getRevenueSeries), members.list, appointments.list, services.list, salesOrders (list / kpiSummary / largestToday / getLatest), commissions (liabilityByStaff / listCommissionLedger), expenses.list, class-slots (list / bookingCounts), customerDirectory (list / getStats), announcements.list, packageInstances.listMemberships, approvals.listPending, attendance (listTodaysBookings / list), pos.searchCustomers.
+- **B — needs-param-added (no scope input today → add `branchId?`/`scopeNodeId?` then expand), ~6:** analytics series ×4 (memberCount / churn / ltv / classFillRate), payouts.list (was the old "0.5-D"), announcements.listActive.
+- **C — already subtree-ready (reference patterns, no change):** commissionSplits.liabilitySummary / exportLiabilityCsv, packageInstances.listAll, customerDirectory.getById.
+- **D — by-id / unscoped (post-filter guard already correct, no switcher change):** class-slots.getById, payouts.recipientSummary, pos.getReceiptData.
+
+Each A/B router is one TDD task (pick non-leaf → subtree rows; out-of-scope → `FORBIDDEN`; leaf → that branch only). This is the bulk of Phase 1's new work and a hard prerequisite before the FE rollout reaches a converted query.
 
 ### 5.4 Structural safeguards
 - **Regression tests:** for each fixed procedure, an out-of-scope id → `FORBIDDEN` / `NOT_FOUND`.
@@ -201,9 +221,13 @@ All other Wave-1 modules (Overview, Reports, Approvals, Customers, Class Slots, 
 Phase 0    SECURITY PREREQUISITE — DONE (merged PR #58, fc408dbb)
            17 by-id read leaks guarded; regression tests; review fix.
 
-Phase 0.5  LIST-GUARD PREREQUISITE (blocks the switcher)
-           fail-loud guards on payouts.list (+branchId param), members.list,
-           appointments.list, services.list (§5.3). TDD, same pattern as Phase 0.
+Phase 0.5  BACKEND scopeNodeId SUBTREE CONVERSION (blocks the switcher)
+           • 0.5-CORE: resolveScopeNodeIds() helper + convert resolveBranchFilter
+             (fixes all 3 analytics KPI procs at once)
+           • Group A: ~20 equality→subtree conversions (one TDD task per router)
+           • Group B: ~6 add-param-then-expand (analytics series ×4, payouts.list,
+             announcements.listActive)
+           Guard layer UNCHANGED (Phase 0 covered by-id reads). §5.3.
 
 Foundation SCOPE CONTEXT + REUSABLE CONTROL
            • ScopeProvider/useScope: shared activeScopeId, default = member top node,
@@ -212,7 +236,7 @@ Foundation SCOPE CONTEXT + REUSABLE CONTROL
              1 node → static label)
 
 Rollout    PER-MODULE (one thin task each: render <ScopeSwitcher/> in header
-           + inject scopeBranchId into the module's guarded queries + RBAC test)
+           + inject scopeNodeId into the module's guarded queries + RBAC test)
            • Wave 1 (16): Overview, Reports, Approvals, Customers, Appointments,
              Class Slots, Trainers, Services, Announcements, Sales & Payments,
              Commissions, Expenses, Packages, Employees, Attendance, Staff Access
