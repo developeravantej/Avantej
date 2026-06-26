@@ -53,7 +53,7 @@ export const appointmentsListProcedures = {
 			// Reject an explicit branch/scope filter that is outside the caller's
 			// accessible scope BEFORE running the query (defense in depth — the
 			// subtree expansion below also enforces the ceiling).
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			guardBranchAccessible(input.branchId, accessibleNodeIds);
 
 			// Use recurrence-aware list which returns virtual occurrences for recurring series.
 			// Note: status filter is not passed to listAppointmentsWithRecurrence — virtual
@@ -84,13 +84,15 @@ export const appointmentsListProcedures = {
 			// accessible subtree of leaf branch ids, then keep rows whose branchId is
 			// in that set. A country/region/state node thus returns its branches' rows
 			// instead of zero. No scope + admin (empty ceiling) → scopeIds=[] = no filter.
-			const scopeIds = await resolveScopeNodeIds(
-				context.tenantDb,
-				input.branchId,
-				context.accessibleNodeIds ?? [],
-			);
-			if (scopeIds.length > 0) {
-				items = items.filter((r) => scopeIds.includes(r.branchId));
+			if (input.branchId) {
+				const scopeIds = await resolveScopeNodeIds(
+					context.tenantDb,
+					input.branchId,
+					accessibleNodeIds,
+				);
+				if (scopeIds.length > 0) {
+					items = items.filter((r) => scopeIds.includes(r.branchId));
+				}
 			}
 			// scope='assignable_to_me': keep rows where trainerId equals caller's memberId OR trainerId is null
 			if (input.scope === "assignable_to_me") {

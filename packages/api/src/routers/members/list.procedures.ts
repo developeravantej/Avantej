@@ -16,6 +16,7 @@ import {
 	requirePermissionOrpc,
 	assertOrgContextMatch,
 	guardBranchAccessible,
+	resolveAccessibleNodeIds,
 } from "../../guards";
 
 export const membersListProcedures = {
@@ -86,13 +87,15 @@ export const membersListProcedures = {
 				conditions.push(eq(members.status, input.status));
 			}
 			if (input.hierarchyScopeId) {
+				// Use the RESOLVED ceiling (falls back to the member's hierarchy subtree
+				// when context.accessibleNodeIds is empty) so the guard + expansion are
+				// consistent with the data query and a degraded empty-context state can't
+				// silently skip the FORBIDDEN check.
+				const accessibleNodeIds = await resolveAccessibleNodeIds(context);
 				// Guard: reject an out-of-scope scope id with FORBIDDEN (mirrors the
 				// other tenant-isolated routers). Skips when accessibleNodeIds is empty
 				// (admin / org-wide), matching assertBranchAccessible semantics.
-				guardBranchAccessible(
-					input.hierarchyScopeId,
-					context.accessibleNodeIds ?? [],
-				);
+				guardBranchAccessible(input.hierarchyScopeId, accessibleNodeIds);
 				// Subtree expansion: a non-leaf scope node (country / region / state)
 				// expands to ALL of its accessible branch descendants, so picking a
 				// region returns its branches' members instead of zero rows. The result
@@ -100,7 +103,7 @@ export const membersListProcedures = {
 				const scopeIds = await resolveScopeNodeIds(
 					context.tenantDb,
 					input.hierarchyScopeId,
-					context.accessibleNodeIds ?? [],
+					accessibleNodeIds,
 				);
 				if (scopeIds.length > 0) {
 					conditions.push(inArray(members.hierarchyScopeId, scopeIds));
