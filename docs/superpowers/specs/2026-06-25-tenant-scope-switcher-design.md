@@ -1,9 +1,13 @@
 # Tenant Dashboard Scope Switcher — Design Spec
 
-- **Date:** 2026-06-25
-- **Status:** Approved (design); pending spec review
+- **Date:** 2026-06-25 (revised 2026-06-26)
+- **Status:** Approved (design); Phase 0 merged (PR #58). **Revised 2026-06-26: global sidebar switcher → per-module switcher (shared scope).**
 - **Surface:** Tenant dashboard (`apps/web`, `/dashboard/*`) — **not** the control-panel / platform-admin surface
-- **Branch:** `fix/tenant-multi-country-region-support`
+- **Branch:** `fix/tenant-multi-country-region-support` (Phase 0 merged to `main`)
+
+## 0. Revision note (2026-06-26)
+
+Original design put a **single global switcher in the sidebar**. Per client feedback, the switcher is now **rendered per-module** (in each module's header) — Commissions, Employees, Reports, etc. — while the picked scope is **shared** across modules (pick once, applies everywhere). RBAC is unchanged and central: the switcher only exposes `accessibleNodeIds`, so a branch manager never sees regional data, and the server enforces it. See §3 decision 7, §4.3, §4.7, §5.1, §8.
 
 ## 1. Problem
 
@@ -19,7 +23,7 @@ Today the active scope is **fixed at login**: every scoped query keys off the me
 
 ## 2. Goal / Non-goals
 
-**Goal:** A global scope switcher in the tenant dashboard that lets a user pick any hierarchy node within their access (country / state / branch, plus a scoped "All") and re-scopes **read/analytics** surfaces to that node. Safe by construction — the switcher can only ever *narrow* within the user's server-derived access.
+**Goal:** A scope switcher, rendered **in each branch-scoped module's header**, that lets a user pick any hierarchy node within their access (country / state / branch, plus a scoped "All"). The picked scope is **shared** across modules (one source of truth) and re-scopes **read/analytics** surfaces to that node. Safe by construction — the switcher can only ever *narrow* within the user's server-derived access.
 
 **Non-goals:**
 - Auto-scoping **write/operational** flows (POS sale, create member). These keep an explicit per-operation branch picker (seeded from the active scope but independently confirmed) to prevent mis-scoped sales / commissions.
@@ -37,6 +41,7 @@ Today the active scope is **fixed at login**: every scoped query keys off the me
 | 4 | Switcher visibility | Options strictly = `accessibleNodeIds`; 1 accessible node → static label (no dropdown); server enforces on every scoped read |
 | 5 | "All" semantics | = the caller's **top accessible node**, never higher (owner → org root; regional mgr → their region; branch staff → their branch) |
 | 6 | Multi-currency "All" money | **Layout C** — per-country cards (each its own currency) when scope = "All"; normal KPI tiles for a single-node scope. No cross-currency grand total. |
+| 7 | Placement & state | **Per-module** switcher (rendered in each branch-scoped module's header), with **one shared** `activeScopeId` across modules. NOT a single global sidebar control. POS is special: its picker sets the *recording* branch (a write target), not a read filter. |
 
 ## 4. Architecture
 
@@ -73,20 +78,18 @@ Introduce a user-selectable **`activeScopeId`** that replaces the *fixed* `hiera
 
 This is the one genuinely cross-cutting change: the god-node `useUserContext` is consumed widely, so the new context is introduced alongside it and adopted page-by-page (see phasing).
 
-### 4.3 Switcher UI
+### 4.3 Switcher UI — a reusable per-module control (revised)
 
-- Wire the dead sidebar org button (`apps/web/src/components/app-sidebar.tsx`) into a real control.
-- On click: a searchable tree/dropdown of `accessibleNodeIds`, grouped `country → state → branch`, plus a top **"All (org-wide)"** entry that resolves to the caller's top accessible node.
-- The sidebar sub-line ("29 branches") is replaced by the active scope label ("Viewing: All countries" / "Viewing: Singapore").
-- Each page header shows a small scope chip echoing the active scope.
-- If the user has exactly 1 accessible node → render a static label, no dropdown.
+A single reusable component **`<ScopeSwitcher/>`** (`apps/web/src/components/scope/ScopeSwitcher.tsx`) is dropped into **each branch-scoped module's header** (next to the page title / existing filters). It is NOT in the sidebar; the dead sidebar org button is left as-is (or shows a read-only active-scope label — non-goal to wire it).
 
-### 4.4 Read pages consume `activeScopeId`
+- Renders a searchable tree/dropdown of `accessibleNodeIds`, grouped `country → state → branch`, plus a top **"All"** entry = the caller's top accessible node.
+- Reads/writes the **shared** `activeScopeId` from the scope context (§4.2), so picking in one module updates every module.
+- If the user has exactly 1 accessible node → renders a **static label**, no dropdown (e.g. a branch manager sees "Branch X", cannot switch).
+- Modules that already ship an ad-hoc branch `<Select>` (Sales, Commissions, Attendance, Audit Log) replace it with `<ScopeSwitcher/>` so there is one consistent control bound to the shared scope.
 
-Data hooks on read surfaces read `activeScopeId` instead of the fixed `hierarchyScopeId`.
+### 4.4 Read pages consume the shared scope
 
-- **Phase 1:** Overview + Reports.
-- **Phase 2:** Members list, Appointments list, Commissions view.
+Each module's data hooks inject `scopeBranchId` (from the scope context: `activeScopeId` when narrowed, `undefined` when "All" → server falls back to full `accessibleNodeIds`) into their already-guarded oRPC queries. See §4.7 for the module list and §8 for the rollout order.
 
 ### 4.5 Write flows untouched
 
@@ -97,6 +100,20 @@ POS sale and create-member keep their explicit per-operation branch `<Select>`, 
 - "All" = the caller's top accessible node; backend already aggregates via `getDescendantNodeIds(scopeId)` (verified — selecting the org root on the Branch Overview shows org-wide totals).
 - Counts (members, staff, appointments) aggregate into the top KPI tiles normally.
 - **Revenue must never be summed across currencies.** When scope = "All" and the subtree spans multiple country currencies, render a **per-country card grid** (each card in its own currency) instead of a single revenue tile. For a single-node scope (one currency), keep the normal KPI tiles.
+
+### 4.7 Module coverage (from the `module-scope-classification` audit, run `wf_389ee646-f0c`)
+
+Only modules whose **primary data is branch/hierarchy-scoped** get a switcher. Org-level/meta modules do not.
+
+**Wave 1 — 16 branch-scoped modules (get `<ScopeSwitcher/>`):**
+Overview · Reports · Approvals · Customers · Appointments · Class Slots · Trainers · Services · Announcements · Sales & Payments · Commissions · Expenses · Packages · Employees · Attendance · Staff Access.
+
+**Wave 2 — 3 (opt-in, extra work):**
+- **Payouts** — `payouts.list` has **no `branchId` param** today → add param + guard first (§5.3).
+- **POS** — switcher sets the **recording branch** (write target), not a read filter — distinct UX; seeded from the shared scope but explicitly confirmed.
+- **Dashboard** — personal launcher hub; lower value, last.
+
+**Excluded — org-level / meta (no switcher):** Tax Rates · Roles · Branches (it *is* the hierarchy editor) · Org Settings · Google Calendar · Notification Preferences · Email · GHL Integration.
 
 ## 5. Security Model — Validated, Never Trusted
 
@@ -144,9 +161,20 @@ Reference (already-correct) patterns to copy: `commissionSplits.liabilityByStaff
 
 **Additionally review (matrix-flagged `trusts-fixed-scope`, not in the 17 but invalidated by a selectable scope):** `cancelledSales.list` / `getById` / `exportCsv`; `households.get` / `addMember` / `removeMember`; `commissionCycle.upsert` / `delete`. Re-audit and convert to explicit `accessibleNodeIds` enforcement.
 
-### 5.3 Phase 0 structural safeguards
+> **Phase 0 status:** DONE — all 17 guarded + a `/code-review`-found regression fixed; merged in PR #58 (merge commit `fc408dbb`).
+
+### 5.3 Phase 0.5 — list-procedure guards (per-module switcher prerequisite)
+
+Phase 0 guarded the by-id **read** leaks. The per-module switcher feeds a **user-controlled** scope into module **list** queries — some of which are "safe-but-silent" (they intersect `accessibleNodeIds`, so an out-of-scope pick returns an empty list instead of erroring). Before exposing a user-selectable scope, make these **fail-loud** (`FORBIDDEN` on out-of-scope), from the `module-scope-classification` audit:
+- **`payouts.list`** — has **no** `branchId` input today → add a `branchId?` param **and** `guardBranchAccessible(input.branchId, accessibleNodeIds)` (else a selected branch is silently ignored). Blocks the Payouts module (Wave 2).
+- **`members.list`** (Employees / Trainers / Staff Access) — accepts `hierarchyScopeId`, never guards it → add `guardBranchAccessible(input.hierarchyScopeId, accessibleNodeIds)`.
+- **`appointments.list`** and **`services.list`** — `branchId` is post-filtered, no explicit guard → add `guardBranchAccessible` for consistent fail-loud behavior.
+
+All other Wave-1 modules (Overview, Reports, Approvals, Customers, Class Slots, Announcements, Sales & Payments, Commissions, Expenses, Packages, Attendance) already guard `branchId`/`accessibleNodeIds` and need no new guard.
+
+### 5.4 Structural safeguards
 - **Regression tests:** for each fixed procedure, an out-of-scope id → `FORBIDDEN` / `NOT_FOUND`.
-- **Optional CI gate:** flag by-id `findFirst` reads on branch-scoped tables that lack a branch guard (12 of 17 leaks share this shape).
+- **Optional CI gate:** flag by-id `findFirst` reads on branch-scoped tables that lack a branch guard (12 of 17 Phase 0 leaks share this shape).
 
 ## 6. Edge Cases
 
@@ -162,32 +190,43 @@ Reference (already-correct) patterns to copy: `commissionSplits.liabilityByStaff
 
 ## 7. Out of Scope / Future
 - **FX-converted grand total** (the rejected "Layout B"): needs an `fx_rates` table + refresh job; revenue total would be approximate/stale. Defer until a real requirement.
-- **Consolidating per-page branch filters** into the global switcher.
-- **Auto-scoping write flows** (explicitly excluded for correctness).
+- **Auto-scoping write flows** (POS recording branch is explicitly confirmed, not auto-driven).
+- **Reclassifying the `trusts-fixed-scope` set** (`cancelledSales` / `households` / `commissionCycle`, §5.2) — not surfaced by a Wave-1/2 module, but harden before any future module exposes them.
+
+(Note: consolidating the scattered ad-hoc per-page branch `<Select>`s into the shared `<ScopeSwitcher/>` is now **in scope** — §4.3.)
 
 ## 8. Phasing
 
 ```
-Phase 0  SECURITY PREREQUISITE (blocks switcher; ships independently)
-         • guard the 17 confirmed leaky reads (§5.2) + review the trusts-fixed-scope set
-         • regression tests: out-of-scope id → FORBIDDEN/NOT_FOUND
-         • (optional) CI gate for unguarded by-id branch reads
+Phase 0    SECURITY PREREQUISITE — DONE (merged PR #58, fc408dbb)
+           17 by-id read leaks guarded; regression tests; review fix.
 
-Phase 1  SCOPE SWITCHER v1
-         • ScopeProvider (activeScopeId, persistence, validation)
-         • switcher UI (wire dead org button → accessibleNodeIds tree + "All")
-         • Overview + Reports consume activeScopeId
-         • "All" per-country money cards (Layout C)
+Phase 0.5  LIST-GUARD PREREQUISITE (blocks the switcher)
+           fail-loud guards on payouts.list (+branchId param), members.list,
+           appointments.list, services.list (§5.3). TDD, same pattern as Phase 0.
 
-Phase 2  EXPAND READ COVERAGE
-         • Members list, Appointments list, Commissions view consume activeScopeId
+Foundation SCOPE CONTEXT + REUSABLE CONTROL
+           • ScopeProvider/useScope: shared activeScopeId, default = member top node,
+             localStorage per (user,org), validated vs accessibleNodeIds, org-reset
+           • <ScopeSwitcher/> reusable component (accessibleNodeIds tree + "All";
+             1 node → static label)
+
+Rollout    PER-MODULE (one thin task each: render <ScopeSwitcher/> in header
+           + inject scopeBranchId into the module's guarded queries + RBAC test)
+           • Wave 1 (16): Overview, Reports, Approvals, Customers, Appointments,
+             Class Slots, Trainers, Services, Announcements, Sales & Payments,
+             Commissions, Expenses, Packages, Employees, Attendance, Staff Access
+             — Overview also gets the "All" per-country money cards (Layout C)
+           • Wave 2 (3): Payouts (after its Phase-0.5 param), POS (recording-branch
+             UX, not a filter), Dashboard
 ```
 
-The switcher must not be enabled (even behind a flag, in a way that reaches queries) until Phase 0 merges green.
+The switcher must not reach queries until Phase 0.5 merges green. Phase 0 already merged.
 
 ## 9. Testing
-- **Phase 0:** unit/integration regression tests per fixed procedure (out-of-scope id → `FORBIDDEN`/`NOT_FOUND`); confirm admin (empty `accessibleNodeIds`) bypass preserved.
-- **Phase 1/2:** ScopeProvider unit tests (default, persistence, stale-fallback, org-switch reset); Chrome-MCP journey — owner switches MY → SG → All and verifies Overview/Reports re-scope; branch-manager login sees only their node (no dropdown) and a forged regional `scopeId` is rejected.
+- **Phase 0 (done) / 0.5:** unit/integration regression per guarded procedure (out-of-scope id/branch → `FORBIDDEN`); confirm admin org-wide preserved.
+- **Foundation:** ScopeProvider unit tests (default, persistence, stale-fallback, org-switch reset); `<ScopeSwitcher/>` tests (renders only `accessibleNodeIds`; 1 node → static label; setter rejects out-of-scope).
+- **Per-module:** for each module, a test that the active scope flows into its query; **RBAC journey (the client's rule):** branch-manager login sees only their branch (static label, no regional option) in **every** module's switcher, and a forged regional `scopeId` → `FORBIDDEN`. Chrome-MCP: owner switches MY → SG → All; confirm Commissions, Employees, Reports, etc. all re-scope consistently from the shared selection.
 
 ## 10. Open Risks
 - Phase 0 is sizeable (17+ procedures across many routers). It is independently valuable (closes existing intra-tenant leaks) and can ship before any switcher work.
