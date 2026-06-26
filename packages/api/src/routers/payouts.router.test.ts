@@ -309,6 +309,60 @@ describe("payouts batch — non-admin out-of-scope staff guard", () => {
 			),
 		).rejects.toMatchObject({ code: "FORBIDDEN" });
 	});
+
+	// FINDING 2 (MED): the guard previously bypassed scope when
+	// accessibleNodeIds was empty (`|| !context.accessibleNodeIds?.length`).
+	// For a financial action that is fail-open on a degraded/error scope: a
+	// non-admin whose scope resolved to nothing could pay out ANY staff. A
+	// non-admin with an empty scope must fail CLOSED → FORBIDDEN (the targeted
+	// staff resolve to no in-scope rows). Admin bypass is unaffected (covered
+	// by the admin positive-control test below).
+	it("previewBatch rejects a non-admin with EMPTY accessibleNodeIds (fail-closed)", async () => {
+		await expect(
+			call(
+				payoutsRouter.previewBatch,
+				{
+					organizationId: ORG_ID,
+					staffIds: [STAFF_USER_IN],
+					periodStart: new Date("2026-06-01"),
+					periodEnd: new Date("2026-06-30"),
+				},
+				{
+					context: createMockContext({
+						organizationId: ORG_ID,
+						// Staff IS mapped to a node, but the caller's own scope is
+						// empty → nothing is accessible → must reject.
+						tenantDb: makeStaffScopeDb({ [STAFF_USER_IN]: NODE_IN }),
+						member: NON_ADMIN_MEMBER,
+						accessibleNodeIds: [],
+					}),
+				},
+			),
+		).rejects.toMatchObject({ code: "FORBIDDEN" });
+	});
+
+	it("runBatch rejects a non-admin with EMPTY accessibleNodeIds (fail-closed)", async () => {
+		await expect(
+			call(
+				payoutsRouter.runBatch,
+				{
+					organizationId: ORG_ID,
+					staffIds: [STAFF_USER_IN],
+					periodStart: new Date("2026-06-01"),
+					periodEnd: new Date("2026-06-30"),
+					paymentMethod: "bank_transfer" as const,
+				},
+				{
+					context: createMockContext({
+						organizationId: ORG_ID,
+						tenantDb: makeStaffScopeDb({ [STAFF_USER_IN]: NODE_IN }),
+						member: NON_ADMIN_MEMBER,
+						accessibleNodeIds: [],
+					}),
+				},
+			),
+		).rejects.toMatchObject({ code: "FORBIDDEN" });
+	});
 });
 
 describe("payouts batch — positive control (in-scope + admin bypass)", () => {

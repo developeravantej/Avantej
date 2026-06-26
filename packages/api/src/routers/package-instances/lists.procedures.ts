@@ -127,6 +127,11 @@ export const packageInstancesListsProcedures = {
 
 			const controlPanelDb = getControlPanelDb(context);
 			return listAllPackageInstances(controlPanelDb, context.tenantDb, {
+				// Admin is determined by the explicit role (same rule as
+				// recipientSummary / listPayouts). Admins see every instance
+				// org-wide; non-admins are scoped to accessibleNodeIds and an
+				// empty scope fails closed to [].
+				isAdmin: context.member?.role === "admin",
 				accessibleNodeIds: context.accessibleNodeIds ?? [],
 				clientId: input.clientId,
 				status: input.status,

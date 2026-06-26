@@ -26,18 +26,24 @@ import { getControlPanelDb } from "../../lib/context-helpers";
 /**
  * Non-admin tenant isolation: every targeted staff (control-panel user id)
  * must resolve to a member whose hierarchyScopeId is inside the caller's
- * accessibleNodeIds. Mirrors the recipientSummary guard. Admins and callers
- * with empty accessibleNodeIds bypass. Any staff id with no member row, or one
- * outside scope, → FORBIDDEN.
+ * accessibleNodeIds. Mirrors the recipientSummary guard.
+ *
+ * ONLY an actual admin (explicit `role === "admin"`, same rule as
+ * recipientSummary / listPayouts) bypasses the scope check. A non-admin is
+ * ALWAYS validated — including when accessibleNodeIds is empty. An empty scope
+ * is a degraded/error condition, so for a money-moving action it must fail
+ * CLOSED: every targeted staff resolves to no in-scope node → FORBIDDEN.
+ * (Previously an empty scope was treated as a bypass — fail-open.) Any staff id
+ * with no member row, or one outside scope, → FORBIDDEN.
  */
 async function assertStaffWithinScope(
 	context: Context,
 	staffUserIds: string[],
 ): Promise<void> {
-	if (context.member?.role === "admin" || !context.accessibleNodeIds?.length) {
+	if (context.member?.role === "admin") {
 		return;
 	}
-	const accessibleNodeIds = context.accessibleNodeIds;
+	const accessibleNodeIds = context.accessibleNodeIds ?? [];
 	const rows = await context.tenantDb
 		.select({
 			userId: members.userId,
