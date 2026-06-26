@@ -8,7 +8,11 @@ import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { resolveScopeNodeIds } from "@avantej-core/services";
 import { tenantProcedure } from "../../index";
-import { assertOrgContextMatch, guardBranchAccessible } from "../../guards";
+import {
+	assertOrgContextMatch,
+	guardBranchAccessible,
+	resolveAccessibleNodeIds,
+} from "../../guards";
 import { getControlPanelDb } from "../../lib/context-helpers";
 
 export const packageInstancesPendingProcedures = {
@@ -36,11 +40,17 @@ export const packageInstancesPendingProcedures = {
 		)
 		.handler(async ({ input, context }) => {
 			assertOrgContextMatch(context, input);
+			// Resolve the RBAC ceiling once. Prefer context.accessibleNodeIds, but
+			// fall back to the member's hierarchy subtree when it is empty
+			// (defense-in-depth: a degraded empty context must not skip the
+			// FORBIDDEN guard below or silently widen the branch filter). When
+			// context.accessibleNodeIds is non-empty this returns it verbatim.
+			const accessibleNodeIds = await resolveAccessibleNodeIds(context);
 			// Guard: if the caller supplied an explicit branchId, confirm it sits within
 			// their accessible hierarchy. Without this check a trainer could pass an
 			// arbitrary branchId outside their scope and see cross-branch pending packages.
 			if (input.branchId) {
-				guardBranchAccessible(input.branchId, context.accessibleNodeIds);
+				guardBranchAccessible(input.branchId, accessibleNodeIds);
 			}
 			const callerRole = context.member.role;
 			if (callerRole !== "admin" && callerRole !== "trainer") {
@@ -50,7 +60,6 @@ export const packageInstancesPendingProcedures = {
 			}
 
 			// Determine branch filter
-			const accessibleNodeIds = context.accessibleNodeIds ?? [];
 			const scope =
 				input.scope ?? (callerRole === "trainer" ? "assignable_to_me" : "all");
 

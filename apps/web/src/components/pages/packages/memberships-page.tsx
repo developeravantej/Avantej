@@ -7,7 +7,7 @@ import {
 	MoreHorizontal,
 	Search,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -186,6 +186,13 @@ export function MembershipsPage() {
 		hasPermission("package_management:update");
 
 	const unfreezeMutation = useUnfreezePackageInstance(organizationId ?? "");
+
+	// Reset pagination when the scope changes: the query is keyed on
+	// [..., scopeNodeId, offset], so a scope switch at offset>0 would refetch the
+	// new scope at a stale offset → empty/partial page. Snap back to the first page.
+	useEffect(() => {
+		setOffset(0);
+	}, [scopeNodeId]);
 
 	const {
 		data: listData,

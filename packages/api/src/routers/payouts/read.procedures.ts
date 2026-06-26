@@ -26,6 +26,7 @@ import {
 	requirePermissionOrpc,
 	assertOrgContextMatch,
 	guardBranchAccessible,
+	resolveAccessibleNodeIds,
 } from "../../guards";
 import { resolveScopeNodeIds } from "@avantej-core/services";
 import { recipientSummary } from "@avantej-core/services/payouts.service";
@@ -61,21 +62,29 @@ export const payoutsReadProcedures = {
 				"read",
 			);
 
+			// Resolve the RBAC ceiling once. Prefer context.accessibleNodeIds, but
+			// fall back to the member's hierarchy subtree when it is empty
+			// (defense-in-depth: a degraded empty context must not skip the
+			// FORBIDDEN guard or silently widen the non-admin filter below). When
+			// context.accessibleNodeIds is non-empty this returns it verbatim, so
+			// behavior is byte-for-byte unchanged.
+			const accessibleNodeIds = await resolveAccessibleNodeIds(context);
+
 			// Subtree scope (Phase 0.5): an out-of-scope branchId is rejected
 			// here, ahead of any query. guardBranchAccessible no-ops on
 			// undefined, so the no-scope path is unaffected.
-			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			guardBranchAccessible(input.branchId, accessibleNodeIds);
 			// When a branchId is supplied, expand it to its accessible SUBTREE.
-			// With NO branchId, scopeIds is exactly context.accessibleNodeIds, so
+			// With NO branchId, scopeIds is exactly accessibleNodeIds, so
 			// the non-admin filter below is byte-for-byte unchanged and admins
 			// stay org-wide.
 			const scopeIds = input.branchId
 				? await resolveScopeNodeIds(
 						context.tenantDb,
 						input.branchId,
-						context.accessibleNodeIds ?? [],
+						accessibleNodeIds,
 					)
-				: (context.accessibleNodeIds ?? []);
+				: accessibleNodeIds;
 
 			// Build filter conditions
 			const conditions: SQL[] = [];
@@ -86,10 +95,7 @@ export const payoutsReadProcedures = {
 			if (input.recipientId) {
 				conditions.push(eq(payouts.recipientId, input.recipientId));
 			}
-			if (
-				context.member?.role !== "admin" &&
-				context.accessibleNodeIds?.length
-			) {
+			if (context.member?.role !== "admin" && accessibleNodeIds.length) {
 				// RBAC for non-admin callers ONLY. Admins bypass via role check —
 				// although `createContext` populates `accessibleNodeIds` for admins
 				// too (descendant nodes of their hierarchyScopeId), an admin should

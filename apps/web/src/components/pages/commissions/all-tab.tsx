@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { BulkActionBar } from "@/components/commissions/bulk-action-bar";
 import {
@@ -262,6 +262,16 @@ export function AllCommissionsPage() {
 	function resetSelection() {
 		setSelectedIds(new Set());
 	}
+
+	// The global ScopeSwitcher narrows the ledger without going through any of the
+	// row-level handlers, so a scope change can leave stale selected row ids (from
+	// the previous scope) in state — which would make the bulk approve/process
+	// count reference now-invisible rows. Clear the selection whenever the active
+	// scope node changes. setSelectedIds is a stable setter, so depending only on
+	// scopeNodeId is safe and avoids re-running on every render.
+	useEffect(() => {
+		setSelectedIds(new Set());
+	}, [scopeNodeId]);
 
 	// ── Per-row void ───────────────────────────────────────────────────────────
 	const [voidRowId, setVoidRowId] = useState<string | null>(null);
