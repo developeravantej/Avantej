@@ -22,7 +22,12 @@ import {
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardBranchAccessible,
+} from "../../guards";
+import { resolveScopeNodeIds } from "@avantej-core/services";
 import { recipientSummary } from "@avantej-core/services/payouts.service";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
@@ -39,6 +44,11 @@ export const payoutsReadProcedures = {
 					.enum(["pending", "processing", "paid", "failed", "canceled"])
 					.optional(),
 				recipientId: z.string().optional(),
+				// Optional hierarchy scope. May be ANY hierarchy level (country/
+				// region/state/branch). When supplied, narrows results to that
+				// node's accessible SUBTREE; when omitted, behavior is unchanged
+				// (non-admins keep their full nodes; admins stay org-wide).
+				branchId: z.string().uuid().optional(),
 				limit: z.number().int().min(1).max(200).default(50),
 			}),
 		)
@@ -50,6 +60,22 @@ export const payoutsReadProcedures = {
 				"commission_payout",
 				"read",
 			);
+
+			// Subtree scope (Phase 0.5): an out-of-scope branchId is rejected
+			// here, ahead of any query. guardBranchAccessible no-ops on
+			// undefined, so the no-scope path is unaffected.
+			guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+			// When a branchId is supplied, expand it to its accessible SUBTREE.
+			// With NO branchId, scopeIds is exactly context.accessibleNodeIds, so
+			// the non-admin filter below is byte-for-byte unchanged and admins
+			// stay org-wide.
+			const scopeIds = input.branchId
+				? await resolveScopeNodeIds(
+						context.tenantDb,
+						input.branchId,
+						context.accessibleNodeIds ?? [],
+					)
+				: (context.accessibleNodeIds ?? []);
 
 			// Build filter conditions
 			const conditions: SQL[] = [];
@@ -85,14 +111,14 @@ export const payoutsReadProcedures = {
 				// Arm (b): appointment-linked payout, scoped by appointment.branchId
 				const appointmentBranchPredicate = and(
 					isNotNull(payouts.appointmentId),
-					inArray(appointments.branchId, context.accessibleNodeIds),
+					inArray(appointments.branchId, scopeIds),
 				);
 
 				// Arm (c): batch payout (no appointmentId), scoped by payoutBatches.branchId
 				const batchBranchPredicate = and(
 					isNull(payouts.appointmentId),
 					isNotNull(payouts.batchId),
-					inArray(payoutBatches.branchId, context.accessibleNodeIds),
+					inArray(payoutBatches.branchId, scopeIds),
 				);
 
 				const branchScopePredicate = or(
@@ -104,6 +130,23 @@ export const payoutsReadProcedures = {
 					? or(eq(payouts.recipientId, callerUserId), branchScopePredicate)
 					: branchScopePredicate;
 				conditions.push(rbacPredicate as SQL);
+			}
+
+			// ADMIN narrowing: admins skip the non-admin branch filter above
+			// (org-wide by design). But when an explicit branchId is picked, narrow
+			// them to that subtree too — keep a payout when its appointment OR its
+			// batch falls inside the chosen scope. No branchId → admins stay org-wide.
+			if (
+				context.member?.role === "admin" &&
+				input.branchId &&
+				scopeIds.length > 0
+			) {
+				conditions.push(
+					or(
+						inArray(appointments.branchId, scopeIds),
+						inArray(payoutBatches.branchId, scopeIds),
+					) as SQL,
+				);
 			}
 
 			const payoutRows = await context.tenantDb

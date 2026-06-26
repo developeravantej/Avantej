@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { resolveScopeNodeIds } from "@avantej-core/services";
 import { tenantProcedure } from "../index";
 import {
 	assertOrgContextMatch,
@@ -103,6 +104,7 @@ const getRevenueSeriesHandler = tenantProcedure
 const seriesInput = z.object({
 	organizationId: z.string().uuid(),
 	days: z.union([z.literal(7), z.literal(30), z.literal(90)]),
+	branchId: z.string().uuid().optional(),
 });
 
 const getMemberCountSeriesHandler = tenantProcedure
@@ -115,9 +117,17 @@ const getMemberCountSeriesHandler = tenantProcedure
 			"reports",
 			"read",
 		);
+		guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		const nodeIds = input.branchId
+			? await resolveScopeNodeIds(
+					context.tenantDb,
+					input.branchId,
+					context.accessibleNodeIds ?? [],
+				)
+			: (context.accessibleNodeIds ?? []);
 		return getMemberCountSeries(context.tenantDb, {
 			days: input.days,
-			accessibleNodeIds: context.accessibleNodeIds ?? [],
+			accessibleNodeIds: nodeIds,
 		});
 	});
 
@@ -131,9 +141,17 @@ const getChurnSeriesHandler = tenantProcedure
 			"reports",
 			"read",
 		);
+		guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		const nodeIds = input.branchId
+			? await resolveScopeNodeIds(
+					context.tenantDb,
+					input.branchId,
+					context.accessibleNodeIds ?? [],
+				)
+			: (context.accessibleNodeIds ?? []);
 		return getChurnSeries(context.tenantDb, {
 			days: input.days,
-			accessibleNodeIds: context.accessibleNodeIds ?? [],
+			accessibleNodeIds: nodeIds,
 		});
 	});
 
@@ -147,9 +165,17 @@ const getLtvSeriesHandler = tenantProcedure
 			"reports",
 			"read",
 		);
+		guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		const nodeIds = input.branchId
+			? await resolveScopeNodeIds(
+					context.tenantDb,
+					input.branchId,
+					context.accessibleNodeIds ?? [],
+				)
+			: (context.accessibleNodeIds ?? []);
 		return getLtvSeries(context.tenantDb, {
 			days: input.days,
-			accessibleNodeIds: context.accessibleNodeIds ?? [],
+			accessibleNodeIds: nodeIds,
 		});
 	});
 
@@ -163,9 +189,17 @@ const getClassFillRateSeriesHandler = tenantProcedure
 			"reports",
 			"read",
 		);
+		guardBranchAccessible(input.branchId, context.accessibleNodeIds ?? []);
+		const nodeIds = input.branchId
+			? await resolveScopeNodeIds(
+					context.tenantDb,
+					input.branchId,
+					context.accessibleNodeIds ?? [],
+				)
+			: (context.accessibleNodeIds ?? []);
 		return getClassFillRateSeries(context.tenantDb, {
 			days: input.days,
-			accessibleNodeIds: context.accessibleNodeIds ?? [],
+			accessibleNodeIds: nodeIds,
 		});
 	});
 
