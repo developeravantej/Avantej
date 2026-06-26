@@ -6,6 +6,7 @@ import { user } from "@avantej-core/db/schema/auth";
 import { and, eq, ne, inArray, desc, isNull, isNotNull, or } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
+import { resolveScopeNodeIds } from "@avantej-core/services";
 import { tenantProcedure } from "../../index";
 import { assertOrgContextMatch, guardBranchAccessible } from "../../guards";
 import { getControlPanelDb } from "../../lib/context-helpers";
@@ -53,19 +54,33 @@ export const packageInstancesPendingProcedures = {
 			const scope =
 				input.scope ?? (callerRole === "trainer" ? "assignable_to_me" : "all");
 
-			const branchFilterIds: string[] | null = (() => {
-				if (input.branchId) return [input.branchId];
-				if (scope === "assignable_to_me") {
-					// scope expanded 2026-05-12 — match notification fan-out (sales-pipeline-fixes session)
-					// Previously filtered to context.member.hierarchyScopeId (single node), causing
-					// parent-region trainers to receive notifications but see an empty queue.
-					// Now uses accessibleNodeIds (full descendant set), matching notifyStaffOfPendingPackage.
-					return accessibleNodeIds.length > 0
+			let branchFilterIds: string[] | null;
+			if (input.branchId) {
+				// SUBTREE expansion: the picked scope node may be a non-leaf
+				// country/region/state, which has no rows tagged directly to it.
+				// Previously this was [input.branchId] (exact-equality), so a non-leaf
+				// node returned zero pending packages. resolveScopeNodeIds expands the
+				// node to its accessible leaf subtree (∩ the RBAC ceiling), so a region
+				// scope now returns its branches' pending packages. The guard above
+				// already confirmed the node is within accessibleNodeIds.
+				branchFilterIds = await resolveScopeNodeIds(
+					context.tenantDb,
+					input.branchId,
+					accessibleNodeIds,
+				);
+			} else if (scope === "assignable_to_me") {
+				// scope expanded 2026-05-12 — match notification fan-out (sales-pipeline-fixes session)
+				// Previously filtered to context.member.hierarchyScopeId (single node), causing
+				// parent-region trainers to receive notifications but see an empty queue.
+				// Now uses accessibleNodeIds (full descendant set), matching notifyStaffOfPendingPackage.
+				branchFilterIds =
+					accessibleNodeIds.length > 0
 						? accessibleNodeIds
 						: [context.member.hierarchyScopeId];
-				}
-				return accessibleNodeIds.length > 0 ? accessibleNodeIds : null;
-			})();
+			} else {
+				branchFilterIds =
+					accessibleNodeIds.length > 0 ? accessibleNodeIds : null;
+			}
 
 			// Pull pending+purchased packages joined to service and customer member.
 			// Branch filter is applied in SQL (before LIMIT) using a COALESCE-equivalent
