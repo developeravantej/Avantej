@@ -28,6 +28,8 @@ import { HeroStats } from "@/features/approvals/components/HeroStats";
 import { InboxList } from "@/features/approvals/components/InboxList";
 import { ScheduleSessionsPanel } from "@/features/approvals/components/ScheduleSessionsPanel";
 import { RejectPackageDialog } from "@/components/forms/reject-package-dialog";
+import { ScopeSwitcher } from "@/components/scope/ScopeSwitcher";
+import { useScope } from "@/components/scope/ScopeProvider";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { useUserContext } from "@/hooks/useUserContext";
@@ -39,6 +41,7 @@ import { orpc } from "@/utils/orpc";
 function ApprovalsPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
+	const { scopeNodeId } = useScope();
 	const navigate = Route.useNavigate();
 	const { scope } = Route.useSearch();
 
@@ -73,6 +76,7 @@ function ApprovalsPage() {
 		...orpc.packageInstances.listPending.queryOptions({
 			input: {
 				organizationId: organizationId!,
+				branchId: scopeNodeId,
 				scope,
 				limit: 100,
 				approvalStatus,
@@ -151,6 +155,7 @@ function ApprovalsPage() {
 					<span className="font-semibold">Approvals</span>
 				</div>
 				<div className="ml-auto flex items-center gap-2">
+					<ScopeSwitcher className="h-9 w-[220px]" />
 					<button
 						type="button"
 						onClick={() => refetch()}

@@ -8,6 +8,8 @@ import { CustomersFilterSidebar } from "@/components/customers/customers-filter-
 import { DirectoryEmptyPane } from "@/components/customers/directory-empty-pane";
 import { useCustomerDirectory } from "@/hooks/useCustomerDirectory";
 import { useUserContext } from "@/hooks/useUserContext";
+import { ScopeSwitcher } from "@/components/scope/ScopeSwitcher";
+import { useScope } from "@/components/scope/ScopeProvider";
 
 import { z } from "zod";
 
@@ -34,6 +36,7 @@ function CustomersV2Page() {
 	const navigate = Route.useNavigate();
 
 	const { data: userContext, hasPermission } = useUserContext();
+	const { scopeNodeId } = useScope();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const canRead = hasPermission("customer_management:read");
 	const canInvite = hasPermission("user_management:create");
@@ -61,6 +64,7 @@ function CustomersV2Page() {
 			showDeleted,
 			selectedMemberId,
 			onSelectMember: setSelectedMemberId,
+			scopeNodeId,
 		});
 
 	return (
@@ -72,6 +76,7 @@ function CustomersV2Page() {
 					<span className="font-semibold">Directory</span>
 				</div>
 				<div className="ml-auto flex items-center gap-2">
+					<ScopeSwitcher />
 					{canInvite && (
 						<button
 							type="button"

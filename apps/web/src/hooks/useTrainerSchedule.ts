@@ -6,6 +6,7 @@ import {
 	mapApiAppointmentToCalendar,
 } from "@/lib/appointment-mapper";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useScope } from "@/components/scope/ScopeProvider";
 import { orpc } from "@/utils/orpc";
 
 /**
@@ -23,6 +24,7 @@ export function useTrainerSchedule({
 	enabled?: boolean;
 }) {
 	const { data: userContext } = useUserContext();
+	const { scopeNodeId } = useScope();
 	const currentOrg = userContext?.organizations.find(
 		(o) => o.id === organizationId,
 	);
@@ -54,6 +56,7 @@ export function useTrainerSchedule({
 			input: {
 				organizationId: organizationId!,
 				trainerId: selectedTrainerId ?? undefined,
+				branchId: scopeNodeId,
 				startFrom,
 				startTo,
 				limit: 200,

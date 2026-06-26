@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
 import { useApiMutation } from "@/hooks/useApiMutation";
+import { useScope } from "@/components/scope/ScopeProvider";
+import { ScopeSwitcher } from "@/components/scope/ScopeSwitcher";
 import { client, orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { useState, useMemo } from "react";
@@ -31,6 +33,7 @@ type HierarchyNode = { id: string; name: string; depth: number };
 
 export function AnnouncementsViewPage() {
 	const { data: userContext } = useUserContext();
+	const { scopeNodeId } = useScope();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const announcementsKey = ["announcements", organizationId];
 
@@ -67,7 +70,11 @@ export function AnnouncementsViewPage() {
 		refetch,
 	} = useQuery({
 		...orpc.announcements.list.queryOptions({
-			input: { organizationId: organizationId!, isActive: isActiveFilter },
+			input: {
+				organizationId: organizationId!,
+				isActive: isActiveFilter,
+				branchId: scopeNodeId,
+			},
 		}),
 		enabled: !!organizationId,
 	});
@@ -344,6 +351,8 @@ export function AnnouncementsViewPage() {
 						<span className="font-semibold">Announcements</span>
 					</div>
 					<div className="ml-auto flex items-center gap-2">
+						{/* Tenant scope switcher (country → state → branch) */}
+						<ScopeSwitcher className="w-56" />
 						<button
 							type="button"
 							onClick={openCreate}

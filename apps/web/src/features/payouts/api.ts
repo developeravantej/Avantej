@@ -90,10 +90,16 @@ export type ProcessForRecipientParams = {
 // Queries
 // ---------------------------------------------------------------------------
 
-export function usePayoutsList(organizationId: string | null) {
+export function usePayoutsList(
+	organizationId: string | null,
+	branchId?: string,
+) {
 	return useQuery({
+		// Tenant scope switcher (Phase 1): `branchId` carries the active scope node
+		// (any hierarchy level; undefined at "All"). The server expands it to the
+		// accessible subtree, so passing undefined preserves the prior org-wide behavior.
 		...orpc.payouts.list.queryOptions({
-			input: { organizationId: organizationId ?? "", limit: 100 },
+			input: { organizationId: organizationId ?? "", branchId, limit: 100 },
 		}),
 		enabled: !!organizationId,
 		staleTime: 30_000,

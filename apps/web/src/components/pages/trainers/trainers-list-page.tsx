@@ -30,6 +30,7 @@ import {
 	ChangeTierDialog,
 	AssignBranchDialog,
 } from "@/components/trainers/trainer-assignment-dialogs";
+import { ScopeSwitcher } from "@/components/scope/ScopeSwitcher";
 import { client } from "@/utils/orpc";
 import { formatPrice } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -800,8 +801,10 @@ export function TrainersListPage() {
 				<div className="absolute inset-0 flex">
 					{/* ── Left list panel (300px) ── */}
 					<div className="flex w-[300px] shrink-0 flex-col border-r border-[#e5e5e5] bg-white">
-						{/* Search */}
-						<div className="border-b border-[#e5e5e5] px-4 py-3">
+						{/* Scope switcher + search */}
+						<div className="space-y-2 border-b border-[#e5e5e5] px-4 py-3">
+							{/* Tenant scope switcher (country → state → branch) */}
+							<ScopeSwitcher className="w-full" />
 							<div className="flex items-center gap-2 rounded-xl border border-[#e5e5e5] bg-white px-3 py-2">
 								<Search className="h-3.5 w-3.5 text-[#737373] flex-shrink-0" />
 								<input

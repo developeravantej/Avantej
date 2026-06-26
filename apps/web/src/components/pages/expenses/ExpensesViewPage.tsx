@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Lock, Plus, Receipt } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ScopeSwitcher } from "@/components/scope/ScopeSwitcher";
+import { useScope } from "@/components/scope/ScopeProvider";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { useApiMutation } from "@/hooks/useApiMutation";
@@ -24,6 +26,7 @@ import type { ExpenseCategory, ExpenseRow, ExpenseStatus } from "./types";
 
 export function ExpensesViewPage() {
 	const { data: userContext, hasPermission } = useUserContext();
+	const { scopeNodeId } = useScope();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const canCreate = hasPermission("expense_management:create");
 	const canUpdate = hasPermission("expense_management:update");
@@ -58,7 +61,11 @@ export function ExpensesViewPage() {
 		refetch,
 	} = useQuery({
 		...orpc.expenses.list.queryOptions({
-			input: { organizationId: organizationId!, status: statusFilter },
+			input: {
+				organizationId: organizationId!,
+				status: statusFilter,
+				branchId: scopeNodeId,
+			},
 		}),
 		enabled: !!organizationId,
 	});
@@ -265,6 +272,7 @@ export function ExpensesViewPage() {
 						<span className="font-semibold">Expenses</span>
 					</div>
 					<div className="ml-auto flex items-center gap-2">
+						<ScopeSwitcher />
 						{canCreate && (
 							<button
 								type="button"

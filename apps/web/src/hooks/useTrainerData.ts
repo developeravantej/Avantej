@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { client, orpc } from "@/utils/orpc";
+import { useScope } from "@/components/scope/ScopeProvider";
 import type {
 	TrainerRow,
 	TrainerTier,
@@ -29,6 +30,11 @@ export function useTrainerData(
 		trainerTierId?: string | null;
 	};
 
+	// Tenant scope switcher → server expands this hierarchy node into its
+	// accessible subtree. Undefined at "All" scope falls back to the caller's
+	// full accessibleNodeIds.
+	const { scopeNodeId } = useScope();
+
 	const {
 		data: membersData = [] as MemberListItem[],
 		isLoading,
@@ -36,7 +42,11 @@ export function useTrainerData(
 		refetch,
 	} = useQuery({
 		...orpc.members.list.queryOptions({
-			input: { organizationId: organizationId!, role: "trainer" },
+			input: {
+				organizationId: organizationId!,
+				role: "trainer",
+				hierarchyScopeId: scopeNodeId,
+			},
 		}),
 		enabled: !!organizationId,
 	});

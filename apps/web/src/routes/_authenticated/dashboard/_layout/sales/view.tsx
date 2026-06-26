@@ -7,6 +7,8 @@ import { type SalesRow } from "@/components/tables/sales/view/columns";
 import { type PaymentRow } from "@/components/tables/payment/view/columns";
 import { RefundsTab } from "@/components/refunds/refunds-tab";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useScope } from "@/components/scope/ScopeProvider";
+import { ScopeSwitcher } from "@/components/scope/ScopeSwitcher";
 import { getPeriodDates, type Period } from "@/lib/period";
 import { cn } from "@/lib/utils";
 import { client, orpc } from "@/utils/orpc";
@@ -55,6 +57,11 @@ export const Route = createFileRoute(
 function RouteComponent() {
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
+
+	// Shared dashboard scope (country/state/branch). Replaces the per-tab ad-hoc
+	// branch <Select>: the Sales tab list query is now driven by scopeNodeId,
+	// which the server expands to the accessible subtree.
+	const { scopeNodeId } = useScope();
 
 	const currentOrg = userContext?.organizations.find(
 		(o) => o.id === userContext.currentOrganizationId,
@@ -152,7 +159,7 @@ function RouteComponent() {
 			derivedFilters.from,
 			derivedFilters.to,
 			status,
-			branchId,
+			scopeNodeId,
 			refundStatus,
 			search,
 		],
@@ -179,7 +186,7 @@ function RouteComponent() {
 					refundStatus !== "all"
 						? (refundStatus as "none" | "pending" | "partial" | "processed")
 						: undefined,
-				branchId: branchId || undefined,
+				branchId: scopeNodeId,
 				limit: 50,
 				offset: pageParam,
 			}),
@@ -291,6 +298,9 @@ function RouteComponent() {
 					<span className="text-[#a3a3a3]">/</span>
 					<span className="font-semibold">Orders</span>
 				</div>
+				<div className="ml-4">
+					<ScopeSwitcher className="w-52" />
+				</div>
 				<div className="ml-auto flex items-center gap-2">
 					<button
 						type="button"
@@ -391,16 +401,13 @@ function RouteComponent() {
 									from={derivedFilters.from}
 									to={derivedFilters.to}
 									status={status}
-									branchId={branchId}
 									refundStatus={refundStatus}
 									onSearchChange={(v) => handleFilterChange({ search: v })}
 									onFromChange={(v) => handleFilterChange({ from: v })}
 									onToChange={(v) => handleFilterChange({ to: v })}
 									onStatusChange={(v) => handleFilterChange({ status: v })}
-									onBranchChange={(v) => handleFilterChange({ branchId: v })}
 									onRefundStatusChange={handleRefundStatusChange}
 									onClear={handleClear}
-									nodeOptions={nodeOptions}
 								/>
 							)}
 							{tab === "installments" && canSeeInstallments && (
