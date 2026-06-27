@@ -54,6 +54,7 @@ import { ORPCError } from "@orpc/server";
 import { writeAudit } from "./audit-log.service";
 import { resolveCycleBoundsForDate } from "./commission-cycle.service";
 import { getDescendantNodeIds } from "./hierarchy.service";
+import { resolveScopeNodeIds } from "./hierarchy-scope";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 type TenantTx = Parameters<Parameters<TenantDb["transaction"]>[0]>[0];
@@ -1940,12 +1941,23 @@ export async function liabilityByStaff(
 		const branchConditions = [...conditions];
 
 		if (branchId) {
-			branchConditions.push(
-				or(
-					eq(appointments.branchId, branchId),
-					eq(salesOrders.branchId, branchId),
-				)!,
+			// Expand the picked scope node (which may be a non-leaf country/region/
+			// state) to its accessible subtree, so a non-leaf scope matches its
+			// branches' rows instead of zero. The guard inside resolveScopeNodeIds
+			// throws FORBIDDEN for an out-of-scope id; an empty ceiling = admin.
+			const scopeIds = await resolveScopeNodeIds(
+				tenantDb,
+				branchId,
+				accessibleNodeIds,
 			);
+			if (scopeIds.length > 0) {
+				branchConditions.push(
+					or(
+						inArray(appointments.branchId, scopeIds),
+						inArray(salesOrders.branchId, scopeIds),
+					)!,
+				);
+			}
 		}
 
 		if (accessibleNodeIds.length > 0) {
@@ -2198,12 +2210,23 @@ export async function listCommissionLedger(
 	}
 
 	if (branchId) {
-		branchConditions.push(
-			or(
-				eq(appointments.branchId, branchId),
-				eq(salesOrders.branchId, branchId),
-			)!,
+		// Expand the picked scope node (which may be a non-leaf country/region/
+		// state) to its accessible subtree, so a non-leaf scope matches its
+		// branches' rows instead of zero. The guard inside resolveScopeNodeIds
+		// throws FORBIDDEN for an out-of-scope id; an empty ceiling = admin.
+		const scopeIds = await resolveScopeNodeIds(
+			tenantDb,
+			branchId,
+			accessibleNodeIds,
 		);
+		if (scopeIds.length > 0) {
+			branchConditions.push(
+				or(
+					inArray(appointments.branchId, scopeIds),
+					inArray(salesOrders.branchId, scopeIds),
+				)!,
+			);
+		}
 	}
 
 	const allConditions = [...baseConditions, ...branchConditions];

@@ -41,6 +41,7 @@ import { user } from "@avantej-core/db/schema/auth";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { appendPackageInstanceStatusHistory } from "./status-history.helper";
 import { writeAudit } from "./audit-log.service";
+import { resolveScopeNodeIds } from "./hierarchy-scope";
 
 type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
 type TenantDb = NeonDatabase<typeof tenantSchema>;
@@ -355,10 +356,27 @@ export async function listMemberships(
 		}
 	})();
 
-	// Optional branch filter
-	const branchPredicate = branchId
-		? sql`AND m.hierarchy_scope_id = ${branchId}::uuid`
-		: sql``;
+	// Optional scope filter. `branchId` may now be ANY hierarchy node — a leaf
+	// branch OR a non-leaf country/region/state. Expand it to its accessible
+	// subtree (itself + descendants ∩ ceiling) so a non-leaf scope returns its
+	// branches' rows instead of zero. resolveScopeNodeIds guards branchId against
+	// accessibleNodeIds (out-of-scope → BranchAccessDeniedError/FORBIDDEN) before
+	// any DB expansion. The main `m.hierarchy_scope_id = ANY(${nodeArrayLiteral})`
+	// ceiling filter below stays intact (defense in depth).
+	const branchPredicate = await (async () => {
+		if (!branchId) return sql``;
+		const scopeIds = await resolveScopeNodeIds(
+			tenantDb,
+			branchId,
+			accessibleNodeIds,
+		);
+		if (scopeIds.length === 0) return sql``;
+		assertUuids(scopeIds, "listMemberships:scope");
+		const scopeArrayLiteral = sql.raw(
+			`ARRAY[${scopeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`,
+		);
+		return sql`AND m.hierarchy_scope_id = ANY(${scopeArrayLiteral})`;
+	})();
 
 	// Optional service category filter
 	const categoryPredicate = serviceCategoryId

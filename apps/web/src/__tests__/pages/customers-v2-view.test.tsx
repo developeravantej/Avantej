@@ -49,6 +49,24 @@ vi.mock("@/hooks/useUserContext", () => ({
 vi.mock("@/hooks/useDebounce", () => ({
 	useDebounce: (val: unknown) => val,
 }));
+// Page now reads scope + renders the switcher; stub both (no ScopeProvider here).
+vi.mock("@/components/scope/ScopeProvider", () => ({
+	useScope: () => ({
+		activeScopeId: null,
+		activeScopeNode: null,
+		setActiveScope: vi.fn(),
+		resetScope: vi.fn(),
+		accessibleNodeIds: [],
+		scopeNodes: [],
+		topAccessibleNodeId: null,
+		isAllScope: true,
+		scopeNodeId: undefined,
+		isScopeReady: true,
+	}),
+}));
+vi.mock("@/components/scope/ScopeSwitcher", () => ({
+	ScopeSwitcher: () => null,
+}));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 // Stub heavy sub-panels
 vi.mock("@/components/customers/customers-filter-sidebar", () => ({

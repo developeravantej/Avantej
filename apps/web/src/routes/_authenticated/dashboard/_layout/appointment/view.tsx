@@ -7,6 +7,7 @@ import { requirePermission } from "@/lib/route-guards";
 import { useTrainerSchedule } from "@/hooks/useTrainerSchedule";
 import type { mapApiAppointmentToCalendar } from "@/lib/appointment-mapper";
 import { AttendanceTab } from "@/components/attendance/attendance-tab";
+import { ScopeSwitcher } from "@/components/scope/ScopeSwitcher";
 
 export const Route = createFileRoute(
 	"/_authenticated/dashboard/_layout/appointment/view",
@@ -65,6 +66,9 @@ function RouteComponent() {
 						</button>
 					))}
 				</nav>
+
+				{/* Scope switcher narrows the Schedule tab's appointment query. */}
+				{activeTab === "schedule" && <ScopeSwitcher className="ml-auto w-56" />}
 			</header>
 
 			{/* ── Tab content ── */}

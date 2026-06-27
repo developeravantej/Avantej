@@ -13,6 +13,7 @@ import type { NewTodayResult } from "@avantej-core/services";
 
 import { formatToday } from "./helpers";
 import { KpiTile } from "./KpiTile";
+import { PerCountryMoneyCards } from "./PerCountryMoneyCards";
 
 interface LargestSaleToday {
 	totalAmount: number;
@@ -36,6 +37,12 @@ interface HeroSectionProps {
 	largestError: boolean;
 	onRetryLargest: () => void;
 	newTodayCount: number | undefined;
+	/** true when viewing the whole accessible subtree (the "All" scope). */
+	isAllScope: boolean;
+	/** true when the accessible scope spans more than one country. Per-country
+	 *  money cards are only meaningful then; single-country tenants (most
+	 *  Malaysian SMEs, all MYR) keep the familiar combined total + delta. */
+	isMultiCountry: boolean;
 }
 
 export function HeroSection({
@@ -55,6 +62,8 @@ export function HeroSection({
 	largestError,
 	onRetryLargest,
 	newTodayCount,
+	isAllScope,
+	isMultiCountry,
 }: HeroSectionProps) {
 	return (
 		<section className="relative grid grid-cols-1 gap-8 overflow-hidden rounded-3xl border border-[#e5e5e5] bg-gradient-to-br from-white to-[#fafafa] p-7 lg:grid-cols-[1fr_400px]">
@@ -98,29 +107,33 @@ export function HeroSection({
 								Retry
 							</button>
 						</span>
+					) : isAllScope && isMultiCountry ? (
+						<PerCountryMoneyCards kpis={kpis} />
 					) : (
 						<span className="font-mono text-6xl font-extrabold leading-none tracking-tight tabular-nums">
 							{formatPrice(kpis?.totalSales ?? 0, "MYR")}
 						</span>
 					)}
-					{!kpisError && revenueDelta !== null && (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Badge
-									variant="outline"
-									className={`mb-2 cursor-default gap-1 text-[11px] font-bold ${
-										revenueDelta >= 0
-											? "border-emerald-200 bg-emerald-100 text-emerald-700"
-											: "border-rose-200 bg-rose-100 text-rose-700"
-									}`}
-								>
-									{revenueDelta >= 0 ? "▲" : "▼"}{" "}
-									{Math.abs(revenueDelta).toFixed(1)}%
-								</Badge>
-							</TooltipTrigger>
-							<TooltipContent>vs previous period</TooltipContent>
-						</Tooltip>
-					)}
+					{!kpisError &&
+						(!isAllScope || !isMultiCountry) &&
+						revenueDelta !== null && (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Badge
+										variant="outline"
+										className={`mb-2 cursor-default gap-1 text-[11px] font-bold ${
+											revenueDelta >= 0
+												? "border-emerald-200 bg-emerald-100 text-emerald-700"
+												: "border-rose-200 bg-rose-100 text-rose-700"
+										}`}
+									>
+										{revenueDelta >= 0 ? "▲" : "▼"}{" "}
+										{Math.abs(revenueDelta).toFixed(1)}%
+									</Badge>
+								</TooltipTrigger>
+								<TooltipContent>vs previous period</TooltipContent>
+							</Tooltip>
+						)}
 				</div>
 
 				<div className="mt-2 text-sm text-muted-foreground">

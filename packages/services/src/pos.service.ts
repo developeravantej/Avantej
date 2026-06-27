@@ -47,6 +47,7 @@ import {
 // Agent 2.3 — Phase 2 Wave 3b — J2 — fallback tax-rate resolution
 import { resolveTaxRate } from "./tax.service";
 import * as branchStatsCache from "./branch-stats-cache.service";
+import { resolveScopeNodeIds } from "./hierarchy-scope";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 // Drizzle transaction type — structurally compatible with TenantDb for inserts/selects
@@ -1203,16 +1204,31 @@ export async function recordPosSale(
  * user name/email; tenant DB for hierarchyScopeId RBAC filter). Walk-ins are
  * searched directly in the tenant DB filtered by branchId.
  *
- * RBAC: only returns results whose branchId / hierarchyScopeId is in accessibleNodeIds.
+ * RBAC / scope: `branchId` is treated as a (possibly non-leaf) scope node and
+ * expanded to its accessible subtree via `resolveScopeNodeIds`, so a
+ * country/region/state node returns its branches' members. Only results whose
+ * hierarchyScopeId is within the expanded scope (always ⊆ accessibleNodeIds)
+ * are returned; with no branchId the full accessible ceiling is used.
  */
 export async function searchPosCustomers(
 	controlPanelDb: ControlPanelDb,
 	tenantDb: TenantDb,
 	params: SearchPosCustomersParams,
 ): Promise<PosCustomerResult[]> {
-	const { query, accessibleNodeIds } = params;
+	const { query, branchId, accessibleNodeIds } = params;
 
 	if (accessibleNodeIds.length === 0) return [];
+
+	// Expand the picked scope node (branchId may be a non-leaf country/region/
+	// state) to its accessible subtree of leaf branch ids. Guards branchId ∈
+	// accessibleNodeIds (defense in depth alongside the router guard). When no
+	// scope is picked this returns the full accessible ceiling, preserving the
+	// prior "filter by accessibleNodeIds" behavior.
+	const scopeIds = await resolveScopeNodeIds(
+		tenantDb,
+		branchId,
+		accessibleNodeIds,
+	);
 
 	const results: PosCustomerResult[] = [];
 
@@ -1222,9 +1238,10 @@ export async function searchPosCustomers(
 		where: and(eq(members.role, "client"), eq(members.status, "active")),
 	});
 
-	const scopedMembers = clientMembers.filter((m) =>
-		accessibleNodeIds.includes(m.hierarchyScopeId),
-	);
+	const scopedMembers =
+		scopeIds.length === 0
+			? clientMembers
+			: clientMembers.filter((m) => scopeIds.includes(m.hierarchyScopeId));
 
 	if (scopedMembers.length > 0) {
 		// Step 2: Fetch user details from control panel in a single batch

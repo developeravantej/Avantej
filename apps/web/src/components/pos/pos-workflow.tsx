@@ -13,8 +13,9 @@ import type {
 	TaxRateOption,
 } from "@/components/pos/types";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useScope } from "@/components/scope/ScopeProvider";
 import { client } from "@/utils/orpc";
-import { calcTotals } from "./workflow/helpers";
+import { calcTotals, deriveScopeLeafBranchId } from "./workflow/helpers";
 import { PosHeader } from "./workflow/PosHeader";
 import { CustomerStepCard } from "./workflow/CustomerStepCard";
 import { ItemsStepCard } from "./workflow/ItemsStepCard";
@@ -97,12 +98,24 @@ export function PosWorkflow({
 	const [clearCartDialogOpen, setClearCartDialogOpen] = useState(false);
 	const pendingCustomerRef = useRef<SelectedCustomer | null>(null);
 
-	// ── Branch (inferred from customer) ───────────────────────────────────────
+	// ── Branch (recording target) ─────────────────────────────────────────────
+	// POS is a WRITE path: the scope switcher is NOT a read filter here. The sale
+	// records under its OWN branch. We only SEED that branch's default from the
+	// active scope — and only when the active scope is a concrete LEAF BRANCH.
+	const { scopeNodeId, scopeNodes } = useScope();
 	const currentOrg = userContext?.organizations.find(
 		(o) => o.id === organizationId,
 	);
-	const defaultBranchId =
+	const memberHomeBranchId =
 		currentOrg?.hierarchy?.member?.hierarchyScopeId ?? null;
+
+	// Convenience seed: when the picked scope is a leaf branch, default the
+	// recording branch to it. For "All"/region/country/state scopes this returns
+	// null, so we keep the member-home default — we NEVER auto-pick a sale under a
+	// non-leaf node. This only sets the default; the customer's own branch still
+	// takes precedence and the cashier confirms before recording.
+	const scopeLeafBranchId = deriveScopeLeafBranchId(scopeNodeId, scopeNodes);
+	const defaultBranchId = scopeLeafBranchId ?? memberHomeBranchId;
 
 	const resolvedBranchId = selectedCustomer?.branchId ?? defaultBranchId;
 

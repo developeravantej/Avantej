@@ -7,7 +7,7 @@ import {
 	MoreHorizontal,
 	Search,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CustomerDetailSheet } from "@/components/customers/customer-detail-sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,13 +27,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
@@ -49,6 +42,8 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ScopeSwitcher } from "@/components/scope/ScopeSwitcher";
+import { useScope } from "@/components/scope/ScopeProvider";
 import { CancelInstanceDialog } from "@/features/packages/components/cancel-instance-dialog";
 import { ExtendInstanceDialog } from "@/features/packages/components/extend-instance-dialog";
 import { FreezeInstanceDialog } from "@/features/packages/components/freeze-instance-dialog";
@@ -168,11 +163,12 @@ const TD = "px-4 py-3 text-sm text-[#0a0a0a]";
 export function MembershipsPage() {
 	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
+	// Scope switcher drives the branch filter (any hierarchy level; undefined = All).
+	const { scopeNodeId } = useScope();
 
 	const canRead = hasPermission("service_management:read");
 
 	const [filter, setFilter] = useState<MembershipFilter>("active");
-	const [branchId, setBranchId] = useState<string>("");
 	const [offset, setOffset] = useState(0);
 	const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 	const [sheetOpen, setSheetOpen] = useState(false);
@@ -191,26 +187,19 @@ export function MembershipsPage() {
 
 	const unfreezeMutation = useUnfreezePackageInstance(organizationId ?? "");
 
-	const currentOrg = userContext?.organizations.find(
-		(o) => o.id === organizationId,
-	);
-	const accessibleNodeIds =
-		currentOrg?.hierarchy?.member?.accessibleNodeIds ?? [];
-	const allNodes = currentOrg?.hierarchy?.nodes ?? [];
-	const accessibleBranches = allNodes.filter(
-		(n) => accessibleNodeIds.includes(n.id) && n.type === "branch",
-	);
-	const branchOptions =
-		accessibleBranches.length > 0
-			? accessibleBranches
-			: allNodes.filter((n) => accessibleNodeIds.includes(n.id));
+	// Reset pagination when the scope changes: the query is keyed on
+	// [..., scopeNodeId, offset], so a scope switch at offset>0 would refetch the
+	// new scope at a stale offset → empty/partial page. Snap back to the first page.
+	useEffect(() => {
+		setOffset(0);
+	}, [scopeNodeId]);
 
 	const {
 		data: listData,
 		isLoading,
 		error,
 	} = useQuery({
-		queryKey: ["memberships", organizationId, filter, branchId, offset],
+		queryKey: ["memberships", organizationId, filter, scopeNodeId, offset],
 		queryFn: async () => {
 			if (!organizationId) return { rows: [], total: 0 };
 			const result = await (
@@ -226,7 +215,7 @@ export function MembershipsPage() {
 			).listMemberships({
 				organizationId,
 				filter,
-				branchId: branchId || undefined,
+				branchId: scopeNodeId,
 				limit: PAGE_LIMIT,
 				offset,
 			});
@@ -325,28 +314,8 @@ export function MembershipsPage() {
 						className="pl-8 text-sm"
 					/>
 				</div>
-				{/* Branch filter */}
-				{branchOptions.length > 0 && (
-					<Select
-						value={branchId || "all"}
-						onValueChange={(v) => {
-							setBranchId(v === "all" ? "" : v);
-							setOffset(0);
-						}}
-					>
-						<SelectTrigger className="w-48">
-							<SelectValue placeholder="All branches" />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="all">All branches</SelectItem>
-							{branchOptions.map((node) => (
-								<SelectItem key={node.id} value={node.id}>
-									{node.name}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				)}
+				{/* Scope switcher (country → state → branch) */}
+				<ScopeSwitcher className="w-48" />
 			</div>
 
 			{/* Stat cards */}

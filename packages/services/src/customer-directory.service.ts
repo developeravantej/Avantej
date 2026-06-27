@@ -16,6 +16,7 @@ import { services } from "@avantej-core/db/schema/tenant/services";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { eq, getTableColumns, ilike, inArray, or, sql } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { resolveScopeNodeIds } from "./hierarchy-scope";
 
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -95,6 +96,23 @@ export async function listCustomerDirectory(
 
 	assertUuids(accessibleNodeIds, "listCustomerDirectory");
 
+	// Expand the (possibly non-leaf) scope node to its accessible subtree, so a
+	// country/region/state node returns its branches' customers instead of zero.
+	// resolveScopeNodeIds guards (out-of-scope id → BranchAccessDeniedError =
+	// FORBIDDEN) and intersects with the RBAC ceiling; result ⊆ accessibleNodeIds.
+	const scopeNodeIds = await resolveScopeNodeIds(
+		tenantDb,
+		branchId,
+		accessibleNodeIds,
+	);
+	assertUuids(scopeNodeIds, "listCustomerDirectory:scope");
+	const scopeFilter =
+		scopeNodeIds.length > 0
+			? sql`AND m.hierarchy_scope_id = ANY(${sql.raw(
+					`ARRAY[${scopeNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`,
+				)})`
+			: sql``;
+
 	// ----------------------------------------------------------------
 	// Search resolution (name / email / phone, any phone format)
 	// ----------------------------------------------------------------
@@ -148,7 +166,6 @@ export async function listCustomerDirectory(
 				}
 			)`
 		: sql``;
-
 	// ----------------------------------------------------------------
 	// Step 1: fetch aggregated metrics from tenant DB
 	// ----------------------------------------------------------------
@@ -228,7 +245,7 @@ export async function listCustomerDirectory(
 		WHERE m.role = 'client'
 			AND m.hierarchy_scope_id = ANY(${sql.raw(`ARRAY[${accessibleNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`)})
 			${includeDeleted ? sql`` : sql`AND (cp.is_deleted IS NULL OR cp.is_deleted = false)`}
-			${branchId ? sql`AND m.hierarchy_scope_id = ${branchId}::uuid` : sql``}
+			${scopeFilter}
 			${searchClause}
 		GROUP BY m.id, m.user_id, m.hierarchy_scope_id, m.joined_at, cp.phone, cp.is_deleted, cp.is_unclaimed
 		ORDER BY m.joined_at DESC
@@ -242,7 +259,7 @@ export async function listCustomerDirectory(
 		WHERE m.role = 'client'
 			AND m.hierarchy_scope_id = ANY(${sql.raw(`ARRAY[${accessibleNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`)})
 			${includeDeleted ? sql`` : sql`AND (cp.is_deleted IS NULL OR cp.is_deleted = false)`}
-			${branchId ? sql`AND m.hierarchy_scope_id = ${branchId}::uuid` : sql``}
+			${scopeFilter}
 			${searchClause}
 	`;
 
@@ -370,6 +387,22 @@ export async function getCustomerStats(
 
 	assertUuids(accessibleNodeIds, "getCustomerStats");
 
+	// Expand the (possibly non-leaf) scope node to its accessible subtree (see
+	// listCustomerDirectory). resolveScopeNodeIds guards out-of-scope ids and
+	// intersects with the RBAC ceiling; result ⊆ accessibleNodeIds.
+	const scopeIds = await resolveScopeNodeIds(
+		tenantDb,
+		branchId,
+		accessibleNodeIds,
+	);
+	assertUuids(scopeIds, "getCustomerStats:scope");
+	const scopeFilter =
+		scopeIds.length > 0
+			? sql`AND m.hierarchy_scope_id = ANY(${sql.raw(
+					`ARRAY[${scopeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`,
+				)})`
+			: sql``;
+
 	const result = await tenantDb.execute(sql`
 		WITH customer_agg AS (
 			SELECT
@@ -397,7 +430,7 @@ export async function getCustomerStats(
 			LEFT JOIN appointment_clients ac ON ac.client_id = m.user_id
 			WHERE m.role = 'client'
 				AND m.hierarchy_scope_id = ANY(${sql.raw(`ARRAY[${accessibleNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`)})
-				${branchId ? sql`AND m.hierarchy_scope_id = ${branchId}::uuid` : sql``}
+				${scopeFilter}
 			GROUP BY m.id, m.user_id
 		)
 		SELECT

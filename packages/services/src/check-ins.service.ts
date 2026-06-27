@@ -37,6 +37,7 @@ import {
 } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { writeAudit } from "./audit-log.service";
+import { resolveScopeNodeIds } from "./hierarchy-scope";
 import { markCompleteIfFinal } from "./package-instance.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
@@ -430,7 +431,7 @@ export async function listTodaysBookings(
 		accessibleNodeIds: string[];
 	},
 ): Promise<TodaysBookingRow[]> {
-	const { branchId, date } = params;
+	const { branchId, date, accessibleNodeIds } = params;
 
 	// Build day boundaries in UTC
 	const dayStart = new Date(date);
@@ -438,7 +439,17 @@ export async function listTodaysBookings(
 	const dayEnd = new Date(date);
 	dayEnd.setUTCHours(23, 59, 59, 999);
 
-	// Fetch appointment_clients for the branch on the given day
+	// Expand the (possibly non-leaf) scope node to its accessible subtree so a
+	// country/region/state selection returns its branches' bookings instead of
+	// zero. Guards out-of-scope ids (FORBIDDEN) and intersects with the RBAC
+	// ceiling. Empty result only when no scope/ceiling applies → no branch filter.
+	const scopeIds = await resolveScopeNodeIds(
+		tenantDb,
+		branchId,
+		accessibleNodeIds,
+	);
+
+	// Fetch appointment_clients for the scoped branches on the given day
 	const rows = await tenantDb
 		.select({
 			appointmentClientId: appointmentClients.id,
@@ -460,7 +471,9 @@ export async function listTodaysBookings(
 		.leftJoin(classSlots, eq(appointments.classSlotId, classSlots.id))
 		.where(
 			and(
-				eq(appointments.branchId, branchId),
+				scopeIds.length > 0
+					? inArray(appointments.branchId, scopeIds)
+					: undefined,
 				gte(appointments.startTime, dayStart),
 				lte(appointments.startTime, dayEnd),
 			),
@@ -734,7 +747,20 @@ export async function listCheckIns(
 		return { rows: [], total: 0 };
 	}
 
-	if (branchId) conditions.push(eq(checkIns.branchId, branchId));
+	// Caller-supplied scope filter — expand a (possibly non-leaf) scope node to
+	// its accessible subtree so a country/region/state selection returns its
+	// branches' check-ins instead of zero. Guards out-of-scope ids (FORBIDDEN)
+	// and intersects with the RBAC ceiling above (defense in depth).
+	if (branchId) {
+		const scopeIds = await resolveScopeNodeIds(
+			tenantDb,
+			branchId,
+			accessibleNodeIds,
+		);
+		if (scopeIds.length > 0) {
+			conditions.push(inArray(checkIns.branchId, scopeIds));
+		}
+	}
 	if (clientId) conditions.push(eq(checkIns.clientId, clientId));
 	if (clientType) conditions.push(eq(checkIns.clientType, clientType));
 	if (outcome) conditions.push(eq(checkIns.outcome, outcome));

@@ -1,6 +1,8 @@
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useScope } from "@/components/scope/ScopeProvider";
+import { ScopeSwitcher } from "@/components/scope/ScopeSwitcher";
 import { client, orpc } from "@/utils/orpc";
 
 type MemberApiItem = Awaited<ReturnType<typeof client.members.list>>[number];
@@ -27,6 +29,7 @@ import type { SystemRole } from "./members/types";
 export function MembersTabPage() {
 	const isMobile = useIsMobile();
 	const { data: userContext } = useUserContext();
+	const { scopeNodeId } = useScope();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const queryClient = useQueryClient();
 
@@ -41,7 +44,11 @@ export function MembersTabPage() {
 	const { data: membersApiData = EMPTY_MEMBERS, isLoading: membersLoading } =
 		useQuery({
 			...orpc.members.list.queryOptions({
-				input: { organizationId: organizationId!, includeDeleted: showDeleted },
+				input: {
+					organizationId: organizationId!,
+					includeDeleted: showDeleted,
+					hierarchyScopeId: scopeNodeId,
+				},
 			}),
 			enabled: !!organizationId,
 		});
@@ -516,10 +523,13 @@ export function MembersTabPage() {
 					</p>
 				</div>
 
-				<Button onClick={() => setShowInviteDialog(true)}>
-					<UserPlus className="size-4 mr-2" />
-					Invite User
-				</Button>
+				<div className="flex items-center gap-3">
+					<ScopeSwitcher />
+					<Button onClick={() => setShowInviteDialog(true)}>
+						<UserPlus className="size-4 mr-2" />
+						Invite User
+					</Button>
+				</div>
 			</div>
 
 			{/* Stats */}

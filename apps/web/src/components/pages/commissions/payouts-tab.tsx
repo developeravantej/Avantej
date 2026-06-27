@@ -9,6 +9,8 @@ import { RunBatchDrawer } from "@/features/payouts/components/run-batch-drawer";
 import type { StaffOption } from "@/features/payouts/components/run-batch-drawer";
 import { useQuery } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useScope } from "@/components/scope/ScopeProvider";
+import { ScopeSwitcher } from "@/components/scope/ScopeSwitcher";
 import { orpc } from "@/utils/orpc";
 import { formatPrice } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -36,10 +38,17 @@ export function PayoutsTab({
 	const { hasPermission } = useUserContext();
 	const canRunBatch = hasPermission("commission_payout:process");
 
+	// Tenant scope switcher: active scope node (any hierarchy level; undefined at
+	// "All") drives the payouts list query as `branchId`.
+	const { scopeNodeId } = useScope();
+
 	const [activeSubTab, setActiveSubTab] = useState<SubTab>("all");
 	const [drawerOpen, setDrawerOpen] = useState(false);
 
-	const { data: rawPayouts, isLoading } = usePayoutsList(organizationId);
+	const { data: rawPayouts, isLoading } = usePayoutsList(
+		organizationId,
+		scopeNodeId,
+	);
 	useLiabilitySummary(organizationId, firstOfMonthIso(), todayEndIso()); // prefetch for KPI
 
 	const { data: membersData } = useQuery({
@@ -168,9 +177,12 @@ export function PayoutsTab({
 			<div className="overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
 				{/* Toolbar */}
 				<div className="flex items-center justify-between border-b border-[#e5e5e5] px-6 py-3">
-					<span className="text-sm font-semibold text-[#0a0a0a]">
-						Payout Records
-					</span>
+					<div className="flex items-center gap-3">
+						<span className="text-sm font-semibold text-[#0a0a0a]">
+							Payout Records
+						</span>
+						<ScopeSwitcher className="h-8 w-auto min-w-44" />
+					</div>
 					<div className="flex items-center gap-2">
 						{/* Sub-tab pills */}
 						<div className="flex items-center gap-1 rounded-xl border border-[#e5e5e5] bg-[#f3f3f3] p-1">

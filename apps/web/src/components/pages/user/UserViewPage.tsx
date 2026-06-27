@@ -1,5 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useScope } from "@/components/scope/ScopeProvider";
+import { ScopeSwitcher } from "@/components/scope/ScopeSwitcher";
 import { orpc } from "@/utils/orpc";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { Skeleton } from "boneyard-js/react";
@@ -13,6 +15,7 @@ import { RoleGroup } from "./RoleGroup";
 // ─── Page ────────────────────────────────────────────────────────────────────
 export function UserViewPage() {
 	const { data: userContext, hasRole } = useUserContext();
+	const { scopeNodeId } = useScope();
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const callerIsAdmin = hasRole(["admin"]);
 	const qc = useQueryClient();
@@ -22,7 +25,10 @@ export function UserViewPage() {
 
 	const { data: members = [], isLoading } = useQuery({
 		...orpc.members.list.queryOptions({
-			input: { organizationId: organizationId! },
+			input: {
+				organizationId: organizationId!,
+				hierarchyScopeId: scopeNodeId,
+			},
 		}),
 		enabled: !!organizationId,
 	});
@@ -62,6 +68,7 @@ export function UserViewPage() {
 						<span className="font-semibold">Members</span>
 					</div>
 					<div className="ml-auto flex items-center gap-2">
+						<ScopeSwitcher className="w-48" />
 						<div className="flex items-center gap-2 rounded-xl border border-[#e5e5e5] bg-white px-3 py-2.5">
 							<Search className="h-4 w-4 text-[#737373] flex-shrink-0" />
 							<input
@@ -124,7 +131,9 @@ export function UserViewPage() {
 							organizationId={organizationId}
 							onSuccess={() => {
 								qc.invalidateQueries(
-									orpc.members.list.queryOptions({ input: { organizationId } }),
+									orpc.members.list.queryOptions({
+										input: { organizationId, hierarchyScopeId: scopeNodeId },
+									}),
 								);
 							}}
 						/>
