@@ -507,6 +507,13 @@ export function ReportsPage() {
 								className="h-[200px] w-full rounded-xl"
 								style={{ background: "#f3f3f3" }}
 							/>
+						) : seriesValues.length === 0 ? (
+							<div
+								className="flex h-[200px] w-full items-center justify-center rounded-xl text-sm"
+								style={{ background: "#f9f9f9", color: "#737373" }}
+							>
+								No revenue data for this period.
+							</div>
 						) : (
 							<svg viewBox="0 0 680 180" className="w-full" height="200">
 								{/* Grid lines */}

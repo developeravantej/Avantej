@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requirePermission } from "@/lib/route-guards";
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AddCustomerDialog } from "@/components/customers/add-customer-dialog";
 import { CustomerProfilePanel } from "@/components/customers/customer-profile-panel";
 import { CustomersFilterSidebar } from "@/components/customers/customers-filter-sidebar";
@@ -66,6 +66,20 @@ function CustomersV2Page() {
 			onSelectMember: setSelectedMemberId,
 			scopeNodeId,
 		});
+
+	// When the scope changes, the previously-selected customer may not exist in
+	// the new scope — clear the selection so the directory empty pane shows
+	// instead of a stale profile. Ref-guarded so a deep-linked ?customer= still
+	// loads on initial mount.
+	const prevScopeRef = useRef(scopeNodeId);
+	useEffect(() => {
+		if (prevScopeRef.current !== scopeNodeId) {
+			prevScopeRef.current = scopeNodeId;
+			setSelectedMemberId(null);
+		}
+		// setSelectedMemberId is a stable navigate wrapper; scope is the trigger.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [scopeNodeId]);
 
 	return (
 		<div className="-m-6 flex h-screen flex-col bg-[#f3f3f3]">
