@@ -32,7 +32,12 @@ export function DashboardPage({
 					? 365
 					: 30;
 	const { data: userContext, hasRole } = useUserContext();
-	const { scopeNodeId, isAllScope } = useScope();
+	const { scopeNodeId, isAllScope, scopeNodes } = useScope();
+	// Per-country money cards only make sense across multiple countries; a
+	// single-country tenant (most Malaysian SMEs, all MYR) keeps the combined
+	// total + delta even at "All" scope.
+	const isMultiCountry =
+		scopeNodes.filter((n) => n.type === "country").length > 1;
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const currentOrg = userContext?.organizations?.find(
 		(o) => o.id === organizationId,
@@ -204,6 +209,7 @@ export function DashboardPage({
 						onRetryLargest={() => largestTodayQuery.refetch()}
 						newTodayCount={newTodayQuery.data?.count}
 						isAllScope={isAllScope}
+						isMultiCountry={isMultiCountry}
 					/>
 
 					{/* ── ANALYTICS HEADER (admin/manager only) ── */}

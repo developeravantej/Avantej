@@ -42,7 +42,7 @@ function makeKpis(): DashboardKpisResult {
 	};
 }
 
-function renderHero(isAllScope: boolean) {
+function renderHero(isAllScope: boolean, isMultiCountry: boolean) {
 	const kpis = makeKpis();
 	return render(
 		<TooltipProvider>
@@ -64,6 +64,7 @@ function renderHero(isAllScope: boolean) {
 				onRetryLargest={() => {}}
 				newTodayCount={undefined}
 				isAllScope={isAllScope}
+				isMultiCountry={isMultiCountry}
 			/>
 		</TooltipProvider>,
 	);
@@ -71,13 +72,13 @@ function renderHero(isAllScope: boolean) {
 
 describe("HeroSection — per-country money cards", () => {
 	test("single-node scope renders the combined MYR revenue tile (no per-country cards)", () => {
-		renderHero(false);
+		renderHero(false, false);
 		expect(screen.getByText("RM 5,000.00")).toBeInTheDocument();
 		expect(screen.queryByTestId("per-country-money-cards")).toBeNull();
 	});
 
-	test("All scope renders one money card per branch (each own currency) instead of the single tile", () => {
-		renderHero(true);
+	test("All scope across multiple countries renders one money card per branch instead of the single tile", () => {
+		renderHero(true, true);
 		const cards = screen.getByTestId("per-country-money-cards");
 		expect(cards).toBeInTheDocument();
 		// each branch card shows its own name + its own formatted revenue
@@ -85,7 +86,14 @@ describe("HeroSection — per-country money cards", () => {
 		expect(screen.getByText("JB")).toBeInTheDocument();
 		expect(screen.getByText("RM 3,000.00")).toBeInTheDocument();
 		expect(screen.getByText("RM 2,000.00")).toBeInTheDocument();
-		// never sum currencies: the combined RM 5,000.00 tile is NOT rendered in All scope
+		// never sum currencies: the combined RM 5,000.00 tile is NOT rendered here
 		expect(screen.queryByText("RM 5,000.00")).toBeNull();
+	});
+
+	test("All scope but single-country keeps the combined MYR total (no per-country cards)", () => {
+		renderHero(true, false);
+		// single-country tenant at "All" still sees the familiar combined total
+		expect(screen.getByText("RM 5,000.00")).toBeInTheDocument();
+		expect(screen.queryByTestId("per-country-money-cards")).toBeNull();
 	});
 });
