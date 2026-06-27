@@ -27,6 +27,29 @@ type TenantDb = NeonDatabase<typeof tenantSchema>;
 type TenantTx = Parameters<Parameters<TenantDb["transaction"]>[0]>[0];
 /** Either a pooled tenant client or an in-flight transaction. */
 type TenantDbOrTx = TenantDb | TenantTx;
+
+/**
+ * A hierarchy delete was blocked because the subtree still has child nodes or
+ * assigned members (or no valid reassignment target). The router maps this to a
+ * typed 409 CONFLICT — by `instanceof`, not by matching the message string.
+ */
+export class HierarchyDeleteBlockedError extends Error {
+	constructor(
+		message: string,
+		readonly reason: "children" | "members" | "no_target",
+	) {
+		super(message);
+		this.name = "HierarchyDeleteBlockedError";
+	}
+}
+
+/** The node to delete does not exist. Router maps to 404 NOT_FOUND. */
+export class HierarchyNodeNotFoundError extends Error {
+	constructor(nodeId: string) {
+		super(`Node not found: ${nodeId}`);
+		this.name = "HierarchyNodeNotFoundError";
+	}
+}
 import type {
 	CreateHierarchyNodeParams,
 	UpdateHierarchyNodeParams,
@@ -598,7 +621,7 @@ export async function deleteHierarchyNode(
 			});
 
 			if (!node) {
-				throw new Error(`Node not found: ${nodeId}`);
+				throw new HierarchyNodeNotFoundError(nodeId);
 			}
 
 			// Full subtree (self + all descendants) — the unit we reason about.
@@ -610,8 +633,9 @@ export async function deleteHierarchyNode(
 			});
 
 			if (activeChildNodes.length > 0 && !autoDeleteChildren) {
-				throw new Error(
+				throw new HierarchyDeleteBlockedError(
 					`Cannot delete node "${node.name}" because it has ${activeChildNodes.length} active child node(s). Please delete or move the child nodes first.`,
+					"children",
 				);
 			}
 
@@ -627,16 +651,18 @@ export async function deleteHierarchyNode(
 			if (subtreeMembers.length > 0) {
 				if (!autoReassignMembers) {
 					// BLOCK: leave the subtree completely intact.
-					throw new Error(
+					throw new HierarchyDeleteBlockedError(
 						`Cannot delete node "${node.name}" because it (or a child node) has ${subtreeMembers.length} assigned member(s). Please reassign or remove the members first.`,
+						"members",
 					);
 				}
 				// CASCADE: reassign every subtree member to the target BEFORE any node
 				// is deleted, so no member ever references a node about to disappear.
 				const targetNodeId = await findReassignTarget(tx, nodeId);
 				if (!targetNodeId || subtreeIds.includes(targetNodeId)) {
-					throw new Error(
+					throw new HierarchyDeleteBlockedError(
 						`Cannot delete node "${node.name}" because it has ${subtreeMembers.length} assigned member(s) and no valid target node found for reassignment.`,
+						"no_target",
 					);
 				}
 				await tx
@@ -656,6 +682,14 @@ export async function deleteHierarchyNode(
 			return node; // Return the deleted node info
 		});
 	} catch (error) {
+		// Preserve typed block/not-found errors so the router maps them by
+		// instanceof (not by string-matching a re-wrapped message).
+		if (
+			error instanceof HierarchyDeleteBlockedError ||
+			error instanceof HierarchyNodeNotFoundError
+		) {
+			throw error;
+		}
 		throw new Error(
 			`Failed to delete hierarchy node: ${error instanceof Error ? error.message : "Unknown error"}`,
 		);

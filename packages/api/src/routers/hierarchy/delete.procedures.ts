@@ -2,6 +2,8 @@ import {
 	type DeleteHierarchyNodeOptions,
 	deleteHierarchyNode,
 	getDescendantNodeIds,
+	HierarchyDeleteBlockedError,
+	HierarchyNodeNotFoundError,
 } from "@avantej-core/services";
 import { organizationBranches } from "@avantej-core/db/schema/control-panel/organization-branches";
 import { eq } from "drizzle-orm";
@@ -268,19 +270,19 @@ export const hierarchyDeleteProcedures = {
 					}
 				}
 
+				// Typed errors from the service — map by instanceof (robust to message
+				// edits), not by string-matching.
+				if (error instanceof HierarchyNodeNotFoundError) {
+					throw new ORPCError("NOT_FOUND", { message: error.message });
+				}
+				if (error instanceof HierarchyDeleteBlockedError) {
+					throw new ORPCError("CONFLICT", { message: error.message });
+				}
+
 				// Handle specific error cases
 				if (error instanceof Error) {
 					if (error.message.includes("not found")) {
 						throw new ORPCError("NOT_FOUND", {
-							message: error.message,
-						});
-					}
-					if (
-						error.message.includes("child node") ||
-						error.message.includes("assigned member") ||
-						error.message.includes("no valid target")
-					) {
-						throw new ORPCError("CONFLICT", {
 							message: error.message,
 						});
 					}

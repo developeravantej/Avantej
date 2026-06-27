@@ -237,6 +237,8 @@ export {
 	deleteHierarchyNode,
 	getAncestorNodeIds,
 	getDescendantNodeIds,
+	HierarchyDeleteBlockedError,
+	HierarchyNodeNotFoundError,
 	listNodesWithStats,
 	moveHierarchyNode,
 	type NodeWithStats,

@@ -9,9 +9,16 @@
  *
  * Qualifying volume = SUM(sales_orders.total_amount) for orders the staff closed
  * (sold_by = members.userId) that are confirmed/completed within the period.
+ *
+ * v1 SCOPE NOTE: the awards ledger (commission_incentive_awards) is STANDALONE —
+ * a period-aggregate bonus is structurally unlike a per-order commission_split,
+ * so awards are intentionally NOT written into commission_splits and do NOT yet
+ * flow through the payout batches or getCommissionByTier reporting. Integrating
+ * awards into the payout pipeline is a deliberate follow-up (see _future/), not
+ * an oversight.
  */
 
-import { and, eq, gte, inArray, lte, sum } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lte, or, sum } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import {
@@ -155,17 +162,24 @@ export async function evaluateIncentivesForPeriod(
 	let awardsCreated = 0;
 
 	for (const rule of rules) {
-		// Eligible staff for this rule: members whose tier matches the rule.
-		// - rule.trainerTierId set  → that exact tier
-		// - otherwise               → any tier whose roleType == rule.roleType
+		// Eligible staff for this rule. LEFT JOIN (not inner) so tier-less members
+		// are not silently excluded — the qualifying-volume threshold below is the
+		// real gate, so a closer who never sold simply earns 0 and drops out.
+		// - rule.trainerTierId set  → exactly that tier.
+		// - otherwise (all-tiers)   → members whose tier has the matching roleType,
+		//   PLUS tier-less members (they have no commission role to match on, but a
+		//   tier-less sales closer with volume must still be able to qualify).
 		const eligible = await tenantDb
 			.select({ userId: members.userId })
 			.from(members)
-			.innerJoin(trainerTiers, eq(members.trainerTierId, trainerTiers.id))
+			.leftJoin(trainerTiers, eq(members.trainerTierId, trainerTiers.id))
 			.where(
 				rule.trainerTierId
 					? eq(members.trainerTierId, rule.trainerTierId)
-					: eq(trainerTiers.roleType, rule.roleType as CommissionRoleType),
+					: or(
+							eq(trainerTiers.roleType, rule.roleType as CommissionRoleType),
+							isNull(members.trainerTierId),
+						),
 			);
 
 		const staffIds = [...new Set(eligible.map((e) => e.userId))];

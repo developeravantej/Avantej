@@ -492,15 +492,13 @@ async function planOriginationForOrder(
 	let onSaleTracks: (typeof commissionTracks.$inferSelect)[] = [];
 
 	if (serviceIds.length > 0) {
-		// Resolve category IDs from service IDs
+		// Resolve category IDs from ALL service line items (not just the first).
+		// A mixed-category order must surface every category's on_sale tracks —
+		// using inArray over the full set; the loop below loads tracks per category.
 		const serviceRows = await db
 			.select({ categoryId: services.categoryId })
 			.from(services)
-			.where(
-				serviceIds.length === 1
-					? eq(services.id, serviceIds[0]!)
-					: eq(services.id, serviceIds[0]!), // handled below via loop if multiple
-			);
+			.where(inArray(services.id, serviceIds));
 
 		const categoryIds = [
 			...new Set(

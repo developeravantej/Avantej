@@ -33,16 +33,23 @@ const ROLE_TYPE_VALUES: [CommissionRoleType, ...CommissionRoleType[]] = [
 
 const create = tenantProcedure
 	.input(
-		z.object({
-			organizationId: z.string().uuid(),
-			name: z.string().min(1).max(200),
-			roleType: z.enum(ROLE_TYPE_VALUES),
-			trainerTierId: z.string().uuid().nullable().optional(),
-			thresholdCents: z.number().int().min(0),
-			bonusType: z.enum(["fixed", "pct"]),
-			/** Cents (fixed) or basis points (pct, 0..10000). */
-			bonusValue: z.number().int().min(0).max(100_000_000),
-		}),
+		z
+			.object({
+				organizationId: z.string().uuid(),
+				name: z.string().min(1).max(200),
+				roleType: z.enum(ROLE_TYPE_VALUES),
+				trainerTierId: z.string().uuid().nullable().optional(),
+				thresholdCents: z.number().int().min(0),
+				bonusType: z.enum(["fixed", "pct"]),
+				/** Cents (fixed) or basis points (pct, 0..10000 = 0..100%). */
+				bonusValue: z.number().int().min(0).max(100_000_000),
+			})
+			// A percentage bonus is basis points — cap it at 10000 (100%). A fixed
+			// bonus is cents and may legitimately be larger.
+			.refine((v) => v.bonusType !== "pct" || v.bonusValue <= 10_000, {
+				message: "pct bonusValue must be ≤ 10000 basis points (100%)",
+				path: ["bonusValue"],
+			}),
 	)
 	.handler(async ({ input, context }) => {
 		assertOrgContextMatch(context, input);

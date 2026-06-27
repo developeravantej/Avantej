@@ -1,4 +1,15 @@
-import { and, gte, lte, inArray, sum, count, eq, ne, sql } from "drizzle-orm";
+import {
+	and,
+	gte,
+	lte,
+	inArray,
+	or,
+	sum,
+	count,
+	eq,
+	ne,
+	sql,
+} from "drizzle-orm";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { members } from "@avantej-core/db/schema/tenant/members";
@@ -453,6 +464,20 @@ export async function getCommissionByTier(
 	params: CommissionByTierParams,
 ): Promise<CommissionByTierRow[]> {
 	const { from, to } = getPeriodDates(params.period, params.from, params.to);
+	const nodeIds = params.accessibleNodeIds;
+
+	// Branch-scope by accessible hierarchy nodes (RBAC). A split resolves a branch
+	// via its appointment OR its sales order — LEFT JOIN both and require at least
+	// one resolved branchId to be accessible. Admins carry every node in
+	// accessibleNodeIds, so this is a no-op for them; a branch-scoped manager sees
+	// only their branches' tier totals. Mirrors listCommissionSplits' scoping.
+	const branchScope =
+		nodeIds.length > 0
+			? or(
+					inArray(appointments.branchId, nodeIds),
+					inArray(salesOrders.branchId, nodeIds),
+				)
+			: undefined;
 
 	const rows = await tenantDb
 		.select({
@@ -464,12 +489,15 @@ export async function getCommissionByTier(
 		})
 		.from(commissionSplits)
 		.leftJoin(trainerTiers, eq(commissionSplits.trainerTierId, trainerTiers.id))
+		.leftJoin(appointments, eq(commissionSplits.appointmentId, appointments.id))
+		.leftJoin(salesOrders, eq(commissionSplits.salesOrderId, salesOrders.id))
 		.where(
 			and(
 				gte(commissionSplits.earnedAt, from),
 				lte(commissionSplits.earnedAt, to),
 				ne(commissionSplits.status, "void"),
 				eq(commissionSplits.excluded, false),
+				branchScope,
 			),
 		)
 		.groupBy(
