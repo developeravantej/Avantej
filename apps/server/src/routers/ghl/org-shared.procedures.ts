@@ -198,6 +198,7 @@ export const orgSharedProcedures = {
 					ghlProvisionedAt: null as Date | null,
 					hasApiKey: false,
 					countryFieldCount: 0,
+					ghlRequireApproval: false,
 				};
 			}
 
@@ -208,6 +209,7 @@ export const orgSharedProcedures = {
 				ghlProvisionedAt: org.ghlProvisionedAt ?? null,
 				hasApiKey: !!org.ghlApiKeyEncrypted,
 				countryFieldCount: Object.keys(map).length,
+				ghlRequireApproval: org.ghlRequireApproval ?? false,
 			};
 		}),
 };

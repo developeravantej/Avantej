@@ -2,7 +2,7 @@ import { getControlPanelDb, getTenantDb } from "@/lib/db";
 import { user } from "@avantej-core/db/schema/auth";
 import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch-links";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import type { Context } from "hono";
@@ -10,6 +10,7 @@ import { createHash } from "node:crypto";
 import { accountGroups } from "@avantej-core/db/schema/tenant/account-groups";
 import { customerProfiles } from "@avantej-core/db/schema/tenant/customer-profiles";
 import { ghlContactLinks } from "@avantej-core/db/schema/tenant/ghl-contact-links";
+import { ghlPendingContacts } from "@avantej-core/db/schema/tenant/ghl-pending-contacts";
 import { ghlSyncEvents } from "@avantej-core/db/schema/tenant/ghl-sync-events";
 import { ghlUserLinks } from "@avantej-core/db/schema/tenant/ghl-user-links";
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
@@ -635,8 +636,40 @@ type ProcessGhlWebhookArgs = {
 	payload: AnyRecord;
 };
 
+/**
+ * Inbound approval-gate decision (pure). Hold a contact for staff approval only
+ * when the org requires it AND this is a brand-NEW contact (no existing link).
+ * Linked-contact updates/backfills are never gated — α-canonical already ran and
+ * a placeholder→real backfill must flow straight through.
+ */
+export function shouldHoldForApproval(args: {
+	existingLink: unknown | null | undefined;
+	requireApproval: boolean | null | undefined;
+}): boolean {
+	return !args.existingLink && !!args.requireApproval;
+}
+
+/**
+ * Denormalized preview fields stored on a held contact for the approvals inbox
+ * (pure). Placeholder emails are stored as null so the inbox shows "—" rather
+ * than a synthetic ghl-*@ghl.placeholder address.
+ */
+export function buildPendingContactPreview(
+	extracted: ExtractedGhlContactPayload,
+): {
+	proposedName: string | null;
+	proposedEmail: string | null;
+	proposedPhone: string | null;
+} {
+	return {
+		proposedName: extracted.name ?? null,
+		proposedEmail: extracted.emailIsPlaceholder ? null : extracted.email,
+		proposedPhone: extracted.phone ?? null,
+	};
+}
+
 export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
-	status: "processed" | "deduped" | "skipped";
+	status: "processed" | "deduped" | "skipped" | "pending_approval";
 	eventType: GhlEventType;
 	contactId: string;
 	eventKey: string;
@@ -818,6 +851,134 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 			responseData,
 		};
 	}
+
+	// ── Inbound approval gate (Phase G follow-up) ──────────────────────────
+	// When the org requires approval, a brand-NEW contact is HELD for staff
+	// review instead of being materialized. Linked-contact updates/backfills
+	// (existingLink set) are never gated — α-canonical already ran above, and a
+	// placeholder→real backfill must flow straight through. Nothing is written
+	// to ghl_contact_links while pending, so live-sync dedupe/retry is intact.
+	if (!existingLink) {
+		const [orgRow] = await controlPanelDb
+			.select({ requireApproval: organizations.ghlRequireApproval })
+			.from(organizations)
+			.where(eq(organizations.id, locationLink.organizationId))
+			.limit(1);
+		if (
+			shouldHoldForApproval({
+				existingLink,
+				requireApproval: orgRow?.requireApproval,
+			})
+		) {
+			const queuedFields = extractCustomFieldsForProfile(payload);
+			const previewBranchNodeId = await resolveBranchNodeId(
+				tenantDb,
+				queuedFields.selectedLocation,
+				locationLink.tenantBranchId,
+				queuedFields.selectedCountry,
+			);
+			const preview = buildPendingContactPreview(extracted);
+			await tenantDb
+				.insert(ghlPendingContacts)
+				.values({
+					ghlContactId: extracted.contactId,
+					ghlLocationId: locationLink.ghlLocationId,
+					rawPayload: payload,
+					...preview,
+					resolvedBranchNodeId: previewBranchNodeId,
+					status: "pending",
+				})
+				// Re-open (not ignore) on conflict: a contact re-pushed from GHL —
+				// whether still pending (data refresh) or previously rejected
+				// (re-submission) — re-enters the queue with the latest payload and
+				// clears any prior review. Approved contacts normally never reach
+				// here (they have a link → α-canonical skips them above); the
+				// `where` guards that invariant so a stray event can never resurrect
+				// an already-approved contact back to pending.
+				.onConflictDoUpdate({
+					target: ghlPendingContacts.ghlContactId,
+					where: ne(ghlPendingContacts.status, "approved"),
+					set: {
+						ghlLocationId: locationLink.ghlLocationId,
+						rawPayload: payload,
+						...preview,
+						resolvedBranchNodeId: previewBranchNodeId,
+						status: "pending",
+						rejectReason: null,
+						reviewedByUserId: null,
+						reviewedAt: null,
+						updatedAt: new Date(),
+					},
+				});
+			await updateEventStatus(tenantDb, eventKey, "pending");
+			return {
+				status: "pending_approval",
+				eventType,
+				contactId: extracted.contactId,
+				eventKey,
+				message: "Contact held for approval",
+				responseData,
+			};
+		}
+	}
+
+	return await materializeContactFromWebhook({
+		c,
+		controlPanelDb,
+		tenantDb,
+		payload,
+		extracted,
+		existingLink,
+		locationLink,
+		eventKey,
+		eventType,
+		responseData,
+	});
+}
+
+/**
+ * Materializes an inbound GHL contact into Avantej entities (user +
+ * customer_profile + member + ghl_contact_link), dispatching a welcome
+ * magic-link when appropriate. Extracted from processGhlWebhook so the
+ * approval-gate path can replay it verbatim on approve. Handles both the
+ * create and placeholder-backfill update branches, plus the shared-email
+ * dependent path (delegated to processDependentInGroup).
+ */
+async function materializeContactFromWebhook(args: {
+	c: Context;
+	controlPanelDb: ReturnType<typeof getControlPanelDb>;
+	tenantDb: Awaited<ReturnType<typeof getTenantDb>>;
+	payload: AnyRecord;
+	extracted: ExtractedGhlContactPayload;
+	existingLink: typeof ghlContactLinks.$inferSelect | undefined;
+	locationLink: {
+		organizationId: string;
+		tenantBranchId: string;
+		ghlLocationId: string;
+	};
+	eventKey: string;
+	eventType: GhlEventType;
+	responseData: GhlContactResponseData;
+}): Promise<{
+	status: "processed";
+	eventType: GhlEventType;
+	contactId: string;
+	eventKey: string;
+	message: string;
+	responseData: GhlContactResponseData;
+}> {
+	const {
+		c,
+		controlPanelDb,
+		tenantDb,
+		payload,
+		extracted,
+		existingLink,
+		locationLink,
+		eventKey,
+		eventType,
+		responseData,
+	} = args;
 
 	const customFields = extractCustomFieldsForProfile(payload);
 
@@ -1126,6 +1287,191 @@ export async function processGhlWebhook(args: ProcessGhlWebhookArgs): Promise<{
 		message: existingLink ? "Contact updated" : "Customer created from webhook",
 		responseData,
 	};
+}
+
+/**
+ * Approve a held GHL contact: replay its stored webhook body through the
+ * normal materialize path (creating the user/profile/member/link exactly as an
+ * ungated sync would), then mark the pending row approved. The deterministic
+ * eventKey matches the original inbound event, so its ghl_sync_events row flips
+ * from "pending" to "processed".
+ */
+export async function approvePendingGhlContact(args: {
+	c: Context;
+	controlPanelDb: ReturnType<typeof getControlPanelDb>;
+	tenantDb: Awaited<ReturnType<typeof getTenantDb>>;
+	organizationId: string;
+	pending: typeof ghlPendingContacts.$inferSelect;
+	reviewedByUserId: string;
+}): Promise<
+	| { status: "approved"; contactId: string; message: string }
+	| { status: "already_reviewed"; contactId: string }
+> {
+	const {
+		c,
+		controlPanelDb,
+		tenantDb,
+		organizationId,
+		pending,
+		reviewedByUserId,
+	} = args;
+	const payload = pending.rawPayload as AnyRecord;
+	const eventType = detectGhlEventType(payload);
+	const extracted = extractGhlContactPayload(payload);
+	const responseData = buildGhlResponseData(payload);
+	const eventKey = await buildGhlEventKey({
+		locationId: pending.ghlLocationId,
+		contactId: extracted.contactId,
+		eventType,
+		payload,
+	});
+
+	// Re-resolve the location's true owner and verify it matches the caller's
+	// tenant before mutating anything — defense in depth against a mismatched
+	// organizationId (the location's org is the authoritative source of truth).
+	const resolved = await resolveWebhookLocation(
+		controlPanelDb,
+		pending.ghlLocationId,
+	);
+	if (resolved && resolved.organizationId !== organizationId) {
+		throw new GhlWebhookError(
+			"Pending contact location belongs to a different organization",
+			403,
+			"org_mismatch",
+		);
+	}
+
+	// Atomic claim: flip pending→approved only if it is STILL pending. A second
+	// concurrent approve (or an approve racing a reject) updates 0 rows and is
+	// reported as already-reviewed, so materialize runs at most once.
+	const claimed = await tenantDb
+		.update(ghlPendingContacts)
+		.set({
+			status: "approved",
+			reviewedByUserId,
+			reviewedAt: new Date(),
+			updatedAt: new Date(),
+		})
+		.where(
+			and(
+				eq(ghlPendingContacts.id, pending.id),
+				eq(ghlPendingContacts.status, "pending"),
+			),
+		)
+		.returning({ id: ghlPendingContacts.id });
+	if (claimed.length === 0) {
+		return { status: "already_reviewed", contactId: pending.ghlContactId };
+	}
+
+	const fallbackBranchId =
+		resolved?.tenantBranchId ?? (await resolveOrgRootNodeId(tenantDb));
+	const locationLink = {
+		organizationId,
+		tenantBranchId: fallbackBranchId,
+		ghlLocationId: pending.ghlLocationId,
+	};
+
+	// A contact could have been created by another path since it was queued —
+	// re-check the link so materialize takes its update branch instead of
+	// double-inserting.
+	const [existingLink] = await tenantDb
+		.select()
+		.from(ghlContactLinks)
+		.where(eq(ghlContactLinks.ghlContactId, extracted.contactId))
+		.limit(1);
+
+	try {
+		await materializeContactFromWebhook({
+			c,
+			controlPanelDb,
+			tenantDb,
+			payload,
+			extracted,
+			existingLink: existingLink ?? undefined,
+			locationLink,
+			eventKey,
+			eventType,
+			responseData,
+		});
+	} catch (error) {
+		// Materialize failed after we claimed the row — revert to pending so the
+		// contact stays visible in the queue for a retry rather than vanishing as
+		// "approved" with no member behind it.
+		await tenantDb
+			.update(ghlPendingContacts)
+			.set({
+				status: "pending",
+				reviewedByUserId: null,
+				reviewedAt: null,
+				updatedAt: new Date(),
+			})
+			.where(eq(ghlPendingContacts.id, pending.id));
+		throw error;
+	}
+
+	return {
+		status: "approved",
+		contactId: extracted.contactId,
+		message: "Contact approved and created",
+	};
+}
+
+/**
+ * Reject a held GHL contact: mark the pending row rejected (kept for audit) and
+ * flip the original ghl_sync_events row to "rejected" so it no longer looks
+ * stuck in "pending". No Avantej entities are created.
+ */
+export async function rejectPendingGhlContact(args: {
+	tenantDb: Awaited<ReturnType<typeof getTenantDb>>;
+	pending: typeof ghlPendingContacts.$inferSelect;
+	reviewedByUserId: string;
+	reason?: string | null;
+}): Promise<
+	| { status: "rejected"; contactId: string }
+	| { status: "already_reviewed"; contactId: string }
+> {
+	const { tenantDb, pending, reviewedByUserId, reason } = args;
+	const payload = pending.rawPayload as AnyRecord;
+	const eventType = detectGhlEventType(payload);
+	const eventKey = await buildGhlEventKey({
+		locationId: pending.ghlLocationId,
+		contactId: pending.ghlContactId,
+		eventType,
+		payload,
+	});
+
+	// Atomic: claim the row (pending→rejected only if still pending) and flip the
+	// sync event in one transaction, so the pending row and its audit event never
+	// diverge. A concurrent approve/reject loses the claim → already-reviewed.
+	return await tenantDb.transaction(async (tx) => {
+		const claimed = await tx
+			.update(ghlPendingContacts)
+			.set({
+				status: "rejected",
+				rejectReason: reason ?? null,
+				reviewedByUserId,
+				reviewedAt: new Date(),
+				updatedAt: new Date(),
+			})
+			.where(
+				and(
+					eq(ghlPendingContacts.id, pending.id),
+					eq(ghlPendingContacts.status, "pending"),
+				),
+			)
+			.returning({ id: ghlPendingContacts.id });
+		if (claimed.length === 0) {
+			return {
+				status: "already_reviewed" as const,
+				contactId: pending.ghlContactId,
+			};
+		}
+		await tx
+			.update(ghlSyncEvents)
+			.set({ status: "rejected", errorMessage: reason ?? null })
+			.where(eq(ghlSyncEvents.eventKey, eventKey));
+		return { status: "rejected" as const, contactId: pending.ghlContactId };
+	});
 }
 
 /**

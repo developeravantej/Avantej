@@ -22,7 +22,10 @@ export const ghlSyncEvents = pgTable(
 		eventType: text("event_type").notNull(), // create | update | delete | custom
 		ghlContactId: text("ghl_contact_id"),
 		email: text("email"),
-		status: text("status").notNull(), // processed | skipped | failed | deduped
+		// received (initial) | processed | skipped | failed | pending (held for
+		// approval) | rejected. "deduped" is an API-response status only; it is
+		// never written here (a duplicate event is simply not re-inserted).
+		status: text("status").notNull(),
 		errorMessage: text("error_message"),
 		rawPayload: jsonb("raw_payload").$type<Record<string, unknown> | null>(),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
