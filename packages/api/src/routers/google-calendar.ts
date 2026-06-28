@@ -9,6 +9,7 @@ import {
 	revokeGoogleToken,
 	listGoogleCalendars,
 	checkSyncNowRateLimit,
+	pullExternalBusyBlocks,
 } from "@avantej-core/services";
 
 // ---------------------------------------------------------------------------
@@ -313,6 +314,63 @@ export const googleCalendarRouter = {
 				}
 				throw new ORPCError("INTERNAL_SERVER_ERROR", {
 					message: `Failed to fetch Google Calendar list: ${err instanceof Error ? err.message : String(err)}`,
+				});
+			}
+		}),
+
+	// ------------------------------------------------------------------
+	// pullAvailability — pull Google busy times INTO Avantej so they block
+	// bookable slots (UAT §6 "Read availability"). RBAC: appointment_management:update
+	// ------------------------------------------------------------------
+	pullAvailability: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				windowDays: z.number().int().min(1).max(180).optional(),
+			}),
+		)
+		.handler(async ({ context, input }) => {
+			assertTenantAndMember(context);
+			await requirePermissionOrpc(
+				context.tenantDb,
+				context.member,
+				"appointment_management",
+				"update",
+			);
+
+			const connection =
+				await context.tenantDb.query.googleCalendarConnections.findFirst({
+					where: and(
+						eq(googleCalendarConnections.memberId, context.member.id),
+						eq(googleCalendarConnections.isActive, true),
+					),
+				});
+			if (!connection) {
+				throw new ORPCError("NOT_FOUND", {
+					message:
+						"No active Google Calendar connection found. Connect your calendar first.",
+				});
+			}
+
+			const windowStart = new Date();
+			const windowEnd = new Date(
+				windowStart.getTime() + (input.windowDays ?? 60) * 24 * 60 * 60 * 1000,
+			);
+
+			try {
+				const result = await pullExternalBusyBlocks(
+					context.tenantDb,
+					connection,
+					{ windowStart, windowEnd },
+					{
+						clientId: process.env.GOOGLE_CLIENT_ID ?? "",
+						clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+					},
+				);
+				return { ...result, windowDays: input.windowDays ?? 60 };
+			} catch (err) {
+				throw new ORPCError("INTERNAL_SERVER_ERROR", {
+					message: `Google Calendar pull failed: ${err instanceof Error ? err.message : String(err)}`,
 				});
 			}
 		}),

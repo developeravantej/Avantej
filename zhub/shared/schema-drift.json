@@ -1,10 +1,23 @@
 {
-  "generated_at": "2026-06-12T11:13:01.208Z",
+  "generated_at": "2026-06-24T23:47:08.518Z",
   "tenant": {
     "missing_in_live": [],
     "extra_in_live": [],
-    "action_mismatches": [],
-    "orphan_tables": [],
+    "action_mismatches": [
+      {
+        "key": "appointment_clients.walk_in_customer_id",
+        "schema": "NO ACTION",
+        "live": "RESTRICT"
+      },
+      {
+        "key": "package_instances.walk_in_customer_id",
+        "schema": "RESTRICT",
+        "live": "NO ACTION"
+      }
+    ],
+    "orphan_tables": [
+      "mig_xwalk"
+    ],
     "missing_tables": []
   },
   "controlPanel": {

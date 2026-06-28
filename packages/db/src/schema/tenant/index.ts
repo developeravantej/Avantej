@@ -27,6 +27,7 @@ export * from "./commission-splits";
 export * from "./customer-profiles";
 export * from "./dashboard-snapshots";
 export * from "./expenses";
+export * from "./external-busy-blocks";
 export * from "./ghl-contact-links";
 export * from "./ghl-sync-events";
 export * from "./ghl-user-links";

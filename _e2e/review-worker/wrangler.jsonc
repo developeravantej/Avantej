@@ -1,0 +1,12 @@
+{
+	// Static-asset Cloudflare Worker that hosts the UAT Go/No-Go review page
+	// (review-uat.html + recorded videos). No server script — assets-only.
+	//   cd _e2e/review-worker && bunx wrangler deploy
+	"name": "avantej-uat-review",
+	"account_id": "a9c786e2839df3157985b75b9195a5dd",
+	"compatibility_date": "2025-06-15",
+	"assets": {
+		"directory": "./public",
+		"not_found_handling": "single-page-application"
+	}
+}

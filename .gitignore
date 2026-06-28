@@ -121,3 +121,8 @@ _e2e/**/*.png
 _e2e/**/*.log
 _e2e/**/*.txt
 _e2e/results/report-*.json
+.cf-token
+
+# Cloudflare API token scratch files (never commit)
+.cf-token
+.cf-token-staging

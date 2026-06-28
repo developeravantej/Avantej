@@ -222,6 +222,10 @@ function createBetterAuth(c?: Context) {
 	// Determine if we're running over HTTPS (production) or HTTP (development)
 	const betterAuthUrl = getEnvVar("BETTER_AUTH_URL") || "http://localhost:3000";
 	const isHttps = betterAuthUrl.startsWith("https://");
+	// When set (e.g. ".avantej.com"), the session cookie is scoped to the shared
+	// parent domain so it is valid across the web origin (move.avantej.com) and
+	// the API origin (move-api.avantej.com).
+	const cookieDomain = getEnvVar("COOKIE_DOMAIN");
 
 	return betterAuth({
 		database: drizzleAdapter(createBetterAuthDb(c), {
@@ -305,7 +309,11 @@ function createBetterAuth(c?: Context) {
 			},
 		},
 		trustedOrigins: [
-			getEnvVar("CORS_ORIGIN") || "http://localhost:3001",
+			// CORS_ORIGIN may be a comma-separated list of web origins.
+			...(getEnvVar("CORS_ORIGIN") || "http://localhost:3001")
+				.split(",")
+				.map((s) => s.trim())
+				.filter(Boolean),
 			"http://localhost:4001", // E2E alt port
 			"http://localhost:3022", // E2E alt port (web dev on 3022)
 			"http://avantej.localhost:3022", // E2E tenant subdomain on 3022
@@ -517,17 +525,18 @@ function createBetterAuth(c?: Context) {
 				secure: isHttps,
 				httpOnly: true,
 			},
-			// uncomment cookieCache setting when ready to deploy to Cloudflare using *.workers.dev domains
-			// cookieCache: {
-			//   enabled: true,
-			//   maxAge: 60,
-			// },
-			// uncomment crossSubDomainCookies setting when ready to deploy and replace <your-workers-subdomain> with your actual workers subdomain
-			// https://developers.cloudflare.com/workers/wrangler/configuration/#workersdev
-			// crossSubDomainCookies: {
-			//   enabled: true,
-			//   domain: "<your-workers-subdomain>",
-			// },
+			// Share the session cookie across subdomains of a common parent
+			// (web move.avantej.com + API move-api.avantej.com) when COOKIE_DOMAIN
+			// is set. Otherwise the cookie is host-only on the API origin and the
+			// browser never sends it back from the web origin, so login never sticks.
+			...(cookieDomain
+				? {
+						crossSubDomainCookies: {
+							enabled: true,
+							domain: cookieDomain,
+						},
+					}
+				: {}),
 		},
 		plugins: [
 			expo(), // Expo plugin - safe for both web and native, only activates for Expo requests

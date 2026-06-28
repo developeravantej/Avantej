@@ -16,8 +16,11 @@
 	"vars": {
 		"NODE_ENV": "production",
 		"INSTALLMENTS_LOCK_ON_OPEN": "true",
-		"CORS_ORIGIN": "https://avantej-core.developer-avantej.workers.dev",
-		"BETTER_AUTH_URL": "https://avantej-core-server.developer-avantej.workers.dev"
+		"CORS_ORIGIN": "https://move.avantej.com",
+		"BETTER_AUTH_URL": "https://move-api.avantej.com",
+		// Shared parent domain so the session cookie is valid across
+		// move.avantej.com (web) and move-api.avantej.com (API).
+		"COOKIE_DOMAIN": ".avantej.com"
 		// Add public environment variables here
 		// Comma-separate CORS_ORIGIN if multiple frontends need access.
 	},

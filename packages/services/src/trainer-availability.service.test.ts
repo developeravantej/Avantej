@@ -5,6 +5,7 @@ import {
 	deleteTrainerAvailabilityException,
 	listTrainerAvailabilityExceptions,
 } from "./trainer-availability.service";
+import { externalBusyBlocks } from "@avantej-core/db/schema/tenant/external-busy-blocks";
 
 // biome-ignore lint/suspicious/noExplicitAny: test stubs
 type AnyTenantDb = any;
@@ -221,5 +222,102 @@ describe("computeAvailableSlots — coach-intake union", () => {
 		const result = await computeAvailableSlots(tenantDb, "t-1", day, day);
 
 		expect(result).toHaveLength(0);
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// computeAvailableSlots — external (Google Calendar) busy blocks (UAT §6)
+//
+// A busy interval pulled from Google must remove the overlapping slot from the
+// booking flow, exactly like a booked appointment. The mock routes the three
+// select() chains by table: external_busy_blocks returns the seeded block,
+// appointments + exceptions return [].
+// ─────────────────────────────────────────────────────────────────────────────
+
+function makeBusyBlockDb(opts: {
+	trainer: unknown[];
+	coach: unknown[];
+	busy: { startTime: Date; endTime: Date }[];
+}): AnyTenantDb {
+	return {
+		query: {
+			trainerAvailability: { findMany: async () => opts.trainer },
+			coachIntakeAvailability: { findMany: async () => opts.coach },
+		},
+		select: () => ({
+			from: (table: unknown) => ({
+				where: () =>
+					Promise.resolve(table === externalBusyBlocks ? opts.busy : []),
+			}),
+		}),
+	};
+}
+
+describe("computeAvailableSlots — external busy blocks", () => {
+	it("removes a recurring window fully covered by a Google busy block", async () => {
+		const day = new Date(2026, 5, 22);
+		day.setHours(0, 0, 0, 0);
+		const dayName = JS_DAYS[day.getDay()] as string;
+
+		const tenantDb = makeBusyBlockDb({
+			trainer: [recurringWindow(dayName, "09:00", "10:00", "ta-1")],
+			coach: [],
+			busy: [
+				{
+					startTime: new Date(2026, 5, 22, 9, 0, 0),
+					endTime: new Date(2026, 5, 22, 10, 0, 0),
+				},
+			],
+		});
+
+		const result = await computeAvailableSlots(tenantDb, "t-1", day, day);
+
+		// The whole 09:00–10:00 window is busy in Google → no bookable slot remains.
+		expect(result).toHaveLength(0);
+	});
+
+	it("trims a window partially overlapped by a Google busy block", async () => {
+		const day = new Date(2026, 5, 22);
+		day.setHours(0, 0, 0, 0);
+		const dayName = JS_DAYS[day.getDay()] as string;
+
+		const tenantDb = makeBusyBlockDb({
+			trainer: [recurringWindow(dayName, "09:00", "11:00", "ta-1")],
+			coach: [],
+			busy: [
+				{
+					startTime: new Date(2026, 5, 22, 9, 0, 0),
+					endTime: new Date(2026, 5, 22, 10, 0, 0),
+				},
+			],
+		});
+
+		const result = await computeAvailableSlots(tenantDb, "t-1", day, day);
+
+		// 09:00–10:00 is busy; 10:00–11:00 stays bookable.
+		expect(result).toHaveLength(1);
+		expect(result[0]?.windows).toEqual([
+			{ startTime: "10:00", endTime: "11:00" },
+		]);
+	});
+
+	it("leaves the window intact when no busy block overlaps (control)", async () => {
+		const day = new Date(2026, 5, 22);
+		day.setHours(0, 0, 0, 0);
+		const dayName = JS_DAYS[day.getDay()] as string;
+
+		const tenantDb = makeBusyBlockDb({
+			trainer: [recurringWindow(dayName, "09:00", "10:00", "ta-1")],
+			coach: [],
+			busy: [],
+		});
+
+		const result = await computeAvailableSlots(tenantDb, "t-1", day, day);
+
+		expect(result).toHaveLength(1);
+		expect(result[0]?.windows).toContainEqual({
+			startTime: "09:00",
+			endTime: "10:00",
+		});
 	});
 });

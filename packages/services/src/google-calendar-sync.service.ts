@@ -4,17 +4,20 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import { googleCalendarConnections } from "@avantej-core/db/schema/tenant/google-calendar-connections";
 import { googleCalendarEventMappings } from "@avantej-core/db/schema/tenant/google-calendar-event-mappings";
+import { externalBusyBlocks } from "@avantej-core/db/schema/tenant/external-busy-blocks";
 import {
 	decryptToken,
 	encryptToken,
 } from "@avantej-core/db/lib/oauth-security";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte, lt, notInArray } from "drizzle-orm";
 import {
 	refreshAccessToken,
 	createCalendarEvent,
 	updateCalendarEvent,
 	deleteCalendarEvent,
+	listCalendarEvents,
 	type CalendarEvent,
+	type GoogleCalendarEvent,
 } from "./google-calendar.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
@@ -239,5 +242,125 @@ export async function syncAppointmentToGoogleCalendar(
 				// ignore update failure
 			}
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Pull-sync: Google -> Avantej (UAT §6 "Read availability")
+// ---------------------------------------------------------------------------
+
+export type PullBusyBlocksResult = {
+	synced: number;
+	pruned: number;
+};
+
+/** Injectable for unit tests so the Google round-trip can be mocked. */
+export type PullBusyBlocksDeps = {
+	listCalendarEvents: typeof listCalendarEvents;
+};
+
+const DEFAULT_PULL_DEPS: PullBusyBlocksDeps = { listCalendarEvents };
+
+/**
+ * Mirror busy times FROM a connected Google Calendar INTO `external_busy_blocks`
+ * for the window [windowStart, windowEnd), so `computeAvailableSlots` removes the
+ * overlapping slots from the booking flow.
+ *
+ * Idempotent: timed, non-cancelled, opaque (busy) events are upserted by
+ * (connectionId, googleEventId); rows in the window whose event no longer appears
+ * (deleted/cancelled/freed in Google) are pruned. Re-running is safe.
+ *
+ * Returns counts. Throws only on token/transport failure (the caller decides
+ * whether to surface it); the connection's lastSyncError is recorded either way.
+ */
+export async function pullExternalBusyBlocks(
+	tenantDb: TenantDb,
+	connection: typeof googleCalendarConnections.$inferSelect,
+	window: { windowStart: Date; windowEnd: Date },
+	config: GCalConfig,
+	deps: PullBusyBlocksDeps = DEFAULT_PULL_DEPS,
+): Promise<PullBusyBlocksResult> {
+	try {
+		const accessToken = await ensureValidToken(tenantDb, connection, config);
+		const events = await deps.listCalendarEvents(
+			accessToken,
+			connection.calendarId,
+			window.windowStart,
+			window.windowEnd,
+		);
+
+		// Keep only concrete, timed, busy intervals. All-day (date-only) and
+		// "transparent"/cancelled events do not block bookable slots.
+		const busy = events.filter(
+			(e: GoogleCalendarEvent) =>
+				e.status !== "cancelled" &&
+				e.transparency !== "transparent" &&
+				!!e.start?.dateTime &&
+				!!e.end?.dateTime,
+		);
+
+		let synced = 0;
+		for (const e of busy) {
+			const start = new Date(e.start.dateTime as string);
+			const end = new Date(e.end.dateTime as string);
+			if (!(end > start)) continue; // skip zero/negative-length events
+			synced++;
+			await tenantDb
+				.insert(externalBusyBlocks)
+				.values({
+					connectionId: connection.id,
+					trainerId: connection.memberId,
+					googleEventId: e.id,
+					startTime: start,
+					endTime: end,
+					summary: e.summary ?? null,
+					source: "google",
+					syncedAt: new Date(),
+				})
+				.onConflictDoUpdate({
+					target: [
+						externalBusyBlocks.connectionId,
+						externalBusyBlocks.googleEventId,
+					],
+					set: {
+						startTime: start,
+						endTime: end,
+						summary: e.summary ?? null,
+						syncedAt: new Date(),
+					},
+				});
+		}
+
+		// Prune stale rows: anything in this window for this connection whose event
+		// id is no longer among the live busy set (deleted/cancelled/freed in Google).
+		const liveIds = busy.map((e) => e.id);
+		const pruneWhere = and(
+			eq(externalBusyBlocks.connectionId, connection.id),
+			gte(externalBusyBlocks.startTime, window.windowStart),
+			lt(externalBusyBlocks.startTime, window.windowEnd),
+			liveIds.length > 0
+				? notInArray(externalBusyBlocks.googleEventId, liveIds)
+				: undefined,
+		);
+		const pruned = await tenantDb
+			.delete(externalBusyBlocks)
+			.where(pruneWhere)
+			.returning({ id: externalBusyBlocks.id });
+
+		await updateSyncStatus(tenantDb, connection.id, {
+			lastSyncAt: new Date(),
+			lastSyncError: null,
+		});
+
+		return { synced, pruned: pruned.length };
+	} catch (err) {
+		try {
+			await updateSyncStatus(tenantDb, connection.id, {
+				lastSyncError: err instanceof Error ? err.message : String(err),
+			});
+		} catch {
+			// ignore status-update failure
+		}
+		throw err;
 	}
 }

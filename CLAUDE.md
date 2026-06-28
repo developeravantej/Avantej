@@ -38,6 +38,7 @@ POS system hardening — installment plan display fixes, commission distribution
 - **Drizzle, not Convex** — no Convex in this project
 - **Database-per-tenant isolation via Neon branches** — tenants are never on a shared DB
 - **Router files capped at 400 LOC** — CI-enforced; split into folder modules when approaching limit
+- **Production domains & cross-subdomain auth** — see [`_rules/production-domains-and-auth.md`](_rules/production-domains-and-auth.md). Live at `move.avantej.com` (web worker `avantej-core`) + `move-api.avantej.com` (API worker `avantej-core-server`) on the Ngchwanlii Cloudflare account. Login depends on `CORS_ORIGIN` / `BETTER_AUTH_URL` / `COOKIE_DOMAIN=.avantej.com` + `crossSubDomainCookies`; the web SPA bakes `VITE_SERVER_URL` at build, so API-origin changes need a web rebuild+redeploy. Read that rule before touching public domains, auth origins, or deploys.
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -389,5 +390,5 @@ Routers that live in `apps/server/src/routers/` (auth, payments, subscriptions, 
 
 ## Test Credentials
 
-- Control Panel: `developer.avantej@gmail.com` / `password1234`
+- Control Panel: `developer.avantej@gmail.com` / `password123`
 - Tenant DB: `franchisee@gmail.com` / `password123`
