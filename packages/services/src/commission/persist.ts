@@ -45,7 +45,8 @@ export interface PersistInput {
 	quantity: number;
 	appointmentId: string | undefined;
 	salesOrderId: string | undefined;
-	actor: { userId: string; memberId: string; role: string };
+	// memberId nullable: system/cron actors have no member row (matches Actor).
+	actor: { userId: string; memberId: string | null; role: string };
 	earnedAt: Date;
 	earnReason: CommissionEarnReason;
 }
@@ -71,7 +72,7 @@ export async function persistSplits(
 			if (plan.planned.length > 0) {
 				await writeAudit(tdb, {
 					actorUserId: input.actor.userId,
-					actorMemberId: input.actor.memberId,
+					actorMemberId: input.actor.memberId ?? undefined,
 					actorRole: input.actor.role,
 					action: "commission.skip",
 					entityType: "commission_split",
@@ -173,7 +174,7 @@ async function _processSplit(
 				);
 				await writeAudit(tdb, {
 					actorUserId: input.actor.userId,
-					actorMemberId: input.actor.memberId,
+					actorMemberId: input.actor.memberId ?? undefined,
 					actorRole: input.actor.role,
 					action: "commission.skip",
 					entityType: "commission_split",
@@ -205,7 +206,7 @@ async function _processSplit(
 				);
 				await writeAudit(tdb, {
 					actorUserId: input.actor.userId,
-					actorMemberId: input.actor.memberId,
+					actorMemberId: input.actor.memberId ?? undefined,
 					actorRole: input.actor.role,
 					action: "commission.skip",
 					entityType: "commission_split",
@@ -312,7 +313,7 @@ async function _processSplit(
 	if (inserted) {
 		await writeAudit(tdb, {
 			actorUserId: input.actor.userId,
-			actorMemberId: input.actor.memberId,
+			actorMemberId: input.actor.memberId ?? undefined,
 			actorRole: input.actor.role,
 			action: "commission.create",
 			entityType: "commission_split",
@@ -359,7 +360,7 @@ async function _writeBatchSkipAudits(
 
 	await writeAudit(tdb, {
 		actorUserId: input.actor.userId,
-		actorMemberId: input.actor.memberId,
+		actorMemberId: input.actor.memberId ?? undefined,
 		actorRole: input.actor.role,
 		action: "commission.skip",
 		entityType: "commission_split",
