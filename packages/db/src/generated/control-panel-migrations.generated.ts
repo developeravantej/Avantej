@@ -312,6 +312,15 @@ WHERE "ghl_sync_model" IS NULL;
 `,
 	},
 	{
+		tag: "0013_org_timezone",
+		sql: `-- Add per-org IANA timezone for availability/booking math.
+-- Backfill is automatic via DEFAULT. Idempotent.
+
+ALTER TABLE "organizations"
+  ADD COLUMN IF NOT EXISTS "timezone" text NOT NULL DEFAULT 'Asia/Kuala_Lumpur';
+`,
+	},
+	{
 		tag: "0013_subscriptions_extensions",
 		sql: `ALTER TABLE "subscriptions" ADD COLUMN "stripe_price_id" text NOT NULL DEFAULT 'price_legacy_seed';
 --> statement-breakpoint
@@ -844,6 +853,178 @@ CREATE INDEX IF NOT EXISTS tenant_feature_overrides_org_idx
 
 ALTER TABLE "organizations"
   ADD COLUMN IF NOT EXISTS "ghl_primary_staff_field_id" text;
+`,
+	},
+	{
+		tag: "0032_subscriptions_last_stripe_event_at",
+		sql: `-- F-SAAS-3 follow-up: Add last_stripe_event_at to subscriptions.
+--
+-- Replaces the updatedAt proxy used by markPastDue / markActive /
+-- upsertSubscriptionFromStripe to guard against out-of-order Stripe
+-- webhook delivery. Using updatedAt was imprecise because app writes
+-- unrelated to Stripe events could advance updatedAt and silently drop
+-- a legitimate newer Stripe event arriving within the same second.
+--
+-- The column is nullable on creation so the backfill below is graceful
+-- for any rows that existed before this migration runs.
+-- A separate follow-up can add NOT NULL once backfill is verified complete.
+
+ALTER TABLE "subscriptions" ADD COLUMN IF NOT EXISTS "last_stripe_event_at" timestamp with time zone;
+--> statement-breakpoint
+
+-- Backfill: for all existing rows, seed last_stripe_event_at from updated_at
+-- as the best available proxy for the last Stripe-driven write.
+-- Idempotent: WHERE clause skips rows already populated.
+UPDATE subscriptions SET last_stripe_event_at = updated_at WHERE last_stripe_event_at IS NULL;
+`,
+	},
+	{
+		tag: "0033_email_domains_and_logs",
+		sql: `-- Per-tenant Resend sending domains + outbound email log.
+--
+-- email_domains: one row per (org, sending domain). DNS records snapshot
+-- comes verbatim from resend.domains.create(); the tenant adds them at their
+-- DNS provider. Sends are gated server-side on status = 'verified'.
+--
+-- email_logs: one row per Resend send, keyed by Resend's message id for
+-- idempotent webhook upserts. emailDomainId is nullable to handle sends
+-- via the platform RESEND_FROM_EMAIL fallback before a tenant verifies.
+
+CREATE TABLE email_domains (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  resend_domain_id text NOT NULL UNIQUE,
+  domain text NOT NULL,
+  from_name text NOT NULL,
+  status text NOT NULL DEFAULT 'pending',
+  dns_records jsonb,
+  verified_at timestamp,
+  created_at timestamp NOT NULL DEFAULT now(),
+  updated_at timestamp NOT NULL DEFAULT now()
+);
+CREATE INDEX email_domains_organization_idx ON email_domains (organization_id);
+CREATE INDEX email_domains_status_idx ON email_domains (status);
+CREATE UNIQUE INDEX email_domains_org_domain_unique_idx ON email_domains (organization_id, domain);
+
+CREATE TABLE email_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  email_domain_id uuid REFERENCES email_domains(id) ON DELETE SET NULL,
+  resend_message_id text NOT NULL UNIQUE,
+  from_address text NOT NULL,
+  to_address text NOT NULL,
+  subject text NOT NULL,
+  status text NOT NULL DEFAULT 'queued',
+  last_event_type text,
+  last_event_at timestamp,
+  error_message text,
+  last_event_payload jsonb,
+  created_at timestamp NOT NULL DEFAULT now(),
+  updated_at timestamp NOT NULL DEFAULT now()
+);
+CREATE INDEX email_logs_organization_idx ON email_logs (organization_id);
+CREATE INDEX email_logs_status_idx ON email_logs (status);
+CREATE INDEX email_logs_created_at_idx ON email_logs (created_at);
+`,
+	},
+	{
+		tag: "0034_email_domains_default_local_part",
+		sql: `-- Per-tenant default local-part for the sender address (e.g. "support",
+-- "noreply"). Nullable so we can tell "admin never configured" apart from
+-- "admin explicitly set support".
+
+ALTER TABLE email_domains ADD COLUMN IF NOT EXISTS default_local_part text;
+`,
+	},
+	{
+		tag: "0035_email_domain_aliases",
+		sql: `-- Curated sending-address aliases per email_domains row. Used by the UI so
+-- tenants pick from a curated list (e.g. "support", "noreply", "billing")
+-- instead of hardcoding strings in every code path.
+
+CREATE TABLE email_domain_aliases (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email_domain_id uuid NOT NULL REFERENCES email_domains(id) ON DELETE CASCADE,
+  local_part text NOT NULL,
+  label text,
+  created_at timestamp NOT NULL DEFAULT now(),
+  updated_at timestamp NOT NULL DEFAULT now()
+);
+CREATE INDEX email_domain_aliases_domain_idx ON email_domain_aliases (email_domain_id);
+CREATE UNIQUE INDEX email_domain_aliases_domain_local_unique_idx
+  ON email_domain_aliases (email_domain_id, local_part);
+`,
+	},
+	{
+		tag: "0036_email_notification_routes",
+		sql: `-- 0036_email_notification_routes.sql
+-- Per-tenant notification -> sender routing (alias + from-name + subject
+-- override). See docs/superpowers/specs/2026-06-18-tenant-notification-routing-design.md
+
+CREATE TABLE email_notification_routes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  notification_type text NOT NULL,
+  alias_id uuid REFERENCES email_domain_aliases(id) ON DELETE SET NULL,
+  from_name_override text,
+  subject_override text,
+  created_at timestamp NOT NULL DEFAULT now(),
+  updated_at timestamp NOT NULL DEFAULT now()
+);
+CREATE INDEX email_notification_routes_organization_idx
+  ON email_notification_routes (organization_id);
+CREATE UNIQUE INDEX email_notification_routes_org_type_unique_idx
+  ON email_notification_routes (organization_id, notification_type);
+
+ALTER TABLE email_logs ADD COLUMN notification_type text;
+`,
+	},
+	{
+		tag: "0037_organizations_ghl_global_field_map",
+		sql: `-- GHL Phase G: persist the org's global (location-level) custom-field ids
+-- (gender, emergency contact, medical notes, ..., designated_country,
+-- designated_branch) so the live customer-sync path can stamp contacts.
+-- Previously ensureCustomFieldsExist's return value was discarded at connect
+-- time, so these fields were created in GHL but never sent. Idempotent.
+
+ALTER TABLE "organizations"
+  ADD COLUMN IF NOT EXISTS "ghl_global_field_map" jsonb;
+`,
+	},
+	{
+		tag: "0038_organizations_ghl_webhook_secret",
+		sql: `-- GHL Phase G: org-shared inbound webhook auth secret. Per-branch tenants
+-- carry the secret on ghl_branch_links; org-shared tenants have no link row
+-- (migrate-tenant-to-org-shared deactivates it), so inbound webhooks had no
+-- secret to verify against and no org to resolve. This column hosts the
+-- per-org secret. Idempotent.
+
+ALTER TABLE "organizations"
+  ADD COLUMN IF NOT EXISTS "ghl_webhook_secret" text;
+`,
+	},
+	{
+		tag: "0039_organizations_ghl_location_id_unique",
+		sql: `-- GHL Phase G: prevent two organizations (or an org + an active branch link)
+-- from binding the same GHL location, which would interleave outbound writes
+-- and route inbound webhooks ambiguously (cross-tenant bleed). Partial unique
+-- index — NULLs (unconnected orgs) are exempt. Idempotent.
+
+CREATE UNIQUE INDEX IF NOT EXISTS "organizations_ghl_location_id_unique"
+  ON "organizations" ("ghl_location_id")
+  WHERE "ghl_location_id" IS NOT NULL;
+`,
+	},
+	{
+		tag: "0040_organizations_ghl_require_approval",
+		sql: `-- GHL inbound approval gate (Phase G follow-up). When true, an inbound GHL
+-- ContactCreate for a NEW contact is held in the tenant ghl_pending_contacts
+-- table for staff approval instead of being materialized immediately. Default
+-- false preserves the existing instant-sync behavior for all other tenants.
+-- Idempotent.
+
+ALTER TABLE "organizations"
+  ADD COLUMN IF NOT EXISTS "ghl_require_approval" boolean DEFAULT false;
 `,
 	},
 ] as const;

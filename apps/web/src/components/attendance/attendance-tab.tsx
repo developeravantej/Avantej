@@ -7,14 +7,9 @@ import { CheckInsLog } from "@/components/attendance/check-ins-log";
 import { DropInForm } from "@/components/attendance/drop-in-form";
 import type { TodaysBookingRow } from "@/components/attendance/today-bookings";
 import { TodayBookingsSection } from "@/components/attendance/today-bookings";
+import { useScope } from "@/components/scope/ScopeProvider";
+import { ScopeSwitcher } from "@/components/scope/ScopeSwitcher";
 import { Label } from "@/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { StatusCallout } from "@/components/ui/status-callout";
 import { useUserContext } from "@/hooks/useUserContext";
 import { orpc } from "@/utils/orpc";
@@ -78,22 +73,14 @@ export function AttendanceTab() {
 	const canRead = hasPermission("attendance_management:read");
 	const canDelete = hasPermission("attendance_management:delete");
 
-	const currentOrg = userContext?.organizations.find(
-		(o) => o.id === organizationId,
-	);
-	const accessibleNodeIds =
-		currentOrg?.hierarchy?.member?.accessibleNodeIds ?? [];
-	const allNodes = currentOrg?.hierarchy?.nodes ?? [];
+	// Branch filter is driven by the tenant scope switcher (replaces the old
+	// ad-hoc branch <Select>). scopeNodeId is undefined at "All" → fall back to
+	// the top accessible node so the branch-required bookings query and drop-in
+	// writes always have a node; the server expands a non-leaf node to its
+	// accessible subtree (check-ins.service.ts → resolveScopeNodeIds).
+	const { scopeNodeId, topAccessibleNodeId } = useScope();
+	const branchId = scopeNodeId ?? topAccessibleNodeId ?? "";
 
-	const accessibleBranches = allNodes.filter(
-		(n) => accessibleNodeIds.includes(n.id) && n.type === "branch",
-	);
-	const branchOptions =
-		accessibleBranches.length > 0
-			? accessibleBranches
-			: allNodes.filter((n) => accessibleNodeIds.includes(n.id));
-
-	const [branchId, setBranchId] = useState<string>(branchOptions[0]?.id ?? "");
 	const [date, setDate] = useState<string>(toLocalDateString(new Date()));
 
 	const checkInsQueryKey: unknown[] = [
@@ -180,28 +167,12 @@ export function AttendanceTab() {
 			{/* ── Filters band ── */}
 			<div className="mb-5 rounded-2xl border border-[#e5e5e5] bg-white p-4">
 				<div className="flex flex-wrap items-end gap-4">
-					{branchOptions.length > 0 && (
-						<div className="flex flex-col gap-1.5">
-							<Label className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
-								Branch
-							</Label>
-							<Select
-								value={branchId || ""}
-								onValueChange={(v) => setBranchId(v)}
-							>
-								<SelectTrigger className="h-9 w-56">
-									<SelectValue placeholder="Select branch…" />
-								</SelectTrigger>
-								<SelectContent>
-									{branchOptions.map((node) => (
-										<SelectItem key={node.id} value={node.id}>
-											{node.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-					)}
+					<div className="flex flex-col gap-1.5">
+						<Label className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">
+							Scope
+						</Label>
+						<ScopeSwitcher className="h-9 w-56" />
+					</div>
 
 					<div className="flex flex-col gap-1.5">
 						<Label className="text-[10px] font-bold uppercase tracking-widest text-[#737373]">

@@ -36,12 +36,19 @@ export function useCustomerDirectory({
 	showDeleted,
 	selectedMemberId,
 	onSelectMember,
+	scopeNodeId,
 }: {
 	organizationId: string | null;
 	canRead: boolean;
 	showDeleted: boolean;
 	selectedMemberId: string | null;
 	onSelectMember: (id: string) => void;
+	/**
+	 * Tenant scope (any hierarchy level; undefined at "All"). Passed through as
+	 * the directory query's `branchId` — the server expands it to the accessible
+	 * subtree. Optional so embedded consumers (e.g. launchpad) stay org-wide.
+	 */
+	scopeNodeId?: string;
 }) {
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebounce(search, 300);
@@ -52,6 +59,7 @@ export function useCustomerDirectory({
 				organizationId: organizationId!,
 				search: debouncedSearch || undefined,
 				includeDeleted: showDeleted || undefined,
+				branchId: scopeNodeId,
 				limit: PAGE_LIMIT,
 				offset: 0,
 			},

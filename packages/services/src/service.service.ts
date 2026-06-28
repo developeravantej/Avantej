@@ -21,6 +21,7 @@ import { members } from "@avantej-core/db/schema/tenant/members";
 import { trainerTiers } from "@avantej-core/db/schema/tenant/trainer-tiers";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { resolveScopeNodeIds } from "./hierarchy-scope";
 
 export type ServiceWithCategory = typeof services.$inferSelect & {
 	service_category_name: string | null;
@@ -87,7 +88,19 @@ export async function listServices(
 		conditions.push(eq(services.categoryId, categoryId));
 	}
 	if (branchId !== undefined && branchId !== null) {
-		conditions.push(eq(services.branchId, branchId));
+		// Subtree expansion: `branchId` is a scope node id that may be a non-leaf
+		// (country/region/state). Expand it to its accessible descendant branches
+		// so its branches' services are returned instead of zero. resolveScopeNodeIds
+		// also guards (out-of-scope id → FORBIDDEN) and intersects with the RBAC
+		// ceiling, so the result is always ⊆ accessibleNodeIds.
+		const scopeIds = await resolveScopeNodeIds(
+			tenantDb,
+			branchId,
+			accessibleNodeIds ?? [],
+		);
+		if (scopeIds.length > 0) {
+			conditions.push(inArray(services.branchId, scopeIds));
+		}
 	}
 	if (isActive !== undefined) {
 		conditions.push(eq(services.isActive, isActive));

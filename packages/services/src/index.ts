@@ -258,7 +258,7 @@ export {
 	assertBranchAccessible,
 	BranchAccessDeniedError,
 	isBranchAccessDeniedError,
-	resolveBranchFilter,
+	resolveScopeNodeIds,
 } from "./hierarchy-scope";
 // Installment service - for installment-based credit unlocking
 export {

@@ -89,16 +89,21 @@ export async function syncCustomerToGhl(
 	}
 
 	const { apiKey, locationId } = ctx;
-	// TODO(phase-g): non-branch custom fields (gender, emergency contact, etc.)
-	// currently flow through `customFieldIds` from the caller. In org-shared mode
-	// the caller doesn't have a per-branch source for these — they live per
-	// GHL location and could be backfilled onto `organizations` or refreshed
-	// at sync time via `ensureCustomFieldsExist`. For now we pass through what
-	// the caller supplied (default {}); no regression for the legacy path.
+	// Non-branch custom fields (gender, emergency contact, etc.) live per GHL
+	// location. In org-shared mode the live caller (fireCustomerSync) supplies
+	// no customFieldIds, so we merge the ids persisted on the org row
+	// (ghlGlobalFieldMap, read by resolveSyncContext). Caller-supplied ids take
+	// precedence. Legacy per-branch path is unchanged (no globalFieldIds).
+	const effectiveFieldIds: CustomFieldIdMap =
+		ctx.model === "org-shared"
+			? { ...ctx.globalFieldIds, ...customFieldIds }
+			: customFieldIds;
 	const branchCountryFieldId =
 		ctx.model === "org-shared" ? ctx.branchCountryFieldId : null;
 	const branchOptionLabel =
 		ctx.model === "org-shared" ? ctx.branchOptionLabel : null;
+	const branchName = ctx.model === "org-shared" ? ctx.branchName : null;
+	const countryName = ctx.model === "org-shared" ? ctx.countryName : null;
 
 	// GHL contact endpoints wrap the contact in `{ contact: {...} }`.
 	const unwrap = (raw: unknown): GhlContact => {
@@ -177,9 +182,11 @@ export async function syncCustomerToGhl(
 				user,
 				profile: customerProfile,
 				memberStatus,
-				customFieldIds,
+				customFieldIds: effectiveFieldIds,
 				branchCountryFieldId,
 				branchOptionLabel,
+				branchName,
+				countryName,
 			});
 
 		if (operation === "create") {

@@ -58,6 +58,7 @@ export const invitationsManageProcedures = {
 						id: inv.id,
 						email: inv.email,
 						role: inv.role,
+						kind: inv.kind,
 						hierarchyScopeId: inv.hierarchyScopeId,
 						status: inv.status,
 						expiresAt: inv.expiresAt,

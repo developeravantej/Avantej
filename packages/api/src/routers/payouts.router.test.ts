@@ -157,3 +157,261 @@ describe("payouts lifecycle — positive control + perimeter edges", () => {
 		).rejects.toMatchObject({ code: "BAD_REQUEST" });
 	});
 });
+
+// ── Tenant-isolation: batch procedures must reject out-of-scope staffIds ──────
+//
+// previewBatch / runBatch / processForRecipient accept a list of staff
+// (control-panel user IDs) or a single recipientId. For a non-admin caller,
+// every targeted staff member's hierarchyScopeId must be inside
+// context.accessibleNodeIds — otherwise a scoped manager could pay out (or
+// preview) commissions for staff in a branch they cannot access. Mirrors the
+// recipientSummary non-admin guard.
+
+const STAFF_USER_IN = "11111111-1111-4111-8111-111111111111"; // control-panel user id, in scope
+const STAFF_USER_OUT = "22222222-2222-4222-8222-222222222222"; // control-panel user id, out of scope
+const NODE_IN = "node-root"; // default accessibleNodeIds entry
+const NODE_OUT = "33333333-3333-4333-8333-333333333333"; // not in accessibleNodeIds
+
+const NON_ADMIN_MEMBER = {
+	id: "member-mgr",
+	userId: "user-mgr",
+	role: "manager" as const,
+	status: "active" as const,
+	hierarchyScopeId: NODE_IN,
+	roleId: null,
+};
+
+/**
+ * makeGuardDb() + a chainable, awaitable select() that resolves the targeted
+ * staff user ids to their member.hierarchyScopeId in ONE query:
+ *   select({userId, hierarchyScopeId}).from(members).where(inArray(userId, ids))
+ * The builder is a thenable resolving to all mapped rows; a user id with no
+ * mapping simply has no row, which the guard must also reject. The chain also
+ * supports the downstream service select()/innerJoin() shape so the admin
+ * positive control reaches the service (transaction → BAD_REQUEST).
+ *
+ * query.roles.findFirst returns a priority>=100 role so the NON_ADMIN_MEMBER
+ * (role "manager") PASSES the commission_payout permission gate. This is
+ * essential: the new staff-scope guard runs ahead of requirePermissionOrpc, so
+ * the permission gate must not be the thing that rejects — otherwise the test
+ * could not distinguish the guard from the permission check (and would not be
+ * red before the fix).
+ */
+function makeStaffScopeDb(scopeByUser: Record<string, string>) {
+	const base = makeGuardDb() as unknown as Record<string, unknown>;
+	(base.query as Record<string, unknown>).roles = {
+		findFirst: mock(() =>
+			Promise.resolve({ id: "role-mgr", name: "manager", priority: 100 }),
+		),
+	};
+	const rows = Object.entries(scopeByUser).map(
+		([userId, hierarchyScopeId]) => ({ userId, hierarchyScopeId }),
+	);
+	const builder: Record<string, unknown> = {
+		from: () => builder,
+		where: () => builder,
+		innerJoin: () => builder,
+		leftJoin: () => builder,
+		orderBy: () => builder,
+		limit: () => Promise.resolve(rows),
+		then: (resolve: (v: unknown) => unknown) =>
+			Promise.resolve(rows).then(resolve),
+	};
+	base.select = () => builder;
+	return base as unknown as never;
+}
+
+describe("payouts batch — non-admin out-of-scope staff guard", () => {
+	it("previewBatch rejects a staffId whose member is outside accessibleNodeIds", async () => {
+		await expect(
+			call(
+				payoutsRouter.previewBatch,
+				{
+					organizationId: ORG_ID,
+					staffIds: [STAFF_USER_OUT],
+					periodStart: new Date("2026-06-01"),
+					periodEnd: new Date("2026-06-30"),
+				},
+				{
+					context: createMockContext({
+						organizationId: ORG_ID,
+						tenantDb: makeStaffScopeDb({ [STAFF_USER_OUT]: NODE_OUT }),
+						member: NON_ADMIN_MEMBER,
+						accessibleNodeIds: [NODE_IN],
+					}),
+				},
+			),
+		).rejects.toMatchObject({ code: "FORBIDDEN" });
+	});
+
+	it("runBatch rejects a staffId whose member is outside accessibleNodeIds", async () => {
+		await expect(
+			call(
+				payoutsRouter.runBatch,
+				{
+					organizationId: ORG_ID,
+					staffIds: [STAFF_USER_OUT],
+					periodStart: new Date("2026-06-01"),
+					periodEnd: new Date("2026-06-30"),
+					paymentMethod: "bank_transfer" as const,
+				},
+				{
+					context: createMockContext({
+						organizationId: ORG_ID,
+						tenantDb: makeStaffScopeDb({ [STAFF_USER_OUT]: NODE_OUT }),
+						member: NON_ADMIN_MEMBER,
+						accessibleNodeIds: [NODE_IN],
+					}),
+				},
+			),
+		).rejects.toMatchObject({ code: "FORBIDDEN" });
+	});
+
+	it("processForRecipient rejects a recipientId whose member is outside accessibleNodeIds", async () => {
+		await expect(
+			call(
+				payoutsRouter.processForRecipient,
+				{
+					organizationId: ORG_ID,
+					recipientId: STAFF_USER_OUT,
+					paymentMethod: "bank_transfer" as const,
+				},
+				{
+					context: createMockContext({
+						organizationId: ORG_ID,
+						tenantDb: makeStaffScopeDb({ [STAFF_USER_OUT]: NODE_OUT }),
+						member: NON_ADMIN_MEMBER,
+						accessibleNodeIds: [NODE_IN],
+					}),
+				},
+			),
+		).rejects.toMatchObject({ code: "FORBIDDEN" });
+	});
+
+	it("previewBatch rejects a staffId with no member row (enumeration guard)", async () => {
+		await expect(
+			call(
+				payoutsRouter.previewBatch,
+				{
+					organizationId: ORG_ID,
+					staffIds: [STAFF_USER_OUT],
+					periodStart: new Date("2026-06-01"),
+					periodEnd: new Date("2026-06-30"),
+				},
+				{
+					context: createMockContext({
+						organizationId: ORG_ID,
+						tenantDb: makeStaffScopeDb({}), // no mapping → [] → reject
+						member: NON_ADMIN_MEMBER,
+						accessibleNodeIds: [NODE_IN],
+					}),
+				},
+			),
+		).rejects.toMatchObject({ code: "FORBIDDEN" });
+	});
+
+	// FINDING 2 (MED): the guard previously bypassed scope when
+	// accessibleNodeIds was empty (`|| !context.accessibleNodeIds?.length`).
+	// For a financial action that is fail-open on a degraded/error scope: a
+	// non-admin whose scope resolved to nothing could pay out ANY staff. A
+	// non-admin with an empty scope must fail CLOSED → FORBIDDEN (the targeted
+	// staff resolve to no in-scope rows). Admin bypass is unaffected (covered
+	// by the admin positive-control test below).
+	it("previewBatch rejects a non-admin with EMPTY accessibleNodeIds (fail-closed)", async () => {
+		await expect(
+			call(
+				payoutsRouter.previewBatch,
+				{
+					organizationId: ORG_ID,
+					staffIds: [STAFF_USER_IN],
+					periodStart: new Date("2026-06-01"),
+					periodEnd: new Date("2026-06-30"),
+				},
+				{
+					context: createMockContext({
+						organizationId: ORG_ID,
+						// Staff IS mapped to a node, but the caller's own scope is
+						// empty → nothing is accessible → must reject.
+						tenantDb: makeStaffScopeDb({ [STAFF_USER_IN]: NODE_IN }),
+						member: NON_ADMIN_MEMBER,
+						accessibleNodeIds: [],
+					}),
+				},
+			),
+		).rejects.toMatchObject({ code: "FORBIDDEN" });
+	});
+
+	it("runBatch rejects a non-admin with EMPTY accessibleNodeIds (fail-closed)", async () => {
+		await expect(
+			call(
+				payoutsRouter.runBatch,
+				{
+					organizationId: ORG_ID,
+					staffIds: [STAFF_USER_IN],
+					periodStart: new Date("2026-06-01"),
+					periodEnd: new Date("2026-06-30"),
+					paymentMethod: "bank_transfer" as const,
+				},
+				{
+					context: createMockContext({
+						organizationId: ORG_ID,
+						tenantDb: makeStaffScopeDb({ [STAFF_USER_IN]: NODE_IN }),
+						member: NON_ADMIN_MEMBER,
+						accessibleNodeIds: [],
+					}),
+				},
+			),
+		).rejects.toMatchObject({ code: "FORBIDDEN" });
+	});
+});
+
+describe("payouts batch — positive control (in-scope + admin bypass)", () => {
+	// In-scope non-admin: the staff-scope guard passes, so execution proceeds
+	// PAST the guard. previewBatch then calls getControlPanelDb(context), which
+	// throws INTERNAL_SERVER_ERROR because the mock context has no controlPanelDb
+	// binding. The point is that the guard does NOT reject (not FORBIDDEN) for an
+	// in-scope staff id.
+	it("previewBatch passes the scope guard for an in-scope staffId (non-admin)", async () => {
+		await expect(
+			call(
+				payoutsRouter.previewBatch,
+				{
+					organizationId: ORG_ID,
+					staffIds: [STAFF_USER_IN],
+					periodStart: new Date("2026-06-01"),
+					periodEnd: new Date("2026-06-30"),
+				},
+				{
+					context: createMockContext({
+						organizationId: ORG_ID,
+						tenantDb: makeStaffScopeDb({ [STAFF_USER_IN]: NODE_IN }),
+						member: NON_ADMIN_MEMBER,
+						accessibleNodeIds: [NODE_IN],
+					}),
+				},
+			),
+		).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+	});
+
+	it("runBatch reaches the service for an admin (scope walk bypassed)", async () => {
+		await expect(
+			call(
+				payoutsRouter.runBatch,
+				{
+					organizationId: ORG_ID,
+					staffIds: [STAFF_USER_OUT],
+					periodStart: new Date("2026-06-01"),
+					periodEnd: new Date("2026-06-30"),
+					paymentMethod: "bank_transfer" as const,
+				},
+				{
+					context: createMockContext({
+						organizationId: ORG_ID,
+						tenantDb: makeStaffScopeDb({}), // admin → never queried
+						// default member = admin
+					}),
+				},
+			),
+		).rejects.toMatchObject({ code: "BAD_REQUEST" });
+	});
+});

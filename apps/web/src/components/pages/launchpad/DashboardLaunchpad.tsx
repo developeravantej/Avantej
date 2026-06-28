@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 
+import { useScope } from "@/components/scope/ScopeProvider";
+import { ScopeSwitcher } from "@/components/scope/ScopeSwitcher";
 import { useUserContext } from "@/hooks/useUserContext";
 import { cn } from "@/lib/utils";
 import { orpc } from "@/utils/orpc";
@@ -11,6 +13,7 @@ import { LaunchpadPanel } from "./panels";
 export function DashboardLaunchpad() {
 	const { data: userContext, hasPermission, isLoading } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
+	const { scopeNodeId } = useScope();
 
 	// Cards the current user is allowed to see.
 	const visibleCards = useMemo(
@@ -44,7 +47,11 @@ export function DashboardLaunchpad() {
 	const canReadKpis = hasPermission("reports:read");
 	const todayKpisQuery = useQuery({
 		...orpc.analytics.getDashboardKpis.queryOptions({
-			input: { organizationId: organizationId!, period: "today" },
+			input: {
+				organizationId: organizationId!,
+				period: "today",
+				branchId: scopeNodeId,
+			},
 		}),
 		enabled: !!organizationId && canReadKpis,
 		staleTime: 30_000,
@@ -53,14 +60,24 @@ export function DashboardLaunchpad() {
 	// ── Live card badges ──
 	const installmentsDueQuery = useQuery({
 		...orpc.installments.listUpcoming.queryOptions({
-			input: { organizationId: organizationId!, window: "due_soon", limit: 1 },
+			input: {
+				organizationId: organizationId!,
+				window: "due_soon",
+				limit: 1,
+				branchId: scopeNodeId,
+			},
 		}),
 		enabled: !!organizationId && hasPermission("service_management:read"),
 		staleTime: 60_000,
 	});
 	const payoutsPendingQuery = useQuery({
 		...orpc.payouts.list.queryOptions({
-			input: { organizationId: organizationId!, status: "pending", limit: 200 },
+			input: {
+				organizationId: organizationId!,
+				status: "pending",
+				limit: 200,
+				branchId: scopeNodeId,
+			},
 		}),
 		enabled: !!organizationId && hasPermission("commission_payout:read"),
 		staleTime: 60_000,
@@ -78,7 +95,12 @@ export function DashboardLaunchpad() {
 	});
 	const refundsPendingQuery = useQuery({
 		...orpc.refunds.list.queryOptions({
-			input: { organizationId: organizationId!, status: "pending", limit: 1 },
+			input: {
+				organizationId: organizationId!,
+				status: "pending",
+				limit: 1,
+				branchId: scopeNodeId,
+			},
 		}),
 		enabled: !!organizationId && hasPermission("refund_management:read"),
 		staleTime: 60_000,
@@ -114,8 +136,14 @@ export function DashboardLaunchpad() {
 
 	return (
 		<div className="-m-6 flex min-h-screen flex-col bg-[#f6f7f9]">
+			{/* ── Header: title + tenant scope switcher (country → state → branch) ── */}
+			<div className="flex flex-wrap items-center justify-between gap-3 px-7 pt-5">
+				<h1 className="text-lg font-bold tracking-tight">Dashboard</h1>
+				<ScopeSwitcher className="w-56" />
+			</div>
+
 			{/* ── Master / detail ── */}
-			<div className="grid flex-1 grid-cols-1 gap-4 px-7 py-5 lg:grid-cols-[300px_1fr]">
+			<div className="grid flex-1 grid-cols-1 gap-4 px-7 pb-5 pt-4 lg:grid-cols-[300px_1fr]">
 				{/* Left: card rail */}
 				<div className="flex flex-col gap-2.5">
 					<div className="px-1 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">

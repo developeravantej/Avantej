@@ -10,6 +10,7 @@ import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { cancelAppointmentInsideTx } from "./appointment.service";
 import { promoteFromWaitlistInsideTx } from "./waitlist.service";
 import { writeAudit } from "./audit-log.service";
+import { resolveScopeNodeIds } from "./hierarchy-scope";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 
@@ -56,8 +57,20 @@ export async function listClassSlots(
 		conditions.push(eq(classSlots.serviceId, serviceId));
 	}
 
-	if (branchId) {
-		conditions.push(eq(classSlots.branchId, branchId));
+	// Expand the picked scope node (which may be a non-leaf country/region/state)
+	// to its accessible subtree of LEAF branch ids. Business rows are tagged with
+	// a leaf branchId, so an exact-equality match on a non-leaf node returns zero
+	// rows; subtree expansion lets a country/region scope return its branches'
+	// slots. resolveScopeNodeIds also guards out-of-scope nodes (throws
+	// BranchAccessDeniedError = FORBIDDEN) and its result is always ⊆
+	// accessibleNodeIds, so the RBAC ceiling is preserved.
+	const scopeIds = await resolveScopeNodeIds(
+		tenantDb,
+		branchId,
+		accessibleNodeIds ?? [],
+	);
+	if (scopeIds.length > 0) {
+		conditions.push(inArray(classSlots.branchId, scopeIds));
 	}
 
 	if (date) {
@@ -439,8 +452,17 @@ export async function getBookingCounts(
 		lte(classSlots.date, params.to),
 	];
 
-	if (params.branchId) {
-		conditions.push(eq(classSlots.branchId, params.branchId));
+	// Subtree expansion: a non-leaf scope node (country/region/state) expands to
+	// its accessible leaf branch ids so booking counts roll up correctly instead
+	// of returning zero rows for a non-leaf scope. resolveScopeNodeIds guards
+	// out-of-scope nodes and stays within the accessibleNodeIds ceiling.
+	const scopeIds = await resolveScopeNodeIds(
+		tenantDb,
+		params.branchId,
+		params.accessibleNodeIds ?? [],
+	);
+	if (scopeIds.length > 0) {
+		conditions.push(inArray(classSlots.branchId, scopeIds));
 	}
 
 	if (params.accessibleNodeIds && params.accessibleNodeIds.length > 0) {

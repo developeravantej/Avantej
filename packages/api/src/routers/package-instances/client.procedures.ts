@@ -4,12 +4,17 @@ import {
 	togglePackagePin,
 } from "@avantej-core/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { services } from "@avantej-core/db/schema/tenant/services";
 import { user } from "@avantej-core/db/schema/auth";
 import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardStoredBranchForContext,
+} from "../../guards";
 import { getControlPanelDb } from "../../lib/context-helpers";
 import { sourceSchema, statusSchema } from "./schemas";
 
@@ -101,6 +106,15 @@ export const packageInstancesClientProcedures = {
 					"service_management",
 					"read",
 				);
+
+				// Branch-scope isolation: a staff member may only read an instance
+				// whose service is in their accessible hierarchy. Resolve the service's
+				// branch and guard against context.accessibleNodeIds. A null/org-wide
+				// service branch is allowed by guardStoredBranchForContext.
+				const service = await context.tenantDb.query.services.findFirst({
+					where: eq(services.id, instance.serviceId),
+				});
+				await guardStoredBranchForContext(context, service?.branchId);
 			}
 
 			// Enrich with assigned trainer name when present

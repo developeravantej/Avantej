@@ -139,6 +139,17 @@ export const appointmentsDetailProcedures = {
 				"read",
 			);
 
+			const appointment = await getAppointmentById(
+				context.tenantDb,
+				input.appointmentId,
+			);
+			if (!appointment) {
+				throw new ORPCError("NOT_FOUND", {
+					message: "Appointment not found",
+				});
+			}
+			await guardStoredBranchForContext(context, appointment.branchId);
+
 			const limit = input.limit;
 			const parsedCursor = input.cursor ? parseCursor(input.cursor) : null;
 

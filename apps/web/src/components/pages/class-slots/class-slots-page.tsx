@@ -3,6 +3,8 @@ import { useMemo, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useScope } from "@/components/scope/ScopeProvider";
+import { ScopeSwitcher } from "@/components/scope/ScopeSwitcher";
 import { client, orpc } from "@/utils/orpc";
 import { formatPrice } from "@/lib/money";
 import {
@@ -27,6 +29,7 @@ import { CancelClassSlotDialog } from "./CancelClassSlotDialog";
 export function ClassSlotsPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
+	const { scopeNodeId } = useScope();
 
 	// --- Filter state ---
 	const [search, setSearch] = useState<string>("");
@@ -63,7 +66,7 @@ export function ClassSlotsPage() {
 		refetch,
 	} = useQuery({
 		...orpc.classSlots.list.queryOptions({
-			input: { organizationId: organizationId! },
+			input: { organizationId: organizationId!, branchId: scopeNodeId },
 		}),
 		enabled: !!organizationId,
 	});
@@ -344,6 +347,8 @@ export function ClassSlotsPage() {
 						<h1 className="text-xl font-bold text-[#0a0a0a]">Class Slots</h1>
 					</div>
 					<div className="flex items-center gap-2">
+						{/* Scope switcher (country / state / branch) */}
+						<ScopeSwitcher className="w-56" />
 						{/* Search */}
 						<div className="flex items-center gap-1.5 rounded-xl border border-[#e5e5e5] bg-white px-3 py-2">
 							<Search className="h-3.5 w-3.5 text-[#737373]" />

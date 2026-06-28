@@ -54,6 +54,7 @@ import { ORPCError } from "@orpc/server";
 import { writeAudit } from "./audit-log.service";
 import { resolveCycleBoundsForDate } from "./commission-cycle.service";
 import { getDescendantNodeIds } from "./hierarchy.service";
+import { resolveScopeNodeIds } from "./hierarchy-scope";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 type TenantTx = Parameters<Parameters<TenantDb["transaction"]>[0]>[0];
@@ -1159,6 +1160,8 @@ export interface LiabilitySummaryParams {
 	trackId?: string;
 	/** SQL-side filter: only include splits with this roleType (NULL treated as "delivery_legacy"). */
 	roleType?: string | null;
+	/** Caller's accessible hierarchy node IDs. Empty array = admin / org-wide. */
+	accessibleNodeIds?: string[];
 }
 
 /**
@@ -1178,19 +1181,32 @@ export async function liabilitySummary(
 	controlPanelDb: ControlPanelDb,
 	params: LiabilitySummaryParams,
 ): Promise<LiabilitySummaryResult> {
-	const { from, to, hierarchyNodeId, categoryId, trackId, roleType } = params;
+	const {
+		from,
+		to,
+		hierarchyNodeId,
+		categoryId,
+		trackId,
+		roleType,
+		accessibleNodeIds,
+	} = params;
 
 	const fromDate = new Date(from);
 	const toDate = new Date(to);
 
-	// Build staff scope from hierarchy if needed
+	// Build staff scope from hierarchy if needed.
+	// An explicit hierarchyNodeId takes precedence; otherwise, when the caller
+	// has a non-empty accessibleNodeIds set (non-admin / scoped), constrain to
+	// the staff within those nodes so an OMITTED hierarchyNodeId does not leak
+	// org-wide liability. An empty accessibleNodeIds = admin / org-wide bypass.
 	let staffIdScope: string[] | null = null;
-	if (hierarchyNodeId) {
-		const descendantNodeIds = await getDescendantNodeIds(
-			tenantDb,
-			hierarchyNodeId,
-		);
-		if (descendantNodeIds.length === 0) {
+	const scopeNodeIds = hierarchyNodeId
+		? await getDescendantNodeIds(tenantDb, hierarchyNodeId)
+		: accessibleNodeIds && accessibleNodeIds.length > 0
+			? accessibleNodeIds
+			: null;
+	if (scopeNodeIds !== null) {
+		if (scopeNodeIds.length === 0) {
 			// No nodes found — return empty result
 			return {
 				trainers: [],
@@ -1203,11 +1219,11 @@ export async function liabilitySummary(
 				},
 			};
 		}
-		// Fetch userIds of members whose hierarchyScopeId is within the descendant set
+		// Fetch userIds of members whose hierarchyScopeId is within the scope set
 		const scopedMembers = await tenantDb
 			.select({ userId: members.userId })
 			.from(members)
-			.where(inArray(members.hierarchyScopeId, descendantNodeIds));
+			.where(inArray(members.hierarchyScopeId, scopeNodeIds));
 		staffIdScope = scopedMembers.map((m) => m.userId);
 		if (staffIdScope.length === 0) {
 			return {
@@ -1925,12 +1941,23 @@ export async function liabilityByStaff(
 		const branchConditions = [...conditions];
 
 		if (branchId) {
-			branchConditions.push(
-				or(
-					eq(appointments.branchId, branchId),
-					eq(salesOrders.branchId, branchId),
-				)!,
+			// Expand the picked scope node (which may be a non-leaf country/region/
+			// state) to its accessible subtree, so a non-leaf scope matches its
+			// branches' rows instead of zero. The guard inside resolveScopeNodeIds
+			// throws FORBIDDEN for an out-of-scope id; an empty ceiling = admin.
+			const scopeIds = await resolveScopeNodeIds(
+				tenantDb,
+				branchId,
+				accessibleNodeIds,
 			);
+			if (scopeIds.length > 0) {
+				branchConditions.push(
+					or(
+						inArray(appointments.branchId, scopeIds),
+						inArray(salesOrders.branchId, scopeIds),
+					)!,
+				);
+			}
 		}
 
 		if (accessibleNodeIds.length > 0) {
@@ -2183,12 +2210,23 @@ export async function listCommissionLedger(
 	}
 
 	if (branchId) {
-		branchConditions.push(
-			or(
-				eq(appointments.branchId, branchId),
-				eq(salesOrders.branchId, branchId),
-			)!,
+		// Expand the picked scope node (which may be a non-leaf country/region/
+		// state) to its accessible subtree, so a non-leaf scope matches its
+		// branches' rows instead of zero. The guard inside resolveScopeNodeIds
+		// throws FORBIDDEN for an out-of-scope id; an empty ceiling = admin.
+		const scopeIds = await resolveScopeNodeIds(
+			tenantDb,
+			branchId,
+			accessibleNodeIds,
 		);
+		if (scopeIds.length > 0) {
+			branchConditions.push(
+				or(
+					inArray(appointments.branchId, scopeIds),
+					inArray(salesOrders.branchId, scopeIds),
+				)!,
+			);
+		}
 	}
 
 	const allConditions = [...baseConditions, ...branchConditions];
@@ -2296,6 +2334,8 @@ export interface ExportLiabilityCsvParams {
 	categoryId?: string;
 	trackId?: string;
 	roleType?: string | null;
+	/** Caller's accessible hierarchy node IDs. Empty array = admin / org-wide. */
+	accessibleNodeIds?: string[];
 }
 
 export interface ExportLiabilityCsvResult {

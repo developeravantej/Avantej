@@ -33,6 +33,25 @@ vi.mock("@/hooks/useUserContext", () => ({
 	}),
 }));
 
+// Scope switcher: PosWorkflow reads useScope() to seed the recording-branch
+// default. Stub the FULL contract. scopeNodeId undefined → "All" scope → no
+// seed, so the recording branch falls back to the member-home branch ("branch-1")
+// exactly as before this seam existed (keeps these assertions unchanged).
+vi.mock("@/components/scope/ScopeProvider", () => ({
+	useScope: () => ({
+		scopeNodeId: undefined,
+		isAllScope: true,
+		activeScopeId: "branch-1",
+		activeScopeNode: null,
+		setActiveScope: vi.fn(),
+		resetScope: vi.fn(),
+		accessibleNodeIds: ["branch-1"],
+		scopeNodes: [],
+		topAccessibleNodeId: "branch-1",
+		isScopeReady: true,
+	}),
+}));
+
 // TanStack Router: PosWorkflow imports Link + useNavigate at module scope.
 const navigateSpy = vi.fn();
 vi.mock("@tanstack/react-router", () => ({

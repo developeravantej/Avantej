@@ -29,6 +29,7 @@ export * from "./dashboard-snapshots";
 export * from "./expenses";
 export * from "./external-busy-blocks";
 export * from "./ghl-contact-links";
+export * from "./ghl-pending-contacts";
 export * from "./ghl-sync-events";
 export * from "./ghl-user-links";
 export * from "./google-calendar-connections";

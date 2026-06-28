@@ -21,6 +21,7 @@ import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { writeAudit } from "./audit-log.service";
 import { voidCommissionSplitsForSalesOrder } from "./commission-splits.service";
+import { resolveScopeNodeIds } from "./hierarchy-scope";
 import { appendSalesOrderStatusHistory } from "./status-history.helper";
 
 export const CANCELLATION_REASON_CATEGORIES = [
@@ -140,8 +141,18 @@ export async function listSalesOrders(
 	if (accessibleNodeIds && accessibleNodeIds.length > 0) {
 		conditions.push(inArray(salesOrders.branchId, accessibleNodeIds));
 	}
-	if (branchId) {
-		conditions.push(eq(salesOrders.branchId, branchId));
+	// Subtree expansion: branchId may now be ANY hierarchy node (country/region/
+	// state), not just a leaf branch. resolveScopeNodeIds expands it to its
+	// accessible subtree (∩ the RBAC ceiling) so a non-leaf scope returns its
+	// branches' rows instead of zero. A leaf id resolves to itself, preserving
+	// today's behavior. An empty result means no scope was picked → no filter.
+	const scopeIds = await resolveScopeNodeIds(
+		tenantDb,
+		branchId,
+		accessibleNodeIds ?? [],
+	);
+	if (scopeIds.length > 0) {
+		conditions.push(inArray(salesOrders.branchId, scopeIds));
 	}
 	if (status) {
 		conditions.push(eq(salesOrders.status, status));
@@ -453,14 +464,6 @@ export async function getSalesOrderKpiSummary(
 	const period = params.period ?? "month";
 	const { from: periodStart, to: periodEnd } = resolvePeriodDates(period);
 
-	const effectiveBranchIds: string[] | null = (() => {
-		if (!params.branchId) return null;
-		if (!params.accessibleNodeIds?.length) return [params.branchId];
-		if (params.accessibleNodeIds.includes(params.branchId))
-			return [params.branchId];
-		return [];
-	})();
-
 	const zero: SalesOrderKpiSummary = {
 		totalSalesCents: 0,
 		totalRefundedCents: 0,
@@ -475,24 +478,36 @@ export async function getSalesOrderKpiSummary(
 		totalNetCents: 0,
 	};
 
-	if (effectiveBranchIds !== null && effectiveBranchIds.length === 0)
-		return zero;
 	if (
 		params.accessibleNodeIds !== undefined &&
 		params.accessibleNodeIds.length === 0
 	)
 		return zero;
+	// Out-of-scope branch → nothing to report (preserves the prior zero-return;
+	// the router also guards this with guardBranchAccessible before we run).
+	if (
+		params.branchId &&
+		params.accessibleNodeIds?.length &&
+		!params.accessibleNodeIds.includes(params.branchId)
+	)
+		return zero;
+
+	// Subtree expansion: branchId may now be ANY hierarchy node. Expand it to its
+	// accessible subtree so a non-leaf scope aggregates its branches' KPI rows
+	// instead of returning zero. A leaf id resolves to itself; an empty result
+	// (no scope picked) means org-wide / no branch filter.
+	const scopeIds = await resolveScopeNodeIds(
+		tenantDb,
+		params.branchId,
+		params.accessibleNodeIds ?? [],
+	);
 
 	const orderConditions = [
 		gte(salesOrders.date, periodStart),
 		lte(salesOrders.date, periodEnd),
 	];
-	if (effectiveBranchIds !== null) {
-		orderConditions.push(inArray(salesOrders.branchId, effectiveBranchIds));
-	} else if (params.accessibleNodeIds?.length) {
-		orderConditions.push(
-			inArray(salesOrders.branchId, params.accessibleNodeIds),
-		);
+	if (scopeIds.length > 0) {
+		orderConditions.push(inArray(salesOrders.branchId, scopeIds));
 	}
 
 	const { salesOrderItems: soiTable } = await import(
@@ -598,14 +613,23 @@ export async function getLargestSaleToday(
 	];
 
 	if (params.branchId) {
-		// Validate scope
+		// Validate scope (preserves the prior null-return; router guards too)
 		if (
 			params.accessibleNodeIds &&
 			!params.accessibleNodeIds.includes(params.branchId)
 		) {
 			return null;
 		}
-		conditions.push(eq(salesOrders.branchId, params.branchId));
+		// Subtree expansion: a non-leaf scope (country/region/state) returns the
+		// largest sale across all its branches, not zero. A leaf resolves to itself.
+		const scopeIds = await resolveScopeNodeIds(
+			tenantDb,
+			params.branchId,
+			params.accessibleNodeIds ?? [],
+		);
+		if (scopeIds.length > 0) {
+			conditions.push(inArray(salesOrders.branchId, scopeIds));
+		}
 	} else if (params.accessibleNodeIds?.length) {
 		conditions.push(inArray(salesOrders.branchId, params.accessibleNodeIds));
 	}
@@ -666,7 +690,16 @@ export async function getLatestCompletedSalesOrder(
 	const conditions = [eq(salesOrders.status, "completed")];
 
 	if (branchId) {
-		conditions.push(eq(salesOrders.branchId, branchId));
+		// Subtree expansion: a non-leaf scope returns the latest completed order
+		// across all its branches, not zero. A leaf id resolves to itself.
+		const scopeIds = await resolveScopeNodeIds(
+			tenantDb,
+			branchId,
+			accessibleNodeIds ?? [],
+		);
+		if (scopeIds.length > 0) {
+			conditions.push(inArray(salesOrders.branchId, scopeIds));
+		}
 	} else if (accessibleNodeIds && accessibleNodeIds.length > 0) {
 		conditions.push(inArray(salesOrders.branchId, accessibleNodeIds));
 	}

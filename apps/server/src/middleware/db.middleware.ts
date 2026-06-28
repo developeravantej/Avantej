@@ -98,6 +98,10 @@ function getEnvVar(key: string): string | undefined {
  * - `controlPanelDb`: Request-scoped Drizzle client for control panel database
  * - `tenantPools`: Map of organizationId -> Pool for caching tenant pools within request
  */
+// Warn-once latch (per worker instance) for a missing GHL_AGENCY_ID, so the
+// diagnostic below doesn't spam on every request.
+let warnedGhlAgencyIdMissing = false;
+
 export const dbMiddleware = createMiddleware(async (c, next) => {
 	const databaseUrl = getEnvVar("DATABASE_URL");
 	if (!databaseUrl) {
@@ -138,6 +142,20 @@ export const dbMiddleware = createMiddleware(async (c, next) => {
 			dispatchProfileSyncRaw({ ...args, env });
 		c.set("dispatchStaffSync", boundDispatchStaffSync);
 		c.set("dispatchProfileSync", boundDispatchProfileSync);
+	} else if (!warnedGhlAgencyIdMissing) {
+		// Staging footgun: GHL is an optional integration, so a missing agency id
+		// is NOT fatal — but it means staff/profile sync to GHL is SILENTLY
+		// disabled (the dispatchers are never bound, so context getters return
+		// undefined and callers no-op). Warn ONCE per worker instance so an
+		// operator who DID connect a GHL location can spot the misconfiguration
+		// instead of debugging "why didn't my staff appear in GHL".
+		warnedGhlAgencyIdMissing = true;
+		console.warn(
+			"[ghl] GHL_AGENCY_ID is not set — GHL staff/profile sync is DISABLED. " +
+				"If this deployment uses the GoHighLevel integration, set the " +
+				"GHL_AGENCY_ID secret (wrangler secret put GHL_AGENCY_ID). Branch " +
+				"sync and inbound webhooks are unaffected.",
+		);
 	}
 
 	// Branch sync needs no env vars (org-scoped api key lives in DB), so it's

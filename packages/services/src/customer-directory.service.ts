@@ -14,8 +14,9 @@ import { packageInstances } from "@avantej-core/db/schema/tenant/package-instanc
 import { payments } from "@avantej-core/db/schema/tenant/payments";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
-import { eq, getTableColumns, inArray, sql } from "drizzle-orm";
+import { eq, getTableColumns, ilike, inArray, or, sql } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { resolveScopeNodeIds } from "./hierarchy-scope";
 
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -62,8 +63,10 @@ export interface CustomerDirectoryStats {
  * RBAC: only customers whose hierarchyScopeId is in accessibleNodeIds are returned.
  * Cross-DB enrichment is done as a single batch lookup against the control panel.
  *
- * Note: when `search` is provided, `total` reflects phone-match only (approximate
- * when name/email search is combined with pagination — known v1 limitation).
+ * Search matches name, email, or phone (any phone format — digit-normalized).
+ * name/email match is resolved against the control-panel `user` table first and
+ * OR-ed into the tenant query, so `rows` + `total` are filtered consistently in
+ * SQL (correct pagination).
  */
 export async function listCustomerDirectory(
 	controlPanelDb: ControlPanelDb,
@@ -93,8 +96,76 @@ export async function listCustomerDirectory(
 
 	assertUuids(accessibleNodeIds, "listCustomerDirectory");
 
-	const searchPattern = search ? `%${search}%` : null;
+	// Expand the (possibly non-leaf) scope node to its accessible subtree, so a
+	// country/region/state node returns its branches' customers instead of zero.
+	// resolveScopeNodeIds guards (out-of-scope id → BranchAccessDeniedError =
+	// FORBIDDEN) and intersects with the RBAC ceiling; result ⊆ accessibleNodeIds.
+	const scopeNodeIds = await resolveScopeNodeIds(
+		tenantDb,
+		branchId,
+		accessibleNodeIds,
+	);
+	assertUuids(scopeNodeIds, "listCustomerDirectory:scope");
+	const scopeFilter =
+		scopeNodeIds.length > 0
+			? sql`AND m.hierarchy_scope_id = ANY(${sql.raw(
+					`ARRAY[${scopeNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`,
+				)})`
+			: sql``;
 
+	// ----------------------------------------------------------------
+	// Search resolution (name / email / phone, any phone format)
+	// ----------------------------------------------------------------
+	// name/email live in the control-panel `user` table (a different DB), phone
+	// in the tenant `customer_profiles`. The old code only phone-filtered in SQL
+	// then tried to JS-filter name/email on the (already phone-filtered, usually
+	// empty) result set — so name/email search always returned nothing, and phone
+	// search only matched the exact stored format. Fix: resolve name/email →
+	// user ids in the control panel, then OR them with a digit-normalized phone
+	// match inside the tenant query, so search works in SQL with correct
+	// pagination + count.
+	const trimmed = search?.trim() || undefined;
+	const namePattern = trimmed ? `%${trimmed}%` : null;
+	const searchDigits = trimmed ? trimmed.replace(/\D/g, "") : "";
+	// Normalized on BOTH sides → "017-272 0321", "+60172720321" and "0172720321"
+	// all match the same stored number. Require ≥3 digits to avoid noise matches.
+	const phoneDigitsPattern =
+		searchDigits.length >= 3 ? `%${searchDigits}%` : null;
+
+	let nameEmailUserIds: string[] = [];
+	if (namePattern) {
+		const matched = await controlPanelDb
+			.select({ id: user.id })
+			.from(user)
+			.where(or(ilike(user.name, namePattern), ilike(user.email, namePattern)))
+			.limit(1000);
+		nameEmailUserIds = matched.map((m) => m.id);
+	}
+
+	const searchClause = trimmed
+		? sql`AND (
+				${
+					phoneDigitsPattern
+						? sql`(
+							length(regexp_replace(coalesce(cp.phone, ''), '[^0-9]', '', 'g')) >= 3
+							AND (
+								regexp_replace(coalesce(cp.phone, ''), '[^0-9]', '', 'g') ILIKE ${phoneDigitsPattern}
+								OR ${searchDigits} ILIKE '%' || regexp_replace(coalesce(cp.phone, ''), '[^0-9]', '', 'g') || '%'
+							)
+						)`
+						: sql`false`
+				}
+				OR ${
+					nameEmailUserIds.length > 0
+						? sql`m.user_id = ANY(${sql.raw(
+								`ARRAY[${nameEmailUserIds
+									.map((id) => `'${id.replace(/'/g, "''")}'`)
+									.join(",")}]::text[]`,
+							)})`
+						: sql`false`
+				}
+			)`
+		: sql``;
 	// ----------------------------------------------------------------
 	// Step 1: fetch aggregated metrics from tenant DB
 	// ----------------------------------------------------------------
@@ -174,8 +245,8 @@ export async function listCustomerDirectory(
 		WHERE m.role = 'client'
 			AND m.hierarchy_scope_id = ANY(${sql.raw(`ARRAY[${accessibleNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`)})
 			${includeDeleted ? sql`` : sql`AND (cp.is_deleted IS NULL OR cp.is_deleted = false)`}
-			${branchId ? sql`AND m.hierarchy_scope_id = ${branchId}::uuid` : sql``}
-			${searchPattern ? sql`AND cp.phone ILIKE ${searchPattern}` : sql``}
+			${scopeFilter}
+			${searchClause}
 		GROUP BY m.id, m.user_id, m.hierarchy_scope_id, m.joined_at, cp.phone, cp.is_deleted, cp.is_unclaimed
 		ORDER BY m.joined_at DESC
 		LIMIT ${limit} OFFSET ${offset}
@@ -188,8 +259,8 @@ export async function listCustomerDirectory(
 		WHERE m.role = 'client'
 			AND m.hierarchy_scope_id = ANY(${sql.raw(`ARRAY[${accessibleNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`)})
 			${includeDeleted ? sql`` : sql`AND (cp.is_deleted IS NULL OR cp.is_deleted = false)`}
-			${branchId ? sql`AND m.hierarchy_scope_id = ${branchId}::uuid` : sql``}
-			${searchPattern ? sql`AND cp.phone ILIKE ${searchPattern}` : sql``}
+			${scopeFilter}
+			${searchClause}
 	`;
 
 	const [aggregationResult, countResult] = await Promise.all([
@@ -251,7 +322,7 @@ export async function listCustomerDirectory(
 	// ----------------------------------------------------------------
 	// Step 4: merge and optionally filter by name/email search
 	// ----------------------------------------------------------------
-	let rows: CustomerDirectoryRow[] = tenantRows.map((r) => {
+	const rows: CustomerDirectoryRow[] = tenantRows.map((r) => {
 		const userDetail = userMap.get(r.user_id);
 		return {
 			memberId: r.member_id,
@@ -276,17 +347,8 @@ export async function listCustomerDirectory(
 		};
 	});
 
-	// If search provided, also filter by name/email match (cross-DB supplement)
-	if (search) {
-		const lower = search.toLowerCase();
-		rows = rows.filter(
-			(r) =>
-				r.name.toLowerCase().includes(lower) ||
-				r.email.toLowerCase().includes(lower) ||
-				r.phone?.toLowerCase().includes(lower),
-		);
-	}
-
+	// Search (name/email/phone) is now fully applied in SQL above, so `rows` and
+	// `total` are already correct + consistent — no JS post-filter needed.
 	return { rows, total };
 }
 
@@ -325,6 +387,22 @@ export async function getCustomerStats(
 
 	assertUuids(accessibleNodeIds, "getCustomerStats");
 
+	// Expand the (possibly non-leaf) scope node to its accessible subtree (see
+	// listCustomerDirectory). resolveScopeNodeIds guards out-of-scope ids and
+	// intersects with the RBAC ceiling; result ⊆ accessibleNodeIds.
+	const scopeIds = await resolveScopeNodeIds(
+		tenantDb,
+		branchId,
+		accessibleNodeIds,
+	);
+	assertUuids(scopeIds, "getCustomerStats:scope");
+	const scopeFilter =
+		scopeIds.length > 0
+			? sql`AND m.hierarchy_scope_id = ANY(${sql.raw(
+					`ARRAY[${scopeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`,
+				)})`
+			: sql``;
+
 	const result = await tenantDb.execute(sql`
 		WITH customer_agg AS (
 			SELECT
@@ -352,7 +430,7 @@ export async function getCustomerStats(
 			LEFT JOIN appointment_clients ac ON ac.client_id = m.user_id
 			WHERE m.role = 'client'
 				AND m.hierarchy_scope_id = ANY(${sql.raw(`ARRAY[${accessibleNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`)})
-				${branchId ? sql`AND m.hierarchy_scope_id = ${branchId}::uuid` : sql``}
+				${scopeFilter}
 			GROUP BY m.id, m.user_id
 		)
 		SELECT

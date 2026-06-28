@@ -69,6 +69,20 @@ const REQUIRED_CUSTOM_FIELDS: CustomFieldDef[] = [
 		fieldKey: "internal_notes",
 		dataType: "LARGE_TEXT",
 	},
+	// Branch round-trip single-line fields. The GHL webhook template aliases
+	// these to selected_country / selected_location on the way back into Avantej.
+	{
+		key: "designatedCountry",
+		name: "Designated Country",
+		fieldKey: "designated_country",
+		dataType: "TEXT",
+	},
+	{
+		key: "designatedBranch",
+		name: "Designated Branch",
+		fieldKey: "designated_branch",
+		dataType: "TEXT",
+	},
 ];
 
 export async function ensureCustomFieldsExist(args: {
@@ -90,7 +104,11 @@ export async function ensureCustomFieldsExist(args: {
 
 	const result: CustomFieldIdMap = {};
 	for (const def of REQUIRED_CUSTOM_FIELDS) {
-		const existingId = byFieldKey.get(def.fieldKey);
+		// GHL returns contact-model fieldKeys prefixed with "contact." — match
+		// both the bare and prefixed forms so re-provisioning never creates
+		// duplicate fields (mirrors branch-sync.ts discovery).
+		const existingId =
+			byFieldKey.get(def.fieldKey) ?? byFieldKey.get(`contact.${def.fieldKey}`);
 		if (existingId) {
 			result[def.key] = existingId;
 			continue;

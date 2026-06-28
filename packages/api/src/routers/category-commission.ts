@@ -1,7 +1,12 @@
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../index";
-import { requirePermissionOrpc, assertOrgContextMatch } from "../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardStoredBranchForContext,
+} from "../guards";
+import { getServiceCategoryById } from "@avantej-core/services";
 import { hasPermission } from "@avantej-core/services/permission.service";
 import {
 	getCategoryCommissionConfig,
@@ -24,6 +29,15 @@ const getByCategory = tenantProcedure
 			"category_commission_management",
 			"read",
 		);
+
+		const category = await getServiceCategoryById(
+			context.tenantDb,
+			input.categoryId,
+		);
+		if (!category) {
+			throw new ORPCError("NOT_FOUND", { message: "Category not found" });
+		}
+		await guardStoredBranchForContext(context, category.branchId);
 
 		return getCategoryCommissionConfig(context.tenantDb, input.categoryId);
 	});
@@ -94,6 +108,15 @@ const upsert = tenantProcedure
 			);
 		}
 
+		const category = await getServiceCategoryById(
+			context.tenantDb,
+			input.categoryId,
+		);
+		if (!category) {
+			throw new ORPCError("NOT_FOUND", { message: "Category not found" });
+		}
+		await guardStoredBranchForContext(context, category.branchId);
+
 		const totalBps = input.slots.reduce(
 			(sum, s) => sum + s.weightageBasisPoints,
 			0,
@@ -144,6 +167,15 @@ const deleteConfig = tenantProcedure
 			"category_commission_management",
 			"delete",
 		);
+
+		const category = await getServiceCategoryById(
+			context.tenantDb,
+			input.categoryId,
+		);
+		if (!category) {
+			throw new ORPCError("NOT_FOUND", { message: "Category not found" });
+		}
+		await guardStoredBranchForContext(context, category.branchId);
 
 		try {
 			return await deleteCategoryCommissionConfig(

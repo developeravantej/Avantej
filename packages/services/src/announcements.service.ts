@@ -17,6 +17,7 @@ import { members } from "@avantej-core/db/schema/tenant/members";
 import { notifications } from "@avantej-core/db/schema/tenant/notifications";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { resolveScopeNodeIds } from "./hierarchy-scope";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 
@@ -236,7 +237,19 @@ export async function listAnnouncements(
 	const conditions = [];
 
 	if (branchId !== undefined) {
-		conditions.push(eq(announcements.branchId, branchId));
+		// Expand the picked scope node (which may be a non-leaf country/region/
+		// state) to its accessible LEAF subtree, instead of matching the column
+		// against the node id directly. resolveScopeNodeIds also guards that the
+		// picked node is within the caller's accessible ceiling (FORBIDDEN if
+		// not), so a non-leaf scope now returns its branches' announcements.
+		const scopeIds = await resolveScopeNodeIds(
+			tenantDb,
+			branchId,
+			accessibleNodeIds ?? [],
+		);
+		if (scopeIds.length > 0) {
+			conditions.push(inArray(announcements.branchId, scopeIds));
+		}
 	}
 
 	if (isActive !== undefined) {

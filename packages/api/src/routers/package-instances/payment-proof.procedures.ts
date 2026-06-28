@@ -7,12 +7,16 @@ import {
 	recordPaymentProof,
 	validateProofUpload,
 } from "@avantej-core/services";
+import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
+import { services } from "@avantej-core/db/schema/tenant/services";
+import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
 import {
 	assertOrgContextMatch,
 	assertTenantContext,
+	guardBranchAccessible,
 	requirePermissionOrpc,
 } from "../../guards";
 
@@ -66,6 +70,38 @@ function bytesToBase64(bytes: Uint8Array): string {
 	for (let i = 0; i < bytes.length; i++)
 		binary += String.fromCharCode(bytes[i] as number);
 	return btoa(binary);
+}
+
+/**
+ * Resolve the package's service branch and verify the caller can access it.
+ * Out-of-scope (or missing) records throw NOT_FOUND — never FORBIDDEN — so the
+ * error cannot be used to confirm a package/proof exists in another branch.
+ * Mirrors confirm-payment.procedures.ts:89-94.
+ */
+async function assertPackageBranchAccessible(
+	// biome-ignore lint/suspicious/noExplicitAny: loose context stub; behaviour is asserted, not the type
+	context: { tenantDb: any; accessibleNodeIds?: string[] },
+	packageInstanceId: string,
+): Promise<void> {
+	const pkg = await context.tenantDb.query.packageInstances.findFirst({
+		where: eq(packageInstances.id, packageInstanceId),
+	});
+	if (!pkg) {
+		throw new ORPCError("NOT_FOUND", {
+			message: `Package not found: ${packageInstanceId}`,
+		});
+	}
+	const svc = await context.tenantDb.query.services.findFirst({
+		where: eq(services.id, pkg.serviceId),
+	});
+	try {
+		guardBranchAccessible(svc?.branchId, context.accessibleNodeIds);
+	} catch {
+		// Collapse FORBIDDEN → NOT_FOUND to avoid an enumeration oracle.
+		throw new ORPCError("NOT_FOUND", {
+			message: `Package not found: ${packageInstanceId}`,
+		});
+	}
 }
 
 export const packageInstancesPaymentProofProcedures = {
@@ -180,6 +216,7 @@ export const packageInstancesPaymentProofProcedures = {
 				"service_management",
 				"read",
 			);
+			await assertPackageBranchAccessible(context, input.packageInstanceId);
 			return listPaymentProofs(context.tenantDb, input.packageInstanceId);
 		}),
 
@@ -206,6 +243,7 @@ export const packageInstancesPaymentProofProcedures = {
 					message: `Payment proof not found: ${input.proofId}`,
 				});
 			}
+			await assertPackageBranchAccessible(context, proof.packageInstanceId);
 
 			const bucket = getBucket(context);
 			const obj = await bucket.get(proof.r2Key);
