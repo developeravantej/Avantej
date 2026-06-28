@@ -1,0 +1,13 @@
+{
+	"title": "GHL → Outbound: staff updates (role / branch / deactivate) sync to GHL user",
+	"module": "ghl",
+	"prodMutationClass": "create+update+delete · LIVE real GHL user (mock, cleaned up)",
+	"journey": [
+		"Seed a mock CP user, then members.create (staff) → real GHL user (ghlUserId 5K3u…, status synced)",
+		"C2 members.updateRole(trainer) → dispatchStaffSync(update) → ghlSync: synced (PUT /users/:id)",
+		"C4 members.updateScope(new branch) → dispatchStaffSync(update) → ghlSync: synced",
+		"C3 members.deactivate → ghlSync: skipped (reason 'deactivate-skip') — FINDING: deactivation intentionally does NOT touch the GHL user",
+		"C5 profile-name edit → same dispatchProfileSync → PUT /users/ path (not triggerable standalone with a non-platform-admin session; mechanism proven by C2/C4)",
+		"Verified each via the RPC ghlSync result + GHL user read-back. Teardown: GHL user deleted (404) + all Avantej rows removed"
+	]
+}

@@ -1,0 +1,12 @@
+{
+	"title": "GHL → STAGING web: create customer → real GHL contact (live screencast)",
+	"module": "ghl",
+	"prodMutationClass": "create+delete · LIVE staging UI + real GHL write (cleaned up)",
+	"journey": [
+		"Open the STAGING web app (https://avantej-core-web.ngchwanlii-a9c.workers.dev) and sign in as franchisee@gmail.com — verifies the web→server CORS fix (was pointing at the old account)",
+		"Dashboard → Create Customer → ZZ StgWeb-GHL, phone +60120009908, branch Bukit Jalil → Create Profile",
+		"Toast 'Customer profile created' — staging server createUnclaimed → fireCustomerSync(create)",
+		"Verify on the GHL side via API read-back: GET /contacts/Fq87vqBR3pFsq6yewz31 returns firstName 'ZZ', lastName 'StgWeb-GHL', tag 'customer:active' — a REAL contact in the live MOVE GHL account, created end-to-end through staging",
+		"Teardown (off-camera): real GHL contact deleted + Avantej test customer removed"
+	]
+}

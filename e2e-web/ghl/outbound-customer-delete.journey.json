@@ -1,0 +1,12 @@
+{
+	"title": "GHL → Outbound: delete customer removes the real GHL contact",
+	"module": "ghl",
+	"prodMutationClass": "delete · LIVE real GHL write (cleaned up)",
+	"journey": [
+		"Setup (off-camera): a throwaway customer ZZ DelTest-GHL (phone +60120009902) is created — pushes a real GHL contact — then seeded to claimed (is_unclaimed=false) so soft-delete is permitted (unclaimed profiles are blocked by design)",
+		"Open the ZZ DelTest-GHL profile and click Delete → confirm in the dialog",
+		"softDelete succeeds (HTTP 200) and fires fireCustomerSync(operation:delete) → DELETE /contacts/<id> on GHL",
+		"Verify on the GHL side via API read-back: GET /contacts/Sok77wuvLFSc4FACI6uD now returns 400 (contact gone); the Avantej contact-link status flips to 'deleted'",
+		"Teardown (off-camera): Avantej test customer removed"
+	]
+}

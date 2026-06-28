@@ -111,7 +111,8 @@ export interface PlanOriginationInput {
 	 * Can be empty map if tracks use flat rates or basis-points against the order total.
 	 */
 	memberTierByUserId: Map<string, string | null>;
-	actor: { userId: string; memberId: string; role: string };
+	// memberId nullable: system/cron actors have no member row (matches Actor).
+	actor: { userId: string; memberId: string | null; role: string };
 	earnedAt: Date;
 }
 

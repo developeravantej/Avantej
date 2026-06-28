@@ -1685,7 +1685,7 @@ export function extractCustomFieldsForProfile(
 	return {
 		gender: normalizeGenderValue(pick(["gender"])),
 		age,
-		selectedCountry: pick(["selected_country", "sys_selected_country"]),
+		selectedCountry: pick(["selected_country", "designated_country"]),
 		selectedLocation: pick(["selected_location", "sys_selected_location"]),
 		primaryStaff: pick(["primary_staff", "ops_primary_staff"]),
 		referrerPhone: pick(["referrer_phone"]),

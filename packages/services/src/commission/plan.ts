@@ -42,7 +42,8 @@ export interface PlanInput {
 	unitPriceCents: number;
 	appointmentId: string | undefined;
 	salesOrderId: string | undefined;
-	actor: { userId: string; memberId: string; role: string };
+	// memberId nullable: system/cron actors have no member row (matches Actor).
+	actor: { userId: string; memberId: string | null; role: string };
 	earnedAt: Date;
 	earnReason: CommissionEarnReason;
 }

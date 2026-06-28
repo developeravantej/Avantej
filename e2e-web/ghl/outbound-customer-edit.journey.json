@@ -1,0 +1,11 @@
+{
+	"title": "GHL → Outbound: edit customer updates the real GHL contact",
+	"module": "ghl",
+	"prodMutationClass": "update · LIVE real GHL write (cleaned up)",
+	"journey": [
+		"Open the ZZ TestCust-GHL profile (Customers → directory)",
+		"Set Address = 'ZZ Test Address E2E' and click Save Profile (fires customerProfiles.upsertForCustomer → fireCustomerSync update)",
+		"Verify on the GHL side via API read-back: GET /contacts/<id> now returns address1 'ZZ Test Address E2E' on the same contact",
+		"Teardown (off-camera): real GHL contact deleted + Avantej test customer removed"
+	]
+}

@@ -1,0 +1,12 @@
+{
+	"title": "GHL → Inbound: bad signature rejected (401, no record)",
+	"module": "ghl",
+	"prodMutationClass": "read-only (negative — no record created)",
+	"journey": [
+		"Off-camera: POST a webhook to the staging real-location endpoint with an invalid x-wh-signature (sha256=deadbeef…)",
+		"Server returns HTTP 401 'Invalid webhook signature' (code invalid_signature)",
+		"Open GHL Integration → Sync Events on staging web",
+		"Confirm a 'failed' row appears with reason 'Invalid webhook signature' (contact 'unknown') — the auth gate rejected it and created no client",
+		"Proves verifyGhlWebhookAuth blocks unsigned/forged webhooks"
+	]
+}
