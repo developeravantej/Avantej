@@ -1,4 +1,11 @@
-import { MapPin, Clock, Pencil, BarChart2, PowerOff } from "lucide-react";
+import {
+	MapPin,
+	Clock,
+	Pencil,
+	BarChart2,
+	Trash2,
+	Loader2,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/money";
@@ -13,11 +20,19 @@ export function NodeDetailPanel({
 	node,
 	breadcrumb,
 	onEdit,
+	onDelete,
+	canDelete,
+	isDeleting,
 }: {
 	node: NodeWithStats;
 	breadcrumb: string[];
 	onEdit: () => void;
+	onDelete: () => void;
+	canDelete: boolean;
+	isDeleting: boolean;
 }) {
+	// The organization root can never be deleted; only countries/states/branches.
+	const isOrgRoot = node.type === "organization";
 	const membersValue =
 		node.membersCount != null ? String(node.membersCount) : "—";
 	const staffValue = node.staffCount != null ? String(node.staffCount) : "—";
@@ -120,10 +135,22 @@ export function NodeDetailPanel({
 					variant="outline"
 					size="sm"
 					className="flex-1 text-xs gap-1.5 text-rose-600 border-rose-200 hover:bg-rose-50"
-					disabled
+					onClick={onDelete}
+					disabled={!canDelete || isOrgRoot || isDeleting}
+					title={
+						isOrgRoot
+							? "The organization root cannot be deleted"
+							: !canDelete
+								? "Requires hierarchy_management:delete permission"
+								: undefined
+					}
 				>
-					<PowerOff className="h-3.5 w-3.5" />
-					Deactivate
+					{isDeleting ? (
+						<Loader2 className="h-3.5 w-3.5 animate-spin" />
+					) : (
+						<Trash2 className="h-3.5 w-3.5" />
+					)}
+					Delete
 				</Button>
 			</div>
 		</div>

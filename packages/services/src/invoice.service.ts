@@ -1,8 +1,15 @@
-import { eq, and, desc, gte, lte, inArray, sql } from "drizzle-orm";
+import { eq, and, asc, desc, gte, lte, inArray, sql } from "drizzle-orm";
 import { invoices } from "@avantej-core/db/schema/tenant/invoices";
+import { paymentItems } from "@avantej-core/db/schema/tenant/payment-items";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+
+/** An invoice plus its line-item breakdown (resolved from the linked payment). */
+export type InvoiceWithItems = {
+	invoice: typeof invoices.$inferSelect;
+	items: (typeof paymentItems.$inferSelect)[];
+};
 
 export type CreateInvoiceParams = {
 	invoiceNumber?: string;
@@ -129,6 +136,29 @@ export async function getInvoiceById(
 		where: eq(invoices.id, id),
 	});
 	return row ?? null;
+}
+
+/**
+ * Fetch an invoice together with its line items. Line items live on the linked
+ * payment (`payment_items` keyed by `paymentId`), so an invoice with no payment
+ * (e.g. a manual/draft invoice) resolves to an empty `items` array. Returns null
+ * when the invoice id does not exist. Used by the invoice-PDF download flow.
+ */
+export async function getInvoiceWithItems(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	id: string,
+): Promise<InvoiceWithItems | null> {
+	const invoice = await getInvoiceById(tenantDb, id);
+	if (!invoice) return null;
+
+	const items = invoice.paymentId
+		? await tenantDb.query.paymentItems.findMany({
+				where: eq(paymentItems.paymentId, invoice.paymentId),
+				orderBy: [asc(paymentItems.createdAt)],
+			})
+		: [];
+
+	return { invoice, items };
 }
 
 export async function createInvoice(

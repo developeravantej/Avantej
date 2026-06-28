@@ -12,8 +12,63 @@ import {
 	findHierarchyBranchByName,
 	isPlaceholderEmail,
 	matchStaffByName,
+	resolveWebhookLocation,
 	verifyGhlWebhookAuth,
 } from "./gohighlevel.service";
+
+describe("resolveWebhookLocation", () => {
+	const mkDb = (over: { link?: unknown; org?: unknown }) =>
+		({
+			query: {
+				ghlBranchLinks: {
+					findFirst: () => Promise.resolve(over.link ?? null),
+				},
+				organizations: {
+					findFirst: () => Promise.resolve(over.org ?? null),
+				},
+			},
+		}) as any;
+
+	test("resolves via active per-branch link (legacy model)", async () => {
+		const db = mkDb({
+			link: {
+				organizationId: "org_legacy",
+				webhookSecret: "sek_branch",
+				tenantBranchId: "branch_9",
+				isActive: true,
+			},
+		});
+		const r = await resolveWebhookLocation(db, "loc_1");
+		expect(r).toEqual({
+			organizationId: "org_legacy",
+			webhookSecret: "sek_branch",
+			tenantBranchId: "branch_9",
+		});
+	});
+
+	test("falls back to org-shared org row when no active branch link", async () => {
+		const db = mkDb({
+			link: null,
+			org: {
+				id: "org_shared_1",
+				ghlWebhookSecret: "sek_org",
+				ghlSyncModel: "org-shared",
+			},
+		});
+		const r = await resolveWebhookLocation(db, "loc_1");
+		expect(r).toEqual({
+			organizationId: "org_shared_1",
+			webhookSecret: "sek_org",
+			tenantBranchId: null,
+		});
+	});
+
+	test("returns null when neither a link nor an org-shared org matches", async () => {
+		const db = mkDb({ link: null, org: null });
+		const r = await resolveWebhookLocation(db, "loc_unknown");
+		expect(r).toBeNull();
+	});
+});
 
 describe("GoHighLevel Service", () => {
 	test("extracts contact payload from nested contact shape", () => {
@@ -541,6 +596,23 @@ describe("findHierarchyBranchByName", () => {
 	test("ignores non-branch nodes even if name matches", () => {
 		expect(findHierarchyBranchByName(branches, "Malaysia")).toBeNull();
 	});
+
+	test("matches a composite 'State - Branch' label by its last segment", () => {
+		// GHL dropdown labels are composite; the single-line designated_branch
+		// should be bare, but harden inbound to also resolve a composite value.
+		expect(findHierarchyBranchByName(branches, "Selangor - KL Branch")).toBe(
+			"b1",
+		);
+	});
+
+	test("strips a trailing 'null'/'undefined' merge-tag artifact", () => {
+		// Live data: a missing merge-tag component renders as literal 'null'
+		// glued onto the value, e.g. "KL Branchnull".
+		expect(findHierarchyBranchByName(branches, "KL Branchnull")).toBe("b1");
+		expect(
+			findHierarchyBranchByName(branches, "Selangor - KL Branchundefined"),
+		).toBe("b1");
+	});
 });
 
 describe("extractCustomFieldsForProfile", () => {
@@ -586,12 +658,14 @@ describe("extractCustomFieldsForProfile", () => {
 		// The workflow webhook body still uses the JSON key `selected_country`, but
 		// the raw-field-key fallback must match the current GHL field.
 		expect(
-			extractCustomFieldsForProfile({ contact: { selected_country: "Malaysia" } })
-				.selectedCountry,
+			extractCustomFieldsForProfile({
+				contact: { selected_country: "Malaysia" },
+			}).selectedCountry,
 		).toBe("Malaysia");
 		expect(
-			extractCustomFieldsForProfile({ contact: { designated_country: "Singapore" } })
-				.selectedCountry,
+			extractCustomFieldsForProfile({
+				contact: { designated_country: "Singapore" },
+			}).selectedCountry,
 		).toBe("Singapore");
 	});
 

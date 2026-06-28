@@ -8,6 +8,8 @@ import { packageInstancesApproveProcedures } from "./approve.procedures";
 import { packageInstancesConfirmPaymentProcedures } from "./confirm-payment.procedures";
 import { packageInstancesLifecycleProcedures } from "./lifecycle.procedures";
 import { packageInstancesHistoryProcedures } from "./history.procedures";
+import { packageInstancesAgreementProcedures } from "./agreement.procedures";
+import { packageInstancesPaymentProofProcedures } from "./payment-proof.procedures";
 
 export const packageInstancesRouter = {
 	...packageInstancesClientProcedures,
@@ -19,4 +21,6 @@ export const packageInstancesRouter = {
 	...packageInstancesConfirmPaymentProcedures,
 	...packageInstancesLifecycleProcedures,
 	...packageInstancesHistoryProcedures,
+	...packageInstancesAgreementProcedures,
+	...packageInstancesPaymentProofProcedures,
 };

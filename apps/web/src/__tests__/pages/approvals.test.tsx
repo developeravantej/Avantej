@@ -1,4 +1,22 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
+
+vi.mock("@/components/scope/ScopeProvider", () => ({
+	useScope: () => ({
+		activeScopeId: null,
+		activeScopeNode: null,
+		setActiveScope: vi.fn(),
+		resetScope: vi.fn(),
+		accessibleNodeIds: [],
+		scopeNodes: [],
+		topAccessibleNodeId: null,
+		isAllScope: true,
+		scopeNodeId: undefined,
+		isScopeReady: true,
+	}),
+}));
+vi.mock("@/components/scope/ScopeSwitcher", () => ({
+	ScopeSwitcher: () => null,
+}));
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../helpers/render-with-providers";

@@ -1,10 +1,3 @@
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 const STATUS_PILLS = [
@@ -18,31 +11,25 @@ const STATUS_PILLS = [
 export function FilterBar({
 	search,
 	status,
-	branchId,
 	from,
 	to,
 	onSearchChange,
 	onStatusChange,
-	onBranchChange,
 	onFromChange,
 	onToChange,
 	onClear,
-	nodeOptions,
 }: {
 	search: string;
 	status: string;
-	branchId: string;
 	from: string;
 	to: string;
 	onSearchChange: (v: string) => void;
 	onStatusChange: (v: string) => void;
-	onBranchChange: (v: string) => void;
 	onFromChange: (v: string) => void;
 	onToChange: (v: string) => void;
 	onClear: () => void;
-	nodeOptions: Array<{ id: string; name: string }>;
 }) {
-	const hasFilters = !!(search || status || branchId || from || to);
+	const hasFilters = !!(search || status || from || to);
 
 	return (
 		<div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-[#e5e5e5] bg-white px-6 py-3">
@@ -87,24 +74,6 @@ export function FilterBar({
 			))}
 
 			<div className="mx-1 h-5 border-r border-[#e5e5e5]" />
-
-			{/* Branch */}
-			<Select
-				value={branchId || "all"}
-				onValueChange={(v) => onBranchChange(v === "all" ? "" : v)}
-			>
-				<SelectTrigger className="h-8 w-36 text-xs border-[#e5e5e5]">
-					<SelectValue placeholder="All Branches" />
-				</SelectTrigger>
-				<SelectContent>
-					<SelectItem value="all">All Branches</SelectItem>
-					{nodeOptions.map((node) => (
-						<SelectItem key={node.id} value={node.id}>
-							{node.name}
-						</SelectItem>
-					))}
-				</SelectContent>
-			</Select>
 
 			{/* Date range */}
 			<input

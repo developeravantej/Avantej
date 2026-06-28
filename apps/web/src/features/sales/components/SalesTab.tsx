@@ -23,18 +23,15 @@ export interface SalesTabProps {
 	from: string;
 	to: string;
 	status: string;
-	branchId: string;
 	refundStatus: "all" | "none" | "pending" | "partial" | "processed";
 	onSearchChange: (v: string) => void;
 	onFromChange: (v: string) => void;
 	onToChange: (v: string) => void;
 	onStatusChange: (v: string) => void;
-	onBranchChange: (v: string) => void;
 	onRefundStatusChange: (
 		v: "all" | "none" | "pending" | "partial" | "processed",
 	) => void;
 	onClear: () => void;
-	nodeOptions: Array<{ id: string; name: string }>;
 }
 
 export function SalesTab({
@@ -51,16 +48,13 @@ export function SalesTab({
 	from,
 	to,
 	status,
-	branchId,
 	refundStatus,
 	onSearchChange,
 	onFromChange,
 	onToChange,
 	onStatusChange,
-	onBranchChange,
 	onRefundStatusChange,
 	onClear,
-	nodeOptions,
 }: SalesTabProps) {
 	const navigate = useNavigate();
 	if (isError) return <ErrorCard error={error} refetch={refetch} />;
@@ -71,16 +65,13 @@ export function SalesTab({
 			<FilterBar
 				search={search}
 				status={status}
-				branchId={branchId}
 				from={from}
 				to={to}
 				onSearchChange={onSearchChange}
 				onStatusChange={onStatusChange}
-				onBranchChange={onBranchChange}
 				onFromChange={onFromChange}
 				onToChange={onToChange}
 				onClear={onClear}
-				nodeOptions={nodeOptions}
 			/>
 
 			{/* Refund status filter row */}

@@ -2,6 +2,7 @@ import { eq, and, desc, inArray, gte, lte } from "drizzle-orm";
 import { expenses } from "@avantej-core/db/schema/tenant/expenses";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { resolveScopeNodeIds } from "./hierarchy-scope";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 
@@ -31,8 +32,17 @@ export async function listExpenses(
 ): Promise<(typeof expenses.$inferSelect)[]> {
 	const conditions = [];
 
-	if (params.branchId) {
-		conditions.push(eq(expenses.branchId, params.branchId));
+	// Subtree scope expansion: a non-leaf scope node (country/region/state)
+	// expands to its branches' ids, intersected with the RBAC ceiling, so
+	// picking a parent node returns its descendant branches' rows (not zero).
+	// Guards via assertBranchAccessible (throws FORBIDDEN for out-of-scope ids).
+	const scopeIds = await resolveScopeNodeIds(
+		tenantDb,
+		params.branchId,
+		params.accessibleNodeIds ?? [],
+	);
+	if (scopeIds.length > 0) {
+		conditions.push(inArray(expenses.branchId, scopeIds));
 	}
 
 	if (params.status) {

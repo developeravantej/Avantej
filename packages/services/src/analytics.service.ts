@@ -8,7 +8,7 @@ import { commissionSplits } from "@avantej-core/db/schema/tenant/commission-spli
 import { classSlots } from "@avantej-core/db/schema/tenant/class-slots";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import { resolveBranchFilter } from "./hierarchy-scope";
+import { resolveScopeNodeIds } from "./hierarchy-scope";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 
@@ -125,7 +125,11 @@ export async function getDashboardKpis(
 ): Promise<DashboardKpisResult> {
 	const { from, to } = getPeriodDates(params.period, params.from, params.to);
 	const nodeIds = params.accessibleNodeIds;
-	const branchFilter = resolveBranchFilter(params.branchId, nodeIds);
+	const branchFilter = await resolveScopeNodeIds(
+		tenantDb,
+		params.branchId,
+		nodeIds,
+	);
 
 	// 1. Sales metrics
 	const salesResult = await tenantDb
@@ -348,7 +352,11 @@ export async function getStaffPerformance(
 ): Promise<StaffPerformanceRow[]> {
 	const { from, to } = getPeriodDates(params.period);
 	const nodeIds = params.accessibleNodeIds;
-	const branchFilter = resolveBranchFilter(params.branchId, nodeIds);
+	const branchFilter = await resolveScopeNodeIds(
+		tenantDb,
+		params.branchId,
+		nodeIds,
+	);
 
 	// Get completed appointments with commissions
 	// commissionSplits.staffId = members.userId (text reference, no FK)
@@ -424,7 +432,11 @@ export async function getRevenueSeries(
 ): Promise<RevenueSeriesPoint[]> {
 	const days = Math.max(1, Math.min(params.days, 365));
 	const nodeIds = params.accessibleNodeIds;
-	const branchFilter = resolveBranchFilter(params.branchId, nodeIds);
+	const branchFilter = await resolveScopeNodeIds(
+		tenantDb,
+		params.branchId,
+		nodeIds,
+	);
 
 	const now = new Date();
 	const to = new Date(now);
@@ -724,7 +736,11 @@ export async function getClassFillRateSeries(
 	const keys = spineKeys(from, params.days);
 	const nodeIds = params.accessibleNodeIds;
 	// NAP-03: apply branch filter from accessibleNodeIds (was missing from this function).
-	const fillSeriesBranchFilter = resolveBranchFilter(undefined, nodeIds);
+	const fillSeriesBranchFilter = await resolveScopeNodeIds(
+		tenantDb,
+		undefined,
+		nodeIds,
+	);
 
 	const dayExpr = sql<string>`to_char(date_trunc('day', ${classSlots.date}), 'YYYY-MM-DD')`;
 

@@ -41,8 +41,11 @@ type HierarchyNode = {
 // react-doctor-disable-next-line react-doctor/no-giant-component -- page-level component with deep closure dependencies (form state, mutations, modal flags); extraction deferred to dedicated refactor — splitting now would require lifting state and risks tsc regressions
 // react-doctor-disable-next-line react-doctor/prefer-useReducer -- independent state vars (filters, form fields, dialog flags); direct setters with no cross-state transitions; reducer would not improve readability
 function GoHighLevelIntegrationPage() {
-	const { data: userContext } = useUserContext();
+	const { data: userContext, hasPermission } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
+	// Approve/reject + the gate toggle are admin actions, gated the same way as
+	// this page's route guard and the GHL connection config they live under.
+	const canApprove = hasPermission("user_management:update");
 
 	const [connectBranchId, setConnectBranchId] = useState<string | null>(null);
 	const [locationId, setLocationId] = useState("");
@@ -81,6 +84,52 @@ function GoHighLevelIntegrationPage() {
 			client.ghlSync.listEvents({ organizationId: organizationId!, limit: 25 }),
 		enabled: !!organizationId,
 		staleTime: 30_000,
+	});
+
+	// Inbound approval gate — held contacts awaiting staff review.
+	const { data: pendingContacts = [] } = useQuery({
+		...orpc.ghl.listPendingContacts.queryOptions({
+			input: { organizationId: organizationId ?? "" },
+		}),
+		enabled: !!organizationId,
+	});
+
+	const setGateMutation = useApiMutation({
+		mutationFn: async (vars: { enabled: boolean }) => {
+			if (!organizationId) throw new Error("No organization");
+			return client.ghl.setApprovalGate({
+				organizationId,
+				enabled: vars.enabled,
+			});
+		},
+		successMessage: (data) =>
+			data.enabled ? "Approval gate enabled" : "Approval gate disabled",
+		invalidate: [orpc.ghl.getOrgShared.key()],
+	});
+
+	const approveContactMutation = useApiMutation({
+		mutationFn: async (vars: { pendingId: string }) => {
+			if (!organizationId) throw new Error("No organization");
+			return client.ghl.approvePendingContact({
+				organizationId,
+				pendingId: vars.pendingId,
+			});
+		},
+		successMessage: "Contact approved — member created",
+		invalidate: [orpc.ghl.listPendingContacts.key()],
+	});
+
+	const rejectContactMutation = useApiMutation({
+		mutationFn: async (vars: { pendingId: string; reason?: string }) => {
+			if (!organizationId) throw new Error("No organization");
+			return client.ghl.rejectPendingContact({
+				organizationId,
+				pendingId: vars.pendingId,
+				reason: vars.reason,
+			});
+		},
+		successMessage: "Contact rejected",
+		invalidate: [orpc.ghl.listPendingContacts.key()],
 	});
 
 	const orgConnectMutation = useApiMutation({
@@ -296,6 +345,121 @@ function GoHighLevelIntegrationPage() {
 									{orgConnectMutation.isPending ? "Connecting…" : "Connect"}
 								</Button>
 							</div>
+						</div>
+					)}
+				</CardContent>
+			</Card>
+
+			<Card data-testid="ghl-approval-queue">
+				<CardHeader>
+					<CardTitle className="flex items-center justify-between gap-4">
+						<span>Inbound Approval Queue</span>
+						<Button
+							variant={orgShared?.ghlRequireApproval ? "default" : "outline"}
+							size="sm"
+							data-testid="ghl-approval-gate-toggle"
+							onClick={() =>
+								setGateMutation.mutate({
+									enabled: !orgShared?.ghlRequireApproval,
+								})
+							}
+							disabled={setGateMutation.isPending}
+						>
+							{orgShared?.ghlRequireApproval
+								? "Gate ON — new contacts held"
+								: "Gate OFF — instant sync"}
+						</Button>
+					</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<p className="text-sm text-muted-foreground mb-4">
+						When the gate is ON, a contact pushed from GHL is held here until a
+						manager approves it — only then is the member created in Avantej.
+						When OFF, contacts sync instantly.
+					</p>
+					{pendingContacts.length === 0 ? (
+						<p className="text-sm text-muted-foreground py-4">
+							No contacts awaiting approval.
+						</p>
+					) : (
+						<div className="overflow-x-auto">
+							<table className="w-full text-sm">
+								<thead>
+									<tr className="border-b text-left">
+										<th className="py-2 pr-4 font-medium">Name</th>
+										<th className="py-2 pr-4 font-medium">Email / Phone</th>
+										<th className="py-2 pr-4 font-medium">Branch</th>
+										<th className="py-2 pr-4 font-medium">Received</th>
+										<th className="py-2 font-medium">Action</th>
+									</tr>
+								</thead>
+								<tbody>
+									{pendingContacts.map((p) => {
+										const branchName =
+											(hierarchyData?.nodes ?? []).find(
+												(n: HierarchyNode) => n.id === p.resolvedBranchNodeId,
+											)?.name ?? "—";
+										return (
+											<tr key={p.id} className="border-b last:border-0">
+												<td className="py-3 pr-4 font-medium">
+													{p.proposedName ?? "—"}
+												</td>
+												<td className="py-3 pr-4 text-muted-foreground">
+													{p.proposedEmail ?? p.proposedPhone ?? "—"}
+												</td>
+												<td className="py-3 pr-4">{branchName}</td>
+												<td className="py-3 pr-4 text-muted-foreground">
+													{new Date(p.createdAt).toLocaleString()}
+												</td>
+												<td className="py-3">
+													{canApprove ? (
+														<div className="flex gap-2">
+															<Button
+																size="sm"
+																data-testid="ghl-approve-btn"
+																onClick={() =>
+																	approveContactMutation.mutate({
+																		pendingId: p.id,
+																	})
+																}
+																disabled={
+																	approveContactMutation.isPending ||
+																	rejectContactMutation.isPending
+																}
+															>
+																Approve
+															</Button>
+															<Button
+																size="sm"
+																variant="outline"
+																data-testid="ghl-reject-btn"
+																onClick={() => {
+																	const reason = window.prompt(
+																		"Reason for rejecting (optional):",
+																	);
+																	if (reason === null) return;
+																	rejectContactMutation.mutate({
+																		pendingId: p.id,
+																		reason: reason || undefined,
+																	});
+																}}
+																disabled={
+																	approveContactMutation.isPending ||
+																	rejectContactMutation.isPending
+																}
+															>
+																Reject
+															</Button>
+														</div>
+													) : (
+														<Badge variant="secondary">Awaiting manager</Badge>
+													)}
+												</td>
+											</tr>
+										);
+									})}
+								</tbody>
+							</table>
 						</div>
 					)}
 				</CardContent>

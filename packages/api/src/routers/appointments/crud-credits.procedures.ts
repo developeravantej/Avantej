@@ -5,6 +5,7 @@ import {
 	writeAudit,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
+import { assertOutsideBookingLock } from "./lock";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
 import {
@@ -151,19 +152,12 @@ export const appointmentsCreditsProcedures = {
 				});
 			}
 
-			// UAT §5 — 24-hour lock: reschedule is only allowed up to 24h before the
-			// session; inside the lock the permitted actions are burn/claim. Admins
-			// may override for operational exceptions.
-			const RESCHEDULE_LOCK_MS = 24 * 60 * 60 * 1000;
-			if (
-				context.member?.role !== "admin" &&
-				existing.startTime.getTime() - Date.now() < RESCHEDULE_LOCK_MS
-			) {
-				throw new ORPCError("CONFLICT", {
-					message:
-						"Cannot reschedule within 24 hours of the session. Contact an admin.",
-				});
-			}
+			// UAT §5 — 24-hour lock (shared helper; admins override).
+			assertOutsideBookingLock(
+				existing.startTime,
+				context.member,
+				"reschedule",
+			);
 
 			const fromIso = existing.startTime.toISOString();
 			const newStart = new Date(input.newStartTime);

@@ -121,3 +121,4 @@ _e2e/**/*.png
 _e2e/**/*.log
 _e2e/**/*.txt
 _e2e/results/report-*.json
+.e2e-deploy/

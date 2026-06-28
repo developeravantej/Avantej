@@ -1,3 +1,4 @@
+import { useSearch } from "@tanstack/react-router";
 import { Lock, QrCode, Search, Store } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -36,7 +37,14 @@ export function OnboardingIndexPage() {
 		organizationId ?? "",
 	);
 
-	const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+	// Preselect a branch when arriving via ?branch=<id> (e.g. from a
+	// self-signup invitation row in Staff Access → Invitations).
+	const { branch: branchParam } = useSearch({
+		from: "/_authenticated/dashboard/_layout/onboarding/view",
+	});
+	const [selectedBranchId, setSelectedBranchId] = useState<string | null>(
+		branchParam ?? null,
+	);
 	const [search, setSearch] = useState("");
 	const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
 	const [confirmRegenerateId, setConfirmRegenerateId] = useState<string | null>(

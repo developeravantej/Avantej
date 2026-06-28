@@ -29,6 +29,25 @@ vi.mock("@/hooks/useUserContext", () => ({
 vi.mock("sonner", () => ({
 	toast: { success: vi.fn(), error: vi.fn() },
 }));
+// useTrainerData reads useScope and the page renders <ScopeSwitcher/>; mock both
+// so the page mounts without a ScopeProvider in the tree.
+vi.mock("@/components/scope/ScopeProvider", () => ({
+	useScope: () => ({
+		scopeNodeId: undefined,
+		isAllScope: true,
+		activeScopeId: null,
+		accessibleNodeIds: [],
+		scopeNodes: [],
+		topAccessibleNodeId: null,
+		setActiveScope: vi.fn(),
+		resetScope: vi.fn(),
+		isScopeReady: true,
+		activeScopeNode: null,
+	}),
+}));
+vi.mock("@/components/scope/ScopeSwitcher", () => ({
+	ScopeSwitcher: () => null,
+}));
 
 beforeAll(async () => {
 	await import("@/routes/_authenticated/dashboard/_layout/trainers/view");

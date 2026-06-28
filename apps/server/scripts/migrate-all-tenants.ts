@@ -107,6 +107,13 @@ interface MigrationResult {
 	organizationName: string;
 	slug: string;
 	success: boolean;
+	/**
+	 * True when the tenant was intentionally skipped rather than failed — e.g. its
+	 * stored connection string can't be decrypted, which means the org was never
+	 * fully provisioned (a billing-test stub / orphan fixture). Skipped tenants do
+	 * NOT count as failures and do NOT fail the run's exit code.
+	 */
+	skipped: boolean;
 	previousVersion: string | null;
 	newVersion: string | null;
 	error?: string;
@@ -124,14 +131,28 @@ async function migrateOneTenant(
 		organizationName: organization.name,
 		slug: organization.slug,
 		success: false,
+		skipped: false,
 		previousVersion: organization.schemaVersion,
 		newVersion: null,
 	};
 
+	// Decrypt the connection string first. A decrypt failure (e.g. "Invalid
+	// encrypted format") means the org has a placeholder/unencrypted connection
+	// string and was never fully provisioned — skip it instead of failing the
+	// batch so one orphan fixture can't block a real fleet rollout.
+	let connectionString: string;
 	try {
-		// Decrypt connection string
-		const connectionString = decrypt(organization.connectionString);
+		connectionString = decrypt(organization.connectionString);
+	} catch (decryptError) {
+		result.skipped = true;
+		result.error =
+			decryptError instanceof Error
+				? `not provisioned (${decryptError.message})`
+				: "not provisioned (connection string undecryptable)";
+		return result;
+	}
 
+	try {
 		// Step 1: Run migrations (idempotent - only applies missing ones)
 		const finalVersion = await runTenantMigrations(connectionString);
 		result.newVersion = finalVersion;
@@ -150,8 +171,7 @@ async function migrateOneTenant(
 
 		result.success = true;
 	} catch (error) {
-		result.error =
-			error instanceof Error ? error.message : "Unknown error";
+		result.error = error instanceof Error ? error.message : "Unknown error";
 	}
 
 	return result;
@@ -188,6 +208,10 @@ async function processBatches(
 				if (result.success) {
 					console.log(
 						`   [OK] ${result.organizationName} (${result.slug}): ${result.previousVersion || "none"} -> ${result.newVersion}`,
+					);
+				} else if (result.skipped) {
+					console.log(
+						`   [SKIP] ${result.organizationName} (${result.slug}): ${result.error}`,
 					);
 				} else {
 					console.log(
@@ -238,7 +262,9 @@ async function migrateAllTenants(options: CliOptions) {
 		console.log(
 			`${"Name".padEnd(30)} | ${"Slug".padEnd(20)} | ${"Current Version".padEnd(20)} | Status`,
 		);
-		console.log(`${"-".repeat(30)} | ${"-".repeat(20)} | ${"-".repeat(20)} | ------`);
+		console.log(
+			`${"-".repeat(30)} | ${"-".repeat(20)} | ${"-".repeat(20)} | ------`,
+		);
 
 		for (const org of allOrgs) {
 			const currentVersion = org.schemaVersion || "unknown";
@@ -268,27 +294,46 @@ async function migrateAllTenants(options: CliOptions) {
 
 	// Summary
 	const successful = results.filter((r) => r.success).length;
-	const failed = results.filter((r) => !r.success).length;
+	const skipped = results.filter((r) => r.skipped).length;
+	const failed = results.filter((r) => !r.success && !r.skipped).length;
 
 	console.log(`\n--- Migration Summary ---`);
 	console.log(`Total: ${results.length}`);
 	console.log(`Successful: ${successful}`);
+	console.log(`Skipped (not provisioned): ${skipped}`);
 	console.log(`Failed: ${failed}`);
+
+	if (skipped > 0) {
+		console.log(`\nSkipped tenants (not provisioned — no valid connection):`);
+		for (const result of results.filter((r) => r.skipped)) {
+			console.log(
+				`  - ${result.organizationName} (${result.slug}): ${result.error}`,
+			);
+		}
+	}
 
 	if (failed > 0) {
 		console.log(`\nFailed tenants:`);
-		for (const result of results.filter((r) => !r.success)) {
-			console.log(`  - ${result.organizationName} (${result.slug}): ${result.error}`);
+		for (const result of results.filter((r) => !r.success && !r.skipped)) {
+			console.log(
+				`  - ${result.organizationName} (${result.slug}): ${result.error}`,
+			);
 		}
 	}
+
+	// Surface genuine failures to callers/CI; skipped (unprovisioned) tenants are
+	// not failures and must not break the exit code.
+	return { failed };
 }
 
 const options = parseArgs();
 
 migrateAllTenants(options)
-	.then(() => {
+	.then((summary) => {
 		console.log("\nDone!");
-		process.exit(0);
+		// Exit non-zero only on genuine migration failures (skipped/unprovisioned
+		// tenants are not failures) so CI/ops can gate a rollout on real errors.
+		process.exit(summary && summary.failed > 0 ? 1 : 0);
 	})
 	.catch((error) => {
 		console.error("\nError:", error);

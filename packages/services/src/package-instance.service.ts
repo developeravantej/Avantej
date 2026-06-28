@@ -11,7 +11,18 @@
  * ```
  */
 
-import { eq, and, asc, inArray, sql, or, lt, lte, desc } from "drizzle-orm";
+import {
+	eq,
+	and,
+	asc,
+	inArray,
+	sql,
+	or,
+	lt,
+	lte,
+	desc,
+	isNotNull,
+} from "drizzle-orm";
 
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -30,6 +41,7 @@ import { user } from "@avantej-core/db/schema/auth";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { appendPackageInstanceStatusHistory } from "./status-history.helper";
 import { writeAudit } from "./audit-log.service";
+import { resolveScopeNodeIds } from "./hierarchy-scope";
 
 type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
 type TenantDb = NeonDatabase<typeof tenantSchema>;
@@ -107,8 +119,87 @@ export async function listPackageInstancesForClient(
 
 	return tenantDb.query.packageInstances.findMany({
 		where: and(...conditions),
-		orderBy: [asc(packageInstances.createdAt)],
+		// Pinned packages first, then oldest-first as legacy tiebreaker. Postgres
+		// defaults DESC to NULLS FIRST, which would float unpinned rows to the top
+		// — force NULLS LAST so the single pinned row leads.
+		orderBy: [
+			sql`${packageInstances.pinnedAt} desc nulls last`,
+			asc(packageInstances.createdAt),
+		],
 		limit: Math.min(limit, 200),
+	});
+}
+
+/**
+ * Toggle the customer pin on a package instance.
+ *
+ * Invariant: at most one pinned package per client at any time. Enforced by
+ * a partial unique index on (client_id) WHERE pinned_at IS NOT NULL, with
+ * this transaction as the primary guard.
+ *
+ * Behavior:
+ *   - If the target row is already pinned → unpin it (set pinned_at = NULL).
+ *   - Else → clear any other pinned rows for this client, then pin the target.
+ *
+ * Throws:
+ *   - "Package not found" — id does not exist.
+ *   - "Forbidden — not your package" — caller is not the owner.
+ *   - "Only active packages can be pinned" — status !== "active".
+ */
+export async function togglePackagePin(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	params: { packageInstanceId: string; clientId: string },
+): Promise<{ id: string; pinnedAt: Date | null }> {
+	return tenantDb.transaction(async (tx) => {
+		const [pkg] = await tx
+			.select()
+			.from(packageInstances)
+			.where(eq(packageInstances.id, params.packageInstanceId))
+			.for("update");
+
+		if (!pkg) throw new Error("Package not found");
+		if (pkg.clientId !== params.clientId)
+			throw new Error("Forbidden — not your package");
+		if (pkg.status !== "active")
+			throw new Error("Only active packages can be pinned");
+
+		if (pkg.pinnedAt) {
+			const [row] = await tx
+				.update(packageInstances)
+				.set({ pinnedAt: null, updatedAt: new Date() })
+				.where(eq(packageInstances.id, pkg.id))
+				.returning({
+					id: packageInstances.id,
+					pinnedAt: packageInstances.pinnedAt,
+				});
+			if (!row) throw new Error("Failed to unpin package");
+			return row;
+		}
+
+		// Clear any existing pin on other packages for this client first,
+		// then pin the target. Both inside the same tx → atomic.
+		await tx
+			.update(packageInstances)
+			.set({ pinnedAt: null, updatedAt: new Date() })
+			.where(
+				and(
+					eq(packageInstances.clientId, params.clientId),
+					isNotNull(packageInstances.pinnedAt),
+				),
+			);
+
+		const now = new Date();
+		const [row] = await tx
+			.update(packageInstances)
+			.set({ pinnedAt: now, updatedAt: now })
+			.where(eq(packageInstances.id, pkg.id))
+			.returning({
+				id: packageInstances.id,
+				pinnedAt: packageInstances.pinnedAt,
+			});
+
+		if (!row) throw new Error("Failed to pin package");
+		return row;
 	});
 }
 
@@ -265,10 +356,27 @@ export async function listMemberships(
 		}
 	})();
 
-	// Optional branch filter
-	const branchPredicate = branchId
-		? sql`AND m.hierarchy_scope_id = ${branchId}::uuid`
-		: sql``;
+	// Optional scope filter. `branchId` may now be ANY hierarchy node — a leaf
+	// branch OR a non-leaf country/region/state. Expand it to its accessible
+	// subtree (itself + descendants ∩ ceiling) so a non-leaf scope returns its
+	// branches' rows instead of zero. resolveScopeNodeIds guards branchId against
+	// accessibleNodeIds (out-of-scope → BranchAccessDeniedError/FORBIDDEN) before
+	// any DB expansion. The main `m.hierarchy_scope_id = ANY(${nodeArrayLiteral})`
+	// ceiling filter below stays intact (defense in depth).
+	const branchPredicate = await (async () => {
+		if (!branchId) return sql``;
+		const scopeIds = await resolveScopeNodeIds(
+			tenantDb,
+			branchId,
+			accessibleNodeIds,
+		);
+		if (scopeIds.length === 0) return sql``;
+		assertUuids(scopeIds, "listMemberships:scope");
+		const scopeArrayLiteral = sql.raw(
+			`ARRAY[${scopeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`,
+		);
+		return sql`AND m.hierarchy_scope_id = ANY(${scopeArrayLiteral})`;
+	})();
 
 	// Optional service category filter
 	const categoryPredicate = serviceCategoryId
@@ -398,6 +506,236 @@ export async function listMemberships(
 	}));
 
 	return { rows, total };
+}
+
+/**
+ * Raw snake_case shape of a `SELECT pi.*` row from `package_instances`, plus the
+ * joined `hierarchy_scope_id`. Used only to remap to the camelCase API shape.
+ */
+type RawPackageInstanceRow = Record<string, unknown> & {
+	id: string;
+	client_id: string | null;
+	hierarchy_scope_id: string | null;
+};
+
+/**
+ * camelCase row matching what the old Drizzle `.select().from(packageInstances)`
+ * query returned (i.e. `packageInstances.$inferSelect`) plus the resolved
+ * `clientName`. Web consumers (instances-page.tsx, packages-tab.tsx) read these
+ * camelCase keys; a raw snake_case row crashes them (e.g. `item.serviceId.slice`).
+ */
+export type ListAllPackageInstanceRow = Record<string, unknown> & {
+	id: string;
+	serviceId: string;
+	clientId: string | null;
+	walkInCustomerId: string | null;
+	customerName: string | null;
+	clientName: string | null;
+	source: string;
+	assignedBy: string | null;
+	purchaseNumber: string | null;
+	paymentId: string | null;
+	totalPrice: number | null;
+	taxAmount: number | null;
+	paymentStatus: string;
+	paymentMethod: string | null;
+	creditsTotal: number;
+	creditsRemaining: number;
+	creditsUsed: number;
+	creditsUnlocked: number | null;
+	startsAt: Date | null;
+	expiresAt: Date | null;
+	frozenUntil: Date | null;
+	status: string;
+	paymentPlanType: string | null;
+	installmentsTotal: number;
+	installmentsPaid: number;
+	installmentsWaived: number;
+	nextDueDate: Date | null;
+	gracePeriodEndsAt: Date | null;
+	isLocked: boolean;
+	lockedAt: Date | null;
+	lockedReason: string | null;
+	salesOrderId: string | null;
+	createdAt: Date | null;
+	updatedAt: Date | null;
+};
+
+/**
+ * Map a raw `SELECT pi.*` snake_case row to the camelCase `$inferSelect`-shaped
+ * row the API has always returned. Every column is named explicitly (mirrors
+ * listMemberships' merge step) and the raw snake_case row is intentionally NOT
+ * spread through — the old Drizzle `.select().from(packageInstances)` query
+ * returned camelCase-only, and the web consumers read camelCase only.
+ */
+function toCamelPackageInstanceRow(
+	r: RawPackageInstanceRow,
+	clientName: string | null,
+): ListAllPackageInstanceRow {
+	return {
+		id: r.id,
+		serviceId: r.service_id as string,
+		clientId: (r.client_id as string | null) ?? null,
+		walkInCustomerId: (r.walk_in_customer_id as string | null) ?? null,
+		customerName: (r.customer_name as string | null) ?? null,
+		clientName,
+		source: r.source as string,
+		assignedBy: (r.assigned_by as string | null) ?? null,
+		purchaseNumber: (r.purchase_number as string | null) ?? null,
+		paymentId: (r.payment_id as string | null) ?? null,
+		totalPrice: (r.total_price as number | null) ?? null,
+		taxAmount: (r.tax_amount as number | null) ?? null,
+		paymentStatus: r.payment_status as string,
+		paymentMethod: (r.payment_method as string | null) ?? null,
+		eSignature: (r.e_signature as string | null) ?? null,
+		termsAgreedAt: (r.terms_agreed_at as Date | null) ?? null,
+		creditsTotal: r.credits_total as number,
+		creditsRemaining: r.credits_remaining as number,
+		creditsUsed: r.credits_used as number,
+		creditsUnlocked: (r.credits_unlocked as number | null) ?? null,
+		startsAt: (r.starts_at as Date | null) ?? null,
+		expiresAt: (r.expires_at as Date | null) ?? null,
+		frozenUntil: (r.frozen_until as Date | null) ?? null,
+		status: r.status as string,
+		assignedTrainerId: (r.assigned_trainer_id as string | null) ?? null,
+		preferredTrainerId: (r.preferred_trainer_id as string | null) ?? null,
+		assignedTrainerAssignedBy:
+			(r.assigned_trainer_assigned_by as string | null) ?? null,
+		assignedTrainerAssignedAt:
+			(r.assigned_trainer_assigned_at as Date | null) ?? null,
+		approvedAt: (r.approved_at as Date | null) ?? null,
+		approvedBy: (r.approved_by as string | null) ?? null,
+		cancellationReason: (r.cancellation_reason as string | null) ?? null,
+		cancelledBy: (r.cancelled_by as string | null) ?? null,
+		remark: (r.remark as string | null) ?? null,
+		paymentPlanType: (r.payment_plan_type as string | null) ?? null,
+		installmentsTotal: r.installments_total as number,
+		installmentsPaid: r.installments_paid as number,
+		installmentsWaived: (r.installments_waived as number | null) ?? 0,
+		nextDueDate: (r.next_due_date as Date | null) ?? null,
+		gracePeriodEndsAt: (r.grace_period_ends_at as Date | null) ?? null,
+		isLocked: (r.is_locked as boolean | null) ?? false,
+		lockedAt: (r.locked_at as Date | null) ?? null,
+		lockedReason: (r.locked_reason as string | null) ?? null,
+		salesOrderId: (r.sales_order_id as string | null) ?? null,
+		stripeCustomerId: (r.stripe_customer_id as string | null) ?? null,
+		defaultPaymentMethodId:
+			(r.default_payment_method_id as string | null) ?? null,
+		autoChargeEnabled: (r.auto_charge_enabled as boolean | null) ?? false,
+		creditsAdminOverride: (r.credits_admin_override as boolean | null) ?? false,
+		allowCreditOverdraft: (r.allow_credit_overdraft as boolean | null) ?? false,
+		pinnedAt: (r.pinned_at as Date | null) ?? null,
+		createdAt: (r.created_at as Date | null) ?? null,
+		updatedAt: (r.updated_at as Date | null) ?? null,
+	};
+}
+
+/**
+ * List all package instances for the org.
+ *
+ * Admin (`isAdmin = true`): returns ALL instances org-wide, regardless of the
+ * owning client's branch. A LEFT JOIN on members is used so instances with a
+ * null/non-client `client_id` (e.g. walk-ins) are NOT dropped — they have no
+ * branch to attribute but the old `.select().from(packageInstances)` query
+ * returned them and admins must keep seeing them.
+ *
+ * Non-admin: scoped to the owning client member's `hierarchy_scope_id ∈
+ * accessibleNodeIds` (mirrors listMemberships). An empty `accessibleNodeIds`
+ * means the caller can branch-attribute nothing → fail-closed to `[]` (never
+ * org-wide; org-wide is gated on the explicit admin role, NOT on empty nodes).
+ * Null-client instances are excluded for scoped users — they can't be
+ * branch-attributed.
+ *
+ * Returned rows are camelCase (`$inferSelect` shape) — the API contract every
+ * web consumer reads.
+ */
+export async function listAllPackageInstances(
+	controlPanelDb: ControlPanelDb,
+	tenantDb: TenantDb,
+	params: {
+		accessibleNodeIds: string[];
+		isAdmin?: boolean;
+		clientId?: string;
+		status?: string;
+		source?: string;
+		limit?: number;
+	},
+): Promise<ListAllPackageInstanceRow[]> {
+	const {
+		accessibleNodeIds,
+		isAdmin = false,
+		clientId,
+		status,
+		source,
+		limit = 100,
+	} = params;
+
+	// Non-admins with no accessible nodes can branch-attribute nothing →
+	// fail-closed. Admins fall through to the org-wide query below.
+	if (!isAdmin && accessibleNodeIds.length === 0) return [];
+
+	const clientPredicate = clientId
+		? sql`AND pi.client_id = ${clientId}`
+		: sql``;
+	const statusPredicate = status ? sql`AND pi.status = ${status}` : sql``;
+	const sourcePredicate = source ? sql`AND pi.source = ${source}` : sql``;
+
+	let result: { rows: unknown[] };
+	if (isAdmin) {
+		// Org-wide. LEFT JOIN so null/non-client instances survive (the old
+		// query returned them); no accessible-node filter.
+		result = await tenantDb.execute(sql`
+			SELECT pi.*, m.hierarchy_scope_id AS hierarchy_scope_id
+			FROM package_instances pi
+			LEFT JOIN members m ON m.user_id = pi.client_id AND m.role = 'client'
+			WHERE TRUE
+				${clientPredicate}
+				${statusPredicate}
+				${sourcePredicate}
+			ORDER BY pi.created_at DESC
+			LIMIT ${limit}
+		`);
+	} else {
+		assertUuids(accessibleNodeIds, "listAllPackageInstances");
+		const nodeArrayLiteral = sql.raw(
+			`ARRAY[${accessibleNodeIds.map((id) => `'${id}'`).join(",")}]::uuid[]`,
+		);
+		result = await tenantDb.execute(sql`
+			SELECT pi.*, m.hierarchy_scope_id AS hierarchy_scope_id
+			FROM package_instances pi
+			JOIN members m ON m.user_id = pi.client_id AND m.role = 'client'
+			WHERE m.hierarchy_scope_id = ANY(${nodeArrayLiteral})
+				${clientPredicate}
+				${statusPredicate}
+				${sourcePredicate}
+			ORDER BY pi.created_at DESC
+			LIMIT ${limit}
+		`);
+	}
+	const rows = result.rows as RawPackageInstanceRow[];
+
+	const clientIds = [
+		...new Set(
+			rows
+				.map((r) => r.client_id as string | null)
+				.filter((id): id is string => id != null),
+		),
+	];
+	const userRows =
+		clientIds.length > 0
+			? await controlPanelDb
+					.select({ id: user.id, name: user.name })
+					.from(user)
+					.where(inArray(user.id, clientIds))
+			: [];
+	const userMap = new Map(userRows.map((u) => [u.id, u.name]));
+
+	return rows.map((r) =>
+		toCamelPackageInstanceRow(
+			r,
+			r.client_id ? (userMap.get(r.client_id) ?? null) : null,
+		),
+	);
 }
 
 /**

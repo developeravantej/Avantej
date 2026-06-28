@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { BulkActionBar } from "@/components/commissions/bulk-action-bar";
 import {
@@ -16,13 +16,6 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +25,8 @@ import { StatusCallout } from "@/components/ui/status-callout";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { Skeleton } from "boneyard-js/react";
 import { client, orpc } from "@/utils/orpc";
+import { useScope } from "@/components/scope/ScopeProvider";
+import { ScopeSwitcher } from "@/components/scope/ScopeSwitcher";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -231,30 +226,19 @@ export function AllCommissionsPage() {
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const queryClient = useQueryClient();
 
+	// Tenant scope switcher → narrows the ledger query within the caller's RBAC
+	// subtree. `scopeNodeId` is undefined at "All" (server expands to the full
+	// accessible subtree), else the selected hierarchy node id.
+	const { scopeNodeId } = useScope();
+
 	// Permissions
 	const canRead = hasPermission("commission_management:read");
 	const canApprove = hasPermission("commission_management:approve");
 	const canProcess = hasPermission("commission_management:process");
 
-	// Branch options
-	const currentOrg = userContext?.organizations.find(
-		(o) => o.id === organizationId,
-	);
-	const accessibleNodeIds =
-		currentOrg?.hierarchy?.member?.accessibleNodeIds ?? [];
-	const allNodes = currentOrg?.hierarchy?.nodes ?? [];
-	const accessibleBranches = allNodes.filter(
-		(n) => accessibleNodeIds.includes(n.id) && n.type === "branch",
-	);
-	const branchOptions =
-		accessibleBranches.length > 0
-			? accessibleBranches
-			: allNodes.filter((n) => accessibleNodeIds.includes(n.id));
-
 	// ── Filters ────────────────────────────────────────────────────────────────
 	const [activeTab, setActiveTab] = useState<ActiveTab>("all");
 	const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
-	const [branchId, setBranchId] = useState("");
 	const [staffSearch, setStaffSearch] = useState("");
 
 	// ── Row selection ──────────────────────────────────────────────────────────
@@ -278,6 +262,16 @@ export function AllCommissionsPage() {
 	function resetSelection() {
 		setSelectedIds(new Set());
 	}
+
+	// The global ScopeSwitcher narrows the ledger without going through any of the
+	// row-level handlers, so a scope change can leave stale selected row ids (from
+	// the previous scope) in state — which would make the bulk approve/process
+	// count reference now-invisible rows. Clear the selection whenever the active
+	// scope node changes. setSelectedIds is a stable setter, so depending only on
+	// scopeNodeId is safe and avoids re-running on every render.
+	useEffect(() => {
+		setSelectedIds(new Set());
+	}, [scopeNodeId]);
 
 	// ── Per-row void ───────────────────────────────────────────────────────────
 	const [voidRowId, setVoidRowId] = useState<string | null>(null);
@@ -320,7 +314,7 @@ export function AllCommissionsPage() {
 				organizationId: organizationId!,
 				status: activeTab === "all" ? "all" : activeTab,
 				staffId: selectedStaffId || undefined,
-				branchId: branchId || undefined,
+				branchId: scopeNodeId,
 				limit: 200,
 				offset: 0,
 			},
@@ -447,7 +441,7 @@ export function AllCommissionsPage() {
 			<div className="px-6 pb-6">
 				{/* V1 card */}
 				<div className="overflow-hidden rounded-2xl border border-[#e5e5e5] bg-white">
-					{/* Inner toolbar: status tabs + branch filter */}
+					{/* Inner toolbar: status tabs + tenant scope switcher */}
 					<div className="flex items-center justify-between border-b border-[#e5e5e5] px-6 py-3">
 						<div className="flex items-center gap-1">
 							{(
@@ -477,27 +471,7 @@ export function AllCommissionsPage() {
 							))}
 						</div>
 						<div className="flex items-center gap-2">
-							{branchOptions.length > 0 && (
-								<Select
-									value={branchId || "all"}
-									onValueChange={(v) => {
-										setBranchId(v === "all" ? "" : v);
-										resetSelection();
-									}}
-								>
-									<SelectTrigger className="h-8 w-44 text-xs">
-										<SelectValue placeholder="All branches" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="all">All branches</SelectItem>
-										{branchOptions.map((node) => (
-											<SelectItem key={node.id} value={node.id}>
-												{node.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							)}
+							<ScopeSwitcher className="h-8 w-44 text-xs" />
 						</div>
 					</div>
 

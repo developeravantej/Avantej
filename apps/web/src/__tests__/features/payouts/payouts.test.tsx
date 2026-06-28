@@ -33,6 +33,27 @@ vi.mock("@/hooks/useUserContext", () => ({
 	}),
 }));
 
+// PayoutsTab reads useScope() and renders <ScopeSwitcher/> in its header.
+// Stub the provider (no real ScopeProvider in this tree) and render the
+// switcher as a no-op so these existing render assertions stay focused.
+vi.mock("@/components/scope/ScopeProvider", () => ({
+	useScope: () => ({
+		activeScopeId: null,
+		activeScopeNode: null,
+		setActiveScope: vi.fn(),
+		resetScope: vi.fn(),
+		accessibleNodeIds: [],
+		scopeNodes: [],
+		topAccessibleNodeId: null,
+		isAllScope: true,
+		scopeNodeId: undefined,
+		isScopeReady: true,
+	}),
+}));
+vi.mock("@/components/scope/ScopeSwitcher", () => ({
+	ScopeSwitcher: () => null,
+}));
+
 import { PayoutsTab } from "@/components/pages/commissions/payouts-tab";
 import { MarkPaidDialog } from "@/features/payouts/components/payout-action-dialogs";
 import type { PayoutListItem } from "@/features/payouts/api";

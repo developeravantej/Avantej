@@ -9,13 +9,21 @@
 		"enabled": true,
 		"head_sampling_rate": 1
 	},
+	// R2 bucket for offline payment-proof uploads (UAT §7). Bucket created on the
+	// ZHIYUAN account 2026-06-23. Accessed in handlers via c.env.PROOFS_BUCKET.
+	"r2_buckets": [
+		{
+			"binding": "PROOFS_BUCKET",
+			"bucket_name": "avantej-payment-proofs"
+		}
+	],
 	"vars": {
 		"NODE_ENV": "production",
 		"INSTALLMENTS_LOCK_ON_OPEN": "true",
-		"CORS_ORIGIN": "https://avantej-core-web.ngchwanlii-a9c.workers.dev",
-		"BETTER_AUTH_URL": "https://avantej-core-server.ngchwanlii-a9c.workers.dev",
-		"WEB_APP_URL": "https://avantej-core-web.ngchwanlii-a9c.workers.dev",
-		"FRONTEND_URL": "https://avantej-core-web.ngchwanlii-a9c.workers.dev"
+		"CORS_ORIGIN": "https://avantej-core-web.zhiyuantech.workers.dev",
+		"BETTER_AUTH_URL": "https://avantej-core-server.zhiyuantech.workers.dev",
+		"WEB_APP_URL": "https://avantej-core-web.zhiyuantech.workers.dev",
+		"FRONTEND_URL": "https://avantej-core-web.zhiyuantech.workers.dev"
 		// Add public environment variables here
 		// Comma-separate CORS_ORIGIN if multiple frontends need access.
 	},

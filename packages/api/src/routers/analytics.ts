@@ -1,9 +1,11 @@
 import { z } from "zod";
+import { resolveScopeNodeIds } from "@avantej-core/services";
 import { tenantProcedure } from "../index";
 import {
 	assertOrgContextMatch,
 	guardBranchAccessible,
 	requirePermissionOrpc,
+	resolveAccessibleNodeIds,
 } from "../guards";
 import {
 	getDashboardKpis,
@@ -103,6 +105,7 @@ const getRevenueSeriesHandler = tenantProcedure
 const seriesInput = z.object({
 	organizationId: z.string().uuid(),
 	days: z.union([z.literal(7), z.literal(30), z.literal(90)]),
+	branchId: z.string().uuid().optional(),
 });
 
 const getMemberCountSeriesHandler = tenantProcedure
@@ -115,9 +118,23 @@ const getMemberCountSeriesHandler = tenantProcedure
 			"reports",
 			"read",
 		);
+		// Resolve the RBAC ceiling once. Prefer context.accessibleNodeIds, but
+		// fall back to the member's hierarchy subtree when it is empty
+		// (defense-in-depth: a degraded empty context must not skip the
+		// FORBIDDEN guard or silently widen scope). When context.accessibleNodeIds
+		// is non-empty this returns it verbatim, so behavior is unchanged.
+		const accessibleNodeIds = await resolveAccessibleNodeIds(context);
+		guardBranchAccessible(input.branchId, accessibleNodeIds);
+		const nodeIds = input.branchId
+			? await resolveScopeNodeIds(
+					context.tenantDb,
+					input.branchId,
+					accessibleNodeIds,
+				)
+			: accessibleNodeIds;
 		return getMemberCountSeries(context.tenantDb, {
 			days: input.days,
-			accessibleNodeIds: context.accessibleNodeIds ?? [],
+			accessibleNodeIds: nodeIds,
 		});
 	});
 
@@ -131,9 +148,23 @@ const getChurnSeriesHandler = tenantProcedure
 			"reports",
 			"read",
 		);
+		// Resolve the RBAC ceiling once. Prefer context.accessibleNodeIds, but
+		// fall back to the member's hierarchy subtree when it is empty
+		// (defense-in-depth: a degraded empty context must not skip the
+		// FORBIDDEN guard or silently widen scope). When context.accessibleNodeIds
+		// is non-empty this returns it verbatim, so behavior is unchanged.
+		const accessibleNodeIds = await resolveAccessibleNodeIds(context);
+		guardBranchAccessible(input.branchId, accessibleNodeIds);
+		const nodeIds = input.branchId
+			? await resolveScopeNodeIds(
+					context.tenantDb,
+					input.branchId,
+					accessibleNodeIds,
+				)
+			: accessibleNodeIds;
 		return getChurnSeries(context.tenantDb, {
 			days: input.days,
-			accessibleNodeIds: context.accessibleNodeIds ?? [],
+			accessibleNodeIds: nodeIds,
 		});
 	});
 
@@ -147,9 +178,23 @@ const getLtvSeriesHandler = tenantProcedure
 			"reports",
 			"read",
 		);
+		// Resolve the RBAC ceiling once. Prefer context.accessibleNodeIds, but
+		// fall back to the member's hierarchy subtree when it is empty
+		// (defense-in-depth: a degraded empty context must not skip the
+		// FORBIDDEN guard or silently widen scope). When context.accessibleNodeIds
+		// is non-empty this returns it verbatim, so behavior is unchanged.
+		const accessibleNodeIds = await resolveAccessibleNodeIds(context);
+		guardBranchAccessible(input.branchId, accessibleNodeIds);
+		const nodeIds = input.branchId
+			? await resolveScopeNodeIds(
+					context.tenantDb,
+					input.branchId,
+					accessibleNodeIds,
+				)
+			: accessibleNodeIds;
 		return getLtvSeries(context.tenantDb, {
 			days: input.days,
-			accessibleNodeIds: context.accessibleNodeIds ?? [],
+			accessibleNodeIds: nodeIds,
 		});
 	});
 
@@ -163,9 +208,23 @@ const getClassFillRateSeriesHandler = tenantProcedure
 			"reports",
 			"read",
 		);
+		// Resolve the RBAC ceiling once. Prefer context.accessibleNodeIds, but
+		// fall back to the member's hierarchy subtree when it is empty
+		// (defense-in-depth: a degraded empty context must not skip the
+		// FORBIDDEN guard or silently widen scope). When context.accessibleNodeIds
+		// is non-empty this returns it verbatim, so behavior is unchanged.
+		const accessibleNodeIds = await resolveAccessibleNodeIds(context);
+		guardBranchAccessible(input.branchId, accessibleNodeIds);
+		const nodeIds = input.branchId
+			? await resolveScopeNodeIds(
+					context.tenantDb,
+					input.branchId,
+					accessibleNodeIds,
+				)
+			: accessibleNodeIds;
 		return getClassFillRateSeries(context.tenantDb, {
 			days: input.days,
-			accessibleNodeIds: context.accessibleNodeIds ?? [],
+			accessibleNodeIds: nodeIds,
 		});
 	});
 

@@ -48,9 +48,7 @@ import { auditLogs } from "@avantej-core/db/schema/tenant/audit-logs";
 import pg from "pg";
 import { drizzle as pgDrizzle } from "drizzle-orm/node-postgres";
 import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
-import * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
-import { eq } from "drizzle-orm";
 import { decrypt } from "@avantej-core/db";
 import {
 	loadDevVars,
@@ -111,7 +109,7 @@ const created = {
 	memberIds: [] as string[],
 	hierarchyNodeIds: [] as string[],
 	stripeCustomerIds: [] as string[], // on connected account
-	stripePriceIds: [] as string[],    // on connected account (payment links)
+	stripePriceIds: [] as string[], // on connected account (payment links)
 };
 
 // ---------------------------------------------------------------------------
@@ -326,16 +324,27 @@ beforeAll(async () => {
 			);
 			const fallback = process.env.TENANT_DATABASE_URL;
 			if (!fallback) throw new Error("No tenant DB URL available");
-			tenantPool = new Pool({ connectionString: fallback, ssl: { rejectUnauthorized: false } });
+			tenantPool = new Pool({
+				connectionString: fallback,
+				ssl: { rejectUnauthorized: false },
+			});
 		} else {
 			const connStr = decrypt(org.connectionString);
-			tenantPool = new Pool({ connectionString: connStr, ssl: { rejectUnauthorized: false } });
+			tenantPool = new Pool({
+				connectionString: connStr,
+				ssl: { rejectUnauthorized: false },
+			});
 		}
 
 		tenantDb = pgDrizzle({ client: tenantPool, schema: tenantSchema });
-		console.log("[autocharge.integration] Tenant DB connected via control-panel lookup");
+		console.log(
+			"[autocharge.integration] Tenant DB connected via control-panel lookup",
+		);
 	} catch (err) {
-		console.warn("[autocharge.integration] Failed to connect tenant DB:", err instanceof Error ? err.message : String(err));
+		console.warn(
+			"[autocharge.integration] Failed to connect tenant DB:",
+			err instanceof Error ? err.message : String(err),
+		);
 		return;
 	}
 
@@ -384,7 +393,10 @@ afterAll(async () => {
 		await tenantDb
 			.delete(installmentEvents)
 			.where(
-				inArray(installmentEvents.packageInstanceId, created.installmentEventPkgIds),
+				inArray(
+					installmentEvents.packageInstanceId,
+					created.installmentEventPkgIds,
+				),
 			)
 			.catch((e) => console.warn("[cleanup] installmentEvents:", e));
 	}
@@ -456,405 +468,388 @@ d("installment auto-charge integration", () => {
 	// -------------------------------------------------------------------------
 	// Gap 1 — Refund notification
 	// -------------------------------------------------------------------------
-	test(
-		"Gap 1: processRefund writes a refund_required notification for admins",
-		async () => {
-			if (skipDueToConnect) {
-				console.log(
-					"[Gap 1] Skipped — Connect account not charges-enabled (notification path still exercised)",
-				);
-				// NOTE: The refund notification path does NOT require a Connect account;
-				// we only skip when the whole suite is skipped due to missing STRIPE_SECRET_KEY.
-				// If skipDueToConnect is true but skipStripe is false, we can still run this test.
-				// For simplicity we let it run regardless — notification fan-out is pure DB.
-			}
-
-			// Seed: package with one PAID installment.
-			const future = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
-			const now = new Date();
-
-			const [so] = await tenantDb
-				.insert(salesOrders)
-				.values({
-					salesOrderNumber: `AC-REFUND-${TS}`,
-					date: now,
-					customerName: "Refund Test Customer",
-					createdBy: TEST_USER_ID,
-					branchId: TEST_BRANCH_NODE_ID,
-					status: "confirmed",
-					totalAmount: 10000,
-				})
-				.returning();
-			if (!so) throw new Error("Failed to insert sales order for refund test");
-			created.salesOrderIds.push(so.id);
-
-			const [pkg] = await tenantDb
-				.insert(packageInstances)
-				.values({
-					serviceId: TEST_SERVICE_ID,
-					clientId: `refund-test-client-${TS}`,
-					source: "pos",
-					paymentStatus: "pending",
-					creditsTotal: 2,
-					creditsUsed: 0,
-					creditsUnlocked: 2,
-					paymentPlanType: "half",
-					installmentsTotal: 2,
-					installmentsPaid: 1,
-					isLocked: false,
-					allowCreditOverdraft: false,
-					status: "active",
-					startsAt: now,
-					expiresAt: future,
-					salesOrderId: so.id,
-				})
-				.returning();
-			if (!pkg) throw new Error("Failed to insert package instance for refund test");
-			created.pkgIds.push(pkg.id);
-			created.installmentEventPkgIds.push(pkg.id);
-
-			// Insert 1 PAID installment + 1 pending.
-			const [paidInst] = await tenantDb
-				.insert(installments)
-				.values({
-					packageInstanceId: pkg.id,
-					salesOrderId: so.id,
-					installmentNumber: 1,
-					amount: 5000,
-					taxAmount: 0,
-					status: "paid",
-					dueDate: now,
-					amountPaid: 5000,
-					creditsUnlockedByThis: 1,
-				})
-				.returning();
-			if (!paidInst) throw new Error("Failed to insert paid installment");
-			created.installmentIds.push(paidInst.id);
-
-			const [pendingInst] = await tenantDb
-				.insert(installments)
-				.values({
-					packageInstanceId: pkg.id,
-					salesOrderId: so.id,
-					installmentNumber: 2,
-					amount: 5000,
-					taxAmount: 0,
-					status: "pending",
-					dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-					creditsUnlockedByThis: 1,
-				})
-				.returning();
-			if (!pendingInst) throw new Error("Failed to insert pending installment");
-			created.installmentIds.push(pendingInst.id);
-
-			// Note notifications before refund.
-			const adminUserId = `autocharge-admin-${TS}`;
-			const notifsBefore = await tenantDb
-				.select({ id: notifications.id })
-				.from(notifications)
-				.where(
-					and(
-						eq(notifications.userId, adminUserId),
-						eq(notifications.type, "refund_required"),
-					),
-				);
-
-			// Call processRefund.
-			const actor = {
-				userId: TEST_USER_ID,
-				memberId: TEST_MEMBER_ID,
-				role: "admin",
-			};
-			const result = await processRefund(
-				tenantDb as any,
-				pkg.id,
-				5000,
-				TEST_USER_ID,
-				"Integration test refund",
-				actor,
-			);
-
-			// Assertions on DB state.
-			const [updatedPkg] = await tenantDb
-				.select({
-					status: packageInstances.status,
-					paymentStatus: packageInstances.paymentStatus,
-				})
-				.from(packageInstances)
-				.where(eq(packageInstances.id, pkg.id));
-
-			expect(updatedPkg?.status).toBe("cancelled");
-			expect(updatedPkg?.paymentStatus).toBe("refunded");
-
-			const instRows = await tenantDb
-				.select({
-					number: installments.installmentNumber,
-					status: installments.status,
-				})
-				.from(installments)
-				.where(eq(installments.packageInstanceId, pkg.id));
-
-			const byNum = Object.fromEntries(
-				instRows.map((r) => [r.number, r.status]),
-			);
-			// The paid installment (#1) is reversed to "refunded".
-			expect(byNum[1]).toBe("refunded");
-			// The pending installment (#2) is cancelled.
-			expect(byNum[2]).toBe("cancelled");
-
-			// paidAmountToRefund should equal what was on #1.
-			expect(result.refundedInstallmentIds).toHaveLength(1);
-			expect(result.refundedInstallmentIds[0]).toBe(paidInst.id);
-			expect(result.paidAmountToRefund).toBe(5000);
-
-			// Gap 1 core assertion: a refund_required notification was written for the admin.
-			const notifRows = await tenantDb
-				.select({
-					id: notifications.id,
-					type: notifications.type,
-					relatedId: notifications.relatedId,
-					relatedType: notifications.relatedType,
-					userId: notifications.userId,
-				})
-				.from(notifications)
-				.where(
-					and(
-						eq(notifications.userId, adminUserId),
-						eq(notifications.type, "refund_required"),
-					),
-				);
-
-			// Track for cleanup.
-			for (const n of notifRows) {
-				if (!created.notificationIds.includes(n.id)) {
-					created.notificationIds.push(n.id);
-				}
-			}
-
-			const newNotifs = notifRows.filter(
-				(n) => !notifsBefore.some((b) => b.id === n.id),
-			);
-
+	test("Gap 1: processRefund writes a refund_required notification for admins", async () => {
+		if (skipDueToConnect) {
 			console.log(
-				`[Gap 1] refund_required notifications written: ${newNotifs.length}`,
-				newNotifs.map((n) => ({
-					type: n.type,
-					relatedId: n.relatedId,
-					relatedType: n.relatedType,
-				})),
+				"[Gap 1] Skipped — Connect account not charges-enabled (notification path still exercised)",
+			);
+			// NOTE: The refund notification path does NOT require a Connect account;
+			// we only skip when the whole suite is skipped due to missing STRIPE_SECRET_KEY.
+			// If skipDueToConnect is true but skipStripe is false, we can still run this test.
+			// For simplicity we let it run regardless — notification fan-out is pure DB.
+		}
+
+		// Seed: package with one PAID installment.
+		const future = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+		const now = new Date();
+
+		const [so] = await tenantDb
+			.insert(salesOrders)
+			.values({
+				salesOrderNumber: `AC-REFUND-${TS}`,
+				date: now,
+				customerName: "Refund Test Customer",
+				createdBy: TEST_USER_ID,
+				branchId: TEST_BRANCH_NODE_ID,
+				status: "confirmed",
+				totalAmount: 10000,
+			})
+			.returning();
+		if (!so) throw new Error("Failed to insert sales order for refund test");
+		created.salesOrderIds.push(so.id);
+
+		const [pkg] = await tenantDb
+			.insert(packageInstances)
+			.values({
+				serviceId: TEST_SERVICE_ID,
+				clientId: `refund-test-client-${TS}`,
+				source: "pos",
+				paymentStatus: "pending",
+				creditsTotal: 2,
+				creditsUsed: 0,
+				creditsUnlocked: 2,
+				paymentPlanType: "half",
+				installmentsTotal: 2,
+				installmentsPaid: 1,
+				isLocked: false,
+				allowCreditOverdraft: false,
+				status: "active",
+				startsAt: now,
+				expiresAt: future,
+				salesOrderId: so.id,
+			})
+			.returning();
+		if (!pkg)
+			throw new Error("Failed to insert package instance for refund test");
+		created.pkgIds.push(pkg.id);
+		created.installmentEventPkgIds.push(pkg.id);
+
+		// Insert 1 PAID installment + 1 pending.
+		const [paidInst] = await tenantDb
+			.insert(installments)
+			.values({
+				packageInstanceId: pkg.id,
+				salesOrderId: so.id,
+				installmentNumber: 1,
+				amount: 5000,
+				taxAmount: 0,
+				status: "paid",
+				dueDate: now,
+				amountPaid: 5000,
+				creditsUnlockedByThis: 1,
+			})
+			.returning();
+		if (!paidInst) throw new Error("Failed to insert paid installment");
+		created.installmentIds.push(paidInst.id);
+
+		const [pendingInst] = await tenantDb
+			.insert(installments)
+			.values({
+				packageInstanceId: pkg.id,
+				salesOrderId: so.id,
+				installmentNumber: 2,
+				amount: 5000,
+				taxAmount: 0,
+				status: "pending",
+				dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+				creditsUnlockedByThis: 1,
+			})
+			.returning();
+		if (!pendingInst) throw new Error("Failed to insert pending installment");
+		created.installmentIds.push(pendingInst.id);
+
+		// Note notifications before refund.
+		const adminUserId = `autocharge-admin-${TS}`;
+		const notifsBefore = await tenantDb
+			.select({ id: notifications.id })
+			.from(notifications)
+			.where(
+				and(
+					eq(notifications.userId, adminUserId),
+					eq(notifications.type, "refund_required"),
+				),
 			);
 
-			expect(newNotifs.length).toBeGreaterThanOrEqual(1);
-			const refundNotif = newNotifs.find((n) => n.type === "refund_required");
-			expect(refundNotif).toBeTruthy();
-			expect(refundNotif?.relatedId).toBe(pkg.id);
-			expect(refundNotif?.relatedType).toBe("package_instance");
-		},
-		60_000,
-	);
+		// Call processRefund.
+		const actor = {
+			userId: TEST_USER_ID,
+			memberId: TEST_MEMBER_ID,
+			role: "admin",
+		};
+		const result = await processRefund(
+			tenantDb as any,
+			pkg.id,
+			5000,
+			TEST_USER_ID,
+			"Integration test refund",
+			actor,
+		);
+
+		// Assertions on DB state.
+		const [updatedPkg] = await tenantDb
+			.select({
+				status: packageInstances.status,
+				paymentStatus: packageInstances.paymentStatus,
+			})
+			.from(packageInstances)
+			.where(eq(packageInstances.id, pkg.id));
+
+		expect(updatedPkg?.status).toBe("cancelled");
+		expect(updatedPkg?.paymentStatus).toBe("refunded");
+
+		const instRows = await tenantDb
+			.select({
+				number: installments.installmentNumber,
+				status: installments.status,
+			})
+			.from(installments)
+			.where(eq(installments.packageInstanceId, pkg.id));
+
+		const byNum = Object.fromEntries(instRows.map((r) => [r.number, r.status]));
+		// The paid installment (#1) is reversed to "refunded".
+		expect(byNum[1]).toBe("refunded");
+		// The pending installment (#2) is cancelled.
+		expect(byNum[2]).toBe("cancelled");
+
+		// paidAmountToRefund should equal what was on #1.
+		expect(result.refundedInstallmentIds).toHaveLength(1);
+		expect(result.refundedInstallmentIds[0]).toBe(paidInst.id);
+		expect(result.paidAmountToRefund).toBe(5000);
+
+		// Gap 1 core assertion: a refund_required notification was written for the admin.
+		const notifRows = await tenantDb
+			.select({
+				id: notifications.id,
+				type: notifications.type,
+				relatedId: notifications.relatedId,
+				relatedType: notifications.relatedType,
+				userId: notifications.userId,
+			})
+			.from(notifications)
+			.where(
+				and(
+					eq(notifications.userId, adminUserId),
+					eq(notifications.type, "refund_required"),
+				),
+			);
+
+		// Track for cleanup.
+		for (const n of notifRows) {
+			if (!created.notificationIds.includes(n.id)) {
+				created.notificationIds.push(n.id);
+			}
+		}
+
+		const newNotifs = notifRows.filter(
+			(n) => !notifsBefore.some((b) => b.id === n.id),
+		);
+
+		console.log(
+			`[Gap 1] refund_required notifications written: ${newNotifs.length}`,
+			newNotifs.map((n) => ({
+				type: n.type,
+				relatedId: n.relatedId,
+				relatedType: n.relatedType,
+			})),
+		);
+
+		expect(newNotifs.length).toBeGreaterThanOrEqual(1);
+		const refundNotif = newNotifs.find((n) => n.type === "refund_required");
+		expect(refundNotif).toBeTruthy();
+		expect(refundNotif?.relatedId).toBe(pkg.id);
+		expect(refundNotif?.relatedType).toBe("package_instance");
+	}, 60_000);
 
 	// -------------------------------------------------------------------------
 	// Gap 2 — Auto-charge success
 	// -------------------------------------------------------------------------
-	test(
-		"Gap 2: runInstallmentAutoCharge creates a succeeded PI and persists stripe_payment_intent_id",
-		async () => {
-			if (skipDueToConnect) {
-				console.log("[Gap 2] Skipped — Connect account not charges-enabled");
-				return;
-			}
+	test("Gap 2: runInstallmentAutoCharge creates a succeeded PI and persists stripe_payment_intent_id", async () => {
+		if (skipDueToConnect) {
+			console.log("[Gap 2] Skipped — Connect account not charges-enabled");
+			return;
+		}
 
-			// Create Stripe Customer + attach pm_card_visa (no 3DS, always succeeds).
-			const { customerId, paymentMethodId } =
-				// tok_visa = Visa card, no 3DS, always succeeds off-session.
+		// Create Stripe Customer + attach pm_card_visa (no 3DS, always succeeds).
+		const { customerId, paymentMethodId } =
+			// tok_visa = Visa card, no 3DS, always succeeds off-session.
 			await createStripeCustomerWithPM("tok_visa");
 
-			console.log(
-				`[Gap 2] Stripe customer=${customerId} pm=${paymentMethodId}`,
-			);
+		console.log(`[Gap 2] Stripe customer=${customerId} pm=${paymentMethodId}`);
 
-			// Seed package with due installment + auto-charge fields.
-			const { pkgId, installmentId } = await seedPkgWithDueInstallment({
-				stripeCustomerId: customerId,
-				defaultPaymentMethodId: paymentMethodId,
-				autoChargeEnabled: true,
-			});
-			created.installmentEventPkgIds.push(pkgId);
+		// Seed package with due installment + auto-charge fields.
+		const { pkgId, installmentId } = await seedPkgWithDueInstallment({
+			stripeCustomerId: customerId,
+			defaultPaymentMethodId: paymentMethodId,
+			autoChargeEnabled: true,
+		});
+		created.installmentEventPkgIds.push(pkgId);
 
-			// Use a synthetic `now` 1 day in the future to ensure dueDate <= now.
-			const syntheticNow = new Date(Date.now() + 2 * 60 * 1000);
+		// Use a synthetic `now` 1 day in the future to ensure dueDate <= now.
+		const syntheticNow = new Date(Date.now() + 2 * 60 * 1000);
 
-			const report: InstallmentAutoChargeReport = await runInstallmentAutoCharge({
-				controlPanelDb,
-				getTenantDb: async (_orgId: string) => tenantDb as any,
-				stripe,
-				now: syntheticNow,
-			});
+		const report: InstallmentAutoChargeReport = await runInstallmentAutoCharge({
+			controlPanelDb,
+			getTenantDb: async (_orgId: string) => tenantDb as any,
+			stripe,
+			now: syntheticNow,
+		});
 
-			console.log("[Gap 2] runInstallmentAutoCharge report:", report);
+		console.log("[Gap 2] runInstallmentAutoCharge report:", report);
 
-			// Core assertion: at least one installment was charged.
-			// NOTE: report.errors may be > 0 if other active orgs in the control-panel
-			// DB have no Connect account; that is normal multi-org cron behaviour and
-			// is NOT a bug in the service. We only assert the charged count here.
-			expect(report.charged).toBeGreaterThanOrEqual(1);
-			console.log(
-				`[Gap 2] errors=${report.errors} — expected if other orgs lack Connect account`,
-			);
+		// Core assertion: at least one installment was charged.
+		// NOTE: report.errors may be > 0 if other active orgs in the control-panel
+		// DB have no Connect account; that is normal multi-org cron behaviour and
+		// is NOT a bug in the service. We only assert the charged count here.
+		expect(report.charged).toBeGreaterThanOrEqual(1);
+		console.log(
+			`[Gap 2] errors=${report.errors} — expected if other orgs lack Connect account`,
+		);
 
-			// The installment row must now carry a PI id.
-			const [updatedInst] = await tenantDb
-				.select({
-					stripePaymentIntentId: installments.stripePaymentIntentId,
-					stripePaymentLinkId: installments.stripePaymentLinkId,
-				})
-				.from(installments)
-				.where(eq(installments.id, installmentId));
+		// The installment row must now carry a PI id.
+		const [updatedInst] = await tenantDb
+			.select({
+				stripePaymentIntentId: installments.stripePaymentIntentId,
+				stripePaymentLinkId: installments.stripePaymentLinkId,
+			})
+			.from(installments)
+			.where(eq(installments.id, installmentId));
 
-			expect(updatedInst?.stripePaymentIntentId).toBeTruthy();
-			expect(updatedInst?.stripePaymentLinkId).toBeNull();
+		expect(updatedInst?.stripePaymentIntentId).toBeTruthy();
+		expect(updatedInst?.stripePaymentLinkId).toBeNull();
 
-			const piId = updatedInst!.stripePaymentIntentId!;
-			console.log(`[Gap 2] Persisted PI id: ${piId}`);
+		const piId = updatedInst!.stripePaymentIntentId!;
+		console.log(`[Gap 2] Persisted PI id: ${piId}`);
 
-			// Fetch the PI from Stripe and assert metadata + status.
-			const pi = await stripe.paymentIntents.retrieve(piId, undefined, {
-				stripeAccount: connectedAcctId,
-			});
+		// Fetch the PI from Stripe and assert metadata + status.
+		const pi = await stripe.paymentIntents.retrieve(piId, undefined, {
+			stripeAccount: connectedAcctId,
+		});
 
-			console.log(
-				`[Gap 2] Stripe PI status=${pi.status} metadata=${JSON.stringify(pi.metadata)}`,
-			);
+		console.log(
+			`[Gap 2] Stripe PI status=${pi.status} metadata=${JSON.stringify(pi.metadata)}`,
+		);
 
-			// Off-session confirm: PI should be succeeded (visa test card auto-confirms).
-			expect(pi.status).toBe("succeeded");
-			expect(pi.metadata.type).toBe("installment");
-			expect(pi.metadata.installmentId).toBe(installmentId);
-			expect(pi.metadata.organizationId).toBe(TEST_ORG_ID);
-		},
-		120_000,
-	);
+		// Off-session confirm: PI should be succeeded (visa test card auto-confirms).
+		expect(pi.status).toBe("succeeded");
+		expect(pi.metadata.type).toBe("installment");
+		expect(pi.metadata.installmentId).toBe(installmentId);
+		expect(pi.metadata.organizationId).toBe(TEST_ORG_ID);
+	}, 120_000);
 
 	// -------------------------------------------------------------------------
 	// Gap 3 — SCA fallback
 	// -------------------------------------------------------------------------
-	test(
-		"Gap 3: SCA card triggers fallback — no PI persisted, payment link created, admin notified",
-		async () => {
-			if (skipDueToConnect) {
-				console.log("[Gap 3] Skipped — Connect account not charges-enabled");
-				return;
-			}
+	test("Gap 3: SCA card triggers fallback — no PI persisted, payment link created, admin notified", async () => {
+		if (skipDueToConnect) {
+			console.log("[Gap 3] Skipped — Connect account not charges-enabled");
+			return;
+		}
 
-			// tok_visa_authenticationRequired → authentication_required off-session.
-			const { customerId: scaCustomerId, paymentMethodId: scaPmId } =
-				await createStripeCustomerWithPM("tok_visa_authenticationRequired");
+		// tok_visa_authenticationRequired → authentication_required off-session.
+		const { customerId: scaCustomerId, paymentMethodId: scaPmId } =
+			await createStripeCustomerWithPM("tok_visa_authenticationRequired");
 
-			console.log(
-				`[Gap 3] SCA Stripe customer=${scaCustomerId} pm=${scaPmId}`,
+		console.log(`[Gap 3] SCA Stripe customer=${scaCustomerId} pm=${scaPmId}`);
+
+		const adminUserId = `autocharge-admin-${TS}`;
+
+		// Capture notifications count for this admin before the run.
+		const notifsBefore = await tenantDb
+			.select({ id: notifications.id })
+			.from(notifications)
+			.where(
+				and(
+					eq(notifications.userId, adminUserId),
+					eq(notifications.type, "installment_autocharge_failed"),
+				),
 			);
 
-			const adminUserId = `autocharge-admin-${TS}`;
-
-			// Capture notifications count for this admin before the run.
-			const notifsBefore = await tenantDb
-				.select({ id: notifications.id })
-				.from(notifications)
-				.where(
-					and(
-						eq(notifications.userId, adminUserId),
-						eq(notifications.type, "installment_autocharge_failed"),
-					),
-				);
-
-			// Seed package with the SCA card.
-			const { pkgId: scaPkgId, installmentId: scaInstId } =
-				await seedPkgWithDueInstallment({
-					stripeCustomerId: scaCustomerId,
-					defaultPaymentMethodId: scaPmId,
-					autoChargeEnabled: true,
-				});
-			created.installmentEventPkgIds.push(scaPkgId);
-
-			const syntheticNow = new Date(Date.now() + 2 * 60 * 1000);
-
-			const report: InstallmentAutoChargeReport = await runInstallmentAutoCharge({
-				controlPanelDb,
-				getTenantDb: async (_orgId: string) => tenantDb as any,
-				stripe,
-				now: syntheticNow,
+		// Seed package with the SCA card.
+		const { pkgId: scaPkgId, installmentId: scaInstId } =
+			await seedPkgWithDueInstallment({
+				stripeCustomerId: scaCustomerId,
+				defaultPaymentMethodId: scaPmId,
+				autoChargeEnabled: true,
 			});
+		created.installmentEventPkgIds.push(scaPkgId);
 
-			console.log("[Gap 3] runInstallmentAutoCharge report:", report);
+		const syntheticNow = new Date(Date.now() + 2 * 60 * 1000);
 
-			// Core assertions on the report.
-			expect(report.fellBackToLink).toBeGreaterThanOrEqual(1);
+		const report: InstallmentAutoChargeReport = await runInstallmentAutoCharge({
+			controlPanelDb,
+			getTenantDb: async (_orgId: string) => tenantDb as any,
+			stripe,
+			now: syntheticNow,
+		});
 
-			// The installment row must NOT have a PI id (the charge was not persisted
-			// before the error — only the fallback link should be set).
-			const [updatedInst] = await tenantDb
-				.select({
-					stripePaymentIntentId: installments.stripePaymentIntentId,
-					stripePaymentLinkId: installments.stripePaymentLinkId,
-				})
-				.from(installments)
-				.where(eq(installments.id, scaInstId));
+		console.log("[Gap 3] runInstallmentAutoCharge report:", report);
 
-			console.log(
-				`[Gap 3] Installment after SCA run: piId=${updatedInst?.stripePaymentIntentId} linkId=${updatedInst?.stripePaymentLinkId}`,
+		// Core assertions on the report.
+		expect(report.fellBackToLink).toBeGreaterThanOrEqual(1);
+
+		// The installment row must NOT have a PI id (the charge was not persisted
+		// before the error — only the fallback link should be set).
+		const [updatedInst] = await tenantDb
+			.select({
+				stripePaymentIntentId: installments.stripePaymentIntentId,
+				stripePaymentLinkId: installments.stripePaymentLinkId,
+			})
+			.from(installments)
+			.where(eq(installments.id, scaInstId));
+
+		console.log(
+			`[Gap 3] Installment after SCA run: piId=${updatedInst?.stripePaymentIntentId} linkId=${updatedInst?.stripePaymentLinkId}`,
+		);
+
+		expect(updatedInst?.stripePaymentIntentId).toBeNull();
+		expect(updatedInst?.stripePaymentLinkId).toBeTruthy();
+
+		// Track the price object embedded in the link for cleanup reporting (the
+		// link itself is in Stripe test mode and harmless, but we note the link id).
+		const linkId = updatedInst!.stripePaymentLinkId!;
+		console.log(`[Gap 3] Fallback payment link id: ${linkId}`);
+
+		// An `installment_autocharge_failed` notification must exist for the admin.
+		const notifRows = await tenantDb
+			.select({
+				id: notifications.id,
+				type: notifications.type,
+				relatedId: notifications.relatedId,
+				relatedType: notifications.relatedType,
+			})
+			.from(notifications)
+			.where(
+				and(
+					eq(notifications.userId, adminUserId),
+					eq(notifications.type, "installment_autocharge_failed"),
+				),
 			);
 
-			expect(updatedInst?.stripePaymentIntentId).toBeNull();
-			expect(updatedInst?.stripePaymentLinkId).toBeTruthy();
-
-			// Track the price object embedded in the link for cleanup reporting (the
-			// link itself is in Stripe test mode and harmless, but we note the link id).
-			const linkId = updatedInst!.stripePaymentLinkId!;
-			console.log(`[Gap 3] Fallback payment link id: ${linkId}`);
-
-			// An `installment_autocharge_failed` notification must exist for the admin.
-			const notifRows = await tenantDb
-				.select({
-					id: notifications.id,
-					type: notifications.type,
-					relatedId: notifications.relatedId,
-					relatedType: notifications.relatedType,
-				})
-				.from(notifications)
-				.where(
-					and(
-						eq(notifications.userId, adminUserId),
-						eq(notifications.type, "installment_autocharge_failed"),
-					),
-				);
-
-			for (const n of notifRows) {
-				if (!created.notificationIds.includes(n.id)) {
-					created.notificationIds.push(n.id);
-				}
+		for (const n of notifRows) {
+			if (!created.notificationIds.includes(n.id)) {
+				created.notificationIds.push(n.id);
 			}
+		}
 
-			const newNotifs = notifRows.filter(
-				(n) => !notifsBefore.some((b) => b.id === n.id),
-			);
+		const newNotifs = notifRows.filter(
+			(n) => !notifsBefore.some((b) => b.id === n.id),
+		);
 
-			console.log(
-				`[Gap 3] installment_autocharge_failed notifications: ${newNotifs.length}`,
-				newNotifs.map((n) => ({
-					type: n.type,
-					relatedId: n.relatedId,
-					relatedType: n.relatedType,
-				})),
-			);
+		console.log(
+			`[Gap 3] installment_autocharge_failed notifications: ${newNotifs.length}`,
+			newNotifs.map((n) => ({
+				type: n.type,
+				relatedId: n.relatedId,
+				relatedType: n.relatedType,
+			})),
+		);
 
-			expect(newNotifs.length).toBeGreaterThanOrEqual(1);
-			const failedNotif = newNotifs.find(
-				(n) => n.type === "installment_autocharge_failed",
-			);
-			expect(failedNotif).toBeTruthy();
-			expect(failedNotif?.relatedId).toBe(scaInstId);
-			expect(failedNotif?.relatedType).toBe("installment");
-		},
-		120_000,
-	);
+		expect(newNotifs.length).toBeGreaterThanOrEqual(1);
+		const failedNotif = newNotifs.find(
+			(n) => n.type === "installment_autocharge_failed",
+		);
+		expect(failedNotif).toBeTruthy();
+		expect(failedNotif?.relatedId).toBe(scaInstId);
+		expect(failedNotif?.relatedType).toBe("installment");
+	}, 120_000);
 });

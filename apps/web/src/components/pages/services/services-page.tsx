@@ -2,6 +2,8 @@ import { useMemo, useState, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { client, orpc } from "@/utils/orpc";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useScope } from "@/components/scope/ScopeProvider";
+import { ScopeSwitcher } from "@/components/scope/ScopeSwitcher";
 import { useApiMutation } from "@/hooks/useApiMutation";
 import { PageLoader } from "@/components/ui/loading-spinner";
 import { Skeleton } from "boneyard-js/react";
@@ -217,6 +219,7 @@ const PAGE_SIZE = 15;
 export function ServicesPage() {
 	const { data: userContext } = useUserContext();
 	const organizationId = userContext?.currentOrganizationId ?? null;
+	const { scopeNodeId } = useScope();
 	const qc = useQueryClient();
 
 	// ── data ──────────────────────────────────────────────────────────────────
@@ -227,7 +230,7 @@ export function ServicesPage() {
 		refetch: refetchList,
 	} = useQuery({
 		...orpc.services.list.queryOptions({
-			input: { organizationId: organizationId! },
+			input: { organizationId: organizationId!, branchId: scopeNodeId },
 		}),
 		enabled: !!organizationId,
 	});
@@ -520,6 +523,9 @@ export function ServicesPage() {
 
 				{/* ── Toolbar ──────────────────────────────────────────────────────── */}
 				<div className="mb-4 flex flex-wrap items-center gap-2">
+					{/* Scope switcher (country / state / branch) */}
+					<ScopeSwitcher />
+
 					{/* Search */}
 					<div className="flex items-center gap-2 rounded-xl border border-[#e5e5e5] bg-white px-3 py-2.5">
 						<svg

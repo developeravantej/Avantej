@@ -105,6 +105,35 @@ describe.skipIf(!shouldRun)("Email Service - sendEmail", () => {
 		expect(callArgs.from).toContain("onboarding@resend.dev");
 	});
 
+	test("forwards attachments to Resend when provided", async () => {
+		await sendEmail({
+			to: "test@example.com",
+			subject: "Monthly report",
+			html: "<p>See attached</p>",
+			attachments: [
+				{ filename: "report-2026-06.pdf", content: "JVBERi0xLjQK" },
+				{ filename: "report-2026-06.csv", content: "Y29sMSxjb2wyCg==" },
+			],
+		});
+
+		const callArgs = mockResendSend.mock.calls[0]![0]!;
+		expect(callArgs.attachments).toEqual([
+			{ filename: "report-2026-06.pdf", content: "JVBERi0xLjQK" },
+			{ filename: "report-2026-06.csv", content: "Y29sMSxjb2wyCg==" },
+		]);
+	});
+
+	test("omits the attachments key entirely when none are provided", async () => {
+		await sendEmail({
+			to: "test@example.com",
+			subject: "No attachment",
+			html: "<p>Body</p>",
+		});
+
+		const callArgs = mockResendSend.mock.calls[0]![0]!;
+		expect("attachments" in callArgs).toBe(false);
+	});
+
 	test("handles Resend API errors properly", async () => {
 		mockResendSend.mockReturnValueOnce(
 			Promise.resolve({

@@ -17,9 +17,10 @@
       "items": [
         { "item": "Lead converted to client (GHL won → webhook → client created)", "testability": "deferred", "why": "GoHighLevel (skipped per scope)" },
         { "item": "Approval queue → admin approve activates package / reject keeps inactive", "testability": "covered", "via": "packages/approval-flow.lifecycle" },
-        { "item": "Registration form + required-field validation", "testability": "deferred", "why": "UI form flow (infra)" },
-        { "item": "PDF agreement generated + signed + stored", "testability": "deferred", "why": "PDF signing flow (infra)" },
-        { "item": "Payment proof upload attaches to registration", "testability": "deferred", "why": "file upload (infra)" }
+        { "item": "Registration form loads (country/branch options)", "testability": "covered", "via": "onboarding/registration-form.rule" },
+        { "item": "Registration required-field validation", "testability": "deferred", "why": "full UI form submit flow (infra)" },
+        { "item": "PDF agreement generated + signed + stored", "testability": "covered", "via": "packageInstances.getAgreement/signAgreement (e_signature+terms_agreed_at, immutable once signed) + web PackageAgreementSection (sign + jsPDF download) on the package drawer + unit tests (agreement.service.test, export-agreement-pdf.test)" },
+        { "item": "Payment proof upload attaches to registration", "testability": "partial", "via": "upload infra now exists (R2 + packageInstances.uploadPaymentProof, see §7); proofs attach to the package instance — wiring an upload into the registration form itself is the remaining UI step" }
       ]
     },
     {
@@ -28,7 +29,8 @@
       "items": [
         { "item": "Client login + self-scope (sees own data only, blocked from others)", "testability": "covered", "via": "customers/client-portal.rbac" },
         { "item": "View own profile / packages / session balance / payments", "testability": "covered", "via": "customers/client-portal.rbac + customers/*" },
-        { "item": "Password reset + invoice PDF download", "testability": "deferred", "why": "email-reset flow + PDF generation (infra)" }
+        { "item": "Password reset request", "testability": "covered", "via": "customers/password-reset.rule (better-auth request-password-reset)" },
+        { "item": "Invoice PDF download", "testability": "covered", "via": "invoices.getDetail proc + web export-invoice-pdf (jsPDF, client-side) + unit test export-invoice-pdf.test.ts" }
       ]
     },
     {
@@ -56,7 +58,7 @@
       "items": [
         { "item": "Invoice generation + download", "testability": "covered", "via": "payment/invoices.lifecycle" },
         { "item": "Tax applied at correct rate on invoice", "testability": "covered", "via": "tax-rates specs" },
-        { "item": "Offline payment proof upload + admin verify + activation", "testability": "deferred", "why": "file upload (infra); activation covered via packages/approval-flow" },
+        { "item": "Offline payment proof upload + admin verify + activation", "testability": "covered", "via": "R2 (bucket avantej-payment-proofs + PROOFS_BUCKET binding) + payment_proofs table (mig 0095) + packageInstances.uploadPaymentProof/listPaymentProofs/downloadPaymentProof + web PaymentProofSection on package drawer + unit tests (payment-proof.service.test). activate via existing confirmPayment. NOTE: live R2 round-trip verified on deploy/wrangler --remote; mig 0095 needs tenant rollout" },
         { "item": "Online card payments (Stripe)", "testability": "deferred", "why": "Post-MVP, out of scope" }
       ]
     },
@@ -65,7 +67,7 @@
       "specGlobs": ["web/branch/**"],
       "items": [
         { "item": "Create/edit/delete Org→Region→Country→State→Location", "testability": "covered", "via": "branch/hierarchy.lifecycle" },
-        { "item": "Deletion blocked when node has active children", "testability": "covered", "via": "branch/delete-guard.rule (note: returns 500 not typed 4xx — minor finding)" },
+        { "item": "Deletion blocked when node has active children", "testability": "covered", "via": "branch/delete-guard.rule (now returns typed 409 CONFLICT — FK-restrict violation mapped in delete.procedures.ts)" },
         { "item": "Visibility rules per level", "testability": "covered", "via": "rbac/listnodes-scope.rbac + multi-tenant isolation" }
       ]
     },
@@ -108,7 +110,8 @@
       "specGlobs": ["web/reports/**"],
       "items": [
         { "item": "Report filters (period: week/month/year)", "testability": "covered", "via": "reports/report-filters.rule" },
-        { "item": "Per-tier accuracy + export", "testability": "deferred", "why": "export has no API surface yet; accuracy needs seeded fixtures" },
+        { "item": "Report export (CSV)", "testability": "covered", "via": "reports/report-export.rule (auditLogs/exportCsv)" },
+        { "item": "Per-tier accuracy", "testability": "deferred", "why": "needs seeded per-tier fixtures" },
         { "item": "Permission controls: report shows only allowed data (BLOCKER if leaks)", "testability": "covered", "via": "reports/reporting-scope.rbac" }
       ]
     }

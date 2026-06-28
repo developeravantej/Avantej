@@ -5,6 +5,7 @@ import {
 	syncAppointmentToGoogleCalendar,
 } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
+import { assertOutsideBookingLock } from "./lock";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
 import {
@@ -262,17 +263,10 @@ export const appointmentsCrudProcedures = {
 				});
 			}
 
-			// UAT §5 — 24-hour lock: cancelling is only allowed up to 24h before the
-			// session; inside the lock the permitted actions are burn (no-show) /
-			// claim (completed). Admins may override for operational exceptions.
-			if (input.status === "cancelled" && context.member?.role !== "admin") {
-				const LOCK_MS = 24 * 60 * 60 * 1000;
-				if (existing.startTime.getTime() - Date.now() < LOCK_MS) {
-					throw new ORPCError("CONFLICT", {
-						message:
-							"Cannot cancel within 24 hours of the session. Contact an admin.",
-					});
-				}
+			// UAT §5 — 24-hour lock (shared helper; admins override). Only cancels are
+			// gated here; burn (no-show) / claim (completed) stay allowed inside the lock.
+			if (input.status === "cancelled") {
+				assertOutsideBookingLock(existing.startTime, context.member, "cancel");
 			}
 
 			// Actor is required by the service layer to fire commission generation

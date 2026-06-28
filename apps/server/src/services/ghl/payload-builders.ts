@@ -43,7 +43,14 @@ export type CustomFieldKey =
 	| "emergencyContactPhone"
 	| "medicalNotes"
 	| "creditPoints"
-	| "notes";
+	| "notes"
+	// Branch round-trip fields (single-line TEXT). Values are derived from the
+	// contact's resolved branch path, not the customer profile:
+	//   designatedCountry = country node name (e.g. "Malaysia")
+	//   designatedBranch  = BARE branch node name (e.g. "SS2") — NOT the
+	//                       composite dropdown label ("Selangor - SS2").
+	| "designatedCountry"
+	| "designatedBranch";
 
 /**
  * Map of CustomFieldKey → GHL custom-field id (resolved per location).
@@ -63,6 +70,12 @@ export interface BuildContactArgs {
 	// model continues working unchanged).
 	branchCountryFieldId?: string | null;
 	branchOptionLabel?: string | null;
+	// Branch round-trip (org-shared): bare branch name + country name, stamped
+	// onto the designated_branch / designated_country single-line fields. The
+	// field ids come from customFieldIds (ghlGlobalFieldMap); these are the
+	// VALUES. Omitted in the legacy per-branch model → fields not stamped.
+	branchName?: string | null;
+	countryName?: string | null;
 }
 
 export function buildContactPayload(args: BuildContactArgs): GhlContactPayload {
@@ -92,6 +105,11 @@ export function buildContactPayload(args: BuildContactArgs): GhlContactPayload {
 	addCustomField("medicalNotes", profile.medicalNotes);
 	addCustomField("creditPoints", profile.creditPoints);
 	addCustomField("notes", profile.notes);
+	// Branch round-trip: country name + BARE branch name on the single-line
+	// designated_* fields (ids resolved from customFieldIds). The webhook
+	// template aliases these to selected_country / selected_location inbound.
+	addCustomField("designatedCountry", args.countryName ?? null);
+	addCustomField("designatedBranch", args.branchName ?? null);
 
 	if (args.branchCountryFieldId && args.branchOptionLabel) {
 		customFields.push({

@@ -1,14 +1,20 @@
 import {
 	listPackageInstancesForClient,
 	getPackageInstanceById,
+	togglePackagePin,
 } from "@avantej-core/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
+import { services } from "@avantej-core/db/schema/tenant/services";
 import { user } from "@avantej-core/db/schema/auth";
 import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 import { z } from "zod";
 import { tenantProcedure } from "../../index";
-import { requirePermissionOrpc, assertOrgContextMatch } from "../../guards";
+import {
+	requirePermissionOrpc,
+	assertOrgContextMatch,
+	guardStoredBranchForContext,
+} from "../../guards";
 import { getControlPanelDb } from "../../lib/context-helpers";
 import { sourceSchema, statusSchema } from "./schemas";
 
@@ -100,6 +106,15 @@ export const packageInstancesClientProcedures = {
 					"service_management",
 					"read",
 				);
+
+				// Branch-scope isolation: a staff member may only read an instance
+				// whose service is in their accessible hierarchy. Resolve the service's
+				// branch and guard against context.accessibleNodeIds. A null/org-wide
+				// service branch is allowed by guardStoredBranchForContext.
+				const service = await context.tenantDb.query.services.findFirst({
+					where: eq(services.id, instance.serviceId),
+				});
+				await guardStoredBranchForContext(context, service?.branchId);
 			}
 
 			// Enrich with assigned trainer name when present
@@ -146,5 +161,55 @@ export const packageInstancesClientProcedures = {
 			}
 
 			return { ...instance, assignedTrainerName, preferredTrainerName };
+		}),
+
+	/**
+	 * Pin / unpin one of the current user's active packages so it leads the
+	 * dashboard. clientId is taken from the session (never trusted from input),
+	 * so a caller can only pin their OWN package. The service enforces the
+	 * single-pin-per-client invariant under a row lock + partial unique index.
+	 */
+	togglePin: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				packageInstanceId: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			const clientId = context.session?.user?.id;
+			if (!clientId) {
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "User session required",
+				});
+			}
+
+			try {
+				return await togglePackagePin(context.tenantDb, {
+					packageInstanceId: input.packageInstanceId,
+					clientId,
+				});
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : "Unknown error";
+				// A pin-A-vs-pin-B race for the same client slips past the row lock
+				// (different rows) and is caught by the partial unique index as a
+				// raw 23505 — surface it as a friendly CONFLICT, not a 500.
+				if (msg.includes("23505") || msg.includes("one_pin_per_client")) {
+					throw new ORPCError("CONFLICT", {
+						message: "Another package was just pinned — please retry.",
+					});
+				}
+				if (msg.includes("not found")) {
+					throw new ORPCError("NOT_FOUND", { message: msg });
+				}
+				if (msg.includes("Forbidden")) {
+					throw new ORPCError("FORBIDDEN", { message: msg });
+				}
+				if (msg.includes("active")) {
+					throw new ORPCError("BAD_REQUEST", { message: msg });
+				}
+				throw err;
+			}
 		}),
 };

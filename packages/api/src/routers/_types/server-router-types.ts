@@ -2367,10 +2367,63 @@ export const ghlRouterType = {
 				ghlProvisionedAt: Date | null;
 				hasApiKey: boolean;
 				countryFieldCount: number;
+				ghlRequireApproval: boolean;
 			} => {
 				throw new Error("Not implemented - this is only for type inference");
 			},
 		),
+
+	// ── Inbound approval gate (Phase G follow-up) ──────────────────────────
+	listPendingContacts: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): Array<{
+				id: string;
+				ghlContactId: string;
+				proposedName: string | null;
+				proposedEmail: string | null;
+				proposedPhone: string | null;
+				resolvedBranchNodeId: string | null;
+				status: string;
+				createdAt: Date;
+			}> => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
+
+	approvePendingContact: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				pendingId: z.string().uuid(),
+			}),
+		)
+		.handler((): { status: "approved"; contactId: string; message: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+
+	rejectPendingContact: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				pendingId: z.string().uuid(),
+				reason: z.string().trim().max(500).optional(),
+			}),
+		)
+		.handler((): { status: "rejected"; contactId: string } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
+
+	setApprovalGate: protectedProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				enabled: z.boolean(),
+			}),
+		)
+		.handler((): { status: "ok"; enabled: boolean } => {
+			throw new Error("Not implemented - this is only for type inference");
+		}),
 };
 
 // Platform Admin — Coupons types (Plan F.3.5 — Agent C2).
@@ -2747,8 +2800,11 @@ export const platformAdminMigrationsRouterType = {
 /**
  * Type-only twin of the server emailDomains router. Lets the web client
  * infer types for client.emailDomains.* without depending on apps/server.
+ *
+ * Exported so rolldown-dts can name it in the generated client.d.ts — an
+ * unexported handler return type triggers TS4058 ("cannot be named") on build.
  */
-interface EmailDomainRow {
+export interface EmailDomainRow {
 	id: string;
 	organizationId: string;
 	resendDomainId: string;

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Link } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +18,7 @@ import {
 	CheckCircle,
 	XCircle,
 	AlertCircle,
+	QrCode,
 } from "lucide-react";
 
 // Simple date formatting utility
@@ -49,6 +51,8 @@ export interface Invitation {
 	id: string;
 	email: string;
 	role: string;
+	/** "staff" = emailed invite; "branch_self_signup" = QR/link invite with no target email */
+	kind?: string;
 	hierarchyScopeId: string;
 	status: "pending" | "accepted" | "declined" | "expired";
 	expiresAt: Date | string;
@@ -172,13 +176,33 @@ export function InvitationList({
 						const expiresDate = new Date(invitation.expiresAt);
 						const isExpired =
 							expiresDate < now && invitation.status === "pending";
-						const canResend = invitation.status === "pending" && isExpired;
+						// Self-signup (QR/link) invites have no target email, so there
+						// is nothing to resend an email to — only allow resend when an
+						// email address is present.
+						const canResend =
+							invitation.status === "pending" &&
+							isExpired &&
+							!!invitation.email;
 						const canRevoke = invitation.status === "pending" && !isExpired;
 
 						return (
 							<TableRow key={invitation.id}>
 								<TableCell className="font-medium">
-									{invitation.email}
+									{invitation.email ? (
+										invitation.email
+									) : invitation.kind === "branch_self_signup" ? (
+										<Link
+											to="/dashboard/onboarding/view"
+											search={{ branch: invitation.hierarchyScopeId }}
+											className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:underline"
+											title="Manage this branch's QR code on the Onboarding page"
+										>
+											<QrCode className="size-3.5 shrink-0" />
+											<span className="italic">Self-signup link</span>
+										</Link>
+									) : (
+										<span className="text-muted-foreground">—</span>
+									)}
 								</TableCell>
 								<TableCell>
 									<Badge variant={getRoleBadgeVariant(invitation.role)}>

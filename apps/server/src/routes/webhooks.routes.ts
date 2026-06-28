@@ -39,6 +39,7 @@ import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { organizationMembers } from "@avantej-core/db/schema/control-panel/organization-members";
 import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch-links";
+import { organizations } from "@avantej-core/db/schema/control-panel/organizations";
 import { ghlContactLinks } from "@avantej-core/db/schema/tenant/ghl-contact-links";
 import { ghlSyncEvents } from "@avantej-core/db/schema/tenant/ghl-sync-events";
 import {
@@ -98,16 +99,54 @@ async function ensureLocationAccess(c: Context, locationId: string) {
 		.where(eq(ghlBranchLinks.ghlLocationId, locationId))
 		.limit(1);
 
-	if (!location || !location.isActive) {
+	// Org-shared tenants have no active ghl_branch_links row (deactivated on
+	// migration); resolve the location via the organizations row instead so the
+	// admin event/link viewers work for them too.
+	let resolved = location as {
+		id: string;
+		locationId: string | null;
+		organizationId: string;
+		isActive: boolean | null;
+		createdAt: Date;
+		updatedAt: Date;
+	} | null;
+	if (!resolved || !resolved.isActive) {
+		const [org] = await controlPanelDb
+			.select({
+				id: organizations.id,
+				createdAt: organizations.createdAt,
+				updatedAt: organizations.updatedAt,
+			})
+			.from(organizations)
+			.where(
+				and(
+					eq(organizations.ghlLocationId, locationId),
+					eq(organizations.ghlSyncModel, "org-shared"),
+				),
+			)
+			.limit(1);
+		resolved = org
+			? {
+					id: org.id,
+					locationId,
+					organizationId: org.id,
+					isActive: true,
+					createdAt: org.createdAt,
+					updatedAt: org.updatedAt,
+				}
+			: null;
+	}
+
+	if (!resolved) {
 		return { error: "Location not found", status: 404 as const };
 	}
 
 	const organizationIds = await getAccessibleLocationIds(c);
-	if (!organizationIds.includes(location.organizationId)) {
+	if (!organizationIds.includes(resolved.organizationId)) {
 		return { error: "Forbidden", status: 403 as const };
 	}
 
-	return { location, status: 200 as const };
+	return { location: resolved, status: 200 as const };
 }
 
 /**
@@ -569,8 +608,7 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 					);
 					const [existingRow] = await tenantDb
 						.select({
-							stripePaymentIntentId:
-								installmentsSchema.stripePaymentIntentId,
+							stripePaymentIntentId: installmentsSchema.stripePaymentIntentId,
 							stripePaymentLinkId: installmentsSchema.stripePaymentLinkId,
 							status: installmentsSchema.status,
 						})
@@ -907,7 +945,10 @@ webhookRoutes.post("/stripe/connect", async (c) => {
 									.from(salesOrders)
 									.where(eq(salesOrders.id, salesOrderId))
 									.limit(1);
-								if (orderRow && (orderRow.soldBy || orderRow.leadSourceUserId)) {
+								if (
+									orderRow &&
+									(orderRow.soldBy || orderRow.leadSourceUserId)
+								) {
 									await calculateOriginationCommission(tenantDb, {
 										salesOrderId,
 										soldByUserId: orderRow.soldBy ?? null,
@@ -1310,7 +1351,9 @@ webhookRoutes.get(
  */
 function getResendWebhookSecret(): string | undefined {
 	try {
-		const { env } = require("cloudflare:workers") as { env?: Record<string, string> };
+		const { env } = require("cloudflare:workers") as {
+			env?: Record<string, string>;
+		};
 		if (env?.RESEND_WEBHOOK_SECRET) return env.RESEND_WEBHOOK_SECRET;
 	} catch {
 		// not in Workers
@@ -1318,7 +1361,9 @@ function getResendWebhookSecret(): string | undefined {
 	return process.env.RESEND_WEBHOOK_SECRET;
 }
 
-export function mapResendEventToLogStatus(eventType: string): EmailLogStatus | null {
+export function mapResendEventToLogStatus(
+	eventType: string,
+): EmailLogStatus | null {
 	switch (eventType) {
 		case "email.sent":
 			return "sent";
@@ -1389,7 +1434,11 @@ webhookRoutes.post("/resend", async (c) => {
 		return c.json({ error: "Missing svix headers" }, 400);
 	}
 
-	let event: { type: string; data: Record<string, unknown>; created_at?: string };
+	let event: {
+		type: string;
+		data: Record<string, unknown>;
+		created_at?: string;
+	};
 	try {
 		const wh = new SvixWebhook(secret);
 		event = wh.verify(body, {
@@ -1436,7 +1485,9 @@ webhookRoutes.post("/resend", async (c) => {
 			};
 			const messageId = data.email_id;
 			const mapped = mapResendEventToLogStatus(event.type);
-			const orgIdTag = data.tags?.find((t) => t.name === "organization_id")?.value;
+			const orgIdTag = data.tags?.find(
+				(t) => t.name === "organization_id",
+			)?.value;
 			const notificationTypeTag = data.tags?.find(
 				(t: { name: string; value: string }) => t.name === "notification_type",
 			)?.value;

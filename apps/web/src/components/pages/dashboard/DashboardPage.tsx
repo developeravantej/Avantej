@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useUserContext } from "@/hooks/useUserContext";
+import { useScope } from "@/components/scope/ScopeProvider";
 import { orpc } from "@/utils/orpc";
 
 import type { Period } from "./types";
@@ -31,6 +32,12 @@ export function DashboardPage({
 					? 365
 					: 30;
 	const { data: userContext, hasRole } = useUserContext();
+	const { scopeNodeId, isAllScope, scopeNodes } = useScope();
+	// Per-country money cards only make sense across multiple countries; a
+	// single-country tenant (most Malaysian SMEs, all MYR) keeps the combined
+	// total + delta even at "All" scope.
+	const isMultiCountry =
+		scopeNodes.filter((n) => n.type === "country").length > 1;
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const currentOrg = userContext?.organizations?.find(
 		(o) => o.id === organizationId,
@@ -41,37 +48,46 @@ export function DashboardPage({
 	// ── Queries ──
 	const kpisQuery = useQuery({
 		...orpc.analytics.getDashboardKpis.queryOptions({
-			input: { organizationId: organizationId!, period },
+			input: { organizationId: organizationId!, period, branchId: scopeNodeId },
 		}),
 		enabled: !!organizationId,
 	});
 	const todayKpisQuery = useQuery({
 		...orpc.analytics.getDashboardKpis.queryOptions({
-			input: { organizationId: organizationId!, period: "today" },
+			input: {
+				organizationId: organizationId!,
+				period: "today",
+				branchId: scopeNodeId,
+			},
 		}),
 		enabled: !!organizationId,
 	});
 	const staffQuery = useQuery({
 		...orpc.analytics.getStaffPerformance.queryOptions({
-			input: { organizationId: organizationId!, period },
+			input: { organizationId: organizationId!, period, branchId: scopeNodeId },
 		}),
 		enabled: !!organizationId,
 	});
 	const largestTodayQuery = useQuery({
 		...orpc.salesOrders.largestToday.queryOptions({
-			input: { organizationId: organizationId! },
+			input: { organizationId: organizationId!, branchId: scopeNodeId },
 		}),
 		enabled: !!organizationId,
 	});
 	const newTodayQuery = useQuery({
 		...orpc.members.newToday.queryOptions({
-			input: { organizationId: organizationId! },
+			input: { organizationId: organizationId!, branchId: scopeNodeId },
 		}),
 		enabled: !!organizationId,
 	});
 	const auditQuery = useQuery({
 		...orpc.auditLogs.list.queryOptions({
-			input: { organizationId: organizationId!, limit: 6, offset: 0 },
+			input: {
+				organizationId: organizationId!,
+				limit: 6,
+				offset: 0,
+				branchId: scopeNodeId,
+			},
 		}),
 		enabled: !!organizationId,
 		staleTime: 30_000,
@@ -95,6 +111,7 @@ export function DashboardPage({
 				startFrom: todayStart,
 				startTo: todayEnd,
 				limit: 50,
+				branchId: scopeNodeId,
 			},
 		}),
 		enabled: !!organizationId,
@@ -102,7 +119,11 @@ export function DashboardPage({
 
 	const revenueSeriesQuery = useQuery({
 		...orpc.analytics.getRevenueSeries.queryOptions({
-			input: { organizationId: organizationId!, days: trendDays },
+			input: {
+				organizationId: organizationId!,
+				days: trendDays,
+				branchId: scopeNodeId,
+			},
 		}),
 		enabled: !!organizationId,
 		staleTime: 60_000,
@@ -187,6 +208,8 @@ export function DashboardPage({
 						largestError={largestTodayQuery.isError}
 						onRetryLargest={() => largestTodayQuery.refetch()}
 						newTodayCount={newTodayQuery.data?.count}
+						isAllScope={isAllScope}
+						isMultiCountry={isMultiCountry}
 					/>
 
 					{/* ── ANALYTICS HEADER (admin/manager only) ── */}

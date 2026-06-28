@@ -68,6 +68,7 @@ export function InvitationsPage() {
 			id: invitation.id,
 			email: invitation.email ?? "",
 			role: invitation.role,
+			kind: invitation.kind,
 			hierarchyScopeId: invitation.hierarchyScopeId,
 			status: normalizeInvitationStatus(
 				invitation.status,
