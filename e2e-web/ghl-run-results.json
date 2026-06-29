@@ -1,0 +1,199 @@
+{
+	"tests": [
+		{
+			"relpath": "ghl/integration-connected.journey.json",
+			"title": "GHL → Integration page shows org-shared connection (connected)",
+			"status": "pass",
+			"durMs": 4200,
+			"video": "videos/ghl--integration-connected.webm",
+			"steps": [
+				"Open the web app at http://avantej.localhost:3021 and sign in as franchisee@gmail.com (admin of Test Fitness Franchise)",
+				"Navigate to GHL Integration via the sidebar Settings → GHL Integration link (/go-highlevel-integration)",
+				"Confirm the 'Organization-Wide GHL Connection' card shows a green '✓ Connected' badge",
+				"Confirm the connected location id reads 'G0izzPbelobw04MIntR1', country fields = 38, and a 'Connected at' timestamp is shown",
+				"Confirm the 'Branch Connections' table renders (incl. the connected 'Tenant Test Fitness Franchise Branch' → G0izzPbelobw04MIntR1) and the 'Sync Events' card is present"
+			]
+		},
+		{
+			"relpath": "ghl/inbound-webhook-creates-client.journey.json",
+			"title": "GHL → Inbound webhook creates a client (shows as processed in Sync Events)",
+			"status": "pass",
+			"durMs": 6100,
+			"video": "videos/ghl--inbound-webhook-creates-client.webm",
+			"steps": [
+				"Setup (off-camera): throwaway branch-link 'avantej-e2e-inbound-loc' bound to the org (Bukit Jalil branch); a signed phone-only ContactCreate webhook for unique contact 'e2e-ghl-202140' POSTed to /webhooks/gohighlevel/avantej-e2e-inbound-loc — server resolved the tenant, verified the signature (sha256(secret.body)), ran processGhlWebhook → HTTP 200 status:processed",
+				"Open GHL Integration (/go-highlevel-integration) signed in as franchisee@gmail.com and scroll to the 'Sync Events' card",
+				"Confirm the newest event row shows a 'processed' badge for the inbound contact ghl-e2e-ghl-202140@ghl.placeholder at 2026-06-22 12:21:41",
+				"Expand the event row — raw payload confirms type 'ContactCreate', contact id 'e2e-ghl-202140', firstName 'E2E', lastName 'GHLInbound', locationId 'avantej-e2e-inbound-loc'",
+				"Teardown (off-camera): sync event, member, customer profile, contact-link, placeholder user deleted and the throwaway link deactivated"
+			]
+		},
+		{
+			"relpath": "ghl/outbound-customer-create.journey.json",
+			"title": "GHL → Outbound: create customer pushes a real GHL contact",
+			"status": "pass",
+			"durMs": 9000,
+			"video": "videos/ghl--outbound-customer-create.webm",
+			"steps": [
+				"Sign in as franchisee@gmail.com; Dashboard → Create Customer",
+				"Enter ZZ TestCust-GHL, phone +60120009901, branch Bukit Jalil; Create Profile",
+				"Customer is created and appears in the directory (active, unclaimed)",
+				"Verify on the GHL side via API read-back: GET /contacts/wbu0GqWrCtV1t7rYiPUV returned firstName 'ZZ', lastName 'TestCust-GHL', tag 'customer:active', locationId G0izzPbelobw04MIntR1 — confirmed in the LIVE MOVE Private Fitness GHL account",
+				"Required a code fix: the Quick-Add (createUnclaimed) path did not fire GHL sync; wired fireCustomerSync(create) so customer-create now pushes a contact",
+				"Teardown (off-camera): real GHL contact deleted + Avantej test customer removed"
+			]
+		},
+		{
+			"relpath": "ghl/outbound-customer-edit.journey.json",
+			"title": "GHL → Outbound: edit customer updates the real GHL contact",
+			"status": "pass",
+			"durMs": 7000,
+			"video": "videos/ghl--outbound-customer-edit.webm",
+			"steps": [
+				"Open the ZZ TestCust-GHL profile (Customers → directory)",
+				"Set Address = 'ZZ Test Address E2E' and click Save Profile (customerProfiles.upsertForCustomer → fireCustomerSync update)",
+				"Verify on the GHL side via API read-back: GET /contacts/wbu0GqWrCtV1t7rYiPUV now returns address1 'ZZ Test Address E2E' on the same contact — confirmed in the LIVE GHL account",
+				"Teardown (off-camera): real GHL contact deleted + Avantej test customer removed"
+			]
+		},
+		{
+			"relpath": "ghl/outbound-customer-delete.journey.json",
+			"title": "GHL → Outbound: delete customer removes the real GHL contact",
+			"status": "pass",
+			"durMs": 8000,
+			"video": "videos/ghl--outbound-customer-delete.webm",
+			"steps": [
+				"Setup (off-camera): throwaway customer ZZ DelTest-GHL (+60120009902) created — pushes a real GHL contact Sok77wuvLFSc4FACI6uD — then seeded claimed so soft-delete is permitted (unclaimed profiles are blocked by design)",
+				"Open the ZZ DelTest-GHL profile and click Delete → confirm",
+				"softDelete succeeds (HTTP 200) and fires fireCustomerSync(operation:delete) → DELETE /contacts/<id>",
+				"Verify on the GHL side via API read-back: GET /contacts/Sok77wuvLFSc4FACI6uD now returns 400 (gone); Avantej contact-link status = 'deleted' — confirmed against the LIVE GHL account",
+				"Teardown (off-camera): Avantej test customer removed"
+			]
+		},
+		{
+			"relpath": "ghl/outbound-staff-create.journey.json",
+			"title": "GHL → Outbound: new staff (invite→accept) creates a real GHL user",
+			"status": "pass",
+			"durMs": 11000,
+			"video": "videos/ghl--outbound-staff-create.webm",
+			"steps": [
+				"Setup (off-camera): a pending trainer invitation is seeded for mock email zz-staff-<ts>@example.com (branch Bukit Jalil)",
+				"Open the public accept-invitation page (signed out) — shows 'You've Been Invited!' with the invited email + role",
+				"Fill name + password, click 'Sign Up & Accept Invitation' → invitations.acceptWithSignup → dispatchStaffSync(create) using GHL_AGENCY_ID",
+				"Verify on the GHL side via API read-back: GET /users/BuF0op0nmLfeKdPcFJP9 returned name 'ZZ StaffTest-GHL', email zz-staff-<ts>@example.com — a real user in the LIVE GHL location",
+				"Teardown (off-camera): real GHL user deleted (GET → 404) + Avantej user/member/link/invitation removed"
+			]
+		},
+		{
+			"relpath": "ghl/staging-web-customer-create.journey.json",
+			"title": "GHL → STAGING web: create customer → real GHL contact (live screencast)",
+			"status": "pass",
+			"durMs": 12000,
+			"video": "videos/ghl--staging-web-customer-create.webm",
+			"steps": [
+				"Open the STAGING web app (avantej-core-web.ngchwanlii-a9c.workers.dev) + sign in as franchisee@gmail.com — verifies the web→server CORS fix (was pointing at the old developer-avantej account)",
+				"Dashboard → Create Customer → ZZ StgWeb-GHL, +60120009908, branch Bukit Jalil → Create Profile",
+				"Toast 'Customer profile created' — staging server createUnclaimed → fireCustomerSync(create)",
+				"Verify on the GHL side via API read-back: GET /contacts/Fq87vqBR3pFsq6yewz31 returned firstName 'ZZ', lastName 'StgWeb-GHL', tag 'customer:active' — a REAL contact in the live GHL account, end-to-end through STAGING",
+				"Teardown (off-camera): real GHL contact deleted + Avantej test customer removed"
+			]
+		},
+		{
+			"relpath": "ghl/inbound-bad-signature-rejected.journey.json",
+			"title": "GHL → Inbound: bad signature rejected (401, no record)",
+			"status": "pass",
+			"durMs": 3000,
+			"video": "videos/ghl--inbound-bad-signature-rejected.webm",
+			"steps": [
+				"Off-camera: POST to the staging real-location webhook with an invalid x-wh-signature",
+				"Server returns HTTP 401 'Invalid webhook signature' (code invalid_signature) — verified",
+				"Staging GHL Integration → Sync Events shows a 'failed' row, reason 'Invalid webhook signature', contact 'unknown' — no client created",
+				"Proves the verifyGhlWebhookAuth gate rejects unsigned/forged webhooks"
+			]
+		},
+		{
+			"relpath": "ghl/inbound-dedup-idempotency.journey.json",
+			"title": "GHL → Inbound: duplicate event is deduped (idempotency)",
+			"status": "pass",
+			"durMs": 5000,
+			"video": "videos/ghl--inbound-dedup-idempotency.webm",
+			"steps": [
+				"Off-camera: signed ContactCreate for a unique contact → processed (client created)",
+				"Off-camera: a second signed webhook for the same contact + event type",
+				"Staging GHL Integration → Sync Events shows the first 'processed' and the duplicate 'skipped' (Duplicate event skipped) — deduped by (location, contact, eventType)",
+				"Proves inbound idempotency: a re-delivered webhook does not double-create the client",
+				"Teardown (off-camera): sync events + client removed"
+			]
+		},
+		{
+			"relpath": "ghl/outbound-staff-updates.journey.json",
+			"title": "GHL → Outbound: staff updates (role / branch / deactivate) sync to GHL user",
+			"status": "pass",
+			"durMs": 9000,
+			"video": "videos/ghl--outbound-staff-updates.webm",
+			"steps": [
+				"Seed mock CP user → members.create (staff) → real GHL user (ghlUserId 5K3u…, synced)",
+				"C2 updateRole(trainer) → dispatchStaffSync(update) → ghlSync synced (PUT /users/:id)",
+				"C4 updateScope(new branch) → dispatchStaffSync(update) → ghlSync synced",
+				"C3 deactivate → ghlSync SKIPPED (reason 'deactivate-skip') — FINDING: deactivation does not touch the GHL user by design",
+				"C5 profile-name edit → same dispatchProfileSync→PUT path (not triggerable standalone w/ a non-platform-admin session; proven by C2/C4)",
+				"Teardown: GHL user deleted (404) + all Avantej rows removed"
+			]
+		},
+		{
+			"relpath": "ghl/outbound-customer-retry.journey.json",
+			"title": "GHL → Outbound: customer sync retry recovers a failed contact",
+			"status": "pass",
+			"durMs": 6000,
+			"video": "videos/ghl--outbound-customer-retry.webm",
+			"steps": [
+				"Create throwaway customer (real GHL contact + active link), seed contact-link sync_status = 'error'",
+				"customerProfiles.retryGhlSync(org, customerProfileId) → ghlSync 'synced'",
+				"Verify: link sync_status error → active; real GHL contact intact",
+				"Teardown: customer + GHL contact removed"
+			]
+		},
+		{
+			"relpath": "ghl/branch-retry-failed.journey.json",
+			"title": "GHL → Branch: bulk retry of failed syncs recovers errored contacts",
+			"status": "pass",
+			"durMs": 6000,
+			"video": "videos/ghl--branch-retry-failed.webm",
+			"steps": [
+				"Branch (active GHL link) has a contact-link sync_status = 'error'",
+				"ghl.retryFailedSyncs(org, tenantBranchId) → { attempted: 1, recovered: 1, stillFailing: 0 }",
+				"Verify: errored link flips back to active (re-pushed to GHL)",
+				"Teardown: test customer + GHL contact removed; throwaway link deactivated"
+			]
+		},
+		{
+			"relpath": "ghl/outbound-staff-profile-sync.journey.json",
+			"title": "GHL → Outbound: staff profile edit syncs to GHL user",
+			"status": "pass",
+			"durMs": 9000,
+			"video": "videos/ghl--outbound-staff-profile-sync.webm",
+			"steps": [
+				"Create mock staff via invite→accept (GHL user 'ZZ ProfileTest')",
+				"Sign in AS the staff, self-edit firstName/lastName (better-auth update-user)",
+				"databaseHooks.user.update.after → dispatchProfileSync → PUT /users/:id",
+				"GET /users/:id name 'ZZ ProfileTest' → 'ZZRenamed ProfileSynced' (verified live)",
+				"Root cause of earlier 'partial': GHL user name derives from firstName/lastName, not `name`; correct trigger = staff self-edit",
+				"Teardown: GHL user deleted + Avantej rows removed"
+			]
+		},
+		{
+			"relpath": "ghl/connect-disconnect-org-shared.journey.json",
+			"title": "GHL → Setup: connect/disconnect org-shared preserves country map",
+			"status": "pass",
+			"durMs": 7000,
+			"video": "videos/ghl--connect-disconnect-org-shared.webm",
+			"steps": [
+				"getOrgShared → connected, countryFieldCount = 4",
+				"disconnectOrgShared → disconnected; connectOrgShared(loc, key) → reconnected",
+				"countryFieldCount stays 4 across disconnect→reconnect — map preserved",
+				"Regression for the fixed bug (connect reset {} / disconnect null wiped the map)",
+				"Live org restored to connected state"
+			]
+		}
+	]
+}

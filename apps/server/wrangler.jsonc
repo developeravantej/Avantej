@@ -5,6 +5,10 @@
 	"compatibility_date": "2025-06-15",
 	"workers_dev": true,
 	"compatibility_flags": ["nodejs_compat"],
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1
+	},
 	// R2 bucket for offline payment-proof uploads (UAT §7). Bucket created on the
 	// ZHIYUAN account 2026-06-23. Accessed in handlers via c.env.PROOFS_BUCKET.
 	"r2_buckets": [
@@ -20,7 +24,11 @@
 		"BETTER_AUTH_URL": "https://move-api.avantej.com",
 		// Shared parent domain so the session cookie is valid across
 		// move.avantej.com (web) and move-api.avantej.com (API).
-		"COOKIE_DOMAIN": ".avantej.com"
+		"COOKIE_DOMAIN": ".avantej.com",
+		// User-facing link bases (invites, email, payment, claim links) → the
+		// production web app, not the workers.dev origin.
+		"WEB_APP_URL": "https://move.avantej.com",
+		"FRONTEND_URL": "https://move.avantej.com"
 		// Add public environment variables here
 		// Comma-separate CORS_ORIGIN if multiple frontends need access.
 	},

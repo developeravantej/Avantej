@@ -1,0 +1,12 @@
+{
+	"title": "GHL → Outbound: customer sync retry recovers a failed contact",
+	"module": "ghl",
+	"prodMutationClass": "update · LIVE staging RPC + DB (self-clean)",
+	"journey": [
+		"Create a throwaway customer (real GHL contact + active link), then seed its contact-link sync_status = 'error' (simulate a failed sync)",
+		"Call customerProfiles.retryGhlSync(organizationId, customerProfileId)",
+		"Returns ghlSync status 'synced' — the contact re-syncs to GHL",
+		"Verify: link sync_status flips error → active; real GHL contact intact",
+		"Teardown: customer + GHL contact removed"
+	]
+}

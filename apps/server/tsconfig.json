@@ -10,5 +10,15 @@
 		"jsx": "react-jsx",
 		"jsxImportSource": "hono/jsx",
 		"types": ["node", "bun"]
-	}
+	},
+	// GHL e2e/verify live-test drivers are interactive, loosely-typed helpers
+	// (run via `bun run`, never bundled, never imported by src). They're excluded
+	// from the app build type-check; all other scripts (migrate-all-tenants,
+	// ghl-restore-country-map, smoke/validate helpers) stay checked.
+	"exclude": [
+		"node_modules",
+		"dist",
+		"scripts/ghl-e2e-*.ts",
+		"scripts/ghl-verify.ts"
+	]
 }
