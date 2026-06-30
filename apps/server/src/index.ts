@@ -87,7 +87,25 @@ function getAllowedOrigin(
 		allowed.add("http://avantej.localhost:3001");
 	}
 
-	if (requestOrigin && allowed.has(requestOrigin)) return requestOrigin;
+	if (requestOrigin) {
+		if (allowed.has(requestOrigin)) return requestOrigin;
+		// Dynamic per-tenant subdomains (Phase A): reflect any https origin whose host
+		// is avantej.com or *.avantej.com. Credentials mode is on, so we echo the EXACT
+		// origin (never "*"). Safe because avantej.com is a domain we own. This relaxes
+		// the SI-009 prod-only policy intentionally — see the comment above getAllowedOrigin.
+		try {
+			const u = new URL(requestOrigin);
+			const host = u.hostname.toLowerCase();
+			if (
+				u.protocol === "https:" &&
+				(host === "avantej.com" || host.endsWith(".avantej.com"))
+			) {
+				return requestOrigin;
+			}
+		} catch {
+			/* malformed Origin header — fall through to default */
+		}
+	}
 
 	// Default: first env origin if available; empty string in production (no echo),
 	// fallback to localhost:3001 only in dev when CORS_ORIGIN is unset.

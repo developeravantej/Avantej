@@ -4,5 +4,15 @@
 	"compatibility_date": "2025-04-03",
 	"assets": {
 		"not_found_handling": "single-page-application"
+	},
+	// Named "prod" environment = MOVE production web worker. Build with
+	// VITE_SERVER_URL set to the prod server, then: wrangler deploy --env prod
+	"env": {
+		"prod": {
+			"name": "avantej-core-web-prod",
+			"assets": {
+				"not_found_handling": "single-page-application"
+			}
+		}
 	}
 }

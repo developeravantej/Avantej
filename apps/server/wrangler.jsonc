@@ -46,5 +46,40 @@
 			"*/15 * * * *",
 			"0 4 * * *"
 		]
+	},
+	// Named "prod" environment = the MOVE production worker (separate from the
+	// top-level dev worker). Named envs do NOT inherit vars/bindings/triggers —
+	// re-declared here. Deploy with: wrangler deploy --env prod
+	"env": {
+		"prod": {
+			"name": "avantej-core-server-prod",
+			"vars": {
+				"NODE_ENV": "production",
+				"INSTALLMENTS_LOCK_ON_OPEN": "true",
+				// Per-tenant subdomains are reflected dynamically by getAllowedOrigin()
+				// (any https://*.avantej.com). CORS_ORIGIN here is the canonical fallback
+				// + outbound-link base (emails/invites). BETTER_AUTH_URL is the FIXED API
+				// host that issues the shared .avantej.com session cookie.
+				"CORS_ORIGIN": "https://app.avantej.com",
+				"BETTER_AUTH_URL": "https://api.avantej.com"
+			},
+			"r2_buckets": [
+				{
+					"binding": "PROOFS_BUCKET",
+					"bucket_name": "avantej-payment-proofs"
+				}
+			],
+			"triggers": {
+				"crons": [
+					"0 * * * *",
+					"0 1 * * *",
+					"0 2 * * *",
+					"0 3 * * *",
+					"0 9 * * *",
+					"*/15 * * * *",
+					"0 4 * * *"
+				]
+			}
+		}
 	}
 }
