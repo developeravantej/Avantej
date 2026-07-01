@@ -2,44 +2,44 @@
   "tests": [
     {
       "relpath": "overview-dashboard/launchpad.journey.json",
-      "title": "Dashboard launchpad — 8 daily-task cards swap panels (POS / Customers / Installments)",
+      "title": "Dashboard launchpad \u2014 8 daily-task cards swap panels (POS / Customers / Installments)",
       "status": "pass",
       "durMs": 0,
       "screenshots": [
         {
           "file": "overview-dashboard/launchpad/01-launchpad-8cards-pos.png",
-          "caption": "Dashboard launchpad: 8 daily-task cards + default New Sale POS panel (MOVE Private Fitness · 23 branches)"
+          "caption": "Dashboard launchpad: 8 daily-task cards + default New Sale POS panel (MOVE Private Fitness \u00b7 23 branches)"
         },
         {
           "file": "overview-dashboard/launchpad/02-view-customers-panel.png",
-          "caption": "‘View Customers’ card swaps to the customer directory panel (empty — 0 customers on migrated tenant)"
+          "caption": "\u2018View Customers\u2019 card swaps to the customer directory panel (empty \u2014 0 customers on migrated tenant)"
         },
         {
           "file": "overview-dashboard/launchpad/03-installments-panel.png",
-          "caption": "‘Installments’ card swaps to the installments read view"
+          "caption": "\u2018Installments\u2019 card swaps to the installments read view"
         }
       ],
       "steps": [
         "Open /dashboard as MOVE owner",
         "Launchpad renders 8 daily-task cards + POS panel",
-        "Click View Customers — panel swaps to customer directory (empty)",
-        "Click Installments — panel swaps to installments view",
+        "Click View Customers \u2014 panel swaps to customer directory (empty)",
+        "Click Installments \u2014 panel swaps to installments view",
         "No error boundary on any swap"
       ]
     },
     {
       "relpath": "overview-dashboard/overview-kpi.journey.json",
-      "title": "Overview KPI dashboard — scope-scoped hero + analytics grid (pristine empty-state)",
+      "title": "Overview KPI dashboard \u2014 scope-scoped hero + analytics grid (pristine empty-state)",
       "status": "pass",
       "durMs": 0,
       "screenshots": [
         {
           "file": "overview-dashboard/overview-kpi/01-hero-kpi.png",
-          "caption": "Hero ‘MOVE PRIVATE FITNESS · LIVE’ — MTD revenue empty, 0 orders · 124 active members, Today RM0.00, Appointments 0/0"
+          "caption": "Hero \u2018MOVE PRIVATE FITNESS \u00b7 LIVE\u2019 \u2014 MTD revenue empty, 0 orders \u00b7 124 active members, Today RM0.00, Appointments 0/0"
         },
         {
           "file": "overview-dashboard/overview-kpi/02-analytics-grid.png",
-          "caption": "Full analytics grid: Revenue trend RM0.00, Revenue by branch (0), Pending approvals none, Top performers none, Recent activity none — all honest empty-states on the migrated tenant"
+          "caption": "Full analytics grid: Revenue trend RM0.00, Revenue by branch (0), Pending approvals none, Top performers none, Recent activity none \u2014 all honest empty-states on the migrated tenant"
         }
       ],
       "steps": [
@@ -52,36 +52,36 @@
     },
     {
       "relpath": "scope-switcher/render-tree.journey.json",
-      "title": "Scope switcher renders the migrated country→state→branch tree (RBAC ceiling = MOVE only)",
+      "title": "Scope switcher renders the migrated country\u2192state\u2192branch tree (RBAC ceiling = MOVE only)",
       "status": "pass",
       "durMs": 0,
       "screenshots": [
         {
           "file": "scope-switcher/render-tree/01-popover-country-state-branch.png",
-          "caption": "Scope popover open: 3 countries (Malaysia/Singapore/Thailand), 6 states, 23 BRANCH nodes (MOVE ARA DAMANSARA…MOVE TTDI) — only MOVE’s own hierarchy = tenant isolation visible"
+          "caption": "Scope popover open: 3 countries (Malaysia/Singapore/Thailand), 6 states, 23 BRANCH nodes (MOVE ARA DAMANSARA\u2026MOVE TTDI) \u2014 only MOVE\u2019s own hierarchy = tenant isolation visible"
         }
       ],
       "steps": [
         "Open /dashboard",
-        "Click header scope combobox ‘All · MOVE Private Fitness’",
+        "Click header scope combobox \u2018All \u00b7 MOVE Private Fitness\u2019",
         "Popover shows search box + pinned All entry",
-        "Depth-indented tree: COUNTRY → STATE → BRANCH type tags",
-        "23 branch nodes listed — exactly MOVE’s accessibleNodeIds, no other tenant"
+        "Depth-indented tree: COUNTRY \u2192 STATE \u2192 BRANCH type tags",
+        "23 branch nodes listed \u2014 exactly MOVE\u2019s accessibleNodeIds, no other tenant"
       ]
     },
     {
       "relpath": "scope-switcher/narrow-restore.journey.json",
-      "title": "Selecting a branch narrows the dashboard, then ‘All’ restores org-wide view",
+      "title": "Selecting a branch narrows the dashboard, then \u2018All\u2019 restores org-wide view",
       "status": "pass",
       "durMs": 0,
       "screenshots": [
         {
           "file": "scope-switcher/narrow-restore/01-narrowed-klcc.png",
-          "caption": "Branch ‘MOVE KLCC’ selected — trigger label changes, every dashboard widget re-queries with branchId (read-only, localStorage-persisted)"
+          "caption": "Branch \u2018MOVE KLCC\u2019 selected \u2014 trigger label changes, every dashboard widget re-queries with branchId (read-only, localStorage-persisted)"
         },
         {
           "file": "scope-switcher/narrow-restore/02-restored-all.png",
-          "caption": "Scope reset to ‘All · MOVE Private Fitness’ — org-wide view restored, session left clean"
+          "caption": "Scope reset to \u2018All \u00b7 MOVE Private Fitness\u2019 \u2014 org-wide view restored, session left clean"
         }
       ],
       "steps": [
@@ -89,25 +89,25 @@
         "Open popover, select MOVE KLCC branch",
         "Trigger shows MOVE KLCC, widgets re-render scoped",
         "Reopen popover, select All",
-        "Dashboard restored org-wide (no writes — scope is client-side + read queries)"
+        "Dashboard restored org-wide (no writes \u2014 scope is client-side + read queries)"
       ]
     },
     {
       "relpath": "branches-hierarchy/tree.journey.json",
-      "title": "Branch hierarchy renders MOVE’s 23 branches / 33 nodes (migration proof)",
+      "title": "Branch hierarchy renders MOVE\u2019s 23 branches / 33 nodes (migration proof)",
       "status": "pass",
       "durMs": 0,
       "screenshots": [
         {
           "file": "branches-hierarchy/tree/01-expanded-tree.png",
-          "caption": "Expand-all: full country→state→branch tree — Malaysia (Johor/KL/Melaka/Selangor, 18 branches), Singapore (Central, 1), Thailand (Bangkok, 3) = 23 branches"
+          "caption": "Expand-all: full country\u2192state\u2192branch tree \u2014 Malaysia (Johor/KL/Melaka/Selangor, 18 branches), Singapore (Central, 1), Thailand (Bangkok, 3) = 23 branches"
         }
       ],
       "steps": [
         "Open /dashboard/branch/view",
         "Branch Overview tree + root detail panel render",
         "Click Expand all",
-        "All 23 branch leaves render grouped by country→state",
+        "All 23 branch leaves render grouped by country\u2192state",
         "Confirms migrated hierarchy (33 nodes) intact"
       ]
     },
@@ -119,7 +119,7 @@
       "screenshots": [
         {
           "file": "branches-hierarchy/node-detail/01-klcc-detail.png",
-          "caption": "MOVE KLCC selected — NodeDetailPanel header + Members/Revenue/Staff KPI tiles + Opening Hours (empty stats = pristine tenant)"
+          "caption": "MOVE KLCC selected \u2014 NodeDetailPanel header + Members/Revenue/Staff KPI tiles + Opening Hours (empty stats = pristine tenant)"
         }
       ],
       "steps": [
@@ -138,7 +138,7 @@
       "screenshots": [
         {
           "file": "employees-rbac/roster/01-roster-124.png",
-          "caption": "Users / Members — ‘Admins 22 members’ group expanded (MOVE Owner + real staff, all Active, Joined Jun 2026) + ‘Trainers 102 members’ group = 124 total migrated staff"
+          "caption": "Users / Members \u2014 \u2018Admins 22 members\u2019 group expanded (MOVE Owner + real staff, all Active, Joined Jun 2026) + \u2018Trainers 102 members\u2019 group = 124 total migrated staff"
         }
       ],
       "steps": [
@@ -157,7 +157,7 @@
       "screenshots": [
         {
           "file": "trainers/roster/01-roster-detail.png",
-          "caption": "Trainers tab: full coach roster (real names/emails) + first coach auto-selected (the first coach · MOVE SS2) with KPI tiles (Sessions/Commission YTD/Revenue/Utilisation all 0) + schedule/customers/contact panel"
+          "caption": "Trainers tab: full coach roster (real names/emails) + first coach auto-selected (the first coach \u00b7 MOVE SS2) with KPI tiles (Sessions/Commission YTD/Revenue/Utilisation all 0) + schedule/customers/contact panel"
         }
       ],
       "steps": [
@@ -176,14 +176,14 @@
       "screenshots": [
         {
           "file": "trainers/scope-narrow/01-narrowed-ss2.png",
-          "caption": "Scope = MOVE SS2 → roster narrows from ~100 coaches to 6 (branch-scoped query); scope reset to All afterward"
+          "caption": "Scope = MOVE SS2 \u2192 roster narrows from ~100 coaches to 6 (branch-scoped query); scope reset to All afterward"
         }
       ],
       "steps": [
         "Trainers tab at All scope (~100 coaches)",
         "Open scope switcher",
         "Select MOVE SS2 branch",
-        "Roster re-queries → 6 coaches at that branch",
+        "Roster re-queries \u2192 6 coaches at that branch",
         "Reset scope to All (clean)"
       ]
     },
@@ -195,7 +195,7 @@
       "screenshots": [
         {
           "file": "services-catalog/catalog/01-catalog-70.png",
-          "caption": "Services catalog: ‘70 services · 70 active’, category pills (Fitcation/Personal Training/Semi-Private/Trial), real PT packages with RM prices (RM7,200 etc) + Installment Plans tab"
+          "caption": "Services catalog: \u201870 services \u00b7 70 active\u2019, category pills (Fitcation/Personal Training/Semi-Private/Trial), real PT packages with RM prices (RM7,200 etc) + Installment Plans tab"
         }
       ],
       "steps": [
@@ -218,7 +218,7 @@
         },
         {
           "file": "services-catalog/categories-commission/02-commission-config-sheet.png",
-          "caption": "Commission Config sheet open for Personal Training — per-category commission setup (read-only, closed without saving)"
+          "caption": "Commission Config sheet open for Personal Training \u2014 per-category commission setup (read-only, closed without saving)"
         }
       ],
       "steps": [
@@ -237,20 +237,20 @@
       "screenshots": [
         {
           "file": "customers/directory-empty/01-empty.png",
-          "caption": "Customers / Directory — count 0, ‘No customers yet · Invite your first customer’, Add Customer button + scope switcher (honest pristine state)"
+          "caption": "Customers / Directory \u2014 count 0, \u2018No customers yet \u00b7 Invite your first customer\u2019, Add Customer button + scope switcher (honest pristine state)"
         }
       ],
       "steps": [
         "Open /dashboard/customers/v2/view",
         "Header Customers / Directory + count badge 0",
-        "Empty-state ‘No customers yet’",
+        "Empty-state \u2018No customers yet\u2019",
         "Add Customer button + Show deleted toggle render",
         "Confirms customer query wired to new tenant DB (0 rows)"
       ]
     },
     {
       "relpath": "customers/add-wizard.journey.json",
-      "title": "Add Customer dialog opens (read-only, cancelled — no record created)",
+      "title": "Add Customer dialog opens (read-only, cancelled \u2014 no record created)",
       "status": "pass",
       "durMs": 0,
       "screenshots": [
@@ -264,7 +264,7 @@
         "Click Add Customer",
         "Dialog renders required fields",
         "Branch/scope select lists MOVE branch hierarchy",
-        "Dismissed via Cancel — 0 customers preserved (no write)"
+        "Dismissed via Cancel \u2014 0 customers preserved (no write)"
       ]
     },
     {
@@ -275,14 +275,14 @@
       "screenshots": [
         {
           "file": "packages/overview/01-memberships-empty.png",
-          "caption": "Packages / Memberships: stat cards TOTAL 0 · EXPIRING 0 · FROZEN 0 · OUTSTANDING RM0.00, filter chips, ‘No memberships found’ — Memberships/Session Packs/Installments tabs"
+          "caption": "Packages / Memberships: stat cards TOTAL 0 \u00b7 EXPIRING 0 \u00b7 FROZEN 0 \u00b7 OUTSTANDING RM0.00, filter chips, \u2018No memberships found\u2019 \u2014 Memberships/Session Packs/Installments tabs"
         }
       ],
       "steps": [
         "Open /dashboard/packages/view (redirects to ?tab=memberships)",
         "4 stat cards all zero",
         "Filter chips (All/Expiring/Frozen/Expired)",
-        "Empty table ‘No memberships found’",
+        "Empty table \u2018No memberships found\u2019",
         "3 package tabs render"
       ]
     },
@@ -313,30 +313,30 @@
       "screenshots": [
         {
           "file": "pos-sales-create/member-search-empty/01-no-customers.png",
-          "caption": "Member search ‘ahmad’ → ‘No customers found · Try a different name’ — Continue to Items stays disabled (step gating proven on pristine tenant)"
+          "caption": "Member search \u2018ahmad\u2019 \u2192 \u2018No customers found \u00b7 Try a different name\u2019 \u2014 Continue to Items stays disabled (step gating proven on pristine tenant)"
         }
       ],
       "steps": [
         "POS Step 1, Member mode",
-        "Type ‘ahmad’ in customer search",
-        "Resolves to ‘No customers found’ (0 customers migrated)",
+        "Type \u2018ahmad\u2019 in customer search",
+        "Resolves to \u2018No customers found\u2019 (0 customers migrated)",
         "Continue to Items stays disabled",
         "Confirms search query wired + gating works"
       ]
     },
     {
       "relpath": "sales-payments/dashboard-empty.journey.json",
-      "title": "Sales & Payments — FIXED (granted sales:read) — dashboard + KPIs render",
+      "title": "Sales & Payments \u2014 FIXED (granted sales:read) \u2014 dashboard + KPIs render",
       "status": "pass",
       "durMs": 0,
       "screenshots": [
         {
           "file": "sales-payments/dashboard-empty/01-unauthorized-redirect.png",
-          "caption": "BEFORE: /dashboard/sales/view redirected to unauthorized — owner role lacked sales:read (catalogue drift)"
+          "caption": "BEFORE: /dashboard/sales/view redirected to unauthorized \u2014 owner role lacked sales:read (catalogue drift)"
         },
         {
           "file": "sales-payments/dashboard-empty/02-fixed.png",
-          "caption": "AFTER FIX: page loads — Month revenue / Sales Orders 0 / Payments 0 / Refunds tabs + Export CSV. Root cause: seed-rbac.ts never seeded sales:read; added to seed + granted to admin on MOVE."
+          "caption": "AFTER FIX: page loads \u2014 Month revenue / Sales Orders 0 / Payments 0 / Refunds tabs + Export CSV. Root cause: seed-rbac.ts never seeded sales:read; added to seed + granted to admin on MOVE."
         }
       ],
       "steps": [
@@ -349,7 +349,7 @@
     },
     {
       "relpath": "sales-payments/tabs.journey.json",
-      "title": "Sales & Payments tabs — FIXED (reachable after sales:read grant)",
+      "title": "Sales & Payments tabs \u2014 FIXED (reachable after sales:read grant)",
       "status": "pass",
       "durMs": 0,
       "screenshots": [
@@ -372,7 +372,7 @@
       "screenshots": [
         {
           "file": "commissions-payouts/hub/01-commissions-hub.png",
-          "caption": "Commissions hub: 6 tabs (My Commissions / All Commissions / Review / Disputes / Liability / Payouts) — empty ledgers on pristine tenant (commission_splits = 0)"
+          "caption": "Commissions hub: 6 tabs (My Commissions / All Commissions / Review / Disputes / Liability / Payouts) \u2014 empty ledgers on pristine tenant (commission_splits = 0)"
         }
       ],
       "steps": [
@@ -380,7 +380,7 @@
         "Six-tab hub renders (commission_management:read present)",
         "My Commissions KPIs + empty ledger",
         "All/Review/Disputes/Liability/Payouts tabs available",
-        "Honest 0-state — no commission splits until a sale commits"
+        "Honest 0-state \u2014 no commission splits until a sale commits"
       ]
     },
     {
@@ -391,7 +391,7 @@
       "screenshots": [
         {
           "file": "commissions-payouts/payouts/01-payouts-empty.png",
-          "caption": "Payouts tab: DISBURSED RM0.00 · PENDING 0 · AVG — · LAST BATCH —, All Payouts/Per Recipient sub-tabs, Run Batch button, ‘No payouts yet’"
+          "caption": "Payouts tab: DISBURSED RM0.00 \u00b7 PENDING 0 \u00b7 AVG \u2014 \u00b7 LAST BATCH \u2014, All Payouts/Per Recipient sub-tabs, Run Batch button, \u2018No payouts yet\u2019"
         }
       ],
       "steps": [
@@ -399,7 +399,7 @@
         "KPI band (Disbursed/Pending/Avg/Last Batch) all empty",
         "All Payouts / Per Recipient sub-tabs",
         "Run Batch button present (not clicked)",
-        "‘No payouts yet’ empty state"
+        "\u2018No payouts yet\u2019 empty state"
       ]
     },
     {
@@ -410,7 +410,7 @@
       "screenshots": [
         {
           "file": "appointments/schedule-attendance/01-schedule.png",
-          "caption": "Appointments — Schedule + Attendance tabs render with New Booking (empty agenda; appointment_management:read present)"
+          "caption": "Appointments \u2014 Schedule + Attendance tabs render with New Booking (empty agenda; appointment_management:read present)"
         }
       ],
       "steps": [
@@ -423,13 +423,13 @@
     },
     {
       "relpath": "appointments/class-slots.journey.json",
-      "title": "Class Slots — FIXED (granted class_slot_management:read) — Capacity Overview renders",
+      "title": "Class Slots \u2014 FIXED (granted class_slot_management:read) \u2014 Capacity Overview renders",
       "status": "pass",
       "durMs": 0,
       "screenshots": [
         {
           "file": "appointments/class-slots/01-unauthorized.png",
-          "caption": "BEFORE: redirected to unauthorized — no class_slot_management perms in seeded catalogue"
+          "caption": "BEFORE: redirected to unauthorized \u2014 no class_slot_management perms in seeded catalogue"
         },
         {
           "file": "appointments/class-slots/02-fixed.png",
@@ -452,7 +452,7 @@
       "screenshots": [
         {
           "file": "announcements-approvals/announcements/01-announcements.png",
-          "caption": "Communications / Announcements — filter rail + Sort + New button, ‘No announcements’ empty state on pristine tenant"
+          "caption": "Communications / Announcements \u2014 filter rail + Sort + New button, \u2018No announcements\u2019 empty state on pristine tenant"
         }
       ],
       "steps": [
@@ -460,7 +460,7 @@
         "Header + scope switcher + New button",
         "Filter rail (audience/status)",
         "Sort: Newest",
-        "Empty inbox ‘No announcements’"
+        "Empty inbox \u2018No announcements\u2019"
       ]
     },
     {
@@ -471,7 +471,7 @@
       "screenshots": [
         {
           "file": "announcements-approvals/approvals/01-approvals-queue.png",
-          "caption": "Operations / Approvals — Pending + Awaiting payment tabs, Export queue, empty queue (no packages awaiting on pristine tenant)"
+          "caption": "Operations / Approvals \u2014 Pending + Awaiting payment tabs, Export queue, empty queue (no packages awaiting on pristine tenant)"
         }
       ],
       "steps": [
@@ -490,30 +490,30 @@
       "screenshots": [
         {
           "file": "expenses-taxrates/expenses/01-expenses-empty.png",
-          "caption": "Finance / Expenses — TOTAL CLAIMS 0 · TOTAL VALUE RM0.00, status tabs, ‘No expenses found’ (expense_management:read present)"
+          "caption": "Finance / Expenses \u2014 TOTAL CLAIMS 0 \u00b7 TOTAL VALUE RM0.00, status tabs, \u2018No expenses found\u2019 (expense_management:read present)"
         }
       ],
       "steps": [
         "Open /dashboard/expenses/view",
         "KPI tiles (Total Claims/Value/Pending)",
         "Status tabs (All/Pending/Approved/Rejected/Paid)",
-        "Empty table ‘No expenses found’",
+        "Empty table \u2018No expenses found\u2019",
         "Submit Expense button present (not clicked)"
       ]
     },
     {
       "relpath": "expenses-taxrates/tax-rates.journey.json",
-      "title": "Tax Rates — FIXED (granted tax_configuration:*) — config page renders",
+      "title": "Tax Rates \u2014 FIXED (granted tax_configuration:*) \u2014 config page renders",
       "status": "pass",
       "durMs": 0,
       "screenshots": [
         {
           "file": "expenses-taxrates/tax-rates/01-unauthorized.png",
-          "caption": "BEFORE: redirected to unauthorized — no tax_configuration perms in seeded catalogue (page guards on tax_configuration:update)"
+          "caption": "BEFORE: redirected to unauthorized \u2014 no tax_configuration perms in seeded catalogue (page guards on tax_configuration:update)"
         },
         {
           "file": "expenses-taxrates/tax-rates/02-fixed.png",
-          "caption": "AFTER FIX: Tax Rates page loads (‘Manage tax rates applied to sales across your branches’) + Add tax rate. Added tax_configuration read/create/update/delete to seed + granted on MOVE."
+          "caption": "AFTER FIX: Tax Rates page loads (\u2018Manage tax rates applied to sales across your branches\u2019) + Add tax rate. Added tax_configuration read/create/update/delete to seed + granted on MOVE."
         }
       ],
       "steps": [
@@ -532,7 +532,7 @@
       "screenshots": [
         {
           "file": "org-settings/organization/01-org-settings.png",
-          "caption": "Settings / Organization — General Settings (Grace Period, Default Commission %, Locale), Approval Policy + Require Package Approval, Save Settings (untouched)"
+          "caption": "Settings / Organization \u2014 General Settings (Grace Period, Default Commission %, Locale), Approval Policy + Require Package Approval, Save Settings (untouched)"
         }
       ],
       "steps": [
@@ -551,7 +551,7 @@
       "screenshots": [
         {
           "file": "org-settings/notifications/01-notifications.png",
-          "caption": "Settings / Notifications — Channels (Email/SMS/Push) + Content (Booking Reminders/Confirmations/Promotional) toggles reflecting saved state (not toggled)"
+          "caption": "Settings / Notifications \u2014 Channels (Email/SMS/Push) + Content (Booking Reminders/Confirmations/Promotional) toggles reflecting saved state (not toggled)"
         }
       ],
       "steps": [
@@ -559,7 +559,7 @@
         "Notification Channels card (Email/SMS/Push)",
         "Notification Content card (reminders/confirmations/promo)",
         "Toggles reflect saved state",
-        "Read-only — no toggle flipped"
+        "Read-only \u2014 no toggle flipped"
       ]
     },
     {
@@ -570,7 +570,7 @@
       "screenshots": [
         {
           "file": "integrations-audit/audit-log/01-audit.png",
-          "caption": "Audit Log — TOTAL EVENTS / DANGER KPI tiles, filter card, Export CSV, ‘No audit events’ (audit_log:read present; empty stream on pristine tenant)"
+          "caption": "Audit Log \u2014 TOTAL EVENTS / DANGER KPI tiles, filter card, Export CSV, \u2018No audit events\u2019 (audit_log:read present; empty stream on pristine tenant)"
         }
       ],
       "steps": [
@@ -589,7 +589,7 @@
       "screenshots": [
         {
           "file": "integrations-audit/google-calendar/01-gcal.png",
-          "caption": "Settings / Google Calendar — Connect My Calendar, Sync Settings sidebar, ‘No calendars found. Connect your Google Calendar first.’ (not connected — Connect not clicked, no OAuth left the app)"
+          "caption": "Settings / Google Calendar \u2014 Connect My Calendar, Sync Settings sidebar, \u2018No calendars found. Connect your Google Calendar first.\u2019 (not connected \u2014 Connect not clicked, no OAuth left the app)"
         }
       ],
       "steps": [
@@ -597,7 +597,7 @@
         "Connect My Calendar header + Connect button",
         "Org status / connection banner",
         "Sync Settings (direction/conflict)",
-        "‘No calendars found’ — not connected (no OAuth initiated)"
+        "\u2018No calendars found\u2019 \u2014 not connected (no OAuth initiated)"
       ]
     },
     {
@@ -608,7 +608,7 @@
       "screenshots": [
         {
           "file": "onboarding-qr/index/01-onboarding.png",
-          "caption": "Onboarding — Active QR Codes sidebar listing MOVE branches (each ‘No QR’), first auto-selected, NoQrPane with Generate (not clicked — no QR created)"
+          "caption": "Onboarding \u2014 Active QR Codes sidebar listing MOVE branches (each \u2018No QR\u2019), first auto-selected, NoQrPane with Generate (not clicked \u2014 no QR created)"
         }
       ],
       "steps": [
@@ -616,64 +616,69 @@
         "Active QR Codes sidebar with branch list (~23, each No QR)",
         "First branch auto-selected",
         "NoQrPane (Max Uses, Generate button) on the right",
-        "Read-only — no QR generated"
+        "Read-only \u2014 no QR generated"
       ]
     },
     {
       "relpath": "pos-write/committed-installment-sale.journey.json",
-      "title": "POS write path — committed installment sale (RM1,800×4) + tax-rate blocker found/fixed (then cleaned up)",
+      "title": "POS write path \u2014 committed installment sale (RM1,800\u00d74) + tax-rate blocker found/fixed (then cleaned up)",
       "status": "pass",
       "durMs": 0,
       "screenshots": [
         {
           "file": "pos-write/01-payment-installment.png",
-          "caption": "POS payment step: Cash + Quarterly plan → Due Today (1/4) RM1,800.00 of RM7,200 (per-installment domain rule) + preferred trainer selected"
+          "caption": "POS payment step: Cash + Quarterly plan \u2192 Due Today (1/4) RM1,800.00 of RM7,200 (per-installment domain rule) + preferred trainer selected"
         },
         {
           "file": "pos-write/02-sale-receipt.png",
-          "caption": "AFTER FIX: sale committed → receipt/sale-detail. DB verified: sales_order + item + payment + package_instance + 4 installments (RM1,800 ×4: 1 paid, 3 pending). Test data cleaned up afterward — MOVE pristine."
+          "caption": "AFTER FIX: sale committed \u2192 receipt/sale-detail. DB verified: sales_order + item + payment + package_instance + 4 installments (RM1,800 \u00d74: 1 paid, 3 pending). Test data cleaned up afterward \u2014 MOVE pristine."
         }
       ],
       "steps": [
         "Create tagged test customer (ZZ E2E-TESTCUST @ MOVE KLCC)",
-        "POS: member → PERSONAL TRAINING 2X12 (RM7,200) → Quarterly installment → Cash → preferred trainer",
-        "FINDING: first Charge & Confirm → recordSale 400 ‘No active tax rate is configured for this organisation.’ — MOVE had 0 tax rates → ALL POS sales blocked",
+        "POS: member \u2192 PERSONAL TRAINING 2X12 (RM7,200) \u2192 Quarterly installment \u2192 Cash \u2192 preferred trainer",
+        "FINDING: first Charge & Confirm \u2192 recordSale 400 \u2018No active tax rate is configured for this organisation.\u2019 \u2014 MOVE had 0 tax rates \u2192 ALL POS sales blocked",
         "FIX: inserted a 0% default active tax rate (placeholder; client sets real SST)",
-        "Retry Charge & Confirm → sale committed, redirected to /sales/{id}",
-        "DB verified: sales_order + item + payment + package_instance + installment schedule RM1,800×4 (domain rule ✓)",
-        "Commission deferred by design (pos.service.ts:633 — service items earn on appointment delivery, not at sale); trainer assigned to package slot 0",
-        "Cleanup: deleted all test rows → baseline restored (0 sales/customers, members 124); tax rate KEPT"
+        "Retry Charge & Confirm \u2192 sale committed, redirected to /sales/{id}",
+        "DB verified: sales_order + item + payment + package_instance + installment schedule RM1,800\u00d74 (domain rule \u2713)",
+        "Commission deferred by design (pos.service.ts:633 \u2014 service items earn on appointment delivery, not at sale); trainer assigned to package slot 0",
+        "Cleanup: deleted all test rows \u2192 baseline restored (0 sales/customers, members 124); tax rate KEPT"
       ],
-      "notes": "CRITICAL HANDOFF FINDING: a freshly-migrated tenant has NO tax rate, and pos.recordSale hard-requires an active tax rate → every POS sale returns 400 until one is configured. Fixed on MOVE with a 0% placeholder (SST0). Recommend seeding a default tax rate during tenant provisioning. Write path + installment schedule fully verified; commission is delivery-deferred (materializes on session/appointment delivery to the assigned trainer)."
+      "notes": "CRITICAL HANDOFF FINDING: a freshly-migrated tenant has NO tax rate, and pos.recordSale hard-requires an active tax rate \u2192 every POS sale returns 400 until one is configured. Fixed on MOVE with a 0% placeholder (SST0). Recommend seeding a default tax rate during tenant provisioning. Write path + installment schedule fully verified; commission is delivery-deferred (materializes on session/appointment delivery to the assigned trainer)."
     },
     {
       "relpath": "stripe-connect/gym-connect-oauth.journey.json",
-      "title": "Stripe Connect — gym-connect OAuth round-trip verified; card charge gated on gym KYC (MY = Standard-only)",
+      "title": "Stripe Connect \u2014 gym connects its own Standard account (MY); charges + payouts LIVE after ID verify; status auto-syncs via account.updated webhook",
       "status": "pass",
       "durMs": 0,
       "screenshots": [
         {
           "file": "stripe-connect/01-connect-page.png",
-          "caption": "Billing / Payment processing — connect a Stripe account per country; Avantej takes a per-transaction platform fee (direct-charge + app-fee model). MOVE unconnected."
+          "caption": "Billing / Payment processing \u2014 connect a Stripe account per country; Avantej takes a per-transaction platform fee (direct-charge + app-fee model). MOVE unconnected."
         },
         {
           "file": "stripe-connect/02-stripe-oauth.png",
-          "caption": "Stripe OAuth — platform ‘AVANTEJ sandbox’, correct migrated client_id ca_UnbeBHtV7h7… + signed state + prefilled MOVE/MY/email. Test-mode ‘Skip this form’."
+          "caption": "Stripe OAuth \u2014 platform \u2018AVANTEJ sandbox\u2019, correct migrated client_id ca_UnbeBHtV7h7\u2026 + signed state + prefilled MOVE/MY/email. Test-mode \u2018Skip this form\u2019."
         },
         {
           "file": "stripe-connect/03-connected-pending.png",
-          "caption": "After OAuth: app shows connected acct_1ToGWh… · MYR · ‘Onboarding incomplete · Charges: No’. Callback stored it in org_country_stripe_accounts."
+          "caption": "Right after OAuth (mid-onboarding): connected acct_1ToQHK\u2026 \u00b7 MYR \u00b7 'Onboarding incomplete \u00b7 Charges/Payouts/Details No'. Resolved once the owner finishes verification (next frame)."
+        },
+        {
+          "file": "stripe-connect/04-connected-active.png",
+          "caption": "After the owner passed ID verification: card is Active \u00b7 Charges Yes \u00b7 Payouts Yes \u00b7 Details Yes. The account.updated webhook (connect endpoint) auto-synced this \u2014 no manual DB touch."
         }
       ],
       "steps": [
-        "/billing/connect → Malaysia (MYR) → Connect Stripe",
-        "App builds OAuth URL with migrated client_id + signed state → connect.stripe.com",
-        "Stripe AVANTEJ-sandbox consent → Skip this form (test)",
-        "Callback exchanges code → stores acct_ (status pending, charges_enabled=false)",
-        "App shows connected account; cleanup deleted the test row (MOVE pristine)",
-        "Card charge: requires charges_enabled=true (gym KYC). API-create of a chargeable account is BLOCKED for MY platforms (Stripe: platform cannot be loss-liable in MY) — confirms Standard OAuth is the correct/only model. Live card charge = manual gym-KYC step."
+        "/billing/connect \u2192 Add country \u2192 Malaysia (MYR) \u2192 Connect Stripe",
+        "App builds OAuth URL (migrated client_id + signed state) \u2192 gym completes Stripe-hosted onboarding (business details, MYR bank account, owner ID)",
+        "OAuth callback stores acct_ in org_country_stripe_accounts; WEB_APP_URL fix returns the gym to app.avantej.com (was localhost:3001 \u2192 blank page)",
+        "Card shows the connected account as 'Onboarding incomplete' (Charges/Payouts/Details No) until Stripe requirements are met",
+        "Owner clicks 'Complete verification' \u2192 uploads ID (test mode: Successful verification) \u2192 Stripe enables charges + payouts",
+        "account.updated webhook (connect endpoint, events_from ['@accounts']) delivers \u2192 card auto-flips to Active \u00b7 Charges Yes \u00b7 Payouts Yes \u00b7 Details Yes (no manual sync)",
+        "Domain rule: MY platforms = Standard OAuth only (platform can't be loss-liable); charge model = direct charge (stripeAccount header) + application_fee = Avantej platform fee"
       ],
-      "notes": "GYM-CONNECT OAUTH FULLY VERIFIED (entry+callback+storage+display). CARD CHARGE not shown to success: needs a charges-enabled connected account = the gym completes their own Standard-account KYC. Stripe blocks a MY-based platform from creating loss-liable (Custom/Express) accounts, so there is no API shortcut — this validates Avantej’s Standard-OAuth choice. Charge model confirmed in code = direct charge (stripeAccount: acct header) + application_fee_amount. Platform-level test charge already proven (RM300 MYR succeeded). Remaining = a human finishes gym KYC once, then a Card POS sale routes a live test charge to the connected account."
+      "notes": "FULL Connect lifecycle now GREEN end-to-end on prod. Gym (acct_1ToQHKCmr9r6wfUR, MOVE Private Fitness, MYR) is charges_enabled=true AND payouts_enabled=true after the owner passed identity verification. Fixes shipped this session that this spec now exercises: (1) WEB_APP_URL/FRONTEND_URL set on prod (Stripe return no longer lands on localhost:3001); (2) /billing/connect route coerces ?return=1 search param (was crashing 'expected string received number'); (3) 'Complete verification' CTA now shows when charges are on but payouts/details incomplete; (4) Connect webhook recreated with connect=true / events_from ['@accounts'] (the dashboard-created one was '@self' and delivered nothing) \u2192 account.updated now auto-syncs the card. Platform = AVANTEJ sandbox acct_1TnfWuEErzVeQJED. Verified live via Stripe MCP + a metadata-triggered account.updated that our webhook processed. MY = Standard OAuth confirmed (no API shortcut for loss-liable accounts)."
     }
   ]
 }
