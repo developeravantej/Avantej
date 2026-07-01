@@ -8,7 +8,18 @@
  * this module only handles persistence + lookup logic.
  */
 
-import { and, asc, count, desc, eq, gte, inArray, lt, notInArray, or } from "drizzle-orm";
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	gte,
+	inArray,
+	lt,
+	notInArray,
+	or,
+} from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import type * as controlPanelSchema from "@avantej-core/db/schema/control-panel-schema";
 import { emailDomains } from "@avantej-core/db/schema/control-panel/email-domains";
@@ -34,7 +45,15 @@ type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
 
 export interface CreateEmailDomainParams {
 	organizationId: string;
-	resendDomainId: string;
+	/** Sending provider. Defaults to "resend" for backward compatibility. */
+	provider?: "resend" | "cloudflare";
+	/** Resend domain id (provider="resend"); null for Cloudflare rows. */
+	resendDomainId?: string | null;
+	/** Cloudflare zone + sending-subdomain id (provider="cloudflare"). */
+	cfZoneId?: string | null;
+	cfSubdomainId?: string | null;
+	/** Cloudflare onboarding tier: "default" | "delegated" | "bare". */
+	onboardingTier?: string | null;
 	domain: string;
 	fromName: string;
 	dnsRecords: unknown;
@@ -53,7 +72,11 @@ export async function createEmailDomain(
 		.insert(emailDomains)
 		.values({
 			organizationId: params.organizationId,
-			resendDomainId: params.resendDomainId,
+			provider: params.provider ?? "resend",
+			resendDomainId: params.resendDomainId ?? null,
+			cfZoneId: params.cfZoneId ?? null,
+			cfSubdomainId: params.cfSubdomainId ?? null,
+			onboardingTier: params.onboardingTier ?? null,
 			domain: params.domain,
 			fromName: params.fromName,
 			defaultLocalPart: params.defaultLocalPart ?? null,
