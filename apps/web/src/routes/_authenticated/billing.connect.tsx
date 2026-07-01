@@ -250,6 +250,15 @@ function CountryAccountCard({
 }) {
 	const isActive = account.chargesEnabled;
 	const isPending = !!account.stripeAccountId && !isActive;
+	// Show "Continue onboarding" whenever the account isn't fully enabled — not
+	// only pre-charges. An account can be charges-active but still have payouts
+	// disabled or requirements past-due (e.g. an unverified owner ID doc), and
+	// the admin needs a way back into Stripe onboarding to finish it.
+	const needsOnboarding =
+		!!account.stripeAccountId &&
+		(!account.chargesEnabled ||
+			!account.payoutsEnabled ||
+			!account.detailsSubmitted);
 	const countryName =
 		SUPPORTED_COUNTRIES.find((c) => c.code === account.countryCode)?.name ??
 		account.countryCode;
@@ -289,7 +298,7 @@ function CountryAccountCard({
 					<StatusRow label="Payouts" ok={account.payoutsEnabled} />
 					<StatusRow label="Details" ok={account.detailsSubmitted} />
 				</div>
-				{isPending && (
+				{needsOnboarding && (
 					<Button
 						variant="outline"
 						size="sm"
@@ -300,7 +309,7 @@ function CountryAccountCard({
 						{continueLoading && (
 							<Loader2 className="mr-2 size-4 animate-spin" />
 						)}
-						Continue onboarding
+						{isActive ? "Complete verification" : "Continue onboarding"}
 						<ExternalLink className="ml-2 size-3.5" />
 					</Button>
 				)}
