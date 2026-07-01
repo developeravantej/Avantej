@@ -206,6 +206,24 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
 	const fromNameValue = fromName || getDefaultFromName();
 	const fromAddress = `${fromNameValue} <${fromEmail}>`;
 
+	// Provider switch (flag-gated) — default stays Resend. When
+	// EMAIL_PROVIDER=cloudflare, route through the Cloudflare Email Sending
+	// binding instead (no per-domain fee). from defaults to CLOUDFLARE_EMAIL_FROM
+	// (a domain onboarded on the account, e.g. noreply@send.avantej.com).
+	if (getEnvVar("EMAIL_PROVIDER") === "cloudflare") {
+		const { sendViaCloudflareEmail } = await import("./cloudflare-email");
+		const cfFrom = from || getEnvVar("CLOUDFLARE_EMAIL_FROM") || fromEmail;
+		await sendViaCloudflareEmail({
+			to,
+			subject,
+			html,
+			text,
+			fromEmail: cfFrom,
+			fromName: fromNameValue,
+		});
+		return;
+	}
+
 	try {
 		const resend = getResendClient();
 		const result = await resend.emails.send({

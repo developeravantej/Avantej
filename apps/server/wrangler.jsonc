@@ -17,10 +17,15 @@
 		"NODE_ENV": "production",
 		"INSTALLMENTS_LOCK_ON_OPEN": "true",
 		"CORS_ORIGIN": "https://avantej-core-web.zhiyuantech.workers.dev",
-		"BETTER_AUTH_URL": "https://avantej-core-server.zhiyuantech.workers.dev"
+		"BETTER_AUTH_URL": "https://avantej-core-server.zhiyuantech.workers.dev",
+		// Default sender when EMAIL_PROVIDER=cloudflare (domain onboarded on the account).
+		"CLOUDFLARE_EMAIL_FROM": "noreply@send.avantej.com"
 		// Add public environment variables here
 		// Comma-separate CORS_ORIGIN if multiple frontends need access.
 	},
+	// Cloudflare Email Sending binding (env.EMAIL) — used only when
+	// EMAIL_PROVIDER=cloudflare; default provider stays Resend.
+	"send_email": [{ "name": "EMAIL" }],
 	// For sensitive data, use:
 	// wrangler secret put SECRET_NAME
 	// Don't add secrets to "vars" - they're visible in the dashboard!
@@ -61,7 +66,8 @@
 				// + outbound-link base (emails/invites). BETTER_AUTH_URL is the FIXED API
 				// host that issues the shared .avantej.com session cookie.
 				"CORS_ORIGIN": "https://app.avantej.com",
-				"BETTER_AUTH_URL": "https://api.avantej.com"
+				"BETTER_AUTH_URL": "https://api.avantej.com",
+				"CLOUDFLARE_EMAIL_FROM": "noreply@send.avantej.com"
 			},
 			"r2_buckets": [
 				{
@@ -69,6 +75,7 @@
 					"bucket_name": "avantej-payment-proofs"
 				}
 			],
+			"send_email": [{ "name": "EMAIL" }],
 			"triggers": {
 				"crons": [
 					"0 * * * *",
