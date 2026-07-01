@@ -645,6 +645,36 @@
         "Cleanup: deleted all test rows → baseline restored (0 sales/customers, members 124); tax rate KEPT"
       ],
       "notes": "CRITICAL HANDOFF FINDING: a freshly-migrated tenant has NO tax rate, and pos.recordSale hard-requires an active tax rate → every POS sale returns 400 until one is configured. Fixed on MOVE with a 0% placeholder (SST0). Recommend seeding a default tax rate during tenant provisioning. Write path + installment schedule fully verified; commission is delivery-deferred (materializes on session/appointment delivery to the assigned trainer)."
+    },
+    {
+      "relpath": "stripe-connect/gym-connect-oauth.journey.json",
+      "title": "Stripe Connect — gym connects its own Stripe (per-country OAuth) — full round-trip verified (then cleaned up)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "stripe-connect/01-connect-page.png",
+          "caption": "Billing / Payment processing — ‘Connect a Stripe account per country … Avantej takes a per-transaction platform fee’ (direct-charge + app-fee model). MOVE unconnected."
+        },
+        {
+          "file": "stripe-connect/02-stripe-oauth.png",
+          "caption": "Redirected to Stripe OAuth — platform ‘AVANTEJ sandbox’, correct migrated client_id ca_UnbeBHtV7h7… + signed state + prefilled MOVE / MY / email. Test-mode ‘Skip this form’ available."
+        },
+        {
+          "file": "stripe-connect/03-connected-pending.png",
+          "caption": "After OAuth: app shows the connected account acct_1ToGWh… · MYR · ‘Onboarding incomplete · Charges: No’ + Continue onboarding. Callback exchanged the code + stored it in org_country_stripe_accounts."
+        }
+      ],
+      "steps": [
+        "Open /billing/connect (MOVE, unconnected)",
+        "Connect first country → pick Malaysia (MYR)",
+        "Connect Stripe → app builds OAuth URL with the migrated client_id + signed state (org+country), redirects to connect.stripe.com",
+        "Stripe shows AVANTEJ sandbox consent (test mode) → Skip this form",
+        "Callback /api/stripe/connect/oauth/callback exchanges code → stores acct_ in control-panel org_country_stripe_accounts (status pending)",
+        "App connect page shows the connected account (Charges: No until KYC onboarding completes)",
+        "Cleanup: deleted the test connect row → MOVE back to 0 connected accounts"
+      ],
+      "notes": "GYM-CONNECT OAUTH FULLY VERIFIED end-to-end on the migrated stack (entry URL with correct new client_id + signed state → Stripe test account created → callback stored acct_ → app displays it). CARD PAYMENT not exercised: the skipped test account is charges_enabled=false (onboarding/KYC incomplete), so a card charge would be rejected until the gym completes Stripe onboarding — a business/KYC step, not a migration or app gap. Model confirmed = per-country direct charge + application_fee (payments/*.procedures.ts use stripeAccount: acct header + application_fee_amount)."
     }
   ]
 }
