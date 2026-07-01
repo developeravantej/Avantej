@@ -157,6 +157,15 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 	{
 		label: "Finance",
 		items: [
+			// Stripe Connect onboarding (per-country). Prerequisite for card/online
+			// payments + payouts, so it leads the Finance group. Admin-gated via
+			// payments:read (the staff role lacks it).
+			{
+				title: "Payment Setup",
+				url: "/billing/connect",
+				icon: CreditCard,
+				permission: "payments:read",
+			},
 			{
 				title: "Sales & Payments",
 				url: "/dashboard/sales/view",
