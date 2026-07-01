@@ -129,3 +129,8 @@ e2e-web/tenant/**/*.png
 e2e-web/pos/**/*.png
 docs/test-plan/tenant-e2e-screenshots.html
 docs/test-plan/pos-migration-e2e.html
+
+# Secrets — NEVER commit. Values live in the team secret store (1Password/Doppler)
+# + Cloudflare Worker secrets (wrangler secret put). Use .dev.vars.example as the template.
+.dev.vars
+apps/server/.env
