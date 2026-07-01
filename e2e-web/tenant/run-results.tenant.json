@@ -1,0 +1,623 @@
+{
+  "tests": [
+    {
+      "relpath": "overview-dashboard/launchpad.journey.json",
+      "title": "Dashboard launchpad — 8 daily-task cards swap panels (POS / Customers / Installments)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "overview-dashboard/launchpad/01-launchpad-8cards-pos.png",
+          "caption": "Dashboard launchpad: 8 daily-task cards + default New Sale POS panel (MOVE Private Fitness · 23 branches)"
+        },
+        {
+          "file": "overview-dashboard/launchpad/02-view-customers-panel.png",
+          "caption": "‘View Customers’ card swaps to the customer directory panel (empty — 0 customers on migrated tenant)"
+        },
+        {
+          "file": "overview-dashboard/launchpad/03-installments-panel.png",
+          "caption": "‘Installments’ card swaps to the installments read view"
+        }
+      ],
+      "steps": [
+        "Open /dashboard as MOVE owner",
+        "Launchpad renders 8 daily-task cards + POS panel",
+        "Click View Customers — panel swaps to customer directory (empty)",
+        "Click Installments — panel swaps to installments view",
+        "No error boundary on any swap"
+      ]
+    },
+    {
+      "relpath": "overview-dashboard/overview-kpi.journey.json",
+      "title": "Overview KPI dashboard — scope-scoped hero + analytics grid (pristine empty-state)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "overview-dashboard/overview-kpi/01-hero-kpi.png",
+          "caption": "Hero ‘MOVE PRIVATE FITNESS · LIVE’ — MTD revenue empty, 0 orders · 124 active members, Today RM0.00, Appointments 0/0"
+        },
+        {
+          "file": "overview-dashboard/overview-kpi/02-analytics-grid.png",
+          "caption": "Full analytics grid: Revenue trend RM0.00, Revenue by branch (0), Pending approvals none, Top performers none, Recent activity none — all honest empty-states on the migrated tenant"
+        }
+      ],
+      "steps": [
+        "Open /dashboard/overview?period=this_month",
+        "Hero shows MOVE Private Fitness LIVE with 124 active members and RM0.00 MTD",
+        "KPI grid renders Today/Appointments/Active Members/Largest Sale",
+        "Analytics grid (revenue trend, by-branch, approvals, top performers, activity, appointments) all render empty-state",
+        "No error boundary"
+      ]
+    },
+    {
+      "relpath": "scope-switcher/render-tree.journey.json",
+      "title": "Scope switcher renders the migrated country→state→branch tree (RBAC ceiling = MOVE only)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "scope-switcher/render-tree/01-popover-country-state-branch.png",
+          "caption": "Scope popover open: 3 countries (Malaysia/Singapore/Thailand), 6 states, 23 BRANCH nodes (MOVE ARA DAMANSARA…MOVE TTDI) — only MOVE’s own hierarchy = tenant isolation visible"
+        }
+      ],
+      "steps": [
+        "Open /dashboard",
+        "Click header scope combobox ‘All · MOVE Private Fitness’",
+        "Popover shows search box + pinned All entry",
+        "Depth-indented tree: COUNTRY → STATE → BRANCH type tags",
+        "23 branch nodes listed — exactly MOVE’s accessibleNodeIds, no other tenant"
+      ]
+    },
+    {
+      "relpath": "scope-switcher/narrow-restore.journey.json",
+      "title": "Selecting a branch narrows the dashboard, then ‘All’ restores org-wide view",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "scope-switcher/narrow-restore/01-narrowed-klcc.png",
+          "caption": "Branch ‘MOVE KLCC’ selected — trigger label changes, every dashboard widget re-queries with branchId (read-only, localStorage-persisted)"
+        },
+        {
+          "file": "scope-switcher/narrow-restore/02-restored-all.png",
+          "caption": "Scope reset to ‘All · MOVE Private Fitness’ — org-wide view restored, session left clean"
+        }
+      ],
+      "steps": [
+        "Dashboard at All scope",
+        "Open popover, select MOVE KLCC branch",
+        "Trigger shows MOVE KLCC, widgets re-render scoped",
+        "Reopen popover, select All",
+        "Dashboard restored org-wide (no writes — scope is client-side + read queries)"
+      ]
+    },
+    {
+      "relpath": "branches-hierarchy/tree.journey.json",
+      "title": "Branch hierarchy renders MOVE’s 23 branches / 33 nodes (migration proof)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "branches-hierarchy/tree/01-expanded-tree.png",
+          "caption": "Expand-all: full country→state→branch tree — Malaysia (Johor/KL/Melaka/Selangor, 18 branches), Singapore (Central, 1), Thailand (Bangkok, 3) = 23 branches"
+        }
+      ],
+      "steps": [
+        "Open /dashboard/branch/view",
+        "Branch Overview tree + root detail panel render",
+        "Click Expand all",
+        "All 23 branch leaves render grouped by country→state",
+        "Confirms migrated hierarchy (33 nodes) intact"
+      ]
+    },
+    {
+      "relpath": "branches-hierarchy/node-detail.journey.json",
+      "title": "Branch node selection shows detail panel (KPI tiles + opening hours)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "branches-hierarchy/node-detail/01-klcc-detail.png",
+          "caption": "MOVE KLCC selected — NodeDetailPanel header + Members/Revenue/Staff KPI tiles + Opening Hours (empty stats = pristine tenant)"
+        }
+      ],
+      "steps": [
+        "Branch tree expanded",
+        "Select MOVE KLCC leaf",
+        "Detail panel header switches to MOVE KLCC",
+        "KPI tiles (Members/Revenue/Staff) + Opening Hours render",
+        "Edit Branch button present (not clicked)"
+      ]
+    },
+    {
+      "relpath": "employees-rbac/roster.journey.json",
+      "title": "Employee roster renders 124 migrated staff grouped by role (Admins 22 + Trainers 102)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "employees-rbac/roster/01-roster-124.png",
+          "caption": "Users / Members — ‘Admins 22 members’ group expanded (MOVE Owner + real staff, all Active, Joined Jun 2026) + ‘Trainers 102 members’ group = 124 total migrated staff"
+        }
+      ],
+      "steps": [
+        "Open /dashboard/user/view",
+        "Roster groups by role",
+        "Admins group: 22 members with avatars/names/emails/Active/Joined",
+        "Trainers group header: 102 members",
+        "22 + 102 = 124 migrated staff confirmed"
+      ]
+    },
+    {
+      "relpath": "trainers/roster.journey.json",
+      "title": "Trainers roster renders ~100 migrated coaches with tiers + detail panel",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "trainers/roster/01-roster-detail.png",
+          "caption": "Trainers tab: full coach roster (real names/emails) + first coach auto-selected (the first coach · MOVE SS2) with KPI tiles (Sessions/Commission YTD/Revenue/Utilisation all 0) + schedule/customers/contact panel"
+        }
+      ],
+      "steps": [
+        "Open /dashboard/trainers/view",
+        "Left roster populated with migrated coaches",
+        "First coach auto-selected",
+        "Detail panel: tier/Active, 4 KPI tiles (zeros on pristine tenant)",
+        "This Week schedule + Contact & Branch render"
+      ]
+    },
+    {
+      "relpath": "trainers/scope-narrow.journey.json",
+      "title": "Scope switcher narrows trainer roster by branch (multi-tenant scope rule)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "trainers/scope-narrow/01-narrowed-ss2.png",
+          "caption": "Scope = MOVE SS2 → roster narrows from ~100 coaches to 6 (branch-scoped query); scope reset to All afterward"
+        }
+      ],
+      "steps": [
+        "Trainers tab at All scope (~100 coaches)",
+        "Open scope switcher",
+        "Select MOVE SS2 branch",
+        "Roster re-queries → 6 coaches at that branch",
+        "Reset scope to All (clean)"
+      ]
+    },
+    {
+      "relpath": "services-catalog/catalog.journey.json",
+      "title": "Services catalog renders 70 migrated services (filter/sort/price)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "services-catalog/catalog/01-catalog-70.png",
+          "caption": "Services catalog: ‘70 services · 70 active’, category pills (Fitcation/Personal Training/Semi-Private/Trial), real PT packages with RM prices (RM7,200 etc) + Installment Plans tab"
+        }
+      ],
+      "steps": [
+        "Open /dashboard/service/view?tab=services",
+        "Counter shows 70 services / 70 active",
+        "Category filter pills render",
+        "Service table lists migrated PT packages with prices/duration/active",
+        "Installment Plans tab present"
+      ]
+    },
+    {
+      "relpath": "services-catalog/categories-commission.journey.json",
+      "title": "Service categories + per-category commission config display (commission domain rule)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "services-catalog/categories-commission/01-categories.png",
+          "caption": "Categories tab: 4 migrated categories (Trial/Fitcation/Personal Training/Semi-Private), all ACTIVE, each with a Commission Config action"
+        },
+        {
+          "file": "services-catalog/categories-commission/02-commission-config-sheet.png",
+          "caption": "Commission Config sheet open for Personal Training — per-category commission setup (read-only, closed without saving)"
+        }
+      ],
+      "steps": [
+        "Switch to Categories tab",
+        "4 categories render, all ACTIVE",
+        "Each row has Commission Config button",
+        "Open Personal Training commission config sheet",
+        "Sheet shows rate/split config (read-only); dismissed without saving"
+      ]
+    },
+    {
+      "relpath": "customers/directory-empty.journey.json",
+      "title": "Customer Directory renders empty-state on migrated MOVE tenant (0 customers)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "customers/directory-empty/01-empty.png",
+          "caption": "Customers / Directory — count 0, ‘No customers yet · Invite your first customer’, Add Customer button + scope switcher (honest pristine state)"
+        }
+      ],
+      "steps": [
+        "Open /dashboard/customers/v2/view",
+        "Header Customers / Directory + count badge 0",
+        "Empty-state ‘No customers yet’",
+        "Add Customer button + Show deleted toggle render",
+        "Confirms customer query wired to new tenant DB (0 rows)"
+      ]
+    },
+    {
+      "relpath": "customers/add-wizard.journey.json",
+      "title": "Add Customer dialog opens (read-only, cancelled — no record created)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "customers/add-wizard/01-dialog.png",
+          "caption": "Add Customer dialog: First/Last/Phone/Email/Branch-scope/DOB/Notes fields with the migrated 23-branch hierarchy in the scope picker"
+        }
+      ],
+      "steps": [
+        "Directory with Add Customer button",
+        "Click Add Customer",
+        "Dialog renders required fields",
+        "Branch/scope select lists MOVE branch hierarchy",
+        "Dismissed via Cancel — 0 customers preserved (no write)"
+      ]
+    },
+    {
+      "relpath": "packages/overview.journey.json",
+      "title": "Packages overview renders 3 tabs with empty states (migration proof)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "packages/overview/01-memberships-empty.png",
+          "caption": "Packages / Memberships: stat cards TOTAL 0 · EXPIRING 0 · FROZEN 0 · OUTSTANDING RM0.00, filter chips, ‘No memberships found’ — Memberships/Session Packs/Installments tabs"
+        }
+      ],
+      "steps": [
+        "Open /dashboard/packages/view (redirects to ?tab=memberships)",
+        "4 stat cards all zero",
+        "Filter chips (All/Expiring/Frozen/Expired)",
+        "Empty table ‘No memberships found’",
+        "3 package tabs render"
+      ]
+    },
+    {
+      "relpath": "pos-sales-create/wizard.journey.json",
+      "title": "POS wizard opens with Member/Walk-in toggle + step gating (read-only)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "pos-sales-create/wizard/01-wizard.png",
+          "caption": "POS New Sale: 5-step rail (Customer active; Items/Promotions/Payment/Confirm LOCKED), Member/Walk-in toggle, empty Live Order RM0.00, last-receipt preview"
+        }
+      ],
+      "steps": [
+        "Open /dashboard/sales/create",
+        "5-step wizard rail renders",
+        "Step 1 Customer active, steps 2-5 LOCKED",
+        "Member/Walk-in toggle present",
+        "Live Order empty RM0.00"
+      ]
+    },
+    {
+      "relpath": "pos-sales-create/member-search-empty.journey.json",
+      "title": "POS member search shows pristine empty state (0 customers) + step gating",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "pos-sales-create/member-search-empty/01-no-customers.png",
+          "caption": "Member search ‘ahmad’ → ‘No customers found · Try a different name’ — Continue to Items stays disabled (step gating proven on pristine tenant)"
+        }
+      ],
+      "steps": [
+        "POS Step 1, Member mode",
+        "Type ‘ahmad’ in customer search",
+        "Resolves to ‘No customers found’ (0 customers migrated)",
+        "Continue to Items stays disabled",
+        "Confirms search query wired + gating works"
+      ]
+    },
+    {
+      "relpath": "sales-payments/dashboard-empty.journey.json",
+      "title": "Sales & Payments — FIXED (granted sales:read) — dashboard + KPIs render",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "sales-payments/dashboard-empty/01-unauthorized-redirect.png",
+          "caption": "BEFORE: /dashboard/sales/view redirected to unauthorized — owner role lacked sales:read (catalogue drift)"
+        },
+        {
+          "file": "sales-payments/dashboard-empty/02-fixed.png",
+          "caption": "AFTER FIX: page loads — Month revenue / Sales Orders 0 / Payments 0 / Refunds tabs + Export CSV. Root cause: seed-rbac.ts never seeded sales:read; added to seed + granted to admin on MOVE."
+        }
+      ],
+      "steps": [
+        "Found: owner missing sales:read",
+        "Fixed seed-rbac.ts (added sales read/update/delete) + granted on MOVE tenant",
+        "Re-login refreshes admin perm cache",
+        "/dashboard/sales/view now renders (no redirect)",
+        "KPIs + Sales Orders/Payments/Refunds tabs, honest 0-state"
+      ]
+    },
+    {
+      "relpath": "sales-payments/tabs.journey.json",
+      "title": "Sales & Payments tabs — FIXED (reachable after sales:read grant)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "sales-payments/dashboard-empty/02-fixed.png",
+          "caption": "Payments / Cancelled / Refunds tabs now reachable under /dashboard/sales/view (same sales:read fix)"
+        }
+      ],
+      "steps": [
+        "Same root cause as sales dashboard (sales:read)",
+        "After fix, Sales & Payments loads with all tabs",
+        "Resolved"
+      ]
+    },
+    {
+      "relpath": "commissions-payouts/hub.journey.json",
+      "title": "Commissions hub renders all six tabs with empty ledgers (migration smoke)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "commissions-payouts/hub/01-commissions-hub.png",
+          "caption": "Commissions hub: 6 tabs (My Commissions / All Commissions / Review / Disputes / Liability / Payouts) — empty ledgers on pristine tenant (commission_splits = 0)"
+        }
+      ],
+      "steps": [
+        "Open /dashboard/commissions/view",
+        "Six-tab hub renders (commission_management:read present)",
+        "My Commissions KPIs + empty ledger",
+        "All/Review/Disputes/Liability/Payouts tabs available",
+        "Honest 0-state — no commission splits until a sale commits"
+      ]
+    },
+    {
+      "relpath": "commissions-payouts/payouts.journey.json",
+      "title": "Payouts tab renders KPI band + empty records + Run Batch (read-only)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "commissions-payouts/payouts/01-payouts-empty.png",
+          "caption": "Payouts tab: DISBURSED RM0.00 · PENDING 0 · AVG — · LAST BATCH —, All Payouts/Per Recipient sub-tabs, Run Batch button, ‘No payouts yet’"
+        }
+      ],
+      "steps": [
+        "Payouts tab",
+        "KPI band (Disbursed/Pending/Avg/Last Batch) all empty",
+        "All Payouts / Per Recipient sub-tabs",
+        "Run Batch button present (not clicked)",
+        "‘No payouts yet’ empty state"
+      ]
+    },
+    {
+      "relpath": "appointments/schedule-attendance.journey.json",
+      "title": "Appointments renders Schedule + Attendance tabs (empty-state, read-only)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "appointments/schedule-attendance/01-schedule.png",
+          "caption": "Appointments — Schedule + Attendance tabs render with New Booking (empty agenda; appointment_management:read present)"
+        }
+      ],
+      "steps": [
+        "Open /dashboard/appointment/view",
+        "Schedule tab + Day/Week/List toolbar",
+        "New Booking button",
+        "Attendance tab available",
+        "Empty agenda (0 appointments on pristine tenant)"
+      ]
+    },
+    {
+      "relpath": "appointments/class-slots.journey.json",
+      "title": "Class Slots — FIXED (granted class_slot_management:read) — Capacity Overview renders",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "appointments/class-slots/01-unauthorized.png",
+          "caption": "BEFORE: redirected to unauthorized — no class_slot_management perms in seeded catalogue"
+        },
+        {
+          "file": "appointments/class-slots/02-fixed.png",
+          "caption": "AFTER FIX: Capacity Overview + KPIs (Total Slots / Avg Fill Rate / Waitlisted) + New Class Slot. Added class_slot_management read/create/update to seed + granted on MOVE."
+        }
+      ],
+      "steps": [
+        "Found: no class_slot_management perms in catalogue",
+        "Added class_slot_management read/create/update to seed-rbac.ts + granted on MOVE",
+        "Re-login",
+        "Class Slots page renders (no redirect)",
+        "Capacity Overview + KPIs"
+      ]
+    },
+    {
+      "relpath": "announcements-approvals/announcements.journey.json",
+      "title": "Announcements view renders (Communications, empty-state, read-only)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "announcements-approvals/announcements/01-announcements.png",
+          "caption": "Communications / Announcements — filter rail + Sort + New button, ‘No announcements’ empty state on pristine tenant"
+        }
+      ],
+      "steps": [
+        "Open /dashboard/announcements/view",
+        "Header + scope switcher + New button",
+        "Filter rail (audience/status)",
+        "Sort: Newest",
+        "Empty inbox ‘No announcements’"
+      ]
+    },
+    {
+      "relpath": "announcements-approvals/approvals.journey.json",
+      "title": "Approvals queue renders (Pending / Awaiting payment, empty, read-only)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "announcements-approvals/approvals/01-approvals-queue.png",
+          "caption": "Operations / Approvals — Pending + Awaiting payment tabs, Export queue, empty queue (no packages awaiting on pristine tenant)"
+        }
+      ],
+      "steps": [
+        "Open /dashboard/operations/approvals",
+        "Approvals queue header + scope",
+        "Pending / Awaiting payment tabs",
+        "Export queue button",
+        "Empty queue states"
+      ]
+    },
+    {
+      "relpath": "expenses-taxrates/expenses.journey.json",
+      "title": "Expenses view renders zero-claim empty state + KPI tiles (read-only)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "expenses-taxrates/expenses/01-expenses-empty.png",
+          "caption": "Finance / Expenses — TOTAL CLAIMS 0 · TOTAL VALUE RM0.00, status tabs, ‘No expenses found’ (expense_management:read present)"
+        }
+      ],
+      "steps": [
+        "Open /dashboard/expenses/view",
+        "KPI tiles (Total Claims/Value/Pending)",
+        "Status tabs (All/Pending/Approved/Rejected/Paid)",
+        "Empty table ‘No expenses found’",
+        "Submit Expense button present (not clicked)"
+      ]
+    },
+    {
+      "relpath": "expenses-taxrates/tax-rates.journey.json",
+      "title": "Tax Rates — FIXED (granted tax_configuration:*) — config page renders",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "expenses-taxrates/tax-rates/01-unauthorized.png",
+          "caption": "BEFORE: redirected to unauthorized — no tax_configuration perms in seeded catalogue (page guards on tax_configuration:update)"
+        },
+        {
+          "file": "expenses-taxrates/tax-rates/02-fixed.png",
+          "caption": "AFTER FIX: Tax Rates page loads (‘Manage tax rates applied to sales across your branches’) + Add tax rate. Added tax_configuration read/create/update/delete to seed + granted on MOVE."
+        }
+      ],
+      "steps": [
+        "Found: no tax_configuration perms in catalogue",
+        "Added tax_configuration CRUD to seed-rbac.ts + granted on MOVE",
+        "Re-login",
+        "Tax Rates page renders (no redirect)",
+        "Config table + Add tax rate"
+      ]
+    },
+    {
+      "relpath": "org-settings/organization.journey.json",
+      "title": "Organization settings renders MOVE org-wide config (read-only)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "org-settings/organization/01-org-settings.png",
+          "caption": "Settings / Organization — General Settings (Grace Period, Default Commission %, Locale), Approval Policy + Require Package Approval, Save Settings (untouched)"
+        }
+      ],
+      "steps": [
+        "Open /dashboard/settings/organization",
+        "General Settings form prefilled",
+        "Grace Period + Default Commission % + Locale",
+        "Approval Policy toggle",
+        "Save Settings button (not clicked)"
+      ]
+    },
+    {
+      "relpath": "org-settings/notifications.journey.json",
+      "title": "Notification preferences renders channel + content toggles (read-only)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "org-settings/notifications/01-notifications.png",
+          "caption": "Settings / Notifications — Channels (Email/SMS/Push) + Content (Booking Reminders/Confirmations/Promotional) toggles reflecting saved state (not toggled)"
+        }
+      ],
+      "steps": [
+        "Open /dashboard/settings/notifications",
+        "Notification Channels card (Email/SMS/Push)",
+        "Notification Content card (reminders/confirmations/promo)",
+        "Toggles reflect saved state",
+        "Read-only — no toggle flipped"
+      ]
+    },
+    {
+      "relpath": "integrations-audit/audit-log.journey.json",
+      "title": "Audit log renders with KPI tiles + filters (read-only)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "integrations-audit/audit-log/01-audit.png",
+          "caption": "Audit Log — TOTAL EVENTS / DANGER KPI tiles, filter card, Export CSV, ‘No audit events’ (audit_log:read present; empty stream on pristine tenant)"
+        }
+      ],
+      "steps": [
+        "Open /dashboard/audit/view",
+        "KPI tiles (Total/Danger/Warning/Info)",
+        "Filter card (Severity/Actor/Action/Entity/Date)",
+        "Export CSV affordance",
+        "Empty event table"
+      ]
+    },
+    {
+      "relpath": "integrations-audit/google-calendar.journey.json",
+      "title": "Google Calendar OAuth status page renders (read-only)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "integrations-audit/google-calendar/01-gcal.png",
+          "caption": "Settings / Google Calendar — Connect My Calendar, Sync Settings sidebar, ‘No calendars found. Connect your Google Calendar first.’ (not connected — Connect not clicked, no OAuth left the app)"
+        }
+      ],
+      "steps": [
+        "Open /dashboard/settings/google-calendar",
+        "Connect My Calendar header + Connect button",
+        "Org status / connection banner",
+        "Sync Settings (direction/conflict)",
+        "‘No calendars found’ — not connected (no OAuth initiated)"
+      ]
+    },
+    {
+      "relpath": "onboarding-qr/index.journey.json",
+      "title": "Onboarding QR index renders the MOVE branch list (migration proof)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "onboarding-qr/index/01-onboarding.png",
+          "caption": "Onboarding — Active QR Codes sidebar listing MOVE branches (each ‘No QR’), first auto-selected, NoQrPane with Generate (not clicked — no QR created)"
+        }
+      ],
+      "steps": [
+        "Open /dashboard/onboarding/view",
+        "Active QR Codes sidebar with branch list (~23, each No QR)",
+        "First branch auto-selected",
+        "NoQrPane (Max Uses, Generate button) on the right",
+        "Read-only — no QR generated"
+      ]
+    }
+  ]
+}

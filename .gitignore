@@ -122,3 +122,10 @@ _e2e/**/*.log
 _e2e/**/*.txt
 _e2e/results/report-*.json
 .e2e-deploy/
+
+# E2E screenshot artifacts: contain tenant staff PII (names/emails) + large binaries.
+# Kept local as review evidence; the run-results JSON + strategy doc are the committed record.
+e2e-web/tenant/**/*.png
+e2e-web/pos/**/*.png
+docs/test-plan/tenant-e2e-screenshots.html
+docs/test-plan/pos-migration-e2e.html

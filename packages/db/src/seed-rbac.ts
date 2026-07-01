@@ -93,6 +93,12 @@ export async function seedRBACData(
 		// All three added here (canonical seed) so admin gets them via the "*" mapping.
 		{ resource: "pos", action: "create" },
 		{ resource: "sales", action: "create" },
+		// sales read/update/delete — the Sales & Payments page (route beforeLoad) and
+		// sales API procedures gate on these; previously only sales:create was seeded,
+		// so admin (and every role) was locked out of /dashboard/sales/view.
+		{ resource: "sales", action: "read" },
+		{ resource: "sales", action: "update" },
+		{ resource: "sales", action: "delete" },
 		{ resource: "payments", action: "create" },
 		// Refunds Ledger (tracking-pages P5)
 		{ resource: "refund_management", action: "read" },
@@ -142,6 +148,19 @@ export async function seedRBACData(
 		{ resource: "expense_management", action: "read" },
 		{ resource: "expense_management", action: "write" },
 		{ resource: "expense_management", action: "delete" },
+		// Tax configuration — Tax Rates page (route beforeLoad gates on
+		// tax_configuration:update) + tax-rates API (read/create/update/delete).
+		// Resource existed in the Resource union but had no seeded actions.
+		{ resource: "tax_configuration", action: "read" },
+		{ resource: "tax_configuration", action: "create" },
+		{ resource: "tax_configuration", action: "update" },
+		{ resource: "tax_configuration", action: "delete" },
+		// Class slot management — Class Slots page (route beforeLoad gates on
+		// class_slot_management:read) + class-slots API (read/create/update).
+		// Resource existed in the Resource union but had no seeded actions.
+		{ resource: "class_slot_management", action: "read" },
+		{ resource: "class_slot_management", action: "create" },
+		{ resource: "class_slot_management", action: "update" },
 	];
 
 	// Insert roles (skip if exists)
