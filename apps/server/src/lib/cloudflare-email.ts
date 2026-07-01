@@ -60,7 +60,7 @@ export interface CloudflareSendOptions {
 
 export async function sendViaCloudflareEmail(
 	opts: CloudflareSendOptions,
-): Promise<void> {
+): Promise<{ messageId?: string }> {
 	if (!cachedBinding) {
 		throw new Error(
 			"Cloudflare Email binding (EMAIL) unavailable — ensure the send_email binding is in wrangler.jsonc and rememberEmailBinding() runs in middleware",
@@ -78,4 +78,5 @@ export async function sendViaCloudflareEmail(
 			Array.isArray(opts.to) ? opts.to.join(", ") : opts.to
 		}`,
 	);
+	return { messageId: result?.messageId };
 }

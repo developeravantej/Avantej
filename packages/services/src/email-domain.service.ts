@@ -58,6 +58,12 @@ export interface CreateEmailDomainParams {
 	fromName: string;
 	dnsRecords: unknown;
 	/**
+	 * Initial verification status. Defaults to "pending". Cloudflare default-tier
+	 * (<tenant>.avantej.com on our own zone) validates DNS instantly, so the
+	 * router can pass the mapped live status straight through at create time.
+	 */
+	status?: EmailDomainStatus;
+	/**
 	 * Tenant-chosen default local-part (e.g. "support", "noreply"). Optional;
 	 * when null, the send helper falls through to the hardcoded "support".
 	 */
@@ -81,7 +87,7 @@ export async function createEmailDomain(
 			fromName: params.fromName,
 			defaultLocalPart: params.defaultLocalPart ?? null,
 			dnsRecords: params.dnsRecords as never,
-			status: "pending",
+			status: params.status ?? "pending",
 		})
 		.returning();
 	if (!row) {

@@ -19,7 +19,12 @@
 		"CORS_ORIGIN": "https://avantej-core-web.zhiyuantech.workers.dev",
 		"BETTER_AUTH_URL": "https://avantej-core-server.zhiyuantech.workers.dev",
 		// Default sender when EMAIL_PROVIDER=cloudflare (domain onboarded on the account).
-		"CLOUDFLARE_EMAIL_FROM": "noreply@send.avantej.com"
+		"CLOUDFLARE_EMAIL_FROM": "noreply@send.avantej.com",
+		// Tenant sending-domain onboarding provider (decoupled from send provider so
+		// onboarding can be Cloudflare while platform sends stay Resend during warm-up).
+		"EMAIL_ONBOARDING_PROVIDER": "cloudflare",
+		// avantej.com Cloudflare zone id — target for default-tier onboarding.
+		"CLOUDFLARE_AVANTEJ_ZONE_ID": "77c5e829e792a8c0d53f2db75ca13381"
 		// Add public environment variables here
 		// Comma-separate CORS_ORIGIN if multiple frontends need access.
 	},
@@ -67,7 +72,9 @@
 				// host that issues the shared .avantej.com session cookie.
 				"CORS_ORIGIN": "https://app.avantej.com",
 				"BETTER_AUTH_URL": "https://api.avantej.com",
-				"CLOUDFLARE_EMAIL_FROM": "noreply@send.avantej.com"
+				"CLOUDFLARE_EMAIL_FROM": "noreply@send.avantej.com",
+				"EMAIL_ONBOARDING_PROVIDER": "cloudflare",
+				"CLOUDFLARE_AVANTEJ_ZONE_ID": "77c5e829e792a8c0d53f2db75ca13381"
 			},
 			"r2_buckets": [
 				{

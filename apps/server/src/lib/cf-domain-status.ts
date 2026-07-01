@@ -2,16 +2,21 @@
  * Cloudflare Email — sending-domain status mapping (Phase 3).
  *
  * The app's EmailDomainStatus vocabulary is `pending | verifying | verified |
- * failed` (shared with the Resend path). Cloudflare exposes a sending subdomain
- * as `{ enabled: boolean, ... }` plus per-record DNS validation; there is no
- * single "verified" flag, so we derive it:
- *   - `verified`  — the subdomain is enabled AND all required DNS records validate
- *   - `verifying` — enabled but records not yet all valid (DNS still propagating)
- *   - `pending`   — freshly created, not yet enabled / no record status
+ * failed` (shared with the Resend path). Cloudflare Email Sending exposes a
+ * sending subdomain as `{ enabled: boolean, ... }`. Unlike Resend there is no
+ * publish-DNS-then-verify handshake: for a subdomain of a zone in OUR account
+ * (the default `<tenant>.avantej.com` tier) CF auto-publishes SPF/DKIM/DMARC/MX
+ * and flips `enabled: true` the moment it's ready to send. So:
+ *   - `verified`  — aggregate status says active/verified, OR (no status field)
+ *                   the subdomain is `enabled` (ready to send), OR all included
+ *                   DNS records validate
+ *   - `verifying` — DNS view included but records not yet all valid (propagating)
+ *   - `pending`   — freshly created, not yet enabled / no signal
  *   - `failed`    — CF reports a hard validation failure
  *
- * Kept separate + pure so it's unit-testable and replaces the two duplicated
- * `mapResendStatus` copies once the router/refresh service are repointed.
+ * Empirically the list/get responses carry NO `status` field and NO per-record
+ * validation, just `enabled` — verified confirmed live against the avantej.com
+ * zone (create → enabled:true, 6 auto-published records). Kept pure + unit-testable.
  */
 
 export type EmailDomainStatus = "pending" | "verifying" | "verified" | "failed";
@@ -42,7 +47,8 @@ export function mapCfDomainStatus(
 		return "verifying";
 	}
 
-	// No record-level detail: fall back to the enabled flag.
-	if (sub.enabled) return "verifying";
+	// No record-level detail (the usual case for a zone in our account): CF marks
+	// the subdomain `enabled` once it's ready to send, so treat that as verified.
+	if (sub.enabled) return "verified";
 	return "pending";
 }
