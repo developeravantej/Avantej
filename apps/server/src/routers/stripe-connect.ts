@@ -254,6 +254,11 @@ export function createStripeConnectRouter(
 					client_id: clientId,
 					scope: "read_write",
 					state,
+					// Land new gyms straight on Stripe's "create account" screen
+					// instead of the sign-in / account-picker — smoother onboarding.
+					// A gym that already has a Stripe account can still switch to
+					// "sign in" from there.
+					stripe_landing: "register",
 				});
 				if (userEmail) params.set("stripe_user[email]", userEmail);
 				if (org.name) params.set("stripe_user[business_name]", org.name);
