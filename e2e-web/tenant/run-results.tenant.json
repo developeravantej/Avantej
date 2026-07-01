@@ -648,33 +648,32 @@
     },
     {
       "relpath": "stripe-connect/gym-connect-oauth.journey.json",
-      "title": "Stripe Connect — gym connects its own Stripe (per-country OAuth) — full round-trip verified (then cleaned up)",
+      "title": "Stripe Connect — gym-connect OAuth round-trip verified; card charge gated on gym KYC (MY = Standard-only)",
       "status": "pass",
       "durMs": 0,
       "screenshots": [
         {
           "file": "stripe-connect/01-connect-page.png",
-          "caption": "Billing / Payment processing — ‘Connect a Stripe account per country … Avantej takes a per-transaction platform fee’ (direct-charge + app-fee model). MOVE unconnected."
+          "caption": "Billing / Payment processing — connect a Stripe account per country; Avantej takes a per-transaction platform fee (direct-charge + app-fee model). MOVE unconnected."
         },
         {
           "file": "stripe-connect/02-stripe-oauth.png",
-          "caption": "Redirected to Stripe OAuth — platform ‘AVANTEJ sandbox’, correct migrated client_id ca_UnbeBHtV7h7… + signed state + prefilled MOVE / MY / email. Test-mode ‘Skip this form’ available."
+          "caption": "Stripe OAuth — platform ‘AVANTEJ sandbox’, correct migrated client_id ca_UnbeBHtV7h7… + signed state + prefilled MOVE/MY/email. Test-mode ‘Skip this form’."
         },
         {
           "file": "stripe-connect/03-connected-pending.png",
-          "caption": "After OAuth: app shows the connected account acct_1ToGWh… · MYR · ‘Onboarding incomplete · Charges: No’ + Continue onboarding. Callback exchanged the code + stored it in org_country_stripe_accounts."
+          "caption": "After OAuth: app shows connected acct_1ToGWh… · MYR · ‘Onboarding incomplete · Charges: No’. Callback stored it in org_country_stripe_accounts."
         }
       ],
       "steps": [
-        "Open /billing/connect (MOVE, unconnected)",
-        "Connect first country → pick Malaysia (MYR)",
-        "Connect Stripe → app builds OAuth URL with the migrated client_id + signed state (org+country), redirects to connect.stripe.com",
-        "Stripe shows AVANTEJ sandbox consent (test mode) → Skip this form",
-        "Callback /api/stripe/connect/oauth/callback exchanges code → stores acct_ in control-panel org_country_stripe_accounts (status pending)",
-        "App connect page shows the connected account (Charges: No until KYC onboarding completes)",
-        "Cleanup: deleted the test connect row → MOVE back to 0 connected accounts"
+        "/billing/connect → Malaysia (MYR) → Connect Stripe",
+        "App builds OAuth URL with migrated client_id + signed state → connect.stripe.com",
+        "Stripe AVANTEJ-sandbox consent → Skip this form (test)",
+        "Callback exchanges code → stores acct_ (status pending, charges_enabled=false)",
+        "App shows connected account; cleanup deleted the test row (MOVE pristine)",
+        "Card charge: requires charges_enabled=true (gym KYC). API-create of a chargeable account is BLOCKED for MY platforms (Stripe: platform cannot be loss-liable in MY) — confirms Standard OAuth is the correct/only model. Live card charge = manual gym-KYC step."
       ],
-      "notes": "GYM-CONNECT OAUTH FULLY VERIFIED end-to-end on the migrated stack (entry URL with correct new client_id + signed state → Stripe test account created → callback stored acct_ → app displays it). CARD PAYMENT not exercised: the skipped test account is charges_enabled=false (onboarding/KYC incomplete), so a card charge would be rejected until the gym completes Stripe onboarding — a business/KYC step, not a migration or app gap. Model confirmed = per-country direct charge + application_fee (payments/*.procedures.ts use stripeAccount: acct header + application_fee_amount)."
+      "notes": "GYM-CONNECT OAUTH FULLY VERIFIED (entry+callback+storage+display). CARD CHARGE not shown to success: needs a charges-enabled connected account = the gym completes their own Standard-account KYC. Stripe blocks a MY-based platform from creating loss-liable (Custom/Express) accounts, so there is no API shortcut — this validates Avantej’s Standard-OAuth choice. Charge model confirmed in code = direct charge (stripeAccount: acct header) + application_fee_amount. Platform-level test charge already proven (RM300 MYR succeeded). Remaining = a human finishes gym KYC once, then a Card POS sale routes a live test charge to the connected account."
     }
   ]
 }
