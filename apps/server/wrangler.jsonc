@@ -67,7 +67,13 @@
 				// host that issues the shared .avantej.com session cookie.
 				"CORS_ORIGIN": "https://app.avantej.com",
 				"BETTER_AUTH_URL": "https://api.avantej.com",
-				"CLOUDFLARE_EMAIL_FROM": "noreply@send.avantej.com"
+				"CLOUDFLARE_EMAIL_FROM": "noreply@send.avantej.com",
+				// Web app base for server-built browser redirects (Stripe Connect return,
+				// subscription/payment-link return_url) + email links (invites, claim,
+				// reset). Unset → falls back to http://localhost:3001, which breaks these
+				// on prod. Both point at the prod web app.
+				"WEB_APP_URL": "https://app.avantej.com",
+				"FRONTEND_URL": "https://app.avantej.com"
 			},
 			"r2_buckets": [
 				{
