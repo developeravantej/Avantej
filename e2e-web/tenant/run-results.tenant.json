@@ -618,6 +618,33 @@
         "NoQrPane (Max Uses, Generate button) on the right",
         "Read-only — no QR generated"
       ]
+    },
+    {
+      "relpath": "pos-write/committed-installment-sale.journey.json",
+      "title": "POS write path — committed installment sale (RM1,800×4) + tax-rate blocker found/fixed (then cleaned up)",
+      "status": "pass",
+      "durMs": 0,
+      "screenshots": [
+        {
+          "file": "pos-write/01-payment-installment.png",
+          "caption": "POS payment step: Cash + Quarterly plan → Due Today (1/4) RM1,800.00 of RM7,200 (per-installment domain rule) + preferred trainer selected"
+        },
+        {
+          "file": "pos-write/02-sale-receipt.png",
+          "caption": "AFTER FIX: sale committed → receipt/sale-detail. DB verified: sales_order + item + payment + package_instance + 4 installments (RM1,800 ×4: 1 paid, 3 pending). Test data cleaned up afterward — MOVE pristine."
+        }
+      ],
+      "steps": [
+        "Create tagged test customer (ZZ E2E-TESTCUST @ MOVE KLCC)",
+        "POS: member → PERSONAL TRAINING 2X12 (RM7,200) → Quarterly installment → Cash → preferred trainer",
+        "FINDING: first Charge & Confirm → recordSale 400 ‘No active tax rate is configured for this organisation.’ — MOVE had 0 tax rates → ALL POS sales blocked",
+        "FIX: inserted a 0% default active tax rate (placeholder; client sets real SST)",
+        "Retry Charge & Confirm → sale committed, redirected to /sales/{id}",
+        "DB verified: sales_order + item + payment + package_instance + installment schedule RM1,800×4 (domain rule ✓)",
+        "Commission deferred by design (pos.service.ts:633 — service items earn on appointment delivery, not at sale); trainer assigned to package slot 0",
+        "Cleanup: deleted all test rows → baseline restored (0 sales/customers, members 124); tax rate KEPT"
+      ],
+      "notes": "CRITICAL HANDOFF FINDING: a freshly-migrated tenant has NO tax rate, and pos.recordSale hard-requires an active tax rate → every POS sale returns 400 until one is configured. Fixed on MOVE with a 0% placeholder (SST0). Recommend seeding a default tax rate during tenant provisioning. Write path + installment schedule fully verified; commission is delivery-deferred (materializes on session/appointment delivery to the assigned trainer)."
     }
   ]
 }

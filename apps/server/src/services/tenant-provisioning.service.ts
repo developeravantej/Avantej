@@ -35,6 +35,7 @@ import {
 	encrypt,
 	runTenantMigrations,
 	seedRBACData,
+	seedDefaultTaxRate,
 	LATEST_MIGRATION_VERSION,
 } from "@avantej-core/db";
 import * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
@@ -165,6 +166,9 @@ export async function provisionTenant(
 		let invitationToken: string;
 		try {
 			await seedRBACData(tenantDb);
+			// POS requires an active tax rate to record any sale — seed a 0%
+			// default so a new tenant can transact before configuring their own.
+			await seedDefaultTaxRate(tenantDb);
 
 			const [orgNode] = await tenantDb
 				.insert(hierarchyNodes)
