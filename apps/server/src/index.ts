@@ -192,6 +192,15 @@ app.use("/*", async (c, next) => {
 	}
 });
 
+// Stash the per-request send_email binding so the Cloudflare Email provider
+// (invoked inside sendEmail(), which has no request context) can reach it.
+// The binding object is identical across requests, so caching it is safe.
+app.use("/*", async (c, next) => {
+	const { rememberEmailBinding } = await import("./lib/cloudflare-email");
+	rememberEmailBinding((c.env as Record<string, unknown>).EMAIL);
+	await next();
+});
+
 // Database middleware: Creates request-scoped connection pools
 // Must be applied early, before any database access
 app.use("/*", dbMiddleware);
