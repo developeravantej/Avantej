@@ -245,7 +245,10 @@ function DomainListCard({
 				? "Domain verified."
 				: "Verification re-checked.",
 		errorMessage: (err) => err.message || "Verification failed.",
-		invalidate: [queryKey],
+		invalidate: [
+			queryKey,
+			[NOTIFICATION_ROUTES_QUERY_KEY_PREFIX, organizationId],
+		],
 	});
 
 	const deleteMutation = useApiMutation({
@@ -253,7 +256,10 @@ function DomainListCard({
 			client.emailDomains.delete({ id, organizationId }),
 		successMessage: "Sending domain removed.",
 		errorMessage: (err) => err.message || "Failed to delete domain.",
-		invalidate: [queryKey],
+		invalidate: [
+			queryKey,
+			[NOTIFICATION_ROUTES_QUERY_KEY_PREFIX, organizationId],
+		],
 	});
 
 	return (
@@ -1117,7 +1123,10 @@ function CreateCloudflareDomainCard({
 		successMessage:
 			"Sending domain ready — your branded email is set up, no DNS changes needed.",
 		errorMessage: (err) => err.message || "Failed to set up domain.",
-		invalidate: [queryKey],
+		invalidate: [
+			queryKey,
+			[NOTIFICATION_ROUTES_QUERY_KEY_PREFIX, organizationId],
+		],
 	});
 
 	const form = useForm({
@@ -1295,7 +1304,10 @@ function CreateResendDomainCard({
 			}),
 		successMessage: "Domain registered. Add the DNS records and verify.",
 		errorMessage: (err) => err.message || "Failed to register domain.",
-		invalidate: [queryKey],
+		invalidate: [
+			queryKey,
+			[NOTIFICATION_ROUTES_QUERY_KEY_PREFIX, organizationId],
+		],
 	});
 
 	const form = useForm({
