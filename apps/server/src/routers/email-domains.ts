@@ -42,55 +42,9 @@ import {
 	removeResendDomain,
 	verifyResendDomain,
 } from "@/lib/resend-domains";
-import {
-	createCloudflareDomain,
-	getCloudflareDomain,
-	removeCloudflareDomain,
-} from "@/lib/cloudflare-domains";
-import type { EmailDomainStatus } from "@/lib/cf-domain-status";
 import { sendTenantEmail } from "@/lib/email-send-tenant";
 
 const LOCAL_PART_REGEX = /^[a-z0-9._-]{1,64}$/i;
-
-/** Sending domains root we own on Cloudflare — used by the default onboarding tier. */
-const AVANTEJ_ROOT = "avantej.com";
-
-/** Cloudflare onboarding tiers (see email_domains.onboarding_tier). */
-const ONBOARDING_TIERS = ["default", "delegated", "bare"] as const;
-
-/** Read a Worker/Node env var (binding-global first, process.env fallback). */
-function getEnvVar(key: string): string | undefined {
-	try {
-		const { env } = require("cloudflare:workers") as {
-			env: Record<string, string | undefined>;
-		};
-		if (env[key] !== undefined) return env[key];
-	} catch {
-		/* not in Workers runtime */
-	}
-	return process.env[key];
-}
-
-/**
- * Active email provider for NEW domain onboarding. Existing rows carry their own
- * `provider` column, so get/verify/delete branch per-row regardless of this flag;
- * only `create` consults it. Defaults to "resend" during coexistence.
- *
- * Decoupled from the platform SEND provider (`EMAIL_PROVIDER`) on purpose:
- * onboarding can move to Cloudflare while platform transactional sends stay on
- * Resend (until `send.avantej.com` reputation is warmed up). Falls back to
- * `EMAIL_PROVIDER`, then "resend".
- */
-function emailProvider(): "resend" | "cloudflare" {
-	const p =
-		getEnvVar("EMAIL_ONBOARDING_PROVIDER") ?? getEnvVar("EMAIL_PROVIDER");
-	return p === "cloudflare" ? "cloudflare" : "resend";
-}
-
-/** Cloudflare zone id for the avantej.com root (default-tier onboarding target). */
-function avantejZoneId(): string | undefined {
-	return getEnvVar("CLOUDFLARE_AVANTEJ_ZONE_ID");
-}
 
 type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
 
@@ -216,39 +170,8 @@ function mapResendStatus(
 
 export const emailDomainsRouter = {
 	/**
-	 * Onboarding config for the tenant Email settings UI. Tells the client which
-	 * provider NEW domains onboard through + the root we own for the default tier,
-	 * so the create form can render the right flow: a subdomain label (Cloudflare
-	 * default tier — zero-touch <name>.avantej.com) vs a full domain (Resend —
-	 * publish-your-own-DNS).
-	 */
-	onboardingConfig: protectedProcedure
-		.input(z.object({ organizationId: z.string().uuid() }))
-		.handler(async ({ input, context }) => {
-			if (!context.session?.user) {
-				throw new ORPCError("UNAUTHORIZED", {
-					message: "Authentication required",
-				});
-			}
-			const cpDb = getControlPanelDb(context);
-			await requireOrgAdmin(
-				cpDb,
-				context.session.user.id,
-				input.organizationId,
-			);
-			const provider = emailProvider();
-			return {
-				provider,
-				rootDomain: AVANTEJ_ROOT,
-				defaultTierAvailable: provider === "cloudflare" && !!avantejZoneId(),
-			};
-		}),
-
-	/**
 	 * Register a new sending domain for an org. Caller must be the org admin.
-	 * Cloudflare path (default tier) onboards a <name>.avantej.com sending
-	 * subdomain on our own zone; Resend path calls resend.domains.create. Either
-	 * way the DNS records snapshot is persisted.
+	 * Calls resend.domains.create and persists the DNS records snapshot.
 	 */
 	create: protectedProcedure
 		.input(
@@ -264,12 +187,7 @@ export const emailDomainsRouter = {
 					.string()
 					.regex(LOCAL_PART_REGEX, "Letters, numbers, . _ -")
 					.optional(),
-				// Resend-only: sending region. Ignored on the Cloudflare path.
 				region: z.enum(RESEND_REGIONS).optional(),
-				// Cloudflare-only: onboarding tier. "default" = zero-touch
-				// <name>.avantej.com on our own zone; "delegated"/"bare" = tenant
-				// custom domain (coming soon). Defaults to "default".
-				tier: z.enum(ONBOARDING_TIERS).optional(),
 			}),
 		)
 		.handler(async ({ input, context }) => {
@@ -285,7 +203,7 @@ export const emailDomainsRouter = {
 				input.organizationId,
 			);
 
-			// Rate-limit BEFORE the (paid) provider call so abuse never costs money.
+			// Rate-limit BEFORE the (paid) Resend call so abuse never costs money.
 			const limit = await checkEmailDomainCreateAllowed(
 				cpDb,
 				input.organizationId,
@@ -294,62 +212,6 @@ export const emailDomainsRouter = {
 				throw new ORPCError(limit.code, { message: limit.reason });
 			}
 
-			// ── Cloudflare path (provider flag) ──────────────────────────────
-			if (emailProvider() === "cloudflare") {
-				const tier = input.tier ?? "default";
-				if (tier !== "default") {
-					throw new ORPCError("NOT_IMPLEMENTED", {
-						message:
-							"Only the default (<name>.avantej.com) onboarding tier is available right now; delegated/bare custom-domain onboarding is coming soon.",
-					});
-				}
-				const zoneId = avantejZoneId();
-				if (!zoneId) {
-					throw new ORPCError("INTERNAL_SERVER_ERROR", {
-						message: "CLOUDFLARE_AVANTEJ_ZONE_ID is not configured",
-					});
-				}
-				const name = input.domain.toLowerCase();
-				if (name === AVANTEJ_ROOT || !name.endsWith(`.${AVANTEJ_ROOT}`)) {
-					throw new ORPCError("BAD_REQUEST", {
-						message: `Default-tier sending domain must be a subdomain of ${AVANTEJ_ROOT} (e.g. yourgym.${AVANTEJ_ROOT})`,
-					});
-				}
-
-				const cfDomain = await createCloudflareDomain({ name, zoneId });
-
-				const row = await createEmailDomain(cpDb, {
-					organizationId: input.organizationId,
-					provider: "cloudflare",
-					resendDomainId: null,
-					cfZoneId: zoneId,
-					cfSubdomainId: cfDomain.id,
-					onboardingTier: tier,
-					domain: name,
-					fromName: input.fromName,
-					defaultLocalPart: input.defaultLocalPart ?? null,
-					dnsRecords: cfDomain.records,
-					status: cfDomain.status as EmailDomainStatus,
-				});
-
-				await auditEmailDomainChange(context, {
-					action: "email_domain.registered",
-					entityId: row.id,
-					summary: `Registered Cloudflare sending domain "${name}"`,
-					changes: {
-						domain: name,
-						fromName: input.fromName,
-						defaultLocalPart: input.defaultLocalPart ?? null,
-						tier,
-						provider: "cloudflare",
-						cfSubdomainId: cfDomain.id,
-					},
-				});
-
-				return row;
-			}
-
-			// ── Resend path (legacy default) ─────────────────────────────────
 			const resendDomain = await createResendDomain({
 				name: input.domain,
 				region: input.region,
@@ -459,25 +321,9 @@ export const emailDomainsRouter = {
 				throw new ORPCError("NOT_FOUND", { message: "Email domain not found" });
 			}
 
-			// Remove at the provider first (so a provider failure is retryable
-			// without losing our id), then delete the row. Branch per-row so
-			// Resend + Cloudflare rows can coexist.
-			if (row.provider === "cloudflare") {
-				if (row.cfZoneId && row.cfSubdomainId) {
-					try {
-						await removeCloudflareDomain(row.cfZoneId, row.cfSubdomainId);
-					} catch (e) {
-						console.error("Failed to remove domain at Cloudflare", {
-							cfZoneId: row.cfZoneId,
-							cfSubdomainId: row.cfSubdomainId,
-							error: e,
-						});
-						throw new ORPCError("INTERNAL_SERVER_ERROR", {
-							message: "Failed to delete domain at Cloudflare; please retry.",
-						});
-					}
-				}
-			} else if (row.resendDomainId) {
+			// Remove at Resend first (so a Resend failure is retryable without
+			// losing the resendDomainId), then delete the row.
+			if (row.resendDomainId) {
 				try {
 					await removeResendDomain(row.resendDomainId);
 				} catch (e) {
@@ -565,17 +411,6 @@ export const emailDomainsRouter = {
 				return row;
 			}
 
-			if (row.provider === "cloudflare") {
-				if (!row.cfZoneId || !row.cfSubdomainId) return row;
-				const live = await getCloudflareDomain(row.cfZoneId, row.cfSubdomainId);
-				const updated = await updateEmailDomainStatus(cpDb, {
-					id: row.id,
-					status: live.status as EmailDomainStatus,
-					dnsRecords: live.records ?? row.dnsRecords,
-				});
-				return updated ?? row;
-			}
-
 			if (!row.resendDomainId) return row;
 			const live = await getResendDomain(row.resendDomainId);
 			const mapped = mapResendStatus(live.status);
@@ -616,19 +451,6 @@ export const emailDomainsRouter = {
 			});
 			if (!row) {
 				throw new ORPCError("NOT_FOUND", { message: "Email domain not found" });
-			}
-
-			// Cloudflare validates DNS continuously — no explicit re-check verb.
-			// The authoritative poll (getCloudflareDomain) IS the verification.
-			if (row.provider === "cloudflare") {
-				if (!row.cfZoneId || !row.cfSubdomainId) return row;
-				const live = await getCloudflareDomain(row.cfZoneId, row.cfSubdomainId);
-				const updated = await updateEmailDomainStatus(cpDb, {
-					id: row.id,
-					status: live.status as EmailDomainStatus,
-					dnsRecords: live.records ?? row.dnsRecords,
-				});
-				return updated ?? row;
 			}
 
 			if (!row.resendDomainId) return row;

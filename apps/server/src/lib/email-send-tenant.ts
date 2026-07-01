@@ -1,12 +1,10 @@
 /**
  * Tenant-scoped email sender
  *
- * Sends transactional email for a tenant. Transport is chosen per verified
- * `email_domains` row: a Cloudflare-provider domain sends via the `send_email`
- * binding; everything else (incl. the platform fallback) via Resend. Guards on a
- * verified row, persists an email_logs row keyed by the message id (idempotency),
- * and falls back to the platform's RESEND_FROM_EMAIL if the org has no verified
- * domain yet.
+ * Sends transactional email for a tenant via Resend. Guards on a verified
+ * email_domains row, tags every send with `organization_id`, persists an
+ * email_logs row keyed by Resend's message id (idempotency), and falls back
+ * to the platform's RESEND_FROM_EMAIL if the org has no verified domain yet.
  *
  * Webhook handler updates the email_logs row by resendMessageId — that's
  * why we INSERT before returning, even though the row's status may be
@@ -140,9 +138,6 @@ export async function sendTenantEmail(
 	let resolvedFromName: string;
 	let emailDomainId: string | null;
 	let usedFallback = false;
-	// Transport is per-row: a verified Cloudflare-provider domain sends via the
-	// send_email binding; everything else (incl. the platform fallback) via Resend.
-	const useCloudflare = verified?.provider === "cloudflare";
 
 	if (verified) {
 		let resolvedLocalPart = localPart;
@@ -194,112 +189,69 @@ export async function sendTenantEmail(
 	if (notificationType)
 		tags.push({ name: "notification_type", value: notificationType });
 
-	let messageId: string;
+	const resend = getResendClient();
 
-	if (useCloudflare) {
-		// Verified Cloudflare-provider domain → send via the send_email binding.
-		// Tags aren't supported by the binding (Resend-only); org attribution is
-		// still persisted in the email_logs row below.
-		const { sendViaCloudflareEmail } = await import("./cloudflare-email");
-		try {
-			const cf = await sendViaCloudflareEmail({
-				to: recipients,
-				subject: finalSubject,
-				html,
-				text: textBody,
-				fromEmail,
-				fromName: resolvedFromName,
-			});
-			messageId = cf.messageId ?? `cf:${crypto.randomUUID()}`;
-		} catch (err) {
-			const errMessage = err instanceof Error ? err.message : String(err);
-			await safeWriteLog(controlPanelDb, {
-				organizationId,
-				emailDomainId,
-				resendMessageId: syntheticFailedId(),
-				fromAddress,
-				toAddress: recipients.join(", "),
-				subject: finalSubject,
-				notificationType: notificationType ?? null,
-				status: "failed",
-				errorMessage: errMessage,
-			});
-			captureFailed({
-				recipients,
-				subject: finalSubject,
-				html,
-				textBody,
-				organizationId,
-				usedFallback,
-				errMessage,
-			});
-			throw err;
-		}
-	} else {
-		const resend = getResendClient();
-
-		let result: Awaited<ReturnType<typeof resend.emails.send>>;
-		try {
-			result = await resend.emails.send({
-				from: fromAddress,
-				to: recipients,
-				subject: finalSubject,
-				html,
-				text: textBody,
-				tags,
-			});
-		} catch (err) {
-			const errMessage = err instanceof Error ? err.message : String(err);
-			await safeWriteLog(controlPanelDb, {
-				organizationId,
-				emailDomainId,
-				resendMessageId: syntheticFailedId(),
-				fromAddress,
-				toAddress: recipients.join(", "),
-				subject: finalSubject,
-				notificationType: notificationType ?? null,
-				status: "failed",
-				errorMessage: errMessage,
-			});
-			captureFailed({
-				recipients,
-				subject: finalSubject,
-				html,
-				textBody,
-				organizationId,
-				usedFallback,
-				errMessage,
-			});
-			throw err;
-		}
-
-		if (result.error || !result.data?.id) {
-			const errMessage = result.error?.message ?? "missing message id";
-			await safeWriteLog(controlPanelDb, {
-				organizationId,
-				emailDomainId,
-				resendMessageId: result.data?.id ?? syntheticFailedId(),
-				fromAddress,
-				toAddress: recipients.join(", "),
-				subject: finalSubject,
-				notificationType: notificationType ?? null,
-				status: "failed",
-				errorMessage: errMessage,
-			});
-			captureFailed({
-				recipients,
-				subject: finalSubject,
-				html,
-				textBody,
-				organizationId,
-				usedFallback,
-				errMessage,
-			});
-			throw new Error(`Resend API error: ${errMessage}`);
-		}
-
-		messageId = result.data.id;
+	let result: Awaited<ReturnType<typeof resend.emails.send>>;
+	try {
+		result = await resend.emails.send({
+			from: fromAddress,
+			to: recipients,
+			subject: finalSubject,
+			html,
+			text: textBody,
+			tags,
+		});
+	} catch (err) {
+		const errMessage = err instanceof Error ? err.message : String(err);
+		await safeWriteLog(controlPanelDb, {
+			organizationId,
+			emailDomainId,
+			resendMessageId: syntheticFailedId(),
+			fromAddress,
+			toAddress: recipients.join(", "),
+			subject: finalSubject,
+			notificationType: notificationType ?? null,
+			status: "failed",
+			errorMessage: errMessage,
+		});
+		captureFailed({
+			recipients,
+			subject: finalSubject,
+			html,
+			textBody,
+			organizationId,
+			usedFallback,
+			errMessage,
+		});
+		throw err;
 	}
+
+	if (result.error || !result.data?.id) {
+		const errMessage = result.error?.message ?? "missing message id";
+		await safeWriteLog(controlPanelDb, {
+			organizationId,
+			emailDomainId,
+			resendMessageId: result.data?.id ?? syntheticFailedId(),
+			fromAddress,
+			toAddress: recipients.join(", "),
+			subject: finalSubject,
+			notificationType: notificationType ?? null,
+			status: "failed",
+			errorMessage: errMessage,
+		});
+		captureFailed({
+			recipients,
+			subject: finalSubject,
+			html,
+			textBody,
+			organizationId,
+			usedFallback,
+			errMessage,
+		});
+		throw new Error(`Resend API error: ${errMessage}`);
+	}
+
+	const messageId = result.data.id;
 
 	await safeWriteLog(controlPanelDb, {
 		organizationId,

@@ -80,12 +80,6 @@ type EmailDomainRow = {
 	updatedAt: string | Date;
 };
 
-type OnboardingConfig = {
-	provider: string;
-	rootDomain: string;
-	defaultTierAvailable: boolean;
-};
-
 type DnsRecord = {
 	record?: string;
 	name: string;
@@ -127,15 +121,6 @@ function EmailSettingsPage() {
 	const organizationId = userContext?.currentOrganizationId ?? null;
 	const isAdmin = hasRole(["admin"]);
 
-	const { data: onboarding } = useQuery({
-		queryKey: [DOMAINS_QUERY_KEY_PREFIX, "onboardingConfig", organizationId],
-		queryFn: () =>
-			client.emailDomains.onboardingConfig({
-				organizationId: organizationId as string,
-			}),
-		enabled: !!organizationId && isAdmin,
-	});
-
 	if (!organizationId) {
 		return (
 			<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6">
@@ -147,30 +132,19 @@ function EmailSettingsPage() {
 		);
 	}
 
-	const isCloudflare = onboarding?.provider === "cloudflare";
-
 	return (
 		<div className="-m-6 min-h-screen bg-[#f3f3f3] p-6">
 			<PageHeader
 				title="Email"
-				description={
-					isCloudflare
-						? "Send transactional email from your own branded sending domain — set up in one click, no DNS changes."
-						: "Send transactional email from your own domain."
-				}
+				description="Send transactional email from your own domain via Resend."
 			/>
 			<div className="mt-6 space-y-6">
 				<DomainListCard
 					organizationId={organizationId}
 					isAdmin={isAdmin}
 					userEmail={userContext?.user?.email ?? ""}
-					onboarding={onboarding ?? null}
 				/>
-				<CreateDomainCard
-					organizationId={organizationId}
-					isAdmin={isAdmin}
-					onboarding={onboarding ?? null}
-				/>
+				<CreateDomainCard organizationId={organizationId} isAdmin={isAdmin} />
 				<NotificationRoutingCard
 					organizationId={organizationId}
 					isAdmin={isAdmin}
@@ -217,14 +191,11 @@ function DomainListCard({
 	organizationId,
 	isAdmin,
 	userEmail,
-	onboarding,
 }: {
 	organizationId: string;
 	isAdmin: boolean;
 	userEmail: string;
-	onboarding: OnboardingConfig | null;
 }) {
-	const isCloudflare = onboarding?.provider === "cloudflare";
 	const queryKey = [DOMAINS_QUERY_KEY_PREFIX, organizationId];
 	const { data, isLoading } = useQuery({
 		queryKey,
@@ -267,20 +238,9 @@ function DomainListCard({
 			<CardHeader>
 				<CardTitle>Sending domains</CardTitle>
 				<CardDescription>
-					{isCloudflare ? (
-						<>
-							Your branded sending domain is set up automatically on Cloudflare
-							— SPF, DKIM, and DMARC are managed for you, no DNS changes needed.
-							Until status is <strong>verified</strong>, email falls back to the
-							platform sender.
-						</>
-					) : (
-						<>
-							Each domain needs SPF, DKIM, and DMARC DNS records to be added at
-							your DNS provider. Until status is <strong>verified</strong>,
-							email falls back to the platform sender.
-						</>
-					)}
+					Each domain needs SPF, DKIM, and DMARC DNS records to be added at your
+					DNS provider. Until status is <strong>verified</strong>, email falls
+					back to the platform sender.
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
@@ -1046,242 +1006,7 @@ const createSchema = z.object({
 		.or(z.literal("")),
 });
 
-// A single DNS label (the "<label>.avantej.com" part the tenant chooses on the
-// Cloudflare default tier). Lowercase alphanumeric + hyphens, no leading/trailing
-// hyphen, ≤40 chars.
-const SUBDOMAIN_LABEL_REGEX = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/;
-
-const createCfSchema = z.object({
-	label: z
-		.string()
-		.min(1)
-		.max(40)
-		.regex(SUBDOMAIN_LABEL_REGEX, "Lowercase letters, numbers and hyphens"),
-	fromName: z.string().min(1).max(100),
-	defaultLocalPart: z
-		.string()
-		.regex(LOCAL_PART_REGEX, "Letters, numbers, . _ -")
-		.or(z.literal("")),
-});
-
-/**
- * Onboarding entry card. Picks the flow from the onboarding config: Cloudflare
- * default tier → one-click subdomain (<label>.avantej.com, zero-touch); Resend →
- * bring-your-own domain + publish DNS. Non-admins (config unavailable) get the
- * Resend form, disabled.
- */
 function CreateDomainCard({
-	organizationId,
-	isAdmin,
-	onboarding,
-}: {
-	organizationId: string;
-	isAdmin: boolean;
-	onboarding: OnboardingConfig | null;
-}) {
-	if (
-		onboarding?.provider === "cloudflare" &&
-		onboarding.defaultTierAvailable
-	) {
-		return (
-			<CreateCloudflareDomainCard
-				organizationId={organizationId}
-				isAdmin={isAdmin}
-				rootDomain={onboarding.rootDomain}
-			/>
-		);
-	}
-	return (
-		<CreateResendDomainCard organizationId={organizationId} isAdmin={isAdmin} />
-	);
-}
-
-function CreateCloudflareDomainCard({
-	organizationId,
-	isAdmin,
-	rootDomain,
-}: {
-	organizationId: string;
-	isAdmin: boolean;
-	rootDomain: string;
-}) {
-	const queryKey = [DOMAINS_QUERY_KEY_PREFIX, organizationId];
-
-	const createMutation = useApiMutation({
-		mutationFn: (values: {
-			domain: string;
-			fromName: string;
-			defaultLocalPart?: string;
-		}) =>
-			client.emailDomains.create({
-				organizationId,
-				domain: values.domain,
-				fromName: values.fromName,
-				defaultLocalPart: values.defaultLocalPart,
-				tier: "default",
-			}),
-		successMessage:
-			"Sending domain ready — your branded email is set up, no DNS changes needed.",
-		errorMessage: (err) => err.message || "Failed to set up domain.",
-		invalidate: [
-			queryKey,
-			[NOTIFICATION_ROUTES_QUERY_KEY_PREFIX, organizationId],
-		],
-	});
-
-	const form = useForm({
-		defaultValues: { label: "", fromName: "", defaultLocalPart: "" },
-		onSubmit: async ({ value }) => {
-			const trimmedLocal = value.defaultLocalPart.trim();
-			await createMutation.mutateAsync({
-				domain: `${value.label.trim().toLowerCase()}.${rootDomain}`,
-				fromName: value.fromName.trim(),
-				defaultLocalPart:
-					trimmedLocal === "" ? undefined : trimmedLocal.toLowerCase(),
-			});
-			form.reset();
-		},
-		validators: { onSubmit: createCfSchema },
-	});
-
-	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>Set up your sending domain</CardTitle>
-				<CardDescription>
-					Pick a name and we'll create <code>&lt;name&gt;.{rootDomain}</code>{" "}
-					for you on Cloudflare — SPF, DKIM and DMARC are configured
-					automatically. It's ready to send right away, with no DNS changes on
-					your side.
-				</CardDescription>
-			</CardHeader>
-			<CardContent>
-				<form
-					onSubmit={(e) => {
-						e.preventDefault();
-						e.stopPropagation();
-						form.handleSubmit();
-					}}
-					className="space-y-4"
-				>
-					<form.Field name="label">
-						{(field) => (
-							<div className="space-y-1">
-								<label htmlFor={field.name} className="text-sm font-medium">
-									Subdomain name
-								</label>
-								<div className="flex items-center">
-									<Input
-										id={field.name}
-										name={field.name}
-										value={field.state.value}
-										onBlur={field.handleBlur}
-										onChange={(e) =>
-											field.handleChange(e.target.value.toLowerCase())
-										}
-										placeholder="yourgym"
-										className="rounded-r-none"
-										disabled={!isAdmin || createMutation.isPending}
-									/>
-									<span className="inline-flex h-9 items-center rounded-r-md border border-l-0 border-input bg-muted px-3 text-sm text-muted-foreground">
-										.{rootDomain}
-									</span>
-								</div>
-								<p className="text-xs text-muted-foreground">
-									Your email will send from{" "}
-									<code>
-										{field.state.value.trim()
-											? `${field.state.value.trim()}.${rootDomain}`
-											: `<name>.${rootDomain}`}
-									</code>
-									.
-								</p>
-								{field.state.meta.errors[0] ? (
-									<p className="text-xs text-destructive">
-										{String(field.state.meta.errors[0])}
-									</p>
-								) : null}
-							</div>
-						)}
-					</form.Field>
-					<form.Field name="fromName">
-						{(field) => (
-							<div className="space-y-1">
-								<label htmlFor={field.name} className="text-sm font-medium">
-									From name
-								</label>
-								<Input
-									id={field.name}
-									name={field.name}
-									value={field.state.value}
-									onBlur={field.handleBlur}
-									onChange={(e) => field.handleChange(e.target.value)}
-									placeholder="Your Gym Support"
-									disabled={!isAdmin || createMutation.isPending}
-								/>
-								{field.state.meta.errors[0] ? (
-									<p className="text-xs text-destructive">
-										{String(field.state.meta.errors[0])}
-									</p>
-								) : null}
-							</div>
-						)}
-					</form.Field>
-					<form.Field name="defaultLocalPart">
-						{(field) => (
-							<div className="space-y-1">
-								<label htmlFor={field.name} className="text-sm font-medium">
-									Default local-part (optional)
-								</label>
-								<Input
-									id={field.name}
-									name={field.name}
-									value={field.state.value}
-									onBlur={field.handleBlur}
-									onChange={(e) => field.handleChange(e.target.value)}
-									placeholder="support"
-									disabled={!isAdmin || createMutation.isPending}
-								/>
-								<p className="text-xs text-muted-foreground">
-									Used as the part before @ in the sender address. Defaults to{" "}
-									<code>support</code> if blank.
-								</p>
-								{field.state.meta.errors[0] ? (
-									<p className="text-xs text-destructive">
-										{String(field.state.meta.errors[0])}
-									</p>
-								) : null}
-							</div>
-						)}
-					</form.Field>
-					<form.Subscribe>
-						{(state) => (
-							<Button
-								type="submit"
-								disabled={
-									!isAdmin ||
-									!state.canSubmit ||
-									state.isSubmitting ||
-									createMutation.isPending
-								}
-							>
-								{createMutation.isPending ? "Setting up…" : "Set up domain"}
-							</Button>
-						)}
-					</form.Subscribe>
-					{!isAdmin ? (
-						<p className="text-xs text-muted-foreground">
-							You need the <strong>admin</strong> role to set up a sending
-							domain.
-						</p>
-					) : null}
-				</form>
-			</CardContent>
-		</Card>
-	);
-}
-
-function CreateResendDomainCard({
 	organizationId,
 	isAdmin,
 }: {

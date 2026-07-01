@@ -1,15 +1,14 @@
 /**
  * Email sending-domain refresh job
  *
- * Background sweep that re-polls the sending provider (Resend or Cloudflare,
- * per row) for every sending-domain row still mid-verification (status
- * pending/verifying) and advances the DB row when DNS propagation has changed
- * the live status. Without this, a tenant who publishes their DNS records only
- * ever sees `verified` if they manually click "Verify now" — this closes that
- * gap automatically.
+ * Background sweep that re-polls Resend for every sending-domain row still
+ * mid-verification (status pending/verifying) and advances the DB row when
+ * DNS propagation has changed the live status. Without this, a tenant who
+ * publishes their DNS records only ever sees `verified` if they manually
+ * click "Verify now" — this closes that gap automatically.
  *
  * Dispatched from the `scheduled` handler in src/index.ts (ADR-0021 — CF Cron).
- * Bounded per run (default 50 rows, oldest-updated first) to cap the provider
+ * Bounded per run (default 50 rows, oldest-updated first) to cap the Resend
  * API fan-out; the next tick drains the rest.
  */
 
@@ -20,8 +19,6 @@ import {
 	updateEmailDomainStatus,
 } from "@avantej-core/services/email-domain.service";
 import { getResendDomain, verifyResendDomain } from "@/lib/resend-domains";
-import { getCloudflareDomain } from "@/lib/cloudflare-domains";
-import type { EmailDomainStatus } from "@/lib/cf-domain-status";
 
 type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
 
@@ -73,31 +70,18 @@ export async function runEmailDomainRefresh(
 
 	for (const row of stale) {
 		try {
-			let mapped: EmailDomainStatus;
-			let liveRecords: unknown;
-
-			if (row.provider === "cloudflare") {
-				// CF validates DNS continuously — no re-check verb; the poll is
-				// authoritative. Skip rows missing CF identity (shouldn't happen).
-				if (!row.cfZoneId || !row.cfSubdomainId) continue;
-				const live = await getCloudflareDomain(row.cfZoneId, row.cfSubdomainId);
-				mapped = live.status as EmailDomainStatus;
-				liveRecords = live.records;
-			} else {
-				if (!row.resendDomainId) continue;
-				// Nudge Resend to re-check DNS (idempotent), then read authoritative
-				// status. A verify failure is non-fatal — we still read live status.
-				await verifyResendDomain(row.resendDomainId).catch(() => {});
-				const live = await getResendDomain(row.resendDomainId);
-				mapped = mapResendStatus(live.status);
-				liveRecords = live.records;
-			}
+			if (!row.resendDomainId) continue;
+			// Nudge Resend to re-check DNS (idempotent), then read authoritative
+			// status. A verify failure is non-fatal — we still read live status.
+			await verifyResendDomain(row.resendDomainId).catch(() => {});
+			const live = await getResendDomain(row.resendDomainId);
+			const mapped = mapResendStatus(live.status);
 
 			if (mapped !== row.status) {
 				await updateEmailDomainStatus(controlPanelDb, {
 					id: row.id,
 					status: mapped,
-					dnsRecords: liveRecords ?? undefined,
+					dnsRecords: live.records ?? undefined,
 				});
 				updated += 1;
 			}

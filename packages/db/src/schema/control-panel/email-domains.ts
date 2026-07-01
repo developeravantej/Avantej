@@ -30,18 +30,20 @@ export const emailDomains = pgTable(
 		organizationId: uuid("organization_id")
 			.notNull()
 			.references(() => organizations.id, { onDelete: "cascade" }),
-		// Email provider for this sending domain: "resend" (legacy) or "cloudflare".
-		// Phase 3 migration — rows coexist; dispatch/onboarding branch on this.
+		// Email provider for this sending domain. Currently always "resend" — the
+		// tenant sending path uses Resend (records-based verification, works on the
+		// tenant's own apex domain). Kept as a discriminator for a possible future
+		// second provider.
 		provider: text("provider").notNull().default("resend"),
-		// Resend domain id (e.g. "d_xxx"). Nullable now — Cloudflare rows leave it
-		// null (their identity lives in cf_subdomain_id). Unique when set.
+		// Resend domain id (e.g. "d_xxx"). Nullable (a non-Resend row would leave it
+		// null). Unique when set.
 		resendDomainId: text("resend_domain_id").unique(),
-		// Cloudflare identity (provider="cloudflare"): the zone the sending subdomain
-		// lives in + the subdomain id returned by the CF Email Sending API.
+		// Reserved / currently unused. Added during an evaluated Cloudflare Email
+		// path that was dropped (CF can't verify a tenant's own apex domain without
+		// hosting their whole DNS zone). Left in place to avoid a prod down-migration;
+		// all rows leave these null.
 		cfZoneId: text("cf_zone_id"),
 		cfSubdomainId: text("cf_subdomain_id"),
-		// Cloudflare onboarding tier: "default" (<tenant>.avantej.com, zero-touch),
-		// "delegated" (send.<tenant>.com NS delegation), "bare" (<tenant>.com full DNS).
 		onboardingTier: text("onboarding_tier"),
 		// The sending domain itself (e.g. "mail.movefitness.com").
 		domain: text("domain").notNull(),
