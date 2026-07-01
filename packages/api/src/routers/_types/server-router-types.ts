@@ -2807,7 +2807,14 @@ export const platformAdminMigrationsRouterType = {
 export interface EmailDomainRow {
 	id: string;
 	organizationId: string;
-	resendDomainId: string;
+	/** "resend" (legacy) or "cloudflare". Dispatch/display branch on this. */
+	provider: string;
+	/** Null for Cloudflare rows (their identity is cfSubdomainId). */
+	resendDomainId: string | null;
+	cfZoneId: string | null;
+	cfSubdomainId: string | null;
+	/** "default" | "delegated" | "bare" (Cloudflare), null for Resend rows. */
+	onboardingTier: string | null;
 	domain: string;
 	fromName: string;
 	defaultLocalPart: string | null;
@@ -2825,7 +2832,20 @@ const RESEND_REGIONS_TYPE = [
 	"ap-northeast-1",
 ] as const;
 
+const ONBOARDING_TIERS_TYPE = ["default", "delegated", "bare"] as const;
+
 export const emailDomainsRouterType = {
+	onboardingConfig: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(
+			(): {
+				provider: string;
+				rootDomain: string;
+				defaultTierAvailable: boolean;
+			} => {
+				throw new Error("Not implemented - this is only for type inference");
+			},
+		),
 	create: protectedProcedure
 		.input(
 			z.object({
@@ -2834,6 +2854,7 @@ export const emailDomainsRouterType = {
 				fromName: z.string().min(1).max(100),
 				defaultLocalPart: z.string().optional(),
 				region: z.enum(RESEND_REGIONS_TYPE).optional(),
+				tier: z.enum(ONBOARDING_TIERS_TYPE).optional(),
 			}),
 		)
 		.handler((): EmailDomainRow => {

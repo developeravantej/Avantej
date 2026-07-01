@@ -216,8 +216,39 @@ function mapResendStatus(
 
 export const emailDomainsRouter = {
 	/**
+	 * Onboarding config for the tenant Email settings UI. Tells the client which
+	 * provider NEW domains onboard through + the root we own for the default tier,
+	 * so the create form can render the right flow: a subdomain label (Cloudflare
+	 * default tier — zero-touch <name>.avantej.com) vs a full domain (Resend —
+	 * publish-your-own-DNS).
+	 */
+	onboardingConfig: protectedProcedure
+		.input(z.object({ organizationId: z.string().uuid() }))
+		.handler(async ({ input, context }) => {
+			if (!context.session?.user) {
+				throw new ORPCError("UNAUTHORIZED", {
+					message: "Authentication required",
+				});
+			}
+			const cpDb = getControlPanelDb(context);
+			await requireOrgAdmin(
+				cpDb,
+				context.session.user.id,
+				input.organizationId,
+			);
+			const provider = emailProvider();
+			return {
+				provider,
+				rootDomain: AVANTEJ_ROOT,
+				defaultTierAvailable: provider === "cloudflare" && !!avantejZoneId(),
+			};
+		}),
+
+	/**
 	 * Register a new sending domain for an org. Caller must be the org admin.
-	 * Calls resend.domains.create and persists the DNS records snapshot.
+	 * Cloudflare path (default tier) onboards a <name>.avantej.com sending
+	 * subdomain on our own zone; Resend path calls resend.domains.create. Either
+	 * way the DNS records snapshot is persisted.
 	 */
 	create: protectedProcedure
 		.input(
