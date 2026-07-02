@@ -35,7 +35,10 @@ export function AnnouncementsViewPage() {
 	const { data: userContext } = useUserContext();
 	const { scopeNodeId } = useScope();
 	const organizationId = userContext?.currentOrganizationId ?? null;
-	const announcementsKey = ["announcements", organizationId];
+	// Base orpc key — prefix-matches every announcements.list variant
+	// (status/branch filter inputs), unlike a hand-rolled
+	// ["announcements", organizationId] key which matches nothing.
+	const announcementsKey = orpc.announcements.list.key();
 
 	// Filters
 	const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");

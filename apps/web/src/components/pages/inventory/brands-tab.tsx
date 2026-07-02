@@ -27,9 +27,9 @@ export function BrandsTabPage() {
 		error,
 		refetch,
 	} = useQuery({
-		queryKey: [
-			orpc.brands.list.key({ input: { organizationId: organizationId! } }),
-		],
+		queryKey: orpc.brands.list.key({
+			input: { organizationId: organizationId! },
+		}),
 		queryFn: () => client.brands.list({ organizationId: organizationId! }),
 		enabled: !!organizationId,
 	});
@@ -55,7 +55,7 @@ export function BrandsTabPage() {
 		successMessage: "Brand deleted successfully",
 		errorMessage: (e) => e.message,
 		invalidate: [
-			[orpc.brands.list.key({ input: { organizationId: organizationId! } })],
+			orpc.brands.list.key({ input: { organizationId: organizationId! } }),
 		],
 	});
 
