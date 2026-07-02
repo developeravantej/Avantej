@@ -227,6 +227,34 @@ describe("buildUserPayload", () => {
 		expect(result.scopesAssignedToOnly).toBeUndefined();
 	});
 
+	test("derives firstName/lastName from name when split fields are absent (GHL 422 fix)", () => {
+		const result = buildUserPayload({
+			companyId: "agency_xyz",
+			locationId: "loc_1",
+			// Real shape from the control-panel `user` table: only `name`.
+			user: {
+				id: "u_2",
+				email: "adam@example.com",
+				firstName: null,
+				lastName: null,
+				name: "ADAM DOREE VICARY BIN DAUD",
+			},
+			memberRole: "trainer",
+		});
+		expect(result.firstName).toBe("ADAM");
+		expect(result.lastName).toBe("DOREE VICARY BIN DAUD");
+	});
+
+	test("falls back to email as firstName when no name at all", () => {
+		const result = buildUserPayload({
+			companyId: "agency_xyz",
+			locationId: "loc_1",
+			user: { id: "u_3", email: "x@example.com", name: null },
+			memberRole: "staff",
+		});
+		expect(result.firstName).toBe("x@example.com");
+	});
+
 	test("maps staff role with restricted permissions + scopes", () => {
 		const result = buildUserPayload({
 			companyId: "agency_xyz",

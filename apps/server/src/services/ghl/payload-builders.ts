@@ -192,10 +192,20 @@ const ROLE_CAPABILITIES: Record<
 export function buildUserPayload(args: BuildUserArgs): GhlUserPayload {
 	const { companyId, locationId, user, memberRole } = args;
 
+	// The control-panel `user` table stores a single `name`, so firstName/
+	// lastName are usually null. GHL POST /users/ requires a non-empty
+	// firstName ("422 firstName is required"), so derive first/last from the
+	// full name when the split fields are absent.
+	const nameParts = (user.name ?? "").trim().split(/\s+/).filter(Boolean);
+	const derivedFirst = nameParts[0] ?? "";
+	const derivedLast = nameParts.slice(1).join(" ");
+	const firstName = user.firstName?.trim() || derivedFirst || user.email;
+	const lastName = user.lastName?.trim() || derivedLast || "";
+
 	const base: GhlUserPayload = {
 		companyId,
-		firstName: user.firstName ?? "",
-		lastName: user.lastName ?? "",
+		firstName,
+		lastName,
 		email: user.email,
 		type: "account",
 		role: memberRole === "admin" ? "admin" : "user",
