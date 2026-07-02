@@ -84,7 +84,9 @@ export function PosWorkflow({
 		setCustomerTypeMode("member");
 		setSelectedCustomer({
 			type: "member",
-			id: detail.member.id,
+			// recordSale resolves member customers by user id (members.userId),
+			// matching the POS search path — NOT by the members.id row id.
+			id: detail.member.userId,
 			name: detail.user.name,
 			phone: detail.profile?.phone ?? null,
 			email: detail.user.email,
