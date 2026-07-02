@@ -65,6 +65,11 @@ export async function seedRBACData(
 		{ resource: "user_management", action: "read" },
 		{ resource: "user_management", action: "update" },
 		{ resource: "user_management", action: "delete" },
+		// Route guard for /dashboard/access-control/roles + roles router CRUD.
+		{ resource: "role_management", action: "create" },
+		{ resource: "role_management", action: "read" },
+		{ resource: "role_management", action: "update" },
+		{ resource: "role_management", action: "delete" },
 		{ resource: "service_management", action: "create" },
 		{ resource: "service_management", action: "read" },
 		{ resource: "service_management", action: "update" },

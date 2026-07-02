@@ -42,6 +42,12 @@ const MISSING: Array<{ resource: string; action: string }> = [
 	{ resource: "class_slot_management", action: "read" },
 	{ resource: "class_slot_management", action: "create" },
 	{ resource: "class_slot_management", action: "update" },
+	// /dashboard/access-control/roles + user-assignment guards and the roles
+	// router — absent from every catalogue seeded before 2026-07-02.
+	{ resource: "role_management", action: "read" },
+	{ resource: "role_management", action: "create" },
+	{ resource: "role_management", action: "update" },
+	{ resource: "role_management", action: "delete" },
 ];
 
 async function main(): Promise<void> {
