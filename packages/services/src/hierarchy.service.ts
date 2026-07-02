@@ -18,9 +18,8 @@ import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { branchDetails } from "@avantej-core/db/schema/tenant/branch-details";
 import { branchStatsCache } from "@avantej-core/db/schema/tenant/branch-stats-cache";
 import { members } from "@avantej-core/db/schema/tenant/members";
-import { sql, eq, inArray } from "drizzle-orm";
+import { sql, eq, and, gte, inArray } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
-import * as branchStatsCacheService from "./branch-stats-cache.service";
 import type {
 	CreateHierarchyNodeParams,
 	UpdateHierarchyNodeParams,
@@ -862,16 +861,110 @@ export async function listNodesWithStats(
 
 	const cacheMap = new Map(cacheRows.map((r) => [r.hierarchyNodeId, r]));
 
-	// 3. Merge and enqueue refresh for cache misses
+	// 3. Recompute missed/stale entries INLINE (batched) before merging.
+	//
+	// The old path enqueued branchStatsCacheService.refresh(), whose debounced
+	// setTimeout never fires on Cloudflare Workers (pending timers die with the
+	// request unless registered via ctx.waitUntil) — so the cache stayed empty
+	// forever and the UI showed permanent "warming up" spinners. Three GROUP BY
+	// aggregates + one bulk upsert cover every missed node in constant queries.
+	const STALE_MS = 5 * 60 * 1000;
+	const refreshIds = scopedNodes
+		.filter((n) => {
+			const c = cacheMap.get(n.id);
+			return !c || Date.now() - new Date(c.computedAt).getTime() > STALE_MS;
+		})
+		.map((n) => n.id);
+
+	if (refreshIds.length > 0) {
+		const { salesOrders } = await import(
+			"@avantej-core/db/schema/tenant/sales-orders"
+		);
+		const now = new Date();
+
+		const [memberRows, staffRows, revenueRows] = await Promise.all([
+			tenantDb
+				.select({
+					nodeId: members.hierarchyScopeId,
+					count: sql<string>`COUNT(*)`,
+				})
+				.from(members)
+				.where(
+					and(
+						inArray(members.hierarchyScopeId, refreshIds),
+						eq(members.status, "active"),
+					),
+				)
+				.groupBy(members.hierarchyScopeId),
+			tenantDb
+				.select({
+					nodeId: members.hierarchyScopeId,
+					count: sql<string>`COUNT(*)`,
+				})
+				.from(members)
+				.where(
+					and(
+						inArray(members.hierarchyScopeId, refreshIds),
+						inArray(members.role, ["admin", "staff", "trainer"]),
+					),
+				)
+				.groupBy(members.hierarchyScopeId),
+			tenantDb
+				.select({
+					nodeId: salesOrders.branchId,
+					total: sql<string>`COALESCE(SUM(${salesOrders.totalAmount}), 0)`,
+				})
+				.from(salesOrders)
+				.where(
+					and(
+						inArray(salesOrders.branchId, refreshIds),
+						inArray(salesOrders.status, ["confirmed", "completed"]),
+						gte(salesOrders.date, sql`date_trunc('month', NOW())`),
+					),
+				)
+				.groupBy(salesOrders.branchId),
+		]);
+
+		const memberMap = new Map(memberRows.map((r) => [r.nodeId, r.count]));
+		const staffMap = new Map(staffRows.map((r) => [r.nodeId, r.count]));
+		const revenueMap = new Map(revenueRows.map((r) => [r.nodeId, r.total]));
+
+		const freshRows = refreshIds.map((id) => ({
+			hierarchyNodeId: id,
+			membersCount: Number(memberMap.get(id) ?? 0),
+			staffCount: Number(staffMap.get(id) ?? 0),
+			monthRevenueCents: Number(revenueMap.get(id) ?? 0),
+			monthRevenuePeriodStart: now,
+			computedAt: now,
+		}));
+
+		await tenantDb
+			.insert(branchStatsCache)
+			.values(freshRows)
+			.onConflictDoUpdate({
+				target: branchStatsCache.hierarchyNodeId,
+				set: {
+					membersCount: sql`excluded.members_count`,
+					staffCount: sql`excluded.staff_count`,
+					monthRevenueCents: sql`excluded.month_revenue_cents`,
+					monthRevenuePeriodStart: sql`excluded.month_revenue_period_start`,
+					computedAt: sql`excluded.computed_at`,
+				},
+			});
+
+		for (const row of freshRows) {
+			cacheMap.set(row.hierarchyNodeId, {
+				...row,
+			});
+		}
+	}
+
+	// 4. Merge
 	return scopedNodes.map((node) => {
 		const cached = cacheMap.get(node.id);
 
 		if (!cached) {
-			// Cache miss — enqueue debounced refresh for all three kinds
-			branchStatsCacheService.refresh(tenantDb, node.id, "members");
-			branchStatsCacheService.refresh(tenantDb, node.id, "staff");
-			branchStatsCacheService.refresh(tenantDb, node.id, "revenue");
-
+			// Should be unreachable now — kept as a defensive fallback.
 			return {
 				id: node.id,
 				name: node.name,
