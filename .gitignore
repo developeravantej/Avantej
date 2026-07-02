@@ -134,3 +134,7 @@ docs/test-plan/pos-migration-e2e.html
 # + Cloudflare Worker secrets (wrangler secret put). Use .dev.vars.example as the template.
 .dev.vars
 apps/server/.env
+
+# Prod E2E email capture — screenshots + review HTML contain email addresses (PII)
+e2e-web/settings/prod/
+docs/test-plan/email-e2e-screenshots.html

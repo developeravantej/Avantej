@@ -1,17 +1,17 @@
 {
-	"title": "Settings → Email: edit sender then delete the domain",
-	"module": "settings",
-	"prodMutationClass": "create-update-delete-test-row",
-	"journey": [
-		"Continue from the previous test (or create a fresh e2e-test domain row)",
-		"On the Sending domains row, click Edit sender",
-		"In the dialog, change the From name to 'E2E Renamed Sender' and the Local-part to 'billing'",
-		"Confirm the preview reads: 'Will send as: E2E Renamed Sender <billing@<domain>>'",
-		"Click Save and wait for the toast 'Sender settings saved.'",
-		"Confirm the row now shows 'E2E Renamed Sender' and 'billing@<domain>'",
-		"Click Delete on the same row",
-		"In the Delete confirmation dialog, click Delete to confirm",
-		"Wait for the toast 'Sending domain removed.'",
-		"Confirm the row is gone (the Sending domains card returns to empty state or no longer contains the e2e-test domain)"
-	]
+  "title": "Settings \u2192 Email: edit sender then delete the domain",
+  "module": "settings",
+  "prodMutationClass": "create-update-delete-test-row",
+  "journey": [
+    "Continue from the previous test (or create a fresh e2e-test domain row)",
+    "On the Sending domains row, click Edit sender",
+    "In the dialog, change the From name to 'E2E Renamed Sender' and the Local-part to 'billing'",
+    "Confirm the preview reads: 'Will send as: E2E Renamed Sender <billing@<domain>>'",
+    "Click Save and wait for the toast 'Sender settings saved.'",
+    "Confirm the row now shows 'E2E Renamed Sender' and 'billing@<domain>'",
+    "Click Delete on the same row",
+    "In the Delete confirmation dialog, click Delete to confirm",
+    "Wait for the toast 'Sending domain removed.'",
+    "Confirm the row is gone (the Sending domains card returns to empty state or no longer contains the e2e-test domain)"
+  ]
 }
