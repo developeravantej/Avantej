@@ -661,12 +661,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 					<SidebarTrigger className="pr-2" />
 				</div>
 
-				{/* Org switcher pill */}
+				{/* Org identity card — static: tenant members belong to exactly one
+				    org, so a switcher affordance (button/hover/chevron) would lie. */}
 				{currentOrg && (
-					<button
-						type="button"
+					<div
 						className={cn(
-							"mx-2 mt-1 flex items-center gap-2 rounded-lg bg-sidebar-accent px-3 py-2 text-left transition hover:bg-[#333]",
+							"mx-2 mt-1 flex items-center gap-2 rounded-lg bg-sidebar-accent px-3 py-2 text-left",
 							"group-data-[collapsible=icon]:hidden",
 						)}
 					>
@@ -683,8 +683,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 									: currentOrg.role}
 							</div>
 						</div>
-						<ChevronRight className="size-3 shrink-0 text-sidebar-foreground/55" />
-					</button>
+					</div>
 				)}
 
 				{/* Power Search with ⌘K hint */}
