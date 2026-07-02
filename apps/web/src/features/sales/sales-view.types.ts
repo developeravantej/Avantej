@@ -4,6 +4,8 @@ export interface KpiSummary {
 	totalSalesCents: number;
 	totalRefundedCents: number;
 	outstandingCents: number;
+	/** Cash actually collected in the period (SUM of invoices.amount_paid). */
+	totalCollectedCents?: number;
 	salesCount: number;
 }
 

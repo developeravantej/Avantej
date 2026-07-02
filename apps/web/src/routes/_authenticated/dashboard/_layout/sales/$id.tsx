@@ -403,7 +403,16 @@ function SalesOrderDetailPage() {
 							organizationId={organizationId}
 							salesOrderId={id}
 							customerName={order?.customerName ?? undefined}
-							suggestedAmountCents={order?.totalAmount ?? undefined}
+							// Suggest what was actually collected, not the invoice total —
+							// on installment sales only a fraction has been paid so far.
+							suggestedAmountCents={
+								invoices.length > 0
+									? invoices.reduce(
+											(sum, inv) => sum + (inv.amountPaid ?? 0),
+											0,
+										)
+									: (order?.totalAmount ?? undefined)
+							}
 						/>
 					)}
 

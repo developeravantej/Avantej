@@ -29,6 +29,8 @@ export type RefundRow = {
 	customerName: string;
 	requestedByName?: string | null;
 	salesOrderNumber?: string | null;
+	/** From the joined sales order: "member" | "walk_in" | null. */
+	customerType?: string | null;
 };
 
 export type AuditRow = {
