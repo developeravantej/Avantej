@@ -23,7 +23,7 @@ type ActiveTab = "all" | "pending" | "approved" | "paid" | "void";
 
 interface BulkActionBarProps {
 	selectedIds: string[];
-	selectedRows?: { staffId: string }[];
+	selectedRows?: { staffId: string; status: string }[];
 	tab: ActiveTab;
 	organizationId: string;
 	canApprove: boolean;
@@ -249,9 +249,23 @@ export function BulkActionBar({
 
 	if (count === 0) return null;
 
-	const showApprove = tab === "pending" && canApprove;
-	const showMarkPaid = tab === "approved" && canProcess;
-	const showVoid = canApprove && (tab === "pending" || tab === "approved");
+	// Derive actionability from the selected rows' actual statuses so the bar
+	// also works on the "all" tab (where the footer "Approve all" pre-selects
+	// pending rows). Falls back to the tab when row statuses aren't provided.
+	const statuses = selectedRows?.map((r) => r.status);
+	const allPending = statuses?.length
+		? statuses.every((s) => s === "pending")
+		: tab === "pending";
+	const allApproved = statuses?.length
+		? statuses.every((s) => s === "approved")
+		: tab === "approved";
+	const allActionable = statuses?.length
+		? statuses.every((s) => s === "pending" || s === "approved")
+		: tab === "pending" || tab === "approved";
+
+	const showApprove = canApprove && allPending;
+	const showMarkPaid = canProcess && allApproved;
+	const showVoid = canApprove && allActionable;
 
 	if (!showApprove && !showMarkPaid && !showVoid) return null;
 
