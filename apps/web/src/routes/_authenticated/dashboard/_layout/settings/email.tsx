@@ -1055,8 +1055,11 @@ function CreateDomainCard({
 			<CardHeader>
 				<CardTitle>Add a sending domain</CardTitle>
 				<CardDescription>
-					Use a dedicated subdomain (e.g. <code>mail.example.com</code>) so your
-					main domain's reputation stays isolated.
+					Enter the domain you'll send from — your main domain (e.g.{" "}
+					<code>yourgym.com</code> → sends as <code>name@yourgym.com</code>)
+					works, and so does a subdomain (e.g. <code>mail.yourgym.com</code>) if
+					you'd rather keep sending reputation isolated from your corporate
+					email.
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
@@ -1080,7 +1083,7 @@ function CreateDomainCard({
 									value={field.state.value}
 									onBlur={field.handleBlur}
 									onChange={(e) => field.handleChange(e.target.value)}
-									placeholder="mail.example.com"
+									placeholder="yourgym.com"
 									disabled={!isAdmin || createMutation.isPending}
 								/>
 								{field.state.meta.errors[0] ? (
