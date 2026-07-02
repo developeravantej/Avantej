@@ -7,6 +7,7 @@ import { categoryCommissionConfigs } from "@avantej-core/db/schema/tenant/catego
 import { commissionTierRates } from "@avantej-core/db/schema/tenant/commission-tier-rates";
 import { commissionConditions } from "@avantej-core/db/schema/tenant/commission-conditions";
 import { commissionConditionRates } from "@avantej-core/db/schema/tenant/commission-condition-rates";
+import { commissionTrackRates } from "@avantej-core/db/schema/tenant/commission-track-rates";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 
@@ -178,14 +179,30 @@ export async function deleteTrainerTier(
 		throw new Error("Trainer tier not found");
 	}
 
-	// Unassign any members still pointing at this tier
-	await tenantDb
-		.update(members)
-		.set({ trainerTierId: null })
-		.where(eq(members.trainerTierId, id));
+	await tenantDb.transaction(async (tx) => {
+		// Unassign any members still pointing at this tier
+		await tx
+			.update(members)
+			.set({ trainerTierId: null })
+			.where(eq(members.trainerTierId, id));
 
-	// Hard delete the tier
-	await tenantDb.delete(trainerTiers).where(eq(trainerTiers.id, id));
+		// Remove the tier's per-tier commission rate rows. All three tables
+		// reference trainer_tiers with ON DELETE RESTRICT, and createTrainerTier
+		// auto-provisions commission_tier_rates stubs — without this cleanup no
+		// UI-created tier can ever be deleted.
+		await tx
+			.delete(commissionTierRates)
+			.where(eq(commissionTierRates.trainerTierId, id));
+		await tx
+			.delete(commissionConditionRates)
+			.where(eq(commissionConditionRates.trainerTierId, id));
+		await tx
+			.delete(commissionTrackRates)
+			.where(eq(commissionTrackRates.tierId, id));
+
+		// Hard delete the tier
+		await tx.delete(trainerTiers).where(eq(trainerTiers.id, id));
+	});
 }
 
 export async function reactivateTrainerTier(

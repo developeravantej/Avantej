@@ -146,9 +146,13 @@ const deleteTier = tenantProcedure
 			await deleteTrainerTier(context.tenantDb, input.id);
 		} catch (err) {
 			if (err instanceof ORPCError) throw err;
-			throw new ORPCError("BAD_REQUEST", {
-				message: err instanceof Error ? err.message : "Unknown error",
-			});
+			// Never leak raw driver/SQL errors ("Failed query: delete from ...")
+			// to the client — map them to a friendly message.
+			const raw = err instanceof Error ? err.message : "Unknown error";
+			const message = raw.startsWith("Failed query")
+				? "This tier cannot be deleted because other records still reference it."
+				: raw;
+			throw new ORPCError("BAD_REQUEST", { message });
 		}
 	});
 
