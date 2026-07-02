@@ -179,7 +179,17 @@ export async function syncStaffToGhl(
 	} catch (error) {
 		const message =
 			error instanceof GhlApiError
-				? `${error.code}: ${error.message}`
+				? // Surface GHL's raw response body so a 422 shows the offending
+					// field instead of just "GHL API 422 on /users/".
+					`${error.code}: ${error.message}${
+						error.responseBody
+							? ` — ${
+									typeof error.responseBody === "string"
+										? error.responseBody
+										: JSON.stringify(error.responseBody)
+								}`
+							: ""
+					}`.slice(0, 800)
 				: error instanceof Error
 					? error.message
 					: String(error);
