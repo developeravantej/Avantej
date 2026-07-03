@@ -211,6 +211,8 @@ export {
 } from "./customer-profile.service";
 // Expense services
 export * from "./expenses.service";
+// Currency resolution (WS1 — multi-currency)
+export * from "./currency.service";
 // GHL staff sync services
 export {
 	type DispatchProfileSyncArgs,

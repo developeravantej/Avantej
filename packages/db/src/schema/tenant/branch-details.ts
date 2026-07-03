@@ -23,6 +23,10 @@ export const branchDetails = pgTable(
 			.references(() => hierarchyNodes.id, { onDelete: "cascade" }),
 		address: text("address"),
 		picUserId: text("pic_user_id"),
+		// WS1 (multi-currency): branch ISO currency, seeded from its country
+		// node. Source of truth for stamping currency on money rows. Nullable
+		// during rollout; resolveBranchCurrency() falls back to the country map.
+		currency: text("currency"),
 		createdAt: timestamp("created_at").defaultNow().notNull(),
 		updatedAt: timestamp("updated_at").defaultNow().notNull(),
 	},
