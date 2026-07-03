@@ -11,6 +11,8 @@ export type NodeWithStats = {
 	membersCount: number | null;
 	staffCount: number | null;
 	monthRevenueCents: number | null;
+	/** WS1: ISO currency of this node's country (from the stats API). */
+	currency?: string;
 	stale: boolean;
 };
 

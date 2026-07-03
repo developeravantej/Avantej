@@ -20,6 +20,7 @@ import { branchStatsCache } from "@avantej-core/db/schema/tenant/branch-stats-ca
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { sql, eq, and, gte, inArray } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
+import { currencyForCountryName, DEFAULT_CURRENCY } from "./currency.service";
 import type {
 	CreateHierarchyNodeParams,
 	UpdateHierarchyNodeParams,
@@ -818,6 +819,8 @@ export interface NodeWithStats {
 	membersCount: number | null;
 	staffCount: number | null;
 	monthRevenueCents: number | null;
+	/** WS1: ISO currency of this node's country (org root falls back to default). */
+	currency: string;
 	stale: boolean;
 }
 
@@ -960,6 +963,15 @@ export async function listNodesWithStats(
 	}
 
 	// 4. Merge
+	// WS1: each node's currency = its country's currency (no extra query — the
+	// node list already includes the country nodes). Org root has no country → default.
+	const nameById = new Map(allNodes.map((n) => [n.id, n.name]));
+	const currencyForNode = (node: (typeof scopedNodes)[number]): string =>
+		node.type === "country"
+			? currencyForCountryName(node.name)
+			: node.countryNodeId
+				? currencyForCountryName(nameById.get(node.countryNodeId))
+				: DEFAULT_CURRENCY;
 	return scopedNodes.map((node) => {
 		const cached = cacheMap.get(node.id);
 
@@ -976,6 +988,7 @@ export async function listNodesWithStats(
 				membersCount: null,
 				staffCount: null,
 				monthRevenueCents: null,
+				currency: currencyForNode(node),
 				stale: true,
 			};
 		}
@@ -995,6 +1008,7 @@ export async function listNodesWithStats(
 			membersCount: cached.membersCount,
 			staffCount: cached.staffCount,
 			monthRevenueCents: cached.monthRevenueCents,
+			currency: currencyForNode(node),
 			stale: staleness,
 		};
 	});

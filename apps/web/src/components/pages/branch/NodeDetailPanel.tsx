@@ -38,7 +38,7 @@ export function NodeDetailPanel({
 	const staffValue = node.staffCount != null ? String(node.staffCount) : "—";
 	const revenueValue =
 		node.monthRevenueCents != null
-			? formatPrice(node.monthRevenueCents, "MYR")
+			? formatPrice(node.monthRevenueCents, node.currency ?? "MYR")
 			: "—";
 
 	// Breadcrumb path: all ancestors except the node itself
