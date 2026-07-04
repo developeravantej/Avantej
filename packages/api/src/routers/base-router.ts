@@ -44,6 +44,7 @@ import { promotionsRouter } from "./promotions";
 import { purchaseOrdersRouter } from "./purchase-orders";
 import { refundsRouter } from "./refunds";
 import { registrationRouter } from "./registration";
+import { reportsRouter } from "./reports";
 import { rolePermissionsRouter } from "./role-permissions";
 import { rolesRouter } from "./roles";
 import { roomsRouter } from "./rooms";
@@ -135,6 +136,7 @@ export const baseRouter = {
 	checkIns: checkInsRouter,
 	pos: posRouter,
 	refunds: refundsRouter,
+	reports: reportsRouter,
 	memberships: membershipsRouter,
 	households: householdsRouter,
 	branchInvites: branchInvitesRouter,

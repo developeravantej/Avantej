@@ -166,6 +166,11 @@ export async function seedRBACData(
 		{ resource: "class_slot_management", action: "read" },
 		{ resource: "class_slot_management", action: "create" },
 		{ resource: "class_slot_management", action: "update" },
+		// Reports (WS2 reports suite) — Reports page (route beforeLoad gates on
+		// reports:read); reports:export gates the per-report CSV downloads.
+		// Resource existed in the Resource union but had no seeded actions.
+		{ resource: "reports", action: "read" },
+		{ resource: "reports", action: "export" },
 	];
 
 	// Insert roles (skip if exists)

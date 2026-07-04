@@ -48,6 +48,10 @@ const MISSING: Array<{ resource: string; action: string }> = [
 	{ resource: "role_management", action: "create" },
 	{ resource: "role_management", action: "update" },
 	{ resource: "role_management", action: "delete" },
+	// /dashboard/reports/view route guard + WS2 reports suite (list + CSV
+	// export procedures) — absent from every catalogue seeded before WS2.
+	{ resource: "reports", action: "read" },
+	{ resource: "reports", action: "export" },
 ];
 
 async function main(): Promise<void> {
