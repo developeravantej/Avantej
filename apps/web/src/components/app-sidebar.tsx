@@ -39,6 +39,7 @@ import {
 	Store,
 	Tag,
 	TrendingUp,
+	Upload,
 	User,
 	UserPlus,
 	Users,
@@ -249,6 +250,12 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				title: "Org Settings",
 				url: "/dashboard/settings/organization",
 				icon: Building2,
+			},
+			{
+				title: "Import Data",
+				url: "/dashboard/settings/import",
+				icon: Upload,
+				permission: "data_import:import",
 			},
 			{
 				title: "Google Calendar",

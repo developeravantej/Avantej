@@ -171,6 +171,8 @@ export async function seedRBACData(
 		// Resource existed in the Resource union but had no seeded actions.
 		{ resource: "reports", action: "read" },
 		{ resource: "reports", action: "export" },
+		// Self-service CSV import (WS6) — Import page + data-import router.
+		{ resource: "data_import", action: "import" },
 	];
 
 	// Insert roles (skip if exists)

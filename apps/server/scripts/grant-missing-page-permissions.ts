@@ -52,6 +52,8 @@ const MISSING: Array<{ resource: string; action: string }> = [
 	// export procedures) — absent from every catalogue seeded before WS2.
 	{ resource: "reports", action: "read" },
 	{ resource: "reports", action: "export" },
+	// /dashboard/settings/import + data-import router (WS6) — new resource.
+	{ resource: "data_import", action: "import" },
 ];
 
 async function main(): Promise<void> {

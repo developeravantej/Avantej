@@ -16,6 +16,7 @@ import { commissionSplitsRouter } from "./commission-splits";
 import { commissionTracksRouter } from "./commission-tracks";
 import { customerDirectoryRouter } from "./customer-directory";
 import { customerProfilesRouter } from "./customer-profiles";
+import { dataImportRouter } from "./data-import";
 import { expensesRouter } from "./expenses";
 import { goodsReceiptsRouter } from "./goods-receipts";
 import { googleCalendarRouter } from "./google-calendar";
@@ -145,4 +146,5 @@ export const baseRouter = {
 	trainers: trainersRouter,
 	ghlSync: ghlSyncRouter,
 	payrollPeriods: payrollPeriodsRouter,
+	dataImport: dataImportRouter,
 };

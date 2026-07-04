@@ -101,3 +101,79 @@ export function buildCsv(
 	if (opts?.trailingNewline && out.length > 0) out += nl;
 	return out;
 }
+
+// ---------------------------------------------------------------------------
+// Parse (WS6 — CSV import). RFC-4180: quoted fields with embedded commas /
+// newlines / doubled-quote escapes, CRLF or LF. Import-safe.
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse CSV text into a matrix of trimmed string cells. Rows that are entirely
+ * empty are dropped. Pure — no imports, Workers + browser safe.
+ */
+export function parseCsv(text: string): string[][] {
+	const rows: string[][] = [];
+	let cur: string[] = [];
+	let field = "";
+	let inQuotes = false;
+	for (let i = 0; i < text.length; i++) {
+		const c = text[i];
+		if (inQuotes) {
+			if (c === '"') {
+				if (text[i + 1] === '"') {
+					field += '"';
+					i++;
+				} else {
+					inQuotes = false;
+				}
+			} else {
+				field += c;
+			}
+		} else if (c === '"') {
+			inQuotes = true;
+		} else if (c === ",") {
+			cur.push(field);
+			field = "";
+		} else if (c === "\r") {
+			// skip — handled by the \n case
+		} else if (c === "\n") {
+			cur.push(field);
+			rows.push(cur);
+			cur = [];
+			field = "";
+		} else {
+			field += c;
+		}
+	}
+	if (field.length || cur.length) {
+		cur.push(field);
+		rows.push(cur);
+	}
+	return rows
+		.map((r) => r.map((c) => c.trim()))
+		.filter((r) => r.some((c) => c !== ""));
+}
+
+export interface ParsedCsvTable {
+	header: string[];
+	/** Each row as a header→cell record (missing cells → ""). */
+	rows: Record<string, string>[];
+}
+
+/**
+ * Parse CSV into a header + row-objects table. The first non-empty row is the
+ * header. Returns an empty table when there is no data.
+ */
+export function parseCsvTable(text: string): ParsedCsvTable {
+	const matrix = parseCsv(text);
+	if (matrix.length === 0) return { header: [], rows: [] };
+	const header = matrix[0]!;
+	const rows = matrix.slice(1).map((r) => {
+		const o: Record<string, string> = {};
+		header.forEach((h, i) => {
+			o[h] = r[i] ?? "";
+		});
+		return o;
+	});
+	return { header, rows };
+}

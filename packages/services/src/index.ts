@@ -599,6 +599,19 @@ export {
 	autoCompleteOverdueAppointments,
 } from "./appointment-autocomplete.service";
 
+// WS6 (MOVE parity) — self-service CSV import
+export {
+	type CommitResult,
+	type ImportContext,
+	type ImportEntity,
+	type PreviewResult,
+	type RowResult,
+	commitImport,
+	importTemplate,
+	listImportEntities,
+	previewImport,
+} from "./data-import";
+
 // WS5 (MOVE parity) — payroll period lock + commission write-gate
 export {
 	type AutoLockResult,

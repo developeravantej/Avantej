@@ -59,6 +59,8 @@ export type Resource =
 	| "organization_settings"
 	// Reporting
 	| "reports"
+	// Self-service data import (WS6)
+	| "data_import"
 	// Audit log
 	| "audit_log"
 	// Attendance (tracking-pages P7)
