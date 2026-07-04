@@ -40,6 +40,7 @@ import { salesOrderItems } from "@avantej-core/db/schema/tenant/sales-order-item
 import { services } from "@avantej-core/db/schema/tenant/services";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { resolveBranchCurrency, DEFAULT_CURRENCY } from "./currency.service";
+import { assertPeriodOpen } from "./payroll-period.service";
 import { categoryCommissionConfigs } from "@avantej-core/db/schema/tenant/category-commission-configs";
 import { categoryCommissionConfigVersions } from "@avantej-core/db/schema/tenant/category-commission-config-versions";
 import { commissionTracks } from "@avantej-core/db/schema/tenant/commission-tracks";
@@ -998,6 +999,15 @@ export async function voidCommissionSplit(
 		if (existing.status === "void") {
 			return existing; // Idempotent
 		}
+		// WS5: can't void a split whose payroll period is locked — that would
+		// mutate an already-settled month. Corrections go to the current open
+		// period as a manual adjustment instead.
+		await assertPeriodOpen(tx, {
+			appointmentId: existing.appointmentId,
+			salesOrderId: existing.salesOrderId,
+			packageInstanceId: existing.packageInstanceId,
+			earnedAt: existing.earnedAt,
+		});
 
 		const [updated] = await tx
 			.update(commissionSplits)
@@ -3488,7 +3498,11 @@ export async function resolveDispute(
 				status: requiresReview ? "pending_review" : "pending",
 				splitType: "manual",
 				manualNote: adjNote,
-				earnedAt: split.earnedAt,
+				// WS5: a dispute correction lands in the CURRENT open period, NOT
+				// the disputed split's original (possibly settled/locked) month —
+				// otherwise it would silently change an already-paid total. It is a
+				// signed adjustment against the open period (plan intent).
+				earnedAt: new Date(),
 				createdByUserId: params.actor.userId,
 			})
 			.returning();

@@ -20,6 +20,7 @@ import {
 	Grid3x3,
 	Home,
 	LayoutDashboard,
+	Lock,
 	LogOut,
 	Mail,
 	Map,
@@ -190,6 +191,13 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				title: "Payouts",
 				url: "/dashboard/commissions/view?tab=payouts",
 				icon: BadgeDollarSign,
+				permission: "commission_payout:read",
+			},
+			// WS5: per-branch commission-window lock/unlock grid
+			{
+				title: "Payroll Periods",
+				url: "/dashboard/payroll-periods/view",
+				icon: Lock,
 				permission: "commission_payout:read",
 			},
 		],

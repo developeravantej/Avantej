@@ -34,6 +34,7 @@ import { onboardingRouter } from "./onboarding";
 import { organizationSettingsRouter } from "./organization-settings";
 import { packageInstanceStaffRouter } from "./package-instance-staff";
 import { packageInstancesRouter } from "./package-instances";
+import { payrollPeriodsRouter } from "./payroll-periods";
 import { payoutsRouter } from "./payouts";
 import { permissionsRouter } from "./permissions";
 import { posRouter } from "./pos";
@@ -143,4 +144,5 @@ export const baseRouter = {
 	onboarding: onboardingRouter,
 	trainers: trainersRouter,
 	ghlSync: ghlSyncRouter,
+	payrollPeriods: payrollPeriodsRouter,
 };

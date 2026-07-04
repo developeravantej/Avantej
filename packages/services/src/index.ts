@@ -599,6 +599,24 @@ export {
 	autoCompleteOverdueAppointments,
 } from "./appointment-autocomplete.service";
 
+// WS5 (MOVE parity) — payroll period lock + commission write-gate
+export {
+	type AutoLockResult,
+	type LockPeriodParams,
+	type PayrollPeriodRow,
+	type SplitBranchRef,
+	type UnlockPeriodParams,
+	assertPeriodOpen,
+	autoLockDuePeriods,
+	isPayrollPeriodLockedError,
+	isPeriodLocked,
+	listPayrollPeriods,
+	lockPayrollPeriod,
+	PayrollPeriodLockedError,
+	resolveSplitBranchId,
+	unlockPayrollPeriod,
+} from "./payroll-period.service";
+
 // #region Agent 2.11 — goods-receipt 3-way match (schema-relationship-fixes §8.5)
 export * from "./goods-receipt.service";
 // #endregion

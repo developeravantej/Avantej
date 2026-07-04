@@ -15,6 +15,7 @@ import { and, between, eq, inArray, isNull, max, sql, sum } from "drizzle-orm";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
 import { writeAudit } from "./audit-log.service";
 import { getOrCreatePayoutBatch } from "./commission-splits.service";
+import { assertPeriodOpen } from "./payroll-period.service";
 
 type TenantDb = NeonDatabase<typeof tenantSchema>;
 type ControlPanelDb = NeonDatabase<typeof controlPanelSchema>;
@@ -935,6 +936,27 @@ export async function cancelPayout(
 			throw new Error(
 				`cancelPayout: payout ${payoutId} update returned no row`,
 			);
+
+		// WS5: canceling a payout un-settles its splits (paid → approved). If any
+		// of them belong to a locked payroll period, that would mutate an
+		// already-settled month — reject the cancel. Unlock the period first.
+		const linkedSplits = await tx
+			.select({
+				appointmentId: commissionSplits.appointmentId,
+				salesOrderId: commissionSplits.salesOrderId,
+				packageInstanceId: commissionSplits.packageInstanceId,
+				earnedAt: commissionSplits.earnedAt,
+			})
+			.from(commissionSplits)
+			.where(eq(commissionSplits.payoutId, payoutId));
+		for (const s of linkedSplits) {
+			await assertPeriodOpen(tx, {
+				appointmentId: s.appointmentId,
+				salesOrderId: s.salesOrderId,
+				packageInstanceId: s.packageInstanceId,
+				earnedAt: s.earnedAt,
+			});
+		}
 
 		// Revert linked splits to approved + clear payoutId so they can be re-batched.
 		await tx

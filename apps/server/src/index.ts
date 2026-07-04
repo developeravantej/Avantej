@@ -626,6 +626,27 @@ export default {
 							console.error(`[scheduled] package-expiry failed:`, e),
 						),
 				);
+				// WS5 — payroll-period auto-lock. Locks each branch's most recent
+				// closed cycle once its grace window has elapsed so payouts can no
+				// longer be voided/disputed against a settled period. Folded into
+				// this existing slot to stay within the Workers Free 5-cron limit.
+				const { runPayrollAutoLock } = await import(
+					"@/services/payroll-autolock.service"
+				);
+				ctx.waitUntil(
+					runPayrollAutoLock({
+						controlPanelDb: cpDb,
+						getTenantDb: (orgId) => getTenantDb(orgId),
+					})
+						.then((r) =>
+							console.log(
+								`[scheduled] payroll-autolock done: ${JSON.stringify(r)}`,
+							),
+						)
+						.catch((e) =>
+							console.error(`[scheduled] payroll-autolock failed:`, e),
+						),
+				);
 				// Heal drifted customer_name snapshots (rename paths that bypass the
 				// forward-propagate, e.g. a failed propagate or an external writer).
 				// Only writes rows whose snapshot differs from the live name.

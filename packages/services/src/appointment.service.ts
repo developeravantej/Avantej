@@ -34,6 +34,7 @@ import { assertValidTransition } from "./utils/appointment-status-machine";
 import { writeAudit } from "./audit-log.service";
 import { calculateCommissionForAppointment } from "./commission-calculator.service";
 import { getLatestConfigVersionForCategory } from "./commission-splits.service";
+import { assertPeriodOpen } from "./payroll-period.service";
 import {
 	getLeadAttributionForCustomer,
 	mergeLeadAttributionIntoStaffAssignments,
@@ -1029,6 +1030,27 @@ export async function updateAppointment(
 
 			// Commission: void all non-paid splits when appointment is disputed
 			if (params.status === "disputed" && existing.status !== "disputed") {
+				// WS5: voiding a split that falls in a LOCKED payroll period would
+				// silently reduce a settled month. Block the dispute if any split
+				// to be voided is locked — the period must be unlocked (or a signed
+				// adjustment posted to the current open period) instead.
+				const disputedSplits = await tx
+					.select({ earnedAt: commissionSplits.earnedAt })
+					.from(commissionSplits)
+					.where(
+						and(
+							eq(commissionSplits.appointmentId, id),
+							ne(commissionSplits.status, "void"),
+							ne(commissionSplits.status, "paid"),
+						),
+					);
+				for (const s of disputedSplits) {
+					await assertPeriodOpen(tx, {
+						appointmentId: id,
+						earnedAt: s.earnedAt,
+					});
+				}
+
 				await (tx as unknown as TenantDb)
 					.update(commissionSplits)
 					.set({
