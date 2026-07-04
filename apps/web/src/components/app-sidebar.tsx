@@ -16,6 +16,7 @@ import {
 	ClipboardCheck,
 	CreditCard,
 	Database,
+	Download,
 	FileChartColumnIncreasing,
 	Grid3x3,
 	Home,
@@ -256,6 +257,12 @@ const NAV_GROUPS: SidebarNavGroup[] = [
 				url: "/dashboard/settings/import",
 				icon: Upload,
 				permission: "data_import:import",
+			},
+			{
+				title: "Export Data",
+				url: "/dashboard/settings/export",
+				icon: Download,
+				permission: "reports:export",
 			},
 			{
 				title: "Google Calendar",

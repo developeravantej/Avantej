@@ -16,6 +16,7 @@ import { commissionSplitsRouter } from "./commission-splits";
 import { commissionTracksRouter } from "./commission-tracks";
 import { customerDirectoryRouter } from "./customer-directory";
 import { customerProfilesRouter } from "./customer-profiles";
+import { dataExportRouter } from "./data-export";
 import { dataImportRouter } from "./data-import";
 import { expensesRouter } from "./expenses";
 import { goodsReceiptsRouter } from "./goods-receipts";
@@ -147,4 +148,5 @@ export const baseRouter = {
 	ghlSync: ghlSyncRouter,
 	payrollPeriods: payrollPeriodsRouter,
 	dataImport: dataImportRouter,
+	dataExport: dataExportRouter,
 };

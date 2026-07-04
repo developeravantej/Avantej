@@ -599,6 +599,19 @@ export {
 	autoCompleteOverdueAppointments,
 } from "./appointment-autocomplete.service";
 
+// WS6/WS7 (MOVE parity) — shared CSV codec (parse + serialize)
+export * from "./csv-codec";
+
+// WS7 (MOVE parity) — tenant CSV export catalogue
+export {
+	type ExportDatasetMeta,
+	type ExportScope,
+	type ExportedDataset,
+	exportAllDatasets,
+	exportDataset,
+	listExportDatasets,
+} from "./data-export";
+
 // WS6 (MOVE parity) — self-service CSV import
 export {
 	type CommitResult,
