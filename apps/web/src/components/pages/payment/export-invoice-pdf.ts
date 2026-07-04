@@ -1,4 +1,21 @@
+import { formatPrice } from "@/lib/money";
 import type { jsPDF } from "jspdf";
+
+/**
+ * Issuing-branch company/tax profile (WS3). Mirrors `InvoiceBranchProfile`
+ * returned by `client.invoices.getDetail`. Null for orphan invoices with no
+ * linked sales order — in which case the PDF falls back to the single-org
+ * "Avantej" header and MYR currency.
+ */
+export interface InvoiceBranchProfile {
+	branchNodeId: string;
+	branchName: string | null;
+	companyLegalName: string | null;
+	registrationNumber: string | null;
+	taxId: string | null;
+	address: string | null;
+	currency: string;
+}
 
 /**
  * Invoice + line-item payload returned by `client.invoices.getDetail`. Kept as a
@@ -23,9 +40,9 @@ export interface InvoicePdfData {
 		totalPrice: number;
 		taxRateCode?: string | null;
 	}>;
+	/** Issuing-branch company/tax profile; null/absent → single-org fallback. */
+	branch?: InvoiceBranchProfile | null;
 }
-
-const rm = (cents: number) => `RM ${(cents / 100).toFixed(2)}`;
 
 const fmtDate = (d: string | Date | null): string => {
 	if (!d) return "—";
@@ -35,6 +52,38 @@ const fmtDate = (d: string | Date | null): string => {
 		return "—";
 	}
 };
+
+/**
+ * Render the issuing-branch company/tax lines beneath the header name and
+ * return the vertical offset (pt) they consumed, so the caller can shift the
+ * rest of the layout down. Returns 0 — and touches no doc state — when the
+ * branch is absent or carries none of the fields, preserving the original
+ * single-org layout byte-for-byte.
+ */
+function renderCompanyLines(
+	doc: jsPDF,
+	branch: InvoiceBranchProfile | null | undefined,
+): number {
+	const lines: string[] = [];
+	if (branch?.address) lines.push(branch.address);
+	if (branch?.registrationNumber)
+		lines.push(`Reg No: ${branch.registrationNumber}`);
+	if (branch?.taxId) lines.push(`Tax ID: ${branch.taxId}`);
+	if (lines.length === 0) return 0;
+
+	doc.setFontSize(9);
+	doc.setFont("helvetica", "normal");
+	doc.setTextColor(115);
+	let dy = 0;
+	for (const line of lines) {
+		dy += 12;
+		doc.text(line, 40, 50 + dy);
+	}
+	// Restore the state the header left active (bold, black) for the caller.
+	doc.setFont("helvetica", "bold");
+	doc.setTextColor(0);
+	return dy;
+}
 
 /**
  * Build the invoice PDF document (pure — no DOM side effects, no download).
@@ -49,26 +98,35 @@ export async function buildInvoiceDoc(
 	const { jsPDF } = await import("jspdf");
 	const autoTable = (await import("jspdf-autotable")).default;
 
-	const { invoice, items } = data;
+	const { invoice, items, branch } = data;
 	const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
 
-	// Header
+	// Currency follows the issuing branch (THB/SGD/…); MYR when unknown.
+	const currency = branch?.currency ?? "MYR";
+	const money = (cents: number) => formatPrice(cents, currency);
+
+	// Header — legal entity name (falls back to branch, then the platform org).
+	const headerName = branch?.companyLegalName || branch?.branchName || orgName;
 	doc.setFontSize(18);
 	doc.setFont("helvetica", "bold");
-	doc.text(orgName, 40, 50);
+	doc.text(headerName, 40, 50);
+
+	// Company/tax profile block; shifts the rest of the header down by `dy`.
+	const dy = renderCompanyLines(doc, branch);
+
 	doc.setFontSize(13);
-	doc.text("Invoice", 40, 70);
+	doc.text("Invoice", 40, 70 + dy);
 
 	doc.setFontSize(10);
 	doc.setFont("helvetica", "normal");
 	doc.setTextColor(115);
-	doc.text(`Invoice No: ${invoice.invoiceNumber}`, 40, 90);
-	doc.text(`Date: ${fmtDate(invoice.date)}`, 40, 104);
-	doc.text(`Due: ${fmtDate(invoice.dueDate)}`, 40, 118);
-	doc.text(`Bill To: ${invoice.customerName}`, 320, 90);
-	doc.text(`Status: ${invoice.status}`, 320, 104);
+	doc.text(`Invoice No: ${invoice.invoiceNumber}`, 40, 90 + dy);
+	doc.text(`Date: ${fmtDate(invoice.date)}`, 40, 104 + dy);
+	doc.text(`Due: ${fmtDate(invoice.dueDate)}`, 40, 118 + dy);
+	doc.text(`Bill To: ${invoice.customerName}`, 320, 90 + dy);
+	doc.text(`Status: ${invoice.status}`, 320, 104 + dy);
 	if (invoice.paymentMode) {
-		doc.text(`Mode: ${invoice.paymentMode.replace(/_/g, " ")}`, 320, 118);
+		doc.text(`Mode: ${invoice.paymentMode.replace(/_/g, " ")}`, 320, 118 + dy);
 	}
 	doc.setTextColor(0);
 
@@ -80,13 +138,13 @@ export async function buildInvoiceDoc(
 						? `${it.description} (${it.taxRateCode})`
 						: it.description,
 					String(it.quantity),
-					rm(it.unitPrice),
-					rm(it.totalPrice),
+					money(it.unitPrice),
+					money(it.totalPrice),
 				])
 			: [["(no itemised breakdown available)", "", "", ""]];
 
 	autoTable(doc, {
-		startY: 140,
+		startY: 140 + dy,
 		head: [["Description", "Qty", "Unit Price", "Amount"]],
 		body: itemRows,
 		theme: "striped",
@@ -108,10 +166,10 @@ export async function buildInvoiceDoc(
 	const balance = invoice.totalAmount - paid;
 	doc.setFontSize(11);
 	doc.setFont("helvetica", "bold");
-	doc.text(`Total: ${rm(invoice.totalAmount)}`, 40, finalY + 28);
+	doc.text(`Total: ${money(invoice.totalAmount)}`, 40, finalY + 28);
 	doc.setFont("helvetica", "normal");
-	doc.text(`Paid: ${rm(paid)}`, 40, finalY + 44);
-	doc.text(`Balance Due: ${rm(balance)}`, 40, finalY + 60);
+	doc.text(`Paid: ${money(paid)}`, 40, finalY + 44);
+	doc.text(`Balance Due: ${money(balance)}`, 40, finalY + 60);
 
 	return doc;
 }

@@ -45,6 +45,12 @@ export const taxRates = pgTable(
 		// "SST" | "GST" | "service_tax" | "withholding_tax" | "tax_exempt" | "custom"
 		category: text("category").notNull().default("SST"),
 
+		// WS3 per-country scoping. Canonical country key = lowercased
+		// country-node name (same key the WS1 currency map uses).
+		// NULL = org-global rate (today's behavior; resolveTaxRate falls
+		// through to the org isDefault for branches with no country match).
+		country: text("country"),
+
 		isActive: boolean("is_active").notNull().default(true),
 
 		// Only ONE tax rate can have isDefault = true at a time.
@@ -71,5 +77,6 @@ export const taxRates = pgTable(
 		isActiveIdx: index("tax_rates_active_idx").on(table.isActive),
 		isDefaultIdx: index("tax_rates_default_idx").on(table.isDefault),
 		categoryIdx: index("tax_rates_category_idx").on(table.category),
+		countryIdx: index("tax_rates_country_idx").on(table.country),
 	}),
 );

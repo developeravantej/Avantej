@@ -15,6 +15,13 @@ export type CreateTaxRateParams = {
 	effectiveFrom: Date;
 	effectiveUntil?: Date;
 	description?: string;
+	/**
+	 * Country scope (lowercased country-node name, e.g. "malaysia"). null/omitted
+	 * means org-wide (applies to every country). Stored dimension only — it does
+	 * not change the org-global getDefaultTaxRate lookup; per-country resolution
+	 * lives in tax.service.resolveTaxRate.
+	 */
+	country?: string | null;
 };
 
 export async function listTaxRates(
@@ -85,6 +92,7 @@ export async function createTaxRate(
 				effectiveFrom: data.effectiveFrom,
 				effectiveUntil: data.effectiveUntil,
 				description: data.description,
+				country: data.country ?? null,
 			})
 			.returning();
 
@@ -138,6 +146,7 @@ export async function updateTaxRate(
 			...(data.description !== undefined && {
 				description: data.description,
 			}),
+			...(data.country !== undefined && { country: data.country }),
 			updatedAt: new Date(),
 		})
 		.where(eq(taxRates.id, id))

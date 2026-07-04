@@ -77,3 +77,28 @@ export async function resolveBranchCurrency(
 		.limit(1);
 	return currencyForCountryName(country?.name);
 }
+
+/**
+ * Resolve a branch's canonical country key (lowercased country-node name) —
+ * the join key used for per-country tax rates (WS3) and the currency map.
+ * Returns null when the branch has no country ancestor.
+ */
+export async function resolveBranchCountryKey(
+	tenantDb: TenantDb,
+	branchNodeId: string,
+): Promise<string | null> {
+	const [branch] = await tenantDb
+		.select({ countryNodeId: hierarchyNodes.countryNodeId })
+		.from(hierarchyNodes)
+		.where(eq(hierarchyNodes.id, branchNodeId))
+		.limit(1);
+	if (!branch?.countryNodeId) return null;
+
+	const [country] = await tenantDb
+		.select({ name: hierarchyNodes.name })
+		.from(hierarchyNodes)
+		.where(eq(hierarchyNodes.id, branch.countryNodeId))
+		.limit(1);
+	const name = country?.name?.trim().toLowerCase();
+	return name ? name : null;
+}

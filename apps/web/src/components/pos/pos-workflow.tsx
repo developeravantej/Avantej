@@ -129,6 +129,10 @@ export function PosWorkflow({
 		null,
 	);
 	const [taxRates, setTaxRates] = useState<TaxRateOption[]>([]);
+	// Tracks whether the cashier explicitly picked a rate. Until they do, the
+	// preview follows the branch-resolved rate (branch override → per-country →
+	// org default); once overridden we stop auto-syncing so their choice sticks.
+	const [taxOverridden, setTaxOverridden] = useState(false);
 
 	useQuery({
 		queryKey: ["tax-rates", organizationId],
@@ -149,18 +153,39 @@ export function PosWorkflow({
 		enabled: !!organizationId,
 	});
 
-	useQuery({
-		queryKey: ["tax-rates-default", organizationId],
+	// Branch-aware default: ask the backend for the rate pos.service would apply
+	// to a sale on the recording branch (branch override → per-country → org
+	// default), so the tax PREVIEW matches what actually gets snapshotted. We
+	// still SEND this resolved id as taxRateId so preview == charged. Re-resolves
+	// when the recording branch changes.
+	const { data: resolvedBranchRate } = useQuery({
+		queryKey: ["tax-rate-resolve", organizationId, resolvedBranchId],
 		queryFn: async () => {
 			if (!organizationId) return null;
-			const rate = await client.taxRates.getDefault({ organizationId });
-			if (rate && !selectedTaxRateId) {
-				setSelectedTaxRateId(rate.id);
-			}
-			return rate;
+			return client.taxRates.resolveForBranch({
+				organizationId,
+				branchId: resolvedBranchId ?? null,
+			});
 		},
 		enabled: !!organizationId,
 	});
+
+	// Sync the selected rate to the branch-resolved rate unless the cashier has
+	// overridden it. A plain effect (not a queryFn side-effect) means clearing
+	// the override after a sale re-seeds the preview from the cached resolved
+	// rate — no refetch needed, so preview stays == charged.
+	useEffect(() => {
+		if (resolvedBranchRate && !taxOverridden) {
+			setSelectedTaxRateId(resolvedBranchRate.id);
+		}
+	}, [resolvedBranchRate, taxOverridden]);
+
+	// Cashier explicitly overriding the rate — pins their choice so the
+	// branch-resolve query above stops re-syncing selectedTaxRateId.
+	const handleTaxRateChange = useCallback((id: string | null) => {
+		setTaxOverridden(true);
+		setSelectedTaxRateId(id);
+	}, []);
 
 	const selectedTaxRate = taxRates.find((r) => r.id === selectedTaxRateId);
 	const taxRateBps = selectedTaxRate?.rateInBasisPoints ?? 0;
@@ -564,6 +589,12 @@ export function PosWorkflow({
 			// Reset attribution — soldBy re-defaults to current member via the useEffect above
 			setSoldBy(null);
 			setLeadSourceUserId(null);
+			// WS3: clear any cashier tax override so the next sale uses the
+			// branch's own rate. The sync effect above re-seeds selectedTaxRateId
+			// from the cached branch-resolved rate (preview stays == charged); a
+			// sticky override would otherwise silently tax the next, possibly
+			// different-branch, sale at the previous rate.
+			setTaxOverridden(false);
 			setCurrentStep(hideCustomerStep || prefillCustomerId ? 1 : 0);
 			// Keep selectedCustomer if customer is prefilled/locked
 			if (!hideCustomerStep && !prefillCustomerId) setSelectedCustomer(null);
@@ -720,7 +751,7 @@ export function PosWorkflow({
 							onUpdateItem={handleUpdateItem}
 							onRemoveItem={handleRemoveItem}
 							onTrainerAssignmentsChange={setTrainerAssignments}
-							onTaxRateChange={setSelectedTaxRateId}
+							onTaxRateChange={handleTaxRateChange}
 							onNotesChange={setNotes}
 							onContinue={handleNext}
 						/>

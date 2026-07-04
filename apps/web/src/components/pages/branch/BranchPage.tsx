@@ -48,6 +48,13 @@ export function BranchPage() {
 	const [editCountryId, setEditCountryId] = useState("");
 	const [editRegionId, setEditRegionId] = useState("");
 	const [editAreaId, setEditAreaId] = useState("");
+	// WS3 branch company/tax profile edit state (branches only).
+	const [editCompanyLegalName, setEditCompanyLegalName] = useState("");
+	const [editRegistrationNumber, setEditRegistrationNumber] = useState("");
+	const [editTaxId, setEditTaxId] = useState("");
+	const [editInvoicePrefix, setEditInvoicePrefix] = useState("");
+	const [editReceiptPrefix, setEditReceiptPrefix] = useState("");
+	const [editBranchTaxRateId, setEditBranchTaxRateId] = useState("");
 	const [allNodes, setAllNodes] = useState<HierarchyNode[]>([]);
 
 	// Tree expand state
@@ -104,6 +111,68 @@ export function BranchPage() {
 		() => (selectedNodeId ? buildBreadcrumb(selectedNodeId, nodeById) : []),
 		[selectedNodeId, nodeById],
 	);
+
+	// ── Tax rates (WS3 branch override dropdown + name resolution) ────────────
+	const { data: taxRatesData } = useQuery({
+		...orpc.taxRates.list.queryOptions({
+			input: { organizationId: organizationId! },
+		}),
+		enabled: !!organizationId && isAuthenticated,
+		staleTime: 60_000,
+	});
+	const taxRates = useMemo(
+		() =>
+			(taxRatesData ?? []).map((r) => ({
+				id: r.id,
+				name: r.name,
+				rateInBasisPoints: r.rateInBasisPoints,
+			})),
+		[taxRatesData],
+	);
+
+	// ── Branch company/tax profile for the selected branch (WS3) ──────────────
+	// listNodesWithStats omits these columns, so the detail panel + edit prefill
+	// read them from getBranchDetails for the selected branch.
+	const { data: selectedBranchDetails } = useQuery({
+		...orpc.hierarchy.getBranchDetails.queryOptions({
+			input: { organizationId: organizationId!, nodeId: selectedNodeId! },
+		}),
+		enabled:
+			!!organizationId &&
+			isAuthenticated &&
+			!!selectedNodeId &&
+			selectedNode?.type === "branch",
+		staleTime: 30_000,
+	});
+
+	// Merge the fetched profile into the selected node so the detail panel and
+	// edit dialog see the WS3 fields (and the real address, which stats omit).
+	const enrichedSelectedNode = useMemo<NodeWithStats | null>(() => {
+		if (!selectedNode) return null;
+		if (
+			selectedNode.type === "branch" &&
+			selectedBranchDetails &&
+			selectedBranchDetails.nodeId === selectedNode.id
+		) {
+			return {
+				...selectedNode,
+				address: selectedBranchDetails.address ?? selectedNode.address,
+				companyLegalName: selectedBranchDetails.companyLegalName,
+				registrationNumber: selectedBranchDetails.registrationNumber,
+				taxId: selectedBranchDetails.taxId,
+				invoicePrefix: selectedBranchDetails.invoicePrefix,
+				receiptPrefix: selectedBranchDetails.receiptPrefix,
+				branchTaxRateId: selectedBranchDetails.branchTaxRateId,
+			};
+		}
+		return selectedNode;
+	}, [selectedNode, selectedBranchDetails]);
+
+	const taxRateName = useMemo(() => {
+		const id = enrichedSelectedNode?.branchTaxRateId;
+		if (!id) return null;
+		return taxRates.find((r) => r.id === id)?.name ?? null;
+	}, [enrichedSelectedNode, taxRates]);
 
 	// ── Auto-select first root on load ────────────────────────────────────────
 	useEffect(() => {
@@ -198,11 +267,23 @@ export function BranchPage() {
 			name,
 			address,
 			picUserId,
+			companyLegalName,
+			registrationNumber,
+			taxId,
+			invoicePrefix,
+			receiptPrefix,
+			branchTaxRateId,
 		}: {
 			nodeId: string;
 			name?: string;
 			address?: string | null;
 			picUserId?: string | null;
+			companyLegalName?: string | null;
+			registrationNumber?: string | null;
+			taxId?: string | null;
+			invoicePrefix?: string | null;
+			receiptPrefix?: string | null;
+			branchTaxRateId?: string | null;
 		}) => {
 			if (!organizationId) throw new Error("Organization ID required");
 			return client.hierarchy.updateNode({
@@ -211,11 +292,21 @@ export function BranchPage() {
 				name,
 				address,
 				picUserId,
+				companyLegalName,
+				registrationNumber,
+				taxId,
+				invoicePrefix,
+				receiptPrefix,
+				branchTaxRateId,
 			});
 		},
 		successMessage: false,
 		errorMessage: (err) => `Failed to update: ${err.message}`,
-		invalidate: [orpc.hierarchy.listNodesWithStats.key(), ["user-context"]],
+		invalidate: [
+			orpc.hierarchy.listNodesWithStats.key(),
+			orpc.hierarchy.getBranchDetails.key(),
+			["user-context"],
+		],
 	});
 
 	const moveMutation = useApiMutation({
@@ -293,6 +384,13 @@ export function BranchPage() {
 			setEditCountryId(parentCountry?.id ?? "");
 			setEditRegionId(parentRegion?.id ?? "");
 			setEditAreaId(parentArea?.id ?? "");
+			// WS3 company/tax profile (present on the enriched branch node).
+			setEditCompanyLegalName(node.companyLegalName ?? "");
+			setEditRegistrationNumber(node.registrationNumber ?? "");
+			setEditTaxId(node.taxId ?? "");
+			setEditInvoicePrefix(node.invoicePrefix ?? "");
+			setEditReceiptPrefix(node.receiptPrefix ?? "");
+			setEditBranchTaxRateId(node.branchTaxRateId ?? "");
 			setIsEditDialogOpen(true);
 		},
 		[allNodes, hierarchyNodesData],
@@ -314,23 +412,71 @@ export function BranchPage() {
 		const picChanged = !!trimPic;
 		const areaChanged = editAreaId && editAreaId !== editingNode.parentId;
 
-		if (!nameChanged && !addressChanged && !picChanged && !areaChanged) {
+		// WS3 company/tax profile — branches only.
+		const isBranch = editingNode.type === "branch";
+		const trimCompany = editCompanyLegalName.trim();
+		const trimReg = editRegistrationNumber.trim();
+		const trimTaxId = editTaxId.trim();
+		const trimInvoicePrefix = editInvoicePrefix.trim();
+		const trimReceiptPrefix = editReceiptPrefix.trim();
+		const companyChanged =
+			isBranch && trimCompany !== (editingNode.companyLegalName ?? "");
+		const regChanged =
+			isBranch && trimReg !== (editingNode.registrationNumber ?? "");
+		const taxIdChanged = isBranch && trimTaxId !== (editingNode.taxId ?? "");
+		const invoicePrefixChanged =
+			isBranch && trimInvoicePrefix !== (editingNode.invoicePrefix ?? "");
+		const receiptPrefixChanged =
+			isBranch && trimReceiptPrefix !== (editingNode.receiptPrefix ?? "");
+		const taxRateChanged =
+			isBranch && editBranchTaxRateId !== (editingNode.branchTaxRateId ?? "");
+
+		const profileChanged =
+			companyChanged ||
+			regChanged ||
+			taxIdChanged ||
+			invoicePrefixChanged ||
+			receiptPrefixChanged ||
+			taxRateChanged;
+
+		if (
+			!nameChanged &&
+			!addressChanged &&
+			!picChanged &&
+			!areaChanged &&
+			!profileChanged
+		) {
 			toast.info("No changes made");
 			setIsEditDialogOpen(false);
 			return;
 		}
 
 		try {
-			if (nameChanged || addressChanged || picChanged) {
+			if (nameChanged || addressChanged || picChanged || profileChanged) {
 				const params: {
 					nodeId: string;
 					name?: string;
 					address?: string | null;
 					picUserId?: string | null;
+					companyLegalName?: string | null;
+					registrationNumber?: string | null;
+					taxId?: string | null;
+					invoicePrefix?: string | null;
+					receiptPrefix?: string | null;
+					branchTaxRateId?: string | null;
 				} = { nodeId: editingNode.id };
 				if (nameChanged) params.name = trimName;
 				if (addressChanged) params.address = trimAddress || null;
 				if (picChanged) params.picUserId = trimPic || null;
+				if (companyChanged) params.companyLegalName = trimCompany || null;
+				if (regChanged) params.registrationNumber = trimReg || null;
+				if (taxIdChanged) params.taxId = trimTaxId || null;
+				if (invoicePrefixChanged)
+					params.invoicePrefix = trimInvoicePrefix || null;
+				if (receiptPrefixChanged)
+					params.receiptPrefix = trimReceiptPrefix || null;
+				if (taxRateChanged)
+					params.branchTaxRateId = editBranchTaxRateId || null;
 				await updateMutation.mutateAsync(params);
 			}
 
@@ -358,6 +504,12 @@ export function BranchPage() {
 		editAddress,
 		editPicUserId,
 		editAreaId,
+		editCompanyLegalName,
+		editRegistrationNumber,
+		editTaxId,
+		editInvoicePrefix,
+		editReceiptPrefix,
+		editBranchTaxRateId,
 		updateMutation,
 		moveMutation,
 		organizationId,
@@ -487,14 +639,15 @@ export function BranchPage() {
 
 				{/* Detail panel */}
 				<div className="flex-1 min-w-0 overflow-hidden">
-					{selectedNode ? (
+					{selectedNode && enrichedSelectedNode ? (
 						<NodeDetailPanel
-							node={selectedNode}
+							node={enrichedSelectedNode}
 							breadcrumb={breadcrumb}
-							onEdit={() => handleOpenEdit(selectedNode)}
+							onEdit={() => handleOpenEdit(enrichedSelectedNode)}
 							onDelete={() => setDeletingNode(selectedNode)}
 							canDelete={canDelete}
 							isDeleting={deleteMutation.isPending}
+							taxRateName={taxRateName}
 						/>
 					) : (
 						<div className="flex h-full items-center justify-center rounded-2xl border border-[#e5e5e5] bg-white text-sm text-[#737373]">
@@ -526,6 +679,19 @@ export function BranchPage() {
 				setEditRegionId={setEditRegionId}
 				editAreaId={editAreaId}
 				setEditAreaId={setEditAreaId}
+				editCompanyLegalName={editCompanyLegalName}
+				setEditCompanyLegalName={setEditCompanyLegalName}
+				editRegistrationNumber={editRegistrationNumber}
+				setEditRegistrationNumber={setEditRegistrationNumber}
+				editTaxId={editTaxId}
+				setEditTaxId={setEditTaxId}
+				editInvoicePrefix={editInvoicePrefix}
+				setEditInvoicePrefix={setEditInvoicePrefix}
+				editReceiptPrefix={editReceiptPrefix}
+				setEditReceiptPrefix={setEditReceiptPrefix}
+				editBranchTaxRateId={editBranchTaxRateId}
+				setEditBranchTaxRateId={setEditBranchTaxRateId}
+				taxRates={taxRates}
 				allNodes={allNodes}
 				countries={countries}
 				regions={regions}

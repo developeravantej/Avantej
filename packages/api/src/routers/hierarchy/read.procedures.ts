@@ -2,6 +2,7 @@ import {
 	getDescendantNodeIds,
 	listNodesWithStats,
 } from "@avantej-core/services";
+import { getBranchDetails } from "@avantej-core/services/hierarchy.service";
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { branchDetails } from "@avantej-core/db/schema/tenant/branch-details";
 import { eq, inArray } from "drizzle-orm";
@@ -328,5 +329,53 @@ export const hierarchyReadProcedures = {
 							: "Failed to list nodes with stats",
 				});
 			}
+		}),
+
+	/**
+	 * Get the full branch_details profile for a branch node (WS3 company/tax).
+	 *
+	 * listNodesWithStats omits these columns (and hardcodes address: null), so
+	 * the branch detail panel + edit dialog read them here. Returns null when
+	 * the branch has no details row yet.
+	 *
+	 * RBAC: requires hierarchy_management:read + node accessibility.
+	 */
+	getBranchDetails: tenantProcedure
+		.input(
+			z.object({
+				organizationId: z.string().uuid(),
+				nodeId: z.string().uuid(),
+			}),
+		)
+		.handler(async ({ input, context }) => {
+			assertOrgContextMatch(context, input);
+			const {
+				tenantDb,
+				member,
+				accessibleNodeIds: contextAccessibleNodeIds,
+			} = context;
+
+			// Check permission
+			await requirePermissionOrpc(
+				tenantDb,
+				member,
+				"hierarchy_management",
+				"read",
+			);
+
+			const accessibleNodeIds =
+				contextAccessibleNodeIds ||
+				(member
+					? await getDescendantNodeIds(tenantDb, member.hierarchyScopeId)
+					: []);
+
+			// Check if user can access this node
+			if (!accessibleNodeIds.includes(input.nodeId)) {
+				throw new ORPCError("FORBIDDEN", {
+					message: "User does not have access to this node",
+				});
+			}
+
+			return getBranchDetails(tenantDb, input.nodeId);
 		}),
 };

@@ -16,6 +16,7 @@ export * from "./appointment-staff";
 export * from "./appointments";
 export * from "./audit-logs";
 export * from "./branch-details";
+export * from "./branch-number-sequences";
 export * from "./brands";
 export * from "./account-groups";
 export * from "./check-ins";

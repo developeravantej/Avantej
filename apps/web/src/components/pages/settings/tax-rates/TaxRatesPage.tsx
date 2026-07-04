@@ -30,6 +30,8 @@ import {
 	type FormState,
 	EMPTY_FORM,
 	CATEGORY_LABELS,
+	COUNTRY_OPTIONS,
+	COUNTRY_LABELS,
 } from "./types";
 import { formatDate, toDateInputValue } from "./helpers";
 
@@ -77,6 +79,7 @@ export function TaxRatesPage() {
 					: undefined,
 				description: values.description || undefined,
 				isDefault: values.isDefault,
+				country: values.country ? values.country : null,
 			});
 		},
 		successMessage: "Tax rate created successfully.",
@@ -100,6 +103,7 @@ export function TaxRatesPage() {
 					? new Date(values.effectiveUntil).toISOString()
 					: undefined,
 				description: values.description || undefined,
+				country: values.country ? values.country : null,
 			});
 		},
 		successMessage: "Tax rate updated successfully.",
@@ -153,6 +157,7 @@ export function TaxRatesPage() {
 			effectiveUntil: toDateInputValue(row.effectiveUntil),
 			description: row.description ?? "",
 			isDefault: row.isDefault,
+			country: row.country ?? "",
 		});
 		setSheetOpen(true);
 	}
@@ -207,6 +212,7 @@ export function TaxRatesPage() {
 		description: item.description ?? null,
 		isActive: item.isActive ?? true,
 		createdAt: item.createdAt ? String(item.createdAt) : "",
+		country: item.country ?? null,
 	}));
 
 	const rows = allRows.filter((r) => {
@@ -361,6 +367,7 @@ export function TaxRatesPage() {
 									"Name",
 									"Rate",
 									"Category",
+									"Country",
 									"Effective From",
 									"Effective To",
 									"Status",
@@ -408,6 +415,17 @@ export function TaxRatesPage() {
 										>
 											{CATEGORY_LABELS[row.category] ?? row.category}
 										</span>
+									</td>
+
+									{/* Country */}
+									<td className="px-3.5 py-3 align-middle">
+										{row.country ? (
+											<span className="text-[13px] text-[#0a0a0a]">
+												{COUNTRY_LABELS[row.country] ?? row.country}
+											</span>
+										) : (
+											<span className="text-xs text-[#6b7170]">Org-wide</span>
+										)}
 									</td>
 
 									{/* Effective From */}
@@ -644,6 +662,43 @@ export function TaxRatesPage() {
 										)}
 									</SelectContent>
 								</Select>
+							</div>
+
+							{/* Country */}
+							<div>
+								<label
+									htmlFor="tr-country"
+									className="block text-sm font-medium text-[#0a0a0a] mb-1.5"
+								>
+									Country
+								</label>
+								<Select
+									value={form.country || "__org__"}
+									onValueChange={(v) =>
+										setForm((f) => ({
+											...f,
+											country: v === "__org__" ? "" : v,
+										}))
+									}
+								>
+									<SelectTrigger id="tr-country" className="w-full">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="__org__">
+											Org-wide (all countries)
+										</SelectItem>
+										{COUNTRY_OPTIONS.map((opt) => (
+											<SelectItem key={opt.value} value={opt.value}>
+												{opt.label}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								<p className="text-xs text-[#737373] mt-1">
+									Scope this rate to one country, or leave org-wide to apply
+									everywhere. Branch sales resolve their rate by country.
+								</p>
 							</div>
 
 							{/* Date range */}

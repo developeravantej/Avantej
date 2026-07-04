@@ -5,6 +5,7 @@ import {
 	BarChart2,
 	Trash2,
 	Loader2,
+	Building2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ export function NodeDetailPanel({
 	onDelete,
 	canDelete,
 	isDeleting,
+	taxRateName,
 }: {
 	node: NodeWithStats;
 	breadcrumb: string[];
@@ -30,9 +32,23 @@ export function NodeDetailPanel({
 	onDelete: () => void;
 	canDelete: boolean;
 	isDeleting: boolean;
+	/** Resolved name of the branch's tax-rate override (WS3), if any. */
+	taxRateName?: string | null;
 }) {
 	// The organization root can never be deleted; only countries/states/branches.
 	const isOrgRoot = node.type === "organization";
+
+	// WS3 company/tax profile — only shown for branches that have any set.
+	const hasCompanyTax =
+		node.type === "branch" &&
+		!!(
+			node.companyLegalName ||
+			node.registrationNumber ||
+			node.taxId ||
+			node.invoicePrefix ||
+			node.receiptPrefix ||
+			node.branchTaxRateId
+		);
 	const membersValue =
 		node.membersCount != null ? String(node.membersCount) : "—";
 	const staffValue = node.staffCount != null ? String(node.staffCount) : "—";
@@ -102,6 +118,66 @@ export function NodeDetailPanel({
 					</div>
 					<OpeningHoursTable hours={node.openingHours} />
 				</div>
+
+				{/* Company & Tax card (WS3) — branches with a profile only */}
+				{hasCompanyTax && (
+					<div className="rounded-2xl border border-[#e5e5e5] bg-white p-4">
+						<div className="flex items-center gap-2 mb-3">
+							<Building2 className="h-3.5 w-3.5 text-[#737373]" />
+							<p className="text-sm font-semibold text-[#0a0a0a]">
+								Company &amp; Tax
+							</p>
+						</div>
+						<dl className="space-y-2 text-sm">
+							{node.companyLegalName && (
+								<div className="flex justify-between gap-4">
+									<dt className="text-[#737373] shrink-0">Legal name</dt>
+									<dd className="text-[#0a0a0a] text-right">
+										{node.companyLegalName}
+									</dd>
+								</div>
+							)}
+							{node.registrationNumber && (
+								<div className="flex justify-between gap-4">
+									<dt className="text-[#737373] shrink-0">Registration no.</dt>
+									<dd className="text-[#0a0a0a] text-right">
+										{node.registrationNumber}
+									</dd>
+								</div>
+							)}
+							{node.taxId && (
+								<div className="flex justify-between gap-4">
+									<dt className="text-[#737373] shrink-0">Tax ID</dt>
+									<dd className="text-[#0a0a0a] text-right">{node.taxId}</dd>
+								</div>
+							)}
+							{node.invoicePrefix && (
+								<div className="flex justify-between gap-4">
+									<dt className="text-[#737373] shrink-0">Invoice prefix</dt>
+									<dd className="text-[#0a0a0a] text-right font-mono text-xs">
+										{node.invoicePrefix}
+									</dd>
+								</div>
+							)}
+							{node.receiptPrefix && (
+								<div className="flex justify-between gap-4">
+									<dt className="text-[#737373] shrink-0">Receipt prefix</dt>
+									<dd className="text-[#0a0a0a] text-right font-mono text-xs">
+										{node.receiptPrefix}
+									</dd>
+								</div>
+							)}
+							{node.branchTaxRateId && (
+								<div className="flex justify-between gap-4">
+									<dt className="text-[#737373] shrink-0">Tax rate</dt>
+									<dd className="text-[#0a0a0a] text-right">
+										{taxRateName ?? "Custom override"}
+									</dd>
+								</div>
+							)}
+						</dl>
+					</div>
+				)}
 
 				{/* Stale warning */}
 				{node.stale && (

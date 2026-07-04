@@ -587,6 +587,12 @@ export {
 } from "./tax.service";
 // #endregion
 
+// WS3 (MOVE parity) — opt-in gapless per-branch document numbering
+export {
+	type BranchDocType,
+	nextBranchDocNumber,
+} from "./numbering.service";
+
 // #region Agent 2.11 — goods-receipt 3-way match (schema-relationship-fixes §8.5)
 export * from "./goods-receipt.service";
 // #endregion

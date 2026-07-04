@@ -30,12 +30,26 @@ export interface CreateHierarchyNodeParams {
 	parentId?: string | null;
 	address?: string | null; // Branch-specific: physical address
 	picUserId?: string | null; // Branch-specific: Person In Charge user ID
+	// WS3 branch company/tax profile (branch-specific, all optional).
+	companyLegalName?: string | null;
+	registrationNumber?: string | null;
+	taxId?: string | null;
+	invoicePrefix?: string | null;
+	receiptPrefix?: string | null;
+	branchTaxRateId?: string | null;
 }
 
 export interface UpdateHierarchyNodeParams {
 	name?: string;
 	address?: string | null;
 	picUserId?: string | null;
+	// WS3 branch company/tax profile (branch-specific, all optional).
+	companyLegalName?: string | null;
+	registrationNumber?: string | null;
+	taxId?: string | null;
+	invoicePrefix?: string | null;
+	receiptPrefix?: string | null;
+	branchTaxRateId?: string | null;
 }
 
 /**

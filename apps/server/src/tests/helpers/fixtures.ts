@@ -192,6 +192,7 @@ export function makeTaxRate(overrides: Partial<Record<string, unknown>> = {}) {
 		code: "SST08",
 		rateInBasisPoints: 800, // 8.00%
 		category: "SST",
+		country: null, // WS3: per-country scoping (null = org-wide)
 		description: null,
 		isDefault: false,
 		isActive: true,

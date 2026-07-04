@@ -188,7 +188,19 @@ export async function createHierarchyNode(
 	tenantDb: NeonDatabase<typeof tenantSchema>,
 	params: CreateHierarchyNodeParams,
 ) {
-	const { type, name, parentId, address, picUserId } = params;
+	const {
+		type,
+		name,
+		parentId,
+		address,
+		picUserId,
+		companyLegalName,
+		registrationNumber,
+		taxId,
+		invoicePrefix,
+		receiptPrefix,
+		branchTaxRateId,
+	} = params;
 	const depth = getDepthForType(type);
 
 	// Resolve country_node_id (Phase G0 denorm).
@@ -239,12 +251,28 @@ export async function createHierarchyNode(
 
 		// Phase H2: branch-specific data lives in branch_details (split off
 		// hierarchy_nodes). Insert lazily — only when at least one branch
-		// attribute was supplied.
-		if (type === "branch" && (address || picUserId)) {
+		// attribute was supplied (incl. WS3 company/tax profile).
+		if (
+			type === "branch" &&
+			(address ||
+				picUserId ||
+				companyLegalName ||
+				registrationNumber ||
+				taxId ||
+				invoicePrefix ||
+				receiptPrefix ||
+				branchTaxRateId)
+		) {
 			await tenantDb.insert(branchDetails).values({
 				nodeId: node.id,
-				address: address || null,
-				picUserId: picUserId || null,
+				address: address?.trim() || null,
+				picUserId: picUserId?.trim() || null,
+				companyLegalName: companyLegalName?.trim() || null,
+				registrationNumber: registrationNumber?.trim() || null,
+				taxId: taxId?.trim() || null,
+				invoicePrefix: invoicePrefix?.trim() || null,
+				receiptPrefix: receiptPrefix?.trim() || null,
+				branchTaxRateId: branchTaxRateId || null,
 				createdAt: new Date(),
 				updatedAt: new Date(),
 			});
@@ -288,13 +316,31 @@ export async function updateHierarchyNode(
 		throw new Error("Node ID is required");
 	}
 
-	const { name, address, picUserId } = params;
+	const {
+		name,
+		address,
+		picUserId,
+		companyLegalName,
+		registrationNumber,
+		taxId,
+		invoicePrefix,
+		receiptPrefix,
+		branchTaxRateId,
+	} = params;
 
 	// At least one field must be provided
-	if (name === undefined && address === undefined && picUserId === undefined) {
-		throw new Error(
-			"At least one field (name, address, picUserId) must be provided",
-		);
+	if (
+		name === undefined &&
+		address === undefined &&
+		picUserId === undefined &&
+		companyLegalName === undefined &&
+		registrationNumber === undefined &&
+		taxId === undefined &&
+		invoicePrefix === undefined &&
+		receiptPrefix === undefined &&
+		branchTaxRateId === undefined
+	) {
+		throw new Error("At least one field must be provided");
 	}
 
 	// Validate name if provided
@@ -397,15 +443,31 @@ export async function updateHierarchyNode(
 		}
 
 		// Phase H2: branch-specific updates routed to branch_details.
-		if (address !== undefined || picUserId !== undefined) {
+		// WS3: also carries the per-branch company/tax profile.
+		const hasBranchDetailUpdate =
+			address !== undefined ||
+			picUserId !== undefined ||
+			companyLegalName !== undefined ||
+			registrationNumber !== undefined ||
+			taxId !== undefined ||
+			invoicePrefix !== undefined ||
+			receiptPrefix !== undefined ||
+			branchTaxRateId !== undefined;
+		if (hasBranchDetailUpdate) {
 			if (node.type !== "branch") {
 				throw new Error(
-					`Cannot set address or picUserId on a ${node.type} node — only branches have those fields.`,
+					`Cannot set branch profile fields on a ${node.type} node — only branches have those fields.`,
 				);
 			}
 			const detailsUpdate: {
 				address?: string | null;
 				picUserId?: string | null;
+				companyLegalName?: string | null;
+				registrationNumber?: string | null;
+				taxId?: string | null;
+				invoicePrefix?: string | null;
+				receiptPrefix?: string | null;
+				branchTaxRateId?: string | null;
 				updatedAt: Date;
 			} = { updatedAt: new Date() };
 			if (address !== undefined) {
@@ -414,6 +476,55 @@ export async function updateHierarchyNode(
 			if (picUserId !== undefined) {
 				detailsUpdate.picUserId = picUserId?.trim() || null;
 			}
+			if (companyLegalName !== undefined) {
+				detailsUpdate.companyLegalName = companyLegalName?.trim() || null;
+			}
+			if (registrationNumber !== undefined) {
+				detailsUpdate.registrationNumber = registrationNumber?.trim() || null;
+			}
+			if (taxId !== undefined) {
+				detailsUpdate.taxId = taxId?.trim() || null;
+			}
+			if (invoicePrefix !== undefined) {
+				detailsUpdate.invoicePrefix = invoicePrefix?.trim() || null;
+			}
+			if (receiptPrefix !== undefined) {
+				detailsUpdate.receiptPrefix = receiptPrefix?.trim() || null;
+			}
+			if (branchTaxRateId !== undefined) {
+				detailsUpdate.branchTaxRateId = branchTaxRateId || null;
+			}
+			// WS3: reject a prefix already used by another branch (friendly error
+			// ahead of the DB partial-unique index). Two branches sharing a prefix
+			// would mint identical document numbers and roll the sale back.
+			if (detailsUpdate.invoicePrefix) {
+				const clash = await tenantDb.query.branchDetails.findFirst({
+					where: (bd, { and, eq, ne }) =>
+						and(
+							eq(bd.invoicePrefix, detailsUpdate.invoicePrefix as string),
+							ne(bd.nodeId, nodeId),
+						),
+				});
+				if (clash) {
+					throw new Error(
+						`Invoice prefix "${detailsUpdate.invoicePrefix}" is already used by another branch. Each branch needs a unique invoice prefix.`,
+					);
+				}
+			}
+			if (detailsUpdate.receiptPrefix) {
+				const clash = await tenantDb.query.branchDetails.findFirst({
+					where: (bd, { and, eq, ne }) =>
+						and(
+							eq(bd.receiptPrefix, detailsUpdate.receiptPrefix as string),
+							ne(bd.nodeId, nodeId),
+						),
+				});
+				if (clash) {
+					throw new Error(
+						`Receipt prefix "${detailsUpdate.receiptPrefix}" is already used by another branch. Each branch needs a unique receipt prefix.`,
+					);
+				}
+			}
 			// Upsert: insert if no row yet, update otherwise.
 			await tenantDb
 				.insert(branchDetails)
@@ -421,6 +532,12 @@ export async function updateHierarchyNode(
 					nodeId,
 					address: detailsUpdate.address ?? null,
 					picUserId: detailsUpdate.picUserId ?? null,
+					companyLegalName: detailsUpdate.companyLegalName ?? null,
+					registrationNumber: detailsUpdate.registrationNumber ?? null,
+					taxId: detailsUpdate.taxId ?? null,
+					invoicePrefix: detailsUpdate.invoicePrefix ?? null,
+					receiptPrefix: detailsUpdate.receiptPrefix ?? null,
+					branchTaxRateId: detailsUpdate.branchTaxRateId ?? null,
 					createdAt: new Date(),
 					updatedAt: detailsUpdate.updatedAt,
 				})
@@ -436,6 +553,62 @@ export async function updateHierarchyNode(
 			`Failed to update hierarchy node: ${error instanceof Error ? error.message : "Unknown error"}`,
 		);
 	}
+}
+
+/**
+ * Full branch_details row shape (all columns).
+ */
+export interface BranchDetailsRow {
+	nodeId: string;
+	address: string | null;
+	picUserId: string | null;
+	currency: string | null;
+	companyLegalName: string | null;
+	registrationNumber: string | null;
+	taxId: string | null;
+	invoicePrefix: string | null;
+	receiptPrefix: string | null;
+	branchTaxRateId: string | null;
+}
+
+/**
+ * Read the full branch_details row for a node (all columns), or null when the
+ * branch has no details row yet.
+ *
+ * listNodesWithStats intentionally omits these columns (and hardcodes
+ * address: null), so the branch detail panel + edit prefill read the WS3
+ * company/tax profile here instead.
+ *
+ * @param tenantDb - Drizzle client for the tenant database
+ * @param nodeId - UUID of the branch node
+ * @returns The branch_details row, or null if none exists
+ */
+export async function getBranchDetails(
+	tenantDb: NeonDatabase<typeof tenantSchema>,
+	nodeId: string,
+): Promise<BranchDetailsRow | null> {
+	if (!nodeId) {
+		throw new Error("Node ID is required");
+	}
+
+	const row = await tenantDb.query.branchDetails.findFirst({
+		where: eq(branchDetails.nodeId, nodeId),
+	});
+
+	if (!row) return null;
+
+	return {
+		nodeId: row.nodeId,
+		address: row.address ?? null,
+		picUserId: row.picUserId ?? null,
+		currency: row.currency ?? null,
+		companyLegalName: row.companyLegalName ?? null,
+		registrationNumber: row.registrationNumber ?? null,
+		taxId: row.taxId ?? null,
+		invoicePrefix: row.invoicePrefix ?? null,
+		receiptPrefix: row.receiptPrefix ?? null,
+		branchTaxRateId: row.branchTaxRateId ?? null,
+	};
 }
 
 /**
