@@ -593,6 +593,12 @@ export {
 	nextBranchDocNumber,
 } from "./numbering.service";
 
+// WS4 (MOVE parity) — appointment auto-complete (routes through updateAppointment)
+export {
+	type AutoCompleteResult,
+	autoCompleteOverdueAppointments,
+} from "./appointment-autocomplete.service";
+
 // #region Agent 2.11 — goods-receipt 3-way match (schema-relationship-fixes §8.5)
 export * from "./goods-receipt.service";
 // #endregion

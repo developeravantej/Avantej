@@ -9,6 +9,41 @@ interface DayViewProps {
 	dayAppts: CalendarAppointment[];
 	onSelectAppt: (appt: CalendarAppointment) => void;
 	onMarkAttendance: (apptId: string) => void;
+	/** Currently selected appointment ids (bulk-select). Omit to disable select. */
+	selectedIds?: Set<string>;
+	/** Toggle selection for a row. Omit to hide checkboxes entirely. */
+	onToggleSelect?: (id: string) => void;
+}
+
+// Virtual recurrence occurrences carry synthetic, non-uuid ids ("virtual__…")
+// that the bulk endpoint rejects — they are never selectable.
+function isSelectable(id: string) {
+	return !id.startsWith("virtual__");
+}
+
+function RowCheckbox({
+	id,
+	selectedIds,
+	onToggleSelect,
+}: {
+	id: string;
+	selectedIds?: Set<string>;
+	onToggleSelect?: (id: string) => void;
+}) {
+	if (!onToggleSelect || !isSelectable(id)) return null;
+	return (
+		<input
+			type="checkbox"
+			checked={selectedIds?.has(id) ?? false}
+			aria-label="Select appointment"
+			onClick={(e) => e.stopPropagation()}
+			onChange={(e) => {
+				e.stopPropagation();
+				onToggleSelect(id);
+			}}
+			className="size-4 shrink-0 cursor-pointer accent-[#0a0a0a]"
+		/>
+	);
 }
 
 // ── Time-band grouping ────────────────────────────────────────────────────────
@@ -68,10 +103,14 @@ function AppointmentRow({
 	appt,
 	onSelectAppt,
 	onMarkAttendance,
+	selectedIds,
+	onToggleSelect,
 }: {
 	appt: CalendarAppointment;
 	onSelectAppt: (appt: CalendarAppointment) => void;
 	onMarkAttendance: (id: string) => void;
+	selectedIds?: Set<string>;
+	onToggleSelect?: (id: string) => void;
 }) {
 	const cfg = STATUS[appt.status];
 	const start = new Date(appt.start);
@@ -89,6 +128,12 @@ function AppointmentRow({
 			}}
 			className="flex cursor-pointer items-center gap-4 rounded-xl border border-[#edede4] bg-white p-4 transition-shadow hover:shadow-sm"
 		>
+			<RowCheckbox
+				id={appt.id}
+				selectedIds={selectedIds}
+				onToggleSelect={onToggleSelect}
+			/>
+
 			{/* Time column */}
 			<div className="flex w-20 shrink-0 flex-col text-center">
 				<span className="font-mono tabular-nums text-sm font-semibold text-[#0a0a0a]">
@@ -155,6 +200,8 @@ export function DayAgendaView({
 	dayAppts,
 	onSelectAppt,
 	onMarkAttendance,
+	selectedIds,
+	onToggleSelect,
 }: DayViewProps) {
 	const byBand = groupByBand(dayAppts);
 
@@ -195,6 +242,8 @@ export function DayAgendaView({
 									appt={appt}
 									onSelectAppt={onSelectAppt}
 									onMarkAttendance={onMarkAttendance}
+									selectedIds={selectedIds}
+									onToggleSelect={onToggleSelect}
 								/>
 							))}
 						</div>
@@ -211,6 +260,8 @@ export function DayListView({
 	dayAppts,
 	onSelectAppt,
 	onMarkAttendance,
+	selectedIds,
+	onToggleSelect,
 }: DayViewProps) {
 	return (
 		<div className="space-y-2.5 pl-1">
@@ -232,6 +283,18 @@ export function DayListView({
 						className="flex flex-col rounded-xl bg-white shadow-sm hover:shadow-md transition-all duration-150 overflow-hidden cursor-pointer"
 					>
 						<div className="flex items-stretch">
+							{onToggleSelect && isSelectable(appt.id) && (
+								<div
+									className="flex items-center pl-4"
+									onClick={(e) => e.stopPropagation()}
+								>
+									<RowCheckbox
+										id={appt.id}
+										selectedIds={selectedIds}
+										onToggleSelect={onToggleSelect}
+									/>
+								</div>
+							)}
 							<div className="flex flex-col items-center justify-center px-5 py-4 min-w-[88px] shrink-0 bg-zinc-50/60">
 								<span className="text-sm font-bold text-zinc-800">
 									{formatTime(start)}
@@ -325,6 +388,8 @@ export function DayCardView({
 	dayAppts,
 	onSelectAppt,
 	onMarkAttendance,
+	selectedIds,
+	onToggleSelect,
 }: DayViewProps) {
 	return (
 		<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 pl-1">
@@ -347,13 +412,27 @@ export function DayCardView({
 					>
 						<div className="flex flex-col flex-1 px-4 pt-4 pb-3 gap-3">
 							<div className="flex items-center justify-between gap-2">
-								<div className="flex items-center gap-1.5 text-xs text-zinc-500">
-									<Clock className="size-3 shrink-0" />
-									<span className="font-semibold text-zinc-800">
-										{formatTime(start)}
-									</span>
-									<span>·</span>
-									<span>{formatDuration(start, end)}</span>
+								<div className="flex min-w-0 items-center gap-2">
+									{onToggleSelect && isSelectable(appt.id) && (
+										<span
+											className="flex items-center"
+											onClick={(e) => e.stopPropagation()}
+										>
+											<RowCheckbox
+												id={appt.id}
+												selectedIds={selectedIds}
+												onToggleSelect={onToggleSelect}
+											/>
+										</span>
+									)}
+									<div className="flex items-center gap-1.5 text-xs text-zinc-500">
+										<Clock className="size-3 shrink-0" />
+										<span className="font-semibold text-zinc-800">
+											{formatTime(start)}
+										</span>
+										<span>·</span>
+										<span>{formatDuration(start, end)}</span>
+									</div>
 								</div>
 								{cfg.label ? (
 									<Badge

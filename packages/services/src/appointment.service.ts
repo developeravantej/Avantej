@@ -134,7 +134,7 @@ export type UpdateAppointmentParams = {
 	 * When status transitions to 'completed', commission splits are auto-created if
 	 * service commission config exists (currently dormant — see NOTE in commission-splits.service.ts).
 	 */
-	actor?: { userId: string; memberId: string; role: string };
+	actor?: { userId: string; memberId: string | null; role: string };
 	/**
 	 * When provided, replaces ALL existing appointment_staff rows for this appointment.
 	 * staffId values must be members.userId (control-panel UUIDs).
@@ -1144,7 +1144,7 @@ async function runAppointmentCommission(
 	tx: TenantTx,
 	appointmentId: string,
 	appointment: typeof appointments.$inferSelect,
-	actor: { userId: string; memberId: string; role: string } | undefined,
+	actor: { userId: string; memberId: string | null; role: string } | undefined,
 	earnReason: import("@avantej-core/types").CommissionEarnReason,
 ): Promise<void> {
 	// Silent-return guards retained for safety, but now emit a warning audit so
@@ -1318,7 +1318,7 @@ async function runAppointmentCommission(
 export async function cancelAppointmentInsideTx(
 	tx: TenantTx,
 	appt: typeof appointments.$inferSelect,
-	actor: { userId: string; memberId: string; role: string } | undefined,
+	actor: { userId: string; memberId: string | null; role: string } | undefined,
 	cancellationReason: string,
 ): Promise<void> {
 	// Idempotent: skip already-cancelled appointments

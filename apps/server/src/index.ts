@@ -491,6 +491,26 @@ export default {
 							console.error(`[scheduled] notification-dispatch failed:`, e),
 						),
 				);
+
+				// WS4 — auto-complete confirmed appointments whose window has closed
+				// (routes through updateAppointment so commission + audit fire).
+				const { runAppointmentAutoComplete } = await import(
+					"@/services/appointment-autocomplete.service"
+				);
+				ctx.waitUntil(
+					runAppointmentAutoComplete({
+						controlPanelDb: cpDb,
+						getTenantDb: (orgId) => getTenantDb(orgId),
+					})
+						.then((r) =>
+							console.log(
+								`[scheduled] appointment-autocomplete done: ${JSON.stringify(r)}`,
+							),
+						)
+						.catch((e) =>
+							console.error(`[scheduled] appointment-autocomplete failed:`, e),
+						),
+				);
 			} else if (cron === "0 9 * * *") {
 				const { runOnboardingAlerts } = await import(
 					"@/services/onboarding-alerts.service"

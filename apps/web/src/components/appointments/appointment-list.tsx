@@ -4,10 +4,10 @@ import {
 	CalendarDays,
 	ChevronLeft,
 	ChevronRight,
-	LayoutList,
-	LayoutGrid,
 	SlidersHorizontal,
 	Download,
+	CheckCircle2,
+	XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -36,7 +36,25 @@ import {
 	DayCardView,
 } from "@/features/appointments/components/DayAppointmentViews";
 
-type ViewMode = "day" | "week" | "list";
+type ViewMode = "today" | "day" | "week" | "month" | "list";
+
+const VIEW_MODES: ViewMode[] = ["today", "day", "week", "month", "list"];
+
+// Status filter values. "completed" / "no-show" match the *raw* API status
+// (CalendarAppointment collapses those into confirmed/cancelled), so the filter
+// reads CalendarAppointment.rawStatus.
+const STATUS_FILTERS: { value: string; label: string }[] = [
+	{ value: "all", label: "All statuses" },
+	{ value: "pending", label: "Pending" },
+	{ value: "confirmed", label: "Confirmed" },
+	{ value: "completed", label: "Completed" },
+	{ value: "cancelled", label: "Cancelled" },
+	{ value: "no-show", label: "No-show" },
+];
+
+function isVirtualId(id: string) {
+	return id.startsWith("virtual__");
+}
 
 interface AppointmentListProps {
 	appointments: CalendarAppointment[];
@@ -79,7 +97,10 @@ export function AppointmentList({
 	defaultTrainerId,
 }: AppointmentListProps) {
 	const [viewMode, setViewMode] = useState<ViewMode>("day");
-	const [subView, setSubView] = useState<"list" | "card">("list");
+	// Bulk multi-select: only ever holds NON-virtual, uuid ids.
+	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+	// In-memory status filter over the already-loaded appointments window.
+	const [statusFilter, setStatusFilter] = useState<string>("all");
 	const [showAddModal, setShowAddModal] = useState(false);
 	const [attendanceApptId, setAttendanceApptId] = useState<string | null>(null);
 	const [selectedAppt, setSelectedAppt] = useState<CalendarAppointment | null>(
@@ -100,10 +121,13 @@ export function AppointmentList({
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const todayRef = useRef<HTMLDivElement>(null);
 
-	const { data: userCtx } = useUserContext();
+	const { data: userCtx, hasPermission } = useUserContext();
 	const organizationId = userCtx?.currentOrganizationId ?? "";
 	const org = userCtx?.organizations.find((o) => o.id === organizationId);
 	const branchId = org?.hierarchy.member?.hierarchyScopeId ?? "";
+	// Defensive `?.` — some test mocks stub useUserContext without hasPermission.
+	const canBulkUpdate =
+		hasPermission?.("appointment_management:update") ?? false;
 
 	const createMutation = useApiMutation({
 		mutationFn: (params: {
@@ -176,6 +200,20 @@ export function AppointmentList({
 		},
 	});
 
+	// WS4 (MOVE parity) — bulk status transition for the multi-select toolbar.
+	const bulkMutation = useApiMutation({
+		mutationFn: (vars: {
+			appointmentIds: string[];
+			status: "completed" | "cancelled";
+			cancellationReason?: string;
+		}) => client.appointments.updateStatusBulk({ organizationId, ...vars }),
+		successMessage: (res) =>
+			`${res.completed} updated${res.failed ? `, ${res.failed} failed` : ""}`,
+		errorMessage: (err) => err.message || "Bulk update failed",
+		invalidate: [orpc.appointments.list.key()],
+		onSuccess: () => setSelectedIds(new Set()),
+	});
+
 	useEffect(() => {
 		if (isLoading) return;
 		if (todayRef.current && scrollRef.current) {
@@ -214,12 +252,26 @@ export function AppointmentList({
 		});
 	}
 
+	// ── Status filter (client-side, over the loaded window) ───────────────────
+	const filteredAppointments =
+		statusFilter === "all"
+			? appointments
+			: appointments.filter((a) => (a.rawStatus ?? a.status) === statusFilter);
+
+	// ── View style ────────────────────────────────────────────────────────────
+	// "today"/"day" render a single day agenda; "week"/"month"/"list" render the
+	// month grouped by date (cards for week/month, rows for list).
+	const isDayStyle = viewMode === "today" || viewMode === "day";
+	const showCards = viewMode === "week" || viewMode === "month";
+	// "today" is pinned to now and ignores currentDay navigation.
+	const effectiveDay = viewMode === "today" ? new Date() : currentDay;
+
 	// ── Day mode data ─────────────────────────────────────────────────────────
-	const dayKey = toDateKey(currentDay);
-	const dayAppts = appointments.filter(
+	const dayKey = toDateKey(effectiveDay);
+	const dayAppts = filteredAppointments.filter(
 		(a) => toDateKey(new Date(a.start)) === dayKey,
 	);
-	const isCurrentDayToday = isSameDay(currentDay, new Date());
+	const isCurrentDayToday = isSameDay(effectiveDay, new Date());
 
 	function prevDay() {
 		setCurrentDay((d) => {
@@ -254,7 +306,7 @@ export function AppointmentList({
 		59,
 		999,
 	);
-	const filteredMonth = appointments.filter((a) => {
+	const filteredMonth = filteredAppointments.filter((a) => {
 		const d = new Date(a.start);
 		return d >= monthStart && d <= monthEnd;
 	});
@@ -282,18 +334,89 @@ export function AppointmentList({
 		dateKeys.length > 0;
 
 	// ── Toolbar label ─────────────────────────────────────────────────────────
-	const toolbarLabel =
-		viewMode === "day" ? formatDayLabel(currentDay) : monthLabel;
+	const toolbarLabel = isDayStyle ? formatDayLabel(effectiveDay) : monthLabel;
 
-	const toolbarSub =
-		viewMode === "day"
-			? isCurrentDayToday
-				? `Today · ${dayAppts.length} booking${dayAppts.length !== 1 ? "s" : ""}`
-				: `${dayAppts.length} booking${dayAppts.length !== 1 ? "s" : ""}`
-			: `${filteredMonth.length} booking${filteredMonth.length !== 1 ? "s" : ""}`;
+	const toolbarSub = isDayStyle
+		? isCurrentDayToday
+			? `Today · ${dayAppts.length} booking${dayAppts.length !== 1 ? "s" : ""}`
+			: `${dayAppts.length} booking${dayAppts.length !== 1 ? "s" : ""}`
+		: `${filteredMonth.length} booking${filteredMonth.length !== 1 ? "s" : ""}`;
+
+	// ── Bulk selection helpers ────────────────────────────────────────────────
+	// Rows visible in the current view that are eligible for bulk actions.
+	const visibleAppointments = isDayStyle ? dayAppts : filteredMonth;
+	const selectableVisible = visibleAppointments.filter(
+		(a) => !isVirtualId(a.id),
+	);
+	const selectableVisibleIds = new Set(selectableVisible.map((a) => a.id));
+	const allVisibleSelected =
+		selectableVisible.length > 0 &&
+		selectableVisible.every((a) => selectedIds.has(a.id));
+
+	// Guard against acting on off-screen rows: whenever the eligible window
+	// changes (view / navigated date / status filter), drop the selection so
+	// the toolbar count and the ids we mutate always match what's on screen.
+	// A scope (branch) change swaps the `appointments` prop; the mutate-time
+	// intersect below covers that case defensively.
+	useEffect(() => {
+		setSelectedIds(new Set());
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [viewMode, statusFilter, currentDay, currentMonth]);
+
+	function toggleSelect(id: string) {
+		setSelectedIds((prev) => {
+			const next = new Set(prev);
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
+			return next;
+		});
+	}
+	function toggleSelectAll() {
+		setSelectedIds((prev) => {
+			const next = new Set(prev);
+			if (allVisibleSelected) {
+				for (const a of selectableVisible) next.delete(a.id);
+			} else {
+				for (const a of selectableVisible) next.add(a.id);
+			}
+			return next;
+		});
+	}
+	function clearSelection() {
+		setSelectedIds(new Set());
+	}
+	// Only ever mutate rows that are BOTH selected AND currently visible — never
+	// an off-screen id left over from a prior view/branch.
+	function selectedVisibleIds(): string[] {
+		return [...selectedIds].filter((id) => selectableVisibleIds.has(id));
+	}
+	function handleBulkComplete() {
+		const ids = selectedVisibleIds();
+		if (ids.length === 0) return;
+		bulkMutation.mutate({ appointmentIds: ids, status: "completed" });
+	}
+	function handleBulkCancel() {
+		const ids = selectedVisibleIds();
+		if (ids.length === 0) return;
+		const n = ids.length;
+		const ok = window.confirm(
+			`Cancel ${n} appointment${n !== 1 ? "s" : ""}? Package credits will be restored where applicable.`,
+		);
+		if (!ok) return;
+		const reason = window.prompt("Cancellation reason (optional):", "");
+		bulkMutation.mutate({
+			appointmentIds: ids,
+			status: "cancelled",
+			cancellationReason: reason?.trim() ? reason.trim() : undefined,
+		});
+	}
 
 	// ── Prev/Next handlers ────────────────────────────────────────────────────
+	// "today" is pinned to now, so its nav is hidden and these are no-ops; "day"
+	// steps by day; "week"/"month"/"list" step by month.
+	const navDisabled = viewMode === "today";
 	function handlePrev() {
+		if (viewMode === "today") return;
 		if (viewMode === "day") {
 			prevDay();
 		} else {
@@ -301,6 +424,7 @@ export function AppointmentList({
 		}
 	}
 	function handleNext() {
+		if (viewMode === "today") return;
 		if (viewMode === "day") {
 			nextDay();
 		} else {
@@ -327,14 +451,16 @@ export function AppointmentList({
 			<div className="flex items-center justify-between border-b border-[#e5e5e5] bg-white px-6 py-3 shrink-0">
 				{/* Left: date nav */}
 				<div className="flex items-center gap-2">
-					<button
-						type="button"
-						onClick={handlePrev}
-						aria-label="Previous"
-						className="inline-flex items-center justify-center rounded-[10px] border border-[#e5e5e5] bg-white p-2 text-[#0a0a0a] transition hover:bg-[#f3f3f3]"
-					>
-						<ChevronLeft className="h-3.5 w-3.5" />
-					</button>
+					{!navDisabled && (
+						<button
+							type="button"
+							onClick={handlePrev}
+							aria-label="Previous"
+							className="inline-flex items-center justify-center rounded-[10px] border border-[#e5e5e5] bg-white p-2 text-[#0a0a0a] transition hover:bg-[#f3f3f3]"
+						>
+							<ChevronLeft className="h-3.5 w-3.5" />
+						</button>
+					)}
 
 					<div className="flex flex-col px-2 text-center">
 						<span className="text-base font-bold leading-tight text-[#0a0a0a]">
@@ -345,28 +471,32 @@ export function AppointmentList({
 						</span>
 					</div>
 
-					<button
-						type="button"
-						onClick={handleNext}
-						aria-label="Next"
-						className="inline-flex items-center justify-center rounded-[10px] border border-[#e5e5e5] bg-white p-2 text-[#0a0a0a] transition hover:bg-[#f3f3f3]"
-					>
-						<ChevronRight className="h-3.5 w-3.5" />
-					</button>
+					{!navDisabled && (
+						<button
+							type="button"
+							onClick={handleNext}
+							aria-label="Next"
+							className="inline-flex items-center justify-center rounded-[10px] border border-[#e5e5e5] bg-white p-2 text-[#0a0a0a] transition hover:bg-[#f3f3f3]"
+						>
+							<ChevronRight className="h-3.5 w-3.5" />
+						</button>
+					)}
 
-					<button
-						type="button"
-						onClick={handleToday}
-						className="ml-1 inline-flex items-center rounded-[10px] border border-[#e5e5e5] bg-white px-3.5 py-2 text-[13px] font-medium text-[#0a0a0a] transition hover:bg-[#f3f3f3]"
-					>
-						Today
-					</button>
+					{!navDisabled && (
+						<button
+							type="button"
+							onClick={handleToday}
+							className="ml-1 inline-flex items-center rounded-[10px] border border-[#e5e5e5] bg-white px-3.5 py-2 text-[13px] font-medium text-[#0a0a0a] transition hover:bg-[#f3f3f3]"
+						>
+							Today
+						</button>
+					)}
 
 					<span className="mx-2 h-5 w-px bg-[#e5e5e5]" />
 
 					{/* View-mode pill toggle */}
 					<div className="inline-flex rounded-[10px] border border-[#e5e5e5] bg-white p-0.5">
-						{(["day", "week", "list"] as ViewMode[]).map((m) => (
+						{VIEW_MODES.map((m) => (
 							<button
 								key={m}
 								type="button"
@@ -386,6 +516,18 @@ export function AppointmentList({
 
 				{/* Right: actions */}
 				<div className="flex items-center gap-2">
+					<select
+						value={statusFilter}
+						onChange={(e) => setStatusFilter(e.target.value)}
+						aria-label="Filter by status"
+						className="rounded-[10px] border border-[#e5e5e5] bg-white px-3 py-2 text-[13px] font-medium text-[#0a0a0a] transition hover:bg-[#f3f3f3] focus:outline-none"
+					>
+						{STATUS_FILTERS.map((s) => (
+							<option key={s.value} value={s.value}>
+								{s.label}
+							</option>
+						))}
+					</select>
 					<button
 						type="button"
 						className="inline-flex items-center gap-1.5 rounded-[10px] border border-[#e5e5e5] bg-white px-3.5 py-2 text-[13px] font-medium text-[#0a0a0a] transition hover:bg-[#f3f3f3]"
@@ -411,11 +553,61 @@ export function AppointmentList({
 				</div>
 			</div>
 
+			{/* ── Bulk action bar (sticky) ── */}
+			{canBulkUpdate && selectedIds.size > 0 && (
+				<div className="flex items-center justify-between border-b border-[#e5e5e5] bg-[#0a0a0a] px-6 py-2.5 shrink-0">
+					<div className="flex items-center gap-3">
+						<span className="text-[13px] font-semibold text-white">
+							{selectedIds.size} selected
+						</span>
+						<button
+							type="button"
+							onClick={clearSelection}
+							className="text-[12px] font-medium text-[#a3a3a3] transition hover:text-white"
+						>
+							Clear
+						</button>
+					</div>
+					<div className="flex items-center gap-2">
+						<button
+							type="button"
+							disabled={bulkMutation.isPending}
+							onClick={handleBulkComplete}
+							className="inline-flex items-center gap-1.5 rounded-[10px] bg-white px-3.5 py-1.5 text-[13px] font-semibold text-[#0a0a0a] transition hover:bg-[#f3f3f3] disabled:opacity-50"
+						>
+							<CheckCircle2 className="h-3.5 w-3.5" />
+							Mark Completed
+						</button>
+						<button
+							type="button"
+							disabled={bulkMutation.isPending}
+							onClick={handleBulkCancel}
+							className="inline-flex items-center gap-1.5 rounded-[10px] border border-[#525252] bg-transparent px-3.5 py-1.5 text-[13px] font-semibold text-white transition hover:bg-[#262626] disabled:opacity-50"
+						>
+							<XCircle className="h-3.5 w-3.5" />
+							Cancel
+						</button>
+					</div>
+				</div>
+			)}
+
 			{/* ── Content ── */}
 			<div
 				ref={scrollRef}
 				className="flex-1 overflow-y-auto bg-[#f3f3f3]/40 px-6 py-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#d1d1d1] [&::-webkit-scrollbar-thumb]:rounded-full"
 			>
+				{/* Select-all (visible, non-virtual) affordance */}
+				{!isLoading && canBulkUpdate && selectableVisible.length > 0 && (
+					<label className="mb-4 inline-flex cursor-pointer select-none items-center gap-2 text-[12px] font-medium text-[#737373]">
+						<input
+							type="checkbox"
+							checked={allVisibleSelected}
+							onChange={toggleSelectAll}
+							className="size-4 cursor-pointer accent-[#0a0a0a]"
+						/>
+						Select all {selectableVisible.length} visible
+					</label>
+				)}
 				{isLoading ? (
 					<div className="space-y-2">
 						{[1, 2, 3, 4].map((i) => (
@@ -425,7 +617,7 @@ export function AppointmentList({
 							/>
 						))}
 					</div>
-				) : viewMode === "day" ? (
+				) : isDayStyle ? (
 					/* ── Day Agenda ── */
 					dayAppts.length === 0 ? (
 						<div className="flex flex-col items-center justify-center py-20">
@@ -434,7 +626,7 @@ export function AppointmentList({
 								No appointments{" "}
 								{isCurrentDayToday
 									? "today"
-									: `on ${formatDayLabel(currentDay)}`}
+									: `on ${formatDayLabel(effectiveDay)}`}
 							</p>
 							<p className="text-xs mt-1 text-[#737373]">
 								Schedule a new booking to get started.
@@ -453,9 +645,11 @@ export function AppointmentList({
 							dayAppts={dayAppts}
 							onSelectAppt={setSelectedAppt}
 							onMarkAttendance={(id) => setAttendanceApptId(id)}
+							selectedIds={selectedIds}
+							onToggleSelect={canBulkUpdate ? toggleSelect : undefined}
 						/>
 					)
-				) : /* ── Week / List ── */
+				) : /* ── Week / Month / List ── */
 				dateKeys.length === 0 ? (
 					<div className="flex flex-col items-center justify-center py-20">
 						<CalendarDays className="h-8 w-8 mb-3 text-[#d1d1d1]" />
@@ -519,17 +713,25 @@ export function AppointmentList({
 										</div>
 
 										{/* Sub-view rows */}
-										{viewMode !== "week" ? (
-											<DayListView
-												dayAppts={dayAppts2}
-												onSelectAppt={setSelectedAppt}
-												onMarkAttendance={(id) => setAttendanceApptId(id)}
-											/>
-										) : (
+										{showCards ? (
 											<DayCardView
 												dayAppts={dayAppts2}
 												onSelectAppt={setSelectedAppt}
 												onMarkAttendance={(id) => setAttendanceApptId(id)}
+												selectedIds={selectedIds}
+												onToggleSelect={
+													canBulkUpdate ? toggleSelect : undefined
+												}
+											/>
+										) : (
+											<DayListView
+												dayAppts={dayAppts2}
+												onSelectAppt={setSelectedAppt}
+												onMarkAttendance={(id) => setAttendanceApptId(id)}
+												selectedIds={selectedIds}
+												onToggleSelect={
+													canBulkUpdate ? toggleSelect : undefined
+												}
 											/>
 										)}
 									</div>

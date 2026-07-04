@@ -25,6 +25,13 @@ export interface CalendarAppointment {
 	start: Date;
 	end: Date;
 	status: "confirmed" | "pending" | "cancelled";
+	/**
+	 * Raw API status before it is collapsed into the 3-value calendar status
+	 * (e.g. "completed", "no-show", "rescheduled"). Used by list status filters
+	 * that need to distinguish completed-vs-confirmed and no-show-vs-cancelled.
+	 * Optional so hand-built test fixtures stay valid; the mapper always sets it.
+	 */
+	rawStatus?: string;
 	clientName: string;
 	service: string;
 	assignedTo?: {
@@ -64,6 +71,7 @@ export function mapApiAppointmentToCalendar(
 		start,
 		end,
 		status,
+		rawStatus: api.status,
 		clientName:
 			api.clientName ??
 			(api.userId ? `Client (${api.userId.slice(0, 8)}…)` : "—"),
@@ -75,40 +83,6 @@ export function mapApiAppointmentToCalendar(
 			: api.trainerId
 				? { id: api.trainerId, name: api.trainerId.slice(0, 8) + "…" }
 				: undefined,
-	};
-}
-
-function getAppointmentDateRange(
-	view: "monthly" | "weekly",
-	currentDate: Date,
-): { startFrom: string; startTo: string } {
-	if (view === "weekly") {
-		const weekStart = new Date(currentDate);
-		weekStart.setDate(currentDate.getDate() - currentDate.getDay());
-		weekStart.setHours(0, 0, 0, 0);
-		const weekEnd = new Date(weekStart);
-		weekEnd.setDate(weekStart.getDate() + 6);
-		weekEnd.setHours(23, 59, 59, 999);
-		return {
-			startFrom: weekStart.toISOString(),
-			startTo: weekEnd.toISOString(),
-		};
-	}
-	const monthStart = new Date(
-		currentDate.getFullYear(),
-		currentDate.getMonth(),
-		1,
-	);
-	monthStart.setHours(0, 0, 0, 0);
-	const monthEnd = new Date(
-		currentDate.getFullYear(),
-		currentDate.getMonth() + 1,
-		0,
-	);
-	monthEnd.setHours(23, 59, 59, 999);
-	return {
-		startFrom: monthStart.toISOString(),
-		startTo: monthEnd.toISOString(),
 	};
 }
 
