@@ -30,6 +30,7 @@ export * from "./commission-splits";
 export * from "./customer-profiles";
 export * from "./dashboard-snapshots";
 export * from "./expenses";
+export * from "./external-busy-blocks";
 export * from "./ghl-contact-links";
 export * from "./ghl-pending-contacts";
 export * from "./ghl-sync-events";
@@ -148,4 +149,8 @@ export * from "./commission-tracks";
 export * from "./commission-track-rates";
 export * from "./commission-track-versions";
 export * from "./earner-tiers";
+// #endregion
+
+// #region UAT §12 — Commission incentive thresholds (Migration 0097)
+export * from "./commission-incentives";
 // #endregion

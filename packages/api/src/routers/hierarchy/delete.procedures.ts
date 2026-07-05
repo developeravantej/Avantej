@@ -2,6 +2,8 @@ import {
 	type DeleteHierarchyNodeOptions,
 	deleteHierarchyNode,
 	getDescendantNodeIds,
+	HierarchyDeleteBlockedError,
+	HierarchyNodeNotFoundError,
 } from "@avantej-core/services";
 import { organizationBranches } from "@avantej-core/db/schema/control-panel/organization-branches";
 import { eq } from "drizzle-orm";
@@ -67,10 +69,12 @@ export const hierarchyDeleteProcedures = {
 				"delete",
 			);
 
-			// Prepare delete options (defaults to true for both)
+			// Prepare delete options. Default is BLOCK (UAT §8): a node with child
+			// nodes or assigned members is rejected with a typed CONFLICT and the
+			// subtree is left intact. Callers opt into a cascade by passing true.
 			const deleteOptions: DeleteHierarchyNodeOptions = {
-				autoDeleteChildren: input.options?.autoDeleteChildren ?? true,
-				autoReassignMembers: input.options?.autoReassignMembers ?? true,
+				autoDeleteChildren: input.options?.autoDeleteChildren ?? false,
+				autoReassignMembers: input.options?.autoReassignMembers ?? false,
 			};
 
 			// Collect branch node IDs before deletion (for sync cleanup)
@@ -266,19 +270,19 @@ export const hierarchyDeleteProcedures = {
 					}
 				}
 
+				// Typed errors from the service — map by instanceof (robust to message
+				// edits), not by string-matching.
+				if (error instanceof HierarchyNodeNotFoundError) {
+					throw new ORPCError("NOT_FOUND", { message: error.message });
+				}
+				if (error instanceof HierarchyDeleteBlockedError) {
+					throw new ORPCError("CONFLICT", { message: error.message });
+				}
+
 				// Handle specific error cases
 				if (error instanceof Error) {
 					if (error.message.includes("not found")) {
 						throw new ORPCError("NOT_FOUND", {
-							message: error.message,
-						});
-					}
-					if (
-						error.message.includes("child node") ||
-						error.message.includes("assigned member") ||
-						error.message.includes("no valid target")
-					) {
-						throw new ORPCError("CONFLICT", {
 							message: error.message,
 						});
 					}

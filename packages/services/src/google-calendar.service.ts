@@ -159,6 +159,48 @@ export async function deleteCalendarEvent(
 }
 
 // ---------------------------------------------------------------------------
+// Read events (Google -> Avantej pull-sync, UAT §6)
+// ---------------------------------------------------------------------------
+
+export interface GoogleCalendarEvent {
+	id: string;
+	summary?: string;
+	status?: string; // "confirmed" | "tentative" | "cancelled"
+	transparency?: string; // "opaque" (busy) | "transparent" (free)
+	start: { dateTime?: string; date?: string };
+	end: { dateTime?: string; date?: string };
+}
+
+/**
+ * List events in [timeMin, timeMax) on a calendar, expanding recurrences into
+ * single instances (singleEvents=true) so each busy interval is concrete. Used by
+ * the pull-sync to mirror Google busy times into Avantej availability.
+ */
+export async function listCalendarEvents(
+	accessToken: string,
+	calendarId: string,
+	timeMin: Date,
+	timeMax: Date,
+): Promise<GoogleCalendarEvent[]> {
+	const params = new URLSearchParams({
+		timeMin: timeMin.toISOString(),
+		timeMax: timeMax.toISOString(),
+		singleEvents: "true",
+		orderBy: "startTime",
+		maxResults: "2500",
+	});
+	const res = await fetch(
+		`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+			calendarId,
+		)}/events?${params.toString()}`,
+		{ headers: { Authorization: `Bearer ${accessToken}` } },
+	);
+	if (!res.ok) throw new Error(`List events failed: ${await res.text()}`);
+	const data = (await res.json()) as { items?: GoogleCalendarEvent[] };
+	return data.items ?? [];
+}
+
+// ---------------------------------------------------------------------------
 // Calendar list (Task 1.30)
 // ---------------------------------------------------------------------------
 

@@ -1,10 +1,22 @@
-import { and, gte, lte, inArray, sum, count, eq, sql } from "drizzle-orm";
+import {
+	and,
+	gte,
+	lte,
+	inArray,
+	or,
+	sum,
+	count,
+	eq,
+	ne,
+	sql,
+} from "drizzle-orm";
 import { salesOrders } from "@avantej-core/db/schema/tenant/sales-orders";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { memberProfiles } from "@avantej-core/db/schema/tenant/member-profiles";
 import { hierarchyNodes } from "@avantej-core/db/schema/tenant/hierarchy";
 import { commissionSplits } from "@avantej-core/db/schema/tenant/commission-splits";
+import { trainerTiers } from "@avantej-core/db/schema/tenant/trainer-tiers";
 import { classSlots } from "@avantej-core/db/schema/tenant/class-slots";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
 import type { NeonDatabase } from "drizzle-orm/neon-serverless";
@@ -419,6 +431,98 @@ export async function getStaffPerformance(
 			totalCommission: Number(r.totalCommission ?? 0),
 		};
 	});
+}
+
+// ── Per-tier commission breakdown (UAT §13 — reporting per-tier accuracy) ──────
+
+export interface CommissionByTierParams {
+	period: "today" | "this_week" | "this_month" | "this_year" | "custom";
+	from?: Date;
+	to?: Date;
+	accessibleNodeIds: string[];
+}
+
+export interface CommissionByTierRow {
+	/** trainer_tiers.id snapshot on the split; null for splits with no tier. */
+	tierId: string | null;
+	/** trainer_tiers.name; "Unassigned" when the split carries no tier snapshot. */
+	tierName: string;
+	/** trainer_tiers.rank; null for the Unassigned bucket. */
+	rank: number | null;
+	splitCount: number;
+	totalCommissionCents: number;
+}
+
+/**
+ * Commission totals grouped by trainer tier for a period (UAT §13).
+ *
+ * Aggregates `commission_splits.calculated_amount` by the `trainer_tier_id`
+ * snapshot frozen on each split, joined to `trainer_tiers` for name + rank.
+ * Excludes void / excluded splits so the breakdown reconciles against the
+ * payable ledger. Splits with no tier snapshot (older rows, non-tiered roles)
+ * fall into an "Unassigned" bucket so the per-tier totals always sum to the
+ * whole — that summing property is exactly what "per-tier accuracy" verifies.
+ *
+ * Filters on `earned_at` (the payroll-period field), matching the rest of the
+ * commission reporting. Tenant-scoped by the caller's DB; the procedure gates on
+ * `reports:read`.
+ */
+export async function getCommissionByTier(
+	tenantDb: TenantDb,
+	params: CommissionByTierParams,
+): Promise<CommissionByTierRow[]> {
+	const { from, to } = getPeriodDates(params.period, params.from, params.to);
+	const nodeIds = params.accessibleNodeIds;
+
+	// Branch-scope by accessible hierarchy nodes (RBAC). A split resolves a branch
+	// via its appointment OR its sales order — LEFT JOIN both and require at least
+	// one resolved branchId to be accessible. Admins carry every node in
+	// accessibleNodeIds, so this is a no-op for them; a branch-scoped manager sees
+	// only their branches' tier totals. Mirrors listCommissionSplits' scoping.
+	const branchScope =
+		nodeIds.length > 0
+			? or(
+					inArray(appointments.branchId, nodeIds),
+					inArray(salesOrders.branchId, nodeIds),
+				)
+			: undefined;
+
+	const rows = await tenantDb
+		.select({
+			tierId: commissionSplits.trainerTierId,
+			tierName: trainerTiers.name,
+			rank: trainerTiers.rank,
+			splitCount: count(commissionSplits.id),
+			totalCommissionCents: sum(commissionSplits.calculatedAmount),
+		})
+		.from(commissionSplits)
+		.leftJoin(trainerTiers, eq(commissionSplits.trainerTierId, trainerTiers.id))
+		.leftJoin(appointments, eq(commissionSplits.appointmentId, appointments.id))
+		.leftJoin(salesOrders, eq(commissionSplits.salesOrderId, salesOrders.id))
+		.where(
+			and(
+				gte(commissionSplits.earnedAt, from),
+				lte(commissionSplits.earnedAt, to),
+				ne(commissionSplits.status, "void"),
+				eq(commissionSplits.excluded, false),
+				branchScope,
+			),
+		)
+		.groupBy(
+			commissionSplits.trainerTierId,
+			trainerTiers.name,
+			trainerTiers.rank,
+		);
+
+	return rows
+		.map((r) => ({
+			tierId: r.tierId,
+			tierName: r.tierName ?? "Unassigned",
+			rank: r.rank ?? null,
+			splitCount: Number(r.splitCount ?? 0),
+			totalCommissionCents: Number(r.totalCommissionCents ?? 0),
+		}))
+		.sort((a, b) => (b.rank ?? -1) - (a.rank ?? -1));
 }
 
 /**

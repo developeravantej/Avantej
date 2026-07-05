@@ -34,7 +34,10 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ghlFetch } from "../src/services/ghl/http-client";
-import { ensureCustomFieldsExist, validateGhlApiKey } from "../src/services/ghl/setup";
+import {
+	ensureCustomFieldsExist,
+	validateGhlApiKey,
+} from "../src/services/ghl/setup";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -47,7 +50,10 @@ function loadDevVars(): void {
 			const eq = trimmed.indexOf("=");
 			if (eq === -1) continue;
 			const key = trimmed.slice(0, eq).trim();
-			const value = trimmed.slice(eq + 1).trim().replace(/^"(.*)"$/, "$1");
+			const value = trimmed
+				.slice(eq + 1)
+				.trim()
+				.replace(/^"(.*)"$/, "$1");
 			if (!process.env[key]) process.env[key] = value;
 		}
 	} catch {
@@ -71,8 +77,7 @@ async function main() {
 	const locationId =
 		process.env.GHL_SMOKE_LOCATION_ID || (isMock ? "mock_loc_smoke" : "");
 	const apiKey = process.env.GHL_SMOKE_API_KEY || (isMock ? "mock_key" : "");
-	const companyId =
-		process.env.GHL_AGENCY_ID || (isMock ? "mock_company" : "");
+	const companyId = process.env.GHL_AGENCY_ID || (isMock ? "mock_company" : "");
 
 	if (!locationId || !apiKey) {
 		throw new Error(
@@ -179,7 +184,9 @@ async function main() {
 main()
 	.then(() => process.exit(0))
 	.catch((e) => {
-		console.error(`\n❌ Outbound smoke FAILED: ${e instanceof Error ? e.message : e}`);
+		console.error(
+			`\n❌ Outbound smoke FAILED: ${e instanceof Error ? e.message : e}`,
+		);
 		if (e && typeof e === "object" && "body" in e) {
 			console.error("   GHL response body:", (e as { body: unknown }).body);
 		}

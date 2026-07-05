@@ -43,3 +43,11 @@ export type CommissionPoolPolicy = "separate" | "shared";
 
 /** Whether the rate is a fixed amount (cents) or variable (basis points). */
 export type CommissionPaymentType = "fixed" | "variable";
+
+/**
+ * UAT §12 — which kind of sale an origination track applies to.
+ * - "new"     : only a new customer's first purchase (acquisition)
+ * - "renewal" : only a returning customer's purchase
+ * - "any"     : applies regardless (default; preserves pre-§12 behaviour)
+ */
+export type CommissionSalesType = "new" | "renewal" | "any";

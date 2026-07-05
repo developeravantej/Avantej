@@ -5,6 +5,7 @@ import {
 } from "@avantej-core/db/schema/tenant/trainer-availability";
 import { coachIntakeAvailability } from "@avantej-core/db/schema/tenant/coach-intake-availability";
 import { appointments } from "@avantej-core/db/schema/tenant/appointments";
+import { externalBusyBlocks } from "@avantej-core/db/schema/tenant/external-busy-blocks";
 import { members } from "@avantej-core/db/schema/tenant/members";
 import { memberProfiles } from "@avantej-core/db/schema/tenant/member-profiles";
 import { user } from "@avantej-core/db/schema/auth";
@@ -583,6 +584,32 @@ export async function computeAvailableSlots(
 		list.push({
 			startTime: toHHMM(appt.startTime),
 			endTime: toHHMM(appt.endTime),
+		});
+		apptsByDate.set(dateStr, list);
+	}
+
+	// 2b. Subtract external (Google Calendar) busy blocks pulled into Avantej so a
+	//     meeting created outside Avantej removes the overlapping slot (UAT §6).
+	//     Treated exactly like a booking — same per-date subtraction below.
+	const busyBlocks = await tenantDb
+		.select({
+			startTime: externalBusyBlocks.startTime,
+			endTime: externalBusyBlocks.endTime,
+		})
+		.from(externalBusyBlocks)
+		.where(
+			and(
+				eq(externalBusyBlocks.trainerId, trainerId),
+				gte(externalBusyBlocks.startTime, startDate),
+				lte(externalBusyBlocks.startTime, endDate),
+			),
+		);
+	for (const block of busyBlocks) {
+		const dateStr = toDateString(block.startTime);
+		const list = apptsByDate.get(dateStr) ?? [];
+		list.push({
+			startTime: toHHMM(block.startTime),
+			endTime: toHHMM(block.endTime),
 		});
 		apptsByDate.set(dateStr, list);
 	}

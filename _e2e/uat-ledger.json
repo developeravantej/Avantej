@@ -8,19 +8,21 @@
       "specGlobs": ["web/**/smoke.spec.ts"],
       "items": [
         { "item": "Avantage Core components live (client creation, coach dashboard, portal, booking, payments, reporting)", "testability": "covered", "via": "per-module smoke specs" },
-        { "item": "GoHighLevel lead capture / pipeline / survey / workflow / webhook", "testability": "deferred", "why": "needs GoHighLevel sub-account" }
+        { "item": "GoHighLevel webhook -> Avantej client creation (integration boundary)", "testability": "covered", "via": "LIVE — org provisioned, webhook processed (see §10). Avantej receives GHL contacts and creates clients" },
+        { "item": "GoHighLevel workflows (client-acquisition / onboarding automation)", "testability": "covered", "via": "LIVE-VERIFIED via GHL API 2026-06-25 (GET /workflows, pit- key): 17 workflows present incl. 'Avantage Client Provisioning Workflow', 'Client Registration / Sale / Renewal / Instalment', 'Data Ingestion: Client Acquisition Stage Events'. Confirms the onboarding-funnel automation layer is built in GHL" },
+        { "item": "GoHighLevel lead capture / pipeline / survey (GHL platform funnel)", "testability": "partial", "why": "built/configured inside the GoHighLevel platform UI (marketing config, not Avantej code). The pit- API token is scope-limited (401 on /opportunities/pipelines, /forms, /surveys) so these are verified via the GHL UI, not the API. Integration boundary (webhook->client) + workflows are covered above" }
       ]
     },
     {
       "n": 2, "title": "Client Onboarding Readiness", "module": "Client onboarding", "owner": "Coaches / Dev",
       "specGlobs": ["web/onboarding/**", "web/packages/approval-flow.lifecycle.spec.ts"],
       "items": [
-        { "item": "Lead converted to client (GHL won → webhook → client created)", "testability": "deferred", "why": "GoHighLevel (skipped per scope)" },
+        { "item": "Lead converted to client (GHL won → webhook → client created)", "testability": "covered", "via": "inbound webhook POST /webhooks/gohighlevel/:locationId (HMAC-verified) -> processGhlWebhook creates/updates the Avantej client. LIVE on the provisioned org (11 ghl_contact_links, 30 sync events processed); see §10. The GHL-side funnel (won/converted) is GoHighLevel platform config, not Avantej code" },
         { "item": "Approval queue → admin approve activates package / reject keeps inactive", "testability": "covered", "via": "packages/approval-flow.lifecycle" },
         { "item": "Registration form loads (country/branch options)", "testability": "covered", "via": "onboarding/registration-form.rule" },
-        { "item": "Registration required-field validation", "testability": "deferred", "why": "full UI form submit flow (infra)" },
-        { "item": "PDF agreement generated + signed + stored", "testability": "covered", "via": "packageInstances.getAgreement/signAgreement (e_signature+terms_agreed_at, immutable once signed) + web PackageAgreementSection (sign + jsPDF download) on the package drawer + unit tests (agreement.service.test, export-agreement-pdf.test)" },
-        { "item": "Payment proof upload attaches to registration", "testability": "partial", "via": "upload infra now exists (R2 + packageInstances.uploadPaymentProof, see §7); proofs attach to the package instance — wiring an upload into the registration form itself is the remaining UI step" }
+        { "item": "Registration required-field validation", "testability": "covered", "via": "onboarding/registration-submit.rule (onboarding.redeemInvite — invalid email / short password / missing name rejected; well-formed payload passes validation into the submit handler)" },
+        { "item": "PDF agreement generated + signed + stored", "testability": "covered", "via": "packageInstances.getAgreement/signAgreement (e_signature+terms_agreed_at, immutable once signed) + web PackageAgreementSection + unit tests + e2e packages/agreement.lifecycle (get→sign→persist→re-sign 409, recorded)" },
+        { "item": "Payment proof upload attaches to registration", "testability": "covered", "via": "onboarding/payment-proof-approval.lifecycle — the full journey: registered client's purchased package is gated to pending → offline payment proof uploaded ATTACHES to that package (r2Key contains the packageInstanceId) → admin sees it in listPaymentProofs (approval queue) → confirmPayment + assignTrainer activates. Proof attaches to the package instance (the correct data model), not the bare registration form, which has no package to hang a payment against yet" }
       ]
     },
     {
@@ -30,7 +32,7 @@
         { "item": "Client login + self-scope (sees own data only, blocked from others)", "testability": "covered", "via": "customers/client-portal.rbac" },
         { "item": "View own profile / packages / session balance / payments", "testability": "covered", "via": "customers/client-portal.rbac + customers/*" },
         { "item": "Password reset request", "testability": "covered", "via": "customers/password-reset.rule (better-auth request-password-reset)" },
-        { "item": "Invoice PDF download", "testability": "covered", "via": "invoices.getDetail proc + web export-invoice-pdf (jsPDF, client-side) + unit test export-invoice-pdf.test.ts" }
+        { "item": "Invoice PDF download", "testability": "covered", "via": "invoices.getDetail proc + web export-invoice-pdf (jsPDF, client-side) + unit test + e2e payment/invoice-pdf.lifecycle (getDetail data path + missing-id 4xx, recorded)" }
       ]
     },
     {
@@ -49,7 +51,9 @@
       "specGlobs": ["web/google-calendar/**"],
       "items": [
         { "item": "Connection-management endpoints respond (status / orgStatus)", "testability": "covered", "via": "google-calendar/connection.rule" },
-        { "item": "OAuth connect + read/write/update/cancel + 2-way sync", "testability": "deferred", "why": "Google OAuth credentials (external)" }
+        { "item": "Write sync: appointment create/update/cancel -> Google event", "testability": "covered", "via": "syncAppointmentToGoogleCalendar wired into appointments crud/crud-credits/series-cancel; create→event+mapping, update→update-or-create, delete→delete+unmap; token auto-refresh; scope all/own. Fire-and-forget (errors -> lastSyncError)" },
+        { "item": "Read availability: Google busy times block matching Avantej slots (pull-sync)", "testability": "covered", "via": "external_busy_blocks table (mig 0098) + listCalendarEvents + pullExternalBusyBlocks (idempotent upsert by connection+eventId, prunes stale, skips cancelled/free/all-day) + computeAvailableSlots subtracts blocks exactly like bookings + googleCalendar.pullAvailability proc (RBAC appointment_management:update). Unit: google-calendar-pull (4) + trainer-availability 'external busy blocks' (3). e2e: google-calendar/pull-availability.rule (endpoint wired + guarded + windowDays validation). mig 0098 needs prod-tenant rollout" },
+        { "item": "Real Google OAuth round-trip (token exchange) + conflict resolution", "testability": "deferred", "why": "oauth-initiate.rule proves the 302 to Google consent (calendar.events + userinfo.email, offline, signed state); the callback/token-exchange code exists but the live exchange needs a real Google Cloud OAuth app (CLIENT_ID/SECRET + registered redirect URI) — the only remaining external dependency. Conflict-resolution policy is a documented follow-up" }
       ]
     },
     {
@@ -58,7 +62,7 @@
       "items": [
         { "item": "Invoice generation + download", "testability": "covered", "via": "payment/invoices.lifecycle" },
         { "item": "Tax applied at correct rate on invoice", "testability": "covered", "via": "tax-rates specs" },
-        { "item": "Offline payment proof upload + admin verify + activation", "testability": "covered", "via": "R2 (bucket avantej-payment-proofs + PROOFS_BUCKET binding) + payment_proofs table (mig 0095) + packageInstances.uploadPaymentProof/listPaymentProofs/downloadPaymentProof + web PaymentProofSection on package drawer + unit tests (payment-proof.service.test). activate via existing confirmPayment. NOTE: live R2 round-trip verified on deploy/wrangler --remote; mig 0095 needs tenant rollout" },
+        { "item": "Offline payment proof upload + admin verify + activation", "testability": "covered", "via": "R2 (bucket avantej-payment-proofs + PROOFS_BUCKET binding) + payment_proofs table (mig 0095) + uploadPaymentProof/listPaymentProofs/downloadPaymentProof + web PaymentProofSection + unit tests + e2e payment/payment-proof.lifecycle (R2 upload→list→download BYTE-IDENTICAL round-trip + non-image 4xx, recorded). activate via existing confirmPayment. mig 0095 needs prod-tenant rollout" },
         { "item": "Online card payments (Stripe)", "testability": "deferred", "why": "Post-MVP, out of scope" }
       ]
     },
@@ -67,7 +71,7 @@
       "specGlobs": ["web/branch/**"],
       "items": [
         { "item": "Create/edit/delete Org→Region→Country→State→Location", "testability": "covered", "via": "branch/hierarchy.lifecycle" },
-        { "item": "Deletion blocked when node has active children", "testability": "covered", "via": "branch/delete-guard.rule (now returns typed 409 CONFLICT — FK-restrict violation mapped in delete.procedures.ts)" },
+        { "item": "Deletion blocked when node has active children", "testability": "covered", "via": "branch/delete-guard.rule — deleteNode defaults to BLOCK (autoDeleteChildren/autoReassignMembers false); a node with children or subtree members returns a typed 409 CONFLICT inside one transaction, leaving the whole subtree intact (no raw 500, no partial cascade). deleteHierarchyNode reassigns ALL subtree members up-front on the explicit cascade path" },
         { "item": "Visibility rules per level", "testability": "covered", "via": "rbac/listnodes-scope.rbac + multi-tenant isolation" }
       ]
     },
@@ -82,8 +86,12 @@
     },
     {
       "n": 10, "title": "GoHighLevel Synchronization", "module": "GoHighLevel synchronization", "owner": "Dev",
-      "specGlobs": [],
-      "items": [ { "item": "Staff/location/custom-field push to GHL", "testability": "deferred", "why": "needs GoHighLevel" } ]
+      "specGlobs": ["web/ghl/**"],
+      "items": [
+        { "item": "Staff sync: create/update/deactivate member -> GHL user (LIVE)", "testability": "covered", "via": "org test-fitness-franchise provisioned org-shared (location G0izzPbelobw04MIntR1 = 'MOVE Private Fitness Studio', encrypted PIT key, GHL_AGENCY_ID iDgsCeSnq9lA4PWPSTFI in .dev.vars). dispatchStaffSync wired into members create/role/scope/status/archive + retryGhlSync. LIVE-VERIFIED 2026-06-25: 3 staff (trainer/staff/developer) round-trip to GHL GET /users 200; create->verify->delete round-trip POST 201 / GET 200 / DELETE 200 / re-GET 404. e2e ghl/ghl-sync-live.rule + ~25 unit tests" },
+        { "item": "Custom-field dropdowns: Primary Staff + location options in GHL", "testability": "covered", "via": "reconcilePrimaryStaffOptions runs after every staff sync (desired-state from active staff); branch dispatch (create/rename/remove/move) wired into hierarchy mutations; org has ghl_primary_staff_field_id + ghl_country_field_map provisioned" },
+        { "item": "Inbound webhook: GHL contact -> Avantej client", "testability": "covered", "via": "POST /webhooks/gohighlevel/:locationId (HMAC-verified) -> processGhlWebhook creates/updates member+customer_profile; ghlSync/listEvents exposes the audit log. LIVE: 11 ghl_contact_links + 30 ghl_sync_events processed; e2e ghl/ghl-sync-live.rule asserts listEvents responds" }
+      ]
     },
     {
       "n": 11, "title": "Services & Packages Readiness", "module": "Services & packages", "owner": "Admin",
@@ -99,7 +107,7 @@
       "specGlobs": ["web/commissions/**"],
       "items": [
         { "item": "Commission per sale matches category rule", "testability": "covered", "via": "commissions/category-commission-weightage-sum" },
-        { "item": "Incentive thresholds; renewal rule vs new-sale", "testability": "deferred", "why": "engine-internal — needs seeded multi-sale scenarios (no direct procedure to assert); core rules covered by commissions/* rule specs" },
+        { "item": "Incentive thresholds; renewal rule vs new-sale", "testability": "covered", "via": "renewal: commission_tracks.sales_type (new|renewal|any) + engine selectTracksBySalesType + commissions/renewal-rate.rule (salesType round-trip) + 7 unit. incentive: commission_incentives rules + idempotent commission_incentive_awards ledger + evaluateIncentivesForPeriod + daily incentive-sweep cron (previous-month) + commissions/incentive-threshold.rule (CRUD + exactly-once sweep) + 9 unit" },
         { "item": "No commission until payment confirmed", "testability": "covered", "via": "commissions/commission-splits-manual-adjustment-xor" },
         { "item": "Commission output integrity (positive + staff-attributed) + reporting visibility", "testability": "covered", "via": "commissions/commission-output.rule" },
         { "item": "Reporting visibility of coach totals (memberId-scoped report)", "testability": "covered", "via": "commissions/commission-output.rule" }
@@ -111,7 +119,7 @@
       "items": [
         { "item": "Report filters (period: week/month/year)", "testability": "covered", "via": "reports/report-filters.rule" },
         { "item": "Report export (CSV)", "testability": "covered", "via": "reports/report-export.rule (auditLogs/exportCsv)" },
-        { "item": "Per-tier accuracy", "testability": "deferred", "why": "needs seeded per-tier fixtures" },
+        { "item": "Per-tier accuracy", "testability": "covered", "via": "reports/per-tier-accuracy.rule + analytics.getCommissionByTier (commission totals grouped by trainer-tier snapshot; breakdown is non-negative, tiers distinct, and reconciles exactly to the splits ledger over the same window)" },
         { "item": "Permission controls: report shows only allowed data (BLOCKER if leaks)", "testability": "covered", "via": "reports/reporting-scope.rbac" }
       ]
     }

@@ -7,7 +7,7 @@
  *
  *   node _e2e/build-uat-review.mjs
  */
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, statSync } from "node:fs";
 import { join, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -28,6 +28,14 @@ function walk(s, file) {
 		const t = sp.tests?.[0];
 		const res = t?.results?.[t.results.length - 1];
 		const vid = res?.attachments?.find((a) => a.name === "video");
+		let videoBytes = 0;
+		if (vid) {
+			try {
+				videoBytes = statSync(vid.path).size;
+			} catch {
+				videoBytes = 0;
+			}
+		}
 		const norm = String(f)
 			.replace(/\\/g, "/")
 			.replace(/^.*?\/web\//, "");
@@ -37,6 +45,7 @@ function walk(s, file) {
 			ok: sp.ok,
 			status: res?.status ?? "unknown",
 			video: vid ? relative(E2E, vid.path).replace(/\\/g, "/") : null,
+			videoBytes,
 		});
 	}
 	for (const c of s.suites ?? []) walk(c, f);
@@ -132,24 +141,47 @@ for (const sec of ledger.sections) {
 				`<li><span class="b ${i.testability}">${badge[i.testability] ?? i.testability}</span> ${esc(i.item)}${i.why ? ` <i class="muted">— ${esc(i.why)}</i>` : ""}${i.via ? ` <code>${esc(i.via)}</code>` : ""}</li>`,
 		)
 		.join("");
-	const vids = mapped
-		.filter((t) => t.video)
+	// Only embed videos with real UI content. API-boundary specs (rule/lifecycle/
+	// rbac via page.request) never navigate the browser, so their recording is a
+	// near-empty webm (a blank player) — list those as text instead of black boxes.
+	const VIDEO_MIN_BYTES = 10000;
+	const withVideo = mapped.filter(
+		(t) => t.video && t.videoBytes >= VIDEO_MIN_BYTES,
+	);
+	const apiOnly = mapped.filter(
+		(t) =>
+			t.status !== "unknown" && !(t.video && t.videoBytes >= VIDEO_MIN_BYTES),
+	);
+	// Reference .mp4 (faststart, transcoded by build.sh): Cloudflare's asset server
+	// doesn't honour Range, and webm's seek index sits at the END of the file, so
+	// the browser can't load webm without Range (endless spinner). faststart MP4
+	// puts metadata at the front and plays progressively over a plain GET.
+	const vids = withVideo
 		.map(
 			(t) =>
-				`<figure><figcaption>${t.ok ? "✅" : "❌"} ${esc(t.title)}</figcaption><video controls preload="metadata" src="${t.video}"></video></figure>`,
+				`<figure><figcaption>${t.ok ? "✅" : "❌"} ${esc(t.title)}</figcaption><video controls playsinline preload="metadata" poster="${t.video.replace(/\.webm$/, ".jpg")}" src="${t.video.replace(/\.webm$/, ".mp4")}"></video></figure>`,
 		)
 		.join("");
+	const apiList = apiOnly.length
+		? `<details class="apiverified"><summary>✓ ${apiOnly.length} spec${apiOnly.length === 1 ? "" : "s"} verified at the API boundary (no UI to record)</summary><ul>${apiOnly
+				.map((t) => `<li>${t.ok ? "✅" : "❌"} ${esc(t.title)}</li>`)
+				.join("")}</ul></details>`
+		: "";
 	cards.push(`
 <section class="card ${st.cls}">
   <h2><span class="pill ${st.cls}">${st.label}</span> §${sec.n} ${esc(sec.title)}</h2>
   <ul class="items">${itemHtml}</ul>
-  ${vids ? `<h3>Recorded journeys (${mapped.filter((t) => t.video).length})</h3><div class="vids">${vids}</div>` : `<p class="muted">No video — ${mapped.length ? "specs verified at the API boundary (no UI navigation)" : "no spec mapped yet"}.</p>`}
+  ${vids ? `<h3>Recorded journeys (${withVideo.length})</h3><div class="vids">${vids}</div>` : ""}
+  ${apiList || (withVideo.length ? "" : `<p class="muted">${mapped.length ? "Specs verified at the API boundary (no UI navigation)." : "No spec mapped yet."}</p>`)}
   ${dbBlock(sec.n)}
 </section>`);
 }
 
 const html = `<!doctype html><html><head><meta charset="utf-8"><title>UAT Go/No-Go Review</title>
+<meta name="color-scheme" content="light">
 <style>
+ :root{color-scheme:light}
+ html,body{color-scheme:light}
  body{font:14px/1.55 system-ui,sans-serif;margin:0;background:#f8fafc;color:#1e293b}
  header{padding:20px 28px;background:#fff;border-bottom:1px solid #e2e8f0}
  h1{margin:0 0 4px;font-size:20px;color:#0f172a}.sub{color:#64748b;font-size:13px}
@@ -180,7 +212,13 @@ const html = `<!doctype html><html><head><meta charset="utf-8"><title>UAT Go/No-
  .vids{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
  figure{margin:0}figcaption{font-size:12px;margin:0 0 4px;color:#475569}
  video{width:100%;border-radius:8px;background:#000;border:1px solid #e2e8f0}
- code{background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:11px}.muted{color:#94a3b8}
+ code{background:#f1f5f9;color:#0f172a;padding:1px 5px;border-radius:4px;font-size:11px}.muted{color:#94a3b8}
+ ul.items li{color:#1e293b}
+ table.data th,table.data td{color:#334155}
+ .apiverified{margin:8px 0;font-size:12px;color:#475569}
+ .apiverified summary{cursor:pointer;color:#15803d;font-weight:600}
+ .apiverified ul{margin:6px 0 0;padding-left:18px;color:#475569}
+ .apiverified li{margin:2px 0}
 </style></head><body>
 <header><h1>Avantage Core — MVP Readiness / UAT Go-No-Go</h1>
 <div class="sub">Based on Avantage_Core_MVP_Readiness_UAT_SignOff.docx · ${ledger.sections.length} sections · status computed from the e2e run</div></header>
