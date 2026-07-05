@@ -1,0 +1,12 @@
+{
+	"title": "GHL → Integration page shows org-shared connection (connected)",
+	"module": "ghl",
+	"prodMutationClass": "read-only",
+	"journey": [
+		"Open the web app at http://avantej.localhost:3021 and sign in as franchisee@gmail.com (admin of Test Fitness Franchise)",
+		"Navigate to GHL Integration via the sidebar Settings → GHL Integration link (/go-highlevel-integration)",
+		"Confirm the 'Organization-Wide GHL Connection' card shows a green '✓ Connected' badge",
+		"Confirm the connected location id reads 'G0izzPbelobw04MIntR1' and a 'Connected at' timestamp is shown",
+		"Confirm the 'Branch Connections' table renders and the 'Sync Events' card is present"
+	]
+}

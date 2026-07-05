@@ -1,0 +1,12 @@
+{
+	"title": "GHL → Outbound: new staff (invite→accept) creates a real GHL user",
+	"module": "ghl",
+	"prodMutationClass": "create+delete · LIVE real GHL user (mock, cleaned up)",
+	"journey": [
+		"Setup (off-camera): a pending trainer invitation is seeded for a mock email zz-staff-<ts>@example.com (branch Bukit Jalil)",
+		"Open the public accept-invitation page (signed out) — shows 'You've Been Invited!' with the invited email + role",
+		"Fill First/Last name + password and click 'Sign Up & Accept Invitation' — fires invitations.acceptWithSignup → dispatchStaffSync(operation:create) using GHL_AGENCY_ID",
+		"Verify on the GHL side via API read-back: GET /users/BuF0op0nmLfeKdPcFJP9 returns name 'ZZ StaffTest-GHL', email zz-staff-<ts>@example.com — a real user in the connected GHL location",
+		"Teardown (off-camera): real GHL user deleted (GET → 404) + Avantej user/member/link/invitation removed"
+	]
+}

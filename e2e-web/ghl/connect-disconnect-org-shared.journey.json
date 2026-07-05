@@ -1,0 +1,13 @@
+{
+	"title": "GHL → Setup: connect/disconnect org-shared preserves country map",
+	"module": "ghl",
+	"prodMutationClass": "update · LIVE org (reversible, restored)",
+	"journey": [
+		"getOrgShared → connected, countryFieldCount = 4",
+		"disconnectOrgShared → org marked per-branch; getOrgShared → disconnected",
+		"connectOrgShared(location, key) → re-validates key + bootstraps fields; getOrgShared → connected",
+		"Assert: countryFieldCount stays 4 the whole time — the country→GHL-field map survives disconnect→reconnect",
+		"Regression for the fixed bug: connect used to reset the map to {} and disconnect to null (wiping branch country-stamping)",
+		"Live org restored to its connected state"
+	]
+}

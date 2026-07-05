@@ -1,0 +1,13 @@
+{
+	"title": "GHL → Outbound: staff profile edit syncs to GHL user",
+	"module": "ghl",
+	"prodMutationClass": "update · LIVE real GHL user (mock, self-clean)",
+	"journey": [
+		"Create a mock staff via invite→accept (sets a password, creates GHL user 'ZZ ProfileTest')",
+		"Sign in AS that staff, then self-edit firstName/lastName (better-auth update-user)",
+		"databaseHooks.user.update.after → dispatchProfileSync → PUT /users/:id",
+		"Verify on the GHL side: GET /users/:id name changes 'ZZ ProfileTest' → 'ZZRenamed ProfileSynced'",
+		"Note: editing only `name` shows no change — the GHL user derives name from firstName/lastName (root cause of the earlier 'partial')",
+		"Teardown: GHL user deleted + Avantej rows removed"
+	]
+}

@@ -1,0 +1,13 @@
+{
+	"title": "GHL → Inbound: duplicate event is deduped (idempotency)",
+	"module": "ghl",
+	"prodMutationClass": "create+delete (self-clean, no real GHL account touched)",
+	"journey": [
+		"Off-camera: POST a signed ContactCreate for a unique contact → processed (client created)",
+		"Off-camera: POST a second signed webhook for the same contact + event type",
+		"Open GHL Integration → Sync Events on staging web",
+		"Confirm the first event is 'processed' and the duplicate is 'skipped' (Duplicate event skipped) — deduped by (location, contact, eventType) eventKey",
+		"Proves inbound is idempotent: a re-delivered webhook does not double-create the client",
+		"Teardown (off-camera): sync events + client removed"
+	]
+}

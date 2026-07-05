@@ -4,7 +4,7 @@ import { organizations } from "@avantej-core/db/schema/control-panel/organizatio
 import { ghlBranchLinks } from "@avantej-core/db/schema/control-panel/ghl-branch-links";
 import { requirePermission } from "@avantej-core/services";
 import { ORPCError } from "@orpc/server";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getControlPanelDb } from "@/lib/db";
 import {
@@ -119,7 +119,12 @@ export const orgSharedProcedures = {
 					ghlApiKeyEncrypted: encryptedKey,
 					ghlProvisionedAt: new Date(),
 					ghlSyncModel: "org-shared",
-					ghlCountryFieldMap: {},
+					// Preserve any existing country→field map on reconnect — the GHL
+					// custom fields persist regardless of connect state, so wiping the
+					// map here (or on disconnect) would orphan branch country-stamping.
+					// COALESCE keeps the existing map; first-time connect initialises {}.
+					// (ghlGlobalFieldMap is safe to overwrite — it's rebuilt every connect.)
+					ghlCountryFieldMap: sql`COALESCE(${organizations.ghlCountryFieldMap}, '{}'::jsonb)`,
 					ghlGlobalFieldMap: globalFieldIds,
 					ghlWebhookSecret: webhookSecret,
 					updatedAt: new Date(),
@@ -162,7 +167,11 @@ export const orgSharedProcedures = {
 				.set({
 					ghlLocationId: null,
 					ghlApiKeyEncrypted: null,
-					ghlCountryFieldMap: null,
+					// Keep ghlCountryFieldMap intact — the GHL custom fields persist
+					// even while disconnected, so the country→field map stays valid for
+					// a later reconnect. Wiping it here orphaned branch country-stamping.
+					// (Global map + webhook secret are safe to clear: both are
+					// regenerated on the next connectOrgShared.)
 					ghlGlobalFieldMap: null,
 					ghlWebhookSecret: null,
 					ghlSyncModel: "per-branch",

@@ -1,0 +1,12 @@
+{
+	"title": "GHL → Branch: bulk retry of failed syncs recovers errored contacts",
+	"module": "ghl",
+	"prodMutationClass": "update · LIVE staging RPC + DB (self-clean)",
+	"journey": [
+		"A branch (active GHL link) has a contact-link with sync_status = 'error'",
+		"Call ghl.retryFailedSyncs(organizationId, tenantBranchId)",
+		"Returns { attempted: 1, recovered: 1, stillFailing: 0 }",
+		"Verify: the errored link flips back to active (re-pushed to GHL)",
+		"Teardown: test customer + GHL contact removed; throwaway branch-link deactivated"
+	]
+}
