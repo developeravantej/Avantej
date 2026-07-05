@@ -1,0 +1,562 @@
+---
+title: "Beating MOVE OS — Avantej Tenant Parity Program (P0 + Import/Export)"
+kind: plan
+localOnly: true
+---
+
+### Objective
+
+Close the money-correctness, back-office, and onboarding gaps that a live audit of the competitor product **MOVE OS** (`move-session-billing-staging.onrender.com`) surfaced against the Avantej tenant dashboard — and overshoot each one so Avantej is the stronger product, not a copy. MOVE OS is a single-region-per-tenant, multi-currency gym-billing OS; it is a useful **feature reference**, not an architecture model. Avantej already meets or beats it on Dashboard, Clients (Customer-360), Commission ledger, Users/RBAC, and Promotions. This program lands the seven pieces where MOVE is currently ahead or where Avantej is only partial.
+
+**Done means:** a multi-country tenant sees correct per-currency money everywhere; the ten operational reports exist as row-level, exportable tables scoped by RBAC hierarchy; invoices carry a per-branch company/tax profile and gapless per-branch numbering; sessions auto-complete and settle coach pay after the cancel window without a human; commission months lock (auto + manual) and reject back-dated edits; and a tenant admin can self-serve CSV import (onboarding) and CSV export (portability) from the dashboard.
+
+### Scope
+
+In scope — seven workstreams:
+
+<Table
+  id="scope-table"
+  columns={["#", "Workstream", "MOVE status", "Priority", "Beats MOVE by"]}
+  rows={[
+    ["WS1", "Multi-currency correctness", "hardcoded MYR (partial)", "P0", "Currency as a first-class derived dimension, enforced at write time — not just read-time grouping"],
+    ["WS2", "Reports suite (10 reports)", "10 row-level reports", "P0", "RBAC hierarchy scoping + custom date range + reused CSV codec (MOVE is flat all-branches)"],
+    ["WS3", "Per-branch tax + company profile + numbering", "per-branch tax profile", "P0", "Tax scoped per branch/country over the existing hierarchy; gapless sequences via counter table"],
+    ["WS4", "Appointment lifecycle automation", "auto-complete + bulk + month view", "P0", "Reuses the existing credit+commission engine so bulk/auto paths stay correct, not a parallel code path"],
+    ["WS5", "Month-based payroll period lock", "calendar-month lock", "P0", "Locks over configurable commission cycles (not just calendar months) with enforced immutability"],
+    ["WS6", "Self-service CSV import", "9-entity importer", "P0", "Reuses the real migration loaders + crosswalk idempotency (safe re-runs), not a throwaway parser"],
+    ["WS7", "CSV export catalogue", "~25 datasets", "P1→now", "Schema-driven manifest with FK preservation + R2 delivery for large dumps"],
+  ]}
+/>
+
+### Non-goals (explicitly deferred)
+
+- **Data Health** (24 integrity checks), **Danger Zone** (sandbox reset + hard delete), **Service Categories mode**, **Account/What's-New changelog** — all P1/P2 follow-ups tracked in the audit (`docs/MOVE_OS_VS_AVANTEJ_GAP_AUDIT.html`). Data Health is the strongest of these and should be the next program after this one; it reuses the platform-admin `DriftTab` UI pattern.
+- No new payment processor work; Stripe Connect stays as-is.
+- Not re-architecting the hierarchy or RBAC — this program rides on the existing `accessibleNodeIds` scoping.
+
+### Already covered — not building
+
+These MOVE OS areas are already at or beyond parity in Avantej. They are **out of scope**; we do not rebuild them.
+
+<Table
+  id="covered-table"
+  density="compact"
+  columns={["Module", "Avantej already has", "Verdict"]}
+  rows={[
+    ["Dashboard / KPIs", "revenue/appointments/active-member KPIs, staff leaderboard, churn/LTV, hierarchy scope selector", "≥ MOVE"],
+    ["Clients (Customer-360)", "directory + rich detail: profile, packages, payments, appointments, logs, soft-delete, freeze, magic-link", "≥ MOVE"],
+    ["Commission ledger", "team-summary + detailed views, role-typed splits, versioned settings engine", "≥ MOVE (except currency grouping — WS1)"],
+    ["Users / RBAC", "roles + permissions catalogue, hierarchy scoping, impersonation", "= MOVE (minor role-label nits deferred)"],
+    ["Promotions / Promo codes", "promotions router + schema + POS promo-step", "= MOVE"]
+  ]}
+/>
+
+Each workstream below builds **only the delta** on top of what already exists — the "Reuses / Adds" line on every section states exactly what is kept vs newly built.
+
+### The hard-to-reverse bets (decide now)
+
+These are the choices that become expensive once data or callers depend on them. They are settled here; the few genuinely-open forks are in **Open Questions** at the bottom.
+
+<Callout id="bet-currency" tone="decision">
+
+**Currency is stamped on every money row at creation from the branch's currency, and the branch's currency is the single source of truth.** Currency columns already exist inconsistently today: `appointments.currency` defaults `"MYR"`, but `payments.currency` and `payouts.currency` default `"usd"` and `expenses.currency` defaults `"myr"`. Two money tables have **no** currency at all (`commission_splits`, `service_prices`). The bet: add `branch_details.currency` (seeded from the branch's `hierarchy_nodes` country node), make it authoritative, add currency to the two tables that lack it, and **correct** the wrong-default rows (not just NULLs) by backfilling from each row's branch. Then every summary `GROUP BY currency`. This is real schema work, not a one-column add — and WS2/WS3 money display depend on it, so WS1 ships first.
+
+</Callout>
+
+<Callout id="bet-sales-alloc" tone="decision">
+
+**Dual sales allocation (Lead Originator vs Sales Rep) is modelled as two typed split rows, not two columns on the sale.** Avantej's `commission_splits.roleType` already carries `trainer | sales | marketing | referrer`. MOVE hardcodes exactly two 5% sales slots; Avantej keeps its N-configurable slot model and adds `lead_originator` + `sales_rep` to the role vocabulary. Note this **is** a shared-type change: `CommissionRoleType` is a closed union in `packages/types`, so every exhaustiveness switch on it must be updated. Small but real — not "no schema fork". Avantej stays more flexible than MOVE.
+
+</Callout>
+
+<Callout id="bet-numbering" tone="decision">
+
+**Invoice/receipt numbers are `prefix + gapless per-branch sequence`, allocated transactionally from a counter row.** A `branch_number_sequences` row per (branch, docType) is incremented inside the same transaction that writes the invoice/receipt, so numbers never gap or collide under concurrency. The sequence is a `bigint` (no hard cap) zero-padded to a per-branch configurable display width, so there is no permanent 999,999 ceiling. The wire format `<prefix><padded-seq>` is customer-visible and permanent once invoices are issued — it is fixed here.
+
+</Callout>
+
+<Callout id="bet-payroll" tone="decision">
+
+**A payroll period is a first-class row keyed to a commission-cycle window, with an enforced write-gate.** Rather than derive lock state ad hoc, introduce `payroll_periods` and reject any commission write dated into a `locked` period at the service layer. Windows come from the existing `commission_cycle_configs` resolver, so a tenant on a non-calendar cycle still locks correctly — MOVE only understands calendar months.
+
+</Callout>
+
+<Callout id="bet-import" tone="decision">
+
+**Import idempotency is a crosswalk (external natural key → internal id), built on the existing ETL primitives — not a fresh insert path.** The developer xlsx ETL already has canonical DTOs, a crosswalk, and loaders for **Clients, Staff, Product, Location, Appointment only**. Packages, Payments, Payees, Service-categories, and Opening-balances have **no loader yet** — those are net-new and are the bulk of WS6's work. The dashboard importer wraps loaders behind an oRPC `importPreview` (per-row Zod validation) + `importCommit` (single transaction) so a re-run upserts instead of duplicating. CSV column headers (the downloadable templates) are the public contract and are versioned. A `data_import:manage` permission must be added to `seed-rbac.ts` + backfilled to existing tenants (same gap class as prior owner-permission fixes).
+
+</Callout>
+
+---
+
+### WS1 — Multi-currency correctness (P0, foundational)
+
+**Reuses:** the existing `currency` columns on `appointments` / `payments` / `payouts` / `expenses`; `liabilitySummary` / `liabilityByStaff` / `listCommissionLedger` in the commission service; the `hierarchy_nodes` country nodes (`type='country'` / `countryNodeId`). **Adds:** `branch_details.currency` as the source of truth, a `currency` column on the two money tables that lack it (`commission_splits`, `service_prices`), `GROUP BY currency` in every aggregate, a corrective backfill, and removal of hardcoded `"MYR"` in the UI.
+
+Today the commission ledger, branch revenue (`TreeRow`, `NodeDetailPanel`), and package pricing all render assuming MYR, and the currency columns that do exist disagree (`payments`/`payouts` default `usd`). A tenant operating MY+TH+SG (exactly MOVE's shape) sees co-mingled, wrong grand totals. This is a correctness defect, not cosmetics.
+
+<DataModel
+  id="ws1-model"
+  entities={[
+    {
+      id: "hierarchy_nodes",
+      name: "hierarchy_nodes",
+      fields: [
+        { name: "id", type: "uuid", pk: true },
+        { name: "type", type: "text (country|state|branch)" },
+        { name: "country_node_id", type: "uuid", nullable: true }
+      ]
+    },
+    {
+      id: "branch_details",
+      name: "branch_details",
+      fields: [
+        { name: "node_id", type: "uuid", pk: true, fk: "hierarchy_nodes.id" },
+        { name: "currency", type: "text", nullable: false }
+      ]
+    },
+    {
+      id: "commission_splits",
+      name: "commission_splits",
+      fields: [
+        { name: "id", type: "uuid", pk: true },
+        { name: "role_type", type: "text" },
+        { name: "calculated_amount", type: "int" },
+        { name: "currency", type: "text", nullable: false }
+      ]
+    },
+    {
+      id: "service_prices",
+      name: "service_prices",
+      fields: [
+        { name: "id", type: "uuid", pk: true },
+        { name: "service_id", type: "uuid" },
+        { name: "branch_id", type: "uuid", fk: "hierarchy_nodes.id" },
+        { name: "price_cents", type: "int" },
+        { name: "currency", type: "text", nullable: false }
+      ]
+    }
+  ]}
+  relations={[
+    { from: "hierarchy_nodes", to: "branch_details", kind: "1-n" },
+    { from: "hierarchy_nodes", to: "service_prices", kind: "1-n" }
+  ]}
+/>
+
+<Code
+  id="ws1-resolve"
+  filename="packages/services/src/currency.service.ts"
+  language="ts"
+  caption="Currency comes from the branch; the branch is seeded from its country node. New columns get NOT NULL; existing wrong-default rows are corrected, not just NULLs."
+  code={"export async function resolveBranchCurrency(\n  tenantDb: TenantDb,\n  branchNodeId: string,\n): Promise<string> {\n  const branch = await tenantDb.query.branchDetails.findFirst({\n    where: eq(branchDetails.nodeId, branchNodeId),\n    columns: { currency: true },\n  });\n  if (branch?.currency) return branch.currency; // authoritative once set\n  // seed path: walk node -> country node -> currency map\n  const countryCode = await resolveCountryCode(tenantDb, branchNodeId);\n  return COUNTRY_CURRENCY[countryCode] ?? \"MYR\";\n}"}
+/>
+
+<Callout id="ws1-risk" tone="risk">
+
+Backfill has two edges, not one: (1) the **new** columns (`commission_splits.currency`, `service_prices.currency`) ship nullable → backfill from each row's branch → `NOT NULL`; (2) the **existing** columns carry wrong defaults (`payments`/`payouts` default `usd`) — the backfill must **overwrite** those to the branch currency, not skip them with a `WHERE currency IS NULL` guard. Idempotent SQL, verified with `bun verify:migrations` + `bun scripts/check-drift.ts` before rollout.
+
+</Callout>
+
+<FileTree
+  id="ws1-files"
+  title="WS1 files"
+  entries={[
+    { path: "packages/db/src/migrations/tenant/NNNN_money_currency.sql", change: "added", note: "Add branch_details.currency + commission_splits.currency + service_prices.currency; backfill (incl. overwriting wrong usd defaults); then NOT NULL on the new cols" },
+    { path: "packages/services/src/currency.service.ts", change: "added", note: "resolveBranchCurrency + resolveCountryCode + COUNTRY_CURRENCY map" },
+    { path: "packages/services/src/commission.service.ts", change: "modified", note: "stamp currency on split write; GROUP BY currency in liabilitySummary/liabilityByStaff/listCommissionLedger" },
+    { path: "apps/web/src/components/commissions/*", change: "modified", note: "render one table + grand total per currency; drop hardcoded 'MYR'" },
+    { path: "apps/web/src/components/pages/hierarchy/{TreeRow,NodeDetailPanel}.tsx", change: "modified", note: "replace literal MYR with row/block currency" }
+  ]}
+/>
+
+---
+
+### WS2 — Reports suite: 10 operational reports (P0, largest surface)
+
+**Reuses:** `getStaffPerformance` (as a *starting point* for Coach Productivity — it returns only `{staffId, appointmentCount, totalCommission}`, so tier / distinct clients / no-show% / credits-earned are net-new), `getRevenueSeries`, and the sales-order / invoice / credit-ledger schemas (the data already exists). **Adds:** a `reports/` router folder with a shared input contract, ten row-level query procedures, a Reports index with a custom date-range picker + tax-basis toggle, virtualized tables, and per-report CSV via the shared codec (WS7).
+
+Avantej today has aggregate KPI tiles but none of MOVE's row-level reports. The data is present; this is mostly a surfacing job. Every report shares one input and is guarded by `accessibleNodeIds` — so a Branch Manager sees only their branches, which MOVE's flat "all branches" cannot do.
+
+<Callout id="ws2-package-branch" tone="warning">
+
+Two reports need a schema fix first: **Expiring Credits** and **Services Owed** read `package_instances`, which has **no branch column**, so they cannot be `accessibleNodeIds`-scoped as-is. Either add a `branch_id` to `package_instances` (backfilled from the originating sale) or join through the sale/order to the branch — decide in WS2, do it before those two reports. Also extend `listExpiring`'s hard-typed `within: 7 | 30` to include the 60-day window this report specifies.
+
+</Callout>
+
+<Code
+  id="ws2-input"
+  filename="packages/api/src/routers/reports/_shared.ts"
+  language="ts"
+  caption="One input contract for all ten reports; RBAC scoping is mandatory, tax basis and custom range are first-class."
+  code={"export const reportInput = z.object({\n  organizationId: z.string(),\n  branchId: z.string().optional(),      // null = all accessible\n  from: z.string().date(),\n  to: z.string().date(),\n  taxBasis: z.enum([\"pre_tax\", \"tax_inclusive\"]).default(\"tax_inclusive\"),\n});\n// every handler: assertOrgContextMatch + filter by accessibleNodeIds"}
+/>
+
+<Table
+  id="ws2-reports"
+  density="compact"
+  columns={["Report", "Grain", "Reuses / new"]}
+  rows={[
+    ["Sales (Revenue)", "one package sold / row", "sales_order + dual sales-allocation (WS1 roles)"],
+    ["Collections", "one payment / row", "payments/receipts"],
+    ["Outstanding / AR Aging", "one owed package, bucketed", "invoices; new 0-30/31-60/61-90/90+ bucketing"],
+    ["Expiring Credits", "credits lapsing < 60d", "package_instances.listExpiring (exists)"],
+    ["Coach Productivity", "one coach / row", "extend getStaffPerformance (tier, no-show%, credits earned)"],
+    ["Refunds & Cancellations", "one cancel / row", "cancelled-sales.service (exists)"],
+    ["Sales Mix", "by service", "new aggregate: new-vs-returning, sessions sold"],
+    ["Appointments Detailed", "one appointment / row", "appointments join"],
+    ["Customer Redemptions", "one redemption / row", "credit_ledger"],
+    ["Services Owed", "one active package / row", "package_instances remaining value"]
+  ]}
+/>
+
+<Diagram id="ws2-diagram" caption="Every report tab hangs off one input + one CSV codec.">
+
+```html
+<div class="diagram-panel" data-rough>
+  <div class="diagram-box">
+    <div class="diagram-muted">shared input</div>
+    <div class="diagram-pill">branchId? · from · to · taxBasis</div>
+  </div>
+  <div class="diagram-card">
+    <div class="diagram-node">10 report procedures</div>
+    <div class="diagram-muted">accessibleNodeIds guard on each</div>
+  </div>
+  <div class="diagram-box">
+    <div class="diagram-node">virtualized table</div>
+    <div class="diagram-node">buildCsv() export</div>
+  </div>
+</div>
+```
+
+```css
+.diagram-panel { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 14px; align-items: center; }
+.diagram-card { border: 1px solid var(--wf-line); border-radius: 10px; padding: 12px; display: grid; gap: 6px; }
+.diagram-box { display: grid; gap: 6px; }
+```
+
+</Diagram>
+
+<Callout id="ws2-note" tone="info">
+
+Dual sales allocation (Lead Originator + Sales Rep) shows up first in the Sales report columns — it depends on the WS1 split-role additions, so WS2's Sales report follows WS1. The other nine reports are independent and can be built in parallel.
+
+</Callout>
+
+---
+
+### WS3 — Per-branch tax + company profile + numbering (P0)
+
+**Reuses:** the near-empty `branch_details` row (today only `nodeId`, `address`, `picUserId`), the client-side invoice PDF builder (`export-invoice-pdf.ts`, jsPDF off `client.invoices.getDetail`). **Adds (mostly net-new):** company/legal fields on the branch, per-branch/per-country tax scoping (`tax_rates` is org-global today with a single `isDefault` and no country column), the gapless numbering counter, and the plumbing of the branch tax/company block through `invoices.getDetail` so the PDF can print it.
+
+MOVE prints a per-branch company & tax profile on invoices and uses per-branch invoice/receipt prefixes. Avantej's tax is org-global with a single default — so this is largely new work, not a small extension. For a multi-outlet, multi-country operator this is compliance-relevant.
+
+<DataModel
+  id="ws3-model"
+  entities={[
+    {
+      id: "branch_details_ws3",
+      name: "branch_details",
+      fields: [
+        { name: "node_id", type: "uuid", pk: true },
+        { name: "company_legal_name", type: "text" },
+        { name: "registration_number", type: "text", nullable: true },
+        { name: "tax_id", type: "text", nullable: true },
+        { name: "invoice_prefix", type: "text" },
+        { name: "receipt_prefix", type: "text" },
+        { name: "branch_tax_rate_id", type: "uuid", fk: "tax_rates.id" }
+      ]
+    },
+    {
+      id: "branch_number_sequences",
+      name: "branch_number_sequences",
+      fields: [
+        { name: "id", type: "uuid", pk: true },
+        { name: "branch_node_id", type: "uuid", fk: "branch_details.node_id" },
+        { name: "doc_type", type: "enum('invoice','receipt')" },
+        { name: "next_seq", type: "int" }
+      ]
+    },
+    {
+      id: "tax_rates",
+      name: "tax_rates",
+      fields: [
+        { name: "id", type: "uuid", pk: true },
+        { name: "country", type: "text" },
+        { name: "rate_bps", type: "int" }
+      ]
+    }
+  ]}
+  relations={[
+    { from: "tax_rates", to: "branch_details_ws3", kind: "1-n" },
+    { from: "branch_details_ws3", to: "branch_number_sequences", kind: "1-n" }
+  ]}
+/>
+
+<Code
+  id="ws3-seq"
+  filename="packages/services/src/numbering.service.ts"
+  language="ts"
+  caption="Gapless, race-safe: increment the counter in the SAME transaction that writes the doc."
+  code={"export async function nextDocNumber(tx: Tx, branchNodeId: string, docType: DocType) {\n  const [row] = await tx.update(branchNumberSequences)\n    .set({ nextSeq: sql`next_seq + 1` })\n    .where(and(eq(branchNumberSequences.branchNodeId, branchNodeId),\n               eq(branchNumberSequences.docType, docType)))\n    .returning({ seq: branchNumberSequences.nextSeq, prefix: /* joined */ });\n  return `${row.prefix}${String(row.seq).padStart(6, \"0\")}`;\n}"}
+/>
+
+---
+
+### WS4 — Appointment lifecycle automation (P0)
+
+**Reuses:** `updateAppointment` (which already fires credit debit + commission), `CalendarCell` / `CalendarDetailModal`, the `list.procedures` inputs (`trainerId`, `branchId`, `status`, `startFrom/startTo`), the installment-sweep cron pattern. **Adds:** month/today calendar views, a multi-select bulk toolbar, and an auto-complete cron.
+
+The critical rule (from CLAUDE.md and the audit): bulk and auto paths must go **through** the existing `updateAppointment` (`appointment.service.ts`, which debits credit and runs `runAppointmentCommission`) so credit and commission still fire — never a parallel write path. MOVE auto-completes on cancel-window close; Avantej matches that and keeps its richer engine. Note a jsdoc in that file calls commission auto-create "dormant" — it is stale; the path is live across 6 call sites. Confirm before wiring the cron.
+
+<Diagram id="ws4-diagram" caption="Auto-complete state machine — one cron, reusing updateAppointment.">
+
+```html
+<div class="diagram-panel" data-rough>
+  <div class="diagram-node">Booked</div>
+  <div class="diagram-arrow">24h cancel window closes →</div>
+  <div class="diagram-box">
+    <div class="diagram-node">Completed</div>
+    <div class="diagram-muted">commit credit · pay coach</div>
+  </div>
+  <div class="diagram-card">
+    <div class="diagram-muted">short-notice (&lt;24h)</div>
+    <div class="diagram-pill">stays Booked until session end → then completes</div>
+  </div>
+</div>
+```
+
+```css
+.diagram-panel { display: grid; grid-template-columns: auto auto 1fr; gap: 14px; align-items: center; }
+.diagram-box, .diagram-card { border: 1px solid var(--wf-line); border-radius: 10px; padding: 10px; display: grid; gap: 6px; }
+.diagram-arrow { color: var(--wf-muted); font-size: 13px; }
+```
+
+</Diagram>
+
+<FileTree
+  id="ws4-files"
+  title="WS4 files"
+  entries={[
+    { path: "apps/server/src/services/appointment-autocomplete.service.ts", change: "added", note: "cron: find Booked past their window; call updateAppointment(status=completed) so credit+commission fire" },
+    { path: "packages/api/src/routers/appointments/bulk.procedures.ts", change: "added", note: "bulk markCompleted / cancelNoCharge looping updateAppointment (not a raw UPDATE)" },
+    { path: "apps/web/src/components/appointments/appointment-list.tsx", change: "modified", note: "add 'month' + 'today' ViewMode; multi-select toolbar; explicit coach/branch/status/date filter bar" },
+    { path: "apps/server/wrangler.jsonc", change: "modified", note: "register the auto-complete cron trigger" }
+  ]}
+/>
+
+---
+
+### WS5 — Month-based payroll period lock (P0)
+
+**Reuses:** `commission-cycle.service.ts` (`resolveCyclePolicy` / `deriveCycleBounds`), the `migrate-all-tenants` cron pattern. **Adds:** the `payroll_periods` entity, a grid UI, an auto-lock cron, and a write-gate in commission paths.
+
+Avantej locks per-split/per-batch; MOVE locks a whole month with auto-lock + grace and blocks back-dated edits. Without a period gate, a correction can silently land in a settled month and change already-paid totals. The cycle resolver is **per-branch**, so a payroll period is keyed `(branch, window)` — a multi-branch tenant on differing cycles can't be collapsed to one org-wide period.
+
+<DataModel
+  id="ws5-model"
+  entities={[
+    {
+      id: "payroll_periods",
+      name: "payroll_periods",
+      fields: [
+        { name: "id", type: "uuid", pk: true },
+        { name: "organization_id", type: "text" },
+        { name: "branch_node_id", type: "uuid", fk: "hierarchy_nodes.id" },
+        { name: "period_start", type: "date" },
+        { name: "period_end", type: "date" },
+        { name: "state", type: "enum('open','locked')" },
+        { name: "locked_at", type: "timestamptz", nullable: true },
+        { name: "locked_by", type: "text", nullable: true },
+        { name: "lock_kind", type: "enum('auto','manual')", nullable: true },
+        { name: "unlock_reason", type: "text", nullable: true }
+      ]
+    }
+  ]}
+/>
+
+<Checklist
+  id="ws5-checklist"
+  items={[
+    { id: "ws5-entity", label: "payroll_periods table + idempotent migration + gen:migrations" },
+    { id: "ws5-router", label: "router: list grid, lockNow (early close), unlock (mandatory reason)" },
+    { id: "ws5-cron", label: "auto-lock cron at period-end + 2-day grace (installment-sweep pattern)" },
+    { id: "ws5-gate", label: "write-gate: commission writes rejected into a locked period (corrections route to current open period as negative adjustments)" },
+    { id: "ws5-audit", label: "lock/unlock audit history surfaced in the grid" }
+  ]}
+/>
+
+---
+
+### WS6 — Self-service CSV import (P0, onboarding gate)
+
+**Reuses:** the migration `core/canonical.ts` DTOs, `core/crosswalk.ts` idempotency, and the **existing** loaders (`04-client`, `02-staff`, `03-product`, `01-location`, `07-appointment`). **Adds (net-new):** loaders for Packages, Payments, Payees, Service-categories, and Opening-balances (these do **not** exist yet — the bulk of the work), a dashboard route, a CSV parser (add `papaparse` — verify Workers/edge compatibility, or parse client-side in the browser), a `data-import/` router (preview + commit), per-entity templates, an `import_jobs` history table, and the `data_import:manage` permission (seed + backfill).
+
+This is the difference between developer-assisted and self-serve onboarding. Every new gym arrives with spreadsheets.
+
+<Diagram id="ws6-diagram" caption="Import pipeline — validate before commit, crosswalk for idempotent re-runs.">
+
+```html
+<div class="diagram-panel" data-rough>
+  <div class="diagram-node">CSV upload</div>
+  <div class="diagram-node">papaparse</div>
+  <div class="diagram-box">
+    <div class="diagram-node">importPreview</div>
+    <div class="diagram-muted">per-row Zod errors</div>
+  </div>
+  <div class="diagram-box">
+    <div class="diagram-node">importCommit (txn)</div>
+    <div class="diagram-muted">crosswalk upsert</div>
+  </div>
+  <div class="diagram-node">import_jobs log</div>
+</div>
+```
+
+```css
+.diagram-panel { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.diagram-box { border: 1px solid var(--wf-line); border-radius: 10px; padding: 10px; display: grid; gap: 4px; }
+```
+
+</Diagram>
+
+<Endpoint id="ws6-preview" method="POST" path="/rpc/dataImport/importPreview" summary="Validate a CSV before commit" auth="tenant admin, requirePermissionOrpc('data_import:manage')" params={[
+  { "name": "entity", "in": "body", "type": "enum", "required": true, "description": "clients|users|branches|serviceCategories|packageTemplates|payees|packages|payments|openingBalances" },
+  { "name": "csv", "in": "body", "type": "string", "required": true, "description": "raw CSV text" }
+]} responses={[
+  { "status": "200", "description": "Per-row validation result", "example": "{ \"rows\": [{ \"line\": 2, \"ok\": true }, { \"line\": 3, \"ok\": false, \"errors\": [\"email invalid\"] }], \"okCount\": 41, \"errorCount\": 1 }" }
+]}>
+
+Parses and validates every row against the entity's Zod schema without writing. The UI renders a preview table; commit is blocked until `errorCount === 0` (or the admin opts to skip error rows).
+
+</Endpoint>
+
+---
+
+### WS7 — CSV export catalogue (P1, pulled forward)
+
+**Reuses:** `runTenantExport`'s generic table enumeration (`Object.keys(tenantDb.query.*)`) as the dataset-discovery pattern. **Consolidates + adds:** there are three divergent CSV writers today — `apps/web/.../reports/export-csv.ts` (client, exported), and the **private** `escapeCsvField`/`rowToCsvLine` in `cancelled-sales.service.ts` plus a private writer in `scheduled-reports.service.ts`. WS6+WS7 extract one shared `packages/services/src/csv-codec.ts` (parse + serialize, FK-preserving) and migrate those callers onto it, then add a schema-driven ~25-dataset manifest, per-dataset exporters, an `exportAll` zip, and a tenant Export page.
+
+Import and export are the two halves of data portability; shipping them together means the codec, the entity manifest, and the templates are authored once and shared. Today the only full dump is a super-admin JSON blob tied to tenant deletion — not tenant-facing, and its delivery is a `data:` URL (R2 upload is an explicit TODO in `runTenantExport`), so large-export delivery is net-new.
+
+<FileTree
+  id="ws7-files"
+  title="WS6 + WS7 shared spine"
+  entries={[
+    { path: "packages/services/src/csv-codec.ts", change: "added", note: "shared: parse (WS6) + serialize (WS7), FK-preserving, chunked" },
+    { path: "packages/services/src/data-manifest.ts", change: "added", note: "the ~25-entity catalogue: columns, natural keys, FK order — drives both import templates and export" },
+    { path: "packages/api/src/routers/data-import/{validate,commit}.procedures.ts", change: "added", note: "WS6" },
+    { path: "packages/api/src/routers/data-export/index.ts", change: "added", note: "per-dataset export + exportAll (R2 zip)" },
+    { path: "apps/web/src/routes/_authenticated/dashboard/_layout/settings/{import,export}", change: "added", note: "entity picker + dropzone (import); per-dataset + Export-all (export)" }
+  ]}
+/>
+
+---
+
+### Sequencing
+
+<Diagram id="seq-diagram" caption="Currency unblocks the money reports; import+export share a spine and run in parallel.">
+
+```html
+<div class="diagram-panel" data-rough>
+  <div class="diagram-lane">
+    <div class="diagram-muted">Wave 1 — foundation</div>
+    <div class="diagram-node">WS1 currency</div>
+  </div>
+  <div class="diagram-lane">
+    <div class="diagram-muted">Wave 2 — money + compliance (parallel)</div>
+    <div class="diagram-node">WS2 reports</div>
+    <div class="diagram-node">WS3 tax + numbering</div>
+  </div>
+  <div class="diagram-lane">
+    <div class="diagram-muted">Wave 3 — ops automation (parallel)</div>
+    <div class="diagram-node">WS4 appointments</div>
+    <div class="diagram-node">WS5 payroll lock</div>
+  </div>
+  <div class="diagram-lane">
+    <div class="diagram-muted">Parallel track — data portability</div>
+    <div class="diagram-node">WS6 import + WS7 export (shared codec)</div>
+  </div>
+</div>
+```
+
+```css
+.diagram-panel { display: grid; gap: 12px; }
+.diagram-lane { border: 1px solid var(--wf-line); border-radius: 10px; padding: 10px 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.diagram-lane .diagram-muted { min-width: 210px; }
+```
+
+</Diagram>
+
+<Callout id="seq-note" tone="warning">
+
+WS1 is the critical path and is **not** a small currency-column add — it is schema surgery (two new columns, a corrective backfill over wrong `usd` defaults, a new source-of-truth column on `branch_details`, and `GROUP BY` rewrites). Budget it as the largest of the wave-1/2 items, since WS2 and WS3 money display sit behind it.
+
+</Callout>
+
+### Risks
+
+<Callout id="risk-backfill" tone="risk">
+
+**Currency backfill (WS1)** touches live money rows on every tenant. Follow the tenant-migration workflow strictly: idempotent SQL, add nullable → backfill from branch country → `NOT NULL`, commit the regenerated `*.generated.ts`, and verify with `bun verify:migrations` + `bun scripts/check-drift.ts` before rollout.
+
+</Callout>
+
+<Callout id="risk-bulk" tone="risk">
+
+**Bulk/auto appointment paths (WS4)** must not bypass `updateAppointment`. A raw `UPDATE appointments SET status='completed'` would skip credit debit and commission and silently break payouts — the exact domain rule CLAUDE.md protects. Every bulk/cron transition loops the existing mutation.
+
+</Callout>
+
+<Callout id="risk-import" tone="warning">
+
+**Import commit (WS6)** runs untrusted CSV against real inserts. Enforce `requirePermissionOrpc` + `assertOrgContextMatch`, cap row counts per job, run inside one transaction, and rely on the crosswalk so a double-submit upserts rather than duplicates.
+
+</Callout>
+
+### Verification
+
+<Checklist
+  id="verify"
+  items={[
+    { id: "v-currency", label: "Seed a MY+TH+SG tenant; commission ledger + branch revenue render one correct table per currency, no co-mingling" },
+    { id: "v-reports", label: "Each of the 10 reports returns row-level data scoped to a Branch Manager's accessibleNodeIds; CSV export matches the on-screen rows" },
+    { id: "v-numbering", label: "Concurrent invoice creation on one branch yields gapless, unique numbers with the branch prefix" },
+    { id: "v-appts", label: "A Booked session past its 24h window auto-completes: credit committed + coach commission row written (assert in tenant DB)" },
+    { id: "v-payroll", label: "Lock a month → a back-dated commission edit is rejected; unlock-with-reason writes an audit row" },
+    { id: "v-import", label: "Import a Clients CSV with one bad row: preview flags row, commit blocked; fix + re-import upserts (no duplicates)" },
+    { id: "v-export", label: "Export-all produces a zip whose Clients CSV round-trips back through import unchanged (ids/FKs preserved)" },
+    { id: "v-ci", label: "bun check-types, bun verify:migrations, bun scripts/check-drift.ts all green" }
+  ]}
+/>
+
+Then prove the end-to-end money + onboarding journeys in the browser against a staging tenant (the same PageAgent/chrome-devtools path used for the MOVE audit), not just unit tests.
+
+### Decisions (resolved)
+
+All four design forks are settled and folded into the workstreams above.
+
+<Table
+  id="decisions-table"
+  columns={["Decision", "Resolved", "Effect on plan"]}
+  rows={[
+    ["Payroll period fallback", "Fall back to calendar month when a branch has no cycle config", "WS5: every branch always locks; no config required to start"],
+    ["Reports storage", "Compute on read", "WS2: no snapshot tables/cron; virtualize + index for scale, always fresh"],
+    ["Import v1 scope", "Clients + Packages + Payments + Opening balances", "WS6: Clients reuses its loader; Packages/Payments/Opening-balances loaders are net-new and are v1's core work"],
+    ["Export delivery", "Inline CSV per dataset + R2 zip for Export-all", "WS7: large full-dump goes to R2 (delivery is net-new; runTenantExport R2 upload is a TODO today)"]
+  ]}
+/>
+
+### Open Questions
+
+<QuestionForm
+  id="open-questions"
+  questions={[
+    {
+      id: "q-scope-confirm",
+      title: "Anything to add or drop from the 7-workstream scope?",
+      subtitle: "Currently unanswered; implementation proceeds on the 7 workstreams as scoped unless changed.",
+      mode: "freeform",
+      placeholder: "e.g. pull Data Health into this program, or defer WS7 export..."
+    }
+  ]}
+  submitLabel="Send answers"
+/>
