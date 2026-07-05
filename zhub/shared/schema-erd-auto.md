@@ -2,10 +2,10 @@
 
 > **Do not edit by hand.** Regenerate with `bun scripts/gen-erd.ts`.
 
-Generated: 2026-06-12T11:13:01.191Z
-Tenant org: Plan F.3.5 Global Billing Test Org
-Control panel: 29 tables, 30 FKs
-Tenant: 104 tables, 179 FKs
+Generated: 2026-07-05T12:16:32.246Z
+Tenant org: MOVE Private Fitness
+Control panel: 33 tables, 36 FKs
+Tenant: 113 tables, 182 FKs
 
 ## Control Panel
 
@@ -17,6 +17,12 @@ erDiagram
   user ||--o{ admin_sessions : "admin_user_id cascade"
   user ||--o{ admin_sessions : "impersonated_user_id cascade"
   organizations ||--o{ admin_sessions : "organization_id set null"
+  email_domains ||--o{ email_domain_aliases : "email_domain_id cascade"
+  organizations ||--o{ email_domains : "organization_id cascade"
+  email_domains ||--o{ email_logs : "email_domain_id set null"
+  organizations ||--o{ email_logs : "organization_id cascade"
+  email_domain_aliases ||--o{ email_notification_routes : "alias_id set null"
+  organizations ||--o{ email_notification_routes : "organization_id cascade"
   organizations ||--o{ ghl_branch_links : "organization_id cascade"
   user ||--o{ invitation : "inviter_id cascade"
   organization ||--o{ invitation : "organization_id cascade"
@@ -43,7 +49,7 @@ erDiagram
   organizations ||--o{ tenant_usage_snapshots : "organization_id cascade"
 ```
 
-Tables: account, admin_session_actions, admin_sessions, comms_templates, ghl_branch_links, invitation, member, org_country_stripe_accounts, organization, organization_analytics, organization_branches, organization_members, organizations, payment_drift_log, platform_admins, platform_dispute_queue, platform_payment_ledger, processed_webhook_events, reconciliation_runs, reconciliation_state, session, subscriptions, tenant_deletions, tenant_feature_overrides, tenant_notes, tenant_tags, tenant_usage_snapshots, user, verification
+Tables: account, admin_session_actions, admin_sessions, comms_templates, email_domain_aliases, email_domains, email_logs, email_notification_routes, ghl_branch_links, invitation, member, org_country_stripe_accounts, organization, organization_analytics, organization_branches, organization_members, organizations, payment_drift_log, platform_admins, platform_dispute_queue, platform_payment_ledger, processed_webhook_events, reconciliation_runs, reconciliation_state, session, subscriptions, tenant_deletions, tenant_feature_overrides, tenant_notes, tenant_tags, tenant_usage_snapshots, user, verification
 
 ## Tenant — by domain
 
@@ -55,8 +61,8 @@ Tables: account, admin_session_actions, admin_sessions, comms_templates, ghl_bra
 erDiagram
   appointments ||--o{ appointment_clients : "appointment_id cascade"
   package_instances ||--o{ appointment_clients : "package_instance_id set null"
-  walk_in_customers ||--o{ appointment_clients : "walk_in_customer_id restrict"
   walk_in_customers ||--o{ appointment_clients : "walk_in_customer_id no action"
+  walk_in_customers ||--o{ appointment_clients : "walk_in_customer_id restrict"
   appointments ||--o{ appointment_staff : "appointment_id cascade"
   hierarchy_nodes ||--o{ appointments : "branch_id restrict"
   class_slots ||--o{ appointments : "class_slot_id set null"
@@ -74,8 +80,6 @@ erDiagram
   members ||--o{ class_slots : "instructor_id set null"
   services ||--o{ class_slots : "service_id cascade"
   members ||--o{ coach_intake_availability : "trainer_id cascade"
-  members ||--o{ coach_intake_availability : "trainer_id cascade"
-  members ||--o{ coach_intake_exceptions : "trainer_id cascade"
   members ||--o{ coach_intake_exceptions : "trainer_id cascade"
   service_categories ||--o{ member_category_buffer_overrides : "category_id cascade"
   members ||--o{ member_category_buffer_overrides : "member_id cascade"
@@ -177,7 +181,7 @@ erDiagram
 
 ### Misc
 
-**Tables**: account_groups, announcement_scopes, appointment_status_history, branch_details, branch_stats_cache, category_commission_config_versions, commission_cycle_configs, commission_split_reversals, commission_track_rates, commission_track_versions, commission_tracks, credit_point_ledger, goods_receipt_items, goods_receipts, households, lead_sources, membership_holds, package_instance_status_history, payment_status_history, payout_batches, product_prices, push_tokens, refund_items, sales_order_status_history, scheduled_reports, service_prices, stock_movements, supplier_invoices, trainer_availability_exceptions
+**Tables**: account_groups, announcement_scopes, appointment_status_history, branch_details, branch_number_sequences, branch_stats_cache, category_commission_config_versions, commission_cycle_configs, commission_incentive_awards, commission_incentives, commission_split_reversals, commission_track_rates, commission_track_versions, commission_tracks, credit_point_ledger, external_busy_blocks, ghl_pending_contacts, goods_receipt_items, goods_receipts, households, import_jobs, lead_sources, membership_holds, mig_xwalk, package_instance_status_history, payment_proofs, payment_status_history, payout_batches, payroll_periods, product_prices, push_tokens, refund_items, sales_order_status_history, scheduled_reports, service_prices, stock_movements, supplier_invoices, trainer_availability_exceptions
 
 ```mermaid
 erDiagram
@@ -188,6 +192,8 @@ erDiagram
   hierarchy_nodes ||--o{ branch_stats_cache : "hierarchy_node_id cascade"
   service_categories ||--o{ category_commission_config_versions : "category_id cascade"
   hierarchy_nodes ||--o{ commission_cycle_configs : "branch_id cascade"
+  commission_incentives ||--o{ commission_incentive_awards : "incentive_id cascade"
+  trainer_tiers ||--o{ commission_incentives : "trainer_tier_id set null"
   payouts ||--o{ commission_split_reversals : "payout_adjustment_id set null"
   refunds ||--o{ commission_split_reversals : "refund_id restrict"
   commission_split_reversals ||--o{ commission_split_reversals : "reversed_by_reversal_id set null"
@@ -196,6 +202,8 @@ erDiagram
   commission_tracks ||--o{ commission_track_rates : "track_id cascade"
   commission_tracks ||--o{ commission_track_versions : "track_id cascade"
   service_categories ||--o{ commission_tracks : "category_id restrict"
+  google_calendar_connections ||--o{ external_busy_blocks : "connection_id cascade"
+  members ||--o{ external_busy_blocks : "trainer_id cascade"
   goods_receipts ||--o{ goods_receipt_items : "goods_receipt_id cascade"
   products ||--o{ goods_receipt_items : "product_id restrict"
   purchase_order_items ||--o{ goods_receipt_items : "purchase_order_item_id restrict"
@@ -205,6 +213,7 @@ erDiagram
   members ||--o{ membership_holds : "member_id set null"
   package_instances ||--o{ membership_holds : "package_instance_id cascade"
   package_instances ||--o{ package_instance_status_history : "package_instance_id cascade"
+  package_instances ||--o{ payment_proofs : "package_instance_id cascade"
   payments ||--o{ payment_status_history : "payment_id cascade"
   hierarchy_nodes ||--o{ payout_batches : "branch_id set null"
   hierarchy_nodes ||--o{ product_prices : "branch_id cascade"
@@ -244,8 +253,8 @@ erDiagram
   members ||--o{ package_instances : "preferred_trainer_id no action"
   sales_orders ||--o{ package_instances : "sales_order_id no action"
   services ||--o{ package_instances : "service_id restrict"
-  walk_in_customers ||--o{ package_instances : "walk_in_customer_id no action"
   walk_in_customers ||--o{ package_instances : "walk_in_customer_id restrict"
+  walk_in_customers ||--o{ package_instances : "walk_in_customer_id no action"
   payments ||--o{ payment_items : "payment_id cascade"
   promotions ||--o{ payment_items : "promotion_id set null"
   tax_rates ||--o{ payment_items : "tax_rate_id set null"
@@ -293,14 +302,19 @@ erDiagram
 ### Standalone (no FKs)
 
 - audit_logs
+- branch_number_sequences
 - credit_point_ledger
 - dashboard_snapshots
+- ghl_pending_contacts
 - ghl_sync_events
 - ghl_user_links
+- import_jobs
 - installment_plans
+- mig_xwalk
 - notification_preferences
 - notifications
 - organization_settings
+- payroll_periods
 - push_tokens
 - scheduled_reports
 - user_activity_log
@@ -320,22 +334,27 @@ Detected via comment hints + naming conventions. Not enforced at DB level.
 | appointments | user_id | → | user.id (CP) | convention |
 | audit_logs | actor_user_id | → | members.userId | comment |
 | branch_details | pic_user_id | → | user.id (CP) | convention |
+| branch_details | receipt_prefix | → | tax_rates.id | comment |
 | brands | created_by | → | members.userId (text) | convention |
 | category_commission_config_versions | created_by | → | members.userId (text) | convention |
 | check_ins | client_id | → | members.userId (text) | convention |
 | check_ins | client_type | → | members.userId | comment |
 | commission_split_reversals | created_by | → | members.userId | comment |
 | commission_splits | approved_by | → | members.userId | comment |
+| commission_splits | contested_by | → | members.userId | comment |
 | commission_splits | created_by_user_id | → | user.id (CP) | convention |
 | commission_splits | paid_by | → | members.userId | comment |
+| commission_splits | resolved_by | → | members.userId | comment |
 | commission_splits | staff_id | → | members.userId | comment |
 | comms_templates | created_by_user_id | → | user.id (CP) | convention |
 | credit_point_ledger | actor_user_id | → | user.id (CP) | convention |
 | credit_point_ledger | customer_user_id | → | user.id (CP) | convention |
 | expenses | approved_by | → | members.userId (text) | convention |
+| ghl_pending_contacts | reviewed_by_user_id | → | user.id (CP) | convention |
 | ghl_user_links | ghl_user_id | → | user.id (CP) | convention |
 | ghl_user_links | user_id | → | user.id (CP) | convention |
 | households | created_by | → | members.userId (text) | convention |
+| import_jobs | created_by | → | members.userId (text) | convention |
 | invitations | invited_by | → | users.id | comment |
 | invoices | created_by | → | members.userId | comment |
 | invoices | customer_id | → | members.userId | comment |
@@ -385,9 +404,12 @@ Detected via comment hints + naming conventions. Not enforced at DB level.
 
 _None_
 
-### onDelete action mismatch (0)
+### onDelete action mismatch (2)
 
-_None_
+| FK | Schema | Live |
+|---|---|---|
+| appointment_clients.walk_in_customer_id | NO ACTION | RESTRICT |
+| package_instances.walk_in_customer_id | RESTRICT | NO ACTION |
 
 ### Live has FK, schema doesn't declare — UNEXPECTED (0)
 
@@ -404,9 +426,9 @@ Declared via raw migration to avoid Drizzle circular imports. Tracked in `INTENT
 | households | primary_contact_profile_id | → | customer_profiles | SET NULL |
 | refunds | payment_id | → | payments | RESTRICT |
 
-### Tables in live, not in schema source (0)
+### Tables in live, not in schema source (1)
 
-_None_
+- tenant: mig_xwalk
 
 ### Tables in schema source, not in live (0)
 

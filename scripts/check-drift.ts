@@ -87,7 +87,13 @@ const EXPECTED_DRIFT: { tenant: Baseline; controlPanel: Baseline } = {
 			"trainer_availability_exceptions.trainer_id",
 		],
 		// Schema declares onDelete:"restrict"; the live FK was created NO ACTION.
-		action_mismatches: ["appointment_clients.walk_in_customer_id"],
+		// Both walk_in_customer_id FKs share this pre-existing prod drift (surfaced
+		// when the baseline was regenerated against prod MOVE). Realigning the live
+		// FK action to match schema is a tracked follow-up, not a reconcile regression.
+		action_mismatches: [
+			"appointment_clients.walk_in_customer_id",
+			"package_instances.walk_in_customer_id",
+		],
 		// Legacy tables in live tenant DBs with no schema / migration / code refs.
 		orphan_tables: [
 			"commission_cycle_configs",
