@@ -239,6 +239,8 @@ export {
 	deleteHierarchyNode,
 	getAncestorNodeIds,
 	getDescendantNodeIds,
+	HierarchyDeleteBlockedError,
+	HierarchyNodeNotFoundError,
 	listNodesWithStats,
 	moveHierarchyNode,
 	type NodeWithStats,
@@ -709,3 +711,28 @@ export {
 	upsertTrack,
 	type UpsertTrackInput,
 } from "./commission-tracks.service";
+
+// Push notification tokens (native app) — restore barrel export lost in the
+// origin/main merge so the pushTokens router can resolve these.
+export {
+	type RegisterPushTokenParams,
+	registerPushToken,
+	unregisterPushToken,
+	getPushTokensForUser,
+} from "./push-token.service";
+
+// Commission incentive thresholds (UAT §12 — 3b)
+export {
+	computeIncentiveBonusCents,
+	monthlyPeriodKey,
+	createIncentive,
+	type CreateIncentiveInput,
+	listIncentives,
+	deactivateIncentive,
+	listIncentiveAwards,
+	evaluateIncentivesForPeriod,
+	type EvaluateIncentivesParams,
+	type EvaluateIncentivesResult,
+	type IncentiveRuleRow,
+	type IncentiveAwardRow,
+} from "./commission-incentive.service";

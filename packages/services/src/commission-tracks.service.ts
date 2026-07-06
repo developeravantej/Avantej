@@ -20,6 +20,7 @@ import type {
 	CommissionPaymentType,
 	CommissionPoolPolicy,
 	CommissionRoleType,
+	CommissionSalesType,
 	CommissionTrackScope,
 	CommissionTrigger,
 } from "@avantej-core/types";
@@ -52,6 +53,8 @@ export interface UpsertTrackInput {
 	basis: CommissionBasis;
 	paymentType: CommissionPaymentType;
 	poolPolicy: CommissionPoolPolicy;
+	/** UAT §12 — new | renewal | any. Defaults to "any" when omitted. */
+	salesType?: CommissionSalesType;
 	maxBeneficiaries: number;
 	/** Integer cents. Null = uncapped per cycle. */
 	maxPerCycleCents?: number | null;
@@ -160,6 +163,7 @@ export async function upsertTrack(
 					basis: input.basis,
 					paymentType: input.paymentType,
 					poolPolicy: input.poolPolicy,
+					salesType: input.salesType ?? "any",
 					maxBeneficiaries: input.maxBeneficiaries,
 					maxPerCycleCents: input.maxPerCycleCents ?? null,
 					capAmountCents: input.capAmountCents ?? null,
@@ -187,6 +191,7 @@ export async function upsertTrack(
 					basis: input.basis,
 					paymentType: input.paymentType,
 					poolPolicy: input.poolPolicy,
+					salesType: input.salesType ?? "any",
 					maxBeneficiaries: input.maxBeneficiaries,
 					maxPerCycleCents: input.maxPerCycleCents ?? null,
 					capAmountCents: input.capAmountCents ?? null,

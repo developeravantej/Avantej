@@ -22,6 +22,7 @@ import type {
 	CommissionPaymentType,
 	CommissionPoolPolicy,
 	CommissionRoleType,
+	CommissionSalesType,
 	CommissionTrackScope,
 	CommissionTrigger,
 } from "@avantej-core/types";
@@ -63,6 +64,12 @@ const POOL_POLICY_VALUES: [CommissionPoolPolicy, ...CommissionPoolPolicy[]] = [
 	"shared",
 ];
 
+const SALES_TYPE_VALUES: [CommissionSalesType, ...CommissionSalesType[]] = [
+	"new",
+	"renewal",
+	"any",
+];
+
 // ---------------------------------------------------------------------------
 // upsertTrack
 // ---------------------------------------------------------------------------
@@ -96,6 +103,7 @@ const upsertTrackProcedure = tenantProcedure
 				.max(10000)
 				.nullable()
 				.optional(),
+			salesType: z.enum(SALES_TYPE_VALUES).optional(),
 			isActive: z.boolean().optional(),
 		}),
 	)
@@ -118,6 +126,7 @@ const upsertTrackProcedure = tenantProcedure
 			basis: input.basis,
 			paymentType: input.paymentType,
 			poolPolicy: input.poolPolicy,
+			salesType: input.salesType,
 			maxBeneficiaries: input.maxBeneficiaries,
 			maxPerCycleCents: input.maxPerCycleCents,
 			capAmountCents: input.capAmountCents,

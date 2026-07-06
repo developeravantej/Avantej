@@ -14,6 +14,8 @@ import { classSlotsRouter } from "./class-slots";
 import { coachIntakeRouter } from "./coach-intake";
 import { commissionSplitsRouter } from "./commission-splits";
 import { commissionTracksRouter } from "./commission-tracks";
+import { commissionIncentivesRouter } from "./commission-incentives";
+import { pushTokensRouter } from "./push-tokens";
 import { customerDirectoryRouter } from "./customer-directory";
 import { customerProfilesRouter } from "./customer-profiles";
 import { dataExportRouter } from "./data-export";
@@ -115,6 +117,8 @@ export const baseRouter = {
 	waitlist: waitlistRouter,
 	commissionSplits: commissionSplitsRouter,
 	commissionTracks: commissionTracksRouter,
+	commissionIncentives: commissionIncentivesRouter,
+	pushTokens: pushTokensRouter,
 	categoryCommission: categoryCommissionRouter,
 	commissionCycle: commissionCycleRouter,
 	purchaseOrders: purchaseOrdersRouter,

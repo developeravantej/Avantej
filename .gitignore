@@ -121,6 +121,10 @@ _e2e/**/*.png
 _e2e/**/*.log
 _e2e/**/*.txt
 _e2e/results/report-*.json
+.cf-token
+
+# Cloudflare API token scratch files (never commit)
+.cf-token-staging
 .e2e-deploy/
 
 # E2E screenshot artifacts: contain tenant staff PII (names/emails) + large binaries.

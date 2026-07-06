@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Avantej — User Guide</title>
+<style>
+  :root {
+    --ink: #0f0f0f;
+    --muted: #6a6a63;
+    --line: #e3e2da;
+    --accent: #0a0a0a;          /* Avantej brand: monochrome black */
+    --accent-soft: #edece4;     /* warm off-white tint */
+    --bg: #ffffff;
+    --brand-bg: #ebe9e1;        /* app's warm off-white background */
+    --chip: #f1f0ea;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    margin: 0;
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  .page { max-width: 880px; margin: 0 auto; padding: 48px 56px 80px; }
+
+  /* Cover */
+  .cover {
+    min-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: var(--brand-bg);
+    margin: -48px -56px 0;
+    padding: 0 56px;
+    border-bottom: 1px solid var(--line);
+    page-break-after: always;
+  }
+  .cover .brand-mark { width: 96px; height: auto; margin-bottom: 26px; }
+  .cover .kicker { letter-spacing: .24em; text-transform: uppercase; font-size: 12px; color: var(--ink); font-weight: 700; }
+  .cover h1 { font-size: 58px; line-height: 1.02; margin: 12px 0 12px; letter-spacing: -.03em; }
+  .cover .sub { font-size: 19px; color: var(--muted); max-width: 560px; }
+  .cover .meta { margin-top: 44px; font-size: 13px; color: var(--muted); padding-top: 18px; border-top: 1px solid rgba(15,15,15,.12); display: inline-block; }
+
+  h2 {
+    font-size: 26px; letter-spacing: -.01em; margin: 0 0 4px;
+    padding-top: 8px;
+  }
+  .section { padding-top: 28px; margin-top: 28px; border-top: 1px solid var(--line); page-break-inside: avoid; }
+  .section:first-of-type { border-top: none; }
+  .section > .lead { color: var(--muted); margin: 2px 0 18px; }
+  h3 { font-size: 17px; margin: 22px 0 6px; }
+  p { margin: 8px 0; }
+
+  ul { margin: 8px 0; padding-left: 22px; }
+  li { margin: 4px 0; }
+
+  .task { font-weight: 600; }
+  .where {
+    display: inline-block; font-size: 12px; color: var(--muted);
+    background: var(--chip); border-radius: 6px; padding: 2px 8px; margin-bottom: 10px;
+    font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+  .steps { counter-reset: step; list-style: none; padding-left: 0; margin: 10px 0 14px; }
+  .steps li { counter-increment: step; padding-left: 34px; position: relative; margin: 6px 0; }
+  .steps li::before {
+    content: counter(step); position: absolute; left: 0; top: 0;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent);
+    font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+  .note {
+    background: var(--accent-soft); border-left: 3px solid var(--accent);
+    padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 14px 0; font-size: 14px;
+  }
+  .note strong { color: var(--accent); }
+
+  figure {
+    margin: 16px 0 20px; page-break-inside: avoid;
+  }
+  figure img {
+    width: 100%; height: auto; display: block;
+    border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.05);
+  }
+  figcaption {
+    font-size: 12.5px; color: var(--muted); margin-top: 7px; text-align: center;
+  }
+  .gallery {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0 4px;
+    page-break-inside: avoid;
+  }
+  .gallery figure { margin: 0; }
+  .gallery img { border-radius: 8px; }
+
+  /* TOC */
+  .toc { page-break-after: always; }
+  .toc h2 { border: none; }
+  .toc ol { columns: 2; column-gap: 40px; padding-left: 20px; }
+  .toc a { color: var(--ink); text-decoration: none; }
+  .toc a:hover { color: var(--accent); }
+
+  .roles { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 16px; }
+  .role { font-size: 12px; background: var(--chip); border-radius: 999px; padding: 3px 11px; color: var(--muted); }
+
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+
+  @page {
+    size: A4 portrait;
+    margin: 16mm 14mm;
+  }
+  @media print {
+    .page { padding: 0; max-width: none; margin: 0; }
+    /* full-bleed cover within A4 margins */
+    .cover { min-height: 247mm; margin: 0; padding: 0 6mm; }
+    a { color: var(--ink); }
+    .section { page-break-inside: auto; }
+    h2, h3 { page-break-after: avoid; }
+    figure, .gallery { page-break-inside: avoid; }
+    img { max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- COVER -->
+  <header class="cover">
+    <img class="brand-mark" src="images/avantej-mark.png" alt="Avantej fingerprint logo" />
+    <div class="kicker">User Guide</div>
+    <h1>Avantej</h1>
+    <p class="sub">Everything your front desk, managers, and trainers can do — explained in plain language, step by step.</p>
+    <div class="meta">
+      Gym &amp; Fitness Centre Management System<br />
+      Version 1.0 &nbsp;·&nbsp; Last updated 24 June 2026
+    </div>
+  </header>
+
+  <!-- TOC -->
+  <section class="toc">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#start">Getting Started</a></li>
+      <li><a href="#customers">Customers</a></li>
+      <li><a href="#members">Members &amp; Memberships</a></li>
+      <li><a href="#services">Services</a></li>
+      <li><a href="#appointments">Appointments</a></li>
+      <li><a href="#classes">Classes &amp; Coaching</a></li>
+      <li><a href="#attendance">Attendance &amp; Check-ins</a></li>
+      <li><a href="#pos">Point of Sale</a></li>
+      <li><a href="#packages">Packages</a></li>
+      <li><a href="#installments">Installment Plans</a></li>
+      <li><a href="#payments">Payments &amp; Refunds</a></li>
+      <li><a href="#products">Products &amp; Inventory</a></li>
+      <li><a href="#commissions">Commissions</a></li>
+      <li><a href="#payouts">Payouts</a></li>
+      <li><a href="#trainers">Trainers</a></li>
+      <li><a href="#promotions">Promotions</a></li>
+      <li><a href="#expenses">Expenses</a></li>
+      <li><a href="#comms">Announcements &amp; Notifications</a></li>
+      <li><a href="#reports">Reports</a></li>
+      <li><a href="#access">Staff Access &amp; Roles</a></li>
+      <li><a href="#settings">Settings &amp; Integrations</a></li>
+      <li><a href="#audit">Audit Log</a></li>
+      <li><a href="#platform">Platform Administration</a></li>
+    </ol>
+  </section>
+
+  <!-- GETTING STARTED -->
+  <section class="section" id="start">
+    <h2>1. Getting Started</h2>
+    <p class="lead">Signing in, setting up your gym, and finding your way around.</p>
+
+    <h3>Signing in</h3>
+    <ol class="steps">
+      <li>Open your gym's Avantej web address in any browser.</li>
+      <li>Enter your email and password, then select <em>Sign in</em>.</li>
+      <li>If you were invited by email, use the link in that invitation to set your password the first time.</li>
+    </ol>
+    <p>You can also be sent a one-time sign-in link by email if you forget your password.</p>
+
+    <h3>Setting up a new gym (onboarding)</h3>
+    <p>When your organisation is first created, an onboarding wizard walks you through entering your gym details, branches, and first staff members. You can return to setup at any time until it is complete.</p>
+
+    <h3>Finding your way around</h3>
+    <ul>
+      <li>The left sidebar is your main menu — every area in this guide lives there.</li>
+      <li>The dashboard <span class="task">Overview</span> shows your key numbers (sales, appointments, members) for today, this week, this month, or this year.</li>
+      <li>What you see depends on your role. A cashier sees fewer options than a manager.</li>
+    </ul>
+    <div class="note"><strong>Tip:</strong> If you were just given new permissions and don't see a menu item, sign out and back in to refresh your access.</div>
+
+    <figure>
+      <img src="images/overview.png" alt="Dashboard overview with KPIs and sidebar menu" />
+      <figcaption>The dashboard overview — key numbers up top, the main menu on the left.</figcaption>
+    </figure>
+  </section>
+
+  <!-- CUSTOMERS -->
+  <section class="section" id="customers">
+    <h2>2. Customers</h2>
+    <p class="lead">Your directory of everyone who buys from or trains at the gym.</p>
+    <div class="where">Sidebar → Customers</div>
+
+    <figure>
+      <img src="images/customers.png" alt="Customer list page" />
+      <figcaption>The customer directory — search, add, and open any customer.</figcaption>
+    </figure>
+    <figure>
+      <img src="images/walk-in.png" alt="Walk-in customers page" />
+      <figcaption>Walk-in customers — for one-off buyers who aren't members.</figcaption>
+    </figure>
+
+    <p>You can:</p>
+    <ul>
+      <li><span class="task">Add a new customer</span> — record their name, phone, and email.</li>
+      <li><span class="task">Add a walk-in customer</span> — for one-off buyers who aren't members.</li>
+      <li><span class="task">Edit a customer's name or email</span> at any time.</li>
+      <li><span class="task">Open a customer's profile</span> to see their purchases, packages, and appointments.</li>
+      <li><span class="task">Invite a customer to claim their account</span> — send them a sign-up link or magic link by email so they can log in to the member app.</li>
+      <li><span class="task">Group customers into a household</span> — link family members together and add or remove people.</li>
+      <li><span class="task">Remove a customer</span> (soft delete) and restore them later if needed.</li>
+      <li><span class="task">Record where a customer came from</span> using lead sources.</li>
+    </ul>
+
+    <h3>How to add a customer</h3>
+    <ol class="steps">
+      <li>Go to <em>Customers</em> in the sidebar.</li>
+      <li>Select <em>Add customer</em>.</li>
+      <li>Enter their name, phone, and email, then save.</li>
+      <li>Optionally select <em>Send claim link</em> so they can access the member app.</li>
+    </ol>
+  </section>
+
+  <!-- MEMBERS & MEMBERSHIPS -->
+  <section class="section" id="members">
+    <h2>3. Members &amp; Memberships</h2>
+    <p class="lead">Staff accounts and ongoing membership plans.</p>
+    <div class="where">Sidebar → Access Control · Memberships</div>
+
+    <figure>
+      <img src="images/memberships.png" alt="Memberships page" />
+      <figcaption>Membership plans and who is enrolled.</figcaption>
+    </figure>
+
+    <h3>Staff members</h3>
+    <ul>
+      <li><span class="task">Add a staff member</span> and assign their role.</li>
+      <li><span class="task">Suspend, reactivate, or deactivate</span> a staff member.</li>
+      <li><span class="task">Change a member's role or branch scope</span> — what they're allowed to see and do.</li>
+      <li><span class="task">Remove and restore</span> a member account.</li>
+    </ul>
+
+    <h3>Memberships</h3>
+    <ul>
+      <li><span class="task">View membership plans</span> and who is enrolled.</li>
+      <li><span class="task">Freeze a membership</span> when a customer pauses their plan.</li>
+    </ul>
+  </section>
+
+  <!-- SERVICES -->
+  <section class="section" id="services">
+    <h2>4. Services</h2>
+    <p class="lead">The treatments, sessions, and classes you sell.</p>
+    <div class="where">Sidebar → Services · Service Categories</div>
+
+    <figure>
+      <img src="images/services.png" alt="Services list page" />
+      <figcaption>Your service catalogue — create, edit, and price each service.</figcaption>
+    </figure>
+    <figure>
+      <img src="images/service-categories.png" alt="Service categories page" />
+      <figcaption>Organise services into categories.</figcaption>
+    </figure>
+
+    <ul>
+      <li><span class="task">Create a new service</span> — e.g. "Body Massage 60min" with its price and duration.</li>
+      <li><span class="task">Edit or duplicate a service</span> to quickly build similar ones.</li>
+      <li><span class="task">Set a different price per branch</span> — and expire or remove a branch price later.</li>
+      <li><span class="task">Organise services into categories</span> and create new categories.</li>
+      <li><span class="task">Assign which trainers can deliver a service</span> and set buffer times between sessions.</li>
+    </ul>
+
+    <h3>How to create a service</h3>
+    <ol class="steps">
+      <li>Go to <em>Services</em> and select <em>Create service</em>.</li>
+      <li>Enter the name, duration, and standard price.</li>
+      <li>Choose a category.</li>
+      <li>Save, then assign trainers from the trainer's profile if needed.</li>
+    </ol>
+  </section>
+
+  <!-- APPOINTMENTS -->
+  <section class="section" id="appointments">
+    <h2>5. Appointments</h2>
+    <p class="lead">Booking and managing one-on-one sessions.</p>
+    <div class="where">Sidebar → Appointments</div>
+
+    <figure>
+      <img src="images/appointments.png" alt="Appointments calendar page" />
+      <figcaption>The appointments view — book, reschedule, and manage sessions.</figcaption>
+    </figure>
+
+    <ul>
+      <li><span class="task">Book an appointment</span> for a customer with a chosen service, trainer, and time.</li>
+      <li><span class="task">Reschedule or update</span> an existing appointment.</li>
+      <li><span class="task">Cancel a single appointment</span>, all future ones, or a whole recurring series.</li>
+      <li><span class="task">Split a recurring series</span> when only part of it needs to change.</li>
+      <li><span class="task">Reinstate session credits</span> when an appointment is cancelled.</li>
+      <li><span class="task">Bulk-create appointments from a schedule</span> for recurring bookings.</li>
+    </ul>
+    <div class="note"><strong>Tip:</strong> Leave the trainer blank to let the rotation queue assign one automatically.</div>
+  </section>
+
+  <!-- CLASSES -->
+  <section class="section" id="classes">
+    <h2>6. Classes &amp; Coaching</h2>
+    <p class="lead">Group class slots and coach intake scheduling.</p>
+    <div class="where">Sidebar → Appointments → Class Slots</div>
+
+    <figure>
+      <img src="images/class-slots.png" alt="Class slots page" />
+      <figcaption>Group class slots — set times, capacity, and enroll clients.</figcaption>
+    </figure>
+
+    <ul>
+      <li><span class="task">Create a class slot</span> with a time, capacity, and trainer.</li>
+      <li><span class="task">Update or cancel</span> a class slot.</li>
+      <li><span class="task">Enrol a client</span> into a class, or cancel their enrollment.</li>
+      <li><span class="task">Set up coach intake slots</span> and let coaches claim or release them.</li>
+    </ul>
+  </section>
+
+  <!-- ATTENDANCE -->
+  <section class="section" id="attendance">
+    <h2>7. Attendance &amp; Check-ins</h2>
+    <p class="lead">Recording who showed up.</p>
+    <div class="where">Sidebar → Attendance</div>
+
+    <figure>
+      <img src="images/attendance.png" alt="Attendance page" />
+      <figcaption>Check customers in and review attendance history.</figcaption>
+    </figure>
+
+    <ul>
+      <li><span class="task">Check a customer in</span> when they arrive — one at a time or in bulk.</li>
+      <li><span class="task">View today's bookings</span> and check-in history.</li>
+      <li><span class="task">See a member's active package</span> at the moment of check-in.</li>
+      <li><span class="task">Remove a check-in</span> recorded by mistake.</li>
+    </ul>
+  </section>
+
+  <!-- POS -->
+  <section class="section" id="pos">
+    <h2>8. Point of Sale (POS)</h2>
+    <p class="lead">Ringing up sales at the front desk.</p>
+    <div class="where">Sidebar → POS (Sales → Create)</div>
+
+    <figure>
+      <img src="images/pos.png" alt="Point of sale checkout screen" />
+      <figcaption>The POS checkout — pick a customer, add items, apply promotions, take payment.</figcaption>
+    </figure>
+    <figure>
+      <img src="images/sales.png" alt="Sales list page" />
+      <figcaption>The sales list — with tabs for installments, payments, cancelled, and refunds.</figcaption>
+    </figure>
+
+    <ul>
+      <li><span class="task">Record a sale</span> — add services, products, or packages and take payment.</li>
+      <li><span class="task">Search for a customer</span> during checkout, or sell to a walk-in.</li>
+      <li><span class="task">Apply a promotion or tax</span> at checkout.</li>
+      <li><span class="task">View the sales list</span> with separate tabs for installments, payments, cancelled sales, and refunds.</li>
+      <li><span class="task">Open a sale's receipt</span> to see the full detail.</li>
+      <li><span class="task">Cancel a sale</span> when needed.</li>
+    </ul>
+
+    <h3>How to ring up a sale</h3>
+    <ol class="steps">
+      <li>Go to <em>Sales → Create</em>.</li>
+      <li>Search for and select the customer (or choose walk-in).</li>
+      <li>Add the services, products, or package to the cart.</li>
+      <li>Apply any promotion, then confirm the payment method.</li>
+      <li>Record the sale — the receipt is generated automatically.</li>
+    </ol>
+    <div class="note"><strong>Important:</strong> When selling a package on an installment plan, the POS shows the <em>installment amount due now</em>, not the full package price.</div>
+  </section>
+
+  <!-- PACKAGES -->
+  <section class="section" id="packages">
+    <h2>9. Packages</h2>
+    <p class="lead">Pre-paid bundles of sessions or services.</p>
+    <div class="where">Sidebar → Packages · Package Instances</div>
+
+    <figure>
+      <img src="images/packages.png" alt="Packages page" />
+      <figcaption>Pre-paid package offerings sold to customers.</figcaption>
+    </figure>
+    <figure>
+      <img src="images/package-instances.png" alt="Package instances page" />
+      <figcaption>Active package instances — the packages customers have bought.</figcaption>
+    </figure>
+
+    <ul>
+      <li><span class="task">Sell a package</span> to a customer (creates a package instance).</li>
+      <li><span class="task">Freeze, unfreeze, or extend</span> a package.</li>
+      <li><span class="task">Cancel or reject</span> a package.</li>
+      <li><span class="task">Assign a trainer</span> to a package and manage package staff.</li>
+      <li><span class="task">Confirm payment</span> and review pending packages.</li>
+      <li><span class="task">Bulk-assign packages</span> to multiple customers at once.</li>
+      <li><span class="task">Sign the package agreement</span> and upload or download payment proof.</li>
+    </ul>
+  </section>
+
+  <!-- INSTALLMENTS -->
+  <section class="section" id="installments">
+    <h2>10. Installment Plans</h2>
+    <p class="lead">Letting customers pay over time.</p>
+    <div class="where">Sidebar → Packages → Installments · Settings → Installment Plans</div>
+
+    <figure>
+      <img src="images/installments.png" alt="Installments page" />
+      <figcaption>Track installment schedules and confirm payments as they come due.</figcaption>
+    </figure>
+
+    <h3>Managing a customer's installments</h3>
+    <ul>
+      <li><span class="task">View the installment schedule</span> for a package and upcoming dues.</li>
+      <li><span class="task">Confirm a payment</span> or reschedule an installment.</li>
+      <li><span class="task">Waive an installment</span> or adjust credits.</li>
+      <li><span class="task">Suggest and process a refund</span> on installments.</li>
+      <li><span class="task">Set an overdraft, manually unlock, or reset overrides</span> for special cases.</li>
+      <li><span class="task">Export upcoming installments</span> to a CSV file.</li>
+    </ul>
+
+    <h3>Setting up plan templates</h3>
+    <ul>
+      <li><span class="task">Create installment plan templates</span> (e.g. 3-month, 6-month).</li>
+      <li><span class="task">Set a default plan</span>, and deactivate or reactivate plans.</li>
+    </ul>
+  </section>
+
+  <!-- PAYMENTS & REFUNDS -->
+  <section class="section" id="payments">
+    <h2>11. Payments &amp; Refunds</h2>
+    <p class="lead">Collecting money and giving it back.</p>
+    <div class="where">Sidebar → Sales &amp; Payments · Refunds</div>
+
+    <figure>
+      <img src="images/payments.png" alt="Payments page" />
+      <figcaption>Payment history and reconciliation.</figcaption>
+    </figure>
+
+    <h3>Payments</h3>
+    <ul>
+      <li><span class="task">Send a payment link</span> for a sale or an installment.</li>
+      <li><span class="task">Set up a card on file</span> for a customer.</li>
+      <li><span class="task">View payment history</span> and reconcile records.</li>
+    </ul>
+
+    <h3>Refunds</h3>
+    <figure>
+      <img src="images/refunds.png" alt="Refunds page" />
+      <figcaption>Request, approve, and process refunds.</figcaption>
+    </figure>
+    <ul>
+      <li><span class="task">Request a refund</span> (full or partial).</li>
+      <li><span class="task">Approve or reject</span> a refund request — single or in bulk.</li>
+      <li><span class="task">Process an approved refund</span> back to the customer.</li>
+    </ul>
+  </section>
+
+  <!-- PRODUCTS -->
+  <section class="section" id="products">
+    <h2>12. Products &amp; Inventory</h2>
+    <p class="lead">Retail items, brands, and units.</p>
+    <div class="where">Sidebar → Products · Brands · Categories · UOM</div>
+
+    <figure>
+      <img src="images/products.png" alt="Products page" />
+      <figcaption>Retail products available for sale.</figcaption>
+    </figure>
+
+    <ul>
+      <li><span class="task">Add and edit products</span> for retail sale.</li>
+      <li><span class="task">Set branch-specific prices</span> for products.</li>
+      <li><span class="task">Manage product categories and brands</span> — create, edit, delete.</li>
+      <li><span class="task">Define units of measure</span> and conversion rules (e.g. box → bottle).</li>
+    </ul>
+  </section>
+
+  <!-- COMMISSIONS -->
+  <section class="section" id="commissions">
+    <h2>13. Commissions</h2>
+    <p class="lead">Tracking what trainers and staff earn on sales.</p>
+    <div class="where">Sidebar → Commissions · My Commissions</div>
+
+    <figure>
+      <img src="images/commissions.png" alt="Commissions page" />
+      <figcaption>Commission splits earned across the gym — approve, void, or mark paid.</figcaption>
+    </figure>
+
+    <ul>
+      <li><span class="task">View commission splits</span> earned across the gym, or just your own.</li>
+      <li><span class="task">Approve, void, or mark a commission paid</span> — one at a time or in batches.</li>
+      <li><span class="task">Contest a commission</span> and resolve disputes or reviews.</li>
+      <li><span class="task">Make a manual commission adjustment</span> for special cases.</li>
+      <li><span class="task">Set commission cycles and category rates</span>.</li>
+      <li><span class="task">Export the commission liability</span> to a CSV file.</li>
+    </ul>
+    <div class="note"><strong>Note:</strong> Commission always reaches the trainer — whether they were specifically requested or assigned by the rotation queue.</div>
+  </section>
+
+  <!-- PAYOUTS -->
+  <section class="section" id="payouts">
+    <h2>14. Payouts</h2>
+    <p class="lead">Paying out what staff have earned.</p>
+    <div class="where">Sidebar → Approvals (Operations)</div>
+
+    <figure>
+      <img src="images/approvals.png" alt="Approvals and payouts page" />
+      <figcaption>The approvals queue where payout batches and other approvals are handled.</figcaption>
+    </figure>
+
+    <ul>
+      <li><span class="task">Run a payout batch</span> for a period.</li>
+      <li><span class="task">Process a payout for one recipient</span>.</li>
+      <li><span class="task">Mark a payout paid or failed</span>, retry, or cancel it.</li>
+    </ul>
+  </section>
+
+  <!-- TRAINERS -->
+  <section class="section" id="trainers">
+    <h2>15. Trainers</h2>
+    <p class="lead">Managing your coaching team.</p>
+    <div class="where">Sidebar → Trainers</div>
+
+    <figure>
+      <img src="images/trainers.png" alt="Trainers page" />
+      <figcaption>Your coaching team — schedules, stats, availability, and tiers.</figcaption>
+    </figure>
+
+    <ul>
+      <li><span class="task">View trainers</span>, their weekly schedule, and weekly stats.</li>
+      <li><span class="task">Set trainer availability</span> and add exceptions (days off).</li>
+      <li><span class="task">Check trainer utilisation</span> — how booked they are.</li>
+      <li><span class="task">Manage trainer tiers</span> — create tiers and assign them to staff.</li>
+    </ul>
+  </section>
+
+  <!-- PROMOTIONS -->
+  <section class="section" id="promotions">
+    <h2>16. Promotions</h2>
+    <p class="lead">Discounts and promo codes.</p>
+    <div class="where">Sidebar → Promotions</div>
+
+    <figure>
+      <img src="images/promotions.png" alt="Promotions page" />
+      <figcaption>Discounts and promo codes you can apply at checkout.</figcaption>
+    </figure>
+
+    <ul>
+      <li><span class="task">Create a promotion</span> with a value and validity dates.</li>
+      <li><span class="task">Edit or deactivate</span> a promotion.</li>
+      <li><span class="task">Validate a promo code</span> at checkout.</li>
+    </ul>
+  </section>
+
+  <!-- EXPENSES -->
+  <section class="section" id="expenses">
+    <h2>17. Expenses</h2>
+    <p class="lead">Recording money the gym spends.</p>
+    <div class="where">Sidebar → Expenses</div>
+
+    <figure>
+      <img src="images/expenses.png" alt="Expenses page" />
+      <figcaption>Record, approve, and pay out gym expenses.</figcaption>
+    </figure>
+
+    <ul>
+      <li><span class="task">Record an expense</span> and categorise it.</li>
+      <li><span class="task">Approve or reject</span> a submitted expense.</li>
+      <li><span class="task">Mark an expense as paid</span>.</li>
+    </ul>
+  </section>
+
+  <!-- COMMS -->
+  <section class="section" id="comms">
+    <h2>18. Announcements &amp; Notifications</h2>
+    <p class="lead">Keeping staff and members informed.</p>
+    <div class="where">Sidebar → Announcements · Notifications</div>
+
+    <figure>
+      <img src="images/announcements.png" alt="Announcements page" />
+      <figcaption>Post announcements to keep staff and members informed.</figcaption>
+    </figure>
+
+    <ul>
+      <li><span class="task">Post an announcement</span> — create, edit, or delete.</li>
+      <li><span class="task">Read your notifications</span> and mark them read (one or all).</li>
+      <li><span class="task">Set your notification preferences</span> — what you get alerted about.</li>
+    </ul>
+  </section>
+
+  <!-- REPORTS -->
+  <section class="section" id="reports">
+    <h2>19. Reports</h2>
+    <p class="lead">Understanding how the business is doing.</p>
+    <div class="where">Sidebar → Reports · Overview</div>
+
+    <figure>
+      <img src="images/reports.png" alt="Reports page" />
+      <figcaption>Business reports and analytics.</figcaption>
+    </figure>
+
+    <ul>
+      <li><span class="task">View business KPIs</span> on the dashboard overview by period.</li>
+      <li><span class="task">Open detailed reports</span> for sales, commissions, and more.</li>
+      <li><span class="task">Schedule reports</span> to be emailed automatically — create, toggle, or delete schedules.</li>
+    </ul>
+  </section>
+
+  <!-- ACCESS CONTROL -->
+  <section class="section" id="access">
+    <h2>20. Staff Access &amp; Roles</h2>
+    <p class="lead">Controlling who can do what.</p>
+    <div class="where">Sidebar → Access Control</div>
+
+    <figure>
+      <img src="images/access-control.png" alt="Roles and permissions page" />
+      <figcaption>Define roles and control what each one can access.</figcaption>
+    </figure>
+
+    <ul>
+      <li><span class="task">Create and edit roles</span> (e.g. Cashier, Manager) and delete unused ones.</li>
+      <li><span class="task">Set each role's permissions</span> — add or remove what they can access.</li>
+      <li><span class="task">Assign roles to users</span>.</li>
+      <li><span class="task">Invite new staff</span> by email — resend, revoke, or accept invitations.</li>
+    </ul>
+    <div class="note"><strong>Tip:</strong> System administrators bypass all permission checks. After changing someone's permissions, they may need to sign out and back in to see the change.</div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="section" id="settings">
+    <h2>21. Settings &amp; Integrations</h2>
+    <p class="lead">Configuring how the gym runs.</p>
+    <div class="where">Sidebar → Settings</div>
+
+    <figure>
+      <img src="images/settings-org.png" alt="Organisation settings page" />
+      <figcaption>Organisation settings — your gym's profile and configuration.</figcaption>
+    </figure>
+    <figure>
+      <img src="images/tax-rates.png" alt="Tax rates settings page" />
+      <figcaption>Tax rates — create rates and set a default for sales.</figcaption>
+    </figure>
+
+    <ul>
+      <li><span class="task">Organisation profile</span> — your gym's name, branding, and details.</li>
+      <li><span class="task">Branches &amp; rooms</span> — create branches, manage rooms and locations.</li>
+      <li><span class="task">Tax rates</span> — create rates, set a default, deactivate.</li>
+      <li><span class="task">Installment plans &amp; commission cycles</span> — payout schedules and plan templates.</li>
+      <li><span class="task">Email settings</span> — verify sending domains, manage aliases, and route notifications.</li>
+      <li><span class="task">Google Calendar</span> — connect, sync, or disconnect.</li>
+      <li><span class="task">GoHighLevel (CRM)</span> — connect your organisation or a branch and retry failed syncs.</li>
+    </ul>
+  </section>
+
+  <!-- AUDIT -->
+  <section class="section" id="audit">
+    <h2>22. Audit Log</h2>
+    <p class="lead">A record of who did what.</p>
+    <div class="where">Sidebar → Audit</div>
+
+    <figure>
+      <img src="images/audit.png" alt="Audit log page" />
+      <figcaption>A searchable record of who did what, exportable to CSV.</figcaption>
+    </figure>
+
+    <ul>
+      <li><span class="task">View the audit log</span> of actions taken in the system.</li>
+      <li><span class="task">Filter to one customer's history</span>.</li>
+      <li><span class="task">Export the log</span> to a CSV file.</li>
+    </ul>
+  </section>
+
+  <!-- PLATFORM ADMIN -->
+  <section class="section" id="platform">
+    <h2>23. Platform Administration</h2>
+    <p class="lead">For Avantej operators who manage multiple gyms (tenants). Most gym staff will not see this area.</p>
+    <div class="where">Sidebar → Platform Admin</div>
+
+    <figure>
+      <img src="images/pa-tenants.png" alt="Platform admin tenants page" />
+      <figcaption>Cross-tenant management — every gym on the platform, with its own admin menu.</figcaption>
+    </figure>
+    <figure>
+      <img src="images/pa-revenue.png" alt="Platform admin revenue page" />
+      <figcaption>Platform revenue KPIs, churn, and cohort retention.</figcaption>
+    </figure>
+    <figure>
+      <img src="images/pa-payments.png" alt="Platform admin payments page" />
+      <figcaption>Payment oversight — disputes, drift, and reconciliation.</figcaption>
+    </figure>
+
+    <ul>
+      <li><span class="task">Manage tenants</span> — provision, suspend, resume, cancel, issue credit, or re-trial a gym; request exports and deletions.</li>
+      <li><span class="task">Billing &amp; coupons</span> — view billing, create and apply coupons.</li>
+      <li><span class="task">Communications</span> — send direct messages and announcements (single or bulk), manage email templates.</li>
+      <li><span class="task">Payments oversight</span> — handle disputes, payment drift, and run reconciliation.</li>
+      <li><span class="task">Revenue &amp; health</span> — revenue KPIs, churn, cohort retention, renewal calendar, health scoreboard.</li>
+      <li><span class="task">System</span> — review migrations, webhook events, and audit actions; impersonate a user for support.</li>
+    </ul>
+
+    <h3>More platform admin screens</h3>
+    <div class="gallery">
+      <figure><img src="images/pa-overview.png" alt="Mission Control" /><figcaption>Mission Control — platform dashboard</figcaption></figure>
+      <figure><img src="images/pa-users.png" alt="Users" /><figcaption>Users — across all tenants</figcaption></figure>
+      <figure><img src="images/pa-renewals.png" alt="Renewals" /><figcaption>Renewals — subscription calendar</figcaption></figure>
+      <figure><img src="images/pa-comms.png" alt="Communications" /><figcaption>Comms — messages &amp; templates</figcaption></figure>
+      <figure><img src="images/pa-health.png" alt="Health" /><figcaption>Health — system scoreboard</figcaption></figure>
+      <figure><img src="images/pa-webhooks.png" alt="Webhooks" /><figcaption>Webhooks — event log</figcaption></figure>
+      <figure><img src="images/pa-audit.png" alt="Audit" /><figcaption>Audit — admin action log</figcaption></figure>
+    </div>
+  </section>
+
+  <footer>
+    Avantej User Guide · Generated 24 June 2026 · For internal use.<br />
+    To save as PDF: open this file in your browser and choose <em>Print → Save as PDF</em>.
+  </footer>
+
+</div>
+</body>
+</html>

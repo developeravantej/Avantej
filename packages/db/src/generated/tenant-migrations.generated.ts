@@ -5404,6 +5404,115 @@ CREATE TABLE IF NOT EXISTS "import_jobs" (
 CREATE INDEX IF NOT EXISTS "import_jobs_org_created_idx"
 	ON "import_jobs" ("organization_id", "created_at");
 ` },
+	{ hash: "0101_commission_track_sales_type", sql: `-- 0101_commission_track_sales_type (UAT §12 — renewal vs new-sale)
+-- Adds the new-vs-renewal scoping dimension to commission tracks. Default 'any'
+-- preserves every existing track's behaviour (fires regardless of sale type).
+-- Idempotent — safe to re-run on partially migrated tenant branches.
+
+ALTER TABLE "commission_tracks"
+	ADD COLUMN IF NOT EXISTS "sales_type" text NOT NULL DEFAULT 'any';
+` },
+	{ hash: "0102_commission_incentives", sql: `-- 0102_commission_incentives (UAT §12 — incentive thresholds)
+-- Rules table + idempotent award ledger. The UNIQUE(incentive_id, staff_id,
+-- period_key) on the awards table makes the period sweep exactly-once: a re-run
+-- inserts ON CONFLICT DO NOTHING and never double-pays a bonus.
+-- Idempotent — safe to re-run on partially migrated tenant branches.
+
+CREATE TABLE IF NOT EXISTS "commission_incentives" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" text NOT NULL,
+	"role_type" text NOT NULL DEFAULT 'sales',
+	"trainer_tier_id" uuid,
+	"period_type" text NOT NULL DEFAULT 'monthly',
+	"threshold_cents" integer NOT NULL,
+	"bonus_type" text NOT NULL DEFAULT 'fixed',
+	"bonus_value" integer NOT NULL,
+	"is_active" boolean NOT NULL DEFAULT true,
+	"created_at" timestamptz DEFAULT now() NOT NULL,
+	"updated_at" timestamptz DEFAULT now() NOT NULL
+);
+
+DO $$ BEGIN
+	ALTER TABLE "commission_incentives"
+		ADD CONSTRAINT "commission_incentives_trainer_tier_id_trainer_tiers_id_fk"
+		FOREIGN KEY ("trainer_tier_id") REFERENCES "trainer_tiers"("id")
+		ON DELETE set null ON UPDATE no action;
+EXCEPTION
+	WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE INDEX IF NOT EXISTS "commission_incentives_active_idx" ON "commission_incentives" ("is_active");
+CREATE INDEX IF NOT EXISTS "commission_incentives_role_idx" ON "commission_incentives" ("role_type");
+
+CREATE TABLE IF NOT EXISTS "commission_incentive_awards" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"incentive_id" uuid NOT NULL,
+	"staff_id" text NOT NULL,
+	"period_key" text NOT NULL,
+	"qualifying_total_cents" integer NOT NULL,
+	"threshold_cents" integer NOT NULL,
+	"bonus_cents" integer NOT NULL,
+	"awarded_at" timestamptz DEFAULT now() NOT NULL,
+	"created_at" timestamptz DEFAULT now() NOT NULL
+);
+
+DO $$ BEGIN
+	ALTER TABLE "commission_incentive_awards"
+		ADD CONSTRAINT "commission_incentive_awards_incentive_id_commission_incentives_id_fk"
+		FOREIGN KEY ("incentive_id") REFERENCES "commission_incentives"("id")
+		ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+	WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS "commission_incentive_awards_unique"
+	ON "commission_incentive_awards" ("incentive_id", "staff_id", "period_key");
+CREATE INDEX IF NOT EXISTS "commission_incentive_awards_staff_idx" ON "commission_incentive_awards" ("staff_id");
+CREATE INDEX IF NOT EXISTS "commission_incentive_awards_period_idx" ON "commission_incentive_awards" ("period_key");
+` },
+	{ hash: "0103_external_busy_blocks", sql: `-- 0103_external_busy_blocks (UAT §6 — Google Calendar pull-sync)
+-- Busy intervals pulled from a connected Google Calendar so a coach's bookable
+-- availability reflects events created outside Avantej. computeAvailableSlots
+-- subtracts these exactly like booked appointments. Idempotent — safe to re-run
+-- on partially migrated tenant branches.
+
+CREATE TABLE IF NOT EXISTS "external_busy_blocks" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"connection_id" uuid NOT NULL,
+	"trainer_id" uuid NOT NULL,
+	"google_event_id" text NOT NULL,
+	"start_time" timestamp with time zone NOT NULL,
+	"end_time" timestamp with time zone NOT NULL,
+	"summary" text,
+	"source" text DEFAULT 'google' NOT NULL,
+	"synced_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+
+DO $$ BEGIN
+	ALTER TABLE "external_busy_blocks"
+		ADD CONSTRAINT "external_busy_blocks_connection_id_google_calendar_connections_id_fk"
+		FOREIGN KEY ("connection_id") REFERENCES "google_calendar_connections"("id")
+		ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+	WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+	ALTER TABLE "external_busy_blocks"
+		ADD CONSTRAINT "external_busy_blocks_trainer_id_members_id_fk"
+		FOREIGN KEY ("trainer_id") REFERENCES "members"("id")
+		ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+	WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS "external_busy_blocks_connection_event_unique"
+	ON "external_busy_blocks" ("connection_id", "google_event_id");
+CREATE INDEX IF NOT EXISTS "external_busy_blocks_trainer_window_idx"
+	ON "external_busy_blocks" ("trainer_id", "start_time");
+CREATE INDEX IF NOT EXISTS "external_busy_blocks_connection_idx"
+	ON "external_busy_blocks" ("connection_id");
+` },
 ] as const;
 
 export const LATEST_MIGRATION_VERSION =

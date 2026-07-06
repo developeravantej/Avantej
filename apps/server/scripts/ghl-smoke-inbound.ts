@@ -69,7 +69,10 @@ function loadDevVars(): void {
 			const eq = trimmed.indexOf("=");
 			if (eq === -1) continue;
 			const key = trimmed.slice(0, eq).trim();
-			const value = trimmed.slice(eq + 1).trim().replace(/^"(.*)"$/, "$1");
+			const value = trimmed
+				.slice(eq + 1)
+				.trim()
+				.replace(/^"(.*)"$/, "$1");
 			if (!process.env[key]) process.env[key] = value;
 		}
 	} catch {
@@ -100,7 +103,9 @@ async function main() {
 	const doCreate = process.argv.includes("--create");
 	const url = `${baseUrl}/webhooks/gohighlevel/${locationId}`;
 
-	console.log(`GHL inbound smoke — server=${baseUrl} org=${orgId} location=${locationId}`);
+	console.log(
+		`GHL inbound smoke — server=${baseUrl} org=${orgId} location=${locationId}`,
+	);
 
 	const cpDb = getControlPanelDb();
 	const tenantDb = await getTenantDb(orgId);
@@ -124,7 +129,11 @@ async function main() {
 		})
 		.onConflictDoUpdate({
 			target: ghlBranchLinks.ghlLocationId,
-			set: { webhookSecret: secret, isActive: true, tenantBranchId: branchNodeId },
+			set: {
+				webhookSecret: secret,
+				isActive: true,
+				tenantBranchId: branchNodeId,
+			},
 		});
 	ok(`link active for location ${locationId} → branch ${branchNodeId}`);
 
@@ -182,14 +191,19 @@ async function main() {
 	});
 	const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
 	if (res.status !== 200 || json.received !== true) {
-		throw new Error(`expected 200 received:true, got ${res.status}: ${JSON.stringify(json)}`);
+		throw new Error(
+			`expected 200 received:true, got ${res.status}: ${JSON.stringify(json)}`,
+		);
 	}
 	ok(`webhook accepted (status field: ${String(json.status)})`);
 
 	// 4. Read back the durable webhook outputs from the tenant DB.
 	step("verify DB writes (ghl_sync_events + ghl_contact_links)");
 	const events = await tenantDb
-		.select({ status: ghlSyncEvents.status, eventType: ghlSyncEvents.eventType })
+		.select({
+			status: ghlSyncEvents.status,
+			eventType: ghlSyncEvents.eventType,
+		})
 		.from(ghlSyncEvents)
 		.where(eq(ghlSyncEvents.ghlContactId, contactId));
 	if (events.length === 0) {
@@ -198,7 +212,11 @@ async function main() {
 	ok(`ghl_sync_events row present (status=${events[0]?.status})`);
 
 	const links = await tenantDb
-		.select({ id: ghlContactLinks.id, userId: ghlContactLinks.userId, cpId: ghlContactLinks.customerProfileId })
+		.select({
+			id: ghlContactLinks.id,
+			userId: ghlContactLinks.userId,
+			cpId: ghlContactLinks.customerProfileId,
+		})
 		.from(ghlContactLinks)
 		.where(eq(ghlContactLinks.ghlContactId, contactId));
 	if (links.length > 0) {
@@ -212,27 +230,56 @@ async function main() {
 	const linkUserId = links[0]?.userId ?? null;
 	const linkCpId = links[0]?.cpId ?? null;
 	const cleanups: Array<[string, () => Promise<unknown>]> = [
-		["ghl_sync_events", () => tenantDb.delete(ghlSyncEvents).where(eq(ghlSyncEvents.ghlContactId, contactId))],
-		["ghl_contact_links", () => tenantDb.delete(ghlContactLinks).where(eq(ghlContactLinks.ghlContactId, contactId))],
+		[
+			"ghl_sync_events",
+			() =>
+				tenantDb
+					.delete(ghlSyncEvents)
+					.where(eq(ghlSyncEvents.ghlContactId, contactId)),
+		],
+		[
+			"ghl_contact_links",
+			() =>
+				tenantDb
+					.delete(ghlContactLinks)
+					.where(eq(ghlContactLinks.ghlContactId, contactId)),
+		],
 	];
 	if (linkCpId) {
-		cleanups.push(["customer_profiles", () => tenantDb.delete(customerProfiles).where(eq(customerProfiles.id, linkCpId))]);
+		cleanups.push([
+			"customer_profiles",
+			() =>
+				tenantDb
+					.delete(customerProfiles)
+					.where(eq(customerProfiles.id, linkCpId)),
+		]);
 	}
 	if (linkUserId) {
-		cleanups.push(["members", () => tenantDb.delete(members).where(eq(members.userId, linkUserId))]);
+		cleanups.push([
+			"members",
+			() => tenantDb.delete(members).where(eq(members.userId, linkUserId)),
+		]);
 	}
 	cleanups.push([
 		"customer_profiles(by placeholder user)",
 		async () => {
-			const u = await cpDb.select({ id: user.id }).from(user).where(eq(user.email, placeholderEmail));
+			const u = await cpDb
+				.select({ id: user.id })
+				.from(user)
+				.where(eq(user.email, placeholderEmail));
 			const uid = u[0]?.id;
 			if (uid) {
-				await tenantDb.delete(customerProfiles).where(eq(customerProfiles.userId, uid));
+				await tenantDb
+					.delete(customerProfiles)
+					.where(eq(customerProfiles.userId, uid));
 				await tenantDb.delete(members).where(eq(members.userId, uid));
 			}
 		},
 	]);
-	cleanups.push(["control-panel user", () => cpDb.delete(user).where(eq(user.email, placeholderEmail))]);
+	cleanups.push([
+		"control-panel user",
+		() => cpDb.delete(user).where(eq(user.email, placeholderEmail)),
+	]);
 
 	const residue: string[] = [];
 	for (const [name, fn] of cleanups) {
@@ -256,6 +303,8 @@ async function main() {
 main()
 	.then(() => process.exit(0))
 	.catch((e) => {
-		console.error(`\n❌ Inbound smoke FAILED: ${e instanceof Error ? e.message : e}`);
+		console.error(
+			`\n❌ Inbound smoke FAILED: ${e instanceof Error ? e.message : e}`,
+		);
 		process.exit(1);
 	});

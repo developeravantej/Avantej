@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { packageInstances } from "@avantej-core/db/schema/tenant/package-instances";
 import { services } from "@avantej-core/db/schema/tenant/services";
 import type * as tenantSchema from "@avantej-core/db/schema/tenant-schema";
@@ -128,18 +128,34 @@ export async function signPackageAgreement(
 	if (!existing) {
 		throw new Error(`Package instance not found: ${packageInstanceId}`);
 	}
+	// Fast-path rejection for an already-signed agreement (friendly error before
+	// touching the DB). The real guard is the conditional UPDATE below — between
+	// this read and the write a concurrent sign could land, so the immutability
+	// invariant must be enforced atomically, not by this check alone.
 	if (existing.signedAt) {
 		throw new AgreementAlreadySignedError(packageInstanceId);
 	}
 
-	await tenantDb
+	// Atomic compare-and-set: only sign if still unsigned. If a concurrent request
+	// signed first, 0 rows match and we treat it as already-signed (closes the
+	// TOCTOU between the read above and this update).
+	const result = await tenantDb
 		.update(packageInstances)
 		.set({
 			eSignature: encodeSignature(signature),
 			termsAgreedAt: signedAt,
 			updatedAt: new Date(),
 		})
-		.where(eq(packageInstances.id, packageInstanceId));
+		.where(
+			and(
+				eq(packageInstances.id, packageInstanceId),
+				isNull(packageInstances.termsAgreedAt),
+			),
+		);
+
+	if ((result.rowCount ?? 0) === 0) {
+		throw new AgreementAlreadySignedError(packageInstanceId);
+	}
 
 	return {
 		...existing,

@@ -1,6 +1,7 @@
 {
 	"$schema": "./node_modules/wrangler/config-schema.json",
-	"name": "avantej-core-web",
+	"name": "avantej-core",
+	"account_id": "a9c786e2839df3157985b75b9195a5dd",
 	"compatibility_date": "2025-04-03",
 	"assets": {
 		"not_found_handling": "single-page-application"
